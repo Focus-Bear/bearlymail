@@ -1,0 +1,59 @@
+# Koyeb deployment configuration for ADHD Email Client
+# This file helps configure the deployment on Koyeb platform
+
+services:
+  # Web Service (API)
+  - name: adhd-email-client-api
+    type: web
+    build:
+      type: dockerfile
+      dockerfile_path: ./server/Dockerfile
+    env:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3001"
+      - key: WORKER_MODE
+        value: "false"
+      # Add your environment variables in Koyeb dashboard:
+      # - DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD, DB_NAME, DB_SSL
+      # - JWT_SECRET
+      # - GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI
+      # - FRONTEND_URL
+      # - LLM_PROVIDER, GEMINI_API_KEY, OPENAI_API_KEY
+    regions:
+      - fra
+    instance_types:
+      - nano
+    scaling:
+      min: 1
+      max: 3
+    ports:
+      - port: 3001
+        path: /health
+    health_checks:
+      - port: 3001
+        path: /
+        interval: 30
+        timeout: 5
+        restart_limit: 3
+
+  # Worker Service (Background Jobs)
+  - name: adhd-email-client-worker
+    type: worker
+    build:
+      type: dockerfile
+      dockerfile_path: ./server/Dockerfile
+    env:
+      - key: NODE_ENV
+        value: production
+      - key: WORKER_MODE
+        value: "true"
+      # Worker needs same DB and API keys env vars as web service
+    regions:
+      - fra
+    instance_types:
+      - nano
+    scaling:
+      min: 1
+      max: 1

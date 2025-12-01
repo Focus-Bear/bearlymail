@@ -1,16 +1,28 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PriorityController } from './priority.controller';
 import { PriorityService } from './priority.service';
+import { PriorityLearningService } from './priority-learning.service';
+import { PriorityLearningProcessor } from './priority-learning.processor';
+import { TriageSuggestionsService } from './triage-suggestions.service';
 import { PriorityRule } from '../database/entities/priority-rule.entity';
 import { Email } from '../database/entities/email.entity';
 import { LLMModule } from '../llm/llm.module';
+import { UsersModule } from '../users/users.module';
+import { QueueModule } from '../queue/queue.module';
+import { EmailsModule } from '../emails/emails.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([PriorityRule, Email]), LLMModule],
+  imports: [
+    TypeOrmModule.forFeature([PriorityRule, Email]),
+    LLMModule,
+    QueueModule,
+    forwardRef(() => UsersModule),
+    forwardRef(() => EmailsModule),
+  ],
   controllers: [PriorityController],
-  providers: [PriorityService],
-  exports: [PriorityService],
+  providers: [PriorityService, PriorityLearningService, PriorityLearningProcessor, TriageSuggestionsService],
+  exports: [PriorityService, PriorityLearningService, TriageSuggestionsService],
 })
 export class PriorityModule {}
 

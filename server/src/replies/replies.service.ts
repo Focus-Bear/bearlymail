@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { EmailsService } from '../emails/emails.service';
+import { EmailProviderManager } from '../emails/email-provider-manager.service';
 import { ContextService } from '../context/context.service';
 import { LLMService } from '../llm/llm.service';
 import { ContextKey } from '../database/entities/user-context.entity';
 import { Email } from '../database/entities/email.entity';
 
 export interface ReplyRule {
-  ruleId?: number;
+  ruleId?: string;
   trigger: string; // e.g., "subject contains 'meeting'"
   template: string; // Reply template
   priority: number;
@@ -14,17 +15,18 @@ export interface ReplyRule {
 
 @Injectable()
 export class RepliesService {
-  private replyRules: Map<number, ReplyRule[]> = new Map();
+  private replyRules: Map<string, ReplyRule[]> = new Map();
 
   constructor(
     private emailsService: EmailsService,
+    private emailProviderManager: EmailProviderManager,
     private contextService: ContextService,
     private llmService: LLMService,
   ) {}
 
   async generateDraftReply(
-    userId: number,
-    emailId: number,
+    userId: string,
+    emailId: string,
     provider?: 'gemini' | 'openai',
   ): Promise<string> {
     const email = await this.emailsService.getEmailById(userId, emailId);
@@ -67,6 +69,7 @@ export class RepliesService {
           writingStyle,
         },
         provider as any,
+        userId,
       );
     } catch (error) {
       console.error('LLM reply generation failed, using fallback', error);
@@ -121,19 +124,19 @@ I'll review this and get back to you soon.
 ${closing}`;
   }
 
-  async createReplyRule(userId: number, rule: ReplyRule): Promise<ReplyRule> {
+  async createReplyRule(userId: string, rule: ReplyRule): Promise<ReplyRule> {
     const rules = this.replyRules.get(userId) || [];
-    rule.ruleId = Date.now(); // Simple ID generation
+    rule.ruleId = `${Date.now()}-${Math.random()}`; // Simple ID generation
     rules.push(rule);
     this.replyRules.set(userId, rules);
     return rule;
   }
 
-  async getReplyRules(userId: number): Promise<ReplyRule[]> {
+  async getReplyRules(userId: string): Promise<ReplyRule[]> {
     return this.replyRules.get(userId) || [];
   }
 
-  async updateReplyRule(userId: number, ruleId: number, updates: Partial<ReplyRule>): Promise<ReplyRule> {
+  async updateReplyRule(userId: string, ruleId: string, updates: Partial<ReplyRule>): Promise<ReplyRule> {
     const rules = this.replyRules.get(userId) || [];
     const index = rules.findIndex((r) => r.ruleId === ruleId);
     if (index !== -1) {
@@ -144,15 +147,15 @@ ${closing}`;
     throw new Error('Rule not found');
   }
 
-  async deleteReplyRule(userId: number, ruleId: number): Promise<void> {
+  async deleteReplyRule(userId: string, ruleId: string): Promise<void> {
     const rules = this.replyRules.get(userId) || [];
     const filtered = rules.filter((r) => r.ruleId !== ruleId);
     this.replyRules.set(userId, filtered);
   }
 
   async learnFromModification(
-    userId: number,
-    emailId: number,
+    userId: string,
+    emailId: string,
     originalDraft: string,
     modifiedDraft: string,
   ): Promise<ReplyRule> {
@@ -171,6 +174,37 @@ ${closing}`;
     };
 
     return this.createReplyRule(userId, rule);
+  }
+
+  async sendReply(
+    userId: string,
+    emailId: string,
+    body: string,
+  ): Promise<void> {
+    const email = await this.emailsService.getEmailById(userId, emailId);
+    if (!email) {
+      throw new Error('Email not found');
+    }
+
+    // Determine reply subject (add Re: if not already present)
+    let replySubject = email.subject;
+    if (!replySubject.toLowerCase().startsWith('re:')) {
+      replySubject = `Re: ${replySubject}`;
+    }
+
+    // Send reply via email provider (Gmail, Outlook, etc.)
+    const provider = await this.emailProviderManager.getPrimaryProvider(userId);
+    if (!provider) {
+      throw new Error('No email provider connected. Please connect your email account.');
+    }
+
+    await provider.sendReply(
+      userId,
+      email.threadId,
+      email.from,
+      replySubject,
+      body,
+    );
   }
 }
 

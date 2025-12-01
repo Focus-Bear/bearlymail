@@ -10,7 +10,7 @@ export class NotesService {
     private noteRepository: Repository<PrivateNote>,
   ) {}
 
-  async getNoteByThread(userId: number, threadId: string): Promise<PrivateNote | null> {
+  async getNoteByThread(userId: string, threadId: string): Promise<PrivateNote | null> {
     return this.noteRepository.findOne({
       where: { userId, emailThreadId: threadId },
       order: { createdAt: 'DESC' },
@@ -18,7 +18,7 @@ export class NotesService {
   }
 
   async createOrUpdateNote(
-    userId: number,
+    userId: string,
     threadId: string,
     content: string,
   ): Promise<PrivateNote> {
@@ -38,11 +38,11 @@ export class NotesService {
     return this.noteRepository.save(note);
   }
 
-  async deleteNote(userId: number, noteId: number): Promise<void> {
+  async deleteNote(userId: string, noteId: string): Promise<void> {
     await this.noteRepository.delete({ noteId, userId });
   }
 
-  async getAllNotes(userId: number): Promise<PrivateNote[]> {
+  async getAllNotes(userId: string): Promise<PrivateNote[]> {
     return this.noteRepository.find({
       where: { userId },
       order: { createdAt: 'DESC' },

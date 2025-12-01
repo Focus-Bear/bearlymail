@@ -18,19 +18,16 @@ export class PriorityService {
     private llmService: LLMService,
   ) {}
 
-  async calculatePriorityScore(
-    userId: number,
-    email: Partial<Email>,
-    useLLM: boolean = true,
-    provider?: 'gemini' | 'openai',
-  ): Promise<number> {
-    // Get all priority rules for the user
-    const rules = await this.priorityRuleRepository.find({
-      where: { userId },
-    });
-
-    // Apply explicit rules first (always use these)
+  // Calculate basic priority score without LLM (fast, synchronous)
+  // Accepts optional daysSinceLastEmail for exponential priority boost
+  calculateBasicPriorityScore(
+    email: Partial<Email>, 
+    rules: PriorityRule[], 
+    daysSinceLastEmail?: number
+  ): number {
     let baseScore = 50;
+    
+    // Apply explicit rules first
     const explicitRules = rules.filter((r) => r.ruleType === RuleType.EXPLICIT_SENDER);
     for (const rule of explicitRules) {
       if (this.matchesCondition(email, rule.conditionKey, rule.conditionVal)) {
@@ -38,55 +35,7 @@ export class PriorityService {
       }
     }
 
-    // Try LLM-based prioritization if enabled
-    if (useLLM) {
-      try {
-        // Get user's email history for context
-        const userEmails = await this.emailRepository.find({
-          where: { userId },
-          take: 50,
-          order: { receivedAt: 'DESC' },
-        });
-
-        const avgTimeToReply = userEmails.length > 0
-          ? userEmails
-              .filter((e) => e.timeToReply)
-              .reduce((sum, e) => sum + (e.timeToReply || 0), 0) / userEmails.filter((e) => e.timeToReply).length
-          : undefined;
-
-        const llmResult = await this.llmService.analyzePriority(
-          {
-            from: email.from || '',
-            fromName: email.fromName,
-            senderJobTitle: email.senderJobTitle,
-            subject: email.subject || '',
-            body: email.body || '',
-          },
-          {
-            averageTimeToReply: avgTimeToReply,
-          },
-          provider as any,
-        );
-
-        // Combine LLM score with rule-based adjustments
-        const llmScore = llmResult.score;
-        const combinedScore = (baseScore * 0.3) + (llmScore * 0.7);
-
-        this.logger.debug(`Priority: LLM=${llmScore}, Rules=${baseScore}, Combined=${combinedScore}, Urgent=${llmResult.isUrgent}`);
-
-        // Update email urgency flag if LLM detected it
-        if (llmResult.isUrgent && email.id) {
-          await this.emailRepository.update({ id: email.id }, { isUrgent: true });
-        }
-
-        return Math.max(0, Math.min(100, combinedScore));
-      } catch (error) {
-        this.logger.warn('LLM prioritization failed, falling back to rule-based', error);
-        // Fall through to rule-based calculation
-      }
-    }
-
-    // Fallback to rule-based calculation
+    // Rule-based calculation (no LLM)
     const implicitRules = rules.filter((r) => r.ruleType === RuleType.IMPLICIT_BEHAVIOR);
     
     // Sentiment analysis
@@ -102,12 +51,61 @@ export class PriorityService {
     // Time to reply (if available from history)
     if (email.timeToReply) {
       const timeWeight = this.getWeight(implicitRules, 'time');
-      const normalizedTime = Math.max(0, Math.min(1, 1 - email.timeToReply / 168)); // Normalize to 0-1 (168 hours = 1 week)
+      const normalizedTime = Math.max(0, Math.min(1, 1 - email.timeToReply / 168));
       baseScore += timeWeight * normalizedTime * 15;
+    }
+
+    // Days since last email - exponential increase in priority the longer it's been
+    // This factor encourages replying to older conversations that may have been forgotten
+    if (daysSinceLastEmail !== undefined && daysSinceLastEmail > 0) {
+      // Exponential boost: 1 day = +2, 2 days = +4, 3 days = +8, 7 days = +15, 14 days = +25, 30 days = +30 (capped)
+      // Formula: min(30, 2 * (daysSinceLastEmail^1.5))
+      const daysBoost = Math.min(30, 2 * Math.pow(daysSinceLastEmail, 1.5));
+      baseScore += daysBoost;
+    }
+
+    // Urgent keywords boost
+    if (this.checkIfUrgent(email)) {
+      baseScore += 20;
     }
 
     // Ensure score is between 0-100
     return Math.max(0, Math.min(100, baseScore));
+  }
+
+  private checkIfUrgent(email: Partial<Email>): boolean {
+    const urgentKeywords = ['urgent', 'asap', 'critical', 'emergency', 'immediate'];
+    const subjectLower = (email.subject || '').toLowerCase();
+    const bodyLower = (email.body || '').toLowerCase();
+    return urgentKeywords.some((keyword) => 
+      subjectLower.includes(keyword) || bodyLower.includes(keyword)
+    );
+  }
+
+  async calculatePriorityScore(
+    userId: string,
+    email: Partial<Email>,
+    useLLM: boolean = true,
+    provider?: 'gemini' | 'openai',
+  ): Promise<number> {
+    // Get all priority rules for the user
+    const rules = await this.priorityRuleRepository.find({
+      where: { userId },
+    });
+
+    // Return basic score immediately (fast, no LLM)
+    return this.calculateBasicPriorityScore(email, rules);
+  }
+
+  // Queue LLM-based priority refinement (async)
+  async queueLLMPriorityRefinement(
+    userId: string,
+    emailId: string,
+    provider?: 'gemini' | 'openai',
+  ): Promise<void> {
+    // This will be called from a background job processor
+    // For now, we'll just mark it as processing
+    // The actual LLM call will happen in the processor
   }
 
   private matchesCondition(email: Partial<Email>, key: string, value: string): boolean {
@@ -159,14 +157,14 @@ export class PriorityService {
     return rule ? parseFloat(rule.conditionVal) || 0.5 : 0.5;
   }
 
-  async getPriorityRules(userId: number): Promise<PriorityRule[]> {
+  async getPriorityRules(userId: string): Promise<PriorityRule[]> {
     return this.priorityRuleRepository.find({
       where: { userId },
       order: { createdAt: 'DESC' },
     });
   }
 
-  async createPriorityRule(userId: number, rule: Partial<PriorityRule>): Promise<PriorityRule> {
+  async createPriorityRule(userId: string, rule: Partial<PriorityRule>): Promise<PriorityRule> {
     const newRule = this.priorityRuleRepository.create({
       ...rule,
       userId,
@@ -174,12 +172,12 @@ export class PriorityService {
     return this.priorityRuleRepository.save(newRule);
   }
 
-  async updatePriorityRule(ruleId: number, userId: number, updates: Partial<PriorityRule>): Promise<PriorityRule> {
+  async updatePriorityRule(ruleId: string, userId: string, updates: Partial<PriorityRule>): Promise<PriorityRule> {
     await this.priorityRuleRepository.update({ ruleId, userId }, updates);
     return this.priorityRuleRepository.findOne({ where: { ruleId, userId } });
   }
 
-  async deletePriorityRule(ruleId: number, userId: number): Promise<void> {
+  async deletePriorityRule(ruleId: string, userId: string): Promise<void> {
     await this.priorityRuleRepository.delete({ ruleId, userId });
   }
 }

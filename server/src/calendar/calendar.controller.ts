@@ -21,7 +21,7 @@ export class CalendarController {
     return {
       draft: await this.calendarService.generateMeetingReply(
         req.user.userId,
-        parseInt(id),
+        id,
         body?.provider,
       ),
     };

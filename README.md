@@ -75,11 +75,29 @@ GEMINI_API_KEY=your-gemini-api-key
 GEMINI_MODEL=gemini-pro
 OPENAI_API_KEY=your-openai-api-key
 OPENAI_MODEL=gpt-3.5-turbo
+
+# Encryption Key (REQUIRED - Use a secure random 32+ character string)
+# Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+ENCRYPTION_KEY=your-secure-encryption-key-here
+
+# Privacy & Terms Version (for consent tracking)
+TERMS_VERSION=1.0.0
+PRIVACY_VERSION=1.0.0
+
+# RevenueCat API Key (optional - for subscription management)
+REVENUECAT_API_KEY=your-revenuecat-api-key
 ```
 
 **Frontend** (`client/.env`):
 ```env
 REACT_APP_API_URL=http://localhost:3001
+
+# PostHog Analytics (optional)
+REACT_APP_POSTHOG_API_KEY=your-posthog-project-api-key
+REACT_APP_POSTHOG_API_HOST=https://us.i.posthog.com
+
+# RevenueCat (optional - for subscription management)
+REACT_APP_REVENUECAT_API_KEY=your-revenuecat-public-api-key
 ```
 
 4. Set up PostgreSQL database:

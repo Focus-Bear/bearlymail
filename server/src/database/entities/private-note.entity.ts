@@ -1,18 +1,19 @@
 import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, CreateDateColumn, JoinColumn } from 'typeorm';
 import { User } from './user.entity';
+import { encryptedColumnTransformer } from '../../encryption/encryption.helper';
 
 @Entity('private_notes')
 export class PrivateNote {
-  @PrimaryGeneratedColumn()
-  noteId: number;
+  @PrimaryGeneratedColumn('uuid')
+  noteId: string;
 
   @Column()
-  userId: number;
+  userId: string;
 
   @Column()
   emailThreadId: string;
 
-  @Column('text')
+  @Column('text', { transformer: encryptedColumnTransformer })
   content: string;
 
   @CreateDateColumn()

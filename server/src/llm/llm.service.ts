@@ -1,7 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import OpenAI from 'openai';
+import { UsersService } from '../users/users.service';
 
 export enum LLMProvider {
   GEMINI = 'gemini',
@@ -13,6 +14,7 @@ export interface LLMRequest {
   systemPrompt?: string;
   temperature?: number;
   maxTokens?: number;
+  userId?: string; // Optional userId to use user's API key
 }
 
 @Injectable()
@@ -22,9 +24,13 @@ export class LLMService {
   private openaiClient: OpenAI | null = null;
   private defaultProvider: LLMProvider;
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    @Inject(forwardRef(() => UsersService))
+    private usersService: UsersService,
+  ) {
     this.initializeClients();
-    this.defaultProvider = (this.configService.get<string>('LLM_PROVIDER') || 'gemini').toLowerCase() as LLMProvider;
+    this.defaultProvider = (this.configService.get<string>('LLM_PROVIDER') || 'openai').toLowerCase() as LLMProvider;
   }
 
   private initializeClients() {
@@ -58,81 +64,121 @@ export class LLMService {
   async generateText(
     request: LLMRequest,
     provider?: LLMProvider,
+    userId?: string,
   ): Promise<string> {
     const selectedProvider = provider || this.defaultProvider;
+    const effectiveUserId = userId || request.userId;
 
     try {
       switch (selectedProvider) {
         case LLMProvider.GEMINI:
-          return await this.generateWithGemini(request);
+          return await this.generateWithGemini(request, effectiveUserId);
         case LLMProvider.OPENAI:
-          return await this.generateWithOpenAI(request);
+          return await this.generateWithOpenAI(request, effectiveUserId);
         default:
           throw new Error(`Unsupported LLM provider: ${selectedProvider}`);
       }
     } catch (error) {
       this.logger.error(`Error generating text with ${selectedProvider}`, error);
       // Fallback to the other provider if available
-      if (selectedProvider === LLMProvider.GEMINI && this.openaiClient) {
-        this.logger.log('Falling back to OpenAI');
-        return await this.generateWithOpenAI(request);
-      } else if (selectedProvider === LLMProvider.OPENAI && this.geminiClient) {
-        this.logger.log('Falling back to Gemini');
-        return await this.generateWithGemini(request);
+      if (selectedProvider === LLMProvider.GEMINI) {
+        this.logger.log(`Gemini failed, falling back to OpenAI (default provider)`);
+        return await this.generateWithOpenAI(request, effectiveUserId);
+      } else if (selectedProvider === LLMProvider.OPENAI) {
+        this.logger.log(`OpenAI failed, falling back to Gemini`);
+        return await this.generateWithGemini(request, effectiveUserId);
       }
       throw error;
     }
   }
 
-  private async generateWithGemini(request: LLMRequest): Promise<string> {
+  private async retryOperation<T>(operation: () => Promise<T>, maxRetries: number = 3): Promise<T> {
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        return await operation();
+      } catch (error) {
+        if (i === maxRetries - 1) throw error;
+        const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+        this.logger.warn(`LLM operation failed, retrying in ${Math.round(delay)}ms... (Attempt ${i + 1}/${maxRetries})`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+    throw new Error('Max retries exceeded');
+  }
+
+  private async generateWithGemini(request: LLMRequest, userId?: string): Promise<string> {
+    // Note: Gemini doesn't support user-specific API keys, always uses system key
     if (!this.geminiClient) {
       throw new Error('Gemini client not initialized');
     }
 
-    const modelName = this.configService.get<string>('GEMINI_MODEL') || 'gemini-pro';
+    const modelName = this.configService.get<string>('GEMINI_MODEL') || 'gemini-1.5-flash';
     this.logger.log(`Generating text using Gemini model: ${modelName}`);
 
-    const model = this.geminiClient.getGenerativeModel({
-      model: modelName,
+    return this.retryOperation(async () => {
+      const model = this.geminiClient!.getGenerativeModel({
+        model: modelName,
+      });
+
+      const fullPrompt = request.systemPrompt
+        ? `${request.systemPrompt}\n\n${request.prompt}`
+        : request.prompt;
+
+      const result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
+        generationConfig: {
+          temperature: request.temperature || 0.7,
+          maxOutputTokens: request.maxTokens || 2048,
+        },
+      });
+
+      const response = result.response;
+      return response.text();
     });
-
-    const fullPrompt = request.systemPrompt
-      ? `${request.systemPrompt}\n\n${request.prompt}`
-      : request.prompt;
-
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
-      generationConfig: {
-        temperature: request.temperature || 0.7,
-        maxOutputTokens: request.maxTokens || 2048,
-      },
-    });
-
-    const response = result.response;
-    return response.text();
   }
 
-  private async generateWithOpenAI(request: LLMRequest): Promise<string> {
-    if (!this.openaiClient) {
+  private async generateWithOpenAI(request: LLMRequest, userId?: string): Promise<string> {
+    // Try to get user's API key if userId is provided
+    let openaiClient = this.openaiClient;
+    let apiKeySource = 'system';
+
+    if (userId) {
+      try {
+        const user = await this.usersService.findOne(userId);
+        if (user?.openAiApiKey) {
+          // User has their own API key - create a client with it
+          openaiClient = new OpenAI({ apiKey: user.openAiApiKey });
+          apiKeySource = 'user';
+          this.logger.debug(`Using user's OpenAI API key for user ${userId}`);
+        }
+      } catch (error) {
+        this.logger.warn(`Failed to fetch user's API key for ${userId}, using system key`, error);
+      }
+    }
+
+    if (!openaiClient) {
       throw new Error('OpenAI client not initialized');
     }
 
     const model = this.configService.get<string>('OPENAI_MODEL') || 'gpt-3.5-turbo';
 
-    const messages: any[] = [];
-    if (request.systemPrompt) {
-      messages.push({ role: 'system', content: request.systemPrompt });
-    }
-    messages.push({ role: 'user', content: request.prompt });
+    return this.retryOperation(async () => {
+      const messages: any[] = [];
+      if (request.systemPrompt) {
+        messages.push({ role: 'system', content: request.systemPrompt });
+      }
+      messages.push({ role: 'user', content: request.prompt });
 
-    const completion = await this.openaiClient.chat.completions.create({
-      model,
-      messages,
-      temperature: request.temperature || 0.7,
-      max_tokens: request.maxTokens || 2048,
+      this.logger.debug(`Generating text with OpenAI using ${apiKeySource} API key${request.userId ? ` (userId: ${request.userId})` : ''}`);
+      const completion = await openaiClient!.chat.completions.create({
+        model,
+        messages,
+        temperature: request.temperature || 0.7,
+        max_tokens: request.maxTokens || 2048,
+      });
+
+      return completion.choices[0]?.message?.content || '';
     });
-
-    return completion.choices[0]?.message?.content || '';
   }
 
   async summarizeEmail(
@@ -140,6 +186,7 @@ export class LLMService {
     emailSubject: string,
     summaryType: 'tldr' | 'bullet-points' | 'action-items' | 'sender-request' | 'custom',
     provider?: LLMProvider,
+    userId?: string,
   ): Promise<string> {
     const systemPrompts = {
       tldr: 'You are a helpful assistant that creates concise TL;DR summaries of emails. Be brief and capture the key points.',
@@ -149,14 +196,30 @@ export class LLMService {
       'custom': 'You are a helpful assistant that summarizes emails based on specific user instructions.',
     };
 
-    const prompt = `Email Subject: ${emailSubject}\n\nEmail Body:\n${emailBody}\n\nPlease provide a ${summaryType} summary.`;
+    // Optimized for prompt caching: static instruction at start, dynamic content at end
+    const summaryInstruction = summaryType === 'tldr' 
+      ? 'Please provide a concise TL;DR summary'
+      : summaryType === 'bullet-points'
+      ? 'Please provide a bullet-point summary'
+      : summaryType === 'action-items'
+      ? 'Please extract action items'
+      : 'Please identify what the sender is requesting';
+    
+    // Check if this is a thread (contains multiple messages)
+    const isThread = emailBody.includes('[Message') && emailBody.includes('---');
+    const contextNote = isThread 
+      ? 'This is an email thread with multiple messages. Summarize the entire conversation, focusing on the most recent developments and key points across all messages.'
+      : '';
+    
+    const prompt = `${summaryInstruction}${isThread ? ' for the following email thread' : ' for the following email'}:\n\nSubject: ${emailSubject}\n\n${contextNote ? contextNote + '\n\n' : ''}Body:\n${emailBody}`;
 
     return await this.generateText({
       prompt,
       systemPrompt: systemPrompts[summaryType],
       temperature: 0.5,
       maxTokens: 500,
-    }, provider);
+      userId,
+    }, provider, userId);
   }
 
   async generateReplyDraft(
@@ -172,6 +235,7 @@ export class LLMService {
       writingStyle?: string;
     },
     provider?: LLMProvider,
+    userId?: string,
   ): Promise<string> {
     const tone = userContext.tone || 'professional';
     const styleGuidance = userContext.writingStyle
@@ -205,7 +269,8 @@ Generate a reply draft that:
       systemPrompt,
       temperature: 0.7,
       maxTokens: 1000,
-    }, provider);
+      userId,
+    }, provider, userId);
   }
 
   async generateMeetingReply(
@@ -218,6 +283,7 @@ Generate a reply draft that:
     availableSlots: Array<{ start: string; end: string }>,
     calendarBookingUrl?: string,
     provider?: LLMProvider,
+    userId?: string,
   ): Promise<string> {
     // Handle empty slots case
     if (availableSlots.length === 0) {
@@ -234,7 +300,8 @@ I don't have any available slots in the next week. Generate a professional, poli
         systemPrompt,
         temperature: 0.7,
         maxTokens: 400,
-      }, provider);
+        userId,
+      }, provider, userId);
     }
     const slotsText = availableSlots
       .slice(0, 5)
@@ -271,7 +338,8 @@ Generate a professional reply that:
       systemPrompt,
       temperature: 0.7,
       maxTokens: 800,
-    }, provider);
+      userId,
+    }, provider, userId);
   }
 
   async analyzePriority(
@@ -287,6 +355,7 @@ Generate a professional reply that:
       similarEmailsReplyTime?: number;
     },
     provider?: LLMProvider,
+    userId?: string,
   ): Promise<{ score: number; reasoning: string; isUrgent: boolean }> {
     const systemPrompt = `You are an email prioritization assistant. Analyze emails and assign a priority score from 0-100.
 Consider:
@@ -295,27 +364,24 @@ Consider:
 - Subject line indicators
 - User's historical response patterns
 
+IMPORTANT: Only mark an email as urgent (isUrgent: true) if it requires IMMEDIATE attention - true emergencies, critical deadlines, or time-sensitive requests that cannot wait. Regular high-priority emails should have high scores (80-90) but isUrgent should be false unless it's truly urgent.
+
 Return a JSON object with: { "score": number (0-100), "reasoning": string, "isUrgent": boolean }`;
 
     const historyContext = userHistory
       ? `\nUser's average time to reply: ${userHistory.averageTimeToReply || 'unknown'} hours`
       : '';
 
-    const prompt = `Email to prioritize:
-From: ${email.fromName || email.from}${email.senderJobTitle ? ` (${email.senderJobTitle})` : ''}
-Subject: ${email.subject}
-
-${email.body}
-${historyContext}
-
-Analyze this email and provide a priority score.`;
+    // Optimized for prompt caching: static instruction at start, dynamic email content at end
+    const prompt = `Analyze this email and provide a priority score.\n\nFrom: ${email.fromName || email.from}${email.senderJobTitle ? ` (${email.senderJobTitle})` : ''}\nSubject: ${email.subject}\n\n${email.body}${historyContext}`;
 
     const response = await this.generateText({
       prompt,
       systemPrompt,
       temperature: 0.3, // Lower temperature for more consistent scoring
       maxTokens: 500,
-    }, provider);
+      userId,
+    }, provider, userId);
 
     // Try to parse JSON response
     try {

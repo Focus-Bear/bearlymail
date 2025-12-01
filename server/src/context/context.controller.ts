@@ -38,12 +38,12 @@ export class ContextController {
     @Param('id') id: string,
     @Body() updates: Partial<UserContext>,
   ) {
-    return this.contextService.updateContext(parseInt(id), req.user.userId, updates);
+    return this.contextService.updateContext(id, req.user.userId, updates);
   }
 
   @Delete(':id')
   async deleteContext(@Request() req, @Param('id') id: string) {
-    await this.contextService.deleteContext(parseInt(id), req.user.userId);
+    await this.contextService.deleteContext(id, req.user.userId);
     return { message: 'Context deleted' };
   }
 }

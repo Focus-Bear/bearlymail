@@ -11,7 +11,7 @@ export class SnoozeService {
     private emailRepository: Repository<Email>,
   ) {}
 
-  async snoozeEmail(userId: number, emailId: number, duration: string): Promise<Email> {
+  async snoozeEmail(userId: string, emailId: string, duration: string): Promise<Email> {
     const email = await this.emailRepository.findOne({
       where: { id: emailId, userId },
     });
@@ -90,7 +90,7 @@ export class SnoozeService {
     return new Date(now.getTime() + 60 * 60 * 1000);
   }
 
-  async unsnoozeEmail(userId: number, emailId: number): Promise<Email> {
+  async unsnoozeEmail(userId: string, emailId: string): Promise<Email> {
     const email = await this.emailRepository.findOne({
       where: { id: emailId, userId },
     });

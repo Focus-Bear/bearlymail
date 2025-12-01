@@ -1,4 +1,4 @@
-import { Controller, Post, Param, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Get, Put, Delete, Param, Body, UseGuards, Request } from '@nestjs/common';
 import { SummarizationService, SummarizationRule } from './summarization.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -7,6 +7,33 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 export class SummarizationController {
   constructor(private readonly summarizationService: SummarizationService) {}
 
+  // Specific routes must come BEFORE parameterized routes to avoid conflicts
+  @Get('rules')
+  async getRules(@Request() req) {
+    return this.summarizationService.getSummarizationRules(req.user.userId);
+  }
+
+  @Post('rules')
+  async createRule(@Request() req, @Body() rule: { whenToUse: string; howToSummarize: string }) {
+    return this.summarizationService.createSummarizationRule(req.user.userId, rule);
+  }
+
+  @Put('rules/:id')
+  async updateRule(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() updates: { whenToUse?: string; howToSummarize?: string },
+  ) {
+    return this.summarizationService.updateSummarizationRule(req.user.userId, id, updates);
+  }
+
+  @Delete('rules/:id')
+  async deleteRule(@Request() req, @Param('id') id: string) {
+    await this.summarizationService.deleteSummarizationRule(req.user.userId, id);
+    return { message: 'Rule deleted' };
+  }
+
+  // Parameterized route comes LAST to avoid matching "rules" as an ID
   @Post(':id')
   async summarizeEmail(
     @Request() req,
@@ -16,7 +43,7 @@ export class SummarizationController {
     return {
       summary: await this.summarizationService.summarizeEmail(
         req.user.userId,
-        parseInt(id),
+        id,
         rule,
       ),
     };

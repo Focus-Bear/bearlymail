@@ -7,7 +7,7 @@ export class PublicCalendarController {
 
   @Get(':userId/slots')
   async getPublicSlots(@Param('userId') userId: string) {
-    return this.calendarService.getAvailableTimeSlots(parseInt(userId));
+    return this.calendarService.getAvailableTimeSlots(userId);
   }
 
   @Post(':userId/book')
@@ -20,7 +20,7 @@ export class PublicCalendarController {
     }
 
     return this.calendarService.createEvent(
-      parseInt(userId),
+      userId,
       body.startTime,
       body.duration || 30,
       body.guestEmail,

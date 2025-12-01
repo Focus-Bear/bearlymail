@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DatabaseModule } from './database/database.module';
+import { QueryPerformanceLogger } from './database/query-logger';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { EmailsModule } from './emails/emails.module';
@@ -16,6 +17,10 @@ import { RepliesModule } from './replies/replies.module';
 import { CalendarModule } from './calendar/calendar.module';
 import { LLMModule } from './llm/llm.module';
 import { QueueModule } from './queue/queue.module';
+import { OnboardingModule } from './onboarding/onboarding.module';
+import { WaitlistModule } from './waitlist/waitlist.module';
+import { EncryptionModule } from './encryption/encryption.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 
 @Module({
   imports: [
@@ -40,8 +45,12 @@ import { QueueModule } from './queue/queue.module';
           password: configService.get<string>('DB_PASSWORD') || 'postgres',
           database: configService.get<string>('DB_NAME') || 'adhd_email_client',
           entities: [__dirname + '/**/*.entity{.ts,.js}'],
-          synchronize: configService.get<string>('NODE_ENV') !== 'production',
+          migrations: [__dirname + '/database/migrations/**/*{.ts,.js}'],
+          synchronize: false, // NEVER use synchronize - always use migrations
           ssl: (!isLocal || sslEnabled) ? { rejectUnauthorized: false } : false,
+          logger: new QueryPerformanceLogger(),
+          maxQueryExecutionTime: parseInt(process.env.SLOW_QUERY_THRESHOLD_MS || '1000', 10), // Log queries slower than threshold
+          logging: ['error', 'warn'], // Only log errors and slow queries (not all queries)
         };
       },
     }),
@@ -56,7 +65,12 @@ import { QueueModule } from './queue/queue.module';
     ContextModule,
     RepliesModule,
     CalendarModule,
-  ],
+    LLMModule,
+        OnboardingModule,
+        WaitlistModule,
+        EncryptionModule,
+        SubscriptionsModule,
+      ],
   controllers: [AppController],
   providers: [AppService],
 })

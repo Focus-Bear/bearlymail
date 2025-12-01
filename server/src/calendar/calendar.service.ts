@@ -20,7 +20,7 @@ export class CalendarService {
     );
   }
 
-  async getAvailableTimeSlots(userId: number, daysAhead: number = 7): Promise<any[]> {
+  async getAvailableTimeSlots(userId: string, daysAhead: number = 7): Promise<any[]> {
     const user = await this.usersService.findOne(userId);
     if (!user?.googleCalendarAccessToken) {
       throw new Error('Google Calendar not connected');
@@ -85,7 +85,7 @@ export class CalendarService {
   }
 
   async createEvent(
-    userId: number,
+    userId: string,
     startTime: string,
     durationMinutes: number,
     guestEmail: string,
@@ -124,8 +124,8 @@ export class CalendarService {
   }
 
   async generateMeetingReply(
-    userId: number,
-    emailId: number,
+    userId: string,
+    emailId: string,
     provider?: 'gemini' | 'openai',
   ): Promise<string> {
     const slots = await this.getAvailableTimeSlots(userId);
@@ -149,6 +149,7 @@ export class CalendarService {
           [],
           process.env.CALENDAR_BOOKING_URL,
           provider as any,
+          userId,
         );
       } catch (error) {
         // Fallback
@@ -179,6 +180,7 @@ Best regards`;
         formattedSlots,
         process.env.CALENDAR_BOOKING_URL,
         provider as any,
+        userId,
       );
     } catch (error) {
       console.error('LLM meeting reply generation failed, using fallback', error);

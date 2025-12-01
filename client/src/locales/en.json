@@ -1,0 +1,96 @@
+{
+  "common": {
+    "appName": "BearlyMail",
+    "loading": "Loading...",
+    "error": "Error",
+    "dismiss": "Dismiss"
+  },
+  "auth": {
+    "loginTitle": "Welcome Back",
+    "registerTitle": "Create Account",
+    "continueWithGoogle": "Continue with Google",
+    "or": "OR",
+    "email": "Email",
+    "password": "Password",
+    "name": "Name",
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "haveAccount": "Already have an account? Sign in",
+    "noAccount": "Don't have an account? Sign up",
+    "reloginRequired": "Action Required: Please log in again to restore email synchronization.",
+    "logout": "Log Out",
+    "reloginLink": "log in again"
+  },
+  "inbox": {
+    "title": "Inbox",
+    "triage": "Triage",
+    "process": "Process",
+    "triageTab": "Triage",
+    "processTab": "Process",
+    "deliverNow": "Deliver Now",
+    "delivering": "Delivering...",
+    "nextDelivery": "Next delivery: {{time}}",
+    "inboxZero": "Inbox Zero!",
+    "inboxZeroSub": "You're all caught up. Enjoy your focus time.",
+    "noEmailsTriage": "No new emails to triage!",
+    "noEmailsTriageSub": "You're all caught up on new messages.",
+    "noTriageEmails": "No new emails to triage!",
+    "triageCaughtUp": "You're all caught up on new messages.",
+    "noEmailsProcess": "No emails to process!",
+    "noEmailsProcessSub": "All starred emails have been processed.",
+    "noProcessEmails": "No emails to process!",
+    "processCaughtUp": "All starred emails have been processed.",
+    "loadingInbox": "Loading your inbox...",
+    "loadingEmails": "Loading emails...",
+    "loadingEmailsSub": "Fetching your emails from the server.",
+    "checkUrgent": "Check for Urgent",
+    "checkingUrgent": "Checking...",
+    "urgentNotification": "Found {{count}} urgent email(s)!",
+    "noUrgentEmails": "No urgent emails found.",
+    "noUrgentEmailsFound": "No urgent emails found. Check again at the next batch delivery.",
+    "urgentCheckError": "Failed to check for urgent emails."
+  },
+  "priority": {
+    "high": "High Priority",
+    "medium": "Medium",
+    "low": "Low"
+  },
+  "email": {
+    "processingPriority": "Processing Priority...",
+    "generatingSummary": "Generating Summary...",
+    "calculating": "Calculating...",
+    "batched": "Batched"
+  },
+  "settings": {
+    "title": "Settings"
+  },
+  "admin": {
+    "title": "Admin"
+  },
+  "onboarding": {
+    "tour": {
+      "welcome": "Welcome to BearlyMail!",
+      "welcomeContent": "Let's take a quick tour to help you get started with your new focused email experience.",
+      "triageTitle": "Triage Tab",
+      "triageContent": "This is where new emails land. Quickly decide to reply, archive, or snooze them.",
+      "processTitle": "Process Tab",
+      "processContent": "Star an email to move it here. This is your focused workspace for emails that need action.",
+      "deliveryTitle": "Scheduled Delivery",
+      "deliveryContent": "New emails are batched and delivered every few hours to prevent distractions. Use 'Deliver Now' if you need to check urgently.",
+      "skip": "Skip",
+      "next": "Next",
+      "finish": "Finish",
+      "stepProgress": "{{current}} of {{total}}"
+    },
+    "scan": {
+      "title": "Personalize Your Experience",
+      "content": "To help BearlyMail learn your priorities and writing style, we can scan your recent email history. This data stays private and is only used to train your personal model.",
+      "permission": "Allow scanning of last 7 days of emails",
+      "startScan": "Start Scan",
+      "skip": "Skip for now",
+      "scanning": "Scanning your history...",
+      "progress": "{{current}} of {{total}} emails processed"
+    }
+  }
+}
+

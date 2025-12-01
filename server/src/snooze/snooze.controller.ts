@@ -13,12 +13,12 @@ export class SnoozeController {
     @Param('id') id: string,
     @Body() body: { duration: string },
   ) {
-    return this.snoozeService.snoozeEmail(req.user.userId, parseInt(id), body.duration);
+    return this.snoozeService.snoozeEmail(req.user.userId, id, body.duration);
   }
 
   @Delete(':id')
   async unsnoozeEmail(@Request() req, @Param('id') id: string) {
-    return this.snoozeService.unsnoozeEmail(req.user.userId, parseInt(id));
+    return this.snoozeService.unsnoozeEmail(req.user.userId, id);
   }
 }
 

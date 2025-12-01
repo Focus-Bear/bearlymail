@@ -20,9 +20,17 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         'https://www.googleapis.com/auth/calendar',
         'https://www.googleapis.com/auth/gmail.readonly'
       ],
-      accessType: 'offline',
-      prompt: 'consent', // Force refresh token on login
+      // These need to be in authorizationParams, not here
     });
+    
+    // Override authorizationParams to ensure refresh token is requested
+    // This is the correct way to pass access_type and prompt to Google's OAuth endpoint
+    (this as any).authorizationParams = (options: any) => {
+      return {
+        access_type: 'offline',
+        prompt: 'consent',
+      };
+    };
   }
 
   async validate(
@@ -32,6 +40,14 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     done: VerifyCallback,
   ): Promise<any> {
     try {
+      console.log(`[GoogleStrategy] OAuth callback received:`);
+      console.log(`  - accessToken: ${accessToken ? '[PRESENT]' : 'NULL'}`);
+      console.log(`  - refreshToken: ${refreshToken ? '[PRESENT]' : 'NULL'}`);
+      console.log(`  - profile.id: ${profile.id}`);
+      console.log(`  - profile.email: ${profile.emails?.[0]?.value || 'N/A'}`);
+      const { writeDebugLog } = require('./auth-logger');
+      writeDebugLog(`[GoogleStrategy] OAuth callback - accessToken: ${accessToken ? 'PRESENT' : 'NULL'}, refreshToken: ${refreshToken ? 'PRESENT' : 'NULL'}`);
+      
       const user = await this.authService.validateGoogleUser(
         profile,
         accessToken,

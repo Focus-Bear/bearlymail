@@ -28,7 +28,7 @@ export class NotesController {
 
   @Delete(':id')
   async deleteNote(@Request() req, @Param('id') id: string) {
-    await this.notesService.deleteNote(req.user.userId, parseInt(id));
+    await this.notesService.deleteNote(req.user.userId, id);
     return { message: 'Note deleted' };
   }
 }

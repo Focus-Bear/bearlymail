@@ -16,7 +16,7 @@ export class RepliesController {
     return {
       draft: await this.repliesService.generateDraftReply(
         req.user.userId,
-        parseInt(id),
+        id,
         body?.provider,
       ),
     };
@@ -25,7 +25,7 @@ export class RepliesController {
   @Post('learn')
   async learnFromModification(
     @Request() req,
-    @Body() body: { emailId: number; originalDraft: string; modifiedDraft: string },
+    @Body() body: { emailId: string; originalDraft: string; modifiedDraft: string },
   ) {
     return this.repliesService.learnFromModification(
       req.user.userId,
@@ -51,13 +51,27 @@ export class RepliesController {
     @Param('id') id: string,
     @Body() updates: Partial<ReplyRule>,
   ) {
-    return this.repliesService.updateReplyRule(req.user.userId, parseInt(id), updates);
+    return this.repliesService.updateReplyRule(req.user.userId, id, updates);
   }
 
   @Delete('rules/:id')
   async deleteRule(@Request() req, @Param('id') id: string) {
-    await this.repliesService.deleteReplyRule(req.user.userId, parseInt(id));
+    await this.repliesService.deleteReplyRule(req.user.userId, id);
     return { message: 'Rule deleted' };
+  }
+
+  @Post('send/:id')
+  async sendReply(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() body: { reply: string },
+  ) {
+    await this.repliesService.sendReply(
+      req.user.userId,
+      id,
+      body.reply,
+    );
+    return { message: 'Reply sent successfully' };
   }
 }
 

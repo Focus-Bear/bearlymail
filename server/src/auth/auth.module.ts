@@ -9,6 +9,7 @@ import { LocalStrategy } from './local.strategy';
 import { GoogleStrategy } from './google.strategy';
 import { UsersModule } from '../users/users.module';
 import { EmailsModule } from '../emails/emails.module';
+import { AdminGuard } from './admin.guard';
 
 @Module({
   imports: [
@@ -24,9 +25,9 @@ import { EmailsModule } from '../emails/emails.module';
       inject: [ConfigService],
     }),
   ],
-  providers: [AuthService, JwtStrategy, LocalStrategy, GoogleStrategy],
+  providers: [AuthService, JwtStrategy, LocalStrategy, GoogleStrategy, AdminGuard],
   controllers: [AuthController],
-  exports: [AuthService],
+  exports: [AuthService, AdminGuard],
 })
 export class AuthModule {}
 

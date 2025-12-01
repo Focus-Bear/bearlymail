@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { EmailsService } from '../emails/emails.service';
 import { LLMService } from '../llm/llm.service';
+import { SummarizationRule as SummarizationRuleEntity } from '../database/entities/summarization-rule.entity';
 
 export interface SummarizationRule {
   type: 'bullet-points' | 'action-items' | 'sender-request' | 'tldr' | 'custom';
@@ -13,11 +16,13 @@ export class SummarizationService {
   constructor(
     private emailsService: EmailsService,
     private llmService: LLMService,
+    @InjectRepository(SummarizationRuleEntity)
+    private summarizationRuleRepository: Repository<SummarizationRuleEntity>,
   ) {}
 
   async summarizeEmail(
-    userId: number,
-    emailId: number,
+    userId: string,
+    emailId: string,
     rule: SummarizationRule,
   ): Promise<string> {
     const email = await this.emailsService.getEmailById(userId, emailId);
@@ -25,8 +30,24 @@ export class SummarizationService {
       throw new Error('Email not found');
     }
 
-    const text = email.body || '';
+    // For thread summaries, get the last 3 messages in the thread (need body for summarization)
+    const threadEmails = await this.emailsService.getThreadEmails(userId, email.threadId);
+    const last3Messages = threadEmails
+      .sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime())
+      .slice(0, 3)
+      .reverse(); // Reverse to get chronological order (oldest to newest)
+
+    // Combine the last 3 messages for thread context
+    const threadText = last3Messages
+      .map((e, idx) => {
+        const sender = e.fromName || e.from;
+        const date = new Date(e.receivedAt).toLocaleString();
+        return `[Message ${idx + 1} from ${sender} on ${date}]:\n${e.body || ''}`;
+      })
+      .join('\n\n---\n\n');
+    
     const subject = email.subject || '';
+    const text = threadText || email.body || '';
 
     // Use LLM for all summarization types
     try {
@@ -36,26 +57,75 @@ export class SummarizationService {
 
       if (rule.type === 'custom' && rule.customPrompt) {
         // Custom prompt using LLM
+        const prompt = last3Messages.length > 1
+          ? `Email Thread Subject: ${subject}\n\nThis thread contains ${last3Messages.length} messages. Here are the last ${Math.min(3, last3Messages.length)} messages:\n\n${threadText}\n\n${rule.customPrompt}`
+          : `Email Subject: ${subject}\n\nEmail Body:\n${email.body || ''}\n\n${rule.customPrompt}`;
+        
         return await this.llmService.generateText({
-          prompt: `Email Subject: ${subject}\n\nEmail Body:\n${text}\n\n${rule.customPrompt}`,
-          systemPrompt: 'You are a helpful assistant that summarizes emails according to user instructions.',
+          prompt,
+          systemPrompt: 'You are a helpful assistant that summarizes email threads according to user instructions.',
           temperature: 0.5,
           maxTokens: 500,
-        }, provider as any);
+          userId,
+        }, provider as any, userId);
       }
 
       // Use LLM for standard summarization types
-      return await this.llmService.summarizeEmail(
-        text,
-        subject,
-        rule.type,
-        provider as any,
-      );
+      if (last3Messages.length > 1) {
+        // Thread summary - use specialized prompt
+        return await this.llmService.summarizeEmail(
+          threadText,
+          subject,
+          rule.type,
+          provider as any,
+          userId,
+        );
+      } else {
+        // Single email summary
+        return await this.llmService.summarizeEmail(
+          email.body || '',
+          subject,
+          rule.type,
+          provider as any,
+          userId,
+        );
+      }
     } catch (error) {
       // Fallback to simple extraction if LLM fails
       console.error('LLM summarization failed, using fallback', error);
       return this.fallbackSummary(text, subject, rule.type, email.from);
     }
+  }
+
+  async getSummarizationRules(userId: string): Promise<SummarizationRuleEntity[]> {
+    return this.summarizationRuleRepository.find({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async createSummarizationRule(
+    userId: string,
+    rule: { whenToUse: string; howToSummarize: string },
+  ): Promise<SummarizationRuleEntity> {
+    const newRule = this.summarizationRuleRepository.create({
+      ...rule,
+      userId,
+    });
+    return this.summarizationRuleRepository.save(newRule);
+  }
+
+  async updateSummarizationRule(
+    userId: string,
+    ruleId: string,
+    updates: { whenToUse?: string; howToSummarize?: string },
+  ): Promise<SummarizationRuleEntity> {
+    await this.summarizationRuleRepository.update({ ruleId, userId }, updates);
+    return this.summarizationRuleRepository.findOne({ where: { ruleId, userId } });
+  }
+
+  async deleteSummarizationRule(userId: string, ruleId: string): Promise<void> {
+    await this.summarizationRuleRepository.delete({ ruleId, userId });
   }
 
   private fallbackSummary(
@@ -89,4 +159,3 @@ export class SummarizationService {
     }
   }
 }
-

@@ -14,14 +14,14 @@ export class ContextService {
     private emailRepository: Repository<Email>,
   ) {}
 
-  async getUserContext(userId: number): Promise<UserContext[]> {
+  async getUserContext(userId: string): Promise<UserContext[]> {
     return this.contextRepository.find({
       where: { userId },
       order: { lastModified: 'DESC' },
     });
   }
 
-  async analyzeAndLearnFromEmails(userId: number): Promise<void> {
+  async analyzeAndLearnFromEmails(userId: string): Promise<void> {
     // Get user's sent emails to learn writing style
     const emails = await this.emailRepository.find({
       where: { userId },
@@ -116,7 +116,7 @@ export class ContextService {
   }
 
   async createOrUpdateContext(
-    userId: number,
+    userId: string,
     contextKey: ContextKey,
     contextValue: string,
     source: Source,
@@ -144,8 +144,8 @@ export class ContextService {
   }
 
   async updateContext(
-    contextId: number,
-    userId: number,
+    contextId: string,
+    userId: string,
     updates: Partial<UserContext>,
   ): Promise<UserContext> {
     updates.source = Source.USER_EDITED;
@@ -153,7 +153,7 @@ export class ContextService {
     return this.contextRepository.findOne({ where: { contextId, userId } });
   }
 
-  async deleteContext(contextId: number, userId: number): Promise<void> {
+  async deleteContext(contextId: string, userId: string): Promise<void> {
     await this.contextRepository.delete({ contextId, userId });
   }
 }

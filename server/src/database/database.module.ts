@@ -5,11 +5,15 @@ import { PriorityRule } from './entities/priority-rule.entity';
 import { UserContext } from './entities/user-context.entity';
 import { PrivateNote } from './entities/private-note.entity';
 import { Email } from './entities/email.entity';
+import { EmailThread } from './entities/email-thread.entity';
+import { ScanEmail } from './entities/scan-email.entity';
+import { DatabaseCleanupService } from './database-cleanup.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, PriorityRule, UserContext, PrivateNote, Email]),
+    TypeOrmModule.forFeature([User, PriorityRule, UserContext, PrivateNote, Email, EmailThread, ScanEmail]),
   ],
+  providers: [DatabaseCleanupService],
   exports: [TypeOrmModule],
 })
 export class DatabaseModule {}

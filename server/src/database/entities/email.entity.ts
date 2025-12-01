@@ -1,38 +1,46 @@
 import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, CreateDateColumn, JoinColumn, Index } from 'typeorm';
 import { User } from './user.entity';
+import { EmailThread } from './email-thread.entity';
+import { encryptedColumnTransformer } from '../../encryption/encryption.helper';
 
 @Entity('emails')
 @Index(['userId', 'priorityScore'])
 @Index(['userId', 'threadId'])
+@Index(['userId', 'messageId']) // For fast lookups by messageId
+@Index(['userId', 'receivedAt']) // For date-based queries in inbox
+@Index(['threadId']) // For joining with email_threads
 export class Email {
-  @PrimaryGeneratedColumn()
-  id: number;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
   @Column()
-  userId: number;
+  userId: string;
 
   @Column()
-  threadId: string;
+  threadId: string; // Gmail thread ID (for reference, but use emailThreadId for FK)
+
+  @Column({ nullable: true })
+  emailThreadId: string; // Foreign key to email_threads table
 
   @Column()
   messageId: string;
 
-  @Column()
+  @Column({ transformer: encryptedColumnTransformer })
   from: string;
 
-  @Column({ nullable: true })
+  @Column({ nullable: true, transformer: encryptedColumnTransformer })
   fromName: string;
 
-  @Column({ nullable: true })
+  @Column({ nullable: true, transformer: encryptedColumnTransformer })
   senderJobTitle: string;
 
-  @Column()
+  @Column({ transformer: encryptedColumnTransformer })
   subject: string;
 
-  @Column('text')
+  @Column('text', { transformer: encryptedColumnTransformer })
   body: string;
 
-  @Column('text', { nullable: true })
+  @Column('text', { nullable: true, transformer: encryptedColumnTransformer })
   htmlBody: string;
 
   @Column({ type: 'float', default: 50 })
@@ -40,6 +48,9 @@ export class Email {
 
   @Column({ default: false })
   isUrgent: boolean;
+
+  // Thread-level properties moved to EmailThread entity
+  // starCount and isArchived are now on EmailThread
 
   @Column({ default: false })
   isSnoozed: boolean;
@@ -62,8 +73,14 @@ export class Email {
   @Column({ default: false })
   isRead: boolean;
 
+  @Column('text', { nullable: true, transformer: encryptedColumnTransformer })
+  summary: string; // Cached summary from LLM
+
   @Column({ default: false })
-  isArchived: boolean;
+  isProcessingPriority: boolean; // Flag to indicate LLM priority is being calculated
+
+  @Column({ default: false })
+  isProcessingSummary: boolean; // Flag to indicate summary is being generated
 
   @CreateDateColumn()
   receivedAt: Date;
@@ -71,5 +88,8 @@ export class Email {
   @ManyToOne(() => User, (user) => user.emails)
   @JoinColumn({ name: 'userId' })
   user: User;
-}
 
+  @ManyToOne(() => EmailThread, (thread) => thread.emails)
+  @JoinColumn({ name: 'emailThreadId' })
+  thread: EmailThread;
+}

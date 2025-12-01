@@ -1,5 +1,6 @@
 import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, CreateDateColumn, JoinColumn } from 'typeorm';
 import { User } from './user.entity';
+import { encryptedColumnTransformer } from '../../encryption/encryption.helper';
 
 export enum RuleType {
   IMPLICIT_BEHAVIOR = 'IMPLICIT_BEHAVIOR',
@@ -8,11 +9,11 @@ export enum RuleType {
 
 @Entity('priority_rules')
 export class PriorityRule {
-  @PrimaryGeneratedColumn()
-  ruleId: number;
+  @PrimaryGeneratedColumn('uuid')
+  ruleId: string;
 
   @Column()
-  userId: number;
+  userId: string;
 
   @Column({
     type: 'enum',
@@ -20,10 +21,10 @@ export class PriorityRule {
   })
   ruleType: RuleType;
 
-  @Column()
+  @Column({ transformer: encryptedColumnTransformer })
   conditionKey: string;
 
-  @Column()
+  @Column({ transformer: encryptedColumnTransformer })
   conditionVal: string;
 
   @Column()

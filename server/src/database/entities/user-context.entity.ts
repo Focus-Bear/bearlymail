@@ -1,11 +1,13 @@
 import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, UpdateDateColumn, CreateDateColumn, JoinColumn } from 'typeorm';
 import { User } from './user.entity';
+import { encryptedColumnTransformer } from '../../encryption/encryption.helper';
 
 export enum ContextKey {
   PROJECT_NAME = 'PROJECT_NAME',
   COLLEAGUE_NAME = 'COLLEAGUE_NAME',
   WRITING_STYLE_TONE = 'WRITING_STYLE_TONE',
   COMMON_PHRASE = 'COMMON_PHRASE',
+  AVERAGE_REPLY_TIME = 'AVERAGE_REPLY_TIME',
 }
 
 export enum Source {
@@ -15,11 +17,11 @@ export enum Source {
 
 @Entity('user_contexts')
 export class UserContext {
-  @PrimaryGeneratedColumn()
-  contextId: number;
+  @PrimaryGeneratedColumn('uuid')
+  contextId: string;
 
   @Column()
-  userId: number;
+  userId: string;
 
   @Column({
     type: 'enum',
@@ -27,7 +29,7 @@ export class UserContext {
   })
   contextKey: ContextKey;
 
-  @Column('text')
+  @Column('text', { transformer: encryptedColumnTransformer })
   contextValue: string;
 
   @Column({

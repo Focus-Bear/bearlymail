@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { theme } from '../theme/theme';
 
@@ -9,7 +10,7 @@ const Login: React.FC = () => {
   const [name, setName] = useState('');
   const [isRegister, setIsRegister] = useState(false);
   const [error, setError] = useState('');
-  const { login, register } = useAuth();
+  const { login, register, user, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -18,9 +19,21 @@ const Login: React.FC = () => {
     const token = params.get('token');
     if (token) {
       localStorage.setItem('token', token);
+      console.log('Google OAuth token saved to localStorage:', localStorage.getItem('token') ? 'SUCCESS' : 'FAILED');
+      // Set the axios header immediately before redirect
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      // Use navigate instead of window.location to avoid full page reload issues
+      // But we need a full reload to reinitialize the auth context
       window.location.href = '/inbox';
+      return;
     }
-  }, []);
+
+    // If user is already authenticated, redirect to inbox
+    if (!loading && user) {
+      console.log('User already authenticated, redirecting to inbox');
+      navigate('/inbox');
+    }
+  }, [user, loading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

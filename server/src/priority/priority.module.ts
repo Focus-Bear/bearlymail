@@ -5,7 +5,7 @@ import { PriorityService } from './priority.service';
 import { PriorityLearningService } from './priority-learning.service';
 import { PriorityLearningProcessor } from './priority-learning.processor';
 import { TriageSuggestionsService } from './triage-suggestions.service';
-import { PriorityRule } from '../database/entities/priority-rule.entity';
+import { UserContext } from '../database/entities/user-context.entity';
 import { Email } from '../database/entities/email.entity';
 import { LLMModule } from '../llm/llm.module';
 import { UsersModule } from '../users/users.module';
@@ -14,7 +14,7 @@ import { EmailsModule } from '../emails/emails.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([PriorityRule, Email]),
+    TypeOrmModule.forFeature([UserContext, Email]),
     LLMModule,
     QueueModule,
     forwardRef(() => UsersModule),
@@ -25,4 +25,3 @@ import { EmailsModule } from '../emails/emails.module';
   exports: [PriorityService, PriorityLearningService, TriageSuggestionsService],
 })
 export class PriorityModule {}
-

@@ -65,3 +65,4 @@ If you're migrating existing plaintext data:
 Passwords are **hashed** (not encrypted) using bcrypt. This is a one-way operation and passwords cannot be recovered.
 
 
+

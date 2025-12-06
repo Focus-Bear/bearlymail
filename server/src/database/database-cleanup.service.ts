@@ -15,7 +15,6 @@ export class DatabaseCleanupService implements OnApplicationBootstrap {
       // Clean up invalid rows with NULL userId
       const tables = [
         'user_contexts',
-        'priority_rules',
         'private_notes',
         'emails',
         'summarization_rules',

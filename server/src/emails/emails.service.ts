@@ -1,67 +1,208 @@
-import { Injectable, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Inject, forwardRef, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThan, MoreThan } from 'typeorm';
+import { Repository, LessThan, MoreThan, IsNull, Not } from 'typeorm';
 import PgBoss = require('pg-boss');
+import * as fs from 'fs';
+import * as path from 'path';
 import { Email } from '../database/entities/email.entity';
 import { EmailThread } from '../database/entities/email-thread.entity';
+import { UserContext, ContextKey } from '../database/entities/user-context.entity';
 import { PriorityService } from '../priority/priority.service';
-import { RuleType } from '../database/entities/priority-rule.entity';
 import { User } from '../database/entities/user.entity';
 import { EmailProviderManager } from './email-provider-manager.service';
+import { BlockedSendersService } from '../blocked-senders/blocked-senders.service';
+
+// Performance budgets in milliseconds
+const PERF_BUDGETS = {
+  INBOX_TOTAL: 500,
+  THREAD_QUERY: 100,
+  THREAD_COUNT_QUERY: 50,
+  PRIORITY_CALC: 200,
+  LABEL_CONVERT: 100,
+  THREAD_GROUPING: 50,
+};
+
+interface PerfSpan {
+  name: string;
+  start: number;
+  end?: number;
+  duration?: number;
+  budget: number;
+  exceeded?: boolean;
+}
+
+class PerformanceTracker {
+  private spans: PerfSpan[] = [];
+  private startTime: number;
+  private logger = new Logger('PerformanceTracker');
+  private static logsDir = path.join(process.cwd(), 'logs');
+  private logFile = path.join(PerformanceTracker.logsDir, 'performance.log');
+
+  constructor(private operation: string) {
+    this.startTime = Date.now();
+    // Ensure logs directory exists
+    if (!fs.existsSync(PerformanceTracker.logsDir)) {
+      fs.mkdirSync(PerformanceTracker.logsDir, { recursive: true });
+    }
+  }
+
+  startSpan(name: string, budget: number): () => void {
+    const span: PerfSpan = { name, start: Date.now(), budget };
+    this.spans.push(span);
+    return () => {
+      span.end = Date.now();
+      span.duration = span.end - span.start;
+      span.exceeded = span.duration > budget;
+    };
+  }
+
+  finish(): void {
+    const totalDuration = Date.now() - this.startTime;
+    const exceededSpans = this.spans.filter(s => s.exceeded);
+    const totalExceeded = totalDuration > PERF_BUDGETS.INBOX_TOTAL;
+    
+    // Only log if the TOTAL budget was exceeded (not just individual spans)
+    if (totalExceeded) {
+      const logEntry = {
+        timestamp: new Date().toISOString(),
+        operation: this.operation,
+        totalDuration,
+        totalBudget: PERF_BUDGETS.INBOX_TOTAL,
+        totalExceeded,
+        spans: this.spans.map(s => ({
+          name: s.name,
+          duration: s.duration,
+          budget: s.budget,
+          exceeded: s.exceeded,
+        })),
+        exceededSpans: exceededSpans.map(s => `${s.name}: ${s.duration}ms (budget: ${s.budget}ms)`),
+      };
+      
+      const logLine = JSON.stringify(logEntry) + '\n';
+      
+      // Log to console - only if total exceeded budget
+      this.logger.warn(`⚠️ PERF ISSUE: ${this.operation} took ${totalDuration}ms (budget: ${PERF_BUDGETS.INBOX_TOTAL}ms)`);
+      exceededSpans.forEach(s => {
+        this.logger.warn(`   - ${s.name}: ${s.duration}ms exceeded budget of ${s.budget}ms`);
+      });
+      
+      // Append to log file
+      try {
+        fs.appendFileSync(this.logFile, logLine);
+      } catch (err) {
+        this.logger.error('Failed to write to performance log file:', err);
+      }
+    }
+  }
+}
 
 @Injectable()
 export class EmailsService {
+  private readonly logger = new Logger(EmailsService.name);
+
   constructor(
     @InjectRepository(Email)
     private emailRepository: Repository<Email>,
     @InjectRepository(EmailThread)
     private emailThreadRepository: Repository<EmailThread>,
+    @InjectRepository(UserContext)
+    private userContextRepository: Repository<UserContext>,
     private priorityService: PriorityService,
     @Inject('PG_BOSS') private readonly boss: PgBoss,
     @Inject(forwardRef(() => EmailProviderManager))
     private emailProviderManager: EmailProviderManager,
+    private blockedSendersService: BlockedSendersService,
   ) {}
 
-  async getInbox(userId: string, includeBatched: boolean = false, mode: 'triage' | 'process' = 'triage'): Promise<Email[]> {
-    const startTime = Date.now();
-    const now = new Date();
+  async getInbox(userId: string, _includeBatched: boolean = false, mode: 'triage' | 'process' = 'triage'): Promise<Email[]> {
+    const perf = new PerformanceTracker(`getInbox(${mode})`);
     
-    // THREAD-BASED APPROACH using EmailThread:
-    // Join with email_threads to get thread-level properties (starCount, isArchived)
-    const query = this.emailRepository
-      .createQueryBuilder('email')
-      .innerJoin('email_threads', 'thread', 'thread.id = email.emailThreadId')
-      .where('email.userId = :userId', { userId })
-      .andWhere('thread.userId = :userId', { userId })
-      // CRITICAL: Exclude ALL archived threads - they should not appear in either tab
-      .andWhere('thread.isArchived = false')
-      // Exclude snoozed emails that haven't expired yet (snoozed emails are not "in inbox")
-      .andWhere('(email.isSnoozed = false OR email.snoozeUntil IS NULL OR email.snoozeUntil <= :now)', { now });
-
-    if (!includeBatched) {
-      // Show unbatched emails, or batched emails that have been released, or urgent emails
-      // OR starred emails (starred emails should always be visible in Process mode)
-      query.andWhere('(email.isBatched = false OR email.batchReleaseAt <= :now OR email.isUrgent = true OR thread.starCount > 0)', { now });
+    // Pre-warm blocked senders cache to avoid DB query during filtering
+    await this.blockedSendersService.getBlockedEmailHashes(userId);
+    
+    // Auto-fix stuck calculating threads (non-blocking, runs in background)
+    // Only check occasionally to avoid performance impact (10% chance)
+    if (Math.random() < 0.1) {
+      this.fixStuckCalculatingThreads(userId).catch(err => 
+        this.logger.error('Error auto-fixing stuck calculating threads:', err)
+      );
     }
-
-      // Filter by mode: Process = starred threads, Triage = non-starred threads
-      // IMPORTANT: This filter must match the thread.starCount in the database
-      if (mode === 'process') {
-        query.andWhere('thread.starCount > 0');
-      } else {
-        query.andWhere('thread.starCount = 0');
-      }
-      
-      // Additional safety check: Also filter by thread.isArchived = false (should already be filtered above)
-      query.andWhere('thread.isArchived = false');
-
-    // Select only needed columns to avoid decrypting large body/htmlBody fields
-    // Use addSelect for thread columns to get them in the result
-    const allEmails = await query
+    
+    // OPTIMIZED: Single query with CTE for better PostgreSQL optimization
+    // This allows PostgreSQL to optimize the entire query plan
+    const endCombinedQuery = perf.startSpan('thread_query', PERF_BUDGETS.THREAD_QUERY);
+    
+    // Build filter conditions
+    let threadFilter = '';
+    if (mode === 'process') {
+      threadFilter = 'AND thread."starCount" > 0';
+    } else {
+      threadFilter = 'AND thread."isArchived" = false AND thread."starCount" = 0';
+    }
+    
+    // Single optimized query: Get threads + best email IDs in one go
+    // PostgreSQL can optimize this better than separate queries
+    const emailIdsWithThreadInfo = await this.emailRepository.query(
+      `WITH matching_threads AS (
+        SELECT thread.id, thread."starCount", thread."isArchived"
+        FROM email_threads thread
+        WHERE thread."userId" = $1
+          ${threadFilter}
+        LIMIT 200
+      ),
+      best_emails AS (
+        SELECT DISTINCT ON (email."emailThreadId")
+          email.id,
+          email."emailThreadId",
+          mt."starCount",
+          mt."isArchived"
+        FROM matching_threads mt
+        INNER JOIN emails email ON email."emailThreadId" = mt.id
+        WHERE email."userId" = $1
+        ORDER BY email."emailThreadId", COALESCE(email."priorityScore", 50) DESC NULLS LAST, email."receivedAt" DESC
+      )
+      SELECT 
+        be.id as email_id,
+        be."emailThreadId" as thread_id,
+        be."starCount",
+        be."isArchived"
+      FROM best_emails be`,
+      [userId]
+    );
+    
+    endCombinedQuery();
+    
+    if (emailIdsWithThreadInfo.length === 0) {
+      perf.finish();
+      return [];
+    }
+    
+    this.logger.debug(`Found ${emailIdsWithThreadInfo.length} threads for mode=${mode}`);
+    
+    // Step 2: Fetch email entities with decryption
+    const endEmailQuery = perf.startSpan('email_query', PERF_BUDGETS.THREAD_QUERY);
+    
+    const emailIds = emailIdsWithThreadInfo.map((row: any) => row.email_id);
+    
+    // Create thread info map keyed by email_id (we'll look it up by email.id)
+    const threadInfoMap = new Map<string, { starCount: number; isArchived: boolean }>();
+    emailIdsWithThreadInfo.forEach((row: any) => {
+      threadInfoMap.set(row.email_id, {
+        starCount: row.starCount,
+        isArchived: row.isArchived,
+      });
+    });
+    
+    // Fetch emails - TypeORM decrypts automatically
+    // We need these encrypted fields for display: from, fromName, subject, summary
+    const emails = await this.emailRepository
+      .createQueryBuilder('email')
+      .where('email.id IN (:...emailIds)', { emailIds })
       .select([
         'email.id',
         'email.userId',
         'email.threadId',
+        'email.emailThreadId',
         'email.messageId',
         'email.from',
         'email.fromName',
@@ -78,162 +219,139 @@ export class EmailsService {
         'email.isProcessingPriority',
         'email.isProcessingSummary',
         'email.receivedAt',
+        'email.labels',
       ])
-      .addSelect('thread.starCount', 'thread_starCount')
-      .addSelect('thread.isArchived', 'thread_isArchived')
-      .getRawAndEntities();
-
-    const queryTime = Date.now() - startTime;
+      .getMany();
     
-    // Group emails by threadId for display
-    const threadMap = new Map<string, Email[]>();
-    const threadInfoMap = new Map<string, { starCount: number; isArchived: boolean }>();
+    endEmailQuery();
     
-    // allEmails.entities contains the Email entities
-    // allEmails.raw contains the raw results with thread columns
-    for (let i = 0; i < allEmails.entities.length; i++) {
-      const email = allEmails.entities[i];
-      const raw = allEmails.raw[i];
-      
-      // Get thread info from the raw result
-      // TypeORM might use different column naming - try both snake_case and camelCase
-      const threadStarCount = raw.thread_starCount ?? raw.threadStarCount ?? raw.thread_star_count ?? 0;
-      const threadIsArchived = raw.thread_isArchived ?? raw.threadIsArchived ?? raw.thread_is_archived ?? false;
-      
-      // DEBUG: Log if we're in process mode and thread has starCount = 0 (shouldn't happen)
-      if (mode === 'process' && threadStarCount === 0) {
-        console.warn(`⚠️ [DEBUG] Process mode: Found email with thread starCount=0! Thread: ${email.threadId.substring(0, 8)}..., Raw keys: ${Object.keys(raw).join(', ')}`);
-      }
-      
-      if (!threadMap.has(email.threadId)) {
-        threadMap.set(email.threadId, []);
-        threadInfoMap.set(email.threadId, { starCount: threadStarCount, isArchived: threadIsArchived });
-      }
-      threadMap.get(email.threadId)!.push(email);
-    }
-
-    // For each thread, select the representative email
+    // STEP 3: Combine email data with thread info
+    const endGrouping = perf.startSpan('thread_grouping', PERF_BUDGETS.THREAD_GROUPING);
+    
     const threadRepresentatives: Email[] = [];
-    
-    for (const [threadId, threadEmails] of threadMap.entries()) {
-      const threadInfo = threadInfoMap.get(threadId)!;
-      const threadIsStarred = threadInfo.starCount > 0;
+    for (const email of emails) {
+      const threadInfo = threadInfoMap.get(email.id);
+      if (!threadInfo) continue;
       
-      // DEBUG: Log thread info for debugging Process tab
-      if (mode === 'process') {
-        if (threadIsStarred) {
-          console.log(`⭐ [DEBUG] Process mode: Including starred thread ${threadId.substring(0, 8)}... (starCount=${threadInfo.starCount}, emails=${threadEmails.length})`);
-        } else {
-          // This shouldn't happen if the query filter is working correctly
-          console.error(`❌ [DEBUG] Process mode: Found non-starred thread ${threadId.substring(0, 8)}... (starCount=${threadInfo.starCount}) - skipping!`);
-          continue; // Skip this thread - it shouldn't be in process mode
-        }
-      } else {
-        // Triage mode - skip starred threads
-        if (threadIsStarred) {
-          console.log(`[DEBUG] Triage mode: Skipping starred thread ${threadId.substring(0, 8)}... (starCount=${threadInfo.starCount})`);
-          continue;
-        }
-      }
-
-      // Select the representative email for this thread:
-      // Priority: highest priorityScore, then newest receivedAt
-      const representative = threadEmails.reduce((best, current) => {
-        if (!best) return current;
-        
-        // Prioritize by priority score
-        const currentScore = current.priorityScore ?? 50;
-        const bestScore = best.priorityScore ?? 50;
-        if (Math.abs(currentScore - bestScore) > 0.01) {
-          return currentScore > bestScore ? current : best;
-        }
-        
-        // If same priority, prefer newest
-        return new Date(current.receivedAt).getTime() > new Date(best.receivedAt).getTime() ? current : best;
-      });
-
-      // Set thread-level properties on representative (for display purposes)
-      // Add these as virtual properties since they're not on Email entity anymore
-      (representative as any).starCount = threadInfo.starCount;
-      (representative as any).isArchived = threadInfo.isArchived;
-      
-      threadRepresentatives.push(representative);
+      (email as any).starCount = threadInfo.starCount;
+      (email as any).isArchived = threadInfo.isArchived;
+      threadRepresentatives.push(email);
     }
 
-    // DEBUG: Log thread-based results with detailed star count info
-    const starredThreadCount = threadRepresentatives.filter(e => ((e as any).starCount ?? 0) > 0).length;
+    endGrouping();
     
-    // DEBUG: Check how many starred threads are actually in the database
-    const totalStarredThreadsInDb = await this.emailThreadRepository.count({
-      where: { userId, starCount: MoreThan(0), isArchived: false },
-    });
-    
-    console.log(`🧵 [DEBUG] getInbox(${mode}):`);
-    console.log(`   - Total starred threads in DB: ${totalStarredThreadsInDb}`);
-    console.log(`   - Processed ${threadMap.size} total threads from query`);
-    console.log(`   - Returning ${threadRepresentatives.length} threads for ${mode} mode`);
-    console.log(`   - ${starredThreadCount} of returned threads have starCount > 0`);
-    console.log(`   - Sample threads:`, threadRepresentatives.slice(0, 3).map(e => ({ 
-      threadId: e.threadId.substring(0, 8),
-      id: e.id.substring(0, 8), 
-      subject: e.subject?.substring(0, 30), 
-      starCount: (e as any).starCount ?? 0,
-      isArchived: (e as any).isArchived,
-      priorityScore: e.priorityScore,
-      shouldBeIn: ((e as any).starCount ?? 0) > 0 ? 'process' : 'triage'
-    })));
-
-    if (queryTime > 1000) {
-      console.warn(`⚠️ Slow inbox query (${queryTime}ms) for mode ${mode}, processed ${threadMap.size} threads, returning ${threadRepresentatives.length} threads`);
-    }
-
-    // Batch priority recalculation - only for emails that need it (basic score only, LLM happens async)
+    // STEP 4: Calculate priorities if needed (only for emails with default score)
     const emailsNeedingPriority = threadRepresentatives.filter(e => !e.priorityScore || e.priorityScore === 50);
     if (emailsNeedingPriority.length > 0) {
-      // Fetch rules once for all emails
-      const rules = await this.priorityService.getPriorityRules(userId);
+      const endPriorityCalc = perf.startSpan('priority_calc', PERF_BUDGETS.PRIORITY_CALC);
       
-      // OPTIMIZATION: Batch calculate days since last email to avoid N+1 queries
+      // Fetch context once for all emails
+      const contexts = await this.priorityService.getUserContexts(userId);
+      
+      // Batch calculate days since last email
       const daysSinceLastEmailMap = await this.batchCalculateDaysSinceLastEmail(userId, emailsNeedingPriority);
       
       // Calculate priority scores (synchronous, fast)
-      const updates = emailsNeedingPriority.map(email => {
-        const daysSinceLastEmail = daysSinceLastEmailMap.get(email.id);
-        return {
+      const updates = emailsNeedingPriority.map(email => ({
           id: email.id,
-          priorityScore: this.priorityService.calculateBasicPriorityScore(email, rules, daysSinceLastEmail),
-        };
+        priorityScore: this.priorityService.calculateBasicPriorityScore(email, contexts, daysSinceLastEmailMap.get(email.id)),
+      }));
+      
+      // Update in-memory objects immediately
+      updates.forEach(update => {
+        const email = emailsNeedingPriority.find(e => e.id === update.id);
+        if (email) email.priorityScore = update.priorityScore;
       });
       
-      // Batch update in parallel (non-blocking, don't await to avoid blocking response)
+      // Batch update in DB (non-blocking)
       Promise.all(
         updates.map(update => 
           this.emailRepository.update(update.id, { priorityScore: update.priorityScore })
-            .catch(err => console.error(`Failed to update priority for email ${update.id}:`, err))
+            .catch(err => this.logger.error(`Failed to update priority for email ${update.id}:`, err))
         )
-      ).catch(err => console.error('Error batch updating priorities:', err));
+      ).catch(err => this.logger.error('Error batch updating priorities:', err));
       
-      // Update in-memory objects for immediate response
-      updates.forEach(update => {
-        const email = emailsNeedingPriority.find(e => e.id === update.id);
-        if (email) {
-          email.priorityScore = update.priorityScore;
-        }
-      });
+      endPriorityCalc();
     }
 
-    // Return sorted by priority (DESC), then by received date (DESC) for consistent ordering
-    // Triage should be sorted by priority so most important unstarred emails appear first
-    return threadRepresentatives.sort((a, b) => {
-      // First sort by priority score (higher = more important)
+    // STEP 5: Sort by priority (DESC), then by received date (DESC)
+    const sortedEmails = threadRepresentatives.sort((a, b) => {
       const aScore = a.priorityScore ?? 50;
       const bScore = b.priorityScore ?? 50;
       if (Math.abs(bScore - aScore) > 0.01) {
         return bScore - aScore;
       }
-      // If priorities are the same (or very close), sort by received date (newer first)
       return new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime();
     });
+
+    // STEP 6: Filter out blocked senders
+    const endBlockedFilter = perf.startSpan('blocked_filter', 50);
+    const blockedEmailIds = await this.blockedSendersService.filterBlockedEmails(
+      userId,
+      sortedEmails.map(e => ({ id: e.id, from: e.from }))
+    );
+    const blockedSet = new Set(blockedEmailIds);
+    const filteredEmails = sortedEmails.filter(e => !blockedSet.has(e.id));
+    endBlockedFilter();
+    
+    if (blockedEmailIds.length > 0) {
+      this.logger.debug(`Filtered ${blockedEmailIds.length} emails from blocked senders`);
+    }
+
+    // STEP 7: Convert labels (non-blocking background task)
+    this.convertEmailLabels(userId, filteredEmails).catch(err => 
+      this.logger.error('Error converting labels:', err)
+    );
+
+    this.logger.log(`getInbox(${mode}): Returning ${filteredEmails.length} threads (from ${emailIdsWithThreadInfo.length} matching threads, ${emails.length} total emails, ${blockedEmailIds.length} blocked)`);
+    
+    perf.finish();
+    return filteredEmails;
+  }
+
+  /**
+   * Convert label IDs to human-readable names for a list of emails
+   */
+  private async convertEmailLabels(userId: string, emails: Email[]): Promise<void> {
+    // Collect all unique label IDs
+    const allLabelIds = new Set<string>();
+    for (const email of emails) {
+      if (email.labels && Array.isArray(email.labels)) {
+        email.labels.forEach(id => allLabelIds.add(id));
+      }
+    }
+
+    if (allLabelIds.size === 0) return;
+
+    // Get label names from Gmail
+    const labelNames = await this.emailProviderManager.convertLabelIdsToNames(userId, Array.from(allLabelIds));
+    
+    // Create a mapping
+    const labelIdToName = new Map<string, string>();
+    const labelIdsArray = Array.from(allLabelIds);
+    labelIdsArray.forEach((id, index) => {
+      if (labelNames[index]) {
+        labelIdToName.set(id, labelNames[index]);
+      }
+    });
+
+    // Update emails in place (and save to DB for next time)
+    for (const email of emails) {
+      if (email.labels && Array.isArray(email.labels)) {
+        const convertedLabels = email.labels
+          .map(id => labelIdToName.get(id) || id)
+          .filter(name => !name.startsWith('Label_') && !name.startsWith('label_'));
+        
+        // Only update if labels changed
+        if (JSON.stringify(convertedLabels) !== JSON.stringify(email.labels)) {
+          email.labels = convertedLabels;
+          // Update in DB (non-blocking)
+          this.emailRepository.update(email.id, { labels: convertedLabels }).catch(err =>
+            console.error(`Failed to update labels for email ${email.id}:`, err)
+          );
+        }
+      }
+    }
   }
 
   async getEmailById(userId: string, emailId: string): Promise<Email> {
@@ -259,13 +377,11 @@ export class EmailsService {
         'email.subject',
         'email.priorityScore',
         'email.isUrgent',
-        'email.starCount',
         'email.isSnoozed',
         'email.snoozeUntil',
         'email.isBatched',
         'email.batchReleaseAt',
         'email.isRead',
-        'email.isArchived',
         'email.summary',
         'email.receivedAt',
         // Only include body/htmlBody if explicitly needed - they're large and encrypted
@@ -314,6 +430,25 @@ export class EmailsService {
   }
 
   /**
+   * Get ALL threads for sync comparison (returns threadId, isArchived, starCount)
+   * Used by Gmail sync to compare with Gmail search results
+   */
+  async getAllThreadsForSync(userId: string): Promise<Array<{ threadId: string; isArchived: boolean; starCount: number }>> {
+    const results = await this.emailThreadRepository
+      .createQueryBuilder('thread')
+      .select(['thread.threadId', 'thread.isArchived', 'thread.starCount'])
+      .where('thread.userId = :userId', { userId })
+      .limit(500) // Reasonable limit for sync
+      .getMany();
+    
+    return results.map(t => ({
+      threadId: t.threadId,
+      isArchived: t.isArchived,
+      starCount: t.starCount,
+    })).filter(t => t.threadId); // Filter out any null/undefined threadIds
+  }
+
+  /**
    * Update archived status for a thread (updates EmailThread)
    */
   async updateThreadArchivedStatus(userId: string, threadId: string, isArchived: boolean): Promise<void> {
@@ -347,6 +482,78 @@ export class EmailsService {
       // Thread doesn't exist yet, create it
       await this.getOrCreateEmailThread(userId, threadId, starCount, false);
     }
+  }
+
+  /**
+   * Batch update thread statuses (archived + starred) in a single transaction
+   * This is MUCH faster than individual updates for syncing many threads
+   */
+  async batchUpdateThreadStatus(
+    userId: string,
+    updates: { threadId: string; isArchived: boolean; starCount: number }[],
+    deletedThreadIds: string[],
+  ): Promise<void> {
+    if (updates.length === 0 && deletedThreadIds.length === 0) return;
+
+    // Use a transaction for atomic updates
+    await this.emailThreadRepository.manager.transaction(async (manager) => {
+      const threadRepo = manager.getRepository(this.emailThreadRepository.target);
+
+      // Batch update existing threads
+      if (updates.length > 0) {
+        // Group by archived status and star count to minimize queries
+        const archivedUpdates = updates.filter(u => u.isArchived);
+        const starredUpdates = updates.filter(u => u.starCount > 0);
+        const unstarredUpdates = updates.filter(u => u.starCount === 0 && !u.isArchived);
+
+        // Update archived threads
+        if (archivedUpdates.length > 0) {
+          const archivedIds = archivedUpdates.map(u => u.threadId);
+          await threadRepo
+            .createQueryBuilder()
+            .update()
+            .set({ isArchived: true })
+            .where('userId = :userId', { userId })
+            .andWhere('threadId IN (:...threadIds)', { threadIds: archivedIds })
+            .execute();
+        }
+
+        // Update starred threads (starCount = 3)
+        if (starredUpdates.length > 0) {
+          const starredIds = starredUpdates.map(u => u.threadId);
+          await threadRepo
+            .createQueryBuilder()
+            .update()
+            .set({ starCount: 3 })
+            .where('userId = :userId', { userId })
+            .andWhere('threadId IN (:...threadIds)', { threadIds: starredIds })
+            .execute();
+        }
+
+        // Update unstarred threads (starCount = 0)
+        if (unstarredUpdates.length > 0) {
+          const unstarredIds = unstarredUpdates.map(u => u.threadId);
+          await threadRepo
+            .createQueryBuilder()
+            .update()
+            .set({ starCount: 0 })
+            .where('userId = :userId', { userId })
+            .andWhere('threadId IN (:...threadIds)', { threadIds: unstarredIds })
+            .execute();
+        }
+      }
+
+      // Mark deleted threads as archived
+      if (deletedThreadIds.length > 0) {
+        await threadRepo
+          .createQueryBuilder()
+          .update()
+          .set({ isArchived: true })
+          .where('userId = :userId', { userId })
+          .andWhere('threadId IN (:...threadIds)', { threadIds: deletedThreadIds })
+          .execute();
+      }
+    });
   }
 
   /**
@@ -389,9 +596,14 @@ export class EmailsService {
   async createEmail(userId: string, emailData: Partial<Email>): Promise<Email> {
     console.log(`Creating email for user ${userId}: ${emailData.subject}`);
     
+    // Check if sender is blocked
+    const senderEmail = emailData.from || '';
+    const isBlocked = await this.blockedSendersService.isSenderBlocked(userId, senderEmail);
+    
     // Extract thread-level properties (these should come from EmailThread, not Email)
     const starCount = (emailData as any).starCount || 0;
-    const isArchived = (emailData as any).isArchived || false;
+    // If blocked, always archive
+    const isArchived = isBlocked ? true : ((emailData as any).isArchived || false);
     
     // Get or create EmailThread
     const thread = await this.getOrCreateEmailThread(userId, emailData.threadId!, starCount, isArchived);
@@ -408,15 +620,32 @@ export class EmailsService {
     const createdEntities = this.emailRepository.create(emailDataToCreate);
     const email = (Array.isArray(createdEntities) ? createdEntities[0] : createdEntities) as Email;
 
-    // Get rules for basic priority calculation
-    const rules = await this.priorityService.getPriorityRules(userId);
+    // If sender is blocked, skip priority calculation and LLM processing
+    if (isBlocked) {
+      console.log(`📛 Email from blocked sender ${senderEmail} - auto-archiving and skipping LLM processing`);
+      email.priorityScore = 0; // Lowest priority
+      email.isProcessingPriority = false;
+      email.isProcessingSummary = false;
+      email.summary = '[Blocked sender]';
+      
+      // Add blocked-by-bearlymail label
+      const existingLabels = email.labels || [];
+      email.labels = [...existingLabels, 'blocked-by-bearlymail'];
+      
+      const savedEmail = await this.emailRepository.save(email);
+      return savedEmail;
+    }
+
+    // Get context for basic priority calculation
+    const contexts = await this.priorityService.getUserContexts(userId);
     
     // Calculate days since last email in thread for priority boost
     const daysSinceLastEmail = await this.calculateDaysSinceLastEmail(userId, email);
     
     // Calculate basic priority score immediately (fast, no LLM)
-    email.priorityScore = this.priorityService.calculateBasicPriorityScore(email, rules, daysSinceLastEmail);
+    email.priorityScore = this.priorityService.calculateBasicPriorityScore(email, contexts, daysSinceLastEmail);
     email.isProcessingPriority = true; // Mark as processing for LLM refinement
+    email.isProcessingSummary = true; // Mark as processing for summary generation
 
     // Check if urgent (override batching)
     email.isUrgent = this.checkIfUrgent(email);
@@ -430,31 +659,46 @@ export class EmailsService {
     }
 
     const savedEmail = await this.emailRepository.save(email);
-    console.log(`Saved email ${savedEmail.id} to database`);
+    this.logger.debug(`Saved email ${savedEmail.id} to database`);
     
-    // Only queue LLM jobs if they don't already exist
-    // Check if priority needs refinement (only if missing or isProcessingPriority is false and priorityScore is default)
-    const needsPriorityRefinement = !savedEmail.priorityScore || 
-                                     savedEmail.priorityScore === 50 || 
-                                     (!savedEmail.isProcessingPriority && !savedEmail.priorityScore);
+    // IMPORTANT: Always queue jobs immediately when isProcessingPriority/Summary is set
+    // This ensures "Calculating..." status in UI has an actual job behind it
+    // Use singleton key to prevent duplicate jobs for the same email
+    const priorityJobId = await this.boss.send(
+      'refine-priority', 
+      { userId, emailId: savedEmail.id },
+      {
+        singletonKey: `refine-priority-${savedEmail.id}`,
+        singletonMinutes: 5, // Prevent duplicate jobs within 5 minutes
+      }
+    ).catch(err => {
+      this.logger.error(`Failed to queue priority refinement for email ${savedEmail.id}:`, err);
+      // Reset flag if job queueing failed
+      this.emailRepository.update({ id: savedEmail.id }, { isProcessingPriority: false });
+      return null;
+    });
     
-    if (needsPriorityRefinement) {
-      this.boss.send('refine-priority', { userId, emailId: savedEmail.id }).catch(err => 
-        console.error('Failed to queue priority refinement', err)
-      );
-    } else {
-      console.log(`Skipping priority refinement for email ${savedEmail.id} - already has priority score: ${savedEmail.priorityScore}`);
+    if (priorityJobId) {
+      this.logger.debug(`Queued priority refinement job ${priorityJobId} for email ${savedEmail.id}`);
     }
     
-    // Check if summary needs generation (only if missing)
-    const needsSummary = !savedEmail.summary || savedEmail.summary.trim() === '';
+    // Queue summary generation job
+    const summaryJobId = await this.boss.send(
+      'generate-summary', 
+      { userId, emailId: savedEmail.id },
+      {
+        singletonKey: `generate-summary-${savedEmail.id}`,
+        singletonMinutes: 5,
+      }
+    ).catch(err => {
+      this.logger.error(`Failed to queue summary generation for email ${savedEmail.id}:`, err);
+      // Reset flag if job queueing failed
+      this.emailRepository.update({ id: savedEmail.id }, { isProcessingSummary: false });
+      return null;
+    });
     
-    if (needsSummary) {
-      this.boss.send('generate-summary', { userId, emailId: savedEmail.id }).catch(err => 
-        console.error('Failed to queue summary generation', err)
-      );
-    } else {
-      console.log(`Skipping summary generation for email ${savedEmail.id} - already has summary`);
+    if (summaryJobId) {
+      this.logger.debug(`Queued summary generation job ${summaryJobId} for email ${savedEmail.id}`);
     }
     
     return savedEmail;
@@ -720,9 +964,15 @@ export class EmailsService {
 
   /**
    * Get priority score explanation breakdown for an email
+   * Returns dimensions: Urgency, Goal Alignment, VIP Contact
    */
   async getPriorityExplanation(userId: string, emailId: string): Promise<{
     score: number;
+    dimensions: {
+      urgency: { score: number; reasons: string[] };
+      goalAlignment: { score: number; reasons: string[] };
+      vipContact: { score: number; reasons: string[] };
+    };
     breakdown: Array<{ factor: string; value: number; description: string }>;
   }> {
     const email = await this.getEmailById(userId, emailId);
@@ -730,56 +980,214 @@ export class EmailsService {
       throw new Error('Email not found');
     }
 
-    const rules = await this.priorityService.getPriorityRules(userId);
+    // Get user context for prioritization
+    const contexts = await this.userContextRepository.find({ where: { userId } });
     const daysSinceLastEmail = await this.calculateDaysSinceLastEmail(userId, email);
+    
+    // Initialize dimensions
+    const dimensions = {
+      urgency: { score: 0, reasons: [] as string[] },
+      goalAlignment: { score: 0, reasons: [] as string[] },
+      vipContact: { score: 0, reasons: [] as string[] },
+    };
     
     const breakdown: Array<{ factor: string; value: number; description: string }> = [];
     let currentScore = 50;
+    const emailText = `${email.subject} ${email.body}`.toLowerCase();
+    const senderEmail = email.from?.toLowerCase() || '';
+    const senderName = email.fromName?.toLowerCase() || '';
 
     // Base score
     breakdown.push({
       factor: 'Base Score',
       value: 50,
-      description: 'Starting priority score',
+      description: 'Starting priority score for all emails',
     });
 
-    // Explicit rules
-    const explicitRules = rules.filter((r) => r.ruleType === RuleType.EXPLICIT_SENDER);
-    for (const rule of explicitRules) {
-      // Simplified matching check (would need to decrypt conditionKey/conditionVal)
+    // === VIP CONTACT DIMENSION ===
+    const vipContacts = contexts.filter(c => c.contextKey === ContextKey.VIP_CONTACT);
+    const matchedVip = vipContacts.find(vip => 
+      senderEmail.includes(vip.contextValue.toLowerCase()) || 
+      senderName.includes(vip.contextValue.toLowerCase())
+    );
+    
+    if (matchedVip) {
+      const vipBoost = 25;
+      dimensions.vipContact.score += vipBoost;
+      dimensions.vipContact.reasons.push(`VIP contact: ${matchedVip.contextValue}`);
       breakdown.push({
-        factor: `Rule: ${rule.conditionKey}`,
-        value: rule.priorityBoost,
-        description: `Custom priority rule boost`,
+        factor: '⭐ VIP Contact',
+        value: vipBoost,
+        description: `From VIP: ${matchedVip.contextValue}`,
       });
-      currentScore += rule.priorityBoost;
+      currentScore += vipBoost;
     }
 
-    // Days since last email
-    if (daysSinceLastEmail !== undefined && daysSinceLastEmail > 0) {
-      const daysBoost = Math.min(30, 2 * Math.pow(daysSinceLastEmail, 1.5));
+    // Check job title for VIP
+    if (email.senderJobTitle) {
+      const jobTitleScore = this.calculateJobTitleScore(email.senderJobTitle);
+      if (jobTitleScore > 0.5) {
+        const titleBoost = Math.round(jobTitleScore * 15);
+        dimensions.vipContact.score += titleBoost;
+        dimensions.vipContact.reasons.push(`Important role: ${email.senderJobTitle}`);
       breakdown.push({
-        factor: 'Days Since Last Email',
+          factor: '⭐ VIP Contact',
+          value: titleBoost,
+          description: `Sender role: ${email.senderJobTitle}`,
+        });
+        currentScore += titleBoost;
+      }
+    }
+
+    // === GOAL ALIGNMENT DIMENSION ===
+    // Check against user's goals
+    const goals = contexts.filter(c => c.contextKey === ContextKey.MY_GOALS);
+    for (const goal of goals) {
+      const keywords = goal.contextValue.toLowerCase().split(/[,;]/).map(k => k.trim()).filter(Boolean);
+      const matchedKeywords = keywords.filter(kw => emailText.includes(kw));
+      if (matchedKeywords.length > 0) {
+        const goalBoost = 15;
+        dimensions.goalAlignment.score += goalBoost;
+        dimensions.goalAlignment.reasons.push(`Aligns with goal: ${goal.contextValue.substring(0, 50)}`);
+        breakdown.push({
+          factor: '🎯 Goal Alignment',
+          value: goalBoost,
+          description: `Matches goal: ${matchedKeywords.join(', ')}`,
+        });
+        currentScore += goalBoost;
+        break; // Only count one goal match
+      }
+    }
+
+    // Check "What I'm working on" items
+    const workingOn = contexts.filter(c => c.contextKey === ContextKey.WORKING_ON);
+    for (const project of workingOn) {
+      const keywords = project.contextValue.toLowerCase().split(/[,;]/).map(k => k.trim()).filter(Boolean);
+      const matchedKeywords = keywords.filter(kw => emailText.includes(kw));
+      if (matchedKeywords.length > 0) {
+        // Priority 1 = +15, Priority 2 = +10, Priority 3 = +5
+        const priorityBoost = project.priority === 1 ? 15 : project.priority === 2 ? 10 : 5;
+        dimensions.goalAlignment.score += priorityBoost;
+        dimensions.goalAlignment.reasons.push(`Related to: ${project.contextValue.substring(0, 50)} (Priority ${project.priority || 2})`);
+        breakdown.push({
+          factor: '🎯 Goal Alignment',
+          value: priorityBoost,
+          description: `Working on: ${matchedKeywords.join(', ')}`,
+        });
+        currentScore += priorityBoost;
+        break; // Only count one project match
+      }
+    }
+
+    // Check "Don't care" items (negative alignment)
+    const dontCare = contexts.filter(c => c.contextKey === ContextKey.DONT_CARE);
+    for (const item of dontCare) {
+      const keywords = item.contextValue.toLowerCase().split(/[,;]/).map(k => k.trim()).filter(Boolean);
+      const matchedKeywords = keywords.filter(kw => emailText.includes(kw));
+      if (matchedKeywords.length > 0) {
+        const penalty = -20;
+        dimensions.goalAlignment.score += penalty;
+        dimensions.goalAlignment.reasons.push(`Matches "don't care": ${item.contextValue.substring(0, 50)}`);
+        breakdown.push({
+          factor: '🎯 Goal Alignment',
+          value: penalty,
+          description: `Low interest: ${matchedKeywords.join(', ')}`,
+        });
+        currentScore += penalty;
+        break;
+      }
+    }
+
+    // === URGENCY DIMENSION ===
+    // Check for urgent keywords
+    const urgentKeywords = ['urgent', 'asap', 'critical', 'emergency', 'immediate', 'deadline', 'time-sensitive'];
+    const foundUrgentKeywords = urgentKeywords.filter(kw => emailText.includes(kw));
+    
+    if (foundUrgentKeywords.length > 0) {
+      const urgencyBoost = Math.min(25, foundUrgentKeywords.length * 10);
+      dimensions.urgency.score += urgencyBoost;
+      dimensions.urgency.reasons.push(`Contains urgent keywords: ${foundUrgentKeywords.join(', ')}`);
+      breakdown.push({
+        factor: '🔥 Urgency',
+        value: urgencyBoost,
+        description: `Contains: ${foundUrgentKeywords.join(', ')}`,
+      });
+      currentScore += urgencyBoost;
+    }
+
+    // Days since last email (affects urgency)
+    if (daysSinceLastEmail !== undefined && daysSinceLastEmail > 3) {
+      const daysBoost = Math.round(Math.min(15, daysSinceLastEmail * 2) * 10) / 10;
+      dimensions.urgency.score += daysBoost;
+      dimensions.urgency.reasons.push(`${daysSinceLastEmail} days since last contact - may need follow-up`);
+      breakdown.push({
+        factor: '🔥 Urgency',
         value: daysBoost,
-        description: `${daysSinceLastEmail} days since last email from this sender (exponential boost)`,
+        description: `${daysSinceLastEmail} days since last email - needs attention`,
       });
       currentScore += daysBoost;
     }
 
-    // Urgent keywords
-    if (this.checkIfUrgent(email)) {
+    // Low urgency indicators
+    const lowUrgencyKeywords = ['no rush', 'whenever', 'optional', 'fyi', 'just wanted to', 'low priority'];
+    const foundLowUrgency = lowUrgencyKeywords.filter(kw => emailText.includes(kw));
+    if (foundLowUrgency.length > 0) {
+      const penalty = -10;
+      dimensions.urgency.score += penalty;
+      dimensions.urgency.reasons.push(`Low urgency indicators: ${foundLowUrgency.join(', ')}`);
       breakdown.push({
-        factor: 'Urgent Keywords',
-        value: 20,
-        description: 'Email contains urgent keywords (urgent, asap, critical, etc.)',
+        factor: '🔥 Urgency',
+        value: penalty,
+        description: `Low urgency: ${foundLowUrgency.join(', ')}`,
       });
-      currentScore += 20;
+      currentScore += penalty;
     }
 
+    // Calculate final score
+    const calculatedScore = Math.max(0, Math.min(100, currentScore));
+    const actualScore = email.priorityScore;
+    const difference = Math.round((actualScore - calculatedScore) * 10) / 10;
+    
+    // If there's unexplained difference, attribute to AI analysis
+    if (Math.abs(difference) >= 1) {
+      // Distribute to most relevant dimension
+      if (dimensions.urgency.score === 0 && foundUrgentKeywords.length === 0) {
+        dimensions.goalAlignment.score += difference;
+        dimensions.goalAlignment.reasons.push('AI analysis of email content and context');
+      } else {
+        dimensions.urgency.score += difference;
+        dimensions.urgency.reasons.push('AI analysis of email tone and timing');
+      }
+      breakdown.push({
+        factor: '🤖 AI Analysis',
+        value: difference,
+        description: 'Additional context from AI analysis',
+      });
+    }
+
+    // Normalize dimension scores to 0-100
+    dimensions.urgency.score = Math.max(0, Math.min(100, 50 + dimensions.urgency.score));
+    dimensions.goalAlignment.score = Math.max(0, Math.min(100, 50 + dimensions.goalAlignment.score));
+    dimensions.vipContact.score = Math.max(0, Math.min(100, 50 + dimensions.vipContact.score));
+
     return {
-      score: Math.max(0, Math.min(100, currentScore)),
+      score: actualScore,
+      dimensions,
       breakdown,
     };
+  }
+
+  private calculateJobTitleScore(jobTitle: string): number {
+    if (!jobTitle) return 0;
+    
+    const highPriorityTitles = ['ceo', 'president', 'director', 'manager', 'lead', 'head', 'chief', 'vp', 'vice president', 'founder'];
+    const titleLower = jobTitle.toLowerCase();
+    
+    for (const title of highPriorityTitles) {
+      if (titleLower.includes(title)) return 1;
+    }
+    
+    return 0.5;
   }
 
   /**
@@ -822,6 +1230,7 @@ export class EmailsService {
           priorityScore: 50, // Default score for search results
           isRead: rawEmail.isRead || false,
           isBatched: false,
+          labels: rawEmail.labelIds || [],
         });
         email = await this.emailRepository.save(email);
       }
@@ -831,4 +1240,375 @@ export class EmailsService {
 
     return emails;
   }
+
+  /**
+   * Debug endpoint to find missing starred threads
+   * Compares Gmail starred emails with what's in our DB
+   */
+  async debugStarredThreads(userId: string): Promise<{
+    gmail: {
+      starredThreadCount: number;
+      starredThreadIds: string[];
+      error?: string;
+    };
+    database: {
+      starredThreadCount: number;
+      starredEmailCount: number;
+    };
+    processTabResults: number;
+    comparison: {
+      inGmailNotInDb: string[];
+      inDbNotInGmail: string[];
+      inDbButArchived: string[];
+    };
+    starredThreads: Array<{
+      threadId: string;
+      starCount: number;
+      isArchived: boolean;
+      isSnoozed: boolean;
+      emailCount: number;
+      latestSubject: string;
+      latestFrom: string;
+      issues: string[];
+      inGmail: boolean;
+    }>;
+    missingFromProcessTab: Array<{
+      threadId: string;
+      reason: string;
+      details: any;
+    }>;
+  }> {
+    // 1. Search Gmail for starred emails in inbox
+    let gmailStarredThreadIds: string[] = [];
+    let gmailError: string | undefined;
+    
+    try {
+      const provider = await this.emailProviderManager.getPrimaryProvider(userId);
+      if (provider) {
+        // Search for starred emails in inbox
+        const starredEmails = await provider.searchEmails(userId, 'is:starred is:inbox', 100);
+        // Get unique thread IDs
+        gmailStarredThreadIds = [...new Set(starredEmails.map(e => e.threadId))];
+        this.logger.debug(`Gmail search found ${starredEmails.length} starred emails in ${gmailStarredThreadIds.length} threads`);
+      } else {
+        gmailError = 'No email provider connected';
+      }
+    } catch (error) {
+      gmailError = error.message || 'Failed to search Gmail';
+      this.logger.error('Error searching Gmail for starred emails:', error);
+    }
+
+    // 2. Get all starred threads from email_threads table
+    const allStarredThreads = await this.emailThreadRepository
+      .createQueryBuilder('thread')
+      .where('thread.userId = :userId', { userId })
+      .andWhere('thread."starCount" > 0')
+      .getMany();
+
+    // 3. Get all emails that belong to starred threads
+    const starredThreadIds = allStarredThreads.map(t => t.id);
+    const emailsInStarredThreads = starredThreadIds.length > 0 
+      ? await this.emailRepository
+          .createQueryBuilder('email')
+          .where('email.userId = :userId', { userId })
+          .andWhere('email."emailThreadId" IN (:...threadIds)', { threadIds: starredThreadIds })
+          .getMany()
+      : [];
+
+    // 4. Run the actual getInbox query for process mode to see what's returned
+    const processTabEmails = await this.getInbox(userId, false, 'process');
+
+    // 5. Compare Gmail vs DB
+    const dbThreadIds = allStarredThreads.map(t => t.threadId);
+    const inGmailNotInDb = gmailStarredThreadIds.filter(id => !dbThreadIds.includes(id));
+    const inDbNotInGmail = dbThreadIds.filter(id => !gmailStarredThreadIds.includes(id));
+    const inDbButArchived = allStarredThreads
+      .filter(t => t.isArchived)
+      .map(t => t.threadId);
+
+    // 6. Identify issues for each starred thread
+    const threadDetails = await Promise.all(allStarredThreads.map(async (thread) => {
+      const threadEmails = emailsInStarredThreads.filter(e => e.emailThreadId === thread.id);
+      const latestEmail = threadEmails.sort((a, b) => 
+        new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime()
+      )[0];
+
+      const issues: string[] = [];
+      const inGmail = gmailStarredThreadIds.includes(thread.threadId);
+      
+      // Check if archived
+      if (thread.isArchived) {
+        issues.push('Thread is ARCHIVED');
+      }
+
+      // Check if in Gmail
+      if (!inGmail && !gmailError) {
+        issues.push('NOT STARRED IN GMAIL (or not in inbox)');
+      }
+
+      // Check if all emails are snoozed
+      const allSnoozed = threadEmails.every(e => e.isSnoozed && e.snoozeUntil && new Date(e.snoozeUntil) > new Date());
+      if (allSnoozed && threadEmails.length > 0) {
+        issues.push('All emails in thread are SNOOZED');
+      }
+
+      // Check if thread appears in process results
+      const inProcessTab = processTabEmails.some(e => e.threadId === thread.threadId);
+      if (!inProcessTab && issues.length === 0) {
+        issues.push('NOT IN PROCESS TAB (unknown reason)');
+      }
+
+      return {
+        threadId: thread.threadId.substring(0, 12) + '...',
+        starCount: thread.starCount,
+        isArchived: thread.isArchived,
+        isSnoozed: allSnoozed,
+        emailCount: threadEmails.length,
+        latestSubject: latestEmail?.subject?.substring(0, 50) || 'N/A',
+        latestFrom: latestEmail?.fromName || latestEmail?.from || 'N/A',
+        issues,
+        inGmail,
+      };
+    }));
+
+    // 7. Identify threads missing from process tab
+    const missingFromProcessTab = threadDetails
+      .filter(t => t.issues.length > 0)
+      .map(t => ({
+        threadId: t.threadId,
+        reason: t.issues.join(', '),
+        details: {
+          starCount: t.starCount,
+          isArchived: t.isArchived,
+          isSnoozed: t.isSnoozed,
+          emailCount: t.emailCount,
+          subject: t.latestSubject,
+          from: t.latestFrom,
+          inGmail: t.inGmail,
+        },
+      }));
+
+    return {
+      gmail: {
+        starredThreadCount: gmailStarredThreadIds.length,
+        starredThreadIds: gmailStarredThreadIds.map(id => id.substring(0, 12) + '...'),
+        error: gmailError,
+      },
+      database: {
+        starredThreadCount: allStarredThreads.length,
+        starredEmailCount: emailsInStarredThreads.length,
+      },
+      processTabResults: processTabEmails.length,
+      comparison: {
+        inGmailNotInDb: inGmailNotInDb.map(id => id.substring(0, 12) + '...'),
+        inDbNotInGmail: inDbNotInGmail.map(id => id.substring(0, 12) + '...'),
+        inDbButArchived: inDbButArchived.map(id => id.substring(0, 12) + '...'),
+      },
+      starredThreads: threadDetails,
+      missingFromProcessTab,
+    };
+  }
+
+  /**
+   * Debug endpoint to find emails without emailThreadId (orphan emails)
+   */
+  async debugOrphanEmails(userId: string): Promise<{
+    totalEmailsInDb: number;
+    emailsWithThreadId: number;
+    orphanEmails: number;
+    orphanEmailDetails: Array<{
+      id: string;
+      threadId: string;
+      emailThreadId: string | null;
+      subject: string;
+      from: string;
+      receivedAt: Date;
+    }>;
+    threadsInDb: number;
+    threadsWithoutEmails: Array<{
+      id: string;
+      threadId: string;
+      starCount: number;
+      isArchived: boolean;
+    }>;
+  }> {
+    // Count total emails
+    const totalEmailsInDb = await this.emailRepository.count({ where: { userId } });
+    
+    // Count emails with emailThreadId set
+    const emailsWithThreadId = await this.emailRepository.count({
+      where: { userId, emailThreadId: Not(IsNull()) },
+    });
+    
+    // Get orphan emails (no emailThreadId)
+    const orphanEmailsList = await this.emailRepository.find({
+      where: { userId, emailThreadId: IsNull() },
+      select: ['id', 'threadId', 'emailThreadId', 'subject', 'from', 'receivedAt'],
+      take: 50, // Limit to 50 for performance
+    });
+    
+    // Get all threads
+    const allThreads = await this.emailThreadRepository.find({ where: { userId } });
+    
+    // Find threads that have no emails pointing to them
+    const threadIdsWithEmails = await this.emailRepository
+      .createQueryBuilder('email')
+      .select('DISTINCT email."emailThreadId"', 'emailThreadId')
+      .where('email.userId = :userId', { userId })
+      .andWhere('email."emailThreadId" IS NOT NULL')
+      .getRawMany();
+    
+    const threadIdsWithEmailsSet = new Set(threadIdsWithEmails.map(r => r.emailThreadId));
+    
+    const threadsWithoutEmails = allThreads
+      .filter(t => !threadIdsWithEmailsSet.has(t.id))
+      .map(t => ({
+        id: t.id.substring(0, 12) + '...',
+        threadId: t.threadId.substring(0, 12) + '...',
+        starCount: t.starCount,
+        isArchived: t.isArchived,
+      }));
+    
+    return {
+      totalEmailsInDb,
+      emailsWithThreadId,
+      orphanEmails: totalEmailsInDb - emailsWithThreadId,
+      orphanEmailDetails: orphanEmailsList.map(e => ({
+        id: e.id.substring(0, 12) + '...',
+        threadId: e.threadId?.substring(0, 12) + '...' || 'N/A',
+        emailThreadId: e.emailThreadId?.substring(0, 12) + '...' || null,
+        subject: e.subject?.substring(0, 50) || 'N/A',
+        from: e.from?.substring(0, 30) || 'N/A',
+        receivedAt: e.receivedAt,
+      })),
+      threadsInDb: allThreads.length,
+      threadsWithoutEmails,
+    };
+  }
+
+  /**
+   * Fix orphan emails by creating/linking EmailThread records
+   */
+  async fixOrphanEmails(userId: string): Promise<{
+    fixed: number;
+    errors: string[];
+  }> {
+    const errors: string[] = [];
+    let fixed = 0;
+    
+    // Get all orphan emails
+    const orphanEmails = await this.emailRepository.find({
+      where: { userId, emailThreadId: IsNull() },
+    });
+    
+    this.logger.log(`Found ${orphanEmails.length} orphan emails to fix`);
+    
+    for (const email of orphanEmails) {
+      try {
+        // Check if a thread already exists for this Gmail threadId
+        let thread = await this.emailThreadRepository.findOne({
+          where: { userId, threadId: email.threadId },
+        });
+        
+        if (!thread) {
+          // Create a new thread
+          thread = this.emailThreadRepository.create({
+            userId,
+            threadId: email.threadId,
+            starCount: 0,
+            isArchived: false,
+          });
+          thread = await this.emailThreadRepository.save(thread);
+          this.logger.log(`Created new thread ${thread.id} for Gmail thread ${email.threadId}`);
+        }
+        
+        // Link email to thread
+        await this.emailRepository.update(email.id, { emailThreadId: thread.id });
+        fixed++;
+      } catch (err) {
+        const errorMsg = `Failed to fix email ${email.id}: ${err.message}`;
+        this.logger.error(errorMsg);
+        errors.push(errorMsg);
+      }
+    }
+    
+    this.logger.log(`Fixed ${fixed} orphan emails, ${errors.length} errors`);
+    
+    return { fixed, errors };
+  }
+
+  /**
+   * Fix threads stuck in "calculating" status
+   * Finds emails with isProcessingPriority=true that are older than 10 minutes
+   * and either resets them or re-queues the job
+   */
+  async fixStuckCalculatingThreads(userId: string): Promise<{ fixed: number; requeued: number; errors: string[] }> {
+    this.logger.log(`Checking for stuck calculating threads for user ${userId}`);
+    
+    // Find emails that have been in "calculating" state for more than 10 minutes
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    
+    const stuckEmails = await this.emailRepository.find({
+      where: {
+        userId,
+        isProcessingPriority: true,
+      },
+      select: ['id', 'receivedAt', 'priorityScore'],
+    });
+
+    // Filter to only those that are actually stuck (older than 10 minutes or have default score)
+    const actuallyStuck = stuckEmails.filter(email => {
+      const emailAge = Date.now() - new Date(email.receivedAt).getTime();
+      return emailAge > 10 * 60 * 1000 || email.priorityScore === 50;
+    });
+
+    this.logger.log(`Found ${actuallyStuck.length} stuck calculating threads (out of ${stuckEmails.length} total)`);
+
+    let fixed = 0;
+    let requeued = 0;
+    const errors: string[] = [];
+
+    for (const email of actuallyStuck) {
+      try {
+        // Check if there's an active job for this email
+        // PgBoss doesn't have a direct API to check by data, so we'll just re-queue
+        // The singleton key will prevent duplicates if a job already exists
+        
+        // Reset the flag first
+        await this.emailRepository.update(
+          { id: email.id },
+          { isProcessingPriority: false }
+        );
+
+        // Re-queue the job
+        const jobId = await this.boss.send(
+          'refine-priority',
+          { userId, emailId: email.id },
+          {
+            singletonKey: `refine-priority-${email.id}`,
+            singletonMinutes: 5,
+          }
+        ).catch(err => {
+          this.logger.error(`Failed to re-queue priority job for email ${email.id}:`, err);
+          return null;
+        });
+
+        if (jobId) {
+          requeued++;
+          this.logger.debug(`Re-queued priority job ${jobId} for stuck email ${email.id}`);
+        } else {
+          fixed++; // Just reset the flag, couldn't queue
+        }
+      } catch (err: any) {
+        const errorMsg = `Failed to fix stuck email ${email.id}: ${err.message}`;
+        this.logger.error(errorMsg);
+        errors.push(errorMsg);
+      }
+    }
+
+    this.logger.log(`Fixed ${fixed} stuck threads, re-queued ${requeued} jobs, ${errors.length} errors`);
+    
+    return { fixed, requeued, errors };
+  }
 }
+

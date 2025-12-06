@@ -2,6 +2,8 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { theme } from '../../theme/theme';
+import { PriorityTooltip } from '../priority/PriorityTooltip';
+import axios from 'axios';
 
 interface Email {
   id: string;
@@ -19,6 +21,9 @@ interface Email {
   isProcessingSummary?: boolean;
   summary?: string | null;
   isStarred?: boolean;
+  starCount?: number; // Thread-level property (0-3)
+  isArchived?: boolean; // Thread-level property
+  labels?: string[];
 }
 
 interface EmailCardProps {
@@ -101,34 +106,77 @@ export const EmailCard: React.FC<EmailCardProps> = ({
           }}>
             {email.fromName || email.from}
           </strong>
-          <span style={{
-            fontSize: theme.typography.fontSize.xs,
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            backgroundColor: priorityBg,
-            color: priorityColor,
-            borderRadius: theme.borderRadius.full,
-            fontWeight: theme.typography.fontWeight.medium,
-            display: 'flex',
-            alignItems: 'center',
-            gap: theme.spacing.xs,
-          }}>
-            {email.isProcessingPriority ? (
-              <>
-                <span style={{ 
-                  display: 'inline-block',
-                  width: '10px',
-                  height: '10px',
-                  border: `2px solid ${priorityColor}`,
-                  borderTop: '2px solid transparent',
-                  borderRadius: '50%',
-                  animation: 'spin 1s linear infinite',
-                }} />
-                {t('email.calculating')}
-              </>
-            ) : (
-              `${priorityLabel} (${email.priorityScore.toFixed(0)})`
-            )}
-          </span>
+          <PriorityTooltip
+            emailId={email.id}
+            priorityScore={email.priorityScore}
+            onOverride={async (explanation: string) => {
+              try {
+                await axios.post(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/priority/star-feedback`, {
+                  emailId: email.id,
+                  userStarCount: email.starCount || 0,
+                  predictedStarCount: Math.round((email.priorityScore / 100) * 3),
+                  explanation,
+                });
+              } catch (error) {
+                console.error('Error submitting override:', error);
+              }
+            }}
+          >
+            <span style={{
+              fontSize: theme.typography.fontSize.xs,
+              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+              backgroundColor: priorityBg,
+              color: priorityColor,
+              borderRadius: theme.borderRadius.full,
+              fontWeight: theme.typography.fontWeight.medium,
+              display: 'flex',
+              alignItems: 'center',
+              gap: theme.spacing.xs,
+              cursor: 'help',
+            }}>
+              {email.isProcessingPriority ? (
+                <>
+                  <span style={{ 
+                    display: 'inline-block',
+                    width: '10px',
+                    height: '10px',
+                    border: `2px solid ${priorityColor}`,
+                    borderTop: '2px solid transparent',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite',
+                  }} />
+                  {t('email.calculating')}
+                </>
+              ) : (
+                `🎯 ${priorityLabel} (${email.priorityScore.toFixed(0)})`
+              )}
+            </span>
+          </PriorityTooltip>
+
+          {/* Labels */}
+          {email.labels && email.labels.length > 0 && (
+            <div style={{ display: 'flex', gap: theme.spacing.xs, flexWrap: 'wrap' }}>
+              {email.labels
+                .filter(label => !['INBOX', 'UNREAD', 'STARRED', 'IMPORTANT', 'SENT', 'DRAFT', 'TRASH', 'SPAM'].includes(label))
+                .map((label, i) => {
+                  const displayLabel = label.startsWith('CATEGORY_') ? label.replace('CATEGORY_', '') : label;
+                  const isCategory = label.startsWith('CATEGORY_');
+                  return (
+                    <span key={i} style={{
+                      fontSize: theme.typography.fontSize.xs,
+                      padding: `2px ${theme.spacing.sm}`,
+                      backgroundColor: isCategory ? theme.colors.background.subtle : theme.colors.primary.subtle,
+                      color: isCategory ? theme.colors.text.secondary : theme.colors.primary.main,
+                      borderRadius: theme.borderRadius.sm,
+                      border: `1px solid ${isCategory ? theme.colors.border.light : 'transparent'}`,
+                      textTransform: isCategory ? 'capitalize' : 'none',
+                    }}>
+                      {displayLabel.toLowerCase()}
+                    </span>
+                  );
+                })}
+            </div>
+          )}
         </div>
         <span style={{
           fontSize: theme.typography.fontSize.xs,
@@ -224,8 +272,15 @@ export const EmailCard: React.FC<EmailCardProps> = ({
                 value={snoozeInput}
                 onChange={(e) => onSnoozeInputChange(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') onSnooze(email.id);
-                  if (e.key === 'Escape') onHideSnoozeInput();
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (snoozeInput.trim()) {
+                      onSnooze(email.id);
+                    }
+                  }
+                  if (e.key === 'Escape') {
+                    onHideSnoozeInput();
+                  }
                 }}
                 style={{
                   padding: theme.spacing.xs,
@@ -236,6 +291,41 @@ export const EmailCard: React.FC<EmailCardProps> = ({
                   outline: 'none',
                 }}
               />
+              <button
+                onClick={() => {
+                  if (snoozeInput.trim()) {
+                    onSnooze(email.id);
+                  }
+                }}
+                disabled={!snoozeInput.trim()}
+                style={{
+                  padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                  borderRadius: theme.borderRadius.sm,
+                  backgroundColor: snoozeInput.trim() ? theme.colors.primary.main : theme.colors.background.subtle,
+                  color: snoozeInput.trim() ? 'white' : theme.colors.text.tertiary,
+                  border: 'none',
+                  cursor: snoozeInput.trim() ? 'pointer' : 'not-allowed',
+                  fontSize: theme.typography.fontSize.xs,
+                  fontWeight: theme.typography.fontWeight.medium,
+                  opacity: snoozeInput.trim() ? 1 : 0.6,
+                }}
+              >
+                {t('common.confirm')}
+              </button>
+              <button
+                onClick={onHideSnoozeInput}
+                style={{
+                  padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                  borderRadius: theme.borderRadius.sm,
+                  backgroundColor: 'transparent',
+                  color: theme.colors.text.secondary,
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: theme.typography.fontSize.xs,
+                }}
+              >
+                {t('common.cancel')}
+              </button>
             </div>
           ) : (
             <button
@@ -260,5 +350,6 @@ export const EmailCard: React.FC<EmailCardProps> = ({
     </div>
   );
 };
+
 
 

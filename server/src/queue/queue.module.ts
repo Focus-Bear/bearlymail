@@ -18,14 +18,16 @@ import PgBoss = require('pg-boss');
         const boss = new PgBoss({
           connectionString: `postgres://${configService.get('DB_USERNAME')}:${configService.get('DB_PASSWORD')}@${configService.get('DB_HOST')}:${configService.get('DB_PORT')}/${configService.get('DB_NAME')}`,
           ssl: useSsl,
-          // Connection retry settings
-          retryLimit: 5,
-          retryDelay: 5000, // 5 seconds
-          retryBackoff: true,
-          // Worker settings - handle connection errors gracefully
+          // Worker settings
           noSupervisor: false,
+          // Job defaults - reasonable retry settings
+          retryLimit: 3, // Max 3 retries
+          retryDelay: 10, // 10 seconds between retries (not 5000!)
+          retryBackoff: false, // Linear backoff, not exponential
           expireInMinutes: 15, // Jobs expire after 15 minutes if not processed
           deleteAfterHours: 24, // Delete completed jobs after 24 hours
+          // Archive completed jobs instead of deleting immediately
+          archiveCompletedAfterSeconds: 3600, // Archive after 1 hour
         });
 
         // Handle connection errors gracefully

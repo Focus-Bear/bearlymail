@@ -8,7 +8,6 @@ import { ScanEmail } from '../database/entities/scan-email.entity';
 import { UsersModule } from '../users/users.module';
 import { QueueModule } from '../queue/queue.module';
 import { EmailsModule } from '../emails/emails.module';
-import { PriorityModule } from '../priority/priority.module';
 import { ContextModule } from '../context/context.module';
 
 @Module({
@@ -17,7 +16,6 @@ import { ContextModule } from '../context/context.module';
     UsersModule,
     QueueModule,
     EmailsModule,
-    PriorityModule,
     ContextModule,
   ],
   controllers: [OnboardingController],

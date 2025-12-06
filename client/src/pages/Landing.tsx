@@ -141,252 +141,660 @@ const Landing: React.FC = () => {
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section style={{
+      {/* Main Content - Two Columns */}
+      <main style={{
         flex: 1,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: theme.spacing['2xl'],
-        maxWidth: '1200px',
+        maxWidth: '1400px',
         margin: '0 auto',
         width: '100%',
+        padding: theme.spacing['2xl'],
       }}>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
+          gridTemplateColumns: '1fr 450px',
           gap: theme.spacing['2xl'],
-          alignItems: 'center',
+          alignItems: 'flex-start',
         }}>
-          {/* Left: Description */}
+          {/* Left Column: Content */}
           <div>
-            <h2 style={{
-              fontSize: theme.typography.fontSize['4xl'],
-              fontWeight: theme.typography.fontWeight.bold,
-              color: theme.colors.text.primary,
-              marginBottom: theme.spacing.lg,
-              lineHeight: 1.2,
+            {/* Hero Hook */}
+            <section style={{
+              marginBottom: theme.spacing['3xl'],
+              paddingTop: theme.spacing['3xl'],
             }}>
-              Your inbox is overwhelming you. <br />
-              We fix that.
-            </h2>
-            <p style={{
-              fontSize: theme.typography.fontSize.lg,
-              color: theme.colors.text.secondary,
-              marginBottom: theme.spacing.xl,
-              lineHeight: 1.6,
-            }}>
-              <strong style={{ color: theme.colors.text.primary }}>47 unread emails.</strong> You know you should deal with them, but where do you even start? 
-              Every notification pulls your attention. Important emails get buried. You spend 20 minutes deciding what to tackle first.
-            </p>
-            <p style={{
-              fontSize: theme.typography.fontSize.lg,
-              color: theme.colors.text.secondary,
-              marginBottom: theme.spacing.xl,
-              lineHeight: 1.6,
-            }}>
-              <strong style={{ color: theme.colors.primary.main }}>BearlyMail changes that.</strong> We batch your emails and deliver them at set times, 
-              so you're not constantly interrupted. AI tells you what actually matters. You see one clear action at a time.
-            </p>
-            <div style={{
-              backgroundColor: theme.colors.primary.subtle,
-              padding: theme.spacing.lg,
-              borderRadius: theme.borderRadius.md,
-              marginBottom: theme.spacing.xl,
-              borderLeft: `4px solid ${theme.colors.primary.main}`,
-            }}>
-              <h3 style={{
-                fontSize: theme.typography.fontSize.lg,
-                fontWeight: theme.typography.fontWeight.semibold,
+              <h1 style={{
+                fontSize: theme.typography.fontSize['4xl'],
+                fontWeight: theme.typography.fontWeight.bold,
                 color: theme.colors.text.primary,
-                marginBottom: theme.spacing.md,
+                marginBottom: theme.spacing.xl,
+                lineHeight: 1.2,
               }}>
-                How it works:
-              </h3>
-              <ul style={{
-                listStyle: 'none',
-                padding: 0,
-                margin: 0,
+                You checked email 47 times yesterday.
+                <br />
+                Only 3 emails actually mattered.
+              </h1>
+              <p style={{
+                fontSize: theme.typography.fontSize.xl,
+                color: theme.colors.text.secondary,
+                lineHeight: 1.8,
               }}>
-                {[
-                  {
-                    title: 'Batch delivery',
-                    description: 'Emails arrive in scheduled batches (e.g., 3x per day) instead of constantly interrupting you',
-                  },
-                  {
-                    title: 'AI prioritization',
-                    description: 'We analyze each email and score it 0-100. You see the most important ones first, always',
-                  },
-                  {
-                    title: 'One-sentence summaries',
-                    description: 'Every email gets a quick summary. No more opening 20 emails to find the one that needs action',
-                  },
-                  {
-                    title: 'Triage → Process workflow',
-                    description: 'New emails go to "Triage" (quick decisions). Starred emails go to "Process" (deep work)',
-                  },
-                  {
-                    title: 'Smart snoozing',
-                    description: 'Type "2h" or "tomorrow" to snooze. No complex calendar navigation',
-                  },
-                ].map((feature, i) => (
-                  <li key={i} style={{
-                    marginBottom: theme.spacing.md,
-                    paddingLeft: theme.spacing.md,
-                  }}>
-                    <div style={{
-                      fontWeight: theme.typography.fontWeight.semibold,
-                      color: theme.colors.text.primary,
-                      marginBottom: theme.spacing.xs,
-                    }}>
-                      {feature.title}
-                    </div>
-                    <div style={{
-                      color: theme.colors.text.secondary,
-                      fontSize: theme.typography.fontSize.sm,
-                      lineHeight: 1.5,
-                    }}>
-                      {feature.description}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
+                The rest? Newsletters. Meeting confirmations. Marketing spam. But you keep checking obsessively because buried somewhere might be the one email that's actually urgent.
+              </p>
+            </section>
 
-          {/* Right: Waitlist Form */}
+            {/* BearlyMail Intro */}
+            <section style={{
+              marginBottom: theme.spacing['3xl'],
+            }}>
+          <h2 style={{
+            fontSize: theme.typography.fontSize['3xl'],
+            fontWeight: theme.typography.fontWeight.bold,
+            color: theme.colors.text.primary,
+            marginBottom: theme.spacing.lg,
+          }}>
+            BearlyMail was built by someone who gets it.
+          </h2>
+          <p style={{
+            fontSize: theme.typography.fontSize.lg,
+            color: theme.colors.text.secondary,
+            lineHeight: 1.8,
+          }}>
+            Created by an AuDHD founder who was drowning in email overwhelm, BearlyMail stops the constant interruptions while ensuring you never miss what's truly important.
+          </p>
+        </section>
+
+            {/* How it works */}
+            <section style={{
+              marginBottom: theme.spacing['3xl'],
+            }}>
+              <h2 style={{
+                fontSize: theme.typography.fontSize['3xl'],
+                fontWeight: theme.typography.fontWeight.bold,
+                color: theme.colors.text.primary,
+                marginBottom: theme.spacing['2xl'],
+              }}>
+                How it works
+              </h2>
+
+          {/* Feature 1: Urgent emails */}
           <div style={{
+            marginBottom: theme.spacing.xl,
+            padding: theme.spacing.xl,
             backgroundColor: theme.colors.background.paper,
-            padding: theme.spacing['2xl'],
             borderRadius: theme.borderRadius.lg,
-            boxShadow: theme.shadows.lg,
+            borderLeft: `4px solid ${theme.colors.primary.main}`,
           }}>
             <h3 style={{
               fontSize: theme.typography.fontSize['2xl'],
-              fontWeight: theme.typography.fontWeight.bold,
+              fontWeight: theme.typography.fontWeight.semibold,
               color: theme.colors.text.primary,
               marginBottom: theme.spacing.md,
             }}>
-              Join the Waitlist
+              Truly urgent emails break through immediately
             </h3>
             <p style={{
+              fontSize: theme.typography.fontSize.base,
               color: theme.colors.text.secondary,
-              marginBottom: theme.spacing.xl,
+              lineHeight: 1.7,
+              marginBottom: theme.spacing.md,
             }}>
-              We're currently in private beta. Sign up to get early access.
+              Client emergency at 2pm? You'll see it instantly. Newsletter from that SaaS tool? Batched until your next scheduled delivery.
             </p>
+            <p style={{
+              fontSize: theme.typography.fontSize.base,
+              color: theme.colors.text.secondary,
+              lineHeight: 1.7,
+            }}>
+              Our AI learns what's urgent to you by analyzing your email history—how quickly you reply, which senders you prioritize, what you immediately archive. High barrier for "urgent" means only what genuinely matters interrupts your flow.
+            </p>
+          </div>
 
-            {error && (
-              <div style={{
-                backgroundColor: theme.colors.accent.error + '20',
-                color: theme.colors.accent.error,
-                padding: theme.spacing.md,
-                borderRadius: theme.borderRadius.md,
+          {/* Feature 2: Scheduled delivery */}
+          <div style={{
+            marginBottom: theme.spacing.xl,
+            padding: theme.spacing.xl,
+            backgroundColor: theme.colors.background.paper,
+            borderRadius: theme.borderRadius.lg,
+            borderLeft: `4px solid ${theme.colors.secondary.main}`,
+          }}>
+            <h3 style={{
+              fontSize: theme.typography.fontSize['2xl'],
+              fontWeight: theme.typography.fontWeight.semibold,
+              color: theme.colors.text.primary,
+              marginBottom: theme.spacing.md,
+            }}>
+              Everything else arrives on your schedule
+            </h3>
+            <p style={{
+              fontSize: theme.typography.fontSize.base,
+              color: theme.colors.text.secondary,
+              lineHeight: 1.7,
+              marginBottom: theme.spacing.md,
+            }}>
+              Choose when emails get delivered: 2x, 3x, or 4x daily. Set quiet hours—no email before 10am, none after 6pm. Block off entire weekends. You're in complete control.
+            </p>
+            <p style={{
+              fontSize: theme.typography.fontSize.base,
+              color: theme.colors.text.secondary,
+              lineHeight: 1.7,
+            }}>
+              Your inbox becomes a planned task, not a constant distraction.
+            </p>
+          </div>
+
+          {/* Feature 3: Prioritization */}
+          <div style={{
+            marginBottom: theme.spacing.xl,
+            padding: theme.spacing.xl,
+            backgroundColor: theme.colors.background.paper,
+            borderRadius: theme.borderRadius.lg,
+            borderLeft: `4px solid ${theme.colors.accent.info}`,
+          }}>
+            <h3 style={{
+              fontSize: theme.typography.fontSize['2xl'],
+              fontWeight: theme.typography.fontWeight.semibold,
+              color: theme.colors.text.primary,
+              marginBottom: theme.spacing.md,
+            }}>
+              See what matters first, one action at a time
+            </h3>
+            <p style={{
+              fontSize: theme.typography.fontSize.base,
+              color: theme.colors.text.secondary,
+              lineHeight: 1.7,
+              marginBottom: theme.spacing.md,
+            }}>
+              Every batch is automatically ranked 0-100 by importance based on your behavior patterns. Deal with the CEO's question first, not the Zoom recording notification.
+            </p>
+          </div>
+
+          {/* Feature 4: Triage → Process */}
+          <div style={{
+            marginBottom: theme.spacing.xl,
+            padding: theme.spacing.xl,
+            backgroundColor: theme.colors.background.paper,
+            borderRadius: theme.borderRadius.lg,
+            borderLeft: `4px solid ${theme.colors.accent.success}`,
+          }}>
+            <h3 style={{
+              fontSize: theme.typography.fontSize['2xl'],
+              fontWeight: theme.typography.fontWeight.semibold,
+              color: theme.colors.text.primary,
+              marginBottom: theme.spacing.md,
+            }}>
+              Triage → Process workflow
+            </h3>
+            <p style={{
+              fontSize: theme.typography.fontSize.base,
+              color: theme.colors.text.secondary,
+              lineHeight: 1.7,
+            }}>
+              New emails go to Triage for quick decisions. Starred emails move to Process for focused work. No more endless scrolling to find what needs attention.
+            </p>
+          </div>
+
+          {/* Feature 5: Smart snoozing */}
+          <div style={{
+            marginBottom: theme.spacing.xl,
+            padding: theme.spacing.xl,
+            backgroundColor: theme.colors.background.paper,
+            borderRadius: theme.borderRadius.lg,
+            borderLeft: `4px solid ${theme.colors.accent.warning}`,
+          }}>
+            <h3 style={{
+              fontSize: theme.typography.fontSize['2xl'],
+              fontWeight: theme.typography.fontWeight.semibold,
+              color: theme.colors.text.primary,
+              marginBottom: theme.spacing.md,
+            }}>
+              Smart snoozing that actually works
+            </h3>
+            <p style={{
+              fontSize: theme.typography.fontSize.base,
+              color: theme.colors.text.secondary,
+              lineHeight: 1.7,
+            }}>
+              Type "2h" or "tomorrow" to snooze. No calendar navigation, no complex scheduling.
+            </p>
+          </div>
+            </section>
+
+            {/* Why BearlyMail is different */}
+            <section style={{
+              marginBottom: theme.spacing['3xl'],
+            }}>
+              <h2 style={{
+                fontSize: theme.typography.fontSize['3xl'],
+                fontWeight: theme.typography.fontWeight.bold,
+                color: theme.colors.text.primary,
+                marginBottom: theme.spacing.lg,
+              }}>
+                Why BearlyMail is different
+              </h2>
+              <p style={{
+                fontSize: theme.typography.fontSize.lg,
+                color: theme.colors.text.secondary,
+                marginBottom: theme.spacing.xl,
+                lineHeight: 1.8,
+              }}>
+                <strong style={{ color: theme.colors.text.primary }}>Superhuman asks:</strong> How fast can you clear your inbox?
+                <br />
+                <strong style={{ color: theme.colors.primary.main }}>BearlyMail asks:</strong> How rarely should you need to open it?
+              </p>
+
+          {/* Comparison Table */}
+          <div style={{
+            overflowX: 'auto',
+            marginBottom: theme.spacing.xl,
+          }}>
+            <table style={{
+              width: '100%',
+              borderCollapse: 'collapse',
+              backgroundColor: theme.colors.background.paper,
+              borderRadius: theme.borderRadius.lg,
+              overflow: 'hidden',
+            }}>
+              <thead>
+                <tr style={{
+                  backgroundColor: theme.colors.background.subtle,
+                }}>
+                  <th style={{
+                    padding: theme.spacing.lg,
+                    textAlign: 'left',
+                    fontWeight: theme.typography.fontWeight.bold,
+                    color: theme.colors.text.primary,
+                    borderBottom: `2px solid ${theme.colors.border.medium}`,
+                  }}></th>
+                  <th style={{
+                    padding: theme.spacing.lg,
+                    textAlign: 'center',
+                    fontWeight: theme.typography.fontWeight.bold,
+                    color: theme.colors.primary.main,
+                    borderBottom: `2px solid ${theme.colors.border.medium}`,
+                  }}>
+                    BearlyMail
+                  </th>
+                  <th style={{
+                    padding: theme.spacing.lg,
+                    textAlign: 'center',
+                    fontWeight: theme.typography.fontWeight.bold,
+                    color: theme.colors.text.secondary,
+                    borderBottom: `2px solid ${theme.colors.border.medium}`,
+                  }}>
+                    Superhuman
+                  </th>
+                  <th style={{
+                    padding: theme.spacing.lg,
+                    textAlign: 'center',
+                    fontWeight: theme.typography.fontWeight.bold,
+                    color: theme.colors.text.secondary,
+                    borderBottom: `2px solid ${theme.colors.border.medium}`,
+                  }}>
+                    Gmail Priority
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td style={{
+                    padding: theme.spacing.lg,
+                    fontWeight: theme.typography.fontWeight.semibold,
+                    color: theme.colors.text.primary,
+                    borderBottom: `1px solid ${theme.colors.border.light}`,
+                  }}>
+                    Email delivery
+                  </td>
+                  <td style={{
+                    padding: theme.spacing.lg,
+                    textAlign: 'center',
+                    color: theme.colors.text.secondary,
+                    borderBottom: `1px solid ${theme.colors.border.light}`,
+                  }}>
+                    Scheduled batches you control
+                  </td>
+                  <td style={{
+                    padding: theme.spacing.lg,
+                    textAlign: 'center',
+                    color: theme.colors.text.secondary,
+                    borderBottom: `1px solid ${theme.colors.border.light}`,
+                  }}>
+                    Real-time (constant interruptions)
+                  </td>
+                  <td style={{
+                    padding: theme.spacing.lg,
+                    textAlign: 'center',
+                    color: theme.colors.text.secondary,
+                    borderBottom: `1px solid ${theme.colors.border.light}`,
+                  }}>
+                    Real-time
+                  </td>
+                </tr>
+                <tr>
+                  <td style={{
+                    padding: theme.spacing.lg,
+                    fontWeight: theme.typography.fontWeight.semibold,
+                    color: theme.colors.text.primary,
+                    borderBottom: `1px solid ${theme.colors.border.light}`,
+                  }}>
+                    Urgent filtering
+                  </td>
+                  <td style={{
+                    padding: theme.spacing.lg,
+                    textAlign: 'center',
+                    color: theme.colors.text.secondary,
+                    borderBottom: `1px solid ${theme.colors.border.light}`,
+                  }}>
+                    AI learns & breaks through batches
+                  </td>
+                  <td style={{
+                    padding: theme.spacing.lg,
+                    textAlign: 'center',
+                    color: theme.colors.text.secondary,
+                    borderBottom: `1px solid ${theme.colors.border.light}`,
+                  }}>
+                    Manual category splits
+                  </td>
+                  <td style={{
+                    padding: theme.spacing.lg,
+                    textAlign: 'center',
+                    color: theme.colors.text.secondary,
+                    borderBottom: `1px solid ${theme.colors.border.light}`,
+                  }}>
+                    Basic algorithm
+                  </td>
+                </tr>
+                <tr>
+                  <td style={{
+                    padding: theme.spacing.lg,
+                    fontWeight: theme.typography.fontWeight.semibold,
+                    color: theme.colors.text.primary,
+                    borderBottom: `1px solid ${theme.colors.border.light}`,
+                  }}>
+                    Prioritization
+                  </td>
+                  <td style={{
+                    padding: theme.spacing.lg,
+                    textAlign: 'center',
+                    color: theme.colors.text.secondary,
+                    borderBottom: `1px solid ${theme.colors.border.light}`,
+                  }}>
+                    Automatic (learns from your behavior)
+                  </td>
+                  <td style={{
+                    padding: theme.spacing.lg,
+                    textAlign: 'center',
+                    color: theme.colors.text.secondary,
+                    borderBottom: `1px solid ${theme.colors.border.light}`,
+                  }}>
+                    Manual triage required
+                  </td>
+                  <td style={{
+                    padding: theme.spacing.lg,
+                    textAlign: 'center',
+                    color: theme.colors.text.secondary,
+                    borderBottom: `1px solid ${theme.colors.border.light}`,
+                  }}>
+                    Static filters
+                  </td>
+                </tr>
+                <tr>
+                  <td style={{
+                    padding: theme.spacing.lg,
+                    fontWeight: theme.typography.fontWeight.semibold,
+                    color: theme.colors.text.primary,
+                  }}>
+                    Philosophy
+                  </td>
+                  <td style={{
+                    padding: theme.spacing.lg,
+                    textAlign: 'center',
+                    color: theme.colors.text.secondary,
+                    fontWeight: theme.typography.fontWeight.medium,
+                  }}>
+                    Prevention {'>'} Speed
+                  </td>
+                  <td style={{
+                    padding: theme.spacing.lg,
+                    textAlign: 'center',
+                    color: theme.colors.text.secondary,
+                  }}>
+                    Speed {'>'} Prevention
+                  </td>
+                  <td style={{
+                    padding: theme.spacing.lg,
+                    textAlign: 'center',
+                    color: theme.colors.text.secondary,
+                  }}>
+                    Sorting {'>'} Prevention
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div style={{
+            padding: theme.spacing.xl,
+            backgroundColor: theme.colors.primary.subtle,
+            borderRadius: theme.borderRadius.lg,
+            marginBottom: theme.spacing.xl,
+          }}>
+            <p style={{
+              fontSize: theme.typography.fontSize.base,
+              color: theme.colors.text.secondary,
+              lineHeight: 1.8,
+              marginBottom: theme.spacing.md,
+            }}>
+              Gmail's Priority Inbox guesses based on generic signals.
+            </p>
+            <p style={{
+              fontSize: theme.typography.fontSize.base,
+              color: theme.colors.text.secondary,
+              lineHeight: 1.8,
+              marginBottom: theme.spacing.md,
+            }}>
+              Superhuman makes you faster at processing emails when they arrive.
+            </p>
+            <p style={{
+              fontSize: theme.typography.fontSize.base,
+              color: theme.colors.text.primary,
+              lineHeight: 1.8,
+              fontWeight: theme.typography.fontWeight.medium,
+            }}>
+              BearlyMail learns from what you actually do—not what you tell it, not what Google thinks is important.
+            </p>
+            <p style={{
+              fontSize: theme.typography.fontSize.base,
+              color: theme.colors.text.secondary,
+              lineHeight: 1.8,
+              marginTop: theme.spacing.md,
+            }}>
+              We watch how fast you reply, which emails you read vs archive, who you always open. Then we get out of your way.
+            </p>
+          </div>
+            </section>
+
+            {/* Closing Statement */}
+            <section style={{
+              marginBottom: theme.spacing['3xl'],
+              padding: theme.spacing['2xl'],
+              backgroundColor: theme.colors.background.paper,
+              borderRadius: theme.borderRadius.lg,
+            }}>
+              <h2 style={{
+                fontSize: theme.typography.fontSize['3xl'],
+                fontWeight: theme.typography.fontWeight.bold,
+                color: theme.colors.text.primary,
+                marginBottom: theme.spacing.lg,
+              }}>
+                Stop reacting to your inbox. Start controlling it.
+              </h2>
+              <p style={{
+                fontSize: theme.typography.fontSize.xl,
+                color: theme.colors.text.secondary,
+                lineHeight: 1.8,
                 marginBottom: theme.spacing.md,
               }}>
-                {error}
-              </div>
-            )}
+                Three focused moments instead of 47 interruptions.
+              </p>
+              <p style={{
+                fontSize: theme.typography.fontSize.xl,
+                color: theme.colors.text.secondary,
+                lineHeight: 1.8,
+                marginBottom: theme.spacing.md,
+              }}>
+                The emails that matter, when you're ready for them.
+              </p>
+              <p style={{
+                fontSize: theme.typography.fontSize.lg,
+                color: theme.colors.primary.main,
+                fontWeight: theme.typography.fontWeight.medium,
+                marginTop: theme.spacing.xl,
+                fontStyle: 'italic',
+              }}>
+                Built by someone who needed it to exist.
+              </p>
+            </section>
+          </div>
 
-            <form onSubmit={handleSubmit}>
-              <div style={{ marginBottom: theme.spacing.md }}>
-                <label style={{
-                  display: 'block',
-                  marginBottom: theme.spacing.xs,
-                  color: theme.colors.text.primary,
-                  fontWeight: theme.typography.fontWeight.medium,
-                }}>
-                  First Name
-                </label>
-                <input
-                  type="text"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  required
-                  style={{
-                    width: '100%',
-                    padding: theme.spacing.md,
-                    border: `1px solid ${theme.colors.border.medium}`,
-                    borderRadius: theme.borderRadius.md,
-                    fontSize: theme.typography.fontSize.base,
-                  }}
-                />
-              </div>
+          {/* Right Column: Waitlist Form */}
+          <div style={{
+            position: 'sticky',
+            top: theme.spacing.xl,
+          }}>
+            <section style={{
+              backgroundColor: theme.colors.background.paper,
+              padding: theme.spacing['2xl'],
+              borderRadius: theme.borderRadius.lg,
+              boxShadow: theme.shadows.lg,
+            }}>
+          <h3 style={{
+            fontSize: theme.typography.fontSize['2xl'],
+            fontWeight: theme.typography.fontWeight.bold,
+            color: theme.colors.text.primary,
+            marginBottom: theme.spacing.md,
+            textAlign: 'center',
+          }}>
+            Join the Waitlist
+          </h3>
+          <p style={{
+            color: theme.colors.text.secondary,
+            marginBottom: theme.spacing.xl,
+            textAlign: 'center',
+          }}>
+            We're currently in private beta. Sign up to get early access.
+          </p>
 
-              <div style={{ marginBottom: theme.spacing.md }}>
-                <label style={{
-                  display: 'block',
-                  marginBottom: theme.spacing.xs,
-                  color: theme.colors.text.primary,
-                  fontWeight: theme.typography.fontWeight.medium,
-                }}>
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  style={{
-                    width: '100%',
-                    padding: theme.spacing.md,
-                    border: `1px solid ${theme.colors.border.medium}`,
-                    borderRadius: theme.borderRadius.md,
-                    fontSize: theme.typography.fontSize.base,
-                  }}
-                />
-              </div>
+          {error && (
+            <div style={{
+              backgroundColor: theme.colors.accent.error + '20',
+              color: theme.colors.accent.error,
+              padding: theme.spacing.md,
+              borderRadius: theme.borderRadius.md,
+              marginBottom: theme.spacing.md,
+            }}>
+              {error}
+            </div>
+          )}
 
-              <div style={{ marginBottom: theme.spacing.xl }}>
-                <label style={{
-                  display: 'block',
-                  marginBottom: theme.spacing.xs,
-                  color: theme.colors.text.primary,
-                  fontWeight: theme.typography.fontWeight.medium,
-                }}>
-                  Why do you want to use BearlyMail?
-                </label>
-                <textarea
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  required
-                  rows={4}
-                  style={{
-                    width: '100%',
-                    padding: theme.spacing.md,
-                    border: `1px solid ${theme.colors.border.medium}`,
-                    borderRadius: theme.borderRadius.md,
-                    fontSize: theme.typography.fontSize.base,
-                    fontFamily: theme.typography.fontFamily,
-                    resize: 'vertical',
-                  }}
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={submitting}
+          <form onSubmit={handleSubmit}>
+            <div style={{ marginBottom: theme.spacing.md }}>
+              <label style={{
+                display: 'block',
+                marginBottom: theme.spacing.xs,
+                color: theme.colors.text.primary,
+                fontWeight: theme.typography.fontWeight.medium,
+              }}>
+                First Name
+              </label>
+              <input
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                required
                 style={{
                   width: '100%',
-                  padding: theme.spacing.lg,
-                  backgroundColor: submitting ? theme.colors.border.dark : theme.colors.primary.main,
-                  color: 'white',
-                  border: 'none',
+                  padding: theme.spacing.md,
+                  border: `1px solid ${theme.colors.border.medium}`,
                   borderRadius: theme.borderRadius.md,
                   fontSize: theme.typography.fontSize.base,
-                  fontWeight: theme.typography.fontWeight.semibold,
-                  cursor: submitting ? 'wait' : 'pointer',
                 }}
-              >
-                {submitting ? 'Submitting...' : 'Join Waitlist'}
-              </button>
-            </form>
+              />
+            </div>
+
+            <div style={{ marginBottom: theme.spacing.md }}>
+              <label style={{
+                display: 'block',
+                marginBottom: theme.spacing.xs,
+                color: theme.colors.text.primary,
+                fontWeight: theme.typography.fontWeight.medium,
+              }}>
+                Email
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                style={{
+                  width: '100%',
+                  padding: theme.spacing.md,
+                  border: `1px solid ${theme.colors.border.medium}`,
+                  borderRadius: theme.borderRadius.md,
+                  fontSize: theme.typography.fontSize.base,
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: theme.spacing.xl }}>
+              <label style={{
+                display: 'block',
+                marginBottom: theme.spacing.xs,
+                color: theme.colors.text.primary,
+                fontWeight: theme.typography.fontWeight.medium,
+              }}>
+                Why do you want to use BearlyMail?
+              </label>
+              <textarea
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                required
+                rows={4}
+                style={{
+                  width: '100%',
+                  padding: theme.spacing.md,
+                  border: `1px solid ${theme.colors.border.medium}`,
+                  borderRadius: theme.borderRadius.md,
+                  fontSize: theme.typography.fontSize.base,
+                  fontFamily: theme.typography.fontFamily,
+                  resize: 'vertical',
+                }}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={submitting}
+              style={{
+                width: '100%',
+                padding: theme.spacing.lg,
+                backgroundColor: submitting ? theme.colors.border.dark : theme.colors.primary.main,
+                color: 'white',
+                border: 'none',
+                borderRadius: theme.borderRadius.md,
+                fontSize: theme.typography.fontSize.base,
+                fontWeight: theme.typography.fontWeight.semibold,
+                cursor: submitting ? 'wait' : 'pointer',
+              }}
+            >
+              {submitting ? 'Submitting...' : 'Join Waitlist'}
+            </button>
+          </form>
+            </section>
           </div>
         </div>
-      </section>
+      </main>
     </div>
   );
 };
 
 export default Landing;
-

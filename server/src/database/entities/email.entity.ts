@@ -1,7 +1,7 @@
 import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, CreateDateColumn, JoinColumn, Index } from 'typeorm';
 import { User } from './user.entity';
 import { EmailThread } from './email-thread.entity';
-import { encryptedColumnTransformer } from '../../encryption/encryption.helper';
+import { encryptedColumnTransformer, encryptedJsonTransformer } from '../../encryption/encryption.helper';
 
 @Entity('emails')
 @Index(['userId', 'priorityScore'])
@@ -9,6 +9,8 @@ import { encryptedColumnTransformer } from '../../encryption/encryption.helper';
 @Index(['userId', 'messageId']) // For fast lookups by messageId
 @Index(['userId', 'receivedAt']) // For date-based queries in inbox
 @Index(['threadId']) // For joining with email_threads
+@Index(['userId', 'emailThreadId']) // For inbox queries (getInbox)
+@Index(['emailThreadId']) // For thread lookups
 export class Email {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -75,6 +77,9 @@ export class Email {
 
   @Column('text', { nullable: true, transformer: encryptedColumnTransformer })
   summary: string; // Cached summary from LLM
+
+  @Column('text', { nullable: true, transformer: encryptedJsonTransformer })
+  labels: string[]; // JSON stringified list of labels
 
   @Column({ default: false })
   isProcessingPriority: boolean; // Flag to indicate LLM priority is being calculated

@@ -21,6 +21,11 @@ import { OnboardingModule } from './onboarding/onboarding.module';
 import { WaitlistModule } from './waitlist/waitlist.module';
 import { EncryptionModule } from './encryption/encryption.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { ActionItemsModule } from './action-items/action-items.module';
+import { BatchScheduleModule } from './batch-schedule/batch-schedule.module';
+import { FollowUpsModule } from './follow-ups/follow-ups.module';
+import { ContactsModule } from './contacts/contacts.module';
+import { BlockedSendersModule } from './blocked-senders/blocked-senders.module';
 
 @Module({
   imports: [
@@ -70,6 +75,11 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
         WaitlistModule,
         EncryptionModule,
         SubscriptionsModule,
+        ActionItemsModule,
+        BatchScheduleModule,
+        FollowUpsModule,
+        ContactsModule,
+        BlockedSendersModule,
       ],
   controllers: [AppController],
   providers: [AppService],

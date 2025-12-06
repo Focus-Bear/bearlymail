@@ -12,6 +12,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfUse from './pages/TermsOfUse';
 import Search from './pages/Search';
+import Compose from './pages/Compose';
 import axios from 'axios';
 import './App.css';
 import { theme } from './theme/theme';
@@ -142,6 +143,14 @@ function App() {
               element={
                 <PrivateRoute>
                   <Search />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/compose"
+              element={
+                <PrivateRoute>
+                  <Compose />
                 </PrivateRoute>
               }
             />

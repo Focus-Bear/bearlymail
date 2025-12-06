@@ -10,22 +10,29 @@ import { LLMProcessor } from './llm-processor';
 import { Email } from '../database/entities/email.entity';
 import { EmailThread } from '../database/entities/email-thread.entity';
 import { ScanEmail } from '../database/entities/scan-email.entity';
+import { UserContext } from '../database/entities/user-context.entity';
 import { PriorityModule } from '../priority/priority.module';
 import { SummarizationModule } from '../summarization/summarization.module';
 import { UsersModule } from '../users/users.module';
 import { QueueModule } from '../queue/queue.module';
 import { LLMModule } from '../llm/llm.module';
 import { ContextModule } from '../context/context.module';
+import { ContactsModule } from '../contacts/contacts.module';
+import { BlockedSendersModule } from '../blocked-senders/blocked-senders.module';
+import { BatchScheduleModule } from '../batch-schedule/batch-schedule.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Email, EmailThread, ScanEmail]), 
+    TypeOrmModule.forFeature([Email, EmailThread, ScanEmail, UserContext]), 
     PriorityModule,
     forwardRef(() => SummarizationModule),
     UsersModule,
     QueueModule,
     LLMModule,
     ContextModule,
+    forwardRef(() => ContactsModule),
+    BlockedSendersModule,
+    BatchScheduleModule,
   ],
   controllers: [EmailsController],
   providers: [

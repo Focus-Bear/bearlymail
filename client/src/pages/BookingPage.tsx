@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { theme } from '../theme/theme';
 
@@ -22,22 +22,22 @@ const BookingPage: React.FC = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    const fetchSlots = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/public/calendar/${userId}/slots`);
+        setSlots(response.data);
+      } catch (error) {
+        console.error('Error fetching slots:', error);
+        setError('Failed to load available times');
+      } finally {
+        setLoading(false);
+      }
+    };
+
     if (userId) {
       fetchSlots();
     }
   }, [userId]);
-
-  const fetchSlots = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/public/calendar/${userId}/slots`);
-      setSlots(response.data);
-    } catch (error) {
-      console.error('Error fetching slots:', error);
-      setError('Failed to load available times');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleBook = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -172,8 +172,12 @@ export class AuthService {
     
     // Trigger email sync asynchronously via queue with a small delay to let tokens stabilize
     // Delay by 2 seconds to ensure tokens are fully saved in DB before sync attempts
+    // Use singletonKey to prevent duplicate sync jobs for the same user
     setTimeout(() => {
-      this.boss.send('sync-emails', { userId: user.id }).catch(err => console.error('Failed to add sync job', err));
+      this.boss.send('sync-emails', { userId: user.id }, {
+        singletonKey: `sync-emails-${user.id}`,
+        singletonMinutes: 5, // Don't allow another sync for same user within 5 minutes
+      }).catch(err => console.error('Failed to add sync job', err));
     }, 2000);
     
     return result;

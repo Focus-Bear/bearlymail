@@ -2,12 +2,14 @@ import { Injectable, OnModuleInit, Logger, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
+import * as os from 'os';
 import PgBoss = require('pg-boss');
 import { Email } from '../database/entities/email.entity';
 import { EmailsService } from './emails.service';
 import { PriorityService } from '../priority/priority.service';
 import { SummarizationService } from '../summarization/summarization.service';
 import { LLMService } from '../llm/llm.service';
+import { cleanEmailContent } from '../llm/email-content-cleaner';
 
 @Injectable()
 export class LLMProcessor implements OnModuleInit {
@@ -25,9 +27,22 @@ export class LLMProcessor implements OnModuleInit {
     private llmService: LLMService,
     private configService: ConfigService,
   ) {
-    // Allow configurable concurrency via env vars (default: 5 for LLM jobs)
-    this.priorityConcurrency = parseInt(this.configService.get<string>('LLM_PRIORITY_CONCURRENCY') || '5', 10);
-    this.summaryConcurrency = parseInt(this.configService.get<string>('LLM_SUMMARY_CONCURRENCY') || '5', 10);
+    // Get CPU cores for optimal concurrency
+    const cpuCores = os.cpus().length;
+    // For LLM jobs (I/O bound), we can use more workers than CPU cores
+    // Default to 2x CPU cores, but allow override via env vars
+    const defaultConcurrency = Math.max(4, cpuCores * 2);
+    
+    this.priorityConcurrency = parseInt(
+      this.configService.get<string>('LLM_PRIORITY_CONCURRENCY') || String(defaultConcurrency), 
+      10
+    );
+    this.summaryConcurrency = parseInt(
+      this.configService.get<string>('LLM_SUMMARY_CONCURRENCY') || String(defaultConcurrency), 
+      10
+    );
+    
+    this.logger.log(`CPU cores: ${cpuCores}, LLM worker concurrency: priority=${this.priorityConcurrency}, summary=${this.summaryConcurrency}`);
   }
 
   async onModuleInit() {
@@ -52,12 +67,18 @@ export class LLMProcessor implements OnModuleInit {
           return;
         }
 
-        // Get user's email history for context
-        const userEmails = await this.emailRepository.find({
-          where: { userId },
-          take: 50,
-          order: { receivedAt: 'DESC' },
-        });
+        // OPTIMIZED: Prepare all data in parallel before LLM call
+        // This allows the worker to do other work while waiting for LLM
+        const [userEmails, contexts] = await Promise.all([
+          // Fetch user email history for avgTimeToReply
+          this.emailRepository.find({
+            where: { userId },
+            take: 50,
+            order: { receivedAt: 'DESC' },
+          }),
+          // Fetch user contexts for basic score calculation
+          this.priorityService.getUserContexts(userId),
+        ]);
 
         const avgTimeToReply = userEmails.length > 0
           ? userEmails
@@ -65,15 +86,23 @@ export class LLMProcessor implements OnModuleInit {
               .reduce((sum, e) => sum + (e.timeToReply || 0), 0) / userEmails.filter((e) => e.timeToReply).length
           : undefined;
 
+        // Calculate basic score (synchronous, fast)
+        const basicScore = this.priorityService.calculateBasicPriorityScore(email, contexts);
+
         this.logger.log(`[Worker ${workerId}] Analyzing priority for email ${emailId} (thread: ${email.threadId?.substring(0, 8)}..., subject: ${email.subject?.substring(0, 50)}...)`);
         
+        // Clean email body: strip HTML, remove signatures, limit to 2000 chars
+        const cleanedBody = cleanEmailContent(email.body, email.htmlBody, 2000);
+        
+        // LLM call - this is the I/O bound operation that blocks the worker
+        // The teamSize concurrency setting allows multiple workers to process different emails in parallel
         const llmResult = await this.llmService.analyzePriority(
           {
             from: email.from || '',
             fromName: email.fromName,
             senderJobTitle: email.senderJobTitle,
             subject: email.subject || '',
-            body: email.body || '',
+            body: cleanedBody,
           },
           {
             averageTimeToReply: avgTimeToReply,
@@ -81,10 +110,6 @@ export class LLMProcessor implements OnModuleInit {
           undefined, // provider - use default
           userId, // pass userId to use user's API key if available
         );
-
-        // Get current basic score
-        const rules = await this.priorityService.getPriorityRules(userId);
-        const basicScore = this.priorityService.calculateBasicPriorityScore(email, rules);
         
         // Combine LLM score with basic score
         const llmScore = llmResult.score;

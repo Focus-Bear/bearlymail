@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { theme } from '../theme/theme';
 
@@ -16,7 +15,6 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({
   needsPrivacyAcceptance,
   onAccept,
 }) => {
-  const navigate = useNavigate();
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -191,4 +189,5 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({
     </div>
   );
 };
+
 

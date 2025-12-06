@@ -28,3 +28,4 @@ DELETE FROM summarization_rules WHERE "userId" IS NULL;
 -- DROP TABLE IF EXISTS users CASCADE;
 
 
+

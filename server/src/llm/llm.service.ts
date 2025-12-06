@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import OpenAI from 'openai';
 import { UsersService } from '../users/users.service';
+import { cleanEmailContent } from './email-content-cleaner';
 
 export enum LLMProvider {
   GEMINI = 'gemini',
@@ -181,6 +182,100 @@ export class LLMService {
     });
   }
 
+  async analyzeEmailPatterns(
+    receivedEmails: Array<{
+      from: string;
+      fromName?: string;
+      subject: string;
+      body: string;
+      receivedAt: string;
+      isRead?: boolean;
+      timeToReply?: number | null; // Time to reply in minutes
+      readAt?: string | null;
+      repliedAt?: string | null;
+      starCount?: number;
+      isArchived?: boolean;
+    }>,
+    sentEmails: Array<{
+      to: string;
+      subject: string;
+      body: string;
+      sentAt: string;
+    }>,
+    provider?: LLMProvider,
+    userId?: string,
+  ): Promise<{
+    context: Array<{ key: string; value: string; source: string }>;
+    writingStyle: { tone: string; style: string; commonPhrases: string[] };
+  }> {
+    const systemPrompt = `You are an advanced email analyst. Analyze the user's email history to derive deep insights about their prioritization habits, professional context, and writing style.
+
+Input:
+1. Received Emails (with metadata like read time, reply time, stars, archive status)
+2. Sent Emails (to analyze writing style)
+
+Output JSON with these keys:
+- "context": Array of objects { "key", "value", "source" }. Extract meaningful entities.
+  - key="VIP_CONTACT": Important people the user interacts with frequently or prioritizes (e.g., Boss, Key Client, Spouse). Distinguish from random external contacts.
+  - key="USER_INFO": Facts about the user (e.g., "User is a Product Manager", "User lives in NYC"). Inferred from their signatures or content.
+  - key="CURRENT_TOPIC" or "WORKING_ON": Extract HIGH-LEVEL, ABSTRACT themes and domains the user works on (e.g., "Product management", "Mobile app development", "Team collaboration tools"). DO NOT include specific project names, PR numbers, or email subjects. Focus on broad categories and domains of work.
+  - key="URGENT": Things the user considers urgent based on STRONG behavioral evidence. ONLY mark as urgent if the user replied VERY QUICKLY (timeToReply < 30 minutes). Do NOT mark as urgent just because emails were starred, read, or kept in inbox. Urgency must be proven by actual quick replies. Be ABSTRACT: "System alerts" or "Critical infrastructure issues" not "Sentry alert about app hanging". Example: "Emails from X are urgent because user consistently replies within 5-10 minutes" is only valid if timeToReply data shows quick replies.
+  - key="NOT_IMPORTANT": Things the user doesn't consider important based on their behavior. Look for patterns like: emails that were archived without being read (isArchived=true AND isRead=false), emails that were never read or replied to, or emails from senders where the user consistently archives without reading. Be ABSTRACT: "Automated system notifications" not "Sentry alert about app hanging". Examples: "Newsletters from X are ignored", "Automated notifications are not important", "Emails from X are archived without reading".
+  - key="OTHER": Anything else relevant for context. Keep descriptions abstract and high-level.
+- "writingStyle": Object { "tone", "style", "commonPhrases" }. Analyze sent emails. "tone" (e.g., direct, friendly), "style" (e.g., short sentences, starts with name), "commonPhrases" (list of 3-5 recurring phrases).
+
+Be specific and insightful. Avoid generic observations. Only identify TRUE VIPs as VIP_CONTACTs.`;
+
+    // Prepare data for LLM (limit size)
+    // Include read status, archive status, star status, and timeToReply to infer user behavior
+    const receivedData = receivedEmails.slice(0, 50).map(e => {
+      // Use timeToReply if available (in minutes), otherwise calculate from repliedAt
+      const replyTimeMinutes = e.timeToReply ?? (e.repliedAt ? (new Date(e.repliedAt).getTime() - new Date(e.receivedAt).getTime()) / 1000 / 60 : null);
+      const readStatus = e.isRead ? 'Read' : 'Unread';
+      const archiveStatus = e.isArchived ? 'Archived' : 'InInbox';
+      const starStatus = (e.starCount || 0) > 0 ? `Starred(${e.starCount})` : 'NotStarred';
+      const behavior = e.isArchived && !e.isRead ? 'ArchivedWithoutReading' : 
+                       e.isRead && !e.isArchived ? 'ReadButKept' :
+                       e.isRead && e.isArchived ? 'ReadThenArchived' : 'UnreadInInbox';
+      const replyInfo = replyTimeMinutes !== null ? `${replyTimeMinutes.toFixed(0)}m` : 'NoReply';
+      const isQuickReply = replyTimeMinutes !== null && replyTimeMinutes < 30;
+      return `From: ${e.fromName || e.from}, Subject: ${e.subject}, Read: ${readStatus}, ${archiveStatus}, ${starStatus}, Behavior: ${behavior}, ReplyTime: ${replyInfo}${isQuickReply ? ' (QUICK)' : ''}`;
+    }).join('\n');
+
+    const sentData = sentEmails.slice(0, 20).map(e => `To: ${e.to}, Subject: ${e.subject}, BodySnippet: ${e.body.substring(0, 200).replace(/\n/g, ' ')}`).join('\n');
+
+    const prompt = `Analyze these emails:
+
+RECEIVED EMAILS (Behavior Analysis):
+${receivedData}
+
+SENT EMAILS (Style Analysis):
+${sentData}`;
+
+    const response = await this.generateText({
+      prompt,
+      systemPrompt,
+      temperature: 0.4,
+      maxTokens: 1500,
+      userId,
+    }, provider, userId);
+
+    try {
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+    } catch (error) {
+      this.logger.warn('Failed to parse LLM analysis response as JSON', error);
+    }
+
+    // Fallback
+    return {
+      context: [],
+      writingStyle: { tone: 'Professional', style: 'Concise', commonPhrases: [] },
+    };
+  }
+
   async summarizeEmail(
     emailBody: string,
     emailSubject: string,
@@ -222,6 +317,137 @@ export class LLMService {
     }, provider, userId);
   }
 
+  async checkTone(
+    text: string,
+    rules: string[] = ['Be concise', 'Use non-violent communication'],
+    provider?: LLMProvider,
+    userId?: string,
+  ): Promise<{ isOk: boolean; suggestions: string[]; revisedText?: string }> {
+    const systemPrompt = `You are a communication assistant that checks emails for tone and style.
+Rules to enforce:
+${rules.map((r) => `- ${r}`).join('\n')}
+
+Analyze the text and determine if it violates any rules.
+If it violates rules, explain why and provide a revised version.
+If it follows rules, simply confirm it is OK.
+
+Return a JSON object with: { "isOk": boolean, "suggestions": string[], "revisedText": string (optional) }`;
+
+    const prompt = `Check this text against the rules:\n\n${text}`;
+
+    const response = await this.generateText({
+      prompt,
+      systemPrompt,
+      temperature: 0.3,
+      maxTokens: 800,
+      userId,
+    }, provider, userId);
+
+    try {
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+    } catch (error) {
+      this.logger.warn('Failed to parse LLM tone check response as JSON', error);
+    }
+
+    return { isOk: true, suggestions: [] };
+  }
+
+  async extractActionItems(
+    emailBody: string,
+    provider?: LLMProvider,
+    userId?: string,
+  ): Promise<Array<{ description: string; confidence: number }>> {
+    // Clean email body: strip HTML, remove signatures, limit to 2000 chars
+    const cleanedBody = cleanEmailContent(emailBody, null, 2000);
+    
+    const systemPrompt = `You are a helpful assistant that extracts action items from emails.
+Identify specific tasks that the recipient needs to do.
+Ignore generic pleasantries or informational statements.
+Return a JSON object with a key "actionItems" which is an array of objects: { "description": string, "confidence": number (0-1) }`;
+
+    const prompt = `Extract action items from this email:\n\n${cleanedBody}`;
+
+    const response = await this.generateText({
+      prompt,
+      systemPrompt,
+      temperature: 0.3,
+      maxTokens: 800,
+      userId,
+    }, provider, userId);
+
+    try {
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return parsed.actionItems || [];
+      }
+    } catch (error) {
+      this.logger.warn('Failed to parse LLM action items response as JSON', error);
+    }
+
+    return [];
+  }
+
+  async generateReplyOptions(
+    originalEmail: {
+      from: string;
+      fromName?: string;
+      subject: string;
+      body: string;
+    },
+    userContext: {
+      tone?: string;
+      writingStyle?: string;
+    },
+    provider?: LLMProvider,
+    userId?: string,
+  ): Promise<Array<{ label: string; text: string }>> {
+    // Clean email body: strip HTML, remove signatures, limit to 2000 chars
+    const cleanedBody = cleanEmailContent(originalEmail.body, null, 2000);
+    
+    const tone = userContext.tone || 'professional';
+    
+    const systemPrompt = `You are a helpful assistant that drafts email replies.
+The user prefers a ${tone} tone.
+Generate 2 distinct reply options based on the email content:
+1. A "Positive/Agree" option (e.g., accepting a meeting, agreeing to a proposal)
+2. A "Negative/Decline/Defer" option (e.g., declining politely, asking for more time)
+
+Return a JSON object with a key "options" which is an array of: { "label": string (short description), "text": string (full email body) }`;
+
+    const prompt = `Original email from ${originalEmail.fromName || originalEmail.from}:
+Subject: ${originalEmail.subject}
+
+${cleanedBody}
+
+Generate 2 reply options.`;
+
+    const response = await this.generateText({
+      prompt,
+      systemPrompt,
+      temperature: 0.7,
+      maxTokens: 1000,
+      userId,
+    }, provider, userId);
+
+    try {
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return parsed.options || [];
+      }
+    } catch (error) {
+      this.logger.warn('Failed to parse LLM reply options response as JSON', error);
+    }
+
+    // Fallback: return single generic draft if JSON parsing fails
+    const fallbackDraft = await this.generateReplyDraft(originalEmail, userContext, provider, userId);
+    return [{ label: 'Draft Reply', text: fallbackDraft }];
+  }
+
   async generateReplyDraft(
     originalEmail: {
       from: string;
@@ -237,6 +463,9 @@ export class LLMService {
     provider?: LLMProvider,
     userId?: string,
   ): Promise<string> {
+    // Clean email body: strip HTML, remove signatures, limit to 2000 chars
+    const cleanedBody = cleanEmailContent(originalEmail.body, null, 2000);
+    
     const tone = userContext.tone || 'professional';
     const styleGuidance = userContext.writingStyle
       ? `Writing style: ${userContext.writingStyle}`
@@ -254,7 +483,7 @@ Generate a professional, concise reply that addresses the original email appropr
     const prompt = `Original email from ${originalEmail.fromName || originalEmail.from}:
 Subject: ${originalEmail.subject}
 
-${originalEmail.body}
+${cleanedBody}
 
 ${contextPhrases}
 
@@ -285,13 +514,16 @@ Generate a reply draft that:
     provider?: LLMProvider,
     userId?: string,
   ): Promise<string> {
+    // Clean email body: strip HTML, remove signatures, limit to 2000 chars
+    const cleanedBody = cleanEmailContent(originalEmail.body, null, 2000);
+    
     // Handle empty slots case
     if (availableSlots.length === 0) {
       const systemPrompt = `You are a helpful assistant that drafts professional meeting scheduling replies when no slots are available. Be polite and ask for their availability.`;
       const prompt = `Original email from ${originalEmail.fromName || originalEmail.from}:
 Subject: ${originalEmail.subject}
 
-${originalEmail.body}
+${cleanedBody}
 
 I don't have any available slots in the next week. Generate a professional, polite reply asking for their availability.`;
 
@@ -321,7 +553,7 @@ Be friendly, professional, and helpful when suggesting meeting times.`;
     const prompt = `Original email from ${originalEmail.fromName || originalEmail.from}:
 Subject: ${originalEmail.subject}
 
-${originalEmail.body}
+${cleanedBody}
 
 Available time slots:
 ${slotsText}
@@ -348,7 +580,7 @@ Generate a professional reply that:
       fromName?: string;
       senderJobTitle?: string;
       subject: string;
-      body: string;
+      body: string; // Should be pre-cleaned, but we'll clean defensively
     },
     userHistory?: {
       averageTimeToReply?: number;
@@ -357,6 +589,9 @@ Generate a professional reply that:
     provider?: LLMProvider,
     userId?: string,
   ): Promise<{ score: number; reasoning: string; isUrgent: boolean }> {
+    // Defensive cleaning in case body wasn't pre-cleaned by caller
+    const cleanedBody = cleanEmailContent(email.body, null, 2000);
+    
     const systemPrompt = `You are an email prioritization assistant. Analyze emails and assign a priority score from 0-100.
 Consider:
 - Sender importance (job title, relationship)
@@ -373,7 +608,7 @@ Return a JSON object with: { "score": number (0-100), "reasoning": string, "isUr
       : '';
 
     // Optimized for prompt caching: static instruction at start, dynamic email content at end
-    const prompt = `Analyze this email and provide a priority score.\n\nFrom: ${email.fromName || email.from}${email.senderJobTitle ? ` (${email.senderJobTitle})` : ''}\nSubject: ${email.subject}\n\n${email.body}${historyContext}`;
+    const prompt = `Analyze this email and provide a priority score.\n\nFrom: ${email.fromName || email.from}${email.senderJobTitle ? ` (${email.senderJobTitle})` : ''}\nSubject: ${email.subject}\n\n${cleanedBody}${historyContext}`;
 
     const response = await this.generateText({
       prompt,
@@ -408,6 +643,46 @@ Return a JSON object with: { "score": number (0-100), "reasoning": string, "isUr
       reasoning: response.substring(0, 200),
       isUrgent,
     };
+  }
+
+  /**
+   * Generate a follow-up draft for an email that hasn't received a reply
+   */
+  async generateFollowUpDraft(
+    subject: string,
+    lastMyReply: string,
+    lastTheirReply: string,
+    theirName: string,
+    daysSinceFollowUp: number,
+    provider?: LLMProvider,
+    userId?: string,
+  ): Promise<string> {
+    const systemPrompt = `You are a helpful assistant that drafts follow-up emails.
+Generate a VERY concise, polite follow-up email (2-3 sentences max).
+The tone should be friendly but professional - not pushy or aggressive.
+Don't apologize excessively. Be direct but kind.`;
+
+    const prompt = `I need to follow up on an email thread.
+
+Subject: ${subject}
+
+My last message (sent ${daysSinceFollowUp} days ago):
+${lastMyReply ? lastMyReply.substring(0, 500) : 'No previous message available'}
+
+Their last reply before mine:
+${lastTheirReply ? lastTheirReply.substring(0, 500) : 'No previous reply from them'}
+
+Recipient: ${theirName}
+
+Generate a brief, friendly follow-up message. Keep it to 2-3 sentences maximum. Don't include a greeting or signature - just the body text.`;
+
+    return await this.generateText({
+      prompt,
+      systemPrompt,
+      temperature: 0.7,
+      maxTokens: 200,
+      userId,
+    }, provider, userId);
   }
 
   getAvailableProviders(): LLMProvider[] {

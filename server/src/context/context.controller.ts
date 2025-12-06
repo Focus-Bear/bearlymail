@@ -1,22 +1,64 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, Request, Inject } from '@nestjs/common';
 import { ContextService } from './context.service';
 import { UserContext, ContextKey, Source } from '../database/entities/user-context.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { UsersService } from '../users/users.service';
+import PgBoss = require('pg-boss');
 
 @Controller('context')
 @UseGuards(JwtAuthGuard)
 export class ContextController {
-  constructor(private readonly contextService: ContextService) {}
+  constructor(
+    private readonly contextService: ContextService,
+    private readonly usersService: UsersService,
+    @Inject('PG_BOSS') private readonly boss: PgBoss,
+  ) {}
 
   @Get()
   async getContext(@Request() req) {
     return this.contextService.getUserContext(req.user.userId);
   }
 
+  @Get('analyze-progress')
+  async getAnalyzeProgress(@Request() req) {
+    const user = await this.usersService.findOne(req.user.userId);
+    if (!user) {
+      return { progress: null, error: null };
+    }
+
+    // Reuse scanProgress/scanTotal fields for context analysis progress
+    if (user.scanProgress !== null && user.scanTotal !== null) {
+      // Check for error state: scanProgress = -1 indicates error
+      if (user.scanProgress === -1) {
+        return {
+          progress: null,
+          error: {
+            message: 'Analysis failed. Please try again. If the problem persists, check that the database migration has been run.',
+            code: 'ANALYSIS_FAILED',
+          },
+        };
+      }
+      
+      return {
+        progress: {
+          current: user.scanProgress,
+          total: user.scanTotal,
+        },
+        error: null,
+      };
+    }
+
+    return { progress: null, error: null };
+  }
+
   @Post('analyze')
   async analyzeEmails(@Request() req) {
-    await this.contextService.analyzeAndLearnFromEmails(req.user.userId);
-    return { message: 'Context analysis completed' };
+    // Queue the analysis job instead of running synchronously
+    await this.boss.send('analyze-context', { userId: req.user.userId }, {
+      singletonKey: `analyze-context-${req.user.userId}`,
+      singletonMinutes: 5, // Don't allow another analysis for same user within 5 minutes
+    });
+    return { message: 'Context analysis started in the background' };
   }
 
   @Post()

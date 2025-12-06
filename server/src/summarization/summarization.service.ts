@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { EmailsService } from '../emails/emails.service';
 import { LLMService } from '../llm/llm.service';
 import { SummarizationRule as SummarizationRuleEntity } from '../database/entities/summarization-rule.entity';
+import { cleanEmailContent, cleanEmailForThread } from '../llm/email-content-cleaner';
 
 export interface SummarizationRule {
   type: 'bullet-points' | 'action-items' | 'sender-request' | 'tldr' | 'custom';
@@ -37,17 +38,19 @@ export class SummarizationService {
       .slice(0, 3)
       .reverse(); // Reverse to get chronological order (oldest to newest)
 
-    // Combine the last 3 messages for thread context
+    // Combine the last 3 messages for thread context (clean each message)
     const threadText = last3Messages
       .map((e, idx) => {
         const sender = e.fromName || e.from;
         const date = new Date(e.receivedAt).toLocaleString();
-        return `[Message ${idx + 1} from ${sender} on ${date}]:\n${e.body || ''}`;
+        // Clean each message: strip HTML, remove signatures, limit to 800 chars per message
+        const cleanedBody = cleanEmailForThread(e.body, (e as any).htmlBody);
+        return `[Message ${idx + 1} from ${sender} on ${date}]:\n${cleanedBody}`;
       })
       .join('\n\n---\n\n');
     
     const subject = email.subject || '';
-    const text = threadText || email.body || '';
+    const text = threadText || cleanEmailContent(email.body, (email as any).htmlBody);
 
     // Use LLM for all summarization types
     try {
@@ -56,10 +59,11 @@ export class SummarizationService {
         : undefined;
 
       if (rule.type === 'custom' && rule.customPrompt) {
-        // Custom prompt using LLM
+        // Custom prompt using LLM - use cleaned content
+        const cleanedBody = cleanEmailContent(email.body, (email as any).htmlBody);
         const prompt = last3Messages.length > 1
           ? `Email Thread Subject: ${subject}\n\nThis thread contains ${last3Messages.length} messages. Here are the last ${Math.min(3, last3Messages.length)} messages:\n\n${threadText}\n\n${rule.customPrompt}`
-          : `Email Subject: ${subject}\n\nEmail Body:\n${email.body || ''}\n\n${rule.customPrompt}`;
+          : `Email Subject: ${subject}\n\nEmail Body:\n${cleanedBody}\n\n${rule.customPrompt}`;
         
         return await this.llmService.generateText({
           prompt,
@@ -72,7 +76,7 @@ export class SummarizationService {
 
       // Use LLM for standard summarization types
       if (last3Messages.length > 1) {
-        // Thread summary - use specialized prompt
+        // Thread summary - use specialized prompt (already cleaned above)
         return await this.llmService.summarizeEmail(
           threadText,
           subject,
@@ -81,9 +85,10 @@ export class SummarizationService {
           userId,
         );
       } else {
-        // Single email summary
+        // Single email summary - clean the content
+        const cleanedBody = cleanEmailContent(email.body, (email as any).htmlBody);
         return await this.llmService.summarizeEmail(
-          email.body || '',
+          cleanedBody,
           subject,
           rule.type,
           provider as any,

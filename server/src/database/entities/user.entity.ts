@@ -1,10 +1,10 @@
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, OneToMany, Index } from 'typeorm';
-import { PriorityRule } from './priority-rule.entity';
 import { UserContext } from './user-context.entity';
 import { PrivateNote } from './private-note.entity';
 import { Email } from './email.entity';
 import { SummarizationRule } from './summarization-rule.entity';
-import { encryptedColumnTransformer, emailTransformer, EncryptionHelper } from '../../encryption/encryption.helper';
+import { ActionItem } from './action-item.entity';
+import { encryptedColumnTransformer, emailTransformer, encryptedJsonTransformer } from '../../encryption/encryption.helper';
 
 @Entity('users')
 export class User {
@@ -87,14 +87,14 @@ export class User {
   @Column({ nullable: true })
   trialStartedAt: Date; // When 7-day trial started
 
+  @Column('text', { nullable: true, transformer: encryptedJsonTransformer })
+  toneSettings: { rules: string[] }; // e.g., { rules: ['Be concise', 'Use non-violent communication'] }
+
   @CreateDateColumn()
   createdAt: Date;
 
   @UpdateDateColumn()
   updatedAt: Date;
-
-  @OneToMany(() => PriorityRule, (rule) => rule.user)
-  priorityRules: PriorityRule[];
 
   @OneToMany(() => UserContext, (context) => context.user)
   contexts: UserContext[];
@@ -107,4 +107,7 @@ export class User {
 
   @OneToMany(() => SummarizationRule, (rule) => rule.user)
   summarizationRules: SummarizationRule[];
+
+  @OneToMany(() => ActionItem, (item) => item.user)
+  actionItems: ActionItem[];
 }

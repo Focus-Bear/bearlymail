@@ -1,0 +1,46 @@
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
+import { User } from './user.entity';
+import { encryptedColumnTransformer } from '../../encryption/encryption.helper';
+import { SearchIndexHelper } from '../../contacts/search-index.helper';
+
+/**
+ * Blocked senders - emails from these addresses are automatically archived
+ * and labeled "blocked-by-bearlymail", and excluded from summaries.
+ */
+@Entity('blocked_senders')
+@Index(['userId', 'emailHash'], { unique: true }) // One block per email per user
+export class BlockedSender {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column()
+  userId: string;
+
+  // Encrypted email address
+  @Column({ transformer: encryptedColumnTransformer })
+  email: string;
+
+  // Hash for fast lookups (SHA-256)
+  @Column()
+  emailHash: string;
+
+  // Optional: block entire domain (e.g., @newsletter.example.com)
+  @Column({ nullable: true })
+  domainHash: string; // Hash of domain for domain-level blocking
+
+  // Why the user blocked this sender (optional)
+  @Column({ nullable: true, transformer: encryptedColumnTransformer })
+  reason: string;
+
+  // Name of sender (for display in settings)
+  @Column({ nullable: true, transformer: encryptedColumnTransformer })
+  senderName: string;
+
+  @CreateDateColumn()
+  blockedAt: Date;
+
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'userId' })
+  user: User;
+}
+

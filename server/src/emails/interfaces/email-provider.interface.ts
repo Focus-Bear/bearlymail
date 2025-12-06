@@ -19,6 +19,14 @@ export interface RawEmailMessage {
 }
 
 /**
+ * Email recipient with optional name
+ */
+export interface EmailRecipient {
+  email: string;
+  name?: string;
+}
+
+/**
  * Interface for email provider implementations
  * This abstraction allows supporting multiple email providers (Gmail, Outlook, MS Teams, etc.)
  */
@@ -36,7 +44,7 @@ export interface EmailProvider {
   scanHistory(userId: string): Promise<void>;
 
   /**
-   * Send a reply email
+   * Send a reply email (continues an existing thread)
    */
   sendReply(
     userId: string,
@@ -45,6 +53,18 @@ export interface EmailProvider {
     subject: string,
     body: string,
   ): Promise<void>;
+
+  /**
+   * Send a new email (creates a new thread)
+   */
+  sendEmail(
+    userId: string,
+    to: EmailRecipient[],
+    subject: string,
+    body: string,
+    cc?: EmailRecipient[],
+    bcc?: EmailRecipient[],
+  ): Promise<{ messageId: string; threadId: string }>;
 
   /**
    * Check if the user is connected to this email provider
@@ -56,5 +76,15 @@ export interface EmailProvider {
    * Returns raw email messages that match the query
    */
   searchEmails(userId: string, query: string, maxResults?: number): Promise<RawEmailMessage[]>;
+
+  /**
+   * Archive a thread (remove from inbox, add bearly-mail-archived label)
+   */
+  archiveThread(userId: string, threadId: string): Promise<void>;
+
+  /**
+   * Unarchive a thread (add to inbox, remove bearly-mail-archived label)
+   */
+  unarchiveThread(userId: string, threadId: string): Promise<void>;
 }
 

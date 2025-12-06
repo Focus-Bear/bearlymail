@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
 import { theme } from '../theme/theme';
+import { ConfirmModal } from '../components/ConfirmModal';
+import { StarDiscrepancyModal } from '../components/priority/StarDiscrepancyModal';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
@@ -24,6 +26,7 @@ interface Email {
   summary?: string | null;
   starCount?: number;
   isArchived?: boolean;
+  labels?: string[];
 }
 
 const Inbox: React.FC = () => {
@@ -31,6 +34,7 @@ const Inbox: React.FC = () => {
   const { user, logout, refreshUser, loading: authLoading } = useAuth();
   const [emails, setEmails] = useState<Email[]>([]);
   const [loading, setLoading] = useState(true);
+  const [decrypting, setDecrypting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingModeSwitch, setLoadingModeSwitch] = useState(false);
   const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
@@ -43,18 +47,95 @@ const Inbox: React.FC = () => {
   const [tourStep, setTourStep] = useState<number | null>(null);
   const [showScanModal, setShowScanModal] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
-  const [scanProgress, setScanProgress] = useState<{ current: number; total: number } | null>(null);
   const [scanNotification, setScanNotification] = useState<{ show: boolean; progress: { current: number; total: number } | null }>({ show: false, progress: null });
   const [urgentNotification, setUrgentNotification] = useState<{ show: boolean; count: number; emails: Array<{ subject: string; from: string; priorityScore: number }> }>({ show: false, count: 0, emails: [] });
   const [triageSuggestions, setTriageSuggestions] = useState<Map<string, { suggestedStarCount: number; suggestedArchive: boolean; confidence: number; reasoning: string }>>(new Map());
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [debugViewOpen, setDebugViewOpen] = useState(false);
+  const [debugStarredData, setDebugStarredData] = useState<{
+    gmail: {
+      starredThreadCount: number;
+      starredThreadIds: string[];
+      error?: string;
+    };
+    database: {
+      starredThreadCount: number;
+      starredEmailCount: number;
+    };
+    processTabResults: number;
+    comparison: {
+      inGmailNotInDb: string[];
+      inDbNotInGmail: string[];
+      inDbButArchived: string[];
+    };
+    starredThreads: Array<{
+      threadId: string;
+      starCount: number;
+      isArchived: boolean;
+      isSnoozed: boolean;
+      emailCount: number;
+      latestSubject: string;
+      latestFrom: string;
+      issues: string[];
+      inGmail: boolean;
+    }>;
+    missingFromProcessTab: Array<{
+      threadId: string;
+      reason: string;
+      details: any;
+    }>;
+  } | null>(null);
+  const [loadingDebugData, setLoadingDebugData] = useState(false);
+  const [starDiscrepancyModal, setStarDiscrepancyModal] = useState<{
+    show: boolean;
+    emailId: string;
+    userStarCount: number;
+    predictedStarCount: number;
+  } | null>(null);
+  const [debugOrphanData, setDebugOrphanData] = useState<{
+    totalEmailsInDb: number;
+    emailsWithThreadId: number;
+    orphanEmails: number;
+    orphanEmailDetails: Array<{
+      id: string;
+      threadId: string;
+      emailThreadId: string | null;
+      subject: string;
+      from: string;
+      receivedAt: string;
+    }>;
+    threadsInDb: number;
+    threadsWithoutEmails: Array<{
+      id: string;
+      threadId: string;
+      starCount: number;
+      isArchived: boolean;
+    }>;
+  } | null>(null);
+  const [loadingOrphanData, setLoadingOrphanData] = useState(false);
+  const [fixingOrphans, setFixingOrphans] = useState(false);
+  
+  // Block sender confirmation modal state
+  const [blockConfirmEmail, setBlockConfirmEmail] = useState<Email | null>(null);
   
   // Keyboard navigation and multi-select state
   const [selectedEmailIndex, setSelectedEmailIndex] = useState<number>(-1);
   const [selectedEmailIds, setSelectedEmailIds] = useState<Set<string>>(new Set());
   const [lastSelectedIndex, setLastSelectedIndex] = useState<number>(-1);
   const [showKeyboardHint, setShowKeyboardHint] = useState<{ emailId: string; action: string } | null>(null);
+  
+  // Priority tooltip state
+  const [hoveredPriorityEmailId, setHoveredPriorityEmailId] = useState<string | null>(null);
+  const [priorityExplanation, setPriorityExplanation] = useState<{
+    score: number;
+    dimensions: {
+      urgency: { score: number; reasons: string[] };
+      goalAlignment: { score: number; reasons: string[] };
+      vipContact: { score: number; reasons: string[] };
+    };
+    breakdown: Array<{ factor: string; value: number; description: string }>;
+  } | null>(null);
+  const [loadingPriorityExplanation, setLoadingPriorityExplanation] = useState(false);
 
   // Tour element refs
   const triageTabRef = useRef<HTMLButtonElement>(null);
@@ -70,6 +151,329 @@ const Inbox: React.FC = () => {
     { title: t('onboarding.tour.processTitle'), content: t('onboarding.tour.processContent') },
     { title: t('onboarding.tour.deliveryTitle'), content: t('onboarding.tour.deliveryContent') },
   ];
+
+  const fetchBatchStatus = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/emails/batch-status`);
+      if (response.data.nextDelivery) {
+        setNextDelivery(new Date(response.data.nextDelivery));
+      } else {
+        setNextDelivery(null);
+      }
+    } catch (error) {
+      console.error('Error fetching batch status:', error);
+    }
+  };
+
+  const fetchEmails = useCallback(async () => {
+    setDecrypting(true); // Show "Decrypting..." during request
+    try {
+      // Pass mode param (includeBatched is now irrelevant as user only sees what's delivered)
+      const response = await axios.get(`${API_URL}/emails/inbox?mode=${mode}`);
+      console.log(`Fetched ${response.data.length} emails for mode: ${mode}`, response.data);
+      setEmails(response.data);
+      setDecrypting(false); // Decryption complete
+    } catch (error) {
+      console.error('Error fetching emails:', error);
+      setDecrypting(false);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+      setLoadingModeSwitch(false);
+    }
+  }, [mode]);
+
+  const handleOverrideSuggestion = useCallback(async (
+    emailId: string,
+    suggestion: any,
+    userAction: { starCount: number; archived: boolean }
+  ) => {
+    try {
+      // Track the override for learning
+      await axios.post(`${API_URL}/priority/triage-suggestions/override`, {
+        emailId,
+        suggestion,
+        userAction,
+      });
+      // Remove suggestion from map
+      const newSuggestions = new Map(triageSuggestions);
+      newSuggestions.delete(emailId);
+      setTriageSuggestions(newSuggestions);
+    } catch (error) {
+      console.error('Error tracking override:', error);
+    }
+  }, [triageSuggestions]);
+
+  const fetchTriageSuggestions = useCallback(async () => {
+    if (emails.length === 0 || loadingSuggestions) return;
+    
+    setLoadingSuggestions(true);
+    try {
+      const emailIds = emails.slice(0, 20).map(e => e.id); // Limit to first 20 emails
+      const response = await axios.post(`${API_URL}/priority/triage-suggestions`, { emailIds });
+      const suggestionsMap = new Map();
+      response.data.forEach((suggestion: any) => {
+        suggestionsMap.set(suggestion.emailId, suggestion);
+      });
+      setTriageSuggestions(suggestionsMap);
+    } catch (error) {
+      console.error('Error fetching triage suggestions:', error);
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  }, [emails, loadingSuggestions]);
+
+  const handleSetStarCount = useCallback(async (emailId: string, starCount: number, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    
+    // Get the email to check for discrepancy
+    const email = emails.find(e => e.id === emailId);
+    const predictedStarCount = email 
+      ? Math.round((email.priorityScore / 100) * 3) 
+      : Math.round(50 / 100 * 3); // Default to 1 if email not found
+    
+    // Optimistic update - update UI immediately
+    setEmails(prevEmails => prevEmails.map(email => 
+      email.id === emailId ? { ...email, starCount } : email
+    ));
+    
+    // Remove suggestion immediately
+    const suggestion = triageSuggestions.get(emailId);
+    if (suggestion) {
+      const newSuggestions = new Map(triageSuggestions);
+      newSuggestions.delete(emailId);
+      setTriageSuggestions(newSuggestions);
+    }
+    
+    try {
+      await axios.put(`${API_URL}/emails/${emailId}/star-count`, { starCount });
+      
+      // Track override if there was a suggestion
+      if (suggestion) {
+        await handleOverrideSuggestion(emailId, suggestion, { 
+          starCount, 
+          archived: false 
+        });
+      }
+      
+      // Check for star discrepancy (difference of 2 or more, and user gave stars)
+      const discrepancy = Math.abs(starCount - predictedStarCount);
+      if (discrepancy >= 2 && starCount > 0) {
+        setStarDiscrepancyModal({
+          show: true,
+          emailId,
+          userStarCount: starCount,
+          predictedStarCount,
+        });
+      }
+      
+      // Refresh to ensure consistency (non-blocking)
+      fetchEmails().catch(err => console.error('Error refreshing after star update:', err));
+    } catch (error) {
+      console.error('Error setting star count:', error);
+      // Revert optimistic update on error
+      fetchEmails();
+    }
+  }, [emails, triageSuggestions, fetchEmails, handleOverrideSuggestion]);
+
+  const handleArchive = useCallback(async (emailId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    // Optimistic update - remove from UI immediately
+    const emailToArchive = emails.find(e => e.id === emailId);
+    setEmails(prevEmails => prevEmails.filter(email => email.id !== emailId));
+    
+    // Remove from selection if selected
+    setSelectedEmailIds(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(emailId);
+      return newSet;
+    });
+    
+    // Remove suggestion immediately
+    const suggestion = triageSuggestions.get(emailId);
+    if (suggestion) {
+      const newSuggestions = new Map(triageSuggestions);
+      newSuggestions.delete(emailId);
+      setTriageSuggestions(newSuggestions);
+    }
+    
+    try {
+      await axios.put(`${API_URL}/emails/${emailId}/archive`);
+      
+      // Track override if there was a suggestion
+      if (suggestion) {
+        await handleOverrideSuggestion(emailId, suggestion, { 
+          starCount: 0, 
+          archived: true 
+        });
+      }
+      
+      // Refresh to ensure consistency (non-blocking, but don't block UI)
+      fetchEmails().catch(err => console.error('Error refreshing after archive:', err));
+    } catch (error) {
+      console.error('Error archiving email:', error);
+      // Revert optimistic update on error - restore the email
+      if (emailToArchive) {
+        setEmails(prevEmails => [...prevEmails, emailToArchive].sort((a, b) => 
+          new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime()
+        ));
+      }
+      fetchEmails();
+    }
+  }, [emails, triageSuggestions, fetchEmails, handleOverrideSuggestion]);
+
+  const handleBlockSender = useCallback((emailId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    const emailToBlock = emails.find(e => e.id === emailId);
+    if (!emailToBlock) return;
+    
+    // Show confirmation modal
+    setBlockConfirmEmail(emailToBlock);
+  }, [emails]);
+
+  const confirmBlockSender = useCallback(async () => {
+    if (!blockConfirmEmail) return;
+    
+    const emailToBlock = blockConfirmEmail;
+    setBlockConfirmEmail(null);
+    
+    // Optimistic update - remove from UI
+    setEmails(prevEmails => prevEmails.filter(email => email.id !== emailToBlock.id));
+    
+    try {
+      await axios.post(`${API_URL}/emails/${emailToBlock.id}/block-sender`);
+      fetchEmails().catch(err => console.error('Error refreshing after block:', err));
+    } catch (error) {
+      console.error('Error blocking sender:', error);
+      // Revert on error
+      setEmails(prevEmails => [...prevEmails, emailToBlock].sort((a, b) => 
+        new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime()
+      ));
+    }
+  }, [blockConfirmEmail, fetchEmails]);
+
+  const fetchDebugStarredThreads = async () => {
+    setLoadingDebugData(true);
+    try {
+      const response = await axios.get(`${API_URL}/emails/debug/starred-threads`);
+      setDebugStarredData(response.data);
+    } catch (error) {
+      console.error('Error fetching debug starred threads:', error);
+    } finally {
+      setLoadingDebugData(false);
+    }
+  };
+
+  const fetchDebugOrphanEmails = async () => {
+    setLoadingOrphanData(true);
+    try {
+      const response = await axios.get(`${API_URL}/emails/debug/orphan-emails`);
+      setDebugOrphanData(response.data);
+    } catch (error) {
+      console.error('Error fetching debug orphan emails:', error);
+    } finally {
+      setLoadingOrphanData(false);
+    }
+  };
+
+  const handleFixOrphanEmails = async () => {
+    setFixingOrphans(true);
+    try {
+      const response = await axios.post(`${API_URL}/emails/debug/fix-orphan-emails`);
+      alert(`Fixed ${response.data.fixed} orphan emails. Errors: ${response.data.errors.length}`);
+      // Refresh data
+      fetchDebugOrphanEmails();
+      fetchEmails();
+    } catch (error) {
+      console.error('Error fixing orphan emails:', error);
+      alert('Failed to fix orphan emails');
+    } finally {
+      setFixingOrphans(false);
+    }
+  };
+
+  const handleCheckUrgent = async () => {
+    setRefreshing(true);
+    try {
+      const response = await axios.post(`${API_URL}/emails/check-urgent`);
+      if (response.data.hasUrgent) {
+        // Show notification with urgent email info - don't auto-dismiss, let user dismiss manually
+        setUrgentNotification({
+          show: true,
+          count: response.data.urgentCount,
+          emails: response.data.urgentEmails || [],
+        });
+        // Don't auto-hide urgent notifications - user should dismiss manually
+      } else {
+        // Show brief "no urgent emails" message - stay visible longer so user can see it
+        setUrgentNotification({
+          show: true,
+          count: 0,
+          emails: [],
+        });
+        // Keep it visible for 8 seconds so user can see the confirmation
+        setTimeout(() => {
+          setUrgentNotification(prev => {
+            // Only auto-hide if still showing "no urgent" (count is 0)
+            if (prev.count === 0) {
+              return { show: false, count: 0, emails: [] };
+            }
+            return prev; // Keep urgent notifications visible
+          });
+        }, 8000);
+      }
+      // Refresh batch status
+      fetchBatchStatus();
+    } catch (error) {
+      console.error('Error checking for urgent emails:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const handleSnooze = async (emailId: string) => {
+    const duration = snoozeInput[emailId]?.trim();
+    if (!duration) {
+      console.warn('Cannot snooze: duration is empty');
+      return;
+    }
+
+    try {
+      await axios.post(`${API_URL}/snooze/${emailId}`, { duration });
+      setShowSnoozeInput(null);
+      setSnoozeInput({ ...snoozeInput, [emailId]: '' });
+      fetchEmails();
+    } catch (error: any) {
+      console.error('Error snoozing email:', error);
+      alert(error.response?.data?.message || 'Failed to snooze email. Please try again.');
+    }
+  };
+
+  const handleMarkAsRead = async (emailId: string) => {
+    try {
+      await axios.put(`${API_URL}/emails/${emailId}/read`);
+      // Update local state instantly for better UX
+      setEmails(emails.map(e => e.id === emailId ? { ...e, isRead: true } : e));
+    } catch (error) {
+      console.error('Error marking as read:', error);
+    }
+  };
+
+  const handleBulkArchive = async () => {
+    if (selectedEmailIds.size === 0) return;
+    await Promise.all(Array.from(selectedEmailIds).map(id => 
+      handleArchive(id, { stopPropagation: () => {} } as React.MouseEvent)
+    ));
+    setSelectedEmailIds(new Set());
+  };
+
+  const handleBulkStar = async (starCount: number) => {
+    if (selectedEmailIds.size === 0) return;
+    await Promise.all(Array.from(selectedEmailIds).map(id => handleSetStarCount(id, starCount)));
+    setSelectedEmailIds(new Set());
+  };
 
   useEffect(() => {
     // Wait for auth to finish loading
@@ -106,7 +510,6 @@ const Inbox: React.FC = () => {
         const response = await axios.get(`${API_URL}/onboarding/scan-progress`);
         if (response.data.progress) {
           const { current, total } = response.data.progress;
-          setScanProgress({ current, total });
           setScanNotification({ show: true, progress: { current, total } });
           
           // Check if completed (current equals total and total > 0)
@@ -126,7 +529,6 @@ const Inbox: React.FC = () => {
             // Hide notification after 3 seconds
             setTimeout(() => {
               setScanNotification({ show: false, progress: null });
-              setScanProgress(null);
             }, 3000);
           }
         } else {
@@ -139,7 +541,6 @@ const Inbox: React.FC = () => {
               clearInterval(progressInterval);
               setIsScanning(false);
               setScanNotification({ show: false, progress: null });
-              setScanProgress(null);
             }
           } catch (err) {
             // Keep polling
@@ -153,36 +554,30 @@ const Inbox: React.FC = () => {
     return () => clearInterval(progressInterval);
   }, [isScanning, refreshUser]);
 
-  // Poll for email updates when processing
+  // Poll for email updates ONLY when emails are actively processing
+  // This is a temporary solution - ideally we'd use WebSockets
   useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
+    // Check if any email is currently processing
+    const processingEmails = emails.filter(e => e.isProcessingPriority || e.isProcessingSummary);
+    
+    // If nothing is processing, don't poll at all
+    if (processingEmails.length === 0) {
+      return;
+    }
 
-    const checkAndPoll = () => {
-      // Check if any email is processing
-      const hasProcessing = emails.some(e => e.isProcessingPriority || e.isProcessingSummary);
-      if (hasProcessing) {
-        if (!interval) {
-          interval = setInterval(() => {
-            fetchEmails();
-          }, 3000);
-        }
-      } else {
-        if (interval) {
-          clearInterval(interval);
-          interval = null;
-        }
+    // Poll every 10 seconds (much less aggressive than before)
+    // Only fetch if we still have processing emails
+    const interval = setInterval(() => {
+      const stillProcessing = emails.some(e => e.isProcessingPriority || e.isProcessingSummary);
+      if (stillProcessing) {
+        console.log(`[Polling] ${processingEmails.length} emails still processing, refreshing...`);
+        fetchEmails();
       }
-    };
+    }, 10000); // 10 seconds instead of 3
 
-    checkAndPoll();
-    const checkInterval = setInterval(checkAndPoll, 1000); // Check every second
-
-    return () => {
-      if (interval) clearInterval(interval);
-      clearInterval(checkInterval);
-    };
+    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [emails.length]); // Only re-run when email count changes
+  }, [emails.filter(e => e.isProcessingPriority || e.isProcessingSummary).length]); // Only re-run when processing count changes
 
   const markTourComplete = async () => {
     try {
@@ -237,49 +632,52 @@ const Inbox: React.FC = () => {
       return;
     }
     
+    // Only run once on initial load
+    if (hasInitiallyLoaded) return;
+    
     // Refresh user data on mount to ensure we have latest state (including hasScannedHistory)
     const initializeData = async () => {
       // Refresh user to get latest hasScannedHistory from DB
       await refreshUser();
       
-      // User is loaded and auth is done - fetch emails
-      if (!hasInitiallyLoaded) {
-        setHasInitiallyLoaded(true);
-        fetchEmails();
-        fetchBatchStatus();
-        
-        // Trigger sync in background after a short delay (only if user is connected)
-        setTimeout(() => {
-          axios.post(`${API_URL}/emails/check-urgent`).catch(err => 
-            console.error('Error triggering initial email sync:', err)
-          );
-        }, 2000);
-      }
+      setHasInitiallyLoaded(true);
+      fetchEmails();
+      fetchBatchStatus();
+      
+      // Trigger sync in background after a short delay (only if user is connected)
+      setTimeout(() => {
+        axios.post(`${API_URL}/emails/check-urgent`).catch(err => 
+          console.error('Error triggering initial email sync:', err)
+        );
+      }, 2000);
     };
     
     initializeData();
-  }, [authLoading, user, hasInitiallyLoaded]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, user, hasInitiallyLoaded]); // Intentionally exclude fetchEmails and refreshUser to prevent loops
 
   // Re-fetch when mode changes (after initial load)
   useEffect(() => {
-    if (hasInitiallyLoaded && user && !authLoading) {
-      // Only show loading spinner, don't clear emails immediately to avoid flash
-      setLoadingModeSwitch(true);
-      // Don't set main loading state to true - just use loadingModeSwitch
-      // This prevents the whole page from looking like it's reloading
-      fetchEmails().finally(() => {
-        setLoadingModeSwitch(false);
-      });
-      fetchBatchStatus();
-    }
-  }, [mode]);
+    if (!hasInitiallyLoaded || !user || authLoading) return;
+    
+    // Clear emails IMMEDIATELY when switching tabs to prevent showing stale data
+    setEmails([]);
+    setLoadingModeSwitch(true);
+    
+    fetchEmails().finally(() => {
+      setLoadingModeSwitch(false);
+    });
+    fetchBatchStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]); // Only trigger on mode change, not on fetchEmails recreation
 
   // Fetch triage suggestions when in triage mode with emails
   useEffect(() => {
     if (mode === 'triage' && emails.length > 0 && !loadingSuggestions) {
       fetchTriageSuggestions();
     }
-  }, [mode, emails.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, emails.length]); // Intentionally exclude loadingSuggestions and fetchTriageSuggestions to prevent loops
 
   // Keyboard shortcuts handler
   useEffect(() => {
@@ -326,7 +724,7 @@ const Inbox: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [emails, selectedEmailIndex, selectedEmailIds]);
+  }, [emails, selectedEmailIndex, selectedEmailIds, handleArchive, handleSetStarCount]);
 
   // Reset selection when emails change
   useEffect(() => {
@@ -367,284 +765,7 @@ const Inbox: React.FC = () => {
     }
   };
 
-  // Bulk operations
-  const handleBulkArchive = async () => {
-    if (selectedEmailIds.size === 0) return;
-    await Promise.all(Array.from(selectedEmailIds).map(id => 
-      handleArchive(id, { stopPropagation: () => {} } as React.MouseEvent)
-    ));
-    setSelectedEmailIds(new Set());
-  };
 
-  const handleBulkStar = async (starCount: number) => {
-    if (selectedEmailIds.size === 0) return;
-    await Promise.all(Array.from(selectedEmailIds).map(id => handleSetStarCount(id, starCount)));
-    setSelectedEmailIds(new Set());
-  };
-
-  const fetchBatchStatus = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/emails/batch-status`);
-      if (response.data.nextDelivery) {
-        setNextDelivery(new Date(response.data.nextDelivery));
-      } else {
-        setNextDelivery(null);
-      }
-    } catch (error) {
-      console.error('Error fetching batch status:', error);
-    }
-  };
-
-  const fetchTriageSuggestions = async () => {
-    if (emails.length === 0 || loadingSuggestions) return;
-    
-    setLoadingSuggestions(true);
-    try {
-      const emailIds = emails.slice(0, 20).map(e => e.id); // Limit to first 20 emails
-      const response = await axios.post(`${API_URL}/priority/triage-suggestions`, { emailIds });
-      const suggestionsMap = new Map();
-      response.data.forEach((suggestion: any) => {
-        suggestionsMap.set(suggestion.emailId, suggestion);
-      });
-      setTriageSuggestions(suggestionsMap);
-    } catch (error) {
-      console.error('Error fetching triage suggestions:', error);
-    } finally {
-      setLoadingSuggestions(false);
-    }
-  };
-
-  const fetchEmails = async () => {
-    try {
-      // Pass mode param (includeBatched is now irrelevant as user only sees what's delivered)
-      const response = await axios.get(`${API_URL}/emails/inbox?mode=${mode}`);
-      console.log(`Fetched ${response.data.length} emails for mode: ${mode}`, response.data);
-      setEmails(response.data);
-    } catch (error) {
-      console.error('Error fetching emails:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-      setLoadingModeSwitch(false);
-    }
-  };
-
-  const handleSnooze = async (emailId: string) => {
-    const duration = snoozeInput[emailId];
-    if (!duration) return;
-
-    try {
-      await axios.post(`${API_URL}/snooze/${emailId}`, { duration });
-      setShowSnoozeInput(null);
-      setSnoozeInput({ ...snoozeInput, [emailId]: '' });
-      fetchEmails();
-    } catch (error) {
-      console.error('Error snoozing email:', error);
-    }
-  };
-
-  const handleMarkAsRead = async (emailId: string) => {
-    try {
-      await axios.put(`${API_URL}/emails/${emailId}/read`);
-      // Update local state instantly for better UX
-      setEmails(emails.map(e => e.id === emailId ? { ...e, isRead: true } : e));
-    } catch (error) {
-      console.error('Error marking as read:', error);
-    }
-  };
-
-  const handleSetStarCount = async (emailId: string, starCount: number, e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    
-    // Optimistic update - update UI immediately
-    setEmails(prevEmails => prevEmails.map(email => 
-      email.id === emailId ? { ...email, starCount } : email
-    ));
-    
-    // Remove suggestion immediately
-    const suggestion = triageSuggestions.get(emailId);
-    if (suggestion) {
-      const newSuggestions = new Map(triageSuggestions);
-      newSuggestions.delete(emailId);
-      setTriageSuggestions(newSuggestions);
-    }
-    
-    try {
-      await axios.put(`${API_URL}/emails/${emailId}/star-count`, { starCount });
-      
-      // Track override if there was a suggestion
-      if (suggestion) {
-        await handleOverrideSuggestion(emailId, suggestion, { 
-          starCount, 
-          archived: false 
-        });
-      }
-      
-      // Refresh to ensure consistency (non-blocking)
-      fetchEmails().catch(err => console.error('Error refreshing after star update:', err));
-    } catch (error) {
-      console.error('Error setting star count:', error);
-      // Revert optimistic update on error
-      fetchEmails();
-    }
-  };
-
-  const handleToggleStar = async (emailId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      const email = emails.find(e => e.id === emailId);
-      const currentStarCount = email?.starCount || 0;
-      // Cycle through: 0 -> 1 -> 2 -> 3 -> 0
-      const newStarCount = (currentStarCount + 1) % 4;
-      await handleSetStarCount(emailId, newStarCount);
-    } catch (error) {
-      console.error('Error toggling star:', error);
-    }
-  };
-
-  const handleArchive = async (emailId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    
-    // Optimistic update - remove from UI immediately
-    const emailToArchive = emails.find(e => e.id === emailId);
-    setEmails(prevEmails => prevEmails.filter(email => email.id !== emailId));
-    
-    // Remove from selection if selected
-    setSelectedEmailIds(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(emailId);
-      return newSet;
-    });
-    
-    // Remove suggestion immediately
-    const suggestion = triageSuggestions.get(emailId);
-    if (suggestion) {
-      const newSuggestions = new Map(triageSuggestions);
-      newSuggestions.delete(emailId);
-      setTriageSuggestions(newSuggestions);
-    }
-    
-    try {
-      await axios.put(`${API_URL}/emails/${emailId}/archive`);
-      
-      // Track override if there was a suggestion
-      if (suggestion) {
-        await axios.post(`${API_URL}/priority/triage-suggestions/override`, {
-          emailId,
-          suggestion,
-          userAction: { starCount: 0, archived: true },
-        });
-      }
-      
-      // Refresh to ensure consistency (non-blocking, but don't block UI)
-      fetchEmails().catch(err => console.error('Error refreshing after archive:', err));
-    } catch (error) {
-      console.error('Error archiving email:', error);
-      // Revert optimistic update on error - restore the email
-      if (emailToArchive) {
-        setEmails(prevEmails => [...prevEmails, emailToArchive].sort((a, b) => 
-          new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime()
-        ));
-      }
-      fetchEmails();
-    }
-  };
-
-  const handleAcceptSuggestion = async (emailId: string, suggestion: any) => {
-    try {
-      // Apply the suggestion
-      if (suggestion.suggestedArchive) {
-        await axios.put(`${API_URL}/emails/${emailId}/archive`);
-      } else if (suggestion.suggestedStarCount > 0) {
-        await axios.put(`${API_URL}/emails/${emailId}/star-count`, {
-          starCount: suggestion.suggestedStarCount,
-        });
-      }
-      // Remove suggestion from map
-      const newSuggestions = new Map(triageSuggestions);
-      newSuggestions.delete(emailId);
-      setTriageSuggestions(newSuggestions);
-      fetchEmails();
-    } catch (error) {
-      console.error('Error accepting suggestion:', error);
-    }
-  };
-
-  const handleOverrideSuggestion = async (
-    emailId: string,
-    suggestion: any,
-    userAction: { starCount: number; archived: boolean }
-  ) => {
-    try {
-      // Track the override for learning
-      await axios.post(`${API_URL}/priority/triage-suggestions/override`, {
-        emailId,
-        suggestion,
-        userAction,
-      });
-      // Remove suggestion from map
-      const newSuggestions = new Map(triageSuggestions);
-      newSuggestions.delete(emailId);
-      setTriageSuggestions(newSuggestions);
-    } catch (error) {
-      console.error('Error tracking override:', error);
-    }
-  };
-
-  const handleCheckUrgent = async () => {
-    setRefreshing(true);
-    try {
-      const response = await axios.post(`${API_URL}/emails/check-urgent`);
-      if (response.data.hasUrgent) {
-        // Show notification with urgent email info - don't auto-dismiss, let user dismiss manually
-        setUrgentNotification({
-          show: true,
-          count: response.data.urgentCount,
-          emails: response.data.urgentEmails || [],
-        });
-        // Don't auto-hide urgent notifications - user should dismiss manually
-      } else {
-        // Show brief "no urgent emails" message - stay visible longer so user can see it
-        setUrgentNotification({
-          show: true,
-          count: 0,
-          emails: [],
-        });
-        // Keep it visible for 8 seconds so user can see the confirmation
-        setTimeout(() => {
-          setUrgentNotification(prev => {
-            // Only auto-hide if still showing "no urgent" (count is 0)
-            if (prev.count === 0) {
-              return { show: false, count: 0, emails: [] };
-            }
-            return prev; // Keep urgent notifications visible
-          });
-        }, 8000);
-      }
-      // Refresh batch status
-      fetchBatchStatus();
-    } catch (error) {
-      console.error('Error checking for urgent emails:', error);
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-  const handleForceCheck = async () => {
-    setRefreshing(true);
-    try {
-      const response = await axios.post(`${API_URL}/emails/force-check`);
-      console.log('Force check result:', response.data);
-      // Update state with the returned emails
-      setEmails(response.data);
-      // Clear next delivery time as we just delivered everything
-      setNextDelivery(null);
-    } catch (error) {
-      console.error('Error forcing check:', error);
-    } finally {
-      setRefreshing(false);
-    }
-  };
 
   const getPriorityBadge = (score: number) => {
     if (score >= 80) return { color: theme.colors.accent.error, label: t('priority.high'), bg: '#FEE2E2' };
@@ -1189,35 +1310,65 @@ const Inbox: React.FC = () => {
             </div>
           </div>
           
-          <div style={{ display: 'flex', gap: theme.spacing.md, alignItems: 'center' }}>
-            {nextDelivery && (
-              <div style={{
-                fontSize: theme.typography.fontSize.sm,
-                color: theme.colors.text.secondary,
-                backgroundColor: theme.colors.background.subtle,
+          <div style={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center' }}>
+            {nextDelivery && (() => {
+              const now = new Date();
+              const diffMs = nextDelivery.getTime() - now.getTime();
+              const diffMins = Math.round(diffMs / (1000 * 60));
+              // Only show if there's actually a future delivery time
+              if (diffMins <= 0) return null;
+              
+              const diffHours = Math.floor(diffMins / 60);
+              const remainingMins = diffMins % 60;
+              const timeText = diffMins < 60 
+                ? `${diffMins}m`
+                : remainingMins === 0 
+                  ? `${diffHours}h`
+                  : `${diffHours}h ${remainingMins}m`;
+              
+              return (
+                <span style={{
+                  fontSize: theme.typography.fontSize.xs,
+                  color: theme.colors.text.tertiary,
+                }}>
+                  Next batch: {timeText}
+                </span>
+              );
+            })()}
+
+            <button
+              onClick={() => navigate('/compose')}
+              style={{
                 padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                borderRadius: theme.borderRadius.full,
-                border: `1px solid ${theme.colors.border.medium}`,
-              }}>
-                {t('inbox.nextDelivery', { time: nextDelivery.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) })}
-              </div>
-            )}
+                backgroundColor: theme.colors.secondary.main,
+                color: 'white',
+                border: 'none',
+                borderRadius: theme.borderRadius.md,
+                cursor: 'pointer',
+                fontSize: theme.typography.fontSize.xs,
+                fontWeight: theme.typography.fontWeight.medium,
+                transition: theme.transitions.fast,
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.colors.secondary.dark}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = theme.colors.secondary.main}
+            >
+              ✉️ Compose
+            </button>
 
             <button
               ref={deliverBtnRef}
-              className="deliver-btn" // Added class for tour
+              className="deliver-btn"
               onClick={handleCheckUrgent}
               disabled={refreshing}
               style={{
-                padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
+                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
                 backgroundColor: theme.colors.primary.main,
                 color: 'white',
                 border: 'none',
-                borderRadius: theme.borderRadius.full,
+                borderRadius: theme.borderRadius.md,
                 cursor: refreshing ? 'wait' : 'pointer',
-                fontSize: theme.typography.fontSize.sm,
+                fontSize: theme.typography.fontSize.xs,
                 fontWeight: theme.typography.fontWeight.medium,
-                boxShadow: theme.shadows.sm,
                 display: 'flex',
                 alignItems: 'center',
                 gap: theme.spacing.sm,
@@ -1274,9 +1425,238 @@ const Inbox: React.FC = () => {
                   backgroundColor: '#FFF3CD', 
                   fontSize: theme.typography.fontSize.xs,
                   fontFamily: 'monospace',
-                  maxHeight: '400px',
+                  maxHeight: '600px',
                   overflowY: 'auto',
                 }}>
+                  {/* Missing Starred Threads Debug Section */}
+                  <div style={{ marginBottom: theme.spacing.lg, padding: theme.spacing.md, backgroundColor: '#fff', borderRadius: theme.borderRadius.md }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md, marginBottom: theme.spacing.md }}>
+                      <h4 style={{ margin: 0 }}>🔍 Missing Starred Threads Debug</h4>
+                      <button
+                        onClick={fetchDebugStarredThreads}
+                        disabled={loadingDebugData}
+                        style={{
+                          padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+                          backgroundColor: theme.colors.primary.main,
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: theme.borderRadius.sm,
+                          cursor: loadingDebugData ? 'not-allowed' : 'pointer',
+                          opacity: loadingDebugData ? 0.6 : 1,
+                        }}
+                      >
+                        {loadingDebugData ? 'Loading...' : 'Fetch Debug Data'}
+                      </button>
+                    </div>
+                    
+                    {debugStarredData && (
+                      <div>
+                        {/* Gmail vs DB Comparison */}
+                        <div style={{ 
+                          display: 'grid', 
+                          gridTemplateColumns: 'repeat(2, 1fr)', 
+                          gap: theme.spacing.md, 
+                          marginBottom: theme.spacing.md,
+                        }}>
+                          <div style={{ padding: theme.spacing.sm, backgroundColor: '#E8F4FD', borderRadius: theme.borderRadius.sm }}>
+                            <h5 style={{ margin: `0 0 ${theme.spacing.xs} 0` }}>📧 Gmail (is:starred is:inbox)</h5>
+                            {debugStarredData.gmail.error ? (
+                              <div style={{ color: 'red' }}>Error: {debugStarredData.gmail.error}</div>
+                            ) : (
+                              <div><strong>{debugStarredData.gmail.starredThreadCount}</strong> starred threads</div>
+                            )}
+                          </div>
+                          <div style={{ padding: theme.spacing.sm, backgroundColor: '#E8F4FD', borderRadius: theme.borderRadius.sm }}>
+                            <h5 style={{ margin: `0 0 ${theme.spacing.xs} 0` }}>🗄️ Database</h5>
+                            <div><strong>{debugStarredData.database.starredThreadCount}</strong> starred threads</div>
+                            <div><strong>{debugStarredData.database.starredEmailCount}</strong> starred emails</div>
+                          </div>
+                        </div>
+                        
+                        {/* Comparison Results */}
+                        <div style={{ 
+                          display: 'grid', 
+                          gridTemplateColumns: 'repeat(3, 1fr)', 
+                          gap: theme.spacing.sm, 
+                          marginBottom: theme.spacing.md,
+                          padding: theme.spacing.sm,
+                          backgroundColor: '#FFF3CD',
+                          borderRadius: theme.borderRadius.sm,
+                        }}>
+                          <div style={{ color: debugStarredData.comparison.inGmailNotInDb.length > 0 ? 'red' : 'green' }}>
+                            <strong>In Gmail, not in DB:</strong> {debugStarredData.comparison.inGmailNotInDb.length}
+                            {debugStarredData.comparison.inGmailNotInDb.length > 0 && (
+                              <div style={{ fontSize: '0.6rem' }}>{debugStarredData.comparison.inGmailNotInDb.join(', ')}</div>
+                            )}
+                          </div>
+                          <div style={{ color: debugStarredData.comparison.inDbNotInGmail.length > 0 ? 'orange' : 'green' }}>
+                            <strong>In DB, not in Gmail:</strong> {debugStarredData.comparison.inDbNotInGmail.length}
+                            {debugStarredData.comparison.inDbNotInGmail.length > 0 && (
+                              <div style={{ fontSize: '0.6rem' }}>{debugStarredData.comparison.inDbNotInGmail.join(', ')}</div>
+                            )}
+                          </div>
+                          <div>
+                            <strong>Process Tab Results:</strong> {debugStarredData.processTabResults}
+                          </div>
+                        </div>
+                        
+                        {debugStarredData.missingFromProcessTab.length > 0 && (
+                          <div style={{ marginBottom: theme.spacing.md }}>
+                            <h5 style={{ margin: `0 0 ${theme.spacing.sm} 0`, color: 'red' }}>⚠️ Missing from Process Tab:</h5>
+                            {debugStarredData.missingFromProcessTab.map((item, idx) => (
+                              <div key={idx} style={{ 
+                                padding: theme.spacing.sm, 
+                                backgroundColor: '#FFE6E6', 
+                                border: '1px solid #F5C6CB',
+                                borderRadius: theme.borderRadius.sm,
+                                marginBottom: theme.spacing.xs,
+                              }}>
+                                <div><strong>Thread:</strong> {item.threadId}</div>
+                                <div><strong>Reason:</strong> <span style={{ color: 'red' }}>{item.reason}</span></div>
+                                <div><strong>Details:</strong> Stars: {item.details.starCount} | Emails: {item.details.emailCount} | In Gmail: {item.details.inGmail ? '✅' : '❌'} | Subject: {item.details.subject}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        <details>
+                          <summary style={{ cursor: 'pointer', fontWeight: 'bold', marginBottom: theme.spacing.sm }}>
+                            All Starred Threads in DB ({debugStarredData.starredThreads.length})
+                          </summary>
+                          {debugStarredData.starredThreads.map((thread, idx) => (
+                            <div key={idx} style={{ 
+                              padding: theme.spacing.sm, 
+                              backgroundColor: thread.issues.length > 0 ? '#FFE6E6' : '#D4EDDA',
+                              border: `1px solid ${thread.issues.length > 0 ? '#F5C6CB' : '#C3E6CB'}`,
+                              borderRadius: theme.borderRadius.sm,
+                              marginBottom: theme.spacing.xs,
+                            }}>
+                              <div style={{ display: 'flex', gap: theme.spacing.md, flexWrap: 'wrap' }}>
+                                <span><strong>Thread:</strong> {thread.threadId}</span>
+                                <span><strong>Stars:</strong> {'⭐'.repeat(thread.starCount)}</span>
+                                <span><strong>Emails:</strong> {thread.emailCount}</span>
+                                <span><strong>Archived:</strong> {thread.isArchived ? '❌ YES' : '✅ NO'}</span>
+                                <span><strong>In Gmail:</strong> {thread.inGmail ? '✅' : '❌'}</span>
+                              </div>
+                              <div style={{ fontSize: '0.65rem', color: theme.colors.text.secondary, marginTop: '2px' }}>
+                                {thread.latestFrom}: {thread.latestSubject}
+                              </div>
+                              {thread.issues.length > 0 && (
+                                <div style={{ color: 'red', marginTop: '4px' }}>
+                                  <strong>Issues:</strong> {thread.issues.join(', ')}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </details>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Orphan Emails Debug Section */}
+                  <div style={{ marginBottom: theme.spacing.lg, padding: theme.spacing.md, backgroundColor: '#fff', borderRadius: theme.borderRadius.md }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md, marginBottom: theme.spacing.md }}>
+                      <h4 style={{ margin: 0 }}>🔗 Orphan Emails Debug (emails without thread link)</h4>
+                      <button
+                        onClick={fetchDebugOrphanEmails}
+                        disabled={loadingOrphanData}
+                        style={{
+                          padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+                          backgroundColor: theme.colors.primary.main,
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: theme.borderRadius.sm,
+                          cursor: loadingOrphanData ? 'not-allowed' : 'pointer',
+                          opacity: loadingOrphanData ? 0.6 : 1,
+                        }}
+                      >
+                        {loadingOrphanData ? 'Loading...' : 'Fetch Orphan Data'}
+                      </button>
+                    </div>
+                    
+                    {debugOrphanData && (
+                      <div>
+                        <div style={{ 
+                          display: 'grid', 
+                          gridTemplateColumns: 'repeat(4, 1fr)', 
+                          gap: theme.spacing.sm, 
+                          marginBottom: theme.spacing.md,
+                          padding: theme.spacing.sm,
+                          backgroundColor: debugOrphanData.orphanEmails > 0 ? '#FFE6E6' : '#E8F4FD',
+                          borderRadius: theme.borderRadius.sm,
+                        }}>
+                          <div><strong>Total Emails:</strong> {debugOrphanData.totalEmailsInDb}</div>
+                          <div><strong>With Thread ID:</strong> {debugOrphanData.emailsWithThreadId}</div>
+                          <div style={{ color: debugOrphanData.orphanEmails > 0 ? 'red' : 'green', fontWeight: 'bold' }}>
+                            <strong>Orphan Emails:</strong> {debugOrphanData.orphanEmails}
+                          </div>
+                          <div><strong>Threads in DB:</strong> {debugOrphanData.threadsInDb}</div>
+                        </div>
+                        
+                        {debugOrphanData.orphanEmails > 0 && (
+                          <div style={{ marginBottom: theme.spacing.md }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md, marginBottom: theme.spacing.sm }}>
+                              <h5 style={{ margin: 0, color: 'red' }}>⚠️ Orphan Emails (no emailThreadId):</h5>
+                              <button
+                                onClick={handleFixOrphanEmails}
+                                disabled={fixingOrphans}
+                                style={{
+                                  padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+                                  backgroundColor: '#28a745',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: theme.borderRadius.sm,
+                                  cursor: fixingOrphans ? 'not-allowed' : 'pointer',
+                                  opacity: fixingOrphans ? 0.6 : 1,
+                                }}
+                              >
+                                {fixingOrphans ? 'Fixing...' : '🔧 Fix Orphan Emails'}
+                              </button>
+                            </div>
+                            {debugOrphanData.orphanEmailDetails.slice(0, 10).map((email, idx) => (
+                              <div key={idx} style={{ 
+                                padding: theme.spacing.sm, 
+                                backgroundColor: '#FFE6E6', 
+                                border: '1px solid #F5C6CB',
+                                borderRadius: theme.borderRadius.sm,
+                                marginBottom: theme.spacing.xs,
+                              }}>
+                                <div><strong>Email ID:</strong> {email.id} | <strong>Gmail Thread:</strong> {email.threadId} | <strong>DB Thread:</strong> {email.emailThreadId || 'NULL'}</div>
+                                <div style={{ fontSize: '0.65rem', color: theme.colors.text.secondary }}>{email.from}: {email.subject}</div>
+                              </div>
+                            ))}
+                            {debugOrphanData.orphanEmailDetails.length > 10 && (
+                              <div style={{ color: theme.colors.text.secondary, fontStyle: 'italic' }}>
+                                ... and {debugOrphanData.orphanEmailDetails.length - 10} more
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        
+                        {debugOrphanData.threadsWithoutEmails.length > 0 && (
+                          <details>
+                            <summary style={{ cursor: 'pointer', fontWeight: 'bold', marginBottom: theme.spacing.sm, color: 'orange' }}>
+                              ⚠️ Threads Without Emails ({debugOrphanData.threadsWithoutEmails.length})
+                            </summary>
+                            {debugOrphanData.threadsWithoutEmails.map((thread, idx) => (
+                              <div key={idx} style={{ 
+                                padding: theme.spacing.sm, 
+                                backgroundColor: '#FFF3CD',
+                                border: '1px solid #FFEEBA',
+                                borderRadius: theme.borderRadius.sm,
+                                marginBottom: theme.spacing.xs,
+                              }}>
+                                <span><strong>DB ID:</strong> {thread.id} | <strong>Gmail Thread:</strong> {thread.threadId} | <strong>Stars:</strong> {thread.starCount} | <strong>Archived:</strong> {thread.isArchived ? 'YES' : 'NO'}</span>
+                              </div>
+                            ))}
+                          </details>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Current Tab Emails */}
+                  <h4 style={{ margin: `0 0 ${theme.spacing.sm} 0` }}>📧 Current Tab Emails ({emails.length})</h4>
                   {emails.map((email) => {
                       const starCount = email.starCount ?? 0;
                       const shouldBeIn = starCount > 0 ? 'process' : 'triage';
@@ -1439,7 +1819,7 @@ const Inbox: React.FC = () => {
                       marginBottom: theme.spacing.sm,
                       fontWeight: theme.typography.fontWeight.semibold 
                     }}>
-                      {t('inbox.loadingEmails')}
+                      {decrypting ? 'Decrypting emails...' : t('inbox.loadingEmails')}
                     </h3>
                     <p style={{ color: theme.colors.text.secondary }}>
                       {t('inbox.loadingEmailsSub')}
@@ -1490,7 +1870,7 @@ const Inbox: React.FC = () => {
                       marginBottom: theme.spacing.sm,
                       fontWeight: theme.typography.fontWeight.semibold 
                     }}>
-                      Loading {mode === 'process' ? 'starred' : 'unstarred'} emails...
+                      {decrypting ? 'Decrypting emails...' : `Loading ${mode === 'process' ? 'starred' : 'unstarred'} emails...`}
                     </h3>
                   </div>
                 ) : (
@@ -1592,17 +1972,40 @@ const Inbox: React.FC = () => {
                         }}>
                           {email.fromName || email.from}
                         </strong>
-                        <span style={{
-                          fontSize: theme.typography.fontSize.xs,
-                          padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                          backgroundColor: priority.bg,
-                          color: priority.color,
-                          borderRadius: theme.borderRadius.full,
-                          fontWeight: theme.typography.fontWeight.medium,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: theme.spacing.xs,
-                        }}>
+                        <span 
+                          style={{
+                            fontSize: theme.typography.fontSize.xs,
+                            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                            backgroundColor: priority.bg,
+                            color: priority.color,
+                            borderRadius: theme.borderRadius.full,
+                            fontWeight: theme.typography.fontWeight.medium,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: theme.spacing.xs,
+                            cursor: 'help',
+                            position: 'relative',
+                          }}
+                          onMouseEnter={async () => {
+                            if (email.isProcessingPriority) return;
+                            setHoveredPriorityEmailId(email.id);
+                            if (!loadingPriorityExplanation) {
+                              setLoadingPriorityExplanation(true);
+                              try {
+                                const response = await axios.get(`${API_URL}/emails/${email.id}/priority-explanation`);
+                                setPriorityExplanation(response.data);
+                              } catch (error) {
+                                console.error('Error fetching priority explanation:', error);
+                              } finally {
+                                setLoadingPriorityExplanation(false);
+                              }
+                            }
+                          }}
+                          onMouseLeave={() => {
+                            setHoveredPriorityEmailId(null);
+                            setPriorityExplanation(null);
+                          }}
+                        >
                           {email.isProcessingPriority ? (
                             <>
                               <span style={{ 
@@ -1619,7 +2022,130 @@ const Inbox: React.FC = () => {
                           ) : (
                             `${priority.label} (${email.priorityScore.toFixed(0)})`
                           )}
+                          
+                          {/* Priority Explanation Tooltip */}
+                          {hoveredPriorityEmailId === email.id && (
+                            <div
+                              style={{
+                                position: 'absolute',
+                                top: '100%',
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                marginTop: '8px',
+                                backgroundColor: theme.colors.background.paper,
+                                border: `1px solid ${theme.colors.border.light}`,
+                                borderRadius: theme.borderRadius.md,
+                                padding: theme.spacing.md,
+                                boxShadow: theme.shadows.lg,
+                                zIndex: 1000,
+                                minWidth: '300px',
+                                maxWidth: '400px',
+                                fontSize: theme.typography.fontSize.sm,
+                                color: theme.colors.text.primary,
+                                textAlign: 'left',
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {loadingPriorityExplanation ? (
+                                <div style={{ textAlign: 'center', padding: theme.spacing.md }}>
+                                  Loading...
+                                </div>
+                              ) : priorityExplanation ? (
+                                <div>
+                                  <div style={{ fontWeight: 'bold', marginBottom: theme.spacing.sm, borderBottom: `1px solid ${theme.colors.border.light}`, paddingBottom: theme.spacing.xs }}>
+                                    Priority Score: {priorityExplanation.score.toFixed(0)}
+                                  </div>
+                                  
+                                  {/* Dimensions */}
+                                  <div style={{ marginBottom: theme.spacing.sm }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                      <span>🔥 Urgency</span>
+                                      <span style={{ fontWeight: 'bold' }}>{priorityExplanation.dimensions.urgency.score.toFixed(0)}</span>
+                                    </div>
+                                    {priorityExplanation.dimensions.urgency.reasons.length > 0 && (
+                                      <div style={{ fontSize: '0.7rem', color: theme.colors.text.secondary, marginLeft: theme.spacing.md }}>
+                                        {priorityExplanation.dimensions.urgency.reasons.slice(0, 2).join('; ')}
+                                      </div>
+                                    )}
+                                  </div>
+                                  
+                                  <div style={{ marginBottom: theme.spacing.sm }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                      <span>🎯 Goal Alignment</span>
+                                      <span style={{ fontWeight: 'bold' }}>{priorityExplanation.dimensions.goalAlignment.score.toFixed(0)}</span>
+                                    </div>
+                                    {priorityExplanation.dimensions.goalAlignment.reasons.length > 0 && (
+                                      <div style={{ fontSize: '0.7rem', color: theme.colors.text.secondary, marginLeft: theme.spacing.md }}>
+                                        {priorityExplanation.dimensions.goalAlignment.reasons.slice(0, 2).join('; ')}
+                                      </div>
+                                    )}
+                                  </div>
+                                  
+                                  <div style={{ marginBottom: theme.spacing.sm }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                      <span>⭐ VIP Contact</span>
+                                      <span style={{ fontWeight: 'bold' }}>{priorityExplanation.dimensions.vipContact.score.toFixed(0)}</span>
+                                    </div>
+                                    {priorityExplanation.dimensions.vipContact.reasons.length > 0 && (
+                                      <div style={{ fontSize: '0.7rem', color: theme.colors.text.secondary, marginLeft: theme.spacing.md }}>
+                                        {priorityExplanation.dimensions.vipContact.reasons.slice(0, 2).join('; ')}
+                                      </div>
+                                    )}
+                                  </div>
+                                  
+                                  {/* Link to settings */}
+                                  <div style={{ marginTop: theme.spacing.sm, paddingTop: theme.spacing.xs, borderTop: `1px solid ${theme.colors.border.light}`, textAlign: 'center' }}>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigate('/settings');
+                                      }}
+                                      style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        color: theme.colors.primary.main,
+                                        cursor: 'pointer',
+                                        fontSize: theme.typography.fontSize.xs,
+                                        textDecoration: 'underline',
+                                      }}
+                                    >
+                                      Adjust context in Settings →
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div style={{ textAlign: 'center', color: theme.colors.text.secondary }}>
+                                  Hover to see details
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </span>
+                        
+                        {/* Labels */}
+                        {email.labels && email.labels.length > 0 && (
+                          <div style={{ display: 'flex', gap: theme.spacing.xs, flexWrap: 'wrap' }}>
+                            {email.labels
+                              .filter(label => !['INBOX', 'UNREAD', 'STARRED', 'IMPORTANT', 'SENT', 'DRAFT', 'TRASH', 'SPAM'].includes(label))
+                              .map((label, i) => {
+                                const displayLabel = label.startsWith('CATEGORY_') ? label.replace('CATEGORY_', '') : label;
+                                const isCategory = label.startsWith('CATEGORY_');
+                                return (
+                                  <span key={i} style={{
+                                    fontSize: theme.typography.fontSize.xs,
+                                    padding: `2px ${theme.spacing.sm}`,
+                                    backgroundColor: isCategory ? theme.colors.background.subtle : theme.colors.primary.subtle,
+                                    color: isCategory ? theme.colors.text.secondary : theme.colors.primary.main,
+                                    borderRadius: theme.borderRadius.sm,
+                                    border: `1px solid ${isCategory ? theme.colors.border.light : 'transparent'}`,
+                                    textTransform: isCategory ? 'capitalize' : 'none',
+                                  }}>
+                                    {displayLabel.toLowerCase()}
+                                  </span>
+                                );
+                              })}
+                          </div>
+                        )}
                       </div>
                       <span style={{
                         fontSize: theme.typography.fontSize.xs,
@@ -1638,81 +2164,85 @@ const Inbox: React.FC = () => {
                       {email.subject}
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                      <div style={{
-                        color: theme.colors.text.secondary,
-                        fontSize: theme.typography.fontSize.sm,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        maxWidth: '600px',
-                        lineHeight: theme.typography.lineHeight.relaxed,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: theme.spacing.xs,
-                        position: 'relative',
-                      }}>
-                        {email.isProcessingSummary ? (
-                          <>
-                            <span style={{ 
-                              display: 'inline-block',
-                              width: '12px',
-                              height: '12px',
-                              border: `2px solid ${theme.colors.text.tertiary}`,
-                              borderTop: '2px solid transparent',
-                              borderRadius: '50%',
-                              animation: 'spin 1s linear infinite',
-                            }} />
-                            {t('email.generatingSummary')}
-                          </>
-                        ) : email.summary ? (
-                          email.summary
-                        ) : email.body ? (
-                          <span
-                            title={email.body.substring(0, 1000).replace(/[\r\n]+/g, ' ')}
-                            style={{ cursor: 'help' }}
-                          >
-                            {(() => {
-                              // Extract first sentence
-                              const firstSentenceMatch = email.body.match(/^[^.!?]+[.!?]/);
-                              if (firstSentenceMatch) {
-                                return firstSentenceMatch[0].trim();
-                              }
-                              // Fallback to first 150 chars
-                              return email.body.substring(0, 150).replace(/[\r\n]+/g, ' ') + '...';
-                            })()}
-                          </span>
-                        ) : (
-                          <span style={{ color: theme.colors.text.tertiary, fontStyle: 'italic' }}>
-                            {t('inbox.noPreview') || 'Click to view email'}
-                          </span>
-                        )}
-                      </div>
+                    <div style={{
+                      color: theme.colors.text.secondary,
+                      fontSize: theme.typography.fontSize.sm,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      maxWidth: '600px',
+                      lineHeight: theme.typography.lineHeight.relaxed,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: theme.spacing.xs,
+                      position: 'relative',
+                      marginBottom: theme.spacing.sm,
+                    }}>
+                      {email.isProcessingSummary ? (
+                        <>
+                          <span style={{ 
+                            display: 'inline-block',
+                            width: '12px',
+                            height: '12px',
+                            border: `2px solid ${theme.colors.text.tertiary}`,
+                            borderTop: '2px solid transparent',
+                            borderRadius: '50%',
+                            animation: 'spin 1s linear infinite',
+                          }} />
+                          {t('email.generatingSummary')}
+                        </>
+                      ) : email.summary ? (
+                        email.summary
+                      ) : email.body ? (
+                        <span
+                          title={email.body.substring(0, 1000).replace(/[\r\n]+/g, ' ')}
+                          style={{ cursor: 'help' }}
+                        >
+                          {(() => {
+                            // Extract first sentence
+                            const firstSentenceMatch = email.body.match(/^[^.!?]+[.!?]/);
+                            if (firstSentenceMatch) {
+                              return firstSentenceMatch[0].trim();
+                            }
+                            // Fallback to first 150 chars
+                            return email.body.substring(0, 150).replace(/[\r\n]+/g, ' ') + '...';
+                          })()}
+                        </span>
+                      ) : (
+                        <span style={{ color: theme.colors.text.tertiary, fontStyle: 'italic' }}>
+                          {t('inbox.noPreview') || 'Click to view email'}
+                        </span>
+                      )}
+                    </div>
 
-                      <div style={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
-                        {/* Stars - prioritise more deeply */}
+                    {/* Prioritization row */}
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: theme.spacing.xs,
+                    }} onClick={(e) => e.stopPropagation()}>
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center',
+                        gap: theme.spacing.sm,
+                      }}>
+                        <div style={{
+                          fontSize: theme.typography.fontSize.xs,
+                          color: theme.colors.text.tertiary,
+                          fontWeight: theme.typography.fontWeight.medium,
+                        }}>
+                          Prioritise more deeply:
+                        </div>
                         <div style={{ 
                           display: 'flex', 
-                          flexDirection: 'column',
-                          alignItems: 'flex-start',
+                          alignItems: 'center', 
                           gap: theme.spacing.xs,
+                          padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                          backgroundColor: theme.colors.background.subtle,
+                          borderRadius: theme.borderRadius.md,
+                          border: `1px solid ${theme.colors.border.light}`,
                         }}>
-                          <div style={{
-                            fontSize: theme.typography.fontSize.xs,
-                            color: theme.colors.text.tertiary,
-                            fontWeight: theme.typography.fontWeight.medium,
-                          }}>
-                            Prioritise more deeply:
-                          </div>
-                          <div style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: theme.spacing.xs,
-                            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                            backgroundColor: theme.colors.background.subtle,
-                            borderRadius: theme.borderRadius.md,
-                            border: `1px solid ${theme.colors.border.light}`,
-                          }}>
                           {[1, 2, 3].map(count => (
                             <button
                               key={count}
@@ -1752,8 +2282,10 @@ const Inbox: React.FC = () => {
                               ⭐
                             </button>
                           ))}
-                          </div>
                         </div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center' }}>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1776,6 +2308,22 @@ const Inbox: React.FC = () => {
                           📥
                         </button>
 
+                        {/* Block sender button */}
+                        <button
+                          onClick={(e) => handleBlockSender(email.id, e)}
+                          title="Block sender"
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: '1.1rem',
+                            padding: '0 4px',
+                            opacity: 0.6,
+                          }}
+                        >
+                          🚫
+                        </button>
+
                         {/* Hide Snooze in triage mode */}
                         {mode !== 'triage' && (
                           <>
@@ -1788,8 +2336,16 @@ const Inbox: React.FC = () => {
                                   value={snoozeInput[email.id] || ''}
                                   onChange={(e) => setSnoozeInput({ ...snoozeInput, [email.id]: e.target.value })}
                                   onKeyDown={(e) => {
-                                    if (e.key === 'Enter') handleSnooze(email.id);
-                                    if (e.key === 'Escape') setShowSnoozeInput(null);
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      if (snoozeInput[email.id]?.trim()) {
+                                        handleSnooze(email.id);
+                                      }
+                                    }
+                                    if (e.key === 'Escape') {
+                                      setShowSnoozeInput(null);
+                                      setSnoozeInput({ ...snoozeInput, [email.id]: '' });
+                                    }
                                   }}
                                   style={{
                                     padding: theme.spacing.xs,
@@ -1800,6 +2356,44 @@ const Inbox: React.FC = () => {
                                     outline: 'none',
                                   }}
                                 />
+                                <button
+                                  onClick={() => {
+                                    if (snoozeInput[email.id]?.trim()) {
+                                      handleSnooze(email.id);
+                                    }
+                                  }}
+                                  disabled={!snoozeInput[email.id]?.trim()}
+                                  style={{
+                                    padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                                    borderRadius: theme.borderRadius.sm,
+                                    backgroundColor: snoozeInput[email.id]?.trim() ? theme.colors.primary.main : theme.colors.background.subtle,
+                                    color: snoozeInput[email.id]?.trim() ? 'white' : theme.colors.text.tertiary,
+                                    border: 'none',
+                                    cursor: snoozeInput[email.id]?.trim() ? 'pointer' : 'not-allowed',
+                                    fontSize: theme.typography.fontSize.xs,
+                                    fontWeight: theme.typography.fontWeight.medium,
+                                    opacity: snoozeInput[email.id]?.trim() ? 1 : 0.6,
+                                  }}
+                                >
+                                  Confirm
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setShowSnoozeInput(null);
+                                    setSnoozeInput({ ...snoozeInput, [email.id]: '' });
+                                  }}
+                                  style={{
+                                    padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                                    borderRadius: theme.borderRadius.sm,
+                                    backgroundColor: 'transparent',
+                                    color: theme.colors.text.secondary,
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    fontSize: theme.typography.fontSize.xs,
+                                  }}
+                                >
+                                  Cancel
+                                </button>
                               </div>
                             ) : (
                               <button
@@ -1823,7 +2417,7 @@ const Inbox: React.FC = () => {
                         )}
                       </div>
                     </div>
-                  </div>
+                    </div>
                   </div>
                 );
               })
@@ -1883,6 +2477,32 @@ const Inbox: React.FC = () => {
           </a>
         </footer>
       </div>
+
+      {/* Block Sender Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!blockConfirmEmail}
+        icon="🚫"
+        title="Block Sender"
+        message={`Block all future emails from ${blockConfirmEmail?.fromName || blockConfirmEmail?.from || 'this sender'}? This email and any future emails from them will be automatically archived.`}
+        confirmLabel="Block Sender"
+        cancelLabel="Cancel"
+        onConfirm={confirmBlockSender}
+        onCancel={() => setBlockConfirmEmail(null)}
+      />
+
+      {/* Star Discrepancy Modal */}
+      {starDiscrepancyModal?.show && (
+        <StarDiscrepancyModal
+          emailId={starDiscrepancyModal.emailId}
+          userStarCount={starDiscrepancyModal.userStarCount}
+          predictedStarCount={starDiscrepancyModal.predictedStarCount}
+          onClose={() => setStarDiscrepancyModal(null)}
+          onSubmitted={() => {
+            setStarDiscrepancyModal(null);
+            fetchEmails();
+          }}
+        />
+      )}
     </div>
   );
 };

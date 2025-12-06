@@ -79,5 +79,13 @@ export class EmailProviderManager {
       }
     }
   }
+
+  /**
+   * Convert label IDs to human-readable names (Gmail specific for now)
+   */
+  async convertLabelIdsToNames(userId: string, labelIds: string[]): Promise<string[]> {
+    // Currently only Gmail is supported
+    return this.gmailProvider.convertLabelIdsToNames(userId, labelIds);
+  }
 }
 

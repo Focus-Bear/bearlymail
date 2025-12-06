@@ -106,5 +106,23 @@ export const emailTransformer = {
   },
 };
 
+export const encryptedJsonTransformer = {
+  to: (value: any): string | null => {
+    if (value === null || value === undefined) return null;
+    const stringified = JSON.stringify(value);
+    return EncryptionHelper.encrypt(stringified);
+  },
+  from: (value: string | null | undefined): any => {
+    const decrypted = EncryptionHelper.decrypt(value);
+    if (!decrypted) return null;
+    try {
+      return JSON.parse(decrypted);
+    } catch (e) {
+      console.error('Failed to parse decrypted JSON', e);
+      return null;
+    }
+  },
+};
+
 export { EncryptionHelper };
 

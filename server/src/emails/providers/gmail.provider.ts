@@ -3,12 +3,22 @@ import { google } from 'googleapis';
 import { UsersService } from '../../users/users.service';
 import { EmailsService } from '../emails.service';
 import { ScanEmailService } from '../scan-email.service';
-import { EmailProvider, RawEmailMessage } from '../interfaces/email-provider.interface';
+import { EmailProvider, RawEmailMessage, EmailRecipient } from '../interfaces/email-provider.interface';
 import { Email } from '../../database/entities/email.entity';
 import PgBoss = require('pg-boss');
 
+// BearlyMail custom labels
+const BEARLY_MAIL_ARCHIVED_LABEL = 'bearly-mail-archived';
+
 @Injectable()
 export class GmailProvider implements EmailProvider {
+  // Cache for Gmail label names per user (labelId -> labelName)
+  private labelCache: Map<string, Map<string, string>> = new Map();
+  private labelCacheExpiry: Map<string, number> = new Map();
+  private readonly LABEL_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+  // Cache for BearlyMail label IDs per user
+  private bearlyMailLabelCache: Map<string, string> = new Map();
+
   constructor(
     private usersService: UsersService,
     @Inject(forwardRef(() => EmailsService))
@@ -16,6 +26,73 @@ export class GmailProvider implements EmailProvider {
     private scanEmailService: ScanEmailService,
     @Inject('PG_BOSS') private readonly boss: PgBoss,
   ) {}
+
+  /**
+   * Fetch and cache Gmail label names for a user
+   */
+  async getGmailLabels(userId: string): Promise<Map<string, string>> {
+    // Check cache
+    const cached = this.labelCache.get(userId);
+    const expiry = this.labelCacheExpiry.get(userId);
+    if (cached && expiry && Date.now() < expiry) {
+      return cached;
+    }
+
+    const user = await this.usersService.findOne(userId);
+    if (!user?.googleCalendarAccessToken) {
+      return new Map();
+    }
+
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI,
+    );
+    oauth2Client.setCredentials({
+      access_token: user.googleCalendarAccessToken,
+      refresh_token: user.googleCalendarRefreshToken,
+    });
+
+    const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+
+    try {
+      const response = await gmail.users.labels.list({ userId: 'me' });
+      const labels = response.data.labels || [];
+      
+      const labelMap = new Map<string, string>();
+      for (const label of labels) {
+        if (label.id && label.name) {
+          labelMap.set(label.id, label.name);
+        }
+      }
+
+      // Cache the results
+      this.labelCache.set(userId, labelMap);
+      this.labelCacheExpiry.set(userId, Date.now() + this.LABEL_CACHE_TTL);
+
+      return labelMap;
+    } catch (error) {
+      console.error('Failed to fetch Gmail labels:', error);
+      return cached || new Map();
+    }
+  }
+
+  /**
+   * Convert label IDs to human-readable names
+   */
+  async convertLabelIdsToNames(userId: string, labelIds: string[]): Promise<string[]> {
+    if (!labelIds || labelIds.length === 0) return [];
+
+    const labelMap = await this.getGmailLabels(userId);
+    
+    // System labels to skip (internal Gmail labels)
+    const skipLabels = new Set(['INBOX', 'SENT', 'TRASH', 'SPAM', 'DRAFT', 'UNREAD', 'STARRED', 'IMPORTANT', 'CATEGORY_PERSONAL', 'CATEGORY_SOCIAL', 'CATEGORY_PROMOTIONS', 'CATEGORY_UPDATES', 'CATEGORY_FORUMS']);
+    
+    return labelIds
+      .filter(id => !skipLabels.has(id))
+      .map(id => labelMap.get(id) || id) // Fall back to ID if name not found
+      .filter(name => !name.startsWith('Label_') && !name.startsWith('label_')); // Skip unmapped custom labels
+  }
 
   async isConnected(userId: string): Promise<boolean> {
     const user = await this.usersService.findOne(userId);
@@ -151,85 +228,100 @@ export class GmailProvider implements EmailProvider {
     const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
     try {
-      // Fetch unread/new emails AND all starred emails to update star status
-      // This ensures we catch star status changes even for read emails
-      // Fetch starred emails separately to ensure we get all of them (not limited by maxResults)
-      const [unreadResponse, starredResponse] = await Promise.all([
-        // Fetch unread emails from inbox
-        gmail.users.messages.list({
+      // Use thread-level queries like GmailApp.search() - more reliable than message-level queries
+      // Fetch threads (not messages) from inbox and starred threads
+      const [inboxThreadsResponse, starredThreadsResponse] = await Promise.all([
+        // Fetch unread threads from inbox (matches your Apps Script query pattern)
+        gmail.users.threads.list({
           userId: 'me',
-          maxResults: 50,
-          q: 'is:unread label:INBOX -label:SnoozedFocusBear -label:VA-to-action',
+          maxResults: 500,
+          q: 'is:unread in:inbox -label:SnoozedFocusBear -label:VA-to-action',
         }),
-        // Fetch ALL starred emails (no maxResults limit, use pagination if needed)
-        gmail.users.messages.list({
+        // Fetch ALL starred threads (matches your Apps Script query)
+        gmail.users.threads.list({
           userId: 'me',
-          maxResults: 500, // Increased to catch all starred emails
+          maxResults: 500,
           q: 'is:starred -label:SnoozedFocusBear -label:VA-to-action',
         }),
       ]);
       
-      // Combine and deduplicate message IDs
-      const unreadMessages = unreadResponse.data.messages || [];
-      const starredMessages = starredResponse.data.messages || [];
-      const allMessageIds = new Set([
-        ...unreadMessages.map(m => m.id!),
-        ...starredMessages.map(m => m.id!),
+      const inboxThreads = inboxThreadsResponse.data.threads || [];
+      const starredThreads = starredThreadsResponse.data.threads || [];
+      
+      // Combine and deduplicate thread IDs
+      const allThreadIds = new Set([
+        ...inboxThreads.map(t => t.id!),
+        ...starredThreads.map(t => t.id!),
       ]);
-      // Create message objects in the format expected by the rest of the code
-      const messages = Array.from(allMessageIds).map(id => ({ id }));
       
-      console.log(`Found ${unreadMessages.length} unread messages and ${starredMessages.length} starred messages (${messages.length} unique) for user ${userId}`);
-      
-      // Also check threads in our DB to see if they've been archived/starred in Gmail
-      // Get recent threads from our DB and check their status in Gmail
-      // Do this asynchronously so it doesn't slow down the main sync
-      this.syncThreadArchivedStatus(userId, gmail).catch(err => 
-        console.error('Error in background thread archived status sync:', err)
-      );
+      console.log(`Found ${inboxThreads.length} inbox threads and ${starredThreads.length} starred threads (${allThreadIds.size} unique) for user ${userId}`);
 
-      for (const msg of messages) {
-        if (!msg.id) continue;
+      // Process each thread to get messages and determine archived/starred status
+      for (const threadId of allThreadIds) {
+        if (!threadId) continue;
 
-        const fullMsg = await gmail.users.messages.get({
-          userId: 'me',
-          id: msg.id!,
-          format: 'full',
-        });
+        try {
+          // Get the thread with all messages to check archived/starred status accurately
+          const threadData = await gmail.users.threads.get({
+            userId: 'me',
+            id: threadId,
+            format: 'full',
+          });
 
-        const rawEmail = this.parseGmailMessage(fullMsg.data);
-        if (!rawEmail) continue;
+          const thread = threadData.data;
+          if (!thread.messages || thread.messages.length === 0) continue;
 
-        const existing = await this.emailsService.getEmailByMessageId(userId, msg.id);
-        if (existing) {
-          // Update thread-level metadata (starred status and archived status) for existing emails
-          // This ensures status changes in Gmail are reflected in our app
-          const newStarCount = rawEmail.starCount || 0;
-          const labelIds = fullMsg.data.labelIds || [];
-          const isArchivedInGmail = !labelIds.includes('INBOX');
+          // Get the latest message (first in array) to determine current status
+          const latestMessage = thread.messages[thread.messages.length - 1];
+          const latestLabelIds = latestMessage.labelIds || [];
           
-          // Update EmailThread instead of individual Email
-          if (existing.threadId) {
-            await this.emailsService.updateThreadStarCount(userId, existing.threadId, newStarCount);
-            await this.emailsService.updateThreadArchivedStatus(userId, existing.threadId, isArchivedInGmail);
+          // A thread is archived if ALL messages lack the INBOX label
+          // More accurately: if the latest message doesn't have INBOX, the thread is archived
+          const isArchived = !latestLabelIds.includes('INBOX');
+          const isStarred = latestLabelIds.includes('STARRED');
+          const starCount = isStarred ? 3 : 0;
+
+          // Process all messages in the thread
+          for (const message of thread.messages) {
+            if (!message.id) continue;
+
+            const rawEmail = this.parseGmailMessage(message);
+            if (!rawEmail) continue;
+
+            const existing = await this.emailsService.getEmailByMessageId(userId, message.id);
+            
+            if (existing) {
+              // Update thread-level metadata for existing emails
+              if (existing.threadId) {
+                await this.emailsService.updateThreadStarCount(userId, existing.threadId, starCount);
+                await this.emailsService.updateThreadArchivedStatus(userId, existing.threadId, isArchived);
+              }
+              continue;
+            }
+
+            // Create new email - use thread-level archived/starred status
+            await this.emailsService.createEmail(userId, {
+              messageId: rawEmail.messageId,
+              threadId: rawEmail.threadId,
+              subject: rawEmail.subject,
+              from: rawEmail.from,
+              fromName: rawEmail.fromName,
+              body: rawEmail.body,
+              htmlBody: rawEmail.htmlBody,
+              starCount: starCount, // Use thread-level star count
+              receivedAt: rawEmail.receivedAt,
+              labels: rawEmail.labelIds || [],
+            } as any);
           }
-          
-          // Note: We don't update body/htmlBody as those shouldn't change for the same messageId
-          // If they did change, it would be a different messageId anyway
+        } catch (threadError: any) {
+          // Skip threads that fail (deleted, permissions, etc.)
+          if (threadError.code === 404) {
+            console.log(`Thread ${threadId.substring(0, 8)}... not found (may be deleted)`);
+          } else {
+            console.warn(`Error processing thread ${threadId.substring(0, 8)}...:`, threadError.message);
+          }
           continue;
         }
-
-        await this.emailsService.createEmail(userId, {
-          messageId: rawEmail.messageId,
-          threadId: rawEmail.threadId,
-          subject: rawEmail.subject,
-          from: rawEmail.from,
-          fromName: rawEmail.fromName,
-          body: rawEmail.body,
-          htmlBody: rawEmail.htmlBody,
-          starCount: rawEmail.starCount || 0,
-          receivedAt: rawEmail.receivedAt,
-        } as any);
       }
     } catch (error: any) {
       // Check for authentication errors - these indicate the refresh token is invalid/expired
@@ -292,57 +384,79 @@ export class GmailProvider implements EmailProvider {
   /**
    * Check threads in our DB to see if they've been archived or starred in Gmail
    * This ensures archived and starred status stays in sync
+   * 
+   * Uses Gmail SEARCH queries (like GmailApp.search) rather than checking labelIds,
+   * which is more reliable for determining inbox/archived/starred status.
    */
   private async syncThreadArchivedStatus(userId: string, gmail: any): Promise<void> {
     try {
-      // Get ALL non-archived thread IDs from our DB (not just recent ones)
-      // This ensures we check starred status for all threads, not just recent ones
-      const threadIds = await this.emailsService.getAllNonArchivedThreadIds(userId);
+      const startTime = Date.now();
+
+      // Use Gmail search to get the SOURCE OF TRUTH for inbox and starred threads
+      // This is the same approach as GmailApp.search() in Apps Script
+      const [inboxResponse, starredResponse] = await Promise.all([
+        // Get all threads currently in inbox
+        gmail.users.threads.list({
+          userId: 'me',
+          maxResults: 500,
+          q: 'in:inbox -label:SnoozedFocusBear -label:VA-to-action',
+        }),
+        // Get all starred threads
+        gmail.users.threads.list({
+          userId: 'me',
+          maxResults: 500,
+          q: 'is:starred -label:SnoozedFocusBear -label:VA-to-action',
+        }),
+      ]);
+
+      const inboxThreadIds = new Set(
+        (inboxResponse.data.threads || []).map((t: any) => t.id)
+      );
+      const starredThreadIds = new Set(
+        (starredResponse.data.threads || []).map((t: any) => t.id)
+      );
+
+      console.log(`📦 Gmail sync: ${inboxThreadIds.size} threads in inbox, ${starredThreadIds.size} starred threads`);
+
+      // Get our DB threads to compare
+      const dbThreads = await this.emailsService.getAllThreadsForSync(userId);
       
-      if (threadIds.length === 0) {
-        return; // No threads to check
+      if (dbThreads.length === 0) {
+        return;
       }
 
-      console.log(`📦 Checking archived and starred status for ${threadIds.length} threads`);
+      const updates: { threadId: string; isArchived: boolean; starCount: number }[] = [];
 
-      // Check each thread's status in Gmail
-      for (const threadId of threadIds) {
-        try {
-          const thread = await gmail.users.threads.get({
-            userId: 'me',
-            id: threadId,
-            format: 'metadata',
-            metadataHeaders: ['Subject'],
+      for (const dbThread of dbThreads) {
+        const isInInbox = inboxThreadIds.has(dbThread.threadId);
+        const isStarred = starredThreadIds.has(dbThread.threadId);
+        
+        // A thread is archived if it's NOT in the inbox search results
+        const shouldBeArchived = !isInInbox;
+        const newStarCount = isStarred ? 3 : 0;
+
+        // Only update if there's a change
+        if (dbThread.isArchived !== shouldBeArchived || dbThread.starCount !== newStarCount) {
+          updates.push({
+            threadId: dbThread.threadId,
+            isArchived: shouldBeArchived,
+            starCount: newStarCount,
           });
-
-          const labelIds = thread.data.labelIds || [];
-          const isArchivedInGmail = !labelIds.includes('INBOX');
-          const isStarredInGmail = labelIds.includes('STARRED');
-          const starCount = isStarredInGmail ? 3 : 0; // Gmail starred = 3 stars
-
-          // Update archived status if changed
-          if (isArchivedInGmail) {
-            console.log(`📦 Thread ${threadId.substring(0, 8)}... is archived in Gmail, updating thread`);
-            await this.emailsService.updateThreadArchivedStatus(userId, threadId, true);
-          }
-
-          // Update starred status on EmailThread
-          const emailThread = await this.emailsService.getOrCreateEmailThread(userId, threadId, starCount, isArchivedInGmail);
-          if (emailThread.starCount !== starCount) {
-            console.log(`⭐ Thread ${threadId.substring(0, 8)}... is starred in Gmail, updating star count to ${starCount}`);
-            await this.emailsService.updateThreadStarCount(userId, threadId, starCount);
-          }
-        } catch (threadError: any) {
-          // Thread might not exist anymore (deleted), or we don't have access
-          if (threadError.code === 404) {
-            // Thread deleted in Gmail - mark as archived
-            console.log(`📦 Thread ${threadId.substring(0, 8)}... not found in Gmail, marking as archived`);
-            await this.emailsService.updateThreadArchivedStatus(userId, threadId, true);
-          } else {
-            // Other error - log but continue
-            console.warn(`⚠️ Error checking thread ${threadId.substring(0, 8)}...:`, threadError.message);
-          }
         }
+      }
+
+      // Batch update database
+      if (updates.length > 0) {
+        await this.emailsService.batchUpdateThreadStatus(userId, updates, []);
+        
+        const archivedCount = updates.filter(u => u.isArchived).length;
+        const unarchivedCount = updates.filter(u => !u.isArchived).length;
+        const starredCount = updates.filter(u => u.starCount > 0).length;
+        const duration = Date.now() - startTime;
+        
+        console.log(`📦 Thread sync complete in ${duration}ms: ${updates.length} changes (${archivedCount} archived, ${unarchivedCount} unarchived, ${starredCount} starred)`);
+      } else {
+        console.log(`📦 Thread sync: no changes needed (${Date.now() - startTime}ms)`);
       }
     } catch (error) {
       console.error('❌ Error syncing thread archived/starred status:', error);
@@ -629,6 +743,96 @@ export class GmailProvider implements EmailProvider {
     }
   }
 
+  async sendEmail(
+    userId: string,
+    to: EmailRecipient[],
+    subject: string,
+    body: string,
+    cc?: EmailRecipient[],
+    bcc?: EmailRecipient[],
+  ): Promise<{ messageId: string; threadId: string }> {
+    const user = await this.usersService.findOne(userId);
+    if (!user?.googleCalendarAccessToken) {
+      throw new Error('Gmail account not connected. Cannot send email.');
+    }
+
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI,
+    );
+    oauth2Client.setCredentials({
+      access_token: user.googleCalendarAccessToken,
+      refresh_token: user.googleCalendarRefreshToken,
+    });
+
+    // Handle token refresh
+    oauth2Client.on('tokens', async (tokens) => {
+      if (tokens.access_token) {
+        await this.usersService.update(userId, {
+          googleCalendarAccessToken: tokens.access_token,
+          ...(tokens.refresh_token && { googleCalendarRefreshToken: tokens.refresh_token }),
+        });
+      }
+    });
+
+    const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+
+    // Format recipients
+    const formatRecipient = (r: EmailRecipient) => 
+      r.name ? `${r.name} <${r.email}>` : r.email;
+
+    const toHeader = to.map(formatRecipient).join(', ');
+    const ccHeader = cc && cc.length > 0 ? cc.map(formatRecipient).join(', ') : null;
+    const bccHeader = bcc && bcc.length > 0 ? bcc.map(formatRecipient).join(', ') : null;
+
+    // Build email headers
+    const headers: string[] = [
+      `To: ${toHeader}`,
+      `Subject: ${subject}`,
+      'MIME-Version: 1.0',
+      'Content-Type: text/plain; charset=UTF-8',
+    ];
+
+    if (ccHeader) {
+      headers.push(`Cc: ${ccHeader}`);
+    }
+    if (bccHeader) {
+      headers.push(`Bcc: ${bccHeader}`);
+    }
+
+    const emailContent = [...headers, '', body].join('\r\n');
+
+    const encodedEmail = Buffer.from(emailContent)
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+
+    try {
+      const response = await gmail.users.messages.send({
+        userId: 'me',
+        requestBody: {
+          raw: encodedEmail,
+        },
+      });
+
+      const messageId = response.data.id || '';
+      const threadId = response.data.threadId || '';
+
+      console.log(`Email sent successfully for user ${userId} to ${toHeader}, messageId: ${messageId}`);
+      
+      return { messageId, threadId };
+    } catch (error: any) {
+      console.error(`Failed to send email for user ${userId} to ${toHeader}:`, error);
+      if (error.code === 401 || (error.response && error.response.status === 401) ||
+          (error.message && error.message.includes('invalid_grant'))) {
+        await this.usersService.update(userId, { needsRelogin: true });
+      }
+      throw new Error('Failed to send email: ' + (error.message || 'Unknown error'));
+    }
+  }
+
   private parseGmailMessage(messageData: any): RawEmailMessage | null {
     if (!messageData.id || !messageData.threadId) return null;
 
@@ -770,6 +974,76 @@ export class GmailProvider implements EmailProvider {
           (error.message && error.message.includes('invalid_grant'))) {
         await this.usersService.update(userId, { needsRelogin: true });
       }
+      throw error;
+    }
+  }
+
+  async archiveThread(userId: string, threadId: string): Promise<void> {
+    const user = await this.usersService.findOne(userId);
+    if (!user?.googleCalendarAccessToken) {
+      throw new Error('User not connected to Gmail');
+    }
+
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI,
+    );
+
+    oauth2Client.setCredentials({
+      access_token: user.googleCalendarAccessToken,
+      refresh_token: user.googleCalendarRefreshToken,
+    });
+
+    const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+
+    try {
+      // Remove from inbox and add archived label
+      await gmail.users.threads.modify({
+        userId: 'me',
+        id: threadId,
+        requestBody: {
+          removeLabelIds: ['INBOX'],
+          addLabelIds: ['bearly-mail-archived'],
+        },
+      });
+    } catch (error: any) {
+      console.error(`Error archiving thread ${threadId} for user ${userId}:`, error);
+      throw error;
+    }
+  }
+
+  async unarchiveThread(userId: string, threadId: string): Promise<void> {
+    const user = await this.usersService.findOne(userId);
+    if (!user?.googleCalendarAccessToken) {
+      throw new Error('User not connected to Gmail');
+    }
+
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI,
+    );
+
+    oauth2Client.setCredentials({
+      access_token: user.googleCalendarAccessToken,
+      refresh_token: user.googleCalendarRefreshToken,
+    });
+
+    const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+
+    try {
+      // Add to inbox and remove archived label
+      await gmail.users.threads.modify({
+        userId: 'me',
+        id: threadId,
+        requestBody: {
+          addLabelIds: ['INBOX'],
+          removeLabelIds: ['bearly-mail-archived'],
+        },
+      });
+    } catch (error: any) {
+      console.error(`Error unarchiving thread ${threadId} for user ${userId}:`, error);
       throw error;
     }
   }

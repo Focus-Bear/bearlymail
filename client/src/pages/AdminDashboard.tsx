@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
@@ -35,16 +35,7 @@ const AdminDashboard: React.FC = () => {
   const [extendDays, setExtendDays] = useState<number>(7);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (!user?.isAdmin) {
-      navigate('/inbox');
-      return;
-    }
-    fetchWaitlist();
-    fetchUsers();
-  }, [user]);
-
-  const fetchWaitlist = async () => {
+  const fetchWaitlist = useCallback(async () => {
     try {
       const response = await axios.get(`${API_URL}/waitlist`);
       setWaitlist(response.data);
@@ -53,16 +44,25 @@ const AdminDashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       const response = await axios.get(`${API_URL}/subscriptions/all-users`);
       setUsers(response.data);
     } catch (error) {
       console.error('Error fetching users:', error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!user?.isAdmin) {
+      navigate('/inbox');
+      return;
+    }
+    fetchWaitlist();
+    fetchUsers();
+  }, [user, navigate, fetchWaitlist, fetchUsers]);
 
   const handleExtendTrial = async (userId: string) => {
     try {

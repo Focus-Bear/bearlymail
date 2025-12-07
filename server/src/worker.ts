@@ -7,7 +7,14 @@ import { WorkerModule } from './worker.module';
 const logger = new Logger('Worker');
 
 // Get number of worker processes from env or use CPU cores
-const WORKER_COUNT = parseInt(process.env.WORKER_PROCESSES || String(Math.max(2, os.cpus().length)), 10);
+// In development, use half the CPU cores to leave resources for other dev tools
+const isDev = process.env.NODE_ENV !== 'production';
+const cpuCores = os.cpus().length;
+const defaultWorkerCount = isDev 
+  ? Math.max(1, Math.floor(cpuCores / 2))  // Half cores in dev, minimum 1
+  : Math.max(2, cpuCores);  // All cores in production, minimum 2
+
+const WORKER_COUNT = parseInt(process.env.WORKER_PROCESSES || String(defaultWorkerCount), 10);
 
 async function bootstrapWorker(workerId: number) {
   logger.log(`[Worker ${workerId}] Starting worker process...`);
@@ -38,7 +45,8 @@ async function bootstrapWorker(workerId: number) {
 const isPrimaryProcess = cluster.isPrimary ?? (cluster as any).isMaster;
 
 if (isPrimaryProcess) {
-  logger.log(`🚀 Master process starting ${WORKER_COUNT} worker processes (CPU cores: ${os.cpus().length})`);
+  const mode = isDev ? 'development' : 'production';
+  logger.log(`🚀 Master process starting ${WORKER_COUNT} worker processes (CPU cores: ${cpuCores}, mode: ${mode})`);
   
   // Fork workers
   for (let i = 0; i < WORKER_COUNT; i++) {

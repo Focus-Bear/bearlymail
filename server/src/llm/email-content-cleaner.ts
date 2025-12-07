@@ -246,3 +246,5 @@ export function getEmailPreview(
   return cleaned.replace(/\n+/g, ' ').substring(0, maxLength).trim();
 }
 
+
+

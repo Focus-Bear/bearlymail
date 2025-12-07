@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
 import { User } from './user.entity';
 
 export enum DayOfWeek {
@@ -12,6 +12,7 @@ export enum DayOfWeek {
 }
 
 @Entity('batch_schedules')
+@Index(['userId'], { unique: true }) // Each user has one schedule
 export class BatchSchedule {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -49,4 +50,6 @@ export class BatchSchedule {
   @UpdateDateColumn()
   updatedAt: Date;
 }
+
+
 

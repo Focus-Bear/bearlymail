@@ -7,7 +7,7 @@ const app = new cdk.App();
 
 new BearlyMailStack(app, 'BearlyMailStack', {
   env: {
-    account: process.env.CDK_DEFAULT_ACCOUNT,
+    account: process.env.CDK_DEFAULT_ACCOUNT || '841162709871',
     region: 'ap-southeast-2', // Sydney
   },
   description: 'BearlyMail - ADHD-friendly email client infrastructure',

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { theme } from '../theme/theme';
@@ -12,7 +12,18 @@ const Landing: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
+  const [isMobile, setIsMobile] = useState(false);
   const navigate = useNavigate();
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,7 +102,7 @@ const Landing: React.FC = () => {
     }}>
       {/* Header */}
       <header style={{
-        padding: `${theme.spacing.lg} ${theme.spacing['2xl']}`,
+        padding: `${theme.spacing.lg} ${isMobile ? theme.spacing.md : theme.spacing['2xl']}`,
         backgroundColor: theme.colors.background.paper,
         borderBottom: `1px solid ${theme.colors.border.light}`,
       }}>
@@ -118,7 +129,7 @@ const Landing: React.FC = () => {
             />
             <h1 style={{
               color: theme.colors.primary.main,
-              fontSize: theme.typography.fontSize['2xl'],
+              fontSize: isMobile ? theme.typography.fontSize.lg : theme.typography.fontSize['2xl'],
               fontWeight: theme.typography.fontWeight.bold,
             }}>
               BearlyMail
@@ -147,23 +158,23 @@ const Landing: React.FC = () => {
         maxWidth: '1400px',
         margin: '0 auto',
         width: '100%',
-        padding: theme.spacing['2xl'],
+        padding: isMobile ? theme.spacing.lg : theme.spacing['2xl'],
       }}>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 450px',
-          gap: theme.spacing['2xl'],
+          gridTemplateColumns: isMobile ? '1fr' : '1fr 450px',
+          gap: isMobile ? theme.spacing.xl : theme.spacing['2xl'],
           alignItems: 'flex-start',
         }}>
           {/* Left Column: Content */}
           <div>
             {/* Hero Hook */}
             <section style={{
-              marginBottom: theme.spacing['3xl'],
-              paddingTop: theme.spacing['3xl'],
+              marginBottom: isMobile ? theme.spacing.xl : theme.spacing['3xl'],
+              paddingTop: isMobile ? theme.spacing.xl : theme.spacing['3xl'],
             }}>
               <h1 style={{
-                fontSize: theme.typography.fontSize['4xl'],
+                fontSize: isMobile ? theme.typography.fontSize['2xl'] : theme.typography.fontSize['4xl'],
                 fontWeight: theme.typography.fontWeight.bold,
                 color: theme.colors.text.primary,
                 marginBottom: theme.spacing.xl,
@@ -174,7 +185,7 @@ const Landing: React.FC = () => {
                 Only 3 emails actually mattered.
               </h1>
               <p style={{
-                fontSize: theme.typography.fontSize.xl,
+                fontSize: isMobile ? theme.typography.fontSize.base : theme.typography.fontSize.xl,
                 color: theme.colors.text.secondary,
                 lineHeight: 1.8,
               }}>
@@ -184,10 +195,10 @@ const Landing: React.FC = () => {
 
             {/* BearlyMail Intro */}
             <section style={{
-              marginBottom: theme.spacing['3xl'],
+              marginBottom: isMobile ? theme.spacing.xl : theme.spacing['3xl'],
             }}>
           <h2 style={{
-            fontSize: theme.typography.fontSize['3xl'],
+            fontSize: isMobile ? theme.typography.fontSize['2xl'] : theme.typography.fontSize['3xl'],
             fontWeight: theme.typography.fontWeight.bold,
             color: theme.colors.text.primary,
             marginBottom: theme.spacing.lg,
@@ -195,7 +206,7 @@ const Landing: React.FC = () => {
             BearlyMail was built by someone who gets it.
           </h2>
           <p style={{
-            fontSize: theme.typography.fontSize.lg,
+            fontSize: isMobile ? theme.typography.fontSize.base : theme.typography.fontSize.lg,
             color: theme.colors.text.secondary,
             lineHeight: 1.8,
           }}>
@@ -205,13 +216,13 @@ const Landing: React.FC = () => {
 
             {/* How it works */}
             <section style={{
-              marginBottom: theme.spacing['3xl'],
+              marginBottom: isMobile ? theme.spacing.xl : theme.spacing['3xl'],
             }}>
               <h2 style={{
-                fontSize: theme.typography.fontSize['3xl'],
+                fontSize: isMobile ? theme.typography.fontSize.xl : theme.typography.fontSize['3xl'],
                 fontWeight: theme.typography.fontWeight.bold,
                 color: theme.colors.text.primary,
-                marginBottom: theme.spacing['2xl'],
+                marginBottom: isMobile ? theme.spacing.lg : theme.spacing['2xl'],
               }}>
                 How it works
               </h2>
@@ -219,13 +230,13 @@ const Landing: React.FC = () => {
           {/* Feature 1: Urgent emails */}
           <div style={{
             marginBottom: theme.spacing.xl,
-            padding: theme.spacing.xl,
+            padding: isMobile ? theme.spacing.md : theme.spacing.xl,
             backgroundColor: theme.colors.background.paper,
             borderRadius: theme.borderRadius.lg,
             borderLeft: `4px solid ${theme.colors.primary.main}`,
           }}>
             <h3 style={{
-              fontSize: theme.typography.fontSize['2xl'],
+              fontSize: isMobile ? theme.typography.fontSize.lg : theme.typography.fontSize['2xl'],
               fontWeight: theme.typography.fontWeight.semibold,
               color: theme.colors.text.primary,
               marginBottom: theme.spacing.md,
@@ -252,13 +263,13 @@ const Landing: React.FC = () => {
           {/* Feature 2: Scheduled delivery */}
           <div style={{
             marginBottom: theme.spacing.xl,
-            padding: theme.spacing.xl,
+            padding: isMobile ? theme.spacing.md : theme.spacing.xl,
             backgroundColor: theme.colors.background.paper,
             borderRadius: theme.borderRadius.lg,
             borderLeft: `4px solid ${theme.colors.secondary.main}`,
           }}>
             <h3 style={{
-              fontSize: theme.typography.fontSize['2xl'],
+              fontSize: isMobile ? theme.typography.fontSize.lg : theme.typography.fontSize['2xl'],
               fontWeight: theme.typography.fontWeight.semibold,
               color: theme.colors.text.primary,
               marginBottom: theme.spacing.md,
@@ -285,13 +296,13 @@ const Landing: React.FC = () => {
           {/* Feature 3: Prioritization */}
           <div style={{
             marginBottom: theme.spacing.xl,
-            padding: theme.spacing.xl,
+            padding: isMobile ? theme.spacing.md : theme.spacing.xl,
             backgroundColor: theme.colors.background.paper,
             borderRadius: theme.borderRadius.lg,
             borderLeft: `4px solid ${theme.colors.accent.info}`,
           }}>
             <h3 style={{
-              fontSize: theme.typography.fontSize['2xl'],
+              fontSize: isMobile ? theme.typography.fontSize.lg : theme.typography.fontSize['2xl'],
               fontWeight: theme.typography.fontWeight.semibold,
               color: theme.colors.text.primary,
               marginBottom: theme.spacing.md,
@@ -311,13 +322,13 @@ const Landing: React.FC = () => {
           {/* Feature 4: Triage → Process */}
           <div style={{
             marginBottom: theme.spacing.xl,
-            padding: theme.spacing.xl,
+            padding: isMobile ? theme.spacing.md : theme.spacing.xl,
             backgroundColor: theme.colors.background.paper,
             borderRadius: theme.borderRadius.lg,
             borderLeft: `4px solid ${theme.colors.accent.success}`,
           }}>
             <h3 style={{
-              fontSize: theme.typography.fontSize['2xl'],
+              fontSize: isMobile ? theme.typography.fontSize.lg : theme.typography.fontSize['2xl'],
               fontWeight: theme.typography.fontWeight.semibold,
               color: theme.colors.text.primary,
               marginBottom: theme.spacing.md,
@@ -336,13 +347,13 @@ const Landing: React.FC = () => {
           {/* Feature 5: Smart snoozing */}
           <div style={{
             marginBottom: theme.spacing.xl,
-            padding: theme.spacing.xl,
+            padding: isMobile ? theme.spacing.md : theme.spacing.xl,
             backgroundColor: theme.colors.background.paper,
             borderRadius: theme.borderRadius.lg,
             borderLeft: `4px solid ${theme.colors.accent.warning}`,
           }}>
             <h3 style={{
-              fontSize: theme.typography.fontSize['2xl'],
+              fontSize: isMobile ? theme.typography.fontSize.lg : theme.typography.fontSize['2xl'],
               fontWeight: theme.typography.fontWeight.semibold,
               color: theme.colors.text.primary,
               marginBottom: theme.spacing.md,
@@ -364,7 +375,7 @@ const Landing: React.FC = () => {
               marginBottom: theme.spacing['3xl'],
             }}>
               <h2 style={{
-                fontSize: theme.typography.fontSize['3xl'],
+                fontSize: isMobile ? theme.typography.fontSize['2xl'] : theme.typography.fontSize['3xl'],
                 fontWeight: theme.typography.fontWeight.bold,
                 color: theme.colors.text.primary,
                 marginBottom: theme.spacing.lg,
@@ -372,7 +383,7 @@ const Landing: React.FC = () => {
                 Why BearlyMail is different
               </h2>
               <p style={{
-                fontSize: theme.typography.fontSize.lg,
+                fontSize: isMobile ? theme.typography.fontSize.base : theme.typography.fontSize.lg,
                 color: theme.colors.text.secondary,
                 marginBottom: theme.spacing.xl,
                 lineHeight: 1.8,
@@ -386,9 +397,11 @@ const Landing: React.FC = () => {
           <div style={{
             overflowX: 'auto',
             marginBottom: theme.spacing.xl,
+            WebkitOverflowScrolling: 'touch',
           }}>
             <table style={{
               width: '100%',
+              minWidth: isMobile ? '600px' : 'auto',
               borderCollapse: 'collapse',
               backgroundColor: theme.colors.background.paper,
               borderRadius: theme.borderRadius.lg,
@@ -399,36 +412,40 @@ const Landing: React.FC = () => {
                   backgroundColor: theme.colors.background.subtle,
                 }}>
                   <th style={{
-                    padding: theme.spacing.lg,
+                    padding: isMobile ? theme.spacing.md : theme.spacing.lg,
                     textAlign: 'left',
                     fontWeight: theme.typography.fontWeight.bold,
                     color: theme.colors.text.primary,
                     borderBottom: `2px solid ${theme.colors.border.medium}`,
+                    fontSize: isMobile ? theme.typography.fontSize.xs : theme.typography.fontSize.base,
                   }}></th>
                   <th style={{
-                    padding: theme.spacing.lg,
+                    padding: isMobile ? theme.spacing.md : theme.spacing.lg,
                     textAlign: 'center',
                     fontWeight: theme.typography.fontWeight.bold,
                     color: theme.colors.primary.main,
                     borderBottom: `2px solid ${theme.colors.border.medium}`,
+                    fontSize: isMobile ? theme.typography.fontSize.xs : theme.typography.fontSize.base,
                   }}>
                     BearlyMail
                   </th>
                   <th style={{
-                    padding: theme.spacing.lg,
+                    padding: isMobile ? theme.spacing.md : theme.spacing.lg,
                     textAlign: 'center',
                     fontWeight: theme.typography.fontWeight.bold,
                     color: theme.colors.text.secondary,
                     borderBottom: `2px solid ${theme.colors.border.medium}`,
+                    fontSize: isMobile ? theme.typography.fontSize.xs : theme.typography.fontSize.base,
                   }}>
                     Superhuman
                   </th>
                   <th style={{
-                    padding: theme.spacing.lg,
+                    padding: isMobile ? theme.spacing.md : theme.spacing.lg,
                     textAlign: 'center',
                     fontWeight: theme.typography.fontWeight.bold,
                     color: theme.colors.text.secondary,
                     borderBottom: `2px solid ${theme.colors.border.medium}`,
+                    fontSize: isMobile ? theme.typography.fontSize.xs : theme.typography.fontSize.base,
                   }}>
                     Gmail Priority
                   </th>
@@ -437,133 +454,149 @@ const Landing: React.FC = () => {
               <tbody>
                 <tr>
                   <td style={{
-                    padding: theme.spacing.lg,
+                    padding: isMobile ? theme.spacing.md : theme.spacing.lg,
                     fontWeight: theme.typography.fontWeight.semibold,
                     color: theme.colors.text.primary,
                     borderBottom: `1px solid ${theme.colors.border.light}`,
+                    fontSize: isMobile ? theme.typography.fontSize.xs : theme.typography.fontSize.base,
                   }}>
                     Email delivery
                   </td>
                   <td style={{
-                    padding: theme.spacing.lg,
+                    padding: isMobile ? theme.spacing.md : theme.spacing.lg,
                     textAlign: 'center',
                     color: theme.colors.text.secondary,
                     borderBottom: `1px solid ${theme.colors.border.light}`,
+                    fontSize: isMobile ? theme.typography.fontSize.xs : theme.typography.fontSize.base,
                   }}>
                     Scheduled batches you control
                   </td>
                   <td style={{
-                    padding: theme.spacing.lg,
+                    padding: isMobile ? theme.spacing.md : theme.spacing.lg,
                     textAlign: 'center',
                     color: theme.colors.text.secondary,
                     borderBottom: `1px solid ${theme.colors.border.light}`,
+                    fontSize: isMobile ? theme.typography.fontSize.xs : theme.typography.fontSize.base,
                   }}>
                     Real-time (constant interruptions)
                   </td>
                   <td style={{
-                    padding: theme.spacing.lg,
+                    padding: isMobile ? theme.spacing.md : theme.spacing.lg,
                     textAlign: 'center',
                     color: theme.colors.text.secondary,
                     borderBottom: `1px solid ${theme.colors.border.light}`,
+                    fontSize: isMobile ? theme.typography.fontSize.xs : theme.typography.fontSize.base,
                   }}>
                     Real-time
                   </td>
                 </tr>
                 <tr>
                   <td style={{
-                    padding: theme.spacing.lg,
+                    padding: isMobile ? theme.spacing.md : theme.spacing.lg,
                     fontWeight: theme.typography.fontWeight.semibold,
                     color: theme.colors.text.primary,
                     borderBottom: `1px solid ${theme.colors.border.light}`,
+                    fontSize: isMobile ? theme.typography.fontSize.xs : theme.typography.fontSize.base,
                   }}>
                     Urgent filtering
                   </td>
                   <td style={{
-                    padding: theme.spacing.lg,
+                    padding: isMobile ? theme.spacing.md : theme.spacing.lg,
                     textAlign: 'center',
                     color: theme.colors.text.secondary,
                     borderBottom: `1px solid ${theme.colors.border.light}`,
+                    fontSize: isMobile ? theme.typography.fontSize.xs : theme.typography.fontSize.base,
                   }}>
                     AI learns & breaks through batches
                   </td>
                   <td style={{
-                    padding: theme.spacing.lg,
+                    padding: isMobile ? theme.spacing.md : theme.spacing.lg,
                     textAlign: 'center',
                     color: theme.colors.text.secondary,
                     borderBottom: `1px solid ${theme.colors.border.light}`,
+                    fontSize: isMobile ? theme.typography.fontSize.xs : theme.typography.fontSize.base,
                   }}>
                     Manual category splits
                   </td>
                   <td style={{
-                    padding: theme.spacing.lg,
+                    padding: isMobile ? theme.spacing.md : theme.spacing.lg,
                     textAlign: 'center',
                     color: theme.colors.text.secondary,
                     borderBottom: `1px solid ${theme.colors.border.light}`,
+                    fontSize: isMobile ? theme.typography.fontSize.xs : theme.typography.fontSize.base,
                   }}>
                     Basic algorithm
                   </td>
                 </tr>
                 <tr>
                   <td style={{
-                    padding: theme.spacing.lg,
+                    padding: isMobile ? theme.spacing.md : theme.spacing.lg,
                     fontWeight: theme.typography.fontWeight.semibold,
                     color: theme.colors.text.primary,
                     borderBottom: `1px solid ${theme.colors.border.light}`,
+                    fontSize: isMobile ? theme.typography.fontSize.xs : theme.typography.fontSize.base,
                   }}>
                     Prioritization
                   </td>
                   <td style={{
-                    padding: theme.spacing.lg,
+                    padding: isMobile ? theme.spacing.md : theme.spacing.lg,
                     textAlign: 'center',
                     color: theme.colors.text.secondary,
                     borderBottom: `1px solid ${theme.colors.border.light}`,
+                    fontSize: isMobile ? theme.typography.fontSize.xs : theme.typography.fontSize.base,
                   }}>
                     Automatic (learns from your behavior)
                   </td>
                   <td style={{
-                    padding: theme.spacing.lg,
+                    padding: isMobile ? theme.spacing.md : theme.spacing.lg,
                     textAlign: 'center',
                     color: theme.colors.text.secondary,
                     borderBottom: `1px solid ${theme.colors.border.light}`,
+                    fontSize: isMobile ? theme.typography.fontSize.xs : theme.typography.fontSize.base,
                   }}>
                     Manual triage required
                   </td>
                   <td style={{
-                    padding: theme.spacing.lg,
+                    padding: isMobile ? theme.spacing.md : theme.spacing.lg,
                     textAlign: 'center',
                     color: theme.colors.text.secondary,
                     borderBottom: `1px solid ${theme.colors.border.light}`,
+                    fontSize: isMobile ? theme.typography.fontSize.xs : theme.typography.fontSize.base,
                   }}>
                     Static filters
                   </td>
                 </tr>
                 <tr>
                   <td style={{
-                    padding: theme.spacing.lg,
+                    padding: isMobile ? theme.spacing.md : theme.spacing.lg,
                     fontWeight: theme.typography.fontWeight.semibold,
                     color: theme.colors.text.primary,
+                    fontSize: isMobile ? theme.typography.fontSize.xs : theme.typography.fontSize.base,
                   }}>
                     Philosophy
                   </td>
                   <td style={{
-                    padding: theme.spacing.lg,
+                    padding: isMobile ? theme.spacing.md : theme.spacing.lg,
                     textAlign: 'center',
                     color: theme.colors.text.secondary,
                     fontWeight: theme.typography.fontWeight.medium,
+                    fontSize: isMobile ? theme.typography.fontSize.xs : theme.typography.fontSize.base,
                   }}>
                     Prevention {'>'} Speed
                   </td>
                   <td style={{
-                    padding: theme.spacing.lg,
+                    padding: isMobile ? theme.spacing.md : theme.spacing.lg,
                     textAlign: 'center',
                     color: theme.colors.text.secondary,
+                    fontSize: isMobile ? theme.typography.fontSize.xs : theme.typography.fontSize.base,
                   }}>
                     Speed {'>'} Prevention
                   </td>
                   <td style={{
-                    padding: theme.spacing.lg,
+                    padding: isMobile ? theme.spacing.md : theme.spacing.lg,
                     textAlign: 'center',
                     color: theme.colors.text.secondary,
+                    fontSize: isMobile ? theme.typography.fontSize.xs : theme.typography.fontSize.base,
                   }}>
                     Sorting {'>'} Prevention
                   </td>
@@ -573,13 +606,13 @@ const Landing: React.FC = () => {
           </div>
 
           <div style={{
-            padding: theme.spacing.xl,
+            padding: isMobile ? theme.spacing.md : theme.spacing.xl,
             backgroundColor: theme.colors.primary.subtle,
             borderRadius: theme.borderRadius.lg,
             marginBottom: theme.spacing.xl,
           }}>
             <p style={{
-              fontSize: theme.typography.fontSize.base,
+              fontSize: isMobile ? theme.typography.fontSize.sm : theme.typography.fontSize.base,
               color: theme.colors.text.secondary,
               lineHeight: 1.8,
               marginBottom: theme.spacing.md,
@@ -587,7 +620,7 @@ const Landing: React.FC = () => {
               Gmail's Priority Inbox guesses based on generic signals.
             </p>
             <p style={{
-              fontSize: theme.typography.fontSize.base,
+              fontSize: isMobile ? theme.typography.fontSize.sm : theme.typography.fontSize.base,
               color: theme.colors.text.secondary,
               lineHeight: 1.8,
               marginBottom: theme.spacing.md,
@@ -595,7 +628,7 @@ const Landing: React.FC = () => {
               Superhuman makes you faster at processing emails when they arrive.
             </p>
             <p style={{
-              fontSize: theme.typography.fontSize.base,
+              fontSize: isMobile ? theme.typography.fontSize.sm : theme.typography.fontSize.base,
               color: theme.colors.text.primary,
               lineHeight: 1.8,
               fontWeight: theme.typography.fontWeight.medium,
@@ -603,7 +636,7 @@ const Landing: React.FC = () => {
               BearlyMail learns from what you actually do—not what you tell it, not what Google thinks is important.
             </p>
             <p style={{
-              fontSize: theme.typography.fontSize.base,
+              fontSize: isMobile ? theme.typography.fontSize.sm : theme.typography.fontSize.base,
               color: theme.colors.text.secondary,
               lineHeight: 1.8,
               marginTop: theme.spacing.md,
@@ -616,12 +649,12 @@ const Landing: React.FC = () => {
             {/* Closing Statement */}
             <section style={{
               marginBottom: theme.spacing['3xl'],
-              padding: theme.spacing['2xl'],
+              padding: isMobile ? theme.spacing.lg : theme.spacing['2xl'],
               backgroundColor: theme.colors.background.paper,
               borderRadius: theme.borderRadius.lg,
             }}>
               <h2 style={{
-                fontSize: theme.typography.fontSize['3xl'],
+                fontSize: isMobile ? theme.typography.fontSize['2xl'] : theme.typography.fontSize['3xl'],
                 fontWeight: theme.typography.fontWeight.bold,
                 color: theme.colors.text.primary,
                 marginBottom: theme.spacing.lg,
@@ -629,7 +662,7 @@ const Landing: React.FC = () => {
                 Stop reacting to your inbox. Start controlling it.
               </h2>
               <p style={{
-                fontSize: theme.typography.fontSize.xl,
+                fontSize: isMobile ? theme.typography.fontSize.base : theme.typography.fontSize.xl,
                 color: theme.colors.text.secondary,
                 lineHeight: 1.8,
                 marginBottom: theme.spacing.md,
@@ -637,7 +670,7 @@ const Landing: React.FC = () => {
                 Three focused moments instead of 47 interruptions.
               </p>
               <p style={{
-                fontSize: theme.typography.fontSize.xl,
+                fontSize: isMobile ? theme.typography.fontSize.base : theme.typography.fontSize.xl,
                 color: theme.colors.text.secondary,
                 lineHeight: 1.8,
                 marginBottom: theme.spacing.md,
@@ -645,7 +678,7 @@ const Landing: React.FC = () => {
                 The emails that matter, when you're ready for them.
               </p>
               <p style={{
-                fontSize: theme.typography.fontSize.lg,
+                fontSize: isMobile ? theme.typography.fontSize.base : theme.typography.fontSize.lg,
                 color: theme.colors.primary.main,
                 fontWeight: theme.typography.fontWeight.medium,
                 marginTop: theme.spacing.xl,
@@ -658,17 +691,18 @@ const Landing: React.FC = () => {
 
           {/* Right Column: Waitlist Form */}
           <div style={{
-            position: 'sticky',
-            top: theme.spacing.xl,
+            position: isMobile ? 'static' : 'sticky',
+            top: isMobile ? 'auto' : theme.spacing.xl,
+            order: isMobile ? -1 : 0, // Show form first on mobile
           }}>
             <section style={{
               backgroundColor: theme.colors.background.paper,
-              padding: theme.spacing['2xl'],
+              padding: isMobile ? theme.spacing.lg : theme.spacing['2xl'],
               borderRadius: theme.borderRadius.lg,
               boxShadow: theme.shadows.lg,
             }}>
           <h3 style={{
-            fontSize: theme.typography.fontSize['2xl'],
+            fontSize: isMobile ? theme.typography.fontSize.xl : theme.typography.fontSize['2xl'],
             fontWeight: theme.typography.fontWeight.bold,
             color: theme.colors.text.primary,
             marginBottom: theme.spacing.md,
@@ -676,13 +710,14 @@ const Landing: React.FC = () => {
           }}>
             Join the Waitlist
           </h3>
-          <p style={{
-            color: theme.colors.text.secondary,
-            marginBottom: theme.spacing.xl,
-            textAlign: 'center',
-          }}>
-            We're currently in private beta. Sign up to get early access.
-          </p>
+              <p style={{
+                color: theme.colors.text.secondary,
+                marginBottom: theme.spacing.xl,
+                textAlign: 'center',
+                fontSize: isMobile ? theme.typography.fontSize.sm : theme.typography.fontSize.base,
+              }}>
+                We're currently in private beta. Sign up to get early access.
+              </p>
 
           {error && (
             <div style={{

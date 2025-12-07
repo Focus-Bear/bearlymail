@@ -7,11 +7,12 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
 interface PriorityExplanation {
   score: number;
-  factors: Array<{
-    type: string;
-    description: string;
-    contribution: number;
-  }>;
+  dimensions: {
+    urgency: { score: number; reasons: string[] };
+    goalAlignment: { score: number; reasons: string[] };
+    vipContact: { score: number; reasons: string[] };
+  };
+  breakdown: Array<{ factor: string; value: number; description: string }>;
 }
 
 interface PriorityTooltipProps {
@@ -61,21 +62,60 @@ export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
     
     setLoading(true);
     try {
-      const response = await axios.get(`${API_URL}/priority/${emailId}/explanation`);
-      setExplanation(response.data);
-    } catch (error) {
+      const response = await axios.get(`${API_URL}/emails/${emailId}/priority-explanation`);
+      console.log('Priority explanation response:', response.data);
+      if (response.data && response.data.dimensions) {
+        setExplanation(response.data);
+      } else {
+        console.warn('Unexpected response format:', response.data);
+      }
+    } catch (error: any) {
       console.error('Error fetching priority explanation:', error);
+      console.error('Error details:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        url: `${API_URL}/emails/${emailId}/priority-explanation`
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleMouseEnter = () => {
+  const handleMouseEnter = (e: React.MouseEvent) => {
     setShowTooltip(true);
     if (!explanation && !loading) {
       fetchExplanation();
     }
   };
+
+  // Position tooltip after it's shown
+  useEffect(() => {
+    if (showTooltip && tooltipRef.current && triggerRef.current) {
+      const triggerRect = triggerRef.current.getBoundingClientRect();
+      const tooltip = tooltipRef.current;
+      
+      // Position below the trigger
+      tooltip.style.left = `${triggerRect.left}px`;
+      tooltip.style.top = `${triggerRect.bottom + 8}px`;
+      
+      // Adjust if tooltip would go off screen
+      requestAnimationFrame(() => {
+        if (tooltip) {
+          const tooltipRect = tooltip.getBoundingClientRect();
+          if (tooltipRect.right > window.innerWidth) {
+            tooltip.style.left = `${window.innerWidth - tooltipRect.width - 16}px`;
+          }
+          if (tooltipRect.bottom > window.innerHeight) {
+            tooltip.style.top = `${triggerRect.top - tooltipRect.height - 8}px`;
+          }
+          if (tooltipRect.left < 0) {
+            tooltip.style.left = '16px';
+          }
+        }
+      });
+    }
+  }, [showTooltip]);
 
   const handleOverrideSubmit = async () => {
     if (!overrideExplanation.trim()) return;
@@ -121,7 +161,8 @@ export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
     <div style={{ position: 'relative', display: 'inline-block' }}>
       <div
         ref={triggerRef}
-        onMouseEnter={handleMouseEnter}
+        data-priority-badge={emailId}
+        onMouseEnter={(e) => handleMouseEnter(e)}
         onMouseLeave={() => {
           // Don't hide immediately on mouse leave - let click outside handle it
         }}
@@ -132,19 +173,19 @@ export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
       {showTooltip && (
         <div
           ref={tooltipRef}
+          data-priority-tooltip={emailId}
           style={{
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            zIndex: 1000,
+            position: 'fixed',
+            zIndex: 10000,
             backgroundColor: theme.colors.background.paper,
             border: `1px solid ${theme.colors.border.medium}`,
             borderRadius: theme.borderRadius.lg,
             padding: theme.spacing.md,
-            boxShadow: theme.shadows.lg,
+            boxShadow: theme.shadows.xl,
             minWidth: '300px',
             maxWidth: '400px',
-            marginTop: theme.spacing.xs,
+            maxHeight: '80vh',
+            overflowY: 'auto',
           }}
           onMouseEnter={() => setShowTooltip(true)}
           onMouseLeave={() => setShowTooltip(false)}
@@ -155,14 +196,10 @@ export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
               fontWeight: theme.typography.fontWeight.semibold,
               color: theme.colors.text.primary,
               marginBottom: theme.spacing.xs,
+              borderBottom: `1px solid ${theme.colors.border.light}`,
+              paddingBottom: theme.spacing.xs,
             }}>
-              🎯 Goal Alignment: {priorityScore.toFixed(0)}
-            </div>
-            <div style={{
-              fontSize: theme.typography.fontSize.xs,
-              color: theme.colors.text.secondary,
-            }}>
-              Why this score?
+              Priority Score: {priorityScore.toFixed(0)}
             </div>
           </div>
 
@@ -178,55 +215,41 @@ export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
                 animation: 'spin 1s linear infinite',
               }} />
             </div>
-          ) : explanation ? (
+          ) : explanation && explanation.dimensions ? (
             <>
-              <div style={{ marginBottom: theme.spacing.md }}>
-                {explanation.factors.length > 0 ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}>
-                    {explanation.factors.map((factor, index) => (
-                      <div
-                        key={index}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'flex-start',
-                          gap: theme.spacing.xs,
-                          padding: theme.spacing.xs,
-                          backgroundColor: factor.contribution > 0 
-                            ? theme.colors.primary.subtle 
-                            : theme.colors.background.subtle,
-                          borderRadius: theme.borderRadius.sm,
-                        }}
-                      >
-                        <span style={{ fontSize: '0.9rem' }}>
-                          {getFactorIcon(factor.type)}
-                        </span>
-                        <div style={{ flex: 1 }}>
-                          <div style={{
-                            fontSize: theme.typography.fontSize.xs,
-                            fontWeight: theme.typography.fontWeight.medium,
-                            color: theme.colors.text.primary,
-                          }}>
-                            {factor.description}
-                          </div>
-                          <div style={{
-                            fontSize: theme.typography.fontSize.xs,
-                            color: factor.contribution > 0 
-                              ? theme.colors.primary.main 
-                              : theme.colors.text.secondary,
-                          }}>
-                            {factor.contribution > 0 ? '+' : ''}{factor.contribution.toFixed(0)} points
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+              {/* Dimensions */}
+              <div style={{ marginBottom: theme.spacing.sm }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <span>🔥 Urgency</span>
+                  <span style={{ fontWeight: 'bold' }}>{explanation.dimensions.urgency?.score?.toFixed(0) || '0'}</span>
+                </div>
+                {explanation.dimensions.urgency?.reasons && explanation.dimensions.urgency.reasons.length > 0 && (
+                  <div style={{ fontSize: '0.7rem', color: theme.colors.text.secondary, marginLeft: theme.spacing.md }}>
+                    {explanation.dimensions.urgency.reasons.slice(0, 2).join('; ')}
                   </div>
-                ) : (
-                  <div style={{
-                    fontSize: theme.typography.fontSize.xs,
-                    color: theme.colors.text.secondary,
-                    fontStyle: 'italic',
-                  }}>
-                    No specific factors identified. Base score: 50
+                )}
+              </div>
+              
+              <div style={{ marginBottom: theme.spacing.sm }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <span>🎯 Goal Alignment</span>
+                  <span style={{ fontWeight: 'bold' }}>{explanation.dimensions.goalAlignment?.score?.toFixed(0) || '0'}</span>
+                </div>
+                {explanation.dimensions.goalAlignment?.reasons && explanation.dimensions.goalAlignment.reasons.length > 0 && (
+                  <div style={{ fontSize: '0.7rem', color: theme.colors.text.secondary, marginLeft: theme.spacing.md }}>
+                    {explanation.dimensions.goalAlignment.reasons.slice(0, 2).join('; ')}
+                  </div>
+                )}
+              </div>
+              
+              <div style={{ marginBottom: theme.spacing.sm }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <span>⭐ VIP Contact</span>
+                  <span style={{ fontWeight: 'bold' }}>{explanation.dimensions.vipContact?.score?.toFixed(0) || '0'}</span>
+                </div>
+                {explanation.dimensions.vipContact?.reasons && explanation.dimensions.vipContact.reasons.length > 0 && (
+                  <div style={{ fontSize: '0.7rem', color: theme.colors.text.secondary, marginLeft: theme.spacing.md }}>
+                    {explanation.dimensions.vipContact.reasons.slice(0, 2).join('; ')}
                   </div>
                 )}
               </div>
@@ -310,8 +333,10 @@ export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
             <div style={{
               fontSize: theme.typography.fontSize.xs,
               color: theme.colors.text.secondary,
+              padding: theme.spacing.sm,
+              textAlign: 'center',
             }}>
-              Unable to load explanation
+              {loading ? 'Loading...' : 'Unable to load explanation. Please try again.'}
             </div>
           )}
         </div>

@@ -6,6 +6,8 @@ import { UserContext, ContextKey } from '../database/entities/user-context.entit
 import { LLMService } from '../llm/llm.service';
 import { PriorityService } from './priority.service';
 import { EmailsService } from '../emails/emails.service';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export interface TriageSuggestion {
   emailId: string;
@@ -13,6 +15,86 @@ export interface TriageSuggestion {
   suggestedArchive: boolean;
   confidence: number; // 0-100
   reasoning: string;
+}
+
+// Performance budgets in milliseconds
+const TRIAGE_PERF_BUDGETS = {
+  TRIAGE_TOTAL: 1000, // 1 second total
+  EMAIL_QUERY: 200,
+  CONTEXT_QUERY: 100,
+  HISTORY_QUERY: 300,
+  PATTERN_ANALYSIS: 100,
+  SUGGESTION_GENERATION: 300,
+};
+
+interface PerfSpan {
+  name: string;
+  start: number;
+  end?: number;
+  duration?: number;
+  budget: number;
+  exceeded?: boolean;
+}
+
+class TriagePerformanceTracker {
+  private spans: PerfSpan[] = [];
+  private startTime: number;
+  private logger = new Logger('TriagePerformanceTracker');
+  private static logsDir = path.join(process.cwd(), 'logs');
+  private logFile = path.join(TriagePerformanceTracker.logsDir, 'performance.log');
+
+  constructor(private operation: string) {
+    this.startTime = Date.now();
+    if (!fs.existsSync(TriagePerformanceTracker.logsDir)) {
+      fs.mkdirSync(TriagePerformanceTracker.logsDir, { recursive: true });
+    }
+  }
+
+  startSpan(name: string, budget: number): () => void {
+    const span: PerfSpan = { name, start: Date.now(), budget };
+    this.spans.push(span);
+    return () => {
+      span.end = Date.now();
+      span.duration = span.end - span.start;
+      span.exceeded = span.duration > budget;
+    };
+  }
+
+  finish(): void {
+    const totalDuration = Date.now() - this.startTime;
+    const exceededSpans = this.spans.filter(s => s.exceeded);
+    const totalExceeded = totalDuration > TRIAGE_PERF_BUDGETS.TRIAGE_TOTAL;
+    
+    if (totalExceeded || exceededSpans.length > 0) {
+      const logEntry = {
+        timestamp: new Date().toISOString(),
+        operation: this.operation,
+        totalDuration,
+        totalBudget: TRIAGE_PERF_BUDGETS.TRIAGE_TOTAL,
+        totalExceeded,
+        spans: this.spans.map(s => ({
+          name: s.name,
+          duration: s.duration,
+          budget: s.budget,
+          exceeded: s.exceeded,
+        })),
+        exceededSpans: exceededSpans.map(s => `${s.name}: ${s.duration}ms (budget: ${s.budget}ms)`),
+      };
+      
+      const logLine = JSON.stringify(logEntry) + '\n';
+      
+      this.logger.warn(`⚠️ PERF ISSUE: ${this.operation} took ${totalDuration}ms (budget: ${TRIAGE_PERF_BUDGETS.TRIAGE_TOTAL}ms)`);
+      exceededSpans.forEach(s => {
+        this.logger.warn(`   - ${s.name}: ${s.duration}ms exceeded budget of ${s.budget}ms`);
+      });
+      
+      try {
+        fs.appendFileSync(this.logFile, logLine);
+      } catch (err) {
+        this.logger.error('Failed to write to performance log file:', err);
+      }
+    }
+  }
 }
 
 @Injectable()
@@ -33,73 +115,100 @@ export class TriageSuggestionsService {
    * Generate triage suggestions for a list of emails
    */
   async generateSuggestions(userId: string, emailIds: string[]): Promise<TriageSuggestion[]> {
-    // Join with email_threads to get thread-level properties
-    const result = await this.emailRepository
-      .createQueryBuilder('email')
-      .innerJoin('email_threads', 'thread', 'thread.id = email.emailThreadId')
-      .select([
-        'email.id',
-        'email.userId',
-        'email.threadId',
-        'email.from',
-        'email.fromName',
-        'email.subject',
-        'email.receivedAt',
-      ])
-      .addSelect('thread.starCount', 'thread_starCount')
-      .addSelect('thread.isArchived', 'thread_isArchived')
-      .where('email.id IN (:...ids)', { ids: emailIds })
-      .andWhere('email.userId = :userId', { userId })
-      .getRawAndEntities();
+    const perf = new TriagePerformanceTracker(`triage-suggestions-${userId}`);
     
-    // Add thread properties as virtual properties
-    const emails = result.entities.map((email, index) => {
-      const raw = result.raw[index];
-      (email as any).starCount = raw.thread_starCount ?? 0;
-      (email as any).isArchived = raw.thread_isArchived ?? false;
-      return email;
-    });
+    // Join with email_threads to get thread-level properties using raw SQL for speed
+    const endEmailQuery = perf.startSpan('email_query', TRIAGE_PERF_BUDGETS.EMAIL_QUERY);
+    const rawResult = await this.emailRepository.query(
+      `SELECT
+        email.id,
+        email."userId",
+        email."threadId",
+        email."from",
+        email."fromName",
+        email.subject,
+        email."priorityScore",
+        email."receivedAt",
+        thread."starCount",
+        thread."isArchived"
+      FROM emails email
+      INNER JOIN email_threads thread ON thread.id = email."emailThreadId"
+      WHERE email.id = ANY($1::uuid[]) AND email."userId" = $2`,
+      [emailIds, userId]
+    );
+    endEmailQuery();
+
+    // Map raw results to Email-like objects (Partial<Email> with thread properties)
+    const emails = rawResult.map((row: any) => ({
+      id: row.id,
+      userId: row.userId,
+      threadId: row.threadId,
+      from: row.from,
+      fromName: row.fromName,
+      subject: row.subject,
+      priorityScore: row.priorityScore,
+      receivedAt: row.receivedAt,
+      starCount: row.starCount ?? 0,
+      isArchived: row.isArchived ?? false,
+    } as unknown as Email));
 
     if (emails.length === 0) {
+      perf.finish();
       return [];
     }
 
-    // Get user's context for prioritization
-    const contexts = await this.userContextRepository.find({ where: { userId } });
+    // Get user's context for prioritization using raw query for speed
+    const endContextQuery = perf.startSpan('context_query', TRIAGE_PERF_BUDGETS.CONTEXT_QUERY);
+    const contexts = await this.userContextRepository.query(
+      `SELECT "contextId", "userId", "contextKey", "contextValue", priority, explanation
+       FROM user_contexts WHERE "userId" = $1`,
+      [userId]
+    ) as UserContext[];
+    endContextQuery();
     
-    // Get user's email history for pattern analysis
-    const historyResult = await this.emailRepository
-      .createQueryBuilder('email')
-      .innerJoin('email_threads', 'thread', 'thread.id = email.emailThreadId')
-      .select([
-        'email.id',
-        'email.userId',
-        'email.threadId',
-        'email.from',
-        'email.fromName',
-        'email.subject',
-        'email.receivedAt',
-      ])
-      .addSelect('thread.starCount', 'thread_starCount')
-      .addSelect('thread.isArchived', 'thread_isArchived')
-      .where('email.userId = :userId', { userId })
-      .orderBy('email.receivedAt', 'DESC')
-      .take(50)
-      .getRawAndEntities();
-    
-    const recentEmails = historyResult.entities.map((email, index) => {
-      const raw = historyResult.raw[index];
-      (email as any).starCount = raw.thread_starCount ?? 0;
-      (email as any).isArchived = raw.thread_isArchived ?? false;
-      return email;
-    });
+    // Get user's email history for pattern analysis using raw SQL for speed
+    const endHistoryQuery = perf.startSpan('history_query', TRIAGE_PERF_BUDGETS.HISTORY_QUERY);
+    const historyRaw = await this.emailRepository.query(
+      `SELECT
+        email.id,
+        email."userId",
+        email."threadId",
+        email."from",
+        email."fromName",
+        email.subject,
+        email."receivedAt",
+        thread."starCount",
+        thread."isArchived"
+      FROM emails email
+      INNER JOIN email_threads thread ON thread.id = email."emailThreadId"
+      WHERE email."userId" = $1
+      ORDER BY email."receivedAt" DESC
+      LIMIT 50`,
+      [userId]
+    );
+    endHistoryQuery();
+
+    const recentEmails = historyRaw.map((row: any) => ({
+      id: row.id,
+      userId: row.userId,
+      threadId: row.threadId,
+      from: row.from,
+      fromName: row.fromName,
+      subject: row.subject,
+      receivedAt: row.receivedAt,
+      starCount: row.starCount ?? 0,
+      isArchived: row.isArchived ?? false,
+    } as unknown as Email));
 
     // Analyze patterns from recent behavior
+    const endPatternAnalysis = perf.startSpan('pattern_analysis', TRIAGE_PERF_BUDGETS.PATTERN_ANALYSIS);
     const senderPatterns = this.analyzeSenderPatterns(recentEmails);
+    endPatternAnalysis();
 
     const suggestions: TriageSuggestion[] = [];
 
     // Process emails in batches
+    const endSuggestionGen = perf.startSpan('suggestion_generation', TRIAGE_PERF_BUDGETS.SUGGESTION_GENERATION);
     const batchSize = 5;
     for (let i = 0; i < emails.length; i += batchSize) {
       const batch = emails.slice(i, i + batchSize);
@@ -108,7 +217,9 @@ export class TriageSuggestionsService {
       );
       suggestions.push(...batchSuggestions);
     }
+    endSuggestionGen();
 
+    perf.finish();
     return suggestions;
   }
 
@@ -168,15 +279,20 @@ export class TriageSuggestionsService {
         };
       }
 
-      // Use LLM for more nuanced suggestions
-      const llmSuggestion = await this.llmSuggest(userId, email, senderPattern, priorityScore);
+      // Use simple heuristics instead of LLM for performance
+      // LLM calls are too slow (3+ seconds each) for real-time suggestions
+      // Only use priority score and basic rules for now
+      return {
+        emailId: email.id,
+        suggestedStarCount: suggestedStarCountFromPriority,
+        suggestedArchive: false,
+        confidence: 65,
+        reasoning: `Based on priority score: ${priorityScore.toFixed(1)}. ${priorityScore >= 80 ? 'High priority' : priorityScore >= 60 ? 'Medium priority' : priorityScore >= 40 ? 'Low priority' : 'Very low priority'}`,
+      };
       
-      if (llmSuggestion.suggestedStarCount < suggestedStarCountFromPriority) {
-        llmSuggestion.suggestedStarCount = suggestedStarCountFromPriority;
-        llmSuggestion.reasoning = `${llmSuggestion.reasoning} (adjusted based on priority score: ${priorityScore.toFixed(1)})`;
-      }
-      
-      return llmSuggestion;
+      // NOTE: LLM suggestions disabled for performance (14s+ delay)
+      // If needed, these should be generated asynchronously in background jobs
+      // and cached in the database, not called in real-time
     } catch (error) {
       this.logger.error(`Error generating suggestion for email ${email.id}`, error);
       return {

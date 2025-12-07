@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, UpdateDateColumn, CreateDateColumn, JoinColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, UpdateDateColumn, CreateDateColumn, JoinColumn, Index } from 'typeorm';
 import { User } from './user.entity';
 import { encryptedColumnTransformer } from '../../encryption/encryption.helper';
 
@@ -11,6 +11,7 @@ export enum ContextKey {
   USER_INFO = 'USER_INFO',               // Info about the user for drafting
   URGENT = 'URGENT',                     // What the user considers urgent
   NOT_IMPORTANT = 'NOT_IMPORTANT',       // What the user doesn't consider important
+  Q_AND_A = 'Q_AND_A',                   // Common questions and answers from user replies
   
   // Legacy/other
   PROJECT_NAME = 'PROJECT_NAME',         // Kept for backward compatibility
@@ -28,6 +29,8 @@ export enum Source {
 }
 
 @Entity('user_contexts')
+@Index(['userId']) // Critical index for getUserContext queries
+@Index(['userId', 'contextKey']) // For filtering by context type
 export class UserContext {
   @PrimaryGeneratedColumn('uuid')
   contextId: string;

@@ -26,9 +26,12 @@ const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     needsPrivacyAcceptance: boolean;
   } | null>(null);
   const [checkingConsent, setCheckingConsent] = useState(true);
+  const hasCheckedConsentRef = React.useRef(false);
 
   useEffect(() => {
-    if (!loading && user) {
+    // Only check once when user is loaded
+    if (!loading && user && !hasCheckedConsentRef.current) {
+      hasCheckedConsentRef.current = true;
       // Check consent status
       axios.get(`${API_URL}/users/consent-status`)
         .then((response) => {
@@ -41,6 +44,7 @@ const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
           setCheckingConsent(false);
         });
     } else if (!loading && !user) {
+      hasCheckedConsentRef.current = false; // Reset when user logs out
       setCheckingConsent(false);
     }
   }, [loading, user]);

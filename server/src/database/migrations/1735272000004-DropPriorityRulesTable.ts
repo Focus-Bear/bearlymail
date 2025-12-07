@@ -26,3 +26,5 @@ export class DropPriorityRulesTable1735272000004 implements MigrationInterface {
     }
 }
 
+
+

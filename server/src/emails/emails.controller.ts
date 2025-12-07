@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Param, Body, UseGuards, Request, Query, Inject } from '@nestjs/common';
+import { Controller, Get, Post, Put, Param, Body, UseGuards, Request, Query, Inject, Logger } from '@nestjs/common';
 import { EmailsService } from './emails.service';
 import { EmailProviderManager } from './email-provider-manager.service';
 import { ContactsService } from '../contacts/contacts.service';
@@ -8,10 +8,53 @@ import PgBoss = require('pg-boss');
 import { Email } from '../database/entities/email.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { EmailRecipient } from './interfaces/email-provider.interface';
+import * as fs from 'fs';
+import * as path from 'path';
+
+// Performance budgets for batch-status
+const BATCH_STATUS_BUDGET = 500; // 500ms
+
+class BatchStatusPerformanceTracker {
+  private startTime: number;
+  private logger = new Logger('BatchStatusPerformanceTracker');
+  private static logsDir = path.join(process.cwd(), 'logs');
+  private logFile = path.join(BatchStatusPerformanceTracker.logsDir, 'performance.log');
+
+  constructor() {
+    this.startTime = Date.now();
+    if (!fs.existsSync(BatchStatusPerformanceTracker.logsDir)) {
+      fs.mkdirSync(BatchStatusPerformanceTracker.logsDir, { recursive: true });
+    }
+  }
+
+  finish(): void {
+    const duration = Date.now() - this.startTime;
+    if (duration > BATCH_STATUS_BUDGET) {
+      const logEntry = {
+        timestamp: new Date().toISOString(),
+        operation: 'batch-status',
+        duration,
+        budget: BATCH_STATUS_BUDGET,
+        exceeded: true,
+      };
+      
+      const logLine = JSON.stringify(logEntry) + '\n';
+      this.logger.warn(`⚠️ PERF ISSUE: batch-status took ${duration}ms (budget: ${BATCH_STATUS_BUDGET}ms)`);
+      
+      try {
+        fs.appendFileSync(this.logFile, logLine);
+      } catch (err) {
+        this.logger.error('Failed to write to performance log file:', err);
+      }
+    }
+  }
+}
 
 @Controller('emails')
 @UseGuards(JwtAuthGuard)
 export class EmailsController {
+  private readonly logger = new Logger(EmailsController.name);
+
   constructor(
     private readonly emailsService: EmailsService,
     private readonly emailProviderManager: EmailProviderManager,
@@ -32,23 +75,32 @@ export class EmailsController {
 
   @Get('batch-status')
   async getBatchStatus(@Request() req) {
-    // Get next delivery time from the batch schedule, not from batched emails
-    const schedule = await this.batchScheduleService.getSchedule(req.user.userId);
-    if (!schedule) {
-      // Use default schedule for new users
-      const defaults = this.batchScheduleService.getDefaultSchedule();
-      const tempSchedule = {
-        ...defaults,
-        userId: req.user.userId,
-        id: 'temp',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      } as any;
-      const nextTime = this.batchScheduleService.getNextBatchReleaseTime(tempSchedule, false);
+    const perf = new BatchStatusPerformanceTracker();
+    
+    try {
+      // Get next delivery time from the batch schedule, not from batched emails
+      const schedule = await this.batchScheduleService.getSchedule(req.user.userId);
+      if (!schedule) {
+        // Use default schedule for new users
+        const defaults = this.batchScheduleService.getDefaultSchedule();
+        const tempSchedule = {
+          ...defaults,
+          userId: req.user.userId,
+          id: 'temp',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        } as any;
+        const nextTime = this.batchScheduleService.getNextBatchReleaseTime(tempSchedule, false);
+        perf.finish();
+        return { nextDelivery: nextTime };
+      }
+      const nextTime = this.batchScheduleService.getNextBatchReleaseTime(schedule, false);
+      perf.finish();
       return { nextDelivery: nextTime };
+    } catch (error) {
+      perf.finish();
+      throw error;
     }
-    const nextTime = this.batchScheduleService.getNextBatchReleaseTime(schedule, false);
-    return { nextDelivery: nextTime };
   }
 
   @Get('search')

@@ -1,4 +1,4 @@
-import { Injectable, Inject, Logger } from '@nestjs/common';
+import { Injectable, Inject, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import PgBoss = require('pg-boss');
 import { UsersService } from '../users/users.service';
@@ -184,6 +184,20 @@ export class AuthService {
   }
 
   async login(user: any) {
+    // Check if user is approved before allowing login
+    // In development mode, auto-approve if not already approved
+    const isDev = process.env.NODE_ENV !== 'production';
+    if (!user.isApproved) {
+      if (isDev) {
+        // Auto-approve in dev mode
+        this.logger.log(`Auto-approving user ${user.id} in development mode`);
+        await this.usersService.update(user.id, { isApproved: true });
+        user.isApproved = true;
+      } else {
+        throw new UnauthorizedException('Your account is pending approval. Please wait for admin approval.');
+      }
+    }
+    
     const payload = { email: user.email, sub: user.id };
     return {
       access_token: this.jwtService.sign(payload),
@@ -206,12 +220,25 @@ export class AuthService {
 
   async register(email: string, password: string, name?: string) {
     const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // Auto-approve users in development mode
+    const isDev = process.env.NODE_ENV !== 'production';
+    const isTestUser = email.toLowerCase() === 'test@example.com';
+    
     const user = await this.usersService.create({
       email,
       password: hashedPassword,
       name,
+      isApproved: isDev || isTestUser, // Auto-approve in dev or if test user
     });
-    return this.login(user);
+    
+    // Refetch the user to ensure we have the latest data including isApproved flag
+    const freshUser = await this.usersService.findOne(user.id);
+    if (!freshUser) {
+      throw new Error('Failed to create user');
+    }
+    
+    return this.login(freshUser);
   }
 }
 

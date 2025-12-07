@@ -11,6 +11,7 @@ import { encryptedColumnTransformer, encryptedJsonTransformer } from '../../encr
 @Index(['threadId']) // For joining with email_threads
 @Index(['userId', 'emailThreadId']) // For inbox queries (getInbox)
 @Index(['emailThreadId']) // For thread lookups
+@Index(['userId', 'isBatched', 'batchReleaseAt']) // For batch-status queries (getNextBatchReleaseTime)
 export class Email {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -80,6 +81,17 @@ export class Email {
 
   @Column('text', { nullable: true, transformer: encryptedJsonTransformer })
   labels: string[]; // JSON stringified list of labels
+
+  @Column('text', { nullable: true, transformer: encryptedJsonTransformer })
+  priorityExplanation: {
+    score: number;
+    dimensions: {
+      urgency: { score: number; reasons: string[] };
+      goalAlignment: { score: number; reasons: string[] };
+      vipContact: { score: number; reasons: string[] };
+    };
+    breakdown: Array<{ factor: string; value: number; description: string }>;
+  } | null; // Precomputed priority explanation
 
   @Column({ default: false })
   isProcessingPriority: boolean; // Flag to indicate LLM priority is being calculated

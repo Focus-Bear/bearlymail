@@ -129,10 +129,13 @@ export const EmailCard: React.FC<EmailCardProps> = ({
               color: priorityColor,
               borderRadius: theme.borderRadius.full,
               fontWeight: theme.typography.fontWeight.medium,
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: theme.spacing.xs,
               cursor: 'help',
+              lineHeight: '1.2',
+              whiteSpace: 'nowrap',
             }}>
               {email.isProcessingPriority ? (
                 <>
@@ -148,7 +151,7 @@ export const EmailCard: React.FC<EmailCardProps> = ({
                   {t('email.calculating')}
                 </>
               ) : (
-                `🎯 ${priorityLabel} (${email.priorityScore.toFixed(0)})`
+                `${priorityLabel} (${email.priorityScore.toFixed(0)})`
               )}
             </span>
           </PriorityTooltip>

@@ -695,5 +695,61 @@ Generate a brief, friendly follow-up message. Keep it to 2-3 sentences maximum. 
   getDefaultProvider(): LLMProvider {
     return this.defaultProvider;
   }
+
+  async extractQAndA(
+    userReplies: Array<{
+      subject: string;
+      body: string;
+      receivedAt: string;
+    }>,
+    userId?: string,
+    provider?: LLMProvider,
+  ): Promise<Array<{ question: string; answer: string; frequency: number }>> {
+    const systemPrompt = `You are an advanced email analyst. Analyze the user's email replies to extract common questions they answer and their typical responses.
+
+Look for patterns where the user answers the same or similar questions repeatedly across multiple emails. Only extract Q&A pairs that appear 2+ times (indicating they're common).
+
+Output JSON array of objects:
+[
+  {
+    "question": "The question the user commonly answers (abstracted/generalized)",
+    "answer": "The typical response pattern or answer the user gives",
+    "frequency": number of times this Q&A pattern appears
+  }
+]
+
+Focus on:
+- Questions about availability/scheduling
+- Questions about status/progress updates
+- Questions about decisions/approvals
+- Questions about technical details the user explains
+- Any recurring Q&A patterns
+
+Only include Q&A pairs that appear 2 or more times. Be abstract - don't include specific dates, names, or project details.`;
+
+    const repliesText = userReplies.map(e => `Subject: ${e.subject}\nBody: ${e.body.substring(0, 500)}`).join('\n\n---\n\n');
+
+    const prompt = `Analyze these user email replies to find common Q&A patterns:\n\n${repliesText}`;
+
+    const response = await this.generateText({
+      prompt,
+      systemPrompt,
+      temperature: 0.3,
+      maxTokens: 1000,
+      userId,
+    }, provider, userId);
+
+    try {
+      const jsonMatch = response.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return Array.isArray(parsed) ? parsed.filter(qa => qa.frequency >= 2) : [];
+      }
+    } catch (error) {
+      this.logger.warn('Failed to parse LLM Q&A extraction response as JSON', error);
+    }
+
+    return [];
+  }
 }
 

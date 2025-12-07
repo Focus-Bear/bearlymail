@@ -11,15 +11,20 @@ import { PriorityService } from '../priority/priority.service';
 import { User } from '../database/entities/user.entity';
 import { EmailProviderManager } from './email-provider-manager.service';
 import { BlockedSendersService } from '../blocked-senders/blocked-senders.service';
+import { EncryptionHelper } from '../encryption/encryption.helper';
 
 // Performance budgets in milliseconds
 const PERF_BUDGETS = {
   INBOX_TOTAL: 500,
+  INBOX_PROCESS_TOTAL: 1000, // Process mode can be slower (3.5s target)
   THREAD_QUERY: 100,
+  THREAD_QUERY_PROCESS: 300, // Process mode query is more complex
   THREAD_COUNT_QUERY: 50,
+  EMAIL_QUERY: 100, // Raw SQL query for emails
+  DECRYPTION: 100, // Decrypting encrypted fields (from, fromName, subject, summary)
   PRIORITY_CALC: 200,
   LABEL_CONVERT: 100,
-  THREAD_GROUPING: 50,
+  THREAD_GROUPING: 50, // Just combining thread info with emails (no decryption)
 };
 
 interface PerfSpan {
@@ -56,10 +61,11 @@ class PerformanceTracker {
     };
   }
 
-  finish(): void {
+  finish(mode?: 'triage' | 'process'): void {
     const totalDuration = Date.now() - this.startTime;
     const exceededSpans = this.spans.filter(s => s.exceeded);
-    const totalExceeded = totalDuration > PERF_BUDGETS.INBOX_TOTAL;
+    const budget = mode === 'process' ? PERF_BUDGETS.INBOX_PROCESS_TOTAL : PERF_BUDGETS.INBOX_TOTAL;
+    const totalExceeded = totalDuration > budget;
     
     // Only log if the TOTAL budget was exceeded (not just individual spans)
     if (totalExceeded) {
@@ -67,8 +73,9 @@ class PerformanceTracker {
         timestamp: new Date().toISOString(),
         operation: this.operation,
         totalDuration,
-        totalBudget: PERF_BUDGETS.INBOX_TOTAL,
+        totalBudget: budget,
         totalExceeded,
+        mode: mode || 'triage',
         spans: this.spans.map(s => ({
           name: s.name,
           duration: s.duration,
@@ -81,7 +88,7 @@ class PerformanceTracker {
       const logLine = JSON.stringify(logEntry) + '\n';
       
       // Log to console - only if total exceeded budget
-      this.logger.warn(`⚠️ PERF ISSUE: ${this.operation} took ${totalDuration}ms (budget: ${PERF_BUDGETS.INBOX_TOTAL}ms)`);
+      this.logger.warn(`⚠️ PERF ISSUE: ${this.operation} (mode: ${mode || 'triage'}) took ${totalDuration}ms (budget: ${budget}ms)`);
       exceededSpans.forEach(s => {
         this.logger.warn(`   - ${s.name}: ${s.duration}ms exceeded budget of ${s.budget}ms`);
       });
@@ -128,10 +135,11 @@ export class EmailsService {
       );
     }
     
-    // OPTIMIZED: Single query with CTE for better PostgreSQL optimization
-    // This allows PostgreSQL to optimize the entire query plan
-    const endCombinedQuery = perf.startSpan('thread_query', PERF_BUDGETS.THREAD_QUERY);
-    
+    // OPTIMIZED: Single combined query that fetches threads + full email data in one round-trip
+    // This eliminates the second database round-trip, saving ~250ms network latency
+    const threadQueryBudget = mode === 'process' ? PERF_BUDGETS.THREAD_QUERY_PROCESS : PERF_BUDGETS.THREAD_QUERY;
+    const endCombinedQuery = perf.startSpan('combined_query', threadQueryBudget + PERF_BUDGETS.EMAIL_QUERY);
+
     // Build filter conditions
     let threadFilter = '';
     if (mode === 'process') {
@@ -139,142 +147,152 @@ export class EmailsService {
     } else {
       threadFilter = 'AND thread."isArchived" = false AND thread."starCount" = 0';
     }
-    
-    // Single optimized query: Get threads + best email IDs in one go
-    // PostgreSQL can optimize this better than separate queries
-    const emailIdsWithThreadInfo = await this.emailRepository.query(
-      `WITH matching_threads AS (
-        SELECT thread.id, thread."starCount", thread."isArchived"
-        FROM email_threads thread
-        WHERE thread."userId" = $1
-          ${threadFilter}
-        LIMIT 200
-      ),
-      best_emails AS (
-        SELECT DISTINCT ON (email."emailThreadId")
-          email.id,
-          email."emailThreadId",
-          mt."starCount",
-          mt."isArchived"
-        FROM matching_threads mt
-        INNER JOIN emails email ON email."emailThreadId" = mt.id
-        WHERE email."userId" = $1
-        ORDER BY email."emailThreadId", COALESCE(email."priorityScore", 50) DESC NULLS LAST, email."receivedAt" DESC
-      )
-      SELECT 
-        be.id as email_id,
-        be."emailThreadId" as thread_id,
-        be."starCount",
-        be."isArchived"
-      FROM best_emails be`,
+
+    // Single query: Get threads + full email data in one round-trip
+    // Uses LATERAL JOIN to find best email per thread, then fetches all needed fields
+    const rawEmails = await this.emailRepository.query(
+      `SELECT
+        thread."starCount",
+        thread."isArchived",
+        e.id,
+        e."userId",
+        e."threadId",
+        e."emailThreadId",
+        e."messageId",
+        e."from",
+        e."fromName",
+        e."senderJobTitle",
+        e.subject,
+        e."priorityScore",
+        e."isUrgent",
+        e."isSnoozed",
+        e."snoozeUntil",
+        e."isBatched",
+        e."batchReleaseAt",
+        e."isRead",
+        e.summary,
+        e."isProcessingPriority",
+        e."isProcessingSummary",
+        e."receivedAt",
+        e.labels
+      FROM email_threads thread
+      CROSS JOIN LATERAL (
+        SELECT *
+        FROM emails em
+        WHERE em."emailThreadId" = thread.id AND em."userId" = $1
+        ORDER BY COALESCE(em."priorityScore", 50) DESC NULLS LAST, em."receivedAt" DESC
+        LIMIT 1
+      ) e
+      WHERE thread."userId" = $1
+        ${threadFilter}
+      LIMIT 200`,
       [userId]
     );
-    
+
     endCombinedQuery();
-    
-    if (emailIdsWithThreadInfo.length === 0) {
-      perf.finish();
+
+    if (rawEmails.length === 0) {
+      perf.finish(mode);
       return [];
     }
+
+    this.logger.debug(`Found ${rawEmails.length} threads for mode=${mode}`);
     
-    this.logger.debug(`Found ${emailIdsWithThreadInfo.length} threads for mode=${mode}`);
-    
-    // Step 2: Fetch email entities with decryption
-    const endEmailQuery = perf.startSpan('email_query', PERF_BUDGETS.THREAD_QUERY);
-    
-    const emailIds = emailIdsWithThreadInfo.map((row: any) => row.email_id);
-    
-    // Create thread info map keyed by email_id (we'll look it up by email.id)
-    const threadInfoMap = new Map<string, { starCount: number; isArchived: boolean }>();
-    emailIdsWithThreadInfo.forEach((row: any) => {
-      threadInfoMap.set(row.email_id, {
+    // STEP 2: Decrypt encrypted fields and add thread info
+    const endDecryption = perf.startSpan('decryption', PERF_BUDGETS.DECRYPTION);
+
+    const threadRepresentatives: Email[] = rawEmails.map((row: any) => {
+      // Decrypt and parse labels (stored as encrypted JSON)
+      let labels: string[] | null = null;
+      if (row.labels) {
+        try {
+          const decryptedLabels = EncryptionHelper.decrypt(row.labels);
+          if (decryptedLabels) {
+            labels = JSON.parse(decryptedLabels);
+          }
+        } catch (error) {
+          this.logger.warn(`Failed to decrypt/parse labels for email ${row.id}:`, error);
+          labels = null;
+        }
+      }
+
+      return {
+        id: row.id,
+        userId: row.userId,
+        threadId: row.threadId,
+        emailThreadId: row.emailThreadId,
+        messageId: row.messageId,
+        from: EncryptionHelper.decrypt(row.from),
+        fromName: EncryptionHelper.decrypt(row.fromName),
+        senderJobTitle: EncryptionHelper.decrypt(row.senderJobTitle),
+        subject: EncryptionHelper.decrypt(row.subject),
+        priorityScore: row.priorityScore,
+        isUrgent: row.isUrgent,
+        isSnoozed: row.isSnoozed,
+        snoozeUntil: row.snoozeUntil,
+        isBatched: row.isBatched,
+        batchReleaseAt: row.batchReleaseAt,
+        isRead: row.isRead,
+        summary: EncryptionHelper.decrypt(row.summary),
+        isProcessingPriority: row.isProcessingPriority,
+        isProcessingSummary: row.isProcessingSummary,
+        receivedAt: row.receivedAt,
+        labels: labels || [],
+        // Thread-level properties from the combined query
         starCount: row.starCount,
         isArchived: row.isArchived,
-      });
+      } as unknown as Email;
     });
-    
-    // Fetch emails - TypeORM decrypts automatically
-    // We need these encrypted fields for display: from, fromName, subject, summary
-    const emails = await this.emailRepository
-      .createQueryBuilder('email')
-      .where('email.id IN (:...emailIds)', { emailIds })
-      .select([
-        'email.id',
-        'email.userId',
-        'email.threadId',
-        'email.emailThreadId',
-        'email.messageId',
-        'email.from',
-        'email.fromName',
-        'email.senderJobTitle',
-        'email.subject',
-        'email.priorityScore',
-        'email.isUrgent',
-        'email.isSnoozed',
-        'email.snoozeUntil',
-        'email.isBatched',
-        'email.batchReleaseAt',
-        'email.isRead',
-        'email.summary',
-        'email.isProcessingPriority',
-        'email.isProcessingSummary',
-        'email.receivedAt',
-        'email.labels',
-      ])
-      .getMany();
-    
-    endEmailQuery();
-    
-    // STEP 3: Combine email data with thread info
-    const endGrouping = perf.startSpan('thread_grouping', PERF_BUDGETS.THREAD_GROUPING);
-    
-    const threadRepresentatives: Email[] = [];
-    for (const email of emails) {
-      const threadInfo = threadInfoMap.get(email.id);
-      if (!threadInfo) continue;
-      
-      (email as any).starCount = threadInfo.starCount;
-      (email as any).isArchived = threadInfo.isArchived;
-      threadRepresentatives.push(email);
-    }
 
-    endGrouping();
+    endDecryption();
     
-    // STEP 4: Calculate priorities if needed (only for emails with default score)
+    // STEP 5: Calculate priorities if needed (only for emails with default score)
+    // OPTIMIZATION: Skip days calculation for inbox display - it's expensive and provides marginal value
+    // The priority score is already calculated when emails are first received
     const emailsNeedingPriority = threadRepresentatives.filter(e => !e.priorityScore || e.priorityScore === 50);
     if (emailsNeedingPriority.length > 0) {
       const endPriorityCalc = perf.startSpan('priority_calc', PERF_BUDGETS.PRIORITY_CALC);
-      
-      // Fetch context once for all emails
-      const contexts = await this.priorityService.getUserContexts(userId);
-      
-      // Batch calculate days since last email
-      const daysSinceLastEmailMap = await this.batchCalculateDaysSinceLastEmail(userId, emailsNeedingPriority);
-      
+
+      // Fetch context once for all emails using raw query for speed
+      const endGetContexts = perf.startSpan('priority_get_contexts', 100);
+      const contexts = await this.userContextRepository.query(
+        `SELECT "contextId", "userId", "contextKey", "contextValue", priority, explanation
+         FROM user_contexts WHERE "userId" = $1`,
+        [userId]
+      ) as UserContext[];
+      endGetContexts();
+
+      // OPTIMIZATION: Skip expensive days calculation for inbox display
+      // Days since last email provides marginal priority improvement (~5-15 points)
+      // but costs 250-2300ms in database queries
+      // Priority scores are already calculated on email receipt, so this is redundant
+
       // Calculate priority scores (synchronous, fast)
+      const endScoreCalc = perf.startSpan('priority_score_calc', 50);
       const updates = emailsNeedingPriority.map(email => ({
           id: email.id,
-        priorityScore: this.priorityService.calculateBasicPriorityScore(email, contexts, daysSinceLastEmailMap.get(email.id)),
+        priorityScore: this.priorityService.calculateBasicPriorityScore(email, contexts, undefined),
       }));
-      
+      endScoreCalc();
+
       // Update in-memory objects immediately
       updates.forEach(update => {
         const email = emailsNeedingPriority.find(e => e.id === update.id);
         if (email) email.priorityScore = update.priorityScore;
       });
-      
+
       // Batch update in DB (non-blocking)
       Promise.all(
-        updates.map(update => 
+        updates.map(update =>
           this.emailRepository.update(update.id, { priorityScore: update.priorityScore })
             .catch(err => this.logger.error(`Failed to update priority for email ${update.id}:`, err))
         )
       ).catch(err => this.logger.error('Error batch updating priorities:', err));
-      
+
       endPriorityCalc();
     }
 
-    // STEP 5: Sort by priority (DESC), then by received date (DESC)
+    // STEP 6: Sort by priority (DESC), then by received date (DESC)
     const sortedEmails = threadRepresentatives.sort((a, b) => {
       const aScore = a.priorityScore ?? 50;
       const bScore = b.priorityScore ?? 50;
@@ -284,7 +302,7 @@ export class EmailsService {
       return new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime();
     });
 
-    // STEP 6: Filter out blocked senders
+    // STEP 7: Filter out blocked senders
     const endBlockedFilter = perf.startSpan('blocked_filter', 50);
     const blockedEmailIds = await this.blockedSendersService.filterBlockedEmails(
       userId,
@@ -297,15 +315,15 @@ export class EmailsService {
     if (blockedEmailIds.length > 0) {
       this.logger.debug(`Filtered ${blockedEmailIds.length} emails from blocked senders`);
     }
-
-    // STEP 7: Convert labels (non-blocking background task)
+    
+    // STEP 8: Convert labels (non-blocking background task)
     this.convertEmailLabels(userId, filteredEmails).catch(err => 
       this.logger.error('Error converting labels:', err)
     );
 
-    this.logger.log(`getInbox(${mode}): Returning ${filteredEmails.length} threads (from ${emailIdsWithThreadInfo.length} matching threads, ${emails.length} total emails, ${blockedEmailIds.length} blocked)`);
+    this.logger.log(`getInbox(${mode}): Returning ${filteredEmails.length} threads (from ${rawEmails.length} matching threads, ${blockedEmailIds.length} blocked)`);
     
-    perf.finish();
+    perf.finish(mode);
     return filteredEmails;
   }
 
@@ -874,15 +892,26 @@ export class EmailsService {
 
         if (!earliestReceivedAt) return;
 
-        // Fetch all emails in this thread before the earliest one
-        // Note: We can't filter by 'from' efficiently due to encryption, so we fetch all and filter in memory
-        const previousEmails = await this.emailRepository
-          .createQueryBuilder('email')
-          .where('email.userId = :userId', { userId })
-          .andWhere('email.threadId = :threadId', { threadId })
-          .andWhere('email.receivedAt < :receivedAt', { receivedAt: earliestReceivedAt })
-          .orderBy('email.receivedAt', 'DESC')
-          .getMany();
+        // Fetch all emails in this thread before the earliest one using raw query
+        // Only fetch 'from' and 'receivedAt' to avoid decrypting unnecessary fields
+        const previousEmailsRaw = await this.emailRepository.query(
+          `
+          SELECT id, "from", "receivedAt"
+          FROM emails
+          WHERE "userId" = $1
+            AND "threadId" = $2
+            AND "receivedAt" < $3
+          ORDER BY "receivedAt" DESC
+          `,
+          [userId, threadId, earliestReceivedAt]
+        );
+        
+        // Decrypt only the 'from' field we need
+        const previousEmails = previousEmailsRaw.map((row: any) => ({
+          id: row.id,
+          from: EncryptionHelper.decrypt(row.from),
+          receivedAt: row.receivedAt,
+        }));
 
         // For each email in the batch, find the last email from the same sender BEFORE that email's receivedAt
         threadEmails.forEach(email => {
@@ -980,6 +1009,12 @@ export class EmailsService {
       throw new Error('Email not found');
     }
 
+    // Return precomputed explanation if available
+    if (email.priorityExplanation) {
+      return email.priorityExplanation;
+    }
+
+    // Fallback: compute explanation on demand if not precomputed (for legacy emails)
     // Get user context for prioritization
     const contexts = await this.userContextRepository.find({ where: { userId } });
     const daysSinceLastEmail = await this.calculateDaysSinceLastEmail(userId, email);
@@ -1170,11 +1205,17 @@ export class EmailsService {
     dimensions.goalAlignment.score = Math.max(0, Math.min(100, 50 + dimensions.goalAlignment.score));
     dimensions.vipContact.score = Math.max(0, Math.min(100, 50 + dimensions.vipContact.score));
 
-    return {
+    const explanation = {
       score: actualScore,
       dimensions,
       breakdown,
     };
+    
+    // Save the explanation for future use (non-blocking)
+    this.emailRepository.update({ id: emailId }, { priorityExplanation: explanation })
+      .catch(err => this.logger.warn(`Failed to save priority explanation for email ${emailId}:`, err));
+
+    return explanation;
   }
 
   private calculateJobTitleScore(jobTitle: string): number {

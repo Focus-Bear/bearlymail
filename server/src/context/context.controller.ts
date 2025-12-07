@@ -39,10 +39,30 @@ export class ContextController {
         };
       }
       
+      // Generate progress message based on progress percentage
+      const percent = (user.scanProgress / user.scanTotal) * 100;
+      let message = '';
+      if (percent < 30) {
+        message = 'Fetching emails from your inbox...';
+      } else if (percent < 40) {
+        message = 'Identifying VIP contacts from starred emails...';
+      } else if (percent < 75) {
+        message = 'Analyzing email patterns with AI...';
+      } else if (percent < 85) {
+        message = 'Extracting common Q&A from your replies...';
+      } else if (percent < 95) {
+        message = 'Saving insights to your context...';
+      } else if (percent < 100) {
+        message = 'Finalizing analysis...';
+      } else {
+        message = 'Analysis complete!';
+      }
+      
       return {
         progress: {
           current: user.scanProgress,
           total: user.scanTotal,
+          message,
         },
         error: null,
       };

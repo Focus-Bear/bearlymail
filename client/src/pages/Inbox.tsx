@@ -6,51 +6,73 @@ import axios from 'axios';
 import { theme } from '../theme/theme';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { StarDiscrepancyModal } from '../components/priority/StarDiscrepancyModal';
-
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-
-interface Email {
-  id: string;
-  threadId: string;
-  from: string;
-  fromName?: string;
-  subject: string;
-  body?: string; // Optional - not included in inbox list queries for performance
-  priorityScore: number;
-  isRead: boolean;
-  isSnoozed: boolean;
-  snoozeUntil?: string;
-  receivedAt: string;
-  isProcessingPriority?: boolean;
-  isProcessingSummary?: boolean;
-  summary?: string | null;
-  starCount?: number;
-  isArchived?: boolean;
-  labels?: string[];
-}
+import { EmailDetailInline } from '../components/EmailDetailInline';
+import { Email } from '../types/email';
+import { API_URL } from '../config/api';
+import {
+  useEmailManagement,
+  useTriageSuggestions,
+  useEmailSelection,
+  useBatchSchedule,
+  useKeyboardShortcuts,
+} from '../hooks';
 
 const Inbox: React.FC = () => {
   const { t } = useTranslation();
   const { user, logout, refreshUser, loading: authLoading } = useAuth();
-  const [emails, setEmails] = useState<Email[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [decrypting, setDecrypting] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loadingModeSwitch, setLoadingModeSwitch] = useState(false);
-  const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
-  const [nextDelivery, setNextDelivery] = useState<Date | null>(null);
+
+  // Mode state (kept here as it's used by multiple hooks)
   const [mode, setMode] = useState<'triage' | 'process'>('triage');
+
+  // Triage suggestions hook
+  const {
+    triageSuggestions,
+    loadingSuggestions,
+    fetchTriageSuggestions,
+    removeSuggestion,
+    clearSuggestionsCache,
+  } = useTriageSuggestions();
+
+  // Email management hook
+  const {
+    emails,
+    setEmails,
+    loading,
+    decrypting,
+    loadingModeSwitch,
+    setLoadingModeSwitch,
+    fetchError,
+    fetchEmails,
+    handleSetStarCount: handleSetStarCountBase,
+    handleArchive: handleArchiveBase,
+    handleSnooze: handleSnoozeBase,
+    handleMarkAsRead,
+  } = useEmailManagement({ mode, onSuggestionRemove: removeSuggestion });
+
+  // Batch schedule hook
+  const { nextDelivery, fetchBatchStatus } = useBatchSchedule();
+
+  // Email selection hook
+  const {
+    selectedEmailIndex,
+    setSelectedEmailIndex,
+    selectedEmailIds,
+    setSelectedEmailIds,
+    handleEmailClick: handleEmailClickBase,
+  } = useEmailSelection(mode, emails.length);
+
+  // Local state that can't easily be moved to hooks
+  const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
+  const isInitializingRef = useRef(false);
   const [snoozeInput, setSnoozeInput] = useState<{ [key: string]: string }>({});
   const [showSnoozeInput, setShowSnoozeInput] = useState<string | null>(null);
-  
-  // Onboarding state
+
+  // Onboarding state (partial - some moved to hook)
   const [tourStep, setTourStep] = useState<number | null>(null);
   const [showScanModal, setShowScanModal] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [scanNotification, setScanNotification] = useState<{ show: boolean; progress: { current: number; total: number } | null }>({ show: false, progress: null });
   const [urgentNotification, setUrgentNotification] = useState<{ show: boolean; count: number; emails: Array<{ subject: string; from: string; priorityScore: number }> }>({ show: false, count: 0, emails: [] });
-  const [triageSuggestions, setTriageSuggestions] = useState<Map<string, { suggestedStarCount: number; suggestedArchive: boolean; confidence: number; reasoning: string }>>(new Map());
-  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [debugViewOpen, setDebugViewOpen] = useState(false);
   const [debugStarredData, setDebugStarredData] = useState<{
     gmail: {
@@ -117,11 +139,8 @@ const Inbox: React.FC = () => {
   
   // Block sender confirmation modal state
   const [blockConfirmEmail, setBlockConfirmEmail] = useState<Email | null>(null);
-  
-  // Keyboard navigation and multi-select state
-  const [selectedEmailIndex, setSelectedEmailIndex] = useState<number>(-1);
-  const [selectedEmailIds, setSelectedEmailIds] = useState<Set<string>>(new Set());
-  const [lastSelectedIndex, setLastSelectedIndex] = useState<number>(-1);
+
+  // Keyboard hint state
   const [showKeyboardHint, setShowKeyboardHint] = useState<{ emailId: string; action: string } | null>(null);
   
   // Priority tooltip state
@@ -136,11 +155,22 @@ const Inbox: React.FC = () => {
     breakdown: Array<{ factor: string; value: number; description: string }>;
   } | null>(null);
   const [loadingPriorityExplanation, setLoadingPriorityExplanation] = useState(false);
+  
+  // Check if user has run context analysis
+  const [hasRunAnalysis, setHasRunAnalysis] = useState<boolean | null>(null);
+  
+  // Split view state
+  const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
+  const [panelExpanded, setPanelExpanded] = useState(false); // false = split view, true = full width
 
   // Tour element refs
   const triageTabRef = useRef<HTMLButtonElement>(null);
   const processTabRef = useRef<HTMLButtonElement>(null);
   const deliverBtnRef = useRef<HTMLButtonElement>(null);
+  
+  // Track previous mode and emails length to prevent unnecessary refetches
+  const prevModeRef = useRef<'triage' | 'process' | null>(null);
+  const prevEmailsLengthRef = useRef<number>(0);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -152,176 +182,29 @@ const Inbox: React.FC = () => {
     { title: t('onboarding.tour.deliveryTitle'), content: t('onboarding.tour.deliveryContent') },
   ];
 
-  const fetchBatchStatus = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/emails/batch-status`);
-      if (response.data.nextDelivery) {
-        setNextDelivery(new Date(response.data.nextDelivery));
-      } else {
-        setNextDelivery(null);
-      }
-    } catch (error) {
-      console.error('Error fetching batch status:', error);
-    }
-  };
-
-  const fetchEmails = useCallback(async () => {
-    setDecrypting(true); // Show "Decrypting..." during request
-    try {
-      // Pass mode param (includeBatched is now irrelevant as user only sees what's delivered)
-      const response = await axios.get(`${API_URL}/emails/inbox?mode=${mode}`);
-      console.log(`Fetched ${response.data.length} emails for mode: ${mode}`, response.data);
-      setEmails(response.data);
-      setDecrypting(false); // Decryption complete
-    } catch (error) {
-      console.error('Error fetching emails:', error);
-      setDecrypting(false);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-      setLoadingModeSwitch(false);
-    }
-  }, [mode]);
-
-  const handleOverrideSuggestion = useCallback(async (
-    emailId: string,
-    suggestion: any,
-    userAction: { starCount: number; archived: boolean }
-  ) => {
-    try {
-      // Track the override for learning
-      await axios.post(`${API_URL}/priority/triage-suggestions/override`, {
-        emailId,
-        suggestion,
-        userAction,
-      });
-      // Remove suggestion from map
-      const newSuggestions = new Map(triageSuggestions);
-      newSuggestions.delete(emailId);
-      setTriageSuggestions(newSuggestions);
-    } catch (error) {
-      console.error('Error tracking override:', error);
-    }
-  }, [triageSuggestions]);
-
-  const fetchTriageSuggestions = useCallback(async () => {
-    if (emails.length === 0 || loadingSuggestions) return;
-    
-    setLoadingSuggestions(true);
-    try {
-      const emailIds = emails.slice(0, 20).map(e => e.id); // Limit to first 20 emails
-      const response = await axios.post(`${API_URL}/priority/triage-suggestions`, { emailIds });
-      const suggestionsMap = new Map();
-      response.data.forEach((suggestion: any) => {
-        suggestionsMap.set(suggestion.emailId, suggestion);
-      });
-      setTriageSuggestions(suggestionsMap);
-    } catch (error) {
-      console.error('Error fetching triage suggestions:', error);
-    } finally {
-      setLoadingSuggestions(false);
-    }
-  }, [emails, loadingSuggestions]);
-
+  // Wrapper handlers that add extra functionality on top of hooks
   const handleSetStarCount = useCallback(async (emailId: string, starCount: number, e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    
-    // Get the email to check for discrepancy
-    const email = emails.find(e => e.id === emailId);
-    const predictedStarCount = email 
-      ? Math.round((email.priorityScore / 100) * 3) 
-      : Math.round(50 / 100 * 3); // Default to 1 if email not found
-    
-    // Optimistic update - update UI immediately
-    setEmails(prevEmails => prevEmails.map(email => 
-      email.id === emailId ? { ...email, starCount } : email
-    ));
-    
-    // Remove suggestion immediately
-    const suggestion = triageSuggestions.get(emailId);
-    if (suggestion) {
-      const newSuggestions = new Map(triageSuggestions);
-      newSuggestions.delete(emailId);
-      setTriageSuggestions(newSuggestions);
+    const result = await handleSetStarCountBase(emailId, starCount, e);
+    // Show star discrepancy modal if needed
+    if (result && result.discrepancy >= 2 && starCount > 0) {
+      setStarDiscrepancyModal({
+        show: true,
+        emailId,
+        userStarCount: starCount,
+        predictedStarCount: result.predictedStarCount,
+      });
     }
-    
-    try {
-      await axios.put(`${API_URL}/emails/${emailId}/star-count`, { starCount });
-      
-      // Track override if there was a suggestion
-      if (suggestion) {
-        await handleOverrideSuggestion(emailId, suggestion, { 
-          starCount, 
-          archived: false 
-        });
-      }
-      
-      // Check for star discrepancy (difference of 2 or more, and user gave stars)
-      const discrepancy = Math.abs(starCount - predictedStarCount);
-      if (discrepancy >= 2 && starCount > 0) {
-        setStarDiscrepancyModal({
-          show: true,
-          emailId,
-          userStarCount: starCount,
-          predictedStarCount,
-        });
-      }
-      
-      // Refresh to ensure consistency (non-blocking)
-      fetchEmails().catch(err => console.error('Error refreshing after star update:', err));
-    } catch (error) {
-      console.error('Error setting star count:', error);
-      // Revert optimistic update on error
-      fetchEmails();
-    }
-  }, [emails, triageSuggestions, fetchEmails, handleOverrideSuggestion]);
+  }, [handleSetStarCountBase]);
 
   const handleArchive = useCallback(async (emailId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    
-    // Optimistic update - remove from UI immediately
-    const emailToArchive = emails.find(e => e.id === emailId);
-    setEmails(prevEmails => prevEmails.filter(email => email.id !== emailId));
-    
     // Remove from selection if selected
     setSelectedEmailIds(prev => {
       const newSet = new Set(prev);
       newSet.delete(emailId);
       return newSet;
     });
-    
-    // Remove suggestion immediately
-    const suggestion = triageSuggestions.get(emailId);
-    if (suggestion) {
-      const newSuggestions = new Map(triageSuggestions);
-      newSuggestions.delete(emailId);
-      setTriageSuggestions(newSuggestions);
-    }
-    
-    try {
-      await axios.put(`${API_URL}/emails/${emailId}/archive`);
-      
-      // Track override if there was a suggestion
-      if (suggestion) {
-        await handleOverrideSuggestion(emailId, suggestion, { 
-          starCount: 0, 
-          archived: true 
-        });
-      }
-      
-      // Refresh to ensure consistency (non-blocking, but don't block UI)
-      fetchEmails().catch(err => console.error('Error refreshing after archive:', err));
-    } catch (error) {
-      console.error('Error archiving email:', error);
-      // Revert optimistic update on error - restore the email
-      if (emailToArchive) {
-        setEmails(prevEmails => [...prevEmails, emailToArchive].sort((a, b) => 
-          new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime()
-        ));
-      }
-      fetchEmails();
-    }
-  }, [emails, triageSuggestions, fetchEmails, handleOverrideSuggestion]);
+    await handleArchiveBase(emailId, e);
+  }, [handleArchiveBase, setSelectedEmailIds]);
 
   const handleBlockSender = useCallback((emailId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -352,7 +235,7 @@ const Inbox: React.FC = () => {
         new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime()
       ));
     }
-  }, [blockConfirmEmail, fetchEmails]);
+  }, [blockConfirmEmail, fetchEmails, setEmails]);
 
   const fetchDebugStarredThreads = async () => {
     setLoadingDebugData(true);
@@ -394,46 +277,9 @@ const Inbox: React.FC = () => {
     }
   };
 
-  const handleCheckUrgent = async () => {
-    setRefreshing(true);
-    try {
-      const response = await axios.post(`${API_URL}/emails/check-urgent`);
-      if (response.data.hasUrgent) {
-        // Show notification with urgent email info - don't auto-dismiss, let user dismiss manually
-        setUrgentNotification({
-          show: true,
-          count: response.data.urgentCount,
-          emails: response.data.urgentEmails || [],
-        });
-        // Don't auto-hide urgent notifications - user should dismiss manually
-      } else {
-        // Show brief "no urgent emails" message - stay visible longer so user can see it
-        setUrgentNotification({
-          show: true,
-          count: 0,
-          emails: [],
-        });
-        // Keep it visible for 8 seconds so user can see the confirmation
-        setTimeout(() => {
-          setUrgentNotification(prev => {
-            // Only auto-hide if still showing "no urgent" (count is 0)
-            if (prev.count === 0) {
-              return { show: false, count: 0, emails: [] };
-            }
-            return prev; // Keep urgent notifications visible
-          });
-        }, 8000);
-      }
-      // Refresh batch status
-      fetchBatchStatus();
-    } catch (error) {
-      console.error('Error checking for urgent emails:', error);
-    } finally {
-      setRefreshing(false);
-    }
-  };
 
-  const handleSnooze = async (emailId: string) => {
+  // Wrapper for handleSnooze that manages input state
+  const handleSnooze = useCallback(async (emailId: string) => {
     const duration = snoozeInput[emailId]?.trim();
     if (!duration) {
       console.warn('Cannot snooze: duration is empty');
@@ -441,25 +287,16 @@ const Inbox: React.FC = () => {
     }
 
     try {
-      await axios.post(`${API_URL}/snooze/${emailId}`, { duration });
+      await handleSnoozeBase(emailId, duration);
       setShowSnoozeInput(null);
-      setSnoozeInput({ ...snoozeInput, [emailId]: '' });
-      fetchEmails();
+      setSnoozeInput(prev => ({ ...prev, [emailId]: '' }));
     } catch (error: any) {
       console.error('Error snoozing email:', error);
       alert(error.response?.data?.message || 'Failed to snooze email. Please try again.');
     }
-  };
+  }, [snoozeInput, handleSnoozeBase]);
 
-  const handleMarkAsRead = async (emailId: string) => {
-    try {
-      await axios.put(`${API_URL}/emails/${emailId}/read`);
-      // Update local state instantly for better UX
-      setEmails(emails.map(e => e.id === emailId ? { ...e, isRead: true } : e));
-    } catch (error) {
-      console.error('Error marking as read:', error);
-    }
-  };
+  // handleMarkAsRead is now provided by useEmailManagement hook
 
   const handleBulkArchive = async () => {
     if (selectedEmailIds.size === 0) return;
@@ -579,6 +416,27 @@ const Inbox: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [emails.filter(e => e.isProcessingPriority || e.isProcessingSummary).length]); // Only re-run when processing count changes
 
+  // Close priority tooltip when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      // Check if click is outside any priority tooltip or badge
+      const isClickOnPriorityBadge = target.closest('[data-priority-badge]');
+      const isClickOnTooltip = target.closest('[data-priority-tooltip]');
+      
+      if (!isClickOnPriorityBadge && !isClickOnTooltip && hoveredPriorityEmailId) {
+        setHoveredPriorityEmailId(null);
+        setPriorityExplanation(null);
+      }
+    };
+
+    if (hoveredPriorityEmailId) {
+      // Use mousedown instead of click to catch it before the email card onClick
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [hoveredPriorityEmailId]);
+
   const markTourComplete = async () => {
     try {
       await axios.put(`${API_URL}/users/me`, { hasSeenTour: true });
@@ -626,144 +484,134 @@ const Inbox: React.FC = () => {
   // Wait for auth to finish, then fetch emails on initial load
   useEffect(() => {
     if (authLoading) return; // Still loading auth
-    
+
     if (!user) {
-      setLoading(false); // No user, stop loading
+      // No user, no need to fetch - loading state will be cleared when user logs in
       return;
     }
     
-    // Only run once on initial load
-    if (hasInitiallyLoaded) return;
+    // Only run once on initial load - use ref to prevent React StrictMode double-calls
+    if (hasInitiallyLoaded || isInitializingRef.current) return;
     
-    // Refresh user data on mount to ensure we have latest state (including hasScannedHistory)
+    // Initialize all data in parallel for better performance
     const initializeData = async () => {
-      // Refresh user to get latest hasScannedHistory from DB
-      await refreshUser();
-      
+      isInitializingRef.current = true;
       setHasInitiallyLoaded(true);
-      fetchEmails();
-      fetchBatchStatus();
       
-      // Trigger sync in background after a short delay (only if user is connected)
-      setTimeout(() => {
-        axios.post(`${API_URL}/emails/check-urgent`).catch(err => 
-          console.error('Error triggering initial email sync:', err)
-        );
-      }, 2000);
+      try {
+        // Run all independent API calls in parallel for better performance
+        // Note: We don't call refreshUser here since AuthContext already fetches user on mount
+        // Only fetch if we really need fresh data (e.g., after scan completes)
+        await Promise.all([
+          // Fetch emails and batch status in parallel (these are the most important)
+          fetchEmails().catch(err => console.error('Error fetching emails:', err)),
+          fetchBatchStatus().catch(err => console.error('Error fetching batch status:', err)),
+          
+          // Check if user has run context analysis (independent, can run in parallel)
+          axios.get(`${API_URL}/context`)
+            .then((contextResponse) => {
+              const contexts = contextResponse.data || [];
+              const hasAutogenerated = contexts.some((c: any) => c.source === 'AUTOGENERATED');
+              setHasRunAnalysis(hasAutogenerated);
+            })
+            .catch((error) => {
+              console.error('Error fetching contexts:', error);
+              setHasRunAnalysis(false); // Default to showing button if we can't check
+            })
+            .finally(() => {
+              // Ensure this promise resolves even if there's an error
+            })
+        ]);
+      } finally {
+        isInitializingRef.current = false;
+      }
     };
     
     initializeData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, user, hasInitiallyLoaded]); // Intentionally exclude fetchEmails and refreshUser to prevent loops
 
+  // Track previous mode to detect actual changes (separate from the one used for triage suggestions)
+  const prevModeForFetchRef = useRef<'triage' | 'process' | null>(null);
+  const hasSetInitialModeRef = useRef(false);
+  
   // Re-fetch when mode changes (after initial load)
   useEffect(() => {
-    if (!hasInitiallyLoaded || !user || authLoading) return;
+    // Skip if not initially loaded, no user, or auth still loading
+    if (!hasInitiallyLoaded || !user || authLoading) {
+      return;
+    }
+    
+    // Store initial mode on first run after initial load (don't fetch yet)
+    if (!hasSetInitialModeRef.current) {
+      prevModeForFetchRef.current = mode;
+      hasSetInitialModeRef.current = true;
+      return; // Don't fetch on first run after initial load
+    }
+    
+    // Only fetch if mode actually changed
+    if (prevModeForFetchRef.current === mode) {
+      return; // Mode hasn't changed, skip
+    }
+    
+    // Mode changed - update ref and fetch
+    prevModeForFetchRef.current = mode;
     
     // Clear emails IMMEDIATELY when switching tabs to prevent showing stale data
     setEmails([]);
     setLoadingModeSwitch(true);
-    
-    fetchEmails().finally(() => {
+
+    // Reset triage suggestions cache when mode changes
+    clearSuggestionsCache();
+
+    // Fetch emails and batch status in parallel
+    Promise.all([
+      fetchEmails().catch(err => console.error('Error fetching emails on mode change:', err)),
+      fetchBatchStatus().catch(err => console.error('Error fetching batch status on mode change:', err))
+    ]).finally(() => {
       setLoadingModeSwitch(false);
     });
-    fetchBatchStatus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode]); // Only trigger on mode change, not on fetchEmails recreation
+  }, [mode, fetchEmails, fetchBatchStatus, setEmails, setLoadingModeSwitch, clearSuggestionsCache]);
 
   // Fetch triage suggestions when in triage mode with emails
+  // Use refs to track if we need to refetch (only when mode changes or emails actually change)
   useEffect(() => {
-    if (mode === 'triage' && emails.length > 0 && !loadingSuggestions) {
-      fetchTriageSuggestions();
+    // Only fetch if:
+    // 1. We're in triage mode
+    // 2. We have emails
+    // 3. Not currently loading
+    // 4. Mode changed OR emails length changed (new emails loaded)
+    const modeChanged = prevModeRef.current !== mode;
+    const emailsChanged = prevEmailsLengthRef.current !== emails.length;
+    
+    if (mode === 'triage' && emails.length > 0 && !loadingSuggestions && (modeChanged || emailsChanged)) {
+      fetchTriageSuggestions(emails);
+      prevModeRef.current = mode;
+      prevEmailsLengthRef.current = emails.length;
+    } else if (mode !== 'triage') {
+      // Reset refs when not in triage mode
+      prevModeRef.current = mode;
+      clearSuggestionsCache(); // Clear cached email IDs when switching modes
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, emails.length]); // Intentionally exclude loadingSuggestions and fetchTriageSuggestions to prevent loops
+  }, [mode, emails.length, loadingSuggestions]); // Include loadingSuggestions to prevent race conditions
 
-  // Keyboard shortcuts handler
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't intercept if user is typing in an input
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return;
-      }
+  // Use keyboard shortcuts hook
+  useKeyboardShortcuts({
+    emails,
+    selectedEmailIndex,
+    selectedEmailIds,
+    setSelectedEmailIndex,
+    onArchive: handleArchive,
+    onSetStarCount: handleSetStarCount,
+  });
 
-      // Up/Down arrow keys for navigation
-      if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setSelectedEmailIndex(prev => Math.max(0, prev - 1));
-      } else if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        setSelectedEmailIndex(prev => Math.min(emails.length - 1, prev + 1));
-      }
-      // Number keys 1-3 for star count
-      else if (e.key === '1' || e.key === '2' || e.key === '3') {
-        e.preventDefault();
-        const starCount = parseInt(e.key);
-        if (selectedEmailIndex >= 0 && selectedEmailIndex < emails.length) {
-          const email = emails[selectedEmailIndex];
-          handleSetStarCount(email.id, starCount);
-        } else if (selectedEmailIds.size > 0) {
-          // Bulk operation on selected emails
-          Promise.all(Array.from(selectedEmailIds).map(id => handleSetStarCount(id, starCount)));
-        }
-      }
-      // Delete/Backspace for archive
-      else if (e.key === 'Delete' || e.key === 'Backspace') {
-        e.preventDefault();
-        if (selectedEmailIndex >= 0 && selectedEmailIndex < emails.length) {
-          const email = emails[selectedEmailIndex];
-          handleArchive(email.id, { stopPropagation: () => {} } as React.MouseEvent);
-        } else if (selectedEmailIds.size > 0) {
-          // Bulk archive
-          Promise.all(Array.from(selectedEmailIds).map(id => 
-            handleArchive(id, { stopPropagation: () => {} } as React.MouseEvent)
-          ));
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [emails, selectedEmailIndex, selectedEmailIds, handleArchive, handleSetStarCount]);
-
-  // Reset selection when emails change
-  useEffect(() => {
-    setSelectedEmailIndex(-1);
-    setSelectedEmailIds(new Set());
-  }, [mode, emails.length]);
-
-  // Handle email click for multi-select
-  const handleEmailClick = (emailId: string, index: number, e: React.MouseEvent) => {
+  // Wrapper for email click that passes emails array
+  const handleEmailClick = useCallback((emailId: string, index: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    
-    if (e.shiftKey && lastSelectedIndex >= 0) {
-      // Shift+Click: Select range
-      const start = Math.min(lastSelectedIndex, index);
-      const end = Math.max(lastSelectedIndex, index);
-      const newSelected = new Set(selectedEmailIds);
-      for (let i = start; i <= end; i++) {
-        newSelected.add(emails[i].id);
-      }
-      setSelectedEmailIds(newSelected);
-      setSelectedEmailIndex(index);
-    } else if (e.ctrlKey || e.metaKey) {
-      // Ctrl/Cmd+Click: Toggle selection
-      const newSelected = new Set(selectedEmailIds);
-      if (newSelected.has(emailId)) {
-        newSelected.delete(emailId);
-      } else {
-        newSelected.add(emailId);
-      }
-      setSelectedEmailIds(newSelected);
-      setSelectedEmailIndex(index);
-      setLastSelectedIndex(index);
-    } else {
-      // Regular click: Single selection
-      setSelectedEmailIds(new Set([emailId]));
-      setSelectedEmailIndex(index);
-      setLastSelectedIndex(index);
-    }
-  };
+    handleEmailClickBase(emailId, index, e, emails);
+  }, [handleEmailClickBase, emails]);
 
 
 
@@ -1355,31 +1203,28 @@ const Inbox: React.FC = () => {
               ✉️ Compose
             </button>
 
-            <button
-              ref={deliverBtnRef}
-              className="deliver-btn"
-              onClick={handleCheckUrgent}
-              disabled={refreshing}
-              style={{
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                backgroundColor: theme.colors.primary.main,
-                color: 'white',
-                border: 'none',
-                borderRadius: theme.borderRadius.md,
-                cursor: refreshing ? 'wait' : 'pointer',
-                fontSize: theme.typography.fontSize.xs,
-                fontWeight: theme.typography.fontWeight.medium,
-                display: 'flex',
-                alignItems: 'center',
-                gap: theme.spacing.sm,
-                opacity: refreshing ? 0.7 : 1,
-                transition: theme.transitions.fast,
-              }}
-              onMouseEnter={(e) => !refreshing && (e.currentTarget.style.backgroundColor = theme.colors.primary.dark)}
-              onMouseLeave={(e) => !refreshing && (e.currentTarget.style.backgroundColor = theme.colors.primary.main)}
-            >
-              {refreshing ? t('inbox.checkingUrgent') : t('inbox.checkUrgent')}
-            </button>
+            {/* Only show Analyze Emails button if user hasn't run analysis yet */}
+            {hasRunAnalysis === false && (
+              <button
+                onClick={() => navigate('/settings#context')}
+                style={{
+                  padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+                  backgroundColor: theme.colors.accent.info,
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: theme.borderRadius.md,
+                  cursor: 'pointer',
+                  fontSize: theme.typography.fontSize.xs,
+                  fontWeight: theme.typography.fontWeight.medium,
+                  transition: theme.transitions.fast,
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#0284c7'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = theme.colors.accent.info}
+              >
+                🔍 Analyze Emails
+              </button>
+            )}
+
           </div>
         </header>
 
@@ -1792,9 +1637,21 @@ const Inbox: React.FC = () => {
               </div>
             )}
 
-            {/* Email List */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: theme.spacing['2xl'] }}>
-              <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
+            {/* Main Content Area - Split View */}
+            <div style={{ 
+              flex: 1, 
+              display: 'flex', 
+              overflow: 'hidden',
+            }}>
+              {/* Email List */}
+              <div style={{ 
+                flex: panelExpanded && selectedEmailId ? 0 : selectedEmailId ? '0 0 50%' : 1,
+                overflowY: 'auto', 
+                padding: theme.spacing['2xl'],
+                transition: 'flex 0.3s ease',
+                borderRight: selectedEmailId && !panelExpanded ? `1px solid ${theme.colors.border.light}` : 'none',
+              }}>
+                <div style={{ maxWidth: selectedEmailId ? '100%' : '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
                 {loading || !hasInitiallyLoaded || loadingModeSwitch ? (
                   // Show loading state while emails are being fetched
                   <div style={{
@@ -1824,6 +1681,45 @@ const Inbox: React.FC = () => {
                     <p style={{ color: theme.colors.text.secondary }}>
                       {t('inbox.loadingEmailsSub')}
                     </p>
+                  </div>
+                ) : fetchError ? (
+                  // Show error message if fetch failed
+                  <div style={{
+                    padding: theme.spacing['3xl'],
+                    textAlign: 'center',
+                    backgroundColor: theme.colors.background.paper,
+                    borderRadius: theme.borderRadius.xl,
+                    border: `2px solid ${theme.colors.accent.error}`,
+                  }}>
+                    <div style={{ fontSize: '3rem', marginBottom: theme.spacing.md }}>⚠️</div>
+                    <h3 style={{ 
+                      color: theme.colors.accent.error, 
+                      marginBottom: theme.spacing.sm,
+                      fontWeight: theme.typography.fontWeight.semibold 
+                    }}>
+                      Error Loading Emails
+                    </h3>
+                    <p style={{ 
+                      color: theme.colors.text.secondary,
+                      marginBottom: theme.spacing.lg,
+                    }}>
+                      {fetchError}
+                    </p>
+                    <button
+                      onClick={() => fetchEmails()}
+                      style={{
+                        padding: `${theme.spacing.md} ${theme.spacing.xl}`,
+                        backgroundColor: theme.colors.primary.main,
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: theme.borderRadius.md,
+                        cursor: 'pointer',
+                        fontSize: theme.typography.fontSize.base,
+                        fontWeight: theme.typography.fontWeight.medium,
+                      }}
+                    >
+                      Try Again
+                    </button>
                   </div>
                 ) : emails.length === 0 && !loading && !loadingModeSwitch ? (
                   // Show inbox zero only after emails have loaded and there are none (and not switching modes)
@@ -1935,6 +1831,12 @@ const Inbox: React.FC = () => {
                     )}
                     <div
                       onClick={(e) => {
+                        // Don't open email if clicking on priority badge or tooltip
+                        const target = e.target as HTMLElement;
+                        if (target.closest('[data-priority-badge]') || target.closest('[data-priority-tooltip]')) {
+                          return; // Priority tooltip handles its own clicks
+                        }
+                        
                         if (e.ctrlKey || e.metaKey || e.shiftKey) {
                           handleEmailClick(email.id, index, e);
                         } else {
@@ -1973,6 +1875,7 @@ const Inbox: React.FC = () => {
                           {email.fromName || email.from}
                         </strong>
                         <span 
+                          data-priority-badge={email.id}
                           style={{
                             fontSize: theme.typography.fontSize.xs,
                             padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
@@ -1983,27 +1886,29 @@ const Inbox: React.FC = () => {
                             display: 'flex',
                             alignItems: 'center',
                             gap: theme.spacing.xs,
-                            cursor: 'help',
+                            cursor: 'pointer', // Changed from 'help' since it's click-only now
                             position: 'relative',
+                            zIndex: 10, // Ensure tooltip is above email card
                           }}
-                          onMouseEnter={async () => {
+                          onClick={(e) => {
+                            // Prevent click from bubbling to parent div (which opens email)
+                            e.stopPropagation();
+                            e.preventDefault();
                             if (email.isProcessingPriority) return;
-                            setHoveredPriorityEmailId(email.id);
-                            if (!loadingPriorityExplanation) {
-                              setLoadingPriorityExplanation(true);
-                              try {
-                                const response = await axios.get(`${API_URL}/emails/${email.id}/priority-explanation`);
-                                setPriorityExplanation(response.data);
-                              } catch (error) {
-                                console.error('Error fetching priority explanation:', error);
-                              } finally {
-                                setLoadingPriorityExplanation(false);
+                            // Toggle tooltip on click only (no hover)
+                            if (hoveredPriorityEmailId === email.id) {
+                              setHoveredPriorityEmailId(null);
+                              setPriorityExplanation(null);
+                            } else {
+                              setHoveredPriorityEmailId(email.id);
+                              if (!loadingPriorityExplanation && !priorityExplanation) {
+                                setLoadingPriorityExplanation(true);
+                                axios.get(`${API_URL}/emails/${email.id}/priority-explanation`)
+                                  .then(response => setPriorityExplanation(response.data))
+                                  .catch(error => console.error('Error fetching priority explanation:', error))
+                                  .finally(() => setLoadingPriorityExplanation(false));
                               }
                             }
-                          }}
-                          onMouseLeave={() => {
-                            setHoveredPriorityEmailId(null);
-                            setPriorityExplanation(null);
                           }}
                         >
                           {email.isProcessingPriority ? (
@@ -2026,25 +1931,35 @@ const Inbox: React.FC = () => {
                           {/* Priority Explanation Tooltip */}
                           {hoveredPriorityEmailId === email.id && (
                             <div
+                              data-priority-tooltip={email.id}
                               style={{
-                                position: 'absolute',
-                                top: '100%',
+                                position: 'fixed',
+                                // Center on screen to avoid cutoff
                                 left: '50%',
-                                transform: 'translateX(-50%)',
-                                marginTop: '8px',
+                                top: '50%',
+                                transform: 'translate(-50%, -50%)',
                                 backgroundColor: theme.colors.background.paper,
                                 border: `1px solid ${theme.colors.border.light}`,
                                 borderRadius: theme.borderRadius.md,
                                 padding: theme.spacing.md,
-                                boxShadow: theme.shadows.lg,
-                                zIndex: 1000,
-                                minWidth: '300px',
-                                maxWidth: '400px',
+                                boxShadow: theme.shadows.xl,
+                                zIndex: 10000,
+                                minWidth: '350px',
+                                maxWidth: '500px',
+                                maxHeight: '80vh',
+                                overflowY: 'auto',
                                 fontSize: theme.typography.fontSize.sm,
                                 color: theme.colors.text.primary,
                                 textAlign: 'left',
                               }}
-                              onClick={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                              }}
+                              onMouseDown={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                              }}
                             >
                               {loadingPriorityExplanation ? (
                                 <div style={{ textAlign: 'center', padding: theme.spacing.md }}>
@@ -2436,8 +2351,79 @@ const Inbox: React.FC = () => {
                 </pre>
               </details>
             </div>
-          </div>
-        </div>
+                </div>
+              </div>
+
+              {/* Email Detail Panel - Split View */}
+              {selectedEmailId && (
+                <div style={{
+                  flex: panelExpanded ? 1 : '0 0 50%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  backgroundColor: theme.colors.background.paper,
+                  borderLeft: `1px solid ${theme.colors.border.light}`,
+                  transition: 'flex 0.3s ease',
+                  overflow: 'hidden',
+                }}>
+                  {/* Panel Header with buttons */}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: theme.spacing.md,
+                    borderBottom: `1px solid ${theme.colors.border.light}`,
+                    backgroundColor: theme.colors.background.subtle,
+                  }}>
+                    <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
+                      Email Details
+                    </div>
+                    <div style={{ display: 'flex', gap: theme.spacing.xs }}>
+                      <button
+                        onClick={() => setPanelExpanded(!panelExpanded)}
+                        style={{
+                          padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                          backgroundColor: 'transparent',
+                          border: `1px solid ${theme.colors.border.medium}`,
+                          borderRadius: theme.borderRadius.sm,
+                          cursor: 'pointer',
+                          fontSize: theme.typography.fontSize.xs,
+                          color: theme.colors.text.secondary,
+                        }}
+                        title={panelExpanded ? 'Show split view' : 'Expand to full width'}
+                      >
+                        {panelExpanded ? '⛶' : '⛶'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedEmailId(null);
+                          setPanelExpanded(false);
+                        }}
+                        style={{
+                          padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                          backgroundColor: 'transparent',
+                          border: `1px solid ${theme.colors.border.medium}`,
+                          borderRadius: theme.borderRadius.sm,
+                          cursor: 'pointer',
+                          fontSize: theme.typography.fontSize.xs,
+                          color: theme.colors.text.secondary,
+                        }}
+                        title="Close panel"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* EmailDetail component */}
+                  <div style={{ flex: 1, overflowY: 'auto' }}>
+                    <EmailDetailInline emailId={selectedEmailId} onClose={() => {
+                      setSelectedEmailId(null);
+                      setPanelExpanded(false);
+                    }} />
+                  </div>
+                </div>
+              )}
+            </div>
         
         {/* Footer with Focus Bear Logo */}
         <footer style={{

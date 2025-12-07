@@ -29,3 +29,5 @@ DELETE FROM summarization_rules WHERE "userId" IS NULL;
 
 
 
+
+

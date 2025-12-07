@@ -115,7 +115,7 @@ export class LLMProcessor implements OnModuleInit {
         const llmScore = llmResult.score;
         const combinedScore = (basicScore * 0.3) + (llmScore * 0.7);
 
-        // Update email with refined score
+        // Update email with refined score first (so explanation generation has the correct score)
         await this.emailRepository.update(
           { id: emailId },
           {
@@ -124,6 +124,18 @@ export class LLMProcessor implements OnModuleInit {
             isProcessingPriority: false,
           }
         );
+
+        // Generate and save priority explanation (precompute it)
+        // Refresh email to get updated priorityScore for explanation generation
+        const updatedEmail = await this.emailsService.getEmailById(userId, emailId);
+        if (updatedEmail) {
+          const priorityExplanation = await this.emailsService.getPriorityExplanation(userId, emailId);
+          // Save the explanation (this will also compute it if not already computed)
+          await this.emailRepository.update(
+            { id: emailId },
+            { priorityExplanation: priorityExplanation }
+          );
+        }
 
         this.logger.log(`[Worker ${workerId}] Refined priority for email ${emailId} (thread: ${email.threadId?.substring(0, 8)}...): ${combinedScore}`);
       } catch (error) {

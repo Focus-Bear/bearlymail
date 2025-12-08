@@ -199,3 +199,4 @@ DB_PASSWORD=$(echo $DB_CREDS | jq -r '.password')
 - Set up monitoring and alerts
 - Configure backup retention policies
 
+

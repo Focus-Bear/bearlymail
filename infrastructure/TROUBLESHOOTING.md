@@ -224,3 +224,4 @@ Then add the domain later once the base infrastructure is working.
 3. Check AWS service health dashboards
 4. Verify all prerequisites are met (Docker, Node.js, AWS CLI)
 
+

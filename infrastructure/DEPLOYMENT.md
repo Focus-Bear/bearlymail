@@ -215,3 +215,4 @@ Update the task definition in `lib/bearlymail-stack.ts` and redeploy.
 - Consider Reserved Instances for RDS if long-term
 - Monitor and right-size instances
 
+

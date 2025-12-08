@@ -14,3 +14,4 @@ export class AddLabelsColumn1735272000001 implements MigrationInterface {
 
 
 
+

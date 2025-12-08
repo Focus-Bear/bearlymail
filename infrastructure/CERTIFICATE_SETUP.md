@@ -69,3 +69,4 @@ Once the certificate is validated and imported, the CloudFront distribution will
 - Check the certificate is in us-east-1 region
 - Ensure you have permissions to access the certificate
 
+

@@ -88,3 +88,4 @@ Based on `performance.log` analysis:
 3. **Consider encryption caching** for frequently accessed data
 4. **Use raw queries** for list views to skip entity hydration overhead
 
+

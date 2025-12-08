@@ -112,3 +112,4 @@ FROM best_emails be
 3. Use materialized views for complex aggregations
 4. Consider async decryption or caching decrypted values
 
+

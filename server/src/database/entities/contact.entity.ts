@@ -1,32 +1,41 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
-import { User } from './user.entity';
-import { encryptedColumnTransformer } from '../../encryption/encryption.helper';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
+  Index,
+} from "typeorm";
+import { User } from "./user.entity";
+import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
 
 /**
  * Contact entity with searchable encryption using blind indexing.
- * 
+ *
  * Encryption Strategy:
  * - Sensitive fields (name, email, phone, etc.) are AES-256-GCM encrypted
  * - Search is enabled via blind indexes (SHA-256 hashes of normalized tokens)
  * - emailHash: exact email matching (lowercase, trimmed)
  * - searchTokens: JSON array of hashed trigrams/tokens for fuzzy search
- * 
+ *
  * This allows searching contacts without decrypting all data:
  * - Hash the search query → match against searchTokens or emailHash
  * - Only decrypt the matching contacts for display
  */
-@Entity('contacts')
-@Index(['userId', 'emailHash']) // Fast lookup by email
-@Index(['userId', 'provider', 'providerId'], { unique: true }) // Prevent duplicates from same provider
+@Entity("contacts")
+@Index(["userId", "emailHash"]) // Fast lookup by email
+@Index(["userId", "provider", "providerId"], { unique: true }) // Prevent duplicates from same provider
 export class Contact {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Column()
   userId: string;
 
   // Provider information (for sync tracking)
-  @Column({ default: 'manual' })
+  @Column({ default: "manual" })
   provider: string; // 'gmail', 'outlook', 'manual', etc.
 
   @Column({ nullable: true })
@@ -65,7 +74,7 @@ export class Contact {
   // Search tokens - hashed trigrams and normalized tokens for fuzzy search
   // Stored as JSON array of hashes: ["abc123...", "def456...", ...]
   // Generated from: email domain, name parts, company name
-  @Column('text', { nullable: true })
+  @Column("text", { nullable: true })
   searchTokens: string; // JSON array of hashed tokens
 
   // Metadata
@@ -88,10 +97,6 @@ export class Contact {
   lastSyncedAt: Date;
 
   @ManyToOne(() => User)
-  @JoinColumn({ name: 'userId' })
+  @JoinColumn({ name: "userId" })
   user: User;
 }
-
-
-
-

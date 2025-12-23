@@ -1,8 +1,8 @@
-import { Controller, Get, Put, Body, Request, UseGuards } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { BatchScheduleService } from './batch-schedule.service';
+import { Controller, Get, Put, Body, Request, UseGuards } from "@nestjs/common";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { BatchScheduleService } from "./batch-schedule.service";
 
-@Controller('batch-schedule')
+@Controller("batch-schedule")
 @UseGuards(JwtAuthGuard)
 export class BatchScheduleController {
   constructor(private batchScheduleService: BatchScheduleService) {}
@@ -12,7 +12,9 @@ export class BatchScheduleController {
    */
   @Get()
   async getSchedule(@Request() req) {
-    const schedule = await this.batchScheduleService.getSchedule(req.user.userId);
+    const schedule = await this.batchScheduleService.getSchedule(
+      req.user.userId,
+    );
     if (!schedule) {
       // Return default schedule if none exists
       return {
@@ -29,7 +31,8 @@ export class BatchScheduleController {
   @Put()
   async updateSchedule(
     @Request() req,
-    @Body() body: {
+    @Body()
+    body: {
       deliveryDays: number[];
       deliveryTimes: string[];
       timezone: string;
@@ -40,4 +43,3 @@ export class BatchScheduleController {
     return this.batchScheduleService.upsertSchedule(req.user.userId, body);
   }
 }
-

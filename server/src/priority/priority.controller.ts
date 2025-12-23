@@ -1,11 +1,23 @@
-import { Controller, Post, Get, Body, UseGuards, Request, Param } from '@nestjs/common';
-import { TriageSuggestionsService } from './triage-suggestions.service';
-import { PriorityService } from './priority.service';
-import { PriorityLearningService } from './priority-learning.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { EmailsService } from '../emails/emails.service';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  UseGuards,
+  Request,
+  Param,
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { TriageSuggestionsService } from "./triage-suggestions.service";
+import { PriorityService } from "./priority.service";
+import { PriorityLearningService } from "./priority-learning.service";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { EmailsService } from "../emails/emails.service";
+import { EmailThread } from "../database/entities/email-thread.entity";
+import { EncryptionHelper } from "../encryption/encryption.helper";
 
-@Controller('priority')
+@Controller("priority")
 @UseGuards(JwtAuthGuard)
 export class PriorityController {
   constructor(
@@ -13,17 +25,26 @@ export class PriorityController {
     private readonly priorityService: PriorityService,
     private readonly priorityLearningService: PriorityLearningService,
     private readonly emailsService: EmailsService,
+    @InjectRepository(EmailThread)
+    private emailThreadRepository: Repository<EmailThread>,
   ) {}
 
-  @Post('triage-suggestions')
-  async getTriageSuggestions(@Request() req, @Body() body: { emailIds: string[] }) {
-    return this.triageSuggestionsService.generateSuggestions(req.user.userId, body.emailIds);
+  @Post("triage-suggestions")
+  async getTriageSuggestions(
+    @Request() req,
+    @Body() body: { emailIds: string[] },
+  ) {
+    return this.triageSuggestionsService.generateSuggestions(
+      req.user.userId,
+      body.emailIds,
+    );
   }
 
-  @Post('triage-suggestions/override')
+  @Post("triage-suggestions/override")
   async trackOverride(
     @Request() req,
-    @Body() body: {
+    @Body()
+    body: {
       emailId: string;
       suggestion: any;
       userAction: { starCount: number; archived: boolean };
@@ -35,17 +56,25 @@ export class PriorityController {
       body.suggestion,
       body.userAction,
     );
-    return { message: 'Override tracked' };
+    return { message: "Override tracked" };
   }
 
-  @Get(':emailId/explanation')
-  async getPriorityExplanation(@Request() req, @Param('emailId') emailId: string) {
-    const email = await this.emailsService.getEmailById(req.user.userId, emailId);
+  @Get(":emailId/explanation")
+  async getPriorityExplanation(
+    @Request() req,
+    @Param("emailId") emailId: string,
+  ) {
+    const email = await this.emailsService.getEmailById(
+      req.user.userId,
+      emailId,
+    );
     if (!email) {
-      throw new Error('Email not found');
+      throw new Error("Email not found");
     }
 
-    const contexts = await this.priorityService.getUserContexts(req.user.userId);
+    const contexts = await this.priorityService.getUserContexts(
+      req.user.userId,
+    );
     const explanation = this.priorityService.calculatePriorityWithExplanation(
       email,
       contexts,
@@ -54,10 +83,11 @@ export class PriorityController {
     return explanation;
   }
 
-  @Post('star-feedback')
+  @Post("star-feedback")
   async storeStarFeedback(
     @Request() req,
-    @Body() body: {
+    @Body()
+    body: {
       emailId: string;
       userStarCount: number;
       predictedStarCount: number;
@@ -72,6 +102,86 @@ export class PriorityController {
       body.explanation,
     );
 
-    return { message: 'Feedback stored successfully' };
+    return { message: "Feedback stored successfully" };
+  }
+
+  @Post(":emailId/override")
+  async setPriorityOverride(
+    @Request() req,
+    @Param("emailId") emailId: string,
+    @Body()
+    body: {
+      priorityScore: number;
+      reasonType?: string;
+      reasonText?: string;
+    },
+  ) {
+    await this.priorityService.applyUserOverride(
+      req.user.userId,
+      emailId,
+      body.priorityScore,
+      body.reasonType,
+      body.reasonText,
+    );
+
+    // Process the override reason to improve future scoring
+    if (body.reasonType && body.reasonText) {
+      const email = await this.emailsService.getEmailById(
+        req.user.userId,
+        emailId,
+      );
+      if (email) {
+        await this.priorityLearningService.processOverrideReason(
+          req.user.userId,
+          email,
+          body.reasonType,
+          body.reasonText,
+        );
+      }
+    }
+
+    return { message: "Priority override applied successfully" };
+  }
+
+  @Post(":threadId/override-urgency")
+  async overrideUrgency(
+    @Request() req,
+    @Param("threadId") threadId: string,
+    @Body()
+    body: {
+      urgencyScore: number;
+      reason: string;
+    },
+  ) {
+    // Find thread by emailThreadId (the UUID, not Gmail threadId)
+    const thread = await this.emailThreadRepository.findOne({
+      where: { id: threadId, userId: req.user.userId },
+    });
+
+    if (!thread) {
+      throw new Error("Thread not found");
+    }
+
+    // Update thread with new urgency score and override reason
+    thread.urgencyScore = Math.max(0, Math.min(100, body.urgencyScore));
+    thread.urgencyOverrideReason = EncryptionHelper.encrypt(body.reason);
+    await this.emailThreadRepository.save(thread);
+
+    // Trigger learning from override
+    const emails = await this.emailsService.getThreadEmails(
+      req.user.userId,
+      thread.threadId,
+    );
+    if (emails.length > 0) {
+      // Use first email for learning context
+      await this.priorityLearningService.learnFromUrgencyOverride(
+        req.user.userId,
+        emails[0],
+        body.urgencyScore,
+        body.reason,
+      );
+    }
+
+    return { message: "Urgency override applied successfully" };
   }
 }

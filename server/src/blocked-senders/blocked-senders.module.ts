@@ -1,8 +1,8 @@
-import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { BlockedSender } from '../database/entities/blocked-sender.entity';
-import { BlockedSendersController } from './blocked-senders.controller';
-import { BlockedSendersService } from './blocked-senders.service';
+import { Module } from "@nestjs/common";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { BlockedSender } from "../database/entities/blocked-sender.entity";
+import { BlockedSendersController } from "./blocked-senders.controller";
+import { BlockedSendersService } from "./blocked-senders.service";
 
 @Module({
   imports: [TypeOrmModule.forFeature([BlockedSender])],
@@ -11,7 +11,3 @@ import { BlockedSendersService } from './blocked-senders.service';
   exports: [BlockedSendersService],
 })
 export class BlockedSendersModule {}
-
-
-
-

@@ -1,12 +1,21 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
-import { User } from './user.entity';
-import { Email } from './email.entity';
-import { encryptedColumnTransformer } from '../../encryption/encryption.helper';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  Index,
+} from "typeorm";
+import { User } from "./user.entity";
+import { Email } from "./email.entity";
+import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
 
-@Entity('action_items')
-@Index(['userId', 'isCompleted']) // For querying active tasks
+@Entity("action_items")
+@Index(["userId", "isCompleted"]) // For querying active tasks
 export class ActionItem {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Column()
@@ -18,16 +27,16 @@ export class ActionItem {
   @Column({ nullable: true })
   emailThreadId: string; // Denormalized for easy thread access
 
-  @Column('text', { transformer: encryptedColumnTransformer })
+  @Column("text", { transformer: encryptedColumnTransformer })
   description: string;
 
   @Column({ default: false })
   isCompleted: boolean;
 
-  @Column({ type: 'text', default: 'user' }) // 'user' or 'llm'
+  @Column({ type: "text", default: "user" }) // 'user' or 'llm'
   source: string;
 
-  @Column({ type: 'float', nullable: true })
+  @Column({ type: "float", nullable: true })
   confidenceScore: number; // For LLM suggestions
 
   @CreateDateColumn()
@@ -37,14 +46,10 @@ export class ActionItem {
   updatedAt: Date;
 
   @ManyToOne(() => User)
-  @JoinColumn({ name: 'userId' })
+  @JoinColumn({ name: "userId" })
   user: User;
 
   @ManyToOne(() => Email)
-  @JoinColumn({ name: 'emailId' })
+  @JoinColumn({ name: "emailId" })
   email: Email;
 }
-
-
-
-

@@ -1,7 +1,7 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { PrivateNote } from '../database/entities/private-note.entity';
+import { Injectable } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { PrivateNote } from "../database/entities/private-note.entity";
 
 @Injectable()
 export class NotesService {
@@ -10,10 +10,13 @@ export class NotesService {
     private noteRepository: Repository<PrivateNote>,
   ) {}
 
-  async getNoteByThread(userId: string, threadId: string): Promise<PrivateNote | null> {
+  async getNoteByThread(
+    userId: string,
+    threadId: string,
+  ): Promise<PrivateNote | null> {
     return this.noteRepository.findOne({
       where: { userId, emailThreadId: threadId },
-      order: { createdAt: 'DESC' },
+      order: { createdAt: "DESC" },
     });
   }
 
@@ -45,8 +48,7 @@ export class NotesService {
   async getAllNotes(userId: string): Promise<PrivateNote[]> {
     return this.noteRepository.find({
       where: { userId },
-      order: { createdAt: 'DESC' },
+      order: { createdAt: "DESC" },
     });
   }
 }
-

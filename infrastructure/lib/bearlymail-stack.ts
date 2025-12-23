@@ -69,14 +69,7 @@ export class BearlyMailStack extends cdk.Stack {
     });
 
     const appSecrets = new secretsmanager.Secret(this, 'AppSecrets', {
-      description: 'Application secrets (JWT, encryption keys, API keys)',
-      generateSecretString: {
-        secretStringTemplate: JSON.stringify({}),
-        generateStringKey: 'placeholder',
-        excludeCharacters: '"@/\\',
-        includeSpace: false,
-        passwordLength: 1,
-      },
+      description: 'Application secrets (JWT, encryption keys, API keys)'
     });
 
     // Note: You'll need to manually add these secrets to AppSecrets:
@@ -87,6 +80,11 @@ export class BearlyMailStack extends cdk.Stack {
     // - GOOGLE_REDIRECT_URI
     // - GEMINI_API_KEY (optional)
     // - OPENAI_API_KEY (optional)
+    // - ZOHO_CLIQ_BACKEND_BOT_WEBHOOK (Cliq webhook URL)
+    // - ZOHO_CLIQ_API_KEY (Cliq API key)
+    // - ZOHO_CLIQ_BEARLY_MAIL_SIGNUP_CHANNEL (Cliq channel name)
+    // - AWS_REGION (AWS region for SES, e.g., 'us-east-1')
+    // - SES_FROM_EMAIL (Verified SES email address for sending emails)
 
     // ============================================
     // RDS Database
@@ -98,7 +96,7 @@ export class BearlyMailStack extends cdk.Stack {
 
     const database = new rds.DatabaseInstance(this, 'Database', {
       engine: rds.DatabaseInstanceEngine.postgres({
-        version: rds.PostgresEngineVersion.VER_15_4,
+        version: rds.PostgresEngineVersion.VER_17,
       }),
       instanceType: databaseInstanceType,
       vpc,
@@ -152,8 +150,15 @@ export class BearlyMailStack extends cdk.Stack {
       assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
     });
 
-    // Add any additional permissions needed by the app
-    // (e.g., S3 access, SES for sending emails, etc.)
+    // Grant SES permissions for sending emails
+    taskRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'ses:SendEmail',
+        'ses:SendRawEmail',
+      ],
+      resources: ['*'], // In production, restrict to specific verified email addresses
+    }));
 
     // ============================================
     // Log Groups
@@ -206,6 +211,9 @@ export class BearlyMailStack extends cdk.Stack {
         GOOGLE_REDIRECT_URI: ecs.Secret.fromSecretsManager(appSecrets, 'GOOGLE_REDIRECT_URI'),
         GEMINI_API_KEY: ecs.Secret.fromSecretsManager(appSecrets, 'GEMINI_API_KEY'),
         OPENAI_API_KEY: ecs.Secret.fromSecretsManager(appSecrets, 'OPENAI_API_KEY'),
+        ZOHO_CLIQ_BACKEND_BOT_WEBHOOK: ecs.Secret.fromSecretsManager(appSecrets, 'ZOHO_CLIQ_BACKEND_BOT_WEBHOOK'),
+        ZOHO_CLIQ_API_KEY: ecs.Secret.fromSecretsManager(appSecrets, 'ZOHO_CLIQ_API_KEY'),
+        ZOHO_CLIQ_BEARLY_MAIL_SIGNUP_CHANNEL: ecs.Secret.fromSecretsManager(appSecrets, 'ZOHO_CLIQ_BEARLY_MAIL_SIGNUP_CHANNEL'),
       },
       healthCheck: {
         command: ['CMD-SHELL', 'node -e "require(\'http\').get(\'http://localhost:3001/health\', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"'],
@@ -277,6 +285,9 @@ export class BearlyMailStack extends cdk.Stack {
         GOOGLE_REDIRECT_URI: ecs.Secret.fromSecretsManager(appSecrets, 'GOOGLE_REDIRECT_URI'),
         GEMINI_API_KEY: ecs.Secret.fromSecretsManager(appSecrets, 'GEMINI_API_KEY'),
         OPENAI_API_KEY: ecs.Secret.fromSecretsManager(appSecrets, 'OPENAI_API_KEY'),
+        ZOHO_CLIQ_BACKEND_BOT_WEBHOOK: ecs.Secret.fromSecretsManager(appSecrets, 'ZOHO_CLIQ_BACKEND_BOT_WEBHOOK'),
+        ZOHO_CLIQ_API_KEY: ecs.Secret.fromSecretsManager(appSecrets, 'ZOHO_CLIQ_API_KEY'),
+        ZOHO_CLIQ_BEARLY_MAIL_SIGNUP_CHANNEL: ecs.Secret.fromSecretsManager(appSecrets, 'ZOHO_CLIQ_BEARLY_MAIL_SIGNUP_CHANNEL'),
       },
     });
 
@@ -326,6 +337,9 @@ export class BearlyMailStack extends cdk.Stack {
         GOOGLE_REDIRECT_URI: ecs.Secret.fromSecretsManager(appSecrets, 'GOOGLE_REDIRECT_URI'),
         GEMINI_API_KEY: ecs.Secret.fromSecretsManager(appSecrets, 'GEMINI_API_KEY'),
         OPENAI_API_KEY: ecs.Secret.fromSecretsManager(appSecrets, 'OPENAI_API_KEY'),
+        ZOHO_CLIQ_BACKEND_BOT_WEBHOOK: ecs.Secret.fromSecretsManager(appSecrets, 'ZOHO_CLIQ_BACKEND_BOT_WEBHOOK'),
+        ZOHO_CLIQ_API_KEY: ecs.Secret.fromSecretsManager(appSecrets, 'ZOHO_CLIQ_API_KEY'),
+        ZOHO_CLIQ_BEARLY_MAIL_SIGNUP_CHANNEL: ecs.Secret.fromSecretsManager(appSecrets, 'ZOHO_CLIQ_BEARLY_MAIL_SIGNUP_CHANNEL'),
       },
     });
 
@@ -384,10 +398,16 @@ export class BearlyMailStack extends cdk.Stack {
     if (props?.domainName && props?.hostedZoneId) {
       domainName = props.domainName;
       
-      // Look up the hosted zone
+      // Extract root domain for hosted zone lookup
+      // If domain is a subdomain (e.g., app.bearlymail.com), extract root (bearlymail.com)
+      const rootDomain = domainName.includes('.') && domainName.split('.').length > 2
+        ? domainName.split('.').slice(-2).join('.')
+        : domainName;
+      
+      // Look up the hosted zone (using root domain)
       hostedZone = route53.HostedZone.fromHostedZoneAttributes(this, 'HostedZone', {
         hostedZoneId: props.hostedZoneId,
-        zoneName: domainName,
+        zoneName: rootDomain,
       });
 
       // Request SSL certificate (must be in us-east-1 for CloudFront)
@@ -412,9 +432,13 @@ export class BearlyMailStack extends cdk.Stack {
       // Note: This creates certificate in ap-southeast-2, but CloudFront needs us-east-1
       // For now, we'll create it but you should replace with us-east-1 certificate
       // See CERTIFICATE_SETUP.md for instructions
+      // Only add www subdomain if domain is a root domain (not a subdomain)
+      const isSubdomain = domainName.includes('.') && domainName.split('.').length > 2;
+      const subjectAlternativeNames = isSubdomain ? [] : [`www.${domainName}`];
+      
       certificate = new certificatemanager.Certificate(this, 'CloudFrontCertificate', {
         domainName: domainName,
-        subjectAlternativeNames: [`www.${domainName}`],
+        subjectAlternativeNames: subjectAlternativeNames,
         validation: certificatemanager.CertificateValidation.fromDns(hostedZone),
       });
       
@@ -439,7 +463,7 @@ export class BearlyMailStack extends cdk.Stack {
           compress: true,
           cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
         },
-        domainNames: [domainName, `www.${domainName}`],
+        domainNames: isSubdomain ? [domainName] : [domainName, `www.${domainName}`],
         certificate: certificate as certificatemanager.ICertificate,
         priceClass: cloudfront.PriceClass.PRICE_CLASS_ALL, // Include all regions for custom domain
         comment: 'BearlyMail frontend distribution',
@@ -454,7 +478,7 @@ export class BearlyMailStack extends cdk.Stack {
         ],
       });
 
-      // Route53 A record for root domain
+      // Route53 A record for domain/subdomain
       new route53.ARecord(this, 'ARecord', {
         zone: hostedZone,
         recordName: domainName,
@@ -463,14 +487,16 @@ export class BearlyMailStack extends cdk.Stack {
         ),
       });
 
-      // Route53 A record for www subdomain
-      new route53.ARecord(this, 'WwwARecord', {
-        zone: hostedZone,
-        recordName: `www.${domainName}`,
-        target: route53.RecordTarget.fromAlias(
-          new route53Targets.CloudFrontTarget(distribution)
-        ),
-      });
+      // Route53 A record for www subdomain (only if domain is root domain)
+      if (!isSubdomain) {
+        new route53.ARecord(this, 'WwwARecord', {
+          zone: hostedZone,
+          recordName: `www.${domainName}`,
+          target: route53.RecordTarget.fromAlias(
+            new route53Targets.CloudFrontTarget(distribution)
+          ),
+        });
+      }
     } else {
       // CloudFront Distribution without custom domain
       distribution = new cloudfront.Distribution(this, 'FrontendDistribution', {

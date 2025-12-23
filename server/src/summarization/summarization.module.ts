@@ -1,10 +1,10 @@
-import { Module, forwardRef } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { SummarizationController } from './summarization.controller';
-import { SummarizationService } from './summarization.service';
-import { EmailsModule } from '../emails/emails.module';
-import { LLMModule } from '../llm/llm.module';
-import { SummarizationRule } from '../database/entities/summarization-rule.entity';
+import { Module, forwardRef } from "@nestjs/common";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { SummarizationController } from "./summarization.controller";
+import { SummarizationService } from "./summarization.service";
+import { EmailsModule } from "../emails/emails.module";
+import { LLMModule } from "../llm/llm.module";
+import { SummarizationRule } from "../database/entities/summarization-rule.entity";
 
 @Module({
   imports: [
@@ -17,4 +17,3 @@ import { SummarizationRule } from '../database/entities/summarization-rule.entit
   exports: [SummarizationService],
 })
 export class SummarizationModule {}
-

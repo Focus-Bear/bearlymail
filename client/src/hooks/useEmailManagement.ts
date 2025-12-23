@@ -22,6 +22,9 @@ interface UseEmailManagementReturn {
   handleArchive: (emailId: string, e: React.MouseEvent) => Promise<void>;
   handleSnooze: (emailId: string, duration: string) => Promise<void>;
   handleMarkAsRead: (emailId: string) => Promise<void>;
+  handleMarkAsUnread: (emailId: string) => Promise<void>;
+  handleBulkMarkAsRead: (emailIds: string[]) => Promise<void>;
+  handleBulkMarkAsUnread: (emailIds: string[]) => Promise<void>;
   handleCheckUrgent: () => Promise<{ hasUrgent: boolean; count: number; emails: any[] }>;
 }
 
@@ -48,7 +51,12 @@ export function useEmailManagement({ mode, onSuggestionRemove }: UseEmailManagem
       if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
         setFetchError('Unable to connect to the server. Please check if the server is running.');
       } else if (error.response?.status === 401) {
-        setFetchError('Please log in again to view emails.');
+        const errorMessage = error.response?.data?.message || '';
+        if (errorMessage.includes('Gmail account connection required') || errorMessage.includes('Gmail')) {
+          setFetchError('GMAIL_REQUIRED'); // Special error code for Gmail requirement
+        } else {
+          setFetchError('Please log in again to view emails.');
+        }
       } else {
         setFetchError(error.response?.data?.message || error.message || 'Failed to load emails. Please try again.');
       }
@@ -138,6 +146,47 @@ export function useEmailManagement({ mode, onSuggestionRemove }: UseEmailManagem
     }
   }, []);
 
+  const handleMarkAsUnread = useCallback(async (emailId: string) => {
+    try {
+      await axios.put(`${API_URL}/emails/${emailId}/unread`);
+      setEmails(prev => prev.map(e => e.id === emailId ? { ...e, isRead: false } : e));
+    } catch (error) {
+      console.error('Error marking email as unread:', error);
+    }
+  }, []);
+
+  const handleBulkMarkAsRead = useCallback(async (emailIds: string[]) => {
+    if (emailIds.length === 0) return;
+    
+    // Optimistic update
+    setEmails(prev => prev.map(e => emailIds.includes(e.id) ? { ...e, isRead: true } : e));
+    onSuggestionRemove && emailIds.forEach(id => onSuggestionRemove(id));
+
+    try {
+      await axios.post(`${API_URL}/emails/bulk/read`, { emailIds });
+      fetchEmails().catch(err => console.error('Error refreshing after bulk read:', err));
+    } catch (error) {
+      console.error('Error bulk marking emails as read:', error);
+      fetchEmails(); // Revert on error
+    }
+  }, [fetchEmails, onSuggestionRemove]);
+
+  const handleBulkMarkAsUnread = useCallback(async (emailIds: string[]) => {
+    if (emailIds.length === 0) return;
+    
+    // Optimistic update
+    setEmails(prev => prev.map(e => emailIds.includes(e.id) ? { ...e, isRead: false } : e));
+    onSuggestionRemove && emailIds.forEach(id => onSuggestionRemove(id));
+
+    try {
+      await axios.post(`${API_URL}/emails/bulk/unread`, { emailIds });
+      fetchEmails().catch(err => console.error('Error refreshing after bulk unread:', err));
+    } catch (error) {
+      console.error('Error bulk marking emails as unread:', error);
+      fetchEmails(); // Revert on error
+    }
+  }, [fetchEmails, onSuggestionRemove]);
+
   const handleCheckUrgent = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -169,6 +218,9 @@ export function useEmailManagement({ mode, onSuggestionRemove }: UseEmailManagem
     handleArchive,
     handleSnooze,
     handleMarkAsRead,
+    handleMarkAsUnread,
+    handleBulkMarkAsRead,
+    handleBulkMarkAsUnread,
     handleCheckUrgent,
   };
 }

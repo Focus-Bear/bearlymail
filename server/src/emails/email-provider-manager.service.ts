@@ -1,6 +1,6 @@
-import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
-import { EmailProvider } from './interfaces/email-provider.interface';
-import { GmailProvider } from './providers/gmail.provider';
+import { Injectable, Logger, Inject, forwardRef } from "@nestjs/common";
+import { EmailProvider } from "./interfaces/email-provider.interface";
+import { GmailProvider } from "./providers/gmail.provider";
 // Future: import { OutlookProvider } from './providers/outlook.provider';
 // Future: import { TeamsProvider } from './providers/teams.provider';
 
@@ -20,7 +20,7 @@ export class EmailProviderManager {
     // Future: private teamsProvider: TeamsProvider,
   ) {
     // Register providers
-    this.providers.set('gmail', gmailProvider);
+    this.providers.set("gmail", gmailProvider);
     // Future: this.providers.set('outlook', outlookProvider);
     // Future: this.providers.set('teams', teamsProvider);
   }
@@ -29,10 +29,15 @@ export class EmailProviderManager {
    * Get the email provider for a user
    * Currently defaults to Gmail, but can be extended to support multiple providers per user
    */
-  async getProvider(userId: string, providerType: string = 'gmail'): Promise<EmailProvider | null> {
+  async getProvider(
+    userId: string,
+    providerType: string = "gmail",
+  ): Promise<EmailProvider | null> {
     const provider = this.providers.get(providerType);
     if (!provider) {
-      this.logger.warn(`Provider type ${providerType} not found for user ${userId}`);
+      this.logger.warn(
+        `Provider type ${providerType} not found for user ${userId}`,
+      );
       return null;
     }
 
@@ -52,8 +57,8 @@ export class EmailProviderManager {
    */
   async getPrimaryProvider(userId: string): Promise<EmailProvider | null> {
     // Priority order: Gmail first, then others
-    const priorityOrder = ['gmail']; // Future: ['gmail', 'outlook', 'teams'];
-    
+    const priorityOrder = ["gmail"]; // Future: ['gmail', 'outlook', 'teams'];
+
     for (const providerType of priorityOrder) {
       const provider = await this.getProvider(userId, providerType);
       if (provider) {
@@ -74,7 +79,10 @@ export class EmailProviderManager {
           this.logger.debug(`Syncing ${providerType} for user ${userId}`);
           await provider.syncEmails(userId);
         } catch (error) {
-          this.logger.error(`Failed to sync ${providerType} for user ${userId}`, error);
+          this.logger.error(
+            `Failed to sync ${providerType} for user ${userId}`,
+            error,
+          );
         }
       }
     }
@@ -83,9 +91,11 @@ export class EmailProviderManager {
   /**
    * Convert label IDs to human-readable names (Gmail specific for now)
    */
-  async convertLabelIdsToNames(userId: string, labelIds: string[]): Promise<string[]> {
+  async convertLabelIdsToNames(
+    userId: string,
+    labelIds: string[],
+  ): Promise<string[]> {
     // Currently only Gmail is supported
     return this.gmailProvider.convertLabelIdsToNames(userId, labelIds);
   }
 }
-

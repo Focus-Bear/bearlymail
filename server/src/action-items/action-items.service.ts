@@ -1,7 +1,7 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { ActionItem } from '../database/entities/action-item.entity';
+import { Injectable } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { ActionItem } from "../database/entities/action-item.entity";
 
 @Injectable()
 export class ActionItemsService {
@@ -22,11 +22,15 @@ export class ActionItemsService {
     }
     return this.actionItemRepository.find({
       where,
-      order: { isCompleted: 'ASC', createdAt: 'DESC' },
+      order: { isCompleted: "ASC", createdAt: "DESC" },
     });
   }
 
-  async update(userId: string, id: string, data: Partial<ActionItem>): Promise<ActionItem> {
+  async update(
+    userId: string,
+    id: string,
+    data: Partial<ActionItem>,
+  ): Promise<ActionItem> {
     await this.actionItemRepository.update({ id, userId }, data);
     return this.actionItemRepository.findOne({ where: { id, userId } });
   }
@@ -35,7 +39,3 @@ export class ActionItemsService {
     await this.actionItemRepository.delete({ id, userId });
   }
 }
-
-
-
-

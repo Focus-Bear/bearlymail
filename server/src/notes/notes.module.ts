@@ -1,8 +1,8 @@
-import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { NotesController } from './notes.controller';
-import { NotesService } from './notes.service';
-import { PrivateNote } from '../database/entities/private-note.entity';
+import { Module } from "@nestjs/common";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { NotesController } from "./notes.controller";
+import { NotesService } from "./notes.service";
+import { PrivateNote } from "../database/entities/private-note.entity";
 
 @Module({
   imports: [TypeOrmModule.forFeature([PrivateNote])],
@@ -11,4 +11,3 @@ import { PrivateNote } from '../database/entities/private-note.entity';
   exports: [NotesService],
 })
 export class NotesModule {}
-

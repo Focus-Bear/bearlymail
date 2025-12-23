@@ -12,7 +12,7 @@ new BearlyMailStack(app, 'BearlyMailStack', {
   },
   description: 'BearlyMail - ADHD-friendly email client infrastructure',
   // Domain configuration
-  domainName: 'bearlymail.com',
+  domainName: 'app.bearlymail.com',
   hostedZoneId: 'Z08919233O73NFKRK9QHU',
 });
 

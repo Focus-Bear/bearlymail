@@ -1,5 +1,10 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
-import { SubscriptionsService } from './subscriptions.service';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+} from "@nestjs/common";
+import { SubscriptionsService } from "./subscriptions.service";
 
 @Injectable()
 export class SubscriptionGuard implements CanActivate {
@@ -8,22 +13,18 @@ export class SubscriptionGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const userId = request.user?.userId;
-    
+
     if (!userId) {
-      throw new ForbiddenException('User not authenticated');
+      throw new ForbiddenException("User not authenticated");
     }
-    
-    const hasActiveSubscription = await this.subscriptionsService.hasActiveSubscription(userId);
-    
+
+    const hasActiveSubscription =
+      await this.subscriptionsService.hasActiveSubscription(userId);
+
     if (!hasActiveSubscription) {
-      throw new ForbiddenException('Active subscription required');
+      throw new ForbiddenException("Active subscription required");
     }
-    
+
     return true;
   }
 }
-
-
-
-
-

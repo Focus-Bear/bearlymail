@@ -1,4 +1,4 @@
-import { Email } from '../../database/entities/email.entity';
+import { Email } from "../../database/entities/email.entity";
 
 /**
  * Represents a raw email message from an email provider
@@ -75,7 +75,11 @@ export interface EmailProvider {
    * Search emails using provider-specific search syntax
    * Returns raw email messages that match the query
    */
-  searchEmails(userId: string, query: string, maxResults?: number): Promise<RawEmailMessage[]>;
+  searchEmails(
+    userId: string,
+    query: string,
+    maxResults?: number,
+  ): Promise<RawEmailMessage[]>;
 
   /**
    * Archive a thread (remove from inbox, add bearly-mail-archived label)
@@ -87,4 +91,3 @@ export interface EmailProvider {
    */
   unarchiveThread(userId: string, threadId: string): Promise<void>;
 }
-

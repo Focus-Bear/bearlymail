@@ -1,19 +1,30 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, CreateDateColumn, JoinColumn, Index } from 'typeorm';
-import { User } from './user.entity';
-import { EmailThread } from './email-thread.entity';
-import { encryptedColumnTransformer, encryptedJsonTransformer } from '../../encryption/encryption.helper';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  ManyToOne,
+  CreateDateColumn,
+  JoinColumn,
+  Index,
+} from "typeorm";
+import { User } from "./user.entity";
+import { EmailThread } from "./email-thread.entity";
+import {
+  encryptedColumnTransformer,
+  encryptedJsonTransformer,
+} from "../../encryption/encryption.helper";
 
-@Entity('emails')
-@Index(['userId', 'priorityScore'])
-@Index(['userId', 'threadId'])
-@Index(['userId', 'messageId']) // For fast lookups by messageId
-@Index(['userId', 'receivedAt']) // For date-based queries in inbox
-@Index(['threadId']) // For joining with email_threads
-@Index(['userId', 'emailThreadId']) // For inbox queries (getInbox)
-@Index(['emailThreadId']) // For thread lookups
-@Index(['userId', 'isBatched', 'batchReleaseAt']) // For batch-status queries (getNextBatchReleaseTime)
+@Entity("emails")
+@Index(["userId", "priorityScore"])
+@Index(["userId", "threadId"])
+@Index(["userId", "messageId"]) // For fast lookups by messageId
+@Index(["userId", "receivedAt"]) // For date-based queries in inbox
+@Index(["threadId"]) // For joining with email_threads
+@Index(["userId", "emailThreadId"]) // For inbox queries (getInbox)
+@Index(["emailThreadId"]) // For thread lookups
+@Index(["userId", "isBatched", "batchReleaseAt"]) // For batch-status queries (getNextBatchReleaseTime)
 export class Email {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Column()
@@ -40,19 +51,17 @@ export class Email {
   @Column({ transformer: encryptedColumnTransformer })
   subject: string;
 
-  @Column('text', { transformer: encryptedColumnTransformer })
+  @Column("text", { transformer: encryptedColumnTransformer })
   body: string;
 
-  @Column('text', { nullable: true, transformer: encryptedColumnTransformer })
+  @Column("text", { nullable: true, transformer: encryptedColumnTransformer })
   htmlBody: string;
 
-  @Column({ type: 'float', default: 50 })
+  @Column({ type: "float", default: 50 })
   priorityScore: number;
 
-  @Column({ default: false })
-  isUrgent: boolean;
-
   // Thread-level properties moved to EmailThread entity
+  // Urgency is now on EmailThread (urgencyScore, urgencyExplanation)
   // starCount and isArchived are now on EmailThread
 
   @Column({ default: false })
@@ -73,16 +82,25 @@ export class Email {
   @Column({ nullable: true })
   timeToReply: number;
 
+  @Column({ type: "float", nullable: true })
+  userPriorityOverride: number | null; // User's manual priority override (0-100)
+
+  @Column("text", { nullable: true, transformer: encryptedColumnTransformer })
+  priorityOverrideReason: string | null; // Reason user provided for override
+
+  @Column({ nullable: true })
+  priorityOverrideReasonType: string | null; // Category of override reason (e.g., "wrong_sender_priority", "wrong_urgency", "topic_mismatch")
+
   @Column({ default: false })
   isRead: boolean;
 
-  @Column('text', { nullable: true, transformer: encryptedColumnTransformer })
+  @Column("text", { nullable: true, transformer: encryptedColumnTransformer })
   summary: string; // Cached summary from LLM
 
-  @Column('text', { nullable: true, transformer: encryptedJsonTransformer })
+  @Column("text", { nullable: true, transformer: encryptedJsonTransformer })
   labels: string[]; // JSON stringified list of labels
 
-  @Column('text', { nullable: true, transformer: encryptedJsonTransformer })
+  @Column("text", { nullable: true, transformer: encryptedJsonTransformer })
   priorityExplanation: {
     score: number;
     dimensions: {
@@ -103,10 +121,10 @@ export class Email {
   receivedAt: Date;
 
   @ManyToOne(() => User, (user) => user.emails)
-  @JoinColumn({ name: 'userId' })
+  @JoinColumn({ name: "userId" })
   user: User;
 
   @ManyToOne(() => EmailThread, (thread) => thread.emails)
-  @JoinColumn({ name: 'emailThreadId' })
+  @JoinColumn({ name: "emailThreadId" })
   thread: EmailThread;
 }

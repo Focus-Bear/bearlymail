@@ -1,10 +1,17 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, CreateDateColumn, JoinColumn } from 'typeorm';
-import { User } from './user.entity';
-import { encryptedColumnTransformer } from '../../encryption/encryption.helper';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  ManyToOne,
+  CreateDateColumn,
+  JoinColumn,
+} from "typeorm";
+import { User } from "./user.entity";
+import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
 
-@Entity('private_notes')
+@Entity("private_notes")
 export class PrivateNote {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   noteId: string;
 
   @Column()
@@ -13,14 +20,13 @@ export class PrivateNote {
   @Column()
   emailThreadId: string;
 
-  @Column('text', { transformer: encryptedColumnTransformer })
+  @Column("text", { transformer: encryptedColumnTransformer })
   content: string;
 
   @CreateDateColumn()
   createdAt: Date;
 
   @ManyToOne(() => User, (user) => user.notes)
-  @JoinColumn({ name: 'userId' })
+  @JoinColumn({ name: "userId" })
   user: User;
 }
-

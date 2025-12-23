@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
-import { Contact } from '../database/entities/contact.entity';
-import { RawContact } from './interfaces/contact-provider.interface';
-import { SearchIndexHelper } from './search-index.helper';
-import { GmailContactsProvider } from './providers/gmail-contacts.provider';
+import { Injectable } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository, In } from "typeorm";
+import { Contact } from "../database/entities/contact.entity";
+import { RawContact } from "./interfaces/contact-provider.interface";
+import { SearchIndexHelper } from "./search-index.helper";
+import { GmailContactsProvider } from "./providers/gmail-contacts.provider";
 
 export interface ContactSearchResult {
   id: string;
@@ -30,18 +30,22 @@ export class ContactsService {
   /**
    * Sync contacts from all connected providers
    */
-  async syncContacts(userId: string, fullSync: boolean = false): Promise<{ synced: number; provider: string }[]> {
+  async syncContacts(
+    userId: string,
+    fullSync: boolean = false,
+  ): Promise<{ synced: number; provider: string }[]> {
     const results: { synced: number; provider: string }[] = [];
 
     // Sync from Gmail if connected
     if (await this.gmailContactsProvider.isConnected(userId)) {
       try {
-        const rawContacts = await this.gmailContactsProvider.fetchAllContacts(userId);
-        const synced = await this.upsertContacts(userId, 'gmail', rawContacts);
-        results.push({ synced, provider: 'gmail' });
+        const rawContacts =
+          await this.gmailContactsProvider.fetchAllContacts(userId);
+        const synced = await this.upsertContacts(userId, "gmail", rawContacts);
+        results.push({ synced, provider: "gmail" });
       } catch (error) {
-        console.error('Gmail contact sync failed:', error);
-        results.push({ synced: 0, provider: 'gmail' });
+        console.error("Gmail contact sync failed:", error);
+        results.push({ synced: 0, provider: "gmail" });
       }
     }
 
@@ -63,7 +67,7 @@ export class ContactsService {
     for (const raw of rawContacts) {
       try {
         const emailHash = SearchIndexHelper.hashExact(raw.email);
-        
+
         // Generate search tokens from name, email parts, company
         const searchTokens = SearchIndexHelper.generateSearchTokens(
           raw.name,
@@ -124,7 +128,9 @@ export class ContactsService {
       }
     }
 
-    console.log(`Upserted ${upserted} contacts for user ${userId} from ${provider}`);
+    console.log(
+      `Upserted ${upserted} contacts for user ${userId} from ${provider}`,
+    );
     return upserted;
   }
 
@@ -154,36 +160,45 @@ export class ContactsService {
 
     // Generate query tokens for fuzzy search
     const queryTokens = SearchIndexHelper.generateQueryTokens(query);
-    
+
     // Search using LIKE on searchTokens (stored as JSON array of hashes)
     // This is a simplified approach - for production, consider using
     // a dedicated search index (Elasticsearch, PostgreSQL full-text search)
     const contacts = await this.contactRepository
-      .createQueryBuilder('contact')
-      .where('contact.userId = :userId', { userId })
+      .createQueryBuilder("contact")
+      .where("contact.userId = :userId", { userId })
       .andWhere(
-        queryTokens.map((_, i) => `contact.searchTokens LIKE :token${i}`).join(' OR '),
-        queryTokens.reduce((acc, token, i) => {
-          acc[`token${i}`] = `%${token}%`;
-          return acc;
-        }, {} as Record<string, string>),
+        queryTokens
+          .map((_, i) => `contact.searchTokens LIKE :token${i}`)
+          .join(" OR "),
+        queryTokens.reduce(
+          (acc, token, i) => {
+            acc[`token${i}`] = `%${token}%`;
+            return acc;
+          },
+          {} as Record<string, string>,
+        ),
       )
-      .orderBy('contact.contactFrequency', 'DESC')
-      .addOrderBy('contact.isFavorite', 'DESC')
+      .orderBy("contact.contactFrequency", "DESC")
+      .addOrderBy("contact.isFavorite", "DESC")
       .take(limit)
       .getMany();
 
     // Also search directly from Gmail for real-time results
-    const gmailResults = await this.gmailContactsProvider.searchContacts(userId, query, 10);
-    
+    const gmailResults = await this.gmailContactsProvider.searchContacts(
+      userId,
+      query,
+      10,
+    );
+
     // Merge results, preferring local contacts (they have frequency data)
     const results = new Map<string, ContactSearchResult>();
-    
+
     // Add local contacts first
     for (const contact of contacts) {
       results.set(contact.email.toLowerCase(), this.toSearchResult(contact));
     }
-    
+
     // Add Gmail results that aren't already in local
     for (const raw of gmailResults) {
       const key = raw.email.toLowerCase();
@@ -209,35 +224,41 @@ export class ContactsService {
   /**
    * Get frequently contacted contacts
    */
-  async getFrequentContacts(userId: string, limit: number = 10): Promise<ContactSearchResult[]> {
+  async getFrequentContacts(
+    userId: string,
+    limit: number = 10,
+  ): Promise<ContactSearchResult[]> {
     const contacts = await this.contactRepository.find({
       where: { userId },
       order: {
-        isFavorite: 'DESC',
-        contactFrequency: 'DESC',
-        lastContactedAt: 'DESC',
+        isFavorite: "DESC",
+        contactFrequency: "DESC",
+        lastContactedAt: "DESC",
       },
       take: limit,
     });
 
-    return contacts.map(c => this.toSearchResult(c));
+    return contacts.map((c) => this.toSearchResult(c));
   }
 
   /**
    * Increment contact frequency when user sends email to this contact
    */
-  async incrementContactFrequency(userId: string, email: string): Promise<void> {
+  async incrementContactFrequency(
+    userId: string,
+    email: string,
+  ): Promise<void> {
     const emailHash = SearchIndexHelper.hashExact(email);
-    
-    await this.contactRepository
-      .createQueryBuilder()
-      .update(Contact)
-      .set({
-        contactFrequency: () => 'contact_frequency + 1',
-        lastContactedAt: new Date(),
-      })
-      .where('userId = :userId AND emailHash = :emailHash', { userId, emailHash })
-      .execute();
+
+    // Use raw SQL for atomic increment to avoid TypeORM column name transformation issues
+    await this.contactRepository.query(
+      `UPDATE "contacts" 
+       SET "contactFrequency" = "contactFrequency" + 1, 
+           "lastContactedAt" = $1, 
+           "updatedAt" = CURRENT_TIMESTAMP 
+       WHERE "userId" = $2 AND "emailHash" = $3`,
+      [new Date(), userId, emailHash],
+    );
 
     // If contact doesn't exist, create it
     const existing = await this.contactRepository.findOne({
@@ -252,7 +273,7 @@ export class ContactsService {
 
       await this.contactRepository.save({
         userId,
-        provider: 'manual',
+        provider: "manual",
         providerId: `manual-${Date.now()}`,
         email,
         emailHash,
@@ -272,7 +293,7 @@ export class ContactsService {
     });
 
     if (!contact) {
-      throw new Error('Contact not found');
+      throw new Error("Contact not found");
     }
 
     contact.isFavorite = !contact.isFavorite;
@@ -282,7 +303,10 @@ export class ContactsService {
   /**
    * Get contact by email
    */
-  async getContactByEmail(userId: string, email: string): Promise<Contact | null> {
+  async getContactByEmail(
+    userId: string,
+    email: string,
+  ): Promise<Contact | null> {
     const emailHash = SearchIndexHelper.hashExact(email);
     return this.contactRepository.findOne({
       where: { userId, emailHash },
@@ -296,12 +320,12 @@ export class ContactsService {
     const contacts = await this.contactRepository.find({
       where: { userId },
       order: {
-        name: 'ASC',
-        email: 'ASC',
+        name: "ASC",
+        email: "ASC",
       },
     });
 
-    return contacts.map(c => this.toSearchResult(c));
+    return contacts.map((c) => this.toSearchResult(c));
   }
 
   /**
@@ -316,10 +340,17 @@ export class ContactsService {
    */
   async createContact(
     userId: string,
-    data: { email: string; name?: string; firstName?: string; lastName?: string; company?: string; jobTitle?: string },
+    data: {
+      email: string;
+      name?: string;
+      firstName?: string;
+      lastName?: string;
+      company?: string;
+      jobTitle?: string;
+    },
   ): Promise<Contact> {
     const emailHash = SearchIndexHelper.hashExact(data.email);
-    
+
     // Check if contact already exists
     const existing = await this.contactRepository.findOne({
       where: { userId, emailHash },
@@ -345,13 +376,15 @@ export class ContactsService {
         jobTitle: data.jobTitle,
         searchTokens: JSON.stringify(searchTokens),
       });
-      return this.contactRepository.findOneOrFail({ where: { id: existing.id } });
+      return this.contactRepository.findOneOrFail({
+        where: { id: existing.id },
+      });
     }
 
     // Create new
     return this.contactRepository.save({
       userId,
-      provider: 'manual',
+      provider: "manual",
       providerId: `manual-${Date.now()}`,
       email: data.email,
       emailHash,
@@ -379,7 +412,3 @@ export class ContactsService {
     };
   }
 }
-
-
-
-

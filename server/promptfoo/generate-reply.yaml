@@ -1,0 +1,18 @@
+providers:
+  - openai:gpt-4.1-mini
+  # Uncomment below if you have Gemini API key
+  # - google:gemini-pro
+
+prompts:
+  - file://prompts/generate-reply.md
+
+tests:
+  - vars:
+      fromName: "John Boss"
+      subject: "Status update needed"
+      body: "Can you provide a status update on the project?"
+      tone: "professional"
+    assert:
+      - type: javascript
+        value: |
+          return output.toLowerCase().includes('status') && output.length > 50;

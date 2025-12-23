@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from '../theme/theme';
+import { InfoTooltip } from '../components/InfoTooltip';
+import { Sidebar } from '../components/inbox/Sidebar';
+import { useAuth } from '../contexts/AuthContext';
+import { captureEvent } from '../utils/posthog';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
@@ -43,12 +47,13 @@ const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const Settings: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { user, logout } = useAuth();
   const [summarizationRules, setSummarizationRules] = useState<SummarizationRule[]>([]);
   const [blockedSenders, setBlockedSenders] = useState<BlockedSender[]>([]);
   const [contexts, setContexts] = useState<UserContext[]>([]);
   const [batchSchedule, setBatchSchedule] = useState<BatchSchedule>({
     deliveryDays: [1, 2, 3, 4, 5], // Mon-Fri by default
-    deliveryTimes: ['11:00', '16:00'], // 11am and 4pm by default
+    deliveryTimes: ['11:00', '15:00'], // 11am and 3pm by default (matches service default)
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     isEnabled: true,
     urgentBypassSchedule: true,
@@ -59,17 +64,39 @@ const Settings: React.FC = () => {
   const [openAiApiKey, setOpenAiApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
   const [apiKeySaved, setApiKeySaved] = useState(false);
+  const [githubToken, setGithubToken] = useState('');
+  const [showGithubToken, setShowGithubToken] = useState(false);
+  const [githubTokenSaved, setGithubTokenSaved] = useState(false);
+  const [hasGithubToken, setHasGithubToken] = useState(false);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeProgress, setAnalyzeProgress] = useState<{ 
     show: boolean; 
-    progress: { current: number; total: number; message?: string } | null;
+    progress: { 
+      current: number; 
+      total: number; 
+      message?: string; 
+      threadCount?: number;
+      analyzedCount?: number;
+      stats?: {
+        totalThreads: number;
+        outboundEmails: number;
+        threadsNeverOpened: number;
+        threadsReadButNotReplied: number;
+        vipContactsEvaluated: number;
+      };
+    } | null;
     error: string | null;
+    isComplete: boolean;
   }>({ 
     show: false, 
     progress: null,
     error: null,
+    isComplete: false,
   });
+  const [googleAccounts, setGoogleAccounts] = useState<any[]>([]);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [hasGoogleTokens, setHasGoogleTokens] = useState(false);
   
   // Summarization rules state
   const [newSummarizationWhen, setNewSummarizationWhen] = useState('');
@@ -86,35 +113,99 @@ const Settings: React.FC = () => {
   const [editContextValue, setEditContextValue] = useState('');
   const [editContextPriority, setEditContextPriority] = useState<number>(2);
 
+  // Handle anchor scrolling when navigating with hash (from sidebar navigation)
   useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash;
+      if (hash && !loading) {
+        // Wait for content to load, then scroll
+        setTimeout(() => {
+          const element = document.getElementById(hash.substring(1));
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 100);
+      }
+    };
+    
+    handleHashChange();
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [loading]);
+
+  useEffect(() => {
+    const hash = window.location.hash;
+    captureEvent('settings_viewed', {
+      section: hash ? hash.substring(1) : undefined,
+    });
     fetchData();
   }, []);
 
   const fetchData = async () => {
     try {
-      const [sumRulesRes, contextRes, userRes, blockedRes, scheduleRes] = await Promise.all([
+      const [sumRulesRes, contextRes, userRes, blockedRes, scheduleRes, googleAccountsRes] = await Promise.all([
         axios.get(`${API_URL}/summarize/rules`).catch(() => ({ data: [] })),
         axios.get(`${API_URL}/context`),
         axios.get(`${API_URL}/users/me`),
         axios.get(`${API_URL}/blocked-senders`).catch(() => ({ data: [] })),
         axios.get(`${API_URL}/batch-schedule`).catch(() => ({ data: null })),
+        axios.get(`${API_URL}/google-accounts`).catch(() => ({ data: [] })),
       ]);
-      setSummarizationRules(sumRulesRes.data);
-      setBlockedSenders(blockedRes.data);
+      // eslint-disable-next-line id-denylist
+      const sumRulesData = sumRulesRes.data;
+      // eslint-disable-next-line id-denylist
+      const blockedData = blockedRes.data;
+      // eslint-disable-next-line id-denylist
+      const scheduleData = scheduleRes.data;
+      // eslint-disable-next-line id-denylist
+      const googleAccountsData = googleAccountsRes.data;
+      setSummarizationRules(sumRulesData);
+      setBlockedSenders(blockedData);
       setContexts(contextRes.data);
-      if (scheduleRes.data) {
+      
+      // Check if user has Google tokens from SSO login but no GoogleAccount entries
+      const user = userRes.data;
+      const hasTokens = !!(user.googleCalendarAccessToken || user.googleCalendarRefreshToken);
+      setUserEmail(user.email);
+      setHasGoogleTokens(hasTokens);
+      
+      // If user has tokens but no GoogleAccount entries, show their email as connected
+      if (hasTokens && googleAccountsData.length === 0) {
+        setGoogleAccounts([{
+          id: 'sso-account',
+          email: user.email,
+          name: user.name || '',
+          isPrimary: true,
+          isSSO: true, // Mark as SSO account
+        }]);
+      } else {
+        setGoogleAccounts(googleAccountsData);
+      }
+      
+      // Always set batch schedule - use defaults from service if no data returned
+      if (scheduleData) {
         setBatchSchedule({
           deliveryDays: scheduleRes.data.deliveryDays || [1, 2, 3, 4, 5],
-          deliveryTimes: scheduleRes.data.deliveryTimes || ['11:00', '16:00'],
+          deliveryTimes: scheduleRes.data.deliveryTimes || ['11:00', '15:00'], // Match service default (3pm, not 4pm)
           timezone: scheduleRes.data.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
           isEnabled: scheduleRes.data.isEnabled ?? true,
           urgentBypassSchedule: scheduleRes.data.urgentBypassSchedule ?? true,
+        });
+      } else {
+        // If no schedule exists in DB, use defaults (service will return defaults but we handle null case)
+        setBatchSchedule({
+          deliveryDays: [1, 2, 3, 4, 5],
+          deliveryTimes: ['11:00', '15:00'], // Match service default
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          isEnabled: true,
+          urgentBypassSchedule: true,
         });
       }
       if (userRes.data.toneSettings?.rules) {
         setToneRules(userRes.data.toneSettings.rules);
       }
       setOpenAiApiKey('');
+      setHasGithubToken(!!userRes.data.githubToken);
     } catch (error) {
       console.error('Error fetching settings:', error);
     } finally {
@@ -124,7 +215,7 @@ const Settings: React.FC = () => {
 
   const handleAnalyzeContext = async () => {
     setAnalyzing(true);
-    setAnalyzeProgress({ show: true, progress: { current: 0, total: 100, message: 'Starting analysis...' }, error: null });
+    setAnalyzeProgress({ show: true, progress: { current: 0, total: 100, message: 'Starting analysis...' }, error: null, isComplete: false });
     try {
       await axios.post(`${API_URL}/context/analyze`);
       // Progress polling is handled by useEffect
@@ -134,11 +225,12 @@ const Settings: React.FC = () => {
       setAnalyzeProgress({ 
         show: true, 
         progress: null,
-        error: error.response?.data?.message || 'Failed to start analysis. Please try again.' 
+        error: error.response?.data?.message || 'Failed to start analysis. Please try again.',
+        isComplete: false,
       });
       // Hide error message after 10 seconds
       setTimeout(() => {
-        setAnalyzeProgress({ show: false, progress: null, error: null });
+        setAnalyzeProgress({ show: false, progress: null, error: null, isComplete: false });
       }, 10000);
     }
   };
@@ -177,16 +269,18 @@ const Settings: React.FC = () => {
             show: true, 
             progress: null,
             error: response.data.error.message || 'Analysis failed. Please try again.',
+            isComplete: false,
           });
           // Hide error after 10 seconds
           setTimeout(() => {
-            setAnalyzeProgress({ show: false, progress: null, error: null });
+            setAnalyzeProgress({ show: false, progress: null, error: null, isComplete: false });
           }, 10000);
           return;
         }
         
         if (response.data.progress) {
-          const { current, total } = response.data.progress;
+          const { current, total, message, threadCount, analyzedCount, stats } = response.data.progress;
+          const isComplete = total > 0 && current >= total;
           // Reset error count on successful response
           errorCount = 0;
           retryCount = 0;
@@ -196,32 +290,24 @@ const Settings: React.FC = () => {
             progress: { 
               current, 
               total,
-              message: response.data.progress?.message || getProgressMessage(current, total, response.data.progress?.message),
+              message: message || getProgressMessage(current, total, message),
+              threadCount,
+              analyzedCount,
+              stats: stats || undefined, // Ensure stats is included if available
             },
             error: null,
+            isComplete,
           });
           
-          // Check if completed (current equals total and total > 0)
-          if (total > 0 && current >= total) {
+          // Check if completed
+          if (isComplete) {
             clearInterval(progressInterval);
             setAnalyzing(false);
             // Wait a bit for backend to finish
             await new Promise(resolve => setTimeout(resolve, 1000));
             // Refresh context data
             await fetchData();
-            // Show completion message for 3 seconds, then hide
-            setAnalyzeProgress({ 
-              show: true, 
-              progress: { 
-                current, 
-                total,
-                message: response.data.progress?.message || 'Analysis complete!',
-              },
-              error: null,
-            });
-            setTimeout(() => {
-              setAnalyzeProgress({ show: false, progress: null, error: null });
-            }, 3000);
+            // Don't auto-close - let user dismiss manually
           }
         } else {
           // No progress data - wait a bit before assuming failure
@@ -233,18 +319,24 @@ const Settings: React.FC = () => {
           clearInterval(progressInterval);
           setAnalyzing(false);
           await fetchData();
-          setAnalyzeProgress({ show: false, progress: null, error: null });
+          setAnalyzeProgress({ show: false, progress: null, error: null, isComplete: false });
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching analysis progress:', error);
         errorCount++;
         if (errorCount < 3) {
           return; // Continue polling for transient errors
         }
-        // After 3 errors, stop polling
+        // After 3 errors, stop polling and show error
         clearInterval(progressInterval);
         setAnalyzing(false);
-        setAnalyzeProgress({ show: false, progress: null, error: null });
+        const errorMessage = error?.response?.data?.message || error?.message || 'Failed to fetch analysis progress. Please try again.';
+        setAnalyzeProgress({ 
+          show: true, // Keep popup open to show error
+          progress: null, 
+          error: errorMessage, 
+          isComplete: false 
+        });
       }
     }, 2000); // Poll every 2 seconds
 
@@ -332,7 +424,7 @@ const Settings: React.FC = () => {
     }
   };
 
-  const renderContextSection = (title: string, contextKey: string | string[], contexts: UserContext[], addLabel: string) => {
+  const renderContextSection = (title: string, contextKey: string | string[], contexts: UserContext[], addLabel: string, tooltipContent?: string) => {
     const keys = Array.isArray(contextKey) ? contextKey : [contextKey];
     const filteredContexts = contexts.filter(c => keys.includes(c.contextKey));
     
@@ -346,9 +438,13 @@ const Settings: React.FC = () => {
           color: theme.colors.text.primary,
           marginBottom: theme.spacing.sm,
           borderBottom: `1px solid ${theme.colors.border.light}`,
-          paddingBottom: theme.spacing.xs
+          paddingBottom: theme.spacing.xs,
+          display: 'flex',
+          alignItems: 'center',
+          gap: theme.spacing.xs
         }}>
           {title}
+          {tooltipContent && <InfoTooltip content={tooltipContent} />}
         </h3>
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
@@ -388,8 +484,8 @@ const Settings: React.FC = () => {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs, width: '100%' }}>
                               {(() => {
                                 const parts = context.contextValue.split(' | ');
-                                const question = parts.find(p => p.startsWith('Q:'))?.replace('Q:', '').trim() || '';
-                                const answer = parts.find(p => p.startsWith('A:'))?.replace('A:', '').trim() || '';
+                                const question = parts.find(part => part.startsWith('Q:'))?.replace('Q:', '').trim() || '';
+                                const answer = parts.find(part => part.startsWith('A:'))?.replace('A:', '').trim() || '';
                                 return (
                                   <>
                                     <div style={{ color: theme.colors.text.primary, fontWeight: theme.typography.fontWeight.medium }}>
@@ -575,7 +671,7 @@ const Settings: React.FC = () => {
     setBatchSchedule(prev => ({
       ...prev,
       deliveryDays: prev.deliveryDays.includes(day)
-        ? prev.deliveryDays.filter(d => d !== day)
+        ? prev.deliveryDays.filter(dayItem => dayItem !== day)
         : [...prev.deliveryDays, day].sort((a, b) => a - b),
     }));
   };
@@ -658,6 +754,41 @@ const Settings: React.FC = () => {
     }
   };
 
+  const handleSaveGithubToken = async () => {
+    if (!githubToken.trim()) {
+      alert('Please enter a GitHub token');
+      return;
+    }
+
+    try {
+      await axios.put(`${API_URL}/users/me`, { githubToken: githubToken.trim() });
+      setGithubTokenSaved(true);
+      setGithubToken('');
+      setHasGithubToken(true);
+      setTimeout(() => setGithubTokenSaved(false), 3000);
+    } catch (error) {
+      console.error('Error saving GitHub token:', error);
+      alert('Failed to save GitHub token');
+    }
+  };
+
+  const handleRemoveGithubToken = async () => {
+    if (!window.confirm('Are you sure you want to remove your GitHub token?')) {
+      return;
+    }
+
+    try {
+      await axios.put(`${API_URL}/users/me`, { githubToken: null });
+      setGithubToken('');
+      setShowGithubToken(false);
+      setHasGithubToken(false);
+      alert('GitHub token removed');
+    } catch (error) {
+      console.error('Error removing GitHub token:', error);
+      alert('Failed to remove GitHub token');
+    }
+  };
+
   // Summarization rule handlers
   const handleAddSummarizationRule = async () => {
     if (!newSummarizationWhen.trim() || !newSummarizationHow.trim()) return;
@@ -711,8 +842,8 @@ const Settings: React.FC = () => {
 
   const handleUnblockSender = async (id: string) => {
     // Optimistic update
-    const deletedSender = blockedSenders.find(s => s.id === id);
-    setBlockedSenders(prev => prev.filter(s => s.id !== id));
+    const deletedSender = blockedSenders.find(sender => sender.id === id);
+    setBlockedSenders(prev => prev.filter(sender => sender.id !== id));
     
     try {
       await axios.delete(`${API_URL}/blocked-senders/${id}`);
@@ -729,35 +860,8 @@ const Settings: React.FC = () => {
   }
 
   return (
-    <div style={{
-      display: 'flex',
-      height: '100vh',
-      backgroundColor: theme.colors.background.default,
-    }}>
-      <div style={{
-        width: '250px',
-        backgroundColor: theme.colors.background.paper,
-        borderRight: `1px solid ${theme.colors.border.light}`,
-        padding: theme.spacing.lg,
-      }}>
-        <button
-          onClick={() => navigate('/inbox')}
-          style={{
-            width: '100%',
-            padding: theme.spacing.md,
-            marginBottom: theme.spacing.md,
-            backgroundColor: theme.colors.primary.main,
-            color: 'white',
-            border: 'none',
-            borderRadius: theme.borderRadius.md,
-            cursor: 'pointer',
-            fontSize: theme.typography.fontSize.base,
-          }}
-        >
-          ← {t('settings.backToInbox')}
-        </button>
-      </div>
-
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+      <Sidebar user={user} logout={logout} />
       <div style={{ flex: 1, overflowY: 'auto', padding: theme.spacing.xl, position: 'relative' }}>
         {/* Analysis progress notification */}
         {analyzeProgress.show && (
@@ -766,7 +870,7 @@ const Settings: React.FC = () => {
             top: '120px',
             left: '50%',
             transform: 'translateX(-50%)',
-            backgroundColor: analyzeProgress.error ? theme.colors.background.paper : theme.colors.background.paper,
+            backgroundColor: theme.colors.background.paper,
             padding: theme.spacing.lg,
             borderRadius: theme.borderRadius.lg,
             boxShadow: theme.shadows.xl,
@@ -775,267 +879,361 @@ const Settings: React.FC = () => {
             zIndex: 2000,
             border: `1px solid ${analyzeProgress.error ? theme.colors.accent.error : theme.colors.border.light}`,
           }}>
-            {analyzeProgress.error ? (
-              <>
-                <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md, marginBottom: theme.spacing.sm }}>
-                  <div style={{
-                    width: '20px',
-                    height: '20px',
-                    color: theme.colors.accent.error,
-                    fontSize: '20px',
-                  }}>
-                    ⚠️
-                  </div>
-                  <h3 style={{ 
-                    color: theme.colors.accent.error,
-                    fontSize: theme.typography.fontSize.base,
-                    fontWeight: theme.typography.fontWeight.semibold,
-                    margin: 0,
-                  }}>
-                    Analysis Failed
-                  </h3>
-                </div>
-                <p style={{
-                  fontSize: theme.typography.fontSize.sm,
-                  color: theme.colors.text.primary,
-                  margin: 0,
-                  lineHeight: 1.5,
-                }}>
-                  {analyzeProgress.error}
-                </p>
-              </>
-            ) : (
-              <>
-                <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md, marginBottom: theme.spacing.sm }}>
-                  <div style={{
-                    width: '12px',
-                    height: '12px',
-                    border: `2px solid ${theme.colors.primary.main}`,
-                    borderTop: '2px solid transparent',
-                    borderRadius: '50%',
-                    animation: 'spin 1s linear infinite',
-                  }} />
-                  <h3 style={{ 
-                    color: theme.colors.text.primary,
-                    fontSize: theme.typography.fontSize.base,
-                    fontWeight: theme.typography.fontWeight.semibold,
-                    margin: 0,
-                  }}>
-                    {t('settings.analyzing')}
-                  </h3>
-                </div>
-                {analyzeProgress.progress && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: theme.spacing.sm }}>
+              <div style={{ flex: 1 }}>
+                {analyzeProgress.error ? (
                   <>
-                    <div style={{
-                      width: '100%',
-                      height: '6px',
-                      backgroundColor: theme.colors.border.light,
-                      borderRadius: theme.borderRadius.full,
-                      overflow: 'hidden',
-                      marginBottom: theme.spacing.xs,
-                    }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md, marginBottom: theme.spacing.sm }}>
                       <div style={{
-                        width: `${(analyzeProgress.progress.current / analyzeProgress.progress.total) * 100}%`,
-                        height: '100%',
-                        backgroundColor: theme.colors.primary.main,
-                        transition: 'width 0.3s ease',
-                      }} />
+                        width: '20px',
+                        height: '20px',
+                        color: theme.colors.accent.error,
+                        fontSize: '20px',
+                      }}>
+                        ⚠️
+                      </div>
+                      <h3 style={{ 
+                        color: theme.colors.accent.error,
+                        fontSize: theme.typography.fontSize.base,
+                        fontWeight: theme.typography.fontWeight.semibold,
+                        margin: 0,
+                      }}>
+                        Analysis Failed
+                      </h3>
                     </div>
                     <p style={{
                       fontSize: theme.typography.fontSize.sm,
-                      color: theme.colors.text.secondary,
+                      color: theme.colors.text.primary,
                       margin: 0,
+                      lineHeight: 1.5,
                     }}>
-                      {analyzeProgress.progress.message || 
-                       `${analyzeProgress.progress.current}% complete`}
+                      {analyzeProgress.error}
                     </p>
                   </>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md, marginBottom: theme.spacing.sm }}>
+                      {!analyzeProgress.isComplete && (
+                        <div style={{
+                          width: '12px',
+                          height: '12px',
+                          border: `2px solid ${theme.colors.primary.main}`,
+                          borderTop: '2px solid transparent',
+                          borderRadius: '50%',
+                          animation: 'spin 1s linear infinite',
+                        }} />
+                      )}
+                      <h3 style={{ 
+                        color: theme.colors.text.primary,
+                        fontSize: theme.typography.fontSize.base,
+                        fontWeight: theme.typography.fontWeight.semibold,
+                        margin: 0,
+                      }}>
+                        {analyzeProgress.isComplete ? 'Analysis Complete' : t('settings.analyzing')}
+                      </h3>
+                    </div>
+                    {analyzeProgress.progress && (
+                      <>
+                        <div style={{
+                          width: '100%',
+                          height: '6px',
+                          backgroundColor: theme.colors.border.light,
+                          borderRadius: theme.borderRadius.full,
+                          overflow: 'hidden',
+                          marginBottom: theme.spacing.xs,
+                        }}>
+                          <div style={{
+                            width: `${(analyzeProgress.progress.current / analyzeProgress.progress.total) * 100}%`,
+                            height: '100%',
+                            backgroundColor: theme.colors.primary.main,
+                            transition: 'width 0.3s ease',
+                          }} />
+                        </div>
+                        <p style={{
+                          fontSize: theme.typography.fontSize.sm,
+                          color: theme.colors.text.secondary,
+                          margin: 0,
+                        }}>
+                          {analyzeProgress.progress.message || 
+                           `${analyzeProgress.progress.current}% complete`}
+                        </p>
+                        {/* Show summary if complete OR if progress is 100% and stats exist (fallback) */}
+                        {((analyzeProgress.isComplete || (analyzeProgress.progress && analyzeProgress.progress.current === analyzeProgress.progress.total)) && analyzeProgress.progress?.stats) && (
+                          <div style={{
+                            fontSize: theme.typography.fontSize.xs,
+                            color: theme.colors.text.secondary,
+                            margin: `${theme.spacing.sm} 0 0 0`,
+                            padding: theme.spacing.sm,
+                            backgroundColor: theme.colors.background.subtle,
+                            borderRadius: theme.borderRadius.md,
+                          }}>
+                            <div style={{ marginBottom: theme.spacing.xs, fontWeight: theme.typography.fontWeight.semibold }}>
+                              Analysis Summary:
+                            </div>
+                            <div style={{ lineHeight: 1.6 }}>
+                              <div>• {analyzeProgress.progress.stats.totalThreads || 0} email threads analyzed</div>
+                              <div>• {analyzeProgress.progress.stats.outboundEmails || 0} outbound emails analyzed</div>
+                              <div>• {analyzeProgress.progress.stats.threadsNeverOpened || 0} threads never opened (low priority)</div>
+                              <div>• {analyzeProgress.progress.stats.threadsReadButNotReplied || 0} threads read but not replied (medium priority)</div>
+                              <div>• {analyzeProgress.progress.stats.vipContactsEvaluated || 0} contacts evaluated as VIPs</div>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </>
                 )}
-              </>
-            )}
+              </div>
+              <button
+                onClick={() => setAnalyzeProgress({ show: false, progress: null, error: null, isComplete: false })}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '20px',
+                  color: theme.colors.text.secondary,
+                  cursor: 'pointer',
+                  padding: '0',
+                  marginLeft: theme.spacing.md,
+                  lineHeight: 1,
+                }}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
           </div>
         )}
 
-        <h1 style={{
-          color: theme.colors.text.primary,
-          marginBottom: theme.spacing.xl,
-          fontSize: theme.typography.fontSize['3xl'],
-        }}>
-          {t('settings.title')}
-        </h1>
-
-        {/* Sub-navigation */}
-        <div style={{
-          position: 'sticky',
-          top: 0,
-          backgroundColor: theme.colors.background.paper,
-          borderBottom: `1px solid ${theme.colors.border.light}`,
-          padding: theme.spacing.md,
-          marginBottom: theme.spacing.lg,
-          zIndex: 100,
-          boxShadow: theme.shadows.sm,
-        }}>
-          <div style={{
-            display: 'flex',
-            gap: theme.spacing.md,
-            flexWrap: 'wrap',
-            alignItems: 'center',
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.xl }}>
+          <h1 style={{
+            color: theme.colors.text.primary,
+            margin: 0,
+            fontSize: theme.typography.fontSize['3xl'],
           }}>
-            <a
-              href="#tone-settings"
-              onClick={(e) => {
-                e.preventDefault();
-                document.getElementById('tone-settings')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }}
-              style={{
-                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                color: theme.colors.text.secondary,
-                textDecoration: 'none',
-                fontSize: theme.typography.fontSize.sm,
-                borderRadius: theme.borderRadius.sm,
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = theme.colors.background.subtle;
-                e.currentTarget.style.color = theme.colors.text.primary;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.color = theme.colors.text.secondary;
-              }}
-            >
-              Tone Settings
-            </a>
-            <a
-              href="#api-key"
-              onClick={(e) => {
-                e.preventDefault();
-                document.getElementById('api-key')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }}
-              style={{
-                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                color: theme.colors.text.secondary,
-                textDecoration: 'none',
-                fontSize: theme.typography.fontSize.sm,
-                borderRadius: theme.borderRadius.sm,
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = theme.colors.background.subtle;
-                e.currentTarget.style.color = theme.colors.text.primary;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.color = theme.colors.text.secondary;
-              }}
-            >
-              API Key
-            </a>
-            <a
-              href="#email-batching"
-              onClick={(e) => {
-                e.preventDefault();
-                document.getElementById('email-batching')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }}
-              style={{
-                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                color: theme.colors.text.secondary,
-                textDecoration: 'none',
-                fontSize: theme.typography.fontSize.sm,
-                borderRadius: theme.borderRadius.sm,
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = theme.colors.background.subtle;
-                e.currentTarget.style.color = theme.colors.text.primary;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.color = theme.colors.text.secondary;
-              }}
-            >
-              Email Batching
-            </a>
-            <a
-              href="#summarization"
-              onClick={(e) => {
-                e.preventDefault();
-                document.getElementById('summarization')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }}
-              style={{
-                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                color: theme.colors.text.secondary,
-                textDecoration: 'none',
-                fontSize: theme.typography.fontSize.sm,
-                borderRadius: theme.borderRadius.sm,
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = theme.colors.background.subtle;
-                e.currentTarget.style.color = theme.colors.text.primary;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.color = theme.colors.text.secondary;
-              }}
-            >
-              Summarization
-            </a>
-            <a
-              href="#blocked-senders"
-              onClick={(e) => {
-                e.preventDefault();
-                document.getElementById('blocked-senders')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }}
-              style={{
-                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                color: theme.colors.text.secondary,
-                textDecoration: 'none',
-                fontSize: theme.typography.fontSize.sm,
-                borderRadius: theme.borderRadius.sm,
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = theme.colors.background.subtle;
-                e.currentTarget.style.color = theme.colors.text.primary;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.color = theme.colors.text.secondary;
-              }}
-            >
-              Blocked Senders
-            </a>
-            <a
-              href="#context"
-              onClick={(e) => {
-                e.preventDefault();
-                document.getElementById('context')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }}
-              style={{
-                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                color: theme.colors.text.secondary,
-                textDecoration: 'none',
-                fontSize: theme.typography.fontSize.sm,
-                borderRadius: theme.borderRadius.sm,
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = theme.colors.background.subtle;
-                e.currentTarget.style.color = theme.colors.text.primary;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.color = theme.colors.text.secondary;
-              }}
-            >
-              Context
-            </a>
-          </div>
+            {t('settings.title')}
+          </h1>
+          <Link
+            to="/help/settings"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              backgroundColor: theme.colors.background.subtle,
+              color: theme.colors.text.secondary,
+              textDecoration: 'none',
+              fontSize: theme.typography.fontSize.lg,
+              fontWeight: theme.typography.fontWeight.bold,
+              transition: theme.transitions.default,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = theme.colors.primary.subtle;
+              e.currentTarget.style.color = theme.colors.primary.main;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = theme.colors.background.subtle;
+              e.currentTarget.style.color = theme.colors.text.secondary;
+            }}
+            title={t('help.title')}
+          >
+            ?
+          </Link>
         </div>
 
-        {/* Tone Settings */}
-        <div id="tone-settings" style={{
+        {/* Email Delivery - Parent section */}
+        <div id="email-delivery" style={{
+          marginBottom: theme.spacing.xl,
+        }}>
+          <h2 style={{
+            color: theme.colors.text.primary,
+            marginBottom: theme.spacing.lg,
+            fontSize: theme.typography.fontSize['2xl'],
+            fontWeight: theme.typography.fontWeight.semibold,
+          }}>
+            Email Delivery
+          </h2>
+
+          {/* Google Accounts Section */}
+          <div id="google-accounts" style={{
+            backgroundColor: theme.colors.background.paper,
+            padding: theme.spacing.xl,
+            borderRadius: theme.borderRadius.lg,
+            marginBottom: theme.spacing.lg,
+            border: `1px solid ${theme.colors.border.medium}`,
+          }}>
+            <h3 style={{
+              color: theme.colors.text.primary,
+              marginBottom: theme.spacing.lg,
+              fontSize: theme.typography.fontSize.xl,
+              fontWeight: theme.typography.fontWeight.semibold,
+            }}>
+              Gmail Accounts
+            </h3>
+          
+          {googleAccounts.length === 0 ? (
+            <div style={{
+              padding: theme.spacing.xl,
+              textAlign: 'center',
+              backgroundColor: theme.colors.background.subtle,
+              borderRadius: theme.borderRadius.md,
+              marginBottom: theme.spacing.md,
+            }}>
+              <p style={{
+                color: theme.colors.text.secondary,
+                marginBottom: theme.spacing.lg,
+                fontSize: theme.typography.fontSize.base,
+              }}>
+                No Gmail accounts connected. Connect a Gmail account to start using BearlyMail.
+              </p>
+              <button
+                onClick={() => {
+                  window.location.href = `${API_URL}/google-accounts/connect`;
+                }}
+                style={{
+                  padding: `${theme.spacing.md} ${theme.spacing.xl}`,
+                  backgroundColor: theme.colors.primary.main,
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: theme.borderRadius.md,
+                  fontSize: theme.typography.fontSize.base,
+                  fontWeight: theme.typography.fontWeight.semibold,
+                  cursor: 'pointer',
+                }}
+              >
+                Connect Gmail Account
+              </button>
+            </div>
+          ) : (
+            <>
+              {googleAccounts.map((account) => (
+                <div
+                  key={account.id}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: theme.spacing.md,
+                    backgroundColor: theme.colors.background.subtle,
+                    borderRadius: theme.borderRadius.md,
+                    marginBottom: theme.spacing.sm,
+                  }}
+                >
+                  <div>
+                    <div style={{
+                      fontWeight: theme.typography.fontWeight.semibold,
+                      color: theme.colors.text.primary,
+                      marginBottom: theme.spacing.xs,
+                    }}>
+                      {account.email}
+                      {account.isPrimary && (
+                        <span style={{
+                          marginLeft: theme.spacing.sm,
+                          fontSize: theme.typography.fontSize.xs,
+                          color: theme.colors.primary.main,
+                          backgroundColor: `${theme.colors.primary.main}20`,
+                          padding: '2px 6px',
+                          borderRadius: theme.borderRadius.sm,
+                        }}>
+                          Primary
+                        </span>
+                      )}
+                      {account.isSSO && (
+                        <span style={{
+                          marginLeft: theme.spacing.sm,
+                          fontSize: theme.typography.fontSize.xs,
+                          color: theme.colors.accent.info,
+                          backgroundColor: `${theme.colors.accent.info}20`,
+                          padding: '2px 6px',
+                          borderRadius: theme.borderRadius.sm,
+                        }}>
+                          SSO Login
+                        </span>
+                      )}
+                    </div>
+                    {account.name && (
+                      <div style={{
+                        fontSize: theme.typography.fontSize.sm,
+                        color: theme.colors.text.secondary,
+                      }}>
+                        {account.name}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: theme.spacing.sm }}>
+                    {!account.isSSO && !account.isPrimary && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            await axios.post(`${API_URL}/google-accounts/${account.id}/set-primary`);
+                            await fetchData();
+                          } catch (error) {
+                            console.error('Error setting primary account:', error);
+                          }
+                        }}
+                        style={{
+                          padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                          backgroundColor: 'transparent',
+                          color: theme.colors.primary.main,
+                          border: `1px solid ${theme.colors.primary.main}`,
+                          borderRadius: theme.borderRadius.sm,
+                          fontSize: theme.typography.fontSize.sm,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Set Primary
+                      </button>
+                    )}
+                    {!account.isSSO && (
+                      <button
+                        onClick={async () => {
+                          if (window.confirm('Are you sure you want to disconnect this Gmail account?')) {
+                            try {
+                              await axios.delete(`${API_URL}/google-accounts/${account.id}`);
+                              await fetchData();
+                            } catch (error) {
+                              console.error('Error disconnecting account:', error);
+                            }
+                          }
+                        }}
+                        style={{
+                          padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                          backgroundColor: 'transparent',
+                          color: theme.colors.accent.error,
+                          border: `1px solid ${theme.colors.accent.error}`,
+                          borderRadius: theme.borderRadius.sm,
+                          fontSize: theme.typography.fontSize.sm,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Disconnect
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+              <button
+                onClick={() => {
+                  window.location.href = `${API_URL}/google-accounts/connect`;
+                }}
+                style={{
+                  marginTop: theme.spacing.md,
+                  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                  backgroundColor: 'transparent',
+                  color: theme.colors.primary.main,
+                  border: `1px solid ${theme.colors.primary.main}`,
+                  borderRadius: theme.borderRadius.md,
+                  fontSize: theme.typography.fontSize.sm,
+                  cursor: 'pointer',
+                }}
+              >
+                + Connect Another Gmail Account
+              </button>
+            </>
+          )}
+          </div>
+        <div id="guide-our-ai" style={{
           backgroundColor: theme.colors.background.paper,
           borderRadius: theme.borderRadius.lg,
           padding: theme.spacing.xl,
@@ -1046,9 +1244,31 @@ const Settings: React.FC = () => {
             color: theme.colors.text.primary,
             marginBottom: theme.spacing.md,
             fontSize: theme.typography.fontSize.xl,
+            scrollMarginTop: '80px',
           }}>
-            {t('settings.howIWrite')}
+            Guide our AI
           </h2>
+          <p style={{
+            color: theme.colors.text.secondary,
+            marginBottom: theme.spacing.lg,
+            fontSize: theme.typography.fontSize.base,
+          }}>
+            Configure how the AI understands your context and writing style to provide better email prioritization and drafting assistance.
+          </p>
+
+          {/* How I write emails - moved under Guide our AI */}
+          <div id="tone-settings" style={{
+            marginBottom: theme.spacing.xl,
+            paddingTop: theme.spacing.lg,
+            borderTop: `1px solid ${theme.colors.border.light}`,
+          }}>
+            <h3 style={{
+              color: theme.colors.text.primary,
+              marginBottom: theme.spacing.md,
+              fontSize: theme.typography.fontSize.lg,
+            }}>
+              {t('settings.howIWrite')}
+            </h3>
           <p style={{
             color: theme.colors.text.secondary,
             marginBottom: theme.spacing.md,
@@ -1057,9 +1277,35 @@ const Settings: React.FC = () => {
             {t('settings.toneConfig')}
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
-            {toneRules.map((rule, index) => (
+            {toneRules.map((rule, index) => {
+              // Parse email ID from rule if present (format: "... (email <id>)")
+              const emailIdMatch = rule.match(/\(email ([a-f0-9-]+)\)/i);
+              const emailId = emailIdMatch ? emailIdMatch[1] : null;
+              const displayRule = emailId ? rule.replace(/ \(email [a-f0-9-]+\)/i, '') : rule;
+              
+              return (
               <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: theme.spacing.sm, border: `1px solid ${theme.colors.border.light}`, borderRadius: theme.borderRadius.md }}>
-                <span>{rule}</span>
+                <span>
+                  {displayRule}
+                  {emailId && (
+                    <a 
+                      href={`/email/${emailId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ 
+                        marginLeft: theme.spacing.xs, 
+                        color: theme.colors.primary.main,
+                        fontSize: '0.85em',
+                        textDecoration: 'none'
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                      }}
+                    >
+                      (view email)
+                    </a>
+                  )}
+                </span>
                 <button
                   onClick={() => handleRemoveToneRule(index)}
                   style={{
@@ -1072,7 +1318,8 @@ const Settings: React.FC = () => {
                   {t('common.remove')}
                 </button>
               </div>
-            ))}
+            );
+            })}
             <div style={{ display: 'flex', gap: theme.spacing.md, marginTop: theme.spacing.sm }}>
               <input
                 type="text"
@@ -1103,7 +1350,170 @@ const Settings: React.FC = () => {
               </button>
             </div>
           </div>
+          </div>
+          {/* End How I write emails section */}
+
+          {/* User Context - moved under Guide our AI */}
+          <div id="context" style={{
+            marginTop: theme.spacing.lg,
+            paddingTop: theme.spacing.lg,
+            borderTop: `1px solid ${theme.colors.border.light}`,
+          }}>
+            <h3 style={{
+              color: theme.colors.text.primary,
+              fontSize: theme.typography.fontSize.lg,
+              marginBottom: theme.spacing.sm,
+            }}>
+              {t('settings.contextAboutMeTitle')}
+            </h3>
+            <p style={{
+              color: theme.colors.text.secondary,
+              fontSize: theme.typography.fontSize.base,
+              marginBottom: theme.spacing.md,
+              lineHeight: theme.typography.lineHeight.relaxed,
+            }}>
+              {t('settings.contextAboutMe.description1')}{' '}
+              <Link 
+                to="/help/context#what-is-context" 
+                style={{
+                  color: theme.colors.primary.main,
+                  textDecoration: 'underline',
+                }}
+              >
+                {t('settings.contextAboutMe.learnMore')}
+              </Link>
+            </p>
+            <p style={{
+              color: theme.colors.text.secondary,
+              fontSize: theme.typography.fontSize.base,
+              marginBottom: theme.spacing.lg,
+              lineHeight: theme.typography.lineHeight.relaxed,
+            }}>
+              {t('settings.contextAboutMe.description2')}
+            </p>
+            <div style={{ 
+              backgroundColor: theme.colors.background.subtle, 
+              padding: theme.spacing.md, 
+              borderRadius: theme.borderRadius.md,
+              marginBottom: theme.spacing.lg,
+              border: `1px solid ${theme.colors.border.light}`,
+            }}>
+              <div style={{ 
+                fontSize: theme.typography.fontSize.sm, 
+                color: theme.colors.text.primary,
+                marginBottom: theme.spacing.xs,
+                fontWeight: theme.typography.fontWeight.medium,
+              }}>
+                💡 {t('settings.contextAboutMe.impactTitle')}
+              </div>
+              <div style={{ 
+                fontSize: theme.typography.fontSize.sm, 
+                color: theme.colors.text.secondary,
+                marginBottom: theme.spacing.sm,
+              }}>
+                {t('settings.contextAboutMe.impactDescription')}
+              </div>
+              <Link 
+                to="/help/context" 
+                style={{
+                  color: theme.colors.primary.main,
+                  fontSize: theme.typography.fontSize.sm,
+                  textDecoration: 'underline',
+                  cursor: 'pointer',
+                }}
+              >
+                {t('settings.contextAboutMe.learnMore')} →
+              </Link>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: theme.spacing.sm }}>
+              <button
+                onClick={handleAnalyzeContext}
+                disabled={analyzing}
+                style={{
+                  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                  backgroundColor: analyzing ? theme.colors.background.subtle : theme.colors.secondary.main,
+                  color: analyzing ? theme.colors.text.secondary : 'white',
+                  border: analyzing ? `1px solid ${theme.colors.border.medium}` : 'none',
+                  borderRadius: theme.borderRadius.md,
+                  cursor: analyzing ? 'wait' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: theme.spacing.sm,
+                }}
+              >
+                {analyzing && (
+                  <div style={{
+                    width: '16px',
+                    height: '16px',
+                    border: `2px solid ${theme.colors.text.secondary}`,
+                    borderTop: '2px solid transparent',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite',
+                  }} />
+                )}
+                {analyzing ? t('settings.analyzing') : t('settings.analyzeEmails')}
+              </button>
+            </div>
+            
+            {contexts.length === 0 && (
+              <div style={{ color: theme.colors.text.secondary, marginBottom: theme.spacing.lg }}>
+                {t('settings.noContext')}
+              </div>
+            )}
+
+            {renderContextSection(
+              t('settings.contextSections.vip'), 
+              'VIP_CONTACT', 
+              contexts, 
+              t('settings.addContext.vip'),
+              t('settings.contextTypes.tooltip.vip')
+            )}
+            {renderContextSection(
+              t('settings.contextSections.userInfo'), 
+              'USER_INFO', 
+              contexts, 
+              t('settings.addContext.userInfo'),
+              t('settings.contextTypes.tooltip.userInfo')
+            )}
+            {renderContextSection(
+              t('settings.contextSections.projects'), 
+              ['CURRENT_TOPIC', 'PROJECT_NAME', 'WORKING_ON'], 
+              contexts, 
+              t('settings.addContext.projects'),
+              t('settings.contextTypes.tooltip.projects')
+            )}
+            {renderContextSection(
+              t('settings.contextSections.urgent'), 
+              'URGENT', 
+              contexts, 
+              t('settings.addContext.urgent'),
+              t('settings.contextTypes.tooltip.urgent')
+            )}
+            {renderContextSection(
+              t('settings.contextSections.notImportant'), 
+              'NOT_IMPORTANT', 
+              contexts, 
+              t('settings.addContext.notImportant'),
+              t('settings.contextTypes.tooltip.notImportant')
+            )}
+            {renderContextSection(
+              'Q&A', 
+              'Q_AND_A', 
+              contexts, 
+              'Add common Q&A',
+              t('settings.contextTypes.tooltip.qanda')
+            )}
+            {renderContextSection(
+              t('settings.contextSections.other'), 
+              ['OTHER', 'COLLEAGUE_NAME', 'COMMON_PHRASE'], 
+              contexts, 
+              t('settings.addContext.placeholder'),
+              t('settings.contextTypes.tooltip.other')
+            )}
+          </div>
+          {/* End User Context section */}
         </div>
+        {/* End Guide our AI section */}
 
         {/* OpenAI API Key */}
         <div id="api-key" style={{
@@ -1205,22 +1615,137 @@ const Settings: React.FC = () => {
           </div>
         </div>
 
-        {/* Email Delivery Schedule */}
-        <div style={{
+        {/* GitHub Integration */}
+        <div id="github-integration" style={{
           backgroundColor: theme.colors.background.paper,
           borderRadius: theme.borderRadius.lg,
           padding: theme.spacing.xl,
           marginBottom: theme.spacing.lg,
           boxShadow: theme.shadows.md,
         }}>
-          <h2 id="email-batching" style={{
+          <h2 style={{
             color: theme.colors.text.primary,
             marginBottom: theme.spacing.md,
             fontSize: theme.typography.fontSize.xl,
-            scrollMarginTop: '80px', // Offset for sticky nav
+            scrollMarginTop: '80px',
           }}>
-            {t('settings.emailBatching') || 'Email Delivery Schedule'}
+            GitHub Integration
           </h2>
+          <p style={{
+            color: theme.colors.text.secondary,
+            marginBottom: theme.spacing.md,
+            fontSize: theme.typography.fontSize.sm,
+          }}>
+            Connect your GitHub account to automatically detect and display issue and pull request status in emails. 
+            You'll need a fine-grained personal access token with <code>Issues: Read</code> and <code>Pull requests: Read</code> permissions.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
+            {hasGithubToken && (
+              <div style={{
+                padding: theme.spacing.sm,
+                backgroundColor: theme.colors.accent.success + '20',
+                border: `1px solid ${theme.colors.accent.success}`,
+                borderRadius: theme.borderRadius.md,
+                color: theme.colors.accent.success,
+                fontSize: theme.typography.fontSize.sm,
+              }}>
+                ✓ GitHub token is configured
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: theme.spacing.md, alignItems: 'center' }}>
+              <input
+                type={showGithubToken ? 'text' : 'password'}
+                value={githubToken}
+                onChange={(e) => setGithubToken(e.target.value)}
+                placeholder="github_pat_..."
+                style={{
+                  flex: 1,
+                  padding: theme.spacing.sm,
+                  border: `1px solid ${theme.colors.border.medium}`,
+                  borderRadius: theme.borderRadius.md,
+                  fontSize: theme.typography.fontSize.sm,
+                  fontFamily: 'monospace',
+                }}
+              />
+              <button
+                onClick={() => setShowGithubToken(!showGithubToken)}
+                style={{
+                  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                  backgroundColor: theme.colors.background.default,
+                  color: theme.colors.text.primary,
+                  border: `1px solid ${theme.colors.border.medium}`,
+                  borderRadius: theme.borderRadius.md,
+                  cursor: 'pointer',
+                  fontSize: theme.typography.fontSize.sm,
+                }}
+              >
+                {showGithubToken ? 'Hide' : 'Show'}
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: theme.spacing.md }}>
+              <button
+                onClick={handleSaveGithubToken}
+                disabled={!githubToken.trim()}
+                style={{
+                  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                  backgroundColor: githubToken.trim() ? theme.colors.primary.main : theme.colors.text.tertiary,
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: theme.borderRadius.md,
+                  cursor: githubToken.trim() ? 'pointer' : 'not-allowed',
+                }}
+              >
+                {githubTokenSaved ? 'Saved!' : 'Save Token'}
+              </button>
+              {hasGithubToken && (
+                <button
+                  onClick={handleRemoveGithubToken}
+                  style={{
+                    padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                    backgroundColor: theme.colors.accent.error,
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: theme.borderRadius.md,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Remove Token
+                </button>
+              )}
+              <a
+                href="https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token#creating-a-fine-grained-personal-access-token"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                  color: theme.colors.primary.main,
+                  textDecoration: 'underline',
+                  fontSize: theme.typography.fontSize.sm,
+                  alignSelf: 'center',
+                }}
+              >
+                How to create a token
+              </a>
+            </div>
+          </div>
+        </div>
+
+          {/* Email Delivery Schedule - under Email Delivery */}
+          <div style={{
+            backgroundColor: theme.colors.background.paper,
+            borderRadius: theme.borderRadius.lg,
+            padding: theme.spacing.xl,
+            marginBottom: theme.spacing.lg,
+            boxShadow: theme.shadows.md,
+          }}>
+            <h3 id="email-batching" style={{
+              color: theme.colors.text.primary,
+              marginBottom: theme.spacing.md,
+              fontSize: theme.typography.fontSize.xl,
+              scrollMarginTop: '80px', // Offset for sticky nav
+            }}>
+              {t('settings.emailBatching') || 'Email Delivery Schedule'}
+            </h3>
           <p style={{
             color: theme.colors.text.secondary,
             marginBottom: theme.spacing.lg,
@@ -1718,67 +2243,9 @@ const Settings: React.FC = () => {
               ))}
             </div>
           )}
-        </div>
-
-        {/* User Context */}
-        <div id="context" style={{
-          backgroundColor: theme.colors.background.paper,
-          borderRadius: theme.borderRadius.lg,
-          padding: theme.spacing.xl,
-          marginBottom: theme.spacing.lg,
-          boxShadow: theme.shadows.md,
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.md }}>
-            <h2 style={{
-              color: theme.colors.text.primary,
-              fontSize: theme.typography.fontSize.xl,
-              scrollMarginTop: '80px', // Offset for sticky nav
-            }}>
-              {t('settings.learnedContext')}
-            </h2>
-            <button
-              onClick={handleAnalyzeContext}
-              disabled={analyzing}
-              style={{
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                backgroundColor: analyzing ? theme.colors.background.subtle : theme.colors.secondary.main,
-                color: analyzing ? theme.colors.text.secondary : 'white',
-                border: analyzing ? `1px solid ${theme.colors.border.medium}` : 'none',
-                borderRadius: theme.borderRadius.md,
-                cursor: analyzing ? 'wait' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: theme.spacing.sm,
-              }}
-            >
-              {analyzing && (
-                <div style={{
-                  width: '16px',
-                  height: '16px',
-                  border: `2px solid ${theme.colors.text.secondary}`,
-                  borderTop: '2px solid transparent',
-                  borderRadius: '50%',
-                  animation: 'spin 1s linear infinite',
-                }} />
-              )}
-              {analyzing ? t('settings.analyzing') : t('settings.analyzeEmails')}
-            </button>
           </div>
-          
-          {contexts.length === 0 && (
-            <div style={{ color: theme.colors.text.secondary, marginBottom: theme.spacing.lg }}>
-              {t('settings.noContext')}
-            </div>
-          )}
-
-          {renderContextSection(t('settings.contextSections.vip'), 'VIP_CONTACT', contexts, t('settings.addContext.vip'))}
-          {renderContextSection(t('settings.contextSections.userInfo'), 'USER_INFO', contexts, t('settings.addContext.userInfo'))}
-          {renderContextSection(t('settings.contextSections.projects'), ['CURRENT_TOPIC', 'PROJECT_NAME', 'WORKING_ON'], contexts, t('settings.addContext.projects'))}
-          {renderContextSection(t('settings.contextSections.urgent'), 'URGENT', contexts, t('settings.addContext.urgent'))}
-          {renderContextSection(t('settings.contextSections.notImportant'), 'NOT_IMPORTANT', contexts, t('settings.addContext.notImportant'))}
-          {renderContextSection('Q&A', 'Q_AND_A', contexts, 'Add common Q&A')}
-          {renderContextSection(t('settings.contextSections.other'), ['OTHER', 'COLLEAGUE_NAME', 'COMMON_PHRASE'], contexts, t('settings.addContext.placeholder'))}
         </div>
+        {/* End Email Delivery section */}
       </div>
     </div>
   );

@@ -5,6 +5,8 @@ import axios from 'axios';
 import DOMPurify from 'dompurify';
 import { theme } from '../theme/theme';
 import { humanizeTimestamp } from '../utils/dateUtils';
+import { GitHubStatusSection } from '../components/github/GitHubStatusSection';
+import { captureEvent } from '../utils/posthog';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
@@ -21,6 +23,27 @@ interface Email {
   receivedAt: string;
   summary?: string | null;
   isProcessingSummary?: boolean;
+  githubMetadata?: {
+    links: Array<{
+      type: 'issue' | 'pr';
+      repo: string;
+      owner: string;
+      number: number;
+      url: string;
+      status?: {
+        state: string;
+        title?: string;
+        labels?: Array<{ name: string; color: string }>;
+        assignees?: Array<{ login: string; avatar_url: string }>;
+        project?: string;
+        reviewStatus?: 'approved' | 'changes_requested' | 'pending' | null;
+        commentsCount?: number;
+        mergeable?: boolean | null;
+        merged?: boolean;
+      };
+      fetchedAt?: string;
+    }>;
+  };
 }
 
 
@@ -56,8 +79,19 @@ const EmailDetail: React.FC = () => {
   const [checkingTone, setCheckingTone] = useState(false);
   const [notesCollapsed, setNotesCollapsed] = useState(true);
   const [animationClass, setAnimationClass] = useState<string | null>(null);
-  const [priorityExplanation, setPriorityExplanation] = useState<{ score: number; breakdown: Array<{ factor: string; value: number; description: string }> } | null>(null);
+  const [priorityExplanation, setPriorityExplanation] = useState<{ 
+    score: number; 
+    breakdown: Array<{ factor: string; value: number; description: string }>;
+    dimensions?: {
+      urgency: { score: number; reasons: string[] };
+      goalAlignment: { score: number; reasons: string[] };
+      vipContact: { score: number; reasons: string[] };
+    };
+  } | null>(null);
   const [showPriorityExplanation, setShowPriorityExplanation] = useState(false);
+  const [githubLinks, setGithubLinks] = useState<any[]>([]);
+  const [loadingGithub, setLoadingGithub] = useState(false);
+  const [hasGithubToken, setHasGithubToken] = useState(false);
 
   const triggerAnimation = (type: 'send' | 'archive') => {
     const animations = type === 'send' 
@@ -122,6 +156,11 @@ const EmailDetail: React.FC = () => {
       if (emailData.summary && !summary) {
         setSummary(emailData.summary);
       }
+
+      // Update GitHub metadata if available
+      if (emailData.githubMetadata?.links) {
+        setGithubLinks(emailData.githubMetadata.links);
+      }
       
       // Mark as read in parallel, don't wait for it
       axios.put(`${API_URL}/emails/${id}/read`).catch(err => console.error('Error marking as read:', err));
@@ -176,6 +215,43 @@ const EmailDetail: React.FC = () => {
     }
   }, [email?.id]);
 
+  const fetchGithubInfo = useCallback(async () => {
+    if (!id) return;
+    setLoadingGithub(true);
+    try {
+      const response = await axios.get(`${API_URL}/github/emails/${id}`);
+      setGithubLinks(response.data.links || []);
+      setHasGithubToken(response.data.hasToken !== false);
+    } catch (error: any) {
+      console.error('Error fetching GitHub info:', error);
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        setHasGithubToken(false);
+      }
+    } finally {
+      setLoadingGithub(false);
+    }
+  }, [id]);
+
+  const refreshGithubInfo = useCallback(async () => {
+    if (!id) return;
+    setLoadingGithub(true);
+    try {
+      const response = await axios.post(`${API_URL}/github/emails/${id}/refresh`);
+      setGithubLinks(response.data.links || []);
+    } catch (error) {
+      console.error('Error refreshing GitHub info:', error);
+      alert('Failed to refresh GitHub status. Please try again.');
+    } finally {
+      setLoadingGithub(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    if (id && email) {
+      captureEvent('email_detail_viewed', { email_id: id });
+    }
+  }, [id, email]);
+
   useEffect(() => {
     if (id) {
       fetchCustomRules().then((rules) => {
@@ -206,8 +282,10 @@ const EmailDetail: React.FC = () => {
            }
         });
       });
+      // Fetch GitHub info
+      fetchGithubInfo();
     }
-  }, [id, fetchCustomRules, fetchEmail, handleUseCustomRule, handleSummarize, isGeneratingSummary]);
+  }, [id, fetchCustomRules, fetchEmail, handleUseCustomRule, handleSummarize, isGeneratingSummary, fetchGithubInfo]);
 
   useEffect(() => {
     if (email?.threadId) {
@@ -222,7 +300,13 @@ const EmailDetail: React.FC = () => {
           // Auto-extract if no action items exist and email has a body
           if (response.data.length === 0 && email.body) {
             try {
-              const extractResponse = await axios.post(`${API_URL}/llm/extract-actions`, { emailBody: email.body });
+              const extractResponse = await axios.post(`${API_URL}/llm/extract-actions`, {
+                emailBody: email.body,
+                senderInfo: {
+                  from: email.from,
+                  fromName: email.fromName,
+                },
+              });
               if (extractResponse.data && extractResponse.data.length > 0) {
                 const newItems = extractResponse.data.map((item: any) => ({
                   description: item.description,
@@ -359,6 +443,24 @@ const EmailDetail: React.FC = () => {
     return content;
   };
 
+  // Helper function to make all links open in new tab
+  const processLinksForNewTab = (html: string): string => {
+    if (!html) return html;
+    
+    // Use DOMPurify to parse and modify the HTML
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    
+    // Find all links and add target="_blank" and rel="noopener noreferrer"
+    const links = tempDiv.querySelectorAll('a');
+    links.forEach((link) => {
+      link.setAttribute('target', '_blank');
+      link.setAttribute('rel', 'noopener noreferrer');
+    });
+    
+    return tempDiv.innerHTML;
+  };
+
   const extractCleanBody = (emailBody: string, htmlBody?: string): string => {
     if (!emailBody && !htmlBody) return '';
     
@@ -420,9 +522,16 @@ const EmailDetail: React.FC = () => {
 
   const handleExtractActions = async () => {
     if (!id || !email?.body) return;
+    captureEvent('action_items_extract_clicked', { email_id: id });
     setIsGeneratingSummary(true);
     try {
-      const response = await axios.post(`${API_URL}/llm/extract-actions`, { emailBody: email.body });
+      const response = await axios.post(`${API_URL}/llm/extract-actions`, {
+        emailBody: email.body,
+        senderInfo: {
+          from: email.from,
+          fromName: email.fromName,
+        },
+      });
       const newItems = response.data.map((item: any) => ({
         description: item.description,
         isCompleted: false,
@@ -490,6 +599,7 @@ const EmailDetail: React.FC = () => {
   };
 
   const handleOpenReplyComposer = (mode: 'reply' | 'replyAll') => {
+    captureEvent('reply_button_clicked', { email_id: id, reply_type: mode });
     setReplyMode(mode);
     setShowReplyComposer(true);
     setDraft('');
@@ -523,6 +633,10 @@ const EmailDetail: React.FC = () => {
       });
       
       if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+        captureEvent('reply_draft_generated', {
+          email_id: id,
+          draft_count: response.data.length,
+        });
         // Add "Custom" option at the end
         const optionsWithCustom = [
           ...response.data,
@@ -571,6 +685,11 @@ const EmailDetail: React.FC = () => {
     
     setSending(true);
     try {
+      captureEvent('reply_sent', {
+        email_id: id,
+        reply_type: replyMode,
+        draft_was_edited: false, // Could be enhanced to track if user edited
+      });
       await axios.post(`${API_URL}/replies/send/${id}`, { 
         reply: draft,
         recipients: replyRecipients,
@@ -591,6 +710,7 @@ const EmailDetail: React.FC = () => {
 
   const handleArchive = async () => {
     if (!id) return;
+    captureEvent('email_archive_clicked', { email_id: id });
     await triggerAnimation('archive');
     navigate('/inbox');
     axios.put(`${API_URL}/emails/${id}/archive`).catch(error => {
@@ -601,6 +721,10 @@ const EmailDetail: React.FC = () => {
   const handleSnooze = async () => {
     if (!id || !snoozeInput.trim()) return;
     const duration = snoozeInput.trim();
+    captureEvent('email_snooze_confirmed', {
+      email_id: id,
+      snooze_input_length: duration.length,
+    });
     setSnoozeInput('');
     setShowSnoozeInput(false);
     navigate('/inbox');
@@ -900,6 +1024,14 @@ const EmailDetail: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* GitHub Status */}
+            <GitHubStatusSection
+              links={githubLinks}
+              loading={loadingGithub}
+              hasToken={hasGithubToken}
+              onRefresh={refreshGithubInfo}
+            />
           </div>
           
           {/* Email Card */}
@@ -978,6 +1110,51 @@ const EmailDetail: React.FC = () => {
                 >
                   {t('emailDetail.priorityScore', { score: email.priorityScore.toFixed(0) })}
                   
+                  {/* Goal Alignment & Sentiment Display */}
+                  {priorityExplanation && priorityExplanation.dimensions && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '100%',
+                      right: 0,
+                      marginTop: theme.spacing.xs,
+                      padding: theme.spacing.sm,
+                      backgroundColor: theme.colors.background.paper,
+                      borderRadius: theme.borderRadius.sm,
+                      border: `1px solid ${theme.colors.border.light}`,
+                      fontSize: theme.typography.fontSize.xs,
+                      minWidth: '200px',
+                      boxShadow: theme.shadows.md,
+                      zIndex: 999,
+                    }}>
+                      {priorityExplanation.dimensions.goalAlignment && (
+                        <div style={{ marginBottom: theme.spacing.xs }}>
+                          <span style={{ fontWeight: theme.typography.fontWeight.medium }}>🎯 Goal Alignment: </span>
+                          <span>{priorityExplanation.dimensions.goalAlignment.score.toFixed(0)}%</span>
+                          {priorityExplanation.dimensions.goalAlignment.reasons.length > 0 && (
+                            <div style={{ fontSize: '0.7rem', color: theme.colors.text.secondary, marginTop: '2px' }}>
+                              {priorityExplanation.dimensions.goalAlignment.reasons[0]}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {priorityExplanation.breakdown && (() => {
+                        const sentimentItem = priorityExplanation.breakdown.find(item => 
+                          item.factor.toLowerCase().includes('sentiment') || item.description.toLowerCase().includes('sentiment')
+                        );
+                        if (sentimentItem) {
+                          const sentimentLabel = sentimentItem.value > 0 ? '😟 Negative' : sentimentItem.value < 0 ? '😊 Positive' : '😐 Neutral';
+                          return (
+                            <div>
+                              <span style={{ fontWeight: theme.typography.fontWeight.medium }}>{sentimentLabel} Sentiment: </span>
+                              <span>{sentimentItem.description}</span>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
+                  )}
+                  
                   {/* Priority Explanation Popup */}
                   {showPriorityExplanation && priorityExplanation && (
                     <div 
@@ -1011,9 +1188,34 @@ const EmailDetail: React.FC = () => {
                           ×
                         </button>
                 </div>
+
+                      {/* Human-readable summary */}
+                      {priorityExplanation.breakdown && priorityExplanation.breakdown.length > 0 && (
+                        <div style={{ 
+                          marginBottom: theme.spacing.md, 
+                          padding: theme.spacing.sm,
+                          backgroundColor: theme.colors.background.subtle,
+                          borderRadius: theme.borderRadius.sm,
+                          fontSize: theme.typography.fontSize.sm,
+                          lineHeight: theme.typography.lineHeight.relaxed,
+                        }}>
+                          <strong style={{ color: theme.colors.text.primary }}>
+                            {priorityExplanation.score >= 70 ? 'High' : priorityExplanation.score >= 40 ? 'Medium' : 'Low'} priority because:
+                          </strong>{' '}
+                          {priorityExplanation.breakdown
+                            .filter(item => item.value > 0)
+                            .slice(0, 3)
+                            .map((item, idx, arr) => (
+                              <span key={idx}>
+                                {item.description.toLowerCase() || item.factor.toLowerCase()} ({item.value > 0 ? '+' : ''}{item.value})
+                                {idx < arr.length - 1 ? ', ' : ''}
+                              </span>
+                            ))}
+                        </div>
+                      )}
                       
                       <div style={{ marginBottom: theme.spacing.md }}>
-                        {priorityExplanation.breakdown.map((item, idx) => (
+                        {priorityExplanation.breakdown && priorityExplanation.breakdown.map((item, idx) => (
                           <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: theme.spacing.xs, fontSize: theme.typography.fontSize.sm }}>
                             <span title={item.description} style={{ cursor: 'help', borderBottom: '1px dotted #ccc' }}>
                               {item.factor}
@@ -1353,7 +1555,7 @@ const EmailDetail: React.FC = () => {
                             setSelectedReplyOption(idx);
                             setDraft(option.text);
                           }}
-                          title={option.text.substring(0, 100) + '...'}
+                          title={`${option.text.substring(0, 100)}...`}
                           style={{
                             padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
                             backgroundColor: selectedReplyOption === idx ? theme.colors.primary.main : theme.colors.background.subtle,
@@ -1383,7 +1585,7 @@ const EmailDetail: React.FC = () => {
                     setDraft(e.target.value);
                     // Switch to Custom tab when user types
                     if (replyOptions && selectedReplyOption !== replyOptions.length - 1) {
-                      const customIdx = replyOptions.findIndex(o => o.label === 'Custom');
+                      const customIdx = replyOptions.findIndex(option => option.label === 'Custom');
                       if (customIdx >= 0) setSelectedReplyOption(customIdx);
                     }
                   }}
@@ -1410,7 +1612,7 @@ const EmailDetail: React.FC = () => {
                   <div style={{
                     marginTop: theme.spacing.md,
                     padding: theme.spacing.md,
-                    backgroundColor: '#FEF2F2',
+                    backgroundColor: theme.colors.sunray.light4,
                     border: `1px solid ${theme.colors.accent.error}`,
                     borderRadius: theme.borderRadius.md,
                   }}>
@@ -1457,10 +1659,10 @@ const EmailDetail: React.FC = () => {
                   <div style={{
                     marginTop: theme.spacing.md,
                     padding: theme.spacing.sm,
-                    backgroundColor: '#ECFDF5',
-                    border: '1px solid #10B981',
+                    backgroundColor: theme.colors.sunray.light4,
+                    border: `1px solid ${theme.colors.accent.success}`,
                     borderRadius: theme.borderRadius.md,
-                    color: '#047857',
+                    color: theme.colors.accent.success,
                     fontSize: theme.typography.fontSize.sm,
                     display: 'flex',
                     alignItems: 'center',
@@ -1751,10 +1953,12 @@ const EmailDetail: React.FC = () => {
                               }}
                               dangerouslySetInnerHTML={{ 
                                 __html: DOMPurify.sanitize(
-                                  (cleanHtmlBody || (threadEmail as any).htmlBody).replace(/<style([^>]*)>/gi, '<style$1 scoped>'),
+                                  processLinksForNewTab(
+                                    (cleanHtmlBody || (threadEmail as any).htmlBody).replace(/<style([^>]*)>/gi, '<style$1 scoped>')
+                                  ),
                                   {
                                     ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'div', 'span', 'img', 'table', 'tr', 'td', 'th', 'style'],
-                                    ALLOWED_ATTR: ['href', 'src', 'alt', 'class', 'style', 'scoped'],
+                                    ALLOWED_ATTR: ['href', 'src', 'alt', 'class', 'style', 'scoped', 'target', 'rel'],
                                     ALLOW_DATA_ATTR: false,
                                   }
                                 )
@@ -1803,11 +2007,13 @@ const EmailDetail: React.FC = () => {
                     }}
                     dangerouslySetInnerHTML={{ 
                       __html: DOMPurify.sanitize(
-                        removeSignature(email.htmlBody, true).replace(/<style([^>]*)>/gi, '<style$1 scoped>'),
+                        processLinksForNewTab(
+                          removeSignature(email.htmlBody, true).replace(/<style([^>]*)>/gi, '<style$1 scoped>')
+                        ),
                         {
                           // Allow style tags but scope them
                           ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'div', 'span', 'img', 'table', 'tr', 'td', 'th', 'style'],
-                          ALLOWED_ATTR: ['href', 'src', 'alt', 'class', 'style', 'scoped'],
+                          ALLOWED_ATTR: ['href', 'src', 'alt', 'class', 'style', 'scoped', 'target', 'rel'],
                           // Keep relative URLs safe
                           ALLOW_DATA_ATTR: false,
                         }

@@ -1,7 +1,7 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { ScanEmail } from '../database/entities/scan-email.entity';
+import { Injectable } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { ScanEmail } from "../database/entities/scan-email.entity";
 
 @Injectable()
 export class ScanEmailService {
@@ -10,7 +10,10 @@ export class ScanEmailService {
     private scanEmailRepository: Repository<ScanEmail>,
   ) {}
 
-  async createScanEmail(userId: string, emailData: Partial<ScanEmail>): Promise<ScanEmail> {
+  async createScanEmail(
+    userId: string,
+    emailData: Partial<ScanEmail>,
+  ): Promise<ScanEmail> {
     const scanEmail = this.scanEmailRepository.create({
       ...emailData,
       userId,
@@ -18,7 +21,10 @@ export class ScanEmailService {
     return this.scanEmailRepository.save(scanEmail);
   }
 
-  async findByMessageId(userId: string, messageId: string): Promise<ScanEmail | null> {
+  async findByMessageId(
+    userId: string,
+    messageId: string,
+  ): Promise<ScanEmail | null> {
     return this.scanEmailRepository.findOne({
       where: { userId, messageId },
     });
@@ -27,7 +33,7 @@ export class ScanEmailService {
   async findAllForUser(userId: string): Promise<ScanEmail[]> {
     return this.scanEmailRepository.find({
       where: { userId },
-      order: { receivedAt: 'DESC' },
+      order: { receivedAt: "DESC" },
     });
   }
 
@@ -39,9 +45,3 @@ export class ScanEmailService {
     return this.scanEmailRepository.count({ where: { userId } });
   }
 }
-
-
-
-
-
-

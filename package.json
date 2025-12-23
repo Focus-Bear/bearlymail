@@ -9,7 +9,12 @@
     "client": "cd client && npm start",
     "build": "cd server && npm run build && cd ../client && npm run build",
     "install-all": "npm install && cd server && npm install && cd ../client && npm install",
-    "start:prod": "cd server && npm run start:prod"
+    "start:prod": "cd server && npm run start:prod",
+    "db:up": "docker-compose up -d postgres",
+    "db:down": "docker-compose down",
+    "db:logs": "docker-compose logs -f postgres",
+    "db:reset": "docker-compose down -v && docker-compose up -d postgres",
+    "db:psql": "docker-compose exec postgres psql -U postgres -d adhd_email_client"
   },
   "keywords": ["email", "adhd", "productivity"],
   "author": "",

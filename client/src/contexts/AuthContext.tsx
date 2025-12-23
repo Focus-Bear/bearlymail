@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { identifyUser, resetPostHog, posthog, isPostHogLoaded } from '../utils/posthog';
+import { identifyUser, resetPostHog, captureEvent, isPostHogLoaded } from '../utils/posthog';
 import { setupAxiosInterceptors } from '../utils/axios-interceptors';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
@@ -49,10 +49,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     // Track logout event
-    if (isPostHogLoaded()) {
-      posthog.capture('user_logged_out');
-      resetPostHog();
-    }
+    captureEvent('user_logged_out');
+    resetPostHog();
     localStorage.removeItem('token');
     delete axios.defaults.headers.common['Authorization'];
     setUser(null);
@@ -89,10 +87,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const userData = response.data;
           console.log('User data fetched successfully:', userData?.email || 'no email');
           setUser(userData);
-          // Identify user in PostHog
+          // Identify user in PostHog (NO PII)
           if (userData?.id) {
-            identifyUser(userData.id, userData.email, {
-              name: userData.name,
+            identifyUser(userData.id, {
               isAdmin: userData.isAdmin,
             });
           }
@@ -133,17 +130,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
     setUser(user);
-    // Track login event and identify user
-    if (isPostHogLoaded()) {
-      posthog.capture('user_logged_in', {
-        email: user.email,
-        method: 'email',
-      });
-      identifyUser(user.id, user.email, {
-        name: user.name,
-        isAdmin: user.isAdmin,
-      });
-    }
+    // Track login event and identify user (NO PII)
+    captureEvent('user_logged_in', {
+      method: 'email',
+    });
+    identifyUser(user.id, {
+      isAdmin: user.isAdmin,
+    });
   };
 
   const register = async (email: string, password: string, name?: string) => {
@@ -156,16 +149,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
     setUser(user);
-    // Track registration event and identify user
-    if (isPostHogLoaded()) {
-      posthog.capture('user_registered', {
-        email: user.email,
-      });
-      identifyUser(user.id, user.email, {
-        name: user.name,
-        isAdmin: user.isAdmin,
-      });
-    }
+    // Track registration event and identify user (NO PII)
+    captureEvent('user_registered');
+    identifyUser(user.id, {
+      isAdmin: user.isAdmin,
+    });
   };
 
   const refreshUser = async () => {

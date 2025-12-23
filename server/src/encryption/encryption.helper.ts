@@ -1,11 +1,11 @@
-import * as crypto from 'crypto';
+import * as crypto from "crypto";
 
 /**
  * Static encryption helper for use in TypeORM column transformers
  * Gets encryption key from environment variable
  */
 class EncryptionHelper {
-  private static algorithm = 'aes-256-gcm';
+  private static algorithm = "aes-256-gcm";
   private static ivLength = 16;
   private static keyCache: Buffer | null = null;
 
@@ -14,42 +14,48 @@ class EncryptionHelper {
       return this.keyCache;
     }
 
-    const keyString = process.env.ENCRYPTION_KEY || 'default-key-change-in-production-32chars!!';
-    this.keyCache = crypto.scryptSync(keyString, 'salt', 32);
+    const keyString =
+      process.env.ENCRYPTION_KEY ||
+      "default-key-change-in-production-32chars!!";
+    this.keyCache = crypto.scryptSync(keyString, "salt", 32);
     return this.keyCache;
   }
 
   static encrypt(text: string | null | undefined): string | null {
     if (!text) return null;
-    
+
     try {
       const key = this.getKey();
       const iv = crypto.randomBytes(this.ivLength);
-      const cipher = crypto.createCipheriv(this.algorithm, key, iv) as crypto.CipherGCM;
-      
-      let encrypted = cipher.update(text, 'utf8', 'hex');
-      encrypted += cipher.final('hex');
-      
+      const cipher = crypto.createCipheriv(
+        this.algorithm,
+        key,
+        iv,
+      ) as crypto.CipherGCM;
+
+      let encrypted = cipher.update(text, "utf8", "hex");
+      encrypted += cipher.final("hex");
+
       const authTag = cipher.getAuthTag();
-      
+
       // Combine IV, authTag, and encrypted data
-      return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
+      return `${iv.toString("hex")}:${authTag.toString("hex")}:${encrypted}`;
     } catch (error) {
-      console.error('Encryption error:', error);
-      throw new Error('Failed to encrypt data');
+      console.error("Encryption error:", error);
+      throw new Error("Failed to encrypt data");
     }
   }
 
   static decrypt(encryptedText: string | null | undefined): string | null {
     if (!encryptedText) return null;
-    
+
     try {
       // Check if this is already decrypted (for backwards compatibility during migration)
-      if (!encryptedText.includes(':')) {
+      if (!encryptedText.includes(":")) {
         return encryptedText;
       }
 
-      const parts = encryptedText.split(':');
+      const parts = encryptedText.split(":");
       if (parts.length !== 3) {
         // Not in expected format, might be plaintext
         return encryptedText;
@@ -57,26 +63,33 @@ class EncryptionHelper {
 
       const key = this.getKey();
       const [ivHex, authTagHex, encrypted] = parts;
-      const iv = Buffer.from(ivHex, 'hex');
-      const authTag = Buffer.from(authTagHex, 'hex');
-      
-      const decipher = crypto.createDecipheriv(this.algorithm, key, iv) as crypto.DecipherGCM;
+      const iv = Buffer.from(ivHex, "hex");
+      const authTag = Buffer.from(authTagHex, "hex");
+
+      const decipher = crypto.createDecipheriv(
+        this.algorithm,
+        key,
+        iv,
+      ) as crypto.DecipherGCM;
       decipher.setAuthTag(authTag);
-      
-      let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-      decrypted += decipher.final('utf8');
-      
+
+      let decrypted = decipher.update(encrypted, "hex", "utf8");
+      decrypted += decipher.final("utf8");
+
       return decrypted;
     } catch (error) {
-      console.error('Decryption error:', error);
+      console.error("Decryption error:", error);
       // Return original if decryption fails (might be plaintext from before encryption)
       return encryptedText;
     }
   }
 
   static hashEmail(email: string): string {
-    if (!email) return '';
-    return crypto.createHash('sha256').update(email.toLowerCase().trim()).digest('hex');
+    if (!email) return "";
+    return crypto
+      .createHash("sha256")
+      .update(email.toLowerCase().trim())
+      .digest("hex");
   }
 }
 
@@ -118,11 +131,10 @@ export const encryptedJsonTransformer = {
     try {
       return JSON.parse(decrypted);
     } catch (e) {
-      console.error('Failed to parse decrypted JSON', e);
+      console.error("Failed to parse decrypted JSON", e);
       return null;
     }
   },
 };
 
 export { EncryptionHelper };
-

@@ -200,3 +200,7 @@ DB_PASSWORD=$(echo $DB_CREDS | jq -r '.password')
 - Configure backup retention policies
 
 
+
+
+
+

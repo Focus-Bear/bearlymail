@@ -216,3 +216,7 @@ Update the task definition in `lib/bearlymail-stack.ts` and redeploy.
 - Monitor and right-size instances
 
 
+
+
+
+

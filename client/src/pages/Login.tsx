@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { theme } from '../theme/theme';
+import { captureEvent } from '../utils/posthog';
 
 const Login: React.FC = () => {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [isRegister, setIsRegister] = useState(false);
   const [error, setError] = useState('');
-  const { login, register, user, loading } = useAuth();
+  const { login, user, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -40,19 +41,16 @@ const Login: React.FC = () => {
     setError('');
 
     try {
-      if (isRegister) {
-        await register(email, password, name);
-      } else {
-        await login(email, password);
-      }
+      await login(email, password);
       navigate('/inbox');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Authentication failed');
+      setError(err.response?.data?.message || t('auth.authenticationFailed'));
     }
   };
 
 
   const handleGoogleLogin = () => {
+    captureEvent('google_login_initiated');
     window.location.href = `${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/auth/google`;
   };
 
@@ -78,13 +76,13 @@ const Login: React.FC = () => {
           marginBottom: theme.spacing.lg,
           fontSize: theme.typography.fontSize['2xl'],
           fontWeight: theme.typography.fontWeight.bold,
-        }}>
-          {isRegister ? 'Create Account' : 'Welcome Back'}
+        }}        >
+          {t('auth.loginTitle')}
         </h1>
 
         {error && (
           <div style={{
-            backgroundColor: theme.colors.accent.error + '20',
+            backgroundColor: `${theme.colors.accent.error}20`,
             color: theme.colors.accent.error,
             padding: theme.spacing.md,
             borderRadius: theme.borderRadius.md,
@@ -100,7 +98,7 @@ const Login: React.FC = () => {
             style={{
               width: '100%',
               padding: theme.spacing.md,
-              backgroundColor: '#fff',
+              backgroundColor: theme.colors.background.paper,
               color: theme.colors.text.primary,
               border: `1px solid ${theme.colors.border.medium}`,
               borderRadius: theme.borderRadius.md,
@@ -119,7 +117,7 @@ const Login: React.FC = () => {
               alt="Google" 
               style={{ width: '18px', height: '18px' }} 
             />
-            Continue with Google
+            {t('auth.continueWithGoogle')}
           </button>
 
           <div style={{
@@ -131,37 +129,11 @@ const Login: React.FC = () => {
             fontSize: theme.typography.fontSize.sm,
           }}>
             <div style={{ flex: 1, height: '1px', backgroundColor: theme.colors.border.light }} />
-            <span>OR</span>
+            <span>{t('auth.or')}</span>
             <div style={{ flex: 1, height: '1px', backgroundColor: theme.colors.border.light }} />
           </div>
 
           <form onSubmit={handleSubmit}>
-          {isRegister && (
-            <div style={{ marginBottom: theme.spacing.md }}>
-              <label style={{
-                display: 'block',
-                marginBottom: theme.spacing.sm,
-                color: theme.colors.text.primary,
-                fontSize: theme.typography.fontSize.sm,
-                fontWeight: theme.typography.fontWeight.medium,
-              }}>
-                Name
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: theme.spacing.md,
-                  border: `1px solid ${theme.colors.border.medium}`,
-                  borderRadius: theme.borderRadius.md,
-                  fontSize: theme.typography.fontSize.base,
-                  fontFamily: theme.typography.fontFamily,
-                }}
-              />
-            </div>
-          )}
 
           <div style={{ marginBottom: theme.spacing.md }}>
             <label style={{
@@ -171,7 +143,7 @@ const Login: React.FC = () => {
               fontSize: theme.typography.fontSize.sm,
               fontWeight: theme.typography.fontWeight.medium,
             }}>
-              Email
+              {t('auth.email')}
             </label>
             <input
               type="email"
@@ -197,7 +169,7 @@ const Login: React.FC = () => {
               fontSize: theme.typography.fontSize.sm,
               fontWeight: theme.typography.fontWeight.medium,
             }}>
-              Password
+              {t('auth.password')}
             </label>
             <input
               type="password"
@@ -236,23 +208,7 @@ const Login: React.FC = () => {
               e.currentTarget.style.backgroundColor = theme.colors.primary.main;
             }}
           >
-            {isRegister ? 'Sign Up' : 'Sign In'}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setIsRegister(!isRegister)}
-            style={{
-              width: '100%',
-              padding: theme.spacing.sm,
-              backgroundColor: 'transparent',
-              color: theme.colors.primary.main,
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: theme.typography.fontSize.sm,
-            }}
-          >
-            {isRegister ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+            {t('auth.signIn')}
           </button>
         </form>
       </div>

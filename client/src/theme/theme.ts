@@ -1,82 +1,247 @@
-// Color scheme inspired by focusbear.io - ADHD-friendly, calming, minimalist
-// Enhanced with more modern, polished shades
+// Focus Bear Brand Colors - Official brand palette
 export const colors = {
-  // Primary colors - Soft, calming blues and teals
+  // Primary Logo Colors
   primary: {
-    main: '#3B82F6',      // Vibrant but calming blue
-    light: '#60A5FA',     // Lighter blue for hover
-    dark: '#2563EB',      // Darker blue for active
-    subtle: '#EFF6FF',    // Very light blue background
+    main: '#E9902C',      // Sunray - Primary accent/orange
+    light: '#F0A859',     // Lighter Sunray for hover
+    dark: '#D87A1A',      // Darker Sunray for press (approximated)
+    subtle: '#FCEFE0',    // Very light Sunray background
   },
   
-  // Secondary colors - Gentle teals/greens
+  // Secondary Logo Colors
   secondary: {
-    main: '#10B981',      // Fresh green/teal
-    light: '#34D399',     // Lighter teal
-    dark: '#059669',      // Darker teal
-    subtle: '#ECFDF5',    // Very light teal background
+    main: '#333333',      // 700 - Dark grey
+    light: '#666666',      // 600
+    dark: '#0B0B0B',      // Rich Black
+    subtle: '#FCF8F0',    // Secondary White Lace
   },
   
-  // Background colors - Clean, neutral with depth
+  // Brand Base Colors
+  brand: {
+    richBlack: '#0B0B0B',  // Rich Black - Main dark color
+    sunray: '#E9902C',     // Sunray - Primary accent
+    whiteLace: '#FFFCF6',  // White Lace - Primary background/cream
+    whiteLaceSecondary: '#FCF8F0', // Secondary White Lace
+  },
+  
+  // Sunray Variations
+  sunray: {
+    main: '#E9902C',
+    light1: '#F0A859',
+    light2: '#F5C086',
+    light3: '#F9D8B3',
+    light4: '#FCEFE0',
+  },
+  
+  // Rich Black Variations
+  richBlack: {
+    main: '#0B0B0B',
+    v1: '#333333',  // 700
+    v2: '#666666',  // 600
+    v3: '#999999',  // 500
+    v4: '#CCCCCC',  // 400
+    v5: '#EFEFEF',  // 300
+  },
+  
+  // White Lace Variations
+  whiteLace: {
+    main: '#FFFCF6',
+    v1: '#FCF8F0',
+    v2: '#F5F0E8',
+    v3: '#EFE8E0',
+    v4: '#E8E0D8',
+    v5: '#E0D8D0',
+  },
+  
+  // Background colors - Using White Lace and variations
   background: {
-    default: '#F3F4F6',   // Cool gray for app background
+    default: '#FFFCF6',   // White Lace - Primary background
     paper: '#FFFFFF',      // Pure white for cards
-    subtle: '#F9FAFB',     // Very light gray for sections
-    overlay: 'rgba(255, 255, 255, 0.8)', // Glassmorphism effect
+    subtle: '#FCF8F0',     // Secondary White Lace for sections
+    overlay: 'rgba(255, 252, 246, 0.8)', // Glassmorphism effect
+    disabled: '#EFEFEF',   // Disabled state background (300 greyscale)
   },
   
-  // Text colors - High contrast but softer than pure black
+  // Text colors - Using Rich Black and greyscale
   text: {
-    primary: '#1F2937',    // Deep gray-blue
-    secondary: '#6B7280',  // Medium gray
-    tertiary: '#9CA3AF',   // Light gray for placeholders
-    disabled: '#D1D5DB',   // Very light gray
+    primary: '#0B0B0B',    // Rich Black
+    secondary: '#333333',  // 700
+    tertiary: '#666666',   // 600
+    disabled: '#CCCCCC',   // 400
   },
   
-  // Accent colors - For highlights and actions
+  // Greyscale
+  greyscale: {
+    700: '#333333',
+    600: '#666666',
+    500: '#999999',
+    400: '#CCCCCC',
+    410: '#D2D2D2',
+    350: '#D9D9D9',
+    300: '#EFEFEF',
+    180: '#E8E8E8',
+    grey050: '#F5F5F5',
+  },
+  
+  // Accent colors - For system messages
   accent: {
-    success: '#10B981',    // Success green
-    warning: '#F59E0B',    // Warm amber
-    error: '#EF4444',      // Soft red
-    info: '#3B82F6',       // Info blue
-    purple: '#8B5CF6',     // Creative purple
+    success: '#10B981',    // Success green (keeping for system messages)
+    warning: '#F59E0B',    // Warning amber
+    error: '#EF4444',      // Error red
+    info: '#E9902C',       // Info - using Sunray
   },
   
-  // Border and divider
+  // Warning colors - For warning messages
+  warning: {
+    main: '#F59E0B',       // Warning amber
+    light: '#FEF3C7',      // Light warning background
+  },
+  
+  // Success colors - For success messages
+  success: {
+    main: '#10B981',       // Success green
+    light: '#D1FAE5',      // Light success background
+  },
+  
+  // Error colors - For error messages
+  error: {
+    main: '#EF4444',       // Error red
+    light: '#FEE2E2',      // Light error background
+  },
+  
+  // Border and divider - Using greyscale
   border: {
-    light: '#E5E7EB',     // Very light border
-    medium: '#D1D5DB',    // Medium border
-    dark: '#9CA3AF',      // Darker border
+    light: '#EFEFEF',      // 300
+    medium: '#CCCCCC',     // 400
+    dark: '#999999',       // 500
+  },
+  
+  // Button States - Primary Button
+  button: {
+    primary: {
+      default: '#E9902C',  // Sunray
+      hover: '#F0A859',     // Lighter Sunray
+      press: '#D87A1A',     // Darker Sunray (approximated)
+      disable: '#F5C086',   // Pale Sunray
+    },
+    // Secondary Button
+    secondary: {
+      default: '#FFFFFF',  // White background
+      border: '#E9902C',   // Sunray border
+      text: '#E9902C',     // Sunray text
+      hoverBorder: '#F0A859', // Lighter Sunray border
+      hoverText: '#F0A859',   // Lighter Sunray text
+      pressBorder: '#D87A1A', // Darker Sunray border
+      pressText: '#D87A1A',   // Darker Sunray text
+      disableBorder: '#F5C086', // Pale Sunray border
+      disableText: '#F5C086',   // Pale Sunray text
+    },
+    // Third Button
+    third: {
+      default: '#FCEFE0',  // Very light Sunray background
+      text: '#F5C086',      // Light Sunray text
+      hover: '#F9D8B3',     // Even lighter background
+      press: '#F5C086',     // Slightly darker
+      disable: '#F9D8B3',  // Pale background
+      disableText: '#F5C086', // Pale text
+    },
   },
   
   // Focus and hover states
   interactive: {
-    hover: '#F3F4F6',      // Light gray hover
-    focus: '#DBEAFE',      // Focus blue ring
-    active: '#BFDBFE',     // Active blue background
+    hover: '#FCF8F0',      // Light White Lace hover
+    focus: '#FCEFE0',      // Focus Sunray ring
+    active: '#F5C086',     // Active Sunray background
   },
 };
 
 export const theme = {
   colors,
   typography: {
+    // Logo font: Inter Medium
+    // Graphic pieces font: Ferwick (with Inter fallback)
     fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    fontSize: {
-      xs: '0.75rem',    // 12px
-      sm: '0.875rem',   // 14px
-      base: '1rem',     // 16px
-      lg: '1.125rem',   // 18px
-      xl: '1.25rem',    // 20px
-      '2xl': '1.5rem',  // 24px
-      '3xl': '1.875rem',// 30px
-      '4xl': '2.25rem', // 36px
+    fontFamilyGraphic: '"Ferwick", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    
+    // Heading Styles - All Bold
+    heading: {
+      h1: {
+        fontSize: '3rem',      // 48px
+        fontWeight: 700,       // Bold
+        lineHeight: 1.25,
+      },
+      h2: {
+        fontSize: '2.5rem',    // 40px
+        fontWeight: 700,       // Bold
+        lineHeight: 1.25,
+      },
+      h3: {
+        fontSize: '2rem',      // 32px
+        fontWeight: 700,       // Bold
+        lineHeight: 1.25,
+      },
+      h4: {
+        fontSize: '1.5rem',    // 24px
+        fontWeight: 700,       // Bold
+        lineHeight: 1.25,
+      },
+      h5: {
+        fontSize: '1.25rem',    // 20px
+        fontWeight: 700,       // Bold
+        lineHeight: 1.25,
+      },
+      h6: {
+        fontSize: '1rem',      // 16px
+        fontWeight: 700,       // Bold
+        lineHeight: 1.25,
+      },
     },
+    
+    // Body Text Styles
+    body: {
+      xLarge: {
+        fontSize: '1rem',      // 16px
+        lineHeight: 1.5,
+      },
+      large: {
+        fontSize: '0.875rem',  // 14px
+        lineHeight: 1.5,
+      },
+      medium: {
+        fontSize: '0.75rem',   // 12px
+        lineHeight: 1.5,
+      },
+      small: {
+        fontSize: '0.625rem',  // 10px
+        lineHeight: 1.5,
+      },
+      xSmall: {
+        fontSize: '0.5rem',    // 8px
+        lineHeight: 1.5,
+      },
+    },
+    
+    // Legacy fontSize for backward compatibility
+    fontSize: {
+      xs: '0.5rem',     // 8px - Body XSmall
+      sm: '0.625rem',   // 10px - Body Small
+      base: '1rem',     // 16px - Body XLarge
+      lg: '0.875rem',   // 14px - Body Large
+      xl: '1.25rem',    // 20px - H5
+      '2xl': '1.5rem',  // 24px - H4
+      '3xl': '2rem',    // 32px - H3
+      '4xl': '2.5rem',  // 40px - H2
+      '5xl': '3rem',    // 48px - H1
+    },
+    
     fontWeight: {
+      light: 300,
       normal: 400,
       medium: 500,
       semibold: 600,
       bold: 700,
     },
+    
     lineHeight: {
       tight: 1.25,
       normal: 1.5,

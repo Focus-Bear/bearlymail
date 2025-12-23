@@ -1,0 +1,107 @@
+import React, { useState } from 'react';
+import axios from 'axios';
+import { theme } from '../../theme/theme';
+import { useResponsiveBreakpoints } from '../../hooks/useResponsiveBreakpoints';
+import { WaitlistFormContainer } from './WaitlistFormContainer';
+import { WaitlistFormHeader } from './WaitlistFormHeader';
+import { WaitlistFormField } from './WaitlistFormField';
+import { captureEvent } from '../../utils/posthog';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+
+interface WaitlistFormProps {
+  /**
+   * Callback when form is successfully submitted
+   */
+  onSuccess: () => void;
+}
+
+/**
+ * Waitlist form component
+ * Handles user signup for the waitlist
+ */
+export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
+  const [email, setEmail] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [reason, setReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const { isMobile } = useResponsiveBreakpoints();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSubmitting(true);
+
+    try {
+      await axios.post(`${API_URL}/waitlist`, { email, firstName, reason });
+      captureEvent('waitlist_submitted');
+      onSuccess();
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to submit. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const buttonStyle: React.CSSProperties = {
+    width: '100%',
+    padding: isMobile ? theme.spacing.md : theme.spacing.lg,
+    backgroundColor: submitting ? theme.colors.border.dark : theme.colors.primary.main,
+    color: 'white',
+    border: 'none',
+    borderRadius: theme.borderRadius.md,
+    fontSize: theme.typography.fontSize.base,
+    fontWeight: theme.typography.fontWeight.semibold,
+    cursor: submitting ? 'wait' : 'pointer',
+  };
+
+  return (
+    <WaitlistFormContainer>
+      <WaitlistFormHeader />
+
+      {error && (
+        <div
+          style={{
+            backgroundColor: `${theme.colors.accent.error}20`,
+            color: theme.colors.accent.error,
+            padding: theme.spacing.md,
+            borderRadius: theme.borderRadius.md,
+            marginBottom: theme.spacing.md,
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} style={{ width: '100%', boxSizing: 'border-box' }}>
+        <WaitlistFormField
+          label="First Name"
+          type="text"
+          value={firstName}
+          onChange={setFirstName}
+          required
+        />
+        <WaitlistFormField
+          label="Email"
+          type="email"
+          value={email}
+          onChange={setEmail}
+          required
+        />
+        <WaitlistFormField
+          label="Why do you want to use BearlyMail?"
+          type="textarea"
+          value={reason}
+          onChange={setReason}
+          required
+        />
+
+        <button type="submit" disabled={submitting} style={buttonStyle}>
+          {submitting ? 'Submitting...' : 'Join Waitlist'}
+        </button>
+      </form>
+    </WaitlistFormContainer>
+  );
+};
+

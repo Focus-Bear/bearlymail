@@ -1,6 +1,6 @@
 /**
  * Utility to clean email content before LLM analysis.
- * 
+ *
  * - Strips HTML tags (prefers plain text)
  * - Removes email signatures
  * - Truncates quoted replies
@@ -9,9 +9,9 @@
 
 // Common signature markers
 const SIGNATURE_PATTERNS = [
-  /^--\s*$/m,                           // Standard "--"
-  /^_{3,}$/m,                           // "___" line
-  /^-{3,}$/m,                           // "---" line
+  /^--\s*$/m, // Standard "--"
+  /^_{3,}$/m, // "___" line
+  /^-{3,}$/m, // "---" line
   /^sent from my (iphone|ipad|android|mobile)/im,
   /^get outlook for/im,
   /^best regards?,?$/im,
@@ -29,11 +29,11 @@ const SIGNATURE_PATTERNS = [
 
 // Quoted reply patterns
 const QUOTED_REPLY_PATTERNS = [
-  /^>+\s*.*/gm,                         // Lines starting with >
-  /^On .+ wrote:$/im,                   // "On [date], [person] wrote:"
-  /^-{5,}Original Message-{5,}/im,      // Outlook style
+  /^>+\s*.*/gm, // Lines starting with >
+  /^On .+ wrote:$/im, // "On [date], [person] wrote:"
+  /^-{5,}Original Message-{5,}/im, // Outlook style
   /^From:.+\nSent:.+\nTo:.+\nSubject:/im, // Outlook header block
-  /^_{32,}$/m,                          // Long underscore line (32+ chars)
+  /^_{32,}$/m, // Long underscore line (32+ chars)
 ];
 
 // HTML tag patterns
@@ -56,30 +56,35 @@ export function cleanEmailContent(
   maxLength: number = 2000,
 ): string {
   // Prefer plain text body, fallback to stripped HTML
-  let content = body?.trim() || '';
-  
+  let content = body?.trim() || "";
+
   // If body is empty or looks like HTML, try to extract from htmlBody
-  if (!content || content.startsWith('<') || content.includes('<html') || content.includes('<body')) {
-    content = stripHtml(htmlBody || body || '');
+  if (
+    !content ||
+    content.startsWith("<") ||
+    content.includes("<html") ||
+    content.includes("<body")
+  ) {
+    content = stripHtml(htmlBody || body || "");
   }
-  
+
   // If still looks like it has HTML tags, strip them
-  if (content.includes('<') && content.includes('>')) {
+  if (content.includes("<") && content.includes(">")) {
     content = stripHtml(content);
   }
-  
+
   // Remove quoted replies (earlier messages in thread)
   content = removeQuotedReplies(content);
-  
+
   // Remove email signatures
   content = removeSignature(content);
-  
+
   // Clean up whitespace
   content = normalizeWhitespace(content);
-  
+
   // Truncate to max length, trying to end at a sentence
   content = smartTruncate(content, maxLength);
-  
+
   return content;
 }
 
@@ -87,29 +92,31 @@ export function cleanEmailContent(
  * Strip HTML tags and decode entities
  */
 function stripHtml(html: string): string {
-  if (!html) return '';
-  
+  if (!html) return "";
+
   let text = html;
-  
+
   // Remove style and script blocks completely
-  text = text.replace(HTML_PATTERNS.style, '');
-  text = text.replace(HTML_PATTERNS.script, '');
-  
+  text = text.replace(HTML_PATTERNS.style, "");
+  text = text.replace(HTML_PATTERNS.script, "");
+
   // Convert common block elements to newlines
-  text = text.replace(/<\/(p|div|br|li|tr|h[1-6])>/gi, '\n');
-  text = text.replace(/<(br|hr)\s*\/?>/gi, '\n');
-  
+  text = text.replace(/<\/(p|div|br|li|tr|h[1-6])>/gi, "\n");
+  text = text.replace(/<(br|hr)\s*\/?>/gi, "\n");
+
   // Remove all remaining HTML tags
-  text = text.replace(HTML_PATTERNS.tags, '');
-  
+  text = text.replace(HTML_PATTERNS.tags, "");
+
   // Decode HTML entities
-  text = text.replace(/&nbsp;/gi, ' ');
-  text = text.replace(/&amp;/gi, '&');
-  text = text.replace(/&lt;/gi, '<');
-  text = text.replace(/&gt;/gi, '>');
+  text = text.replace(/&nbsp;/gi, " ");
+  text = text.replace(/&amp;/gi, "&");
+  text = text.replace(/&lt;/gi, "<");
+  text = text.replace(/&gt;/gi, ">");
   text = text.replace(/&quot;/gi, '"');
-  text = text.replace(/&#(\d+);/gi, (_, code) => String.fromCharCode(parseInt(code, 10)));
-  
+  text = text.replace(/&#(\d+);/gi, (_, code) =>
+    String.fromCharCode(parseInt(code, 10)),
+  );
+
   return text;
 }
 
@@ -118,19 +125,20 @@ function stripHtml(html: string): string {
  */
 function removeQuotedReplies(text: string): string {
   let result = text;
-  
+
   // Find "On [date] [person] wrote:" pattern and remove everything after
   const onWroteMatch = result.match(/^On .+wrote:\s*$/im);
   if (onWroteMatch) {
     const index = result.indexOf(onWroteMatch[0]);
-    if (index > 100) { // Only remove if there's meaningful content before
+    if (index > 100) {
+      // Only remove if there's meaningful content before
       result = result.substring(0, index).trim();
     }
   }
-  
+
   // Remove lines starting with >
-  result = result.replace(/^>+\s*.*$/gm, '');
-  
+  result = result.replace(/^>+\s*.*$/gm, "");
+
   // Remove Outlook-style "Original Message" blocks
   const originalMsgMatch = result.match(/-{5,}Original Message-{5,}/i);
   if (originalMsgMatch) {
@@ -139,16 +147,18 @@ function removeQuotedReplies(text: string): string {
       result = result.substring(0, index).trim();
     }
   }
-  
+
   // Remove "From: ... Sent: ... To: ... Subject:" blocks (Outlook forwarded headers)
-  const outlookHeaderMatch = result.match(/From:.+\nSent:.+\nTo:.+\nSubject:/im);
+  const outlookHeaderMatch = result.match(
+    /From:.+\nSent:.+\nTo:.+\nSubject:/im,
+  );
   if (outlookHeaderMatch) {
     const index = result.indexOf(outlookHeaderMatch[0]);
     if (index > 100) {
       result = result.substring(0, index).trim();
     }
   }
-  
+
   return result;
 }
 
@@ -158,7 +168,7 @@ function removeQuotedReplies(text: string): string {
 function removeSignature(text: string): string {
   let result = text;
   let cutoffIndex = result.length;
-  
+
   // Find signature markers and cut off at the earliest one
   for (const pattern of SIGNATURE_PATTERNS) {
     const match = result.match(pattern);
@@ -171,11 +181,11 @@ function removeSignature(text: string): string {
       }
     }
   }
-  
+
   if (cutoffIndex < result.length) {
     result = result.substring(0, cutoffIndex).trim();
   }
-  
+
   return result;
 }
 
@@ -184,10 +194,10 @@ function removeSignature(text: string): string {
  */
 function normalizeWhitespace(text: string): string {
   return text
-    .replace(/\r\n/g, '\n')           // Normalize line endings
-    .replace(/\n{3,}/g, '\n\n')       // Max 2 consecutive newlines
-    .replace(/[ \t]+/g, ' ')          // Multiple spaces/tabs to single space
-    .replace(/^\s+|\s+$/gm, '')       // Trim each line
+    .replace(/\r\n/g, "\n") // Normalize line endings
+    .replace(/\n{3,}/g, "\n\n") // Max 2 consecutive newlines
+    .replace(/[ \t]+/g, " ") // Multiple spaces/tabs to single space
+    .replace(/^\s+|\s+$/gm, "") // Trim each line
     .trim();
 }
 
@@ -198,27 +208,27 @@ function smartTruncate(text: string, maxLength: number): string {
   if (text.length <= maxLength) {
     return text;
   }
-  
+
   // Try to find a sentence end within the last 200 chars of the limit
   const searchStart = Math.max(0, maxLength - 200);
   const searchEnd = maxLength;
   const searchRegion = text.substring(searchStart, searchEnd);
-  
+
   // Look for sentence endings (., !, ?)
   const sentenceEndMatch = searchRegion.match(/[.!?]\s+[A-Z]/);
   if (sentenceEndMatch) {
     const endIndex = searchStart + sentenceEndMatch.index! + 1; // Include the punctuation
     return text.substring(0, endIndex).trim();
   }
-  
+
   // Fallback: try to end at a word boundary
   const truncated = text.substring(0, maxLength);
-  const lastSpace = truncated.lastIndexOf(' ');
+  const lastSpace = truncated.lastIndexOf(" ");
   if (lastSpace > maxLength - 50) {
-    return truncated.substring(0, lastSpace).trim() + '...';
+    return `${truncated.substring(0, lastSpace).trim()}...`;
   }
-  
-  return truncated.trim() + '...';
+
+  return `${truncated.trim()}...`;
 }
 
 /**
@@ -243,9 +253,5 @@ export function getEmailPreview(
 ): string {
   const cleaned = cleanEmailContent(body, htmlBody, maxLength + 50);
   // For previews, also remove newlines
-  return cleaned.replace(/\n+/g, ' ').substring(0, maxLength).trim();
+  return cleaned.replace(/\n+/g, " ").substring(0, maxLength).trim();
 }
-
-
-
-

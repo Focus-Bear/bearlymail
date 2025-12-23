@@ -7,6 +7,7 @@ This application encrypts sensitive data at rest in the database using AES-256-G
 The following sensitive data is encrypted:
 
 - **Email addresses** (User, Waitlist) - Encrypted with SHA-256 hash for querying
+- **User names** (User entity) - Encrypted
 - **Email bodies and HTML bodies** (Email entity)
 - **Email subjects and sender information** (Email entity)
 - **Refresh tokens** (User entity - Google Calendar refresh tokens)
@@ -63,6 +64,7 @@ If you're migrating existing plaintext data:
 ## Passwords
 
 Passwords are **hashed** (not encrypted) using bcrypt. This is a one-way operation and passwords cannot be recovered.
+
 
 
 

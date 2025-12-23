@@ -1,0 +1,51 @@
+providers:
+  - openai:gpt-4o-mini
+  # - google:gemini-pro
+
+prompts:
+  - file://prompts/search-query-conversion.md
+
+tests:
+  - vars:
+      query: "Is Jay coming to the meeting?"
+    assert:
+      - type: javascript
+        value: |
+          const output = output.toLowerCase();
+          // Should include "jay" in the query
+          return output.includes('jay') || output.includes('from:jay');
+      - type: contains
+        value: "jay"
+    description: "Query about a person should include their name"
+
+  - vars:
+      query: "emails from John"
+    assert:
+      - type: javascript
+        value: |
+          const output = output.toLowerCase();
+          // Should prioritize from: field for person names
+          return output.includes('from:john');
+    description: "Query about emails from a person should use from: operator"
+
+  - vars:
+      query: "meeting confirmations"
+    assert:
+      - type: javascript
+        value: |
+          const output = output.toLowerCase();
+          // Should include meeting-related terms
+          return output.includes('meeting') || output.includes('confirm');
+    description: "Topic-based query should include relevant keywords"
+
+  - vars:
+      query: "from:john@example.com subject:urgent"
+    assert:
+      - type: javascript
+        value: |
+          // Should pass through Gmail syntax unchanged
+          return output.includes('from:john@example.com') && output.includes('subject:urgent');
+    description: "Gmail syntax should be passed through unchanged"
+
+
+

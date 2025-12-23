@@ -1,0 +1,17 @@
+// Export all entities to ensure they're loaded in the correct order
+export { User } from "./user.entity";
+export { GoogleAccount } from "./google-account.entity";
+export { UserContext } from "./user-context.entity";
+export { PrivateNote } from "./private-note.entity";
+export { Email } from "./email.entity";
+export { EmailThread } from "./email-thread.entity";
+export { ScanEmail } from "./scan-email.entity";
+export { SummarizationRule } from "./summarization-rule.entity";
+export { ActionItem } from "./action-item.entity";
+export { BatchSchedule } from "./batch-schedule.entity";
+export { FollowUp } from "./follow-up.entity";
+export { Contact } from "./contact.entity";
+export { BlockedSender } from "./blocked-sender.entity";
+export { Waitlist } from "./waitlist.entity";
+export { PriorityOverride } from "./priority-override.entity";
+export { ContextAnalysis } from "./context-analysis.entity";

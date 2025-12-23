@@ -45,17 +45,18 @@ export function humanizeTimestamp(date: Date | string): string {
   }
 
   // For very old dates, show full date in user's timezone
-  return timestamp.toLocaleDateString('en-US', {
+  return `${timestamp.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: timestamp.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
     timeZone: timezone,
-  }) + ' at ' + timestamp.toLocaleTimeString('en-US', {
+  })} at ${timestamp.toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: '2-digit',
     timeZone: timezone,
-  });
+  })}`;
 }
+
 
 
 

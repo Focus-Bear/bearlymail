@@ -5,6 +5,7 @@
     "error": "Error",
     "dismiss": "Dismiss",
     "save": "Save",
+    "saving": "Saving...",
     "cancel": "Cancel",
     "confirm": "Confirm",
     "delete": "Delete",
@@ -12,7 +13,14 @@
     "remove": "Remove",
     "back": "Back",
     "add": "Add",
-    "auto": "Auto"
+    "auto": "Auto",
+    "retry": "Retry",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "selected": "selected",
+    "selectAll": "Select All",
+    "deselectAll": "Deselect All",
+    "send": "Send"
   },
   "auth": {
     "loginTitle": "Welcome Back",
@@ -28,14 +36,39 @@
     "noAccount": "Don't have an account? Sign up",
     "reloginRequired": "Action Required: Please log in again to restore email synchronization.",
     "logout": "Log Out",
-    "reloginLink": "log in again"
+    "reloginLink": "log in again",
+    "authenticationFailed": "Authentication failed",
+    "setupAccountTitle": "Set Up Your Account",
+    "setupAccountDescription": "Welcome! Please create a password to complete your account setup.",
+    "invalidSetupLink": "Invalid setup link. Please check your email for the correct link.",
+    "passwordTooShort": "Password must be at least 8 characters long.",
+    "passwordsDoNotMatch": "Passwords do not match.",
+    "passwordMinLength": "Must be at least 8 characters long",
+    "confirmPassword": "Confirm Password",
+    "settingUp": "Setting up...",
+    "setUpAccount": "Set Up Account",
+    "setupPasswordError": "Failed to set up password. The link may have expired."
+  },
+  "email": {
+    "waitlistApproval": {
+      "subject": "Welcome to BearlyMail - Set Up Your Account",
+      "greeting": "Welcome to BearlyMail, {{firstName}}!",
+      "message": "Great news! Your waitlist application has been approved. You're now ready to set up your BearlyMail account.",
+      "cta": "Click the button below to create your password and get started:",
+      "button": "Set Up Your Account",
+      "linkText": "Or copy and paste this link into your browser:",
+      "expiry": "This link will expire in 7 days. If you didn't request this, please ignore this email.",
+      "footer": "© {{year}} BearlyMail. All rights reserved."
+    }
   },
   "inbox": {
     "title": "Inbox",
     "triage": "Triage",
-    "process": "Process",
+    "action": "Action",
+    "followUp": "Follow Up",
     "triageTab": "Triage",
-    "processTab": "Process",
+    "actionTab": "Action",
+    "followUpTab": "Follow Up",
     "deliverNow": "Deliver Now",
     "delivering": "Delivering...",
     "nextDelivery": "Next delivery: {{time}}",
@@ -45,11 +78,27 @@
     "noEmailsTriageSub": "You're all caught up on new messages.",
     "noTriageEmails": "No new emails to triage!",
     "triageCaughtUp": "You're all caught up on new messages.",
-    "noEmailsProcess": "No emails to process!",
-    "noEmailsProcessSub": "All starred emails have been processed.",
-    "noProcessEmails": "No emails to process!",
-    "processCaughtUp": "All starred emails have been processed.",
+    "noEmailsAction": "No emails to process!",
+    "noEmailsActionSub": "All starred emails have been processed.",
+    "noActionEmails": "No emails to process!",
+    "actionCaughtUp": "All starred emails have been processed.",
+    "noEmailsFollowUp": "No follow-ups needed!",
+    "noEmailsFollowUpSub": "All your sent emails have been replied to.",
+    "noFollowUpEmails": "No follow-ups needed!",
+    "followUpCaughtUp": "All your sent emails have been replied to.",
     "loadingInbox": "Loading your inbox...",
+    "generateFollowUps": "Generate Follow-ups",
+    "generateFollowUpsDescription": "AI will draft follow-up messages for all threads in view",
+    "generating": "Generating...",
+    "followUps": "follow-ups",
+    "sendFollowUps": "Send {{count}} Follow-ups",
+    "maxFollowUpsWarning": "Maximum {{max}} follow-ups allowed per bulk send",
+    "confirmBulkSend": "Send {{count}} follow-up emails?",
+    "sending": "Sending...",
+    "sent": "Sent",
+    "sendResults": "Send Results",
+    "andMore": "and {{count}} more",
+    "error": "Error",
     "loadingEmails": "Loading emails...",
     "loadingEmailsSub": "Fetching your emails from the server.",
     "checkUrgent": "Check for Urgent",
@@ -114,6 +163,18 @@
   },
   "settings": {
     "title": "Settings",
+    "nav": {
+      "googleAccounts": "Gmail Accounts",
+      "toneSettings": "Tone Settings",
+      "integrations": "Integrations",
+      "openAiApiKey": "OpenAI API Key",
+      "githubIntegration": "GitHub Integration",
+      "emailBatching": "Email Batching",
+      "summarization": "Summarization Rules",
+      "blockedSenders": "Blocked Senders",
+      "emailDelivery": "Email Delivery",
+      "guideOurAI": "Guide our AI"
+    },
     "backToInbox": "Back to Inbox",
     "howIWrite": "How I write emails",
     "toneConfig": "Configure rules for the tone checker to enforce when drafting replies. This is learned from your sent emails.",
@@ -139,6 +200,8 @@
     "noSummarizationRules": "No summarization rules yet. Add rules to customize how emails are summarized.",
     "created": "Created {{date}}",
     "learnedContext": "Learned Context",
+    "contextAboutMe": "Context about me",
+    "contextAboutMeTitle": "Context about me",
     "analyzeEmails": "Analyze Emails",
     "analyzing": "Analyzing...",
     "noContext": "No context learned yet. Click \"Analyze Emails\" to learn from your email history.",
@@ -174,6 +237,24 @@
     },
     "contextExplanations": {
       "vipContactStarredExplanation": "You've starred {{count}} email{{plural}} from this contact"
+    },
+    "contextAboutMe": {
+      "description1": "This is where BearlyMail stores everything it learns about you—your priorities, important contacts, current projects, and more.",
+      "description2": "The more context you provide, the smarter your email prioritization becomes! Think of it as training your personal AI assistant.",
+      "impactTitle": "How Context Affects Your Email Priority",
+      "impactDescription": "Context directly influences how emails are scored for urgency. VIP contacts get priority boosts, emails matching your goals are ranked higher, and topics you don't care about are deprioritized. This helps you focus on what truly matters.",
+      "learnMore": "Learn more about context"
+    },
+    "contextTypes": {
+      "tooltip": {
+        "vip": "Emails from these contacts will receive a significant priority boost. Add people you always want to respond to quickly—like your manager, key clients, or close colleagues.",
+        "userInfo": "Information about you that helps BearlyMail draft better replies. This includes your role, preferences, and any details that personalize your communication style.",
+        "projects": "Current projects and topics you're actively working on. Emails related to these will be prioritized based on the priority level you set (high, medium, or low).",
+        "urgent": "Keywords or topics that signal urgency to you. When emails contain these terms, they'll be marked as higher priority.",
+        "notImportant": "Topics or keywords that you don't want to prioritize. Emails containing these will be deprioritized to help you focus on what matters.",
+        "qanda": "Common questions you receive and your standard answers. This helps BearlyMail draft more accurate replies by referencing your typical responses.",
+        "other": "Miscellaneous context that doesn't fit other categories. Use this for any additional information that helps personalize your email experience."
+      }
     }
   },
   "priority": {
@@ -196,8 +277,10 @@
       "welcomeContent": "Let's take a quick tour to help you get started with your new focused email experience.",
       "triageTitle": "Triage Tab",
       "triageContent": "This is where new emails land. Quickly decide to reply, archive, or snooze them.",
-      "processTitle": "Process Tab",
-      "processContent": "Star an email to move it here. This is your focused workspace for emails that need action.",
+      "actionTitle": "Action Tab",
+      "actionContent": "Star an email to move it here. This is your focused workspace for emails that need action.",
+      "followUpTitle": "Follow Up Tab",
+      "followUpContent": "Emails where you sent the last message and are waiting for a reply.",
       "deliveryTitle": "Scheduled Delivery",
       "deliveryContent": "New emails are batched and delivered every few hours to prevent distractions. Use 'Deliver Now' if you need to check urgently.",
       "skip": "Skip",
@@ -212,7 +295,185 @@
       "startScan": "Start Scan",
       "skip": "Skip for now",
       "scanning": "Scanning your history...",
+      "analyzing": "Analyzing your emails...",
       "progress": "{{current}} of {{total}} emails processed"
+    }
+  },
+  "help": {
+    "title": "Help & Documentation",
+    "description": "Learn how to get the most out of BearlyMail. Browse articles below or use contextual help links throughout the app.",
+    "backToHelp": "Back to Help",
+    "articles": {
+      "context": {
+        "title": "Understanding Context",
+        "description": "Learn how context works and how it affects your email prioritization.",
+        "content": {
+          "section0": {
+            "title": "What is Context?",
+            "content": "Context is information about you that BearlyMail uses to prioritize your emails intelligently. The more context you provide, the better your email prioritization becomes."
+          },
+          "section1": {
+            "title": "Types of Context",
+            "content": "BearlyMail uses several types of context to understand your priorities:",
+            "item0": "VIP Contacts: People whose emails should always get high priority",
+            "item1": "User Info: Information about you used for drafting personalized replies",
+            "item2": "Current Projects: Topics you're actively working on with priority levels",
+            "item3": "Urgent Keywords: Terms that signal urgency to you",
+            "item4": "Not Important: Topics you want to deprioritize",
+            "item5": "Q&A: Common questions and your standard answers",
+            "item6": "Other: Miscellaneous context for personalization"
+          },
+          "section2": {
+            "title": "How Context Affects Priority",
+            "content": "Context directly influences the priority score of each email:\n\n• VIP contacts receive a +25 priority boost\n• Goal-aligned emails get up to +20 points\n• Current projects boost priority by +5 to +15 depending on priority level\n• Emails matching 'not important' topics are penalized by -20 points\n\nThis scoring system helps surface the emails that matter most to you."
+          },
+          "section3": {
+            "title": "Getting Started",
+            "content": "To build your context, click 'Analyze Emails' in Settings. BearlyMail will scan your email history to automatically identify VIP contacts, common topics, and patterns. You can also manually add context items to fine-tune your prioritization."
+          }
+        }
+      },
+      "triage": {
+        "title": "Using Triage Mode",
+        "description": "Learn how to quickly sort through new emails and decide what needs attention.",
+        "content": {
+          "section0": {
+            "title": "What is Triage?",
+            "content": "Triage mode is where new emails land. This is your first stop for processing incoming messages. Quickly decide what to do with each email: reply, archive, or snooze."
+          },
+          "section1": {
+            "title": "Quick Actions",
+            "content": "In triage mode, you can:",
+            "item0": "Star emails that need action (moves them to Action mode)",
+            "item1": "Archive emails you don't need",
+            "item2": "Snooze emails to handle later",
+            "item3": "Reply directly to urgent emails"
+          },
+          "section2": {
+            "title": "Priority Scores",
+            "content": "Each email shows a priority score based on your context. Higher scores indicate emails that are more important to you. Click on the score to see why it was prioritized."
+          },
+          "section3": {
+            "title": "Best Practices",
+            "content": "• Process triage in batches during your scheduled delivery times\n• Use stars liberally—you can always unstar later\n• Trust the priority scores, but don't hesitate to override when needed\n• Archive anything you know you won't need"
+          }
+        }
+      },
+      "process": {
+        "title": "Processing Emails in Action Mode",
+        "description": "Learn how to efficiently handle emails that need action.",
+        "content": {
+          "section0": {
+            "title": "What is Action Mode?",
+            "content": "Action mode contains all emails you've starred. This is your focused workspace for emails that need a response or action from you."
+          },
+          "section1": {
+            "title": "Working Through Your Action List",
+            "content": "In action mode:",
+            "item0": "Process emails one by one or in batches",
+            "item1": "Use AI summaries to quickly understand email content",
+            "item2": "Draft replies with AI assistance",
+            "item3": "Archive or snooze after handling"
+          },
+          "section2": {
+            "title": "AI Features",
+            "content": "BearlyMail can help you:",
+            "item0": "Generate email summaries in various formats",
+            "item1": "Draft replies based on your writing style",
+            "item2": "Check tone to match your communication preferences",
+            "item3": "Extract action items automatically"
+          },
+          "section3": {
+            "title": "Staying Focused",
+            "content": "Action mode is designed to help you focus. Work through starred emails systematically, and avoid jumping back to triage until you've cleared your action list."
+          }
+        }
+      },
+      "followUp": {
+        "title": "Managing Follow-ups",
+        "description": "Understand how the Follow Up tab helps you track emails waiting for responses.",
+        "content": {
+          "section0": {
+            "title": "What is Follow Up Mode?",
+            "content": "Follow Up mode shows emails where you sent the last message and are waiting for a reply. This helps you track conversations that need follow-up."
+          },
+          "section1": {
+            "title": "When Emails Appear Here",
+            "content": "An email appears in Follow Up mode when:",
+            "item0": "You sent the last message in a thread",
+            "item1": "No reply has been received yet",
+            "item2": "The thread hasn't been snoozed"
+          },
+          "section2": {
+            "title": "Following Up",
+            "content": "Use Follow Up mode to:",
+            "item0": "See which conversations are waiting for responses",
+            "item1": "Generate follow-up messages with AI",
+            "item2": "Send bulk follow-ups when appropriate",
+            "item3": "Track which emails need your attention"
+          },
+          "section3": {
+            "title": "Bulk Follow-ups",
+            "content": "You can generate and send multiple follow-up messages at once. BearlyMail will draft personalized follow-ups for each thread, which you can review and send individually or in bulk."
+          }
+        }
+      },
+      "search": {
+        "title": "Searching Your Emails",
+        "description": "Learn how to find emails quickly using BearlyMail's search functionality.",
+        "content": {
+          "section0": {
+            "title": "How Search Works",
+            "content": "BearlyMail uses AI-powered search to find emails based on meaning, not just keywords. This means you can search for concepts, topics, or ideas rather than exact words."
+          },
+          "section1": {
+            "title": "Search Tips",
+            "content": "To get the best results:",
+            "item0": "Use natural language queries (e.g., 'emails about the budget meeting')",
+            "item1": "Search for topics or concepts, not just keywords",
+            "item2": "Review the relevance scores to find the most relevant emails",
+            "item3": "Use search explanations to understand why results matched"
+          },
+          "section2": {
+            "title": "Relevance Scores",
+            "content": "Each search result shows a relevance score indicating how well it matches your query. Higher scores mean better matches. Click on a result to see why it was included."
+          },
+          "section3": {
+            "title": "Limitations",
+            "content": "Search results are limited to emails that have been processed by BearlyMail. Very recent emails or emails that haven't been synced may not appear in results immediately."
+          }
+        }
+      },
+      "settings": {
+        "title": "Settings Overview",
+        "description": "Learn about all the settings and configurations available in BearlyMail.",
+        "content": {
+          "section0": {
+            "title": "Email Batching",
+            "content": "Configure when emails are delivered to you. Set delivery days and times to batch emails and reduce distractions. Urgent emails can bypass the schedule."
+          },
+          "section1": {
+            "title": "Tone Settings",
+            "content": "Define how you want to write emails. BearlyMail learns from your sent emails and can enforce tone rules when drafting replies."
+          },
+          "section2": {
+            "title": "Summarization Rules",
+            "content": "Create custom rules for how emails should be summarized. For example, extract only action items from meeting requests, or summarize newsletters in bullet points."
+          },
+          "section3": {
+            "title": "Context Management",
+            "content": "Manage your context—VIP contacts, current projects, urgent keywords, and more. Click 'Analyze Emails' to automatically learn context from your email history, or add items manually."
+          },
+          "section4": {
+            "title": "Blocked Senders",
+            "content": "Block emails from specific senders. Blocked emails won't appear in your inbox, helping you focus on what matters."
+          },
+          "section5": {
+            "title": "API Key (Optional)",
+            "content": "Use your own OpenAI API key for AI features. If not provided, the system default key will be used. Your key is encrypted and stored securely."
+          }
+        }
+      }
     }
   }
 }

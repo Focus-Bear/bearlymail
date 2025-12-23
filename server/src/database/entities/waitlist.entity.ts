@@ -1,9 +1,19 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, Index } from 'typeorm';
-import { encryptedColumnTransformer, emailTransformer, EncryptionHelper } from '../../encryption/encryption.helper';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  Index,
+} from "typeorm";
+import {
+  encryptedColumnTransformer,
+  emailTransformer,
+  EncryptionHelper,
+} from "../../encryption/encryption.helper";
 
-@Entity('waitlist')
+@Entity("waitlist")
 export class Waitlist {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Column({ unique: true })
@@ -16,7 +26,7 @@ export class Waitlist {
   @Column({ transformer: encryptedColumnTransformer })
   firstName: string;
 
-  @Column('text', { transformer: encryptedColumnTransformer })
+  @Column("text", { transformer: encryptedColumnTransformer })
   reason: string;
 
   @Column({ default: false })
@@ -25,4 +35,3 @@ export class Waitlist {
   @CreateDateColumn()
   createdAt: Date;
 }
-

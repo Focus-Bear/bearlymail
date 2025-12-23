@@ -1,0 +1,91 @@
+description: "Email prioritization prompts for BearlyMail"
+
+# Providers - configure API keys via environment variables:
+# OPENAI_API_KEY for OpenAI
+# GOOGLE_GENERATIVE_AI_API_KEY for Gemini
+# Or use only one provider if you don't have both keys
+providers:
+  - openai:gpt-4.1-mini
+  # Uncomment below if you have Gemini API key
+  # - google:gemini-pro
+
+prompts:
+  - file://prompts/prioritise-email.md
+
+tests:    
+  - vars:
+      from: "sarah.chen@acmecorp.com"
+      fromName: "Sarah Chen"
+      subject: "URGENT: Production outage - need immediate response"
+      body: "Hi team, we're experiencing a critical production outage affecting all users. The payment system is down and customers can't complete transactions. I need you to drop everything and help fix this immediately. This is costing us thousands of dollars per minute."
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          minScore: 85
+          expectedIsUrgent: true
+
+  - vars:
+      from: "mike.thompson@gmail.com"
+      fromName: "Mike Thompson"
+      subject: "Catching up"
+      body: "Hey! Hope you're doing well. Just wanted to see how things are going. No pressure to respond quickly - whenever you have a moment. Would love to grab coffee sometime if you're free!"
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          maxScore: 49
+          expectedIsUrgent: false
+          expectedSentiment: ['positive', 'neutral']
+
+  - vars:
+      from: "support@clientcompany.com"
+      fromName: "Jennifer Martinez"
+      subject: "Re: Invoice #12345 - Payment Issue"
+      body: "I'm extremely frustrated and disappointed. We've been trying to resolve this billing issue for over two weeks now and we keep getting the runaround. This is completely unacceptable. Our accounting team is very upset and we're considering switching vendors. I need someone to take ownership of this problem TODAY or we'll be forced to escalate to your management."
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          minScore: 75
+          expectedSentiment: ['upset', 'negative']
+          minSentimentScore: -0.3
+
+  - vars:
+      from: "newsletter@marketing.com"
+      fromName: "Marketing Team"
+      subject: "Weekly Newsletter - New Product Features"
+      body: "Check out our latest product updates! We've added new features that will help you be more productive. Click here to learn more. This is an automated message."
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          maxScore: 40
+          expectedIsUrgent: false
+
+  - vars:
+      from: "david.kim@startup.io"
+      fromName: "David Kim"
+      senderJobTitle: "Founder & CEO"
+      subject: "Deadline moved up - need your input by EOD"
+      body: "Hi, I know this is short notice but we've had to move the investor presentation up to tomorrow morning. I really need your analysis on the Q4 metrics by end of day today. This is critical for the funding round. Can you prioritize this?"
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          minScore: 80
+          expectedIsUrgent: true
+
+  - vars:
+      from: "lisa.wong@consulting.com"
+      fromName: "Lisa Wong"
+      subject: "Re: Project Proposal - Concerns"
+      body: "I'm concerned about the timeline you've proposed. The deliverables seem unrealistic given the scope, and I'm worried we won't meet the deadline. This could impact our client relationship significantly. Can we discuss this as soon as possible? I'd like to understand your thinking before we proceed."
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          minScore: 65
+          expectedSentiment: ['negative']
+          maxSentimentScore: -0.01
+

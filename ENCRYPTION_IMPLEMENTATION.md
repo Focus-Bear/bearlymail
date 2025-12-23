@@ -8,8 +8,10 @@ All sensitive data is now encrypted at rest in the database using AES-256-GCM en
 
 1. **User Entity**:
    - `email` - Encrypted (with `emailHash` for querying)
+   - `name` - Encrypted
    - `googleCalendarAccessToken` - Encrypted
    - `googleCalendarRefreshToken` - Encrypted
+   - `openAiApiKey` - Encrypted
 
 2. **Email Entity**:
    - `from` - Encrypted
@@ -108,6 +110,7 @@ Passwords are **hashed** (not encrypted) using bcrypt. This is a one-way operati
 - ✅ Encryption is automatic and transparent to application code
 - ✅ Each encrypted value has a unique IV (Initialization Vector)
 - ✅ Authentication tag prevents tampering
+
 
 
 

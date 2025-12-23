@@ -1,13 +1,13 @@
-import { Injectable, Inject, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import PgBoss = require('pg-boss');
-import { ScanEmail } from '../database/entities/scan-email.entity';
-import { ScanEmailService } from '../emails/scan-email.service';
-import { ContextService } from '../context/context.service';
-import { ContextKey, Source } from '../database/entities/user-context.entity';
-import { google } from 'googleapis';
-import { UsersService } from '../users/users.service';
+import { Injectable, Inject, Logger } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import PgBoss = require("pg-boss");
+import { ScanEmail } from "../database/entities/scan-email.entity";
+import { ScanEmailService } from "../emails/scan-email.service";
+import { ContextService } from "../context/context.service";
+import { ContextKey, Source } from "../database/entities/user-context.entity";
+import { google } from "googleapis";
+import { UsersService } from "../users/users.service";
 
 @Injectable()
 export class ScanAnalysisService {
@@ -19,7 +19,7 @@ export class ScanAnalysisService {
     private scanEmailService: ScanEmailService,
     private contextService: ContextService,
     private usersService: UsersService,
-    @Inject('PG_BOSS') private readonly boss: PgBoss,
+    @Inject("PG_BOSS") private readonly boss: PgBoss,
   ) {}
 
   /**
@@ -32,11 +32,15 @@ export class ScanAnalysisService {
     try {
       const scanEmails = await this.scanEmailService.findAllForUser(userId);
       if (scanEmails.length === 0) {
-        this.logger.warn(`No scan emails found for user ${userId}, skipping analysis`);
+        this.logger.warn(
+          `No scan emails found for user ${userId}, skipping analysis`,
+        );
         return;
       }
 
-      this.logger.log(`Analyzing ${scanEmails.length} scanned emails for user ${userId}`);
+      this.logger.log(
+        `Analyzing ${scanEmails.length} scanned emails for user ${userId}`,
+      );
 
       // Enrich scan emails with reply/archive data from Gmail
       await this.enrichScanEmails(userId, scanEmails);
@@ -49,11 +53,16 @@ export class ScanAnalysisService {
 
       // Delete temporary scan emails
       await this.scanEmailService.deleteAllForUser(userId);
-      this.logger.log(`Deleted ${scanEmails.length} temporary scan emails for user ${userId}`);
+      this.logger.log(
+        `Deleted ${scanEmails.length} temporary scan emails for user ${userId}`,
+      );
 
       this.logger.log(`Completed analysis for user ${userId}`);
     } catch (error) {
-      this.logger.error(`Error analyzing scan results for user ${userId}:`, error);
+      this.logger.error(
+        `Error analyzing scan results for user ${userId}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -61,7 +70,10 @@ export class ScanAnalysisService {
   /**
    * Enrich scan emails with reply time and archive status from Gmail threads
    */
-  private async enrichScanEmails(userId: string, scanEmails: ScanEmail[]): Promise<void> {
+  private async enrichScanEmails(
+    userId: string,
+    scanEmails: ScanEmail[],
+  ): Promise<void> {
     const user = await this.usersService.findOne(userId);
     if (!user?.googleCalendarAccessToken) {
       this.logger.warn(`User ${userId} not connected, skipping enrichment`);
@@ -78,7 +90,7 @@ export class ScanAnalysisService {
       refresh_token: user.googleCalendarRefreshToken,
     });
 
-    const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+    const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
     // Group by thread to analyze replies
     const threadMap = new Map<string, ScanEmail[]>();
@@ -93,9 +105,9 @@ export class ScanAnalysisService {
     for (const [threadId, emails] of threadMap.entries()) {
       try {
         const thread = await gmail.users.threads.get({
-          userId: 'me',
+          userId: "me",
           id: threadId,
-          format: 'full',
+          format: "full",
         });
 
         const messages = thread.data.messages || [];
@@ -104,20 +116,23 @@ export class ScanAnalysisService {
         // Check if user replied (has a SENT label in thread)
         const userReplied = messages.some((msg: any) => {
           const labelIds = msg.labelIds || [];
-          return labelIds.includes('SENT');
+          return labelIds.includes("SENT");
         });
 
         if (userReplied) {
           // Find user's first reply (message with SENT label)
           const replyMessage = messages.find((msg: any) => {
             const labelIds = msg.labelIds || [];
-            return labelIds.includes('SENT');
+            return labelIds.includes("SENT");
           });
 
           if (replyMessage && originalEmail.receivedAt) {
-            const replyDate = new Date(parseInt(replyMessage.internalDate || '0'));
+            const replyDate = new Date(
+              parseInt(replyMessage.internalDate || "0"),
+            );
             const receivedDate = originalEmail.receivedAt;
-            const hoursToReply = (replyDate.getTime() - receivedDate.getTime()) / (1000 * 60 * 60);
+            const hoursToReply =
+              (replyDate.getTime() - receivedDate.getTime()) / (1000 * 60 * 60);
             originalEmail.timeToReply = Math.max(0, hoursToReply);
             originalEmail.wasRepliedTo = true;
           }
@@ -126,7 +141,7 @@ export class ScanAnalysisService {
         // Check if archived (not in INBOX label)
         const lastMessage = messages[messages.length - 1];
         const labelIds = lastMessage.labelIds || [];
-        const isArchived = !labelIds.includes('INBOX');
+        const isArchived = !labelIds.includes("INBOX");
 
         for (const email of emails) {
           email.isArchived = isArchived;
@@ -146,9 +161,15 @@ export class ScanAnalysisService {
   /**
    * Create VIP contacts based on email patterns
    */
-  private async createVipContacts(userId: string, scanEmails: ScanEmail[]): Promise<void> {
+  private async createVipContacts(
+    userId: string,
+    scanEmails: ScanEmail[],
+  ): Promise<void> {
     // Analyze senders user replied to quickly
-    const quickReplySenders = new Map<string, { count: number; avgHours: number; name: string }>();
+    const quickReplySenders = new Map<
+      string,
+      { count: number; avgHours: number; name: string }
+    >();
     const starredSenders = new Map<string, { count: number; name: string }>();
 
     for (const email of scanEmails) {
@@ -156,16 +177,29 @@ export class ScanAnalysisService {
       const senderName = email.fromName || sender;
 
       // Quick replies (within 2 hours) - indicates VIP
-      if (email.wasRepliedTo && email.timeToReply !== null && email.timeToReply <= 2) {
-        const existing = quickReplySenders.get(sender) || { count: 0, avgHours: 0, name: senderName };
+      if (
+        email.wasRepliedTo &&
+        email.timeToReply !== null &&
+        email.timeToReply <= 2
+      ) {
+        const existing = quickReplySenders.get(sender) || {
+          count: 0,
+          avgHours: 0,
+          name: senderName,
+        };
         existing.count++;
-        existing.avgHours = (existing.avgHours * (existing.count - 1) + email.timeToReply) / existing.count;
+        existing.avgHours =
+          (existing.avgHours * (existing.count - 1) + email.timeToReply) /
+          existing.count;
         quickReplySenders.set(sender, existing);
       }
 
       // Starred emails (starCount > 0) - indicates VIP
       if (email.starCount > 0) {
-        const existing = starredSenders.get(sender) || { count: 0, name: senderName };
+        const existing = starredSenders.get(sender) || {
+          count: 0,
+          name: senderName,
+        };
         existing.count++;
         starredSenders.set(sender, existing);
       }
@@ -173,20 +207,24 @@ export class ScanAnalysisService {
 
     // Create VIP contacts for quick reply senders
     for (const [sender, data] of quickReplySenders.entries()) {
-      if (data.count >= 2) { // At least 2 quick replies
+      if (data.count >= 2) {
+        // At least 2 quick replies
         await this.contextService.createOrUpdateContext(
           userId,
           ContextKey.VIP_CONTACT,
           data.name,
           Source.AUTOGENERATED,
         );
-        this.logger.log(`Created VIP contact for quick-reply sender: ${data.name}`);
+        this.logger.log(
+          `Created VIP contact for quick-reply sender: ${data.name}`,
+        );
       }
     }
 
     // Create VIP contacts for starred senders
     for (const [sender, data] of starredSenders.entries()) {
-      if (data.count >= 3) { // Starred at least 3 times
+      if (data.count >= 3) {
+        // Starred at least 3 times
         await this.contextService.createOrUpdateContext(
           userId,
           ContextKey.VIP_CONTACT,
@@ -201,18 +239,27 @@ export class ScanAnalysisService {
   /**
    * Create user context from scanned emails
    */
-  private async createUserContext(userId: string, scanEmails: ScanEmail[]): Promise<void> {
+  private async createUserContext(
+    userId: string,
+    scanEmails: ScanEmail[],
+  ): Promise<void> {
     // Calculate average reply time (store as context for future use)
-    const repliedEmails = scanEmails.filter(e => e.wasRepliedTo && e.timeToReply !== null && e.timeToReply > 0);
+    const repliedEmails = scanEmails.filter(
+      (e) => e.wasRepliedTo && e.timeToReply !== null && e.timeToReply > 0,
+    );
     if (repliedEmails.length > 0) {
-      const avgReplyTime = repliedEmails.reduce((sum, e) => sum + (e.timeToReply || 0), 0) / repliedEmails.length;
+      const avgReplyTime =
+        repliedEmails.reduce((sum, e) => sum + (e.timeToReply || 0), 0) /
+        repliedEmails.length;
       await this.contextService.createOrUpdateContext(
         userId,
         ContextKey.AVERAGE_REPLY_TIME,
         avgReplyTime.toFixed(2),
         Source.AUTOGENERATED,
       );
-      this.logger.log(`User average reply time: ${avgReplyTime.toFixed(2)} hours`);
+      this.logger.log(
+        `User average reply time: ${avgReplyTime.toFixed(2)} hours`,
+      );
     }
 
     this.logger.log(`Created user context from scan analysis`);

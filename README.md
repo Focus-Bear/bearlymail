@@ -86,6 +86,11 @@ PRIVACY_VERSION=1.0.0
 
 # RevenueCat API Key (optional - for subscription management)
 REVENUECAT_API_KEY=your-revenuecat-api-key
+
+# Zoho Cliq Integration (optional - for waitlist notifications)
+ZOHO_CLIQ_BACKEND_BOT_WEBHOOK=your-cliq-webhook-url
+ZOHO_CLIQ_API_KEY=your-cliq-api-key
+ZOHO_CLIQ_BEARLY_MAIL_SIGNUP_CHANNEL=your-cliq-channel-name
 ```
 
 **Frontend** (`client/.env`):

@@ -1,8 +1,8 @@
-import * as crypto from 'crypto';
+import * as crypto from "crypto";
 
 /**
  * Helper for creating searchable blind indexes.
- * 
+ *
  * This enables searching encrypted data without decrypting everything:
  * 1. Generate search tokens from plaintext (trigrams, normalized terms)
  * 2. Hash each token with SHA-256
@@ -14,17 +14,17 @@ export class SearchIndexHelper {
    * Generate a deterministic hash for exact matching
    */
   static hashExact(value: string): string {
-    if (!value) return '';
+    if (!value) return "";
     return crypto
-      .createHash('sha256')
+      .createHash("sha256")
       .update(value.toLowerCase().trim())
-      .digest('hex');
+      .digest("hex");
   }
 
   /**
    * Generate search tokens for fuzzy matching.
    * Creates trigrams and word tokens, then hashes each.
-   * 
+   *
    * Example: "John Smith" -> trigrams: ["joh", "ohn", "hn ", "n s", " sm", "smi", "mit", "ith"]
    *                       -> words: ["john", "smith"]
    */
@@ -35,23 +35,23 @@ export class SearchIndexHelper {
 
     for (const value of values) {
       if (!value) continue;
-      
+
       const normalized = value.toLowerCase().trim();
-      
+
       // Add full normalized value
       tokens.add(this.hashToken(normalized));
-      
+
       // Add individual words
-      const words = normalized.split(/\s+/).filter(w => w.length > 0);
+      const words = normalized.split(/\s+/).filter((w) => w.length > 0);
       for (const word of words) {
         tokens.add(this.hashToken(word));
-        
+
         // Add prefixes (for autocomplete-style search)
         for (let i = 2; i <= Math.min(word.length, 10); i++) {
           tokens.add(this.hashToken(word.substring(0, i)));
         }
       }
-      
+
       // Add trigrams for fuzzy matching
       const trigrams = this.generateTrigrams(normalized);
       for (const trigram of trigrams) {
@@ -68,14 +68,15 @@ export class SearchIndexHelper {
   private static generateTrigrams(text: string): string[] {
     const trigrams: string[] = [];
     const padded = `  ${text}  `; // Pad for edge trigrams
-    
+
     for (let i = 0; i < padded.length - 2; i++) {
       const trigram = padded.substring(i, i + 3);
-      if (trigram.trim().length > 0) { // Skip whitespace-only trigrams
+      if (trigram.trim().length > 0) {
+        // Skip whitespace-only trigrams
         trigrams.push(trigram);
       }
     }
-    
+
     return trigrams;
   }
 
@@ -84,9 +85,9 @@ export class SearchIndexHelper {
    */
   private static hashToken(token: string): string {
     return crypto
-      .createHash('sha256')
+      .createHash("sha256")
       .update(token)
-      .digest('hex')
+      .digest("hex")
       .substring(0, 16); // Truncate to 16 chars to save space (still plenty of entropy)
   }
 
@@ -96,30 +97,30 @@ export class SearchIndexHelper {
    */
   static generateQueryTokens(query: string): string[] {
     if (!query) return [];
-    
+
     const tokens = new Set<string>();
     const normalized = query.toLowerCase().trim();
-    
+
     // Add full query
     tokens.add(this.hashToken(normalized));
-    
+
     // Add individual words
-    const words = normalized.split(/\s+/).filter(w => w.length > 0);
+    const words = normalized.split(/\s+/).filter((w) => w.length > 0);
     for (const word of words) {
       tokens.add(this.hashToken(word));
-      
+
       // Add prefixes for partial matching
       for (let i = 2; i <= Math.min(word.length, 10); i++) {
         tokens.add(this.hashToken(word.substring(0, i)));
       }
     }
-    
+
     // Add trigrams
     const trigrams = this.generateTrigrams(normalized);
     for (const trigram of trigrams) {
       tokens.add(this.hashToken(trigram));
     }
-    
+
     return Array.from(tokens);
   }
 
@@ -128,7 +129,7 @@ export class SearchIndexHelper {
    */
   static extractEmailDomain(email: string): string | null {
     if (!email) return null;
-    const parts = email.split('@');
+    const parts = email.split("@");
     return parts.length > 1 ? parts[1].toLowerCase() : null;
   }
 
@@ -137,11 +138,7 @@ export class SearchIndexHelper {
    */
   static extractEmailLocalPart(email: string): string | null {
     if (!email) return null;
-    const parts = email.split('@');
+    const parts = email.split("@");
     return parts.length > 0 ? parts[0].toLowerCase() : null;
   }
 }
-
-
-
-

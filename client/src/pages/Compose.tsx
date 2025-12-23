@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { theme } from '../theme/theme';
+import { captureEvent } from '../utils/posthog';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
@@ -22,6 +23,15 @@ interface Recipient {
   email: string;
   name?: string;
 }
+
+// Email validation helper
+const isValidEmail = (email: string): boolean => {
+  const trimmed = email.trim();
+  if (!trimmed) return false;
+  // Basic email validation regex
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(trimmed);
+};
 
 const Compose: React.FC = () => {
   const navigate = useNavigate();
@@ -68,6 +78,11 @@ const Compose: React.FC = () => {
       setSubject(subjectParam);
     }
   }, [searchParams]);
+
+  // Track compose view
+  useEffect(() => {
+    captureEvent('compose_viewed');
+  }, []);
 
   // Fetch frequent contacts on mount
   useEffect(() => {
@@ -123,6 +138,11 @@ const Compose: React.FC = () => {
       name: 'name' in contact ? contact.name : undefined,
     };
 
+    // Determine if this came from search or frequent contacts
+    const isFromSearch = searchResults.some(c => c.email === contact.email);
+    const contactSource = isFromSearch ? 'search' : 'frequent';
+    captureEvent('compose_contact_selected', { contact_source: contactSource });
+
     const setter = field === 'to' ? setTo : field === 'cc' ? setCc : setBcc;
     const searchSetter = field === 'to' ? setToSearch : field === 'cc' ? setCcSearch : setBccSearch;
 
@@ -137,7 +157,18 @@ const Compose: React.FC = () => {
     searchSetter('');
     setSearchResults([]);
     setActiveField(null);
-  }, []);
+  }, [searchResults]);
+
+  // Handle blur - add valid email if typed
+  const handleFieldBlur = useCallback((field: 'to' | 'cc' | 'bcc') => {
+    setTimeout(() => {
+      const searchValue = field === 'to' ? toSearch : field === 'cc' ? ccSearch : bccSearch;
+      if (searchValue && isValidEmail(searchValue)) {
+        addRecipient({ email: searchValue.trim() }, field);
+      }
+      setActiveField(null);
+    }, 200);
+  }, [toSearch, ccSearch, bccSearch, addRecipient]);
 
   // Remove recipient
   const removeRecipient = useCallback((email: string, field: 'to' | 'cc' | 'bcc') => {
@@ -161,8 +192,8 @@ const Compose: React.FC = () => {
       e.preventDefault();
       if (selectedSuggestionIndex >= 0 && searchResults[selectedSuggestionIndex]) {
         addRecipient(searchResults[selectedSuggestionIndex], field);
-      } else if (searchValue && searchValue.includes('@')) {
-        // Add typed email directly
+      } else if (searchValue && isValidEmail(searchValue)) {
+        // Add typed email directly if it's valid
         addRecipient({ email: searchValue.trim() }, field);
       }
     } else if (e.key === 'Backspace' && !searchValue) {
@@ -179,6 +210,7 @@ const Compose: React.FC = () => {
 
   // Sync contacts from Gmail
   const handleSyncContacts = async () => {
+    captureEvent('compose_contacts_synced');
     setSyncingContacts(true);
     try {
       await axios.post(`${API_URL}/contacts/sync`);
@@ -211,6 +243,13 @@ const Compose: React.FC = () => {
     setError(null);
 
     try {
+      captureEvent('compose_sent', {
+        recipient_count: to.length,
+        has_cc: cc.length > 0,
+        has_bcc: bcc.length > 0,
+        has_subject: !!subject.trim(),
+      });
+
       await axios.post(`${API_URL}/emails/send`, {
         to,
         cc: cc.length > 0 ? cc : undefined,
@@ -416,9 +455,7 @@ const Compose: React.FC = () => {
             onChange={(e) => handleSearchInput(e.target.value, field)}
             onKeyDown={(e) => handleSearchKeyDown(e, field)}
             onFocus={() => setActiveField(field)}
-            onBlur={() => setTimeout(() => {
-              if (activeField === field) setActiveField(null);
-            }, 200)}
+            onBlur={() => handleFieldBlur(field)}
             placeholder={recipients.length === 0 ? 'Enter email or search contacts...' : ''}
             style={{
               border: 'none',
@@ -713,7 +750,7 @@ const Compose: React.FC = () => {
               style={{
                 marginTop: theme.spacing.md,
                 padding: theme.spacing.md,
-                backgroundColor: '#FEF2F2',
+                backgroundColor: theme.colors.sunray.light4,
                 borderRadius: theme.borderRadius.md,
                 color: theme.colors.accent.error,
                 fontSize: theme.typography.fontSize.sm,

@@ -1,4 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+/* Focus Bear Brand Fonts */
+/* Inter - Logo font (Medium weight) */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* Ferwick - Graphic pieces font (Bold, Regular, Light, Bold Italic) */
+/* Note: If Ferwick font files are available, add @font-face declarations here */
+/* For now, using Inter as fallback for Ferwick */
 
 * {
   box-sizing: border-box;
@@ -13,8 +19,11 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #F3F4F6;
-  color: #1F2937;
+  background-color: #FFFCF6; /* White Lace - Focus Bear brand background */
+  color: #0B0B0B; /* Rich Black - Focus Bear brand text */
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  overflow-x: hidden;
 }
 
 code {
@@ -27,9 +36,9 @@ code {
   min-height: 100vh;
 }
 
-/* Focus styles for accessibility */
+/* Focus styles for accessibility - Using Sunray brand color */
 *:focus-visible {
-  outline: 2px solid #3B82F6;
+  outline: 2px solid #E9902C; /* Sunray - Focus Bear brand accent */
   outline-offset: 2px;
 }
 
@@ -38,7 +47,7 @@ button, a, input, select, textarea {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Scrollbar styling */
+/* Scrollbar styling - Using Focus Bear brand greyscale */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -49,12 +58,12 @@ button, a, input, select, textarea {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #D1D5DB;
+  background: #CCCCCC; /* 400 - Focus Bear greyscale */
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #9CA3AF;
+  background: #999999; /* 500 - Focus Bear greyscale */
 }
 
 /* Animations */

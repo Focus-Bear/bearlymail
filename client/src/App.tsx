@@ -13,7 +13,11 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfUse from './pages/TermsOfUse';
 import Search from './pages/Search';
 import Compose from './pages/Compose';
+import SetupPassword from './pages/SetupPassword';
+import Help from './pages/Help';
+import HelpArticle from './pages/HelpArticle';
 import axios from 'axios';
+import './i18n'; // Initialize i18n
 import './App.css';
 import { theme } from './theme/theme';
 
@@ -116,6 +120,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/setup-password" element={<SetupPassword />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfUse />} />
             <Route
@@ -155,6 +160,22 @@ function App() {
               element={
                 <PrivateRoute>
                   <Compose />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/help"
+              element={
+                <PrivateRoute>
+                  <Help />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/help/:articleId"
+              element={
+                <PrivateRoute>
+                  <HelpArticle />
                 </PrivateRoute>
               }
             />

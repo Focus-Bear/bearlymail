@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Email } from '../database/entities/email.entity';
-import * as chrono from 'chrono-node';
+import { Injectable } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { Email } from "../database/entities/email.entity";
+import * as chrono from "chrono-node";
 
 @Injectable()
 export class SnoozeService {
@@ -11,13 +11,17 @@ export class SnoozeService {
     private emailRepository: Repository<Email>,
   ) {}
 
-  async snoozeEmail(userId: string, emailId: string, duration: string): Promise<Email> {
+  async snoozeEmail(
+    userId: string,
+    emailId: string,
+    duration: string,
+  ): Promise<Email> {
     const email = await this.emailRepository.findOne({
       where: { id: emailId, userId },
     });
 
     if (!email) {
-      throw new Error('Email not found');
+      throw new Error("Email not found");
     }
 
     const snoozeUntil = this.parseDuration(duration);
@@ -29,7 +33,7 @@ export class SnoozeService {
 
   private parseDuration(duration: string): Date {
     const normalized = duration.toLowerCase().trim();
-    
+
     // Parse with chrono for natural language dates
     const parsed = chrono.parseDate(normalized);
     if (parsed) {
@@ -46,15 +50,15 @@ export class SnoozeService {
       const unit = match[2];
 
       switch (unit) {
-        case 'm':
-        case 'min':
+        case "m":
+        case "min":
           return new Date(now.getTime() + value * 60 * 1000);
-        case 'h':
-        case 'hr':
+        case "h":
+        case "hr":
           return new Date(now.getTime() + value * 60 * 60 * 1000);
-        case 'd':
+        case "d":
           return new Date(now.getTime() + value * 24 * 60 * 60 * 1000);
-        case 'w':
+        case "w":
           return new Date(now.getTime() + value * 7 * 24 * 60 * 60 * 1000);
       }
     }
@@ -74,7 +78,7 @@ export class SnoozeService {
       const targetDay = dayMap[normalized];
       const currentDay = now.getDay();
       let daysUntil = targetDay - currentDay;
-      
+
       if (daysUntil <= 0) {
         daysUntil += 7; // Next week
       }
@@ -82,7 +86,7 @@ export class SnoozeService {
       const nextDate = new Date(now);
       nextDate.setDate(now.getDate() + daysUntil);
       nextDate.setHours(9, 0, 0, 0); // Default to 9 AM
-      
+
       return nextDate;
     }
 
@@ -96,7 +100,7 @@ export class SnoozeService {
     });
 
     if (!email) {
-      throw new Error('Email not found');
+      throw new Error("Email not found");
     }
 
     email.isSnoozed = false;
@@ -105,4 +109,3 @@ export class SnoozeService {
     return this.emailRepository.save(email);
   }
 }
-

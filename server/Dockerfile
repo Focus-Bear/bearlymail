@@ -5,17 +5,15 @@ WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
-COPY server/package*.json ./server/
 
 # Install dependencies
 RUN npm install
-RUN cd server && npm install
 
 # Copy source code
 COPY . .
 
 # Build the NestJS application
-RUN cd server && npm run build
+RUN npm run build
 
 # Production stage
 FROM node:18-alpine
@@ -23,14 +21,14 @@ FROM node:18-alpine
 WORKDIR /app
 
 # Copy package files
-COPY server/package*.json ./
+COPY package*.json ./
 
 # Install production dependencies only
 RUN npm install --production
 
 # Copy built application from builder
-COPY --from=builder /app/server/dist ./dist
-COPY --from=builder /app/server/node_modules ./node_modules
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
 
 # Expose port
 EXPOSE 3001

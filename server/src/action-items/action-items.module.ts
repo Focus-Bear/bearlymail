@@ -1,8 +1,8 @@
-import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { ActionItemsController } from './action-items.controller';
-import { ActionItemsService } from './action-items.service';
-import { ActionItem } from '../database/entities/action-item.entity';
+import { Module } from "@nestjs/common";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { ActionItemsController } from "./action-items.controller";
+import { ActionItemsService } from "./action-items.service";
+import { ActionItem } from "../database/entities/action-item.entity";
 
 @Module({
   imports: [TypeOrmModule.forFeature([ActionItem])],
@@ -11,7 +11,3 @@ import { ActionItem } from '../database/entities/action-item.entity';
   exports: [ActionItemsService],
 })
 export class ActionItemsModule {}
-
-
-
-

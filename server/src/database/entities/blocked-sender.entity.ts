@@ -1,16 +1,24 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
-import { User } from './user.entity';
-import { encryptedColumnTransformer } from '../../encryption/encryption.helper';
-import { SearchIndexHelper } from '../../contacts/search-index.helper';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  ManyToOne,
+  JoinColumn,
+  Index,
+} from "typeorm";
+import { User } from "./user.entity";
+import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
+import { SearchIndexHelper } from "../../contacts/search-index.helper";
 
 /**
  * Blocked senders - emails from these addresses are automatically archived
  * and labeled "blocked-by-bearlymail", and excluded from summaries.
  */
-@Entity('blocked_senders')
-@Index(['userId', 'emailHash'], { unique: true }) // One block per email per user
+@Entity("blocked_senders")
+@Index(["userId", "emailHash"], { unique: true }) // One block per email per user
 export class BlockedSender {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Column()
@@ -40,10 +48,6 @@ export class BlockedSender {
   blockedAt: Date;
 
   @ManyToOne(() => User)
-  @JoinColumn({ name: 'userId' })
+  @JoinColumn({ name: "userId" })
   user: User;
 }
-
-
-
-

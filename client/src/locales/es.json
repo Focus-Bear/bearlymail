@@ -1,0 +1,60 @@
+{
+  "common": {
+    "appName": "BearlyMail",
+    "loading": "Cargando...",
+    "error": "Error",
+    "dismiss": "Descartar",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "remove": "Eliminar",
+    "back": "Atrás",
+    "add": "Agregar",
+    "auto": "Automático"
+  },
+  "auth": {
+    "loginTitle": "Bienvenido de nuevo",
+    "registerTitle": "Crear cuenta",
+    "continueWithGoogle": "Continuar con Google",
+    "or": "O",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "name": "Nombre",
+    "signIn": "Iniciar sesión",
+    "signUp": "Registrarse",
+    "haveAccount": "¿Ya tienes una cuenta? Inicia sesión",
+    "noAccount": "¿No tienes una cuenta? Regístrate",
+    "reloginRequired": "Acción requerida: Por favor, inicia sesión nuevamente para restaurar la sincronización de correo electrónico.",
+    "logout": "Cerrar sesión",
+    "reloginLink": "inicia sesión nuevamente",
+    "authenticationFailed": "Error de autenticación",
+    "setupAccountTitle": "Configurar tu cuenta",
+    "setupAccountDescription": "¡Bienvenido! Por favor, crea una contraseña para completar la configuración de tu cuenta.",
+    "invalidSetupLink": "Enlace de configuración inválido. Por favor, verifica tu correo electrónico para el enlace correcto.",
+    "passwordTooShort": "La contraseña debe tener al menos 8 caracteres.",
+    "passwordsDoNotMatch": "Las contraseñas no coinciden.",
+    "passwordMinLength": "Debe tener al menos 8 caracteres",
+    "confirmPassword": "Confirmar contraseña",
+    "settingUp": "Configurando...",
+    "setUpAccount": "Configurar cuenta",
+    "setupPasswordError": "Error al configurar la contraseña. El enlace puede haber expirado."
+  },
+  "email": {
+    "waitlistApproval": {
+      "subject": "Bienvenido a BearlyMail - Configura tu cuenta",
+      "greeting": "¡Bienvenido a BearlyMail, {{firstName}}!",
+      "message": "¡Buenas noticias! Tu solicitud en la lista de espera ha sido aprobada. Ya estás listo para configurar tu cuenta de BearlyMail.",
+      "cta": "Haz clic en el botón de abajo para crear tu contraseña y comenzar:",
+      "button": "Configurar tu cuenta",
+      "linkText": "O copia y pega este enlace en tu navegador:",
+      "expiry": "Este enlace expirará en 7 días. Si no solicitaste esto, por favor ignora este correo electrónico.",
+      "footer": "© {{year}} BearlyMail. Todos los derechos reservados."
+    }
+  }
+}
+
+
+
+

@@ -84,3 +84,7 @@ console.log(`  3. Cache decrypted values for frequently accessed emails`);
 console.log(`  4. Consider storing some fields unencrypted if they're not sensitive (e.g., subject preview)`);
 
 
+
+
+
+

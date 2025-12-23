@@ -1,15 +1,18 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { EmailsService } from '../emails/emails.service';
-import { LLMService } from '../llm/llm.service';
-import { SummarizationRule as SummarizationRuleEntity } from '../database/entities/summarization-rule.entity';
-import { cleanEmailContent, cleanEmailForThread } from '../llm/email-content-cleaner';
+import { Injectable } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { EmailsService } from "../emails/emails.service";
+import { LLMService } from "../llm/llm.service";
+import { SummarizationRule as SummarizationRuleEntity } from "../database/entities/summarization-rule.entity";
+import {
+  cleanEmailContent,
+  cleanEmailForThread,
+} from "../llm/email-content-cleaner";
 
 export interface SummarizationRule {
-  type: 'bullet-points' | 'action-items' | 'sender-request' | 'tldr' | 'custom';
+  type: "bullet-points" | "action-items" | "sender-request" | "tldr" | "custom";
   customPrompt?: string;
-  provider?: 'gemini' | 'openai';
+  provider?: "gemini" | "openai";
 }
 
 @Injectable()
@@ -28,13 +31,19 @@ export class SummarizationService {
   ): Promise<string> {
     const email = await this.emailsService.getEmailById(userId, emailId);
     if (!email) {
-      throw new Error('Email not found');
+      throw new Error("Email not found");
     }
 
     // For thread summaries, get the last 3 messages in the thread (need body for summarization)
-    const threadEmails = await this.emailsService.getThreadEmails(userId, email.threadId);
+    const threadEmails = await this.emailsService.getThreadEmails(
+      userId,
+      email.threadId,
+    );
     const last3Messages = threadEmails
-      .sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime())
+      .sort(
+        (a, b) =>
+          new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime(),
+      )
       .slice(0, 3)
       .reverse(); // Reverse to get chronological order (oldest to newest)
 
@@ -47,31 +56,43 @@ export class SummarizationService {
         const cleanedBody = cleanEmailForThread(e.body, (e as any).htmlBody);
         return `[Message ${idx + 1} from ${sender} on ${date}]:\n${cleanedBody}`;
       })
-      .join('\n\n---\n\n');
-    
-    const subject = email.subject || '';
-    const text = threadText || cleanEmailContent(email.body, (email as any).htmlBody);
+      .join("\n\n---\n\n");
+
+    const subject = email.subject || "";
+    const text =
+      threadText || cleanEmailContent(email.body, (email as any).htmlBody);
 
     // Use LLM for all summarization types
     try {
-      const provider = rule.provider 
-        ? (rule.provider === 'gemini' ? 'gemini' : 'openai')
+      const provider = rule.provider
+        ? rule.provider === "gemini"
+          ? "gemini"
+          : "openai"
         : undefined;
 
-      if (rule.type === 'custom' && rule.customPrompt) {
+      if (rule.type === "custom" && rule.customPrompt) {
         // Custom prompt using LLM - use cleaned content
-        const cleanedBody = cleanEmailContent(email.body, (email as any).htmlBody);
-        const prompt = last3Messages.length > 1
-          ? `Email Thread Subject: ${subject}\n\nThis thread contains ${last3Messages.length} messages. Here are the last ${Math.min(3, last3Messages.length)} messages:\n\n${threadText}\n\n${rule.customPrompt}`
-          : `Email Subject: ${subject}\n\nEmail Body:\n${cleanedBody}\n\n${rule.customPrompt}`;
-        
-        return await this.llmService.generateText({
-          prompt,
-          systemPrompt: 'You are a helpful assistant that summarizes email threads according to user instructions.',
-          temperature: 0.5,
-          maxTokens: 500,
+        const cleanedBody = cleanEmailContent(
+          email.body,
+          (email as any).htmlBody,
+        );
+        const prompt =
+          last3Messages.length > 1
+            ? `Email Thread Subject: ${subject}\n\nThis thread contains ${last3Messages.length} messages. Here are the last ${Math.min(3, last3Messages.length)} messages:\n\n${threadText}\n\n${rule.customPrompt}`
+            : `Email Subject: ${subject}\n\nEmail Body:\n${cleanedBody}\n\n${rule.customPrompt}`;
+
+        return await this.llmService.generateText(
+          {
+            prompt,
+            systemPrompt:
+              "You are a helpful assistant that summarizes email threads according to user instructions.",
+            temperature: 0.5,
+            maxTokens: 500,
+            userId,
+          },
+          provider as any,
           userId,
-        }, provider as any, userId);
+        );
       }
 
       // Use LLM for standard summarization types
@@ -86,7 +107,10 @@ export class SummarizationService {
         );
       } else {
         // Single email summary - clean the content
-        const cleanedBody = cleanEmailContent(email.body, (email as any).htmlBody);
+        const cleanedBody = cleanEmailContent(
+          email.body,
+          (email as any).htmlBody,
+        );
         return await this.llmService.summarizeEmail(
           cleanedBody,
           subject,
@@ -97,15 +121,17 @@ export class SummarizationService {
       }
     } catch (error) {
       // Fallback to simple extraction if LLM fails
-      console.error('LLM summarization failed, using fallback', error);
+      console.error("LLM summarization failed, using fallback", error);
       return this.fallbackSummary(text, subject, rule.type, email.from);
     }
   }
 
-  async getSummarizationRules(userId: string): Promise<SummarizationRuleEntity[]> {
+  async getSummarizationRules(
+    userId: string,
+  ): Promise<SummarizationRuleEntity[]> {
     return this.summarizationRuleRepository.find({
       where: { userId },
-      order: { createdAt: 'DESC' },
+      order: { createdAt: "DESC" },
     });
   }
 
@@ -126,7 +152,9 @@ export class SummarizationService {
     updates: { whenToUse?: string; howToSummarize?: string },
   ): Promise<SummarizationRuleEntity> {
     await this.summarizationRuleRepository.update({ ruleId, userId }, updates);
-    return this.summarizationRuleRepository.findOne({ where: { ruleId, userId } });
+    return this.summarizationRuleRepository.findOne({
+      where: { ruleId, userId },
+    });
   }
 
   async deleteSummarizationRule(userId: string, ruleId: string): Promise<void> {
@@ -139,28 +167,41 @@ export class SummarizationService {
     type: string,
     sender: string,
   ): string {
-    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
-    
+    const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 0);
+
     switch (type) {
-      case 'bullet-points':
-        return sentences
-          .slice(0, 5)
-          .map((s) => `• ${s.trim()}`)
-          .join('\n') || '• No key points found';
-      case 'action-items':
-        const actionKeywords = ['please', 'need', 'should', 'must', 'action', 'do', 'complete'];
+      case "bullet-points":
+        return (
+          sentences
+            .slice(0, 5)
+            .map((s) => `• ${s.trim()}`)
+            .join("\n") || "• No key points found"
+        );
+      case "action-items":
+        const actionKeywords = [
+          "please",
+          "need",
+          "should",
+          "must",
+          "action",
+          "do",
+          "complete",
+        ];
         const actionSentences = sentences
-          .filter((s) => actionKeywords.some((keyword) => s.toLowerCase().includes(keyword)))
+          .filter((s) =>
+            actionKeywords.some((keyword) => s.toLowerCase().includes(keyword)),
+          )
           .slice(0, 5)
           .map((s) => `• ${s.trim()}`)
-          .join('\n');
-        return actionSentences || '• No action items found';
-      case 'sender-request':
-        return `From ${sender}: ${sentences[0]?.trim() || 'No specific request found.'}`;
-      case 'tldr':
+          .join("\n");
+        return actionSentences || "• No action items found";
+      case "sender-request":
+        return `From ${sender}: ${sentences[0]?.trim() || "No specific request found."}`;
+      case "tldr":
       default:
-        const summary = sentences[0]?.substring(0, 200) || text.substring(0, 200);
-        return `TL;DR: ${summary}${summary.length >= 200 ? '...' : ''}`;
+        const summary =
+          sentences[0]?.substring(0, 200) || text.substring(0, 200);
+        return `TL;DR: ${summary}${summary.length >= 200 ? "..." : ""}`;
     }
   }
 }

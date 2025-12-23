@@ -1,27 +1,36 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
-import { User } from './user.entity';
-import { EmailThread } from './email-thread.entity';
-import { encryptedColumnTransformer } from '../../encryption/encryption.helper';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  Index,
+} from "typeorm";
+import { User } from "./user.entity";
+import { EmailThread } from "./email-thread.entity";
+import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
 
 export enum FollowUpStatus {
-  AWAITING_REPLY = 'awaiting_reply', // Waiting for the other party to reply
-  FOLLOW_UP_DUE = 'follow_up_due',   // Follow-up time has passed, needs action
-  COMPLETED = 'completed',           // Got a reply or manually marked complete
-  CANCELLED = 'cancelled',           // User cancelled the follow-up
+  AWAITING_REPLY = "awaiting_reply", // Waiting for the other party to reply
+  FOLLOW_UP_DUE = "follow_up_due", // Follow-up time has passed, needs action
+  COMPLETED = "completed", // Got a reply or manually marked complete
+  CANCELLED = "cancelled", // User cancelled the follow-up
 }
 
-@Entity('follow_ups')
-@Index(['userId', 'status'])
-@Index(['userId', 'followUpDueAt'])
+@Entity("follow_ups")
+@Index(["userId", "status"])
+@Index(["userId", "followUpDueAt"])
 export class FollowUp {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Column()
   userId: string;
 
   @ManyToOne(() => User)
-  @JoinColumn({ name: 'userId' })
+  @JoinColumn({ name: "userId" })
   user: User;
 
   @Column()
@@ -31,14 +40,14 @@ export class FollowUp {
   emailThreadId: string; // FK to email_threads
 
   @ManyToOne(() => EmailThread)
-  @JoinColumn({ name: 'emailThreadId' })
+  @JoinColumn({ name: "emailThreadId" })
   emailThread: EmailThread;
 
   @Column({ nullable: true })
   sentEmailId: string; // The email ID that was sent (triggering the follow-up)
 
   @Column({
-    type: 'varchar',
+    type: "varchar",
     default: FollowUpStatus.AWAITING_REPLY,
   })
   status: FollowUpStatus;
@@ -52,7 +61,7 @@ export class FollowUp {
   followUpDays: number;
 
   // Last email from the other party (for context in follow-up drafts)
-  @Column('text', { nullable: true, transformer: encryptedColumnTransformer })
+  @Column("text", { nullable: true, transformer: encryptedColumnTransformer })
   lastTheirReply: string;
 
   @Column({ nullable: true, transformer: encryptedColumnTransformer })
@@ -62,19 +71,36 @@ export class FollowUp {
   lastTheirReplyAt: Date;
 
   // Last email from the user (for context in follow-up drafts)
-  @Column('text', { nullable: true, transformer: encryptedColumnTransformer })
+  @Column("text", { nullable: true, transformer: encryptedColumnTransformer })
   lastMyReply: string;
 
   @Column({ nullable: true })
   lastMyReplyAt: Date;
 
   // Generated follow-up draft (can be edited by user)
-  @Column('text', { nullable: true, transformer: encryptedColumnTransformer })
+  @Column("text", { nullable: true, transformer: encryptedColumnTransformer })
   draftFollowUp: string;
 
   // Subject line for the thread
   @Column({ nullable: true, transformer: encryptedColumnTransformer })
   subject: string;
+
+  // Generation status tracking
+  @Column({ type: "varchar", nullable: true })
+  generationStatus: "pending" | "generating" | "completed" | "error" | null;
+
+  @Column("text", { nullable: true, transformer: encryptedColumnTransformer })
+  generationError: string | null;
+
+  @Column({ nullable: true })
+  generatedAt: Date | null;
+
+  // Send status tracking
+  @Column({ type: "varchar", nullable: true })
+  sendStatus: "pending" | "sending" | "sent" | "failed" | null;
+
+  @Column("text", { nullable: true, transformer: encryptedColumnTransformer })
+  sendError: string | null;
 
   @CreateDateColumn()
   createdAt: Date;
@@ -82,7 +108,3 @@ export class FollowUp {
   @UpdateDateColumn()
   updatedAt: Date;
 }
-
-
-
-

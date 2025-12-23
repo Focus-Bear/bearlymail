@@ -1,14 +1,25 @@
-import { Controller, Get, Post, Put, Param, Body, UseGuards, Request } from '@nestjs/common';
-import { WaitlistService } from './waitlist.service';
-import { AdminGuard } from '../auth/admin.guard';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Param,
+  Body,
+  UseGuards,
+  Request,
+} from "@nestjs/common";
+import { WaitlistService } from "./waitlist.service";
+import { AdminGuard } from "../auth/admin.guard";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 
-@Controller('waitlist')
+@Controller("waitlist")
 export class WaitlistController {
   constructor(private readonly waitlistService: WaitlistService) {}
 
   @Post()
-  async submit(@Body() body: { email: string; firstName: string; reason: string }) {
+  async submit(
+    @Body() body: { email: string; firstName: string; reason: string },
+  ) {
     return this.waitlistService.create(body.email, body.firstName, body.reason);
   }
 
@@ -18,10 +29,9 @@ export class WaitlistController {
     return this.waitlistService.findAll();
   }
 
-  @Put(':id/approve')
+  @Put(":id/approve")
   @UseGuards(JwtAuthGuard, AdminGuard)
-  async approve(@Param('id') id: string) {
+  async approve(@Param("id") id: string) {
     return this.waitlistService.approve(id);
   }
 }
-

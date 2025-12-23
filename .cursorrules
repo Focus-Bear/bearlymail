@@ -1,0 +1,37 @@
+# Code Quality and Compilation Rules
+
+## Compilation Checks
+
+### Frontend Code (client/)
+- **ALWAYS** verify TypeScript compilation after making changes to frontend code
+- Run `cd client && npm run build` or `npm run type-check` (if available) before considering changes complete
+- Fix any TypeScript errors immediately - do not leave compilation errors in the codebase
+- If you change frontend code, you MUST ensure it compiles successfully
+
+### Backend Code (server/)
+- **ALWAYS** verify TypeScript compilation after making changes to backend code
+- Run `cd server && npm run build` before considering changes complete
+- Fix any TypeScript errors immediately - do not leave compilation errors in the codebase
+- If you change backend code, you MUST ensure it compiles successfully
+
+### Verification Steps
+After making code changes:
+1. Check for TypeScript compilation errors
+2. Fix any errors before marking the task as complete
+3. If compilation fails, investigate and fix the root cause
+4. Do not proceed with other changes if compilation is broken
+
+### Common Issues to Watch For
+- Type mismatches (TS2322, TS2339)
+- Missing imports
+- Incorrect property access (e.g., accessing non-existent properties on theme objects)
+- Missing type definitions
+- Incorrect function signatures
+
+## General Code Standards
+
+- Follow the standards defined in `server/.cursorrules` for server code
+- Maintain consistency with existing code patterns
+- Write clear, maintainable code
+- Test your changes when possible
+

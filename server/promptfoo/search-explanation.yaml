@@ -1,0 +1,58 @@
+providers:
+  - openai:gpt-4o-mini
+  # - google:gemini-pro
+
+prompts:
+  - file://prompts/search-relevance-explanation.md
+
+tests:
+  - vars:
+      query: "Is Jay coming to the meeting?"
+      from: "Jay Jackson"
+      subject: "Accepted: Jay Jeremy"
+      bodyPreview: "I've accepted the meeting invitation for tomorrow."
+      receivedAt: "2 days ago"
+      isRecent: " (recent)"
+    assert:
+      - type: javascript
+        value: |
+          const output = output.toLowerCase();
+          // Should explain WHY it's relevant, not just state it
+          const hasWhy = output.includes('jay') && 
+                         (output.includes('accepted') || output.includes('meeting') || output.includes('invitation'));
+          const notGeneric = !output.includes('relevant to') || output.length > 50;
+          return hasWhy && notGeneric;
+    description: "Explanation should explain WHY, not just state relevance"
+
+  - vars:
+      query: "Is Jay coming to the meeting?"
+      from: "Jay McPherson"
+      subject: "Re: EOI Multipurpose room bookings"
+      bodyPreview: "Hi Jeremy, I am just writing to confirm your booking dates for 2026."
+      receivedAt: "11 days ago"
+      isRecent: ""
+    assert:
+      - type: javascript
+        value: |
+          const output = output.toLowerCase();
+          // Should mention it's from Jay but explain why it might be less relevant
+          return output.includes('jay') && output.length > 30;
+    description: "Explanation should mention sender name and context"
+
+  - vars:
+      query: "emails from John"
+      from: "John Smith"
+      subject: "Project update"
+      bodyPreview: "Here's the latest update on the project."
+      receivedAt: "today"
+      isRecent: " (recent)"
+    assert:
+      - type: javascript
+        value: |
+          const output = output.toLowerCase();
+          // Should mention it's from John
+          return output.includes('john') && output.length > 20;
+    description: "Explanation should mention the sender when query is about sender"
+
+
+

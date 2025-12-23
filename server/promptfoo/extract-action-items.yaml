@@ -1,0 +1,94 @@
+description: "Action items extraction prompts for BearlyMail"
+
+providers:
+  - openai:gpt-4.1-mini
+  # Uncomment below if you have Gemini API key
+  # - google:gemini-pro
+
+prompts:
+  - file://prompts/extract-action-items.md
+
+tests:
+  # Test 1: Email where sender mentions their own actions (should NOT extract those)
+  - vars:
+      from: "jeremy@company.com"
+      fromName: "Jeremy"
+      subject: "Update on project"
+      body: "Hi Kashyap, I wanted to let you know that I'll be reviewing the code changes tomorrow. I'll also be setting up the new server infrastructure. Let me know if there is anything specific you should prioritize. Also, please start joining the mobile standups soon. Continue with the onboarding tasks."
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-action-items-response.js
+        config:
+          minCount: 2
+          maxCount: 3
+          shouldNotContain: ["review the code changes", "setting up the new server", "I'll be reviewing", "I'll also be", "let jeremy know", "let me know"]
+          shouldContain: ["start joining", "onboarding"]
+          # Note: "prioritize" might be phrased differently by LLM, so we check for the other two clear actions
+
+  # Test 2: Clear action items for recipient
+  - vars:
+      from: "manager@company.com"
+      fromName: "Sarah Manager"
+      subject: "Action items for you"
+      body: "Hi, please review the attached document and provide feedback by Friday. Also, schedule a meeting with the design team next week. Thanks!"
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-action-items-response.js
+        config:
+          minCount: 2
+          shouldContain: ["review", "feedback", "schedule", "meeting"]
+
+  # Test 3: Email where sender talks about what they did (should NOT extract)
+  - vars:
+      from: "colleague@company.com"
+      fromName: "Alex"
+      subject: "Status update"
+      body: "I've completed the analysis and sent the report to the team. I also updated the documentation. Can you please review my changes and let me know if you have any questions?"
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-action-items-response.js
+        config:
+          minCount: 1
+          maxCount: 2
+          shouldNotContain: ["completed the analysis", "sent the report", "updated the documentation", "I've completed", "I also updated", "let me know", "let alex know"]
+          shouldContain: ["review"]
+
+  # Test 4: Mixed - sender actions and recipient actions
+  - vars:
+      from: "teammate@company.com"
+      fromName: "Jordan"
+      subject: "Project update"
+      body: "I'm going to finish the backend API by tomorrow. I'll deploy it to staging on Wednesday. Meanwhile, can you please test the frontend changes and write unit tests for the new components? Also, I need you to update the README with the new API endpoints."
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-action-items-response.js
+        config:
+          minCount: 3
+          shouldNotContain: ["finish the backend", "deploy it", "I'm going to", "I'll deploy"]
+          shouldContain: ["test", "frontend", "unit tests", "update the README"]
+
+  # Test 5: No action items (informational email)
+  - vars:
+      from: "newsletter@company.com"
+      fromName: "Company Newsletter"
+      subject: "Weekly update"
+      body: "This week we launched a new feature. Our team has been working hard. Thanks for being part of our community!"
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-action-items-response.js
+        config:
+          maxCount: 0
+
+  # Test 6: Question that requires action
+  - vars:
+      from: "client@client.com"
+      fromName: "Client Name"
+      subject: "Question about proposal"
+      body: "Hi, I received your proposal. Can you clarify the pricing structure? Also, when can we schedule a call to discuss this further?"
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-action-items-response.js
+        config:
+          minCount: 2
+          shouldContain: ["clarify", "pricing", "schedule", "call"]
+

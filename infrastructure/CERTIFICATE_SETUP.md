@@ -70,3 +70,7 @@ Once the certificate is validated and imported, the CloudFront distribution will
 - Ensure you have permissions to access the certificate
 
 
+
+
+
+

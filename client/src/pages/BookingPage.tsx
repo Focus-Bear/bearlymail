@@ -136,7 +136,7 @@ const BookingPage: React.FC = () => {
         <div style={{ padding: theme.spacing.xl }}>
           {error && (
             <div style={{
-              backgroundColor: theme.colors.accent.error + '20',
+              backgroundColor: `${theme.colors.accent.error}20`,
               color: theme.colors.accent.error,
               padding: theme.spacing.md,
               borderRadius: theme.borderRadius.md,
@@ -170,7 +170,7 @@ const BookingPage: React.FC = () => {
                         style={{
                           padding: theme.spacing.md,
                           border: `1px solid ${isSelected ? theme.colors.primary.main : theme.colors.border.medium}`,
-                          backgroundColor: isSelected ? theme.colors.primary.main + '10' : 'white',
+                          backgroundColor: isSelected ? `${theme.colors.primary.main}10` : 'white',
                           borderRadius: theme.borderRadius.md,
                           cursor: 'pointer',
                           textAlign: 'left',

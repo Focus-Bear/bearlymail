@@ -1,0 +1,312 @@
+import { Injectable, Inject, Logger, OnModuleInit } from "@nestjs/common";
+import { DataSource } from "typeorm";
+import PgBoss = require("pg-boss");
+import * as fs from "fs";
+import * as path from "path";
+
+interface JobMetrics {
+  queueName: string;
+  pending: number;
+  active: number;
+  completed: number;
+  failed: number;
+  archived: number;
+}
+
+interface QueueHealthMetrics {
+  timestamp: string;
+  queues: JobMetrics[];
+  totalPending: number;
+  totalActive: number;
+  totalCompleted: number;
+  totalFailed: number;
+}
+
+@Injectable()
+export class QueueMonitorService implements OnModuleInit {
+  private readonly logger = new Logger(QueueMonitorService.name);
+  private readonly metricsLogFile: string;
+  private monitoringInterval: NodeJS.Timeout | null = null;
+  private readonly jobStartTimes: Map<string, number> = new Map();
+
+  // Track job processing times
+  private readonly processingTimes: Map<string, number[]> = new Map();
+
+  constructor(
+    @Inject("PG_BOSS") private boss: PgBoss,
+    private dataSource: DataSource,
+  ) {
+    const logsDir = path.join(process.cwd(), "logs");
+    if (!fs.existsSync(logsDir)) {
+      fs.mkdirSync(logsDir, { recursive: true });
+    }
+    this.metricsLogFile = path.join(logsDir, "queue-metrics.log");
+  }
+
+  async onModuleInit() {
+    // Start monitoring every 60 seconds
+    const intervalSeconds = parseInt(
+      process.env.QUEUE_MONITOR_INTERVAL_SECONDS || "60",
+      10,
+    );
+    this.monitoringInterval = setInterval(() => {
+      this.collectMetrics().catch((err) => {
+        this.logger.error("Error collecting queue metrics:", err);
+      });
+    }, intervalSeconds * 1000);
+
+    // Collect initial metrics
+    await this.collectMetrics();
+    this.logger.log(`Queue monitoring started (interval: ${intervalSeconds}s)`);
+  }
+
+  onModuleDestroy() {
+    if (this.monitoringInterval) {
+      clearInterval(this.monitoringInterval);
+      this.monitoringInterval = null;
+    }
+  }
+
+  /**
+   * Track when a job starts processing
+   */
+  trackJobStart(jobId: string, queueName: string): void {
+    const key = `${queueName}:${jobId}`;
+    this.jobStartTimes.set(key, Date.now());
+  }
+
+  /**
+   * Track when a job completes and record processing time
+   */
+  trackJobComplete(jobId: string, queueName: string, success: boolean): void {
+    const key = `${queueName}:${jobId}`;
+    const startTime = this.jobStartTimes.get(key);
+
+    if (startTime) {
+      const processingTime = Date.now() - startTime;
+
+      // Store processing time for this queue
+      if (!this.processingTimes.has(queueName)) {
+        this.processingTimes.set(queueName, []);
+      }
+      const times = this.processingTimes.get(queueName)!;
+      times.push(processingTime);
+
+      // Keep only last 1000 processing times per queue
+      if (times.length > 1000) {
+        times.shift();
+      }
+
+      this.jobStartTimes.delete(key);
+
+      if (!success) {
+        this.logger.warn(
+          `Job ${jobId} in queue ${queueName} failed after ${processingTime}ms`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Get processing time statistics for a queue
+   */
+  getProcessingTimeStats(queueName: string): {
+    avg: number;
+    p50: number;
+    p95: number;
+    p99: number;
+    count: number;
+  } | null {
+    const times = this.processingTimes.get(queueName);
+    if (!times || times.length === 0) {
+      return null;
+    }
+
+    const sorted = [...times].sort((a, b) => a - b);
+    const count = sorted.length;
+    const sum = sorted.reduce((a, b) => a + b, 0);
+    const avg = sum / count;
+    const p50 = sorted[Math.floor(count * 0.5)];
+    const p95 = sorted[Math.floor(count * 0.95)];
+    const p99 = sorted[Math.floor(count * 0.99)];
+
+    return { avg, p50, p95, p99, count };
+  }
+
+  /**
+   * Collect metrics from all queues
+   */
+  async collectMetrics(): Promise<void> {
+    try {
+      const queueNames = [
+        "sync-emails",
+        "sync-all-users-urgent",
+        "sync-gmail",
+        "scan-history",
+        "scan-history-email",
+        "refine-priority",
+        "generate-summary",
+        "learn-from-star",
+        "analyze-scan-results",
+        "analyze-context",
+      ];
+
+      const queueMetrics: JobMetrics[] = [];
+      let totalPending = 0;
+      let totalActive = 0;
+      let totalCompleted = 0;
+      let totalFailed = 0;
+
+      for (const queueName of queueNames) {
+        try {
+          // Query pg-boss job table directly for job counts by state
+          // Note: 'archived' is not a valid state - completed jobs may be archived to a separate table
+          const result = await this.dataSource.query(
+            `SELECT 
+              COUNT(*) FILTER (WHERE state = 'created') as pending,
+              COUNT(*) FILTER (WHERE state = 'active') as active,
+              COUNT(*) FILTER (WHERE state = 'completed') as completed,
+              COUNT(*) FILTER (WHERE state = 'failed') as failed
+            FROM pgboss.job
+            WHERE name = $1`,
+            [queueName],
+          );
+
+          const counts = result[0] || {};
+          const metrics: JobMetrics = {
+            queueName,
+            pending: parseInt(counts.pending || "0", 10),
+            active: parseInt(counts.active || "0", 10),
+            completed: parseInt(counts.completed || "0", 10),
+            failed: parseInt(counts.failed || "0", 10),
+            archived: 0, // Archived jobs are in a separate table, not a state
+          };
+
+          queueMetrics.push(metrics);
+          totalPending += metrics.pending;
+          totalActive += metrics.active;
+          totalCompleted += metrics.completed;
+          totalFailed += metrics.failed;
+        } catch (error) {
+          this.logger.warn(
+            `Failed to get metrics for queue ${queueName}:`,
+            error,
+          );
+        }
+      }
+
+      const healthMetrics: QueueHealthMetrics = {
+        timestamp: new Date().toISOString(),
+        queues: queueMetrics,
+        totalPending,
+        totalActive,
+        totalCompleted,
+        totalFailed,
+      };
+
+      // Log to file
+      const logLine = `${JSON.stringify(healthMetrics)}\n`;
+      try {
+        fs.appendFileSync(this.metricsLogFile, logLine);
+      } catch (error) {
+        this.logger.error("Failed to write queue metrics to file:", error);
+      }
+
+      // Log warning if queue depth is high
+      if (totalPending > 100) {
+        this.logger.warn(
+          `⚠️ High queue depth: ${totalPending} pending jobs across all queues`,
+        );
+      }
+      if (totalActive > 50) {
+        this.logger.warn(
+          `⚠️ High active jobs: ${totalActive} jobs currently processing`,
+        );
+      }
+
+      // Log processing time stats for each queue
+      for (const queueName of queueNames) {
+        const stats = this.getProcessingTimeStats(queueName);
+        if (stats && stats.count > 10) {
+          this.logger.debug(
+            `Queue ${queueName} processing times: avg=${Math.round(stats.avg)}ms, ` +
+              `p50=${stats.p50}ms, p95=${stats.p95}ms, p99=${stats.p99}ms (n=${stats.count})`,
+          );
+        }
+      }
+    } catch (error) {
+      this.logger.error("Error collecting queue metrics:", error);
+    }
+  }
+
+  /**
+   * Get current queue health summary
+   */
+  async getQueueHealth(): Promise<QueueHealthMetrics> {
+    const queueNames = [
+      "sync-emails",
+      "sync-all-users-urgent",
+      "sync-gmail",
+      "scan-history",
+      "scan-history-email",
+      "refine-priority",
+      "generate-summary",
+      "learn-from-star",
+      "analyze-scan-results",
+      "analyze-context",
+    ];
+
+    const queueMetrics: JobMetrics[] = [];
+    let totalPending = 0;
+    let totalActive = 0;
+    let totalCompleted = 0;
+    let totalFailed = 0;
+
+    for (const queueName of queueNames) {
+      try {
+        // Query pg-boss job table directly for job counts by state
+        // Note: 'archived' is not a valid state - completed jobs may be archived to a separate table
+        const result = await this.dataSource.query(
+          `SELECT 
+            COUNT(*) FILTER (WHERE state = 'created') as pending,
+            COUNT(*) FILTER (WHERE state = 'active') as active,
+            COUNT(*) FILTER (WHERE state = 'completed') as completed,
+            COUNT(*) FILTER (WHERE state = 'failed') as failed
+          FROM pgboss.job
+          WHERE name = $1`,
+          [queueName],
+        );
+
+        const counts = result[0] || {};
+        const metrics: JobMetrics = {
+          queueName,
+          pending: parseInt(counts.pending || "0", 10),
+          active: parseInt(counts.active || "0", 10),
+          completed: parseInt(counts.completed || "0", 10),
+          failed: parseInt(counts.failed || "0", 10),
+          archived: 0, // Archived jobs are in a separate table, not a state
+        };
+
+        queueMetrics.push(metrics);
+        totalPending += metrics.pending;
+        totalActive += metrics.active;
+        totalCompleted += metrics.completed;
+        totalFailed += metrics.failed;
+      } catch (error) {
+        this.logger.warn(
+          `Failed to get metrics for queue ${queueName}:`,
+          error,
+        );
+      }
+    }
+
+    return {
+      timestamp: new Date().toISOString(),
+      queues: queueMetrics,
+      totalPending,
+      totalActive,
+      totalCompleted,
+      totalFailed,
+    };
+  }
+}

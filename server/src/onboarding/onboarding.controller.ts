@@ -1,20 +1,19 @@
-import { Controller, Post, Get, UseGuards, Request } from '@nestjs/common';
-import { OnboardingService } from './onboarding.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Controller, Post, Get, UseGuards, Request } from "@nestjs/common";
+import { OnboardingService } from "./onboarding.service";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 
-@Controller('onboarding')
+@Controller("onboarding")
 @UseGuards(JwtAuthGuard)
 export class OnboardingController {
   constructor(private readonly onboardingService: OnboardingService) {}
 
-  @Post('scan')
+  @Post("scan")
   async startScan(@Request() req) {
     return this.onboardingService.startHistoricalScan(req.user.userId);
   }
 
-  @Get('scan-progress')
+  @Get("scan-progress")
   async getScanProgress(@Request() req) {
     return this.onboardingService.getScanProgress(req.user.userId);
   }
 }
-

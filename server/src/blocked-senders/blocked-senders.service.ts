@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { BlockedSender } from '../database/entities/blocked-sender.entity';
-import { SearchIndexHelper } from '../contacts/search-index.helper';
+import { Injectable } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { BlockedSender } from "../database/entities/blocked-sender.entity";
+import { SearchIndexHelper } from "../contacts/search-index.helper";
 
 export interface BlockedSenderInfo {
   id: string;
@@ -36,8 +36,9 @@ export class BlockedSendersService {
     blockDomain: boolean = false,
   ): Promise<BlockedSender> {
     const emailHash = SearchIndexHelper.hashExact(email);
-    const domain = email.split('@')[1];
-    const domainHash = blockDomain && domain ? SearchIndexHelper.hashExact(domain) : null;
+    const domain = email.split("@")[1];
+    const domainHash =
+      blockDomain && domain ? SearchIndexHelper.hashExact(domain) : null;
 
     // Check if already blocked
     const existing = await this.blockedSenderRepository.findOne({
@@ -92,10 +93,10 @@ export class BlockedSendersService {
   async getBlockedSenders(userId: string): Promise<BlockedSenderInfo[]> {
     const blocked = await this.blockedSenderRepository.find({
       where: { userId },
-      order: { blockedAt: 'DESC' },
+      order: { blockedAt: "DESC" },
     });
 
-    return blocked.map(b => ({
+    return blocked.map((b) => ({
       id: b.id,
       email: b.email,
       senderName: b.senderName,
@@ -112,13 +113,13 @@ export class BlockedSendersService {
 
     const emailHash = SearchIndexHelper.hashExact(email);
     const blockedEmails = this.blockedCache.get(userId);
-    
+
     if (blockedEmails?.has(emailHash)) {
       return true;
     }
 
     // Check domain blocking
-    const domain = email.split('@')[1];
+    const domain = email.split("@")[1];
     if (domain) {
       const domainHash = SearchIndexHelper.hashExact(domain);
       const blockedDomains = this.blockedDomainCache.get(userId);
@@ -142,22 +143,25 @@ export class BlockedSendersService {
   /**
    * Check multiple emails at once (batch check)
    */
-  async filterBlockedEmails(userId: string, emails: { id: string; from: string }[]): Promise<string[]> {
+  async filterBlockedEmails(
+    userId: string,
+    emails: { id: string; from: string }[],
+  ): Promise<string[]> {
     await this.ensureCache(userId);
-    
+
     const blockedEmails = this.blockedCache.get(userId) || new Set();
     const blockedDomains = this.blockedDomainCache.get(userId) || new Set();
-    
+
     const blockedIds: string[] = [];
-    
+
     for (const email of emails) {
       const emailHash = SearchIndexHelper.hashExact(email.from);
       if (blockedEmails.has(emailHash)) {
         blockedIds.push(email.id);
         continue;
       }
-      
-      const domain = email.from.split('@')[1];
+
+      const domain = email.from.split("@")[1];
       if (domain) {
         const domainHash = SearchIndexHelper.hashExact(domain);
         if (blockedDomains.has(domainHash)) {
@@ -165,7 +169,7 @@ export class BlockedSendersService {
         }
       }
     }
-    
+
     return blockedIds;
   }
 
@@ -178,7 +182,7 @@ export class BlockedSendersService {
     // Refresh cache
     const blocked = await this.blockedSenderRepository.find({
       where: { userId },
-      select: ['emailHash', 'domainHash'],
+      select: ["emailHash", "domainHash"],
     });
 
     const emailHashes = new Set<string>();
@@ -202,7 +206,3 @@ export class BlockedSendersService {
     this.cacheExpiry.delete(userId);
   }
 }
-
-
-
-

@@ -89,3 +89,7 @@ Based on `performance.log` analysis:
 4. **Use raw queries** for list views to skip entity hydration overhead
 
 
+
+
+
+

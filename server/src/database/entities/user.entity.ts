@@ -1,14 +1,27 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, OneToMany, Index } from 'typeorm';
-import { UserContext } from './user-context.entity';
-import { PrivateNote } from './private-note.entity';
-import { Email } from './email.entity';
-import { SummarizationRule } from './summarization-rule.entity';
-import { ActionItem } from './action-item.entity';
-import { encryptedColumnTransformer, emailTransformer, encryptedJsonTransformer } from '../../encryption/encryption.helper';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  OneToMany,
+  Index,
+} from "typeorm";
+import { UserContext } from "./user-context.entity";
+import { PrivateNote } from "./private-note.entity";
+import { Email } from "./email.entity";
+import { SummarizationRule } from "./summarization-rule.entity";
+import { ActionItem } from "./action-item.entity";
+import { GoogleAccount } from "./google-account.entity";
+import {
+  encryptedColumnTransformer,
+  emailTransformer,
+  encryptedJsonTransformer,
+} from "../../encryption/encryption.helper";
 
-@Entity('users')
+@Entity("users")
 export class User {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Column({ unique: true })
@@ -22,9 +35,15 @@ export class User {
   password: string;
 
   @Column({ nullable: true })
-  googleId: string;
+  passwordSetupToken: string; // Token for setting up password after waitlist approval
 
   @Column({ nullable: true })
+  passwordSetupTokenExpiresAt: Date; // Token expiration (7 days)
+
+  @Column({ nullable: true })
+  googleId: string;
+
+  @Column({ nullable: true, transformer: encryptedColumnTransformer })
   name: string;
 
   @Column({ nullable: true, transformer: encryptedColumnTransformer })
@@ -32,9 +51,6 @@ export class User {
 
   @Column({ nullable: true, transformer: encryptedColumnTransformer })
   googleCalendarRefreshToken: string;
-
-  @Column({ default: 6 })
-  batchDeliveryHours: number;
 
   @Column({ default: false })
   needsRelogin: boolean; // Added field to track auth errors
@@ -60,13 +76,13 @@ export class User {
   // Privacy & Terms consent tracking
   @Column({ nullable: true })
   termsAcceptedAt: Date; // When user accepted terms of use
-  
+
   @Column({ nullable: true })
   privacyAcceptedAt: Date; // When user accepted privacy policy
-  
+
   @Column({ nullable: true })
   termsVersion: string; // Version of terms accepted
-  
+
   @Column({ nullable: true })
   privacyVersion: string; // Version of privacy policy accepted
 
@@ -74,20 +90,24 @@ export class User {
   @Column({ nullable: true, transformer: encryptedColumnTransformer })
   openAiApiKey: string;
 
+  // GitHub fine-grained PAT (encrypted) - for GitHub integration
+  @Column({ nullable: true, transformer: encryptedColumnTransformer })
+  githubToken: string;
+
   // RevenueCat subscription fields
   @Column({ nullable: true })
   revenueCatUserId: string; // RevenueCat customer ID
-  
+
   @Column({ nullable: true })
   subscriptionStatus: string; // active, trial, expired, cancelled
-  
+
   @Column({ nullable: true })
   subscriptionExpiresAt: Date; // When subscription expires
-  
+
   @Column({ nullable: true })
   trialStartedAt: Date; // When 7-day trial started
 
-  @Column('text', { nullable: true, transformer: encryptedJsonTransformer })
+  @Column("text", { nullable: true, transformer: encryptedJsonTransformer })
   toneSettings: { rules: string[] }; // e.g., { rules: ['Be concise', 'Use non-violent communication'] }
 
   @CreateDateColumn()
@@ -110,4 +130,7 @@ export class User {
 
   @OneToMany(() => ActionItem, (item) => item.user)
   actionItems: ActionItem[];
+
+  @OneToMany(() => GoogleAccount, (account) => account.user)
+  googleAccounts: GoogleAccount[];
 }

@@ -1,10 +1,20 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThanOrEqual } from 'typeorm';
-import { FollowUp, FollowUpStatus } from '../database/entities/follow-up.entity';
-import { EmailThread } from '../database/entities/email-thread.entity';
-import { Email } from '../database/entities/email.entity';
-import { LLMService } from '../llm/llm.service';
+import { Injectable, Logger, Inject } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository, LessThanOrEqual } from "typeorm";
+import {
+  FollowUp,
+  FollowUpStatus,
+} from "../database/entities/follow-up.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
+import { Email } from "../database/entities/email.entity";
+import { LLMService } from "../llm/llm.service";
+import { UsersService } from "../users/users.service";
+import { ContextService } from "../context/context.service";
+import { ContextKey } from "../database/entities/user-context.entity";
+import { EmailsService } from "../emails/emails.service";
+import { calculateBusinessDays } from "../utils/business-days.util";
+import PgBoss = require("pg-boss");
+import { EncryptionHelper } from "../encryption/encryption.helper";
 
 @Injectable()
 export class FollowUpsService {
@@ -18,6 +28,10 @@ export class FollowUpsService {
     @InjectRepository(Email)
     private emailRepository: Repository<Email>,
     private llmService: LLMService,
+    private usersService: UsersService,
+    private contextService: ContextService,
+    private emailsService: EmailsService,
+    @Inject("PG_BOSS") private boss: PgBoss,
   ) {}
 
   /**
@@ -37,13 +51,21 @@ export class FollowUpsService {
     // Get the latest emails in the thread to capture context
     const emails = await this.emailRepository.find({
       where: { userId, threadId },
-      order: { receivedAt: 'DESC' },
+      order: { receivedAt: "DESC" },
       take: 10,
     });
 
-    // Find the last email from "them" (not from user)
-    const userEmails = emails.filter(e => e.from.includes('@') && !this.isFromUser(e, userId));
-    const myEmails = emails.filter(e => this.isFromUser(e, userId));
+    // Find the last email from "them" (not from user) and from user
+    const userEmails: Email[] = [];
+    const myEmails: Email[] = [];
+
+    for (const email of emails) {
+      if (await this.isFromUser(email, userId)) {
+        myEmails.push(email);
+      } else {
+        userEmails.push(email);
+      }
+    }
 
     const lastTheirEmail = userEmails[0];
     const lastMyEmail = myEmails[0];
@@ -75,7 +97,7 @@ export class FollowUpsService {
    */
   async getDueFollowUps(userId: string): Promise<FollowUp[]> {
     const now = new Date();
-    
+
     return this.followUpRepository.find({
       where: [
         {
@@ -88,7 +110,7 @@ export class FollowUpsService {
           followUpDueAt: LessThanOrEqual(now),
         },
       ],
-      order: { followUpDueAt: 'ASC' },
+      order: { followUpDueAt: "ASC" },
     });
   }
 
@@ -101,7 +123,7 @@ export class FollowUpsService {
         userId,
         status: FollowUpStatus.AWAITING_REPLY,
       },
-      order: { followUpDueAt: 'ASC' },
+      order: { followUpDueAt: "ASC" },
     });
   }
 
@@ -124,47 +146,84 @@ export class FollowUpsService {
    */
   async generateFollowUpDrafts(userId: string): Promise<FollowUp[]> {
     const dueFollowUps = await this.getDueFollowUps(userId);
-    
+
     for (const followUp of dueFollowUps) {
       if (!followUp.draftFollowUp) {
         try {
+          // Build thread messages array from follow-up data
+          const threadMessages: Array<{
+            from: string;
+            fromName?: string;
+            body: string;
+            receivedAt: Date;
+            isFromUser: boolean;
+          }> = [];
+
+          // Add their last reply if available
+          if (followUp.lastTheirReply) {
+            threadMessages.push({
+              from: followUp.lastTheirReplyFrom || "them",
+              body: followUp.lastTheirReply,
+              receivedAt: followUp.lastTheirReplyAt || new Date(),
+              isFromUser: false,
+            });
+          }
+
+          // Add user's last reply if available
+          if (followUp.lastMyReply) {
+            threadMessages.push({
+              from: "me",
+              body: followUp.lastMyReply,
+              receivedAt: followUp.lastMyReplyAt || new Date(),
+              isFromUser: true,
+            });
+          }
+
           const draft = await this.llmService.generateFollowUpDraft(
-            followUp.subject || 'Follow up',
-            followUp.lastMyReply || '',
-            followUp.lastTheirReply || '',
-            followUp.lastTheirReplyFrom || 'them',
+            followUp.subject || "Follow up",
+            threadMessages,
+            followUp.lastTheirReplyFrom || "them",
             followUp.followUpDays,
           );
           followUp.draftFollowUp = draft;
           await this.followUpRepository.save(followUp);
         } catch (error) {
-          this.logger.error(`Error generating follow-up draft for ${followUp.id}:`, error);
+          this.logger.error(
+            `Error generating follow-up draft for ${followUp.id}:`,
+            error,
+          );
         }
       }
-      
+
       // Update status to FOLLOW_UP_DUE if past due date
-      if (followUp.status === FollowUpStatus.AWAITING_REPLY && 
-          followUp.followUpDueAt <= new Date()) {
+      if (
+        followUp.status === FollowUpStatus.AWAITING_REPLY &&
+        followUp.followUpDueAt <= new Date()
+      ) {
         followUp.status = FollowUpStatus.FOLLOW_UP_DUE;
         await this.followUpRepository.save(followUp);
       }
     }
-    
+
     return dueFollowUps;
   }
 
   /**
    * Update a follow-up draft
    */
-  async updateDraft(followUpId: string, userId: string, draft: string): Promise<FollowUp> {
+  async updateDraft(
+    followUpId: string,
+    userId: string,
+    draft: string,
+  ): Promise<FollowUp> {
     const followUp = await this.followUpRepository.findOne({
       where: { id: followUpId, userId },
     });
-    
+
     if (!followUp) {
-      throw new Error('Follow-up not found');
+      throw new Error("Follow-up not found");
     }
-    
+
     followUp.draftFollowUp = draft;
     return this.followUpRepository.save(followUp);
   }
@@ -172,10 +231,16 @@ export class FollowUpsService {
   /**
    * Mark a follow-up as completed (sent or cancelled)
    */
-  async completeFollowUp(followUpId: string, userId: string, cancelled = false): Promise<void> {
+  async completeFollowUp(
+    followUpId: string,
+    userId: string,
+    cancelled = false,
+  ): Promise<void> {
     await this.followUpRepository.update(
       { id: followUpId, userId },
-      { status: cancelled ? FollowUpStatus.CANCELLED : FollowUpStatus.COMPLETED },
+      {
+        status: cancelled ? FollowUpStatus.CANCELLED : FollowUpStatus.COMPLETED,
+      },
     );
   }
 
@@ -189,23 +254,151 @@ export class FollowUpsService {
   /**
    * Check if an email is from the user (sent by them)
    */
-  private isFromUser(email: Email, userId: string): boolean {
-    // This is a simplified check - in production you'd compare against user's email
-    // For now, we check if the email was sent (has certain characteristics)
-    // A better approach would be to check the email labels for SENT
-    return email.labels?.includes('SENT') || false;
+  private async isFromUser(email: Email, userId: string): Promise<boolean> {
+    // Check if email has SENT label
+    if (email.labels?.includes("SENT")) {
+      return true;
+    }
+
+    // Fallback: compare with user's email address
+    try {
+      const user = await this.usersService.findOne(userId);
+      if (user?.email) {
+        const userEmail = EncryptionHelper.decrypt(user.email);
+        const emailFrom = EncryptionHelper.decrypt(email.from);
+        return emailFrom.toLowerCase() === userEmail.toLowerCase();
+      }
+    } catch (error) {
+      this.logger.warn(`Error checking if email is from user: ${error}`);
+    }
+
+    return false;
   }
 
   /**
    * Get a single follow-up by ID
    */
-  async getFollowUp(followUpId: string, userId: string): Promise<FollowUp | null> {
+  async getFollowUp(
+    followUpId: string,
+    userId: string,
+  ): Promise<FollowUp | null> {
     return this.followUpRepository.findOne({
       where: { id: followUpId, userId },
     });
   }
+
+  /**
+   * Get threads in follow-up mode (user sent last, no reply received)
+   */
+  async getThreadsForFollowUp(userId: string): Promise<Email[]> {
+    return this.emailsService.getInbox(userId, false, "follow-up");
+  }
+
+  /**
+   * Calculate business days waiting since last user message in thread
+   */
+  async calculateWaitingDuration(
+    userId: string,
+    threadId: string,
+  ): Promise<number> {
+    const user = await this.usersService.findOne(userId);
+    if (!user?.googleCalendarAccessToken) {
+      throw new Error("User not connected to Gmail");
+    }
+
+    // Get thread emails
+    const threadEmails = await this.emailRepository.find({
+      where: { userId, threadId },
+      order: { receivedAt: "DESC" },
+    });
+
+    // Find last email from user
+    let lastUserMessageDate: Date | null = null;
+    for (const email of threadEmails) {
+      if (await this.isFromUser(email, userId)) {
+        lastUserMessageDate = email.receivedAt;
+        break;
+      }
+    }
+
+    if (!lastUserMessageDate) {
+      return 0;
+    }
+
+    // Calculate business days from last user message to now
+    const now = new Date();
+    return calculateBusinessDays(lastUserMessageDate, now);
+  }
+
+  /**
+   * Queue background jobs to generate drafts for multiple threads
+   */
+  async generateDraftsForThreads(
+    userId: string,
+    threadIds: string[],
+  ): Promise<void> {
+    for (const threadId of threadIds) {
+      // Check if follow-up already exists
+      let followUp = await this.followUpRepository.findOne({
+        where: { userId, threadId },
+      });
+
+      // If no follow-up exists, create one
+      if (!followUp) {
+        // Get thread info
+        const threadEmails = await this.emailRepository.find({
+          where: { userId, threadId },
+          order: { receivedAt: "DESC" },
+          take: 1,
+        });
+
+        if (threadEmails.length === 0) {
+          this.logger.warn(`No emails found for thread ${threadId}`);
+          continue;
+        }
+
+        const emailThread = await this.emailThreadRepository.findOne({
+          where: { userId, threadId },
+        });
+
+        followUp = this.followUpRepository.create({
+          userId,
+          threadId,
+          emailThreadId: emailThread?.id,
+          status: FollowUpStatus.FOLLOW_UP_DUE,
+          followUpDueAt: new Date(),
+          followUpDays: 0,
+          subject: threadEmails[0].subject,
+          generationStatus: "pending",
+        });
+        followUp = await this.followUpRepository.save(followUp);
+      }
+
+      // Skip if already has draft or is currently generating
+      if (
+        followUp.draftFollowUp ||
+        followUp.generationStatus === "generating"
+      ) {
+        continue;
+      }
+
+      // Update status to pending
+      followUp.generationStatus = "pending";
+      await this.followUpRepository.save(followUp);
+
+      // Queue background job
+      await this.boss.send(
+        "generate-follow-up-draft",
+        {
+          userId,
+          followUpId: followUp.id,
+          threadId,
+        },
+        {
+          singletonKey: `generate-draft-${followUp.id}`,
+          singletonMinutes: 5,
+        },
+      );
+    }
+  }
 }
-
-
-
-

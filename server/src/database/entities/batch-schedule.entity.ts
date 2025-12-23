@@ -1,5 +1,14 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
-import { User } from './user.entity';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  Index,
+} from "typeorm";
+import { User } from "./user.entity";
 
 export enum DayOfWeek {
   SUNDAY = 0,
@@ -11,25 +20,25 @@ export enum DayOfWeek {
   SATURDAY = 6,
 }
 
-@Entity('batch_schedules')
-@Index(['userId'], { unique: true }) // Each user has one schedule
+@Entity("batch_schedules")
+@Index(["userId"], { unique: true }) // Each user has one schedule
 export class BatchSchedule {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
   @Column()
   userId: string;
 
   @ManyToOne(() => User)
-  @JoinColumn({ name: 'userId' })
+  @JoinColumn({ name: "userId" })
   user: User;
 
   // Days when emails should be delivered (array of day numbers 0-6)
-  @Column('simple-array')
+  @Column("simple-array")
   deliveryDays: number[]; // e.g., [1, 2, 3, 4, 5] for weekdays
 
   // Times of day when non-urgent emails are released (24h format, e.g., ["11:00", "15:00"])
-  @Column('simple-array')
+  @Column("simple-array")
   deliveryTimes: string[];
 
   // Whether batching is enabled
@@ -37,7 +46,7 @@ export class BatchSchedule {
   isEnabled: boolean;
 
   // Timezone for the schedule (e.g., "Australia/Sydney")
-  @Column({ default: 'UTC' })
+  @Column({ default: "UTC" })
   timezone: string;
 
   // Whether urgent emails bypass the schedule
@@ -50,7 +59,3 @@ export class BatchSchedule {
   @UpdateDateColumn()
   updatedAt: Date;
 }
-
-
-
-

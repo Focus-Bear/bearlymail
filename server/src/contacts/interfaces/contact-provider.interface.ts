@@ -38,7 +38,11 @@ export interface ContactProvider {
    * @param query Search query
    * @param maxResults Maximum number of results
    */
-  searchContacts(userId: string, query: string, maxResults?: number): Promise<RawContact[]>;
+  searchContacts(
+    userId: string,
+    query: string,
+    maxResults?: number,
+  ): Promise<RawContact[]>;
 
   /**
    * Check if the user is connected to this contact provider
@@ -50,7 +54,3 @@ export interface ContactProvider {
    */
   getContact(userId: string, providerId: string): Promise<RawContact | null>;
 }
-
-
-
-

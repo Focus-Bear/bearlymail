@@ -1,347 +1,331 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
-import axios from 'axios';
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { theme } from '../../theme/theme';
-
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
 interface PriorityExplanation {
   score: number;
-  dimensions: {
+  dimensions?: {
     urgency: { score: number; reasons: string[] };
     goalAlignment: { score: number; reasons: string[] };
     vipContact: { score: number; reasons: string[] };
+    sentiment: { score: number; type: string; reasons: string[] };
   };
   breakdown: Array<{ factor: string; value: number; description: string }>;
 }
 
 interface PriorityTooltipProps {
   emailId: string;
-  priorityScore: number;
-  children: React.ReactNode;
-  onOverride?: (explanation: string) => void;
+  emailThreadId?: string;
+  priorityExplanation: PriorityExplanation | null;
+  loadingPriorityExplanation: boolean;
+  urgencyScore?: number;
+  urgencyExplanation?: string | null;
+  onClose: () => void;
+  onOverrideUrgency?: () => void;
 }
 
 export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
   emailId,
-  priorityScore,
-  children,
-  onOverride,
+  emailThreadId,
+  priorityExplanation,
+  loadingPriorityExplanation,
+  urgencyScore,
+  urgencyExplanation,
+  onClose,
+  onOverrideUrgency,
 }) => {
-  const { t } = useTranslation();
-  const [showTooltip, setShowTooltip] = useState(false);
-  const [explanation, setExplanation] = useState<PriorityExplanation | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [showOverrideForm, setShowOverrideForm] = useState(false);
-  const [overrideExplanation, setOverrideExplanation] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const tooltipRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        tooltipRef.current &&
-        !tooltipRef.current.contains(event.target as Node) &&
-        triggerRef.current &&
-        !triggerRef.current.contains(event.target as Node)
-      ) {
-        setShowTooltip(false);
-        setShowOverrideForm(false);
-      }
-    };
-
-    if (showTooltip) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [showTooltip]);
-
-  const fetchExplanation = async () => {
-    if (explanation || loading) return;
-    
-    setLoading(true);
-    try {
-      const response = await axios.get(`${API_URL}/emails/${emailId}/priority-explanation`);
-      console.log('Priority explanation response:', response.data);
-      if (response.data && response.data.dimensions) {
-        setExplanation(response.data);
-      } else {
-        console.warn('Unexpected response format:', response.data);
-      }
-    } catch (error: any) {
-      console.error('Error fetching priority explanation:', error);
-      console.error('Error details:', {
-        message: error.message,
-        status: error.response?.status,
-        data: error.response?.data,
-        url: `${API_URL}/emails/${emailId}/priority-explanation`
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleMouseEnter = (e: React.MouseEvent) => {
-    setShowTooltip(true);
-    if (!explanation && !loading) {
-      fetchExplanation();
-    }
-  };
-
-  // Position tooltip after it's shown
-  useEffect(() => {
-    if (showTooltip && tooltipRef.current && triggerRef.current) {
-      const triggerRect = triggerRef.current.getBoundingClientRect();
-      const tooltip = tooltipRef.current;
-      
-      // Position below the trigger
-      tooltip.style.left = `${triggerRect.left}px`;
-      tooltip.style.top = `${triggerRect.bottom + 8}px`;
-      
-      // Adjust if tooltip would go off screen
-      requestAnimationFrame(() => {
-        if (tooltip) {
-          const tooltipRect = tooltip.getBoundingClientRect();
-          if (tooltipRect.right > window.innerWidth) {
-            tooltip.style.left = `${window.innerWidth - tooltipRect.width - 16}px`;
-          }
-          if (tooltipRect.bottom > window.innerHeight) {
-            tooltip.style.top = `${triggerRect.top - tooltipRect.height - 8}px`;
-          }
-          if (tooltipRect.left < 0) {
-            tooltip.style.left = '16px';
-          }
-        }
-      });
-    }
-  }, [showTooltip]);
-
-  const handleOverrideSubmit = async () => {
-    if (!overrideExplanation.trim()) return;
-    
-    setSubmitting(true);
-    try {
-      if (onOverride) {
-        await onOverride(overrideExplanation);
-      }
-      setShowOverrideForm(false);
-      setOverrideExplanation('');
-    } catch (error) {
-      console.error('Error submitting override:', error);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const getFactorIcon = (type: string): string => {
-    switch (type) {
-      case 'VIP_CONTACT':
-        return '⭐';
-      case 'GOAL_ALIGNMENT':
-        return '🎯';
-      case 'CURRENT_PROJECT':
-        return '📁';
-      case 'NOT_IMPORTANT':
-        return '❌';
-      case 'SENTIMENT':
-        return '⚡';
-      case 'SENDER_ROLE':
-        return '👔';
-      case 'RECENCY':
-        return '⏰';
-      case 'URGENT_KEYWORDS':
-        return '🚨';
-      default:
-        return '•';
-    }
-  };
-
-  return (
-    <div style={{ position: 'relative', display: 'inline-block' }}>
+  // #region agent log
+  if (typeof window !== 'undefined') {
+    fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PriorityTooltip.tsx:30',message:'PriorityTooltip render check',data:{emailId,hasPriorityExplanation:!!priorityExplanation,loadingPriorityExplanation},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+  }
+  // #endregion
+  // Always show the tooltip if it's the hovered email, even if loading or no explanation yet
+  // This prevents the blank popup from auto-closing
+  if (!priorityExplanation && !loadingPriorityExplanation) {
+    // Show a loading state instead of returning null
+    return (
       <div
-        ref={triggerRef}
-        data-priority-badge={emailId}
-        onMouseEnter={(e) => handleMouseEnter(e)}
-        onMouseLeave={() => {
-          // Don't hide immediately on mouse leave - let click outside handle it
+        data-priority-tooltip={emailId}
+        style={{
+          position: 'fixed',
+          left: '50%',
+          top: '50%',
+          transform: 'translate(-50%, -50%)',
+          backgroundColor: theme.colors.background.paper,
+          border: `1px solid ${theme.colors.border.light}`,
+          borderRadius: theme.borderRadius.md,
+          padding: theme.spacing.md,
+          boxShadow: theme.shadows.xl,
+          zIndex: 10000,
+          minWidth: '350px',
+          maxWidth: '500px',
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+        }}
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
         }}
       >
-        {children}
+        <div style={{ textAlign: 'center', padding: theme.spacing.md }}>
+          Loading priority explanation...
+        </div>
       </div>
-      
-      {showTooltip && (
-        <div
-          ref={tooltipRef}
-          data-priority-tooltip={emailId}
-          style={{
-            position: 'fixed',
-            zIndex: 10000,
-            backgroundColor: theme.colors.background.paper,
-            border: `1px solid ${theme.colors.border.medium}`,
-            borderRadius: theme.borderRadius.lg,
-            padding: theme.spacing.md,
-            boxShadow: theme.shadows.xl,
-            minWidth: '300px',
-            maxWidth: '400px',
-            maxHeight: '80vh',
-            overflowY: 'auto',
-          }}
-          onMouseEnter={() => setShowTooltip(true)}
-          onMouseLeave={() => setShowTooltip(false)}
-        >
-          <div style={{ marginBottom: theme.spacing.sm }}>
-            <div style={{
-              fontSize: theme.typography.fontSize.sm,
-              fontWeight: theme.typography.fontWeight.semibold,
-              color: theme.colors.text.primary,
-              marginBottom: theme.spacing.xs,
-              borderBottom: `1px solid ${theme.colors.border.light}`,
-              paddingBottom: theme.spacing.xs,
-            }}>
-              Priority Score: {priorityScore.toFixed(0)}
-            </div>
+    );
+  }
+
+  return (
+    <div
+      data-priority-tooltip={emailId}
+      style={{
+        position: 'fixed',
+        left: '50%',
+        top: '50%',
+        transform: 'translate(-50%, -50%)',
+        backgroundColor: theme.colors.background.paper,
+        border: `1px solid ${theme.colors.border.light}`,
+        borderRadius: theme.borderRadius.md,
+        padding: theme.spacing.md,
+        boxShadow: theme.shadows.xl,
+        zIndex: 10000,
+        minWidth: '350px',
+        maxWidth: '500px',
+        maxHeight: '80vh',
+        overflowY: 'auto',
+        fontSize: theme.typography.fontSize.sm,
+        color: theme.colors.text.primary,
+        textAlign: 'left',
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+      }}
+      onMouseDown={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+      }}
+    >
+      {loadingPriorityExplanation ? (
+        <div style={{ textAlign: 'center', padding: theme.spacing.md }}>
+          Loading...
+        </div>
+      ) : priorityExplanation ? (
+        <div>
+          <div style={{ fontWeight: 'bold', marginBottom: theme.spacing.sm, borderBottom: `1px solid ${theme.colors.border.light}`, paddingBottom: theme.spacing.sm }}>
+            Priority Score: {priorityExplanation.score.toFixed(0)}
           </div>
 
-          {loading ? (
-            <div style={{ padding: theme.spacing.md, textAlign: 'center' }}>
-              <div style={{
-                display: 'inline-block',
-                width: '16px',
-                height: '16px',
-                border: `2px solid ${theme.colors.primary.main}`,
-                borderTop: '2px solid transparent',
-                borderRadius: '50%',
-                animation: 'spin 1s linear infinite',
-              }} />
-            </div>
-          ) : explanation && explanation.dimensions ? (
-            <>
-              {/* Dimensions */}
-              <div style={{ marginBottom: theme.spacing.sm }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <span>🔥 Urgency</span>
-                  <span style={{ fontWeight: 'bold' }}>{explanation.dimensions.urgency?.score?.toFixed(0) || '0'}</span>
-                </div>
-                {explanation.dimensions.urgency?.reasons && explanation.dimensions.urgency.reasons.length > 0 && (
-                  <div style={{ fontSize: '0.7rem', color: theme.colors.text.secondary, marginLeft: theme.spacing.md }}>
-                    {explanation.dimensions.urgency.reasons.slice(0, 2).join('; ')}
-                  </div>
-                )}
+          {/* Breakdown: Show how the score is calculated */}
+          {priorityExplanation.breakdown && priorityExplanation.breakdown.length > 0 && (
+            <div style={{ marginBottom: theme.spacing.sm }}>
+              <div style={{ fontSize: theme.typography.fontSize.xs, fontWeight: theme.typography.fontWeight.semibold, color: theme.colors.text.secondary, marginBottom: theme.spacing.sm }}>
+                SCORE BREAKDOWN
               </div>
-              
-              <div style={{ marginBottom: theme.spacing.sm }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <span>🎯 Goal Alignment</span>
-                  <span style={{ fontWeight: 'bold' }}>{explanation.dimensions.goalAlignment?.score?.toFixed(0) || '0'}</span>
-                </div>
-                {explanation.dimensions.goalAlignment?.reasons && explanation.dimensions.goalAlignment.reasons.length > 0 && (
-                  <div style={{ fontSize: '0.7rem', color: theme.colors.text.secondary, marginLeft: theme.spacing.md }}>
-                    {explanation.dimensions.goalAlignment.reasons.slice(0, 2).join('; ')}
+              {priorityExplanation.breakdown.map((item, idx) => (
+                <div key={idx} style={{ 
+                  marginBottom: theme.spacing.sm,
+                  padding: theme.spacing.sm,
+                  backgroundColor: theme.colors.background.subtle,
+                  borderRadius: theme.borderRadius.sm,
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+                    <span>{item.factor}</span>
+                    <span style={{ fontWeight: 'bold', color: item.value >= 0 ? theme.colors.accent.success : theme.colors.accent.error }}>
+                      {item.value >= 0 ? '+' : ''}{item.value.toFixed(0)}
+                    </span>
                   </div>
-                )}
-              </div>
-              
-              <div style={{ marginBottom: theme.spacing.sm }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <span>⭐ VIP Contact</span>
-                  <span style={{ fontWeight: 'bold' }}>{explanation.dimensions.vipContact?.score?.toFixed(0) || '0'}</span>
+                  {item.description && (
+                    <div style={{ fontSize: '0.7rem', color: theme.colors.text.secondary, marginTop: '2px' }}>
+                      {item.description}
+                    </div>
+                  )}
                 </div>
-                {explanation.dimensions.vipContact?.reasons && explanation.dimensions.vipContact.reasons.length > 0 && (
-                  <div style={{ fontSize: '0.7rem', color: theme.colors.text.secondary, marginLeft: theme.spacing.md }}>
-                    {explanation.dimensions.vipContact.reasons.slice(0, 2).join('; ')}
-                  </div>
-                )}
-              </div>
-
-              {!showOverrideForm ? (
-                <button
-                  onClick={() => setShowOverrideForm(true)}
-                  style={{
-                    width: '100%',
-                    padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                    backgroundColor: theme.colors.background.subtle,
-                    color: theme.colors.text.primary,
-                    border: `1px solid ${theme.colors.border.medium}`,
+              ))}
+              {/* Show total of breakdown - should equal the priority score */}
+              {(() => {
+                const breakdownTotal = priorityExplanation.breakdown.reduce((sum, item) => sum + (item.value || 0), 0);
+                return (
+                  <div style={{ 
+                    marginTop: theme.spacing.sm,
+                    padding: theme.spacing.sm,
+                    backgroundColor: theme.colors.primary.subtle,
                     borderRadius: theme.borderRadius.sm,
-                    cursor: 'pointer',
-                    fontSize: theme.typography.fontSize.xs,
-                    fontWeight: theme.typography.fontWeight.medium,
-                  }}
-                >
-                  Override Priority
-                </button>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}>
-                  <textarea
-                    value={overrideExplanation}
-                    onChange={(e) => setOverrideExplanation(e.target.value)}
-                    placeholder="Explain why this isn't urgent/goal aligned..."
-                    style={{
-                      width: '100%',
-                      padding: theme.spacing.xs,
-                      border: `1px solid ${theme.colors.border.medium}`,
-                      borderRadius: theme.borderRadius.sm,
-                      fontSize: theme.typography.fontSize.xs,
-                      fontFamily: theme.typography.fontFamily,
-                      resize: 'vertical',
-                      minHeight: '60px',
-                    }}
-                  />
-                  <div style={{ display: 'flex', gap: theme.spacing.xs }}>
-                    <button
-                      onClick={handleOverrideSubmit}
-                      disabled={!overrideExplanation.trim() || submitting}
-                      style={{
-                        flex: 1,
-                        padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                        backgroundColor: overrideExplanation.trim() && !submitting
-                          ? theme.colors.primary.main
-                          : theme.colors.background.subtle,
-                        color: overrideExplanation.trim() && !submitting ? 'white' : theme.colors.text.tertiary,
-                        border: 'none',
-                        borderRadius: theme.borderRadius.sm,
-                        cursor: overrideExplanation.trim() && !submitting ? 'pointer' : 'not-allowed',
-                        fontSize: theme.typography.fontSize.xs,
-                        fontWeight: theme.typography.fontWeight.medium,
-                      }}
-                    >
-                      {submitting ? 'Submitting...' : 'Submit'}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowOverrideForm(false);
-                        setOverrideExplanation('');
-                      }}
-                      style={{
-                        padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                        backgroundColor: 'transparent',
-                        color: theme.colors.text.secondary,
-                        border: `1px solid ${theme.colors.border.medium}`,
-                        borderRadius: theme.borderRadius.sm,
-                        cursor: 'pointer',
-                        fontSize: theme.typography.fontSize.xs,
-                      }}
-                    >
-                      Cancel
-                    </button>
+                    borderTop: `2px solid ${theme.colors.border.medium}`,
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
+                      <span>Total:</span>
+                      <span style={{ color: breakdownTotal >= 0 ? theme.colors.accent.success : theme.colors.accent.error }}>
+                        {breakdownTotal >= 0 ? '+' : ''}{breakdownTotal.toFixed(0)}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              )}
-            </>
-          ) : (
-            <div style={{
-              fontSize: theme.typography.fontSize.xs,
-              color: theme.colors.text.secondary,
-              padding: theme.spacing.sm,
-              textAlign: 'center',
-            }}>
-              {loading ? 'Loading...' : 'Unable to load explanation. Please try again.'}
+                );
+              })()}
             </div>
           )}
+          
+          {/* Primary Factors - Goal Alignment & Sentiment */}
+          {priorityExplanation.dimensions && (
+            <div style={{ marginBottom: theme.spacing.sm, padding: theme.spacing.sm, backgroundColor: theme.colors.primary.subtle, borderRadius: theme.borderRadius.sm }}>
+              <div style={{ fontSize: theme.typography.fontSize.xs, fontWeight: theme.typography.fontWeight.semibold, color: theme.colors.text.secondary, marginBottom: theme.spacing.sm }}>
+                PRIMARY FACTORS
+              </div>
+              
+              <div style={{ marginBottom: theme.spacing.sm }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px', alignItems: 'center' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
+                    <span>🎯 Goal Alignment</span>
+                    {priorityExplanation.dimensions.goalAlignment.reasons.length > 0 && (
+                      <span 
+                        title={priorityExplanation.dimensions.goalAlignment.reasons.join('; ')}
+                        style={{ 
+                          cursor: 'help',
+                          fontSize: '0.7rem',
+                          color: theme.colors.text.secondary,
+                          textDecoration: 'underline dotted',
+                        }}
+                      >
+                        ℹ️
+                      </span>
+                    )}
+                  </span>
+                  <span style={{ fontWeight: 'bold', color: theme.colors.primary.main }}>
+                    {(() => {
+                      const goalBreakdown = priorityExplanation.breakdown?.filter(b => b.factor.includes('🎯') || b.factor.includes('Goal')) || [];
+                      const total = goalBreakdown.reduce((sum, b) => sum + (b.value || 0), 0);
+                      return total >= 0 ? `+${total.toFixed(0)}` : total.toFixed(0);
+                    })()}
+                  </span>
+                </div>
+                {priorityExplanation.dimensions.goalAlignment.reasons.length > 0 && (
+                  <div style={{ fontSize: '0.7rem', color: theme.colors.text.secondary, marginLeft: theme.spacing.md, marginTop: '2px' }}>
+                    {priorityExplanation.dimensions.goalAlignment.reasons.slice(0, 2).join('; ')}
+                  </div>
+                )}
+              </div>
+            
+            {/* Sentiment */}
+            {priorityExplanation.dimensions.sentiment && (
+              <div style={{ marginBottom: theme.spacing.sm }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+                  <span>
+                    {priorityExplanation.dimensions.sentiment.type === 'negative' ? '😟' : 
+                     priorityExplanation.dimensions.sentiment.type === 'positive' ? '😊' : '😐'} 
+                    Sentiment ({priorityExplanation.dimensions.sentiment.type})
+                  </span>
+                  <span style={{ fontWeight: 'bold', color: theme.colors.primary.main }}>
+                    {priorityExplanation.dimensions.sentiment.score.toFixed(0)}
+                  </span>
+                </div>
+                {priorityExplanation.dimensions.sentiment.reasons.length > 0 && (
+                  <div style={{ fontSize: '0.7rem', color: theme.colors.text.secondary, marginLeft: theme.spacing.md }}>
+                    {priorityExplanation.dimensions.sentiment.reasons.slice(0, 2).join('; ')}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Urgency - only show if > 0, and include override button */}
+            {priorityExplanation.dimensions.urgency.score > 0 && (
+              <div style={{ marginBottom: theme.spacing.sm }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px', alignItems: 'center' }}>
+                  <span>🔥 Urgency</span>
+                  <span style={{ fontWeight: 'bold' }}>{priorityExplanation.dimensions.urgency.score.toFixed(0)}/100</span>
+                </div>
+                {priorityExplanation.dimensions.urgency.reasons.length > 0 && (
+                  <div style={{ fontSize: '0.7rem', color: theme.colors.text.secondary, marginLeft: theme.spacing.md, marginTop: '2px' }}>
+                    {priorityExplanation.dimensions.urgency.reasons.slice(0, 2).join('; ')}
+                  </div>
+                )}
+                {onOverrideUrgency && emailThreadId && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOverrideUrgency();
+                    }}
+                    style={{
+                      marginTop: theme.spacing.sm,
+                      padding: `${theme.spacing.sm} ${theme.spacing.sm}`,
+                      backgroundColor: theme.colors.primary.main,
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: theme.borderRadius.sm,
+                      cursor: 'pointer',
+                      fontSize: theme.typography.fontSize.xs,
+                      fontWeight: theme.typography.fontWeight.medium,
+                    }}
+                  >
+                    Override Urgency
+                  </button>
+                )}
+              </div>
+            )}
+              
+              <div style={{ marginBottom: theme.spacing.sm }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+                  <span>⭐ VIP Contact</span>
+                  <span style={{ fontWeight: 'bold' }}>
+                    {(() => {
+                      const vipBreakdown = priorityExplanation.breakdown?.filter(b => b.factor.includes('⭐') || b.factor.includes('VIP')) || [];
+                      const total = vipBreakdown.reduce((sum, b) => sum + (b.value || 0), 0);
+                      return total >= 0 ? `+${total.toFixed(0)}` : total.toFixed(0);
+                    })()}
+                  </span>
+                </div>
+                {priorityExplanation.dimensions.vipContact.reasons.length > 0 && (
+                  <div style={{ fontSize: '0.7rem', color: theme.colors.text.secondary, marginLeft: theme.spacing.md }}>
+                    {priorityExplanation.dimensions.vipContact.reasons.slice(0, 2).join('; ')}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {/* Links to settings and help */}
+          <div style={{ marginTop: theme.spacing.sm, paddingTop: theme.spacing.sm, borderTop: `1px solid ${theme.colors.border.light}`, textAlign: 'center', display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate('/settings');
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: theme.colors.primary.main,
+                cursor: 'pointer',
+                fontSize: theme.typography.fontSize.xs,
+                textDecoration: 'underline',
+              }}
+            >
+              Adjust context in Settings →
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate('/help/context');
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: theme.colors.text.secondary,
+                cursor: 'pointer',
+                fontSize: theme.typography.fontSize.xs,
+                textDecoration: 'underline',
+              }}
+            >
+              Learn more about context →
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div style={{ textAlign: 'center', color: theme.colors.text.secondary }}>
+          Hover to see details
         </div>
       )}
     </div>
   );
 };
-

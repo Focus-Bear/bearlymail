@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { User } from '../database/entities/user.entity';
-import { EncryptionHelper } from '../encryption/encryption.helper';
+import { Injectable } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { User } from "../database/entities/user.entity";
+import { EncryptionHelper } from "../encryption/encryption.helper";
 
 @Injectable()
 export class UsersService {
@@ -44,26 +44,28 @@ export class UsersService {
     if (!user) {
       throw new Error(`User with id ${id} not found`);
     }
-    const beforeUpdatedAt = user.updatedAt?.toISOString() || 'null';
+    const beforeUpdatedAt = user.updatedAt?.toISOString() || "null";
     // Apply updates to the entity
     Object.assign(user, updates);
     // Save will trigger @UpdateDateColumn() to update updatedAt automatically
     const savedUser = await this.userRepository.save(user);
-    const afterUpdatedAt = savedUser.updatedAt?.toISOString() || 'null';
+    const afterUpdatedAt = savedUser.updatedAt?.toISOString() || "null";
     const logMsg = `[UsersService.update] User ${id} updated. updatedAt: ${beforeUpdatedAt} -> ${afterUpdatedAt}`;
     console.log(logMsg);
-    const { writeDebugLog } = require('../auth/auth-logger');
+    const { writeDebugLog } = require("../auth/auth-logger");
     writeDebugLog(logMsg);
     return savedUser;
   }
 
-  async incrementScanProgress(id: string): Promise<{ scanProgress: number; scanTotal: number; isComplete: boolean }> {
+  async incrementScanProgress(
+    id: string,
+  ): Promise<{ scanProgress: number; scanTotal: number; isComplete: boolean }> {
     // Use raw SQL for atomic increment to avoid race conditions
     await this.userRepository.query(
       `UPDATE users 
        SET "scanProgress" = LEAST(COALESCE("scanProgress", 0) + 1, COALESCE("scanTotal", 0))
        WHERE id = $1 AND "scanTotal" IS NOT NULL AND "scanTotal" > 0`,
-      [id]
+      [id],
     );
 
     const user = await this.findOne(id);
@@ -83,10 +85,14 @@ export class UsersService {
     return { scanProgress, scanTotal, isComplete };
   }
 
-  async acceptConsent(userId: string, termsAccepted: boolean, privacyAccepted: boolean): Promise<User> {
+  async acceptConsent(
+    userId: string,
+    termsAccepted: boolean,
+    privacyAccepted: boolean,
+  ): Promise<User> {
     const now = new Date();
-    const currentTermsVersion = process.env.TERMS_VERSION || '1.0.0';
-    const currentPrivacyVersion = process.env.PRIVACY_VERSION || '1.0.0';
+    const currentTermsVersion = process.env.TERMS_VERSION || "1.0.0";
+    const currentPrivacyVersion = process.env.PRIVACY_VERSION || "1.0.0";
 
     const updates: Partial<User> = {};
     if (termsAccepted) {
@@ -112,14 +118,16 @@ export class UsersService {
   }> {
     const user = await this.findOne(userId);
     if (!user) {
-      throw new Error('User not found');
+      throw new Error("User not found");
     }
 
-    const currentTermsVersion = process.env.TERMS_VERSION || '1.0.0';
-    const currentPrivacyVersion = process.env.PRIVACY_VERSION || '1.0.0';
+    const currentTermsVersion = process.env.TERMS_VERSION || "1.0.0";
+    const currentPrivacyVersion = process.env.PRIVACY_VERSION || "1.0.0";
 
-    const needsTermsAcceptance = !user.termsAcceptedAt || user.termsVersion !== currentTermsVersion;
-    const needsPrivacyAcceptance = !user.privacyAcceptedAt || user.privacyVersion !== currentPrivacyVersion;
+    const needsTermsAcceptance =
+      !user.termsAcceptedAt || user.termsVersion !== currentTermsVersion;
+    const needsPrivacyAcceptance =
+      !user.privacyAcceptedAt || user.privacyVersion !== currentPrivacyVersion;
 
     return {
       needsTermsAcceptance,
@@ -131,4 +139,3 @@ export class UsersService {
     };
   }
 }
-

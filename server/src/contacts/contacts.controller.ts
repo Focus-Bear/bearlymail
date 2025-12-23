@@ -1,8 +1,19 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
-import { ContactsService, ContactSearchResult } from './contacts.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  Request,
+} from "@nestjs/common";
+import { ContactsService, ContactSearchResult } from "./contacts.service";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 
-@Controller('contacts')
+@Controller("contacts")
 @UseGuards(JwtAuthGuard)
 export class ContactsController {
   constructor(private readonly contactsService: ContactsService) {}
@@ -11,23 +22,27 @@ export class ContactsController {
    * Search contacts with autocomplete support
    * Uses blind indexing for searchable encryption
    */
-  @Get('search')
+  @Get("search")
   async searchContacts(
     @Request() req,
-    @Query('q') query: string,
-    @Query('limit') limit?: string,
+    @Query("q") query: string,
+    @Query("limit") limit?: string,
   ): Promise<ContactSearchResult[]> {
     const maxLimit = limit ? Math.min(parseInt(limit, 10), 50) : 20;
-    return this.contactsService.searchContacts(req.user.userId, query || '', maxLimit);
+    return this.contactsService.searchContacts(
+      req.user.userId,
+      query || "",
+      maxLimit,
+    );
   }
 
   /**
    * Get frequently contacted contacts (for empty state in compose)
    */
-  @Get('frequent')
+  @Get("frequent")
   async getFrequentContacts(
     @Request() req,
-    @Query('limit') limit?: string,
+    @Query("limit") limit?: string,
   ): Promise<ContactSearchResult[]> {
     const maxLimit = limit ? Math.min(parseInt(limit, 10), 20) : 10;
     return this.contactsService.getFrequentContacts(req.user.userId, maxLimit);
@@ -44,12 +59,15 @@ export class ContactsController {
   /**
    * Sync contacts from all connected providers
    */
-  @Post('sync')
+  @Post("sync")
   async syncContacts(
     @Request() req,
-    @Query('full') fullSync?: string,
+    @Query("full") fullSync?: string,
   ): Promise<{ synced: number; provider: string }[]> {
-    return this.contactsService.syncContacts(req.user.userId, fullSync === 'true');
+    return this.contactsService.syncContacts(
+      req.user.userId,
+      fullSync === "true",
+    );
   }
 
   /**
@@ -58,12 +76,13 @@ export class ContactsController {
   @Post()
   async createContact(
     @Request() req,
-    @Body() body: { 
-      email: string; 
-      name?: string; 
-      firstName?: string; 
-      lastName?: string; 
-      company?: string; 
+    @Body()
+    body: {
+      email: string;
+      name?: string;
+      firstName?: string;
+      lastName?: string;
+      company?: string;
       jobTitle?: string;
     },
   ) {
@@ -73,21 +92,17 @@ export class ContactsController {
   /**
    * Toggle favorite status
    */
-  @Put(':id/favorite')
-  async toggleFavorite(@Request() req, @Param('id') id: string) {
+  @Put(":id/favorite")
+  async toggleFavorite(@Request() req, @Param("id") id: string) {
     return this.contactsService.toggleFavorite(req.user.userId, id);
   }
 
   /**
    * Delete a contact
    */
-  @Delete(':id')
-  async deleteContact(@Request() req, @Param('id') id: string) {
+  @Delete(":id")
+  async deleteContact(@Request() req, @Param("id") id: string) {
     await this.contactsService.deleteContact(req.user.userId, id);
     return { success: true };
   }
 }
-
-
-
-

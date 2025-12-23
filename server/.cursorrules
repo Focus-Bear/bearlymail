@@ -1,0 +1,264 @@
+# Server Code Standards
+
+This file contains coding standards and guidelines for the server codebase. Follow these rules when writing or modifying code.
+
+## File and Function Length
+
+### File Length
+- **Maximum**: 800 lines per file (excluding blank lines and comments)
+- **Rationale**: Large files are harder to navigate, understand, and maintain
+- **Action**: If a file exceeds this limit, consider:
+  - Breaking it into smaller, focused modules
+  - Extracting related functionality into separate services
+  - Using composition to split responsibilities
+
+### Function Length
+- **Maximum**: 100 lines per function (excluding blank lines and comments)
+- **Maximum statements**: 30 statements per function
+- **Maximum parameters**: 6 parameters per function
+- **Maximum complexity**: 20 (cyclomatic complexity)
+- **Maximum nested callbacks**: 4 levels
+- **Rationale**: Long functions are harder to test, understand, and debug
+- **Action**: If a function exceeds these limits, consider:
+  - Breaking it into smaller, single-purpose functions
+  - Extracting complex logic into helper functions
+  - Using early returns to reduce nesting
+  - Refactoring to reduce complexity
+
+## Variable Naming Conventions
+
+### Descriptive Names
+- Use descriptive, meaningful names that explain the variable's purpose
+- Avoid single-letter variable names except for common loop counters (`i`, `j`, `k`)
+- Minimum length: 2 characters (with exceptions for common short names)
+
+### Avoid Generic Names
+**Do NOT use these generic names:**
+- `data` - What kind of data? Use `userData`, `emailData`, `responseData`, etc.
+- `temp` / `tmp` - What does it temporarily hold? Use descriptive names
+- `val` - Use `value` or a more specific name
+- `cb` - Use `callback` or describe what the callback does
+- `fn` - Use `function` or describe the function's purpose
+- `obj` - Describe what object: `user`, `email`, `config`, etc.
+- `arr` - Describe what array: `users`, `emails`, `items`, etc.
+- `num` - Describe what number: `count`, `index`, `userId`, etc.
+- `str` - Describe what string: `message`, `name`, `email`, etc.
+
+### Good Examples
+```typescript
+// Good: Descriptive names
+const userEmailAddress = email.from;
+const emailThreads = await this.getThreads(userId);
+const unreadEmailCount = emails.filter(e => !e.read).length;
+
+// Bad: Generic names
+const data = email.from;
+const arr = await this.getThreads(userId);
+const num = emails.filter(e => !e.read).length;
+```
+
+## Commenting Standards
+
+### When to Comment
+- **Complex logic**: Explain why, not what
+- **Business rules**: Document non-obvious business logic
+- **Workarounds**: Explain temporary solutions or known issues
+- **API contracts**: Document expected inputs/outputs for public APIs
+
+### When NOT to Comment
+- **Obvious code**: Don't comment what the code already clearly shows
+- **Redundant comments**: Avoid comments that just repeat the code
+- **Outdated comments**: Remove comments that no longer match the code
+
+### Comment Format
+- Use `//` for single-line comments
+- Use `/* */` for multi-line comments
+- Always include a space after `//` or `/*`
+- Write comments in complete sentences with proper capitalization
+
+### Avoid Warning Comments
+- Do NOT use `FIXME`, `HACK`, or `XXX` comments
+- If you need to mark something for later, create a proper issue/ticket
+- If you must leave a temporary workaround, explain why and when it should be fixed
+
+### Examples
+```typescript
+// Good: Explains why, not what
+// Use batch processing to avoid overwhelming the email provider's rate limits
+const batches = chunkArray(emails, BATCH_SIZE);
+
+// Bad: Redundant comment
+// Get emails from database
+const emails = await this.emailRepository.find();
+
+// Good: Documents complex business logic
+// Priority is calculated as weighted sum: sender (40%), sentiment (30%), 
+// urgency keywords (20%), user history (10%)
+const priority = calculatePriority(email, userContext);
+
+// Bad: Obvious comment
+// Increment the counter
+counter++;
+```
+
+## Code Organization
+
+### Service Files
+- Keep services focused on a single responsibility
+- Extract complex logic into helper methods or separate services
+- Use dependency injection for testability
+
+### Breaking Down Large Files
+If a file exceeds 800 lines:
+1. Identify distinct responsibilities
+2. Extract related functionality into separate services or modules
+3. Use composition to combine smaller pieces
+4. Consider using a module pattern for related utilities
+
+### Breaking Down Large Functions
+If a function exceeds 100 lines:
+1. Identify logical sections
+2. Extract each section into a well-named helper function
+3. Use early returns to reduce nesting
+4. Consider using a strategy pattern for complex conditionals
+
+## TypeScript Best Practices
+
+- Use explicit types for function parameters and return values when not obvious
+- Avoid `any` type - use `unknown` or proper types instead
+- Use interfaces for object shapes
+- Use enums for fixed sets of values
+- Prefer `const` over `let` when possible
+- Use template literals instead of string concatenation
+
+## NestJS Module Dependencies
+
+### Critical Rules for Module Configuration
+
+When working with NestJS modules, **ALWAYS** follow these rules to prevent dependency injection errors:
+
+#### 1. Repository Dependencies
+- **When a service uses `@InjectRepository(Entity)`, the Entity MUST be included in `TypeOrmModule.forFeature([...])` in the same module**
+- **If the service is used in multiple modules, ALL modules must include the Entity in their `TypeOrmModule.forFeature([...])`**
+- **The Entity must ALSO be included in the `entities` array in `TypeOrmModule.forRootAsync` if the module uses `forRootAsync`**
+
+#### 2. Cross-Module Service Usage
+- **When providing a service directly in a module (not importing its module), ensure ALL dependencies are available:**
+  - All repositories (`@InjectRepository`) - Entity must be in `forFeature`
+  - All injected services - Their modules must be imported or services provided
+  - All injected providers - Must be in providers array or imported
+
+#### 3. Circular Dependencies
+- **Use `forwardRef(() => ModuleName)` when modules have circular dependencies**
+- **Both sides of the circular dependency must use `forwardRef`**
+- **Common pattern: ModuleA imports ModuleB with forwardRef, ModuleB imports ModuleA with forwardRef**
+
+#### 4. WorkerModule Special Rules
+- **WorkerModule provides services directly instead of importing their modules**
+- **When adding a service to WorkerModule providers, ensure:**
+  - All entities used by `@InjectRepository` are in `TypeOrmModule.forFeature([...])`
+  - All entities are also in the `entities` array in `forRootAsync`
+  - All service dependencies are either:
+    - Provided in WorkerModule's providers array, OR
+    - Imported via their respective modules in the imports array
+
+#### 5. Checklist Before Modifying Modules
+Before making changes to module imports/providers:
+- [ ] List all services/providers being added/removed
+- [ ] For each service, identify ALL dependencies (repositories, other services)
+- [ ] Verify all repository entities are in `TypeOrmModule.forFeature`
+- [ ] Verify all repository entities are in `entities` array (if using forRootAsync)
+- [ ] Verify all service dependencies are available (imported or provided)
+- [ ] Check for circular dependencies and add `forwardRef` if needed
+- [ ] Test that the application starts without dependency injection errors
+
+#### 6. Common Error Patterns to Avoid
+```typescript
+// ❌ BAD: Service uses PriorityOverride repository but entity not in forFeature
+@Module({
+  imports: [TypeOrmModule.forFeature([Email, UserContext])], // Missing PriorityOverride!
+  providers: [PriorityService], // This service needs PriorityOverride repository
+})
+
+// ✅ GOOD: All repository entities are included
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([
+      Email,
+      UserContext,
+      PriorityOverride, // Included because PriorityService needs it
+    ]),
+  ],
+  providers: [PriorityService],
+})
+
+// ❌ BAD: WorkerModule provides service but missing entity
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([Email, UserContext]), // Missing PriorityOverride!
+  ],
+  providers: [PriorityService], // Uses PriorityOverride repository
+})
+
+// ✅ GOOD: WorkerModule includes all needed entities
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([
+      Email,
+      UserContext,
+      PriorityOverride, // Must be included
+    ]),
+  ],
+  providers: [PriorityService],
+})
+```
+
+#### 7. How to Debug Dependency Errors
+When you see errors like "Nest can't resolve dependencies" or "argument X at index Y is not available":
+1. Identify which service has the unresolved dependency
+2. Check the service constructor to see what it injects
+3. For `@InjectRepository(Entity)`: Ensure Entity is in `forFeature`
+4. For service injections: Ensure service is provided or its module is imported
+5. Check if you're in WorkerModule - remember it provides services directly
+
+## ESLint Rules
+
+All code must pass ESLint checks. The rules are configured in `.eslintrc.js` and include:
+- File and function length limits
+- Naming convention enforcement
+- Commenting standards
+- Code quality rules
+
+Run `npm run lint` to check for violations before committing code.
+
+## LLM Prompts
+
+### Prompt Storage
+- **ALL prompts MUST be stored in markdown files in `server/promptfoo/prompts/` directory**
+- **NEVER put prompts directly in code files (e.g., `llm.service.ts`)**
+- Prompts should use the promptfoo markdown format with template variables (e.g., `{{variableName}}`)
+
+### Using Prompts in Code
+- Use `getPrompt(id)` from `prompts.ts` to load prompts
+- Use `renderPrompt(template, variables)` to render templates with variables
+- Prompt IDs should match the markdown filename (e.g., `prioritise-email.md` → `analyze_priority`)
+
+### Adding New Prompts
+1. Create a markdown file in `server/promptfoo/prompts/`
+2. Add loading logic in `prompts.ts` `loadPrompts()` function
+3. Use `getPrompt()` and `renderPrompt()` in the service code
+
+### Example
+```typescript
+// ✅ GOOD: Load prompt from markdown file
+const promptConfig = getPrompt("analyze_priority");
+const prompt = renderPrompt(promptConfig.prompt, {
+  from: email.from,
+  subject: email.subject,
+  body: email.body,
+});
+
+// ❌ BAD: Hardcoded prompt in service
+const systemPrompt = `You are an email assistant...`;
+```
+

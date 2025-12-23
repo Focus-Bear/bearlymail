@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import { google } from 'googleapis';
-import { UsersService } from '../users/users.service';
-import { LLMService } from '../llm/llm.service';
-import { EmailsService } from '../emails/emails.service';
+import { Injectable } from "@nestjs/common";
+import { google } from "googleapis";
+import { UsersService } from "../users/users.service";
+import { LLMService } from "../llm/llm.service";
+import { EmailsService } from "../emails/emails.service";
 
 @Injectable()
 export class CalendarService {
@@ -16,14 +16,18 @@ export class CalendarService {
     this.oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/auth/google/callback',
+      process.env.GOOGLE_REDIRECT_URI ||
+        "http://localhost:3001/auth/google/callback",
     );
   }
 
-  async getAvailableTimeSlots(userId: string, daysAhead: number = 7): Promise<any[]> {
+  async getAvailableTimeSlots(
+    userId: string,
+    daysAhead: number = 7,
+  ): Promise<any[]> {
     const user = await this.usersService.findOne(userId);
     if (!user?.googleCalendarAccessToken) {
-      throw new Error('Google Calendar not connected');
+      throw new Error("Google Calendar not connected");
     }
 
     this.oauth2Client.setCredentials({
@@ -31,7 +35,10 @@ export class CalendarService {
       refresh_token: user.googleCalendarRefreshToken,
     });
 
-    const calendar = google.calendar({ version: 'v3', auth: this.oauth2Client });
+    const calendar = google.calendar({
+      version: "v3",
+      auth: this.oauth2Client,
+    });
     const now = new Date();
     const endDate = new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000);
 
@@ -40,7 +47,7 @@ export class CalendarService {
         requestBody: {
           timeMin: now.toISOString(),
           timeMax: endDate.toISOString(),
-          items: [{ id: 'primary' }],
+          items: [{ id: "primary" }],
         },
       });
 
@@ -50,8 +57,8 @@ export class CalendarService {
 
       return freeSlots;
     } catch (error) {
-      console.error('Error fetching calendar:', error);
-      throw new Error('Failed to fetch calendar data');
+      console.error("Error fetching calendar:", error);
+      throw new Error("Failed to fetch calendar data");
     }
   }
 
@@ -65,9 +72,11 @@ export class CalendarService {
       const isBusy = busy.some((b) => {
         const busyStart = new Date(b.start);
         const busyEnd = new Date(b.end);
-        return (current >= busyStart && current < busyEnd) || 
-               (slotEnd > busyStart && slotEnd <= busyEnd) ||
-               (current <= busyStart && slotEnd >= busyEnd);
+        return (
+          (current >= busyStart && current < busyEnd) ||
+          (slotEnd > busyStart && slotEnd <= busyEnd) ||
+          (current <= busyStart && slotEnd >= busyEnd)
+        );
       });
 
       if (!isBusy && current.getHours() >= 9 && current.getHours() < 17) {
@@ -93,7 +102,7 @@ export class CalendarService {
   ): Promise<any> {
     const user = await this.usersService.findOne(userId);
     if (!user?.googleCalendarAccessToken) {
-      throw new Error('Google Calendar not connected');
+      throw new Error("Google Calendar not connected");
     }
 
     this.oauth2Client.setCredentials({
@@ -101,16 +110,19 @@ export class CalendarService {
       refresh_token: user.googleCalendarRefreshToken,
     });
 
-    const calendar = google.calendar({ version: 'v3', auth: this.oauth2Client });
+    const calendar = google.calendar({
+      version: "v3",
+      auth: this.oauth2Client,
+    });
     const start = new Date(startTime);
     const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
 
     try {
       const event = await calendar.events.insert({
-        calendarId: 'primary',
+        calendarId: "primary",
         requestBody: {
           summary: `Meeting with ${guestName || guestEmail}`,
-          description: 'Scheduled via ADHD Email Client',
+          description: "Scheduled via ADHD Email Client",
           start: { dateTime: start.toISOString() },
           end: { dateTime: end.toISOString() },
           attendees: [{ email: guestEmail }],
@@ -118,22 +130,22 @@ export class CalendarService {
       });
       return event.data;
     } catch (error) {
-      console.error('Error creating calendar event:', error);
-      throw new Error('Failed to create calendar event');
+      console.error("Error creating calendar event:", error);
+      throw new Error("Failed to create calendar event");
     }
   }
 
   async generateMeetingReply(
     userId: string,
     emailId: string,
-    provider?: 'gemini' | 'openai',
+    provider?: "gemini" | "openai",
   ): Promise<string> {
     const slots = await this.getAvailableTimeSlots(userId);
     const user = await this.usersService.findOne(userId);
     const email = await this.emailsService.getEmailById(userId, emailId);
 
     if (!email) {
-      throw new Error('Email not found');
+      throw new Error("Email not found");
     }
 
     if (slots.length === 0) {
@@ -183,15 +195,18 @@ Best regards`;
         userId,
       );
     } catch (error) {
-      console.error('LLM meeting reply generation failed, using fallback', error);
+      console.error(
+        "LLM meeting reply generation failed, using fallback",
+        error,
+      );
       // Fallback to template-based reply
       const slotsText = slots
         .slice(0, 5)
         .map((slot, i) => {
           const start = new Date(slot.start);
-          return `${i + 1}. ${start.toLocaleDateString()} at ${start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+          return `${i + 1}. ${start.toLocaleDateString()} at ${start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
         })
-        .join('\n');
+        .join("\n");
 
       return `Hi there,
 
@@ -199,7 +214,7 @@ Thank you for reaching out about scheduling a meeting. Here are some times that 
 
 ${slotsText}
 
-You can also book directly on my calendar: ${process.env.CALENDAR_BOOKING_URL || 'https://calendly.com/your-link'}
+You can also book directly on my calendar: ${process.env.CALENDAR_BOOKING_URL || "https://calendly.com/your-link"}
 
 Let me know what works best for you!
 
@@ -207,4 +222,3 @@ Best regards`;
     }
   }
 }
-

@@ -5,7 +5,7 @@ import {
   ScanNotification,
   UrgentNotification,
   ReloginBanner,
-} from './overlays';
+} from 'components/inbox/overlays';
 
 interface TourStep {
   title: string;

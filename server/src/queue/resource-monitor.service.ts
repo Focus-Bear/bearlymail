@@ -3,17 +3,22 @@ import { DataSource } from "typeorm";
 import * as os from "os";
 import * as fs from "fs";
 import * as path from "path";
+import { RESOURCE_MONITOR_CONSTANTS } from "../constants/resource-monitor-constants";
 
 interface ResourceMetrics {
   timestamp: string;
   cpu: {
-    usage: number; // Percentage
+    usage: number;
+    // Percentage
     loadAverage: number[];
   };
   memory: {
-    total: number; // bytes
-    free: number; // bytes
-    used: number; // bytes
+    total: number;
+    // bytes
+    free: number;
+    // bytes
+    used: number;
+    // bytes
     usagePercent: number;
   };
   database: {
@@ -161,7 +166,7 @@ export class ResourceMonitorService implements OnModuleInit {
         timestamp: new Date().toISOString(),
         cpu: {
           usage: cpuUsage,
-          loadAverage: loadAverage,
+          loadAverage,
         },
         memory: {
           total: totalMemory,
@@ -181,15 +186,20 @@ export class ResourceMonitorService implements OnModuleInit {
       }
 
       // Log warnings for high resource usage
-      if (cpuUsage > 80) {
+      if (cpuUsage > RESOURCE_MONITOR_CONSTANTS.CPU_CRITICAL) {
         this.logger.warn(`⚠️ High CPU usage: ${cpuUsage.toFixed(1)}%`);
       }
-      if (memoryUsagePercent > 85) {
+      if (memoryUsagePercent > RESOURCE_MONITOR_CONSTANTS.MEMORY_CRITICAL) {
+        // eslint-disable-next-line @typescript-eslint/no-magic-numbers
         this.logger.warn(
+          // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+          // eslint-disable-next-line @typescript-eslint/no-magic-numbers
           `⚠️ High memory usage: ${memoryUsagePercent.toFixed(1)}% (${(usedMemory / 1024 / 1024 / 1024).toFixed(2)}GB used)`,
         );
       }
-      if (dbMetrics.totalConnections > 80) {
+      if (
+        dbMetrics.totalConnections > RESOURCE_MONITOR_CONSTANTS.CPU_CRITICAL
+      ) {
         this.logger.warn(
           `⚠️ High database connections: ${dbMetrics.totalConnections} total, ${dbMetrics.activeConnections} active`,
         );
@@ -216,7 +226,7 @@ export class ResourceMonitorService implements OnModuleInit {
       timestamp: new Date().toISOString(),
       cpu: {
         usage: cpuUsage,
-        loadAverage: loadAverage,
+        loadAverage,
       },
       memory: {
         total: totalMemory,

@@ -1,13 +1,17 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Octokit } from "@octokit/rest";
 import { ParsedGitHubLink } from "./github.service";
+import { isApiError, getErrorMessage } from "../types/common";
 
 export interface GitHubIssueStatus {
   state: "open" | "closed";
   title: string;
   labels: Array<{ name: string; color: string }>;
   assignees: Array<{ login: string; avatar_url: string }>;
-  project?: string;
+  projects?: Array<{
+    name: string;
+    status?: string; // Status field value (e.g., "In Progress", "Backlog")
+  }>;
 }
 
 export interface GitHubPRStatus {
@@ -19,7 +23,10 @@ export interface GitHubPRStatus {
   commentsCount: number;
   mergeable: boolean | null;
   merged: boolean;
-  project?: string;
+  projects?: Array<{
+    name: string;
+    status?: string; // Status field value (e.g., "In Progress", "Backlog")
+  }>;
 }
 
 @Injectable()
@@ -36,6 +43,222 @@ export class GitHubApiService {
   }
 
   /**
+   * Check if we can access a repository (helps distinguish 404 between "doesn't exist" and "no access")
+   */
+  private async checkRepositoryAccess(
+    octokit: Octokit,
+    owner: string,
+    repo: string,
+  ): Promise<{ accessible: boolean; isPrivate?: boolean }> {
+    try {
+      const response = await octokit.rest.repos.get({
+        owner,
+        repo,
+      });
+      return {
+        accessible: true,
+        isPrivate: response.data.private,
+      };
+    } catch (error: unknown) {
+      if (isApiError(error) && error.code === 404) {
+        // Could be "doesn't exist" or "no access" - we can't distinguish
+        return { accessible: false };
+      }
+      // Other errors (401, 403) indicate permission issues
+      return { accessible: false };
+    }
+  }
+
+  /**
+   * Fetch projects that an issue/PR is part of using GraphQL API
+   */
+  private async fetchIssueProjects(
+    token: string,
+    owner: string,
+    repo: string,
+    issueNumber: number,
+  ): Promise<Array<{ name: string; status?: string }>> {
+    try {
+      const octokit = this.createClient(token);
+
+      const query = `
+        query($owner: String!, $repo: String!, $issueNumber: Int!) {
+          repository(owner: $owner, name: $repo) {
+            issue(number: $issueNumber) {
+              projectItems(first: 20) {
+                nodes {
+                  project {
+                    ... on ProjectV2 {
+                      title
+                    }
+                  }
+                  fieldValues(first: 10) {
+                    nodes {
+                      ... on ProjectV2ItemFieldSingleSelectValue {
+                        field {
+                          ... on ProjectV2FieldCommon {
+                            name
+                          }
+                        }
+                        name
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      `;
+
+      let response: any;
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        response = await octokit.graphql<any>(query, {
+          owner,
+          repo,
+          issueNumber,
+        });
+      } catch (error: any) {
+        // GraphQL can return errors but still have data in the response
+        // GitHub API sometimes returns errors with responseData containing the actual data
+        // Check multiple possible locations for the data
+        if (error?.responseData) {
+          this.logger.debug(
+            `GraphQL returned error but has responseData for ${owner}/${repo}#${issueNumber}`,
+          );
+          response = error.responseData;
+        } else if (error?.data) {
+          this.logger.debug(
+            `GraphQL returned error but has data for ${owner}/${repo}#${issueNumber}`,
+          );
+          response = error.data;
+        } else if (error?.response?.data) {
+          this.logger.debug(
+            `GraphQL returned error but has response.data for ${owner}/${repo}#${issueNumber}`,
+          );
+          response = error.response.data;
+        } else {
+          // No data in error, log and re-throw
+          this.logger.debug(
+            `GraphQL error with no usable data for ${owner}/${repo}#${issueNumber}`,
+            { error: error?.message || getErrorMessage(error) },
+          );
+          throw error;
+        }
+      }
+
+      this.logger.debug(
+        `GraphQL response for ${owner}/${repo}#${issueNumber}:`,
+        JSON.stringify(response, null, 2),
+      );
+
+      if (!response?.repository?.issue?.projectItems?.nodes) {
+        this.logger.debug(
+          `No project items found in GraphQL response for ${owner}/${repo}#${issueNumber}`,
+        );
+        return [];
+      }
+
+      const projects: Array<{ name: string; status?: string }> = [];
+
+      this.logger.debug(
+        `Processing ${response.repository.issue.projectItems.nodes.length} project item(s) for ${owner}/${repo}#${issueNumber}`,
+      );
+
+      for (const item of response.repository.issue.projectItems.nodes) {
+        // Skip null items (GitHub API can return null in the nodes array)
+        if (!item) {
+          this.logger.debug(
+            `Skipping null project item for ${owner}/${repo}#${issueNumber}`,
+          );
+          continue;
+        }
+
+        // Extract project name - might be null due to permissions, but we can still get field values
+        const projectName = item?.project?.title;
+        let status: string | undefined;
+
+        // Log the full item structure for debugging
+        this.logger.debug(
+          `Raw project item for ${owner}/${repo}#${issueNumber}:`,
+          JSON.stringify(item, null, 2),
+        );
+
+        // Find the status field value
+        if (item.fieldValues?.nodes) {
+          for (const fieldValue of item.fieldValues.nodes) {
+            if (!fieldValue) continue;
+            
+            const fieldName = fieldValue.field?.name?.toLowerCase();
+            this.logger.debug(
+              `Checking field: ${fieldName}, value: ${fieldValue.name}`,
+            );
+            
+            if (fieldName === "status") {
+              status = fieldValue.name;
+              break;
+            }
+          }
+        }
+
+        this.logger.debug(
+          `Project item for ${owner}/${repo}#${issueNumber}:`,
+          {
+            projectName,
+            status,
+            hasProject: !!item?.project,
+            hasFieldValues: !!item?.fieldValues?.nodes,
+            fieldValueCount: item?.fieldValues?.nodes?.length || 0,
+            projectObject: item?.project ? JSON.stringify(item.project) : 'null',
+          },
+        );
+
+        // Only add project if we have a name OR a status (some permissions might allow field values but not project name)
+        if (projectName || status) {
+          projects.push({
+            name: projectName || 'Unknown Project',
+            ...(status && { status }),
+          });
+          this.logger.debug(
+            `Added project: ${projectName || 'Unknown Project'}, status: ${status || 'none'}`,
+          );
+        } else {
+          this.logger.debug(
+            `Skipping project item with no name or status for ${owner}/${repo}#${issueNumber}`,
+            { 
+              item: JSON.stringify(item),
+              projectName,
+              status,
+              fieldValues: item?.fieldValues?.nodes,
+            },
+          );
+        }
+      }
+
+      this.logger.debug(
+        `Successfully fetched ${projects.length} project(s) for ${owner}/${repo}#${issueNumber}`,
+      );
+      return projects;
+    } catch (error: unknown) {
+      // Log error but don't throw - we want to continue even if project fetching fails
+      const errorMessage = getErrorMessage(error);
+      const apiError = isApiError(error) ? error : null;
+      const errorStatus = apiError?.status || apiError?.code;
+      
+      this.logger.warn(
+        `Failed to fetch projects for ${owner}/${repo}#${issueNumber}`,
+        {
+          message: errorMessage,
+          status: errorStatus,
+          responseData: apiError?.response?.data,
+        },
+      );
+      return [];
+    }
+  }
+
+  /**
    * Fetch issue details from GitHub API
    */
   async fetchIssueStatus(
@@ -46,13 +269,13 @@ export class GitHubApiService {
   ): Promise<GitHubIssueStatus | null> {
     try {
       const octokit = this.createClient(token);
-      
+
       // Log the API endpoint being called
       const apiUrl = `GET /repos/${owner}/${repo}/issues/${issueNumber}`;
       this.logger.debug(
         `Fetching issue: ${owner}/${repo}#${issueNumber} (${apiUrl})`,
       );
-      
+
       const response = await octokit.rest.issues.get({
         owner,
         repo,
@@ -61,63 +284,93 @@ export class GitHubApiService {
 
       const issue = response.data;
 
-      // Try to get project information (if issue is in a project)
-      let project: string | undefined;
-      try {
-        // Note: Getting project info requires additional API calls
-        // For now, we'll skip it to avoid rate limits
-        // Can be enhanced later with GraphQL API
-      } catch (error) {
-        // Ignore project fetch errors
-      }
+      // Fetch project information using GraphQL
+      this.logger.debug(
+        `Fetching projects for issue ${owner}/${repo}#${issueNumber}`,
+      );
+      const projects = await this.fetchIssueProjects(
+        token,
+        owner,
+        repo,
+        issueNumber,
+      );
+      this.logger.debug(
+        `Found ${projects.length} project(s) for issue ${owner}/${repo}#${issueNumber}`,
+      );
 
       return {
         state: issue.state as "open" | "closed",
         title: issue.title,
-        labels: issue.labels.map((label: any) => ({
-          name: typeof label === "string" ? label : label.name,
-          color: typeof label === "string" ? "000000" : label.color || "000000",
-        })),
+        labels: issue.labels.map(
+          (label: { name?: string; color?: string } | string) => ({
+            name: typeof label === "string" ? label : label.name,
+            color:
+              typeof label === "string" ? "000000" : label.color || "000000",
+          }),
+        ),
         assignees: issue.assignees.map((assignee) => ({
           login: assignee.login,
           avatar_url: assignee.avatar_url,
         })),
-        project,
+        projects: projects.length > 0 ? projects : undefined,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       const apiUrl = `GET /repos/${owner}/${repo}/issues/${issueNumber}`;
       const fullUrl = `https://api.github.com/repos/${owner}/${repo}/issues/${issueNumber}`;
-      
+
+      const errorMessage = getErrorMessage(error);
+      const apiError = isApiError(error) ? error : null;
+      const errorStatus = apiError?.status || apiError?.code;
+      const errorResponse = apiError?.response;
+
       this.logger.error(
         `Failed to fetch issue ${owner}/${repo}#${issueNumber}`,
         {
-          message: error.message,
-          status: error.status,
-          statusText: error.response?.statusText,
+          message: errorMessage,
+          status: errorStatus,
           url: fullUrl,
           apiEndpoint: apiUrl,
           owner,
           repo,
           issueNumber,
           // Log response details if available
-          responseData: error.response?.data,
+          responseData: errorResponse?.data,
           // Check if it's a permissions issue
-          isPermissionError: error.status === 401 || error.status === 403,
-          isNotFound: error.status === 404,
+          isPermissionError: errorStatus === 401 || errorStatus === 403,
+          isNotFound: errorStatus === 404,
         },
       );
-      
-      if (error.status === 401 || error.status === 403) {
+
+      if (errorStatus === 401 || errorStatus === 403) {
         throw new Error("GitHub token is invalid or expired");
       }
-      
+
       // Log additional context for 404 errors
-      if (error.status === 404) {
-        this.logger.warn(
-          `Issue ${owner}/${repo}#${issueNumber} not found. Possible reasons: Issue doesn't exist, repository is private and token lacks access, or repository/issue was deleted.`,
-        );
+      if (errorStatus === 404) {
+        // Try to check if we can access the repository at all
+        try {
+          const repoAccess = await this.checkRepositoryAccess(
+            this.createClient(token),
+            owner,
+            repo,
+          );
+
+          if (!repoAccess.accessible) {
+            this.logger.warn(
+              `Issue ${owner}/${repo}#${issueNumber} returned 404. Repository ${owner}/${repo} is not accessible with the current token. This likely means the repository is private and the token lacks access, or the repository doesn't exist.`,
+            );
+          } else {
+            this.logger.warn(
+              `Issue ${owner}/${repo}#${issueNumber} not found, but repository ${owner}/${repo} is accessible. The issue may not exist or may have been deleted.`,
+            );
+          }
+        } catch (repoCheckError: unknown) {
+          this.logger.warn(
+            `Issue ${owner}/${repo}#${issueNumber} not found. Could not verify repository access: ${getErrorMessage(repoCheckError)}. Possible reasons: Issue doesn't exist, repository is private and token lacks access, or repository/issue was deleted.`,
+          );
+        }
       }
-      
+
       return null;
     }
   }
@@ -125,6 +378,7 @@ export class GitHubApiService {
   /**
    * Fetch pull request details from GitHub API
    */
+  // eslint-disable-next-line max-lines-per-function, complexity, max-statements
   async fetchPRStatus(
     token: string,
     owner: string,
@@ -154,14 +408,18 @@ export class GitHubApiService {
               repo,
               pull_number: prNumber,
             })
-            .catch(() => ({ data: [] })), // Ignore errors, default to empty
+            // eslint-disable-next-line id-denylist
+            .catch(() => ({ data: [] })),
+          // Ignore errors, default to empty
           octokit.rest.issues
             .listComments({
               owner,
               repo,
               issue_number: prNumber,
             })
-            .catch(() => ({ data: [] })), // Ignore errors, default to empty
+            // eslint-disable-next-line id-denylist
+            .catch(() => ({ data: [] })),
+          // Ignore errors, default to empty
         ],
       );
 
@@ -206,22 +464,30 @@ export class GitHubApiService {
         reviewStatus = "pending";
       }
 
-      // Try to get project information
-      let project: string | undefined;
-      try {
-        // Note: Getting project info requires additional API calls
-        // For now, we'll skip it to avoid rate limits
-      } catch (error) {
-        // Ignore project fetch errors
-      }
+      // Fetch project information using GraphQL (PRs use the same issue endpoint)
+      this.logger.debug(
+        `Fetching projects for PR ${owner}/${repo}#${prNumber}`,
+      );
+      const projects = await this.fetchIssueProjects(
+        token,
+        owner,
+        repo,
+        prNumber,
+      );
+      this.logger.debug(
+        `Found ${projects.length} project(s) for PR ${owner}/${repo}#${prNumber}`,
+      );
 
       return {
         state: pr.merged ? "merged" : (pr.state as "open" | "closed"),
         title: pr.title,
-        labels: pr.labels.map((label: any) => ({
-          name: typeof label === "string" ? label : label.name,
-          color: typeof label === "string" ? "000000" : label.color || "000000",
-        })),
+        labels: pr.labels.map(
+          (label: { name?: string; color?: string } | string) => ({
+            name: typeof label === "string" ? label : label.name,
+            color:
+              typeof label === "string" ? "000000" : label.color || "000000",
+          }),
+        ),
         assignees: pr.assignees.map((assignee) => ({
           login: assignee.login,
           avatar_url: assignee.avatar_url,
@@ -230,42 +496,63 @@ export class GitHubApiService {
         commentsCount: comments.length,
         mergeable: pr.mergeable,
         merged: pr.merged || false,
-        project,
+        projects: projects.length > 0 ? projects : undefined,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       const apiUrl = `GET /repos/${owner}/${repo}/pulls/${prNumber}`;
       const fullUrl = `https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`;
-      
-      this.logger.error(
-        `Failed to fetch PR ${owner}/${repo}#${prNumber}`,
-        {
-          message: error.message,
-          status: error.status,
-          statusText: error.response?.statusText,
-          url: fullUrl,
-          apiEndpoint: apiUrl,
-          owner,
-          repo,
-          prNumber,
-          // Log response details if available
-          responseData: error.response?.data,
-          // Check if it's a permissions issue
-          isPermissionError: error.status === 401 || error.status === 403,
-          isNotFound: error.status === 404,
-        },
-      );
-      
-      if (error.status === 401 || error.status === 403) {
+
+      const errorMessage = getErrorMessage(error);
+      const apiError = isApiError(error) ? error : null;
+      const errorStatus = apiError?.status || apiError?.code;
+      const errorResponse = apiError?.response;
+
+      this.logger.error(`Failed to fetch PR ${owner}/${repo}#${prNumber}`, {
+        message: errorMessage,
+        status: errorStatus,
+        statusText: errorResponse?.statusText,
+        url: fullUrl,
+        apiEndpoint: apiUrl,
+        owner,
+        repo,
+        prNumber,
+        // Log response details if available
+        responseData: errorResponse?.data,
+        // Check if it's a permissions issue
+        isPermissionError: errorStatus === 401 || errorStatus === 403,
+        isNotFound: errorStatus === 404,
+      });
+
+      if (errorStatus === 401 || errorStatus === 403) {
         throw new Error("GitHub token is invalid or expired");
       }
-      
+
       // Log additional context for 404 errors
-      if (error.status === 404) {
-        this.logger.warn(
-          `PR ${owner}/${repo}#${prNumber} not found. Possible reasons: PR doesn't exist, repository is private and token lacks access, or repository/PR was deleted.`,
-        );
+      if (errorStatus === 404) {
+        // Try to check if we can access the repository at all
+        try {
+          const repoAccess = await this.checkRepositoryAccess(
+            this.createClient(token),
+            owner,
+            repo,
+          );
+
+          if (!repoAccess.accessible) {
+            this.logger.warn(
+              `PR ${owner}/${repo}#${prNumber} returned 404. Repository ${owner}/${repo} is not accessible with the current token. This likely means the repository is private and the token lacks access, or the repository doesn't exist.`,
+            );
+          } else {
+            this.logger.warn(
+              `PR ${owner}/${repo}#${prNumber} not found, but repository ${owner}/${repo} is accessible. The PR may not exist or may have been deleted.`,
+            );
+          }
+        } catch (repoCheckError: unknown) {
+          this.logger.warn(
+            `PR ${owner}/${repo}#${prNumber} not found. Could not verify repository access: ${getErrorMessage(repoCheckError)}. Possible reasons: PR doesn't exist, repository is private and token lacks access, or repository/PR was deleted.`,
+          );
+        }
       }
-      
+
       return null;
     }
   }
@@ -303,14 +590,176 @@ export class GitHubApiService {
         if (status) {
           results.set(link.url, status);
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         this.logger.error(
-          `Error fetching status for ${link.url}: ${error.message}`,
+          `Error fetching status for ${link.url}: ${getErrorMessage(error)}`,
         );
       }
     });
 
     await Promise.all(promises);
     return results;
+  }
+
+  /**
+   * Create a new GitHub issue
+   */
+  async createIssue(
+    token: string,
+    owner: string,
+    repo: string,
+    title: string,
+    body: string,
+    labels?: string[],
+  ): Promise<unknown> {
+    try {
+      const octokit = this.createClient(token);
+      const response = await octokit.rest.issues.create({
+        owner,
+        repo,
+        title,
+        body,
+        labels,
+      });
+      return response.data;
+    } catch (error: unknown) {
+      const errorMessage = getErrorMessage(error);
+      const apiError = isApiError(error) ? error : null;
+      const errorStatus = apiError?.status || apiError?.code;
+
+      this.logger.error(`Failed to create issue in ${owner}/${repo}`, {
+        message: errorMessage,
+        status: errorStatus,
+      });
+      if (errorStatus === 401 || errorStatus === 403) {
+        throw new Error("GitHub token is invalid or expired");
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Update issue status (open/closed)
+   */
+  async updateIssueStatus(
+    token: string,
+    owner: string,
+    repo: string,
+    issueNumber: number,
+    state: "open" | "closed",
+  ): Promise<unknown> {
+    try {
+      const octokit = this.createClient(token);
+      const response = await octokit.rest.issues.update({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        state,
+      });
+      return response.data;
+    } catch (error: unknown) {
+      const errorMessage = getErrorMessage(error);
+      const apiError = isApiError(error) ? error : null;
+      const errorStatus = apiError?.status || apiError?.code;
+
+      this.logger.error(
+        `Failed to update issue ${owner}/${repo}#${issueNumber}`,
+        {
+          message: errorMessage,
+          status: errorStatus,
+        },
+      );
+      if (errorStatus === 401 || errorStatus === 403) {
+        throw new Error("GitHub token is invalid or expired");
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Add a comment to an issue
+   */
+  async addIssueComment(
+    token: string,
+    owner: string,
+    repo: string,
+    issueNumber: number,
+    body: string,
+  ): Promise<unknown> {
+    try {
+      const octokit = this.createClient(token);
+      const response = await octokit.rest.issues.createComment({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        body,
+      });
+      return response.data;
+    } catch (error: unknown) {
+      const errorMessage = getErrorMessage(error);
+      const apiError = isApiError(error) ? error : null;
+      const errorStatus = apiError?.status || apiError?.code;
+
+      this.logger.error(
+        `Failed to add comment to ${owner}/${repo}#${issueNumber}`,
+        {
+          message: errorMessage,
+          status: errorStatus,
+        },
+      );
+      if (errorStatus === 401 || errorStatus === 403) {
+        throw new Error("GitHub token is invalid or expired");
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Search for issues using GitHub search API
+   */
+  async searchIssues(
+    token: string,
+    query: string,
+  ): Promise<
+    Array<{ number: number; title: string; state: string; url: string }>
+  > {
+    try {
+      const octokit = this.createClient(token);
+      const response = await octokit.rest.search.issuesAndPullRequests({
+        q: query,
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return response.data.items.map((item: any) => ({
+        number: item.number,
+        title: item.title,
+        state: item.state,
+        url: item.html_url,
+        repository: item.repository_url.replace(
+          "https://api.github.com/repos/",
+          "",
+        ),
+        body: item.body,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        labels: item.labels.map((label: any) => ({
+          name: label.name,
+          color: label.color,
+        })),
+        createdAt: item.created_at,
+        updatedAt: item.updated_at,
+      }));
+    } catch (error: unknown) {
+      const errorMessage = getErrorMessage(error);
+      const apiError = isApiError(error) ? error : null;
+      const errorStatus = apiError?.status || apiError?.code;
+
+      this.logger.error(`Failed to search issues with query: ${query}`, {
+        message: errorMessage,
+        status: errorStatus,
+      });
+      if (errorStatus === 401 || errorStatus === 403) {
+        throw new Error("GitHub token is invalid or expired");
+      }
+      throw error;
+    }
   }
 }

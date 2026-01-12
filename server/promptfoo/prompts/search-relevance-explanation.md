@@ -8,17 +8,17 @@ For each email, your explanation must:
 
 Search Query: {{query}}
 
-{{#if emails}}
+{% if emails %}
 You are processing multiple emails in parallel. For each email below, provide a specific explanation.
 
 Emails:
-{{#each emails}}
-Email {{@index}} (index: {{index}}):
-- From: {{from}}
-- Subject: {{subject}}
-- Preview: {{bodyPreview}}
-- Received: {{receivedAt}}{{isRecent}}
-{{/each}}
+{% for email in emails %}
+Email {{loop.index0}} (index: {{email.index}}):
+- From: {{email.from}}
+- Subject: {{email.subject}}
+- Preview: {{email.bodyPreview}}
+- Received: {{email.receivedAt}}{{email.isRecent}}
+{% endfor %}
 
 IMPORTANT: Don't just say "this email is relevant" - explain SPECIFICALLY why:
 - If the query asks about a person (e.g., "Is Jay coming?"), mention if the email is FROM that person or mentions them
@@ -53,23 +53,28 @@ IMPORTANT:
 - No additional text before or after
 - Use string keys that match the index numbers exactly
 - Include an explanation for EVERY email listed above
-{{else}}
-Email Details:
-- From: {{from}}
-- Subject: {{subject}}
-- Preview: {{bodyPreview}}
-- Received: {{receivedAt}}{{isRecent}}
+{% else %}
+Email to analyze:
+From: {{from}}
+Subject: {{subject}}
+Preview: {{bodyPreview}}
+Received: {{receivedAt}}{{isRecent}}
 
-IMPORTANT: Don't just say "this email is relevant" - explain SPECIFICALLY why:
-- If the query asks about a person (e.g., "Is Jay coming?"), mention if the email is FROM that person or mentions them
-- If the query asks about a topic, mention what in the subject or body relates to that topic
-- Be concrete: mention specific words, names, or details that connect the email to the query
+Search Query: {{query}}
 
-Example explanations:
-- "This email is from Jay Jackson and the subject 'Accepted: Jay Jeremy' indicates Jay accepted a meeting invitation, directly answering your question about whether Jay is coming to the meeting."
-- "Email from Jay (received 2 days ago) with subject mentioning meeting acceptance, which relates to your question about Jay's attendance."
-- "The sender is Jay and the email discusses meeting plans, making it relevant to your query about Jay's meeting attendance."
+CRITICAL INSTRUCTIONS:
+1. Use ONLY the email details shown above in the "From:", "Subject:", and "Preview:" fields.
+2. Do NOT use template syntax like {{from}} or {{subject}} in your response - use the actual values shown above.
+3. Do NOT invent or guess email details. Do NOT use names like "Alex", "Jessica", or any other names not shown above.
+4. Copy the exact sender name from the "From:" field above and use it in your explanation.
+5. Copy the exact subject from the "Subject:" field above and use it in your explanation.
+6. Copy the exact preview from the "Preview:" field above and use it in your explanation.
 
-Return ONLY the explanation text, no additional formatting or labels.
-{{/if}}
+Explain SPECIFICALLY why this email is relevant:
+- If the query asks about a person (e.g., "Is Jay coming?"), check if the sender name from "From:" matches that person's name or if the subject/preview mentions them
+- If the query asks about a topic, mention what in the subject or preview relates to that topic
+- Be concrete: mention the specific sender name from the "From:" field, subject words from the "Subject:" field, or preview content from the "Preview:" field
+
+Return ONLY the explanation text, no additional formatting or labels. Use the actual email details from the fields shown above, not template variables.
+{% endif %}
 

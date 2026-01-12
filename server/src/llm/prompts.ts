@@ -12,6 +12,7 @@ let promptsCache: Map<string, PromptConfig> | null = null;
 /**
  * Load prompts from markdown files in promptfoo/prompts/ directory
  */
+// eslint-disable-next-line max-lines-per-function, max-statements
 export function loadPrompts(): Map<string, PromptConfig> {
   if (promptsCache) {
     return promptsCache;
@@ -37,7 +38,8 @@ export function loadPrompts(): Map<string, PromptConfig> {
       }
     }
     const parentDir = path.dirname(currentDir);
-    if (parentDir === currentDir) break; // Reached filesystem root
+    // Reached filesystem root
+    if (parentDir === currentDir) break;
     currentDir = parentDir;
   }
 
@@ -50,16 +52,21 @@ export function loadPrompts(): Map<string, PromptConfig> {
 
   // Fallback paths
   possiblePaths.push(
-    path.join(__dirname, "../../promptfoo/prompts"), // From src/llm (source)
-    path.join(__dirname, "../../../promptfoo/prompts"), // From dist/src/llm (compiled)
-    path.join(process.cwd(), "promptfoo/prompts"), // From project root
-    path.join(process.cwd(), "server/promptfoo/prompts"), // From workspace root
+    // From src/llm (source)
+    path.join(__dirname, "../../promptfoo/prompts"),
+    // From dist/src/llm (compiled)
+    path.join(__dirname, "../../../promptfoo/prompts"),
+    // From project root
+    path.join(process.cwd(), "promptfoo/prompts"),
+    // From workspace root
+    path.join(process.cwd(), "server/promptfoo/prompts"),
   );
 
   let promptsDir: string | null = null;
   for (const possiblePath of possiblePaths) {
     if (fs.existsSync(possiblePath)) {
       promptsDir = possiblePath;
+      // eslint-disable-next-line no-console
       console.log(`Found prompts directory at: ${promptsDir}`);
       break;
     }
@@ -88,6 +95,7 @@ export function loadPrompts(): Map<string, PromptConfig> {
         prompt: content,
         systemPrompt: "",
       });
+      // eslint-disable-next-line no-console
       console.log("Loaded extract_action_items prompt");
     } else {
       console.warn(
@@ -144,6 +152,137 @@ export function loadPrompts(): Map<string, PromptConfig> {
         systemPrompt: "",
       });
     }
+
+    // Load generate-multiple-replies.md
+    const generateMultipleRepliesPath = path.join(
+      promptsDir,
+      "generate-multiple-replies.md",
+    );
+    if (fs.existsSync(generateMultipleRepliesPath)) {
+      const content = fs.readFileSync(generateMultipleRepliesPath, "utf-8");
+      promptsCache.set("generate_multiple_replies", {
+        id: "generate_multiple_replies",
+        prompt: content,
+        systemPrompt: "",
+      });
+    }
+
+    // Load generate-meeting-reply.md
+    const generateMeetingReplyPath = path.join(
+      promptsDir,
+      "generate-meeting-reply.md",
+    );
+    if (fs.existsSync(generateMeetingReplyPath)) {
+      const content = fs.readFileSync(generateMeetingReplyPath, "utf-8");
+      promptsCache.set("generate_meeting_reply", {
+        id: "generate_meeting_reply",
+        prompt: content,
+        systemPrompt: "",
+      });
+    }
+
+    // Load generate-follow-up.md
+    const generateFollowUpPath = path.join(promptsDir, "generate-follow-up.md");
+    if (fs.existsSync(generateFollowUpPath)) {
+      const content = fs.readFileSync(generateFollowUpPath, "utf-8");
+      promptsCache.set("generate_follow_up", {
+        id: "generate_follow_up",
+        prompt: content,
+        systemPrompt: "",
+      });
+    }
+
+    // Load analyze-priority-feedback.md
+    const analyzePriorityFeedbackPath = path.join(
+      promptsDir,
+      "analyze-priority-feedback.md",
+    );
+    if (fs.existsSync(analyzePriorityFeedbackPath)) {
+      const content = fs.readFileSync(analyzePriorityFeedbackPath, "utf-8");
+      promptsCache.set("analyze_priority_feedback", {
+        id: "analyze_priority_feedback",
+        prompt: content,
+        systemPrompt: "",
+      });
+    }
+
+    // Load extract-common-questions.md
+    const extractCommonQuestionsPath = path.join(
+      promptsDir,
+      "extract-common-questions.md",
+    );
+    if (fs.existsSync(extractCommonQuestionsPath)) {
+      const content = fs.readFileSync(extractCommonQuestionsPath, "utf-8");
+      promptsCache.set("extract_common_questions", {
+        id: "extract_common_questions",
+        prompt: content,
+        systemPrompt: "",
+      });
+    }
+
+    // Load summarize-email-tldr.md
+    const summarizeEmailTldrPath = path.join(
+      promptsDir,
+      "summarize-email-tldr.md",
+    );
+    if (fs.existsSync(summarizeEmailTldrPath)) {
+      const content = fs.readFileSync(summarizeEmailTldrPath, "utf-8");
+      promptsCache.set("summarize_email_tldr", {
+        id: "summarize_email_tldr",
+        prompt: content,
+        systemPrompt: "",
+      });
+    }
+
+    // Load summarize-email-bullets.md
+    const summarizeEmailBulletsPath = path.join(
+      promptsDir,
+      "summarize-email-bullets.md",
+    );
+    if (fs.existsSync(summarizeEmailBulletsPath)) {
+      const content = fs.readFileSync(summarizeEmailBulletsPath, "utf-8");
+      promptsCache.set("summarize_email_bullets", {
+        id: "summarize_email_bullets",
+        prompt: content,
+        systemPrompt: "",
+      });
+    }
+
+    // Load summarize-email-actions.md
+    const summarizeEmailActionsPath = path.join(
+      promptsDir,
+      "summarize-email-actions.md",
+    );
+    if (fs.existsSync(summarizeEmailActionsPath)) {
+      const content = fs.readFileSync(summarizeEmailActionsPath, "utf-8");
+      promptsCache.set("summarize_email_actions", {
+        id: "summarize_email_actions",
+        prompt: content,
+        systemPrompt: "",
+      });
+    }
+
+    // Load check-tone-style.md
+    const checkToneStylePath = path.join(promptsDir, "check-tone-style.md");
+    if (fs.existsSync(checkToneStylePath)) {
+      const content = fs.readFileSync(checkToneStylePath, "utf-8");
+      promptsCache.set("check_tone_style", {
+        id: "check_tone_style",
+        prompt: content,
+        systemPrompt: "",
+      });
+    }
+
+    // Load suggest-actions.md
+    const suggestActionsPath = path.join(promptsDir, "suggest-actions.md");
+    if (fs.existsSync(suggestActionsPath)) {
+      const content = fs.readFileSync(suggestActionsPath, "utf-8");
+      promptsCache.set("suggest_actions", {
+        id: "suggest_actions",
+        prompt: content,
+        systemPrompt: "",
+      });
+    }
   } catch (error) {
     console.error("Failed to load prompts from markdown files:", error);
   }
@@ -160,18 +299,18 @@ export function getPrompt(id: string): PromptConfig | null {
 }
 
 /**
- * Render a prompt template with variables
+ * Render a prompt template with variables (Nunjucks syntax)
  */
 export function renderPrompt(
   template: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   vars: Record<string, any>,
 ): string {
   let result = template;
 
-  // Handle {{#if var}}...{{else}}...{{/if}} blocks FIRST (before each loops)
-  // This needs to handle the case where the condition is an array
+  // Handle {% if var %}...{% else %}...{% endif %} blocks FIRST (before for loops)
   result = result.replace(
-    /\{\{#if\s+(\w+)\}\}([\s\S]*?)(?:\{\{else\}\}([\s\S]*?))?\{\{\/if\}\}/g,
+    /\{%\s*if\s+(\w+)\s*%\}([\s\S]*?)(?:\{%\s*else\s*%\}([\s\S]*?))?\{%\s*endif\s*%\}/g,
     (match, key, ifContent, elseContent) => {
       const value = vars[key];
       // Arrays are truthy, but empty arrays should be falsy for this check
@@ -180,21 +319,40 @@ export function renderPrompt(
     },
   );
 
-  // Handle {{#each array}}...{{/each}} blocks (after if blocks)
+  // Handle {% for item in array %}...{% endfor %} blocks (after if blocks)
   result = result.replace(
-    /\{\{#each\s+(\w+)\}\}([\s\S]*?)\{\{\/each\}\}/g,
-    (match, arrayKey, content) => {
+    /\{%\s*for\s+(\w+)\s+in\s+(\w+)\s*%\}([\s\S]*?)\{%\s*endfor\s*%\}/g,
+    (match, itemVar, arrayKey, content) => {
       const array = vars[arrayKey];
       if (!Array.isArray(array) || array.length === 0) {
         return "";
       }
       return array
         .map((item, index) => {
-          // Replace {{@index}} with the index
-          let itemContent = content.replace(/\{\{@index\}\}/g, String(index));
-          // Replace {{property}} with item.property
-          itemContent = itemContent.replace(/\{\{(\w+)\}\}/g, (m, prop) => {
-            return item[prop] !== undefined ? String(item[prop]) : m;
+          // Replace loop.index0 with the index (Nunjucks convention)
+          let itemContent = content.replace(
+            /\{\{\s*loop\.index0\s*\}\}/g,
+            String(index),
+          );
+          // Replace {{itemVar.property}} with item.property
+          itemContent = itemContent.replace(
+            new RegExp(`\\{\\{\\s*${itemVar}\\.(\\w+)\\s*\\}\\}`, "g"),
+            (match, prop) =>
+              item[prop] !== undefined ? String(item[prop]) : match,
+          );
+          // Also support {{itemVar}} directly (for objects)
+          itemContent = itemContent.replace(
+            new RegExp(`\\{\\{\\s*${itemVar}\\s*\\}\\}`, "g"),
+            typeof item === "object" ? JSON.stringify(item) : String(item),
+          );
+          // Replace {{property}} with item.property (when itemVar context is implied)
+          itemContent = itemContent.replace(/\{\{(\w+)\}\}/g, (match, prop) => {
+            // If this property exists in the item, use it; otherwise try vars
+            if (item[prop] !== undefined) {
+              return String(item[prop]);
+            }
+            // Fallback to vars if not in item
+            return vars[prop] !== undefined ? String(vars[prop]) : match;
           });
           return itemContent;
         })
@@ -202,10 +360,10 @@ export function renderPrompt(
     },
   );
 
-  // Simple template rendering: {{var}} - replace variables
-  result = result.replace(/\{\{(\w+)\}\}/g, (match, key) => {
-    return vars[key] !== undefined ? String(vars[key]) : match;
-  });
+  // Simple template rendering: {{var}} - replace variables (this works the same in both syntaxes)
+  result = result.replace(/\{\{(\w+)\}\}/g, (match, key) =>
+    vars[key] !== undefined ? String(vars[key]) : match,
+  );
 
   return result;
 }

@@ -73,6 +73,7 @@ async function createBoss(): Promise<PgBoss> {
 }
 
 async function testConcurrentSyncs(boss: PgBoss): Promise<LoadTestResult> {
+  // eslint-disable-next-line no-console
   console.log("\n=== Testing Concurrent Email Syncs ===");
   const result: LoadTestResult = {
     scenario: "concurrent-syncs",
@@ -88,36 +89,47 @@ async function testConcurrentSyncs(boss: PgBoss): Promise<LoadTestResult> {
           "sync-emails",
           { userId },
           {
-            priority: 80, // High priority
+            priority: 80,
+            // High priority
             singletonKey: `sync-emails-${userId}`,
           },
         );
         result.jobsQueued++;
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
         result.errors.push(
-          `Failed to queue sync for ${userId}: ${error.message}`,
+          `Failed to queue sync for ${userId}: ${errorMessage}`,
         );
       }
     });
 
     await Promise.all(promises);
-  } catch (error: any) {
-    result.errors.push(`Test failed: ${error.message}`);
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    result.errors.push(`Test failed: ${errorMessage}`);
   }
 
   result.endTime = Date.now();
   result.duration = result.endTime - result.startTime;
 
+  // eslint-disable-next-line no-console
   console.log(`Queued ${result.jobsQueued} sync jobs in ${result.duration}ms`);
   if (result.errors.length > 0) {
+    // eslint-disable-next-line no-console
     console.log(`Errors: ${result.errors.length}`);
-    result.errors.forEach((err) => console.error(`  - ${err}`));
+    result.errors.forEach((err) => {
+      // eslint-disable-next-line no-console
+      console.error(`  - ${err}`);
+    });
   }
 
   return result;
 }
 
 async function testPriorityBurst(boss: PgBoss): Promise<LoadTestResult> {
+  // eslint-disable-next-line no-console
   console.log("\n=== Testing Priority Refinement Burst ===");
   const result: LoadTestResult = {
     scenario: "priority-burst",
@@ -135,38 +147,49 @@ async function testPriorityBurst(boss: PgBoss): Promise<LoadTestResult> {
           "refine-priority",
           { userId, emailId },
           {
-            priority: 80, // High priority
+            priority: 80,
+            // High priority
             singletonKey: `refine-priority-${emailId}`,
           },
         );
         result.jobsQueued++;
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
         result.errors.push(
-          `Failed to queue priority job for ${emailId}: ${error.message}`,
+          `Failed to queue priority job for ${emailId}: ${errorMessage}`,
         );
       }
     });
 
     await Promise.all(promises);
-  } catch (error: any) {
-    result.errors.push(`Test failed: ${error.message}`);
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    result.errors.push(`Test failed: ${errorMessage}`);
   }
 
   result.endTime = Date.now();
   result.duration = result.endTime - result.startTime;
 
+  // eslint-disable-next-line no-console
   console.log(
     `Queued ${result.jobsQueued} priority refinement jobs in ${result.duration}ms`,
   );
   if (result.errors.length > 0) {
+    // eslint-disable-next-line no-console
     console.log(`Errors: ${result.errors.length}`);
-    result.errors.forEach((err) => console.error(`  - ${err}`));
+    result.errors.forEach((err) => {
+      // eslint-disable-next-line no-console
+      console.error(`  - ${err}`);
+    });
   }
 
   return result;
 }
 
 async function testMixedWorkload(boss: PgBoss): Promise<LoadTestResult> {
+  // eslint-disable-next-line no-console
   console.log("\n=== Testing Mixed Workload ===");
   const result: LoadTestResult = {
     scenario: "mixed-workload",
@@ -194,13 +217,16 @@ async function testMixedWorkload(boss: PgBoss): Promise<LoadTestResult> {
           .then(() => {
             result.jobsQueued++;
           })
-          .catch((err: any) => {
-            result.errors.push(`Sync for ${userId}: ${err.message}`);
+          .catch((err: unknown) => {
+            const errorMessage =
+              err instanceof Error ? err.message : "Unknown error";
+            result.errors.push(`Sync for ${userId}: ${errorMessage}`);
           }),
       );
     }
 
     // Queue priority refinement for 20 emails
+    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
     for (let i = 0; i < 20; i++) {
       const emailId = TEST_EMAIL_IDS[i];
       jobs.push(
@@ -216,14 +242,18 @@ async function testMixedWorkload(boss: PgBoss): Promise<LoadTestResult> {
           .then(() => {
             result.jobsQueued++;
           })
-          .catch((err: any) => {
-            result.errors.push(`Priority for ${emailId}: ${err.message}`);
+          .catch((err: unknown) => {
+            const errorMessage =
+              err instanceof Error ? err.message : "Unknown error";
+            result.errors.push(`Priority for ${emailId}: ${errorMessage}`);
           }),
       );
     }
 
     // Queue summary generation for 10 emails
+    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
     for (let i = 0; i < 10; i++) {
+      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
       const emailId = TEST_EMAIL_IDS[i + 20];
       jobs.push(
         boss
@@ -238,14 +268,18 @@ async function testMixedWorkload(boss: PgBoss): Promise<LoadTestResult> {
           .then(() => {
             result.jobsQueued++;
           })
-          .catch((err: any) => {
-            result.errors.push(`Summary for ${emailId}: ${err.message}`);
+          .catch((err: unknown) => {
+            const errorMessage =
+              err instanceof Error ? err.message : "Unknown error";
+            result.errors.push(`Summary for ${emailId}: ${errorMessage}`);
           }),
       );
     }
 
     // Queue learning jobs
+    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
     for (let i = 0; i < 10; i++) {
+      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
       const emailId = TEST_EMAIL_IDS[i + 30];
       jobs.push(
         boss
@@ -253,38 +287,49 @@ async function testMixedWorkload(boss: PgBoss): Promise<LoadTestResult> {
             "learn-from-star",
             { userId: TEST_USER_IDS[0], emailId, starCount: 3 },
             {
-              priority: 10, // Low priority
+              priority: 10,
+              // Low priority
             },
           )
           .then(() => {
             result.jobsQueued++;
           })
-          .catch((err: any) => {
-            result.errors.push(`Learn for ${emailId}: ${err.message}`);
+          .catch((err: unknown) => {
+            const errorMessage =
+              err instanceof Error ? err.message : "Unknown error";
+            result.errors.push(`Learn for ${emailId}: ${errorMessage}`);
           }),
       );
     }
 
     await Promise.all(jobs);
-  } catch (error: any) {
-    result.errors.push(`Test failed: ${error.message}`);
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    result.errors.push(`Test failed: ${errorMessage}`);
   }
 
   result.endTime = Date.now();
   result.duration = result.endTime - result.startTime;
 
+  // eslint-disable-next-line no-console
   console.log(
     `Queued ${result.jobsQueued} mixed workload jobs in ${result.duration}ms`,
   );
   if (result.errors.length > 0) {
+    // eslint-disable-next-line no-console
     console.log(`Errors: ${result.errors.length}`);
-    result.errors.forEach((err) => console.error(`  - ${err}`));
+    result.errors.forEach((err) => {
+      // eslint-disable-next-line no-console
+      console.error(`  - ${err}`);
+    });
   }
 
   return result;
 }
 
 async function getQueueStats(boss: PgBoss): Promise<void> {
+  // eslint-disable-next-line no-console
   console.log("\n=== Current Queue Statistics ===");
 
   const queueNames = [
@@ -299,14 +344,31 @@ async function getQueueStats(boss: PgBoss): Promise<void> {
   for (const queueName of queueNames) {
     try {
       // getJobCounts exists at runtime but not in TypeScript types
-      const counts = await (boss as any).getJobCounts(queueName);
+      const counts = await (
+        boss as {
+          getJobCounts?: (queueName: string) => Promise<{
+            pending?: number;
+            active?: number;
+            completed?: number;
+            failed?: number;
+          }>;
+        }
+      ).getJobCounts?.(queueName);
+      // eslint-disable-next-line no-console
       console.log(`${queueName}:`);
-      console.log(`  Pending: ${counts.pending || 0}`);
-      console.log(`  Active: ${counts.active || 0}`);
-      console.log(`  Completed: ${counts.completed || 0}`);
-      console.log(`  Failed: ${counts.failed || 0}`);
-    } catch (error: any) {
-      console.error(`Failed to get stats for ${queueName}:`, error.message);
+      // eslint-disable-next-line no-console
+      console.log(`  Pending: ${counts?.pending || 0}`);
+      // eslint-disable-next-line no-console
+      console.log(`  Active: ${counts?.active || 0}`);
+      // eslint-disable-next-line no-console
+      console.log(`  Completed: ${counts?.completed || 0}`);
+      // eslint-disable-next-line no-console
+      console.log(`  Failed: ${counts?.failed || 0}`);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      // eslint-disable-next-line no-console
+      console.error(`Failed to get stats for ${queueName}:`, errorMessage);
     }
   }
 }
@@ -316,7 +378,9 @@ async function main() {
   const boss = await createBoss();
 
   try {
+    // eslint-disable-next-line no-console
     console.log("Starting load tests...");
+    // eslint-disable-next-line no-console
     console.log(`Scenario: ${scenario}`);
 
     // Get initial queue stats
@@ -337,22 +401,32 @@ async function main() {
     }
 
     // Wait a bit for jobs to process
+    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     console.log("\nWaiting 10 seconds for jobs to start processing...");
+    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
     await new Promise((resolve) => setTimeout(resolve, 10000));
 
     // Get final queue stats
     await getQueueStats(boss);
 
     // Print summary
+    // eslint-disable-next-line no-console
     console.log("\n=== Test Summary ===");
     results.forEach((result) => {
+      // eslint-disable-next-line no-console
       console.log(`\n${result.scenario}:`);
+      // eslint-disable-next-line no-console
       console.log(`  Jobs queued: ${result.jobsQueued}`);
+      // eslint-disable-next-line no-console
       console.log(`  Duration: ${result.duration}ms`);
+      // eslint-disable-next-line no-console
       console.log(`  Errors: ${result.errors.length}`);
     });
 
+    // eslint-disable-next-line no-console
     console.log("\n✅ Load tests completed!");
+    // eslint-disable-next-line no-console
     console.log(
       "\nNote: Check queue-metrics.log and resource-metrics.log for detailed metrics.",
     );

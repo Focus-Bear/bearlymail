@@ -1,17 +1,23 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { theme } from '../../theme/theme';
-import { captureEvent } from '../../utils/posthog';
+import { theme } from 'theme/theme';
+import { captureEvent } from 'utils/posthog';
+import { SidebarHeader } from 'components/inbox/sidebar/SidebarHeader';
+import { SidebarFooter } from 'components/inbox/sidebar/SidebarFooter';
+import { SettingsSubNavGroup as SettingsSubNavGroupComponent } from 'components/inbox/sidebar/SettingsSubNavGroup';
+import { SettingsSubNavItem as SettingsSubNavItemComponent } from 'components/inbox/sidebar/SettingsSubNavItem';
 
 interface SidebarItemProps {
   label: string;
   path: string;
+  icon?: string;
   active?: boolean;
   onClick?: () => void;
+  isCollapsed?: boolean;
 }
 
-const SidebarItem: React.FC<SidebarItemProps> = ({ label, path, active, onClick }) => {
+const SidebarItem: React.FC<SidebarItemProps> = ({ label, path, icon, active, onClick, isCollapsed }) => {
   const navigate = useNavigate();
   
   const handleClick = () => {
@@ -29,13 +35,15 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ label, path, active, onClick 
   return (
     <button
       onClick={handleClick}
+      title={isCollapsed ? label : undefined}
       style={{
         width: '100%',
-        padding: `${theme.spacing.md} ${theme.spacing.lg}`,
+        padding: isCollapsed ? `${theme.spacing.sm} ${theme.spacing.xs}` : `${theme.spacing.sm} ${theme.spacing.md}`,
         marginBottom: theme.spacing.xs,
         backgroundColor: active ? theme.colors.primary.subtle : 'transparent',
         color: active ? theme.colors.primary.main : theme.colors.text.secondary,
         border: 'none',
+        borderLeft: active ? `3px solid ${theme.colors.primary.main}` : '3px solid transparent',
         borderRadius: theme.borderRadius.md,
         cursor: 'pointer',
         fontSize: theme.typography.fontSize.base,
@@ -43,30 +51,54 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ label, path, active, onClick 
         textAlign: 'left',
         display: 'flex',
         alignItems: 'center',
+        justifyContent: isCollapsed ? 'center' : 'flex-start',
+        gap: theme.spacing.sm,
         transition: theme.transitions.fast,
+        position: 'relative',
       }}
       onMouseEnter={(e) => {
-        if (!active) e.currentTarget.style.backgroundColor = theme.colors.background.default;
+        if (!active) {
+          e.currentTarget.style.backgroundColor = theme.colors.background.default;
+          e.currentTarget.style.color = theme.colors.text.primary;
+        }
       }}
       onMouseLeave={(e) => {
-        if (!active) e.currentTarget.style.backgroundColor = 'transparent';
+        if (!active) {
+          e.currentTarget.style.backgroundColor = 'transparent';
+          e.currentTarget.style.color = theme.colors.text.secondary;
+        }
       }}
     >
-      {label}
+      {icon && (
+        <span style={{ 
+          fontSize: theme.typography.fontSize.lg,
+          display: 'flex',
+          alignItems: 'center',
+          width: isCollapsed ? 'auto' : '20px',
+          justifyContent: 'center',
+        }}>
+          {icon}
+        </span>
+      )}
+      {!isCollapsed && <span>{label}</span>}
     </button>
   );
 };
 
-interface SettingsSubNavItem {
+interface SettingsSubNavItemType {
   id: string;
   label: string;
   anchor: string;
 }
 
-interface SettingsSubNavGroup {
+interface SettingsSubNavGroupType {
   label: string;
-  items: SettingsSubNavItem[];
+  items: SettingsSubNavItemType[];
 }
+
+const getGroupKey = (label: string): string => {
+  return label.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+};
 
 const SettingsSubNav: React.FC<{ hash?: string }> = ({ hash }) => {
   const { t } = useTranslation();
@@ -76,27 +108,19 @@ const SettingsSubNav: React.FC<{ hash?: string }> = ({ hash }) => {
     'guide-our-ai': true,
     'integrations': true,
   });
-  
-  // Generate a group key from label for state tracking
-  const getGroupKey = (label: string): string => {
-    return label.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-  };
 
   const scrollToSection = (anchor: string) => {
     navigate(`/settings#${anchor}`, { replace: true });
+    const SCROLL_DELAY_MS = 50;
     setTimeout(() => {
       const element = document.getElementById(anchor);
       if (element) {
         element.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-    }, 50);
+    }, SCROLL_DELAY_MS);
   };
 
-  // Organized in logical groups:
-  // 1. Email Delivery (Gmail, Batching, Blocked Senders)
-  // 2. Guide our AI (Context, Tone, Summarization)
-  // 3. Integrations (External services)
-  const navItems: (SettingsSubNavItem | SettingsSubNavGroup)[] = [
+  const navItems: (SettingsSubNavItemType | SettingsSubNavGroupType)[] = [
     {
       label: t('settings.nav.emailDelivery'),
       items: [
@@ -126,83 +150,30 @@ const SettingsSubNav: React.FC<{ hash?: string }> = ({ hash }) => {
     <div style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs }}>
       {navItems.map((item) => {
         if ('items' in item) {
-          // It's a group
           const groupKey = getGroupKey(item.label);
           const isExpanded = expandedGroups[groupKey] ?? true;
           
           return (
-            <div key={item.label} style={{ marginBottom: theme.spacing.xs }}>
-              <button
-                onClick={() => setExpandedGroups(prev => ({ ...prev, [groupKey]: !isExpanded }))}
-                style={{
-                  width: '100%',
-                  padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                  backgroundColor: 'transparent',
-                  color: theme.colors.text.secondary,
-                  border: 'none',
-                  borderRadius: theme.borderRadius.sm,
-                  cursor: 'pointer',
-                  fontSize: theme.typography.fontSize.sm,
-                  fontWeight: theme.typography.fontWeight.semibold,
-                  textAlign: 'left',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}
-              >
-                <span>{item.label}</span>
-                <span style={{ fontSize: theme.typography.fontSize.sm }}>
-                  {isExpanded ? '▼' : '▶'}
-                </span>
-              </button>
-              {isExpanded && (
-                <div style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs }}>
-                  {item.items.map((subItem) => (
-                    <button
-                      key={subItem.id}
-                      onClick={() => scrollToSection(subItem.anchor)}
-                      style={{
-                        width: '100%',
-                        padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                        backgroundColor: hash === `#${subItem.anchor}` ? theme.colors.primary.subtle : 'transparent',
-                        color: hash === `#${subItem.anchor}` ? theme.colors.primary.main : theme.colors.text.tertiary,
-                        border: 'none',
-                        borderRadius: theme.borderRadius.sm,
-                        cursor: 'pointer',
-                        fontSize: theme.typography.fontSize.sm,
-                        fontWeight: theme.typography.fontWeight.medium,
-                        textAlign: 'left',
-                      }}
-                    >
-                      {subItem.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <SettingsSubNavGroupComponent
+              key={item.label}
+              label={item.label}
+              items={item.items}
+              isExpanded={isExpanded}
+              hash={hash}
+              onToggle={() => setExpandedGroups(prev => ({ ...prev, [groupKey]: !isExpanded }))}
+              onScrollToSection={scrollToSection}
+            />
           );
         } else {
-          // It's a regular item
           return (
-            <button
+            <SettingsSubNavItemComponent
               key={item.id}
-              onClick={() => scrollToSection(item.anchor)}
-              style={{
-                width: '100%',
-                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                marginBottom: theme.spacing.xs,
-                backgroundColor: hash === `#${item.anchor}` ? theme.colors.primary.subtle : 'transparent',
-                color: hash === `#${item.anchor}` ? theme.colors.primary.main : theme.colors.text.tertiary,
-                border: 'none',
-                borderRadius: theme.borderRadius.sm,
-                cursor: 'pointer',
-                fontSize: theme.typography.fontSize.sm,
-                fontWeight: theme.typography.fontWeight.medium,
-                textAlign: 'left',
-              }}
-            >
-              {item.label}
-            </button>
+              id={item.id}
+              label={item.label}
+              anchor={item.anchor}
+              hash={hash}
+              onScrollToSection={scrollToSection}
+            />
           );
         }
       })}
@@ -213,107 +184,84 @@ const SettingsSubNav: React.FC<{ hash?: string }> = ({ hash }) => {
 interface SidebarProps {
   user: any;
   logout: () => void;
+  isCollapsed?: boolean;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ user, logout }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ user, logout, isCollapsed = false }) => {
   const { t } = useTranslation();
   const location = useLocation();
   const isSettingsPage = location.pathname === '/settings';
 
   return (
     <div style={{
-      width: '280px',
+      width: isCollapsed ? '80px' : '280px',
       backgroundColor: theme.colors.background.paper,
       borderRight: `1px solid ${theme.colors.border.light}`,
-      padding: theme.spacing.lg,
+      padding: isCollapsed ? theme.spacing.sm : `${theme.spacing.sm} ${theme.spacing.md}`,
       display: 'flex',
       flexDirection: 'column',
+      height: '100vh',
+      transition: 'width 0.3s ease, padding 0.3s ease',
     }}>
-      <div style={{ marginBottom: theme.spacing['2xl'], paddingLeft: theme.spacing.md, display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
-        <img 
-          src="/favicon.svg" 
-          alt="BearlyMail Icon" 
-          style={{ 
-            height: '28px', 
-            width: 'auto',
-            objectFit: 'contain'
-          }}
-        />
-        <h2 style={{
-          color: theme.colors.primary.main,
-          fontSize: theme.typography.fontSize.xl,
-          fontWeight: theme.typography.fontWeight.bold,
-          letterSpacing: '-0.02em',
-        }}>
-          {t('common.appName')}
-        </h2>
-      </div>
+      <SidebarHeader isCollapsed={isCollapsed} />
       
-      <nav style={{ flex: 1, overflowY: 'auto' }}>
-        <SidebarItem label={t('inbox.title')} path="/inbox" active={location.pathname === '/inbox'} />
-        <SidebarItem label="🔍 Search" path="/search" active={location.pathname === '/search'} />
-        <div>
-          <SidebarItem label={t('settings.title')} path="/settings" active={isSettingsPage} />
-          {isSettingsPage && <SettingsSubNav hash={location.hash} />}
-        </div>
+      <nav style={{ 
+        flex: 1, 
+        overflowY: 'auto', 
+        overflowX: 'hidden',
+        paddingRight: theme.spacing.xs,
+      }}>
+        <SidebarItem 
+          label={t('inbox.title')} 
+          path="/inbox" 
+          icon="📥"
+          active={location.pathname === '/inbox'}
+          isCollapsed={isCollapsed}
+        />
+        <SidebarItem 
+          label="Search" 
+          path="/search" 
+          icon="🔍"
+          active={location.pathname === '/search'}
+          isCollapsed={isCollapsed}
+        />
+        {!isCollapsed && (
+          <div style={{ marginTop: theme.spacing.xs }}>
+            <SidebarItem 
+              label={t('settings.title')} 
+              path="/settings" 
+              icon="⚙️"
+              active={isSettingsPage}
+              isCollapsed={isCollapsed}
+            />
+            {isSettingsPage && <SettingsSubNav hash={location.hash} />}
+          </div>
+        )}
+        {isCollapsed && (
+          <div style={{ marginTop: theme.spacing.xs }}>
+            <SidebarItem 
+              label={t('settings.title')} 
+              path="/settings" 
+              icon="⚙️"
+              active={isSettingsPage}
+              isCollapsed={isCollapsed}
+            />
+          </div>
+        )}
         {user?.isAdmin && (
-          <SidebarItem label={t('admin.title')} path="/admin" active={location.pathname === '/admin'} />
+          <div style={{ marginTop: theme.spacing.sm }}>
+            <SidebarItem 
+              label={t('admin.title')} 
+              path="/admin" 
+              icon="🛠️"
+              active={location.pathname === '/admin'}
+              isCollapsed={isCollapsed}
+            />
+          </div>
         )}
       </nav>
 
-      <div style={{ borderTop: `1px solid ${theme.colors.border.light}`, paddingTop: theme.spacing.md }}>
-        <div style={{
-          padding: theme.spacing.md,
-          fontSize: theme.typography.fontSize.sm,
-          color: theme.colors.text.secondary,
-          marginBottom: theme.spacing.sm,
-        }}>
-          {user?.email}
-        </div>
-        <button
-          onClick={() => {
-            captureEvent('sidebar_logout_clicked');
-            logout();
-          }}
-          style={{
-            width: '100%',
-            padding: theme.spacing.md,
-            backgroundColor: 'transparent',
-            color: theme.colors.text.secondary,
-            border: `1px solid ${theme.colors.border.medium}`,
-            borderRadius: theme.borderRadius.md,
-            cursor: 'pointer',
-            fontSize: theme.typography.fontSize.sm,
-            fontWeight: theme.typography.fontWeight.medium,
-            transition: theme.transitions.fast,
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = theme.colors.text.primary;
-            e.currentTarget.style.color = theme.colors.text.primary;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = theme.colors.border.medium;
-            e.currentTarget.style.color = theme.colors.text.secondary;
-          }}
-        >
-          {t('auth.logout')}
-        </button>
-      </div>
-      <footer style={{ marginTop: theme.spacing.xl, textAlign: 'center' }}>
-        <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.tertiary }}>
-          Made by{' '}
-        <a href="https://focusbear.io" target="_blank" rel="noopener noreferrer" onClick={() => captureEvent('sidebar_focusbear_link_clicked')} style={{ color: theme.colors.text.tertiary, textDecoration: 'none' }}>
-          Focus Bear
-        </a>
-        </span>
-        <a href="https://focusbear.io" target="_blank" rel="noopener noreferrer" onClick={() => captureEvent('sidebar_focusbear_link_clicked')}>
-          <img 
-            src="https://focus-bear.github.io/assets/focus-blocked/images/FocusBearLogo.svg" 
-            alt="Focus Bear Logo" 
-            style={{ height: '20px', marginLeft: theme.spacing.xs, verticalAlign: 'middle' }} 
-          />
-        </a>
-      </footer>
+      <SidebarFooter userEmail={user?.email} onLogout={logout} isCollapsed={isCollapsed} />
     </div>
   );
 };

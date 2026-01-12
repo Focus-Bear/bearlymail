@@ -12,6 +12,7 @@ import {
 } from "@nestjs/common";
 import { ActionItemsService } from "./action-items.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { ActionItem } from "../database/entities/action-item.entity";
 
 @Controller("action-items")
 @UseGuards(JwtAuthGuard)
@@ -19,7 +20,7 @@ export class ActionItemsController {
   constructor(private readonly actionItemsService: ActionItemsService) {}
 
   @Post()
-  async create(@Request() req, @Body() body: any) {
+  async create(@Request() req, @Body() body: Partial<ActionItem>) {
     return this.actionItemsService.create(req.user.userId, body);
   }
 
@@ -29,7 +30,11 @@ export class ActionItemsController {
   }
 
   @Put(":id")
-  async update(@Request() req, @Param("id") id: string, @Body() body: any) {
+  async update(
+    @Request() req,
+    @Param("id") id: string,
+    @Body() body: Partial<ActionItem>,
+  ) {
     return this.actionItemsService.update(req.user.userId, id, body);
   }
 

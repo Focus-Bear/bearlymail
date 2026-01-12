@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
-import { useAuth } from '../contexts/AuthContext';
-import { theme } from '../theme/theme';
-import { captureEvent } from '../utils/posthog';
+import { useAuth } from 'contexts/AuthContext';
+import { theme } from 'theme/theme';
+import { captureEvent } from 'utils/posthog';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 const SetupPassword: React.FC = () => {
   const { t } = useTranslation();

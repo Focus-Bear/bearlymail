@@ -1,0 +1,197 @@
+import { useEffect, useRef } from 'react';
+import axios from 'axios';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+interface UseEmailDetailInitializationProps {
+  id: string | undefined;
+  email: any;
+  isGeneratingSummary: boolean;
+  summaryType: string;
+  summary: string | null;
+  fetchCustomRules: () => Promise<any[]>;
+  fetchEmail: () => Promise<any>;
+  fetchGithubInfo: () => Promise<void>;
+  fetchSuggestedActions: () => Promise<void>;
+  fetchNote: () => Promise<void>;
+  fetchThreadEmails: () => Promise<void>;
+  handleUseCustomRule: (rule: any) => Promise<void>;
+  handleSummarize: (type: string) => Promise<void>;
+  setSummary: (summary: string | null) => void;
+  setSummaryType: (type: string) => void;
+  setSummaryCollapsed: (collapsed: boolean) => void;
+  setActionItems: (items: any[]) => void;
+  setExpandedThreadItems: (items: Set<string>) => void;
+  threadEmails: any[];
+}
+
+export const useEmailDetailInitialization = ({
+  id,
+  email,
+  isGeneratingSummary,
+  summaryType,
+  summary,
+  fetchCustomRules,
+  fetchEmail,
+  fetchGithubInfo,
+  fetchSuggestedActions,
+  fetchNote,
+  fetchThreadEmails,
+  handleUseCustomRule,
+  handleSummarize,
+  setSummary,
+  setSummaryType,
+  setSummaryCollapsed,
+  setActionItems,
+  setExpandedThreadItems,
+  threadEmails,
+}: UseEmailDetailInitializationProps) => {
+  // Track which email ID we've initialized to prevent re-initialization
+  const initializedEmailIdRef = useRef<string | null>(null);
+  const previousEmailIdRef = useRef<string | undefined>(undefined);
+  
+  // Reset initialization tracking when email ID changes, and track manual summaryType changes
+  useEffect(() => {
+    if (id !== previousEmailIdRef.current) {
+      // Email ID changed, reset initialization tracking
+      initializedEmailIdRef.current = null;
+      previousEmailIdRef.current = id;
+    } else if (id && summaryType !== 'tldr' && initializedEmailIdRef.current !== id) {
+      // User has manually selected a different summary type for the current email, mark as initialized
+      initializedEmailIdRef.current = id;
+    }
+  }, [id, summaryType]);
+  
+  useEffect(() => {
+    if (id) {
+      fetchCustomRules().then((rules) => {
+        fetchEmail().then(async (emailData) => {
+          // Only auto-select if:
+          // 1. We haven't initialized for this email yet
+          // 2. No summary exists yet (neither in state nor from API)
+          // 3. Email is not processing summary
+          // 4. We're not currently generating summary
+          // 5. SummaryType is still the default ('tldr') - meaning user hasn't manually selected yet
+          const shouldAutoSelect = 
+            initializedEmailIdRef.current !== id &&
+            emailData && 
+            !emailData.summary && 
+            !emailData.isProcessingSummary && 
+            !isGeneratingSummary &&
+            !summary &&
+            summaryType === 'tldr';
+          
+          if (shouldAutoSelect) {
+            const rulesList = rules || [];
+            
+            if (rulesList.length > 0) {
+              try {
+                // Try to match a rule automatically based on whenToUse criteria
+                const response = await axios.post(`${API_URL}/summarize/match-rule/${id}`);
+                const matchedRule = response.data?.rule;
+                
+                if (matchedRule && matchedRule.ruleId && matchedRule.whenToUse && matchedRule.howToSummarize) {
+                  // Use the matched rule
+                  initializedEmailIdRef.current = id;
+                  handleUseCustomRule(matchedRule);
+                } else {
+                  // Fallback to first rule if matching failed or returned invalid data
+                  console.warn('Rule matching returned invalid data, using first rule');
+                  const firstRule = rulesList[0];
+                  if (firstRule && firstRule.ruleId && firstRule.whenToUse && firstRule.howToSummarize) {
+                    initializedEmailIdRef.current = id;
+                    handleUseCustomRule(firstRule);
+                  } else {
+                    // Last resort: use default TL;DR
+                    console.error('Invalid rule data, falling back to TL;DR');
+                    initializedEmailIdRef.current = id;
+                    handleSummarize('tldr');
+                  }
+                }
+              } catch (error) {
+                console.error('Error matching rule, using first rule:', error);
+                // Fallback to first rule on error
+                const firstRule = rulesList[0];
+                if (firstRule && firstRule.ruleId && firstRule.whenToUse && firstRule.howToSummarize) {
+                  initializedEmailIdRef.current = id;
+                  handleUseCustomRule(firstRule);
+              } else {
+                  // Last resort: use default TL;DR
+                  console.error('Invalid rule data, falling back to TL;DR');
+                  initializedEmailIdRef.current = id;
+                handleSummarize('tldr');
+                }
+              }
+            } else {
+              // No custom rules, use default TL;DR
+              initializedEmailIdRef.current = id;
+              handleSummarize('tldr');
+            }
+          } else if (emailData && emailData.summary && !summary) {
+            // Email already has a summary from the server, use it
+            setSummary(emailData.summary);
+            setSummaryType('tldr');
+            setSummaryCollapsed(false);
+            initializedEmailIdRef.current = id;
+          }
+        });
+      });
+      fetchGithubInfo();
+      fetchSuggestedActions();
+    }
+  }, [id, fetchCustomRules, fetchEmail, handleUseCustomRule, handleSummarize, isGeneratingSummary, summaryType, summary, fetchGithubInfo, fetchSuggestedActions, setSummary, setSummaryCollapsed, setSummaryType]);
+
+  useEffect(() => {
+    if (email?.threadId) {
+      fetchNote();
+      fetchThreadEmails();
+      const fetchAndAutoExtract = async () => {
+        try {
+          const response = await axios.get(`${API_URL}/action-items?emailId=${email.id}`);
+          setActionItems(response.data);
+          
+          if (response.data.length === 0 && email.body) {
+            try {
+              const extractResponse = await axios.post(`${API_URL}/llm/extract-actions`, {
+                emailBody: email.body,
+                senderInfo: {
+                  from: email.from,
+                  fromName: email.fromName,
+                },
+              });
+              if (extractResponse.data && extractResponse.data.length > 0) {
+                const newItems = extractResponse.data.map((item: any) => ({
+                  description: item.description,
+                  isCompleted: false,
+                  source: 'llm',
+                }));
+                await Promise.all(newItems.map((item: any) => 
+                  axios.post(`${API_URL}/action-items`, { ...item, emailId: email.id, emailThreadId: email.threadId })
+                ));
+                const updatedResponse = await axios.get(`${API_URL}/action-items?emailId=${email.id}`);
+                setActionItems(updatedResponse.data);
+              }
+            } catch (extractError) {
+              console.error('Error auto-extracting actions:', extractError);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching action items:', error);
+        }
+      };
+      fetchAndAutoExtract();
+    }
+  }, [email?.threadId, email?.id, email?.body, email?.from, email?.fromName, fetchNote, fetchThreadEmails, setActionItems]);
+
+  useEffect(() => {
+    if (threadEmails.length > 0) {
+      const mostRecentId = threadEmails[0]?.id;
+      if (mostRecentId) {
+        setExpandedThreadItems(new Set([mostRecentId]));
+      }
+    }
+  }, [threadEmails, setExpandedThreadItems]);
+};
+
+
+

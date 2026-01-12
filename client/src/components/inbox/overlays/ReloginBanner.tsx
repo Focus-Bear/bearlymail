@@ -1,5 +1,6 @@
 import React from 'react';
-import { theme } from '../../../theme/theme';
+import { useTranslation } from 'react-i18next';
+import { theme } from 'theme/theme';
 
 interface ReloginBannerProps {
   onLogout: () => void;
@@ -9,6 +10,8 @@ interface ReloginBannerProps {
  * Re-login banner component
  */
 export const ReloginBanner: React.FC<ReloginBannerProps> = ({ onLogout }) => {
+  const { t } = useTranslation();
+  
   return (
     <div
       style={{
@@ -19,16 +22,12 @@ export const ReloginBanner: React.FC<ReloginBannerProps> = ({ onLogout }) => {
         fontWeight: theme.typography.fontWeight.medium,
       }}
     >
-      Action Required: Please{' '}
-      <a
-        href="/login"
-        style={{ color: 'white', textDecoration: 'underline' }}
-        onClick={onLogout}
-      >
-        log in again
-      </a>{' '}
-      to restore email synchronization.
+      {t('auth.reloginRequired')}
     </div>
   );
 };
+
+
+
+
 

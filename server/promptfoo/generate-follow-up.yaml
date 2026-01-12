@@ -1,0 +1,67 @@
+description: "Follow-up email generation prompts for BearlyMail"
+
+providers:
+  - openai:gpt-4.1-mini
+  # Uncomment below if you have Gemini API key
+  # - google:gemini-pro
+
+prompts:
+  - file://prompts/generate-follow-up.md
+
+tests:
+  - vars:
+      tone: "professional"
+      commonPhrases: ""
+      subject: "Project update"
+      threadMessageCount: 2
+      threadContext: "[Message 1 from You on 12/10/2024]:\nHi Sarah, I'll send you an update by Friday.\n\n---\n\n[Message 2 from Sarah Chen on 12/12/2024]:\nThanks, looking forward to it!"
+      recipientName: "Sarah"
+      businessDaysWaiting: 3
+      daysLabel: "days"
+      skipGreeting: false
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          // Should be concise (2-3 sentences)
+          const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+          if (sentences.length > 5) {
+            throw new Error(`Expected 2-3 sentences, got ${sentences.length}. Text: ${text.substring(0, 200)}`);
+          }
+          // Should mention the subject or be relevant
+          const isRelevant = text.toLowerCase().includes('update') || text.toLowerCase().includes('project') || text.toLowerCase().includes('sarah');
+          if (!isRelevant || text.length < 30) {
+            throw new Error(`Expected relevant follow-up content. Got: ${text.substring(0, 200)}`);
+          }
+          return true;
+    description: "Should generate concise follow-up email"
+
+  - vars:
+      tone: "casual"
+      commonPhrases: "Let me know, Thanks"
+      subject: "Question about API"
+      threadMessageCount: 1
+      threadContext: "[Message 1 from You on 12/10/2024]:\nHi Mike, can you check the API docs?"
+      recipientName: "Mike"
+      businessDaysWaiting: 1
+      daysLabel: "day"
+      skipGreeting: true
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          // Should not start with greeting if skipGreeting is true
+          const lowerStart = text.toLowerCase().trim().substring(0, 10);
+          const hasGreeting = lowerStart.includes('hi ') || lowerStart.includes('hey ') || lowerStart.includes('hello');
+          if (hasGreeting) {
+            throw new Error(`Expected no greeting when skipGreeting=true, but got: ${text.substring(0, 50)}`);
+          }
+          // Should be concise
+          if (text.length > 300) {
+            throw new Error(`Expected concise message, got ${text.length} chars`);
+          }
+          return true;
+    description: "Should skip greeting when requested and use casual tone"
+
+
+

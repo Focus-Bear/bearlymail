@@ -1,14 +1,16 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { theme } from '../../theme/theme';
-import { useResponsiveBreakpoints } from '../../hooks/useResponsiveBreakpoints';
-import { getResponsiveFontSize, getResponsiveSpacing } from './utils';
+import { useTranslation } from 'react-i18next';
+import { theme } from 'theme/theme';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { getResponsiveFontSize, getResponsiveSpacing } from 'components/landing/utils';
 
 /**
  * Landing page header component
  * Displays the BearlyMail logo and Sign In button
  */
 export const LandingHeader: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const breakpoints = useResponsiveBreakpoints();
 
@@ -64,7 +66,7 @@ export const LandingHeader: React.FC = () => {
         >
           <img
             src="/favicon.svg"
-            alt="BearlyMail Icon"
+            alt={t('landing.bearlyMailIcon')}
             style={{
               height: logoHeight,
               width: 'auto',
@@ -78,7 +80,7 @@ export const LandingHeader: React.FC = () => {
               fontWeight: theme.typography.fontWeight.bold,
             }}
           >
-            BearlyMail
+            {t('common.appName')}
           </h1>
         </div>
         <button
@@ -95,7 +97,7 @@ export const LandingHeader: React.FC = () => {
             whiteSpace: 'nowrap',
           }}
         >
-          Sign In
+          {t('auth.signIn')}
         </button>
       </div>
     </header>

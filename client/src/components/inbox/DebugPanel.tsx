@@ -1,12 +1,15 @@
 import React from 'react';
-import { theme } from '../../theme/theme';
-import { Email } from '../../types/email';
+import { MODE_ACTION, MODE_FOLLOW_UP } from 'constants/strings';
+import { useTranslation } from 'react-i18next';
+import { theme } from 'theme/theme';
+import { Email } from 'types/email';
+import { EMOJI_BUG, EMOJI_SYNC } from 'constants/emojis';
 import {
   DebugStatsSection,
   DebugStarredSection,
   DebugOrphanSection,
   DebugEmailList,
-} from './debug';
+} from 'components/inbox/debug';
 
 interface DebugStarredData {
   lastSyncTime: string | null;
@@ -108,9 +111,10 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
   fixingOrphans,
   onFixOrphans,
 }) => {
+  const { t } = useTranslation();
   const threadCount = (() => {
     const visibleEmails = emails.filter(e => !e.isArchived);
-    const filteredByMode = mode === 'action' || mode === 'follow-up'
+    const filteredByMode = mode === MODE_ACTION || mode === MODE_FOLLOW_UP
       ? visibleEmails.filter(e => (e.starCount ?? 0) > 0)
       : visibleEmails.filter(e => (e.starCount ?? 0) === 0);
     const uniqueThreads = new Set(filteredByMode.map(e => e.threadId));
@@ -140,7 +144,9 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
           alignItems: 'center',
         }}
       >
-        <span>🐛 DEBUG VIEW - Mode: {mode} | Total Threads: {threadCount} | Thread-Based Fetching</span>
+        {/* eslint-disable-next-line i18next/no-literal-string */}
+        <span>{EMOJI_BUG} {t('debug.panel.title', { mode, count: threadCount })}</span>
+        {/* eslint-disable-next-line i18next/no-literal-string */}
         <span style={{ fontSize: theme.typography.fontSize.lg }}>
           {isOpen ? '▼' : '▶'}
         </span>
@@ -164,7 +170,8 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
               border: '1px solid #BEE5EB',
             }}
           >
-            <h4 style={{ margin: `0 0 ${theme.spacing.xs} 0` }}>🔄 Sync Status</h4>
+            {/* eslint-disable-next-line i18next/no-literal-string */}
+            <h4 style={{ margin: `0 0 ${theme.spacing.xs} 0` }}>{EMOJI_SYNC} {t('debug.panel.syncStatus')}</h4>
             <DebugStatsSection
               syncStatus={syncStatus}
               loadingSyncStatus={loadingSyncStatus}

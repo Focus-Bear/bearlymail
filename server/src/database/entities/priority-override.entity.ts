@@ -44,8 +44,8 @@ export class PriorityOverride {
   })
   reasonType: OverrideReasonType;
 
-  @Column("text", { nullable: true })
-  reasonText: string | null; // Free-form explanation
+  @Column("text", { nullable: true, comment: "Free-form explanation" })
+  reasonText: string | null;
 
   @CreateDateColumn()
   createdAt: Date;
@@ -58,5 +58,3 @@ export class PriorityOverride {
   @JoinColumn({ name: "emailId" })
   email: Email;
 }
-
-

@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { theme } from '../theme/theme';
-import { ConsentModalHeader, ConsentCheckbox, ConsentModalFooter } from './consent';
-import { acceptConsent } from '../utils/consentApi';
+import { useTranslation } from 'react-i18next';
+import { theme } from 'theme/theme';
+import { OPACITY_DISABLED_ALT, VIEWPORT_HEIGHT_90, Z_INDEX_MODAL_OVERLAY } from 'constants/numbers';
+import { ConsentModalHeader, ConsentCheckbox, ConsentModalFooter } from 'components/consent';
+import { acceptConsent } from 'utils/consentApi';
 
 interface ConsentModalProps {
   needsTermsAcceptance: boolean;
@@ -18,13 +20,14 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({
   needsPrivacyAcceptance,
   onAccept,
 }) => {
+  const { t } = useTranslation();
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleAccept = async () => {
     if (!termsAccepted || !privacyAccepted) {
-      alert('Please accept both the Terms of Use and Privacy Policy to continue.');
+      alert(t('consent.pleaseAcceptBoth'));
       return;
     }
 
@@ -37,7 +40,7 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({
       onAccept();
     } catch (error) {
       console.error('Failed to accept consent:', error);
-      alert('Failed to save your consent. Please try again.');
+      alert(t('consent.saveError'));
     } finally {
       setLoading(false);
     }
@@ -51,11 +54,11 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        backgroundColor: `rgba(0, 0, 0, ${OPACITY_DISABLED_ALT})`,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 10000,
+        zIndex: Z_INDEX_MODAL_OVERLAY,
         padding: theme.spacing.lg,
       }}
     >
@@ -66,7 +69,7 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({
           padding: theme.spacing['2xl'],
           maxWidth: '600px',
           width: '100%',
-          maxHeight: '90vh',
+          maxHeight: VIEWPORT_HEIGHT_90,
           overflowY: 'auto',
           boxShadow: theme.shadows.xl,
         }}
@@ -78,8 +81,8 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({
             checked={termsAccepted}
             onChange={setTermsAccepted}
             disabled={!needsTermsAcceptance}
-            label="I accept the"
-            linkText="Terms of Use"
+            label={t('consent.iAcceptThe')}
+            linkText={t('consent.termsOfUse')}
             linkHref="/terms"
             required={needsTermsAcceptance}
           />
@@ -88,8 +91,8 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({
             checked={privacyAccepted}
             onChange={setPrivacyAccepted}
             disabled={!needsPrivacyAcceptance}
-            label="I accept the"
-            linkText="Privacy Policy"
+            label={t('consent.iAcceptThe')}
+            linkText={t('consent.privacyPolicy')}
             linkHref="/privacy"
             required={needsPrivacyAcceptance}
           />

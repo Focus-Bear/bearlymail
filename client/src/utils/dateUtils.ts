@@ -1,9 +1,12 @@
+import { DAYS_PER_YEAR, DAYS_IN_MONTH_30, MONTHS_IN_YEAR } from 'constants/numbers';
+
 /**
  * Humanizes a date to relative time (e.g., "2 hours ago", "yesterday", "3 days ago")
  * Uses the user's browser timezone automatically via toLocaleString
  */
 export function humanizeTimestamp(date: Date | string): string {
   const now = new Date();
+  // eslint-disable-next-line no-restricted-syntax -- 'string' is needed for TypeScript type narrowing
   const timestamp = typeof date === 'string' ? new Date(date) : date;
   
   // Get timezone from browser
@@ -16,8 +19,8 @@ export function humanizeTimestamp(date: Date | string): string {
   const diffHours = Math.floor(diffMinutes / 60);
   const diffDays = Math.floor(diffHours / 24);
   const diffWeeks = Math.floor(diffDays / 7);
-  const diffMonths = Math.floor(diffDays / 30);
-  const diffYears = Math.floor(diffDays / 365);
+  const diffMonths = Math.floor(diffDays / DAYS_IN_MONTH_30);
+  const diffYears = Math.floor(diffDays / DAYS_PER_YEAR);
 
   // Humanize based on time difference
   if (diffSeconds < 60) {
@@ -36,7 +39,7 @@ export function humanizeTimestamp(date: Date | string): string {
     return `${diffWeeks} weeks ago`;
   } else if (diffMonths === 1) {
     return 'A month ago';
-  } else if (diffMonths < 12) {
+  } else if (diffMonths < MONTHS_IN_YEAR) {
     return `${diffMonths} months ago`;
   } else if (diffYears === 1) {
     return 'A year ago';

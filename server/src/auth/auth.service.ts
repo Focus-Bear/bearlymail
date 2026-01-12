@@ -8,8 +8,26 @@ import { JwtService } from "@nestjs/jwt";
 import PgBoss = require("pg-boss");
 import { UsersService } from "../users/users.service";
 import * as bcrypt from "bcrypt";
-import { writeDebugLog } from "./auth-logger";
+import { writeDebugLog, AuthLogger } from "./auth-logger";
 import { getJobPriority } from "../queue/job-priorities";
+import { User } from "../database/entities/user.entity";
+
+interface GoogleProfile {
+  id: string;
+  emails: Array<{ value: string }>;
+  displayName?: string;
+}
+
+interface UserWithoutPassword extends Omit<User, "password"> {}
+
+interface UserUpdateData {
+  googleId?: string;
+  googleCalendarAccessToken?: string;
+  googleCalendarRefreshToken?: string;
+  needsRelogin?: boolean;
+  isApproved?: boolean;
+  isAdmin?: boolean;
+}
 
 @Injectable()
 export class AuthService {
@@ -21,7 +39,10 @@ export class AuthService {
     @Inject("PG_BOSS") private readonly boss: PgBoss,
   ) {}
 
-  async validateUser(email: string, password: string): Promise<any> {
+  async validateUser(
+    email: string,
+    password: string,
+  ): Promise<UserWithoutPassword | null> {
     const user = await this.usersService.findByEmail(email);
     if (
       user &&
@@ -34,17 +55,19 @@ export class AuthService {
           "Your account is pending approval. Please wait for admin approval.",
         );
       }
-      const { password, ...result } = user;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { password: _password, ...result } = user;
       return result;
     }
     return null;
   }
 
+  // eslint-disable-next-line max-lines-per-function, complexity, max-statements
   async validateGoogleUser(
-    profile: any,
+    profile: GoogleProfile,
     accessToken: string,
     refreshToken: string,
-  ): Promise<any> {
+  ): Promise<UserWithoutPassword> {
     const email = profile.emails[0].value;
     const isJeremy = email.toLowerCase() === "jeremy@focusbear.io";
 
@@ -79,10 +102,11 @@ export class AuthService {
         );
 
         // Update user with access token but mark as needing re-login
-        const updates: any = {
+        const updates: UserUpdateData = {
           googleId: profile.id,
           googleCalendarAccessToken: accessToken,
-          needsRelogin: true, // Mark that user needs to re-authenticate to get refresh token
+          // Mark that user needs to re-authenticate to get refresh token
+          needsRelogin: true,
         };
         if (isJeremy) {
           updates.isApproved = true;
@@ -92,7 +116,7 @@ export class AuthService {
         user = await this.usersService.findOne(user.id);
 
         // Log this as an auth failure so it shows up in auth-failures.log
-        const { authLogger } = require("./auth-logger");
+        const authLogger = new AuthLogger();
         authLogger.logAuthFailure(
           user.id,
           user.email || null,
@@ -132,23 +156,28 @@ export class AuthService {
       user = await this.usersService.create({
         email,
         name: profile.displayName,
-        password: "", // No password for Google users
+        // No password for Google users
+        password: "",
         googleId: profile.id,
         googleCalendarAccessToken: accessToken,
         googleCalendarRefreshToken: refreshToken,
-        isApproved: isJeremy, // Auto-approve jeremy
-        isAdmin: isJeremy, // Make jeremy admin
-        needsRelogin: false, // New login = no need to relogin
+        // Auto-approve jeremy
+        isApproved: isJeremy,
+        // Make jeremy admin
+        isAdmin: isJeremy,
+        // New login = no need to relogin
+        needsRelogin: false,
       });
     } else {
       // Update tokens for existing user
       // Also ensure jeremy is approved and admin
-      const updates: any = {
+      const updates: UserUpdateData = {
         googleId: profile.id,
         googleCalendarAccessToken: accessToken,
         // Only update refresh token if we got a new one, otherwise preserve existing
         ...(refreshToken ? { googleCalendarRefreshToken: refreshToken } : {}),
-        needsRelogin: refreshToken ? false : user.needsRelogin || false, // Only clear if we got refresh token
+        // Only clear if we got refresh token
+        needsRelogin: refreshToken ? false : user.needsRelogin || false,
       };
       if (isJeremy) {
         updates.isApproved = true;
@@ -186,11 +215,12 @@ export class AuthService {
       );
     }
 
-    const { password, ...result } = user;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _password, ...result } = user;
 
     // Log successful login
     try {
-      const { authLogger } = require("./auth-logger");
+      const authLogger = new AuthLogger();
       authLogger.logAuthFailure(
         user.id,
         user.email || null,
@@ -213,12 +243,14 @@ export class AuthService {
     setTimeout(() => {
       this.boss
         .send(
-          "sync-emails",
+          "fetch-user-emails",
           { userId: user.id },
           {
-            priority: getJobPriority("sync-emails", false), // Background sync after login
-            singletonKey: `sync-emails-${user.id}`,
-            singletonMinutes: 5, // Don't allow another sync for same user within 5 minutes
+            // Background fetch after login
+            priority: getJobPriority("fetch-user-emails", false),
+            singletonKey: `fetch-user-emails-${user.id}`,
+            // Don't allow another fetch for same user within 5 minutes
+            singletonMinutes: 5,
           },
         )
         .catch((err) => console.error("Failed to add sync job", err));
@@ -227,7 +259,120 @@ export class AuthService {
     return result;
   }
 
-  async login(user: any) {
+  async validateMicrosoftUser(
+    profile: {
+      id: string;
+      mail?: string;
+      userPrincipalName?: string;
+      displayName?: string;
+    },
+    accessToken: string,
+    refreshToken: string,
+  ): Promise<UserWithoutPassword> {
+    const email = profile.mail || profile.userPrincipalName || "";
+    if (!email) {
+      throw new Error("Microsoft profile does not contain email");
+    }
+
+    const isJeremy = email.toLowerCase() === "jeremy@focusbear.io";
+
+    let user = await this.usersService.findByEmail(email);
+
+    if (!user) {
+      // Create new user
+      if (!refreshToken) {
+        throw new Error(
+          "Microsoft OAuth did not provide a refresh token. Please try logging in again.",
+        );
+      }
+      user = await this.usersService.create({
+        email,
+        name: profile.displayName || "",
+        password: "",
+        // Don't store tokens on user - they go in Office365Account entity
+        isApproved: isJeremy,
+        isAdmin: isJeremy,
+        needsRelogin: false,
+      });
+    } else {
+      // Update existing user
+      const updates: UserUpdateData = {};
+      if (isJeremy) {
+        updates.isApproved = true;
+        updates.isAdmin = true;
+      }
+      if (Object.keys(updates).length > 0) {
+        await this.usersService.update(user.id, updates);
+        user = await this.usersService.findOne(user.id);
+      }
+    }
+
+    if (!user.isApproved && !isJeremy) {
+      throw new Error(
+        "Your account is pending approval. Please wait for admin approval.",
+      );
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _password, ...result } = user;
+    return result;
+  }
+
+  async validateZohoUser(
+    profile: { ZUID: string; Email: string; Display_Name?: string },
+    accessToken: string,
+    refreshToken: string,
+  ): Promise<UserWithoutPassword> {
+    const email = profile.Email;
+    if (!email) {
+      throw new Error("Zoho profile does not contain email");
+    }
+
+    const isJeremy = email.toLowerCase() === "jeremy@focusbear.io";
+
+    let user = await this.usersService.findByEmail(email);
+
+    if (!user) {
+      // Create new user
+      if (!refreshToken) {
+        throw new Error(
+          "Zoho OAuth did not provide a refresh token. Please try logging in again.",
+        );
+      }
+      user = await this.usersService.create({
+        email,
+        name: profile.Display_Name || "",
+        password: "",
+        // Don't store tokens on user - they go in ZohoAccount entity
+        isApproved: isJeremy,
+        isAdmin: isJeremy,
+        needsRelogin: false,
+      });
+    } else {
+      // Update existing user
+      const updates: UserUpdateData = {};
+      if (isJeremy) {
+        updates.isApproved = true;
+        updates.isAdmin = true;
+      }
+      if (Object.keys(updates).length > 0) {
+        await this.usersService.update(user.id, updates);
+        user = await this.usersService.findOne(user.id);
+      }
+    }
+
+    if (!user.isApproved && !isJeremy) {
+      throw new Error(
+        "Your account is pending approval. Please wait for admin approval.",
+      );
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _password, ...result } = user;
+    return result;
+  }
+
+  async login(user: UserWithoutPassword) {
     // Check if user is approved before allowing login
     // In development mode, auto-approve if not already approved
     const isDev = process.env.NODE_ENV !== "production";
@@ -264,7 +409,8 @@ export class AuthService {
     };
   }
 
-  async register(email: string, password: string, name?: string) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async register(_email: string, _password: string, _name?: string) {
     // Registration is disabled - users must join waitlist first
     throw new Error(
       "Registration is currently closed. Please join our waitlist first.",
@@ -277,10 +423,10 @@ export class AuthService {
     // In production, consider adding an index or using a separate table for tokens
     const users = await this.usersService.findAll();
     const user = users.find(
-      (u) =>
-        u.passwordSetupToken === token &&
-        u.passwordSetupTokenExpiresAt &&
-        u.passwordSetupTokenExpiresAt > new Date(),
+      (userItem) =>
+        userItem.passwordSetupToken === token &&
+        userItem.passwordSetupTokenExpiresAt &&
+        userItem.passwordSetupTokenExpiresAt > new Date(),
     );
 
     if (!user) {

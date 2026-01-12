@@ -28,10 +28,15 @@ import { ContactsModule } from "./contacts/contacts.module";
 import { BlockedSendersModule } from "./blocked-senders/blocked-senders.module";
 import { EmailModule } from "./email/email.module";
 import { GoogleAccountsModule } from "./google-accounts/google-accounts.module";
+import { Office365AccountsModule } from "./office365-accounts/office365-accounts.module";
+import { ZohoAccountsModule } from "./zoho-accounts/zoho-accounts.module";
 import { GitHubModule } from "./github/github.module";
+import { SuggestedActionsModule } from "./suggested-actions/suggested-actions.module";
 // Import entities from index file to ensure proper loading order
 import {
   GoogleAccount,
+  Office365Account,
+  ZohoAccount,
   User,
   UserContext,
   PrivateNote,
@@ -46,6 +51,7 @@ import {
   BlockedSender,
   Waitlist,
   ContextAnalysis,
+  PriorityOverride,
 } from "./database/entities";
 
 @Module({
@@ -66,7 +72,10 @@ import {
         // Import all entities from index file to ensure proper loading order
         // Using index file helps TypeORM resolve relationships correctly
         const entities = [
-          GoogleAccount, // Load GoogleAccount first to avoid relationship resolution issues
+          // Load account entities first to avoid relationship resolution issues
+          GoogleAccount,
+          Office365Account,
+          ZohoAccount,
           User,
           UserContext,
           PrivateNote,
@@ -81,6 +90,7 @@ import {
           BlockedSender,
           Waitlist,
           ContextAnalysis,
+          PriorityOverride,
         ];
 
         // Ensure all entities are properly registered before TypeORM processes relationships
@@ -93,16 +103,19 @@ import {
           username: configService.get<string>("DB_USERNAME") || "postgres",
           password: configService.get<string>("DB_PASSWORD") || "postgres",
           database: configService.get<string>("DB_NAME") || "adhd_email_client",
-          entities: entities,
+          entities,
           migrations: [`${__dirname}/database/migrations/**/*{.ts,.js}`],
-          synchronize: false, // NEVER use synchronize - always use migrations
+          // NEVER use synchronize - always use migrations
+          synchronize: false,
           ssl: !isLocal || sslEnabled ? { rejectUnauthorized: false } : false,
           logger: new QueryPerformanceLogger(),
           maxQueryExecutionTime: parseInt(
             process.env.SLOW_QUERY_THRESHOLD_MS || "1000",
             10,
-          ), // Log queries slower than threshold
-          logging: ["error", "warn"], // Only log errors and slow queries (not all queries)
+          ),
+          // Log queries slower than threshold
+          logging: ["error", "warn"],
+          // Only log errors and slow queries (not all queries)
         };
       },
     }),
@@ -129,7 +142,10 @@ import {
     BlockedSendersModule,
     EmailModule,
     GoogleAccountsModule,
+    Office365AccountsModule,
+    ZohoAccountsModule,
     GitHubModule,
+    SuggestedActionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

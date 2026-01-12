@@ -1,0 +1,67 @@
+description: "Multiple reply options generation prompts for BearlyMail"
+
+providers:
+  - openai:gpt-4.1-mini
+  # Uncomment below if you have Gemini API key
+  # - google:gemini-pro
+
+prompts:
+  - file://prompts/generate-multiple-replies.md
+
+tests:
+  - vars:
+      tone: "professional"
+      fromName: "Sarah Chen"
+      subject: "Meeting request for next week"
+      body: "Hi, I'd like to schedule a meeting to discuss the project roadmap. Are you available next week?"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          // Handle markdown code blocks if present
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (!parsed.options || !Array.isArray(parsed.options)) {
+              throw new Error(`Expected options array, got: ${JSON.stringify(parsed)}`);
+            }
+            if (parsed.options.length !== 2) {
+              throw new Error(`Expected 2 options, got ${parsed.options.length}`);
+            }
+            parsed.options.forEach((opt, idx) => {
+              if (!opt.label || !opt.text) {
+                throw new Error(`Option ${idx} missing label or text: ${JSON.stringify(opt)}`);
+              }
+              if (opt.text.length < 20) {
+                throw new Error(`Option ${idx} text too short: ${opt.text}`);
+              }
+            });
+            return true;
+          } catch (e) {
+            throw new Error(`Failed to parse JSON or validate structure: ${e.message}. Output: ${text.substring(0, 200)}`);
+          }
+    description: "Should generate 2 distinct reply options in JSON format"
+
+  - vars:
+      tone: "casual"
+      fromName: "Mike"
+      subject: "Can you help with this?"
+      body: "Hey, wondering if you could help me debug an issue I'm having with the API?"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (!parsed.options || parsed.options.length !== 2) {
+              throw new Error(`Expected 2 options, got ${parsed.options?.length || 0}`);
+            }
+            return true;
+          } catch (e) {
+            throw new Error(`Failed to parse JSON: ${e.message}`);
+          }
+    description: "Should handle casual tone and generate 2 options"
+
+
+

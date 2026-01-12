@@ -26,11 +26,14 @@ export enum JobPriority {
  * Priority assignments for different job types
  */
 export const JobTypePriority = {
-  // User-triggered syncs (manual sync from UI)
-  "sync-emails": JobPriority.HIGH,
+  // User-triggered email fetches (manual sync from UI)
+  "fetch-user-emails": JobPriority.HIGH,
 
-  // Scheduled syncs (cron job)
-  "sync-all-users-urgent": JobPriority.MEDIUM,
+  // Scheduled email fetch job coordinator (cron job)
+  "schedule-email-fetch-jobs": JobPriority.MEDIUM,
+
+  // Legacy: keep for backwards compatibility
+  "sync-emails": JobPriority.HIGH,
 
   // User-triggered priority refinement (for visible emails)
   "refine-priority": JobPriority.HIGH,
@@ -56,6 +59,12 @@ export const JobTypePriority = {
   // Context analysis
   "analyze-context": JobPriority.LOW,
 
+  // Batch email analysis (part of context analysis)
+  "analyze-context-batch": JobPriority.LOW,
+
+  // Finalize context analysis (post-processing after batches complete)
+  "finalize-context-analysis": JobPriority.LOW,
+
   // Learning from user actions
   "learn-from-star": JobPriority.VERY_LOW,
 
@@ -78,7 +87,7 @@ export function getJobPriority(
     if (jobType === "refine-priority" || jobType === "generate-summary") {
       return JobPriority.HIGH;
     }
-    if (jobType === "sync-emails") {
+    if (jobType === "fetch-user-emails" || jobType === "sync-emails") {
       return JobPriority.HIGH;
     }
     if (jobType === "analyze-context") {
@@ -95,5 +104,3 @@ export function getJobPriority(
   // Default to medium priority
   return JobPriority.MEDIUM;
 }
-
-

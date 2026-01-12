@@ -1,4 +1,4 @@
-import { theme } from '../../theme/theme';
+import { theme } from 'theme/theme';
 
 /**
  * Utility functions for landing page components
@@ -102,6 +102,13 @@ export const getHeadingFontSize = (
       return theme.typography.fontSize['2xl'];
   }
 };
+
+
+
+
+
+
+
 
 
 

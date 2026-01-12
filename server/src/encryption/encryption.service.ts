@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { ENCRYPTION_CONSTANTS } from "../constants/encryption-constants";
 import { ConfigService } from "@nestjs/config";
 import * as crypto from "crypto";
 
@@ -6,7 +7,8 @@ import * as crypto from "crypto";
 export class EncryptionService {
   private readonly algorithm = "aes-256-gcm";
   private readonly key: Buffer;
-  private readonly ivLength = 16; // 16 bytes for AES
+  // 16 bytes for AES
+  private readonly ivLength = ENCRYPTION_CONSTANTS.IV_LENGTH;
 
   constructor(private configService: ConfigService) {
     // Get encryption key from environment, or generate a default (should be set in production!)
@@ -15,6 +17,7 @@ export class EncryptionService {
       "default-key-change-in-production-32chars!!";
 
     // Ensure key is 32 bytes (256 bits) for AES-256
+    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
     this.key = crypto.scryptSync(keyString, "salt", 32);
   }
 

@@ -3,7 +3,10 @@ export interface GitHubLinkStatus {
   title?: string;
   labels?: Array<{ name: string; color: string }>;
   assignees?: Array<{ login: string; avatar_url: string }>;
-  project?: string;
+  projects?: Array<{
+    name: string;
+    status?: string;
+  }>;
   reviewStatus?: 'approved' | 'changes_requested' | 'pending' | null;
   commentsCount?: number;
   mergeable?: boolean | null;
@@ -27,7 +30,8 @@ export interface Email {
   fromName?: string;
   subject: string;
   body?: string;
-  priorityScore: number;
+  htmlBody?: string; // HTML content of the email (may not be available in list view for performance)
+  priorityExplanation?: PriorityExplanation | null;
   isRead: boolean;
   isSnoozed: boolean;
   snoozeUntil?: string;
@@ -47,6 +51,9 @@ export interface Email {
   githubMetadata?: {
     links: GitHubLink[];
   };
+  // Metadata for list view
+  actionItemsCount?: number;
+  hasPrivateNote?: boolean;
 }
 
 export interface TriageSuggestion {
@@ -67,3 +74,24 @@ export interface PriorityExplanation {
 }
 
 export type InboxMode = 'triage' | 'action' | 'follow-up';
+
+/**
+ * Calculate priority score from breakdown array
+ * This is the single source of truth for priority scores
+ * @param email The email object with optional priorityExplanation
+ * @returns The calculated score (can be negative), or 0 if no breakdown exists
+ */
+export function getEmailPriorityScore(email: Email): number {
+  if (!email.priorityExplanation || !email.priorityExplanation.breakdown) {
+    return 0;
+  }
+
+  const total = email.priorityExplanation.breakdown.reduce(
+    (sum, item) => sum + (item.value || 0),
+    0,
+  );
+
+  // Don't clamp - allow negative scores as breakdown can legitimately be negative
+  // (e.g., low urgency = -12, low goal alignment = -5, etc.)
+  return total;
+}

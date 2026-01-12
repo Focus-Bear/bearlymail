@@ -11,11 +11,12 @@ tests:
     assert:
       - type: javascript
         value: |
-          const output = output.toLowerCase();
-          // Should include "jay" in the query
-          return output.includes('jay') || output.includes('from:jay');
-      - type: contains
-        value: "jay"
+          const text = (typeof output === 'string' ? output : String(output)).toLowerCase().trim();
+          // Should include "jay" in the query (accept variations like "from:jay", "jay", "from:jay OR jay")
+          if (!text.includes('jay')) {
+            throw new Error(`Expected output to include "jay", got: ${text.substring(0, 100)}`);
+          }
+          return true;
     description: "Query about a person should include their name"
 
   - vars:
@@ -23,9 +24,12 @@ tests:
     assert:
       - type: javascript
         value: |
-          const output = output.toLowerCase();
-          // Should prioritize from: field for person names
-          return output.includes('from:john');
+          const text = (typeof output === 'string' ? output : String(output)).toLowerCase().trim();
+          // Should prioritize from: field for person names (accept variations like "from:john" or "from:john OR john")
+          if (!text.includes('from:john')) {
+            throw new Error(`Expected output to include "from:john", got: ${text.substring(0, 100)}`);
+          }
+          return true;
     description: "Query about emails from a person should use from: operator"
 
   - vars:
@@ -33,9 +37,12 @@ tests:
     assert:
       - type: javascript
         value: |
-          const output = output.toLowerCase();
-          // Should include meeting-related terms
-          return output.includes('meeting') || output.includes('confirm');
+          const text = (typeof output === 'string' ? output : String(output)).toLowerCase().trim();
+          // Should include meeting-related terms (accept variations like "subject:meeting", "meeting", "subject:meeting OR subject:confirm")
+          if (!text.includes('meeting') && !text.includes('confirm')) {
+            throw new Error(`Expected output to include "meeting" or "confirm", got: ${text.substring(0, 100)}`);
+          }
+          return true;
     description: "Topic-based query should include relevant keywords"
 
   - vars:
@@ -43,9 +50,17 @@ tests:
     assert:
       - type: javascript
         value: |
+          const text = (typeof output === 'string' ? output : String(output)).trim();
           // Should pass through Gmail syntax unchanged
-          return output.includes('from:john@example.com') && output.includes('subject:urgent');
+          if (!text.includes('from:john@example.com') || !text.includes('subject:urgent')) {
+            throw new Error(`Expected output to include both "from:john@example.com" and "subject:urgent", got: ${text.substring(0, 100)}`);
+          }
+          return true;
     description: "Gmail syntax should be passed through unchanged"
+
+
+
+
 
 
 

@@ -5,6 +5,10 @@ import OpenAI from "openai";
 import { UsersService } from "../users/users.service";
 import { cleanEmailContent } from "./email-content-cleaner";
 import { getPrompt, renderPrompt } from "./prompts";
+import { RATIOS } from "../constants/percentages";
+import { QUERY_LIMITS } from "../constants/query-limits";
+import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
+import { MINUTES, MILLISECONDS } from "../constants/time-constants";
 
 export enum LLMProvider {
   GEMINI = "gemini",
@@ -16,7 +20,8 @@ export interface LLMRequest {
   systemPrompt?: string;
   temperature?: number;
   maxTokens?: number;
-  userId?: string; // Optional userId to use user's API key
+  // Optional userId to use user's API key
+  userId?: string;
 }
 
 @Injectable()
@@ -110,7 +115,9 @@ export class LLMService {
         return await operation();
       } catch (error) {
         if (i === maxRetries - 1) throw error;
-        const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+        const delay =
+          Math.pow(2, i) * MILLISECONDS.SECOND +
+          Math.random() * MILLISECONDS.SECOND;
         this.logger.warn(
           `LLM operation failed, retrying in ${Math.round(delay)}ms... (Attempt ${i + 1}/${maxRetries})`,
         );
@@ -122,6 +129,7 @@ export class LLMService {
 
   private async generateWithGemini(
     request: LLMRequest,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     userId?: string,
   ): Promise<string> {
     // Note: Gemini doesn't support user-specific API keys, always uses system key
@@ -145,12 +153,12 @@ export class LLMService {
       const result = await model.generateContent({
         contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
         generationConfig: {
-          temperature: request.temperature || 0.7,
-          maxOutputTokens: request.maxTokens || 2048,
+          temperature: request.temperature || RATIOS.SEVENTY_PERCENT,
+          maxOutputTokens: request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
         },
       });
 
-      const response = result.response;
+      const { response } = result;
       return response.text();
     });
   }
@@ -160,12 +168,12 @@ export class LLMService {
     userId?: string,
   ): Promise<string> {
     // Try to get user's API key if userId is provided
-    let openaiClient = this.openaiClient;
+    let { openaiClient } = this;
     let apiKeySource = "system";
 
     if (userId) {
       try {
-        const user = await this.usersService.findOne(userId);
+        const user = await this.usersService.findOneWithApiKey(userId);
         if (user?.openAiApiKey) {
           // User has their own API key - create a client with it
           openaiClient = new OpenAI({ apiKey: user.openAiApiKey });
@@ -188,7 +196,10 @@ export class LLMService {
       this.configService.get<string>("OPENAI_MODEL") || "gpt-3.5-turbo";
 
     return this.retryOperation(async () => {
-      const messages: any[] = [];
+      const messages: Array<{
+        role: "system" | "user" | "assistant";
+        content: string;
+      }> = [];
       if (request.systemPrompt) {
         messages.push({ role: "system", content: request.systemPrompt });
       }
@@ -199,15 +210,16 @@ export class LLMService {
       );
       const completion = await openaiClient!.chat.completions.create({
         model,
-        messages,
-        temperature: request.temperature || 0.7,
-        max_tokens: request.maxTokens || 2048,
+        messages: messages as any,
+        temperature: request.temperature || RATIOS.SEVENTY_PERCENT,
+        max_tokens: request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
       });
 
       return completion.choices[0]?.message?.content || "";
     });
   }
 
+  // eslint-disable-next-line max-lines-per-function, complexity, max-statements
   async analyzeEmailPatterns(
     receivedEmails: Array<{
       from: string;
@@ -216,14 +228,16 @@ export class LLMService {
       body: string;
       receivedAt: string;
       isRead?: boolean;
-      timeToReply?: number | null; // Time to reply in minutes
+      // Time to reply in minutes
+      timeToReply?: number | null;
       readAt?: string | null;
       repliedAt?: string | null;
       starCount?: number;
       isArchived?: boolean;
     }>,
     sentEmails: Array<{
-      emailId?: string; // Optional email ID for linking
+      // Optional email ID for linking
+      emailId?: string;
       to: string;
       subject: string;
       body: string;
@@ -264,9 +278,9 @@ export class LLMService {
       `[CONTEXT-ANALYSIS] [LLM] Preparing data: ${receivedEmails.length} received threads/emails provided`,
     );
     this.logger.log(
-      `[CONTEXT-ANALYSIS] [LLM] Using ALL ${receivedEmails.length} items (not limiting to 50)`,
+      `[CONTEXT-ANALYSIS] [LLM] Using ALL ${receivedEmails.length} items (not limiting to ${QUERY_LIMITS.MAX_RESULTS_DEFAULT})`,
     );
-    
+
     const receivedData = receivedEmails
       // Use all threads/emails provided (no artificial limit)
       .map((e) => {
@@ -276,26 +290,30 @@ export class LLMService {
           (e.repliedAt
             ? (new Date(e.repliedAt).getTime() -
                 new Date(e.receivedAt).getTime()) /
-              1000 /
-              60
+              MILLISECONDS.SECOND /
+              MINUTES.HOUR
             : null);
         const readStatus = e.isRead ? "Read" : "Unread";
         const archiveStatus = e.isArchived ? "Archived" : "InInbox";
         const starStatus =
           (e.starCount || 0) > 0 ? `Starred(${e.starCount})` : "NotStarred";
-        const behavior =
-          e.isArchived && !e.isRead
-            ? "ArchivedWithoutReading"
-            : e.isRead && !e.isArchived
-              ? "ReadButKept"
-              : e.isRead && e.isArchived
-                ? "ReadThenArchived"
-                : "UnreadInInbox";
+        let behavior: string;
+        if (e.isArchived && !e.isRead) {
+          behavior = "ArchivedWithoutReading";
+        } else if (e.isRead && !e.isArchived) {
+          behavior = "ReadButKept";
+        } else if (e.isRead && e.isArchived) {
+          behavior = "ReadThenArchived";
+        } else {
+          behavior = "UnreadInInbox";
+        }
         const replyInfo =
           replyTimeMinutes !== null
             ? `${replyTimeMinutes.toFixed(0)}m`
             : "NoReply";
-        const isQuickReply = replyTimeMinutes !== null && replyTimeMinutes < 30;
+        const isQuickReply =
+          replyTimeMinutes !== null &&
+          replyTimeMinutes < QUERY_LIMITS.LLM_QUICK_REPLY_MINUTES;
         return `From: ${e.fromName || e.from}, Subject: ${e.subject}, Read: ${readStatus}, ${archiveStatus}, ${starStatus}, Behavior: ${behavior}, ReplyTime: ${replyInfo}${isQuickReply ? " (QUICK)" : ""}`;
       })
       .join("\n");
@@ -303,11 +321,11 @@ export class LLMService {
     // Include full email body for writing style analysis (redacted for privacy in actual usage)
     // Extract longer examples (full emails) instead of just phrases
     this.logger.log(
-      `[CONTEXT-ANALYSIS] [LLM] Preparing sent emails: ${sentEmails.length} sent emails provided, will use first 30`,
+      `[CONTEXT-ANALYSIS] [LLM] Preparing sent emails: ${sentEmails.length} sent emails provided, will use first ${QUERY_LIMITS.LLM_SENT_EMAILS_LIMIT}`,
     );
-    
+
     const sentData = sentEmails
-      .slice(0, 30)
+      .slice(0, QUERY_LIMITS.LLM_SENT_EMAILS_LIMIT)
       .map((e) => {
         // Use full body, but clean it up for readability
         const cleanBody = e.body.replace(/\n{3,}/g, "\n\n").trim();
@@ -323,12 +341,12 @@ export class LLMService {
       if (e.receivedAt) {
         receivedHours.push(new Date(e.receivedAt).getHours());
       }
-      if (e.timeToReply !== null && e.timeToReply < 24 * 60) {
+      if (e.timeToReply !== null && e.timeToReply < MINUTES.DAY) {
         // Replies within 24 hours
         const received = new Date(e.receivedAt);
         const replyMinutes = e.timeToReply;
         const replyTime = new Date(
-          received.getTime() + replyMinutes * 60 * 1000,
+          received.getTime() + replyMinutes * MILLISECONDS.MINUTE,
         );
         replyHours.push(replyTime.getHours());
       }
@@ -377,19 +395,19 @@ export class LLMService {
       `[CONTEXT-ANALYSIS] [LLM] Input: ${receivedEmails.length} received emails, ${sentEmails.length} sent emails`,
     );
     const llmCallStart = Date.now();
-    
+
     const response = await this.generateText(
       {
         prompt,
         systemPrompt,
-        temperature: 0.4,
-        maxTokens: 1500,
+        temperature: RATIOS.FORTY_PERCENT,
+        maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_LARGE,
         userId,
       },
       provider,
       userId,
     );
-    
+
     const llmCallDuration = Date.now() - llmCallStart;
     this.logger.log(
       `[CONTEXT-ANALYSIS] [LLM] generateText() completed in ${llmCallDuration}ms (${(llmCallDuration / 1000).toFixed(2)}s)`,
@@ -460,28 +478,6 @@ export class LLMService {
     provider?: LLMProvider,
     userId?: string,
   ): Promise<string> {
-    const systemPrompts = {
-      tldr: "You are a helpful assistant that creates concise TL;DR summaries of emails. Be brief and capture the key points.",
-      "bullet-points":
-        "You are a helpful assistant that creates bullet-point summaries of emails. Extract the main points and present them as a clear bullet list.",
-      "action-items":
-        "You are a helpful assistant that extracts action items from emails. List only actionable tasks that need to be done.",
-      "sender-request":
-        "You are a helpful assistant that identifies what the sender is requesting or asking for in the email. Be specific about their needs.",
-      custom:
-        "You are a helpful assistant that summarizes emails based on specific user instructions.",
-    };
-
-    // Optimized for prompt caching: static instruction at start, dynamic content at end
-    const summaryInstruction =
-      summaryType === "tldr"
-        ? "Please provide a concise TL;DR summary"
-        : summaryType === "bullet-points"
-          ? "Please provide a bullet-point summary"
-          : summaryType === "action-items"
-            ? "Please extract action items"
-            : "Please identify what the sender is requesting";
-
     // Check if this is a thread (contains multiple messages)
     const isThread =
       emailBody.includes("[Message") && emailBody.includes("---");
@@ -489,14 +485,59 @@ export class LLMService {
       ? "This is an email thread with multiple messages. Summarize the entire conversation, focusing on the most recent developments and key points across all messages."
       : "";
 
-    const prompt = `${summaryInstruction}${isThread ? " for the following email thread" : " for the following email"}:\n\nSubject: ${emailSubject}\n\n${contextNote ? `${contextNote}\n\n` : ""}Body:\n${emailBody}`;
+    let promptConfig;
+    let promptId: string;
+    if (summaryType === "tldr") {
+      promptId = "summarize_email_tldr";
+    } else if (summaryType === "bullet-points") {
+      promptId = "summarize_email_bullets";
+    } else if (summaryType === "action-items") {
+      promptId = "summarize_email_actions";
+    } else {
+      // For "sender-request" and "custom", fall back to tldr format
+      promptId = "summarize_email_tldr";
+    }
+
+    promptConfig = getPrompt(promptId);
+    if (!promptConfig) {
+      this.logger.warn(
+        `${promptId} prompt not found in markdown files - using fallback`,
+      );
+      // Fallback: use inline prompt
+      const fallbackSystemPrompt = `You are a helpful assistant that creates ${summaryType === "tldr" ? "concise TL;DR" : summaryType === "bullet-points" ? "bullet-point" : "action item"} summaries of emails.`;
+      const summaryInstruction =
+        summaryType === "tldr"
+          ? "Please provide a concise TL;DR summary"
+          : summaryType === "bullet-points"
+            ? "Please provide a bullet-point summary"
+            : "Please extract action items";
+      const fallbackPrompt = `${summaryInstruction}${isThread ? " for the following email thread" : " for the following email"}:\n\nSubject: ${emailSubject}\n\n${contextNote ? `${contextNote}\n\n` : ""}Body:\n${emailBody}`;
+      return await this.generateText(
+        {
+          prompt: fallbackPrompt,
+          systemPrompt: fallbackSystemPrompt,
+          temperature: RATIOS.HALF,
+          maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_SMALL,
+          userId,
+        },
+        provider,
+        userId,
+      );
+    }
+
+    const prompt = renderPrompt(promptConfig.prompt || "", {
+      isThread,
+      subject: emailSubject,
+      contextNote: contextNote || "",
+      body: emailBody,
+    });
 
     return await this.generateText(
       {
         prompt,
-        systemPrompt: systemPrompts[summaryType],
-        temperature: 0.5,
-        maxTokens: 500,
+        systemPrompt: promptConfig.systemPrompt || "",
+        temperature: RATIOS.HALF,
+        maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_SMALL,
         userId,
       },
       provider,
@@ -510,23 +551,24 @@ export class LLMService {
     provider?: LLMProvider,
     userId?: string,
   ): Promise<{ isOk: boolean; suggestions: string[]; revisedText?: string }> {
-    const systemPrompt = `You are a communication assistant that checks emails for tone and style.
-Rules to enforce:
-${rules.map((r) => `- ${r}`).join("\n")}
+    const promptConfig = getPrompt("check_tone_style");
+    if (!promptConfig) {
+      this.logger.error(
+        "check_tone_style prompt not found in markdown files - cannot check tone",
+      );
+      throw new Error("Tone checking prompt not available");
+    }
 
-Analyze the text and determine if it violates any rules.
-If it violates rules, explain why and provide a revised version.
-If it follows rules, simply confirm it is OK.
-
-Return a JSON object with: { "isOk": boolean, "suggestions": string[], "revisedText": string (optional) }`;
-
-    const prompt = `Check this text against the rules:\n\n${text}`;
+    const prompt = renderPrompt(promptConfig.prompt || "", {
+      rules,
+      text,
+    });
 
     const response = await this.generateText(
       {
         prompt,
-        systemPrompt,
-        temperature: 0.3,
+        systemPrompt: promptConfig.systemPrompt || "",
+        temperature: RATIOS.THIRTY_PERCENT,
         maxTokens: 800,
         userId,
       },
@@ -555,9 +597,14 @@ Return a JSON object with: { "isOk": boolean, "suggestions": string[], "revisedT
     userId?: string,
     senderInfo?: { from: string; fromName?: string },
     recipientInfo?: { name?: string; email?: string },
+    isUserSender: boolean = false,
   ): Promise<Array<{ description: string; confidence: number }>> {
     // Clean email body: strip HTML, remove signatures, limit to 2000 chars
-    const cleanedBody = cleanEmailContent(emailBody, null, 2000);
+    const cleanedBody = cleanEmailContent(
+      emailBody,
+      null,
+      QUERY_LIMITS.LLM_BODY_PREVIEW_LENGTH,
+    );
 
     // Load prompt from markdown file - NO hardcoded prompts!
     const promptConfig = getPrompt("extract_action_items");
@@ -575,6 +622,9 @@ Return a JSON object with: { "isOk": boolean, "suggestions": string[], "revisedT
       fromName: senderInfo?.fromName || senderInfo?.from || "Unknown",
       recipientName: recipientInfo?.name || "You",
       recipientEmail: recipientInfo?.email || "",
+      isUserSender,
+      // Pass boolean directly for {{#if}} condition
+      perspective: isUserSender ? "SENDER" : "RECIPIENT",
     });
 
     // Use the full prompt as the user message (markdown contains all instructions)
@@ -585,7 +635,7 @@ Return a JSON object with: { "isOk": boolean, "suggestions": string[], "revisedT
       {
         prompt,
         systemPrompt,
-        temperature: 0.3,
+        temperature: RATIOS.THIRTY_PERCENT,
         maxTokens: 800,
         userId,
       },
@@ -617,6 +667,132 @@ Return a JSON object with: { "isOk": boolean, "suggestions": string[], "revisedT
     return [];
   }
 
+  // eslint-disable-next-line max-lines-per-function
+  async detectSuggestedActions(
+    emailContent: {
+      subject: string;
+      body: string;
+      from: string;
+      fromName?: string;
+    },
+    emailMetadata?: {
+      hasGithubLinks?: boolean;
+      githubLinks?: Array<{
+        type: string;
+        owner: string;
+        repo: string;
+        number: number;
+      }>;
+      hasCalendarToken?: boolean;
+      hasGithubToken?: boolean;
+    },
+    provider?: LLMProvider,
+    userId?: string,
+  ): Promise<
+    Array<{
+      type: string;
+      confidence: number;
+      reason: string;
+      metadata?: Record<string, unknown>;
+    }>
+  > {
+    // Clean email body: strip HTML, remove signatures, limit to 3000 chars
+    const cleanedBody = cleanEmailContent(
+      emailContent.body,
+      null,
+      PERFORMANCE_BUDGETS.EMAIL_CONTENT_CLEAN,
+    );
+
+    const promptConfig = getPrompt("suggest_actions");
+    if (!promptConfig) {
+      this.logger.error(
+        "suggest_actions prompt not found in markdown files - cannot suggest actions",
+      );
+      return [];
+    }
+
+    const githubContext = emailMetadata?.hasGithubLinks
+      ? `\n\nNote: This email contains GitHub links: ${JSON.stringify(emailMetadata.githubLinks)}`
+      : "";
+
+    const availableIntegrations = [];
+    if (emailMetadata?.hasGithubToken) availableIntegrations.push("GitHub");
+    if (emailMetadata?.hasCalendarToken) availableIntegrations.push("Calendar");
+
+    const integrationsNote =
+      availableIntegrations.length > 0
+        ? `\n\nAvailable integrations: ${availableIntegrations.join(", ")}`
+        : "";
+
+    const prompt = renderPrompt(promptConfig.prompt || "", {
+      subject: emailContent.subject,
+      fromName: emailContent.fromName || emailContent.from,
+      githubContext: githubContext || "",
+      integrationsNote: integrationsNote || "",
+      body: cleanedBody,
+    });
+
+    const response = await this.generateText(
+      {
+        prompt,
+        systemPrompt: promptConfig.systemPrompt || "",
+        temperature: RATIOS.THIRTY_PERCENT,
+        maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_MEDIUM,
+        userId,
+      },
+      provider,
+      userId,
+    );
+
+    try {
+      // Handle markdown code blocks if present
+      let jsonString = response;
+      jsonString = jsonString
+        .replace(/^```json\s*/i, "")
+        .replace(/^```\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim();
+
+      const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        const actions = parsed.actions || [];
+        // Filter by confidence and only include actions for available integrations
+        return actions.filter(
+          (action: {
+            confidence: number;
+            type?: string;
+            [key: string]: unknown;
+          }) => {
+            if (action.confidence < RATIOS.SEVENTY_PERCENT) return false;
+            // Only show GitHub actions if token is available
+            if (
+              action.type.startsWith("github_") &&
+              !emailMetadata?.hasGithubToken
+            ) {
+              return false;
+            }
+            // Only show Calendar actions if token is available
+            if (
+              action.type.startsWith("calendar_") &&
+              !emailMetadata?.hasCalendarToken
+            ) {
+              return false;
+            }
+            return true;
+          },
+        );
+      }
+    } catch (error) {
+      this.logger.warn(
+        "Failed to parse LLM suggested actions response as JSON",
+        error,
+      );
+    }
+
+    return [];
+  }
+
   async generateReplyOptions(
     originalEmail: {
       from: string;
@@ -634,29 +810,36 @@ Return a JSON object with: { "isOk": boolean, "suggestions": string[], "revisedT
     // Clean email body: strip HTML, remove signatures, limit to 2000 chars
     const cleanedBody = cleanEmailContent(originalEmail.body, null, 2000);
 
+    const promptConfig = getPrompt("generate_multiple_replies");
+    if (!promptConfig) {
+      this.logger.error(
+        "generate_multiple_replies prompt not found in markdown files - cannot generate multiple replies",
+      );
+      // Fallback: return single generic draft
+      const fallbackDraft = await this.generateReplyDraft(
+        originalEmail,
+        userContext,
+        provider,
+        userId,
+      );
+      return [{ label: "Draft Reply", text: fallbackDraft }];
+    }
+
     const tone = userContext.tone || "professional";
 
-    const systemPrompt = `You are a helpful assistant that drafts email replies.
-The user prefers a ${tone} tone.
-Generate 2 distinct reply options based on the email content:
-1. A "Positive/Agree" option (e.g., accepting a meeting, agreeing to a proposal)
-2. A "Negative/Decline/Defer" option (e.g., declining politely, asking for more time)
-
-Return a JSON object with a key "options" which is an array of: { "label": string (short description), "text": string (full email body) }`;
-
-    const prompt = `Original email from ${originalEmail.fromName || originalEmail.from}:
-Subject: ${originalEmail.subject}
-
-${cleanedBody}
-
-Generate 2 reply options.`;
+    const prompt = renderPrompt(promptConfig.prompt || "", {
+      tone,
+      fromName: originalEmail.fromName || originalEmail.from,
+      subject: originalEmail.subject,
+      body: cleanedBody,
+    });
 
     const response = await this.generateText(
       {
         prompt,
-        systemPrompt,
-        temperature: 0.7,
-        maxTokens: 1000,
+        systemPrompt: promptConfig.systemPrompt || "",
+        temperature: RATIOS.SEVENTY_PERCENT,
+        maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_MEDIUM,
         userId,
       },
       provider,
@@ -704,39 +887,34 @@ Generate 2 reply options.`;
     // Clean email body: strip HTML, remove signatures, limit to 2000 chars
     const cleanedBody = cleanEmailContent(originalEmail.body, null, 2000);
 
+    const promptConfig = getPrompt("generate_reply");
+    if (!promptConfig) {
+      this.logger.error(
+        "generate_reply prompt not found in markdown files - cannot generate reply",
+      );
+      throw new Error("Reply generation prompt not available");
+    }
+
     const tone = userContext.tone || "professional";
-    const styleGuidance = userContext.writingStyle
-      ? `Writing style: ${userContext.writingStyle}`
-      : "";
-
-    const systemPrompt = `You are a helpful assistant that drafts email replies. 
-The user prefers a ${tone} tone.
-${styleGuidance}
-Generate a professional, concise reply that addresses the original email appropriately.`;
-
     const contextPhrases = userContext.commonPhrases?.length
-      ? `\n\nUser commonly uses phrases like: ${userContext.commonPhrases.slice(0, 3).join(", ")}`
+      ? userContext.commonPhrases.slice(0, 3).join(", ")
       : "";
 
-    const prompt = `Original email from ${originalEmail.fromName || originalEmail.from}:
-Subject: ${originalEmail.subject}
-
-${cleanedBody}
-
-${contextPhrases}
-
-Generate a reply draft that:
-1. Acknowledges the original email
-2. Addresses any questions or requests
-3. Maintains a ${tone} tone
-4. Is concise and professional`;
+    const prompt = renderPrompt(promptConfig.prompt || "", {
+      tone,
+      writingStyle: userContext.writingStyle || "",
+      fromName: originalEmail.fromName || originalEmail.from,
+      subject: originalEmail.subject,
+      body: cleanedBody,
+      commonPhrases: contextPhrases || "",
+    });
 
     return await this.generateText(
       {
         prompt,
-        systemPrompt,
-        temperature: 0.7,
-        maxTokens: 1000,
+        systemPrompt: promptConfig.systemPrompt || "",
+        temperature: RATIOS.SEVENTY_PERCENT,
+        maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_MEDIUM,
         userId,
       },
       provider,
@@ -759,202 +937,48 @@ Generate a reply draft that:
     // Clean email body: strip HTML, remove signatures, limit to 2000 chars
     const cleanedBody = cleanEmailContent(originalEmail.body, null, 2000);
 
-    // Handle empty slots case
-    if (availableSlots.length === 0) {
-      const systemPrompt = `You are a helpful assistant that drafts professional meeting scheduling replies when no slots are available. Be polite and ask for their availability.`;
-      const prompt = `Original email from ${originalEmail.fromName || originalEmail.from}:
-Subject: ${originalEmail.subject}
-
-${cleanedBody}
-
-I don't have any available slots in the next week. Generate a professional, polite reply asking for their availability.`;
-
-      return await this.generateText(
-        {
-          prompt,
-          systemPrompt,
-          temperature: 0.7,
-          maxTokens: 400,
-          userId,
-        },
-        provider,
-        userId,
+    const promptConfig = getPrompt("generate_meeting_reply");
+    if (!promptConfig) {
+      this.logger.error(
+        "generate_meeting_reply prompt not found in markdown files - cannot generate meeting reply",
       );
+      throw new Error("Meeting reply generation prompt not available");
     }
-    const slotsText = availableSlots
-      .slice(0, 5)
-      .map((slot, i) => {
-        const start = new Date(slot.start);
-        return `${i + 1}. ${start.toLocaleDateString()} at ${start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
-      })
-      .join("\n");
 
-    const calendarLink = calendarBookingUrl
-      ? `\n\nYou can also book directly on my calendar: ${calendarBookingUrl}`
-      : "";
+    const hasAvailableSlots = availableSlots.length > 0;
+    let slotsText = "";
+    if (hasAvailableSlots) {
+      slotsText = availableSlots
+        .slice(0, 5)
+        .map((slot, i) => {
+          const start = new Date(slot.start);
+          return `${i + 1}. ${start.toLocaleDateString()} at ${start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+        })
+        .join("\n");
+    }
 
-    const systemPrompt = `You are a helpful assistant that drafts professional meeting scheduling replies. 
-Be friendly, professional, and helpful when suggesting meeting times.`;
-
-    const prompt = `Original email from ${originalEmail.fromName || originalEmail.from}:
-Subject: ${originalEmail.subject}
-
-${cleanedBody}
-
-Available time slots:
-${slotsText}
-${calendarLink}
-
-Generate a professional reply that:
-1. Thanks them for reaching out
-2. Offers the available time slots
-3. Asks what works best for them
-4. Is friendly and professional`;
+    const prompt = renderPrompt(promptConfig.prompt || "", {
+      hasAvailableSlots,
+      fromName: originalEmail.fromName || originalEmail.from,
+      subject: originalEmail.subject,
+      body: cleanedBody,
+      slotsText,
+      calendarLink: calendarBookingUrl || "",
+    });
 
     return await this.generateText(
       {
         prompt,
-        systemPrompt,
-        temperature: 0.7,
-        maxTokens: 800,
-        userId,
-      },
-      provider,
-      userId,
-    );
-  }
-
-  async analyzePriority(
-    email: {
-      from: string;
-      fromName?: string;
-      senderJobTitle?: string;
-      subject: string;
-      body: string; // Should be pre-cleaned, but we'll clean defensively
-    },
-    userHistory?: {
-      averageTimeToReply?: number;
-      similarEmailsReplyTime?: number;
-    },
-    provider?: LLMProvider,
-    userId?: string,
-  ): Promise<{
-    urgencyScore: number;
-    urgencyExplanation: string;
-    sentimentScore: number;
-    reasoning: string;
-  }> {
-    // Defensive cleaning in case body wasn't pre-cleaned by caller
-    const cleanedBody = cleanEmailContent(email.body, null, 2000);
-
-    // Load prompt from markdown file
-    const promptConfig = getPrompt("analyze_priority");
-    if (!promptConfig) {
-      this.logger.warn("analyze_priority prompt not found, using fallback");
-      // Fallback: use inline prompt if markdown file not found
-      const cleanedBody = cleanEmailContent(email.body, null, 2000);
-      const historyContext = userHistory
-        ? `\nUser's average time to reply: ${userHistory.averageTimeToReply || "unknown"} hours`
-        : "";
-      const fallbackPrompt = `Analyze this email and provide component scores.\n\nFrom: ${email.fromName || email.from}${email.senderJobTitle ? ` (${email.senderJobTitle})` : ""}\nSubject: ${email.subject}\n\n${cleanedBody}${historyContext}`;
-      
-      const fallbackSystemPrompt = `You are an email prioritization assistant. Provide component scores only (urgencyScore 0-100, urgencyExplanation, sentimentScore -1 to 1, reasoning). Return JSON: { "urgencyScore": number, "urgencyExplanation": string, "sentimentScore": number, "reasoning": string }`;
-
-      const response = await this.generateText(
-        {
-          prompt: fallbackPrompt,
-          systemPrompt: fallbackSystemPrompt,
-          temperature: 0.3,
-          maxTokens: 500,
-          userId,
-        },
-        provider,
-        userId,
-      );
-
-      try {
-        const jsonMatch = response.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          return {
-            urgencyScore: Math.max(0, Math.min(100, parsed.urgencyScore || 0)),
-            urgencyExplanation:
-              parsed.urgencyExplanation || "No urgency explanation provided",
-            sentimentScore:
-              parsed.sentimentScore !== undefined
-                ? Math.max(-1, Math.min(1, parsed.sentimentScore))
-                : 0,
-            reasoning: parsed.reasoning || "No reasoning provided",
-          };
-        }
-      } catch (error) {
-        this.logger.warn("Failed to parse LLM priority response as JSON", error);
-      }
-
-      return {
-        urgencyScore: 0,
-        urgencyExplanation: "No urgent indicators detected",
-        sentimentScore: 0,
-        reasoning: response.substring(0, 200),
-      };
-    }
-
-    // Render prompt template with variables
-    const prompt = renderPrompt(promptConfig.prompt, {
-      from: email.fromName || email.from,
-      fromName: email.fromName || email.from,
-      senderJobTitle: email.senderJobTitle || "",
-      subject: email.subject,
-      body: cleanedBody,
-      averageTimeToReply: userHistory?.averageTimeToReply,
-    });
-
-    const response = await this.generateText(
-      {
-        prompt,
         systemPrompt: promptConfig.systemPrompt || "",
-        temperature: 0.3, // Lower temperature for more consistent scoring
-        maxTokens: 500,
+        temperature: RATIOS.SEVENTY_PERCENT,
+        maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_TINY,
         userId,
       },
       provider,
       userId,
     );
-
-    // Try to parse JSON response
-    try {
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        return {
-          urgencyScore: Math.max(0, Math.min(100, parsed.urgencyScore || 0)),
-          urgencyExplanation:
-            parsed.urgencyExplanation || "No urgency explanation provided",
-          sentimentScore:
-            parsed.sentimentScore !== undefined
-              ? Math.max(-1, Math.min(1, parsed.sentimentScore))
-              : 0,
-          reasoning: parsed.reasoning || "No reasoning provided",
-        };
-      }
-    } catch (error) {
-      this.logger.warn("Failed to parse LLM priority response as JSON", error);
-    }
-
-    // Fallback: extract component scores from text if JSON parsing fails
-    const urgencyKeywords = /urgent|asap|critical|emergency/i.test(response);
-    const urgencyScore = urgencyKeywords ? 90 : 0;
-    const urgencyExplanation = urgencyKeywords
-      ? "Contains urgent keywords"
-      : "No urgent indicators detected";
-
-    return {
-      urgencyScore,
-      urgencyExplanation,
-      sentimentScore: 0, // Neutral as fallback
-      reasoning: response.substring(0, 200),
-    };
   }
+
 
   /**
    * Generate a follow-up draft for an email that hasn't received a reply
@@ -966,6 +990,7 @@ Generate a professional reply that:
    * @param provider Optional LLM provider override
    * @param userId Optional user ID for API key
    */
+  // eslint-disable-next-line max-params
   async generateFollowUpDraft(
     subject: string,
     threadMessages: Array<{
@@ -981,21 +1006,12 @@ Generate a professional reply that:
     provider?: LLMProvider,
     userId?: string,
   ): Promise<string> {
-    // Build system prompt with user communication style
-    let systemPrompt = `You are a helpful assistant that drafts follow-up emails.
-Generate a VERY concise, polite follow-up email (2-3 sentences max).
-The tone should be friendly but professional - not pushy or aggressive.
-Don't apologize excessively. Be direct but kind.`;
-
-    if (userCommunicationStyle?.tone) {
-      systemPrompt += `\n\nUser's preferred tone: ${userCommunicationStyle.tone}`;
-    }
-
-    if (
-      userCommunicationStyle?.commonPhrases &&
-      userCommunicationStyle.commonPhrases.length > 0
-    ) {
-      systemPrompt += `\n\nUser commonly uses these phrases: ${userCommunicationStyle.commonPhrases.join(", ")}`;
+    const promptConfig = getPrompt("generate_follow_up");
+    if (!promptConfig) {
+      this.logger.error(
+        "generate_follow_up prompt not found in markdown files - cannot generate follow-up",
+      );
+      throw new Error("Follow-up generation prompt not available");
     }
 
     // Build thread context from last few messages
@@ -1008,24 +1024,29 @@ Don't apologize excessively. Be direct but kind.`;
       })
       .join("\n\n---\n\n");
 
-    const prompt = `I need to follow up on an email thread.
+    // Check if user has a preference to skip greeting (from tone settings or context)
+    const skipGreeting =
+      userCommunicationStyle?.tone?.toLowerCase().includes("no greeting") ||
+      userCommunicationStyle?.tone?.toLowerCase().includes("skip greeting");
 
-Subject: ${subject}
-
-Thread context (last ${threadMessages.length} messages in chronological order):
-${threadContext}
-
-Recipient: ${theirName}
-Business days since my last message: ${businessDaysWaiting} ${businessDaysWaiting === 1 ? "day" : "days"}
-
-Generate a brief, friendly follow-up message. Keep it to 2-3 sentences maximum. Don't include a greeting or signature - just the body text.`;
+    const prompt = renderPrompt(promptConfig.prompt || "", {
+      tone: userCommunicationStyle?.tone || "",
+      commonPhrases: userCommunicationStyle?.commonPhrases?.join(", ") || "",
+      subject,
+      threadMessageCount: threadMessages.length,
+      threadContext,
+      recipientName: theirName,
+      businessDaysWaiting,
+      daysLabel: businessDaysWaiting === 1 ? "day" : "days",
+      skipGreeting,
+    });
 
     return await this.generateText(
       {
         prompt,
-        systemPrompt,
-        temperature: 0.7,
-        maxTokens: 200,
+        systemPrompt: promptConfig.systemPrompt || "",
+        temperature: RATIOS.SEVENTY_PERCENT,
+        maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_EXPLANATION,
         userId,
       },
       provider,
@@ -1066,46 +1087,27 @@ Generate a brief, friendly follow-up message. Keep it to 2-3 sentences maximum. 
       .map((c) => `${c.contextKey}: ${c.contextValue}`)
       .join("\n");
 
-    const systemPrompt = `You are an assistant that analyzes user feedback about email priority scoring.
-When a user overrides a priority score, analyze their reason and suggest updates to the user's context rules.
-
-Context keys available:
-- VIP_CONTACT: Important contacts
-- MY_GOALS: User's goals
-- WORKING_ON: Current projects
-- DONT_CARE: Things user doesn't care about
-- URGENT: What user considers urgent
-
-Return a JSON object with:
-{
-  "suggestedRules": ["rule1", "rule2"],
-  "updatedContexts": [
-    {
-      "contextKey": "VIP_CONTACT",
-      "contextValue": "contact name or email",
-      "priority": 1 (optional, 1-3)
+    const promptConfig = getPrompt("analyze_priority_feedback");
+    if (!promptConfig) {
+      this.logger.error(
+        "analyze_priority_feedback prompt not found in markdown files - cannot analyze feedback",
+      );
+      return { suggestedRules: [], updatedContexts: [] };
     }
-  ]
-}`;
 
-    const prompt = `User overrode priority for this email:
-From: ${email.fromName || email.from}
-Subject: ${email.subject}
-Body: ${cleanedBody.substring(0, 500)}
-
-Override reason type: ${reasonType}
-Reason text: ${reasonText}
-
-Current user context:
-${contextSummary}
-
-Analyze the override reason and suggest context rule updates that would prevent this mismatch in the future.`;
+    const prompt = renderPrompt(promptConfig.prompt || "", {
+      fromName: email.fromName || email.from,
+      subject: email.subject,
+      body: cleanedBody.substring(0, 500),
+      reasonType,
+      reason: reasonText,
+    });
 
     const response = await this.generateText(
       {
         prompt,
-        systemPrompt,
-        temperature: 0.3,
+        systemPrompt: promptConfig.systemPrompt || "",
+        temperature: RATIOS.THIRTY_PERCENT,
         maxTokens: 800,
         userId,
       },
@@ -1165,7 +1167,9 @@ Analyze the override reason and suggest context rule updates that would prevent 
 
     const peakHours = sortedHours
       .map(([hour, count]) => {
+        // eslint-disable-next-line @typescript-eslint/no-magic-numbers
         const period = hour < 12 ? "AM" : "PM";
+        // eslint-disable-next-line @typescript-eslint/no-magic-numbers
         const hour12 = hour % 12 || 12;
         return `${hour12}${period} (${count} emails)`;
       })
@@ -1183,66 +1187,43 @@ Analyze the override reason and suggest context rule updates that would prevent 
     userId?: string,
     provider?: LLMProvider,
   ): Promise<Array<{ question: string; answer: string; frequency: number }>> {
-    const systemPrompt = `You are an advanced email analyst. Analyze the user's email replies to extract common questions FROM OTHER PEOPLE that the user answers, and the user's typical responses.
-
-CRITICAL: 
-- Questions should be questions FROM OTHER PEOPLE TO THE USER (not questions the user asks)
-- Answers should be the USER'S responses (what the user typically says when answering these questions)
-- Only extract Q&A pairs that appear 3+ times (indicating they're truly common patterns)
-- Answers must be SPECIFIC and ACTIONABLE - vague answers like "I inform recipients about flexible scheduling" are NOT helpful
-- Answers should describe what the user actually says/does, not abstract descriptions
-
-Output JSON array of objects:
-[
-  {
-    "question": "The question FROM OTHER PEOPLE that the user commonly answers (abstracted/generalized)",
-    "answer": "What the user typically says or does when answering this question (be SPECIFIC and concrete)",
-    "frequency": number of times this Q&A pattern appears
-  }
-]
-
-Focus on:
-- Questions about availability/scheduling (e.g., "Are you available?", "When can we meet?")
-- Questions about status/progress updates (e.g., "What's the status?", "How is X going?")
-- Questions about decisions/approvals (e.g., "Can you approve?", "Should we do X?")
-- Questions about technical details (e.g., "How does X work?", "Can you explain Y?")
-- Questions about confirmations (e.g., "Did you receive?", "Can you confirm?")
-
-Answer format examples:
-- GOOD: "I confirm my attendance and mention any dietary requirements"
-- GOOD: "I provide a specific date and time, asking about location details"
-- BAD: "I inform recipients about flexible scheduling" (too vague)
-- BAD: "I respond with scheduling information" (not specific enough)
-
-Only include Q&A pairs that appear 3 or more times. Be abstract for questions but SPECIFIC for answers. Don't include specific dates, names, or project details in questions, but answers should be concrete about what the user does.`;
+    const promptConfig = getPrompt("extract_common_questions");
+    if (!promptConfig) {
+      this.logger.error(
+        "extract_common_questions prompt not found in markdown files - cannot extract questions",
+      );
+      return [];
+    }
 
     // Remove quoted/replied content from user's emails to focus on their actual responses
     const cleanReplies = userReplies.map((e) => {
-      let body = e.body;
+      let { body } = e;
       // Remove quoted content
       body = body
-        .split('\n')
-        .filter(line => {
+        .split("\n")
+        .filter((line) => {
           const trimmed = line.trim();
-          if (trimmed.startsWith('>')) return false;
+          if (trimmed.startsWith(">")) return false;
           if (/^On .+ wrote:/i.test(trimmed)) return false;
           if (/^From:/i.test(trimmed)) return false;
           return true;
         })
-        .join('\n');
+        .join("\n");
       return `Subject: ${e.subject}\nBody: ${body.substring(0, 1000)}`;
     });
 
     const repliesText = cleanReplies.join("\n\n---\n\n");
 
-    const prompt = `Analyze these user email replies to find common questions FROM OTHER PEOPLE that the user answers, and what the user typically says in response:\n\n${repliesText}`;
+    const prompt = renderPrompt(promptConfig.prompt || "", {
+      repliesText,
+    });
 
     const response = await this.generateText(
       {
         prompt,
-        systemPrompt,
-        temperature: 0.3,
-        maxTokens: 1000,
+        systemPrompt: promptConfig.systemPrompt || "",
+        temperature: RATIOS.THIRTY_PERCENT,
+        maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_MEDIUM,
         userId,
       },
       provider,
@@ -1254,7 +1235,9 @@ Only include Q&A pairs that appear 3 or more times. Be abstract for questions bu
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
         return Array.isArray(parsed)
-          ? parsed.filter((qa) => qa.frequency >= 3) // Require 3+ occurrences
+          ? // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+            // Require 3+ occurrences
+            parsed.filter((qa) => qa.frequency >= 3)
           : [];
       }
     } catch (error) {
@@ -1291,20 +1274,24 @@ Only include Q&A pairs that appear 3 or more times. Be abstract for questions bu
     const daysAgo = Math.floor(
       (now.getTime() - receivedDate.getTime()) / (1000 * 60 * 60 * 24),
     );
+    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
     const isRecent = daysAgo <= 7;
-    const receivedAtText =
-      daysAgo === 0
-        ? "today"
-        : daysAgo === 1
-          ? "yesterday"
-          : `${daysAgo} days ago`;
+    let receivedAtText: string;
+    if (daysAgo === 0) {
+      receivedAtText = "today";
+    } else if (daysAgo === 1) {
+      receivedAtText = "yesterday";
+    } else {
+      receivedAtText = `${daysAgo} days ago`;
+    }
 
     // Render prompt with variables
     const fullPrompt = renderPrompt(promptConfig.prompt || "", {
       query,
       from: email.from,
       subject: email.subject,
-      bodyPreview: email.body.substring(0, 500), // Increased to 500 for better context
+      bodyPreview: email.body.substring(0, 500),
+      // Increased to 500 for better context
       receivedAt: receivedAtText,
       isRecent: isRecent ? " (recent)" : "",
     });
@@ -1314,8 +1301,8 @@ Only include Q&A pairs that appear 3 or more times. Be abstract for questions bu
         prompt: fullPrompt,
         systemPrompt:
           "You are a helpful email search assistant. Provide concise, specific explanations.",
-        temperature: 0.3,
-        maxTokens: 150,
+        temperature: RATIOS.THIRTY_PERCENT,
+        maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_VERY_SMALL,
         userId,
       },
       provider,
@@ -1328,6 +1315,7 @@ Only include Q&A pairs that appear 3 or more times. Be abstract for questions bu
   /**
    * Generate explanations for multiple emails in a single batch call (faster than individual calls)
    */
+  // eslint-disable-next-line max-lines-per-function, complexity, max-statements
   async generateSearchRelevanceExplanationsBatch(
     query: string,
     emails: Array<{
@@ -1352,24 +1340,31 @@ Only include Q&A pairs that appear 3 or more times. Be abstract for questions bu
     }
 
     const now = new Date();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const emailDetails = emails.map((email, idx) => {
       const receivedDate = new Date(email.receivedAt);
       const daysAgo = Math.floor(
         (now.getTime() - receivedDate.getTime()) / (1000 * 60 * 60 * 24),
       );
-      const receivedAtText =
-        daysAgo === 0
-          ? "today"
-          : daysAgo === 1
-            ? "yesterday"
-            : `${daysAgo} days ago`;
+      let receivedAtText: string;
+      if (daysAgo === 0) {
+        receivedAtText = "today";
+      } else if (daysAgo === 1) {
+        receivedAtText = "yesterday";
+      } else {
+        receivedAtText = `${daysAgo} days ago`;
+      }
+      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
       const isRecent = daysAgo <= 7;
 
       return {
         index: email.index,
         from: email.from,
         subject: email.subject,
-        bodyPreview: email.body.substring(0, 300), // Slightly shorter for batch
+        // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+        // Slightly shorter for batch (300 chars)
+        // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+        bodyPreview: email.body.substring(0, 300),
         receivedAt: receivedAtText,
         isRecent: isRecent ? " (recent)" : "",
       };
@@ -1386,7 +1381,8 @@ Only include Q&A pairs that appear 3 or more times. Be abstract for questions bu
 
     const fullPrompt = renderPrompt(promptConfig.prompt || "", {
       query,
-      emails: emailDetails, // This should trigger {{#if emails}} to be true
+      emails: emailDetails,
+      // This should trigger {{#if emails}} to be true
     });
 
     // Log the rendered prompt to debug
@@ -1394,6 +1390,7 @@ Only include Q&A pairs that appear 3 or more times. Be abstract for questions bu
       `Batch explanation: ${emails.length} emails, prompt length: ${fullPrompt.length}`,
     );
     this.logger.debug(
+      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
       `Rendered prompt preview (first 800 chars):\n${fullPrompt.substring(0, 800)}`,
     );
 
@@ -1411,8 +1408,12 @@ Only include Q&A pairs that appear 3 or more times. Be abstract for questions bu
           prompt: fullPrompt,
           systemPrompt:
             "You are a helpful email search assistant. Return only valid JSON objects.",
-          temperature: 0.3,
-          maxTokens: Math.min(2000, emails.length * 200), // Increased tokens for better responses
+          temperature: RATIOS.THIRTY_PERCENT,
+          maxTokens: Math.min(
+            QUERY_LIMITS.LLM_BATCH_EXPLANATION_BASE,
+            emails.length * QUERY_LIMITS.LLM_BATCH_EXPLANATION_PER_EMAIL,
+          ),
+          // Increased tokens for better responses
           userId,
         },
         provider,
@@ -1420,7 +1421,7 @@ Only include Q&A pairs that appear 3 or more times. Be abstract for questions bu
       );
 
       this.logger.debug(
-        `Batch explanation response received. Length: ${response.length}, First 200 chars: ${response.substring(0, 200)}`,
+        `Batch explanation response received. Length: ${response.length}, First ${QUERY_LIMITS.LLM_REASONING_MAX_LENGTH} chars: ${response.substring(0, QUERY_LIMITS.LLM_REASONING_MAX_LENGTH)}`,
       );
 
       // Parse JSON response - try multiple patterns

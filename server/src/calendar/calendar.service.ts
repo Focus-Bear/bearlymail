@@ -1,12 +1,26 @@
 import { Injectable } from "@nestjs/common";
-import { google } from "googleapis";
+import { google, calendar_v3 } from "googleapis";
+import { OAuth2Client } from "google-auth-library";
 import { UsersService } from "../users/users.service";
 import { LLMService } from "../llm/llm.service";
+import { LLMProvider } from "../llm/llm.types";
 import { EmailsService } from "../emails/emails.service";
+import { HOURS } from "../constants/time-constants";
+
+export interface TimeSlot {
+  start: string;
+  end: string;
+  duration: number;
+}
+
+interface BusyPeriod {
+  start: string;
+  end: string;
+}
 
 @Injectable()
 export class CalendarService {
-  private oauth2Client: any;
+  private oauth2Client: OAuth2Client;
 
   constructor(
     private usersService: UsersService,
@@ -24,7 +38,7 @@ export class CalendarService {
   async getAvailableTimeSlots(
     userId: string,
     daysAhead: number = 7,
-  ): Promise<any[]> {
+  ): Promise<TimeSlot[]> {
     const user = await this.usersService.findOne(userId);
     if (!user?.googleCalendarAccessToken) {
       throw new Error("Google Calendar not connected");
@@ -52,7 +66,10 @@ export class CalendarService {
       });
 
       // Find free slots (simplified - in production, you'd calculate gaps between busy periods)
-      const busy = response.data.calendars?.primary?.busy || [];
+      const busy = (response.data.calendars?.primary?.busy || []).filter(
+        (period): period is BusyPeriod =>
+          period.start !== undefined && period.end !== undefined,
+      ) as BusyPeriod[];
       const freeSlots = this.calculateFreeSlots(now, endDate, busy);
 
       return freeSlots;
@@ -62,9 +79,14 @@ export class CalendarService {
     }
   }
 
-  private calculateFreeSlots(start: Date, end: Date, busy: any[]): any[] {
-    const slots: any[] = [];
-    const slotDuration = 30; // 30 minutes
+  private calculateFreeSlots(
+    start: Date,
+    end: Date,
+    busy: BusyPeriod[],
+  ): TimeSlot[] {
+    const slots: TimeSlot[] = [];
+    // 30 minutes
+    const slotDuration = 30;
     let current = new Date(start);
 
     while (current < end) {
@@ -79,7 +101,11 @@ export class CalendarService {
         );
       });
 
-      if (!isBusy && current.getHours() >= 9 && current.getHours() < 17) {
+      if (
+        !isBusy &&
+        current.getHours() >= HOURS.NINE &&
+        current.getHours() < HOURS.SEVENTEEN
+      ) {
         slots.push({
           start: current.toISOString(),
           end: slotEnd.toISOString(),
@@ -90,16 +116,20 @@ export class CalendarService {
       current = new Date(current.getTime() + slotDuration * 60 * 1000);
     }
 
-    return slots.slice(0, 10); // Return top 10 slots
+    // Return top 10 slots
+    return slots.slice(0, 10);
   }
 
+  // eslint-disable-next-line max-params
   async createEvent(
     userId: string,
     startTime: string,
     durationMinutes: number,
     guestEmail: string,
     guestName?: string,
-  ): Promise<any> {
+    title?: string,
+    description?: string,
+  ): Promise<calendar_v3.Schema$Event> {
     const user = await this.usersService.findOne(userId);
     if (!user?.googleCalendarAccessToken) {
       throw new Error("Google Calendar not connected");
@@ -121,8 +151,8 @@ export class CalendarService {
       const event = await calendar.events.insert({
         calendarId: "primary",
         requestBody: {
-          summary: `Meeting with ${guestName || guestEmail}`,
-          description: "Scheduled via ADHD Email Client",
+          summary: title || `Meeting with ${guestName || guestEmail}`,
+          description: description || "Scheduled via ADHD Email Client",
           start: { dateTime: start.toISOString() },
           end: { dateTime: end.toISOString() },
           attendees: [{ email: guestEmail }],
@@ -135,12 +165,94 @@ export class CalendarService {
     }
   }
 
+  async findEventsWithAttendee(
+    userId: string,
+    attendeeEmail: string,
+    daysAhead: number = 90,
+    daysBack: number = 30,
+  ): Promise<
+    Array<{
+      id: string | null | undefined;
+      summary: string | null | undefined;
+      description: string | null | undefined;
+      start: string | null | undefined;
+      end: string | null | undefined;
+      attendees?: Array<{
+        email: string | null | undefined;
+        displayName: string | null | undefined;
+        responseStatus: string | null | undefined;
+      }>;
+      htmlLink: string | null | undefined;
+      location: string | null | undefined;
+    }>
+  > {
+    const user = await this.usersService.findOne(userId);
+    if (!user?.googleCalendarAccessToken) {
+      throw new Error("Google Calendar not connected");
+    }
+
+    this.oauth2Client.setCredentials({
+      access_token: user.googleCalendarAccessToken,
+      refresh_token: user.googleCalendarRefreshToken,
+    });
+
+    const calendar = google.calendar({
+      version: "v3",
+      auth: this.oauth2Client,
+    });
+
+    const now = new Date();
+    const timeMin = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000);
+    const timeMax = new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000);
+
+    try {
+      const response = await calendar.events.list({
+        calendarId: "primary",
+        timeMin: timeMin.toISOString(),
+        timeMax: timeMax.toISOString(),
+        maxResults: 100,
+        singleEvents: true,
+        orderBy: "startTime",
+      });
+
+      const events = (response.data.items || []).filter((event) => {
+        // Check if the attendee email is in the attendees list
+        if (event.attendees) {
+          return event.attendees.some(
+            (attendee) =>
+              attendee.email?.toLowerCase() === attendeeEmail.toLowerCase(),
+          );
+        }
+        return false;
+      });
+
+      return events.map((event) => ({
+        id: event.id,
+        summary: event.summary,
+        description: event.description,
+        start: event.start?.dateTime || event.start?.date,
+        end: event.end?.dateTime || event.end?.date,
+        attendees: event.attendees?.map((a) => ({
+          email: a.email,
+          displayName: a.displayName,
+          responseStatus: a.responseStatus,
+        })),
+        htmlLink: event.htmlLink,
+        location: event.location,
+      }));
+    } catch (error) {
+      console.error("Error finding calendar events:", error);
+      throw new Error("Failed to find calendar events");
+    }
+  }
+
   async generateMeetingReply(
     userId: string,
     emailId: string,
     provider?: "gemini" | "openai",
   ): Promise<string> {
     const slots = await this.getAvailableTimeSlots(userId);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const user = await this.usersService.findOne(userId);
     const email = await this.emailsService.getEmailById(userId, emailId);
 
@@ -151,6 +263,11 @@ export class CalendarService {
     if (slots.length === 0) {
       // Use LLM even for no-slots scenario
       try {
+        const llmProvider = provider
+          ? provider === "gemini"
+            ? LLMProvider.GEMINI
+            : LLMProvider.OPENAI
+          : undefined;
         return await this.llmService.generateMeetingReply(
           {
             from: email.from,
@@ -160,7 +277,7 @@ export class CalendarService {
           },
           [],
           process.env.CALENDAR_BOOKING_URL,
-          provider as any,
+          llmProvider,
           userId,
         );
       } catch (error) {
@@ -182,6 +299,11 @@ Best regards`;
     }));
 
     try {
+      const llmProvider = provider
+        ? provider === "gemini"
+          ? LLMProvider.GEMINI
+          : LLMProvider.OPENAI
+        : undefined;
       return await this.llmService.generateMeetingReply(
         {
           from: email.from,
@@ -191,7 +313,7 @@ Best regards`;
         },
         formattedSlots,
         process.env.CALENDAR_BOOKING_URL,
-        provider as any,
+        llmProvider,
         userId,
       );
     } catch (error) {

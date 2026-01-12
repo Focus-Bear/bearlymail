@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { theme } from '../theme/theme';
+import { theme } from 'theme/theme';
 
 interface InfoTooltipProps {
   content: string;
@@ -85,5 +85,12 @@ export const InfoTooltip: React.FC<InfoTooltipProps> = ({ content, children }) =
     </div>
   );
 };
+
+
+
+
+
+
+
 
 

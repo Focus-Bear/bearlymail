@@ -9,9 +9,12 @@
 
 // Common signature markers
 const SIGNATURE_PATTERNS = [
-  /^--\s*$/m, // Standard "--"
-  /^_{3,}$/m, // "___" line
-  /^-{3,}$/m, // "---" line
+  // Standard "--"
+  /^--\s*$/m,
+  // "___" line
+  /^_{3,}$/m,
+  // "---" line
+  /^-{3,}$/m,
   /^sent from my (iphone|ipad|android|mobile)/im,
   /^get outlook for/im,
   /^best regards?,?$/im,
@@ -25,15 +28,6 @@ const SIGNATURE_PATTERNS = [
   /^warm regards?,?$/im,
   /^best,?$/im,
   /^all the best,?$/im,
-];
-
-// Quoted reply patterns
-const QUOTED_REPLY_PATTERNS = [
-  /^>+\s*.*/gm, // Lines starting with >
-  /^On .+ wrote:$/im, // "On [date], [person] wrote:"
-  /^-{5,}Original Message-{5,}/im, // Outlook style
-  /^From:.+\nSent:.+\nTo:.+\nSubject:/im, // Outlook header block
-  /^_{32,}$/m, // Long underscore line (32+ chars)
 ];
 
 // HTML tag patterns
@@ -176,6 +170,7 @@ function removeSignature(text: string): string {
       const index = result.search(pattern);
       // Only cut if there's meaningful content before (at least 50 chars)
       // and the signature isn't at the very beginning
+      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
       if (index > 50 && index < cutoffIndex) {
         cutoffIndex = index;
       }
@@ -193,12 +188,18 @@ function removeSignature(text: string): string {
  * Normalize whitespace
  */
 function normalizeWhitespace(text: string): string {
-  return text
-    .replace(/\r\n/g, "\n") // Normalize line endings
-    .replace(/\n{3,}/g, "\n\n") // Max 2 consecutive newlines
-    .replace(/[ \t]+/g, " ") // Multiple spaces/tabs to single space
-    .replace(/^\s+|\s+$/gm, "") // Trim each line
-    .trim();
+  return (
+    text
+      // Normalize line endings
+      .replace(/\r\n/g, "\n")
+      // Max 2 consecutive newlines
+      .replace(/\n{3,}/g, "\n\n")
+      // Multiple spaces/tabs to single space
+      .replace(/[ \t]+/g, " ")
+      // Trim each line
+      .replace(/^\s+|\s+$/gm, "")
+      .trim()
+  );
 }
 
 /**
@@ -217,13 +218,15 @@ function smartTruncate(text: string, maxLength: number): string {
   // Look for sentence endings (., !, ?)
   const sentenceEndMatch = searchRegion.match(/[.!?]\s+[A-Z]/);
   if (sentenceEndMatch) {
-    const endIndex = searchStart + sentenceEndMatch.index! + 1; // Include the punctuation
+    // Include the punctuation
+    const endIndex = searchStart + sentenceEndMatch.index! + 1;
     return text.substring(0, endIndex).trim();
   }
 
   // Fallback: try to end at a word boundary
   const truncated = text.substring(0, maxLength);
   const lastSpace = truncated.lastIndexOf(" ");
+  // eslint-disable-next-line @typescript-eslint/no-magic-numbers
   if (lastSpace > maxLength - 50) {
     return `${truncated.substring(0, lastSpace).trim()}...`;
   }
@@ -251,6 +254,7 @@ export function getEmailPreview(
   htmlBody?: string | null,
   maxLength: number = 150,
 ): string {
+  // eslint-disable-next-line @typescript-eslint/no-magic-numbers
   const cleaned = cleanEmailContent(body, htmlBody, maxLength + 50);
   // For previews, also remove newlines
   return cleaned.replace(/\n+/g, " ").substring(0, maxLength).trim();

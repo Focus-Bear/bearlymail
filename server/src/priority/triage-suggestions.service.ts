@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
 import {
   UserContext,
   ContextKey,
@@ -9,20 +10,25 @@ import {
 import { LLMService } from "../llm/llm.service";
 import { PriorityService } from "./priority.service";
 import { EmailsService } from "../emails/emails.service";
+import { calculateScoreFromBreakdown } from "../utils/priority.utils";
+import { EncryptionHelper } from "../encryption/encryption.helper";
 import * as fs from "fs";
 import * as path from "path";
 
 export interface TriageSuggestion {
   emailId: string;
-  suggestedStarCount: number; // 0-3
+  suggestedStarCount: number;
+  // 0-3
   suggestedArchive: boolean;
-  confidence: number; // 0-100
+  confidence: number;
+  // 0-100
   reasoning: string;
 }
 
 // Performance budgets in milliseconds
 const TRIAGE_PERF_BUDGETS = {
-  TRIAGE_TOTAL: 1000, // 1 second total
+  // 1 second total
+  TRIAGE_TOTAL: 1000,
   EMAIL_QUERY: 200,
   CONTEXT_QUERY: 100,
   HISTORY_QUERY: 300,
@@ -68,7 +74,7 @@ class TriagePerformanceTracker {
 
   finish(): void {
     const totalDuration = Date.now() - this.startTime;
-    const exceededSpans = this.spans.filter((s) => s.exceeded);
+    const exceededSpans = this.spans.filter((span) => span.exceeded);
     const totalExceeded = totalDuration > TRIAGE_PERF_BUDGETS.TRIAGE_TOTAL;
 
     if (totalExceeded || exceededSpans.length > 0) {
@@ -78,14 +84,15 @@ class TriagePerformanceTracker {
         totalDuration,
         totalBudget: TRIAGE_PERF_BUDGETS.TRIAGE_TOTAL,
         totalExceeded,
-        spans: this.spans.map((s) => ({
-          name: s.name,
-          duration: s.duration,
-          budget: s.budget,
-          exceeded: s.exceeded,
+        spans: this.spans.map((span) => ({
+          name: span.name,
+          duration: span.duration,
+          budget: span.budget,
+          exceeded: span.exceeded,
         })),
         exceededSpans: exceededSpans.map(
-          (s) => `${s.name}: ${s.duration}ms (budget: ${s.budget}ms)`,
+          (span) =>
+            `${span.name}: ${span.duration}ms (budget: ${span.budget}ms)`,
         ),
       };
 
@@ -94,9 +101,9 @@ class TriagePerformanceTracker {
       this.logger.warn(
         `⚠️ PERF ISSUE: ${this.operation} took ${totalDuration}ms (budget: ${TRIAGE_PERF_BUDGETS.TRIAGE_TOTAL}ms)`,
       );
-      exceededSpans.forEach((s) => {
+      exceededSpans.forEach((span) => {
         this.logger.warn(
-          `   - ${s.name}: ${s.duration}ms exceeded budget of ${s.budget}ms`,
+          `   - ${span.name}: ${span.duration}ms exceeded budget of ${span.budget}ms`,
         );
       });
 
@@ -116,6 +123,8 @@ export class TriageSuggestionsService {
   constructor(
     @InjectRepository(Email)
     private emailRepository: Repository<Email>,
+    @InjectRepository(EmailThread)
+    private emailThreadRepository: Repository<EmailThread>,
     @InjectRepository(UserContext)
     private userContextRepository: Repository<UserContext>,
     private llmService: LLMService,
@@ -126,6 +135,7 @@ export class TriageSuggestionsService {
   /**
    * Generate triage suggestions for a list of emails
    */
+  // eslint-disable-next-line max-lines-per-function
   async generateSuggestions(
     userId: string,
     emailIds: string[],
@@ -145,7 +155,7 @@ export class TriageSuggestionsService {
         email."from",
         email."fromName",
         email.subject,
-        email."priorityScore",
+        thread."priorityExplanation",
         email."receivedAt",
         thread."starCount",
         thread."isArchived"
@@ -157,21 +167,41 @@ export class TriageSuggestionsService {
     endEmailQuery();
 
     // Map raw results to Email-like objects (Partial<Email> with thread properties)
-    const emails = rawResult.map(
-      (row: any) =>
-        ({
-          id: row.id,
-          userId: row.userId,
-          threadId: row.threadId,
-          from: row.from,
-          fromName: row.fromName,
-          subject: row.subject,
-          priorityScore: row.priorityScore,
-          receivedAt: row.receivedAt,
-          starCount: row.starCount ?? 0,
-          isArchived: row.isArchived ?? false,
-        }) as unknown as Email,
-    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const emails = rawResult.map((row: any) => {
+      // Parse priorityExplanation (stored as encrypted JSON)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let priorityExplanation: any = null;
+      if (row.priorityExplanation) {
+        try {
+          const decryptedExplanation = EncryptionHelper.decrypt(
+            row.priorityExplanation,
+          );
+          if (decryptedExplanation) {
+            priorityExplanation = JSON.parse(decryptedExplanation);
+          }
+        } catch (error) {
+          this.logger.warn(
+            `Failed to decrypt/parse priorityExplanation for thread (email ${row.id}):`,
+            error,
+          );
+          priorityExplanation = null;
+        }
+      }
+
+      return {
+        id: row.id,
+        userId: row.userId,
+        threadId: row.threadId,
+        from: EncryptionHelper.decrypt(row.from),
+        fromName: EncryptionHelper.decrypt(row.fromName),
+        subject: EncryptionHelper.decrypt(row.subject),
+        priorityExplanation,
+        receivedAt: row.receivedAt,
+        starCount: row.starCount ?? 0,
+        isArchived: row.isArchived ?? false,
+      } as unknown as Email;
+    });
 
     if (emails.length === 0) {
       perf.finish();
@@ -216,6 +246,7 @@ export class TriageSuggestionsService {
     endHistoryQuery();
 
     const recentEmails = historyRaw.map(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (row: any) =>
         ({
           id: row.id,
@@ -271,15 +302,30 @@ export class TriageSuggestionsService {
     senderPatterns: Map<string, { avgStarCount: number; archiveRate: number }>,
   ): Promise<TriageSuggestion> {
     try {
-      const priorityScore = email.priorityScore ?? 50;
-      const suggestedStarCountFromPriority =
-        priorityScore >= 80
-          ? 3
-          : priorityScore >= 60
-            ? 2
-            : priorityScore >= 40
-              ? 1
-              : 0;
+      // Get priority explanation from thread
+      let thread = null;
+      if (email.emailThreadId) {
+        thread = await this.emailThreadRepository.findOne({
+          where: { id: email.emailThreadId },
+        });
+      }
+      
+      const priorityScore =
+        // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+        calculateScoreFromBreakdown(thread?.priorityExplanation) || 50;
+      let suggestedStarCountFromPriority: number;
+      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+      if (priorityScore >= 80) {
+        suggestedStarCountFromPriority = 3;
+        // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+      } else if (priorityScore >= 60) {
+        suggestedStarCountFromPriority = 2;
+        // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+      } else if (priorityScore >= 40) {
+        suggestedStarCountFromPriority = 1;
+      } else {
+        suggestedStarCountFromPriority = 0;
+      }
 
       // Check if sender is VIP
       const vipContacts = contexts.filter(
@@ -306,16 +352,19 @@ export class TriageSuggestionsService {
       // Check historical patterns
       const senderPattern = senderPatterns.get(email.from.toLowerCase());
 
+      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
       if (senderPattern && senderPattern.avgStarCount >= 2.5) {
         return {
           emailId: email.id,
           suggestedStarCount: Math.round(senderPattern.avgStarCount),
+          // eslint-disable-next-line @typescript-eslint/no-magic-numbers
           suggestedArchive: senderPattern.archiveRate > 0.7,
           confidence: 75,
           reasoning: `You typically star emails from this sender`,
         };
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
       if (senderPattern && senderPattern.archiveRate > 0.7) {
         return {
           emailId: email.id,
@@ -334,7 +383,22 @@ export class TriageSuggestionsService {
         suggestedStarCount: suggestedStarCountFromPriority,
         suggestedArchive: false,
         confidence: 65,
-        reasoning: `Based on priority score: ${priorityScore.toFixed(1)}. ${priorityScore >= 80 ? "High priority" : priorityScore >= 60 ? "Medium priority" : priorityScore >= 40 ? "Low priority" : "Very low priority"}`,
+        reasoning: (() => {
+          let priorityLevel: string;
+          // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+          if (priorityScore >= 80) {
+            priorityLevel = "High priority";
+            // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+          } else if (priorityScore >= 60) {
+            priorityLevel = "Medium priority";
+            // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+          } else if (priorityScore >= 40) {
+            priorityLevel = "Low priority";
+          } else {
+            priorityLevel = "Very low priority";
+          }
+          return `Based on priority score: ${priorityScore.toFixed(1)}. ${priorityLevel}`;
+        })(),
       };
 
       // NOTE: LLM suggestions disabled for performance (14s+ delay)
@@ -368,14 +432,19 @@ export class TriageSuggestionsService {
       ? `\nHistorical pattern: You typically give ${senderPattern.avgStarCount.toFixed(1)} stars to emails from this sender, and archive ${(senderPattern.archiveRate * 100).toFixed(0)}% of them.`
       : "";
 
-    const priorityBasedStars =
-      priorityScore >= 80
-        ? 3
-        : priorityScore >= 60
-          ? 2
-          : priorityScore >= 40
-            ? 1
-            : 0;
+    let priorityBasedStars: number;
+    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+    if (priorityScore >= 80) {
+      priorityBasedStars = 3;
+      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+    } else if (priorityScore >= 60) {
+      priorityBasedStars = 2;
+      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+    } else if (priorityScore >= 40) {
+      priorityBasedStars = 1;
+    } else {
+      priorityBasedStars = 0;
+    }
 
     const prompt = `Analyze this email and suggest a triage action based on priority and importance.
 
@@ -426,6 +495,7 @@ Respond with ONLY a JSON object:
             Math.min(3, parsed.suggestedStarCount || 0),
           ),
           suggestedArchive: parsed.suggestedArchive || false,
+          // eslint-disable-next-line @typescript-eslint/no-magic-numbers
           confidence: Math.max(0, Math.min(100, parsed.confidence || 50)),
           reasoning: parsed.reasoning || "AI-generated suggestion",
         };
@@ -465,10 +535,12 @@ Respond with ONLY a JSON object:
 
       const pattern = patterns.get(sender)!;
       pattern.total++;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const starCount = (email as any).starCount ?? 0;
       if (starCount > 0) {
         pattern.starCounts.push(starCount);
       }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if ((email as any).isArchived) {
         pattern.archived++;
       }
@@ -483,8 +555,10 @@ Respond with ONLY a JSON object:
         result.set(sender, {
           avgStarCount:
             pattern.starCounts.length > 0
-              ? pattern.starCounts.reduce((sum, val) => sum + val, 0) /
-                pattern.starCounts.length
+              ? pattern.starCounts.reduce(
+                  (sum, starCount) => sum + starCount,
+                  0,
+                ) / pattern.starCounts.length
               : 0,
           archiveRate: pattern.archived / pattern.total,
         });

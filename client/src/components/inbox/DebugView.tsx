@@ -1,16 +1,19 @@
 import React from 'react';
-import { theme } from '../../theme/theme';
-import { Email } from '../../types/email';
+import { useTranslation } from 'react-i18next';
+import { theme } from 'theme/theme';
+import { Email } from 'types/email';
 
 interface DebugViewProps {
   emails: Email[];
 }
 
 export const DebugView: React.FC<DebugViewProps> = ({ emails }) => {
+  const { t } = useTranslation();
+  
   return (
     <div style={{ padding: theme.spacing.md, borderTop: `1px solid ${theme.colors.border.light}`, marginTop: theme.spacing.xl }}>
       <details>
-        <summary style={{ cursor: 'pointer', color: theme.colors.text.secondary }}>Debug View</summary>
+        <summary style={{ cursor: 'pointer', color: theme.colors.text.secondary }}>{t('debug.view.title')}</summary>
         <pre style={{ 
           backgroundColor: theme.colors.background.subtle, 
           padding: theme.spacing.md, 
@@ -24,6 +27,10 @@ export const DebugView: React.FC<DebugViewProps> = ({ emails }) => {
     </div>
   );
 };
+
+
+
+
 
 
 

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { Email } from '../types/email';
+import { LONG_TIMEOUT_MS } from 'constants/numbers';
+import { Email } from 'types/email';
 
 interface UseEmailProcessingPollingProps {
   emails: Email[];
@@ -23,12 +24,16 @@ export function useEmailProcessingPolling({
         console.log(`[Polling] ${processingEmails.length} emails still processing, refreshing...`);
         fetchEmails();
       }
-    }, 10000);
+    }, LONG_TIMEOUT_MS);
 
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [emails.filter(e => e.isProcessingPriority || e.isProcessingSummary).length]);
 }
+
+
+
+
 
 
 

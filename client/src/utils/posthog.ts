@@ -1,9 +1,10 @@
 import posthog from 'posthog-js';
+import { ENV_DEVELOPMENT, TYPEOF_UNDEFINED } from 'constants/strings';
 
 // Initialize PostHog if API key is provided
 export const initPostHog = () => {
-  const apiKey = process.env.REACT_APP_POSTHOG_KEY;
-  const apiHost = process.env.REACT_APP_POSTHOG_HOST || 'https://us.i.posthog.com';
+  const apiKey = import.meta.env.VITE_POSTHOG_KEY;
+  const apiHost = import.meta.env.VITE_POSTHOG_HOST || 'https://us.i.posthog.com';
 
   if (apiKey) {
     posthog.init(apiKey, {
@@ -14,7 +15,7 @@ export const initPostHog = () => {
         recordCrossOriginIframes: false,
       },
       loaded: (posthog) => {
-        if (process.env.NODE_ENV === 'development') {
+        if (import.meta.env.DEV) {
           console.log('PostHog loaded');
         }
       },
@@ -71,7 +72,8 @@ export const resetPostHog = () => {
 // Helper function to check if PostHog is loaded
 export const isPostHogLoaded = (): boolean => {
   try {
-    return typeof posthog !== 'undefined' && posthog.has_opted_out_capturing !== undefined;
+    // eslint-disable-next-line no-restricted-syntax -- 'has_opted_out_capturing' is a PostHog API property name
+    return typeof posthog !== TYPEOF_UNDEFINED && posthog.has_opted_out_capturing !== undefined;
   } catch {
     return false;
   }

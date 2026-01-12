@@ -1,6 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { theme } from '../../../theme/theme';
+import { theme } from 'theme/theme';
+import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
+import { KEY_ENTER, KEY_ESCAPE } from 'constants/strings';
 
 interface EmailCardSnoozeInputProps {
   snoozeInput: string;
@@ -44,13 +46,13 @@ export const EmailCardSnoozeInput: React.FC<EmailCardSnoozeInputProps> = ({
         value={snoozeInput}
         onChange={(e) => onSnoozeInputChange(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') {
+          if (e.key === KEY_ENTER) {
             e.preventDefault();
             if (snoozeInput.trim()) {
               onSnooze();
             }
           }
-          if (e.key === 'Escape') {
+          if (e.key === KEY_ESCAPE) {
             onHideSnoozeInput();
           }
         }}
@@ -79,7 +81,7 @@ export const EmailCardSnoozeInput: React.FC<EmailCardSnoozeInputProps> = ({
           cursor: isButtonDisabled() ? 'not-allowed' : 'pointer',
           fontSize: theme.typography.fontSize.xs,
           fontWeight: theme.typography.fontWeight.medium,
-          opacity: isButtonDisabled() ? 0.6 : 1,
+          opacity: isButtonDisabled() ? OPACITY_DISABLED : OPACITY_FULL,
         }}
       >
         {t('common.confirm')}
@@ -101,4 +103,8 @@ export const EmailCardSnoozeInput: React.FC<EmailCardSnoozeInputProps> = ({
     </div>
   );
 };
+
+
+
+
 

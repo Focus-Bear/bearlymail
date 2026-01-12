@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { theme } from '../../../theme/theme';
-import { EmailCardSnoozeInput } from './EmailCardSnoozeInput';
+import { theme } from 'theme/theme';
+import { EmailCardSnoozeInput } from 'components/inbox/email-card/EmailCardSnoozeInput';
 
 interface EmailCardActionsProps {
   isStarred?: boolean;
@@ -91,4 +91,11 @@ export const EmailCardActions: React.FC<EmailCardActionsProps> = ({
     </div>
   );
 };
+
+
+
+
+
+
+
 

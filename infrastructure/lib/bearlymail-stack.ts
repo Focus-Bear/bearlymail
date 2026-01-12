@@ -25,9 +25,11 @@ export interface BearlyMailStackProps extends cdk.StackProps {
   webTaskMemory?: number;
   workerTaskCpu?: number;
   workerTaskMemory?: number;
-  // Domain configuration
-  domainName?: string; // e.g., 'bearlymail.com'
-  hostedZoneId?: string; // Route53 hosted zone ID
+  // Networking resources (from BearlyMailNetworkingStack)
+  vpc: ec2.IVpc;
+  certificateArn?: string; // ACM certificate ARN from us-east-1 for CloudFront
+  hostedZone?: route53.IHostedZone;
+  domainName?: string; // Domain name for CloudFront
 }
 
 export class BearlyMailStack extends cdk.Stack {
@@ -35,24 +37,12 @@ export class BearlyMailStack extends cdk.Stack {
     super(scope, id, props);
 
     // ============================================
-    // VPC Setup
+    // VPC Setup (imported from networking stack)
     // ============================================
-    const vpc = new ec2.Vpc(this, 'BearlyMailVpc', {
-      maxAzs: 2,
-      natGateways: 1, // Single NAT gateway for cost optimization
-      subnetConfiguration: [
-        {
-          cidrMask: 24,
-          name: 'Public',
-          subnetType: ec2.SubnetType.PUBLIC,
-        },
-        {
-          cidrMask: 24,
-          name: 'Private',
-          subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
-        },
-      ],
-    });
+    if (!props?.vpc) {
+      throw new Error('VPC must be provided from BearlyMailNetworkingStack');
+    }
+    const vpc = props.vpc;
 
     // ============================================
     // Secrets Manager
@@ -387,69 +377,24 @@ export class BearlyMailStack extends cdk.Stack {
     frontendBucket.grantRead(originAccessIdentity);
 
     // ============================================
-    // Route53 & SSL Certificate
+    // CloudFront Distribution
     // ============================================
     let distribution: cloudfront.Distribution;
-    let certificate: certificatemanager.Certificate | undefined;
-    let hostedZone: route53.IHostedZone | undefined;
-    let domainName: string | undefined;
+    const hostedZone = props?.hostedZone;
+    const certificateArn = props?.certificateArn;
+    const domainName = props?.domainName;
 
-    // If domain is provided, set up Route53 and SSL
-    if (props?.domainName && props?.hostedZoneId) {
-      domainName = props.domainName;
-      
-      // Extract root domain for hosted zone lookup
-      // If domain is a subdomain (e.g., app.bearlymail.com), extract root (bearlymail.com)
-      const rootDomain = domainName.includes('.') && domainName.split('.').length > 2
-        ? domainName.split('.').slice(-2).join('.')
-        : domainName;
-      
-      // Look up the hosted zone (using root domain)
-      hostedZone = route53.HostedZone.fromHostedZoneAttributes(this, 'HostedZone', {
-        hostedZoneId: props.hostedZoneId,
-        zoneName: rootDomain,
-      });
+    // If domain and certificate are provided, set up CloudFront with custom domain
+    if (domainName && certificateArn && hostedZone) {
+      // Import certificate from us-east-1 (created by networking stack)
+      const certificate = certificatemanager.Certificate.fromCertificateArn(
+        this,
+        'CloudFrontCertificate',
+        certificateArn
+      );
 
-      // Request SSL certificate (must be in us-east-1 for CloudFront)
-      // IMPORTANT: CloudFront requires certificates in us-east-1 region
-      // 
-      // For first deployment, create the certificate manually:
-      // aws acm request-certificate --domain-name bearlymail.com \
-      //   --subject-alternative-names www.bearlymail.com \
-      //   --validation-method DNS --region us-east-1
-      //
-      // Then update this code to import it:
-      // certificate = certificatemanager.Certificate.fromCertificateArn(
-      //   this, 'CloudFrontCertificate', 
-      //   'arn:aws:acm:us-east-1:ACCOUNT:certificate/CERT-ID'
-      // );
-      //
-      // For now, we'll create it here (will be in ap-southeast-2)
-      // You'll need to create it manually in us-east-1 and import it
-      // See CERTIFICATE_SETUP.md for detailed instructions
-      
-      // Temporary: Create certificate (will need to be replaced with us-east-1 certificate)
-      // Note: This creates certificate in ap-southeast-2, but CloudFront needs us-east-1
-      // For now, we'll create it but you should replace with us-east-1 certificate
-      // See CERTIFICATE_SETUP.md for instructions
-      // Only add www subdomain if domain is a root domain (not a subdomain)
+      // Determine if domain is a subdomain
       const isSubdomain = domainName.includes('.') && domainName.split('.').length > 2;
-      const subjectAlternativeNames = isSubdomain ? [] : [`www.${domainName}`];
-      
-      certificate = new certificatemanager.Certificate(this, 'CloudFrontCertificate', {
-        domainName: domainName,
-        subjectAlternativeNames: subjectAlternativeNames,
-        validation: certificatemanager.CertificateValidation.fromDns(hostedZone),
-      });
-      
-      // TODO: Replace with certificate from us-east-1 before deploying
-      // The certificate above will fail when used with CloudFront
-      // Follow CERTIFICATE_SETUP.md to create and import the correct certificate
-      // Example:
-      // certificate = certificatemanager.Certificate.fromCertificateArn(
-      //   this, 'CloudFrontCertificate', 
-      //   'arn:aws:acm:us-east-1:ACCOUNT:certificate/CERT-ID'
-      // );
 
       // CloudFront Distribution with custom domain
       distribution = new cloudfront.Distribution(this, 'FrontendDistribution', {
@@ -464,7 +409,7 @@ export class BearlyMailStack extends cdk.Stack {
           cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
         },
         domainNames: isSubdomain ? [domainName] : [domainName, `www.${domainName}`],
-        certificate: certificate as certificatemanager.ICertificate,
+        certificate: certificate,
         priceClass: cloudfront.PriceClass.PRICE_CLASS_ALL, // Include all regions for custom domain
         comment: 'BearlyMail frontend distribution',
         // SPA: redirect all 404s to index.html

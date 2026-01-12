@@ -121,8 +121,20 @@ module.exports = {
     // CLEAN CODE - CODE QUALITY
     // ===========================================
     // Disallow magic numbers (use named constants instead)
-    // Disabled - too noisy for backend code with common numeric values
-    'no-magic-numbers': 'off',
+    // Note: This rule can be noisy, so we configure it carefully
+    // Using TypeScript-specific version from @typescript-eslint
+    '@typescript-eslint/no-magic-numbers': [
+      'warn',
+      {
+        ignore: [0, 1, -1, 2, 3, 4, 5, 10, 24, 60, 100, 200, 404, 401, 403, 500, 1000, 2000, 5000],
+        ignoreArrayIndexes: true,
+        ignoreDefaultValues: true,
+        ignoreNumericLiteralTypes: true,
+        ignoreEnums: true,
+        ignoreReadonlyClassProperties: true,
+        ignoreTypeIndexes: true,
+      },
+    ],
 
     // Require const for variables that are never reassigned
     'prefer-const': 'warn',
@@ -138,6 +150,39 @@ module.exports = {
 
     // Disallow reassigning function parameters
     'no-param-reassign': ['warn', { props: false }],
+
+    // Prefer destructuring from arrays and objects
+    'prefer-destructuring': [
+      'warn',
+      {
+        array: false, // Allow array[index] for clarity
+        object: true,
+      },
+      {
+        enforceForRenamedProperties: false,
+      },
+    ],
+
+    // Prefer arrow functions as callbacks
+    'prefer-arrow-callback': 'warn',
+
+    // Enforce consistent arrow function body style
+    'arrow-body-style': ['warn', 'as-needed'],
+
+    // Disallow console statements (use logger instead)
+    'no-console': ['warn', { allow: ['warn', 'error'] }],
+
+    // Disallow debugger statements
+    'no-debugger': 'warn',
+
+    // Prefer object shorthand
+    'object-shorthand': ['warn', 'always'],
+
+    // Prefer spread operator over Object.assign
+    'prefer-spread': 'warn',
+
+    // Prefer rest parameters over arguments
+    'prefer-rest-params': 'warn',
 
     // Require curly braces for all control statements (off - too strict)
     curly: 'off',
@@ -191,6 +236,8 @@ module.exports = {
     },
   ],
 };
+
+
 
 
 

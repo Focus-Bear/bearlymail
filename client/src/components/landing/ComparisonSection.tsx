@@ -1,46 +1,48 @@
 import React from 'react';
-import { theme } from '../../theme/theme';
-import { useResponsiveBreakpoints } from '../../hooks/useResponsiveBreakpoints';
-import { ComparisonTable } from './ComparisonTable';
-import { ComparisonHighlightBox } from './ComparisonHighlightBox';
+import { useTranslation } from 'react-i18next';
+import { theme } from 'theme/theme';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { ComparisonTable } from 'components/landing/ComparisonTable';
+import { ComparisonHighlightBox } from 'components/landing/ComparisonHighlightBox';
 import {
   getSectionMarginBottom,
   getHeadingFontSize,
   getResponsiveFontSize,
   getResponsiveSpacing,
-} from './utils';
+} from 'components/landing/utils';
 
 /**
  * Comparison section component
  * Shows how BearlyMail differs from competitors
  */
 export const ComparisonSection: React.FC = () => {
+  const { t } = useTranslation();
   const breakpoints = useResponsiveBreakpoints();
 
   const comparisonRows = [
     {
-      label: 'Email delivery',
-      bearlyMail: 'Scheduled batches you control',
-      superhuman: 'Real-time (constant interruptions)',
-      gmail: 'Real-time',
+      label: t('landing.comparison.table.rows.emailDelivery.label'),
+      bearlyMail: t('landing.comparison.table.rows.emailDelivery.bearlyMail'),
+      superhuman: t('landing.comparison.table.rows.emailDelivery.superhuman'),
+      gmail: t('landing.comparison.table.rows.emailDelivery.gmail'),
     },
     {
-      label: 'Urgent filtering',
-      bearlyMail: 'AI learns & breaks through batches',
-      superhuman: 'Manual category splits',
-      gmail: 'Basic algorithm',
+      label: t('landing.comparison.table.rows.urgentFiltering.label'),
+      bearlyMail: t('landing.comparison.table.rows.urgentFiltering.bearlyMail'),
+      superhuman: t('landing.comparison.table.rows.urgentFiltering.superhuman'),
+      gmail: t('landing.comparison.table.rows.urgentFiltering.gmail'),
     },
     {
-      label: 'Prioritization',
-      bearlyMail: 'Automatic (learns from your behavior)',
-      superhuman: 'Manual triage required',
-      gmail: 'Static filters',
+      label: t('landing.comparison.table.rows.prioritization.label'),
+      bearlyMail: t('landing.comparison.table.rows.prioritization.bearlyMail'),
+      superhuman: t('landing.comparison.table.rows.prioritization.superhuman'),
+      gmail: t('landing.comparison.table.rows.prioritization.gmail'),
     },
     {
-      label: 'Philosophy',
-      bearlyMail: 'Prevention > Speed',
-      superhuman: 'Speed > Prevention',
-      gmail: 'Sorting > Prevention',
+      label: t('landing.comparison.table.rows.philosophy.label'),
+      bearlyMail: t('landing.comparison.table.rows.philosophy.bearlyMail'),
+      superhuman: t('landing.comparison.table.rows.philosophy.superhuman'),
+      gmail: t('landing.comparison.table.rows.philosophy.gmail'),
     },
   ];
 
@@ -77,7 +79,7 @@ export const ComparisonSection: React.FC = () => {
           marginBottom: headingMarginBottom,
         }}
       >
-        Why BearlyMail is different
+        {t('landing.comparison.heading')}
       </h2>
       <p
         style={{
@@ -91,9 +93,9 @@ export const ComparisonSection: React.FC = () => {
           whiteSpace: 'normal',
         }}
       >
-        <strong style={{ color: theme.colors.text.primary }}>Superhuman asks:</strong> How fast can you clear your inbox?
+        <strong style={{ color: theme.colors.text.primary }}>{t('landing.comparison.superhumanAsks')}</strong> {t('landing.comparison.superhumanQuestion')}
         {breakpoints.isMobile ? ' ' : <><br />{' '}</>}
-        <strong style={{ color: theme.colors.primary.main }}>BearlyMail asks:</strong> How rarely should you need to open it?
+        <strong style={{ color: theme.colors.primary.main }}>{t('landing.comparison.bearlyMailAsks')}</strong> {t('landing.comparison.bearlyMailQuestion')}
       </p>
 
       {!breakpoints.isMobile && <ComparisonTable rows={comparisonRows} />}

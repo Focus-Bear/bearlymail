@@ -1,9 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import axios from 'axios';
-import { identifyUser, resetPostHog, captureEvent, isPostHogLoaded } from '../utils/posthog';
-import { setupAxiosInterceptors } from '../utils/axios-interceptors';
+import { identifyUser, resetPostHog, captureEvent } from 'utils/posthog';
+import { useAuthInitialization } from 'contexts/useAuthInitialization';
+import { devLog } from 'utils/dev-logger';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 interface User {
   id: string;
@@ -26,7 +27,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name?: string) => Promise<void>;
   logout: () => void;
-  refreshUser: () => Promise<void>; // Added to refresh user data
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,21 +35,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const logoutRef = useRef<(() => void) | null>(null);
-
-  // Check if token is expired
-  const isTokenExpired = (token: string): boolean => {
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const now = Math.floor(Date.now() / 1000);
-      return payload.exp ? payload.exp < now : false;
-    } catch {
-      return true; // If we can't decode it, consider it invalid
-    }
-  };
 
   const logout = () => {
-    // Track logout event
     captureEvent('user_logged_out');
     resetPostHog();
     localStorage.removeItem('token');
@@ -56,69 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   };
 
-  logoutRef.current = logout;
-
-  useEffect(() => {
-    // Set up axios interceptors once
-    setupAxiosInterceptors(() => {
-      if (logoutRef.current) {
-        logoutRef.current();
-      }
-    });
-
-    const token = localStorage.getItem('token');
-    console.log('Checking for token on app load:', token ? 'FOUND' : 'NOT FOUND');
-    
-    if (token) {
-      // Check if token is expired before making request
-      if (isTokenExpired(token)) {
-        console.log('Token is expired, clearing');
-        localStorage.removeItem('token');
-        setLoading(false);
-        return;
-      }
-      
-      console.log('Token found and valid, verifying with server...');
-
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      // Verify token and get user
-      axios.get(`${API_URL}/users/me`)
-        .then((response) => {
-          const userData = response.data;
-          console.log('User data fetched successfully:', userData?.email || 'no email');
-          setUser(userData);
-          // Identify user in PostHog (NO PII)
-          if (userData?.id) {
-            identifyUser(userData.id, {
-              isAdmin: userData.isAdmin,
-            });
-          }
-        })
-        .catch((error) => {
-          console.error('Failed to fetch user:', {
-            status: error.response?.status,
-            message: error.message,
-            url: error.config?.url,
-          });
-          
-          // Only remove token if it's an auth error (401) or token is expired
-          if (error.response?.status === 401 || isTokenExpired(token)) {
-            console.log('Auth failed (401 or expired), clearing token and user state');
-            localStorage.removeItem('token');
-            delete axios.defaults.headers.common['Authorization'];
-            setUser(null); // Explicitly set user to null
-          } else {
-            // For other errors (network, server), keep the token but set user to null
-            // This way PrivateRoute will redirect to login, but token is preserved for retry
-            console.warn('Failed to fetch user (non-auth error), keeping token but setting user to null:', error.message);
-            setUser(null);
-          }
-        })
-        .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
-  }, []);
+  useAuthInitialization(setUser, setLoading, logout);
 
   const login = async (email: string, password: string) => {
     const response = await axios.post(`${API_URL}/auth/login`, { email, password });
@@ -126,7 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // Store token in localStorage
     localStorage.setItem('token', access_token);
-    console.log('Token saved to localStorage:', localStorage.getItem('token') ? 'SUCCESS' : 'FAILED');
+    devLog('Token saved to localStorage:', localStorage.getItem('token') ? 'SUCCESS' : 'FAILED');
     
     axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
     setUser(user);
@@ -145,7 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // Store token in localStorage
     localStorage.setItem('token', access_token);
-    console.log('Token saved to localStorage:', localStorage.getItem('token') ? 'SUCCESS' : 'FAILED');
+    devLog('Token saved to localStorage:', localStorage.getItem('token') ? 'SUCCESS' : 'FAILED');
     
     axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
     setUser(user);

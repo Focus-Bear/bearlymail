@@ -59,6 +59,7 @@ export class SnoozeService {
         case "d":
           return new Date(now.getTime() + value * 24 * 60 * 60 * 1000);
         case "w":
+          // eslint-disable-next-line @typescript-eslint/no-magic-numbers
           return new Date(now.getTime() + value * 7 * 24 * 60 * 60 * 1000);
       }
     }
@@ -80,12 +81,16 @@ export class SnoozeService {
       let daysUntil = targetDay - currentDay;
 
       if (daysUntil <= 0) {
-        daysUntil += 7; // Next week
+        // Next week
+        // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+        daysUntil += 7;
       }
 
       const nextDate = new Date(now);
       nextDate.setDate(now.getDate() + daysUntil);
-      nextDate.setHours(9, 0, 0, 0); // Default to 9 AM
+      // Default to 9 AM
+      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+      nextDate.setHours(9, 0, 0, 0);
 
       return nextDate;
     }

@@ -13,19 +13,30 @@ import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
 
 export enum ContextKey {
   // Core context categories
-  VIP_CONTACT = "VIP_CONTACT", // Important contacts to prioritize
-  MY_GOALS = "MY_GOALS", // User's goals for prioritization
-  DONT_CARE = "DONT_CARE", // Things user doesn't care about (deprioritize)
-  WORKING_ON = "WORKING_ON", // Current projects/topics with priority (1-3)
-  USER_INFO = "USER_INFO", // Info about the user for drafting
-  URGENT = "URGENT", // What the user considers urgent
-  NOT_IMPORTANT = "NOT_IMPORTANT", // What the user doesn't consider important
-  Q_AND_A = "Q_AND_A", // Common questions and answers from user replies
+  // Important contacts to prioritize
+  VIP_CONTACT = "VIP_CONTACT",
+  // User's goals for prioritization
+  MY_GOALS = "MY_GOALS",
+  // Things user doesn't care about (deprioritize)
+  DONT_CARE = "DONT_CARE",
+  // Current projects/topics with priority (1-3)
+  WORKING_ON = "WORKING_ON",
+  // Info about the user for drafting
+  USER_INFO = "USER_INFO",
+  // What the user considers urgent
+  URGENT = "URGENT",
+  // What the user doesn't consider important
+  NOT_IMPORTANT = "NOT_IMPORTANT",
+  // Common questions and answers from user replies
+  Q_AND_A = "Q_AND_A",
 
   // Legacy/other
-  PROJECT_NAME = "PROJECT_NAME", // Kept for backward compatibility
-  COLLEAGUE_NAME = "COLLEAGUE_NAME", // Kept for backward compatibility
-  CURRENT_TOPIC = "CURRENT_TOPIC", // Kept for backward compatibility
+  // Kept for backward compatibility
+  PROJECT_NAME = "PROJECT_NAME",
+  // Kept for backward compatibility
+  COLLEAGUE_NAME = "COLLEAGUE_NAME",
+  // Kept for backward compatibility
+  CURRENT_TOPIC = "CURRENT_TOPIC",
   WRITING_STYLE_TONE = "WRITING_STYLE_TONE",
   COMMON_PHRASE = "COMMON_PHRASE",
   AVERAGE_REPLY_TIME = "AVERAGE_REPLY_TIME",
@@ -38,8 +49,10 @@ export enum Source {
 }
 
 @Entity("user_contexts")
-@Index(["userId"]) // Critical index for getUserContext queries
-@Index(["userId", "contextKey"]) // For filtering by context type
+// Critical index for getUserContext queries
+@Index(["userId"])
+// For filtering by context type
+@Index(["userId", "contextKey"])
 export class UserContext {
   @PrimaryGeneratedColumn("uuid")
   contextId: string;
@@ -56,8 +69,13 @@ export class UserContext {
   @Column("text", { transformer: encryptedColumnTransformer })
   contextValue: string;
 
-  @Column({ type: "int", nullable: true })
-  priority: number; // 1 = top priority, 2 = medium, 3 = low (used for WORKING_ON items)
+  @Column({
+    type: "int",
+    nullable: true,
+    comment:
+      "1 = top priority, 2 = medium, 3 = low (used for WORKING_ON items)",
+  })
+  priority: number;
 
   @Column({
     type: "enum",
@@ -66,8 +84,18 @@ export class UserContext {
   })
   source: Source;
 
-  @Column("text", { nullable: true, transformer: encryptedColumnTransformer })
-  explanation: string; // Explanation/rationale for why this context was identified
+  @Column("text", {
+    nullable: true,
+    transformer: encryptedColumnTransformer,
+    comment: "Explanation/rationale for why this context was identified",
+  })
+  explanation: string;
+
+  @Column("simple-array", {
+    nullable: true,
+    comment: "Thread IDs that contributed to this context (for fact-checking)",
+  })
+  sourceThreadIds: string[];
 
   @CreateDateColumn()
   createdAt: Date;

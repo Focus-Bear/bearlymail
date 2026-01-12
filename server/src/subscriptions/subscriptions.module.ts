@@ -11,7 +11,8 @@ import { UsersModule } from "../users/users.module";
   imports: [
     TypeOrmModule.forFeature([User]),
     ConfigModule,
-    UsersModule, // Import UsersModule to use AdminGuard
+    // Import UsersModule to use AdminGuard
+    UsersModule,
   ],
   controllers: [SubscriptionsController],
   providers: [SubscriptionsService, SubscriptionGuard],

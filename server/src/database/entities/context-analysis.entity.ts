@@ -17,8 +17,10 @@ import { encryptedJsonTransformer } from "../../encryption/encryption.helper";
  * This table allows multiple server instances to track progress independently.
  */
 @Entity("context_analyses")
-@Index(["userId", "status"]) // For querying active analyses
-@Index(["userId", "createdAt"]) // For querying recent analyses
+// For querying active analyses
+@Index(["userId", "status"])
+// For querying recent analyses
+@Index(["userId", "createdAt"])
 export class ContextAnalysis {
   @PrimaryGeneratedColumn("uuid")
   id: string;
@@ -34,28 +36,51 @@ export class ContextAnalysis {
   status: "pending" | "running" | "completed" | "failed";
 
   @Column({ nullable: true })
-  progress: number; // 0-100
+  progress: number;
+  // 0-100
 
   @Column({ nullable: true })
-  total: number; // Total steps (usually 100)
+  total: number;
+  // Total steps (usually 100)
 
   @Column({ nullable: true })
-  threadCount: number; // Total threads being analyzed
+  threadCount: number;
+  // Total threads being analyzed
 
   @Column({ nullable: true })
-  analyzedCount: number; // How many threads analyzed so far
+  analyzedCount: number;
+  // How many threads analyzed so far
 
-  @Column({ type: "jsonb", nullable: true, transformer: encryptedJsonTransformer })
+  @Column({
+    type: "jsonb",
+    nullable: true,
+    transformer: encryptedJsonTransformer,
+  })
   stats: {
-    totalThreads: number;
-    outboundEmails: number;
-    threadsNeverOpened: number;
-    threadsReadButNotReplied: number;
-    vipContactsEvaluated: number;
-  } | null; // Final analysis statistics
+    // Core statistics (set during finalization)
+    totalThreads?: number;
+    outboundEmails?: number;
+    threadsNeverOpened?: number;
+    threadsReadButNotReplied?: number;
+    vipContactsEvaluated?: number;
+    // Batch processing properties
+    batchResults?: Record<string, unknown>;
+    failedBatches?: number[];
+    batchJobIds?: Record<number, string>;
+    batchPayloadsForRetry?: Record<number, unknown>;
+    totalBatches?: number;
+    // Fetching progress (set during thread fetching)
+    fetchingStatus?: string;
+    fetchedGeneral?: number;
+    fetchedSent?: number;
+    uniqueThreads?: number;
+    // Allow additional properties
+    [key: string]: unknown;
+  } | null;
 
   @Column("text", { nullable: true })
-  errorMessage: string | null; // Error message if status is "failed"
+  errorMessage: string | null;
+  // Error message if status is "failed"
 
   @CreateDateColumn()
   createdAt: Date;
@@ -67,4 +92,3 @@ export class ContextAnalysis {
   @JoinColumn({ name: "userId" })
   user: User;
 }
-

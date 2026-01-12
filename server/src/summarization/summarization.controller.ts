@@ -59,6 +59,18 @@ export class SummarizationController {
     return { message: "Rule deleted" };
   }
 
+  @Post("match-rule/:id")
+  async matchRule(
+    @Request() req,
+    @Param("id") id: string,
+  ) {
+    const matchedRule = await this.summarizationService.matchRuleForEmail(
+      req.user.userId,
+      id,
+    );
+    return { rule: matchedRule };
+  }
+
   // Parameterized route comes LAST to avoid matching "rules" as an ID
   @Post(":id")
   async summarizeEmail(

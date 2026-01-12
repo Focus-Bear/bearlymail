@@ -1,0 +1,17 @@
+export { PrivateNotesSection } from 'components/email-detail-inline/PrivateNotesSection';
+export { ActionItemsSection } from 'components/email-detail-inline/ActionItemsSection';
+export { ActionItemsHeader } from 'components/email-detail-inline/ActionItemsHeader';
+export { ActionItemList } from 'components/email-detail-inline/ActionItemList';
+export { ActionItemInput } from 'components/email-detail-inline/ActionItemInput';
+export { ReplyComposer } from 'components/email-detail-inline/ReplyComposer';
+export { ReplyOptionsSelector } from 'components/email-detail-inline/ReplyOptionsSelector';
+export { ToneCheckResult } from 'components/email-detail-inline/ToneCheckResult';
+export { ReplyComposerHeader } from 'components/email-detail-inline/ReplyComposerHeader';
+export { ReplyRecipientsInput } from 'components/email-detail-inline/ReplyRecipientsInput';
+export { ReplyDraftTextarea } from 'components/email-detail-inline/ReplyDraftTextarea';
+export { ReplyComposerFooter } from 'components/email-detail-inline/ReplyComposerFooter';
+export { ReplyButtons } from 'components/email-detail-inline/ReplyButtons';
+export { LoadingSpinner } from 'components/email-detail-inline/LoadingSpinner';
+export { EmailNotFound } from 'components/email-detail-inline/EmailNotFound';
+export { EmailDetailContent } from 'components/email-detail-inline/EmailDetailContent';
+

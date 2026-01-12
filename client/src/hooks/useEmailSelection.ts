@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Email, InboxMode } from '../types/email';
+import { Email, InboxMode } from 'types/email';
 
 interface UseEmailSelectionReturn {
   selectedEmailIndex: number;

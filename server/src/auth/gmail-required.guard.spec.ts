@@ -1,0 +1,285 @@
+import { Test, TestingModule } from "@nestjs/testing";
+import { ExecutionContext, UnauthorizedException } from "@nestjs/common";
+import { GmailRequiredGuard } from "./gmail-required.guard";
+import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
+import { UsersService } from "../users/users.service";
+
+describe("GmailRequiredGuard", () => {
+  let guard: GmailRequiredGuard;
+  let googleAccountsService: GoogleAccountsService;
+  let usersService: UsersService;
+  let mockExecutionContext: ExecutionContext;
+
+  const mockGoogleAccountsService = {
+    hasConnectedGmail: jest.fn(),
+  };
+
+  const mockUsersService = {
+    findOne: jest.fn(),
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        GmailRequiredGuard,
+        {
+          provide: GoogleAccountsService,
+          useValue: mockGoogleAccountsService,
+        },
+        {
+          provide: UsersService,
+          useValue: mockUsersService,
+        },
+      ],
+    }).compile();
+
+    guard = module.get<GmailRequiredGuard>(GmailRequiredGuard);
+    googleAccountsService = module.get<GoogleAccountsService>(
+      GoogleAccountsService,
+    );
+    usersService = module.get<UsersService>(UsersService);
+
+    mockExecutionContext = {
+      switchToHttp: jest.fn().mockReturnValue({
+        getRequest: jest.fn(),
+      }),
+    } as unknown as ExecutionContext;
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe("canActivate", () => {
+    it("should return true when user has connected Gmail accounts (new system)", async () => {
+      const userId = "user-123";
+      const mockRequest = {
+        user: { userId },
+      };
+
+      (
+        mockExecutionContext.switchToHttp().getRequest as jest.Mock
+      ).mockReturnValue(mockRequest);
+
+      mockGoogleAccountsService.hasConnectedGmail.mockResolvedValue(true);
+      mockUsersService.findOne.mockResolvedValue({
+        id: userId,
+        googleCalendarAccessToken: null, // No legacy token
+      });
+
+      const result = await guard.canActivate(mockExecutionContext);
+
+      expect(result).toBe(true);
+      expect(googleAccountsService.hasConnectedGmail).toHaveBeenCalledWith(
+        userId,
+      );
+    });
+
+    it("should return true when user has legacy Gmail token", async () => {
+      const userId = "user-123";
+      const mockRequest = {
+        user: { userId },
+      };
+
+      (
+        mockExecutionContext.switchToHttp().getRequest as jest.Mock
+      ).mockReturnValue(mockRequest);
+
+      mockGoogleAccountsService.hasConnectedGmail.mockResolvedValue(false);
+      mockUsersService.findOne.mockResolvedValue({
+        id: userId,
+        googleCalendarAccessToken: "legacy-token",
+      });
+
+      const result = await guard.canActivate(mockExecutionContext);
+
+      expect(result).toBe(true);
+      expect(googleAccountsService.hasConnectedGmail).toHaveBeenCalledWith(
+        userId,
+      );
+      expect(usersService.findOne).toHaveBeenCalledWith(userId);
+    });
+
+    it("should return true when user has both new and legacy Gmail", async () => {
+      const userId = "user-123";
+      const mockRequest = {
+        user: { userId },
+      };
+
+      (
+        mockExecutionContext.switchToHttp().getRequest as jest.Mock
+      ).mockReturnValue(mockRequest);
+
+      mockGoogleAccountsService.hasConnectedGmail.mockResolvedValue(true);
+      mockUsersService.findOne.mockResolvedValue({
+        id: userId,
+        googleCalendarAccessToken: "legacy-token",
+      });
+
+      const result = await guard.canActivate(mockExecutionContext);
+
+      expect(result).toBe(true);
+    });
+
+    it("should throw UnauthorizedException when user is missing", async () => {
+      const mockRequest = {}; // No user object
+
+      (
+        mockExecutionContext.switchToHttp().getRequest as jest.Mock
+      ).mockReturnValue(mockRequest);
+
+      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
+        "Authentication required",
+      );
+      expect(googleAccountsService.hasConnectedGmail).not.toHaveBeenCalled();
+    });
+
+    it("should throw UnauthorizedException when userId is missing (using userId field)", async () => {
+      const mockRequest = {
+        user: {}, // No userId
+      };
+
+      (
+        mockExecutionContext.switchToHttp().getRequest as jest.Mock
+      ).mockReturnValue(mockRequest);
+
+      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
+        "User ID not found",
+      );
+    });
+
+    it("should throw UnauthorizedException when userId is missing (using id field)", async () => {
+      const mockRequest = {
+        user: { id: undefined }, // id is undefined
+      };
+
+      (
+        mockExecutionContext.switchToHttp().getRequest as jest.Mock
+      ).mockReturnValue(mockRequest);
+
+      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
+        "User ID not found",
+      );
+    });
+
+    it("should use id field when userId is not present", async () => {
+      const userId = "user-123";
+      const mockRequest = {
+        user: { id: userId }, // Using id instead of userId
+      };
+
+      (
+        mockExecutionContext.switchToHttp().getRequest as jest.Mock
+      ).mockReturnValue(mockRequest);
+
+      mockGoogleAccountsService.hasConnectedGmail.mockResolvedValue(true);
+      mockUsersService.findOne.mockResolvedValue({
+        id: userId,
+      });
+
+      const result = await guard.canActivate(mockExecutionContext);
+
+      expect(result).toBe(true);
+      expect(googleAccountsService.hasConnectedGmail).toHaveBeenCalledWith(
+        userId,
+      );
+    });
+
+    it("should throw UnauthorizedException when no Gmail connection exists", async () => {
+      const userId = "user-123";
+      const mockRequest = {
+        user: { userId },
+      };
+
+      (
+        mockExecutionContext.switchToHttp().getRequest as jest.Mock
+      ).mockReturnValue(mockRequest);
+
+      mockGoogleAccountsService.hasConnectedGmail.mockResolvedValue(false);
+      mockUsersService.findOne.mockResolvedValue({
+        id: userId,
+        googleCalendarAccessToken: null, // No legacy token
+      });
+
+      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
+        "Gmail account connection required",
+      );
+      expect(googleAccountsService.hasConnectedGmail).toHaveBeenCalledWith(
+        userId,
+      );
+      expect(usersService.findOne).toHaveBeenCalledWith(userId);
+    });
+
+    it("should throw UnauthorizedException when user is not found in database", async () => {
+      const userId = "user-123";
+      const mockRequest = {
+        user: { userId },
+      };
+
+      (
+        mockExecutionContext.switchToHttp().getRequest as jest.Mock
+      ).mockReturnValue(mockRequest);
+
+      mockGoogleAccountsService.hasConnectedGmail.mockResolvedValue(false);
+      mockUsersService.findOne.mockResolvedValue(null);
+
+      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
+        "Gmail account connection required",
+      );
+    });
+
+    it("should handle errors from googleAccountsService", async () => {
+      const userId = "user-123";
+      const mockRequest = {
+        user: { userId },
+      };
+
+      (
+        mockExecutionContext.switchToHttp().getRequest as jest.Mock
+      ).mockReturnValue(mockRequest);
+
+      mockGoogleAccountsService.hasConnectedGmail.mockRejectedValue(
+        new Error("Service error"),
+      );
+
+      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
+        "Service error",
+      );
+    });
+
+    it("should handle errors from usersService", async () => {
+      const userId = "user-123";
+      const mockRequest = {
+        user: { userId },
+      };
+
+      (
+        mockExecutionContext.switchToHttp().getRequest as jest.Mock
+      ).mockReturnValue(mockRequest);
+
+      mockGoogleAccountsService.hasConnectedGmail.mockResolvedValue(false);
+      mockUsersService.findOne.mockRejectedValue(new Error("Database error"));
+
+      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
+        "Database error",
+      );
+    });
+  });
+});
+
+

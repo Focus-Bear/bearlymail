@@ -1,0 +1,345 @@
+import { useState, useEffect, useCallback, useRef } from 'react';
+import axios from 'axios';
+import { LONG_TIMEOUT_MS, POLLING_INTERVAL_MS, PROGRESS_THRESHOLD_30, PROGRESS_THRESHOLD_40, PROGRESS_THRESHOLD_75, PROGRESS_THRESHOLD_85, PROGRESS_THRESHOLD_95 } from 'constants/numbers';
+import { devLog, devError, devDebug } from 'utils/dev-logger';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+export interface AnalyzeProgress {
+  show: boolean;
+  progress: {
+    current: number;
+    total: number;
+    messageKey?: string;
+    messageValues?: Record<string, unknown>;
+    threadCount?: number;
+    analyzedCount?: number;
+    batchStatus?: {
+      completedBatches: number;
+      totalBatches: number;
+    };
+    stats?: {
+      totalThreads: number;
+      outboundEmails: number;
+      threadsNeverOpened: number;
+      threadsReadButNotReplied: number;
+      vipContactsEvaluated: number;
+    };
+    insights?: Array<{ type: string; message: string }>;
+  } | null;
+  error: string | null;
+  isComplete: boolean;
+}
+
+const getProgressMessage = (current: number, total: number, message?: string): string => {
+  if (message) return message;
+  if (total === 0) return 'Starting analysis...';
+  const percent = (current / total) * 100;
+  
+  if (percent < PROGRESS_THRESHOLD_30) return 'Fetching emails from your inbox...';
+  if (percent < PROGRESS_THRESHOLD_40) return 'Identifying VIP contacts from starred emails...';
+  if (percent < PROGRESS_THRESHOLD_75) return 'Analyzing email patterns with AI...';
+  if (percent < PROGRESS_THRESHOLD_85) return 'Extracting common Q&A from your replies...';
+  if (percent < PROGRESS_THRESHOLD_95) return 'Saving insights to your context...';
+  if (percent < 100) return 'Finalizing analysis...';
+  return 'Analysis complete!';
+};
+
+// eslint-disable-next-line max-lines-per-function -- Analysis progress hook requires handling multiple states and logic
+export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysisId, setAnalysisId] = useState<string | null>(null);
+  const [analyzeProgress, setAnalyzeProgress] = useState<AnalyzeProgress>({
+    show: false,
+    progress: null,
+    error: null,
+    isComplete: false,
+  });
+  
+  // Refs to track polling state across renders (needed because closures capture stale state)
+  const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const cancelledRef = useRef(false);
+
+  const startAnalysis = useCallback(async () => {
+    devLog('===== Starting Context Analysis =====');
+    console.log('[FRONTEND] ===== Starting Context Analysis =====');
+    devDebug('Setting analyzing state to true');
+    console.log('[FRONTEND] Setting analyzing state to true');
+    
+    // Reset cancellation flag when starting new analysis
+    cancelledRef.current = false;
+    
+    setAnalyzing(true);
+    setAnalyzeProgress({ show: true, progress: { current: 0, total: 100, messageKey: 'settings.analysis.progress.starting' }, error: null, isComplete: false });
+    
+    try {
+      devLog(`Making POST request to ${API_URL}/context/analyze`);
+      console.log(`[FRONTEND] Making POST request to ${API_URL}/context/analyze`);
+      const response = await axios.post(`${API_URL}/context/analyze`);
+      devLog('POST request successful', response.data);
+      console.log('[FRONTEND] POST request successful', response.data);
+      
+      // Store analysis ID from response
+      if (response.data.analysisId) {
+        setAnalysisId(response.data.analysisId);
+        devLog(`Stored analysis ID: ${response.data.analysisId}`);
+        console.log(`[FRONTEND] Stored analysis ID: ${response.data.analysisId}`);
+      }
+    } catch (error: any) {
+      devError('Error starting context analysis:', error);
+      console.error('[FRONTEND ERROR] Error starting context analysis:', error);
+      devError('Error response:', error.response?.data);
+      console.error('[FRONTEND ERROR] Error response:', error.response?.data);
+      devError('Error status:', error.response?.status);
+      console.error('[FRONTEND ERROR] Error status:', error.response?.status);
+      console.error('Error starting context analysis:', error);
+      setAnalyzing(false);
+      setAnalysisId(null); // Clear analysis ID on error
+      setAnalyzeProgress({
+        show: true,
+        progress: null,
+        error: error.response?.data?.message || 'Failed to start analysis. Please try again.',
+        isComplete: false,
+      });
+      setTimeout(() => {
+        setAnalyzeProgress({ show: false, progress: null, error: null, isComplete: false });
+      }, LONG_TIMEOUT_MS);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Don't start polling until BOTH analyzing is true AND analysisId is set
+    // This prevents the first poll from using an old/null analysisId
+    if (!analyzing) return;
+    if (!analysisId) {
+      devDebug('Waiting for analysisId before starting to poll...');
+      return; // Wait for analysisId to be set - effect will re-run when it changes
+    }
+
+    let retryCount = 0;
+    let errorCount = 0;
+    // eslint-disable-next-line max-lines-per-function -- Progress polling logic requires handling multiple states and error conditions
+
+    const handleErrorResponse = (errorMessage: string, timeoutId: NodeJS.Timeout | null) => {
+      devError('Handling error response:', errorMessage);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      setAnalyzing(false);
+      setAnalyzeProgress({
+        show: true,
+        progress: null,
+        error: errorMessage,
+        isComplete: false,
+      });
+      setTimeout(() => {
+        setAnalyzeProgress({ show: false, progress: null, error: null, isComplete: false });
+      }, LONG_TIMEOUT_MS);
+    };
+
+    const handleProgressResponse = async (
+      progressData: any,
+      timeoutId: NodeJS.Timeout | null
+    ) => {
+      // CRITICAL: Check if cancelled before updating state
+      if (cancelledRef.current) {
+        devDebug('handleProgressResponse skipped - cancelled');
+        return;
+      }
+      
+      const { current, total, messageKey, messageValues, threadCount, analyzedCount, batchStatus, stats, insights } = progressData;
+      const isComplete = total > 0 && current >= total;
+      errorCount = 0;
+      retryCount = 0;
+      
+      setAnalyzeProgress({
+        show: true,
+        progress: {
+          current,
+          total,
+          messageKey,
+          messageValues,
+          threadCount,
+          analyzedCount,
+          batchStatus,
+          stats: stats || undefined,
+          insights: insights || undefined,
+        },
+        error: null,
+        isComplete,
+      });
+      
+      if (isComplete) {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+        setAnalyzing(false);
+        setAnalysisId(null); // Clear analysis ID when complete
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        if (onComplete) {
+          await onComplete();
+        }
+      }
+    };
+
+    const handleNoProgressResponse = async (timeoutId: NodeJS.Timeout | null) => {
+      retryCount++;
+      devDebug(`No progress response - retry count: ${retryCount}`);
+      if (retryCount < 5) {
+        return;
+      }
+      devLog('No progress after 5 retries - stopping analysis');
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      setAnalyzing(false);
+      setAnalysisId(null); // Clear analysis ID when stopping
+      if (onComplete) {
+        await onComplete();
+      }
+      setAnalyzeProgress({ show: false, progress: null, error: null, isComplete: false });
+    };
+
+    const handleFetchError = (error: any, timeoutId: NodeJS.Timeout | null) => {
+      devError('Error fetching analysis progress:', error);
+      devError('Error response:', error.response?.data);
+      devError('Error status:', error.response?.status);
+      console.error('Error fetching analysis progress:', error);
+      errorCount++;
+      if (errorCount < 3) {
+        return;
+      }
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      setAnalyzing(false);
+      setAnalysisId(null); // Clear analysis ID on fetch error
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to fetch analysis progress. Please try again.';
+      setAnalyzeProgress({
+        show: true,
+        progress: null,
+        error: errorMessage,
+        isComplete: false,
+      });
+    };
+
+    // Use setTimeout-based polling that waits 2s AFTER receiving response, not fixed interval
+    let isPolling = false;
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAnalysisProgress.ts:198',message:'Starting polling with delay-after-response pattern',data:{pollingInterval:POLLING_INTERVAL_MS},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{});
+    // #endregion
+    
+    const pollProgress = async () => {
+      if (isPolling) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAnalysisProgress.ts:204',message:'Poll skipped - previous poll still in progress',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{});
+        // #endregion
+        return; // Skip if previous request is still in progress
+      }
+      
+      isPolling = true;
+      const requestStartTime = Date.now();
+      
+      try {
+        // Pass analysis ID in polling request if available
+        const url = `${API_URL}/context/analyze-progress${analysisId ? `?analysisId=${analysisId}` : ''}`;
+        devDebug(`Polling progress from ${url}`);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAnalysisProgress.ts:212',message:'Making progress request',data:{url,requestStartTime},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{});
+        // #endregion
+        
+        const response = await axios.get(url);
+        const requestEndTime = Date.now();
+        const requestDuration = requestEndTime - requestStartTime;
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAnalysisProgress.ts:219',message:'Progress response received',data:{requestDuration,hasError:!!response.data.error,hasProgress:!!response.data.progress},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{});
+        // #endregion
+        
+        devDebug('Progress response:', response.data);
+        
+        if (response.data.error) {
+          devError('Progress check returned error:', response.data.error);
+          handleErrorResponse(
+            response.data.error.message || 'Analysis failed. Please try again.',
+            pollingTimeout
+          );
+          isPolling = false;
+          return;
+        }
+        
+        if (response.data.progress) {
+          devLog(`Progress update: ${response.data.progress.current}/${response.data.progress.total} - ${response.data.progress.messageKey || 'No messageKey'}`);
+          await handleProgressResponse(response.data.progress, pollingTimeoutRef.current);
+        } else {
+          devDebug('No progress in response, calling handleNoProgressResponse');
+          await handleNoProgressResponse(pollingTimeoutRef.current);
+        }
+        
+        // Wait 2 seconds AFTER receiving response before next poll
+        // CRITICAL: Check cancelledRef (not analyzing state) to ensure cancellation is seen
+        if (!cancelledRef.current) {
+          pollingTimeoutRef.current = setTimeout(() => {
+            if (!cancelledRef.current) {
+              pollProgress();
+            }
+          }, POLLING_INTERVAL_MS);
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAnalysisProgress.ts:240',message:'Scheduled next poll after response delay',data:{delay:POLLING_INTERVAL_MS},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{});
+          // #endregion
+        }
+      } catch (error: any) {
+        handleFetchError(error, pollingTimeoutRef.current);
+        // Wait 2 seconds even on error before retrying
+        if (!cancelledRef.current) {
+          pollingTimeoutRef.current = setTimeout(() => {
+            if (!cancelledRef.current) {
+              pollProgress();
+            }
+          }, POLLING_INTERVAL_MS);
+        }
+      } finally {
+        isPolling = false;
+      }
+    };
+    
+    // Start polling immediately
+    pollProgress();
+
+    return () => {
+      if (pollingTimeoutRef.current) {
+        clearTimeout(pollingTimeoutRef.current);
+        pollingTimeoutRef.current = null;
+      }
+    };
+  }, [analyzing, analysisId, onComplete]);
+
+  const dismissProgress = useCallback(() => {
+    // Stop polling when user dismisses - use ref to ensure closure sees the cancellation
+    cancelledRef.current = true;
+    
+    // Clear any pending timeout
+    if (pollingTimeoutRef.current) {
+      clearTimeout(pollingTimeoutRef.current);
+      pollingTimeoutRef.current = null;
+    }
+    
+    setAnalyzing(false);
+    setAnalysisId(null);
+    setAnalyzeProgress({ show: false, progress: null, error: null, isComplete: false });
+    
+    devLog('Analysis dismissed - polling cancelled');
+  }, []);
+
+  return {
+    analyzing,
+    analyzeProgress,
+    setAnalyzing,
+    setAnalyzeProgress,
+    startAnalysis,
+    dismissProgress,
+  };
+};
+
+

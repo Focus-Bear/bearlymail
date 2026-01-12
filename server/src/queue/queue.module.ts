@@ -11,10 +11,13 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import PgBoss = require("pg-boss");
 import { QueueMonitorService } from "./queue-monitor.service";
 import { ResourceMonitorService } from "./resource-monitor.service";
+import { QueueAutoscalingService } from "./queue-autoscaling.service";
+import { AwsModule } from "../aws/aws.module";
+import { logErrorToFile } from "../utils/error-logger";
 
 @Global()
 @Module({
-  imports: [ConfigModule, TypeOrmModule],
+  imports: [ConfigModule, TypeOrmModule, AwsModule],
   providers: [
     {
       provide: "PG_BOSS",
@@ -32,23 +35,31 @@ import { ResourceMonitorService } from "./resource-monitor.service";
           // Worker settings
           noSupervisor: false,
           // Job defaults - reasonable retry settings
-          retryLimit: 3, // Max 3 retries
-          retryDelay: 10, // 10 seconds between retries (not 5000!)
-          retryBackoff: false, // Linear backoff, not exponential
-          expireInMinutes: 15, // Jobs expire after 15 minutes if not processed
-          deleteAfterHours: 24, // Delete completed jobs after 24 hours
+          // Max 3 retries
+          retryLimit: 3,
+          // 10 seconds between retries (not 5000!)
+          retryDelay: 10,
+          // Linear backoff, not exponential
+          retryBackoff: false,
+          // Jobs expire after 15 minutes if not processed
+          expireInMinutes: 15,
+          // Delete completed jobs after 24 hours
+          deleteAfterHours: 24,
           // Archive completed jobs instead of deleting immediately
-          archiveCompletedAfterSeconds: 3600, // Archive after 1 hour
+          // Archive after 1 hour
+          archiveCompletedAfterSeconds: 3600,
         });
 
         // Handle connection errors gracefully
         boss.on("error", (error) => {
           logger.error("PgBoss connection error:", error);
+          logErrorToFile("PgBoss connection error", error, "QueueModule");
           // Don't throw - let pg-boss handle reconnection
         });
 
         // Handle worker errors - these are logged but don't crash the app
-        boss.on("monitor-states", (monitor) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        boss.on("monitor-states", (_monitor) => {
           // Monitor is running, connection is healthy
         });
 
@@ -61,10 +72,12 @@ import { ResourceMonitorService } from "./resource-monitor.service";
             logger.warn("PgBoss stopped, attempting to restart...");
             boss.start().catch((err) => {
               logger.error("Failed to restart PgBoss:", err);
+              logErrorToFile("Failed to restart PgBoss", err, "QueueModule");
             });
           });
         } catch (error) {
           logger.error("Failed to start PgBoss:", error);
+          logErrorToFile("Failed to start PgBoss", error, "QueueModule");
           throw error;
         }
 
@@ -74,6 +87,7 @@ import { ResourceMonitorService } from "./resource-monitor.service";
     },
     QueueMonitorService,
     ResourceMonitorService,
+    QueueAutoscalingService,
   ],
   exports: ["PG_BOSS", QueueMonitorService, ResourceMonitorService],
 })
@@ -84,6 +98,7 @@ export class QueueModule implements OnApplicationBootstrap, OnModuleDestroy {
     @Inject("PG_BOSS") private boss: PgBoss,
     private queueMonitorService: QueueMonitorService,
     private resourceMonitorService: ResourceMonitorService,
+    private queueAutoscalingService: QueueAutoscalingService,
   ) {}
 
   async onApplicationBootstrap() {
@@ -91,6 +106,7 @@ export class QueueModule implements OnApplicationBootstrap, OnModuleDestroy {
     // Set up error handlers
     this.boss.on("error", (error) => {
       this.logger.error("PgBoss error (handled):", error.message);
+      logErrorToFile("PgBoss error (handled)", error, "QueueModule");
       // Connection errors are handled by pg-boss automatically with retry
     });
   }
@@ -99,14 +115,21 @@ export class QueueModule implements OnApplicationBootstrap, OnModuleDestroy {
     try {
       // Stop monitoring services
       if (this.queueMonitorService) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (this.queueMonitorService as any).onModuleDestroy?.();
       }
       if (this.resourceMonitorService) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (this.resourceMonitorService as any).onModuleDestroy?.();
+      }
+      if (this.queueAutoscalingService) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (this.queueAutoscalingService as any).onModuleDestroy?.();
       }
       await this.boss.stop();
     } catch (error) {
       this.logger.error("Error stopping QueueModule:", error);
+      logErrorToFile("Error stopping QueueModule", error, "QueueModule");
     }
   }
 }

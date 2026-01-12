@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { theme } from '../../../theme/theme';
+import { theme } from 'theme/theme';
+import { MAX_PREVIEW_LENGTH } from 'components/inbox/constants';
 
 interface EmailCardBodyProps {
   subject: string;
@@ -28,7 +29,7 @@ export const EmailCardBody: React.FC<EmailCardBodyProps> = ({
     if (firstSentenceMatch) {
       return firstSentenceMatch[0].trim();
     }
-    return `${bodyText.substring(0, 150).replace(/[\r\n]+/g, ' ')}...`;
+    return `${bodyText.substring(0, MAX_PREVIEW_LENGTH).replace(/[\r\n]+/g, ' ')}...`;
   };
 
   return (
@@ -60,33 +61,42 @@ export const EmailCardBody: React.FC<EmailCardBodyProps> = ({
           gap: theme.spacing.xs,
         }}
       >
-        {isProcessingSummary ? (
-          <>
+        {(() => {
+          if (isProcessingSummary) {
+            return (
+              <>
+                <span
+                  style={{
+                    display: 'inline-block',
+                    width: '12px',
+                    height: '12px',
+                    border: `2px solid ${theme.colors.text.tertiary}`,
+                    borderTop: '2px solid transparent',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite',
+                  }}
+                />
+                {t('email.generatingSummary')}
+              </>
+            );
+          }
+          if (summary) {
+            return summary;
+          }
+          return (
             <span
-              style={{
-                display: 'inline-block',
-                width: '12px',
-                height: '12px',
-                border: `2px solid ${theme.colors.text.tertiary}`,
-                borderTop: '2px solid transparent',
-                borderRadius: '50%',
-                animation: 'spin 1s linear infinite',
-              }}
-            />
-            {t('email.generatingSummary')}
-          </>
-        ) : summary ? (
-          summary
-        ) : (
-          <span
-            title={body.substring(0, 1000).replace(/[\r\n]+/g, ' ')}
-            style={{ cursor: 'help' }}
-          >
-            {extractPreview(body)}
-          </span>
-        )}
+              title={body.substring(0, 1000).replace(/[\r\n]+/g, ' ')}
+              style={{ cursor: 'help' }}
+            >
+              {extractPreview(body)}
+            </span>
+          );
+        })()}
       </div>
     </>
   );
 };
+
+
+
 

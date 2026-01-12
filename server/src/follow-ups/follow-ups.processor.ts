@@ -26,6 +26,7 @@ import { EncryptionHelper } from "../encryption/encryption.helper";
 export class FollowUpsProcessor implements OnModuleInit {
   private readonly logger = new Logger(FollowUpsProcessor.name);
 
+  // eslint-disable-next-line max-params
   constructor(
     @Inject("PG_BOSS") private boss: PgBoss,
     @InjectRepository(FollowUp)
@@ -40,9 +41,11 @@ export class FollowUpsProcessor implements OnModuleInit {
     private emailProviderManager: EmailProviderManager,
   ) {}
 
+  // eslint-disable-next-line max-lines-per-function
   async onModuleInit() {
     // Worker for generating follow-up drafts
     this.logger.log("Registering generate-follow-up-draft worker");
+    // eslint-disable-next-line max-lines-per-function, max-statements
     await this.boss.work("generate-follow-up-draft", async (job) => {
       const { userId, followUpId, threadId } = job.data as {
         userId: string;
@@ -95,6 +98,7 @@ export class FollowUpsProcessor implements OnModuleInit {
         }
 
         // Get last 5 messages (or all if less than 5)
+        // eslint-disable-next-line @typescript-eslint/no-magic-numbers
         const lastMessages = threadEmails.slice(-5);
 
         // Build thread messages with isFromUser flag
@@ -119,7 +123,7 @@ export class FollowUpsProcessor implements OnModuleInit {
 
         // Find last user message for business days calculation
         const lastUserMessage = threadMessages
-          .filter((m) => m.isFromUser)
+          .filter((message) => message.isFromUser)
           .sort((a, b) => b.receivedAt.getTime() - a.receivedAt.getTime())[0];
 
         if (!lastUserMessage) {
@@ -149,7 +153,7 @@ export class FollowUpsProcessor implements OnModuleInit {
 
         // Get recipient name
         const lastTheirMessage = threadMessages
-          .filter((m) => !m.isFromUser)
+          .filter((message) => !message.isFromUser)
           .sort((a, b) => b.receivedAt.getTime() - a.receivedAt.getTime())[0];
         const theirName =
           lastTheirMessage?.fromName || lastTheirMessage?.from || "there";
@@ -203,6 +207,7 @@ export class FollowUpsProcessor implements OnModuleInit {
 
     // Worker for bulk sending follow-ups
     this.logger.log("Registering bulk-send-follow-ups worker");
+    // eslint-disable-next-line max-lines-per-function, max-statements, complexity
     await this.boss.work("bulk-send-follow-ups", async (job) => {
       const { userId, followUpIds } = job.data as {
         userId: string;
@@ -294,14 +299,23 @@ export class FollowUpsProcessor implements OnModuleInit {
                 subject,
                 draft,
               );
-              break; // Success, exit retry loop
-            } catch (error: any) {
-              lastError = error;
+              break;
+              // Success, exit retry loop
+            } catch (error: unknown) {
+              lastError = error as Error;
 
               // Check if it's a rate limit error (429)
+              // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+              // HTTP 429 Too Many Requests
+              const apiError = error as {
+                code?: number;
+                response?: { status?: number };
+              };
               if (
-                error.code === 429 ||
-                (error.response && error.response.status === 429)
+                // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+                apiError.code === 429 ||
+                // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+                (apiError.response && apiError.response.status === 429)
               ) {
                 retries++;
                 if (retries < maxRetries) {

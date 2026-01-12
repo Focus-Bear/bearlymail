@@ -1,9 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { BOOKING_STATUS_SUCCESS } from 'constants/strings';
 import axios from 'axios';
-import { theme } from '../theme/theme';
+import { theme } from 'theme/theme';
+import { BookingLoadingState } from 'components/booking/BookingLoadingState';
+import { BookingSuccessState } from 'components/booking/BookingSuccessState';
+import { SlotSelection } from 'components/booking/SlotSelection';
+import { BookingForm } from 'components/booking/BookingForm';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 interface TimeSlot {
   start: string;
@@ -13,6 +19,7 @@ interface TimeSlot {
 
 const BookingPage: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
+  const { t } = useTranslation();
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [guestEmail, setGuestEmail] = useState('');
@@ -28,7 +35,7 @@ const BookingPage: React.FC = () => {
         setSlots(response.data);
       } catch (error) {
         console.error('Error fetching slots:', error);
-        setError('Failed to load available times');
+        setError(t('booking.failedToLoad'));
       } finally {
         setLoading(false);
       }
@@ -37,7 +44,7 @@ const BookingPage: React.FC = () => {
     if (userId) {
       fetchSlots();
     }
-  }, [userId]);
+  }, [userId, t]);
 
   const handleBook = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,58 +62,16 @@ const BookingPage: React.FC = () => {
     } catch (error) {
       console.error('Error booking slot:', error);
       setBookingStatus('error');
-      setError('Failed to book the appointment. Please try again.');
+      setError(t('booking.failedToBook'));
     }
   };
 
   if (loading) {
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        backgroundColor: theme.colors.background.default,
-        fontFamily: theme.typography.fontFamily,
-      }}>
-        Loading available times...
-      </div>
-    );
+    return <BookingLoadingState />;
   }
 
-  if (bookingStatus === 'success') {
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        backgroundColor: theme.colors.background.default,
-        fontFamily: theme.typography.fontFamily,
-      }}>
-        <div style={{
-          backgroundColor: theme.colors.background.paper,
-          padding: theme.spacing['2xl'],
-          borderRadius: theme.borderRadius.lg,
-          boxShadow: theme.shadows.md,
-          textAlign: 'center',
-          maxWidth: '500px',
-        }}>
-          <div style={{ 
-            color: theme.colors.accent.success, 
-            fontSize: theme.typography.fontSize['3xl'],
-            marginBottom: theme.spacing.lg 
-          }}>✓</div>
-          <h1 style={{ 
-            color: theme.colors.text.primary,
-            marginBottom: theme.spacing.md 
-          }}>Booking Confirmed!</h1>
-          <p style={{ color: theme.colors.text.secondary }}>
-            A calendar invitation has been sent to {guestEmail}.
-          </p>
-        </div>
-      </div>
-    );
+  if (bookingStatus === BOOKING_STATUS_SUCCESS) {
+    return <BookingSuccessState guestEmail={guestEmail} />;
   }
 
   return (
@@ -129,8 +94,8 @@ const BookingPage: React.FC = () => {
           backgroundColor: theme.colors.primary.main,
           color: 'white',
         }}>
-          <h1 style={{ margin: 0, fontSize: theme.typography.fontSize['2xl'] }}>Book a Meeting</h1>
-          <p style={{ marginTop: theme.spacing.sm, opacity: 0.9 }}>Select a time slot below</p>
+          <h1 style={{ margin: 0, fontSize: theme.typography.fontSize['2xl'] }}>{t('booking.title')}</h1>
+          <p style={{ marginTop: theme.spacing.sm, opacity: 0.9 }}>{t('booking.subtitle')}</p>
         </div>
 
         <div style={{ padding: theme.spacing.xl }}>
@@ -147,139 +112,20 @@ const BookingPage: React.FC = () => {
           )}
 
           <div style={{ display: 'flex', gap: theme.spacing.xl, flexWrap: 'wrap' }}>
-            {/* Slot Selection */}
-            <div style={{ flex: 1, minWidth: '300px' }}>
-              <h2 style={{ 
-                fontSize: theme.typography.fontSize.lg, 
-                color: theme.colors.text.primary,
-                marginBottom: theme.spacing.md 
-              }}>Available Times</h2>
-              
-              {slots.length === 0 ? (
-                <p style={{ color: theme.colors.text.secondary }}>No slots available for the next 7 days.</p>
-              ) : (
-                <div style={{ display: 'grid', gap: theme.spacing.sm }}>
-                  {slots.map((slot, index) => {
-                    const start = new Date(slot.start);
-                    const isSelected = selectedSlot === slot;
-                    
-                    return (
-                      <button
-                        key={index}
-                        onClick={() => setSelectedSlot(slot)}
-                        style={{
-                          padding: theme.spacing.md,
-                          border: `1px solid ${isSelected ? theme.colors.primary.main : theme.colors.border.medium}`,
-                          backgroundColor: isSelected ? `${theme.colors.primary.main}10` : 'white',
-                          borderRadius: theme.borderRadius.md,
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                        }}
-                      >
-                        <div>
-                          <div style={{ fontWeight: theme.typography.fontWeight.medium, color: theme.colors.text.primary }}>
-                            {start.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
-                          </div>
-                          <div style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>
-                            {start.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })} ({slot.duration} min)
-                          </div>
-                        </div>
-                        {isSelected && (
-                          <span style={{ color: theme.colors.primary.main }}>●</span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Booking Form */}
-            <div style={{ flex: 1, minWidth: '300px' }}>
-              <h2 style={{ 
-                fontSize: theme.typography.fontSize.lg, 
-                color: theme.colors.text.primary,
-                marginBottom: theme.spacing.md 
-              }}>Your Details</h2>
-              
-              <form onSubmit={handleBook}>
-                <div style={{ marginBottom: theme.spacing.md }}>
-                  <label style={{ 
-                    display: 'block', 
-                    marginBottom: theme.spacing.xs,
-                    color: theme.colors.text.primary,
-                    fontSize: theme.typography.fontSize.sm
-                  }}>Name</label>
-                  <input
-                    type="text"
-                    value={guestName}
-                    onChange={(e) => setGuestName(e.target.value)}
-                    required
-                    style={{
-                      width: '100%',
-                      padding: theme.spacing.md,
-                      border: `1px solid ${theme.colors.border.medium}`,
-                      borderRadius: theme.borderRadius.md,
-                      fontSize: theme.typography.fontSize.base,
-                    }}
-                  />
-                </div>
-
-                <div style={{ marginBottom: theme.spacing.lg }}>
-                  <label style={{ 
-                    display: 'block', 
-                    marginBottom: theme.spacing.xs,
-                    color: theme.colors.text.primary,
-                    fontSize: theme.typography.fontSize.sm
-                  }}>Email</label>
-                  <input
-                    type="email"
-                    value={guestEmail}
-                    onChange={(e) => setGuestEmail(e.target.value)}
-                    required
-                    style={{
-                      width: '100%',
-                      padding: theme.spacing.md,
-                      border: `1px solid ${theme.colors.border.medium}`,
-                      borderRadius: theme.borderRadius.md,
-                      fontSize: theme.typography.fontSize.base,
-                    }}
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={!selectedSlot || bookingStatus === 'submitting'}
-                  style={{
-                    width: '100%',
-                    padding: theme.spacing.lg,
-                    backgroundColor: selectedSlot ? theme.colors.primary.main : theme.colors.border.dark,
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: theme.borderRadius.md,
-                    cursor: selectedSlot ? 'pointer' : 'not-allowed',
-                    fontSize: theme.typography.fontSize.base,
-                    fontWeight: theme.typography.fontWeight.semibold,
-                  }}
-                >
-                  {bookingStatus === 'submitting' ? 'Booking...' : 'Confirm Booking'}
-                </button>
-                
-                {!selectedSlot && (
-                  <p style={{ 
-                    marginTop: theme.spacing.sm, 
-                    color: theme.colors.text.secondary, 
-                    fontSize: theme.typography.fontSize.sm,
-                    textAlign: 'center'
-                  }}>
-                    Please select a time slot first
-                  </p>
-                )}
-              </form>
-            </div>
+            <SlotSelection
+              slots={slots}
+              selectedSlot={selectedSlot}
+              onSelectSlot={setSelectedSlot}
+            />
+            <BookingForm
+              selectedSlot={selectedSlot}
+              guestEmail={guestEmail}
+              guestName={guestName}
+              bookingStatus={bookingStatus}
+              onGuestEmailChange={setGuestEmail}
+              onGuestNameChange={setGuestName}
+              onSubmit={handleBook}
+            />
           </div>
         </div>
       </div>

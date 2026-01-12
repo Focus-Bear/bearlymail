@@ -1,7 +1,8 @@
 import { useState, useCallback, useRef } from 'react';
 import axios from 'axios';
-import { Email, TriageSuggestion } from '../types/email';
-import { API_URL } from '../config/api';
+import { Email, TriageSuggestion } from 'types/email';
+import { API_URL } from 'config/api';
+import { TRIAGE_SUGGESTIONS_LIMIT_20 } from 'constants/numbers';
 
 interface UseTriageSuggestionsReturn {
   triageSuggestions: Map<string, TriageSuggestion>;
@@ -20,7 +21,7 @@ export function useTriageSuggestions(): UseTriageSuggestionsReturn {
   const fetchTriageSuggestions = useCallback(async (emails: Email[]) => {
     if (emails.length === 0 || loadingSuggestions) return;
 
-    const emailIds = emails.slice(0, 20).map(e => e.id);
+    const emailIds = emails.slice(0, TRIAGE_SUGGESTIONS_LIMIT_20).map(e => e.id);
     const emailIdsKey = emailIds.sort().join(',');
 
     // Skip if we've already fetched for these exact emails

@@ -1,5 +1,6 @@
 import React from 'react';
-import { theme } from '../../theme/theme';
+import { useTranslation } from 'react-i18next';
+import { theme } from 'theme/theme';
 
 interface ConsentModalFooterProps {
   termsAccepted: boolean;
@@ -17,6 +18,7 @@ export const ConsentModalFooter: React.FC<ConsentModalFooterProps> = ({
   loading,
   onAccept,
 }) => {
+  const { t } = useTranslation();
   const isButtonDisabled = (): boolean => {
     return !termsAccepted || !privacyAccepted || loading;
   };
@@ -75,9 +77,13 @@ export const ConsentModalFooter: React.FC<ConsentModalFooterProps> = ({
           }
         }}
       >
-        {loading ? 'Saving...' : 'Accept & Continue'}
+        {loading ? t('consent.saving') : t('consent.acceptAndContinue')}
       </button>
     </div>
   );
 };
+
+
+
+
 

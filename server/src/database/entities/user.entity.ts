@@ -13,6 +13,8 @@ import { Email } from "./email.entity";
 import { SummarizationRule } from "./summarization-rule.entity";
 import { ActionItem } from "./action-item.entity";
 import { GoogleAccount } from "./google-account.entity";
+import { Office365Account } from "./office365-account.entity";
+import { ZohoAccount } from "./zoho-account.entity";
 import {
   encryptedColumnTransformer,
   emailTransformer,
@@ -24,21 +26,33 @@ export class User {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
-  @Column({ unique: true })
+  @Column({
+    unique: true,
+    comment: "SHA-256 hash for querying (not encrypted)",
+  })
   @Index()
-  emailHash: string; // SHA-256 hash for querying (not encrypted)
+  emailHash: string;
 
-  @Column({ transformer: emailTransformer })
-  email: string; // Encrypted actual email
+  @Column({
+    transformer: emailTransformer,
+    comment: "Encrypted actual email",
+  })
+  email: string;
 
   @Column({ nullable: true })
   password: string;
 
-  @Column({ nullable: true })
-  passwordSetupToken: string; // Token for setting up password after waitlist approval
+  @Column({
+    nullable: true,
+    comment: "Token for setting up password after waitlist approval",
+  })
+  passwordSetupToken: string;
 
-  @Column({ nullable: true })
-  passwordSetupTokenExpiresAt: Date; // Token expiration (7 days)
+  @Column({
+    nullable: true,
+    comment: "Token expiration (7 days)",
+  })
+  passwordSetupTokenExpiresAt: Date;
 
   @Column({ nullable: true })
   googleId: string;
@@ -52,63 +66,123 @@ export class User {
   @Column({ nullable: true, transformer: encryptedColumnTransformer })
   googleCalendarRefreshToken: string;
 
-  @Column({ default: false })
-  needsRelogin: boolean; // Added field to track auth errors
+  @Column({
+    default: false,
+    comment: "Added field to track auth errors",
+  })
+  needsRelogin: boolean;
 
-  @Column({ default: false })
-  hasSeenTour: boolean; // Track if user has completed onboarding tour
+  @Column({
+    default: false,
+    comment: "Track if user has completed onboarding tour",
+  })
+  hasSeenTour: boolean;
 
-  @Column({ default: false })
-  hasScannedHistory: boolean; // Track if user has allowed historical email scan
+  @Column({
+    default: false,
+    comment: "Track if user has allowed historical email scan",
+  })
+  hasScannedHistory: boolean;
 
-  @Column({ nullable: true })
-  scanProgress: number; // Current scan progress (0-100)
+  @Column({
+    nullable: true,
+    comment: "Current scan progress (0-100)",
+  })
+  scanProgress: number;
 
-  @Column({ nullable: true })
-  scanTotal: number; // Total emails to scan
+  @Column({
+    nullable: true,
+    comment: "Total emails to scan",
+  })
+  scanTotal: number;
 
-  @Column({ default: false })
-  isAdmin: boolean; // Admin role
+  @Column({
+    default: false,
+    comment: "Admin role",
+  })
+  isAdmin: boolean;
 
-  @Column({ default: false })
-  isApproved: boolean; // Approved from waitlist
+  @Column({
+    default: false,
+    comment: "Approved from waitlist",
+  })
+  isApproved: boolean;
 
-  // Privacy & Terms consent tracking
-  @Column({ nullable: true })
-  termsAcceptedAt: Date; // When user accepted terms of use
+  @Column({
+    nullable: true,
+    comment: "When user accepted terms of use",
+  })
+  termsAcceptedAt: Date;
 
-  @Column({ nullable: true })
-  privacyAcceptedAt: Date; // When user accepted privacy policy
+  @Column({
+    nullable: true,
+    comment: "When user accepted privacy policy",
+  })
+  privacyAcceptedAt: Date;
 
-  @Column({ nullable: true })
-  termsVersion: string; // Version of terms accepted
+  @Column({
+    nullable: true,
+    comment: "Version of terms accepted",
+  })
+  termsVersion: string;
 
-  @Column({ nullable: true })
-  privacyVersion: string; // Version of privacy policy accepted
+  @Column({
+    nullable: true,
+    comment: "Version of privacy policy accepted",
+  })
+  privacyVersion: string;
 
-  // OpenAI API key (encrypted) - allows users to use their own key
-  @Column({ nullable: true, transformer: encryptedColumnTransformer })
+  @Column({
+    nullable: true,
+    transformer: encryptedColumnTransformer,
+    comment: "OpenAI API key (encrypted) - allows users to use their own key",
+  })
   openAiApiKey: string;
 
-  // GitHub fine-grained PAT (encrypted) - for GitHub integration
-  @Column({ nullable: true, transformer: encryptedColumnTransformer })
+  @Column({
+    nullable: true,
+    transformer: encryptedColumnTransformer,
+    comment: "GitHub fine-grained PAT (encrypted) - for GitHub integration",
+  })
   githubToken: string;
 
-  // RevenueCat subscription fields
-  @Column({ nullable: true })
-  revenueCatUserId: string; // RevenueCat customer ID
+  @Column({
+    nullable: true,
+    comment: "RevenueCat customer ID",
+  })
+  revenueCatUserId: string;
 
-  @Column({ nullable: true })
-  subscriptionStatus: string; // active, trial, expired, cancelled
+  @Column({
+    nullable: true,
+    comment: "active, trial, expired, cancelled",
+  })
+  subscriptionStatus: string;
 
-  @Column({ nullable: true })
-  subscriptionExpiresAt: Date; // When subscription expires
+  @Column({
+    nullable: true,
+    comment: "When subscription expires",
+  })
+  subscriptionExpiresAt: Date;
 
-  @Column({ nullable: true })
-  trialStartedAt: Date; // When 7-day trial started
+  @Column({
+    nullable: true,
+    comment: "When 7-day trial started",
+  })
+  trialStartedAt: Date;
 
-  @Column("text", { nullable: true, transformer: encryptedJsonTransformer })
-  toneSettings: { rules: string[] }; // e.g., { rules: ['Be concise', 'Use non-violent communication'] }
+  @Column({
+    nullable: true,
+    comment: "When user's emails were last synced from email provider",
+  })
+  lastEmailSyncAt: Date | null;
+
+  @Column({
+    type: "text",
+    nullable: true,
+    transformer: encryptedJsonTransformer,
+    comment: "e.g., { rules: ['Be concise', 'Use non-violent communication'] }",
+  })
+  toneSettings: { rules: string[] };
 
   @CreateDateColumn()
   createdAt: Date;
@@ -133,4 +207,10 @@ export class User {
 
   @OneToMany(() => GoogleAccount, (account) => account.user)
   googleAccounts: GoogleAccount[];
+
+  @OneToMany(() => Office365Account, (account) => account.user)
+  office365Accounts: Office365Account[];
+
+  @OneToMany(() => ZohoAccount, (account) => account.user)
+  zohoAccounts: ZohoAccount[];
 }

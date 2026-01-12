@@ -10,6 +10,7 @@ import {
   Request,
   Inject,
   Logger,
+  Query,
 } from "@nestjs/common";
 import { ContextService } from "./context.service";
 import {
@@ -21,16 +22,23 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { UsersService } from "../users/users.service";
 import PgBoss = require("pg-boss");
 import { getJobPriority } from "../queue/job-priorities";
+import { PERCENTAGES } from "../constants/percentages";
+import { writeAnalysisLog } from "./context-analysis-logger";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { ContextAnalysis } from "../database/entities/context-analysis.entity";
 
 @Controller("context")
 @UseGuards(JwtAuthGuard)
 export class ContextController {
   private readonly logger = new Logger(ContextController.name);
-  
+
   constructor(
     private readonly contextService: ContextService,
     private readonly usersService: UsersService,
     @Inject("PG_BOSS") private readonly boss: PgBoss,
+    @InjectRepository(ContextAnalysis)
+    private readonly contextAnalysisRepository: Repository<ContextAnalysis>,
   ) {}
 
   @Get()
@@ -39,110 +47,288 @@ export class ContextController {
   }
 
   @Get("analyze-progress")
-  async getAnalyzeProgress(@Request() req) {
+  // eslint-disable-next-line complexity, max-statements
+  async getAnalyzeProgress(
+    @Request() req,
+    @Query("analysisId") analysisId?: string,
+  ) {
     const user = await this.usersService.findOne(req.user.userId);
     if (!user) {
       return { progress: null, error: null };
     }
 
-    // Reuse scanProgress/scanTotal fields for context analysis progress
-    if (user.scanProgress !== null && user.scanTotal !== null) {
-      // Check for error state: scanProgress = -1 indicates error
-      if (user.scanProgress === -1) {
-        return {
-          progress: null,
-          error: "Analysis failed. Please try again.",
-        };
-      }
+    // Get progress info - filter by analysis ID if provided
+    const progressInfo = await this.contextService.getAnalysisProgress(
+      req.user.userId,
+      analysisId, // Pass analysis ID to filter
+    );
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context.controller.ts:PROGRESS_QUERY',message:'Progress query result',data:{inputAnalysisId:analysisId,returnedStatus:progressInfo.status,returnedTotalBatches:progressInfo.totalBatches,returnedCompletedBatches:progressInfo.completedBatches,hasStats:!!progressInfo.stats},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'H1_OLD_ANALYSIS'})}).catch(()=>{});
+    // #endregion
+    
+    // Check and sync jobs between DB and PgBoss for active analyses
+    if (progressInfo.status === "running" || progressInfo.status === "pending") {
+      await this.contextService.checkAndSyncJobs(req.user.userId, analysisId);
+    }
+    
+    // If no active analysis, return null (not complete, just no analysis running)
+    if (!progressInfo.status) {
+      return { progress: null, error: null };
+    }
 
-      const percent = Math.floor((user.scanProgress / user.scanTotal) * 100);
-      let message = "";
-      
-      // Get progress info from context service (thread count, analyzed count, stats)
-      const progressInfo = await this.contextService.getAnalysisProgress(req.user.userId);
-      const threadCount = progressInfo.threadCount;
-      const analyzedCount = progressInfo.analyzedCount;
-      const stats = progressInfo.stats;
-      
-      // Debug logging
-      if (percent >= 25 && percent < 70) {
-        this.logger.log(
-          `[PROGRESS-DEBUG] userId=${req.user.userId}, percent=${percent}, threadCount=${threadCount}, analyzedCount=${analyzedCount}`,
-        );
-      }
-      
-      if (percent < 5) {
-        message = "Starting analysis...";
-      } else if (percent < 15) {
-        const fetched = Math.floor((percent / 15) * (threadCount || 200));
-        message = threadCount 
-          ? `Fetching threads from Gmail (${fetched}/${threadCount})...`
-          : "Fetching threads from Gmail...";
-      } else if (percent < 25) {
-        message = threadCount
-          ? `Identifying VIP contacts from ${threadCount} threads...`
-          : "Identifying VIP contacts from replied threads...";
-      } else if (percent >= 25 && percent < 70) {
-        // Show "X/200 threads analyzed" during LLM processing
-        // analyzedCount will be set before each batch starts, so it should be available
-        if (threadCount && analyzedCount !== undefined && analyzedCount >= 0) {
-          message = `Analyzing email patterns with AI (${analyzedCount}/${threadCount} threads analyzed)...`;
-        } else if (threadCount) {
-          message = `Analyzing email patterns with AI (analyzing ${threadCount} threads, this may take 30-60 seconds)...`;
-        } else {
-          message = "Analyzing email patterns with AI (this may take 30-60 seconds)...";
-        }
-      } else if (percent < 80) {
-        message = "Processing analysis results...";
-      } else if (percent < 95) {
-        message = "Saving insights to your context...";
-      } else if (percent < 100) {
-        message = "Finalizing analysis...";
-      } else {
-        // Get final statistics for summary
-        if (stats) {
-          const vipCount = stats.vipContactsEvaluated || 0;
-          message = `Analysis complete! Analyzed ${stats.totalThreads || threadCount || 0} threads, ${stats.outboundEmails || 0} outbound emails. Found ${stats.threadsNeverOpened || 0} unopened threads, ${stats.threadsReadButNotReplied || 0} read but not replied, ${vipCount} contacts evaluated.`;
-        } else {
-          message = threadCount
-            ? `Analysis complete! Analyzed ${threadCount} threads.`
-            : "Analysis complete!";
-        }
-      }
-
-      // Always include stats if available (not just at 100%)
-      // This ensures the frontend can display the summary even if isComplete check fails
-      const finalStats = stats || progressInfo.stats;
-      
-      // Log for debugging
-      if (percent >= 100) {
-        this.logger.log(
-          `[PROGRESS-DEBUG] Completion: userId=${req.user.userId}, percent=${percent}, stats=${finalStats ? 'YES' : 'NO'}, threadCount=${threadCount}, analyzedCount=${analyzedCount}`,
-        );
-      }
-      
+    // Check if analysis failed
+    if (progressInfo.status === "failed") {
       return {
-        progress: {
-          current: user.scanProgress,
-          total: user.scanTotal,
-          message,
-          threadCount,
-          analyzedCount,
-          stats: finalStats, // Always include stats when available
-        },
-        error: null,
+        progress: null,
+        error: progressInfo.errorMessage || "Analysis failed. Please try again.",
       };
     }
 
-    return { progress: null, error: null };
+    // Calculate displayed progress percentage based on analysis STAGE (not just batch completion)
+    // Expected flow:
+    // - Starting/Fetching: 0-10% (before batches are created)
+    // - Analyzing: 10-70% (during batch processing)
+    // - Summarizing/Creating: 70-99% (after all batches complete, during finalization)
+    // - Complete: 100% (status == completed)
+    
+    let percent = 0;
+    let stage: "starting" | "fetching" | "analyzing" | "summarizing" | "complete" = "starting";
+    const isStillRunning = progressInfo.status === "running" || progressInfo.status === "pending";
+    
+    if (progressInfo.status === "completed") {
+      // Analysis is fully complete
+      percent = 100;
+      stage = "complete";
+    } else if (isStillRunning) {
+      const { completedBatches, totalBatches, fetchingStatus, fetchedGeneral, fetchedSent } = progressInfo;
+      
+      if (totalBatches === undefined || totalBatches === 0) {
+        // Batches not created yet - still in fetching stage (0-10%)
+        // Calculate fetch progress based on fetched thread counts
+        if (fetchingStatus && (fetchedGeneral !== undefined || fetchedSent !== undefined)) {
+          // Show progress based on what's been fetched (target: 300 general + 150 sent = 450 threads)
+          const totalFetched = (fetchedGeneral || 0) + (fetchedSent || 0);
+          const fetchPercent = Math.min(totalFetched / 450 * 10, 10); // 0-10% range
+          percent = Math.floor(fetchPercent);
+        } else {
+          percent = 5; // Default while starting
+        }
+        stage = "fetching";
+      } else if (completedBatches !== undefined && completedBatches >= totalBatches) {
+        // All batches complete but analysis not finished - summarizing stage (70-99%)
+        percent = 85; // Show 85% while finalizing
+        stage = "summarizing";
+      } else {
+        // Batches are processing - analyzing stage (10-70%)
+        const completed = completedBatches !== undefined ? completedBatches : 0;
+        const batchPercent = totalBatches > 0 ? (completed / totalBatches) : 0;
+        // Map batch completion (0-100%) to displayed range (10-70%)
+        percent = Math.floor(10 + (batchPercent * 60));
+        stage = "analyzing";
+      }
+      
+      this.logger.log(
+        `[PROGRESS-CALC] Stage: ${stage}, percent: ${percent}%, batches: ${progressInfo.completedBatches || 0}/${progressInfo.totalBatches || 'unknown'}`,
+      );
+    } else if (user.scanProgress !== null && user.scanTotal !== null) {
+      // For completed/failed analyses that slipped through, use user.scanProgress
+      percent = Math.floor((user.scanProgress / user.scanTotal) * 100);
+      stage = percent >= 100 ? "complete" : "summarizing";
+    }
+    
+    // Only show complete if status is actually "completed"
+    const isActuallyComplete = progressInfo.status === "completed";
+    
+    let messageKey = "";
+    let messageValues: Record<string, unknown> = {};
+
+    const { threadCount } = progressInfo;
+    const { analyzedCount } = progressInfo;
+    const { stats } = progressInfo;
+    const { completedBatches, totalBatches, fetchingStatus, fetchedGeneral, fetchedSent } = progressInfo;
+    const { insights } = progressInfo;
+
+    // Debug logging
+    if (percent >= PERCENTAGES.TWENTY_FIVE && percent < PERCENTAGES.SEVENTY) {
+      this.logger.log(
+        `[PROGRESS-DEBUG] userId=${req.user.userId}, percent=${percent}, threadCount=${threadCount}, analyzedCount=${analyzedCount}, completedBatches=${completedBatches}, totalBatches=${totalBatches}`,
+      );
+    }
+
+    // Determine message based on the analysis stage (calculated above)
+    // This is much simpler and follows the expected flow
+    switch (stage) {
+      case "starting":
+        messageKey = "settings.analysis.progress.starting";
+        break;
+        
+      case "fetching":
+        messageKey = "settings.analysis.progress.fetching";
+        const totalFetched = (fetchedGeneral || 0) + (fetchedSent || 0);
+        messageValues = { 
+          fetched: totalFetched, 
+          total: 450, // Target: 300 general + 150 sent
+          fetchingStatus: fetchingStatus || 'Fetching threads...',
+          generalCount: fetchedGeneral || 0,
+          sentCount: fetchedSent || 0,
+        };
+        break;
+        
+      case "analyzing":
+        messageKey = "settings.analysis.progress.analyzing";
+        messageValues = { 
+          analyzed: analyzedCount || 0, 
+          total: threadCount || 0,
+          completedBatches: completedBatches || 0,
+          totalBatches: totalBatches || 0,
+        };
+        break;
+        
+      case "summarizing":
+        messageKey = "settings.analysis.progress.finalizing";
+        break;
+        
+      case "complete":
+        if (stats) {
+          const vipCount = (stats.vipContactsEvaluated as number) || 0;
+          messageKey = "settings.analysis.progress.complete";
+          messageValues = {
+            threads: (stats.totalThreads as number) || threadCount || 0,
+            outbound: (stats.outboundEmails as number) || 0,
+            unopened: (stats.threadsNeverOpened as number) || 0,
+            readNotReplied: (stats.threadsReadButNotReplied as number) || 0,
+            vipCount,
+          };
+        } else {
+          messageKey = "settings.analysis.progress.completeSimple";
+          messageValues = { count: threadCount || 0 };
+        }
+        break;
+        
+      default:
+        // Fallback - shouldn't happen
+        messageKey = "settings.analysis.progress.starting";
+    }
+
+    // Always include stats if available (not just at 100%)
+    // This ensures the frontend can display the summary even if isComplete check fails
+    const finalStats = stats || progressInfo.stats;
+
+    // Log for debugging
+    if (percent >= 100) {
+      this.logger.log(
+        `[PROGRESS-DEBUG] Completion check: userId=${req.user.userId}, percent=${percent}, status=${progressInfo.status}, isActuallyComplete=${isActuallyComplete}, stats=${finalStats ? "YES" : "NO"}, threadCount=${threadCount}, analyzedCount=${analyzedCount}`,
+      );
+    }
+
+    // Include findings in response if available
+    const findings = (finalStats?.findings as string[]) || undefined;
+
+    return {
+      progress: {
+        current: percent, // Use calculated percent, not user.scanProgress
+        total: 100, // Total is always 100 for percentage
+        messageKey,
+        messageValues,
+        threadCount,
+        analyzedCount,
+        batchStatus: totalBatches !== undefined && completedBatches !== undefined ? {
+          completedBatches,
+          totalBatches,
+        } : undefined,
+        // Always include stats when available
+        stats: finalStats,
+        // Include findings for display
+        findings,
+        // Include insights for display
+        insights,
+      },
+      error: null,
+    };
   }
 
   @Post("analyze")
-  async analyzeEmails(@Request() req: any) {
-    const userId = req.user.userId;
+  async analyzeEmails(@Request() req: { user: { userId: string } }) {
+    const { userId } = req.user;
+    this.logger.log(
+      `[CONTEXT-CONTROLLER] POST /context/analyze received for user ${userId}`,
+    );
+    writeAnalysisLog(
+      `[CONTROLLER] POST /context/analyze received for user ${userId}`,
+      "log",
+    );
+    console.log(
+      `[CONTEXT-CONTROLLER] POST /context/analyze received for user ${userId}`,
+    );
+
+    // Mark any existing "running" analysis as failed before starting new one
+    // This prevents insights from previous analyses from being shown
+    await this.contextAnalysisRepository.update(
+      { userId, status: "running" },
+      { status: "failed", errorMessage: "Superseded by new analysis" }
+    );
+    
+    // Create analysis record first with EMPTY stats (no batchResults from previous runs)
+    const analysisRecord = this.contextAnalysisRepository.create({
+      userId,
+      status: "running",
+      progress: 0,
+      total: 100,
+      analyzedCount: 0,
+      stats: {
+        totalThreads: 0,
+        outboundEmails: 0,
+        threadsNeverOpened: 0,
+        threadsReadButNotReplied: 0,
+        vipContactsEvaluated: 0,
+        batchResults: {}, // Explicitly empty - no insights from previous runs
+        batchJobIds: {},
+        batchPayloadsForRetry: {},
+      },
+    });
+    await this.contextAnalysisRepository.save(analysisRecord);
+
+    this.logger.log(
+      `[CONTEXT-CONTROLLER] Created analysis record ${analysisRecord.id} for user ${userId}`,
+    );
+    writeAnalysisLog(
+      `[CONTROLLER] Created analysis record ${analysisRecord.id} for user ${userId}`,
+      "log",
+    );
+
     const priority = getJobPriority("analyze-context");
-    await this.boss.send("analyze-context", { userId }, { priority });
-    return { message: "Analysis started" };
+    this.logger.log(
+      `[CONTEXT-CONTROLLER] Sending job to queue with priority ${priority}`,
+    );
+    writeAnalysisLog(
+      `[CONTROLLER] Sending job to queue with priority ${priority}`,
+      "debug",
+    );
+    console.log(
+      `[CONTEXT-CONTROLLER] Sending job to queue with priority ${priority}`,
+    );
+
+    // Send job to queue with analysis ID
+    await this.boss.send(
+      "analyze-context",
+      { userId, analysisId: analysisRecord.id },
+      { priority },
+    );
+
+    this.logger.log(
+      `[CONTEXT-CONTROLLER] Job sent successfully for user ${userId} with analysis ID ${analysisRecord.id}`,
+    );
+    writeAnalysisLog(
+      `[CONTROLLER] Job sent successfully for user ${userId} with analysis ID ${analysisRecord.id}`,
+      "log",
+    );
+    console.log(
+      `[CONTEXT-CONTROLLER] Job sent successfully for user ${userId} with analysis ID ${analysisRecord.id}`,
+    );
+
+    // Return analysis ID so frontend can track it
+    return { message: "Analysis started", analysisId: analysisRecord.id };
   }
 
   @Post()

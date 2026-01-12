@@ -2,17 +2,37 @@
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
 import { BearlyMailStack } from '../lib/bearlymail-stack';
+import { BearlyMailNetworkingStack } from '../lib/bearlymail-networking-stack';
 
 const app = new cdk.App();
 
-new BearlyMailStack(app, 'BearlyMailStack', {
-  env: {
-    account: process.env.CDK_DEFAULT_ACCOUNT || '841162709871',
-    region: 'ap-southeast-2', // Sydney
-  },
-  description: 'BearlyMail - ADHD-friendly email client infrastructure',
-  // Domain configuration
-  domainName: 'app.bearlymail.com',
-  hostedZoneId: 'Z08919233O73NFKRK9QHU',
+const env = {
+  account: process.env.CDK_DEFAULT_ACCOUNT || '841162709871',
+  region: 'ap-southeast-2', // Sydney
+};
+
+// Domain configuration
+const domainName = 'app.bearlymail.com';
+const hostedZoneId = 'Z08919233O73NFKRK9QHU';
+
+// Create networking stack first (VPC, Route53, Certificate)
+const networkingStack = new BearlyMailNetworkingStack(app, 'BearlyMailNetworkingStack', {
+  env,
+  description: 'BearlyMail - Networking infrastructure (VPC, Route53, Certificate)',
+  domainName,
+  hostedZoneId,
 });
+
+// Create application stack (depends on networking stack)
+const appStack = new BearlyMailStack(app, 'BearlyMailStack', {
+  env,
+  description: 'BearlyMail - Application infrastructure (ECS, RDS, S3, CloudFront)',
+  vpc: networkingStack.vpc,
+  certificateArn: networkingStack.certificateArn,
+  hostedZone: networkingStack.hostedZone,
+  domainName: networkingStack.domainName,
+});
+
+// Ensure application stack depends on networking stack
+appStack.addDependency(networkingStack);
 

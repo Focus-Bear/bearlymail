@@ -24,12 +24,14 @@ async function resetStuckJobs() {
     ssl: useSsl,
   });
 
+  // eslint-disable-next-line no-console
   console.log(
     `Connecting to ${dbHost}:${process.env.DB_PORT} (SSL: ${useSsl ? "enabled" : "disabled"})`,
   );
 
   try {
     await client.connect();
+    // eslint-disable-next-line no-console
     console.log("Connected to database");
 
     // Check current state of jobs
@@ -43,7 +45,9 @@ async function resetStuckJobs() {
       ORDER BY name, state
     `);
 
+    // eslint-disable-next-line no-console
     console.log("\nCurrent job states:");
+    // eslint-disable-next-line no-console
     console.table(beforeResult.rows);
 
     // Reset jobs that are stuck in retry state with future startafter times
@@ -59,14 +63,20 @@ async function resetStuckJobs() {
       RETURNING id, name, state
     `);
 
+    // eslint-disable-next-line no-console
     console.log(`\nReset ${resetResult.rowCount} stuck jobs`);
 
     if (resetResult.rowCount && resetResult.rowCount > 0) {
+      // eslint-disable-next-line no-console
       console.log("Reset jobs:");
+      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
       resetResult.rows.slice(0, 10).forEach((row) => {
+        // eslint-disable-next-line no-console
         console.log(`  - ${row.name} (${row.id})`);
       });
+      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
       if (resetResult.rowCount > 10) {
+        // eslint-disable-next-line no-console, @typescript-eslint/no-magic-numbers
         console.log(`  ... and ${resetResult.rowCount - 10} more`);
       }
     }
@@ -81,6 +91,7 @@ async function resetStuckJobs() {
       AND name IN ('refine-priority', 'generate-summary', 'sync-emails', 'learn-from-star', 'scan-history', 'scan-history-email', 'analyze-scan-results')
     `);
 
+    // eslint-disable-next-line no-console
     console.log(
       `\nFixed backoff settings for ${fixBackoffResult.rowCount} jobs`,
     );
@@ -94,12 +105,16 @@ async function resetStuckJobs() {
       ORDER BY name, state
     `);
 
+    // eslint-disable-next-line no-console
     console.log("\nFinal job states:");
+    // eslint-disable-next-line no-console
     console.table(afterResult.rows);
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error("Error:", error);
   } finally {
     await client.end();
+    // eslint-disable-next-line no-console
     console.log("\nDisconnected from database");
   }
 }

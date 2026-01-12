@@ -18,7 +18,8 @@ export class BlockedSendersService {
   private blockedCache = new Map<string, Set<string>>();
   private blockedDomainCache = new Map<string, Set<string>>();
   private cacheExpiry = new Map<string, number>();
-  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+  // 5 minutes
+  private readonly CACHE_TTL = 5 * 60 * 1000;
 
   constructor(
     @InjectRepository(BlockedSender)
@@ -176,7 +177,8 @@ export class BlockedSendersService {
   private async ensureCache(userId: string): Promise<void> {
     const expiry = this.cacheExpiry.get(userId);
     if (expiry && Date.now() < expiry) {
-      return; // Cache is still valid
+      // Cache is still valid
+      return;
     }
 
     // Refresh cache

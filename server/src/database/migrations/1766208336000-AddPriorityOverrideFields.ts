@@ -75,9 +75,8 @@ export class AddPriorityOverrideFields1766208336000
     }
 
     // Create priority_overrides table
-    const hasPriorityOverridesTable = await queryRunner.hasTable(
-      "priority_overrides",
-    );
+    const hasPriorityOverridesTable =
+      await queryRunner.hasTable("priority_overrides");
     if (!hasPriorityOverridesTable) {
       await queryRunner.createTable(
         new Table({
@@ -187,9 +186,8 @@ export class AddPriorityOverrideFields1766208336000
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Drop priority_overrides table
-    const hasPriorityOverridesTable = await queryRunner.hasTable(
-      "priority_overrides",
-    );
+    const hasPriorityOverridesTable =
+      await queryRunner.hasTable("priority_overrides");
     if (hasPriorityOverridesTable) {
       await queryRunner.dropTable("priority_overrides");
     }
@@ -225,4 +223,3 @@ export class AddPriorityOverrideFields1766208336000
     }
   }
 }
-

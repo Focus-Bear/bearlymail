@@ -1,4 +1,5 @@
 import { MigrationInterface, QueryRunner, TableIndex } from "typeorm";
+import { isError } from "../../../types/common";
 
 export class AddEmailPerformanceIndexes1735272000000
   implements MigrationInterface
@@ -18,9 +19,10 @@ export class AddEmailPerformanceIndexes1735272000000
           columnNames: ["userId", "isSnoozed"],
         }),
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Index might already exist, skip if so
-      if (!error.message?.includes("already exists")) {
+      const errorMessage = isError(error) ? error.message : undefined;
+      if (!errorMessage?.includes("already exists")) {
         throw error;
       }
     }
@@ -34,9 +36,10 @@ export class AddEmailPerformanceIndexes1735272000000
           columnNames: ["userId", "isSnoozed", "isBatched"],
         }),
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Index might already exist, skip if so
-      if (!error.message?.includes("already exists")) {
+      const errorMessage = isError(error) ? error.message : undefined;
+      if (!errorMessage?.includes("already exists")) {
         throw error;
       }
     }
@@ -49,13 +52,13 @@ export class AddEmailPerformanceIndexes1735272000000
         "emails",
         "IDX_emails_userId_isSnoozed_isBatched",
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Index might not exist, ignore
     }
 
     try {
       await queryRunner.dropIndex("emails", "IDX_emails_userId_isSnoozed");
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Index might not exist, ignore
     }
   }

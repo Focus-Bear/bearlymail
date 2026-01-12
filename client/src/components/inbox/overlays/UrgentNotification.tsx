@@ -1,6 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { theme } from '../../../theme/theme';
+import { theme } from 'theme/theme';
+import { UrgentNotificationHeader } from 'components/inbox/overlays/UrgentNotificationHeader';
+import { UrgentEmailList } from 'components/inbox/overlays/UrgentEmailList';
+import { EMOJI_CHECK } from 'constants/emojis';
 
 interface UrgentEmail {
   subject: string;
@@ -46,9 +49,6 @@ export const UrgentNotification: React.FC<UrgentNotificationProps> = ({
     return theme.colors.border.light;
   };
 
-  const getEmailKey = (email: UrgentEmail, index: number): string => {
-    return `urgent-${email.subject}-${email.from}-${index}`;
-  };
 
   return (
     <div
@@ -69,26 +69,7 @@ export const UrgentNotification: React.FC<UrgentNotificationProps> = ({
     >
       {hasUrgentEmails ? (
         <>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: theme.spacing.sm,
-              marginBottom: theme.spacing.md,
-            }}
-          >
-            <span style={{ fontSize: '1.5rem' }}>🚨</span>
-            <h3
-              style={{
-                color: theme.colors.accent.error,
-                margin: 0,
-                fontSize: theme.typography.fontSize.lg,
-                fontWeight: theme.typography.fontWeight.bold,
-              }}
-            >
-              {count} Urgent Email{count > 1 ? 's' : ''} Found!
-            </h3>
-          </div>
+          <UrgentNotificationHeader count={count} />
           <p
             style={{
               fontSize: theme.typography.fontSize.sm,
@@ -96,56 +77,9 @@ export const UrgentNotification: React.FC<UrgentNotificationProps> = ({
               marginBottom: theme.spacing.md,
             }}
           >
-            You have urgent emails waiting. They'll be delivered at the next batch time.
+            {t('inbox.urgentEmailsWaiting')}
           </p>
-          <div style={{ marginBottom: theme.spacing.md }}>
-            {emails.slice(0, 3).map((email, index) => (
-              <div
-                key={getEmailKey(email, index)}
-                style={{
-                  padding: theme.spacing.sm,
-                  backgroundColor: 'white',
-                  borderRadius: theme.borderRadius.sm,
-                  marginBottom: theme.spacing.xs,
-                  border: `1px solid ${theme.colors.border.light}`,
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: theme.typography.fontSize.sm,
-                    fontWeight: theme.typography.fontWeight.medium,
-                    color: theme.colors.text.primary,
-                    marginBottom: '2px',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {email.subject}
-                </div>
-                <div
-                  style={{
-                    fontSize: theme.typography.fontSize.xs,
-                    color: theme.colors.text.tertiary,
-                  }}
-                >
-                  From: {email.from}
-                </div>
-              </div>
-            ))}
-            {count > 3 && (
-              <p
-                style={{
-                  fontSize: theme.typography.fontSize.xs,
-                  color: theme.colors.text.tertiary,
-                  textAlign: 'center',
-                  margin: `${theme.spacing.sm} 0 0 0`,
-                }}
-              >
-                +{count - 3} more urgent email{count - 3 > 1 ? 's' : ''}
-              </p>
-            )}
-          </div>
+          <UrgentEmailList emails={emails} count={count} />
           <button
             onClick={onDismiss}
             style={{
@@ -166,7 +100,8 @@ export const UrgentNotification: React.FC<UrgentNotificationProps> = ({
         </>
       ) : (
         <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
-          <span>✓</span>
+          {/* eslint-disable-next-line i18next/no-literal-string */}
+          <span>{EMOJI_CHECK}</span>
           <p
             style={{
               fontSize: theme.typography.fontSize.sm,
@@ -181,4 +116,6 @@ export const UrgentNotification: React.FC<UrgentNotificationProps> = ({
     </div>
   );
 };
+
+
 

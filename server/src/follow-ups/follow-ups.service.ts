@@ -20,6 +20,7 @@ import { EncryptionHelper } from "../encryption/encryption.helper";
 export class FollowUpsService {
   private readonly logger = new Logger(FollowUpsService.name);
 
+  // eslint-disable-next-line max-params
   constructor(
     @InjectRepository(FollowUp)
     private followUpRepository: Repository<FollowUp>,
@@ -273,6 +274,97 @@ export class FollowUpsService {
     }
 
     return false;
+  }
+
+  /**
+   * Review and clean up a follow-up draft before sending
+   * Checks user's tone, adds greeting if missing, and ensures it matches their writing style
+   */
+  async reviewAndCleanupDraft(
+    followUpId: string,
+    userId: string,
+    draft: string,
+    recipientName?: string,
+  ): Promise<string> {
+    const followUp = await this.getFollowUp(followUpId, userId);
+    if (!followUp) {
+      throw new Error("Follow-up not found");
+    }
+
+    // Get user's communication style
+    const contexts = await this.contextService.getUserContext(userId);
+    const tone =
+      contexts.find((c) => c.contextKey === ContextKey.WRITING_STYLE_TONE)
+        ?.contextValue || "professional";
+    const commonPhrases = contexts
+      .filter((c) => c.contextKey === ContextKey.COMMON_PHRASE)
+      .map((c) => c.contextValue);
+
+    // Check if user has preference to skip greeting
+    const skipGreeting =
+      tone.toLowerCase().includes("no greeting") ||
+      tone.toLowerCase().includes("skip greeting");
+
+    // Check if draft already has a greeting
+    const hasGreeting =
+      /^(hi|hey|hello|dear|greetings|good morning|good afternoon|good evening)[\s,]/i.test(
+        draft.trim(),
+      );
+
+    // Build review prompt
+    let systemPrompt = `You are a helpful assistant that reviews and cleans up email drafts.
+Your job is to ensure the draft:
+1. Matches the user's preferred tone and writing style
+2. Includes a greeting (unless user explicitly prefers no greeting)
+3. Is clear, concise, and professional
+4. Uses the user's common phrases when appropriate`;
+
+    if (tone) {
+      systemPrompt += `\n\nUser's preferred tone: ${tone}`;
+    }
+
+    if (commonPhrases.length > 0) {
+      systemPrompt += `\n\nUser commonly uses these phrases: ${commonPhrases.join(", ")}`;
+    }
+
+    const prompt = `Review and clean up this follow-up email draft:
+
+Draft:
+${draft}
+
+${recipientName ? `Recipient: ${recipientName}` : ""}
+
+${(() => {
+  if (!hasGreeting && !skipGreeting && recipientName) {
+    return `IMPORTANT: The draft is missing a greeting. Add an appropriate greeting at the start (e.g., "Hi ${recipientName}," or "Hey ${recipientName},") based on the user's tone.`;
+  } else if (skipGreeting) {
+    return "Note: User prefers no greeting - don't add one.";
+  } else {
+    return "";
+  }
+})()}
+
+Clean up the draft to match the user's tone and writing style. Keep it concise (2-3 sentences). Return only the cleaned up draft text, no explanations.`;
+
+    try {
+      const reviewedDraft = await this.llmService.generateText(
+        {
+          prompt,
+          systemPrompt,
+          temperature: 0.3,
+          maxTokens: 300,
+          userId,
+        },
+        undefined,
+        userId,
+      );
+
+      return reviewedDraft.trim();
+    } catch (error) {
+      this.logger.error("Error reviewing draft:", error);
+      // If review fails, return original draft
+      return draft;
+    }
   }
 
   /**

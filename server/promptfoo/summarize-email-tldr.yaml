@@ -1,0 +1,53 @@
+description: "TL;DR email summarization prompts for BearlyMail"
+
+providers:
+  - openai:gpt-4.1-mini
+  # Uncomment below if you have Gemini API key
+  # - google:gemini-pro
+
+prompts:
+  - file://prompts/summarize-email-tldr.md
+
+tests:
+  - vars:
+      isThread: false
+      subject: "Q4 Project Update"
+      contextNote: ""
+      body: "Hi team, I wanted to update you on our Q4 project progress. We've completed 80% of the milestones, encountered some delays with the API integration, but overall we're on track to meet our deadline. The team has been working hard and I'm confident we'll deliver on time."
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          // Should be concise (TL;DR format)
+          if (text.length > 500) {
+            throw new Error(`Expected concise TL;DR (max 500 chars), got ${text.length} chars`);
+          }
+          // Should mention key points
+          const lower = text.toLowerCase();
+          const hasKeyInfo = lower.includes('q4') || lower.includes('project') || lower.includes('80%') || lower.includes('progress');
+          if (!hasKeyInfo || text.length < 20) {
+            throw new Error(`Expected key information in summary. Got: ${text.substring(0, 200)}`);
+          }
+          return true;
+    description: "Should generate concise TL;DR summary"
+
+  - vars:
+      isThread: true
+      subject: "Meeting discussion"
+      contextNote: "This is an email thread with multiple messages. Summarize the entire conversation, focusing on the most recent developments and key points across all messages."
+      body: "[Message 1 from Sarah on 12/10/2024]:\nLet's schedule a meeting.\n\n---\n\n[Message 2 from You on 12/11/2024]:\nHow about Friday?\n\n---\n\n[Message 3 from Sarah on 12/12/2024]:\nFriday works! See you then."
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          // Should summarize the thread
+          const lower = text.toLowerCase();
+          const mentionsMeeting = lower.includes('meeting') || lower.includes('friday') || lower.includes('schedule');
+          if (!mentionsMeeting || text.length < 15) {
+            throw new Error(`Expected thread summary. Got: ${text.substring(0, 200)}`);
+          }
+          return true;
+    description: "Should summarize email threads"
+
+
+

@@ -1,0 +1,84 @@
+import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Contact } from 'types/contact';
+import { EMAIL_FIELD_TO, EMAIL_FIELD_CC } from 'constants/strings';
+
+interface Recipient {
+  email: string;
+  name?: string;
+}
+
+export const useComposeForm = () => {
+  const [searchParams] = useSearchParams();
+  
+  const [to, setTo] = useState<Recipient[]>([]);
+  const [cc, setCc] = useState<Recipient[]>([]);
+  const [bcc, setBcc] = useState<Recipient[]>([]);
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
+  
+  const [showCc, setShowCc] = useState(false);
+  const [showBcc, setShowBcc] = useState(false);
+
+  useEffect(() => {
+    const toParam = searchParams.get('to');
+    const subjectParam = searchParams.get('subject');
+    if (toParam) {
+      setTo([{ email: toParam }]);
+    }
+    if (subjectParam) {
+      setSubject(subjectParam);
+    }
+  }, [searchParams]);
+
+  const addRecipient = useCallback((contact: Contact | { email: string; name?: string }, field: 'to' | 'cc' | 'bcc') => {
+    const recipient: Recipient = {
+      email: contact.email,
+      name: 'name' in contact ? contact.name : undefined,
+    };
+
+    const getSetter = () => {
+      if (field === EMAIL_FIELD_TO) return setTo;
+      if (field === EMAIL_FIELD_CC) return setCc;
+      return setBcc;
+    };
+
+    const setter = getSetter();
+    setter(prev => {
+      if (prev.some(r => r.email.toLowerCase() === recipient.email.toLowerCase())) {
+        return prev;
+      }
+      return [...prev, recipient];
+    });
+  }, []);
+
+  const removeRecipient = useCallback((email: string, field: 'to' | 'cc' | 'bcc') => {
+    const getSetter = () => {
+      if (field === EMAIL_FIELD_TO) return setTo;
+      if (field === EMAIL_FIELD_CC) return setCc;
+      return setBcc;
+    };
+
+    const setter = getSetter();
+    setter(prev => prev.filter(r => r.email !== email));
+  }, []);
+
+  return {
+    to,
+    cc,
+    bcc,
+    subject,
+    body,
+    showCc,
+    showBcc,
+    setTo,
+    setCc,
+    setBcc,
+    setSubject,
+    setBody,
+    setShowCc,
+    setShowBcc,
+    addRecipient,
+    removeRecipient,
+  };
+};

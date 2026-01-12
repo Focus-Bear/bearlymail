@@ -32,10 +32,17 @@ STRICT FILTERING: Only include emails with final score >= 40 in the top results.
 
 Return a JSON array of objects with index and relevanceScore for ALL {{emailCount}} emails, sorted by relevanceScore (highest first).
 
-Format: [{"index": 2, "relevanceScore": 95}, {"index": 5, "relevanceScore": 87}, ...]
+CRITICAL: You MUST return exactly {{emailCount}} email objects in the array. Count the emails listed below and ensure your response includes ALL of them, even if some have low scores.
 
-Emails:
+Format: [{"index": 0, "relevanceScore": 95}, {"index": 1, "relevanceScore": 87}, {"index": 2, "relevanceScore": 45}, ...]
+
+Emails to rank (there are {{emailCount}} emails total):
 {{emails}}
 
-Return ONLY a JSON array of objects.
+CRITICAL REQUIREMENTS:
+1. Return ONLY a JSON array of objects - no markdown code blocks (no ```json or ```)
+2. Include ALL {{emailCount}} emails in your response
+3. Each object must have "index" (matching the email number) and "relevanceScore" (0-100)
+4. Sort by relevanceScore (highest first)
+5. Do NOT include any text before or after the JSON array
 

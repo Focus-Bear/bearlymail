@@ -1,20 +1,22 @@
 import React from 'react';
-import { theme } from '../../theme/theme';
-import { useResponsiveBreakpoints } from '../../hooks/useResponsiveBreakpoints';
-import { CTAButton } from './CTAButton';
+import { useTranslation } from 'react-i18next';
+import { theme } from 'theme/theme';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { CTAButton } from 'components/landing/CTAButton';
 import {
   getSectionMarginBottom,
   getHeroPaddingTop,
   getHeadingFontSize,
   getResponsiveFontSize,
   getResponsiveSpacing,
-} from './utils';
+} from 'components/landing/utils';
 
 /**
  * Hero section component
  * Displays the main headline and value proposition
  */
 export const HeroSection: React.FC = () => {
+  const { t } = useTranslation();
   const breakpoints = useResponsiveBreakpoints();
   const { isMobile } = breakpoints;
 
@@ -55,8 +57,8 @@ export const HeroSection: React.FC = () => {
           whiteSpace: 'normal',
         }}
       >
-        You checked email 47 times yesterday.{isMobile ? ' ' : <><br />{' '}</>}
-        Only 3 emails actually mattered.
+        {t('landing.hero.headline1')}{isMobile ? ' ' : <><br />{' '}</>}
+        {t('landing.hero.headline2')}
       </h1>
       <p
         style={{
@@ -69,8 +71,7 @@ export const HeroSection: React.FC = () => {
           maxWidth: '100%',
         }}
       >
-        The rest? Newsletters. Meeting confirmations. Marketing spam. But you keep checking obsessively because buried
-        somewhere might be the one email that's actually urgent.
+        {t('landing.hero.description')}
       </p>
       {/* CTA for mobile - centered */}
       {isMobile && (
@@ -80,7 +81,7 @@ export const HeroSection: React.FC = () => {
             textAlign: 'center',
           }}
         >
-          <CTAButton onClick={scrollToWaitlist}>Get Early Access</CTAButton>
+          <CTAButton onClick={scrollToWaitlist}>{t('landing.hero.cta')}</CTAButton>
         </div>
       )}
       {/* CTA for tablet/desktop - left aligned */}
@@ -91,7 +92,7 @@ export const HeroSection: React.FC = () => {
             textAlign: 'left',
           }}
         >
-          <CTAButton onClick={scrollToWaitlist}>Get Early Access</CTAButton>
+          <CTAButton onClick={scrollToWaitlist}>{t('landing.hero.cta')}</CTAButton>
         </div>
       )}
     </section>

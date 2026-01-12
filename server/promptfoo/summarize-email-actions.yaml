@@ -1,0 +1,48 @@
+description: "Action items email summarization prompts for BearlyMail"
+
+providers:
+  - openai:gpt-4.1-mini
+  # Uncomment below if you have Gemini API key
+  # - google:gemini-pro
+
+prompts:
+  - file://prompts/summarize-email-actions.md
+
+tests:
+  - vars:
+      isThread: false
+      subject: "Action Items"
+      contextNote: ""
+      body: "Hi team, here are the action items: 1) Review the API documentation by Friday 2) Schedule the user testing session 3) Prepare the budget proposal 4) Update the project timeline"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          // Should extract actionable items
+          const lower = text.toLowerCase();
+          const hasActions = lower.includes('review') || lower.includes('schedule') || lower.includes('prepare') || lower.includes('update') || lower.includes('action');
+          if (!hasActions || text.length < 30) {
+            throw new Error(`Expected action items. Got: ${text.substring(0, 200)}`);
+          }
+          return true;
+    description: "Should extract action items from email"
+
+  - vars:
+      isThread: false
+      subject: "Next Steps"
+      contextNote: ""
+      body: "Please complete the following: Send the report, update the dashboard, and confirm with the client."
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const lower = text.toLowerCase();
+          const hasActions = lower.includes('send') || lower.includes('update') || lower.includes('confirm') || lower.includes('report');
+          if (!hasActions || text.length < 20) {
+            throw new Error(`Expected action items. Got: ${text.substring(0, 200)}`);
+          }
+          return true;
+    description: "Should identify actionable tasks"
+
+
+

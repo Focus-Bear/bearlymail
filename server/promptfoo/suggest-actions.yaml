@@ -1,0 +1,70 @@
+description: "Action suggestion prompts for BearlyMail"
+
+providers:
+  - openai:gpt-4.1-mini
+  # Uncomment below if you have Gemini API key
+  # - google:gemini-pro
+
+prompts:
+  - file://prompts/suggest-actions.md
+
+tests:
+  - vars:
+      subject: "Bug in payment processing"
+      fromName: "Engineering Team"
+      githubContext: ""
+      integrationsNote: ""
+      body: "We're experiencing a critical bug in the payment processing system. Users are unable to complete transactions. This needs to be tracked and fixed ASAP."
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (!parsed.actions || !Array.isArray(parsed.actions)) {
+              throw new Error(`Expected actions array, got: ${JSON.stringify(parsed)}`);
+            }
+            // Should suggest github_create_issue for bug report
+            const hasGithubAction = parsed.actions.some(a => 
+              a.type && (a.type.includes('github') || a.type.includes('issue'))
+            );
+            parsed.actions.forEach((action, idx) => {
+              if (!action.type || typeof action.confidence !== 'number') {
+                throw new Error(`Action ${idx} missing type or confidence: ${JSON.stringify(action)}`);
+              }
+            });
+            return true;
+          } catch (e) {
+            throw new Error(`Failed to parse JSON: ${e.message}. Output: ${text.substring(0, 200)}`);
+          }
+    description: "Should suggest GitHub issue creation for bug reports"
+
+  - vars:
+      subject: "Can we meet next week?"
+      fromName: "Sarah Chen"
+      githubContext: ""
+      integrationsNote: "Available integrations: Calendar"
+      body: "I'd like to schedule a meeting to discuss the project roadmap. Are you available next week?"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (!parsed.actions || !Array.isArray(parsed.actions)) {
+              throw new Error(`Expected actions array`);
+            }
+            // Should suggest calendar action for meeting request
+            const hasCalendarAction = parsed.actions.some(a => 
+              a.type && a.type.includes('calendar')
+            );
+            return true;
+          } catch (e) {
+            throw new Error(`Failed to parse JSON: ${e.message}`);
+          }
+    description: "Should suggest calendar actions for meeting requests"
+
+
+

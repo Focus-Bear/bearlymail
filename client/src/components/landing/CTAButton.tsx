@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { theme } from '../../theme/theme';
+import { theme } from 'theme/theme';
+import { BUTTON_VARIANT_PRIMARY, BUTTON_VARIANT_SECONDARY } from 'constants/strings';
 
 interface CTAButtonProps {
   /**
@@ -39,6 +40,39 @@ export const CTAButton: React.FC<CTAButtonProps> = ({
   const [isHovered, setIsHovered] = useState(false);
   const [isPressed, setIsPressed] = useState(false);
 
+  const getPrimaryBackgroundColor = (): string => {
+    if (disabled) return theme.colors.button.primary.disable;
+    if (isPressed) return theme.colors.button.primary.press;
+    if (isHovered) return theme.colors.button.primary.hover;
+    return theme.colors.button.primary.default;
+  };
+
+  const getSecondaryBorderColor = (): string => {
+    if (disabled) return theme.colors.button.secondary.disableBorder;
+    if (isPressed) return theme.colors.button.secondary.pressBorder;
+    if (isHovered) return theme.colors.button.secondary.hoverBorder;
+    return theme.colors.button.secondary.border;
+  };
+
+  const getSecondaryTextColor = (): string => {
+    if (disabled) return theme.colors.button.secondary.disableText;
+    if (isPressed) return theme.colors.button.secondary.pressText;
+    if (isHovered) return theme.colors.button.secondary.hoverText;
+    return theme.colors.button.secondary.text;
+  };
+
+  const getThirdBackgroundColor = (): string => {
+    if (disabled) return theme.colors.button.third.disable;
+    if (isPressed) return theme.colors.button.third.press;
+    if (isHovered) return theme.colors.button.third.hover;
+    return theme.colors.button.third.default;
+  };
+
+  const getThirdTextColor = (): string => {
+    if (disabled) return theme.colors.button.third.disableText;
+    return theme.colors.button.third.text;
+  };
+
   const getButtonStyles = () => {
     const baseStyles: React.CSSProperties = {
       padding: `${theme.spacing.md} ${theme.spacing.xl}`,
@@ -52,50 +86,24 @@ export const CTAButton: React.FC<CTAButtonProps> = ({
       ...style,
     };
 
-    if (variant === 'primary') {
+    if (variant === BUTTON_VARIANT_PRIMARY) {
       return {
         ...baseStyles,
-        backgroundColor: disabled 
-          ? theme.colors.button.primary.disable
-          : isPressed 
-            ? theme.colors.button.primary.press
-            : isHovered 
-              ? theme.colors.button.primary.hover
-              : theme.colors.button.primary.default,
+        backgroundColor: getPrimaryBackgroundColor(),
         color: '#FFFFFF',
       };
-    } else if (variant === 'secondary') {
+    } else if (variant === BUTTON_VARIANT_SECONDARY) {
       return {
         ...baseStyles,
         backgroundColor: theme.colors.button.secondary.default,
-        border: `2px solid ${disabled 
-          ? theme.colors.button.secondary.disableBorder
-          : isPressed 
-            ? theme.colors.button.secondary.pressBorder
-            : isHovered 
-              ? theme.colors.button.secondary.hoverBorder
-              : theme.colors.button.secondary.border}`,
-        color: disabled 
-          ? theme.colors.button.secondary.disableText
-          : isPressed 
-            ? theme.colors.button.secondary.pressText
-            : isHovered 
-              ? theme.colors.button.secondary.hoverText
-              : theme.colors.button.secondary.text,
+        border: `2px solid ${getSecondaryBorderColor()}`,
+        color: getSecondaryTextColor(),
       };
     } else { // third
       return {
         ...baseStyles,
-        backgroundColor: disabled 
-          ? theme.colors.button.third.disable
-          : isPressed 
-            ? theme.colors.button.third.press
-            : isHovered 
-              ? theme.colors.button.third.hover
-              : theme.colors.button.third.default,
-        color: disabled 
-          ? theme.colors.button.third.disableText
-          : theme.colors.button.third.text,
+        backgroundColor: getThirdBackgroundColor(),
+        color: getThirdTextColor(),
       };
     }
   };

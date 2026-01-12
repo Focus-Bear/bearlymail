@@ -1,27 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { ConsentModal } from './components/ConsentModal';
-import Landing from './pages/Landing';
-import Login from './pages/Login';
-import Inbox from './pages/Inbox';
-import EmailDetail from './pages/EmailDetail';
-import Settings from './pages/Settings';
-import BookingPage from './pages/BookingPage';
-import AdminDashboard from './pages/AdminDashboard';
-import PrivacyPolicy from './pages/PrivacyPolicy';
-import TermsOfUse from './pages/TermsOfUse';
-import Search from './pages/Search';
-import Compose from './pages/Compose';
-import SetupPassword from './pages/SetupPassword';
-import Help from './pages/Help';
-import HelpArticle from './pages/HelpArticle';
+import { Provider } from 'react-redux';
+import { AuthProvider, useAuth } from 'contexts/AuthContext';
+import { store } from 'store/store';
+import { ConsentModal } from 'components/ConsentModal';
+import Landing from 'pages/Landing';
+import Login from 'pages/Login';
+import Inbox from 'pages/Inbox';
+import EmailDetail from 'pages/EmailDetail';
+import Settings from 'pages/Settings';
+import BookingPage from 'pages/BookingPage';
+import AdminDashboard from 'pages/AdminDashboard';
+import PrivacyPolicy from 'pages/PrivacyPolicy';
+import TermsOfUse from 'pages/TermsOfUse';
+import Search from 'pages/Search';
+import Compose from 'pages/Compose';
+import SetupPassword from 'pages/SetupPassword';
+import Help from 'pages/Help';
+import HelpArticle from 'pages/HelpArticle';
 import axios from 'axios';
 import './i18n'; // Initialize i18n
 import './App.css';
-import { theme } from './theme/theme';
+import { theme } from 'theme/theme';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading, refreshUser } = useAuth();
@@ -110,51 +112,52 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <div className="App" style={{ 
-          backgroundColor: theme.colors.background.default,
-          minHeight: '100vh',
-          fontFamily: theme.typography.fontFamily,
-        }}>
-          <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/setup-password" element={<SetupPassword />} />
-            <Route path="/privacy" element={<PrivacyPolicy />} />
-            <Route path="/terms" element={<TermsOfUse />} />
-            <Route
-              path="/inbox"
-              element={
-                <PrivateRoute>
-                  <Inbox />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/email/:id"
-              element={
-                <PrivateRoute>
-                  <EmailDetail />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/settings"
-              element={
-                <PrivateRoute>
-                  <Settings />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/search"
-              element={
-                <PrivateRoute>
-                  <Search />
-                </PrivateRoute>
-              }
-            />
+    <Provider store={store}>
+      <AuthProvider>
+        <Router>
+          <div className="App" style={{ 
+            backgroundColor: theme.colors.background.default,
+            minHeight: '100vh',
+            fontFamily: theme.typography.fontFamily,
+          }}>
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/setup-password" element={<SetupPassword />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/terms" element={<TermsOfUse />} />
+              <Route
+                path="/inbox"
+                element={
+                  <PrivateRoute>
+                    <Inbox />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/email/:id"
+                element={
+                  <PrivateRoute>
+                    <EmailDetail />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <PrivateRoute>
+                    <Settings />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/search"
+                element={
+                  <PrivateRoute>
+                    <Search />
+                  </PrivateRoute>
+                }
+              />
             <Route
               path="/compose"
               element={
@@ -188,10 +191,11 @@ function App() {
               }
             />
             <Route path="/book/:userId" element={<BookingPage />} />
-          </Routes>
-        </div>
-      </Router>
-    </AuthProvider>
+            </Routes>
+          </div>
+        </Router>
+      </AuthProvider>
+    </Provider>
   );
 }
 

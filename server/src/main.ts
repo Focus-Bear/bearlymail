@@ -1,79 +1,19 @@
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import { AppModule } from "./app.module";
+import { AllExceptionsFilter } from "./filters/http-exception.filter";
+import { setupGlobalErrorHandlers, logErrorToFile } from "./utils/error-logger";
 
-import * as fs from "fs";
-import * as path from "path";
-
-// Set up error logging to file
-const logDir = path.join(process.cwd(), "logs");
-if (!fs.existsSync(logDir)) {
-  fs.mkdirSync(logDir, { recursive: true });
-}
-
-const errorLogFile = path.join(logDir, "server-errors.log");
-const logError = (message: string, error?: any) => {
-  const timestamp = new Date().toISOString();
-  let errorDetails = "";
-  if (error) {
-    try {
-      errorDetails = `\n${JSON.stringify(
-        {
-          message: error.message,
-          stack: error.stack,
-          name: error.name,
-          code: error.code,
-        },
-        null,
-        2,
-      )}`;
-    } catch {
-      errorDetails = `\n${String(error)}`;
-    }
-  }
-  const logMessage = `[${timestamp}] ${message}${errorDetails}\n`;
-  try {
-    fs.appendFileSync(errorLogFile, logMessage);
-  } catch (logErr) {
-    // If we can't write to log file, just console.error
-    console.error("Failed to write to log file:", logErr);
-  }
-  console.error(message, error || "");
-};
-
-// Handle unhandled promise rejections and errors
-process.on("unhandledRejection", (reason: any, promise: Promise<any>) => {
-  logError("Unhandled Rejection", { promise: String(promise), reason });
-  // Log but don't crash - pg-boss will handle connection errors
-  if (
-    reason &&
-    reason.message &&
-    reason.message.includes("Connection terminated")
-  ) {
-    console.warn(
-      "Database connection error detected, will retry automatically",
-    );
-    return; // Don't crash on connection errors
-  }
-});
-
-process.on("uncaughtException", (error: Error) => {
-  logError("Uncaught Exception", error);
-  // Only exit on critical errors, not connection errors
-  if (error.message && error.message.includes("Connection terminated")) {
-    console.warn("Database connection error, will retry automatically");
-    return;
-  }
-  // For other critical errors, exit gracefully
-  process.exit(1);
-});
+// Set up global error handlers for unhandled rejections and exceptions
+setupGlobalErrorHandlers("Server");
 
 async function bootstrap() {
   try {
     // Check if running in worker mode
     if (process.env.WORKER_MODE === "true") {
+      // eslint-disable-next-line no-console
       console.log("Starting application in WORKER mode...");
-      const app = await NestFactory.createApplicationContext(AppModule);
+      await NestFactory.createApplicationContext(AppModule);
       // Keep the process alive
       // The pg-boss workers inside onModuleInit will handle the jobs
       return;
@@ -96,16 +36,22 @@ async function bootstrap() {
       }),
     );
 
-    const port = process.env.PORT || 3001;
+    // Global exception filter to log errors to file
+    app.useGlobalFilters(new AllExceptionsFilter());
+
+    const DEFAULT_PORT = 3001;
+    // Default port for development
+    const port = process.env.PORT || DEFAULT_PORT;
     await app.listen(port);
+    // eslint-disable-next-line no-console
     console.log(`Application is running on: http://localhost:${port}`);
-  } catch (error: any) {
-    logError("Failed to start application", error);
+  } catch (error: unknown) {
+    logErrorToFile("Failed to start application", error, "Server");
     process.exit(1);
   }
 }
 
 bootstrap().catch((error) => {
-  logError("Bootstrap failed", error);
+  logErrorToFile("Bootstrap failed", error, "Server");
   process.exit(1);
 });

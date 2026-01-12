@@ -1,12 +1,14 @@
 import React from 'react';
-import { theme } from '../../theme/theme';
-import { useResponsiveBreakpoints } from '../../hooks/useResponsiveBreakpoints';
-import { getResponsiveFontSize, getResponsiveSpacing } from './utils';
+import { useTranslation } from 'react-i18next';
+import { theme } from 'theme/theme';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { getResponsiveFontSize, getResponsiveSpacing } from 'components/landing/utils';
 
 /**
  * Header section for waitlist form
  */
 export const WaitlistFormHeader: React.FC = () => {
+  const { t } = useTranslation();
   const breakpoints = useResponsiveBreakpoints();
 
   const headingFontSize = getResponsiveFontSize(breakpoints, {
@@ -44,7 +46,7 @@ export const WaitlistFormHeader: React.FC = () => {
           textAlign: 'center',
         }}
       >
-        Join the Waitlist
+        {t('landing.waitlist.heading')}
       </h3>
       <p
         style={{
@@ -54,7 +56,7 @@ export const WaitlistFormHeader: React.FC = () => {
           fontSize: descriptionFontSize,
         }}
       >
-        We're currently in private beta. Sign up to get early access.
+        {t('landing.waitlist.description')}
       </p>
     </>
   );

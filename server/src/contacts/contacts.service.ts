@@ -1,6 +1,6 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, In } from "typeorm";
+import { Repository } from "typeorm";
 import { Contact } from "../database/entities/contact.entity";
 import { RawContact } from "./interfaces/contact-provider.interface";
 import { SearchIndexHelper } from "./search-index.helper";
@@ -21,6 +21,8 @@ export interface ContactSearchResult {
 
 @Injectable()
 export class ContactsService {
+  private readonly logger = new Logger(ContactsService.name);
+
   constructor(
     @InjectRepository(Contact)
     private contactRepository: Repository<Contact>,
@@ -30,9 +32,11 @@ export class ContactsService {
   /**
    * Sync contacts from all connected providers
    */
+  // eslint-disable-next-line max-lines-per-function, max-statements
   async syncContacts(
     userId: string,
-    fullSync: boolean = false,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _fullSync: boolean = false,
   ): Promise<{ synced: number; provider: string }[]> {
     const results: { synced: number; provider: string }[] = [];
 
@@ -128,7 +132,7 @@ export class ContactsService {
       }
     }
 
-    console.log(
+    this.logger.log(
       `Upserted ${upserted} contacts for user ${userId} from ${provider}`,
     );
     return upserted;
@@ -340,7 +344,7 @@ export class ContactsService {
    */
   async createContact(
     userId: string,
-    data: {
+    contactData: {
       email: string;
       name?: string;
       firstName?: string;
@@ -349,7 +353,7 @@ export class ContactsService {
       jobTitle?: string;
     },
   ): Promise<Contact> {
-    const emailHash = SearchIndexHelper.hashExact(data.email);
+    const emailHash = SearchIndexHelper.hashExact(contactData.email);
 
     // Check if contact already exists
     const existing = await this.contactRepository.findOne({
@@ -357,23 +361,23 @@ export class ContactsService {
     });
 
     const searchTokens = SearchIndexHelper.generateSearchTokens(
-      data.name,
-      data.firstName,
-      data.lastName,
-      data.company,
-      SearchIndexHelper.extractEmailLocalPart(data.email),
-      SearchIndexHelper.extractEmailDomain(data.email),
+      contactData.name,
+      contactData.firstName,
+      contactData.lastName,
+      contactData.company,
+      SearchIndexHelper.extractEmailLocalPart(contactData.email),
+      SearchIndexHelper.extractEmailDomain(contactData.email),
     );
 
     if (existing) {
       // Update existing
       await this.contactRepository.update(existing.id, {
-        email: data.email,
-        name: data.name,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        company: data.company,
-        jobTitle: data.jobTitle,
+        email: contactData.email,
+        name: contactData.name,
+        firstName: contactData.firstName,
+        lastName: contactData.lastName,
+        company: contactData.company,
+        jobTitle: contactData.jobTitle,
         searchTokens: JSON.stringify(searchTokens),
       });
       return this.contactRepository.findOneOrFail({
@@ -386,13 +390,13 @@ export class ContactsService {
       userId,
       provider: "manual",
       providerId: `manual-${Date.now()}`,
-      email: data.email,
+      email: contactData.email,
       emailHash,
-      name: data.name,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      company: data.company,
-      jobTitle: data.jobTitle,
+      name: contactData.name,
+      firstName: contactData.firstName,
+      lastName: contactData.lastName,
+      company: contactData.company,
+      jobTitle: contactData.jobTitle,
       searchTokens: JSON.stringify(searchTokens),
     });
   }

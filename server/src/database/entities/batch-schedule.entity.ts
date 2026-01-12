@@ -21,7 +21,8 @@ export enum DayOfWeek {
 }
 
 @Entity("batch_schedules")
-@Index(["userId"], { unique: true }) // Each user has one schedule
+// Each user has one schedule
+@Index(["userId"], { unique: true })
 export class BatchSchedule {
   @PrimaryGeneratedColumn("uuid")
   id: string;
@@ -34,8 +35,8 @@ export class BatchSchedule {
   user: User;
 
   // Days when emails should be delivered (array of day numbers 0-6)
-  @Column("simple-array")
-  deliveryDays: number[]; // e.g., [1, 2, 3, 4, 5] for weekdays
+  @Column("simple-array", { comment: "e.g., [1, 2, 3, 4, 5] for weekdays" })
+  deliveryDays: number[];
 
   // Times of day when non-urgent emails are released (24h format, e.g., ["11:00", "15:00"])
   @Column("simple-array")

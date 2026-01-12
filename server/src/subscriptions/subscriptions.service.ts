@@ -9,6 +9,7 @@ import axios from "axios";
 export class SubscriptionsService {
   private readonly logger = new Logger(SubscriptionsService.name);
   private readonly apiKey: string | null = null;
+  // RevenueCat API base URL
   private readonly baseUrl = "https://api.revenuecat.com/v1";
 
   constructor(
@@ -29,7 +30,8 @@ export class SubscriptionsService {
   private async makeRevenueCatRequest(
     endpoint: string,
     method: "GET" | "POST" = "GET",
-    data?: any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    requestData?: any,
   ) {
     if (!this.apiKey) {
       throw new Error("RevenueCat API key not configured");
@@ -43,14 +45,21 @@ export class SubscriptionsService {
           Authorization: `Bearer ${this.apiKey}`,
           "Content-Type": "application/json",
         },
-        data,
+        // eslint-disable-next-line id-denylist
+        data: requestData,
       });
       return response.data;
-    } catch (error: any) {
-      this.logger.error(
-        `RevenueCat API error: ${error.message}`,
-        error.response?.data,
-      );
+    } catch (error: unknown) {
+      const isErr = error instanceof Error;
+      const errorMessage = isErr ? error.message : "Unknown error";
+      const isApiErr =
+        typeof error === "object" && error !== null && "response" in error;
+      const responseData =
+        isApiErr && "response" in error
+          ? // eslint-disable-next-line id-denylist
+            (error as { response?: { data?: unknown } }).response?.data
+          : undefined;
+      this.logger.error(`RevenueCat API error: ${errorMessage}`, responseData);
       throw error;
     }
   }
@@ -77,6 +86,7 @@ export class SubscriptionsService {
     // Start 7-day trial
     const trialStartDate = new Date();
     const trialEndDate = new Date();
+    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
     trialEndDate.setDate(trialEndDate.getDate() + 7);
 
     await this.userRepository.update(userId, {
@@ -178,6 +188,7 @@ export class SubscriptionsService {
   /**
    * Handle webhook from RevenueCat
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async handleWebhook(payload: any): Promise<void> {
     if (!this.apiKey) {
       this.logger.warn("RevenueCat not initialized, ignoring webhook");
@@ -186,6 +197,7 @@ export class SubscriptionsService {
 
     try {
       const { event } = payload;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { app_user_id, product_id } = event;
 
       // Find user by RevenueCat ID

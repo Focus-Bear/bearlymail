@@ -1,6 +1,9 @@
 import React from 'react';
-import { theme } from '../../theme/theme';
-import { captureEvent } from '../../utils/posthog';
+import { useTranslation } from 'react-i18next';
+import { theme } from 'theme/theme';
+import { captureEvent } from 'utils/posthog';
+import { BulkActionButton } from 'components/inbox/bulk/BulkActionButton';
+import { EMOJI_STAR } from 'constants/emojis';
 
 interface BulkOperationsBarProps {
   selectedCount: number;
@@ -19,6 +22,7 @@ export const BulkOperationsBar: React.FC<BulkOperationsBarProps> = ({
   onBulkMarkAsUnread,
   onClearSelection,
 }) => {
+  const { t } = useTranslation();
   if (selectedCount === 0) return null;
 
   return (
@@ -37,89 +41,34 @@ export const BulkOperationsBar: React.FC<BulkOperationsBarProps> = ({
       boxShadow: theme.shadows.md,
     }}>
       <span style={{ fontWeight: theme.typography.fontWeight.semibold }}>
-        {selectedCount} email{selectedCount > 1 ? 's' : ''} selected
+        {t('inbox.bulk.selected', { count: selectedCount })}
       </span>
       <div style={{ display: 'flex', gap: theme.spacing.sm }}>
         {[1, 2, 3].map(count => (
-          <button
-            key={count}
-            onClick={() => onBulkStar(count)}
-            style={{
-              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-              backgroundColor: 'rgba(255, 255, 255, 0.2)',
-              color: 'white',
-              border: '1px solid rgba(255, 255, 255, 0.3)',
-              borderRadius: theme.borderRadius.sm,
-              cursor: 'pointer',
-              fontSize: theme.typography.fontSize.sm,
-            }}
-          >
-            {'⭐'.repeat(count)}
-          </button>
+          <BulkActionButton key={count} onClick={() => onBulkStar(count)}>
+            {/* eslint-disable-next-line i18next/no-literal-string */}
+            {EMOJI_STAR.repeat(count)}
+          </BulkActionButton>
         ))}
         {onBulkMarkAsRead && (
-          <button
-            onClick={onBulkMarkAsRead}
-            style={{
-              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-              backgroundColor: 'rgba(255, 255, 255, 0.2)',
-              color: 'white',
-              border: '1px solid rgba(255, 255, 255, 0.3)',
-              borderRadius: theme.borderRadius.sm,
-              cursor: 'pointer',
-              fontSize: theme.typography.fontSize.sm,
-            }}
-          >
-            Mark as Read
-          </button>
+          <BulkActionButton onClick={onBulkMarkAsRead}>
+            {t('inbox.bulk.markAsRead')}
+          </BulkActionButton>
         )}
         {onBulkMarkAsUnread && (
-          <button
-            onClick={onBulkMarkAsUnread}
-            style={{
-              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-              backgroundColor: 'rgba(255, 255, 255, 0.2)',
-              color: 'white',
-              border: '1px solid rgba(255, 255, 255, 0.3)',
-              borderRadius: theme.borderRadius.sm,
-              cursor: 'pointer',
-              fontSize: theme.typography.fontSize.sm,
-            }}
-          >
-            Mark as Unread
-          </button>
+          <BulkActionButton onClick={onBulkMarkAsUnread}>
+            {t('inbox.bulk.markAsUnread')}
+          </BulkActionButton>
         )}
-        <button
-          onClick={onBulkArchive}
-          style={{
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            backgroundColor: 'rgba(255, 255, 255, 0.2)',
-            color: 'white',
-            border: '1px solid rgba(255, 255, 255, 0.3)',
-            borderRadius: theme.borderRadius.sm,
-            cursor: 'pointer',
-            fontSize: theme.typography.fontSize.sm,
-          }}
-        >
-          Archive
-        </button>
-        <button
-          onClick={() => {
-            captureEvent('bulk_selection_cleared', { selected_count: selectedCount });
-            onClearSelection();
-          }}
-          style={{
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            backgroundColor: 'rgba(255, 255, 255, 0.2)',
-            color: 'white',
-            border: '1px solid rgba(255, 255, 255, 0.3)',
-            borderRadius: theme.borderRadius.sm,
-            cursor: 'pointer',
-            fontSize: theme.typography.fontSize.sm,
-          }}
-        >
-          Cancel
-        </button>
+        <BulkActionButton onClick={onBulkArchive}>
+          {t('inbox.bulk.archive')}
+        </BulkActionButton>
+        <BulkActionButton onClick={() => {
+          captureEvent('bulk_selection_cleared', { selected_count: selectedCount });
+          onClearSelection();
+        }}>
+          {t('common.cancel')}
+        </BulkActionButton>
       </div>
     </div>
   );

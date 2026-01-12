@@ -1,0 +1,77 @@
+description: "Common questions extraction prompts for BearlyMail"
+
+providers:
+  - openai:gpt-4.1-mini
+  # Uncomment below if you have Gemini API key
+  # - google:gemini-pro
+
+prompts:
+  - file://prompts/extract-common-questions.md
+
+tests:
+  - vars:
+      repliesText: |
+        Subject: Re: Meeting invitation
+        Body: Yes, I'll be there. Looking forward to it!
+        ---
+        Subject: Re: Meeting invitation  
+        Body: Yes, I can attend. Thanks for the invite.
+        ---
+        Subject: Re: Meeting invitation
+        Body: Yes, I'll be there. See you then!
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (!Array.isArray(parsed)) {
+              throw new Error(`Expected array, got: ${typeof parsed}`);
+            }
+            // Each item should have question, answer, frequency
+            parsed.forEach((item, idx) => {
+              if (!item.question || !item.answer || typeof item.frequency !== 'number') {
+                throw new Error(`Item ${idx} missing required fields: ${JSON.stringify(item)}`);
+              }
+              if (item.frequency < 3) {
+                throw new Error(`Item ${idx} frequency should be >= 3, got ${item.frequency}`);
+              }
+            });
+            return true;
+          } catch (e) {
+            throw new Error(`Failed to parse JSON: ${e.message}. Output: ${text.substring(0, 200)}`);
+          }
+    description: "Should extract Q&A pairs with frequency >= 3"
+
+  - vars:
+      repliesText: |
+        Subject: Re: Status update
+        Body: I'll send you an update by Friday.
+        ---
+        Subject: Re: Project status
+        Body: I'll have the update ready by Friday.
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (!Array.isArray(parsed)) {
+              throw new Error(`Expected array`);
+            }
+            // Should return array (may be empty if frequency < 3)
+            parsed.forEach((item) => {
+              if (!item.question || !item.answer || typeof item.frequency !== 'number') {
+                throw new Error(`Invalid item structure: ${JSON.stringify(item)}`);
+              }
+            });
+            return true;
+          } catch (e) {
+            throw new Error(`Failed to parse JSON: ${e.message}`);
+          }
+    description: "Should return valid JSON array structure"
+
+
+

@@ -1,11 +1,19 @@
 import React from 'react';
-import { theme } from '../../theme/theme';
-import { GitHubLink } from '../../types/email';
+import { theme } from 'theme/theme';
+import { GitHubLink } from 'types/email';
+import {
+  LINK_TYPE_ISSUE,
+  LINK_TYPE_PR,
+  GITHUB_STATE_OPEN,
+  GITHUB_REVIEW_STATUS_APPROVED,
+  GITHUB_REVIEW_STATUS_CHANGES_REQUESTED,
+} from 'constants/strings';
 
 interface GitHubStatusBadgeProps {
   link: GitHubLink;
 }
 
+// eslint-disable-next-line max-lines-per-function -- Status badge rendering requires multiple conditional branches for different GitHub status types
 export const GitHubStatusBadge: React.FC<GitHubStatusBadgeProps> = ({ link }) => {
   const status = link.status;
   if (!status) return null;
@@ -15,8 +23,8 @@ export const GitHubStatusBadge: React.FC<GitHubStatusBadgeProps> = ({ link }) =>
   let statusIcon = '🔗';
   let statusText = '';
 
-  if (link.type === 'issue') {
-    if (status.state === 'open') {
+  if (link.type === LINK_TYPE_ISSUE) {
+    if (status.state === GITHUB_STATE_OPEN) {
       statusColor = theme.colors.accent.success || '#10b981';
       statusIcon = '🟢';
       statusText = 'Open';
@@ -25,17 +33,17 @@ export const GitHubStatusBadge: React.FC<GitHubStatusBadgeProps> = ({ link }) =>
       statusIcon = '⚪';
       statusText = 'Closed';
     }
-  } else if (link.type === 'pr') {
+  } else if (link.type === LINK_TYPE_PR) {
     if (status.merged) {
       statusColor = theme.colors.primary.main;
       statusIcon = '🟣';
       statusText = 'Merged';
-    } else if (status.state === 'open') {
-      if (status.reviewStatus === 'approved') {
+    } else if (status.state === GITHUB_STATE_OPEN) {
+      if (status.reviewStatus === GITHUB_REVIEW_STATUS_APPROVED) {
         statusColor = theme.colors.accent.success || '#10b981';
         statusIcon = '✅';
         statusText = 'Approved';
-      } else if (status.reviewStatus === 'changes_requested') {
+      } else if (status.reviewStatus === GITHUB_REVIEW_STATUS_CHANGES_REQUESTED) {
         statusColor = theme.colors.accent.warning || '#f59e0b';
         statusIcon = '⚠️';
         statusText = 'Changes';
@@ -70,7 +78,7 @@ export const GitHubStatusBadge: React.FC<GitHubStatusBadgeProps> = ({ link }) =>
         gap: theme.spacing.xs,
         fontWeight: theme.typography.fontWeight.medium,
       }}
-      title={`${link.type === 'issue' ? 'Issue' : 'PR'} #${link.number} - ${status.title || ''}`}
+      title={`${link.type === LINK_TYPE_ISSUE ? 'Issue' : 'PR'} #${link.number} - ${status.title || ''}`}
     >
       <span>{statusIcon}</span>
       <span>{link.owner}/{link.repo}#{link.number}</span>
@@ -78,6 +86,11 @@ export const GitHubStatusBadge: React.FC<GitHubStatusBadgeProps> = ({ link }) =>
     </a>
   );
 };
+
+
+
+
+
 
 
 

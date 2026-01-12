@@ -1,4 +1,5 @@
 import * as crypto from "crypto";
+import { ENCRYPTION_CONSTANTS } from "../constants/encryption-constants";
 
 /**
  * Static encryption helper for use in TypeORM column transformers
@@ -6,7 +7,7 @@ import * as crypto from "crypto";
  */
 class EncryptionHelper {
   private static algorithm = "aes-256-gcm";
-  private static ivLength = 16;
+  private static ivLength = ENCRYPTION_CONSTANTS.IV_LENGTH;
   private static keyCache: Buffer | null = null;
 
   private static getKey(): Buffer {
@@ -17,7 +18,11 @@ class EncryptionHelper {
     const keyString =
       process.env.ENCRYPTION_KEY ||
       "default-key-change-in-production-32chars!!";
-    this.keyCache = crypto.scryptSync(keyString, "salt", 32);
+    this.keyCache = crypto.scryptSync(
+      keyString,
+      "salt",
+      ENCRYPTION_CONSTANTS.KEY_LENGTH,
+    );
     return this.keyCache;
   }
 
@@ -97,12 +102,10 @@ class EncryptionHelper {
  * TypeORM transformer for encrypted columns
  */
 export const encryptedColumnTransformer = {
-  to: (value: string | null | undefined): string | null => {
-    return EncryptionHelper.encrypt(value);
-  },
-  from: (value: string | null | undefined): string | null => {
-    return EncryptionHelper.decrypt(value);
-  },
+  to: (value: string | null | undefined): string | null =>
+    EncryptionHelper.encrypt(value),
+  from: (value: string | null | undefined): string | null =>
+    EncryptionHelper.decrypt(value),
 };
 
 /**
@@ -111,20 +114,20 @@ export const encryptedColumnTransformer = {
  * - email: encrypted actual email
  */
 export const emailTransformer = {
-  to: (value: string | null | undefined): string | null => {
-    return EncryptionHelper.encrypt(value);
-  },
-  from: (value: string | null | undefined): string | null => {
-    return EncryptionHelper.decrypt(value);
-  },
+  to: (value: string | null | undefined): string | null =>
+    EncryptionHelper.encrypt(value),
+  from: (value: string | null | undefined): string | null =>
+    EncryptionHelper.decrypt(value),
 };
 
 export const encryptedJsonTransformer = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   to: (value: any): string | null => {
     if (value === null || value === undefined) return null;
     const stringified = JSON.stringify(value);
     return EncryptionHelper.encrypt(stringified);
   },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   from: (value: string | null | undefined): any => {
     const decrypted = EncryptionHelper.decrypt(value);
     if (!decrypted) return null;

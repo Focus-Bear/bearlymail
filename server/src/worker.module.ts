@@ -5,10 +5,17 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 // Queue module for pg-boss
 import { QueueModule } from "./queue/queue.module";
 import { GitHubModule } from "./github/github.module";
+import { Office365AccountsModule } from "./office365-accounts/office365-accounts.module";
+import { ZohoAccountsModule } from "./zoho-accounts/zoho-accounts.module";
+import { GoogleAccountsModule } from "./google-accounts/google-accounts.module";
+import { PriorityModule } from "./priority/priority.module";
+import { LLMModule } from "./llm/llm.module";
 
 // Database entities
 import { User } from "./database/entities/user.entity";
 import { GoogleAccount } from "./database/entities/google-account.entity";
+import { Office365Account } from "./database/entities/office365-account.entity";
+import { ZohoAccount } from "./database/entities/zoho-account.entity";
 import { Email } from "./database/entities/email.entity";
 import { EmailThread } from "./database/entities/email-thread.entity";
 import { UserContext } from "./database/entities/user-context.entity";
@@ -27,11 +34,15 @@ import { LLMProcessor } from "./emails/llm-processor";
 import { PriorityLearningProcessor } from "./priority/priority-learning.processor";
 import { ScanAnalysisProcessor } from "./onboarding/scan-analysis.processor";
 import { ContextAnalysisProcessor } from "./context/context-analysis.processor";
+import { ContextBatchAnalysisProcessor } from "./context/context-batch-analysis.processor";
 
 // Services needed by processors
 import { EmailsService } from "./emails/emails.service";
+import { EmailThreadService } from "./emails/email-thread.service";
 import { EmailProviderManager } from "./emails/email-provider-manager.service";
 import { GmailProvider } from "./emails/providers/gmail.provider";
+import { Office365Provider } from "./emails/providers/office365.provider";
+import { ZohoProvider } from "./emails/providers/zoho.provider";
 import { ScanEmailService } from "./emails/scan-email.service";
 import { UsersService } from "./users/users.service";
 import { PriorityService } from "./priority/priority.service";
@@ -40,6 +51,9 @@ import { SummarizationService } from "./summarization/summarization.service";
 import { LLMService } from "./llm/llm.service";
 import { ScanAnalysisService } from "./onboarding/scan-analysis.service";
 import { ContextService } from "./context/context.service";
+import { ContextPiiRedactionService } from "./context/context-pii-redaction.service";
+import { ContextGmailDataService } from "./context/context-gmail-data.service";
+import { ContextQaExtractionService } from "./context/context-qa-extraction.service";
 import { EncryptionService } from "./encryption/encryption.service";
 import { BlockedSendersService } from "./blocked-senders/blocked-senders.service";
 
@@ -65,7 +79,10 @@ import { BlockedSendersService } from "./blocked-senders/blocked-senders.service
           password: configService.get("DB_PASSWORD"),
           database: configService.get("DB_NAME"),
           entities: [
-            GoogleAccount, // Load GoogleAccount first to avoid relationship resolution issues
+            GoogleAccount,
+            Office365Account,
+            ZohoAccount,
+            // Load account entities first to avoid relationship resolution issues
             User,
             Email,
             EmailThread,
@@ -87,6 +104,8 @@ import { BlockedSendersService } from "./blocked-senders/blocked-senders.service
     }),
     TypeOrmModule.forFeature([
       GoogleAccount,
+      Office365Account,
+      ZohoAccount,
       User,
       Email,
       EmailThread,
@@ -101,14 +120,22 @@ import { BlockedSendersService } from "./blocked-senders/blocked-senders.service
     ]),
     QueueModule,
     GitHubModule,
+    Office365AccountsModule,
+    ZohoAccountsModule,
+    GoogleAccountsModule,
+    PriorityModule,
+    LLMModule,
   ],
   providers: [
     // Core services
     EncryptionService,
     UsersService,
+    EmailThreadService,
     EmailsService,
     EmailProviderManager,
     GmailProvider,
+    Office365Provider,
+    ZohoProvider,
     ScanEmailService,
     PriorityService,
     PriorityLearningService,
@@ -116,6 +143,9 @@ import { BlockedSendersService } from "./blocked-senders/blocked-senders.service
     LLMService,
     ScanAnalysisService,
     ContextService,
+    ContextPiiRedactionService,
+    ContextGmailDataService,
+    ContextQaExtractionService,
     BlockedSendersService,
 
     // Worker processors (these register themselves with pg-boss on init)
@@ -124,6 +154,7 @@ import { BlockedSendersService } from "./blocked-senders/blocked-senders.service
     PriorityLearningProcessor,
     ScanAnalysisProcessor,
     ContextAnalysisProcessor,
+    ContextBatchAnalysisProcessor,
   ],
 })
 export class WorkerModule {}

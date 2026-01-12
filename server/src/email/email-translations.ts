@@ -36,7 +36,7 @@ export function translateEmail(
   params: Record<string, string> = {},
 ): string {
   const keys = key.split(".");
-  let translation: any =
+  let translation: Record<string, unknown> | string =
     emailTranslations[lang as keyof typeof emailTranslations] ||
     emailTranslations.en;
 
@@ -57,7 +57,8 @@ export function translateEmail(
   }
 
   // Replace placeholders
-  return translation.replace(/\{\{(\w+)\}\}/g, (match, paramKey) => {
-    return params[paramKey] || match;
-  });
+  return translation.replace(
+    /\{\{(\w+)\}\}/g,
+    (match, paramKey) => params[paramKey] || match,
+  );
 }

@@ -1,6 +1,7 @@
 import React from 'react';
-import { theme } from '../../theme/theme';
-import { useResponsiveBreakpoints } from '../../hooks/useResponsiveBreakpoints';
+import { INPUT_TYPE_TEXTAREA } from 'constants/strings';
+import { theme } from 'theme/theme';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 interface WaitlistFormFieldProps {
   label: string;
@@ -44,14 +45,14 @@ export const WaitlistFormField: React.FC<WaitlistFormFieldProps> = ({
 
   const getFieldMarginBottom = (): string => {
     if (isMobile) return theme.spacing.md;
-    if (type === 'textarea') return theme.spacing.xl;
+    if (type === INPUT_TYPE_TEXTAREA) return theme.spacing.xl;
     return theme.spacing.md;
   };
 
   return (
     <div style={{ marginBottom: getFieldMarginBottom() }}>
       <label style={labelStyle}>{label}</label>
-      {type === 'textarea' ? (
+      {type === INPUT_TYPE_TEXTAREA ? (
         <textarea
           value={value}
           onChange={(e) => onChange(e.target.value)}

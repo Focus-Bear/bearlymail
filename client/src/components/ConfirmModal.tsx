@@ -1,5 +1,7 @@
 import React from 'react';
-import { theme } from '../theme/theme';
+import { theme } from 'theme/theme';
+import { Z_INDEX_MODAL_OVERLAY, OPACITY_HALF } from 'constants/numbers';
+import { ConfirmModalHeader, ConfirmModalBody, ConfirmModalFooter } from 'components/modal';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -13,6 +15,10 @@ interface ConfirmModalProps {
   onCancel: () => void;
 }
 
+/**
+ * Confirm modal component
+ * Displays a confirmation dialog with customizable title, message, and actions
+ */
 export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   isOpen,
   title,
@@ -34,11 +40,11 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: `rgba(0, 0, 0, ${OPACITY_HALF})`,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 10000,
+        zIndex: Z_INDEX_MODAL_OVERLAY,
         padding: theme.spacing.lg,
       }}
       onClick={onCancel}
@@ -55,71 +61,15 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: theme.spacing.md,
-          marginBottom: theme.spacing.lg,
-        }}>
-          <span style={{ fontSize: '2rem' }}>{icon}</span>
-          <div>
-            <h3 style={{
-              fontSize: theme.typography.fontSize.lg,
-              fontWeight: theme.typography.fontWeight.semibold,
-              color: theme.colors.text.primary,
-              marginBottom: theme.spacing.sm,
-            }}>
-              {title}
-            </h3>
-            <p style={{
-              color: theme.colors.text.secondary,
-              fontSize: theme.typography.fontSize.sm,
-              lineHeight: theme.typography.lineHeight.relaxed,
-              margin: 0,
-            }}>
-              {message}
-            </p>
-          </div>
-        </div>
-
-        <div style={{
-          display: 'flex',
-          gap: theme.spacing.sm,
-          justifyContent: 'flex-end',
-        }}>
-          <button
-            onClick={onCancel}
-            style={{
-              padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-              backgroundColor: 'transparent',
-              color: theme.colors.text.secondary,
-              border: `1px solid ${theme.colors.border.medium}`,
-              borderRadius: theme.borderRadius.md,
-              fontSize: theme.typography.fontSize.sm,
-              fontWeight: theme.typography.fontWeight.medium,
-              cursor: 'pointer',
-              transition: theme.transitions.fast,
-            }}
-          >
-            {cancelLabel}
-          </button>
-          <button
-            onClick={onConfirm}
-            style={{
-              padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-              backgroundColor: confirmColor,
-              color: '#fff',
-              border: 'none',
-              borderRadius: theme.borderRadius.md,
-              fontSize: theme.typography.fontSize.sm,
-              fontWeight: theme.typography.fontWeight.medium,
-              cursor: 'pointer',
-              transition: theme.transitions.fast,
-            }}
-          >
-            {confirmLabel}
-          </button>
-        </div>
+        <ConfirmModalHeader icon={icon} title={title} />
+        <ConfirmModalBody message={message} />
+        <ConfirmModalFooter
+          confirmLabel={confirmLabel}
+          cancelLabel={cancelLabel}
+          confirmColor={confirmColor}
+          onConfirm={onConfirm}
+          onCancel={onCancel}
+        />
       </div>
 
       <style>{`

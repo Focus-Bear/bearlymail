@@ -1,15 +1,14 @@
 import React from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../contexts/AuthContext';
-import { Sidebar } from '../components/inbox/Sidebar';
-import { theme } from '../theme/theme';
+import { useAuth } from 'contexts/AuthContext';
+import { Sidebar } from 'components/inbox/Sidebar';
+import { theme } from 'theme/theme';
 
 const HelpArticle: React.FC = () => {
   const { articleId } = useParams<{ articleId: string }>();
   const { user, logout } = useAuth();
   const { t } = useTranslation();
-  const navigate = useNavigate();
 
   const getArticleContent = () => {
     if (!articleId) return null;
@@ -61,7 +60,7 @@ const HelpArticle: React.FC = () => {
       <div style={{ display: 'flex', height: '100vh' }}>
         <Sidebar user={user} logout={logout} />
         <div style={{ flex: 1, padding: theme.spacing.xl }}>
-          <p>Article not found</p>
+          <p>{t('help.articleNotFound')}</p>
         </div>
       </div>
     );
@@ -105,7 +104,7 @@ const HelpArticle: React.FC = () => {
                   : `section-${index}`;
                 
                 return (
-                <div key={index} id={anchorId}>
+                <div key={anchorId || `section-${section.title}`} id={anchorId}>
                   {section.title && (
                     <h2 style={{
                       color: theme.colors.text.primary,
@@ -139,7 +138,7 @@ const HelpArticle: React.FC = () => {
                       marginBottom: theme.spacing.md,
                     }}>
                       {section.items.map((item, itemIndex) => (
-                        <li key={itemIndex} style={{ marginBottom: theme.spacing.xs }}>
+                        <li key={`${section.title}-${item.substring(0, 100)}`} style={{ marginBottom: theme.spacing.xs }}>
                           {item}
                         </li>
                       ))}

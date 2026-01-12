@@ -1,6 +1,7 @@
 import React from 'react';
-import { theme } from '../../theme/theme';
-import { EmailThreadItem } from './EmailThreadItem';
+import { useTranslation } from 'react-i18next';
+import { theme } from 'theme/theme';
+import { EmailThreadItem } from 'components/email-detail/EmailThreadItem';
 
 interface Email {
   id: string;
@@ -28,6 +29,7 @@ export const EmailThreadList: React.FC<EmailThreadListProps> = ({
   expandedThreadItems,
   onToggleThreadItem,
 }) => {
+  const { t } = useTranslation();
   if (threadEmails.length <= 1) {
     return null;
   }
@@ -42,7 +44,7 @@ export const EmailThreadList: React.FC<EmailThreadListProps> = ({
           color: theme.colors.text.primary,
         }}
       >
-        Thread ({threadEmails.length} messages)
+        {t('emailDetail.thread')} ({threadEmails.length} {threadEmails.length === 1 ? t('emailDetail.message') : t('emailDetail.messages')})
       </h3>
       <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
         {threadEmails.map((threadEmail) => (
@@ -58,4 +60,8 @@ export const EmailThreadList: React.FC<EmailThreadListProps> = ({
     </div>
   );
 };
+
+
+
+
 

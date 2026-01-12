@@ -1,0 +1,464 @@
+import { Test, TestingModule } from "@nestjs/testing";
+import { DataSource } from "typeorm";
+import { ResourceMonitorService } from "./resource-monitor.service";
+import { RESOURCE_MONITOR_CONSTANTS } from "../constants/resource-monitor-constants";
+import * as fs from "fs";
+import * as path from "path";
+import * as os from "os";
+
+// Mock fs and path modules
+jest.mock("fs");
+jest.mock("path");
+
+describe("ResourceMonitorService", () => {
+  let service: ResourceMonitorService;
+  let dataSource: jest.Mocked<DataSource>;
+  const mockMetricsLogFile = "/mock/path/logs/resource-metrics.log";
+
+  beforeEach(async () => {
+    // Mock path.join
+    (path.join as jest.Mock).mockReturnValue(mockMetricsLogFile);
+    (fs.existsSync as jest.Mock).mockReturnValue(true);
+    (fs.mkdirSync as jest.Mock).mockReturnValue(undefined);
+    (fs.appendFileSync as jest.Mock).mockReturnValue(undefined);
+
+    // Mock os functions
+    jest.spyOn(os, "cpus").mockReturnValue([
+      {
+        model: "Intel",
+        speed: 2400,
+        times: {
+          user: 1000,
+          nice: 0,
+          sys: 500,
+          idle: 5000,
+          irq: 0,
+        },
+      },
+      {
+        model: "Intel",
+        speed: 2400,
+        times: {
+          user: 2000,
+          nice: 0,
+          sys: 1000,
+          idle: 10000,
+          irq: 0,
+        },
+      },
+    ] as any);
+
+    jest.spyOn(os, "loadavg").mockReturnValue([1.5, 2.0, 1.8]);
+    jest.spyOn(os, "totalmem").mockReturnValue(8 * 1024 * 1024 * 1024); // 8GB
+    jest.spyOn(os, "freemem").mockReturnValue(4 * 1024 * 1024 * 1024); // 4GB
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ResourceMonitorService,
+        {
+          provide: DataSource,
+          useValue: {
+            query: jest.fn(),
+          },
+        },
+      ],
+    }).compile();
+
+    service = module.get<ResourceMonitorService>(ResourceMonitorService);
+    dataSource = module.get(DataSource);
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  describe("calculateCpuUsage", () => {
+    it("should return 0 on first call", () => {
+      const usage = (service as any).calculateCpuUsage();
+
+      expect(usage).toBe(0);
+    });
+
+    it("should calculate CPU usage correctly on subsequent calls", () => {
+      // First call to initialize
+      (service as any).calculateCpuUsage();
+
+      // Mock second CPU reading (higher usage)
+      jest.spyOn(os, "cpus").mockReturnValue([
+        {
+          model: "Intel",
+          speed: 2400,
+          times: {
+            user: 2000, // Increased
+            nice: 0,
+            sys: 1000, // Increased
+            idle: 4000, // Less idle
+            irq: 0,
+          },
+        },
+        {
+          model: "Intel",
+          speed: 2400,
+          times: {
+            user: 3000, // Increased
+            nice: 0,
+            sys: 2000, // Increased
+            idle: 8000, // Less idle
+            irq: 0,
+          },
+        },
+      ] as any);
+
+      // Advance time
+      jest.spyOn(Date, "now").mockReturnValue(1000);
+
+      const usage = (service as any).calculateCpuUsage();
+
+      expect(usage).toBeGreaterThan(0);
+      expect(usage).toBeLessThanOrEqual(100);
+    });
+
+    it("should clamp CPU usage to 0-100 range", () => {
+      // First call to initialize
+      (service as any).calculateCpuUsage();
+
+      // Mock extreme values
+      jest.spyOn(os, "cpus").mockReturnValue([
+        {
+          model: "Intel",
+          speed: 2400,
+          times: {
+            user: 999999,
+            nice: 0,
+            sys: 999999,
+            idle: 0,
+            irq: 0,
+          },
+        },
+      ] as any);
+
+      jest.spyOn(Date, "now").mockReturnValue(1000);
+
+      const usage = (service as any).calculateCpuUsage();
+
+      expect(usage).toBeGreaterThanOrEqual(0);
+      expect(usage).toBeLessThanOrEqual(100);
+    });
+  });
+
+  describe("getDatabaseMetrics", () => {
+    it("should return database connection metrics", async () => {
+      dataSource.query.mockResolvedValue([
+        {
+          active: "5",
+          idle: "10",
+          total: "15",
+        },
+      ]);
+
+      const metrics = await (service as any).getDatabaseMetrics();
+
+      expect(dataSource.query).toHaveBeenCalled();
+      expect(metrics).toEqual({
+        activeConnections: 5,
+        idleConnections: 10,
+        totalConnections: 15,
+      });
+    });
+
+    it("should return zero metrics on error", async () => {
+      dataSource.query.mockRejectedValue(new Error("Database error"));
+
+      const loggerWarnSpy = jest
+        .spyOn(service["logger"], "warn")
+        .mockImplementation();
+
+      const metrics = await (service as any).getDatabaseMetrics();
+
+      expect(metrics).toEqual({
+        activeConnections: 0,
+        idleConnections: 0,
+        totalConnections: 0,
+      });
+
+      loggerWarnSpy.mockRestore();
+    });
+
+    it("should handle missing result data", async () => {
+      dataSource.query.mockResolvedValue([]);
+
+      const metrics = await (service as any).getDatabaseMetrics();
+
+      expect(metrics).toEqual({
+        activeConnections: 0,
+        idleConnections: 0,
+        totalConnections: 0,
+      });
+    });
+
+    it("should handle null/undefined values in result", async () => {
+      dataSource.query.mockResolvedValue([
+        {
+          active: null,
+          idle: undefined,
+          total: "",
+        },
+      ]);
+
+      const metrics = await (service as any).getDatabaseMetrics();
+
+      expect(metrics.activeConnections).toBe(0);
+      expect(metrics.idleConnections).toBe(0);
+      expect(metrics.totalConnections).toBe(0);
+    });
+  });
+
+  describe("collectMetrics", () => {
+    it("should collect and log resource metrics", async () => {
+      dataSource.query.mockResolvedValue([
+        {
+          active: "5",
+          idle: "10",
+          total: "15",
+        },
+      ]);
+
+      // Initialize CPU usage calculation
+      (service as any).calculateCpuUsage();
+
+      await service.collectMetrics();
+
+      expect(fs.appendFileSync).toHaveBeenCalled();
+      const logCall = (fs.appendFileSync as jest.Mock).mock.calls[0];
+      const loggedData = JSON.parse(logCall[1].trim());
+
+      expect(loggedData).toHaveProperty("timestamp");
+      expect(loggedData).toHaveProperty("cpu");
+      expect(loggedData).toHaveProperty("memory");
+      expect(loggedData).toHaveProperty("database");
+      expect(loggedData.cpu).toHaveProperty("usage");
+      expect(loggedData.cpu).toHaveProperty("loadAverage");
+      expect(loggedData.memory).toHaveProperty("total");
+      expect(loggedData.memory).toHaveProperty("free");
+      expect(loggedData.memory).toHaveProperty("used");
+      expect(loggedData.memory).toHaveProperty("usagePercent");
+    });
+
+    it("should log warning for high CPU usage", async () => {
+      dataSource.query.mockResolvedValue([
+        { active: "0", idle: "0", total: "0" },
+      ]);
+
+      // Initialize CPU usage
+      (service as any).calculateCpuUsage();
+
+      // Mock high CPU usage
+      jest
+        .spyOn(service as any, "calculateCpuUsage")
+        .mockReturnValue(RESOURCE_MONITOR_CONSTANTS.CPU_CRITICAL + 10);
+
+      const loggerWarnSpy = jest
+        .spyOn(service["logger"], "warn")
+        .mockImplementation();
+
+      await service.collectMetrics();
+
+      expect(loggerWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("High CPU usage"),
+      );
+
+      loggerWarnSpy.mockRestore();
+    });
+
+    it("should log warning for high memory usage", async () => {
+      dataSource.query.mockResolvedValue([
+        { active: "0", idle: "0", total: "0" },
+      ]);
+
+      // Mock high memory usage (90% used)
+      jest.spyOn(os, "totalmem").mockReturnValue(100 * 1024 * 1024); // 100MB
+      jest.spyOn(os, "freemem").mockReturnValue(10 * 1024 * 1024); // 10MB (90% used)
+
+      (service as any).calculateCpuUsage();
+
+      const loggerWarnSpy = jest
+        .spyOn(service["logger"], "warn")
+        .mockImplementation();
+
+      await service.collectMetrics();
+
+      expect(loggerWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("High memory usage"),
+      );
+
+      loggerWarnSpy.mockRestore();
+    });
+
+    it("should log warning for high database connections", async () => {
+      dataSource.query.mockResolvedValue([
+        {
+          active: "50",
+          idle: "50",
+          total: String(RESOURCE_MONITOR_CONSTANTS.CPU_CRITICAL + 10),
+        },
+      ]);
+
+      (service as any).calculateCpuUsage();
+
+      const loggerWarnSpy = jest
+        .spyOn(service["logger"], "warn")
+        .mockImplementation();
+
+      await service.collectMetrics();
+
+      expect(loggerWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("High database connections"),
+      );
+
+      loggerWarnSpy.mockRestore();
+    });
+
+    it("should handle file write errors gracefully", async () => {
+      dataSource.query.mockResolvedValue([
+        { active: "0", idle: "0", total: "0" },
+      ]);
+      (fs.appendFileSync as jest.Mock).mockImplementation(() => {
+        throw new Error("File write error");
+      });
+
+      (service as any).calculateCpuUsage();
+
+      const loggerErrorSpy = jest
+        .spyOn(service["logger"], "error")
+        .mockImplementation();
+
+      await service.collectMetrics();
+
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        "Failed to write resource metrics to file:",
+        expect.any(Error),
+      );
+
+      loggerErrorSpy.mockRestore();
+    });
+
+    it("should handle collection errors gracefully", async () => {
+      jest.spyOn(os, "totalmem").mockImplementation(() => {
+        throw new Error("OS error");
+      });
+
+      const loggerErrorSpy = jest
+        .spyOn(service["logger"], "error")
+        .mockImplementation();
+
+      await service.collectMetrics();
+
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        "Error collecting resource metrics:",
+        expect.any(Error),
+      );
+
+      loggerErrorSpy.mockRestore();
+    });
+  });
+
+  describe("getCurrentMetrics", () => {
+    it("should return current resource metrics", async () => {
+      dataSource.query.mockResolvedValue([
+        {
+          active: "5",
+          idle: "10",
+          total: "15",
+        },
+      ]);
+
+      (service as any).calculateCpuUsage();
+
+      const metrics = await service.getCurrentMetrics();
+
+      expect(metrics).toHaveProperty("timestamp");
+      expect(metrics).toHaveProperty("cpu");
+      expect(metrics).toHaveProperty("memory");
+      expect(metrics).toHaveProperty("database");
+      expect(metrics.cpu.usage).toBeGreaterThanOrEqual(0);
+      expect(metrics.cpu.usage).toBeLessThanOrEqual(100);
+      expect(metrics.memory.usagePercent).toBeGreaterThanOrEqual(0);
+      expect(metrics.memory.usagePercent).toBeLessThanOrEqual(100);
+    });
+
+    it("should calculate memory usage correctly", async () => {
+      dataSource.query.mockResolvedValue([
+        { active: "0", idle: "0", total: "0" },
+      ]);
+
+      // 8GB total, 4GB free = 4GB used = 50% usage
+      jest.spyOn(os, "totalmem").mockReturnValue(8 * 1024 * 1024 * 1024);
+      jest.spyOn(os, "freemem").mockReturnValue(4 * 1024 * 1024 * 1024);
+
+      (service as any).calculateCpuUsage();
+
+      const metrics = await service.getCurrentMetrics();
+
+      expect(metrics.memory.usagePercent).toBeCloseTo(50, 0);
+      expect(metrics.memory.used).toBe(4 * 1024 * 1024 * 1024);
+    });
+  });
+
+  describe("onModuleInit", () => {
+    it("should start monitoring interval", async () => {
+      jest.useFakeTimers();
+      dataSource.query.mockResolvedValue([
+        { active: "0", idle: "0", total: "0" },
+      ]);
+
+      (service as any).calculateCpuUsage();
+
+      await service.onModuleInit();
+
+      // Fast-forward time to trigger interval
+      jest.advanceTimersByTime(61000); // 61 seconds
+
+      // Should have called collectMetrics multiple times
+      expect(fs.appendFileSync).toHaveBeenCalled();
+
+      jest.useRealTimers();
+    });
+
+    it("should collect initial metrics on init", async () => {
+      dataSource.query.mockResolvedValue([
+        { active: "0", idle: "0", total: "0" },
+      ]);
+
+      (service as any).calculateCpuUsage();
+
+      await service.onModuleInit();
+
+      expect(fs.appendFileSync).toHaveBeenCalled();
+    });
+  });
+
+  describe("onModuleDestroy", () => {
+    it("should clear monitoring interval", () => {
+      jest.useFakeTimers();
+      const clearIntervalSpy = jest.spyOn(global, "clearInterval");
+
+      service["monitoringInterval"] = setInterval(() => {}, 1000);
+      service.onModuleDestroy();
+
+      expect(clearIntervalSpy).toHaveBeenCalled();
+      expect(service["monitoringInterval"]).toBeNull();
+
+      jest.useRealTimers();
+      clearIntervalSpy.mockRestore();
+    });
+
+    it("should handle destroy when no interval set", () => {
+      service["monitoringInterval"] = null;
+
+      expect(() => service.onModuleDestroy()).not.toThrow();
+    });
+  });
+});
+
+

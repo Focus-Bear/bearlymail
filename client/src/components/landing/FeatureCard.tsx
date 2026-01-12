@@ -1,7 +1,7 @@
 import React from 'react';
-import { theme } from '../../theme/theme';
-import { useResponsiveBreakpoints } from '../../hooks/useResponsiveBreakpoints';
-import { getResponsiveFontSize, getResponsiveSpacing } from './utils';
+import { theme } from 'theme/theme';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { getFeatureCardStyles, getParagraphMarginBottom } from 'components/landing/FeatureCardStyles';
 
 interface FeatureCardProps {
   /**
@@ -44,57 +44,13 @@ export const FeatureCard: React.FC<FeatureCardProps> = ({
 }) => {
   const breakpoints = useResponsiveBreakpoints();
   const descriptions = Array.isArray(description) ? description : [description];
-
-  const cardMarginBottom = marginBottom || getResponsiveSpacing(breakpoints, {
-    mobile: theme.spacing.md,
-    tablet: theme.spacing.xl,
-    desktop: theme.spacing.xl,
-  });
-
-  const cardPadding = getResponsiveSpacing(breakpoints, {
-    mobile: theme.spacing.sm,
-    tablet: theme.spacing.md,
-    desktop: theme.spacing.xl,
-  });
-
-  const headingFontSize = getResponsiveFontSize(breakpoints, {
-    mobile: theme.typography.fontSize.base,
-    tablet: theme.typography.fontSize.lg,
-    desktop: theme.typography.fontSize['2xl'],
-  });
-
-  const emojiFontSize = getResponsiveFontSize(breakpoints, {
-    mobile: theme.typography.fontSize.xl,
-    tablet: theme.typography.fontSize['2xl'],
-    desktop: theme.typography.fontSize['3xl'],
-  });
-
-  const headingMarginBottom = getResponsiveSpacing(breakpoints, {
-    mobile: theme.spacing.xs,
-    tablet: theme.spacing.md,
-    desktop: theme.spacing.md,
-  });
-
-  const bodyFontSize = getResponsiveFontSize(breakpoints, {
-    mobile: theme.typography.fontSize.base,
-    tablet: theme.typography.fontSize.base,
-    desktop: theme.typography.fontSize.base,
-  });
-
-  const getParagraphMarginBottom = (index: number): string => {
-    if (index >= descriptions.length - 1) return '0';
-    return getResponsiveSpacing(breakpoints, {
-      mobile: theme.spacing.xs,
-      tablet: theme.spacing.md,
-      desktop: theme.spacing.md,
-    });
-  };
+  const styles = getFeatureCardStyles(breakpoints, marginBottom);
 
   return (
     <div
       style={{
-        marginBottom: cardMarginBottom,
-        padding: cardPadding,
+        marginBottom: styles.cardMarginBottom,
+        padding: styles.cardPadding,
         backgroundColor: theme.colors.background.paper,
         borderRadius: theme.borderRadius.lg,
         borderLeft: `4px solid ${borderColor}`,
@@ -104,10 +60,10 @@ export const FeatureCard: React.FC<FeatureCardProps> = ({
     >
       <h3
         style={{
-          fontSize: headingFontSize,
+          fontSize: styles.headingFontSize,
           fontWeight: theme.typography.fontWeight.semibold,
           color: theme.colors.text.primary,
-          marginBottom: headingMarginBottom,
+          marginBottom: styles.headingMarginBottom,
           display: 'flex',
           alignItems: 'center',
           gap: theme.spacing.sm,
@@ -116,7 +72,7 @@ export const FeatureCard: React.FC<FeatureCardProps> = ({
         {emoji && (
           <span
             style={{
-              fontSize: emojiFontSize,
+              fontSize: styles.emojiFontSize,
               lineHeight: 1,
             }}
           >
@@ -129,10 +85,10 @@ export const FeatureCard: React.FC<FeatureCardProps> = ({
         <p
           key={cardKey ? `${cardKey}-${index}` : `desc-${index}`}
           style={{
-            fontSize: bodyFontSize,
+            fontSize: styles.bodyFontSize,
             color: theme.colors.text.secondary,
             lineHeight: 1.7,
-            marginBottom: getParagraphMarginBottom(index),
+            marginBottom: getParagraphMarginBottom(breakpoints, index, descriptions.length),
             wordWrap: 'break-word',
             overflowWrap: 'break-word',
             maxWidth: '100%',

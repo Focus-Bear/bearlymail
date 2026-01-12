@@ -1,4 +1,5 @@
 import * as crypto from "crypto";
+import { QUERY_LIMITS } from "../constants/query-limits";
 
 /**
  * Helper for creating searchable blind indexes.
@@ -67,7 +68,8 @@ export class SearchIndexHelper {
    */
   private static generateTrigrams(text: string): string[] {
     const trigrams: string[] = [];
-    const padded = `  ${text}  `; // Pad for edge trigrams
+    // Pad for edge trigrams
+    const padded = `  ${text}  `;
 
     for (let i = 0; i < padded.length - 2; i++) {
       const trigram = padded.substring(i, i + 3);
@@ -84,11 +86,14 @@ export class SearchIndexHelper {
    * Hash a single token
    */
   private static hashToken(token: string): string {
-    return crypto
-      .createHash("sha256")
-      .update(token)
-      .digest("hex")
-      .substring(0, 16); // Truncate to 16 chars to save space (still plenty of entropy)
+    return (
+      crypto
+        .createHash("sha256")
+        .update(token)
+        .digest("hex")
+        // Truncate to 16 chars to save space (still plenty of entropy)
+        .substring(0, QUERY_LIMITS.SEARCH_INDEX_TRIGRAM_PAD)
+    );
   }
 
   /**

@@ -1,9 +1,9 @@
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../contexts/AuthContext';
-import { Sidebar } from '../components/inbox/Sidebar';
-import { theme } from '../theme/theme';
+import { useAuth } from 'contexts/AuthContext';
+import { Sidebar } from 'components/inbox/Sidebar';
+import { theme } from 'theme/theme';
 
 interface HelpArticle {
   id: string;
@@ -146,5 +146,12 @@ const Help: React.FC = () => {
 };
 
 export default Help;
+
+
+
+
+
+
+
 
 

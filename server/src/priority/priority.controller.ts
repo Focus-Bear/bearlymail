@@ -20,6 +20,7 @@ import { EncryptionHelper } from "../encryption/encryption.helper";
 @Controller("priority")
 @UseGuards(JwtAuthGuard)
 export class PriorityController {
+  // eslint-disable-next-line max-params
   constructor(
     private readonly triageSuggestionsService: TriageSuggestionsService,
     private readonly priorityService: PriorityService,
@@ -46,6 +47,7 @@ export class PriorityController {
     @Body()
     body: {
       emailId: string;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       suggestion: any;
       userAction: { starCount: number; archived: boolean };
     },
@@ -183,5 +185,36 @@ export class PriorityController {
     }
 
     return { message: "Urgency override applied successfully" };
+  }
+
+  @Post(":emailId/feedback")
+  async providePriorityFeedback(
+    @Request() req,
+    @Param("emailId") emailId: string,
+    @Body()
+    body: {
+      feedback: string;
+      expectedPriority?: number;
+    },
+  ) {
+    const email = await this.emailsService.getEmailById(
+      req.user.userId,
+      emailId,
+    );
+    if (!email) {
+      throw new Error("Email not found");
+    }
+
+    // Use priority learning service to process feedback and update context
+    await this.priorityLearningService.learnFromPriorityFeedback(
+      req.user.userId,
+      email,
+      body.feedback,
+      body.expectedPriority,
+    );
+
+    return {
+      message: "Feedback received and will be used to improve prioritization",
+    };
   }
 }

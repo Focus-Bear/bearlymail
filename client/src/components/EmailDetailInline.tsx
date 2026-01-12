@@ -1,69 +1,202 @@
 import React from 'react';
-import { theme } from '../theme/theme';
-import { useEmailDetail } from '../hooks/useEmailDetail';
-import { EmailDetailHeader, EmailDetailBody, EmailThreadList } from './email-detail';
+import { useTranslation } from 'react-i18next';
+import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
+import { ReplyComposer, LoadingSpinner, EmailNotFound, EmailDetailContent } from 'components/email-detail-inline';
+import { useEmailDetailInline } from 'hooks/useEmailDetailInline';
+import { ACTION_TYPE_CUSTOM } from 'constants/strings';
+import { API_URL } from 'config/api';
+import { captureEvent } from 'utils/posthog';
+
+// Immediate log when module loads
+console.log('[EmailDetailInline] ===== MODULE LOADED =====');
 
 interface EmailDetailInlineProps {
   emailId: string;
   onClose?: () => void;
+  onArchive?: (emailId: string, e: React.MouseEvent) => void;
+  onSetStarCount?: (emailId: string, starCount: number, e?: React.MouseEvent) => void;
+  onBlockSender?: (emailId: string) => void;
 }
 
 /**
- * Email detail inline component
- * Displays email details in an inline view
+ * Email detail inline component with full features
+ * Displays email details in an inline/split view with all features from full view
  */
-export const EmailDetailInline: React.FC<EmailDetailInlineProps> = ({ emailId }) => {
-  const { email, threadEmails, expandedThreadItems, loading, toggleThreadItem } =
-    useEmailDetail(emailId);
+const useEmailDetailInlineHandlers = (
+  emailId: string,
+  onClose?: () => void,
+) => {
+  const { t } = useTranslation();
+  const hookData = useEmailDetailInline(emailId);
+
+  const handleSendReplyWithClose = async () => {
+    await hookData.handleSendReply();
+    if (onClose) {
+      alert(t('emailDetail.replySentSuccess'));
+    }
+  };
+
+  const handleDraftChange = (newDraft: string) => {
+    hookData.setDraft(newDraft);
+    if (hookData.replyOptions && hookData.selectedReplyOption !== hookData.replyOptions.length - 1) {
+      const customIdx = hookData.replyOptions.findIndex(option => option.label === ACTION_TYPE_CUSTOM);
+      if (customIdx >= 0) hookData.setSelectedReplyOption(customIdx);
+    }
+  };
+
+  const handleReplyComposerClose = () => {
+    hookData.setShowReplyComposer(false);
+    hookData.setDraft('');
+    hookData.setReplyOptions(null);
+    hookData.setToneCheckResult(null);
+  };
+
+  const handleReplyOptionSelect = (idx: number, text: string) => {
+    hookData.setSelectedReplyOption(idx);
+    hookData.setDraft(text);
+  };
+
+  const handleToggleNotesCollapsed = () => {
+    hookData.setNotesCollapsed(!hookData.notesCollapsed);
+  };
+
+  return {
+    ...hookData,
+    handleSendReplyWithClose,
+    handleDraftChange,
+    handleReplyComposerClose,
+    handleReplyOptionSelect,
+    handleToggleNotesCollapsed,
+  };
+};
+
+export const EmailDetailInline: React.FC<EmailDetailInlineProps> = ({ 
+  emailId, 
+  onClose,
+  onArchive,
+  onSetStarCount,
+  onBlockSender,
+}) => {
+  console.log('[EmailDetailInline] ===== COMPONENT RENDERING =====', { emailId });
+  const navigate = useNavigate();
+  const {
+    email,
+    threadEmails,
+    expandedThreadItems,
+    noteContent,
+    actionItems,
+    newActionItem,
+    loading,
+    notesCollapsed,
+    githubLinks,
+    loadingGithub,
+    hasGithubToken,
+    replyOptions,
+    selectedReplyOption,
+    showReplyComposer,
+    replyMode,
+    replyRecipients,
+    draft,
+    loadingReplies,
+    sending,
+    checkingTone,
+    toneCheckResult,
+    isGeneratingSummary,
+    setNoteContent,
+    setNewActionItem,
+    setReplyRecipients,
+    refreshGithubInfo,
+    handleSaveNote,
+    handleAddActionItem,
+    handleToggleActionItem,
+    handleDeleteActionItem,
+    handleExtractActions,
+    handleOpenReplyComposer,
+    toggleThreadItem,
+    handleSendReplyWithClose,
+    handleDraftChange,
+    handleReplyComposerClose,
+    handleReplyOptionSelect,
+    handleToggleNotesCollapsed,
+  } = useEmailDetailInlineHandlers(emailId, onClose);
+
+  // Block sender handler
+  const handleBlockSender = React.useCallback(async (emailIdToBlock: string) => {
+    if (onBlockSender) {
+      onBlockSender(emailIdToBlock);
+    } else {
+      // Fallback implementation
+      captureEvent('email_block_sender_clicked', { email_id: emailIdToBlock });
+      try {
+        await axios.post(`${API_URL}/emails/${emailIdToBlock}/block-sender`);
+        if (onClose) {
+          onClose();
+        } else {
+          navigate('/inbox');
+        }
+      } catch (error) {
+        console.error('Error blocking sender:', error);
+      }
+    }
+  }, [onBlockSender, onClose, navigate]);
 
   if (loading) {
-    return (
-      <div style={{ padding: theme.spacing.xl, textAlign: 'center' }}>
-        <div
-          style={{
-            width: '24px',
-            height: '24px',
-            border: `2px solid ${theme.colors.border.light}`,
-            borderTop: `2px solid ${theme.colors.primary.main}`,
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite',
-            margin: '0 auto',
-          }}
-        />
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (!email) {
-    return (
-      <div style={{ padding: theme.spacing.xl, textAlign: 'center' }}>
-        <p style={{ color: theme.colors.text.secondary }}>Email not found</p>
-      </div>
-    );
+    return <EmailNotFound />;
   }
 
   return (
-    <div style={{ padding: theme.spacing.xl, height: '100%', overflowY: 'auto' }}>
-      <EmailDetailHeader
+    <>
+      <EmailDetailContent
+        email={email}
         emailId={emailId}
-        subject={email.subject}
-        from={email.from}
-        fromName={email.fromName}
-        receivedAt={email.receivedAt}
-      />
-
-      <EmailThreadList
         threadEmails={threadEmails}
-        currentEmailId={emailId}
         expandedThreadItems={expandedThreadItems}
+        noteContent={noteContent}
+        notesCollapsed={notesCollapsed}
+        actionItems={actionItems}
+        newActionItem={newActionItem}
+        isGeneratingSummary={isGeneratingSummary}
+        githubLinks={githubLinks}
+        loadingGithub={loadingGithub}
+        hasGithubToken={hasGithubToken}
+        onNoteContentChange={setNoteContent}
+        onToggleNotesCollapsed={handleToggleNotesCollapsed}
+        onSaveNote={handleSaveNote}
+        onNewActionItemChange={setNewActionItem}
+        onAddActionItem={handleAddActionItem}
+        onToggleActionItem={handleToggleActionItem}
+        onDeleteActionItem={handleDeleteActionItem}
+        onExtractActions={handleExtractActions}
+        onRefreshGithub={refreshGithubInfo}
         onToggleThreadItem={toggleThreadItem}
+        onArchive={onArchive}
+        onSetStarCount={onSetStarCount}
+        onOpenReplyComposer={handleOpenReplyComposer}
+        onBlockSender={handleBlockSender}
       />
-
-      <EmailDetailBody body={email.body} htmlBody={email.htmlBody} />
-    </div>
+      <ReplyComposer
+        showReplyComposer={showReplyComposer}
+        replyMode={replyMode}
+        replyRecipients={replyRecipients}
+        draft={draft}
+        replyOptions={replyOptions}
+        selectedReplyOption={selectedReplyOption}
+        loadingReplies={loadingReplies}
+        checkingTone={checkingTone}
+        toneCheckResult={toneCheckResult}
+        sending={sending}
+        onReplyRecipientsChange={setReplyRecipients}
+        onDraftChange={handleDraftChange}
+        onReplyOptionSelect={handleReplyOptionSelect}
+        onClose={handleReplyComposerClose}
+        onSend={handleSendReplyWithClose}
+        onUseRevisedText={handleDraftChange}
+      />
+    </>
   );
 };
-
-
-
-

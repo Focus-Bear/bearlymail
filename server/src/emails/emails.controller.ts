@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Delete,
   Param,
   Body,
   UseGuards,
@@ -23,13 +24,16 @@ import PgBoss = require("pg-boss");
 import { Email } from "../database/entities/email.entity";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { GmailRequiredGuard } from "../auth/gmail-required.guard";
+import { AdminGuard } from "../auth/admin.guard";
 import { EmailRecipient } from "./interfaces/email-provider.interface";
+import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import * as fs from "fs";
 import * as path from "path";
 import { getJobPriority } from "../queue/job-priorities";
 
 // Performance budgets for batch-status
-const BATCH_STATUS_BUDGET = 500; // 500ms
+// 500ms
+const BATCH_STATUS_BUDGET = 500;
 
 class BatchStatusPerformanceTracker {
   private startTime: number;
@@ -77,6 +81,7 @@ class BatchStatusPerformanceTracker {
 export class EmailsController {
   private readonly logger = new Logger(EmailsController.name);
 
+  // eslint-disable-next-line max-params
   constructor(
     private readonly emailsService: EmailsService,
     private readonly emailProviderManager: EmailProviderManager,
@@ -119,7 +124,7 @@ export class EmailsController {
           id: "temp",
           createdAt: new Date(),
           updatedAt: new Date(),
-        } as any;
+        } as BatchSchedule;
         const nextTime = this.batchScheduleService.getNextBatchReleaseTime(
           tempSchedule,
           0,
@@ -148,8 +153,29 @@ export class EmailsController {
     if (!query) {
       return [];
     }
-    const max = maxResults ? parseInt(maxResults, 10) : 50;
-    return this.emailsService.searchEmails(req.user.userId, query, max);
+    const DEFAULT_MAX_RESULTS = 50;
+    const max = maxResults ? parseInt(maxResults, 10) : DEFAULT_MAX_RESULTS;
+    try {
+      return await this.emailsService.searchEmails(req.user.userId, query, max);
+    } catch (error) {
+      this.logger.error(`Error in searchEmails:`, error);
+      // Return no-results marker with error info so UI can show what happened
+      return [
+        {
+          id: "no-results",
+          subject: "",
+          from: "",
+          body: "",
+          receivedAt: new Date().toISOString(),
+          debugInfo: {
+            originalQuery: query,
+            queriesTried: [],
+            message: `Error occurred: ${error instanceof Error ? error.message : "Unknown error"}`,
+            error: true,
+          },
+        },
+      ];
+    }
   }
 
   @Get(":id/priority-explanation")
@@ -174,7 +200,7 @@ export class EmailsController {
     if (!email) {
       throw new Error("Email not found");
     }
-    
+
     // Include thread's githubMetadata if available
     if (email.emailThreadId) {
       const thread = await this.emailThreadRepository.findOne({
@@ -187,8 +213,20 @@ export class EmailsController {
         };
       }
     }
-    
+
     return email;
+  }
+
+  @Get(":id/gmail-star-status")
+  @UseGuards(JwtAuthGuard)
+  async getGmailStarStatus(@Request() req, @Param("id") id: string) {
+    return this.emailsService.getGmailStarStatus(req.user.userId, id);
+  }
+
+  @Get(":id/gmail-labels")
+  @UseGuards(JwtAuthGuard)
+  async getGmailLabels(@Request() req, @Param("id") id: string) {
+    return this.emailsService.getGmailLabels(req.user.userId, id);
   }
 
   @Post()
@@ -220,8 +258,29 @@ export class EmailsController {
 
   @Put(":id/archive")
   async archiveEmail(@Request() req, @Param("id") id: string) {
-    await this.emailsService.archiveEmail(req.user.userId, id);
-    return { message: "Email archived" };
+    this.logger.log(`[Archive] Archive request received for emailId: ${id}, userId: ${req.user.userId}`);
+    try {
+      // Queue archive operation as background job instead of executing synchronously
+      await this.boss.send(
+        "archive-email",
+        { userId: req.user.userId, emailId: id },
+        {
+          priority: getJobPriority("archive-email", true), // User-triggered = high priority
+          singletonKey: `archive-email-${req.user.userId}-${id}`, // Prevent duplicate jobs
+        },
+      );
+      this.logger.log(`[Archive] Archive job queued: emailId: ${id}, userId: ${req.user.userId}`);
+      return { message: "Email archive queued" };
+    } catch (error) {
+      this.logger.error(`[Archive] Failed to queue archive job: emailId: ${id}, userId: ${req.user.userId}`, error);
+      throw error;
+    }
+  }
+
+  @Delete(":id")
+  async deleteEmail(@Request() req, @Param("id") id: string) {
+    await this.emailsService.deleteEmail(req.user.userId, id);
+    return { message: "Email deleted" };
   }
 
   @Put(":id/star")
@@ -273,12 +332,14 @@ export class EmailsController {
     // Add sync job to queue with singletonKey to prevent duplicates
     // Only one sync job per user can be queued at a time
     await this.boss.send(
-      "sync-emails",
+      "fetch-user-emails",
       { userId: req.user.userId },
       {
-        priority: getJobPriority("sync-emails", true), // User-triggered = high priority
-        singletonKey: `sync-emails-${req.user.userId}`,
-        singletonMinutes: 5, // Don't allow another sync for same user within 5 minutes
+        priority: getJobPriority("fetch-user-emails", true),
+        // User-triggered = high priority
+        singletonKey: `fetch-user-emails-${req.user.userId}`,
+        // Don't allow another fetch for same user within 5 minutes
+        singletonMinutes: 5,
       },
     );
     // Immediately unbatch everything and return
@@ -314,18 +375,24 @@ export class EmailsController {
   }
 
   @Post("debug/reset-stuck-jobs")
-  async resetStuckJobs(@Request() req) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async resetStuckJobs(@Request() _req) {
     // Reset jobs that are stuck in retry state with future startafter times
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const now = new Date();
 
     // Get all jobs that are scheduled for the future (stuck in backoff)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const stuckJobs = await (this.boss as any).getQueueSize("refine-priority");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const stuckSummary = await (this.boss as any).getQueueSize(
       "generate-summary",
     );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const stuckSync = await (this.boss as any).getQueueSize("sync-emails");
 
     // Use raw SQL to reset startafter for stuck jobs
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await (this.boss as any).db.executeSql(`
       UPDATE pgboss.job 
       SET startafter = NOW(), retrycount = 0 
@@ -362,7 +429,7 @@ export class EmailsController {
       bcc?: EmailRecipient[];
     },
   ) {
-    const userId = req.user.userId;
+    const { userId } = req.user;
     const provider = await this.emailProviderManager.getPrimaryProvider(userId);
 
     if (!provider) {
@@ -400,43 +467,217 @@ export class EmailsController {
   @Post(":id/accelerate")
   async accelerateEmail(@Request() req, @Param("id") id: string) {
     // Accelerate processing for a specific email (user is viewing it)
-    // This bumps the priority of any pending jobs for this email
-    const userId = req.user.userId;
+    // Cancel existing jobs and requeue with highest priority
+    const { userId } = req.user;
 
-    // Re-queue with high priority if jobs are stuck
     const email = await this.emailsService.getEmailById(userId, id);
     if (!email) {
       return { message: "Email not found" };
     }
 
     const queued: string[] = [];
+    const cancelled: string[] = [];
 
-    // If summary is processing or missing, queue with priority
+    // Cancel existing jobs for this email before requeuing
+    // Use raw SQL to find and cancel jobs matching the emailId
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = (this.boss as any).db;
+
+    // Cancel existing refine-priority jobs for this email
+    const priorityCancelResult = await db.executeSql(
+      `UPDATE pgboss.job 
+       SET state = 'cancelled' 
+       WHERE name = 'refine-priority' 
+       AND state IN ('created', 'retry')
+       AND data->>'emailId' = $1
+       AND data->>'userId' = $2`,
+      [id, userId],
+    );
+    if (priorityCancelResult?.rowCount > 0) {
+      cancelled.push(`refine-priority (${priorityCancelResult.rowCount})`);
+    }
+
+    // Cancel existing generate-summary jobs for this email
+    const summaryCancelResult = await db.executeSql(
+      `UPDATE pgboss.job 
+       SET state = 'cancelled' 
+       WHERE name = 'generate-summary' 
+       AND state IN ('created', 'retry')
+       AND data->>'emailId' = $1
+       AND data->>'userId' = $2`,
+      [id, userId],
+    );
+    if (summaryCancelResult?.rowCount > 0) {
+      cancelled.push(`generate-summary (${summaryCancelResult.rowCount})`);
+    }
+
+    // If summary is processing or missing, queue with highest priority
     if (email.isProcessingSummary || !email.summary) {
       await this.boss.send(
         "generate-summary",
         { userId, emailId: id },
         {
-          priority: getJobPriority("generate-summary", true), // User-triggered = high priority
+          priority: getJobPriority("generate-summary", true),
+          // User-triggered = high priority
           singletonKey: `summary-${id}`,
         },
       );
       queued.push("generate-summary");
     }
 
-    // If priority is default, queue refinement with priority
-    if (email.priorityScore === 50 || email.isProcessingPriority) {
+    // If priority is default, queue refinement with highest priority
+    const priorityScore = email.getPriorityScore();
+    const DEFAULT_PRIORITY_SCORE = 50;
+    
+    // Get thread to check isProcessingPriority (priority is thread-level)
+    let thread = null;
+    if (email.emailThreadId) {
+      thread = await this.emailThreadRepository.findOne({
+        where: { id: email.emailThreadId },
+      });
+    }
+    
+    if (
+      priorityScore === DEFAULT_PRIORITY_SCORE ||
+      thread?.isProcessingPriority
+    ) {
       await this.boss.send(
         "refine-priority",
         { userId, emailId: id },
         {
-          priority: getJobPriority("refine-priority", true), // User-triggered = high priority
+          priority: getJobPriority("refine-priority", true),
+          // User-triggered = high priority
           singletonKey: `priority-${id}`,
         },
       );
       queued.push("refine-priority");
     }
 
-    return { message: "Accelerated processing", queued };
+    return { 
+      message: "Accelerated processing", 
+      queued,
+      cancelled: cancelled.length > 0 ? cancelled : undefined,
+    };
+  }
+
+  @Get("admin/job-stats")
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async getJobStats(@Request() req) {
+    // Get job queue statistics for admin dashboard
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = (this.boss as any).db;
+
+    // Get current queue stats by job type and state
+    const queueStats = await db.executeSql(`
+      SELECT 
+        name as "jobType",
+        state,
+        COUNT(*) as count
+      FROM pgboss.job
+      WHERE state IN ('created', 'retry', 'active', 'failed')
+      GROUP BY name, state
+      ORDER BY name, state
+    `);
+
+    // Get average completion times from archive
+    const avgCompletionTimes = await db.executeSql(`
+      SELECT 
+        name as "jobType",
+        AVG(EXTRACT(EPOCH FROM (completedon - createdon))) * 1000 as "avgCompletionTimeMs"
+      FROM pgboss.archive
+      WHERE completedon IS NOT NULL
+        AND createdon IS NOT NULL
+        AND completedon > createdon
+      GROUP BY name
+      ORDER BY name
+    `);
+
+    // Transform queue stats into a more usable format
+    const statsByJobType: Record<
+      string,
+      {
+        queued: number;
+        active: number;
+        retry: number;
+        failed: number;
+        avgCompletionTimeMs: number | null;
+      }
+    > = {};
+
+    // Initialize all job types
+    const jobTypes = [
+      "refine-priority",
+      "generate-summary",
+      "fetch-user-emails",
+      "sync-emails", // Legacy
+      "scan-history",
+      "learn-from-star",
+      "analyze-context",
+      "schedule-email-fetch-jobs",
+    ];
+
+    jobTypes.forEach((jobType) => {
+      statsByJobType[jobType] = {
+        queued: 0,
+        active: 0,
+        retry: 0,
+        failed: 0,
+        avgCompletionTimeMs: null,
+      };
+    });
+
+    // Populate queue stats
+    if (queueStats?.rows) {
+      queueStats.rows.forEach((row: { jobType: string; state: string; count: string }) => {
+        const jobType = row.jobType;
+        const state = row.state;
+        const count = parseInt(row.count, 10);
+
+        if (!statsByJobType[jobType]) {
+          statsByJobType[jobType] = {
+            queued: 0,
+            active: 0,
+            retry: 0,
+            failed: 0,
+            avgCompletionTimeMs: null,
+          };
+        }
+
+        if (state === "created") {
+          statsByJobType[jobType].queued = count;
+        } else if (state === "active") {
+          statsByJobType[jobType].active = count;
+        } else if (state === "retry") {
+          statsByJobType[jobType].retry = count;
+        } else if (state === "failed") {
+          statsByJobType[jobType].failed = count;
+        }
+      });
+    }
+
+    // Populate average completion times
+    if (avgCompletionTimes?.rows) {
+      avgCompletionTimes.rows.forEach(
+        (row: { jobType: string; avgCompletionTimeMs: string | null }) => {
+          const jobType = row.jobType;
+          if (statsByJobType[jobType]) {
+            statsByJobType[jobType].avgCompletionTimeMs = row.avgCompletionTimeMs
+              ? Math.round(parseFloat(row.avgCompletionTimeMs))
+              : null;
+          }
+        },
+      );
+    }
+
+    // Convert to array format for easier frontend consumption
+    const statsArray = Object.entries(statsByJobType).map(([jobType, stats]) => ({
+      jobType,
+      ...stats,
+    }));
+
+    return {
+      stats: statsArray,
+      timestamp: new Date().toISOString(),
+    };
   }
 }

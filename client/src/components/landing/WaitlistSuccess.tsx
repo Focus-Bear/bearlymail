@@ -1,12 +1,15 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { theme } from '../../theme/theme';
+import { useTranslation } from 'react-i18next';
+import { theme } from 'theme/theme';
+import { EMOJI_CHECK } from 'constants/emojis';
 
 /**
  * Success state component
  * Shown after successful waitlist submission
  */
 export const WaitlistSuccess: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   return (
@@ -30,7 +33,8 @@ export const WaitlistSuccess: React.FC = () => {
           textAlign: 'center',
         }}
       >
-        <div style={{ fontSize: '4rem', marginBottom: theme.spacing.md }}>✅</div>
+        {/* eslint-disable-next-line i18next/no-literal-string */}
+        <div style={{ fontSize: '4rem', marginBottom: theme.spacing.md }}>{EMOJI_CHECK}</div>
         <h1
           style={{
             color: theme.colors.text.primary,
@@ -38,7 +42,7 @@ export const WaitlistSuccess: React.FC = () => {
             fontSize: theme.typography.fontSize['3xl'],
           }}
         >
-          You're on the list!
+          {t('landing.waitlist.success.heading')}
         </h1>
         <p
           style={{
@@ -47,7 +51,7 @@ export const WaitlistSuccess: React.FC = () => {
             lineHeight: 1.6,
           }}
         >
-          We'll review your request and send you an email when your account is approved.
+          {t('landing.waitlist.success.description')}
         </p>
         <button
           onClick={() => navigate('/login')}
@@ -62,12 +66,16 @@ export const WaitlistSuccess: React.FC = () => {
             cursor: 'pointer',
           }}
         >
-          Go to Login
+          {t('landing.waitlist.success.goToLogin')}
         </button>
       </div>
     </div>
   );
 };
+
+
+
+
 
 
 

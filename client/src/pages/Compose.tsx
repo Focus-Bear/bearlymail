@@ -1,90 +1,40 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
-import { theme } from '../theme/theme';
-import { captureEvent } from '../utils/posthog';
+import { theme } from 'theme/theme';
+import { OPACITY_DISABLED, OPACITY_FULL, DELAY_1_5_SECONDS_MS } from 'constants/numbers';
+import { EMAIL_FIELD_TO, EMAIL_FIELD_CC } from 'constants/strings';
+import { captureEvent } from 'utils/posthog';
+import { Contact } from 'types/contact';
+import { useComposeForm } from 'hooks/useComposeForm';
+import { useContactSearch } from 'hooks/useContactSearch';
+import { RecipientFields } from 'components/compose/RecipientFields';
+import { ComposeBody } from 'components/compose/ComposeBody';
+import { FrequentContactsList } from 'components/compose/FrequentContactsList';
+import { ComposeActions } from 'components/compose/ComposeActions';
+import { ComposeMessages } from 'components/compose/ComposeMessages';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
-interface Contact {
-  id: string;
-  email: string;
-  name?: string;
-  firstName?: string;
-  lastName?: string;
-  company?: string;
-  jobTitle?: string;
-  photoUrl?: string;
-  isFavorite: boolean;
-  contactFrequency: number;
-}
-
-interface Recipient {
-  email: string;
-  name?: string;
-}
-
-// Email validation helper
-const isValidEmail = (email: string): boolean => {
-  const trimmed = email.trim();
-  if (!trimmed) return false;
-  // Basic email validation regex
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(trimmed);
-};
-
+// eslint-disable-next-line max-lines-per-function -- Compose page component requires handling multiple form fields, validation, and email composition logic
 const Compose: React.FC = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const { t } = useTranslation();
   
-  // Email fields
-  const [to, setTo] = useState<Recipient[]>([]);
-  const [cc, setCc] = useState<Recipient[]>([]);
-  const [bcc, setBcc] = useState<Recipient[]>([]);
-  const [subject, setSubject] = useState('');
-  const [body, setBody] = useState('');
+  const form = useComposeForm();
+  const search = useContactSearch();
   
-  // UI state
-  const [showCc, setShowCc] = useState(false);
-  const [showBcc, setShowBcc] = useState(false);
   const [sending, setSending] = useState(false);
   const [sendSuccess, setSendSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  // Contact search state
-  const [toSearch, setToSearch] = useState('');
-  const [ccSearch, setCcSearch] = useState('');
-  const [bccSearch, setBccSearch] = useState('');
-  const [searchResults, setSearchResults] = useState<Contact[]>([]);
-  const [activeField, setActiveField] = useState<'to' | 'cc' | 'bcc' | null>(null);
-  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
   const [frequentContacts, setFrequentContacts] = useState<Contact[]>([]);
   const [syncingContacts, setSyncingContacts] = useState(false);
-  
-  // Refs
-  const toInputRef = useRef<HTMLInputElement>(null);
-  const ccInputRef = useRef<HTMLInputElement>(null);
-  const bccInputRef = useRef<HTMLInputElement>(null);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Pre-populate from URL params (for reply flows)
-  useEffect(() => {
-    const toParam = searchParams.get('to');
-    const subjectParam = searchParams.get('subject');
-    if (toParam) {
-      setTo([{ email: toParam }]);
-    }
-    if (subjectParam) {
-      setSubject(subjectParam);
-    }
-  }, [searchParams]);
-
-  // Track compose view
   useEffect(() => {
     captureEvent('compose_viewed');
   }, []);
 
-  // Fetch frequent contacts on mount
   useEffect(() => {
     const fetchFrequent = async () => {
       try {
@@ -97,124 +47,11 @@ const Compose: React.FC = () => {
     fetchFrequent();
   }, []);
 
-  // Search contacts with debounce
-  const searchContacts = useCallback(async (query: string) => {
-    if (!query || query.length < 2) {
-      setSearchResults([]);
-      return;
-    }
-
-    try {
-      const response = await axios.get(`${API_URL}/contacts/search?q=${encodeURIComponent(query)}&limit=8`);
-      setSearchResults(response.data);
-      setSelectedSuggestionIndex(-1);
-    } catch (err) {
-      console.error('Contact search failed:', err);
-      setSearchResults([]);
-    }
-  }, []);
-
-  // Debounced search handler
-  const handleSearchInput = useCallback((value: string, field: 'to' | 'cc' | 'bcc') => {
-    if (field === 'to') setToSearch(value);
-    else if (field === 'cc') setCcSearch(value);
-    else setBccSearch(value);
-    
-    setActiveField(field);
-
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-
-    searchTimeoutRef.current = setTimeout(() => {
-      searchContacts(value);
-    }, 200);
-  }, [searchContacts]);
-
-  // Add recipient from search/autocomplete
-  const addRecipient = useCallback((contact: Contact | { email: string; name?: string }, field: 'to' | 'cc' | 'bcc') => {
-    const recipient: Recipient = {
-      email: contact.email,
-      name: 'name' in contact ? contact.name : undefined,
-    };
-
-    // Determine if this came from search or frequent contacts
-    const isFromSearch = searchResults.some(c => c.email === contact.email);
-    const contactSource = isFromSearch ? 'search' : 'frequent';
-    captureEvent('compose_contact_selected', { contact_source: contactSource });
-
-    const setter = field === 'to' ? setTo : field === 'cc' ? setCc : setBcc;
-    const searchSetter = field === 'to' ? setToSearch : field === 'cc' ? setCcSearch : setBccSearch;
-
-    setter(prev => {
-      // Don't add duplicates
-      if (prev.some(r => r.email.toLowerCase() === recipient.email.toLowerCase())) {
-        return prev;
-      }
-      return [...prev, recipient];
-    });
-
-    searchSetter('');
-    setSearchResults([]);
-    setActiveField(null);
-  }, [searchResults]);
-
-  // Handle blur - add valid email if typed
-  const handleFieldBlur = useCallback((field: 'to' | 'cc' | 'bcc') => {
-    setTimeout(() => {
-      const searchValue = field === 'to' ? toSearch : field === 'cc' ? ccSearch : bccSearch;
-      if (searchValue && isValidEmail(searchValue)) {
-        addRecipient({ email: searchValue.trim() }, field);
-      }
-      setActiveField(null);
-    }, 200);
-  }, [toSearch, ccSearch, bccSearch, addRecipient]);
-
-  // Remove recipient
-  const removeRecipient = useCallback((email: string, field: 'to' | 'cc' | 'bcc') => {
-    const setter = field === 'to' ? setTo : field === 'cc' ? setCc : setBcc;
-    setter(prev => prev.filter(r => r.email !== email));
-  }, []);
-
-  // Handle Enter key in search input (add typed email or select suggestion)
-  const handleSearchKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>, field: 'to' | 'cc' | 'bcc') => {
-    const searchValue = field === 'to' ? toSearch : field === 'cc' ? ccSearch : bccSearch;
-    
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setSelectedSuggestionIndex(prev => 
-        prev < searchResults.length - 1 ? prev + 1 : prev
-      );
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setSelectedSuggestionIndex(prev => prev > 0 ? prev - 1 : -1);
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (selectedSuggestionIndex >= 0 && searchResults[selectedSuggestionIndex]) {
-        addRecipient(searchResults[selectedSuggestionIndex], field);
-      } else if (searchValue && isValidEmail(searchValue)) {
-        // Add typed email directly if it's valid
-        addRecipient({ email: searchValue.trim() }, field);
-      }
-    } else if (e.key === 'Backspace' && !searchValue) {
-      // Remove last recipient on backspace if input is empty
-      const recipients = field === 'to' ? to : field === 'cc' ? cc : bcc;
-      if (recipients.length > 0) {
-        removeRecipient(recipients[recipients.length - 1].email, field);
-      }
-    } else if (e.key === 'Escape') {
-      setSearchResults([]);
-      setActiveField(null);
-    }
-  }, [toSearch, ccSearch, bccSearch, searchResults, selectedSuggestionIndex, addRecipient, removeRecipient, to, cc, bcc]);
-
-  // Sync contacts from Gmail
   const handleSyncContacts = async () => {
     captureEvent('compose_contacts_synced');
     setSyncingContacts(true);
     try {
       await axios.post(`${API_URL}/contacts/sync`);
-      // Refresh frequent contacts
       const response = await axios.get(`${API_URL}/contacts/frequent?limit=6`);
       setFrequentContacts(response.data);
     } catch (err) {
@@ -224,18 +61,38 @@ const Compose: React.FC = () => {
     }
   };
 
-  // Send email
+  const handleAddRecipient = useCallback((contact: Contact | { email: string; name?: string }, field: 'to' | 'cc' | 'bcc') => {
+    const isFromSearch = search.searchResults.some(c => c.email === contact.email);
+    const contactSource = isFromSearch ? 'search' : 'frequent';
+    captureEvent('compose_contact_selected', { contact_source: contactSource });
+
+    form.addRecipient(contact, field);
+    search.clearSearch();
+  }, [form, search]);
+
+  const handleSearchQueryChange = useCallback((query: string) => {
+    if (search.activeField) {
+      search.handleSearchInput(query, search.activeField);
+    }
+  }, [search]);
+
+  const handleSelectSearchResult = useCallback((contact: Contact) => {
+    if (search.activeField) {
+      handleAddRecipient(contact, search.activeField);
+    }
+  }, [search.activeField, handleAddRecipient]);
+
   const handleSend = async () => {
-    if (to.length === 0) {
-      setError('Please add at least one recipient');
+    if (form.to.length === 0) {
+      setError(t('compose.errorNoRecipient'));
       return;
     }
-    if (!subject.trim()) {
-      setError('Please add a subject');
+    if (!form.subject.trim()) {
+      setError(t('compose.errorNoSubject'));
       return;
     }
-    if (!body.trim()) {
-      setError('Please add a message');
+    if (!form.body.trim()) {
+      setError(t('compose.errorNoBody'));
       return;
     }
 
@@ -244,250 +101,40 @@ const Compose: React.FC = () => {
 
     try {
       captureEvent('compose_sent', {
-        recipient_count: to.length,
-        has_cc: cc.length > 0,
-        has_bcc: bcc.length > 0,
-        has_subject: !!subject.trim(),
+        recipient_count: form.to.length,
+        has_cc: form.cc.length > 0,
+        has_bcc: form.bcc.length > 0,
+        has_subject: !!form.subject.trim(),
       });
 
       await axios.post(`${API_URL}/emails/send`, {
-        to,
-        cc: cc.length > 0 ? cc : undefined,
-        bcc: bcc.length > 0 ? bcc : undefined,
-        subject: subject.trim(),
-        body: body.trim(),
+        to: form.to,
+        cc: form.cc.length > 0 ? form.cc : undefined,
+        bcc: form.bcc.length > 0 ? form.bcc : undefined,
+        subject: form.subject.trim(),
+        body: form.body.trim(),
       });
 
       setSendSuccess(true);
       
-      // Navigate back to inbox after brief delay
       setTimeout(() => {
         navigate('/inbox');
-      }, 1500);
+        }, DELAY_1_5_SECONDS_MS);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to send email. Please try again.');
+      setError(err.response?.data?.message || t('compose.errorSendFailed'));
     } finally {
       setSending(false);
     }
   };
 
-  // Render recipient chip
-  const renderRecipientChip = (recipient: Recipient, field: 'to' | 'cc' | 'bcc') => (
-    <div
-      key={recipient.email}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '6px',
-        padding: '4px 10px',
-        backgroundColor: theme.colors.primary.subtle,
-        borderRadius: theme.borderRadius.full,
-        fontSize: theme.typography.fontSize.sm,
-        color: theme.colors.primary.dark,
-        margin: '2px',
-      }}
-    >
-      <span>{recipient.name || recipient.email}</span>
-      <button
-        onClick={() => removeRecipient(recipient.email, field)}
-        style={{
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          padding: '0',
-          color: theme.colors.primary.main,
-          fontSize: '14px',
-          lineHeight: 1,
-          display: 'flex',
-          alignItems: 'center',
-        }}
-      >
-        ×
-      </button>
-    </div>
-  );
-
-  // Render search suggestions dropdown
-  const renderSuggestions = (field: 'to' | 'cc' | 'bcc') => {
-    if (activeField !== field || searchResults.length === 0) return null;
-
-    return (
-      <div
-        style={{
-          position: 'absolute',
-          top: '100%',
-          left: 0,
-          right: 0,
-          backgroundColor: theme.colors.background.paper,
-          borderRadius: theme.borderRadius.md,
-          boxShadow: theme.shadows.lg,
-          border: `1px solid ${theme.colors.border.light}`,
-          maxHeight: '240px',
-          overflowY: 'auto',
-          zIndex: 100,
-          marginTop: '4px',
-        }}
-      >
-        {searchResults.map((contact, index) => (
-          <div
-            key={contact.id || contact.email}
-            onClick={() => addRecipient(contact, field)}
-            style={{
-              padding: '10px 14px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              backgroundColor: index === selectedSuggestionIndex 
-                ? theme.colors.interactive.hover 
-                : 'transparent',
-              borderBottom: index < searchResults.length - 1 
-                ? `1px solid ${theme.colors.border.light}` 
-                : 'none',
-              transition: theme.transitions.fast,
-            }}
-            onMouseEnter={() => setSelectedSuggestionIndex(index)}
-          >
-            {contact.photoUrl ? (
-              <img
-                src={contact.photoUrl}
-                alt=""
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '50%',
-                  objectFit: 'cover',
-                }}
-              />
-            ) : (
-              <div
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '50%',
-                  backgroundColor: theme.colors.primary.subtle,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: theme.colors.primary.main,
-                  fontWeight: theme.typography.fontWeight.semibold,
-                  fontSize: theme.typography.fontSize.sm,
-                }}
-              >
-                {(contact.name || contact.email)[0].toUpperCase()}
-              </div>
-            )}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              {contact.name && (
-                <div style={{
-                  fontWeight: theme.typography.fontWeight.medium,
-                  color: theme.colors.text.primary,
-                  fontSize: theme.typography.fontSize.sm,
-                }}>
-                  {contact.name}
-                </div>
-              )}
-              <div style={{
-                color: contact.name ? theme.colors.text.secondary : theme.colors.text.primary,
-                fontSize: theme.typography.fontSize.xs,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}>
-                {contact.email}
-              </div>
-            </div>
-            {contact.isFavorite && (
-              <span style={{ color: theme.colors.accent.warning }}>★</span>
-            )}
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  // Render recipient input field
-  const renderRecipientField = (
-    label: string,
-    recipients: Recipient[],
-    searchValue: string,
-    field: 'to' | 'cc' | 'bcc',
-    inputRef: React.RefObject<HTMLInputElement | null>,
-    showToggle?: { show: boolean; onShow: () => void; label: string }
-  ) => (
-    <div style={{ position: 'relative', marginBottom: '12px' }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: '12px',
-          padding: '8px 0',
-          borderBottom: `1px solid ${theme.colors.border.light}`,
-        }}
-      >
-        <label
-          style={{
-            color: theme.colors.text.secondary,
-            fontSize: theme.typography.fontSize.sm,
-            fontWeight: theme.typography.fontWeight.medium,
-            minWidth: '50px',
-            paddingTop: '6px',
-          }}
-        >
-          {label}
-        </label>
-        <div
-          style={{
-            flex: 1,
-            display: 'flex',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            gap: '4px',
-            minHeight: '32px',
-          }}
-          onClick={() => inputRef.current?.focus()}
-        >
-          {recipients.map(r => renderRecipientChip(r, field))}
-          <input
-            ref={inputRef}
-            type="text"
-            value={searchValue}
-            onChange={(e) => handleSearchInput(e.target.value, field)}
-            onKeyDown={(e) => handleSearchKeyDown(e, field)}
-            onFocus={() => setActiveField(field)}
-            onBlur={() => handleFieldBlur(field)}
-            placeholder={recipients.length === 0 ? 'Enter email or search contacts...' : ''}
-            style={{
-              border: 'none',
-              outline: 'none',
-              flex: 1,
-              minWidth: '200px',
-              padding: '6px 0',
-              fontSize: theme.typography.fontSize.base,
-              fontFamily: theme.typography.fontFamily,
-              backgroundColor: 'transparent',
-            }}
-          />
-        </div>
-        {showToggle && !showToggle.show && (
-          <button
-            onClick={showToggle.onShow}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: theme.colors.text.secondary,
-              cursor: 'pointer',
-              fontSize: theme.typography.fontSize.sm,
-              padding: '6px 8px',
-            }}
-          >
-            {showToggle.label}
-          </button>
-        )}
-      </div>
-      {renderSuggestions(field)}
-    </div>
-  );
+  let currentSearchQuery = '';
+  if (search.activeField === EMAIL_FIELD_TO) {
+    currentSearchQuery = search.toSearch;
+  } else if (search.activeField === EMAIL_FIELD_CC) {
+    currentSearchQuery = search.ccSearch;
+  } else {
+    currentSearchQuery = search.bccSearch;
+  }
 
   return (
     <div
@@ -497,7 +144,6 @@ const Compose: React.FC = () => {
         padding: theme.spacing.lg,
       }}
     >
-      {/* Header */}
       <div
         style={{
           display: 'flex',
@@ -525,7 +171,7 @@ const Compose: React.FC = () => {
             transition: theme.transitions.default,
           }}
         >
-          ← Back to Inbox
+          {t('compose.backToInbox')}
         </button>
 
         <button
@@ -543,14 +189,13 @@ const Compose: React.FC = () => {
             padding: '6px 12px',
             borderRadius: theme.borderRadius.md,
             transition: theme.transitions.default,
-            opacity: syncingContacts ? 0.6 : 1,
+            opacity: syncingContacts ? OPACITY_DISABLED : OPACITY_FULL,
           }}
         >
-          {syncingContacts ? '↻ Syncing...' : '↻ Sync Contacts'}
+          {syncingContacts ? t('compose.syncing') : t('compose.syncContacts')}
         </button>
       </div>
 
-      {/* Main compose card */}
       <div
         style={{
           maxWidth: '900px',
@@ -561,7 +206,6 @@ const Compose: React.FC = () => {
           overflow: 'hidden',
         }}
       >
-        {/* Card header */}
         <div
           style={{
             padding: `${theme.spacing.md} ${theme.spacing.lg}`,
@@ -577,285 +221,58 @@ const Compose: React.FC = () => {
               color: theme.colors.text.primary,
             }}
           >
-            ✉️ New Message
+            {t('compose.newMessage')}
           </h1>
         </div>
 
-        {/* Form content */}
         <div style={{ padding: theme.spacing.lg }}>
-          {/* Recipients */}
-          {renderRecipientField(
-            'To',
-            to,
-            toSearch,
-            'to',
-            toInputRef,
-            { show: showCc || showBcc, onShow: () => setShowCc(true), label: 'Cc/Bcc' }
-          )}
-
-          {showCc && renderRecipientField('Cc', cc, ccSearch, 'cc', ccInputRef)}
-          {showBcc && renderRecipientField('Bcc', bcc, bccSearch, 'bcc', bccInputRef)}
-
-          {/* Show Bcc toggle */}
-          {showCc && !showBcc && (
-            <button
-              onClick={() => setShowBcc(true)}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: theme.colors.text.secondary,
-                cursor: 'pointer',
-                fontSize: theme.typography.fontSize.sm,
-                padding: '4px 0',
-                marginBottom: '12px',
-              }}
-            >
-              + Add Bcc
-            </button>
-          )}
-
-          {/* Subject */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: '8px 0',
-              borderBottom: `1px solid ${theme.colors.border.light}`,
-              marginBottom: '16px',
-            }}
-          >
-            <label
-              style={{
-                color: theme.colors.text.secondary,
-                fontSize: theme.typography.fontSize.sm,
-                fontWeight: theme.typography.fontWeight.medium,
-                minWidth: '50px',
-              }}
-            >
-              Subject
-            </label>
-            <input
-              type="text"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              placeholder="Enter subject..."
-              style={{
-                flex: 1,
-                border: 'none',
-                outline: 'none',
-                padding: '6px 0',
-                fontSize: theme.typography.fontSize.base,
-                fontFamily: theme.typography.fontFamily,
-                backgroundColor: 'transparent',
-              }}
-            />
-          </div>
-
-          {/* Body */}
-          <textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            placeholder="Write your message..."
-            style={{
-              width: '100%',
-              minHeight: '300px',
-              border: 'none',
-              outline: 'none',
-              resize: 'vertical',
-              fontSize: theme.typography.fontSize.base,
-              fontFamily: theme.typography.fontFamily,
-              lineHeight: theme.typography.lineHeight.relaxed,
-              padding: '8px 0',
-              backgroundColor: 'transparent',
-            }}
+          <RecipientFields
+            to={form.to}
+            cc={form.cc}
+            bcc={form.bcc}
+            showCc={form.showCc}
+            showBcc={form.showBcc}
+            activeField={search.activeField}
+            searchQuery={currentSearchQuery}
+            searchResults={search.searchResults}
+            onAddRecipient={handleAddRecipient}
+            onRemoveRecipient={form.removeRecipient}
+            onShowCc={() => form.setShowCc(true)}
+            onShowBcc={() => form.setShowBcc(true)}
+            onSetActiveField={search.setActiveField}
+            onSearchQueryChange={handleSearchQueryChange}
+            onSelectSearchResult={handleSelectSearchResult}
           />
 
-          {/* Frequent contacts */}
-          {frequentContacts.length > 0 && to.length === 0 && !activeField && (
-            <div
-              style={{
-                marginTop: theme.spacing.lg,
-                padding: theme.spacing.md,
-                backgroundColor: theme.colors.background.subtle,
-                borderRadius: theme.borderRadius.md,
-              }}
-            >
-              <p
-                style={{
-                  margin: `0 0 ${theme.spacing.sm} 0`,
-                  fontSize: theme.typography.fontSize.sm,
-                  color: theme.colors.text.secondary,
-                }}
-              >
-                Frequent contacts:
-              </p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                {frequentContacts.map((contact) => (
-                  <button
-                    key={contact.id || contact.email}
-                    onClick={() => addRecipient(contact, 'to')}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '6px 12px',
-                      backgroundColor: theme.colors.background.paper,
-                      border: `1px solid ${theme.colors.border.light}`,
-                      borderRadius: theme.borderRadius.full,
-                      cursor: 'pointer',
-                      fontSize: theme.typography.fontSize.sm,
-                      color: theme.colors.text.primary,
-                      transition: theme.transitions.default,
-                    }}
-                  >
-                    {contact.photoUrl ? (
-                      <img
-                        src={contact.photoUrl}
-                        alt=""
-                        style={{
-                          width: '20px',
-                          height: '20px',
-                          borderRadius: '50%',
-                        }}
-                      />
-                    ) : (
-                      <div
-                        style={{
-                          width: '20px',
-                          height: '20px',
-                          borderRadius: '50%',
-                          backgroundColor: theme.colors.primary.subtle,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: theme.colors.primary.main,
-                          fontSize: '11px',
-                          fontWeight: theme.typography.fontWeight.semibold,
-                        }}
-                      >
-                        {(contact.name || contact.email)[0].toUpperCase()}
-                      </div>
-                    )}
-                    {contact.name || contact.email}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          <ComposeBody
+            subject={form.subject}
+            body={form.body}
+            onSubjectChange={form.setSubject}
+            onBodyChange={form.setBody}
+          />
 
-          {/* Error message */}
-          {error && (
-            <div
-              style={{
-                marginTop: theme.spacing.md,
-                padding: theme.spacing.md,
-                backgroundColor: theme.colors.sunray.light4,
-                borderRadius: theme.borderRadius.md,
-                color: theme.colors.accent.error,
-                fontSize: theme.typography.fontSize.sm,
-              }}
-            >
-              {error}
-            </div>
-          )}
+          <FrequentContactsList
+            frequentContacts={frequentContacts}
+            to={form.to}
+            activeField={search.activeField}
+            onAddRecipient={handleAddRecipient}
+          />
 
-          {/* Success message */}
-          {sendSuccess && (
-            <div
-              style={{
-                marginTop: theme.spacing.md,
-                padding: theme.spacing.md,
-                backgroundColor: theme.colors.secondary.subtle,
-                borderRadius: theme.borderRadius.md,
-                color: theme.colors.secondary.dark,
-                fontSize: theme.typography.fontSize.sm,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-              }}
-            >
-              ✓ Email sent successfully! Redirecting...
-            </div>
-          )}
+          <ComposeMessages
+            error={error}
+            sendSuccess={sendSuccess}
+          />
         </div>
 
-        {/* Footer with send button */}
-        <div
-          style={{
-            padding: theme.spacing.lg,
-            borderTop: `1px solid ${theme.colors.border.light}`,
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: '12px',
-            backgroundColor: theme.colors.background.subtle,
-          }}
-        >
-          <button
-            onClick={() => navigate('/inbox')}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: 'transparent',
-              border: `1px solid ${theme.colors.border.medium}`,
-              borderRadius: theme.borderRadius.md,
-              cursor: 'pointer',
-              fontSize: theme.typography.fontSize.sm,
-              fontWeight: theme.typography.fontWeight.medium,
-              color: theme.colors.text.secondary,
-              transition: theme.transitions.default,
-            }}
-          >
-            Discard
-          </button>
-          <button
-            onClick={handleSend}
-            disabled={sending || sendSuccess}
-            style={{
-              padding: '10px 24px',
-              backgroundColor: sending || sendSuccess ? theme.colors.primary.light : theme.colors.primary.main,
-              border: 'none',
-              borderRadius: theme.borderRadius.md,
-              cursor: sending || sendSuccess ? 'not-allowed' : 'pointer',
-              fontSize: theme.typography.fontSize.sm,
-              fontWeight: theme.typography.fontWeight.semibold,
-              color: 'white',
-              transition: theme.transitions.default,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-            }}
-          >
-            {sending ? (
-              <>
-                <span style={{ 
-                  display: 'inline-block',
-                  width: '14px',
-                  height: '14px',
-                  border: '2px solid rgba(255,255,255,0.3)',
-                  borderTopColor: 'white',
-                  borderRadius: '50%',
-                  animation: 'spin 1s linear infinite',
-                }} />
-                Sending...
-              </>
-            ) : sendSuccess ? (
-              '✓ Sent!'
-            ) : (
-              'Send ✉️'
-            )}
-          </button>
-        </div>
+        <ComposeActions
+          sending={sending}
+          sendSuccess={sendSuccess}
+          onDiscard={() => navigate('/inbox')}
+          onSend={handleSend}
+        />
       </div>
-
-      {/* CSS for spinner animation */}
-      <style>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 };
 
 export default Compose;
-

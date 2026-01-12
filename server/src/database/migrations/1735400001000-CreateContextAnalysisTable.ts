@@ -2,6 +2,7 @@ import {
   MigrationInterface,
   QueryRunner,
   Table,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   TableColumn,
   TableForeignKey,
   TableIndex,
@@ -112,7 +113,7 @@ export class CreateContextAnalysisTable1735400001000
     const table = await queryRunner.getTable("context_analyses");
     if (table) {
       // Drop foreign keys
-      const foreignKeys = table.foreignKeys;
+      const { foreignKeys } = table;
       for (const fk of foreignKeys) {
         await queryRunner.dropForeignKey("context_analyses", fk);
       }
@@ -128,4 +129,3 @@ export class CreateContextAnalysisTable1735400001000
     }
   }
 }
-

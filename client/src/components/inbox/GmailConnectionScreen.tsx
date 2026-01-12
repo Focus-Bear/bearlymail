@@ -1,9 +1,12 @@
 import React from 'react';
-import { theme } from '../../theme/theme';
-import { API_URL } from '../../config/api';
-import { captureEvent } from '../../utils/posthog';
+import { useTranslation } from 'react-i18next';
+import { theme } from 'theme/theme';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 export const GmailConnectionScreen: React.FC = () => {
+  const { t } = useTranslation();
+  
   return (
     <div style={{
       display: 'flex',
@@ -27,7 +30,7 @@ export const GmailConnectionScreen: React.FC = () => {
           fontSize: theme.typography.fontSize['2xl'],
           fontWeight: theme.typography.fontWeight.bold,
         }}>
-          Connect Your Gmail Account
+          {t('gmail.connectTitle')}
         </h1>
         <p style={{
           color: theme.colors.text.secondary,
@@ -35,11 +38,10 @@ export const GmailConnectionScreen: React.FC = () => {
           fontSize: theme.typography.fontSize.base,
           lineHeight: 1.6,
         }}>
-          To use BearlyMail, you need to connect at least one Gmail account. This allows us to sync and manage your emails.
+          {t('gmail.connectDescription')}
         </p>
         <button
           onClick={() => {
-            captureEvent('gmail_connection_initiated');
             window.location.href = `${API_URL}/google-accounts/connect`;
           }}
           style={{
@@ -54,17 +56,16 @@ export const GmailConnectionScreen: React.FC = () => {
             marginBottom: theme.spacing.md,
           }}
         >
-          Connect Gmail Account
+          {t('gmail.connectButton')}
         </button>
         <p style={{
           fontSize: theme.typography.fontSize.sm,
           color: theme.colors.text.tertiary,
           marginTop: theme.spacing.lg,
         }}>
-          You can connect multiple Gmail accounts from Settings after connecting your first account.
+          {t('gmail.connectMultipleHint')}
         </p>
       </div>
     </div>
   );
 };
-

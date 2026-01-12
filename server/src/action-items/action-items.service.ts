@@ -10,13 +10,19 @@ export class ActionItemsService {
     private actionItemRepository: Repository<ActionItem>,
   ) {}
 
-  async create(userId: string, data: Partial<ActionItem>): Promise<ActionItem> {
-    const item = this.actionItemRepository.create({ ...data, userId });
+  async create(
+    userId: string,
+    actionItemData: Partial<ActionItem>,
+  ): Promise<ActionItem> {
+    const item = this.actionItemRepository.create({
+      ...actionItemData,
+      userId,
+    });
     return this.actionItemRepository.save(item);
   }
 
   async findAll(userId: string, emailId?: string): Promise<ActionItem[]> {
-    const where: any = { userId };
+    const where: { userId: string; emailId?: string } = { userId };
     if (emailId) {
       where.emailId = emailId;
     }
@@ -29,9 +35,9 @@ export class ActionItemsService {
   async update(
     userId: string,
     id: string,
-    data: Partial<ActionItem>,
+    updateData: Partial<ActionItem>,
   ): Promise<ActionItem> {
-    await this.actionItemRepository.update({ id, userId }, data);
+    await this.actionItemRepository.update({ id, userId }, updateData);
     return this.actionItemRepository.findOne({ where: { id, userId } });
   }
 

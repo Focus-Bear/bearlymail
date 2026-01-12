@@ -43,7 +43,8 @@ export class EnsureContextEnumValues1735700000000
     }
   }
 
-  public async down(queryRunner: QueryRunner): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public async down(_queryRunner: QueryRunner): Promise<void> {
     // Note: Removing enum values in PostgreSQL is complex and often not done in down migrations
     // The enum values will remain in the database but won't be used
   }

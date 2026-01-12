@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { theme } from '../../../theme/theme';
+import { theme } from 'theme/theme';
 
 interface ScanModalProps {
   onStartScan: () => void;
@@ -83,4 +83,11 @@ export const ScanModal: React.FC<ScanModalProps> = ({ onStartScan, onDismissScan
     </div>
   );
 };
+
+
+
+
+
+
+
 

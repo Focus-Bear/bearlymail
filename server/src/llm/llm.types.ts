@@ -8,6 +8,8 @@ export interface LLMRequest {
   systemPrompt?: string;
   temperature?: number;
   maxTokens?: number;
-  userId?: string; // Optional userId to use user's API key
+  userId?: string;
+  // Optional userId to use user's API key
 }
+
 

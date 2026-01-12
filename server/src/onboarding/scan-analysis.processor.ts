@@ -37,6 +37,7 @@ export class ScanAnalysisProcessor implements OnModuleInit {
     );
     await this.boss.work(
       "analyze-scan-results",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       { teamSize: this.analysisConcurrency } as any,
       async (job) => {
         const { userId } = job.data as { userId: string };
@@ -54,7 +55,8 @@ export class ScanAnalysisProcessor implements OnModuleInit {
             `[Worker ${workerId}] Failed to analyze scan results for user ${userId}:`,
             error,
           );
-          throw error; // Re-throw to allow retry
+          throw error;
+          // Re-throw to allow retry
         }
       },
     );

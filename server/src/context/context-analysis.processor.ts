@@ -4,6 +4,8 @@ import * as os from "os";
 import PgBoss = require("pg-boss");
 import { ContextService } from "./context.service";
 import { UsersService } from "../users/users.service";
+import { writeAnalysisLog } from "./context-analysis-logger";
+import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 
 @Injectable()
 export class ContextAnalysisProcessor implements OnModuleInit {
@@ -37,25 +39,108 @@ export class ContextAnalysisProcessor implements OnModuleInit {
     this.logger.log(
       `Registering context-analysis worker with concurrency: ${this.contextConcurrency}`,
     );
+    // eslint-disable-next-line no-console
+    console.log(
+      `[PROCESSOR] Registering context-analysis worker with concurrency: ${this.contextConcurrency}`,
+    );
+    writeAnalysisLog(
+      `===== Context Analysis Worker Registered ===== (concurrency: ${this.contextConcurrency})`,
+      "log",
+    );
     await this.boss.work(
       "analyze-context",
-      { teamSize: this.contextConcurrency } as any,
+      { teamSize: this.contextConcurrency } as { teamSize: number },
       async (job) => {
-        const { userId } = job.data as { userId: string };
+        const { userId, analysisId } = job.data as {
+          userId: string;
+          analysisId?: string;
+        };
         const workerId = job.id || "unknown";
+        const tracker = new JobPerformanceTracker("analyze-context", workerId);
+        tracker.setMetadata({ userId });
+
         this.logger.log(
-          `[Worker ${workerId}] Starting context analysis for user ${userId}`,
+          `[Worker ${workerId}] Job received for user ${userId}${analysisId ? ` with analysis ID ${analysisId}` : ""}`,
+        );
+        // eslint-disable-next-line no-console
+        console.log(
+          `[PROCESSOR] [Worker ${workerId}] Job received for user ${userId}${analysisId ? ` with analysis ID ${analysisId}` : ""}`,
+        );
+        writeAnalysisLog(
+          `[Worker ${workerId}] Job received for user ${userId}${analysisId ? ` with analysis ID ${analysisId}` : ""}`,
+          "log",
         );
 
         try {
-          await this.contextService.analyzeAndLearnFromEmails(userId);
           this.logger.log(
-            `[Worker ${workerId}] Completed context analysis for user ${userId}`,
+            `[Worker ${workerId}] Starting context analysis for user ${userId}${analysisId ? ` with analysis ID ${analysisId}` : ""}`,
           );
-        } catch (error: any) {
+          // eslint-disable-next-line no-console
+          console.log(
+            `[PROCESSOR] [Worker ${workerId}] Starting context analysis for user ${userId}${analysisId ? ` with analysis ID ${analysisId}` : ""}`,
+          );
+          writeAnalysisLog(
+            `[Worker ${workerId}] Starting context analysis for user ${userId}${analysisId ? ` with analysis ID ${analysisId}` : ""}`,
+            "log",
+          );
+          if (analysisId) {
+            await this.contextService.analyzeAndLearnFromEmails(
+              userId,
+              analysisId,
+            );
+          } else {
+            // Backward compatibility - create new analysis
+            await this.contextService.analyzeAndLearnFromEmails(userId);
+          }
+          this.logger.log(
+            `[Worker ${workerId}] Enqueued batch jobs for context analysis for user ${userId}. Analysis will complete when all batches finish.`,
+          );
+          // eslint-disable-next-line no-console
+          console.log(
+            `[PROCESSOR] [Worker ${workerId}] Enqueued batch jobs for context analysis for user ${userId}`,
+          );
+          writeAnalysisLog(
+            `[Worker ${workerId}] Enqueued batch jobs for context analysis for user ${userId}`,
+            "log",
+          );
+          tracker.finish();
+        } catch (error: unknown) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          const errorStack = error instanceof Error ? error.stack : undefined;
           this.logger.error(
-            `[Worker ${workerId}] Failed context analysis for user ${userId}`,
-            error,
+            `[Worker ${workerId}] Failed context analysis for user ${userId}: ${errorMessage}`,
+            errorStack || error,
+          );
+          tracker.finish(error as Error);
+          // eslint-disable-next-line no-console
+          console.error(
+            `[PROCESSOR] [Worker ${workerId}] Failed context analysis for user ${userId}: ${errorMessage}`,
+          );
+          // eslint-disable-next-line no-console
+          console.error(
+            `[PROCESSOR] [Worker ${workerId}] Error stack:`,
+            errorStack || "No stack trace",
+          );
+          writeAnalysisLog(
+            `[Worker ${workerId}] Failed context analysis for user ${userId}: ${errorMessage}`,
+            "error",
+          );
+          writeAnalysisLog(
+            `[Worker ${workerId}] Error stack: ${errorStack || "No stack trace"}`,
+            "error",
+          );
+          this.logger.error(
+            `[Worker ${workerId}] Error details: ${JSON.stringify(error, Object.getOwnPropertyNames(error))}`,
+          );
+          // eslint-disable-next-line no-console
+          console.error(
+            `[PROCESSOR] [Worker ${workerId}] Error details:`,
+            JSON.stringify(error, Object.getOwnPropertyNames(error)),
+          );
+          writeAnalysisLog(
+            `[Worker ${workerId}] Error details: ${JSON.stringify(error, Object.getOwnPropertyNames(error))}`,
+            "error",
           );
           // Error state is already set by ContextService.analyzeAndLearnFromEmails
           // Just re-throw to mark job as failed
@@ -65,5 +150,8 @@ export class ContextAnalysisProcessor implements OnModuleInit {
     );
 
     this.logger.log("Context analysis worker registered successfully");
+    // eslint-disable-next-line no-console
+    console.log("[PROCESSOR] Context analysis worker registered successfully");
+    writeAnalysisLog("Context analysis worker registered successfully", "log");
   }
 }

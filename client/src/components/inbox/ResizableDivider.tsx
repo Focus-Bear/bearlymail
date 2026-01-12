@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { theme } from '../../theme/theme';
+import { theme } from 'theme/theme';
 
 interface ResizableDividerProps {
   onResize: (newPosition: number) => void;

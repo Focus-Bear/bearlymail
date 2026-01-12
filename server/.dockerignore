@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+npm-debug.log
+package-lock.json
+
+# Build artifacts
+dist/
+coverage/
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+
+# Test files
+promptfoo/
+test/
+*.spec.ts
+*.test.ts
+
+# Development files
+.vscode/
+.idea/
+*.md
+!README.md
+
+# Git
+.git/
+.gitignore
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Other
+.DS_Store
+*.swp
+*.swo
+*~
+

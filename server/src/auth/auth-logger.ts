@@ -47,26 +47,59 @@ export class AuthLogger {
   /**
    * Log Google authentication failure with comprehensive details
    */
+  // eslint-disable-next-line complexity
   logAuthFailure(
     userId: string,
     userEmail: string | null,
     context: string,
-    error: any | null,
-    additionalDetails?: Record<string, any>,
+    error: unknown | null,
+    additionalDetails?: Record<string, unknown>,
   ): void {
     const isSuccess = context === "LOGIN_SUCCESS" && !error;
     const errorDetails = {
       userId,
       userEmail,
-      context, // e.g., 'syncEmails', 'scanHistory', 'tokenRefresh', 'LOGIN_SUCCESS'
+      // e.g., 'syncEmails', 'scanHistory', 'tokenRefresh', 'LOGIN_SUCCESS'
+      context,
       timestamp: new Date().toISOString(),
-      errorType:
-        error?.code || error?.name || (isSuccess ? "SUCCESS" : "Unknown"),
-      errorMessage:
-        error?.message || (isSuccess ? "Login successful" : String(error)),
-      errorCode: error?.code,
-      httpStatus: error?.response?.status || error?.status,
-      errorData: error?.response?.data || error?.data,
+      errorType: (() => {
+        if (error && typeof error === "object" && "code" in error) {
+          return String((error as { code?: unknown }).code);
+        }
+        if (error && typeof error === "object" && "name" in error) {
+          return String((error as { name?: unknown }).name);
+        }
+        return isSuccess ? "SUCCESS" : "Unknown";
+      })(),
+      errorMessage: (() => {
+        if (error && typeof error === "object" && "message" in error) {
+          return String((error as { message?: unknown }).message);
+        }
+        return isSuccess ? "Login successful" : String(error);
+      })(),
+      errorCode:
+        error && typeof error === "object" && "code" in error
+          ? (error as { code?: unknown }).code
+          : undefined,
+      httpStatus:
+        (error && typeof error === "object" && "response" in error
+          ? (error as { response?: { status?: unknown } }).response?.status
+          : undefined) ||
+        (error && typeof error === "object" && "status" in error
+          ? (error as { status?: unknown }).status
+          : undefined),
+      // eslint-disable-next-line id-denylist
+      errorData: (() => {
+        if (error && typeof error === "object" && "response" in error) {
+          // eslint-disable-next-line id-denylist
+          return (error as { response?: { data?: unknown } }).response?.data;
+        }
+        if (error && typeof error === "object" && "data" in error) {
+          // eslint-disable-next-line id-denylist
+          return (error as { data?: unknown }).data;
+        }
+        return undefined;
+      })(),
       // Determine cause (if error)
       cause: error ? this.determineCause(error) : "Login successful",
       // Additional context
@@ -91,41 +124,65 @@ export class AuthLogger {
   /**
    * Determine the likely cause of the auth failure
    */
-  private determineCause(error: any): string {
+  private determineCause(error: unknown): string {
     if (!error) return "Unknown error";
+
+    // Type guard helper
+    const hasCode = (e: unknown): e is { code: string | number } =>
+      typeof e === "object" && e !== null && "code" in e;
+
+    const hasResponse = (
+      e: unknown,
+    ): e is { response: { data?: { error?: string }; status?: number } } =>
+      typeof e === "object" &&
+      e !== null &&
+      "response" in e &&
+      typeof (e as { response: unknown }).response === "object";
+
+    const hasMessage = (e: unknown): e is { message: string } =>
+      typeof e === "object" && e !== null && "message" in e;
 
     // Check for specific error codes
     if (
-      error.code === "invalid_grant" ||
-      error?.response?.data?.error === "invalid_grant"
+      (hasCode(error) && error.code === "invalid_grant") ||
+      (hasResponse(error) && error.response?.data?.error === "invalid_grant")
     ) {
       return "Refresh token is invalid, expired, or revoked. User must re-authenticate.";
     }
 
-    if (error.code === 401 || error?.response?.status === 401) {
+    if (
+      (hasCode(error) && error.code === 401) ||
+      (hasResponse(error) && error.response?.status === 401)
+    ) {
       return "Unauthorized - access token expired or invalid. Refresh token should have been used.";
     }
 
-    if (error.message && error.message.includes("Refresh token missing")) {
+    if (hasMessage(error) && error.message.includes("Refresh token missing")) {
       return "Refresh token not found in database. User must re-authenticate.";
     }
 
-    if (error.message && error.message.includes("Token refresh failed")) {
+    if (hasMessage(error) && error.message.includes("Token refresh failed")) {
       return "Token refresh attempt failed. Refresh token may be invalid or expired.";
     }
 
     if (
-      error.code === "ECONNREFUSED" ||
-      error.message?.includes("ECONNREFUSED")
+      (hasCode(error) && error.code === "ECONNREFUSED") ||
+      (hasMessage(error) && error.message.includes("ECONNREFUSED"))
     ) {
       return "Network error - cannot connect to Google OAuth servers.";
     }
 
-    if (error.code === "ETIMEDOUT" || error.message?.includes("timeout")) {
+    if (
+      (hasCode(error) && error.code === "ETIMEDOUT") ||
+      (hasMessage(error) && error.message.includes("timeout"))
+    ) {
       return "Timeout connecting to Google OAuth servers.";
     }
 
-    return `Unknown error: ${error.message || JSON.stringify(error)}`;
+    const errorMessage = hasMessage(error)
+      ? error.message
+      : JSON.stringify(error);
+    return `Unknown error: ${errorMessage}`;
   }
 }
 

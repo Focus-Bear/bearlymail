@@ -1,5 +1,7 @@
-import { Injectable, Inject, forwardRef } from "@nestjs/common";
-import { google } from "googleapis";
+/* eslint-disable max-lines */
+import { Injectable, Inject, forwardRef, Logger } from "@nestjs/common";
+import { google, gmail_v1 } from "googleapis";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { MoreThan } from "typeorm";
 import { UsersService } from "../../users/users.service";
 import { EmailsService } from "../emails.service";
@@ -9,21 +11,31 @@ import {
   RawEmailMessage,
   EmailRecipient,
 } from "../interfaces/email-provider.interface";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Email } from "../../database/entities/email.entity";
 import PgBoss = require("pg-boss");
 import { getJobPriority } from "../../queue/job-priorities";
+import { QUERY_LIMITS } from "../../constants/query-limits";
+import { MINUTES, DAYS, MILLISECONDS } from "../../constants/time-constants";
+import { isApiError, isError } from "../../types/common";
+import { logErrorToFile } from "../../utils/error-logger";
 
 // BearlyMail custom labels
-const BEARLY_MAIL_ARCHIVED_LABEL = "bearly-mail-archived";
+// Note: Gmail doesn't allow adding custom labels via addLabelIds in threads.modify
+// We archive by removing INBOX label only
 
 @Injectable()
 export class GmailProvider implements EmailProvider {
+  // Track progress update counters per user to batch updates every 10 emails
+  private readonly progressUpdateCounters = new Map<string, number>();
   // Cache for Gmail label names per user (labelId -> labelName)
   private labelCache: Map<string, Map<string, string>> = new Map();
   private labelCacheExpiry: Map<string, number> = new Map();
-  private readonly LABEL_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+  // 30 minutes
+  private readonly LABEL_CACHE_TTL = MINUTES.THIRTY * MILLISECONDS.MINUTE;
   // Cache for BearlyMail label IDs per user
   private bearlyMailLabelCache: Map<string, string> = new Map();
+  private readonly logger = new Logger(GmailProvider.name);
 
   constructor(
     private usersService: UsersService,
@@ -44,7 +56,7 @@ export class GmailProvider implements EmailProvider {
       return cached;
     }
 
-    const user = await this.usersService.findOne(userId);
+    const user = await this.usersService.findOneWithTokens(userId);
     if (!user?.googleCalendarAccessToken) {
       return new Map();
     }
@@ -78,7 +90,7 @@ export class GmailProvider implements EmailProvider {
 
       return labelMap;
     } catch (error) {
-      console.error("Failed to fetch Gmail labels:", error);
+      this.logger.error("Failed to fetch Gmail labels:", error);
       return cached || new Map();
     }
   }
@@ -95,6 +107,7 @@ export class GmailProvider implements EmailProvider {
     const labelMap = await this.getGmailLabels(userId);
 
     // System labels to skip (internal Gmail labels)
+    // These are Gmail system labels that should not be shown to users
     const skipLabels = new Set([
       "INBOX",
       "SENT",
@@ -109,25 +122,182 @@ export class GmailProvider implements EmailProvider {
       "CATEGORY_PROMOTIONS",
       "CATEGORY_UPDATES",
       "CATEGORY_FORUMS",
+      // Gmail color labels (system labels)
+      "GREEN_CIRCLE",
+      "BLUE_STAR",
+      "YELLOW_STAR",
+      "RED_BANG",
+      "YELLOW_BANG",
+      "PURPLE_QUESTION",
+      "ORANGE_GUILLEMET",
+      "BLUE_INFO",
+      "RED_MINUS",
+      "YELLOW_MINUS",
+      "GREEN_CHECK",
+      "BLUE_CHECK",
+      "RED_CHECK",
+      "ORANGE_CHECK",
     ]);
 
-    return labelIds
-      .filter((id) => !skipLabels.has(id))
-      .map((id) => labelMap.get(id) || id) // Fall back to ID if name not found
-      .filter(
-        (name) => !name.startsWith("Label_") && !name.startsWith("label_"),
-      ); // Skip unmapped custom labels
+    // Convert IDs to names, then filter
+    const converted = labelIds
+      .map((id) => {
+        // First check if the ID itself is a system label
+        if (skipLabels.has(id)) {
+          return null;
+        }
+        // Convert ID to name
+        const name = labelMap.get(id) || id;
+        // Check if the converted name is a system label (in case it was already a name)
+        if (skipLabels.has(name)) {
+          return null;
+        }
+        // Filter out Label_* patterns
+        if (name.startsWith("Label_") || name.startsWith("label_")) {
+          return null;
+        }
+        return name;
+      })
+      .filter((name): name is string => name !== null);
+    
+    // Remove duplicates using Set
+    const uniqueConverted = Array.from(new Set(converted));
+
+    // Debug logging
+    this.logger.debug(
+      `[GmailProvider] Converting labelIds ${JSON.stringify(labelIds)} to names: ${JSON.stringify(uniqueConverted)}`,
+    );
+    this.logger.debug(
+      `[GmailProvider] Label mapping for userId ${userId}: ${Array.from(labelMap.entries())
+        .slice(0, 20)
+        .map(([id, name]) => `${id} -> ${name}`)
+        .join(", ")}${labelMap.size > 20 ? ` ... (${labelMap.size} total)` : ""}`,
+    );
+
+    return uniqueConverted;
+    // Skip unmapped custom labels
   }
 
   async isConnected(userId: string): Promise<boolean> {
-    const user = await this.usersService.findOne(userId);
+    const user = await this.usersService.findOneWithTokens(userId);
     return !!user?.googleCalendarAccessToken;
   }
 
+  /**
+   * Verify thread statuses in Gmail API in batches with concurrency limits
+   * Returns array of updates: { threadId, starCount, isArchived }[]
+   */
+  private async verifyThreadStatusesInGmail(
+    userId: string,
+    threadIds: string[],
+    gmail: gmail_v1.Gmail,
+  ): Promise<
+    Array<{ threadId: string; starCount: number; isArchived: boolean }>
+  > {
+    const updates: Array<{
+      threadId: string;
+      starCount: number;
+      isArchived: boolean;
+    }> = [];
+
+    // Process threads in batches with concurrency limit
+    const BATCH_SIZE = 50;
+    const CONCURRENCY_LIMIT = 10;
+
+    for (let i = 0; i < threadIds.length; i += BATCH_SIZE) {
+      const batch = threadIds.slice(i, i + BATCH_SIZE);
+      this.logger.debug(
+        `Processing batch ${Math.floor(i / BATCH_SIZE) + 1} of ${Math.ceil(threadIds.length / BATCH_SIZE)} (${batch.length} threads)`,
+      );
+
+      // Process batch with concurrency limit
+      const batchPromises: Promise<void>[] = [];
+      for (let j = 0; j < batch.length; j += CONCURRENCY_LIMIT) {
+        const concurrentBatch = batch.slice(j, j + CONCURRENCY_LIMIT);
+        const concurrentPromises = concurrentBatch.map(async (threadId) => {
+          if (!threadId) return;
+
+          try {
+            // Get thread from Gmail to check current status
+            const threadData = await gmail.users.threads.get({
+              userId: "me",
+              id: threadId,
+              format: "metadata",
+              metadataHeaders: ["Subject", "From"],
+            });
+
+            const thread = threadData.data;
+            if (!thread.messages || thread.messages.length === 0) {
+              // Thread deleted in Gmail - mark as archived
+              updates.push({
+                threadId,
+                starCount: 0,
+                isArchived: true,
+              });
+              return;
+            }
+
+            // Get the latest message to determine current status
+            const latestMessage = thread.messages[thread.messages.length - 1];
+            const latestLabelIds = latestMessage.labelIds || [];
+
+            const isArchived = !latestLabelIds.includes("INBOX");
+            const isStarred = latestLabelIds.includes("STARRED");
+            const starCount = isStarred ? 3 : 0;
+
+            updates.push({
+              threadId,
+              starCount,
+              isArchived,
+            });
+          } catch (threadError: unknown) {
+            // Thread not found (404) or other error - mark as archived
+            if (isApiError(threadError) && threadError.code === 404) {
+              this.logger.debug(
+                `Thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... not found in Gmail (may be deleted)`,
+              );
+              updates.push({
+                threadId,
+                starCount: 0,
+                isArchived: true,
+              });
+            } else {
+              const errorMsg = isError(threadError)
+                ? threadError.message
+                : isApiError(threadError)
+                  ? threadError.message
+                  : "Unknown error";
+              this.logger.warn(
+                `Error checking thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}...:`,
+                errorMsg,
+              );
+              logErrorToFile(
+                `Error checking thread in verifyThreadStatusesInGmail (userId: ${userId}, threadId: ${threadId})`,
+                threadError,
+                "GmailProvider",
+              );
+              // Don't add to updates if we can't verify status
+            }
+          }
+        });
+
+        batchPromises.push(...concurrentPromises);
+        // Wait for this concurrent batch to complete before starting next
+        await Promise.all(concurrentPromises);
+      }
+
+      // Wait for entire batch to complete
+      await Promise.all(batchPromises);
+    }
+
+    return updates;
+  }
+
+  // eslint-disable-next-line max-lines-per-function, complexity, max-statements
   async syncEmails(userId: string): Promise<void> {
-    const user = await this.usersService.findOne(userId);
+    const user = await this.usersService.findOneWithTokens(userId);
     if (!user?.googleCalendarAccessToken) {
-      console.log(
+      this.logger.log(
         `User ${userId} not connected to Gmail, skipping email sync.`,
       );
       return;
@@ -135,7 +305,9 @@ export class GmailProvider implements EmailProvider {
 
     // GRACE PERIOD: If user just logged in (within last 5 minutes), be lenient with errors
     // Check if tokens were just updated (user likely just logged in)
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const fiveMinutesAgo = new Date(
+      Date.now() - MINUTES.FIVE * MILLISECONDS.MINUTE,
+    );
     const now = new Date();
     // Ensure we're comparing UTC timestamps correctly
     const userUpdatedAt = user.updatedAt ? new Date(user.updatedAt) : null;
@@ -154,13 +326,15 @@ export class GmailProvider implements EmailProvider {
       `  - hasRefreshToken: ${!!user.googleCalendarRefreshToken}`,
       `  - hasAccessToken: ${!!user.googleCalendarAccessToken}`,
     ].join("\n");
-    console.log(debugInfo);
+    this.logger.debug(debugInfo);
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { writeDebugLog } = require("../../auth/auth-logger");
     writeDebugLog(debugInfo);
 
     // Check if refresh token exists - if not, user needs to re-authenticate
     if (!user.googleCalendarRefreshToken) {
       // Log auth failure
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { authLogger } = require("../../auth/auth-logger");
       authLogger.logAuthFailure(
         userId,
@@ -180,7 +354,7 @@ export class GmailProvider implements EmailProvider {
         await this.usersService.update(userId, { needsRelogin: true });
         throw new Error("Refresh token missing - please log in again");
       } else if (isRecentLogin) {
-        console.warn(
+        this.logger.warn(
           `⚠️ Refresh token missing for recently logged-in user ${userId}, but within grace period. Will retry later.`,
         );
         throw new Error(
@@ -203,7 +377,7 @@ export class GmailProvider implements EmailProvider {
 
     // Handle token refresh events
     oauth2Client.on("tokens", async (tokens) => {
-      console.log(`Tokens refreshed for user ${userId}`);
+      this.logger.debug(`Tokens refreshed for user ${userId}`);
       if (tokens.access_token) {
         await this.usersService.update(userId, {
           googleCalendarAccessToken: tokens.access_token,
@@ -217,27 +391,30 @@ export class GmailProvider implements EmailProvider {
     // Try to proactively refresh the token to catch refresh token issues early
     try {
       await oauth2Client.getAccessToken();
-      console.log(`Token validated for user ${userId}`);
-    } catch (refreshError: any) {
+      this.logger.debug(`Token validated for user ${userId}`);
+    } catch (refreshError: unknown) {
       // GRACE PERIOD: If user just logged in, don't flag for re-login immediately
       // Re-fetch user to check updatedAt timestamp
       let currentUser = user;
       try {
-        currentUser = await this.usersService.findOne(userId);
+        currentUser = await this.usersService.findOneWithTokens(userId);
       } catch (userError) {
         // If we can't fetch user, use the one we already have
-        console.error(
+        this.logger.error(
           `Could not re-fetch user ${userId} for grace period check:`,
           userError,
         );
       }
 
-      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      const fiveMinutesAgo = new Date(
+        Date.now() - MINUTES.FIVE * MILLISECONDS.MINUTE,
+      );
       const isRecentLogin =
         currentUser?.updatedAt &&
         new Date(currentUser.updatedAt) > fiveMinutesAgo;
 
       // Log comprehensive auth failure details
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { authLogger } = require("../../auth/auth-logger");
       authLogger.logAuthFailure(
         userId,
@@ -262,7 +439,7 @@ export class GmailProvider implements EmailProvider {
         throw new Error("Token refresh failed - please log in again");
       } else {
         // Recent login - log but don't fail yet (give it time to stabilize)
-        console.warn(
+        this.logger.warn(
           `⚠️ Token refresh failed for recently logged-in user ${userId}, but within grace period. Will retry later.`,
         );
         throw new Error(
@@ -274,20 +451,41 @@ export class GmailProvider implements EmailProvider {
     const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
     try {
+      // Get last sync time and calculate sync window with 20-minute overlap
+      const lastSyncAt = user.lastEmailSyncAt;
+      const twentyMinutesInMs = 20 * 60 * 1000;
+      const sevenDaysAgo = new Date(Date.now() - DAYS.WEEK * MILLISECONDS.DAY);
+      
+      // Calculate sync window: if we have lastSyncAt, subtract 20 minutes for overlap
+      // Otherwise, default to 7 days ago
+      const syncWindowStart = lastSyncAt
+        ? new Date(lastSyncAt.getTime() - twentyMinutesInMs)
+        : sevenDaysAgo;
+      
+      // Convert to Unix timestamp in seconds for Gmail API
+      const syncWindowTimestamp = Math.floor(syncWindowStart.getTime() / 1000);
+      
+      this.logger.log(
+        `[GmailProvider] Syncing emails for user ${userId}. Last sync: ${lastSyncAt?.toISOString() || "never"}, sync window starts: ${syncWindowStart.toISOString()}`,
+      );
+
       // Use thread-level queries like GmailApp.search() - more reliable than message-level queries
-      // Fetch threads (not messages) from inbox and starred threads
+      // Fetch threads (not messages) from inbox and starred threads, only those updated since last sync
+      const baseQuery = "-label:SnoozedFocusBear -label:VA-to-action";
+      const afterQuery = `after:${syncWindowTimestamp}`;
+      
       const [inboxThreadsResponse, starredThreadsResponse] = await Promise.all([
-        // Fetch unread threads from inbox (matches your Apps Script query pattern)
+        // Fetch unread threads from inbox updated since last sync
         gmail.users.threads.list({
           userId: "me",
           maxResults: 500,
-          q: "is:unread in:inbox -label:SnoozedFocusBear -label:VA-to-action",
+          q: `is:unread in:inbox ${baseQuery} ${afterQuery}`,
         }),
-        // Fetch ALL starred threads (matches your Apps Script query)
+        // Fetch ALL starred threads updated since last sync
         gmail.users.threads.list({
           userId: "me",
           maxResults: 500,
-          q: "is:starred -label:SnoozedFocusBear -label:VA-to-action",
+          q: `is:starred ${baseQuery} ${afterQuery}`,
         }),
       ]);
 
@@ -300,9 +498,50 @@ export class GmailProvider implements EmailProvider {
         ...starredThreads.map((t) => t.id!),
       ]);
 
-      console.log(
-        `Found ${inboxThreads.length} inbox threads and ${starredThreads.length} starred threads (${allThreadIds.size} unique) for user ${userId}`,
+      this.logger.debug(
+        `Found ${inboxThreads.length} inbox threads and ${starredThreads.length} starred threads (${allThreadIds.size} unique) updated since ${syncWindowStart.toISOString()}`,
       );
+
+      // Check which threads actually need processing by comparing with DB
+      // Get existing threads from DB to check their updatedAt
+      const existingThreads = await this.emailsService.getThreadsByThreadIds(
+        userId,
+        Array.from(allThreadIds),
+      );
+      const existingThreadMap = new Map(
+        existingThreads.map((t) => [t.threadId, t]),
+      );
+
+      // Filter to only threads that need processing
+      // A thread needs processing if:
+      // 1. It doesn't exist in DB, OR
+      // 2. It exists but was updated after our last sync (new messages, status changes)
+      const threadsToProcess: string[] = [];
+      for (const threadId of allThreadIds) {
+        const existingThread = existingThreadMap.get(threadId);
+        if (!existingThread) {
+          // New thread - needs processing
+          threadsToProcess.push(threadId);
+        } else if (lastSyncAt && existingThread.updatedAt > lastSyncAt) {
+          // Thread was updated in DB after last sync - might have new messages
+          threadsToProcess.push(threadId);
+        } else if (!lastSyncAt) {
+          // First sync - process all threads
+          threadsToProcess.push(threadId);
+        }
+        // Otherwise, thread exists and hasn't been updated - skip it
+      }
+
+      this.logger.debug(
+        `Filtered to ${threadsToProcess.length} threads that need processing (out of ${allThreadIds.size} total)`,
+      );
+
+      // Process threads in batches of 5 for better performance
+      const BATCH_SIZE = 5;
+      const threadBatches: string[][] = [];
+      for (let i = 0; i < threadsToProcess.length; i += BATCH_SIZE) {
+        threadBatches.push(threadsToProcess.slice(i, i + BATCH_SIZE));
+      }
 
       // Process each thread to get messages and determine archived/starred status
       // Collect thread updates for bulk processing
@@ -313,86 +552,119 @@ export class GmailProvider implements EmailProvider {
         isArchived: boolean;
       }[] = [];
 
-      for (const threadId of allThreadIds) {
-        if (!threadId) continue;
+      // Process batches sequentially, but threads within batch in parallel
+      for (const batch of threadBatches) {
+        await Promise.all(
+          batch
+            .filter((threadId) => threadId) // Filter out null/undefined
+            .map(async (threadId) => {
 
-        try {
-          // Get the thread with all messages to check archived/starred status accurately
-          const threadData = await gmail.users.threads.get({
-            userId: "me",
-            id: threadId,
-            format: "full",
-          });
+            try {
+              // Get the thread with all messages to check archived/starred status accurately
+              const threadData = await gmail.users.threads.get({
+                userId: "me",
+                id: threadId,
+                format: "full",
+              });
 
-          const thread = threadData.data;
-          if (!thread.messages || thread.messages.length === 0) continue;
+              const thread = threadData.data;
+              if (!thread.messages || thread.messages.length === 0) return;
 
-          // Get the latest message (first in array) to determine current status
-          const latestMessage = thread.messages[thread.messages.length - 1];
-          const latestLabelIds = latestMessage.labelIds || [];
+              // Get the latest message (first in array) to determine current status
+              const latestMessage = thread.messages[thread.messages.length - 1];
+              const latestLabelIds = latestMessage.labelIds || [];
 
-          // A thread is archived if ALL messages lack the INBOX label
-          // More accurately: if the latest message doesn't have INBOX, the thread is archived
-          const isArchived = !latestLabelIds.includes("INBOX");
-          const isStarred = latestLabelIds.includes("STARRED");
-          const starCount = isStarred ? 3 : 0;
+              // A thread is archived if ALL messages lack the INBOX label
+              // More accurately: if the latest message doesn't have INBOX, the thread is archived
+              const isArchived = !latestLabelIds.includes("INBOX");
+              const isStarred = latestLabelIds.includes("STARRED");
+              const starCount = isStarred ? 3 : 0;
 
-          // Collect thread updates (only once per thread, not per message)
-          threadStarCountUpdates.push({ threadId, starCount });
-          threadArchivedUpdates.push({ threadId, isArchived });
+              // Collect thread updates (only once per thread, not per message)
+              threadStarCountUpdates.push({ threadId, starCount });
+              threadArchivedUpdates.push({ threadId, isArchived });
 
-          // Process all messages in the thread
-          for (const message of thread.messages) {
-            if (!message.id) continue;
+              // Process all messages in the thread
+              for (const message of thread.messages) {
+                if (!message.id) continue;
 
-            const rawEmail = this.parseGmailMessage(message);
-            if (!rawEmail) continue;
+                // Verify we're using this specific message's labelIds, not thread-level
+                const messageLabelIds = message.labelIds || [];
+                this.logger.debug(
+                  `[GmailProvider] Processing message ${message.id} in thread ${threadId} with labelIds: ${JSON.stringify(messageLabelIds)}`,
+                );
 
-            const existing = await this.emailsService.getEmailByMessageId(
-              userId,
-              message.id,
-            );
+                const rawEmail = this.parseGmailMessage(message);
+                if (!rawEmail) continue;
 
-            if (existing) {
-              // Sync read status from Gmail (use labelIds from this specific message)
-              const messageLabelIds = message.labelIds || [];
-              const isReadInGmail = !messageLabelIds.includes("UNREAD");
-              if (existing.isRead !== isReadInGmail) {
-                await this.emailsService.updateEmail(existing.id, {
-                  isRead: isReadInGmail,
-                });
+                // Verify parseGmailMessage extracted the correct labelIds
+                if (JSON.stringify(rawEmail.labelIds) !== JSON.stringify(messageLabelIds)) {
+                  this.logger.warn(
+                    `[GmailProvider] Mismatch: message.labelIds=${JSON.stringify(messageLabelIds)} vs rawEmail.labelIds=${JSON.stringify(rawEmail.labelIds)}`,
+                  );
+                }
+
+                const existing = await this.emailsService.getEmailByMessageId(
+                  userId,
+                  message.id,
+                );
+
+                if (existing) {
+                  // Sync read status from Gmail (use labelIds from this specific message)
+                  const isReadInGmail = !messageLabelIds.includes("UNREAD");
+                  if (existing.isRead !== isReadInGmail) {
+                    await this.emailsService.updateEmail(existing.id, {
+                      isRead: isReadInGmail,
+                    });
+                  }
+                  continue;
+                }
+
+                // Create new email - use thread-level archived/starred status
+                const labelIds = rawEmail.labelIds || [];
+                this.logger.debug(
+                  `[GmailProvider] Saving email ${rawEmail.messageId} (message ${message.id}) with raw labelIds from Gmail: ${JSON.stringify(labelIds)}`,
+                );
+                await this.emailsService.createEmail(userId, {
+                  messageId: rawEmail.messageId,
+                  threadId: rawEmail.threadId,
+                  subject: rawEmail.subject,
+                  from: rawEmail.from,
+                  fromName: rawEmail.fromName,
+                  body: rawEmail.body,
+                  htmlBody: rawEmail.htmlBody,
+                  // Use thread-level star count
+                  starCount,
+                  receivedAt: rawEmail.receivedAt,
+                  labels: labelIds,
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                } as any);
               }
-              continue;
+            } catch (threadError: unknown) {
+              // Skip threads that fail (deleted, permissions, etc.)
+              if (isApiError(threadError) && threadError.code === 404) {
+                this.logger.debug(
+                  `Thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... not found (may be deleted)`,
+                );
+              } else {
+                const errorMsg = isError(threadError)
+                  ? threadError.message
+                  : isApiError(threadError)
+                    ? threadError.message
+                    : "Unknown error";
+                this.logger.warn(
+                  `Error processing thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}...:`,
+                  errorMsg,
+                );
+                logErrorToFile(
+                  `Error processing thread in syncEmails (userId: ${userId}, threadId: ${threadId})`,
+                  threadError,
+                  "GmailProvider",
+                );
+              }
             }
-
-            // Create new email - use thread-level archived/starred status
-            await this.emailsService.createEmail(userId, {
-              messageId: rawEmail.messageId,
-              threadId: rawEmail.threadId,
-              subject: rawEmail.subject,
-              from: rawEmail.from,
-              fromName: rawEmail.fromName,
-              body: rawEmail.body,
-              htmlBody: rawEmail.htmlBody,
-              starCount: starCount, // Use thread-level star count
-              receivedAt: rawEmail.receivedAt,
-              labels: rawEmail.labelIds || [],
-            } as any);
-          }
-        } catch (threadError: any) {
-          // Skip threads that fail (deleted, permissions, etc.)
-          if (threadError.code === 404) {
-            console.log(
-              `Thread ${threadId.substring(0, 8)}... not found (may be deleted)`,
-            );
-          } else {
-            console.warn(
-              `Error processing thread ${threadId.substring(0, 8)}...:`,
-              threadError.message,
-            );
-          }
-          continue;
-        }
+          }),
+        );
       }
 
       // Batch update all thread star counts and archived statuses
@@ -411,9 +683,10 @@ export class GmailProvider implements EmailProvider {
 
       // Also check existing threads in action/follow-up tabs (starred threads) against Gmail
       // This ensures we catch threads that were archived or unstarred in Gmail
-      const existingStarredThreads = await this.emailsService.getExistingStarredThreads(userId);
+      const existingStarredThreads =
+        await this.emailsService.getExistingStarredThreads(userId);
 
-      console.log(
+      this.logger.debug(
         `Checking ${existingStarredThreads.length} existing starred threads against Gmail`,
       );
 
@@ -458,22 +731,18 @@ export class GmailProvider implements EmailProvider {
           const isStarred = latestLabelIds.includes("STARRED");
           const starCount = isStarred ? 3 : 0;
 
-          // Only update if status changed
-          if (
-            isArchived !== dbThread.isArchived ||
-            starCount !== dbThread.starCount
-          ) {
-            existingThreadUpdates.push({
-              threadId: dbThread.threadId,
-              starCount,
-              isArchived,
-            });
-          }
-        } catch (threadError: any) {
+          // Always update to refresh lastCheckedAt, even if status didn't change
+          // This ensures we track when threads were last verified against Gmail
+          existingThreadUpdates.push({
+            threadId: dbThread.threadId,
+            starCount,
+            isArchived,
+          });
+        } catch (threadError: unknown) {
           // Thread not found (404) or other error - mark as archived
-          if (threadError.code === 404) {
-            console.log(
-              `Existing thread ${dbThread.threadId.substring(0, 8)}... not found in Gmail (may be deleted)`,
+          if (isApiError(threadError) && threadError.code === 404) {
+            this.logger.debug(
+              `Existing thread ${dbThread.threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... not found in Gmail (may be deleted)`,
             );
             existingThreadUpdates.push({
               threadId: dbThread.threadId,
@@ -481,9 +750,19 @@ export class GmailProvider implements EmailProvider {
               isArchived: true,
             });
           } else {
-            console.warn(
-              `Error checking existing thread ${dbThread.threadId.substring(0, 8)}...:`,
-              threadError.message,
+            const errorMsg = isError(threadError)
+              ? threadError.message
+              : isApiError(threadError)
+                ? threadError.message
+                : "Unknown error";
+            this.logger.warn(
+              `Error checking existing thread ${dbThread.threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}...:`,
+              errorMsg,
+            );
+            logErrorToFile(
+              `Error checking existing starred thread (userId: ${userId}, threadId: ${dbThread.threadId})`,
+              threadError,
+              "GmailProvider",
             );
           }
           continue;
@@ -492,16 +771,16 @@ export class GmailProvider implements EmailProvider {
 
       // Batch update existing threads that changed
       if (existingThreadUpdates.length > 0) {
-        console.log(
+        this.logger.debug(
           `Updating ${existingThreadUpdates.length} existing threads with changed status`,
         );
-        const existingStarUpdates = existingThreadUpdates.map((u) => ({
-          threadId: u.threadId,
-          starCount: u.starCount,
+        const existingStarUpdates = existingThreadUpdates.map((update) => ({
+          threadId: update.threadId,
+          starCount: update.starCount,
         }));
-        const existingArchivedUpdates = existingThreadUpdates.map((u) => ({
-          threadId: u.threadId,
-          isArchived: u.isArchived,
+        const existingArchivedUpdates = existingThreadUpdates.map((update) => ({
+          threadId: update.threadId,
+          isArchived: update.isArchived,
         }));
 
         if (existingStarUpdates.length > 0) {
@@ -517,37 +796,122 @@ export class GmailProvider implements EmailProvider {
           );
         }
       }
-    } catch (error: any) {
+
+      // Also check non-archived threads from DB that need verification
+      // This ensures we catch threads that were archived in Gmail but are still marked as non-archived in DB
+      // We check a limited number per user per run (50) and prioritize threads that haven't been checked recently
+      // This spreads the work across multiple sync cycles to handle 1000+ users efficiently
+      const threadsNeedingCheck =
+        await this.emailsService.getNonArchivedThreadsNeedingCheck(
+          userId,
+          50, // Limit to 50 threads per user per 5-minute sync cycle
+        );
+      const threadsToCheck = threadsNeedingCheck.filter(
+        (threadId) => !allThreadIds.has(threadId), // Skip already processed threads
+      );
+
+      if (threadsToCheck.length > 0) {
+        this.logger.debug(
+          `Checking ${threadsToCheck.length} non-archived threads against Gmail`,
+        );
+
+        const nonArchivedUpdates = await this.verifyThreadStatusesInGmail(
+          userId,
+          threadsToCheck,
+          gmail,
+        );
+
+        // Batch update non-archived threads that changed
+        // Also update lastCheckedAt for all checked threads (even if unchanged) to avoid re-checking
+        if (nonArchivedUpdates.length > 0) {
+          this.logger.debug(
+            `Updating ${nonArchivedUpdates.length} non-archived threads with changed status`,
+          );
+          const nonArchivedStarUpdates = nonArchivedUpdates.map((update) => ({
+            threadId: update.threadId,
+            starCount: update.starCount,
+          }));
+          const nonArchivedArchivedUpdates = nonArchivedUpdates.map(
+            (update) => ({
+              threadId: update.threadId,
+              isArchived: update.isArchived,
+            }),
+          );
+
+          // Update star counts (this also updates lastCheckedAt for changed threads)
+          if (nonArchivedStarUpdates.length > 0) {
+            await this.emailsService.batchUpdateThreadStarCount(
+              userId,
+              nonArchivedStarUpdates,
+            );
+          }
+          // Update archived statuses (this also updates lastCheckedAt for changed threads)
+          if (nonArchivedArchivedUpdates.length > 0) {
+            await this.emailsService.batchUpdateThreadArchivedStatuses(
+              userId,
+              nonArchivedArchivedUpdates,
+            );
+          }
+
+          // Update lastCheckedAt for all checked threads (even if unchanged)
+          // This ensures we don't re-check the same threads in the next sync cycle
+          const allCheckedThreadIds = nonArchivedUpdates.map(
+            (update) => update.threadId,
+          );
+          await this.emailsService.updateThreadsLastCheckedAt(
+            userId,
+            allCheckedThreadIds,
+          );
+        }
+      }
+
+      // Update lastEmailSyncAt after successful sync
+      await this.usersService.update(userId, {
+        lastEmailSyncAt: new Date(),
+      });
+      this.logger.debug(`Updated lastEmailSyncAt for user ${userId}`);
+    } catch (error: unknown) {
       // Check for authentication errors - these indicate the refresh token is invalid/expired
+      const apiError = isApiError(error) ? error : null;
+      const errorMsg = isError(error) ? error.message : apiError?.message || "";
       const isAuthError =
-        error.code === 401 ||
-        (error.response && error.response.status === 401) ||
-        error.code === "invalid_grant" ||
-        error.response?.data?.error === "invalid_grant" ||
-        (error.message &&
-          (error.message.includes("invalid_grant") ||
-            error.message.includes("Refresh token missing") ||
-            error.message.includes("Token refresh failed")));
+        apiError?.code === 401 ||
+        (apiError?.response && (apiError.response as any).status === 401) ||
+        apiError?.code === "invalid_grant" ||
+        (apiError?.response?.data as any)?.error === "invalid_grant" ||
+        (errorMsg &&
+          (errorMsg.includes("invalid_grant") ||
+            errorMsg.includes("Refresh token missing") ||
+            errorMsg.includes("Token refresh failed")));
+
+      logErrorToFile(
+        `Error in syncEmails (userId: ${userId})`,
+        error,
+        "GmailProvider",
+      );
 
       if (isAuthError) {
         // Log comprehensive auth failure details
         // Re-fetch user to check grace period
         let currentUser = user;
         try {
-          currentUser = await this.usersService.findOne(userId);
+          currentUser = await this.usersService.findOneWithTokens(userId);
         } catch (userError) {
-          console.error(
+          this.logger.error(
             `Could not re-fetch user ${userId} for auth logging:`,
             userError,
           );
         }
 
         // GRACE PERIOD: Don't flag for re-login if user just logged in (within 5 minutes)
-        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+        const fiveMinutesAgo = new Date(
+          Date.now() - MINUTES.FIVE * MILLISECONDS.MINUTE,
+        );
         const isRecentLogin =
           currentUser?.updatedAt &&
           new Date(currentUser.updatedAt) > fiveMinutesAgo;
 
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
         const { authLogger } = require("../../auth/auth-logger");
         authLogger.logAuthFailure(
           userId,
@@ -568,7 +932,7 @@ export class GmailProvider implements EmailProvider {
         if (!isRecentLogin) {
           await this.usersService.update(userId, { needsRelogin: true });
         } else {
-          console.warn(
+          this.logger.warn(
             `⚠️ Auth error for recently logged-in user ${userId} (${currentUser?.email}), but within grace period. Will retry later.`,
           );
         }
@@ -576,9 +940,13 @@ export class GmailProvider implements EmailProvider {
       }
 
       // Log other errors too (but not as auth failures)
-      console.error(
+      this.logger.error(
         `❌ Error syncing emails for user ${userId}:`,
-        error?.message || error,
+        isError(error)
+          ? error.message
+          : isApiError(error)
+            ? error.message
+            : String(error),
       );
       throw error;
     }
@@ -593,7 +961,7 @@ export class GmailProvider implements EmailProvider {
    */
   private async syncThreadArchivedStatus(
     userId: string,
-    gmail: any,
+    gmail: gmail_v1.Gmail,
   ): Promise<void> {
     try {
       const startTime = Date.now();
@@ -616,13 +984,17 @@ export class GmailProvider implements EmailProvider {
       ]);
 
       const inboxThreadIds = new Set(
-        (inboxResponse.data.threads || []).map((t: any) => t.id),
+        (inboxResponse.data.threads || [])
+          .map((t: { id?: string | null }) => t.id)
+          .filter((id): id is string => !!id),
       );
       const starredThreadIds = new Set(
-        (starredResponse.data.threads || []).map((t: any) => t.id),
+        (starredResponse.data.threads || [])
+          .map((t: { id?: string | null }) => t.id)
+          .filter((id): id is string => !!id),
       );
 
-      console.log(
+      this.logger.log(
         `📦 Gmail sync: ${inboxThreadIds.size} threads in inbox, ${starredThreadIds.size} starred threads`,
       );
 
@@ -664,30 +1036,40 @@ export class GmailProvider implements EmailProvider {
       if (updates.length > 0) {
         await this.emailsService.batchUpdateThreadStatus(userId, updates, []);
 
-        const archivedCount = updates.filter((u) => u.isArchived).length;
-        const unarchivedCount = updates.filter((u) => !u.isArchived).length;
-        const starredCount = updates.filter((u) => u.starCount > 0).length;
+        const archivedCount = updates.filter(
+          (update) => update.isArchived,
+        ).length;
+        const unarchivedCount = updates.filter(
+          (update) => !update.isArchived,
+        ).length;
+        const starredCount = updates.filter(
+          (update) => update.starCount > 0,
+        ).length;
         const duration = Date.now() - startTime;
 
-        console.log(
+        this.logger.log(
           `📦 Thread sync complete in ${duration}ms: ${updates.length} changes (${archivedCount} archived, ${unarchivedCount} unarchived, ${starredCount} starred)`,
         );
       } else {
-        console.log(
+        this.logger.debug(
           `📦 Thread sync: no changes needed (${Date.now() - startTime}ms)`,
         );
       }
     } catch (error) {
-      console.error("❌ Error syncing thread archived/starred status:", error);
+      this.logger.error(
+        "❌ Error syncing thread archived/starred status:",
+        error,
+      );
       // Don't throw - this is a background sync, don't fail the main sync
     }
   }
 
+  // eslint-disable-next-line max-lines-per-function, max-statements
   async scanHistory(userId: string): Promise<void> {
-    console.log(`Starting historical email scan for user ${userId}`);
-    const user = await this.usersService.findOne(userId);
+    this.logger.log(`Starting historical email scan for user ${userId}`);
+    const user = await this.usersService.findOneWithTokens(userId);
     if (!user?.googleCalendarAccessToken) {
-      console.log(
+      this.logger.log(
         `User ${userId} not connected to Gmail, skipping historical scan.`,
       );
       return;
@@ -695,6 +1077,7 @@ export class GmailProvider implements EmailProvider {
 
     // Check if refresh token exists
     if (!user.googleCalendarRefreshToken) {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { authLogger } = require("../../auth/auth-logger");
       authLogger.logAuthFailure(
         userId,
@@ -722,8 +1105,11 @@ export class GmailProvider implements EmailProvider {
     // Proactively refresh token
     try {
       await oauth2Client.getAccessToken();
-      console.log(`Token validated for user ${userId} for historical scan.`);
-    } catch (refreshError: any) {
+      this.logger.debug(
+        `Token validated for user ${userId} for historical scan.`,
+      );
+    } catch (refreshError: unknown) {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { authLogger } = require("../../auth/auth-logger");
       authLogger.logAuthFailure(
         userId,
@@ -745,7 +1131,7 @@ export class GmailProvider implements EmailProvider {
 
     try {
       const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - DAYS.WEEK);
 
       const query = `after:${Math.floor(sevenDaysAgo.getTime() / 1000)} (label:INBOX OR label:SENT)`;
 
@@ -756,7 +1142,7 @@ export class GmailProvider implements EmailProvider {
       });
 
       const messages = response.data.messages || [];
-      console.log(
+      this.logger.log(
         `Found ${messages.length} historical messages for user ${userId}. Queuing individual jobs for parallel processing.`,
       );
 
@@ -765,11 +1151,14 @@ export class GmailProvider implements EmailProvider {
         scanProgress: 0,
       });
 
+      // Reset progress counter when starting a new scan
+      this.progressUpdateCounters.delete(userId);
+
       // Queue individual jobs for each message - send in parallel batches for faster queuing
       const messageIds = messages.filter((msg) => msg.id).map((msg) => msg.id!);
 
       // Send jobs in batches of 50 to avoid overwhelming the queue system
-      const BATCH_SIZE = 50;
+      const BATCH_SIZE = QUERY_LIMITS.MAX_SENT_EMAILS_FOR_STYLE;
       for (let i = 0; i < messageIds.length; i += BATCH_SIZE) {
         const batch = messageIds.slice(i, i + BATCH_SIZE);
         await Promise.all(
@@ -785,32 +1174,41 @@ export class GmailProvider implements EmailProvider {
         );
       }
 
-      console.log(
+      this.logger.log(
         `Queued ${messageIds.length} email scan jobs for parallel processing (out of ${messages.length} messages)`,
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Check for authentication errors
+      const apiError = isApiError(error) ? error : null;
+      const errorMsg = isError(error) ? error.message : apiError?.message || "";
       const isAuthError =
-        error.code === 401 ||
-        (error.response && error.response.status === 401) ||
-        error.code === "invalid_grant" ||
-        error.response?.data?.error === "invalid_grant" ||
-        (error.message && error.message.includes("invalid_grant"));
+        apiError?.code === 401 ||
+        (apiError?.response && (apiError.response as any).status === 401) ||
+        apiError?.code === "invalid_grant" ||
+        (apiError?.response?.data as any)?.error === "invalid_grant" ||
+        (errorMsg && errorMsg.includes("invalid_grant"));
+
+      logErrorToFile(
+        `Error in scanHistory (userId: ${userId})`,
+        error,
+        "GmailProvider",
+      );
 
       if (isAuthError) {
         // Try to get user, but don't fail if we can't
         let userForLogging = null;
         let userEmail = null;
         try {
-          userForLogging = await this.usersService.findOne(userId);
+          userForLogging = await this.usersService.findOneWithTokens(userId);
           userEmail = userForLogging?.email || null;
         } catch (userError) {
-          console.error(
+          this.logger.error(
             `Could not fetch user ${userId} for auth logging:`,
             userError,
           );
         }
 
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
         const { authLogger } = require("../../auth/auth-logger");
         authLogger.logAuthFailure(
           userId,
@@ -831,14 +1229,17 @@ export class GmailProvider implements EmailProvider {
     }
   }
 
+  // eslint-disable-next-line max-lines-per-function, max-statements
   async processScanEmail(userId: string, messageId: string): Promise<void> {
     const startTime = Date.now();
-    console.log(
+    this.logger.debug(
       `[processScanEmail] Starting to process email ${messageId} for user ${userId}`,
     );
-    const user = await this.usersService.findOne(userId);
+    const user = await this.usersService.findOneWithTokens(userId);
     if (!user?.googleCalendarAccessToken) {
-      console.log(`[processScanEmail] User ${userId} not connected, skipping`);
+      this.logger.log(
+        `[processScanEmail] User ${userId} not connected, skipping`,
+      );
       return;
     }
 
@@ -848,20 +1249,31 @@ export class GmailProvider implements EmailProvider {
       messageId,
     );
     if (existing) {
-      // Update progress atomically even if already exists
-      const result = await this.usersService.incrementScanProgress(userId);
-      if (result.isComplete) {
-        // Trigger analysis job when scan completes
-        await this.boss.send(
-          "analyze-scan-results",
-          { userId },
-          {
-            priority: getJobPriority("analyze-scan-results", false),
-          },
+      // Track progress counter (batch updates every 10 emails)
+      const currentCount = (this.progressUpdateCounters.get(userId) || 0) + 1;
+      this.progressUpdateCounters.set(userId, currentCount);
+
+      // Update progress every 10 emails
+      if (currentCount % 10 === 0) {
+        const result = await this.usersService.incrementScanProgress(
+          userId,
+          10,
         );
+        this.progressUpdateCounters.set(userId, 0);
+        if (result.isComplete) {
+          // Trigger analysis job when scan completes
+          this.progressUpdateCounters.delete(userId);
+          await this.boss.send(
+            "analyze-scan-results",
+            { userId },
+            {
+              priority: getJobPriority("analyze-scan-results", false),
+            },
+          );
+        }
       }
       const duration = Date.now() - startTime;
-      console.log(
+      this.logger.debug(
         `[processScanEmail] Skipped existing email ${messageId} in ${duration}ms`,
       );
       return;
@@ -888,19 +1300,31 @@ export class GmailProvider implements EmailProvider {
 
       const rawEmail = this.parseGmailMessage(fullMsg.data);
       if (!rawEmail) {
-        // Update progress atomically even if parsing fails
-        const result = await this.usersService.incrementScanProgress(userId);
-        if (result.isComplete) {
-          await this.boss.send(
-            "analyze-scan-results",
-            { userId },
-            {
-              priority: getJobPriority("analyze-scan-results", false),
-            },
+        // Track progress counter (batch updates every 10 emails)
+        const currentCount = (this.progressUpdateCounters.get(userId) || 0) + 1;
+        this.progressUpdateCounters.set(userId, currentCount);
+
+        // Update progress every 10 emails
+        if (currentCount % 10 === 0) {
+          const result = await this.usersService.incrementScanProgress(
+            userId,
+            10,
           );
+          this.progressUpdateCounters.set(userId, 0);
+          if (result.isComplete) {
+            // Trigger analysis job when scan completes
+            this.progressUpdateCounters.delete(userId);
+            await this.boss.send(
+              "analyze-scan-results",
+              { userId },
+              {
+                priority: getJobPriority("analyze-scan-results", false),
+              },
+            );
+          }
         }
         const duration = Date.now() - startTime;
-        console.log(
+        this.logger.warn(
           `[processScanEmail] Failed to parse email ${messageId} in ${duration}ms`,
         );
         return;
@@ -919,52 +1343,84 @@ export class GmailProvider implements EmailProvider {
         starCount: rawEmail.starCount || 0,
         receivedAt: rawEmail.receivedAt,
         isRead: rawEmail.isRead || !labelIds.includes("UNREAD"),
-        isArchived: !labelIds.includes("INBOX"), // Check if archived
+        // Check if archived
+        isArchived: !labelIds.includes("INBOX"),
       });
 
-      // Update progress atomically after each email - this handles completion check internally
-      const result = await this.usersService.incrementScanProgress(userId);
-      if (result.isComplete) {
-        // Trigger analysis job when scan completes
-        console.log(
-          `[processScanEmail] Scan complete for user ${userId}, triggering analysis`,
+      // Track progress counter (batch updates every 10 emails)
+      const currentCount = (this.progressUpdateCounters.get(userId) || 0) + 1;
+      this.progressUpdateCounters.set(userId, currentCount);
+
+      // Update progress every 10 emails
+      if (currentCount % 10 === 0) {
+        const result = await this.usersService.incrementScanProgress(
+          userId,
+          10,
         );
-        await this.boss.send(
-          "analyze-scan-results",
-          { userId },
-          {
-            priority: getJobPriority("analyze-scan-results", false),
-          },
-        );
+        this.progressUpdateCounters.set(userId, 0);
+        if (result.isComplete) {
+          // Trigger analysis job when scan completes
+          this.progressUpdateCounters.delete(userId);
+          this.logger.log(
+            `[processScanEmail] Scan complete for user ${userId}, triggering analysis`,
+          );
+          await this.boss.send(
+            "analyze-scan-results",
+            { userId },
+            {
+              priority: getJobPriority("analyze-scan-results", false),
+            },
+          );
+        }
       }
       const duration = Date.now() - startTime;
-      console.log(
+      this.logger.log(
         `[processScanEmail] Completed email ${messageId} in ${duration}ms`,
       );
-    } catch (error: any) {
-      console.error(
+    } catch (error: unknown) {
+      this.logger.error(
         `Error processing message ${messageId} for user ${userId}:`,
         error,
       );
-      // Still update progress atomically on error
-      const result = await this.usersService.incrementScanProgress(userId);
-      if (result.isComplete) {
-        await this.boss.send(
-          "analyze-scan-results",
-          { userId },
-          {
-            priority: getJobPriority("analyze-scan-results", false),
-          },
+      logErrorToFile(
+        `Error processing message in scanHistory (userId: ${userId}, messageId: ${messageId})`,
+        error,
+        "GmailProvider",
+      );
+      // Track progress counter (batch updates every 10 emails)
+      const currentCount = (this.progressUpdateCounters.get(userId) || 0) + 1;
+      this.progressUpdateCounters.set(userId, currentCount);
+
+      // Update progress every 10 emails
+      if (currentCount % 10 === 0) {
+        const result = await this.usersService.incrementScanProgress(
+          userId,
+          10,
         );
+        this.progressUpdateCounters.set(userId, 0);
+        if (result.isComplete) {
+          // Trigger analysis job when scan completes
+          this.progressUpdateCounters.delete(userId);
+          await this.boss.send(
+            "analyze-scan-results",
+            { userId },
+            {
+              priority: getJobPriority("analyze-scan-results", false),
+            },
+          );
+        }
       }
+      const apiError = isApiError(error) ? error : null;
+      const errorMsg = isError(error) ? error.message : apiError?.message || "";
       if (
-        error.code === 401 ||
-        (error.response && error.response.status === 401) ||
-        (error.message && error.message.includes("invalid_grant"))
+        apiError?.code === 401 ||
+        (apiError?.response && (apiError.response as any).status === 401) ||
+        (errorMsg && errorMsg.includes("invalid_grant"))
       ) {
         await this.usersService.update(userId, { needsRelogin: true });
       }
     }
+    // eslint-disable-next-line max-lines
   }
 
   async sendReply(
@@ -974,7 +1430,7 @@ export class GmailProvider implements EmailProvider {
     subject: string,
     body: string,
   ): Promise<void> {
-    const user = await this.usersService.findOne(userId);
+    const user = await this.usersService.findOneWithTokens(userId);
     if (!user?.googleCalendarAccessToken) {
       throw new Error("Gmail account not connected. Cannot send email.");
     }
@@ -1011,16 +1467,21 @@ export class GmailProvider implements EmailProvider {
         userId: "me",
         requestBody: {
           raw: encodedEmail,
-          threadId: threadId,
+          threadId,
         },
       });
-      console.log(`Reply sent successfully for user ${userId} to ${to}`);
-    } catch (error: any) {
-      console.error(`Failed to send reply for user ${userId} to ${to}:`, error);
+      this.logger.log(`Reply sent successfully for user ${userId} to ${to}`);
+    } catch (error: unknown) {
+      this.logger.error(
+        `Failed to send reply for user ${userId} to ${to}:`,
+        error,
+      );
+      const apiError = isApiError(error) ? error : null;
+      const errorMsg = isError(error) ? error.message : apiError?.message || "";
       if (
-        error.code === 401 ||
-        (error.response && error.response.status === 401) ||
-        (error.message && error.message.includes("invalid_grant"))
+        apiError?.code === 401 ||
+        (apiError?.response && (apiError.response as any).status === 401) ||
+        (errorMsg && errorMsg.includes("invalid_grant"))
       ) {
         await this.usersService.update(userId, { needsRelogin: true });
       }
@@ -1036,7 +1497,7 @@ export class GmailProvider implements EmailProvider {
     cc?: EmailRecipient[],
     bcc?: EmailRecipient[],
   ): Promise<{ messageId: string; threadId: string }> {
-    const user = await this.usersService.findOne(userId);
+    const user = await this.usersService.findOneWithTokens(userId);
     if (!user?.googleCalendarAccessToken) {
       throw new Error("Gmail account not connected. Cannot send email.");
     }
@@ -1109,45 +1570,55 @@ export class GmailProvider implements EmailProvider {
       const messageId = response.data.id || "";
       const threadId = response.data.threadId || "";
 
-      console.log(
+      this.logger.log(
         `Email sent successfully for user ${userId} to ${toHeader}, messageId: ${messageId}`,
       );
 
       return { messageId, threadId };
-    } catch (error: any) {
-      console.error(
+    } catch (error: unknown) {
+      this.logger.error(
         `Failed to send email for user ${userId} to ${toHeader}:`,
         error,
       );
+      const apiError = isApiError(error) ? error : null;
+      const errorMsg = isError(error) ? error.message : apiError?.message || "";
       if (
-        error.code === 401 ||
-        (error.response && error.response.status === 401) ||
-        (error.message && error.message.includes("invalid_grant"))
+        apiError?.code === 401 ||
+        (apiError?.response && (apiError.response as any).status === 401) ||
+        (errorMsg && errorMsg.includes("invalid_grant"))
       ) {
         await this.usersService.update(userId, { needsRelogin: true });
       }
-      throw new Error(
-        `Failed to send email: ${error.message || "Unknown error"}`,
-      );
+      throw new Error(`Failed to send email: ${errorMsg || "Unknown error"}`);
     }
   }
 
-  private parseGmailMessage(messageData: any): RawEmailMessage | null {
+  private parseGmailMessage(
+    messageData: gmail_v1.Schema$Message,
+  ): RawEmailMessage | null {
     if (!messageData.id || !messageData.threadId) return null;
 
     const headers = messageData.payload?.headers || [];
     const subject =
-      headers.find((h: any) => h.name === "Subject")?.value || "(No Subject)";
-    const from = headers.find((h: any) => h.name === "From")?.value || "";
+      headers.find(
+        (h: { name?: string; value?: string }) => h.name === "Subject",
+      )?.value || "(No Subject)";
+    const from =
+      headers.find((h: { name?: string; value?: string }) => h.name === "From")
+        ?.value || "";
     const labelIds = messageData.labelIds || [];
-    // Convert Gmail STARRED label to starCount: STARRED = 3 stars (high importance)
+    // Convert Gmail STARRED label to starCount
+    // STARRED = 3 stars (high importance)
     const starCount = labelIds.includes("STARRED") ? 3 : 0;
 
     const fromMatch = from.match(/(.*)<(.+)>/);
     const fromName = fromMatch ? fromMatch[1].trim() : undefined;
     const fromEmail = fromMatch ? fromMatch[2].trim() : from;
 
-    const { body, htmlBody } = this.extractBodyFromPayload(messageData.payload);
+    const { body, htmlBody } = this.extractBodyFromPayload(
+      messageData.payload,
+      messageData.snippet,
+    );
 
     return {
       messageId: messageData.id,
@@ -1166,7 +1637,10 @@ export class GmailProvider implements EmailProvider {
     };
   }
 
-  private extractBodyFromPayload(payload: any): {
+  private extractBodyFromPayload(
+    payload: gmail_v1.Schema$MessagePart | undefined,
+    snippet?: string | null,
+  ): {
     body: string;
     htmlBody?: string;
   } {
@@ -1176,15 +1650,18 @@ export class GmailProvider implements EmailProvider {
     if (payload.parts) {
       for (const part of payload.parts) {
         if (part.mimeType === "text/plain" && part.body?.data) {
+          // Decode base64 to utf-8
           body = Buffer.from(part.body.data, "base64").toString("utf-8");
         }
         if (part.mimeType === "text/html" && part.body?.data) {
+          // Decode base64 to utf-8
           htmlBody = Buffer.from(part.body.data, "base64").toString("utf-8");
         }
         if (part.parts) {
-          const nested = this.extractBodyFromPayload(part);
-          if (!body) body = nested.body;
-          if (!htmlBody) htmlBody = nested.htmlBody;
+          const nested = this.extractBodyFromPayload(part, snippet);
+          const { body: nestedBody, htmlBody: nestedHtmlBody } = nested;
+          if (!body) body = nestedBody;
+          if (!htmlBody) htmlBody = nestedHtmlBody;
         }
       }
     } else if (payload.body?.data) {
@@ -1204,7 +1681,7 @@ export class GmailProvider implements EmailProvider {
         body = htmlBody.replace(/<[^>]*>/g, "").trim();
       }
       if (!body || body.trim() === "") {
-        body = payload.snippet || "(No content)";
+        body = snippet || "(No content)";
       }
     }
 
@@ -1214,11 +1691,11 @@ export class GmailProvider implements EmailProvider {
   async searchEmails(
     userId: string,
     query: string,
-    maxResults: number = 50,
+    maxResults: number = QUERY_LIMITS.MAX_SENT_EMAILS_FOR_STYLE,
   ): Promise<RawEmailMessage[]> {
-    const user = await this.usersService.findOne(userId);
+    const user = await this.usersService.findOneWithTokens(userId);
     if (!user?.googleCalendarAccessToken) {
-      console.log(
+      this.logger.log(
         `User ${userId} not connected to Gmail, cannot search emails.`,
       );
       return [];
@@ -1253,7 +1730,8 @@ export class GmailProvider implements EmailProvider {
       const response = await gmail.users.messages.list({
         userId: "me",
         q: query,
-        maxResults: Math.min(maxResults, 100), // Gmail API limit is 100
+        // Gmail API limit is 100
+        maxResults: Math.min(maxResults, 100),
       });
 
       const messages = response.data.messages || [];
@@ -1264,7 +1742,8 @@ export class GmailProvider implements EmailProvider {
       const rawEmails: RawEmailMessage[] = [];
 
       // Fetch full message details in parallel batches for better performance
-      const batchSize = 5; // Process 5 at a time to avoid rate limits
+      // Process 5 at a time to avoid rate limits
+      const batchSize = 5;
       for (let i = 0; i < messages.length; i += batchSize) {
         const batch = messages.slice(i, i + batchSize);
         const batchPromises = batch.map(async (msg) => {
@@ -1280,7 +1759,7 @@ export class GmailProvider implements EmailProvider {
             const rawEmail = this.parseGmailMessage(fullMsg.data);
             return rawEmail;
           } catch (error) {
-            console.error(
+            this.logger.error(
               `Error fetching message ${msg.id} during search:`,
               error,
             );
@@ -1302,12 +1781,14 @@ export class GmailProvider implements EmailProvider {
       }
 
       return rawEmails.slice(0, maxResults);
-    } catch (error: any) {
-      console.error(`Error searching emails for user ${userId}:`, error);
+    } catch (error: unknown) {
+      this.logger.error(`Error searching emails for user ${userId}:`, error);
+      const apiError = isApiError(error) ? error : null;
+      const errorMsg = isError(error) ? error.message : apiError?.message || "";
       if (
-        error.code === 401 ||
-        (error.response && error.response.status === 401) ||
-        (error.message && error.message.includes("invalid_grant"))
+        apiError?.code === 401 ||
+        (apiError?.response && (apiError.response as any).status === 401) ||
+        (errorMsg && errorMsg.includes("invalid_grant"))
       ) {
         await this.usersService.update(userId, { needsRelogin: true });
       }
@@ -1316,7 +1797,101 @@ export class GmailProvider implements EmailProvider {
   }
 
   async archiveThread(userId: string, threadId: string): Promise<void> {
-    const user = await this.usersService.findOne(userId);
+    this.logger.log(`[Gmail Archive] Starting archiveThread: userId=${userId}, threadId=${threadId}`);
+    const user = await this.usersService.findOneWithTokens(userId);
+    if (!user?.googleCalendarAccessToken) {
+      this.logger.error(`[Gmail Archive] User not connected to Gmail: userId=${userId}`);
+      throw new Error("User not connected to Gmail");
+    }
+
+    this.logger.log(`[Gmail Archive] User found, creating OAuth2 client: userId=${userId}`);
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI,
+    );
+
+    oauth2Client.setCredentials({
+      access_token: user.googleCalendarAccessToken,
+      refresh_token: user.googleCalendarRefreshToken,
+    });
+
+    const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+
+    try {
+      // Get the thread to check if it's starred and get all messages
+      this.logger.log(`[Gmail Archive] Fetching thread data: userId=${userId}, threadId=${threadId}`);
+      const threadData = await gmail.users.threads.get({
+        userId: "me",
+        id: threadId,
+        format: "full",
+      });
+
+      const thread = threadData.data;
+      const messages = thread.messages || [];
+      this.logger.log(`[Gmail Archive] Thread fetched: userId=${userId}, threadId=${threadId}, messageCount=${messages.length}`);
+
+      // If any message is starred, remove STARRED label from each message individually
+      // (Gmail requires removing stars from individual messages, not threads)
+      const hasStarred = messages.some((msg) => msg.labelIds?.includes("STARRED"));
+      this.logger.log(`[Gmail Archive] Thread has starred messages: userId=${userId}, threadId=${threadId}, hasStarred=${hasStarred}`);
+      
+      if (hasStarred) {
+        let removedStarCount = 0;
+        for (const message of messages) {
+          if (!message.id) continue;
+
+          // Only remove STARRED if this message has it
+          if (message.labelIds?.includes("STARRED")) {
+            this.logger.log(`[Gmail Archive] Removing STAR from message: userId=${userId}, threadId=${threadId}, messageId=${message.id}`);
+            await gmail.users.messages.modify({
+              userId: "me",
+              id: message.id,
+              requestBody: {
+                removeLabelIds: ["STARRED"],
+              },
+            });
+            removedStarCount++;
+          }
+        }
+        this.logger.log(`[Gmail Archive] Removed STAR from ${removedStarCount} messages: userId=${userId}, threadId=${threadId}`);
+      }
+
+      // Remove from inbox (this archives the thread in Gmail)
+      // Note: Gmail doesn't allow adding custom labels via addLabelIds in threads.modify
+      // Removing INBOX label is sufficient to archive the thread
+      this.logger.log(`[Gmail Archive] Archiving thread in Gmail (removing INBOX label): userId=${userId}, threadId=${threadId}`);
+      const archiveResult = await gmail.users.threads.modify({
+        userId: "me",
+        id: threadId,
+        requestBody: {
+          removeLabelIds: ["INBOX"],
+        },
+      });
+      this.logger.log(`[Gmail Archive] Thread archived successfully in Gmail: userId=${userId}, threadId=${threadId}, result=${JSON.stringify(archiveResult.data)}`);
+    } catch (error: unknown) {
+      this.logger.error(
+        `[Gmail Archive] Error archiving thread ${threadId} for user ${userId}:`,
+        error,
+      );
+      logErrorToFile(
+        `Failed to archive thread in Gmail (userId: ${userId}, threadId: ${threadId})`,
+        error,
+        "GmailProvider",
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Sync star status to Gmail by modifying the STARRED label on all messages in a thread
+   */
+  async syncStarStatusToGmail(
+    userId: string,
+    threadId: string,
+    starCount: number,
+  ): Promise<void> {
+    const user = await this.usersService.findOneWithTokens(userId);
     if (!user?.googleCalendarAccessToken) {
       throw new Error("User not connected to Gmail");
     }
@@ -1335,19 +1910,55 @@ export class GmailProvider implements EmailProvider {
     const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
     try {
-      // Remove from inbox and add archived label
-      await gmail.users.threads.modify({
+      // Get the thread with all messages
+      const threadData = await gmail.users.threads.get({
         userId: "me",
         id: threadId,
-        requestBody: {
-          removeLabelIds: ["INBOX"],
-          addLabelIds: ["bearly-mail-archived"],
-        },
+        format: "full",
       });
-    } catch (error: any) {
-      console.error(
-        `Error archiving thread ${threadId} for user ${userId}:`,
+
+      const thread = threadData.data;
+      const messages = thread.messages || [];
+
+      // Gmail requires modifying individual messages, not threads
+      // If starCount > 0, add STARRED label to all messages
+      // If starCount = 0, remove STARRED label from all messages
+      const shouldBeStarred = starCount > 0;
+
+      for (const message of messages) {
+        if (!message.id) continue;
+
+        const messageLabelIds = message.labelIds || [];
+        const isCurrentlyStarred = messageLabelIds.includes("STARRED");
+
+        // Only modify if the status needs to change
+        if (shouldBeStarred && !isCurrentlyStarred) {
+          await gmail.users.messages.modify({
+            userId: "me",
+            id: message.id,
+            requestBody: {
+              addLabelIds: ["STARRED"],
+            },
+          });
+        } else if (!shouldBeStarred && isCurrentlyStarred) {
+          await gmail.users.messages.modify({
+            userId: "me",
+            id: message.id,
+            requestBody: {
+              removeLabelIds: ["STARRED"],
+            },
+          });
+        }
+      }
+    } catch (error: unknown) {
+      this.logger.error(
+        `Error syncing star status for thread ${threadId} for user ${userId}:`,
         error,
+      );
+      logErrorToFile(
+        `Failed to sync star status to Gmail (userId: ${userId}, threadId: ${threadId}, starCount: ${starCount})`,
+        error,
+        "GmailProvider",
       );
       throw error;
     }
@@ -1361,7 +1972,7 @@ export class GmailProvider implements EmailProvider {
     messageId: string,
     isRead: boolean,
   ): Promise<void> {
-    const user = await this.usersService.findOne(userId);
+    const user = await this.usersService.findOneWithTokens(userId);
     if (!user?.googleCalendarAccessToken) {
       throw new Error("User not connected to Gmail");
     }
@@ -1402,18 +2013,35 @@ export class GmailProvider implements EmailProvider {
           removeLabelIds: isRead ? ["UNREAD"] : [],
         },
       });
-    } catch (error: any) {
-      console.error(
-        `Error syncing read status to Gmail for message ${messageId}:`,
-        error,
-      );
+    } catch (error: unknown) {
+      // Check if this is a permissions error (user needs to re-authenticate with new scopes)
+      const apiError = isApiError(error) ? error : null;
+      const errorMsg = isError(error) ? error.message : apiError?.message || "";
+      const isPermissionError =
+        apiError?.code === 403 ||
+        (apiError?.response && (apiError.response as any).status === 403) ||
+        errorMsg?.includes("Insufficient Permission") ||
+        errorMsg?.includes("insufficient permission");
+
+      if (isPermissionError) {
+        this.logger.warn(
+          `Permission denied syncing read status to Gmail for message ${messageId}. User may need to re-authenticate with gmail.modify scope.`,
+        );
+        // Optionally flag user for re-authentication, but don't block the operation
+        // The user will need to reconnect their Gmail account to get the new scope
+      } else {
+        this.logger.error(
+          `Error syncing read status to Gmail for message ${messageId}:`,
+          error,
+        );
+      }
       // Don't throw - log but allow operation to continue
       // This prevents Gmail sync failures from blocking the app
     }
   }
 
   async unarchiveThread(userId: string, threadId: string): Promise<void> {
-    const user = await this.usersService.findOne(userId);
+    const user = await this.usersService.findOneWithTokens(userId);
     if (!user?.googleCalendarAccessToken) {
       throw new Error("User not connected to Gmail");
     }
@@ -1432,19 +2060,83 @@ export class GmailProvider implements EmailProvider {
     const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
     try {
-      // Add to inbox and remove archived label
+      // Add back to inbox (unarchive the thread)
+      // Note: We don't need to remove any custom label since we never added one
+      this.logger.log(`[Gmail Unarchive] Unarchiving thread in Gmail (adding INBOX label): userId=${userId}, threadId=${threadId}`);
       await gmail.users.threads.modify({
         userId: "me",
         id: threadId,
         requestBody: {
           addLabelIds: ["INBOX"],
-          removeLabelIds: ["bearly-mail-archived"],
         },
       });
-    } catch (error: any) {
-      console.error(
+      this.logger.log(`[Gmail Unarchive] Thread unarchived successfully in Gmail: userId=${userId}, threadId=${threadId}`);
+    } catch (error: unknown) {
+      this.logger.error(
         `Error unarchiving thread ${threadId} for user ${userId}:`,
         error,
+      );
+      logErrorToFile(
+        `Failed to unarchive thread in Gmail (userId: ${userId}, threadId: ${threadId})`,
+        error,
+        "GmailProvider",
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Delete/trash a thread by moving it to Gmail's TRASH label
+   */
+  async trashThread(userId: string, threadId: string): Promise<void> {
+    const user = await this.usersService.findOneWithTokens(userId);
+    if (!user?.googleCalendarAccessToken) {
+      throw new Error("User not connected to Gmail");
+    }
+
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI,
+    );
+
+    oauth2Client.setCredentials({
+      access_token: user.googleCalendarAccessToken,
+      refresh_token: user.googleCalendarRefreshToken,
+    });
+
+    const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+
+    try {
+      // Get the thread to get all messages
+      const threadData = await gmail.users.threads.get({
+        userId: "me",
+        id: threadId,
+        format: "full",
+      });
+
+      const thread = threadData.data;
+      const messages = thread.messages || [];
+
+      // Move all messages in the thread to trash
+      // Gmail requires modifying individual messages, not threads
+      for (const message of messages) {
+        if (!message.id) continue;
+
+        await gmail.users.messages.trash({
+          userId: "me",
+          id: message.id,
+        });
+      }
+    } catch (error: unknown) {
+      this.logger.error(
+        `Error trashing thread ${threadId} for user ${userId}:`,
+        error,
+      );
+      logErrorToFile(
+        `Failed to trash thread in Gmail (userId: ${userId}, threadId: ${threadId})`,
+        error,
+        "GmailProvider",
       );
       throw error;
     }

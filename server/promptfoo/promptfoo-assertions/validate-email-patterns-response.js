@@ -72,16 +72,19 @@ module.exports = (output, context) => {
     }
   }
   
-  // Check if should contain a specific value
+  // Check if should contain a specific value (can be string or array of strings)
   const shouldContainValue = config.shouldContainValue;
   if (shouldContainValue) {
-    const found = parsed.context.some(item => 
-      item.value.toLowerCase().includes(shouldContainValue.toLowerCase()) ||
-      item.key.toLowerCase().includes(shouldContainValue.toLowerCase())
-    );
-    if (!found) {
-      const allValues = parsed.context.map(c => c.value).join(', ');
-      throw new Error(`Expected to find value containing "${shouldContainValue}", but didn't. Found values: ${allValues}`);
+    const requiredValues = Array.isArray(shouldContainValue) ? shouldContainValue : [shouldContainValue];
+    for (const requiredValue of requiredValues) {
+      const found = parsed.context.some(item => 
+        item.value.toLowerCase().includes(requiredValue.toLowerCase()) ||
+        item.key.toLowerCase().includes(requiredValue.toLowerCase())
+      );
+      if (!found) {
+        const allValues = parsed.context.map(c => c.value).join(', ');
+        throw new Error(`Expected to find value containing "${requiredValue}", but didn't. Found values: ${allValues}`);
+      }
     }
   }
   

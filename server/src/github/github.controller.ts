@@ -13,6 +13,7 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { GitHubService } from "./github.service";
 import { GitHubApiService } from "./github-api.service";
 import { UsersService } from "../users/users.service";
+import { isError } from "../types/common";
 import { EmailsService } from "../emails/emails.service";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { Email } from "../database/entities/email.entity";
@@ -35,8 +36,9 @@ export class GitHubController {
   ) {}
 
   @Get("emails/:id")
+  // eslint-disable-next-line max-statements
   async getEmailGitHubInfo(@Request() req, @Param("id") emailId: string) {
-    const userId = req.user.userId;
+    const { userId } = req.user;
 
     // Get email
     const email = await this.emailsService.getEmailById(userId, emailId);
@@ -66,7 +68,9 @@ export class GitHubController {
     });
 
     // Parse GitHub links from all emails in thread
-    const allLinks = new Map<string, any>(); // Use Map to deduplicate by URL
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const allLinks = new Map<string, any>();
+    // Use Map to deduplicate by URL
     for (const threadEmail of threadEmails) {
       const links = this.githubService.parseGitHubLinks(
         threadEmail.body || "",
@@ -83,21 +87,35 @@ export class GitHubController {
       return { links: [], hasToken: true };
     }
 
-    // Check if we already have metadata
+    // Check if we already have cached metadata that's less than 1 hour old
     if (thread.githubMetadata && thread.githubMetadata.links.length > 0) {
-      // Check if all links have been fetched recently (within 10 minutes)
       const now = new Date();
-      const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
+      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
 
-      const allFetched = thread.githubMetadata.links.every((link) => {
-        if (!link.status || !link.fetchedAt) return false;
-        const fetchedAt = new Date(link.fetchedAt);
-        return fetchedAt > tenMinutesAgo;
+      // Check if all links in the cache match current links and have been fetched recently
+      const cachedLinksMap = new Map(
+        thread.githubMetadata.links.map((link) => [link.url, link])
+      );
+      
+      // Check if all current links are in cache and fresh
+      const allLinksCachedAndFresh = uniqueLinks.every((link) => {
+        const cachedLink = cachedLinksMap.get(link.url);
+        if (!cachedLink || !cachedLink.status || !cachedLink.fetchedAt) {
+          return false;
+        }
+        const fetchedAt = new Date(cachedLink.fetchedAt);
+        return fetchedAt > oneHourAgo;
       });
 
-      if (allFetched) {
+      // If all links are cached and fresh, return cached data
+      if (allLinksCachedAndFresh) {
+        // Return cached links that match current links
+        const cachedLinksToReturn = uniqueLinks
+          .map((link) => cachedLinksMap.get(link.url))
+          .filter((link) => link !== undefined);
+        
         return {
-          links: thread.githubMetadata.links,
+          links: cachedLinksToReturn,
           hasToken: true,
         };
       }
@@ -138,15 +156,16 @@ export class GitHubController {
         links: metadataLinks,
         hasToken: true,
       };
-    } catch (error: any) {
-      this.logger.error(`Error fetching GitHub statuses: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = isError(error) ? error.message : "Unknown error";
+      this.logger.error(`Error fetching GitHub statuses: ${errorMessage}`);
       throw error;
     }
   }
 
   @Post("emails/:id/refresh")
   async refreshEmailGitHubInfo(@Request() req, @Param("id") emailId: string) {
-    const userId = req.user.userId;
+    const { userId } = req.user;
 
     // Get email
     const email = await this.emailsService.getEmailById(userId, emailId);
@@ -176,7 +195,9 @@ export class GitHubController {
     });
 
     // Parse GitHub links from all emails in thread
-    const allLinks = new Map<string, any>(); // Use Map to deduplicate by URL
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const allLinks = new Map<string, any>();
+    // Use Map to deduplicate by URL
     for (const threadEmail of threadEmails) {
       const links = this.githubService.parseGitHubLinks(
         threadEmail.body || "",
@@ -228,8 +249,9 @@ export class GitHubController {
         links: metadataLinks,
         message: "GitHub status refreshed successfully",
       };
-    } catch (error: any) {
-      this.logger.error(`Error refreshing GitHub statuses: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = isError(error) ? error.message : "Unknown error";
+      this.logger.error(`Error refreshing GitHub statuses: ${errorMessage}`);
       throw error;
     }
   }

@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { HTTP_UNAUTHORIZED } from 'constants/numbers';
+import { API_ENDPOINT_USERS_ME, HTTP_METHOD_GET } from 'constants/strings';
 
 let interceptorsSetup = false;
 
@@ -46,12 +48,12 @@ export const setupAxiosInterceptors = (logout: () => void) => {
       const originalRequest = error.config;
 
       // Handle 401 errors
-      if (error.response?.status === 401) {
+      if (error.response?.status === HTTP_UNAUTHORIZED) {
         // Skip interceptor handling for the initial auth check (/users/me)
         // Let the AuthContext handle it instead
         const requestUrl = originalRequest?.url || '';
-        const isInitialAuthCheck = (requestUrl.includes('/users/me') || requestUrl.endsWith('/users/me')) && 
-                                  originalRequest?.method?.toLowerCase() === 'get' &&
+        const isInitialAuthCheck = (requestUrl.includes(API_ENDPOINT_USERS_ME) || requestUrl.endsWith(API_ENDPOINT_USERS_ME)) && 
+                                  originalRequest?.method?.toLowerCase() === HTTP_METHOD_GET &&
                                   !originalRequest?._skipInterceptor; // Allow explicit skip flag
         
         if (isInitialAuthCheck) {

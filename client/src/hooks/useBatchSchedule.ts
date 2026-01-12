@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import axios from 'axios';
-import { API_URL } from '../config/api';
+import { API_URL } from 'config/api';
 
 const BATCH_STATUS_CACHE_KEY = 'batchStatusCache';
 const BATCH_STATUS_CACHE_TTL = 30000; // 30 seconds

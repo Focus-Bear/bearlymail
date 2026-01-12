@@ -9,14 +9,14 @@ import {
 } from "typeorm";
 import { User } from "./user.entity";
 import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
-import { SearchIndexHelper } from "../../contacts/search-index.helper";
 
 /**
  * Blocked senders - emails from these addresses are automatically archived
  * and labeled "blocked-by-bearlymail", and excluded from summaries.
  */
 @Entity("blocked_senders")
-@Index(["userId", "emailHash"], { unique: true }) // One block per email per user
+// One block per email per user
+@Index(["userId", "emailHash"], { unique: true })
 export class BlockedSender {
   @PrimaryGeneratedColumn("uuid")
   id: string;
@@ -34,7 +34,8 @@ export class BlockedSender {
 
   // Optional: block entire domain (e.g., @newsletter.example.com)
   @Column({ nullable: true })
-  domainHash: string; // Hash of domain for domain-level blocking
+  domainHash: string;
+  // Hash of domain for domain-level blocking
 
   // Why the user blocked this sender (optional)
   @Column({ nullable: true, transformer: encryptedColumnTransformer })

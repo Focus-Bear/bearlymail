@@ -1,4 +1,11 @@
-export { ConsentModalHeader } from './ConsentModalHeader';
-export { ConsentCheckbox } from './ConsentCheckbox';
-export { ConsentModalFooter } from './ConsentModalFooter';
+export { ConsentModalHeader } from 'components/consent/ConsentModalHeader';
+export { ConsentCheckbox } from 'components/consent/ConsentCheckbox';
+export { ConsentModalFooter } from 'components/consent/ConsentModalFooter';
+
+
+
+
+
+
+
 

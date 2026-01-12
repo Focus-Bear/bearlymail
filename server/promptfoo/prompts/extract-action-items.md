@@ -16,12 +16,15 @@ Rules:
 7. DO NOT extract actions that involve telling the sender something - those are not action items for the recipient
 
 Context:
-- From: {{from}} (this is the SENDER - ignore their actions)
+- From: {{fromName}} ({{from}}) - this is the SENDER (ignore their actions)
+- Subject: {{subject}}
 - You are extracting actions for the RECIPIENT (the person reading this email)
 
 Return ONLY a JSON object (no markdown, no code blocks) with a key "actionItems" which is an array of objects: { "description": string, "confidence": number (0-1) }
 
-Extract action items for the RECIPIENT from this email:
+Extract action items from this email:
+
+Subject: {{subject}}
 
 {{body}}
 

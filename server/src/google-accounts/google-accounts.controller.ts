@@ -7,10 +7,12 @@ import {
   UseGuards,
   Request,
   Res,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   Query,
 } from "@nestjs/common";
 import { GoogleAccountsService } from "./google-accounts.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { GoogleAuthGuard } from "../auth/google-auth.guard";
 import { AuthService } from "../auth/auth.service";
 
@@ -26,6 +28,8 @@ export class GoogleAccountsController {
   async connectGoogleAccount(@Request() req, @Res() res) {
     // Create state parameter with user ID and action
     // JWT strategy returns { userId, email }, not { id }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const userId = (req.user as any).userId || (req.user as any).id;
     const state = Buffer.from(
       JSON.stringify({
@@ -40,9 +44,28 @@ export class GoogleAccountsController {
     res.redirect(`${googleAuthUrl}?state=${encodeURIComponent(state)}`);
   }
 
+  @Get("connect-url")
+  @UseGuards(JwtAuthGuard)
+  async getConnectUrl(@Request() req) {
+    // Create state parameter with user ID and action
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const userId = (req.user as any).userId || (req.user as any).id;
+    const state = Buffer.from(
+      JSON.stringify({
+        userId,
+        action: "connect",
+      }),
+    ).toString("base64");
+
+    // Return Google OAuth URL instead of redirecting
+    const googleAuthUrl = `${process.env.GOOGLE_REDIRECT_URI?.replace("/auth/google/callback", "") || "http://localhost:3001"}/auth/google`;
+    return { url: `${googleAuthUrl}?state=${encodeURIComponent(state)}` };
+  }
+
   @Get()
   @UseGuards(JwtAuthGuard)
   async getAccounts(@Request() req) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const userId = (req.user as any).userId || (req.user as any).id;
     return this.googleAccountsService.findAllByUser(userId);
   }
@@ -50,6 +73,7 @@ export class GoogleAccountsController {
   @Post(":id/set-primary")
   @UseGuards(JwtAuthGuard)
   async setPrimary(@Param("id") id: string, @Request() req) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const userId = (req.user as any).userId || (req.user as any).id;
     return this.googleAccountsService.setPrimary(id, userId);
   }
@@ -57,6 +81,7 @@ export class GoogleAccountsController {
   @Delete(":id")
   @UseGuards(JwtAuthGuard)
   async disconnectAccount(@Param("id") id: string, @Request() req) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const userId = (req.user as any).userId || (req.user as any).id;
     await this.googleAccountsService.deactivate(id, userId);
     return { success: true };

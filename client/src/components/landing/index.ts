@@ -8,22 +8,22 @@
  * - Separation of Concerns: UI logic separated from business logic
  */
 
-export { CTAButton } from './CTAButton';
-export { LandingHeader } from './LandingHeader';
-export { HeroSection } from './HeroSection';
-export { IntroSection } from './IntroSection';
-export { FeatureCard } from './FeatureCard';
-export { HowItWorksSection } from './HowItWorksSection';
-export { ComparisonTable } from './ComparisonTable';
-export { ComparisonSection } from './ComparisonSection';
-export { ClosingStatement } from './ClosingStatement';
-export { WaitlistForm } from './WaitlistForm';
-export { WaitlistSuccess } from './WaitlistSuccess';
-export { WaitlistFormField } from './WaitlistFormField';
-export { WaitlistFormContainer } from './WaitlistFormContainer';
-export { WaitlistFormHeader } from './WaitlistFormHeader';
-export { ComparisonTableHeader } from './ComparisonTableHeader';
-export { ComparisonTableRow } from './ComparisonTableRow';
-export { ComparisonHighlightBox } from './ComparisonHighlightBox';
-export { FounderStory } from './FounderStory';
+export { CTAButton } from 'components/landing/CTAButton';
+export { LandingHeader } from 'components/landing/LandingHeader';
+export { HeroSection } from 'components/landing/HeroSection';
+export { IntroSection } from 'components/landing/IntroSection';
+export { FeatureCard } from 'components/landing/FeatureCard';
+export { HowItWorksSection } from 'components/landing/HowItWorksSection';
+export { ComparisonTable } from 'components/landing/ComparisonTable';
+export { ComparisonSection } from 'components/landing/ComparisonSection';
+export { ClosingStatement } from 'components/landing/ClosingStatement';
+export { WaitlistForm } from 'components/landing/WaitlistForm';
+export { WaitlistSuccess } from 'components/landing/WaitlistSuccess';
+export { WaitlistFormField } from 'components/landing/WaitlistFormField';
+export { WaitlistFormContainer } from 'components/landing/WaitlistFormContainer';
+export { WaitlistFormHeader } from 'components/landing/WaitlistFormHeader';
+export { ComparisonTableHeader } from 'components/landing/ComparisonTableHeader';
+export { ComparisonTableRow } from 'components/landing/ComparisonTableRow';
+export { ComparisonHighlightBox } from 'components/landing/ComparisonHighlightBox';
+export { FounderStory } from 'components/landing/FounderStory';
 

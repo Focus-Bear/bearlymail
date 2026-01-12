@@ -2,6 +2,8 @@ import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
+import { PRIORITY_SCORES } from "../constants/priority-constants";
+import { DAYS, MINUTES } from "../constants/time-constants";
 
 @Injectable()
 export class BatchScheduleService {
@@ -24,7 +26,7 @@ export class BatchScheduleService {
    */
   async upsertSchedule(
     userId: string,
-    data: {
+    scheduleData: {
       deliveryDays: number[];
       deliveryTimes: string[];
       timezone: string;
@@ -37,15 +39,15 @@ export class BatchScheduleService {
     });
 
     if (schedule) {
-      schedule.deliveryDays = data.deliveryDays;
-      schedule.deliveryTimes = data.deliveryTimes;
-      schedule.timezone = data.timezone;
-      schedule.isEnabled = data.isEnabled;
-      schedule.urgentBypassSchedule = data.urgentBypassSchedule;
+      schedule.deliveryDays = scheduleData.deliveryDays;
+      schedule.deliveryTimes = scheduleData.deliveryTimes;
+      schedule.timezone = scheduleData.timezone;
+      schedule.isEnabled = scheduleData.isEnabled;
+      schedule.urgentBypassSchedule = scheduleData.urgentBypassSchedule;
     } else {
       schedule = this.batchScheduleRepository.create({
         userId,
-        ...data,
+        ...scheduleData,
       });
     }
 
@@ -60,13 +62,18 @@ export class BatchScheduleService {
     urgencyScore: number = 0,
   ): Date | null {
     // If batching is disabled or urgency score >= 90 (super urgent) bypasses schedule
-    if (!schedule.isEnabled || urgencyScore >= 90) {
-      return null; // Release immediately
+    if (
+      !schedule.isEnabled ||
+      urgencyScore >= PRIORITY_SCORES.URGENT_THRESHOLD
+    ) {
+      // Release immediately
+      return null;
     }
 
     // If urgency score is high but < 90, check if urgentBypassSchedule is enabled
     if (urgencyScore > 0 && schedule.urgentBypassSchedule) {
-      return null; // Release immediately for any urgent email if bypass is enabled
+      // Release immediately for any urgent email if bypass is enabled
+      return null;
     }
 
     const now = new Date();
@@ -94,8 +101,8 @@ export class BatchScheduleService {
 
     // Find the next delivery day
     let daysToAdd = 1;
-    while (daysToAdd <= 7) {
-      const nextDay = (currentDay + daysToAdd) % 7;
+    while (daysToAdd <= DAYS.WEEK) {
+      const nextDay = (currentDay + daysToAdd) % DAYS.WEEK;
       if (schedule.deliveryDays.includes(nextDay)) {
         // Use the first delivery time of that day
         const nextDate = new Date(nowInUserTz);
@@ -119,6 +126,7 @@ export class BatchScheduleService {
   private createDateInTimezone(
     baseDate: Date,
     time: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     timezone: string,
   ): Date {
     const [hours, minutes] = time.split(":").map(Number);
@@ -160,7 +168,7 @@ export class BatchScheduleService {
       // Within 30 minutes after delivery time
       if (
         currentMinutes >= deliveryMinutes &&
-        currentMinutes < deliveryMinutes + 30
+        currentMinutes < deliveryMinutes + MINUTES.THIRTY
       ) {
         return true;
       }
@@ -174,8 +182,10 @@ export class BatchScheduleService {
    */
   getDefaultSchedule(): Partial<BatchSchedule> {
     return {
-      deliveryDays: [1, 2, 3, 4, 5], // Monday to Friday
-      deliveryTimes: ["11:00", "15:00"], // 11am and 3pm
+      // Monday to Friday
+      deliveryDays: [1, 2, 3, 4, 5],
+      // 11am and 3pm
+      deliveryTimes: ["11:00", "15:00"],
       timezone: "UTC",
       isEnabled: true,
       urgentBypassSchedule: true,

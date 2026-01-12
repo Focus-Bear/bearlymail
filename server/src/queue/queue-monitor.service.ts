@@ -3,6 +3,9 @@ import { DataSource } from "typeorm";
 import PgBoss = require("pg-boss");
 import * as fs from "fs";
 import * as path from "path";
+import { QUEUE_CONSTANTS } from "../constants/queue-constants";
+import { RESOURCE_MONITOR_CONSTANTS } from "../constants/resource-monitor-constants";
+import { QUERY_LIMITS } from "../constants/query-limits";
 
 interface JobMetrics {
   queueName: string;
@@ -126,9 +129,9 @@ export class QueueMonitorService implements OnModuleInit {
     const count = sorted.length;
     const sum = sorted.reduce((a, b) => a + b, 0);
     const avg = sum / count;
-    const p50 = sorted[Math.floor(count * 0.5)];
-    const p95 = sorted[Math.floor(count * 0.95)];
-    const p99 = sorted[Math.floor(count * 0.99)];
+    const p50 = sorted[Math.floor(count * RESOURCE_MONITOR_CONSTANTS.P50)];
+    const p95 = sorted[Math.floor(count * RESOURCE_MONITOR_CONSTANTS.P95)];
+    const p99 = sorted[Math.floor(count * RESOURCE_MONITOR_CONSTANTS.P99)];
 
     return { avg, p50, p95, p99, count };
   }
@@ -136,11 +139,13 @@ export class QueueMonitorService implements OnModuleInit {
   /**
    * Collect metrics from all queues
    */
+  // eslint-disable-next-line max-statements
   async collectMetrics(): Promise<void> {
     try {
       const queueNames = [
-        "sync-emails",
-        "sync-all-users-urgent",
+        "fetch-user-emails",
+        "sync-emails", // Legacy
+        "schedule-email-fetch-jobs",
         "sync-gmail",
         "scan-history",
         "scan-history-email",
@@ -179,7 +184,8 @@ export class QueueMonitorService implements OnModuleInit {
             active: parseInt(counts.active || "0", 10),
             completed: parseInt(counts.completed || "0", 10),
             failed: parseInt(counts.failed || "0", 10),
-            archived: 0, // Archived jobs are in a separate table, not a state
+            archived: 0,
+            // Archived jobs are in a separate table, not a state
           };
 
           queueMetrics.push(metrics);
@@ -213,12 +219,12 @@ export class QueueMonitorService implements OnModuleInit {
       }
 
       // Log warning if queue depth is high
-      if (totalPending > 100) {
+      if (totalPending > QUEUE_CONSTANTS.MAX_QUEUE_SIZE) {
         this.logger.warn(
           `⚠️ High queue depth: ${totalPending} pending jobs across all queues`,
         );
       }
-      if (totalActive > 50) {
+      if (totalActive > QUERY_LIMITS.MAX_SENT_EMAILS_FOR_STYLE) {
         this.logger.warn(
           `⚠️ High active jobs: ${totalActive} jobs currently processing`,
         );
@@ -244,8 +250,9 @@ export class QueueMonitorService implements OnModuleInit {
    */
   async getQueueHealth(): Promise<QueueHealthMetrics> {
     const queueNames = [
-      "sync-emails",
-      "sync-all-users-urgent",
+      "fetch-user-emails",
+      "sync-emails", // Legacy
+      "schedule-email-fetch-jobs",
       "sync-gmail",
       "scan-history",
       "scan-history-email",
@@ -284,7 +291,8 @@ export class QueueMonitorService implements OnModuleInit {
           active: parseInt(counts.active || "0", 10),
           completed: parseInt(counts.completed || "0", 10),
           failed: parseInt(counts.failed || "0", 10),
-          archived: 0, // Archived jobs are in a separate table, not a state
+          archived: 0,
+          // Archived jobs are in a separate table, not a state
         };
 
         queueMetrics.push(metrics);

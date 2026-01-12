@@ -1,9 +1,10 @@
 import { useCallback } from 'react';
-import axios from 'axios';
-import { Email, InboxMode } from '../types/email';
+import { Email, InboxMode } from 'types/email';
 import { SetStateAction } from 'react';
-import { API_URL } from '../config/api';
-import { captureEvent } from '../utils/posthog';
+import { captureEvent } from 'utils/posthog';
+import { useBulkEmailActions } from 'hooks/useBulkEmailActions';
+import { useBlockSender } from 'hooks/useBlockSender';
+import { useStarCountHandler } from 'hooks/useStarCountHandler';
 
 interface UseEmailActionsProps {
   mode: InboxMode;
@@ -18,7 +19,7 @@ interface UseEmailActionsProps {
   handleBulkMarkAsRead?: (emailIds: string[]) => Promise<void>;
   handleBulkMarkAsUnread?: (emailIds: string[]) => Promise<void>;
   onShowStarDiscrepancy: (emailId: string, userStarCount: number, predictedStarCount: number) => void;
-  onShowPriorityOverride: (emailId: string, originalPriorityScore: number, newPriorityScore: number) => void;
+  onShowPriorityOverride: (emailId: string, originalPriorityScore: number, newPriorityScore: number, context?: 'archive' | 'star' | 'manual') => void;
   onShowBlockConfirm: (email: Email) => void;
   onHideBlockConfirm: () => void;
   blockConfirmEmail: Email | null;
@@ -27,6 +28,9 @@ interface UseEmailActionsProps {
     getSnoozeValue: (emailId: string) => string;
     clearSnooze: (emailId: string) => void;
   };
+  emailListRef?: React.RefObject<HTMLDivElement | null>;
+  selectedEmailIndex?: number;
+  setSelectedEmailIndex?: (index: number) => void;
 }
 
 interface UseEmailActionsReturn {
@@ -59,46 +63,55 @@ export function useEmailActions({
   blockConfirmEmail,
   fetchEmails,
   snoozeInput,
+  emailListRef,
+  selectedEmailIndex,
+  setSelectedEmailIndex,
 }: UseEmailActionsProps): UseEmailActionsReturn {
-  const handleSetStarCount = useCallback(async (emailId: string, starCount: number, e?: React.MouseEvent) => {
-    const email = emails.find(e => e.id === emailId);
-    const previousStarCount = email?.starCount || 0;
-    const originalPriorityScore = email?.priorityScore || 50;
-    
-    captureEvent('email_star_set', {
-      email_id: emailId,
-      star_count: starCount,
-      previous_star_count: previousStarCount,
-    });
-    
-    const result = await handleSetStarCountBase(emailId, starCount, e);
-    
-    // Convert star count to priority score (0 stars = 0-25, 1 star = 26-50, 2 stars = 51-75, 3 stars = 76-100)
-    const newPriorityScore = starCount === 0 ? 12.5 : 
-                            starCount === 1 ? 37.5 :
-                            starCount === 2 ? 62.5 : 87.5;
-    
-    if (result && result.discrepancy >= 2 && starCount > 0) {
-      // Show priority override modal for significant discrepancies
-      const priorityDifference = Math.abs(newPriorityScore - originalPriorityScore);
-      if (priorityDifference >= 20) {
-        onShowPriorityOverride(emailId, originalPriorityScore, newPriorityScore);
-      } else {
-        // Fall back to star discrepancy modal for smaller differences
-        onShowStarDiscrepancy(emailId, starCount, result.predictedStarCount);
-      }
-    }
-  }, [emails, handleSetStarCountBase, onShowStarDiscrepancy, onShowPriorityOverride]);
+  const { handleSetStarCount } = useStarCountHandler({
+    emails,
+    handleSetStarCountBase,
+    onShowStarDiscrepancy,
+    onShowPriorityOverride,
+  });
 
   const handleArchive = useCallback(async (emailId: string, e: React.MouseEvent) => {
     captureEvent('email_archive_clicked', { email_id: emailId });
+    
+    // Find the index of the email being archived
+    const visibleEmails = emails.filter(email => !email.isArchived);
+    const archivedIndex = visibleEmails.findIndex(email => email.id === emailId);
+    
     setSelectedEmailIds(prev => {
       const newSet = new Set(prev);
       newSet.delete(emailId);
       return newSet;
     });
+    
     await handleArchiveBase(emailId, e);
-  }, [handleArchiveBase, setSelectedEmailIds]);
+    
+    // Scroll to next email after archiving
+    if (emailListRef?.current && archivedIndex >= 0 && visibleEmails.length > 1) {
+      // After archiving, the email at archivedIndex is removed
+      // The email that was at archivedIndex + 1 is now at archivedIndex
+      // If we archived the last email, scroll to the previous one (now at archivedIndex - 1)
+      const nextIndex = archivedIndex < visibleEmails.length - 1 
+        ? archivedIndex  // Next email moved to this index
+        : Math.max(0, archivedIndex - 1);  // Previous email (if not first)
+      
+      setTimeout(() => {
+        const emailElement = emailListRef.current?.querySelector(
+          `[data-email-index="${nextIndex}"]`
+        ) as HTMLElement;
+        if (emailElement) {
+          emailElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          // Update selected index to the next email
+          if (setSelectedEmailIndex !== undefined) {
+            setSelectedEmailIndex(nextIndex);
+          }
+        }
+      }, 100); // Small delay to ensure DOM has updated after optimistic removal
+    }
+  }, [handleArchiveBase, setSelectedEmailIds, emails, emailListRef, setSelectedEmailIndex]);
 
   const handleBlockSender = useCallback((emailId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -108,60 +121,22 @@ export function useEmailActions({
     onShowBlockConfirm(emailToBlock);
   }, [emails, onShowBlockConfirm]);
 
-  const handleBulkArchive = useCallback(async () => {
-    if (selectedEmailIds.size === 0) return;
-    captureEvent('bulk_archive_clicked', { selected_count: selectedEmailIds.size });
-    await Promise.all(Array.from(selectedEmailIds).map(id => 
-      handleArchive(id, { stopPropagation: () => {} } as React.MouseEvent)
-    ));
-    setSelectedEmailIds(new Set());
-  }, [selectedEmailIds, handleArchive, setSelectedEmailIds]);
+  const bulkActions = useBulkEmailActions({
+    selectedEmailIds,
+    setSelectedEmailIds,
+    handleArchive,
+    handleSetStarCount,
+    handleBulkMarkAsRead,
+    handleBulkMarkAsUnread,
+  });
 
-  const handleBulkStar = useCallback(async (starCount: number) => {
-    if (selectedEmailIds.size === 0) return;
-    captureEvent('bulk_star_set', {
-      star_count: starCount,
-      selected_count: selectedEmailIds.size,
-    });
-    await Promise.all(Array.from(selectedEmailIds).map(id => handleSetStarCount(id, starCount)));
-    setSelectedEmailIds(new Set());
-  }, [selectedEmailIds, handleSetStarCount, setSelectedEmailIds]);
-
-  const handleBulkMarkAsReadAction = useCallback(async () => {
-    if (selectedEmailIds.size === 0 || !handleBulkMarkAsRead) return;
-    captureEvent('bulk_mark_as_read_clicked', { selected_count: selectedEmailIds.size });
-    await handleBulkMarkAsRead(Array.from(selectedEmailIds));
-    setSelectedEmailIds(new Set());
-  }, [selectedEmailIds, handleBulkMarkAsRead, setSelectedEmailIds]);
-
-  const handleBulkMarkAsUnreadAction = useCallback(async () => {
-    if (selectedEmailIds.size === 0 || !handleBulkMarkAsUnread) return;
-    captureEvent('bulk_mark_as_unread_clicked', { selected_count: selectedEmailIds.size });
-    await handleBulkMarkAsUnread(Array.from(selectedEmailIds));
-    setSelectedEmailIds(new Set());
-  }, [selectedEmailIds, handleBulkMarkAsUnread, setSelectedEmailIds]);
-
-  const confirmBlockSender = useCallback(async () => {
-    if (!blockConfirmEmail) return;
-    
-    const emailToBlock = blockConfirmEmail;
-    captureEvent('sender_blocked', { email_id: emailToBlock.id });
-    onHideBlockConfirm();
-    
-    // Optimistic update - remove from UI
-    setEmails(prevEmails => prevEmails.filter(email => email.id !== emailToBlock.id));
-    
-    try {
-      await axios.post(`${API_URL}/emails/${emailToBlock.id}/block-sender`);
-      fetchEmails().catch(err => console.error('Error refreshing after block:', err));
-    } catch (error) {
-      console.error('Error blocking sender:', error);
-      // Revert on error
-      setEmails(prevEmails => [...prevEmails, emailToBlock].sort((a, b) => 
-        new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime()
-      ));
-    }
-  }, [blockConfirmEmail, onHideBlockConfirm, setEmails, fetchEmails]);
+  const { confirmBlockSender } = useBlockSender({
+    emails,
+    setEmails,
+    blockConfirmEmail,
+    onHideBlockConfirm,
+    fetchEmails,
+  });
 
   const handleSnooze = useCallback(async (emailId: string) => {
     const duration = snoozeInput.getSnoozeValue(emailId)?.trim();
@@ -191,10 +166,7 @@ export function useEmailActions({
     handleBlockSender,
     confirmBlockSender,
     handleSnooze,
-    handleBulkArchive,
-    handleBulkStar,
-    handleBulkMarkAsRead: handleBulkMarkAsReadAction,
-    handleBulkMarkAsUnread: handleBulkMarkAsUnreadAction,
+    ...bulkActions,
   };
 }
 

@@ -3,12 +3,14 @@ import {
   OnModuleInit,
   Logger,
   Inject,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   forwardRef,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as os from "os";
 import PgBoss = require("pg-boss");
 import { PriorityLearningService } from "./priority-learning.service";
+import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 
 @Injectable()
 export class PriorityLearningProcessor implements OnModuleInit {
@@ -43,6 +45,7 @@ export class PriorityLearningProcessor implements OnModuleInit {
     );
     await this.boss.work(
       "learn-from-star",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       { teamSize: this.learnConcurrency } as any,
       async (job) => {
         const { userId, emailId, starCount } = job.data as {
@@ -51,6 +54,9 @@ export class PriorityLearningProcessor implements OnModuleInit {
           starCount: number;
         };
         const workerId = job.id || "unknown";
+        const tracker = new JobPerformanceTracker("learn-from-star", workerId);
+        tracker.setMetadata({ userId, emailId });
+
         this.logger.log(
           `[Worker ${workerId}] Learning from star selection for email ${emailId}, starCount: ${starCount}`,
         );
@@ -64,11 +70,13 @@ export class PriorityLearningProcessor implements OnModuleInit {
           this.logger.log(
             `[Worker ${workerId}] Completed learning for email ${emailId}`,
           );
+          tracker.finish();
         } catch (error) {
           this.logger.error(
             `[Worker ${workerId}] Failed to learn from star selection for email ${emailId}`,
             error,
           );
+          tracker.finish(error as Error);
           // Don't throw - learning failures shouldn't block other operations
         }
       },

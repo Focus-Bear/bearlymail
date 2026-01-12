@@ -12,6 +12,7 @@ import {
 } from "@nestjs/common";
 import { ContactsService, ContactSearchResult } from "./contacts.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { QUERY_LIMITS } from "../constants/query-limits";
 
 @Controller("contacts")
 @UseGuards(JwtAuthGuard)
@@ -28,7 +29,9 @@ export class ContactsController {
     @Query("q") query: string,
     @Query("limit") limit?: string,
   ): Promise<ContactSearchResult[]> {
-    const maxLimit = limit ? Math.min(parseInt(limit, 10), 50) : 20;
+    const maxLimit = limit
+      ? Math.min(parseInt(limit, 10), QUERY_LIMITS.CONTACTS_SEARCH_LIMIT)
+      : QUERY_LIMITS.CONTACTS_PAGE_SIZE;
     return this.contactsService.searchContacts(
       req.user.userId,
       query || "",
@@ -44,7 +47,9 @@ export class ContactsController {
     @Request() req,
     @Query("limit") limit?: string,
   ): Promise<ContactSearchResult[]> {
-    const maxLimit = limit ? Math.min(parseInt(limit, 10), 20) : 10;
+    const maxLimit = limit
+      ? Math.min(parseInt(limit, 10), QUERY_LIMITS.CONTACTS_PAGE_SIZE)
+      : 10;
     return this.contactsService.getFrequentContacts(req.user.userId, maxLimit);
   }
 

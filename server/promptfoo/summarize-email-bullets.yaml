@@ -1,0 +1,49 @@
+description: "Bullet-point email summarization prompts for BearlyMail"
+
+providers:
+  - openai:gpt-4.1-mini
+  # Uncomment below if you have Gemini API key
+  # - google:gemini-pro
+
+prompts:
+  - file://prompts/summarize-email-bullets.md
+
+tests:
+  - vars:
+      isThread: false
+      subject: "Project Update"
+      contextNote: ""
+      body: "Hi team, here's the update: 1) We completed the API integration 2) The UI redesign is in progress 3) We need to schedule user testing 4) The deadline is still on track"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          // Should be in bullet format
+          const hasBullets = text.includes('-') || text.includes('•') || text.includes('*') || /^\d+\./m.test(text);
+          // Should contain key points
+          const lower = text.toLowerCase();
+          const hasKeyPoints = lower.includes('api') || lower.includes('ui') || lower.includes('testing') || lower.includes('deadline');
+          if (!hasBullets || !hasKeyPoints || text.length < 30) {
+            throw new Error(`Expected bullet points with key information. Got: ${text.substring(0, 200)}`);
+          }
+          return true;
+    description: "Should generate bullet-point summary"
+
+  - vars:
+      isThread: false
+      subject: "Meeting Notes"
+      contextNote: ""
+      body: "Key decisions: Launch date confirmed for Q1. Team will work in sprints. Need budget approval by next week."
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const hasBullets = text.includes('-') || text.includes('•') || text.includes('*') || /^\d+\./m.test(text);
+          if (!hasBullets || text.length < 20) {
+            throw new Error(`Expected bullet format. Got: ${text.substring(0, 200)}`);
+          }
+          return true;
+    description: "Should format summary as bullets"
+
+
+

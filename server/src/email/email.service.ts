@@ -5,6 +5,7 @@ import mjml from "mjml";
 import * as fs from "fs";
 import * as path from "path";
 import { translateEmail } from "./email-translations";
+import { isError } from "../types/common";
 
 @Injectable()
 export class EmailService {
@@ -118,10 +119,22 @@ ${t("footer", { year })}
       this.logger.log(
         `Email sent successfully to ${toEmail}. MessageId: ${response.MessageId}`,
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
+      let errorMessage: string;
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (
+        typeof error === "object" &&
+        error !== null &&
+        "message" in error
+      ) {
+        errorMessage = String((error as { message?: unknown }).message);
+      } else {
+        errorMessage = "Unknown error";
+      }
       this.logger.error(
-        `Failed to send email to ${toEmail}: ${error.message}`,
-        error.stack,
+        `Failed to send email to ${toEmail}: ${errorMessage}`,
+        isError(error) ? error.stack : undefined,
       );
       throw error;
     }

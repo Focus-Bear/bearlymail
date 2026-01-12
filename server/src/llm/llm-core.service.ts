@@ -4,6 +4,9 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
 import { UsersService } from "../users/users.service";
 import { LLMProvider, LLMRequest } from "./llm.types";
+import { RATIOS } from "../constants/percentages";
+import { QUERY_LIMITS } from "../constants/query-limits";
+import { MILLISECONDS } from "../constants/time-constants";
 
 @Injectable()
 export class LLMCoreService {
@@ -90,52 +93,55 @@ export class LLMCoreService {
   private async retryOperation<T>(
     operation: () => Promise<T>,
     maxRetries: number = 3,
-    delay: number = 1000,
   ): Promise<T> {
-    let lastError: Error | null = null;
     for (let i = 0; i < maxRetries; i++) {
       try {
         return await operation();
       } catch (error) {
-        lastError = error as Error;
-        if (i < maxRetries - 1) {
-          await new Promise((resolve) => setTimeout(resolve, delay * (i + 1)));
-        }
+        if (i === maxRetries - 1) throw error;
+        const delay =
+          Math.pow(2, i) * MILLISECONDS.SECOND +
+          Math.random() * MILLISECONDS.SECOND;
+        this.logger.warn(
+          `LLM operation failed, retrying in ${Math.round(delay)}ms... (Attempt ${i + 1}/${maxRetries})`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
-    throw lastError || new Error("Operation failed after retries");
+    throw new Error("Max retries exceeded");
   }
 
   private async generateWithGemini(
     request: LLMRequest,
     userId?: string,
   ): Promise<string> {
+    // Note: Gemini doesn't support user-specific API keys, always uses system key
     if (!this.geminiClient) {
       throw new Error("Gemini client not initialized");
     }
 
-    // Get user's API key if provided
-    let apiKey: string | undefined;
-    if (userId) {
-      const user = await this.usersService.findOne(userId);
-      if (user?.openAiApiKey) {
-        // User's API key stored as openAiApiKey but can be used for Gemini too
-        apiKey = user.openAiApiKey;
-      }
-    }
+    const modelName =
+      this.configService.get<string>("GEMINI_MODEL") || "gemini-1.5-flash";
+    this.logger.log(`Generating text using Gemini model: ${modelName}`);
 
-    const client = apiKey
-      ? new GoogleGenerativeAI(apiKey)
-      : this.geminiClient;
+    return this.retryOperation(async () => {
+      const model = this.geminiClient!.getGenerativeModel({
+        model: modelName,
+      });
 
-    return await this.retryOperation(async () => {
-      const model = client.getGenerativeModel({ model: "gemini-pro" });
-      const prompt = request.systemPrompt
+      const fullPrompt = request.systemPrompt
         ? `${request.systemPrompt}\n\n${request.prompt}`
         : request.prompt;
 
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
+      const result = await model.generateContent({
+        contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
+        generationConfig: {
+          temperature: request.temperature || RATIOS.SEVENTY_PERCENT,
+          maxOutputTokens: request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
+        },
+      });
+
+      const { response } = result;
       return response.text();
     });
   }
@@ -144,12 +150,24 @@ export class LLMCoreService {
     request: LLMRequest,
     userId?: string,
   ): Promise<string> {
-    // Get user's API key if provided
-    let openaiClient = this.openaiClient;
+    // Try to get user's API key if userId is provided
+    let { openaiClient } = this;
+    let apiKeySource = "system";
+
     if (userId) {
-      const user = await this.usersService.findOne(userId);
-      if (user?.openAiApiKey) {
-        openaiClient = new OpenAI({ apiKey: user.openAiApiKey });
+      try {
+        const user = await this.usersService.findOneWithApiKey(userId);
+        if (user?.openAiApiKey) {
+          // User has their own API key - create a client with it
+          openaiClient = new OpenAI({ apiKey: user.openAiApiKey });
+          apiKeySource = "user";
+          this.logger.debug(`Using user's OpenAI API key for user ${userId}`);
+        }
+      } catch (error) {
+        this.logger.warn(
+          `Failed to fetch user's API key for ${userId}, using system key`,
+          error,
+        );
       }
     }
 
@@ -157,25 +175,31 @@ export class LLMCoreService {
       throw new Error("OpenAI client not initialized");
     }
 
-      return await this.retryOperation(async () => {
-        const model = "gpt-4o-mini";
-        const messages: Array<{ role: "system" | "user"; content: string }> = [];
+    const model =
+      this.configService.get<string>("OPENAI_MODEL") || "gpt-3.5-turbo";
 
-        if (request.systemPrompt) {
-          messages.push({ role: "system", content: request.systemPrompt });
-        }
+    return this.retryOperation(async () => {
+      const messages: Array<{
+        role: "system" | "user" | "assistant";
+        content: string;
+      }> = [];
+      if (request.systemPrompt) {
+        messages.push({ role: "system", content: request.systemPrompt });
+      }
+      messages.push({ role: "user", content: request.prompt });
 
-        messages.push({ role: "user", content: request.prompt });
-
-        const completion = await openaiClient!.chat.completions.create({
-          model,
-          messages: messages as any, // Type assertion needed for OpenAI types
-          temperature: request.temperature || 0.7,
-          max_tokens: request.maxTokens || 2048,
-        });
-
-        return completion.choices[0]?.message?.content || "";
+      this.logger.debug(
+        `Generating text with OpenAI using ${apiKeySource} API key${request.userId ? ` (userId: ${request.userId})` : ""}`,
+      );
+      const completion = await openaiClient!.chat.completions.create({
+        model,
+        messages: messages as any,
+        temperature: request.temperature || RATIOS.SEVENTY_PERCENT,
+        max_tokens: request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
       });
+
+      return completion.choices[0]?.message?.content || "";
+    });
   }
 
   getAvailableProviders(): LLMProvider[] {
@@ -189,4 +213,3 @@ export class LLMCoreService {
     return this.defaultProvider;
   }
 }
-

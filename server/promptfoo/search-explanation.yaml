@@ -16,12 +16,16 @@ tests:
     assert:
       - type: javascript
         value: |
-          const output = output.toLowerCase();
+          const text = (typeof output === 'string' ? output : String(output)).toLowerCase();
           // Should explain WHY it's relevant, not just state it
-          const hasWhy = output.includes('jay') && 
-                         (output.includes('accepted') || output.includes('meeting') || output.includes('invitation'));
-          const notGeneric = !output.includes('relevant to') || output.length > 50;
-          return hasWhy && notGeneric;
+          const hasJay = text.includes('jay');
+          const hasRelevantInfo = text.includes('accepted') || text.includes('meeting') || text.includes('invitation');
+          const hasWhy = hasJay && hasRelevantInfo;
+          const notGeneric = !text.includes('relevant to') || text.length > 50;
+          if (!hasWhy || !notGeneric) {
+            throw new Error(`Expected explanation with jay and accepted/meeting/invitation, and length > 50 or not generic. Got: ${text.substring(0, 150)}`);
+          }
+          return true;
     description: "Explanation should explain WHY, not just state relevance"
 
   - vars:
@@ -34,9 +38,12 @@ tests:
     assert:
       - type: javascript
         value: |
-          const output = output.toLowerCase();
+          const text = (typeof output === 'string' ? output : String(output)).toLowerCase();
           // Should mention it's from Jay but explain why it might be less relevant
-          return output.includes('jay') && output.length > 30;
+          if (!text.includes('jay') || text.length <= 30) {
+            throw new Error(`Expected explanation mentioning jay with length > 30. Got: ${text.substring(0, 150)}`);
+          }
+          return true;
     description: "Explanation should mention sender name and context"
 
   - vars:
@@ -49,10 +56,17 @@ tests:
     assert:
       - type: javascript
         value: |
-          const output = output.toLowerCase();
+          const text = (typeof output === 'string' ? output : String(output)).toLowerCase();
           // Should mention it's from John
-          return output.includes('john') && output.length > 20;
+          if (!text.includes('john') || text.length <= 20) {
+            throw new Error(`Expected explanation mentioning john with length > 20. Got: ${text.substring(0, 150)}`);
+          }
+          return true;
     description: "Explanation should mention the sender when query is about sender"
+
+
+
+
 
 
 

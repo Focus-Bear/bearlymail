@@ -1,12 +1,14 @@
 import React from 'react';
-import { theme } from '../../theme/theme';
-import { useResponsiveBreakpoints } from '../../hooks/useResponsiveBreakpoints';
-import { getResponsiveFontSize, getResponsiveSpacing } from './utils';
+import { useTranslation } from 'react-i18next';
+import { theme } from 'theme/theme';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { getResponsiveFontSize, getResponsiveSpacing } from 'components/landing/utils';
 
 /**
  * Content paragraphs for closing statement
  */
 export const ClosingStatementContent: React.FC = () => {
+  const { t } = useTranslation();
   const breakpoints = useResponsiveBreakpoints();
 
   const bodyFontSize = getResponsiveFontSize(breakpoints, {
@@ -44,7 +46,7 @@ export const ClosingStatementContent: React.FC = () => {
           maxWidth: '100%',
         }}
       >
-        Three focused moments instead of 47 interruptions.
+        {t('landing.closing.content.paragraph1')}
       </p>
       <p
         style={{
@@ -55,7 +57,7 @@ export const ClosingStatementContent: React.FC = () => {
           maxWidth: '100%',
         }}
       >
-        The emails that matter, when you're ready for them.
+        {t('landing.closing.content.paragraph2')}
       </p>
       <p
         style={{
@@ -66,7 +68,7 @@ export const ClosingStatementContent: React.FC = () => {
           fontStyle: 'italic',
         }}
       >
-        Built by someone who needed it to exist.
+        {t('landing.closing.content.paragraph3')}
       </p>
     </>
   );

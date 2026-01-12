@@ -21,7 +21,8 @@ export default new DataSource({
   database: configService.get<string>("DB_NAME") || "adhd_email_client",
   entities: [`${__dirname}/**/*.entity{.ts,.js}`],
   migrations: [`${__dirname}/database/migrations/**/*{.ts,.js}`],
-  synchronize: false, // NEVER use synchronize in production - always use migrations
+  // NEVER use synchronize in production - always use migrations
+  synchronize: false,
   ssl: !isLocal || sslEnabled ? { rejectUnauthorized: false } : false,
   logging: ["error", "warn", "migration"],
 });

@@ -1,5 +1,5 @@
 # Build stage
-FROM node:18-alpine AS builder
+FROM node:lts AS builder
 
 WORKDIR /app
 
@@ -13,10 +13,12 @@ RUN npm install
 COPY . .
 
 # Build the NestJS application
+# Increase Node.js heap size to prevent out-of-memory errors during build
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN npm run build
 
 # Production stage
-FROM node:18-alpine
+FROM node:lts
 
 WORKDIR /app
 

@@ -1,6 +1,8 @@
 // Export all entities to ensure they're loaded in the correct order
 export { User } from "./user.entity";
 export { GoogleAccount } from "./google-account.entity";
+export { Office365Account } from "./office365-account.entity";
+export { ZohoAccount } from "./zoho-account.entity";
 export { UserContext } from "./user-context.entity";
 export { PrivateNote } from "./private-note.entity";
 export { Email } from "./email.entity";

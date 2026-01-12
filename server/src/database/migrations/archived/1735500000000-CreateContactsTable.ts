@@ -7,6 +7,7 @@ export class CreateContactsTable1735500000000 implements MigrationInterface {
     // Check if table already exists
     const tableExists = await queryRunner.hasTable("contacts");
     if (tableExists) {
+      // eslint-disable-next-line no-console
       console.log('Table "contacts" already exists, skipping creation');
       return;
     }

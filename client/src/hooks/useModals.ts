@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Email } from '../types/email';
+import { Email } from 'types/email';
 
 interface StarDiscrepancyModal {
   show: boolean;
@@ -13,12 +13,19 @@ interface PriorityOverrideModal {
   emailId: string;
   originalPriorityScore: number;
   newPriorityScore: number;
+  context?: 'archive' | 'star' | 'manual';
 }
 
 interface UrgencyOverrideModal {
   show: boolean;
   threadId: string;
   currentUrgencyScore: number;
+}
+
+interface PriorityFeedbackModal {
+  show: boolean;
+  emailId: string;
+  currentPriorityScore: number;
 }
 
 interface UseModalsReturn {
@@ -28,14 +35,18 @@ interface UseModalsReturn {
   setPriorityOverrideModal: React.Dispatch<React.SetStateAction<PriorityOverrideModal | null>>;
   urgencyOverrideModal: UrgencyOverrideModal | null;
   setUrgencyOverrideModal: React.Dispatch<React.SetStateAction<UrgencyOverrideModal | null>>;
+  priorityFeedbackModal: PriorityFeedbackModal | null;
+  setPriorityFeedbackModal: React.Dispatch<React.SetStateAction<PriorityFeedbackModal | null>>;
   blockConfirmEmail: Email | null;
   setBlockConfirmEmail: React.Dispatch<React.SetStateAction<Email | null>>;
   showStarDiscrepancy: (emailId: string, userStarCount: number, predictedStarCount: number) => void;
   hideStarDiscrepancy: () => void;
-  showPriorityOverride: (emailId: string, originalPriorityScore: number, newPriorityScore: number) => void;
+  showPriorityOverride: (emailId: string, originalPriorityScore: number, newPriorityScore: number, context?: 'archive' | 'star' | 'manual') => void;
   hidePriorityOverride: () => void;
   showUrgencyOverride: (threadId: string, currentUrgencyScore: number) => void;
   hideUrgencyOverride: () => void;
+  showPriorityFeedback: (emailId: string, currentPriorityScore: number) => void;
+  hidePriorityFeedback: () => void;
   showBlockConfirm: (email: Email) => void;
   hideBlockConfirm: () => void;
 }
@@ -44,6 +55,7 @@ export function useModals(): UseModalsReturn {
   const [starDiscrepancyModal, setStarDiscrepancyModal] = useState<StarDiscrepancyModal | null>(null);
   const [priorityOverrideModal, setPriorityOverrideModal] = useState<PriorityOverrideModal | null>(null);
   const [urgencyOverrideModal, setUrgencyOverrideModal] = useState<UrgencyOverrideModal | null>(null);
+  const [priorityFeedbackModal, setPriorityFeedbackModal] = useState<PriorityFeedbackModal | null>(null);
   const [blockConfirmEmail, setBlockConfirmEmail] = useState<Email | null>(null);
 
   const showStarDiscrepancy = useCallback((emailId: string, userStarCount: number, predictedStarCount: number) => {
@@ -59,12 +71,13 @@ export function useModals(): UseModalsReturn {
     setStarDiscrepancyModal(null);
   }, []);
 
-  const showPriorityOverride = useCallback((emailId: string, originalPriorityScore: number, newPriorityScore: number) => {
+  const showPriorityOverride = useCallback((emailId: string, originalPriorityScore: number, newPriorityScore: number, context: 'archive' | 'star' | 'manual' = 'manual') => {
     setPriorityOverrideModal({
       show: true,
       emailId,
       originalPriorityScore,
       newPriorityScore,
+      context,
     });
   }, []);
 
@@ -84,6 +97,18 @@ export function useModals(): UseModalsReturn {
     setUrgencyOverrideModal(null);
   }, []);
 
+  const showPriorityFeedback = useCallback((emailId: string, currentPriorityScore: number) => {
+    setPriorityFeedbackModal({
+      show: true,
+      emailId,
+      currentPriorityScore,
+    });
+  }, []);
+
+  const hidePriorityFeedback = useCallback(() => {
+    setPriorityFeedbackModal(null);
+  }, []);
+
   const showBlockConfirm = useCallback((email: Email) => {
     setBlockConfirmEmail(email);
   }, []);
@@ -99,6 +124,8 @@ export function useModals(): UseModalsReturn {
     setPriorityOverrideModal,
     urgencyOverrideModal,
     setUrgencyOverrideModal,
+    priorityFeedbackModal,
+    setPriorityFeedbackModal,
     blockConfirmEmail,
     setBlockConfirmEmail,
     showStarDiscrepancy,
@@ -107,6 +134,8 @@ export function useModals(): UseModalsReturn {
     hidePriorityOverride,
     showUrgencyOverride,
     hideUrgencyOverride,
+    showPriorityFeedback,
+    hidePriorityFeedback,
     showBlockConfirm,
     hideBlockConfirm,
   };

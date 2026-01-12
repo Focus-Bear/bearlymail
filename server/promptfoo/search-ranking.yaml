@@ -17,7 +17,10 @@ tests:
     assert:
       - type: javascript
         value: |
-          const result = JSON.parse(output);
+          // Strip markdown code blocks if present
+          let jsonString = typeof output === 'string' ? output : JSON.stringify(output);
+          jsonString = jsonString.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const result = JSON.parse(jsonString);
           // Jay Jackson should score higher than Jay McPherson (more relevant to meeting question)
           const jayJackson = result.find(r => r.index === 0);
           const jayMcPherson = result.find(r => r.index === 1);
@@ -46,7 +49,10 @@ tests:
     assert:
       - type: javascript
         value: |
-          const result = JSON.parse(output);
+          // Strip markdown code blocks if present
+          let jsonString = typeof output === 'string' ? output : JSON.stringify(output);
+          jsonString = jsonString.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const result = JSON.parse(jsonString);
           // Today's email should score higher due to recency bonus
           const today = result.find(r => r.index === 0);
           const old = result.find(r => r.index === 1);
@@ -65,7 +71,10 @@ tests:
     assert:
       - type: javascript
         value: |
-          const result = JSON.parse(output);
+          // Strip markdown code blocks if present
+          let jsonString = typeof output === 'string' ? output : JSON.stringify(output);
+          jsonString = jsonString.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const result = JSON.parse(jsonString);
           // Automated emails should get very low scores even if recent
           const fireflies = result.find(r => r.index === 0);
           const newsletter = result.find(r => r.index === 1);

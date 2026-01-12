@@ -7,9 +7,13 @@ import { AuthController } from "./auth.controller";
 import { JwtStrategy } from "./jwt.strategy";
 import { LocalStrategy } from "./local.strategy";
 import { GoogleStrategy } from "./google.strategy";
+import { MicrosoftStrategy } from "./microsoft.strategy";
+import { ZohoStrategy } from "./zoho.strategy";
 import { UsersModule } from "../users/users.module";
 import { EmailsModule } from "../emails/emails.module";
 import { GoogleAccountsModule } from "../google-accounts/google-accounts.module";
+import { Office365AccountsModule } from "../office365-accounts/office365-accounts.module";
+import { ZohoAccountsModule } from "../zoho-accounts/zoho-accounts.module";
 import { AdminGuard } from "./admin.guard";
 import { GmailRequiredGuard } from "./gmail-required.guard";
 
@@ -18,6 +22,8 @@ import { GmailRequiredGuard } from "./gmail-required.guard";
     UsersModule,
     forwardRef(() => EmailsModule),
     forwardRef(() => GoogleAccountsModule),
+    forwardRef(() => Office365AccountsModule),
+    forwardRef(() => ZohoAccountsModule),
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -33,6 +39,8 @@ import { GmailRequiredGuard } from "./gmail-required.guard";
     JwtStrategy,
     LocalStrategy,
     GoogleStrategy,
+    MicrosoftStrategy,
+    ZohoStrategy,
     AdminGuard,
     GmailRequiredGuard,
   ],

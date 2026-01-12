@@ -1,5 +1,11 @@
-export { DebugStatsSection } from './DebugStatsSection';
-export { DebugStarredSection } from './DebugStarredSection';
-export { DebugOrphanSection } from './DebugOrphanSection';
-export { DebugEmailList } from './DebugEmailList';
-
+export { DebugStatsSection } from 'components/inbox/debug/DebugStatsSection';
+export { DebugStarredSection } from 'components/inbox/debug/DebugStarredSection';
+export { DebugOrphanSection } from 'components/inbox/debug/DebugOrphanSection';
+export { DebugEmailList } from 'components/inbox/debug/DebugEmailList';
+export { OrphanStatsGrid } from 'components/inbox/debug/OrphanStatsGrid';
+export { OrphanEmailList } from 'components/inbox/debug/OrphanEmailList';
+export { ThreadsWithoutEmailsList } from 'components/inbox/debug/ThreadsWithoutEmailsList';
+export { StarredComparisonGrid } from 'components/inbox/debug/StarredComparisonGrid';
+export { ComparisonResultsGrid } from 'components/inbox/debug/ComparisonResultsGrid';
+export { MissingFromProcessTabList } from 'components/inbox/debug/MissingFromProcessTabList';
+export { StarredThreadsList } from 'components/inbox/debug/StarredThreadsList';

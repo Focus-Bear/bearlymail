@@ -1,0 +1,280 @@
+/* eslint-disable id-denylist -- 'data' is a standard property name for axios responses */
+import { renderHook, act, waitFor } from '@testing-library/react';
+import axios from 'axios';
+import { useTriageSuggestions } from './useTriageSuggestions';
+import { Email, TriageSuggestion } from 'types/email';
+import { TRIAGE_SUGGESTIONS_LIMIT_20 } from 'constants/numbers';
+
+jest.mock('axios');
+const mockedAxios = axios as jest.Mocked<typeof axios>;
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+describe('useTriageSuggestions', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    console.error = jest.fn();
+  });
+
+  describe('initialization', () => {
+    it('should initialize with empty state', () => {
+      const { result } = renderHook(() => useTriageSuggestions());
+
+      expect(result.current.triageSuggestions.size).toBe(0);
+      expect(result.current.loadingSuggestions).toBe(false);
+    });
+  });
+
+  describe('fetchTriageSuggestions', () => {
+    it('should not fetch when emails array is empty', async () => {
+      const { result } = renderHook(() => useTriageSuggestions());
+
+      await act(async () => {
+        await result.current.fetchTriageSuggestions([]);
+      });
+
+      expect(mockedAxios.post).not.toHaveBeenCalled();
+    });
+
+    it('should not fetch when already loading', async () => {
+      const { result } = renderHook(() => useTriageSuggestions());
+      const emails: Email[] = [{ id: '1' } as Email];
+
+      const delayedResponse = new Promise((resolve) => {
+        setTimeout(() => resolve({ data: [] }), 100);
+      });
+      mockedAxios.post.mockImplementation(() => delayedResponse);
+
+      act(() => {
+        result.current.fetchTriageSuggestions(emails);
+      });
+
+      await act(async () => {
+        await result.current.fetchTriageSuggestions(emails);
+      });
+
+      expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+    });
+
+    it('should fetch suggestions for emails', async () => {
+      const { result } = renderHook(() => useTriageSuggestions());
+      const emails: Email[] = [
+        { id: '1' } as Email,
+        { id: '2' } as Email,
+      ];
+      const mockSuggestions: (TriageSuggestion & { emailId: string })[] = [
+        {
+          emailId: '1',
+          suggestedStarCount: 2,
+          suggestedArchive: false,
+          confidence: 0.9,
+          reasoning: 'Test reasoning 1',
+        },
+        {
+          emailId: '2',
+          suggestedStarCount: 1,
+          suggestedArchive: true,
+          confidence: 0.8,
+          reasoning: 'Test reasoning 2',
+        },
+      ];
+
+      mockedAxios.post.mockResolvedValue({ data: mockSuggestions });
+
+      await act(async () => {
+        await result.current.fetchTriageSuggestions(emails);
+      });
+
+      await waitFor(() => {
+        expect(result.current.loadingSuggestions).toBe(false);
+      });
+
+      expect(result.current.triageSuggestions.size).toBe(2);
+      expect(result.current.triageSuggestions.get('1')).toEqual({
+        suggestedStarCount: 2,
+        suggestedArchive: false,
+      });
+      expect(result.current.triageSuggestions.get('2')).toEqual({
+        suggestedStarCount: 1,
+        suggestedArchive: true,
+      });
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        `${API_URL}/priority/triage-suggestions`,
+        { emailIds: ['1', '2'] }
+      );
+    });
+
+    it('should limit to TRIAGE_SUGGESTIONS_LIMIT_20 emails', async () => {
+      const { result } = renderHook(() => useTriageSuggestions());
+      const emails: Email[] = Array.from({ length: 30 }, (_, i) => ({
+        id: String(i + 1),
+      } as Email));
+
+      mockedAxios.post.mockResolvedValue({ data: [] });
+
+      await act(async () => {
+        await result.current.fetchTriageSuggestions(emails);
+      });
+
+      const emailIds = Array.from({ length: TRIAGE_SUGGESTIONS_LIMIT_20 }, (_, i) =>
+        String(i + 1)
+      );
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        `${API_URL}/priority/triage-suggestions`,
+        { emailIds }
+      );
+    });
+
+    it('should skip fetch if same emails already fetched', async () => {
+      const { result } = renderHook(() => useTriageSuggestions());
+      const emails: Email[] = [
+        { id: '1' } as Email,
+        { id: '2' } as Email,
+      ];
+
+      mockedAxios.post.mockResolvedValue({ data: [] });
+
+      await act(async () => {
+        await result.current.fetchTriageSuggestions(emails);
+      });
+
+      await act(async () => {
+        await result.current.fetchTriageSuggestions(emails);
+      });
+
+      expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle fetch errors gracefully', async () => {
+      const { result } = renderHook(() => useTriageSuggestions());
+      const emails: Email[] = [{ id: '1' } as Email];
+      const error = new Error('Fetch failed');
+
+      mockedAxios.post.mockRejectedValue(error);
+
+      await act(async () => {
+        await result.current.fetchTriageSuggestions(emails);
+      });
+
+      await waitFor(() => {
+        expect(result.current.loadingSuggestions).toBe(false);
+      });
+
+      expect(console.error).toHaveBeenCalledWith(
+        'Error fetching triage suggestions:',
+        error
+      );
+      expect(result.current.triageSuggestions.size).toBe(0);
+    });
+  });
+
+  describe('removeSuggestion', () => {
+    it('should remove suggestion from map', () => {
+      const { result } = renderHook(() => useTriageSuggestions());
+
+      act(() => {
+        result.current.triageSuggestions.set('1', {
+          suggestedStarCount: 2,
+          suggestedArchive: false,
+          confidence: 0.9,
+          reasoning: 'Test reasoning',
+        });
+        result.current.removeSuggestion('1');
+      });
+
+      expect(result.current.triageSuggestions.has('1')).toBe(false);
+    });
+
+    it('should not error when removing non-existent suggestion', () => {
+      const { result } = renderHook(() => useTriageSuggestions());
+
+      act(() => {
+        result.current.removeSuggestion('nonexistent');
+      });
+
+      expect(result.current.triageSuggestions.size).toBe(0);
+    });
+  });
+
+  describe('clearSuggestionsCache', () => {
+    it('should allow refetch after clearing cache', async () => {
+      const { result } = renderHook(() => useTriageSuggestions());
+      const emails: Email[] = [{ id: '1' } as Email];
+
+      mockedAxios.post.mockResolvedValue({ data: [] });
+
+      await act(async () => {
+        await result.current.fetchTriageSuggestions(emails);
+      });
+
+      act(() => {
+        result.current.clearSuggestionsCache();
+      });
+
+      await act(async () => {
+        await result.current.fetchTriageSuggestions(emails);
+      });
+
+      expect(mockedAxios.post).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('trackOverride', () => {
+    it('should track override and remove suggestion', async () => {
+      const { result } = renderHook(() => useTriageSuggestions());
+      const suggestion: TriageSuggestion = {
+        suggestedStarCount: 2,
+        suggestedArchive: false,
+        confidence: 0.9,
+        reasoning: 'Test reasoning',
+      };
+      const userAction = { starCount: 3, archived: false };
+
+      act(() => {
+        result.current.triageSuggestions.set('1', suggestion);
+      });
+
+      mockedAxios.post.mockResolvedValue({ data: {} });
+
+      await act(async () => {
+        await result.current.trackOverride('1', suggestion, userAction);
+      });
+
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        `${API_URL}/priority/triage-suggestions/override`,
+        {
+          emailId: '1',
+          suggestion,
+          userAction,
+        }
+      );
+      expect(result.current.triageSuggestions.has('1')).toBe(false);
+    });
+
+    it('should handle track override errors', async () => {
+      const { result } = renderHook(() => useTriageSuggestions());
+      const suggestion: TriageSuggestion = {
+        suggestedStarCount: 2,
+        suggestedArchive: false,
+        confidence: 0.9,
+        reasoning: 'Test reasoning',
+      };
+      const userAction = { starCount: 3, archived: false };
+      const error = new Error('Track failed');
+
+      act(() => {
+        result.current.triageSuggestions.set('1', suggestion);
+      });
+
+      mockedAxios.post.mockRejectedValue(error);
+
+      await act(async () => {
+        await result.current.trackOverride('1', suggestion, userAction);
+      });
+
+      expect(console.error).toHaveBeenCalledWith('Error tracking override:', error);
+      expect(result.current.triageSuggestions.has('1')).toBe(true);
+    });
+  });
+});
+

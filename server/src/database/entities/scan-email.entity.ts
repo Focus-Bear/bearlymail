@@ -46,8 +46,12 @@ export class ScanEmail {
   @Column("text", { nullable: true, transformer: encryptedColumnTransformer })
   htmlBody: string;
 
-  @Column({ type: "int", default: 0 })
-  starCount: number; // 0 = not starred, 1-3 = priority level
+  @Column({
+    type: "int",
+    default: 0,
+    comment: "0 = not starred, 1-3 = priority level",
+  })
+  starCount: number;
 
   @CreateDateColumn()
   receivedAt: Date;
@@ -55,16 +59,28 @@ export class ScanEmail {
   @Column({ default: false })
   isRead: boolean;
 
-  // Fields for analysis - populated during scan from Gmail labels/threads
-  @Column({ nullable: true })
-  timeToReply: number; // Hours to reply (calculated from thread)
+  @Column({
+    nullable: true,
+    comment: "Hours to reply (calculated from thread)",
+  })
+  timeToReply: number;
 
-  @Column({ default: false })
-  isArchived: boolean; // Whether user archived this email (from Gmail labels)
+  @Column({
+    default: false,
+    comment: "Whether user archived this email (from Gmail labels)",
+  })
+  isArchived: boolean;
 
-  @Column({ type: "timestamp", nullable: true })
-  archivedAt: Date; // When it was archived (estimated from receivedAt if archived)
+  @Column({
+    type: "timestamp",
+    nullable: true,
+    comment: "When it was archived (estimated from receivedAt if archived)",
+  })
+  archivedAt: Date;
 
-  @Column({ default: false })
-  wasRepliedTo: boolean; // Whether user replied to this email (check thread)
+  @Column({
+    default: false,
+    comment: "Whether user replied to this email (check thread)",
+  })
+  wasRepliedTo: boolean;
 }

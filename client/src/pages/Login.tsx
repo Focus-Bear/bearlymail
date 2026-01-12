@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
-import { useAuth } from '../contexts/AuthContext';
-import { theme } from '../theme/theme';
-import { captureEvent } from '../utils/posthog';
+import { useAuth } from 'contexts/AuthContext';
+import { theme } from 'theme/theme';
+import { captureEvent } from 'utils/posthog';
+import { devLog } from 'utils/dev-logger';
 
 const Login: React.FC = () => {
   const { t } = useTranslation();
@@ -20,7 +21,7 @@ const Login: React.FC = () => {
     const token = params.get('token');
     if (token) {
       localStorage.setItem('token', token);
-      console.log('Google OAuth token saved to localStorage:', localStorage.getItem('token') ? 'SUCCESS' : 'FAILED');
+      devLog('Google OAuth token saved to localStorage:', localStorage.getItem('token') ? 'SUCCESS' : 'FAILED');
       // Set the axios header immediately before redirect
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       // Use navigate instead of window.location to avoid full page reload issues
@@ -31,7 +32,7 @@ const Login: React.FC = () => {
 
     // If user is already authenticated, redirect to inbox
     if (!loading && user) {
-      console.log('User already authenticated, redirecting to inbox');
+      devLog('User already authenticated, redirecting to inbox');
       navigate('/inbox');
     }
   }, [user, loading, navigate]);
@@ -51,7 +52,7 @@ const Login: React.FC = () => {
 
   const handleGoogleLogin = () => {
     captureEvent('google_login_initiated');
-    window.location.href = `${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/auth/google`;
+    window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/auth/google`;
   };
 
   return (

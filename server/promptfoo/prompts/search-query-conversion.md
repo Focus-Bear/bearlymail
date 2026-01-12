@@ -15,9 +15,13 @@ CRITICAL RULES:
 3. For questions about people (e.g., "Is Jay coming?"), search for the person's name in from: field
 4. Don't add unrelated terms - if query is about "Jay", don't add "meeting" unless the query explicitly asks about meetings with Jay
 5. Keep it focused - only include terms directly mentioned in the query
-6. Return ONLY the Gmail search query, nothing else
+6. Return ONLY the Gmail search query, nothing else - no explanations, no markdown, no code blocks, just the raw query
 
-Gmail search query:
+Return the Gmail search query now:
+
+
+
+
 
 
 

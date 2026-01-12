@@ -15,14 +15,19 @@ import {
 } from "../../encryption/encryption.helper";
 
 @Entity("emails")
-@Index(["userId", "priorityScore"])
 @Index(["userId", "threadId"])
-@Index(["userId", "messageId"]) // For fast lookups by messageId
-@Index(["userId", "receivedAt"]) // For date-based queries in inbox
-@Index(["threadId"]) // For joining with email_threads
-@Index(["userId", "emailThreadId"]) // For inbox queries (getInbox)
-@Index(["emailThreadId"]) // For thread lookups
-@Index(["userId", "isBatched", "batchReleaseAt"]) // For batch-status queries (getNextBatchReleaseTime)
+// For fast lookups by messageId
+@Index(["userId", "messageId"])
+// For date-based queries in inbox
+@Index(["userId", "receivedAt"])
+// For joining with email_threads
+@Index(["threadId"])
+// For inbox queries (getInbox)
+@Index(["userId", "emailThreadId"])
+// For thread lookups
+@Index(["emailThreadId"])
+// For batch-status queries (getNextBatchReleaseTime)
+@Index(["userId", "isBatched", "batchReleaseAt"])
 export class Email {
   @PrimaryGeneratedColumn("uuid")
   id: string;
@@ -30,11 +35,16 @@ export class Email {
   @Column()
   userId: string;
 
-  @Column()
-  threadId: string; // Gmail thread ID (for reference, but use emailThreadId for FK)
+  @Column({
+    comment: "Gmail thread ID (for reference, but use emailThreadId for FK)",
+  })
+  threadId: string;
 
-  @Column({ nullable: true })
-  emailThreadId: string; // Foreign key to email_threads table
+  @Column({
+    nullable: true,
+    comment: "Foreign key to email_threads table",
+  })
+  emailThreadId: string;
 
   @Column()
   messageId: string;
@@ -56,9 +66,6 @@ export class Email {
 
   @Column("text", { nullable: true, transformer: encryptedColumnTransformer })
   htmlBody: string;
-
-  @Column({ type: "float", default: 50 })
-  priorityScore: number;
 
   // Thread-level properties moved to EmailThread entity
   // Urgency is now on EmailThread (urgencyScore, urgencyExplanation)
@@ -82,40 +89,54 @@ export class Email {
   @Column({ nullable: true })
   timeToReply: number;
 
-  @Column({ type: "float", nullable: true })
-  userPriorityOverride: number | null; // User's manual priority override (0-100)
+  @Column({
+    type: "float",
+    nullable: true,
+    comment: "User's manual priority override (0-100)",
+  })
+  userPriorityOverride: number | null;
 
-  @Column("text", { nullable: true, transformer: encryptedColumnTransformer })
-  priorityOverrideReason: string | null; // Reason user provided for override
+  @Column({
+    type: "text",
+    nullable: true,
+    transformer: encryptedColumnTransformer,
+    comment: "Reason user provided for override",
+  })
+  priorityOverrideReason: string | null;
 
-  @Column({ nullable: true })
-  priorityOverrideReasonType: string | null; // Category of override reason (e.g., "wrong_sender_priority", "wrong_urgency", "topic_mismatch")
+  @Column({
+    nullable: true,
+    comment:
+      "Category of override reason (e.g., 'wrong_sender_priority', 'wrong_urgency', 'topic_mismatch')",
+  })
+  priorityOverrideReasonType: string | null;
 
   @Column({ default: false })
   isRead: boolean;
 
-  @Column("text", { nullable: true, transformer: encryptedColumnTransformer })
-  summary: string; // Cached summary from LLM
+  @Column({
+    type: "text",
+    nullable: true,
+    transformer: encryptedColumnTransformer,
+    comment: "Cached summary from LLM",
+  })
+  summary: string;
 
-  @Column("text", { nullable: true, transformer: encryptedJsonTransformer })
-  labels: string[]; // JSON stringified list of labels
+  @Column({
+    type: "text",
+    nullable: true,
+    transformer: encryptedJsonTransformer,
+    comment: "JSON stringified list of labels",
+  })
+  labels: string[];
 
-  @Column("text", { nullable: true, transformer: encryptedJsonTransformer })
-  priorityExplanation: {
-    score: number;
-    dimensions: {
-      urgency: { score: number; reasons: string[] };
-      goalAlignment: { score: number; reasons: string[] };
-      vipContact: { score: number; reasons: string[] };
-    };
-    breakdown: Array<{ factor: string; value: number; description: string }>;
-  } | null; // Precomputed priority explanation
+  // Priority explanation moved to EmailThread entity (thread-level property)
 
-  @Column({ default: false })
-  isProcessingPriority: boolean; // Flag to indicate LLM priority is being calculated
-
-  @Column({ default: false })
-  isProcessingSummary: boolean; // Flag to indicate summary is being generated
+  @Column({
+    default: false,
+    comment: "Flag to indicate summary is being generated",
+  })
+  isProcessingSummary: boolean;
 
   @CreateDateColumn()
   receivedAt: Date;
@@ -127,4 +148,23 @@ export class Email {
   @ManyToOne(() => EmailThread, (thread) => thread.emails)
   @JoinColumn({ name: "emailThreadId" })
   thread: EmailThread;
+
+  /**
+   * Calculate priority score from breakdown array
+   * This is the single source of truth for priority scores
+   * Priority explanation is now stored on the thread, not the email
+   * @returns The calculated score (0-100), or 0 if no breakdown exists
+   */
+  getPriorityScore(): number {
+    if (!this.thread?.priorityExplanation || !this.thread.priorityExplanation.breakdown) {
+      return 0;
+    }
+
+    const total = this.thread.priorityExplanation.breakdown.reduce(
+      (sum, item) => sum + (item.value || 0),
+      0,
+    );
+
+    return Math.max(0, Math.min(100, total));
+  }
 }

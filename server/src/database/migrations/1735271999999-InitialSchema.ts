@@ -3,13 +3,16 @@ import {
   QueryRunner,
   Table,
   TableColumn,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   TableForeignKey,
   TableIndex,
 } from "typeorm";
+import { getErrorMessage } from "../../types/common";
 
 export class InitialSchema1735271999999 implements MigrationInterface {
   name = "InitialSchema1735271999999";
 
+  // eslint-disable-next-line complexity, max-statements
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Create extension for UUID generation
     await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`);
@@ -1131,6 +1134,7 @@ export class InitialSchema1735271999999 implements MigrationInterface {
     await queryRunner.query(`ANALYZE "blocked_senders"`);
     await queryRunner.query(`ANALYZE "batch_schedules"`);
 
+    // eslint-disable-next-line no-console
     console.log(
       "Initial schema created successfully with all tables and indexes",
     );
@@ -1162,13 +1166,15 @@ export class InitialSchema1735271999999 implements MigrationInterface {
     // Index doesn't exist, create it
     try {
       await queryRunner.createIndex(tableName, index);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Double-check: if it was created by another process between check and create
+      const errorMessage = getErrorMessage(error);
       if (
-        error.message?.includes("already exists") ||
-        error.message?.includes("duplicate")
+        errorMessage?.includes("already exists") ||
+        errorMessage?.includes("duplicate")
       ) {
-        return; // Index exists now, that's fine
+        // Index exists now, that's fine
+        return;
       }
       throw error;
     }

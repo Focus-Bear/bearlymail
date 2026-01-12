@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { InboxMode } from '../types/email';
+import { InboxMode } from 'types/email';
+import { MODE_TRIAGE } from 'constants/strings';
 
 interface UseInboxModeChangesProps {
   mode: InboxMode;
@@ -77,11 +78,11 @@ export function useInboxModeChanges({
     const modeChanged = prevModeRef.current !== mode;
     const emailsChanged = prevEmailsLengthRef.current !== emails.length;
     
-    if (mode === 'triage' && emails.length > 0 && !loadingSuggestions && (modeChanged || emailsChanged)) {
+    if (mode === MODE_TRIAGE && emails.length > 0 && !loadingSuggestions && (modeChanged || emailsChanged)) {
       fetchTriageSuggestions(emails);
       prevModeRef.current = mode;
       prevEmailsLengthRef.current = emails.length;
-    } else if (mode !== 'triage') {
+    } else if (mode !== MODE_TRIAGE) {
       prevModeRef.current = mode;
       clearSuggestionsCache();
     }

@@ -16,14 +16,16 @@ export class GmailRequiredGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    const user = request.user;
+    const { user } = request;
 
     if (!user) {
       throw new UnauthorizedException("Authentication required");
     }
 
     // JWT strategy returns { userId, email }, not full user object
-    const userId = (user as any).userId || (user as any).id;
+    const userId =
+      (user as { userId?: string; id?: string }).userId ||
+      (user as { userId?: string; id?: string }).id;
 
     if (!userId) {
       throw new UnauthorizedException("User ID not found");
@@ -34,7 +36,7 @@ export class GmailRequiredGuard implements CanActivate {
       await this.googleAccountsService.hasConnectedGmail(userId);
 
     // Also check legacy: if user has tokens directly on User entity
-    const fullUser = await this.usersService.findOne(userId);
+    const fullUser = await this.usersService.findOneWithTokens(userId);
     const hasLegacyGmail = !!fullUser?.googleCalendarAccessToken;
 
     if (!hasGmailAccounts && !hasLegacyGmail) {

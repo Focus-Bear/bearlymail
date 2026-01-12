@@ -1,6 +1,7 @@
 import React from 'react';
-import { theme } from '../../theme/theme';
-import { useResponsiveBreakpoints } from '../../hooks/useResponsiveBreakpoints';
+import { useTranslation } from 'react-i18next';
+import { theme } from 'theme/theme';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 interface ComparisonRow {
   label: string;
@@ -18,6 +19,7 @@ interface ComparisonTableRowProps {
  * Table row component for comparison table
  */
 export const ComparisonTableRow: React.FC<ComparisonTableRowProps> = ({ row, isLastRow }) => {
+  const { t } = useTranslation();
   const { isMobile } = useResponsiveBreakpoints();
 
   const baseCellStyle: React.CSSProperties = {
@@ -42,7 +44,7 @@ export const ComparisonTableRow: React.FC<ComparisonTableRowProps> = ({ row, isL
 
   const bearlyMailCellStyle: React.CSSProperties = {
     ...dataCellStyle,
-    fontWeight: row.label === 'Philosophy' ? theme.typography.fontWeight.medium : undefined,
+    fontWeight: row.label === t('landing.comparison.table.rows.philosophy.label') ? theme.typography.fontWeight.medium : undefined,
   };
 
   const rowKey = `row-${row.label.toLowerCase().replace(/\s+/g, '-')}`;

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { theme } from '../theme/theme';
-import { useResponsiveBreakpoints } from '../hooks/useResponsiveBreakpoints';
+import { theme } from 'theme/theme';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import {
   LandingHeader,
   HeroSection,
@@ -11,7 +11,7 @@ import {
   FounderStory,
   WaitlistForm,
   WaitlistSuccess,
-} from '../components/landing';
+} from 'components/landing';
 
 /**
  * Landing page component
@@ -61,7 +61,11 @@ const Landing: React.FC = () => {
           maxWidth: '1400px',
           margin: '0 auto',
           width: '100%',
-          padding: isMobile ? theme.spacing.md : isTablet ? theme.spacing.lg : theme.spacing.xl,
+          padding: (() => {
+            if (isMobile) return theme.spacing.md;
+            if (isTablet) return theme.spacing.lg;
+            return theme.spacing.xl;
+          })(),
           boxSizing: 'border-box',
           overflowX: 'hidden',
         }}
@@ -69,8 +73,15 @@ const Landing: React.FC = () => {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr' : isTablet ? '1fr minmax(400px, 500px)' : '1fr minmax(400px, 450px)',
-            gap: isMobile ? theme.spacing.lg : isTablet ? theme.spacing.xl : theme.spacing.xl,
+            gridTemplateColumns: (() => {
+              if (isMobile) return '1fr';
+              if (isTablet) return '1fr minmax(400px, 500px)';
+              return '1fr minmax(400px, 450px)';
+            })(),
+            gap: (() => {
+              if (isMobile) return theme.spacing.lg;
+              return theme.spacing.xl;
+            })(),
             alignItems: 'flex-start',
             minWidth: 0,
           }}

@@ -1,0 +1,119 @@
+import { useEffect } from 'react';
+import { Email } from 'types/email';
+import { useSplitView } from 'hooks/useSplitView';
+import { KEY_ESCAPE, KEY_TAB, KEY_ARROW_DOWN, KEY_ARROW_UP, KEY_ENTER } from 'constants/strings';
+
+interface UseInboxKeyboardNavigationProps {
+  emails: Email[];
+  selectedEmailIndex: number;
+  setSelectedEmailIndex: (index: number) => void;
+  splitView: ReturnType<typeof useSplitView>;
+  onEmailSelect: (emailId: string, e: React.MouseEvent) => void;
+  emailListRef: React.RefObject<HTMLDivElement | null>;
+  emailDetailRef: React.RefObject<HTMLDivElement | null>;
+}
+
+export function useInboxKeyboardNavigation({
+  emails,
+  selectedEmailIndex,
+  setSelectedEmailIndex,
+  splitView,
+  onEmailSelect,
+  emailListRef,
+  emailDetailRef,
+}: UseInboxKeyboardNavigationProps) {
+  useEffect(() => {
+    if (splitView.isMobile) return;
+
+    // eslint-disable-next-line complexity, max-statements -- Keyboard navigation requires handling multiple key combinations and actions
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === KEY_ESCAPE && splitView.selectedEmailId) {
+        splitView.closeEmail();
+        emailListRef.current?.focus();
+        return;
+      }
+
+      if (e.key === KEY_TAB && !e.shiftKey && document.activeElement) {
+        const activeEl = document.activeElement;
+        const isInList = emailListRef.current?.contains(activeEl);
+        const isInDetail = emailDetailRef.current?.contains(activeEl);
+
+        if (isInList && splitView.selectedEmailId && !isInDetail) {
+          const focusableInList = emailListRef.current?.querySelectorAll(
+            'a, button, input, textarea, select, [tabindex]:not([tabindex="-1"])'
+          );
+          if (focusableInList && focusableInList.length > 0) {
+            const lastFocusable = focusableInList[focusableInList.length - 1] as HTMLElement;
+            if (activeEl === lastFocusable || activeEl === emailListRef.current) {
+              e.preventDefault();
+              const firstFocusableInDetail = emailDetailRef.current?.querySelector(
+                'a, button, input, textarea, select, [tabindex]:not([tabindex="-1"])'
+              ) as HTMLElement;
+              firstFocusableInDetail?.focus();
+            }
+          }
+        }
+      }
+
+      if (e.key === KEY_TAB && e.shiftKey && document.activeElement) {
+        const activeEl = document.activeElement;
+        const isInList = emailListRef.current?.contains(activeEl);
+        const isInDetail = emailDetailRef.current?.contains(activeEl);
+
+        if (isInDetail && !isInList) {
+          const focusableInDetail = emailDetailRef.current?.querySelectorAll(
+            'a, button, input, textarea, select, [tabindex]:not([tabindex="-1"])'
+          );
+          if (focusableInDetail && focusableInDetail.length > 0) {
+            const firstFocusable = focusableInDetail[0] as HTMLElement;
+            if (activeEl === firstFocusable) {
+              e.preventDefault();
+              const lastFocusableInList = emailListRef.current?.querySelector(
+                'a, button, input, textarea, select, [tabindex]:not([tabindex="-1"])'
+              ) as HTMLElement;
+              lastFocusableInList?.focus();
+            }
+          }
+        }
+      }
+
+      if (emailListRef.current?.contains(document.activeElement)) {
+        const visibleEmails = emails.filter(e => !e.isArchived);
+        if (e.key === KEY_ARROW_DOWN && selectedEmailIndex < visibleEmails.length - 1) {
+          e.preventDefault();
+          const newIndex = selectedEmailIndex + 1;
+          setSelectedEmailIndex(newIndex);
+          // Scroll the newly selected email into view
+          setTimeout(() => {
+            const emailElement = emailListRef.current?.querySelector(
+              `[data-email-index="${newIndex}"]`
+            ) as HTMLElement;
+            if (emailElement) {
+              emailElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+          }, 0);
+        } else if (e.key === KEY_ARROW_UP && selectedEmailIndex > 0) {
+          e.preventDefault();
+          const newIndex = selectedEmailIndex - 1;
+          setSelectedEmailIndex(newIndex);
+          // Scroll the newly selected email into view
+          setTimeout(() => {
+            const emailElement = emailListRef.current?.querySelector(
+              `[data-email-index="${newIndex}"]`
+            ) as HTMLElement;
+            if (emailElement) {
+              emailElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+          }, 0);
+        } else if (e.key === KEY_ENTER && selectedEmailIndex >= 0 && visibleEmails[selectedEmailIndex]) {
+          e.preventDefault();
+          onEmailSelect(visibleEmails[selectedEmailIndex].id, e as any);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [splitView, selectedEmailIndex, emails, setSelectedEmailIndex, onEmailSelect, emailListRef, emailDetailRef]);
+}
+

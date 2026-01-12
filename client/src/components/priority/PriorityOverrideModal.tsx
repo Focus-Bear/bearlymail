@@ -1,16 +1,12 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
-import { theme } from '../../theme/theme';
+import { theme } from 'theme/theme';
+import { ModalBackdrop, ModalContent, ModalHeader, ModalFooter } from 'components/modal';
+import { ReasonTypeSelector } from 'components/priority/override/ReasonTypeSelector';
+import { OverrideReasonType } from 'components/priority/types';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-
-export enum OverrideReasonType {
-  WRONG_SENDER_PRIORITY = 'wrong_sender_priority',
-  WRONG_URGENCY = 'wrong_urgency',
-  TOPIC_MISMATCH = 'topic_mismatch',
-  OTHER = 'other',
-}
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 interface PriorityOverrideModalProps {
   emailId: string;
@@ -18,6 +14,7 @@ interface PriorityOverrideModalProps {
   newPriorityScore: number;
   onClose: () => void;
   onSubmitted?: () => void;
+  context?: 'archive' | 'star' | 'manual'; // Context for why we're asking
 }
 
 export const PriorityOverrideModal: React.FC<PriorityOverrideModalProps> = ({
@@ -26,11 +23,19 @@ export const PriorityOverrideModal: React.FC<PriorityOverrideModalProps> = ({
   newPriorityScore,
   onClose,
   onSubmitted,
+  context = 'manual',
 }) => {
   const { t } = useTranslation();
   const [selectedReason, setSelectedReason] = useState<OverrideReasonType | ''>('');
   const [reasonText, setReasonText] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const isHighPriority = originalPriorityScore > 20;
+  const priorityLabel = isHighPriority 
+    ? t('priority.high') 
+    : originalPriorityScore >= 0 
+      ? t('priority.low') 
+      : t('priority.veryLow');
 
   const handleSubmit = async () => {
     if (!selectedReason) return;
@@ -49,54 +54,38 @@ export const PriorityOverrideModal: React.FC<PriorityOverrideModalProps> = ({
       onClose();
     } catch (error) {
       console.error('Error submitting priority override:', error);
-      alert('Failed to submit override. Please try again.');
+      alert(t('priority.override.submitError'));
     } finally {
       setSubmitting(false);
     }
   };
 
-  const reasonOptions = [
-    { value: OverrideReasonType.WRONG_SENDER_PRIORITY, label: 'Wrong sender priority' },
-    { value: OverrideReasonType.WRONG_URGENCY, label: 'Wrong urgency' },
-    { value: OverrideReasonType.TOPIC_MISMATCH, label: 'Topic mismatch' },
-    { value: OverrideReasonType.OTHER, label: 'Other' },
-  ];
+  // Get context-specific description
+  const getDescription = () => {
+    if (context === 'archive') {
+      if (isHighPriority) {
+        return t('priority.override.archiveHighPriority', { 
+          score: originalPriorityScore.toFixed(0),
+          priority: priorityLabel 
+        });
+      } else {
+        return t('priority.override.archiveLowPriority', { 
+          score: originalPriorityScore.toFixed(0),
+          priority: priorityLabel 
+        });
+      }
+    }
+    // Default description for manual/star changes
+    return t('priority.override.description', { 
+      from: originalPriorityScore.toFixed(0), 
+      to: newPriorityScore.toFixed(0) 
+    });
+  };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 2000,
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          backgroundColor: theme.colors.background.paper,
-          borderRadius: theme.borderRadius.lg,
-          padding: theme.spacing.xl,
-          maxWidth: '500px',
-          width: '90%',
-          boxShadow: theme.shadows.xl,
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 style={{
-          fontSize: theme.typography.fontSize.lg,
-          fontWeight: theme.typography.fontWeight.bold,
-          color: theme.colors.text.primary,
-          marginBottom: theme.spacing.md,
-        }}>
-          Why did you change this priority?
-        </h3>
+    <ModalBackdrop onClose={onClose}>
+      <ModalContent>
+        <ModalHeader title={t('priority.override.title')} />
 
         <p style={{
           fontSize: theme.typography.fontSize.sm,
@@ -104,47 +93,13 @@ export const PriorityOverrideModal: React.FC<PriorityOverrideModalProps> = ({
           marginBottom: theme.spacing.md,
           lineHeight: theme.typography.lineHeight.relaxed,
         }}>
-          Priority changed from {originalPriorityScore.toFixed(0)} to {newPriorityScore.toFixed(0)}.
-          Help us understand why so we can improve future scoring.
+          {getDescription()}
         </p>
 
-        <div style={{ marginBottom: theme.spacing.md }}>
-          {reasonOptions.map((option) => (
-            <label
-              key={option.value}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                padding: theme.spacing.sm,
-                marginBottom: theme.spacing.xs,
-                cursor: 'pointer',
-                borderRadius: theme.borderRadius.sm,
-                backgroundColor: selectedReason === option.value
-                  ? theme.colors.primary.subtle
-                  : 'transparent',
-                transition: 'background-color 0.2s',
-              }}
-            >
-              <input
-                type="radio"
-                name="reasonType"
-                value={option.value}
-                checked={selectedReason === option.value}
-                onChange={(e) => setSelectedReason(e.target.value as OverrideReasonType)}
-                style={{
-                  marginRight: theme.spacing.sm,
-                  cursor: 'pointer',
-                }}
-              />
-              <span style={{
-                fontSize: theme.typography.fontSize.sm,
-                color: theme.colors.text.primary,
-              }}>
-                {option.label}
-              </span>
-            </label>
-          ))}
-        </div>
+        <ReasonTypeSelector
+          selectedReason={selectedReason}
+          onReasonChange={setSelectedReason}
+        />
 
         <div style={{ marginBottom: theme.spacing.md }}>
           <label style={{
@@ -154,12 +109,12 @@ export const PriorityOverrideModal: React.FC<PriorityOverrideModalProps> = ({
             color: theme.colors.text.primary,
             marginBottom: theme.spacing.xs,
           }}>
-            Additional details (optional):
+            {t('priority.override.additionalDetails')}:
           </label>
           <textarea
             value={reasonText}
             onChange={(e) => setReasonText(e.target.value)}
-            placeholder="Provide more context about why you changed the priority..."
+            placeholder={t('priority.override.placeholder')}
             style={{
               width: '100%',
               padding: theme.spacing.sm,
@@ -173,45 +128,18 @@ export const PriorityOverrideModal: React.FC<PriorityOverrideModalProps> = ({
           />
         </div>
 
-        <div style={{ display: 'flex', gap: theme.spacing.sm, justifyContent: 'flex-end' }}>
-          <button
-            onClick={onClose}
-            style={{
-              padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-              backgroundColor: 'transparent',
-              color: theme.colors.text.secondary,
-              border: `1px solid ${theme.colors.border.medium}`,
-              borderRadius: theme.borderRadius.md,
-              cursor: 'pointer',
-              fontSize: theme.typography.fontSize.sm,
-              fontWeight: theme.typography.fontWeight.medium,
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={!selectedReason || submitting}
-            style={{
-              padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-              backgroundColor: selectedReason && !submitting
-                ? theme.colors.primary.main
-                : theme.colors.background.subtle,
-              color: selectedReason && !submitting ? 'white' : theme.colors.text.tertiary,
-              border: 'none',
-              borderRadius: theme.borderRadius.md,
-              cursor: selectedReason && !submitting ? 'pointer' : 'not-allowed',
-              fontSize: theme.typography.fontSize.sm,
-              fontWeight: theme.typography.fontWeight.medium,
-            }}
-          >
-            {submitting ? 'Submitting...' : 'Submit'}
-          </button>
-        </div>
-      </div>
-    </div>
+        <ModalFooter
+          onCancel={onClose}
+          onSubmit={handleSubmit}
+          isSubmitting={submitting}
+          canSubmit={!!selectedReason}
+        />
+      </ModalContent>
+    </ModalBackdrop>
   );
 };
+
+
 
 
 

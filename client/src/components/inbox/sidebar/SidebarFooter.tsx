@@ -1,0 +1,101 @@
+import React from 'react';
+import { useTranslation } from 'react-i18next';
+import { theme } from 'theme/theme';
+import { captureEvent } from 'utils/posthog';
+
+interface SidebarFooterProps {
+  userEmail?: string;
+  onLogout: () => void;
+  isCollapsed?: boolean;
+}
+
+export const SidebarFooter: React.FC<SidebarFooterProps> = ({ userEmail, onLogout, isCollapsed = false }) => {
+  const { t } = useTranslation();
+
+  return (
+    <>
+      <div style={{ 
+        borderTop: `1px solid ${theme.colors.border.light}`, 
+        paddingTop: theme.spacing.sm,
+        display: isCollapsed ? 'block' : 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: theme.spacing.sm,
+      }}>
+        {!isCollapsed && (
+          <div style={{
+            fontSize: theme.typography.fontSize.sm,
+            color: theme.colors.text.secondary,
+            flex: 1,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
+            {userEmail}
+          </div>
+        )}
+        <button
+          onClick={() => {
+            captureEvent('sidebar_logout_clicked');
+            onLogout();
+          }}
+          title={isCollapsed ? t('auth.logout') : undefined}
+          style={{
+            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+            backgroundColor: 'transparent',
+            color: theme.colors.text.secondary,
+            border: `1px solid ${theme.colors.border.medium}`,
+            borderRadius: theme.borderRadius.md,
+            cursor: 'pointer',
+            fontSize: theme.typography.fontSize.xs,
+            fontWeight: theme.typography.fontWeight.medium,
+            transition: theme.transitions.fast,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            whiteSpace: 'nowrap',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = theme.colors.text.primary;
+            e.currentTarget.style.color = theme.colors.text.primary;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = theme.colors.border.medium;
+            e.currentTarget.style.color = theme.colors.text.secondary;
+          }}
+        >
+          {isCollapsed ? '🚪' : t('auth.logout')}
+        </button>
+      </div>
+      {!isCollapsed && (
+        <footer style={{ marginTop: '2px', textAlign: 'center' }}>
+          <a 
+            href="https://focusbear.io" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            onClick={() => captureEvent('sidebar_focusbear_link_clicked')} 
+            style={{ 
+              color: theme.colors.text.tertiary, 
+              textDecoration: 'none',
+              fontSize: '9px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '3px',
+              opacity: 0.7,
+            }}
+          >
+            {t('footer.madeBy')} {t('footer.focusBear')}
+            <img 
+              src="https://focus-bear.github.io/assets/focus-blocked/images/FocusBearLogo.svg" 
+              alt={t('footer.focusBearLogo')} 
+              style={{ height: '12px', verticalAlign: 'middle' }} 
+            />
+          </a>
+        </footer>
+      )}
+    </>
+  );
+};
+
+
+

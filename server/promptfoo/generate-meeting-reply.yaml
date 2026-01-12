@@ -1,0 +1,56 @@
+description: "Meeting reply generation prompts for BearlyMail"
+
+providers:
+  - openai:gpt-4.1-mini
+  # Uncomment below if you have Gemini API key
+  # - google:gemini-pro
+
+prompts:
+  - file://prompts/generate-meeting-reply.md
+
+tests:
+  - vars:
+      hasAvailableSlots: true
+      fromName: "Sarah Chen"
+      subject: "Meeting request"
+      body: "Hi, I'd like to schedule a meeting to discuss the project. When are you available?"
+      slotsText: "1. 12/15/2024 at 10:00 AM\n2. 12/15/2024 at 2:00 PM\n3. 12/16/2024 at 11:00 AM"
+      calendarLink: "https://calendly.com/user"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const lower = text.toLowerCase();
+          // Should mention available slots
+          const hasSlots = lower.includes('10:00') || lower.includes('2:00') || lower.includes('11:00') || lower.includes('available');
+          // Should be professional and helpful
+          const isProfessional = lower.includes('thank') || lower.includes('available') || lower.includes('works');
+          if (!hasSlots || !isProfessional || text.length < 50) {
+            throw new Error(`Expected mention of slots and professional tone. Got: ${text.substring(0, 200)}`);
+          }
+          return true;
+    description: "Should generate reply with available slots"
+
+  - vars:
+      hasAvailableSlots: false
+      fromName: "Mike Thompson"
+      subject: "Coffee chat"
+      body: "Would love to grab coffee next week if you're free!"
+      slotsText: ""
+      calendarLink: ""
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const lower = text.toLowerCase();
+          // Should be polite and ask for their availability
+          const isPolite = lower.includes('thank') || lower.includes('sorry') || lower.includes('unavailable');
+          const asksAvailability = lower.includes('available') || lower.includes('when') || lower.includes('schedule');
+          if (!isPolite || !asksAvailability || text.length < 40) {
+            throw new Error(`Expected polite response asking for availability. Got: ${text.substring(0, 200)}`);
+          }
+          return true;
+    description: "Should generate polite reply asking for availability when no slots"
+
+
+

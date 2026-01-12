@@ -1,15 +1,17 @@
 import React from 'react';
-import { theme } from '../../theme/theme';
-import { useResponsiveBreakpoints } from '../../hooks/useResponsiveBreakpoints';
-import { CTAButton } from './CTAButton';
-import { ClosingStatementContent } from './ClosingStatementContent';
-import { getResponsiveSpacing, getHeadingFontSize } from './utils';
+import { useTranslation } from 'react-i18next';
+import { theme } from 'theme/theme';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { CTAButton } from 'components/landing/CTAButton';
+import { ClosingStatementContent } from 'components/landing/ClosingStatementContent';
+import { getResponsiveSpacing, getHeadingFontSize } from 'components/landing/utils';
 
 /**
  * Closing statement section component
  * Final call to action and value proposition
  */
 export const ClosingStatement: React.FC = () => {
+  const { t } = useTranslation();
   const breakpoints = useResponsiveBreakpoints();
 
   const scrollToWaitlist = () => {
@@ -53,7 +55,7 @@ export const ClosingStatement: React.FC = () => {
           marginBottom: headingMarginBottom,
         }}
       >
-        Stop reacting to your inbox. Start controlling it.
+        {t('landing.closing.heading')}
       </h2>
       <ClosingStatementContent />
       {/* CTA - shown on all screen sizes */}
@@ -63,7 +65,7 @@ export const ClosingStatement: React.FC = () => {
           textAlign: (breakpoints.isTablet || breakpoints.isDesktop) ? 'left' : 'center',
         }}
       >
-        <CTAButton onClick={scrollToWaitlist}>Take Control Now</CTAButton>
+        <CTAButton onClick={scrollToWaitlist}>{t('landing.closing.cta')}</CTAButton>
       </div>
     </section>
   );

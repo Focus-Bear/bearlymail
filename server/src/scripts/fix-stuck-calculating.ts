@@ -15,11 +15,14 @@ async function fixStuckCalculating() {
     process.exit(1);
   }
 
+  // eslint-disable-next-line no-console
   console.log(`Fixing stuck calculating threads for user: ${userId}`);
 
   try {
     const result = await emailsService.fixStuckCalculatingThreads(userId);
+    // eslint-disable-next-line no-console
     console.log(`✅ Fixed ${result.fixed} stuck threads`);
+    // eslint-disable-next-line no-console
     console.log(`✅ Re-queued ${result.requeued} jobs`);
     if (result.errors.length > 0) {
       console.error(`❌ ${result.errors.length} errors:`);

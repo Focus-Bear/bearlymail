@@ -54,12 +54,26 @@ export class LLMController {
       email: user?.email || "",
     };
 
+    // Determine if the user is the sender by comparing sender email with user email
+    const senderEmail = body.senderInfo?.from || "";
+    const userEmail = user?.email || "";
+    // Normalize emails for comparison (lowercase, remove angle brackets if present)
+    const normalizeEmail = (email: string) => {
+      const match = email.match(/<(.+)>/);
+      return (match ? match[1] : email).toLowerCase().trim();
+    };
+    const isUserSender =
+      senderEmail &&
+      userEmail &&
+      normalizeEmail(senderEmail) === normalizeEmail(userEmail);
+
     return this.llmService.extractActionItems(
       body.emailBody,
       undefined,
       req.user.userId,
       body.senderInfo,
       recipientInfo,
+      isUserSender,
     );
   }
 

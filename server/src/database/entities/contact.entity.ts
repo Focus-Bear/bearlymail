@@ -25,8 +25,10 @@ import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
  * - Only decrypt the matching contacts for display
  */
 @Entity("contacts")
-@Index(["userId", "emailHash"]) // Fast lookup by email
-@Index(["userId", "provider", "providerId"], { unique: true }) // Prevent duplicates from same provider
+// Fast lookup by email
+@Index(["userId", "emailHash"])
+// Prevent duplicates from same provider
+@Index(["userId", "provider", "providerId"], { unique: true })
 export class Contact {
   @PrimaryGeneratedColumn("uuid")
   id: string;
@@ -35,11 +37,14 @@ export class Contact {
   userId: string;
 
   // Provider information (for sync tracking)
-  @Column({ default: "manual" })
-  provider: string; // 'gmail', 'outlook', 'manual', etc.
+  @Column({ default: "manual", comment: "'gmail', 'outlook', 'manual', etc." })
+  provider: string;
 
-  @Column({ nullable: true })
-  providerId: string; // Provider-specific ID (e.g., Google People resourceName)
+  @Column({
+    nullable: true,
+    comment: "Provider-specific ID (e.g., Google People resourceName)",
+  })
+  providerId: string;
 
   // Encrypted fields
   @Column({ transformer: encryptedColumnTransformer })
@@ -74,8 +79,8 @@ export class Contact {
   // Search tokens - hashed trigrams and normalized tokens for fuzzy search
   // Stored as JSON array of hashes: ["abc123...", "def456...", ...]
   // Generated from: email domain, name parts, company name
-  @Column("text", { nullable: true })
-  searchTokens: string; // JSON array of hashed tokens
+  @Column("text", { nullable: true, comment: "JSON array of hashed tokens" })
+  searchTokens: string;
 
   // Metadata
   @Column({ default: false })
@@ -84,8 +89,8 @@ export class Contact {
   @Column({ nullable: true })
   lastContactedAt: Date;
 
-  @Column({ default: 0 })
-  contactFrequency: number; // How often user emails this contact
+  @Column({ default: 0, comment: "How often user emails this contact" })
+  contactFrequency: number;
 
   @CreateDateColumn()
   createdAt: Date;

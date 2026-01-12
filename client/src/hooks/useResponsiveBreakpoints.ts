@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { BREAKPOINT_TABLET, BREAKPOINT_DESKTOP } from 'constants/numbers';
 
 /**
  * Custom hook to detect responsive breakpoints
@@ -17,8 +18,8 @@ export const useResponsiveBreakpoints = () => {
   useEffect(() => {
     const checkScreenSize = () => {
       const width = window.innerWidth;
-      setIsMobile(width < 640);
-      setIsTablet(width >= 640 && width < 1280);
+      setIsMobile(width < BREAKPOINT_TABLET);
+      setIsTablet(width >= BREAKPOINT_TABLET && width < BREAKPOINT_DESKTOP);
     };
 
     checkScreenSize();
@@ -28,6 +29,10 @@ export const useResponsiveBreakpoints = () => {
 
   return { isMobile, isTablet, isDesktop: !isMobile && !isTablet };
 };
+
+
+
+
 
 
 

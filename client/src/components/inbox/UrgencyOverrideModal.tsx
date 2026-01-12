@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
-import { theme } from '../../theme/theme';
+import { theme } from 'theme/theme';
+import { ModalBackdrop, ModalContent, ModalHeader, ModalFooter } from 'components/modal';
+import { UrgencyScoreInput } from 'components/priority/override/UrgencyScoreInput';
+import { MAX_URGENCY_SCORE, MAX_PERCENTAGE } from 'constants/numbers';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 interface UrgencyOverrideModalProps {
   threadId: string;
@@ -25,14 +28,14 @@ export const UrgencyOverrideModal: React.FC<UrgencyOverrideModalProps> = ({
 
   const handleSubmit = async () => {
     if (!reason.trim()) {
-      alert('Please provide a reason for the override.');
+      alert(t('priority.override.pleaseProvideReason'));
       return;
     }
 
     setSubmitting(true);
     try {
       await axios.post(`${API_URL}/priority/${threadId}/override-urgency`, {
-        urgencyScore: Math.max(0, Math.min(100, urgencyScore)),
+        urgencyScore: Math.max(0, Math.min(MAX_PERCENTAGE, urgencyScore)),
         reason: reason.trim(),
       });
       
@@ -42,47 +45,16 @@ export const UrgencyOverrideModal: React.FC<UrgencyOverrideModalProps> = ({
       onClose();
     } catch (error) {
       console.error('Error submitting urgency override:', error);
-      alert('Failed to submit override. Please try again.');
+      alert(t('priority.override.submitError'));
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 2000,
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          backgroundColor: theme.colors.background.paper,
-          borderRadius: theme.borderRadius.lg,
-          padding: theme.spacing.xl,
-          maxWidth: '500px',
-          width: '90%',
-          boxShadow: theme.shadows.xl,
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 style={{
-          fontSize: theme.typography.fontSize.lg,
-          fontWeight: theme.typography.fontWeight.bold,
-          color: theme.colors.text.primary,
-          marginBottom: theme.spacing.md,
-        }}>
-          Override Urgency Score
-        </h3>
+    <ModalBackdrop onClose={onClose}>
+      <ModalContent>
+        <ModalHeader title={t('priority.override.title')} />
 
         <p style={{
           fontSize: theme.typography.fontSize.sm,
@@ -90,48 +62,16 @@ export const UrgencyOverrideModal: React.FC<UrgencyOverrideModalProps> = ({
           marginBottom: theme.spacing.md,
           lineHeight: theme.typography.lineHeight.relaxed,
         }}>
-          Current urgency score: {currentUrgencyScore.toFixed(0)}/100
-          {currentUrgencyScore >= 90 && (
-            <span style={{ color: theme.colors.accent.error, fontWeight: 'bold' }}> (CRITICAL)</span>
+          {t('priority.override.currentScore', { score: currentUrgencyScore.toFixed(0), max: MAX_PERCENTAGE })}
+          {currentUrgencyScore >= MAX_URGENCY_SCORE && (
+            <span style={{ color: theme.colors.accent.error, fontWeight: 'bold' }}> {t('priority.override.critical')}</span>
           )}
         </p>
 
-        <div style={{ marginBottom: theme.spacing.md }}>
-          <label style={{
-            display: 'block',
-            fontSize: theme.typography.fontSize.sm,
-            fontWeight: theme.typography.fontWeight.medium,
-            color: theme.colors.text.primary,
-            marginBottom: theme.spacing.xs,
-          }}>
-            New Urgency Score (0-100):
-          </label>
-          <input
-            type="number"
-            min="0"
-            max="100"
-            value={urgencyScore}
-            onChange={(e) => setUrgencyScore(Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))}
-            style={{
-              width: '100%',
-              padding: theme.spacing.sm,
-              border: `1px solid ${theme.colors.border.medium}`,
-              borderRadius: theme.borderRadius.md,
-              fontSize: theme.typography.fontSize.sm,
-              fontFamily: theme.typography.fontFamily,
-            }}
-          />
-          <div style={{
-            fontSize: theme.typography.fontSize.xs,
-            color: theme.colors.text.secondary,
-            marginTop: theme.spacing.xs,
-          }}>
-            {urgencyScore >= 90 && '🚨 Critical urgency - will bypass all batching'}
-            {urgencyScore >= 60 && urgencyScore < 90 && '⚠️ High urgency'}
-            {urgencyScore >= 30 && urgencyScore < 60 && '📋 Moderate urgency'}
-            {urgencyScore < 30 && '✅ Low urgency'}
-          </div>
-        </div>
+        <UrgencyScoreInput
+          urgencyScore={urgencyScore}
+          onScoreChange={setUrgencyScore}
+        />
 
         <div style={{ marginBottom: theme.spacing.md }}>
           <label style={{
@@ -141,12 +81,12 @@ export const UrgencyOverrideModal: React.FC<UrgencyOverrideModalProps> = ({
             color: theme.colors.text.primary,
             marginBottom: theme.spacing.xs,
           }}>
-            Reason for override (required):
+            {t('priority.override.reasonLabel')}:
           </label>
           <textarea
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="Explain why you're changing the urgency score..."
+            placeholder={t('priority.override.reasonPlaceholder')}
             style={{
               width: '100%',
               padding: theme.spacing.sm,
@@ -160,45 +100,18 @@ export const UrgencyOverrideModal: React.FC<UrgencyOverrideModalProps> = ({
           />
         </div>
 
-        <div style={{ display: 'flex', gap: theme.spacing.sm, justifyContent: 'flex-end' }}>
-          <button
-            onClick={onClose}
-            style={{
-              padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-              backgroundColor: 'transparent',
-              color: theme.colors.text.secondary,
-              border: `1px solid ${theme.colors.border.medium}`,
-              borderRadius: theme.borderRadius.md,
-              cursor: 'pointer',
-              fontSize: theme.typography.fontSize.sm,
-              fontWeight: theme.typography.fontWeight.medium,
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={!reason.trim() || submitting}
-            style={{
-              padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-              backgroundColor: reason.trim() && !submitting
-                ? theme.colors.primary.main
-                : theme.colors.background.subtle,
-              color: reason.trim() && !submitting ? 'white' : theme.colors.text.tertiary,
-              border: 'none',
-              borderRadius: theme.borderRadius.md,
-              cursor: reason.trim() && !submitting ? 'pointer' : 'not-allowed',
-              fontSize: theme.typography.fontSize.sm,
-              fontWeight: theme.typography.fontWeight.medium,
-            }}
-          >
-            {submitting ? 'Submitting...' : 'Submit'}
-          </button>
-        </div>
-      </div>
-    </div>
+        <ModalFooter
+          onCancel={onClose}
+          onSubmit={handleSubmit}
+          isSubmitting={submitting}
+          canSubmit={!!reason.trim()}
+        />
+      </ModalContent>
+    </ModalBackdrop>
   );
 };
+
+
 
 
 

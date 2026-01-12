@@ -8,7 +8,6 @@ import {
 import {
   encryptedColumnTransformer,
   emailTransformer,
-  EncryptionHelper,
 } from "../../encryption/encryption.helper";
 
 @Entity("waitlist")
@@ -16,12 +15,15 @@ export class Waitlist {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
-  @Column({ unique: true })
+  @Column({
+    unique: true,
+    comment: "SHA-256 hash for querying (not encrypted)",
+  })
   @Index()
-  emailHash: string; // SHA-256 hash for querying (not encrypted)
+  emailHash: string;
 
-  @Column({ transformer: emailTransformer })
-  email: string; // Encrypted actual email
+  @Column({ transformer: emailTransformer, comment: "Encrypted actual email" })
+  email: string;
 
   @Column({ transformer: encryptedColumnTransformer })
   firstName: string;

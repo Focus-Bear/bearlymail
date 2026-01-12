@@ -1,18 +1,20 @@
 import React from 'react';
-import { theme } from '../../theme/theme';
-import { useResponsiveBreakpoints } from '../../hooks/useResponsiveBreakpoints';
+import { useTranslation } from 'react-i18next';
+import { theme } from 'theme/theme';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import {
   getSectionMarginBottom,
   getHeadingFontSize,
   getResponsiveFontSize,
   getResponsiveSpacing,
-} from './utils';
+} from 'components/landing/utils';
 
 /**
  * Introduction section component
  * Explains the origin story of BearlyMail
  */
 export const IntroSection: React.FC = () => {
+  const { t } = useTranslation();
   const breakpoints = useResponsiveBreakpoints();
 
   const headingFontSize = getHeadingFontSize(breakpoints, 'h2');
@@ -41,7 +43,7 @@ export const IntroSection: React.FC = () => {
           marginBottom: headingMarginBottom,
         }}
       >
-        BearlyMail was built by someone who gets it.
+        {t('landing.intro.heading')}
       </h2>
       <p
         style={{
@@ -53,8 +55,7 @@ export const IntroSection: React.FC = () => {
           maxWidth: '100%',
         }}
       >
-        Created by an AuDHD founder who was drowning in email overwhelm, BearlyMail stops the constant interruptions
-        while ensuring you never miss what's truly important.
+        {t('landing.intro.description')}
       </p>
     </section>
   );

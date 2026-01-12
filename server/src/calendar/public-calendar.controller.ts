@@ -7,6 +7,7 @@ import {
   BadRequestException,
 } from "@nestjs/common";
 import { CalendarService } from "./calendar.service";
+import { MINUTES } from "../constants/time-constants";
 
 @Controller("public/calendar")
 export class PublicCalendarController {
@@ -35,7 +36,7 @@ export class PublicCalendarController {
     return this.calendarService.createEvent(
       userId,
       body.startTime,
-      body.duration || 30,
+      body.duration || MINUTES.THIRTY,
       body.guestEmail,
       body.guestName,
     );

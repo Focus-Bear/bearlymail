@@ -29,6 +29,7 @@ export class SubscriptionsController {
   @Post("webhook")
   // No auth required - RevenueCat sends webhooks directly
   // In production, verify webhook signature for security
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async handleWebhook(@Body() payload: any) {
     await this.subscriptionsService.handleWebhook(payload);
     return { received: true };
@@ -58,7 +59,8 @@ export class SubscriptionsController {
 
   @Get("all-users")
   @UseGuards(JwtAuthGuard, AdminGuard)
-  async getAllUsers(@Request() req) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async getAllUsers(@Request() _req) {
     return this.subscriptionsService.getAllUsersWithSubscriptions();
   }
 }

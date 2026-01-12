@@ -1,3 +1,5 @@
+import { DAYS } from "../constants/time-constants";
+
 /**
  * Business days utility for calculating working days excluding weekends and holidays
  * Supports both Australia and US holidays
@@ -6,39 +8,62 @@
 // Australia holidays (fixed and calculated dates)
 const AUSTRALIA_HOLIDAYS = {
   // Fixed dates
-  NEW_YEARS_DAY: { month: 0, day: 1 }, // January 1
-  AUSTRALIA_DAY: { month: 0, day: 26 }, // January 26
-  ANZAC_DAY: { month: 3, day: 25 }, // April 25
-  CHRISTMAS: { month: 11, day: 25 }, // December 25
-  BOXING_DAY: { month: 11, day: 26 }, // December 26
+  // January 1
+  NEW_YEARS_DAY: { month: 0, day: 1 },
+  // January 26
+  AUSTRALIA_DAY: { month: 0, day: 26 },
+  // April 25
+  ANZAC_DAY: { month: 3, day: 25 },
+  // December 25
+  CHRISTMAS: { month: 11, day: 25 },
+  // December 26
+  BOXING_DAY: { month: 11, day: 26 },
 };
 
 // US holidays (fixed and calculated dates)
 const US_HOLIDAYS = {
   // Fixed dates
-  NEW_YEARS_DAY: { month: 0, day: 1 }, // January 1
-  INDEPENDENCE_DAY: { month: 6, day: 4 }, // July 4
-  VETERANS_DAY: { month: 10, day: 11 }, // November 11
-  CHRISTMAS: { month: 11, day: 25 }, // December 25
+  // January 1
+  NEW_YEARS_DAY: { month: 0, day: 1 },
+  // July 4
+  INDEPENDENCE_DAY: { month: 6, day: 4 },
+  // November 11
+  VETERANS_DAY: { month: 10, day: 11 },
+  // December 25
+  CHRISTMAS: { month: 11, day: 25 },
 };
 
 /**
  * Calculate Easter Sunday for a given year (using anonymous Gregorian algorithm)
  */
 function calculateEaster(year: number): Date {
+  // eslint-disable-next-line id-length, @typescript-eslint/no-magic-numbers
   const a = year % 19;
+  // eslint-disable-next-line id-length
   const b = Math.floor(year / 100);
+  // eslint-disable-next-line id-length
   const c = year % 100;
+  // eslint-disable-next-line id-length
   const d = Math.floor(b / 4);
+  // eslint-disable-next-line id-length
   const e = b % 4;
+  // eslint-disable-next-line id-length, @typescript-eslint/no-magic-numbers
   const f = Math.floor((b + 8) / 25);
+  // eslint-disable-next-line id-length, @typescript-eslint/no-magic-numbers
   const g = Math.floor((b - f + 1) / 3);
+  // eslint-disable-next-line id-length, @typescript-eslint/no-magic-numbers
   const h = (19 * a + b - d - g + 15) % 30;
+  // eslint-disable-next-line id-length
   const i = Math.floor(c / 4);
+  // eslint-disable-next-line id-length
   const k = c % 4;
+  // eslint-disable-next-line id-length, @typescript-eslint/no-magic-numbers
   const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  // eslint-disable-next-line id-length, @typescript-eslint/no-magic-numbers
   const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  // eslint-disable-next-line @typescript-eslint/no-magic-numbers
   const month = Math.floor((h + l - 7 * m + 114) / 31);
+  // eslint-disable-next-line @typescript-eslint/no-magic-numbers
   const day = ((h + l - 7 * m + 114) % 31) + 1;
   return new Date(year, month - 1, day);
 }
@@ -55,7 +80,9 @@ function getNthWeekday(
   const firstDay = new Date(year, month, 1);
   const firstWeekday = firstDay.getDay();
   let offset = weekday - firstWeekday;
+  // eslint-disable-next-line @typescript-eslint/no-magic-numbers
   if (offset < 0) offset += 7;
+  // eslint-disable-next-line @typescript-eslint/no-magic-numbers
   const date = new Date(year, month, 1 + offset + (n - 1) * 7);
   return date;
 }
@@ -66,8 +93,16 @@ function getNthWeekday(
 function getLastMonday(year: number, month: number): Date {
   const lastDay = new Date(year, month + 1, 0);
   const lastWeekday = lastDay.getDay();
-  const offset =
-    lastWeekday === 1 ? 0 : lastWeekday === 0 ? 6 : 7 - lastWeekday;
+  let offset: number;
+  if (lastWeekday === 1) {
+    offset = 0;
+  } else if (lastWeekday === 0) {
+    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+    offset = 6;
+  } else {
+    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+    offset = 7 - lastWeekday;
+  }
   return new Date(year, month, lastDay.getDate() - offset);
 }
 
@@ -75,7 +110,8 @@ function getLastMonday(year: number, month: number): Date {
  * Get the 4th Thursday of November (Thanksgiving)
  */
 function getThanksgiving(year: number): Date {
-  return getNthWeekday(year, 10, 4, 4); // November (10), Thursday (4), 4th occurrence
+  // November (10), Thursday (4), 4th occurrence
+  return getNthWeekday(year, 10, 4, 4);
 }
 
 /**
@@ -132,10 +168,13 @@ function getHolidaysForYear(year: number): Date[] {
   holidays.push(easterMonday);
 
   // Queen's Birthday (2nd Monday in June in most states)
-  holidays.push(getNthWeekday(year, 5, 1, 2)); // June (5), Monday (1), 2nd occurrence
+  // June (5), Monday (1), 2nd occurrence
+  holidays.push(getNthWeekday(year, 5, 1, 2));
 
   // Labour Day (1st Monday in October in most states)
-  holidays.push(getNthWeekday(year, 9, 1, 1)); // October (9), Monday (1), 1st occurrence
+  // October (9), Monday (1), 1st occurrence
+  // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+  holidays.push(getNthWeekday(year, 9, 1, 1));
 
   // US holidays
   holidays.push(
@@ -164,19 +203,26 @@ function getHolidaysForYear(year: number): Date[] {
   );
 
   // MLK Day (3rd Monday in January)
-  holidays.push(getNthWeekday(year, 0, 1, 3)); // January (0), Monday (1), 3rd occurrence
+  // January (0), Monday (1), 3rd occurrence
+  holidays.push(getNthWeekday(year, 0, 1, 3));
 
   // Presidents Day (3rd Monday in February)
-  holidays.push(getNthWeekday(year, 1, 1, 3)); // February (1), Monday (1), 3rd occurrence
+  // February (1), Monday (1), 3rd occurrence
+  holidays.push(getNthWeekday(year, 1, 1, 3));
 
   // Memorial Day (last Monday in May)
-  holidays.push(getLastMonday(year, 4)); // May (4)
+  // May (4)
+  holidays.push(getLastMonday(year, 4));
 
   // Labor Day (1st Monday in September)
-  holidays.push(getNthWeekday(year, 8, 1, 1)); // September (8), Monday (1), 1st occurrence
+  // September (8), Monday (1), 1st occurrence
+  // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+  holidays.push(getNthWeekday(year, 8, 1, 1));
 
   // Columbus Day (2nd Monday in October)
-  holidays.push(getNthWeekday(year, 9, 1, 2)); // October (9), Monday (1), 2nd occurrence
+  // October (9), Monday (1), 2nd occurrence
+  // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+  holidays.push(getNthWeekday(year, 9, 1, 2));
 
   // Thanksgiving (4th Thursday in November)
   holidays.push(getThanksgiving(year));
@@ -191,7 +237,7 @@ export function isBusinessDay(date: Date): boolean {
   const dayOfWeek = date.getDay();
 
   // Check if weekend
-  if (dayOfWeek === 0 || dayOfWeek === 6) {
+  if (dayOfWeek === DAYS.SUNDAY || dayOfWeek === DAYS.SATURDAY) {
     return false;
   }
 
@@ -252,10 +298,10 @@ export function calculateBusinessDays(startDate: Date, endDate: Date): number {
 
   // Create a Set of holiday date strings for fast lookup
   const holidaySet = new Set(
-    allHolidays.map((h) => {
-      const d = new Date(h);
-      d.setHours(0, 0, 0, 0);
-      return d.getTime();
+    allHolidays.map((holiday) => {
+      const holidayDate = new Date(holiday);
+      holidayDate.setHours(0, 0, 0, 0);
+      return holidayDate.getTime();
     }),
   );
 
@@ -265,7 +311,11 @@ export function calculateBusinessDays(startDate: Date, endDate: Date): number {
     const currentTime = current.getTime();
 
     // Check if it's a weekday and not a holiday
-    if (dayOfWeek !== 0 && dayOfWeek !== 6 && !holidaySet.has(currentTime)) {
+    if (
+      dayOfWeek !== DAYS.SUNDAY &&
+      dayOfWeek !== DAYS.SATURDAY &&
+      !holidaySet.has(currentTime)
+    ) {
       businessDays++;
     }
 

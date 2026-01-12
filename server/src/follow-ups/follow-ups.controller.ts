@@ -14,6 +14,7 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { FollowUpsService } from "./follow-ups.service";
 import { Inject } from "@nestjs/common";
 import PgBoss = require("pg-boss");
+import { QUERY_LIMITS } from "../constants/query-limits";
 
 @Controller("follow-ups")
 @UseGuards(JwtAuthGuard)
@@ -77,6 +78,24 @@ export class FollowUpsController {
   }
 
   /**
+   * Review and clean up a follow-up draft before sending
+   */
+  @Post(":id/review-draft")
+  async reviewDraft(
+    @Request() req,
+    @Param("id") id: string,
+    @Body() body: { draft: string; recipientName?: string },
+  ) {
+    const reviewedDraft = await this.followUpsService.reviewAndCleanupDraft(
+      id,
+      req.user.userId,
+      body.draft,
+      body.recipientName,
+    );
+    return reviewedDraft;
+  }
+
+  /**
    * Mark a follow-up as completed (sent)
    */
   @Post(":id/complete")
@@ -122,9 +141,9 @@ export class FollowUpsController {
       throw new BadRequestException("followUpIds must be an array");
     }
 
-    if (body.followUpIds.length > 20) {
+    if (body.followUpIds.length > QUERY_LIMITS.MAX_RESULTS_DEFAULT) {
       throw new BadRequestException(
-        "Maximum 20 follow-ups allowed per bulk send",
+        `Maximum ${QUERY_LIMITS.MAX_RESULTS_DEFAULT} follow-ups allowed per bulk send`,
       );
     }
 
@@ -156,6 +175,7 @@ export class FollowUpsController {
     );
 
     // Get follow-ups for these threads
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const threadIds = threads.map((t) => t.threadId);
     const followUps = await this.followUpsService.getDueFollowUps(
       req.user.userId,
@@ -170,9 +190,13 @@ export class FollowUpsController {
       return {
         ...thread,
         // Include follow-up metadata from email object
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         lastTheirReplyAt: (thread as any).lastTheirReplyAt,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         lastMyReplyAt: (thread as any).lastMyReplyAt,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         otherPersonName: (thread as any).otherPersonName,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         otherPersonEmail: (thread as any).otherPersonEmail,
         followUp: followUp
           ? {

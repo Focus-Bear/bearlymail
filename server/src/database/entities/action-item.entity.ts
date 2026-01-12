@@ -13,7 +13,8 @@ import { Email } from "./email.entity";
 import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
 
 @Entity("action_items")
-@Index(["userId", "isCompleted"]) // For querying active tasks
+// For querying active tasks
+@Index(["userId", "isCompleted"])
 export class ActionItem {
   @PrimaryGeneratedColumn("uuid")
   id: string;
@@ -25,7 +26,8 @@ export class ActionItem {
   emailId: string;
 
   @Column({ nullable: true })
-  emailThreadId: string; // Denormalized for easy thread access
+  emailThreadId: string;
+  // Denormalized for easy thread access
 
   @Column("text", { transformer: encryptedColumnTransformer })
   description: string;
@@ -33,11 +35,13 @@ export class ActionItem {
   @Column({ default: false })
   isCompleted: boolean;
 
-  @Column({ type: "text", default: "user" }) // 'user' or 'llm'
+  @Column({ type: "text", default: "user" })
+  // 'user' or 'llm'
   source: string;
 
   @Column({ type: "float", nullable: true })
-  confidenceScore: number; // For LLM suggestions
+  confidenceScore: number;
+  // For LLM suggestions
 
   @CreateDateColumn()
   createdAt: Date;

@@ -1,18 +1,20 @@
 import React from 'react';
-import { theme } from '../../theme/theme';
-import { useResponsiveBreakpoints } from '../../hooks/useResponsiveBreakpoints';
-import { FeatureCard } from './FeatureCard';
+import { useTranslation } from 'react-i18next';
+import { theme } from 'theme/theme';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { FeatureCard } from 'components/landing/FeatureCard';
 import {
   getSectionMarginBottom,
   getHeadingFontSize,
   getResponsiveSpacing,
-} from './utils';
+} from 'components/landing/utils';
 
 /**
  * How it works section component
  * Displays all the key features of BearlyMail
  */
 export const HowItWorksSection: React.FC = () => {
+  const { t } = useTranslation();
   const breakpoints = useResponsiveBreakpoints();
 
   const features = [
@@ -82,14 +84,17 @@ export const HowItWorksSection: React.FC = () => {
           marginBottom: headingMarginBottom,
         }}
       >
-        How it works
+        {t('landing.howItWorks.heading')}
       </h2>
       {features.map((feature) => (
         <FeatureCard
           key={feature.id}
           cardKey={feature.id}
-          title={feature.title}
-          description={feature.description}
+          title={t(`landing.howItWorks.features.${feature.id}.title`)}
+          description={Array.isArray(feature.description) 
+            ? feature.description.map((_, idx) => t(`landing.howItWorks.features.${feature.id}.description.${idx}`))
+            : t(`landing.howItWorks.features.${feature.id}.description`)
+          }
           borderColor={feature.borderColor}
           emoji={feature.emoji}
         />

@@ -17,11 +17,19 @@ export class SummarizationRule {
   @Column()
   userId: string;
 
-  @Column("text", { transformer: encryptedColumnTransformer })
-  whenToUse: string; // Plain text: "when the rule is used?"
+  @Column({
+    type: "text",
+    transformer: encryptedColumnTransformer,
+    comment: 'Plain text: "when the rule is used?"',
+  })
+  whenToUse: string;
 
-  @Column("text", { transformer: encryptedColumnTransformer })
-  howToSummarize: string; // Plain text: "how to summarise?"
+  @Column({
+    type: "text",
+    transformer: encryptedColumnTransformer,
+    comment: 'Plain text: "how to summarise?"',
+  })
+  howToSummarize: string;
 
   @CreateDateColumn()
   createdAt: Date;

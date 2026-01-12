@@ -12,12 +12,14 @@ export class AnalyzeTables1736100000000 implements MigrationInterface {
     await queryRunner.query(`ANALYZE "emails"`);
     await queryRunner.query(`ANALYZE "user_contexts"`);
     await queryRunner.query(`ANALYZE "blocked_senders"`);
+    // eslint-disable-next-line no-console
     console.log(
       "Analyzed email_threads, emails, user_contexts, and blocked_senders tables.",
     );
   }
 
-  public async down(queryRunner: QueryRunner): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public async down(_queryRunner: QueryRunner): Promise<void> {
     // No-op: ANALYZE doesn't modify schema
   }
 }

@@ -1,8 +1,9 @@
 import React, { RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import { theme } from '../../../theme/theme';
-import { InboxMode } from '../../../types/email';
-import { captureEvent } from '../../../utils/posthog';
+import { theme } from 'theme/theme';
+import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
+import { InboxMode } from 'types/email';
+import { captureEvent } from 'utils/posthog';
 
 interface InboxHeaderTabsProps {
   mode: InboxMode;
@@ -48,7 +49,7 @@ export const InboxHeaderTabs: React.FC<InboxHeaderTabsProps> = ({
       cursor: loadingModeSwitch ? 'wait' : 'pointer',
       fontWeight: theme.typography.fontWeight.semibold,
       fontSize: theme.typography.fontSize.base,
-      opacity: loadingModeSwitch ? 0.6 : 1,
+      opacity: loadingModeSwitch ? OPACITY_DISABLED : OPACITY_FULL,
     };
   };
 
@@ -100,4 +101,8 @@ export const InboxHeaderTabs: React.FC<InboxHeaderTabsProps> = ({
     </div>
   );
 };
+
+
+
+
 

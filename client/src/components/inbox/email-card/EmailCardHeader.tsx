@@ -1,6 +1,9 @@
 import React from 'react';
-import { useTranslation } from 'react-i18next';
-import { theme } from '../../../theme/theme';
+import { theme } from 'theme/theme';
+import { PriorityBadge } from 'components/inbox/email-card/PriorityBadge';
+import { UrgencyBadge } from 'components/inbox/email-card/UrgencyBadge';
+import { EmailLabels } from 'components/inbox/email-card/EmailLabels';
+import { EmailTimestamp } from 'components/inbox/email-card/EmailTimestamp';
 
 interface EmailCardHeaderProps {
   from: string;
@@ -35,12 +38,6 @@ export const EmailCardHeader: React.FC<EmailCardHeaderProps> = ({
   labels,
   receivedAt,
 }) => {
-  const { t } = useTranslation();
-
-  const getLabelKey = (label: string, index: number): string => {
-    return `label-${label}-${index}`;
-  };
-
   return (
     <div
       style={{
@@ -62,117 +59,23 @@ export const EmailCardHeader: React.FC<EmailCardHeaderProps> = ({
         >
           {fromName || from}
         </strong>
-        <span
-          style={{
-            fontSize: theme.typography.fontSize.xs,
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            backgroundColor: priorityBg,
-            color: priorityColor,
-            borderRadius: theme.borderRadius.full,
-            fontWeight: theme.typography.fontWeight.medium,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: theme.spacing.xs,
-            cursor: 'help',
-            lineHeight: '1.2',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {isProcessingPriority ? (
-            <>
-              <span
-                style={{
-                  display: 'inline-block',
-                  width: '10px',
-                  height: '10px',
-                  border: `2px solid ${priorityColor}`,
-                  borderTop: '2px solid transparent',
-                  borderRadius: '50%',
-                  animation: 'spin 1s linear infinite',
-                }}
-              />
-              {t('email.calculating')}
-            </>
-          ) : (
-            `${priorityLabel} (${priorityScore.toFixed(0)})`
-          )}
-        </span>
-
-        {urgencyScore !== undefined && urgencyScore >= 90 && (
-          <span
-            title={urgencyExplanation || 'High urgency email'}
-            style={{
-              fontSize: theme.typography.fontSize.xs,
-              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-              backgroundColor: theme.colors.accent.error,
-              color: '#fff',
-              borderRadius: theme.borderRadius.full,
-              fontWeight: theme.typography.fontWeight.semibold,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: theme.spacing.xs,
-              cursor: 'help',
-            }}
-          >
-            🚨 Urgent ({urgencyScore.toFixed(0)})
-          </span>
+        <PriorityBadge
+          priorityLabel={priorityLabel}
+          priorityColor={priorityColor}
+          priorityBg={priorityBg}
+          priorityScore={priorityScore}
+          isProcessingPriority={isProcessingPriority}
+        />
+        {urgencyScore !== undefined && (
+          <UrgencyBadge urgencyScore={urgencyScore} urgencyExplanation={urgencyExplanation} />
         )}
-
-        {labels && labels.length > 0 && (
-          <div style={{ display: 'flex', gap: theme.spacing.xs, flexWrap: 'wrap' }}>
-            {labels
-              .filter(
-                (label) =>
-                  !['INBOX', 'UNREAD', 'STARRED', 'IMPORTANT', 'SENT', 'DRAFT', 'TRASH', 'SPAM'].includes(
-                    label
-                  )
-              )
-              .map((label, index) => {
-                const displayLabel = label.startsWith('CATEGORY_')
-                  ? label.replace('CATEGORY_', '')
-                  : label;
-                const isCategory = label.startsWith('CATEGORY_');
-                return (
-                  <span
-                    key={getLabelKey(label, index)}
-                    style={{
-                      fontSize: theme.typography.fontSize.xs,
-                      padding: `2px ${theme.spacing.sm}`,
-                      backgroundColor: isCategory
-                        ? theme.colors.background.subtle
-                        : theme.colors.primary.subtle,
-                      color: isCategory
-                        ? theme.colors.text.secondary
-                        : theme.colors.primary.main,
-                      borderRadius: theme.borderRadius.sm,
-                      border: `1px solid ${
-                        isCategory ? theme.colors.border.light : 'transparent'
-                      }`,
-                      textTransform: isCategory ? 'capitalize' : 'none',
-                    }}
-                  >
-                    {displayLabel.toLowerCase()}
-                  </span>
-                );
-              })}
-          </div>
-        )}
+        {labels && <EmailLabels labels={labels} />}
       </div>
-      <span
-        style={{
-          fontSize: theme.typography.fontSize.xs,
-          color: theme.colors.text.tertiary,
-        }}
-      >
-        {new Date(receivedAt).toLocaleDateString(undefined, {
-          month: 'short',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-        })}
-      </span>
+      <EmailTimestamp receivedAt={receivedAt} />
     </div>
   );
 };
+
+
+
 

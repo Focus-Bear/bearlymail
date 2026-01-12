@@ -8,6 +8,7 @@ import { Waitlist } from "../database/entities/waitlist.entity";
 import { UsersService } from "../users/users.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { EmailService } from "../email/email.service";
+import { isError, getErrorMessage } from "../types/common";
 
 @Injectable()
 export class WaitlistService {
@@ -54,7 +55,8 @@ export class WaitlistService {
         // Update existing user to approved
         await this.usersService.update(existingUser.id, {
           isApproved: true,
-          isAdmin: isAdmin || existingUser.isAdmin, // Preserve existing admin status or set if jeremy
+          // Preserve existing admin status or set if jeremy
+          isAdmin: isAdmin || existingUser.isAdmin,
         });
       }
     }
@@ -102,11 +104,11 @@ export class WaitlistService {
 
       await axios.post(cliqUrl, body);
       this.logger.log(`Cliq notification sent for waitlist signup: ${email}`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Log error but don't fail the waitlist signup
       this.logger.error(
-        `Failed to send Cliq notification: ${error.message}`,
-        error.stack,
+        `Failed to send Cliq notification: ${getErrorMessage(error)}`,
+        isError(error) ? error.stack : undefined,
       );
     }
   }
@@ -134,8 +136,10 @@ export class WaitlistService {
     const existingUser = await this.usersService.findByEmail(entry.email);
 
     // Generate password setup token (valid for 7 days)
+    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
     const setupToken = crypto.randomBytes(32).toString("hex");
     const tokenExpiresAt = new Date();
+    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
     tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 7);
 
     if (!existingUser) {
@@ -143,7 +147,8 @@ export class WaitlistService {
       await this.usersService.create({
         email: entry.email,
         name: entry.firstName,
-        isApproved: false, // Not approved until password is set
+        // Not approved until password is set
+        isApproved: false,
         isAdmin: entry.email.toLowerCase() === "jeremy@focusbear.io",
         passwordSetupToken: setupToken,
         passwordSetupTokenExpiresAt: tokenExpiresAt,
@@ -164,13 +169,14 @@ export class WaitlistService {
         entry.email,
         entry.firstName,
         setupToken,
-        "en", // TODO: Detect language from user preferences or browser settings
+        // TODO: Detect language from user preferences or browser settings
+        "en",
       );
       this.logger.log(`Approval email sent to ${entry.email}`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.logger.error(
-        `Failed to send approval email to ${entry.email}: ${error.message}`,
-        error.stack,
+        `Failed to send approval email to ${entry.email}: ${getErrorMessage(error)}`,
+        isError(error) ? error.stack : undefined,
       );
       // Don't throw - approval is already saved, email can be resent manually if needed
     }

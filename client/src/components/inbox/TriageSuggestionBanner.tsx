@@ -1,7 +1,9 @@
 import React from 'react';
-import { theme } from '../../theme/theme';
-import { TriageSuggestion } from '../../types/email';
-import { captureEvent } from '../../utils/posthog';
+import { useTranslation } from 'react-i18next';
+import { theme } from 'theme/theme';
+import { TriageSuggestion } from 'types/email';
+import { captureEvent } from 'utils/posthog';
+import { EMOJI_LIGHTBULB, EMOJI_STAR } from 'constants/emojis';
 
 interface TriageSuggestionBannerProps {
   suggestion: TriageSuggestion;
@@ -14,6 +16,8 @@ export const TriageSuggestionBanner: React.FC<TriageSuggestionBannerProps> = ({
   emailId,
   onApply,
 }) => {
+  const { t } = useTranslation();
+  
   return (
     <div
       style={{
@@ -30,7 +34,8 @@ export const TriageSuggestionBanner: React.FC<TriageSuggestionBannerProps> = ({
       }}
     >
       <span style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.xs }}>
-        💡 Suggested:
+        {/* eslint-disable-next-line i18next/no-literal-string */}
+        {EMOJI_LIGHTBULB} {t('inbox.suggested')}:
       </span>
       <div 
         onClick={async (e) => {
@@ -54,9 +59,10 @@ export const TriageSuggestionBanner: React.FC<TriageSuggestionBannerProps> = ({
         onMouseLeave={(e) => {
           e.currentTarget.style.opacity = '0.5';
         }}
-        title={`Click to set ${suggestion.suggestedStarCount} stars (or press ${suggestion.suggestedStarCount})`}
+        title={t('inbox.clickToSetStars', { count: suggestion.suggestedStarCount })}
       >
-        {'⭐'.repeat(suggestion.suggestedStarCount)}
+        {/* eslint-disable-next-line i18next/no-literal-string */}
+        {EMOJI_STAR.repeat(suggestion.suggestedStarCount)}
       </div>
       <span style={{ 
         color: theme.colors.text.tertiary, 

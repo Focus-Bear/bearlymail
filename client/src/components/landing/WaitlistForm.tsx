@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { theme } from '../../theme/theme';
-import { useResponsiveBreakpoints } from '../../hooks/useResponsiveBreakpoints';
-import { WaitlistFormContainer } from './WaitlistFormContainer';
-import { WaitlistFormHeader } from './WaitlistFormHeader';
-import { WaitlistFormField } from './WaitlistFormField';
-import { captureEvent } from '../../utils/posthog';
+import { theme } from 'theme/theme';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { WaitlistFormContainer } from 'components/landing/WaitlistFormContainer';
+import { WaitlistFormHeader } from 'components/landing/WaitlistFormHeader';
+import { WaitlistFormField } from 'components/landing/WaitlistFormField';
+import { captureEvent } from 'utils/posthog';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 interface WaitlistFormProps {
   /**

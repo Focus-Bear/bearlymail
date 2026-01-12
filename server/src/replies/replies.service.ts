@@ -8,8 +8,10 @@ import { Email } from "../database/entities/email.entity";
 
 export interface ReplyRule {
   ruleId?: string;
-  trigger: string; // e.g., "subject contains 'meeting'"
-  template: string; // Reply template
+  // e.g., "subject contains 'meeting'"
+  trigger: string;
+  // Reply template
+  template: string;
   priority: number;
 }
 
@@ -78,6 +80,7 @@ export class RepliesService {
           commonPhrases,
           writingStyle,
         },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         provider as any,
         userId,
       );
@@ -106,6 +109,7 @@ export class RepliesService {
     template: string,
     email: Partial<Email>,
     tone: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     phrases: string[],
   ): string {
     let reply = template
@@ -113,8 +117,14 @@ export class RepliesService {
       .replace("{subject}", email.subject || "");
 
     // Add greeting based on tone
-    const greeting =
-      tone === "casual" ? "Hey" : tone === "formal" ? "Dear" : "Hi";
+    let greeting: string;
+    if (tone === "casual") {
+      greeting = "Hey";
+    } else if (tone === "formal") {
+      greeting = "Dear";
+    } else {
+      greeting = "Hi";
+    }
     reply = `${greeting} ${email.fromName || "there"},\n\n${reply}`;
 
     return reply;
@@ -123,16 +133,25 @@ export class RepliesService {
   private generateDefaultReply(
     email: Partial<Email>,
     tone: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     phrases: string[],
   ): string {
-    const greeting =
-      tone === "casual" ? "Hey" : tone === "formal" ? "Dear" : "Hi";
-    const closing =
-      tone === "casual"
-        ? "Thanks!"
-        : tone === "formal"
-          ? "Best regards"
-          : "Best";
+    let greeting: string;
+    if (tone === "casual") {
+      greeting = "Hey";
+    } else if (tone === "formal") {
+      greeting = "Dear";
+    } else {
+      greeting = "Hi";
+    }
+    let closing: string;
+    if (tone === "casual") {
+      closing = "Thanks!";
+    } else if (tone === "formal") {
+      closing = "Best regards";
+    } else {
+      closing = "Best";
+    }
 
     return `${greeting} ${email.fromName || "there"},
 
@@ -145,7 +164,8 @@ ${closing}`;
 
   async createReplyRule(userId: string, rule: ReplyRule): Promise<ReplyRule> {
     const rules = this.replyRules.get(userId) || [];
-    rule.ruleId = `${Date.now()}-${Math.random()}`; // Simple ID generation
+    // Simple ID generation
+    rule.ruleId = `${Date.now()}-${Math.random()}`;
     rules.push(rule);
     this.replyRules.set(userId, rules);
     return rule;

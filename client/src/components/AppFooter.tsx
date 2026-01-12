@@ -1,7 +1,10 @@
 import React from 'react';
-import { theme } from '../theme/theme';
+import { useTranslation } from 'react-i18next';
+import { theme } from 'theme/theme';
 
 export const AppFooter: React.FC = () => {
+  const { t } = useTranslation();
+  
   return (
     <footer style={{
       padding: theme.spacing.lg,
@@ -16,7 +19,7 @@ export const AppFooter: React.FC = () => {
         color: theme.colors.text.secondary,
         fontSize: theme.typography.fontSize.sm,
       }}>
-        Made by
+        {t('footer.madeBy')}
       </span>
       <a 
         href="https://focusbear.io" 
@@ -41,6 +44,10 @@ export const AppFooter: React.FC = () => {
     </footer>
   );
 };
+
+
+
+
 
 
 

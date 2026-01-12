@@ -1,4 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
+import * as path from 'path';
+import * as os from 'os';
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -11,8 +13,8 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  /* Increase timeout for tests */
-  timeout: 60000,
+  /* Increase timeout for tests - search operations may take time for AI processing */
+  timeout: 120000,
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
@@ -31,7 +33,24 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        // Use persistent context with Chrome profile for BearLyMail session
+        contextOptions: {
+          // Default Chrome profile location on macOS
+          userDataDir: process.env.CHROME_USER_DATA_DIR || path.join(
+            os.homedir(),
+            'Library/Application Support/Google/Chrome'
+          ),
+        },
+        // Use persistent context to maintain login session
+        launchOptions: {
+          args: [
+            '--disable-blink-features=AutomationControlled',
+            '--disable-dev-shm-usage',
+          ],
+        },
+      },
     },
   ],
 

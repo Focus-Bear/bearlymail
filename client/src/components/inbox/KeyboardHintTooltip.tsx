@@ -1,5 +1,5 @@
 import React from 'react';
-import { theme } from '../../theme/theme';
+import { theme } from 'theme/theme';
 
 interface KeyboardHintTooltipProps {
   action: string;
@@ -25,6 +25,13 @@ export const KeyboardHintTooltip: React.FC<KeyboardHintTooltipProps> = ({ action
     </div>
   );
 };
+
+
+
+
+
+
+
 
 
 

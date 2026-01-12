@@ -1,5 +1,5 @@
 import React from 'react';
-import { theme } from '../../theme/theme';
+import { theme } from 'theme/theme';
 
 interface ConsentCheckboxProps {
   checked: boolean;
@@ -71,4 +71,11 @@ export const ConsentCheckbox: React.FC<ConsentCheckboxProps> = ({
     </label>
   );
 };
+
+
+
+
+
+
+
 

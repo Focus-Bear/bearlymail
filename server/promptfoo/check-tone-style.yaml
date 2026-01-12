@@ -1,0 +1,61 @@
+description: "Tone and style checking prompts for BearlyMail"
+
+providers:
+  - openai:gpt-4.1-mini
+  # Uncomment below if you have Gemini API key
+  # - google:gemini-pro
+
+prompts:
+  - file://prompts/check-tone-style.md
+
+tests:
+  - vars:
+      rules:
+        - "Be concise"
+        - "Use professional language"
+      text: "Hey there! This email is way too long and verbose, and I think you should really consider all the different aspects of what I'm saying here because there are many important points to discuss."
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          // Handle markdown code blocks if present
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (typeof parsed.isOk !== 'boolean') {
+              throw new Error(`Expected isOk boolean, got: ${typeof parsed.isOk}`);
+            }
+            if (!Array.isArray(parsed.suggestions)) {
+              throw new Error(`Expected suggestions array, got: ${typeof parsed.suggestions}`);
+            }
+            // Text violates "be concise" rule, so isOk should likely be false
+            // But we'll just check the structure is correct
+            return true;
+          } catch (e) {
+            throw new Error(`Failed to parse JSON: ${e.message}. Output: ${text.substring(0, 200)}`);
+          }
+    description: "Should return JSON with isOk, suggestions, and optional revisedText"
+
+  - vars:
+      rules:
+        - "Be polite"
+        - "Use clear language"
+      text: "Thank you for your email. I appreciate your message and will respond soon."
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (typeof parsed.isOk !== 'boolean') {
+              throw new Error(`Expected isOk boolean`);
+            }
+            return true;
+          } catch (e) {
+            throw new Error(`Failed to parse JSON: ${e.message}`);
+          }
+    description: "Should validate JSON structure for compliant text"
+
+
+

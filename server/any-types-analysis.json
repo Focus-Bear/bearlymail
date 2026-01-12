@@ -1,0 +1,988 @@
+{
+  "summary": {
+    "total": 192,
+    "errorHandlers": 4,
+    "apiResponses": 9,
+    "typeAssertions": 92,
+    "functionParameters": 50,
+    "variableDeclarations": 13,
+    "returnTypes": 0,
+    "other": 24
+  },
+  "patterns": {
+    "errorHandlers": [
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/scripts/load-test-jobs.ts",
+        "line": 199,
+        "code": ".catch((err: any) => {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/scripts/load-test-jobs.ts",
+        "line": 221,
+        "code": ".catch((err: any) => {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/scripts/load-test-jobs.ts",
+        "line": 243,
+        "code": ".catch((err: any) => {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/scripts/load-test-jobs.ts",
+        "line": 265,
+        "code": ".catch((err: any) => {"
+      }
+    ],
+    "apiResponses": [
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/email-thread.service.ts",
+        "line": 82,
+        "code": "return results.map((r: any) => r.threadId).filter((id: string) => id);"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 687,
+        "code": "return results.map((r: any) => r.threadId).filter((id: string) => id);"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 705,
+        "code": "return results.map((r: any) => r.threadId).filter((id: string) => id);"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/providers/gmail.provider.ts",
+        "line": 629,
+        "code": "(inboxResponse.data.threads || []).map((t: any) => t.id),"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/providers/gmail.provider.ts",
+        "line": 632,
+        "code": "(starredResponse.data.threads || []).map((t: any) => t.id),"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/github/github-api.service.ts",
+        "line": 493,
+        "code": "return response.data.items.map((item: any) => ({"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/llm/llm.service.ts",
+        "line": 653,
+        "code": "metadata?: any;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/suggested-actions/suggested-actions.service.ts",
+        "line": 18,
+        "code": "metadata?: any;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/utils/search-logger.ts",
+        "line": 247,
+        "code": "data: any,"
+      }
+    ],
+    "genericUtilities": [],
+    "typeAssertions": [
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/auth/auth.controller.ts",
+        "line": 67,
+        "code": "const profile = (googleUser as any).googleProfile;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/auth/auth.controller.ts",
+        "line": 69,
+        "code": "(googleUser as any).googleAccessToken ||"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/auth/auth.controller.ts",
+        "line": 72,
+        "code": "(googleUser as any).googleRefreshToken ||"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/auth/auth.controller.ts",
+        "line": 75,
+        "code": "(googleUser as any).googleId || profile?.id || googleUser.googleId;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/auth/auth.service.ts",
+        "line": 24,
+        "code": "async validateUser(email: string, password: string): Promise<any> {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/auth/auth.service.ts",
+        "line": 48,
+        "code": "): Promise<any> {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/auth/gmail-required.guard.ts",
+        "line": 26,
+        "code": "const userId = (user as any).userId || (user as any).id;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/auth/gmail-required.guard.ts",
+        "line": 26,
+        "code": "const userId = (user as any).userId || (user as any).id;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/auth/google.strategy.ts",
+        "line": 32,
+        "code": "(this as any).authorizationParams = (_options: any) => {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/auth/google.strategy.ts",
+        "line": 32,
+        "code": "(this as any).authorizationParams = (_options: any) => {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/auth/google.strategy.ts",
+        "line": 45,
+        "code": "): Promise<any> {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/auth/google.strategy.ts",
+        "line": 63,
+        "code": "(user as any).googleProfile = profile;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/auth/google.strategy.ts",
+        "line": 64,
+        "code": "(user as any).googleAccessToken = accessToken;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/auth/google.strategy.ts",
+        "line": 65,
+        "code": "(user as any).googleRefreshToken = refreshToken;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/auth/google.strategy.ts",
+        "line": 66,
+        "code": "(user as any).googleId = profile.id;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/auth/local.strategy.ts",
+        "line": 12,
+        "code": "async validate(email: string, password: string): Promise<any> {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/calendar/calendar.service.ts",
+        "line": 107,
+        "code": "): Promise<any> {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/calendar/calendar.service.ts",
+        "line": 235,
+        "code": "provider as any,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/calendar/calendar.service.ts",
+        "line": 266,
+        "code": "provider as any,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/context/context-analysis.processor.ts",
+        "line": 42,
+        "code": "{ teamSize: this.contextConcurrency } as any,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/email-sync.processor.ts",
+        "line": 85,
+        "code": "} as any,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/email-sync.processor.ts",
+        "line": 136,
+        "code": "{ teamSize: this.syncConcurrency } as any,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/email-sync.processor.ts",
+        "line": 172,
+        "code": "{ teamSize: this.scanConcurrency } as any,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.controller.ts",
+        "line": 123,
+        "code": "} as any;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.controller.ts",
+        "line": 347,
+        "code": "const stuckJobs = await (this.boss as any).getQueueSize(\"refine-priority\");"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.controller.ts",
+        "line": 348,
+        "code": "const stuckSummary = await (this.boss as any).getQueueSize("
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.controller.ts",
+        "line": 351,
+        "code": "const stuckSync = await (this.boss as any).getQueueSize(\"sync-emails\");"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.controller.ts",
+        "line": 354,
+        "code": "const result = await (this.boss as any).db.executeSql(`"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 408,
+        "code": "(email as any).lastTheirReplyAt ="
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 410,
+        "code": "(email as any).lastMyReplyAt ="
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 1006,
+        "code": "const starCount = (emailData as any).starCount || 0;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 1010,
+        "code": ": (emailData as any).isArchived || false;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 1025,
+        "code": "} = emailData as any;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 2066,
+        "code": "} as any,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 2200,
+        "code": "} as any,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 2418,
+        "code": "(email as any).relevanceScore = item.relevanceScore;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 2463,
+        "code": "`AI ranking complete: ${filteredEmails.length} emails with scores. Top score: ${filteredEmails[0] ? (filteredEmails[0] as any).relevanceScore : \"N/A\"}`,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 2716,
+        "code": "const starCount = (rawEmail as any).starCount || 0;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 2749,
+        "code": "const emailWithMetadata = email as any;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 2754,
+        "code": "(rawEmail as any).relevanceScore ?? undefined;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 2814,
+        "code": "const scoreA = (a as any).relevanceScore ?? 0;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 2815,
+        "code": "const scoreB = (b as any).relevanceScore ?? 0;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 2826,
+        "code": "plain.searchExplanation = (email as any).searchExplanation;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 2827,
+        "code": "plain.relevanceScore = (email as any).relevanceScore;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 2867,
+        "code": "} as any,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/gmail.service.ts",
+        "line": 139,
+        "code": "} as any);"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/gmail.service.ts",
+        "line": 282,
+        "code": "} as any);"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/llm-processor.ts",
+        "line": 64,
+        "code": "{ teamSize: this.priorityConcurrency } as any,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/llm-processor.ts",
+        "line": 304,
+        "code": "{ teamSize: this.summaryConcurrency } as any,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/providers/gmail.provider.ts",
+        "line": 392,
+        "code": "} as any);"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/filters/http-exception.filter.ts",
+        "line": 63,
+        "code": ": (message as any).message || message,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/follow-ups/follow-ups.controller.ts",
+        "line": 192,
+        "code": "lastTheirReplyAt: (thread as any).lastTheirReplyAt,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/follow-ups/follow-ups.controller.ts",
+        "line": 193,
+        "code": "lastMyReplyAt: (thread as any).lastMyReplyAt,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/follow-ups/follow-ups.controller.ts",
+        "line": 194,
+        "code": "otherPersonName: (thread as any).otherPersonName,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/follow-ups/follow-ups.controller.ts",
+        "line": 195,
+        "code": "otherPersonEmail: (thread as any).otherPersonEmail,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/github/github-api.service.ts",
+        "line": 393,
+        "code": "): Promise<any> {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/github/github-api.service.ts",
+        "line": 425,
+        "code": "): Promise<any> {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/github/github-api.service.ts",
+        "line": 459,
+        "code": "): Promise<any> {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/google-accounts/google-accounts.controller.ts",
+        "line": 31,
+        "code": "const userId = (req.user as any).userId || (req.user as any).id;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/google-accounts/google-accounts.controller.ts",
+        "line": 31,
+        "code": "const userId = (req.user as any).userId || (req.user as any).id;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/google-accounts/google-accounts.controller.ts",
+        "line": 48,
+        "code": "const userId = (req.user as any).userId || (req.user as any).id;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/google-accounts/google-accounts.controller.ts",
+        "line": 48,
+        "code": "const userId = (req.user as any).userId || (req.user as any).id;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/google-accounts/google-accounts.controller.ts",
+        "line": 55,
+        "code": "const userId = (req.user as any).userId || (req.user as any).id;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/google-accounts/google-accounts.controller.ts",
+        "line": 55,
+        "code": "const userId = (req.user as any).userId || (req.user as any).id;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/google-accounts/google-accounts.controller.ts",
+        "line": 62,
+        "code": "const userId = (req.user as any).userId || (req.user as any).id;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/google-accounts/google-accounts.controller.ts",
+        "line": 62,
+        "code": "const userId = (req.user as any).userId || (req.user as any).id;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/llm/llm-core.service.ts",
+        "line": 170,
+        "code": "messages: messages as any,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/onboarding/scan-analysis.processor.ts",
+        "line": 40,
+        "code": "{ teamSize: this.analysisConcurrency } as any,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/priority/priority-learning.processor.ts",
+        "line": 47,
+        "code": "{ teamSize: this.learnConcurrency } as any,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/priority/priority-learning.service.ts",
+        "line": 169,
+        "code": "(e as any).starCount = raw.thread_starCount ?? 0;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/priority/priority-learning.service.ts",
+        "line": 170,
+        "code": "(e as any).isArchived = raw.thread_isArchived ?? false;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/priority/priority-learning.service.ts",
+        "line": 177,
+        "code": "(e) => (e as any).starCount > 0,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/priority/priority-learning.service.ts",
+        "line": 180,
+        "code": "(e) => (e as any).starCount === 3,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/priority/triage-suggestions.service.ts",
+        "line": 493,
+        "code": "const starCount = (email as any).starCount ?? 0;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/priority/triage-suggestions.service.ts",
+        "line": 497,
+        "code": "if ((email as any).isArchived) {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/queue/queue.module.ts",
+        "line": 118,
+        "code": "(this.queueMonitorService as any).onModuleDestroy?.();"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/queue/queue.module.ts",
+        "line": 121,
+        "code": "(this.resourceMonitorService as any).onModuleDestroy?.();"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/queue/queue.module.ts",
+        "line": 124,
+        "code": "(this.queueAutoscalingService as any).onModuleDestroy?.();"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/replies/replies.service.ts",
+        "line": 83,
+        "code": "provider as any,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/scripts/load-test-jobs.ts",
+        "line": 305,
+        "code": "const counts = await (boss as any).getJobCounts(queueName);"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/summarization/summarization.service.ts",
+        "line": 57,
+        "code": "const cleanedBody = cleanEmailForThread(e.body, (e as any).htmlBody);"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/summarization/summarization.service.ts",
+        "line": 64,
+        "code": "threadText || cleanEmailContent(email.body, (email as any).htmlBody);"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/summarization/summarization.service.ts",
+        "line": 78,
+        "code": "(email as any).htmlBody,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/summarization/summarization.service.ts",
+        "line": 94,
+        "code": "provider as any,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/summarization/summarization.service.ts",
+        "line": 106,
+        "code": "provider as any,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/summarization/summarization.service.ts",
+        "line": 113,
+        "code": "(email as any).htmlBody,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/summarization/summarization.service.ts",
+        "line": 119,
+        "code": "provider as any,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/utils/error-logger.ts",
+        "line": 47,
+        "code": "code: (error as any).code,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/utils/error-logger.ts",
+        "line": 95,
+        "code": "code: (error as any).code,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/utils/error-logger.ts",
+        "line": 172,
+        "code": "process.on(\"unhandledRejection\", (reason: any, promise: Promise<any>) => {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/utils/error-logger.ts",
+        "line": 172,
+        "code": "process.on(\"unhandledRejection\", (reason: any, promise: Promise<any>) => {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/worker.ts",
+        "line": 53,
+        "code": "const isPrimaryProcess = cluster.isPrimary ?? (cluster as any).isMaster;"
+      }
+    ],
+    "functionParameters": [
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/action-items/action-items.controller.ts",
+        "line": 22,
+        "code": "async create(@Request() req, @Body() body: any) {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/action-items/action-items.controller.ts",
+        "line": 32,
+        "code": "async update(@Request() req, @Param(\"id\") id: string, @Body() body: any) {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/auth/auth-logger.ts",
+        "line": 95,
+        "code": "private determineCause(error: any): string {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/auth/auth.service.ts",
+        "line": 240,
+        "code": "async login(user: any) {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/auth/jwt.strategy.ts",
+        "line": 20,
+        "code": "async validate(payload: any) {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/calendar/calendar.service.ts",
+        "line": 65,
+        "code": "private calculateFreeSlots(start: Date, end: Date, busy: any[]): any[] {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/calendar/calendar.service.ts",
+        "line": 65,
+        "code": "private calculateFreeSlots(start: Date, end: Date, busy: any[]): any[] {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/context/context.controller.ts",
+        "line": 145,
+        "code": "async analyzeEmails(@Request() req: any) {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/context/context.service.ts",
+        "line": 974,
+        "code": "allThreadIds.push(...threads.map((thread: any) => thread.id));"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/context/context.service.ts",
+        "line": 1044,
+        "code": "const threadEmails = messages.map((message: any) => {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/context/context.service.ts",
+        "line": 1047,
+        "code": "headers.find((header: any) => header.name === \"From\")?.value ||"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/context/context.service.ts",
+        "line": 1050,
+        "code": "headers.find((header: any) => header.name === \"Subject\")?.value ||"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/context/context.service.ts",
+        "line": 1063,
+        "code": "const extractBody = (part: any) => {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/context/context.service.ts",
+        "line": 1299,
+        "code": "allSentMessageIds.push(...messages.map((message: any) => message.id));"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/context/context.service.ts",
+        "line": 1338,
+        "code": "headers.find((h: any) => h.name === \"Subject\")?.value ||"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/context/context.service.ts",
+        "line": 1344,
+        "code": "const extractBody = (part: any) => {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/context/context.service.ts",
+        "line": 1581,
+        "code": ".map((thread: any) => thread?.threadId || \"N/A\")"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/database/query-logger.ts",
+        "line": 30,
+        "code": "logQuery(_query: string, _parameters?: any[], _queryRunner?: any) {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/database/query-logger.ts",
+        "line": 30,
+        "code": "logQuery(_query: string, _parameters?: any[], _queryRunner?: any) {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/database/query-logger.ts",
+        "line": 72,
+        "code": "logSchemaBuild(_message: string, _queryRunner?: any) {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 259,
+        "code": "const threadRepresentatives: Email[] = rawEmails.map((row: any) => {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 523,
+        "code": "headers.find((h: any) => h.name === \"From\")?.value || \"\";"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 1429,
+        "code": "const previousEmails = previousEmailsRaw.map((row: any) => ({"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 2362,
+        "code": "rankedResults.forEach((item: any) => {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 2406,
+        "code": ".filter((item: any) => (item.relevanceScore || 0) >= 40)"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 2408,
+        "code": "(a: any, b: any) =>"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 2408,
+        "code": "(a: any, b: any) =>"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 2415,
+        "code": ".map((item: any) => {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 2429,
+        "code": "scoredEmails.forEach((email: any) => {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/gmail.service.ts",
+        "line": 16,
+        "code": "private extractBodyFromPayload(payload: any): {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/gmail.service.ts",
+        "line": 23,
+        "code": "const extractPart = (part: any) => {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/providers/gmail.provider.ts",
+        "line": 1149,
+        "code": "private parseGmailMessage(messageData: any): RawEmailMessage | null {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/providers/gmail.provider.ts",
+        "line": 1154,
+        "code": "headers.find((h: any) => h.name === \"Subject\")?.value || \"(No Subject)\";"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/providers/gmail.provider.ts",
+        "line": 1155,
+        "code": "const from = headers.find((h: any) => h.name === \"From\")?.value || \"\";"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/providers/gmail.provider.ts",
+        "line": 1184,
+        "code": "private extractBodyFromPayload(payload: any): {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/github/github-api.service.ts",
+        "line": 104,
+        "code": "labels: issue.labels.map((label: any) => ({"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/github/github-api.service.ts",
+        "line": 271,
+        "code": "labels: pr.labels.map((label: any) => ({"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/github/github-api.service.ts",
+        "line": 503,
+        "code": "labels: item.labels.map((label: any) => ({"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/llm/llm.service.ts",
+        "line": 736,
+        "code": "return actions.filter((action: any) => {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/onboarding/scan-analysis.service.ts",
+        "line": 118,
+        "code": "const userReplied = messages.some((msg: any) => {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/onboarding/scan-analysis.service.ts",
+        "line": 125,
+        "code": "const replyMessage = messages.find((msg: any) => {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/priority/triage-suggestions.service.ts",
+        "line": 166,
+        "code": "const emails = rawResult.map((row: any) => {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/priority/triage-suggestions.service.ts",
+        "line": 243,
+        "code": "(row: any) =>"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/subscriptions/subscriptions.controller.ts",
+        "line": 32,
+        "code": "async handleWebhook(@Body() payload: any) {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/subscriptions/subscriptions.service.ts",
+        "line": 183,
+        "code": "async handleWebhook(payload: any): Promise<void> {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/users/users.controller.ts",
+        "line": 93,
+        "code": "async updateProfile(@Request() req, @Body() updates: any) {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/utils/error-logger.ts",
+        "line": 31,
+        "code": "function writeErrorToFile(message: string, error?: any, source?: string): void {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/utils/error-logger.ts",
+        "line": 136,
+        "code": "console.error = (...args: any[]) => {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/utils/search-logger.ts",
+        "line": 194,
+        "code": "logAIScoringError(userId: string, originalQuery: string, error: any) {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/utils/search-logger.ts",
+        "line": 218,
+        "code": "logSearchError(userId: string, originalQuery: string, error: any) {"
+      }
+    ],
+    "returnTypes": [],
+    "variableDeclarations": [
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/action-items/action-items.service.ts",
+        "line": 25,
+        "code": "const where: any = { userId };"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/auth/auth.service.ts",
+        "line": 83,
+        "code": "const updates: any = {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/auth/auth.service.ts",
+        "line": 152,
+        "code": "const updates: any = {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/calendar/calendar.service.ts",
+        "line": 9,
+        "code": "private oauth2Client: any;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/context/context.service.ts",
+        "line": 846,
+        "code": "stats?: any;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/email/email-translations.ts",
+        "line": 39,
+        "code": "let translation: any ="
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 278,
+        "code": "let priorityExplanation: any = null;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 2032,
+        "code": "debugInfo?: any;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 2823,
+        "code": "const plain: any = { ...email };"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 2845,
+        "code": "debugInfo?: any;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 2906,
+        "code": "details: any;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/priority/priority.controller.ts",
+        "line": 49,
+        "code": "suggestion: any;"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/priority/triage-suggestions.service.ts",
+        "line": 168,
+        "code": "let priorityExplanation: any = null;"
+      }
+    ],
+    "other": [
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/auth/auth-logger.ts",
+        "line": 54,
+        "code": "error: any | null,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/auth/auth-logger.ts",
+        "line": 55,
+        "code": "additionalDetails?: Record<string, any>,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/auth/auth.service.ts",
+        "line": 45,
+        "code": "profile: any,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/auth/google.strategy.ts",
+        "line": 43,
+        "code": "profile: any,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/calendar/calendar.service.ts",
+        "line": 27,
+        "code": "): Promise<any[]> {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/calendar/calendar.service.ts",
+        "line": 66,
+        "code": "const slots: any[] = [];"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/calendar/calendar.service.ts",
+        "line": 148,
+        "code": "): Promise<any[]> {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/database/query-logger.ts",
+        "line": 38,
+        "code": "parameters?: any[],"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/database/query-logger.ts",
+        "line": 40,
+        "code": "_queryRunner?: any,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/database/query-logger.ts",
+        "line": 53,
+        "code": "parameters?: any[],"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/database/query-logger.ts",
+        "line": 55,
+        "code": "_queryRunner?: any,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/database/query-logger.ts",
+        "line": 79,
+        "code": "_queryRunner?: any,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/database/query-logger.ts",
+        "line": 87,
+        "code": "message: any,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/database/query-logger.ts",
+        "line": 89,
+        "code": "_queryRunner?: any,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/emails.service.ts",
+        "line": 2113,
+        "code": "let rawEmails: any[] = [];"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/emails/providers/gmail.provider.ts",
+        "line": 606,
+        "code": "gmail: any,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/github/github-api.service.ts",
+        "line": 487,
+        "code": "async searchIssues(token: string, query: string): Promise<any[]> {"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/github/github.controller.ts",
+        "line": 69,
+        "code": "const allLinks = new Map<string, any>();"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/github/github.controller.ts",
+        "line": 180,
+        "code": "const allLinks = new Map<string, any>();"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/llm/llm.service.ts",
+        "line": 193,
+        "code": "const messages: any[] = [];"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/llm/prompts.ts",
+        "line": 172,
+        "code": "vars: Record<string, any>,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/subscriptions/subscriptions.service.ts",
+        "line": 33,
+        "code": "requestData?: any,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/utils/error-logger.ts",
+        "line": 81,
+        "code": "error?: any,"
+      },
+      {
+        "file": "/Users/s3255727/Documents/dev/email-client/server/src/utils/search-logger.ts",
+        "line": 98,
+        "code": "error: any,"
+      }
+    ]
+  }
+}

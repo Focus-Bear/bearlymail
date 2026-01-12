@@ -5,12 +5,18 @@ This file contains coding standards and guidelines for the server codebase. Foll
 ## File and Function Length
 
 ### File Length
-- **Maximum**: 800 lines per file (excluding blank lines and comments)
-- **Rationale**: Large files are harder to navigate, understand, and maintain
-- **Action**: If a file exceeds this limit, consider:
-  - Breaking it into smaller, focused modules
-  - Extracting related functionality into separate services
-  - Using composition to split responsibilities
+- **Maximum**: 500 lines per file (excluding blank lines and comments)
+- **Strict Rule**: **NEVER add code to a file that already exceeds 500 lines**
+- **Rationale**: Large files are harder to navigate, understand, and maintain. Files over 500 lines indicate the need for refactoring.
+- **Action**: If a file exceeds this limit or you need to modify a file over 500 lines:
+  1. **STOP** - Do not add more code to the large file
+  2. **REFACTOR FIRST** - Extract related functionality into separate services/modules
+  3. **THEN MODIFY** - Make your changes in the newly created smaller files
+  4. Consider:
+     - Breaking it into smaller, focused modules
+     - Extracting related functionality into separate services
+     - Using composition to split responsibilities
+     - Moving helper classes to separate files
 
 ### Function Length
 - **Maximum**: 100 lines per function (excluding blank lines and comments)
@@ -155,22 +161,52 @@ When working with NestJS modules, **ALWAYS** follow these rules to prevent depen
 
 #### 4. WorkerModule Special Rules
 - **WorkerModule provides services directly instead of importing their modules**
+- **CRITICAL: When adding a service to WorkerModule providers, you MUST:**
+  1. **Check the service's constructor** to see ALL dependencies it injects
+  2. **For each dependency:**
+     - If it's a repository (`@InjectRepository(Entity)`): Ensure Entity is in `TypeOrmModule.forFeature([...])` AND in `entities` array
+     - If it's another service: Ensure that service is ALSO in WorkerModule's providers array (or its module is imported)
+  3. **Recursively check dependencies** - if ServiceA depends on ServiceB, and ServiceB depends on ServiceC, ALL must be provided
+  4. **Systematic Dependency Check Process**:
+     - Read the service constructor line by line
+     - For each injected dependency, check if it's:
+       - A repository → verify Entity in forFeature
+       - A service → verify service in providers OR its module imported
+       - A token (e.g., `@Inject("PG_BOSS")`) → verify token provider exists
+     - For each service dependency, recursively check ITS dependencies
+     - Create a checklist: [Service] → [Dependency1, Dependency2, ...] → [Sub-dependencies...]
+     - Verify ALL items in the dependency tree are available
 - **When adding a service to WorkerModule providers, ensure:**
   - All entities used by `@InjectRepository` are in `TypeOrmModule.forFeature([...])`
   - All entities are also in the `entities` array in `forRootAsync`
   - All service dependencies are either:
     - Provided in WorkerModule's providers array, OR
     - Imported via their respective modules in the imports array
+- **Example Checklist:**
+  ```typescript
+  // Adding EmailsService to WorkerModule:
+  // 1. Check EmailsService constructor dependencies:
+  //    - EmailRepository → Email entity ✓ (already in forFeature)
+  //    - EmailThreadRepository → EmailThread entity ✓ (already in forFeature)
+  //    - UserContextRepository → UserContext entity ✓ (already in forFeature)
+  //    - PriorityService → Need to check PriorityService dependencies
+  //    - EmailThreadService → ⚠️ MISSING! Must add to providers
+  //    - etc.
+  ```
 
 #### 5. Checklist Before Modifying Modules
 Before making changes to module imports/providers:
 - [ ] List all services/providers being added/removed
 - [ ] For each service, identify ALL dependencies (repositories, other services)
+  - [ ] Read the service constructor to see what it injects
+  - [ ] For each dependency, check if it's a repository or another service
+  - [ ] **Recursively check dependencies of dependencies** (if ServiceA → ServiceB → ServiceC, all must be available)
 - [ ] Verify all repository entities are in `TypeOrmModule.forFeature`
 - [ ] Verify all repository entities are in `entities` array (if using forRootAsync)
 - [ ] Verify all service dependencies are available (imported or provided)
+- [ ] **For WorkerModule: Ensure ALL service dependencies are in providers array**
 - [ ] Check for circular dependencies and add `forwardRef` if needed
-- [ ] Test that the application starts without dependency injection errors
+- [ ] **ALWAYS run `npm run build` to catch dependency injection errors before committing**
 
 #### 6. Common Error Patterns to Avoid
 ```typescript
@@ -221,6 +257,27 @@ When you see errors like "Nest can't resolve dependencies" or "argument X at ind
 4. For service injections: Ensure service is provided or its module is imported
 5. Check if you're in WorkerModule - remember it provides services directly
 
+#### 8. Worker Build Verification
+**CRITICAL**: The WorkerModule is used by a separate worker process (`src/worker.ts`) that runs independently from the main application.
+
+**Before committing any changes that affect WorkerModule or its dependencies:**
+- [ ] **ALWAYS run `npm run build`** - This compiles TypeScript and will catch most dependency injection errors
+- [ ] **Verify WorkerModule compiles without dependency injection errors** - The build process should catch missing dependencies
+- [ ] **If you modify WorkerModule imports or providers**, verify:
+  - All required modules are imported (e.g., `Office365AccountsModule`, `ZohoAccountsModule`, `GoogleAccountsModule`)
+  - All service dependencies are available (either provided directly or via imported modules)
+  - All repository entities are in `TypeOrmModule.forFeature([...])`
+- [ ] **Note**: The worker uses `ts-node` directly, so TypeScript compilation errors will prevent it from starting
+- [ ] **Common WorkerModule errors**:
+  - Missing module imports (e.g., `Office365AccountsModule` not imported but `Office365Provider` needs `Office365AccountsService`)
+  - Missing entities in `forFeature` array
+  - Missing service providers in the providers array
+
+**Verification Command**: After making changes, run:
+```bash
+npm run build  # Should catch TypeScript and dependency injection errors
+```
+
 ## ESLint Rules
 
 All code must pass ESLint checks. The rules are configured in `.eslintrc.js` and include:
@@ -230,6 +287,20 @@ All code must pass ESLint checks. The rules are configured in `.eslintrc.js` and
 - Code quality rules
 
 Run `npm run lint` to check for violations before committing code.
+
+### NestJS Dependency Injection ESLint Rules
+**Note**: There are currently no dedicated ESLint rules or plugins that automatically catch NestJS dependency injection errors (e.g., missing module imports, unresolved dependencies). 
+
+**How to catch these issues:**
+- **TypeScript Compilation**: Running `npm run build` will catch most dependency injection errors at compile time
+- **Runtime Errors**: NestJS will throw clear error messages at startup if dependencies cannot be resolved
+- **Manual Review**: Always review module imports and providers when adding new services or dependencies
+- **Worker Build Check**: Always verify WorkerModule compiles correctly (see Worker Build Verification section above)
+
+**Best Practices:**
+- Use the checklist in the "NestJS Module Dependencies" section above
+- Always run `npm run build` before committing changes
+- Test worker startup if you modify WorkerModule
 
 ## LLM Prompts
 
@@ -261,4 +332,154 @@ const prompt = renderPrompt(promptConfig.prompt, {
 // ❌ BAD: Hardcoded prompt in service
 const systemPrompt = `You are an email assistant...`;
 ```
+
+### LLM vs Keyword Processing
+
+- **ALWAYS prefer LLM-based processing over keyword-based processing** for content analysis, pattern detection, and text understanding
+- Keyword-based processing (regex, string matching, word counting) is unreliable and brittle
+- For tasks like:
+  - Extracting patterns from emails
+  - Determining writing style
+  - Finding common phrases
+  - Selecting helpful examples
+  - Classifying content
+- **Use LLM services** (e.g., `llmService.analyzeEmailPatterns()`, `llmService.extractQAndA()`) instead of keyword matching
+- If LLM output needs filtering/refinement, use LLM to do the filtering (e.g., ask LLM to rate usefulness), not keyword rules
+
+### Prompt Testing Requirements
+
+- **When modifying prompts, you MUST:**
+  1. Update the corresponding promptfoo test file in `server/promptfoo/`
+  2. Run the promptfoo tests to ensure they pass: `cd server && npm run promptfoo`
+  3. Update test assertions if the prompt output format changes
+  4. Add new test cases if the prompt behavior changes significantly
+- **Before changing prompts:**
+  - Check if a promptfoo test file exists for that prompt (e.g., `extract-common-questions.yaml` for `extract-common-questions.md`)
+  - Review existing test cases to understand expected behavior
+  - Update tests to match new expected behavior
+- **Test file naming:** Test files should match prompt file names (e.g., `extract-common-questions.yaml` for `extract-common-questions.md`)
+
+## Email Provider Abstraction
+
+**CRITICAL**: All email-related code must support Gmail, Office365, and Zoho Mail. Never write provider-specific code outside of provider implementation files.
+
+### Core Principles
+
+- **Provider-Agnostic Code**: All services and business logic must work with any email provider
+- **Use EmailProvider Interface**: Always use the `EmailProvider` interface and `EmailProviderManager` to interact with email providers
+- **Provider-Specific Code Location**: Provider-specific implementation details belong ONLY in provider files:
+  - `server/src/emails/providers/gmail.provider.ts`
+  - `server/src/emails/providers/office365.provider.ts`
+  - `server/src/emails/providers/zoho.provider.ts`
+
+### Provider Update Rule
+
+**MANDATORY**: When modifying email provider functionality, **ALWAYS update Gmail, Office365, and Zoho providers together**. Never make provider-specific changes to only one provider.
+
+- If you add a feature to Gmail provider, add it to Office365 and Zoho as well
+- If you fix a bug in one provider, check and fix the same issue in all providers
+- If you add logging to one provider, add similar logging to all providers
+- If you change an interface method, update all three provider implementations
+
+**Examples of what NOT to do:**
+- ❌ Fixing Gmail archive without checking O365/Zoho
+- ❌ Adding logging only to Gmail provider
+- ❌ Implementing a feature only for Gmail
+
+**Examples of what TO do:**
+- ✅ Fixing archive in all three providers together
+- ✅ Adding consistent logging to all three providers
+- ✅ Implementing features across all providers simultaneously
+
+### What NOT to Do (Anti-Patterns)
+
+❌ **Direct Gmail API calls in services**:
+```typescript
+// ❌ BAD: Direct Gmail API usage in a service
+const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+const threads = await gmail.users.threads.list({ userId: "me" });
+```
+
+❌ **Hardcoded Gmail label IDs**:
+```typescript
+// ❌ BAD: Gmail-specific label IDs
+if (labelIds.includes("INBOX")) { ... }
+```
+
+❌ **Gmail-specific date formats**:
+```typescript
+// ❌ BAD: Gmail-specific date query format
+const query = `after:2024/01/01 before:2024/01/31`;
+```
+
+❌ **Provider-specific logic in business services**:
+```typescript
+// ❌ BAD: Checking provider type in business logic
+if (provider instanceof GmailProvider) {
+  // Gmail-specific logic
+}
+```
+
+### What TO Do (Best Practices)
+
+✅ **Use EmailProviderManager to get the provider**:
+```typescript
+// ✅ GOOD: Get provider via manager
+const provider = await this.emailProviderManager.getPrimaryProvider(userId);
+const messages = await provider.searchEmails(userId, query, limit);
+```
+
+✅ **Use EmailProvider interface methods**:
+```typescript
+// ✅ GOOD: Use provider-agnostic methods
+await provider.syncEmails(userId);
+await provider.searchEmails(userId, query, limit);
+await provider.getThread(userId, threadId);
+```
+
+✅ **Provider-agnostic abstractions**:
+```typescript
+// ✅ GOOD: Abstract provider-specific details
+const threads = await this.emailDataService.fetchThreadsFromProvider(
+  userId,
+  after,
+  before,
+  limit
+);
+```
+
+✅ **Provider-specific code in provider files only**:
+```typescript
+// ✅ GOOD: Gmail-specific implementation in gmail.provider.ts
+async searchEmails(userId: string, query: string, limit: number): Promise<RawEmailMessage[]> {
+  // Gmail API calls are OK here - this IS the Gmail provider
+  const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+  // ... Gmail-specific implementation
+}
+```
+
+### Code Review Checklist
+
+When reviewing or writing email-related code, verify:
+- [ ] No direct Gmail/Office365/Zoho API calls outside provider files
+- [ ] No hardcoded provider-specific constants (label IDs, date formats, etc.)
+- [ ] All email operations use `EmailProvider` interface methods
+- [ ] Provider-specific logic is isolated to provider implementation files
+- [ ] Services use `EmailProviderManager.getPrimaryProvider()` to get providers
+- [ ] Date formatting, label handling, and other provider differences are abstracted
+
+### Examples of Provider-Agnostic Abstractions
+
+**Date Formatting**: Each provider handles date formatting internally:
+- Gmail: `YYYY/MM/DD` format in queries
+- Office365: ISO 8601 format
+- Zoho: Unix timestamp
+
+**Label Handling**: Use provider-agnostic methods:
+- `provider.searchEmails()` - handles provider-specific label/query syntax
+- `provider.syncEmails()` - handles provider-specific sync logic
+
+**Thread Fetching**: Use abstraction layer:
+- `ContextEmailDataService.fetchThreadsFromProvider()` - handles provider differences
+- Each provider implements `EmailProvider` interface methods
 

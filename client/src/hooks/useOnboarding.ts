@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import axios from 'axios';
-import { API_URL } from '../config/api';
+import { DELAY_1_SECOND_MS, SHORT_TIMEOUT_MS } from 'constants/numbers';
+import { API_URL } from 'config/api';
 
 interface ScanProgress {
   current: number;
@@ -74,7 +75,7 @@ export function useOnboarding({
           if (total > 0 && current >= total) {
             clearInterval(progressInterval);
             setIsScanning(false);
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, DELAY_1_SECOND_MS));
             await refreshUser();
             onScanComplete?.();
           }
@@ -82,7 +83,7 @@ export function useOnboarding({
       } catch (error) {
         console.error('Error fetching scan progress:', error);
       }
-    }, 2000);
+    }, SHORT_TIMEOUT_MS);
 
     return () => clearInterval(progressInterval);
   }, [isScanning, refreshUser, onScanComplete]);

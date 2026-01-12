@@ -13,10 +13,14 @@ import { EmailThread } from "./email-thread.entity";
 import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
 
 export enum FollowUpStatus {
-  AWAITING_REPLY = "awaiting_reply", // Waiting for the other party to reply
-  FOLLOW_UP_DUE = "follow_up_due", // Follow-up time has passed, needs action
-  COMPLETED = "completed", // Got a reply or manually marked complete
-  CANCELLED = "cancelled", // User cancelled the follow-up
+  // Waiting for the other party to reply
+  AWAITING_REPLY = "awaiting_reply",
+  // Follow-up time has passed, needs action
+  FOLLOW_UP_DUE = "follow_up_due",
+  // Got a reply or manually marked complete
+  COMPLETED = "completed",
+  // User cancelled the follow-up
+  CANCELLED = "cancelled",
 }
 
 @Entity("follow_ups")
@@ -33,18 +37,21 @@ export class FollowUp {
   @JoinColumn({ name: "userId" })
   user: User;
 
-  @Column()
-  threadId: string; // Gmail thread ID
+  @Column({ comment: "Gmail thread ID" })
+  threadId: string;
 
-  @Column({ nullable: true })
-  emailThreadId: string; // FK to email_threads
+  @Column({ nullable: true, comment: "FK to email_threads" })
+  emailThreadId: string;
 
   @ManyToOne(() => EmailThread)
   @JoinColumn({ name: "emailThreadId" })
   emailThread: EmailThread;
 
-  @Column({ nullable: true })
-  sentEmailId: string; // The email ID that was sent (triggering the follow-up)
+  @Column({
+    nullable: true,
+    comment: "The email ID that was sent (triggering the follow-up)",
+  })
+  sentEmailId: string;
 
   @Column({
     type: "varchar",

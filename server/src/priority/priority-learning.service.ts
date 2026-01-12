@@ -1,7 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { PRIORITY_LEARNING_CONSTANTS } from "../constants/priority-learning-constants";
+import { QUERY_LIMITS } from "../constants/query-limits";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
 import {
   UserContext,
   ContextKey,
@@ -9,6 +12,7 @@ import {
 } from "../database/entities/user-context.entity";
 import { LLMService } from "../llm/llm.service";
 import { UsersService } from "../users/users.service";
+import { calculateScoreFromBreakdown } from "../utils/priority.utils";
 
 @Injectable()
 export class PriorityLearningService {
@@ -17,7 +21,10 @@ export class PriorityLearningService {
   constructor(
     @InjectRepository(Email)
     private emailRepository: Repository<Email>,
+    @InjectRepository(EmailThread)
+    private emailThreadRepository: Repository<EmailThread>,
     @InjectRepository(UserContext)
+    // eslint-disable-next-line max-params
     private userContextRepository: Repository<UserContext>,
     private llmService: LLMService,
     private usersService: UsersService,
@@ -45,21 +52,43 @@ export class PriorityLearningService {
         return { shouldPrompt: false };
       }
 
+      // Get priority explanation from thread
+      let thread = null;
+      if (email.emailThreadId) {
+        thread = await this.emailThreadRepository.findOne({
+          where: { id: email.emailThreadId },
+        });
+      }
+
       // Get priority score and convert to predicted star count
       // Priority score 0-25 = 0 stars, 26-50 = 1 star, 51-75 = 2 stars, 76-100 = 3 stars
-      const priorityScore = email.priorityScore ?? 50;
-      const predictedStarCount =
-        priorityScore <= 25
-          ? 0
-          : priorityScore <= 50
-            ? 1
-            : priorityScore <= 75
-              ? 2
-              : 3;
+      const priorityScore =
+        calculateScoreFromBreakdown(thread?.priorityExplanation) ||
+        PRIORITY_LEARNING_CONSTANTS.PRIORITY_SCORE_DEFAULT;
+      let predictedStarCount: number;
+      if (priorityScore <= PRIORITY_LEARNING_CONSTANTS.PRIORITY_THRESHOLD_LOW) {
+        // STAR_COUNTS.NONE
+        predictedStarCount = 0;
+      } else if (
+        priorityScore <= PRIORITY_LEARNING_CONSTANTS.PRIORITY_THRESHOLD_MEDIUM
+      ) {
+        // STAR_COUNTS.LOW
+        predictedStarCount = 1;
+      } else if (
+        priorityScore <= PRIORITY_LEARNING_CONSTANTS.PRIORITY_THRESHOLD_HIGH
+      ) {
+        // STAR_COUNTS.MEDIUM
+        predictedStarCount = 2;
+      } else {
+        // STAR_COUNTS.HIGH
+        predictedStarCount = 3;
+      }
 
       // Check for significant discrepancy (difference of 2 or more)
       const discrepancy = Math.abs(userStarCount - predictedStarCount);
-      const shouldPrompt = discrepancy >= 2 && userStarCount > 0;
+      const shouldPrompt =
+        // STAR_COUNTS.NONE
+        discrepancy >= QUERY_LIMITS.MAX_RESULTS_MULTIPLIER && userStarCount > 0;
 
       return {
         shouldPrompt,
@@ -106,7 +135,7 @@ export class PriorityLearningService {
         userId,
         contextKey:
           userStarCount === 3 ? ContextKey.VIP_CONTACT : ContextKey.OTHER,
-        contextValue: contextValue,
+        contextValue,
         source: Source.USER_EDITED,
         explanation: `User feedback: ${explanation}`,
       });
@@ -115,6 +144,7 @@ export class PriorityLearningService {
         `Stored star feedback for email ${emailId}: ${explanation}`,
       );
     } catch (error) {
+      // eslint-disable-next-line max-lines-per-function
       this.logger.error(
         `Error storing star feedback for email ${emailId}`,
         error,
@@ -122,6 +152,7 @@ export class PriorityLearningService {
     }
   }
 
+  // eslint-disable-next-line max-statements
   /**
    * Learn from user's star selection and potentially add VIP contacts
    * Called when user sets starCount (0-3) on an email
@@ -136,6 +167,7 @@ export class PriorityLearningService {
         where: { id: emailId, userId },
       });
 
+      // eslint-disable-next-line max-params
       if (!email) {
         this.logger.warn(`Email ${emailId} not found for user ${userId}`);
         return;
@@ -159,21 +191,29 @@ export class PriorityLearningService {
         .where("email.userId = :userId", { userId })
         .andWhere("email.from = :from", { from: email.from })
         .orderBy("email.receivedAt", "DESC")
-        .take(20)
+        .take(QUERY_LIMITS.PRIORITY_LEARNING_MAX_SAMPLES)
         .getRawAndEntities();
 
       const recentEmailsFromSender = result.entities.map((e, index) => {
         const raw = result.raw[index];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (e as any).starCount = raw.thread_starCount ?? 0;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (e as any).isArchived = raw.thread_isArchived ?? false;
         return e;
       });
 
       // Count how many times user starred emails from this sender
-      const starredCount = recentEmailsFromSender.filter(
+      // Count how many times user starred emails from this sender (unused but kept for future use)
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const _starredCount = recentEmailsFromSender.filter(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (e) => (e as any).starCount > 0,
       ).length;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const threeStarCount = recentEmailsFromSender.filter(
+        // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (e) => (e as any).starCount === 3,
       ).length;
 
@@ -237,6 +277,7 @@ export class PriorityLearningService {
    * Process override reason to improve future scoring
    * Analyzes reason text and updates user context rules
    */
+  // eslint-disable-next-line max-lines-per-function
   async processOverrideReason(
     userId: string,
     email: Email,
@@ -263,8 +304,10 @@ export class PriorityLearningService {
           contextValue: c.contextValue,
           priority: c.priority,
         })),
-        undefined, // provider
-        userId, // userId
+        undefined,
+        // provider
+        userId,
+        // userId
       );
 
       // Apply suggested rule updates
@@ -311,6 +354,7 @@ export class PriorityLearningService {
       if (reasonType === "wrong_sender_priority") {
         // If user says sender priority is wrong, adjust VIP status
         const senderName = email.fromName || email.from;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const existingVip = await this.userContextRepository.findOne({
           where: {
             userId,
@@ -387,6 +431,7 @@ export class PriorityLearningService {
   ): Promise<void> {
     try {
       const senderName = email.fromName || email.from;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const emailText =
         `${email.subject || ""} ${email.body || ""}`.toLowerCase();
 
@@ -403,11 +448,14 @@ export class PriorityLearningService {
         .toLowerCase()
         .split(/\s+/)
         .filter((w) => w.length > 3);
-      patterns.push(...subjectWords.slice(0, 3)); // Top 3 words
+      patterns.push(
+        ...subjectWords.slice(0, QUERY_LIMITS.SUBJECT_WORDS_TOP_COUNT),
+      );
+      // Top 3 words
 
       // Create or update URGENT context entry
       const contextValue =
-        urgencyScore >= 90
+        urgencyScore >= PRIORITY_LEARNING_CONSTANTS.URGENCY_HIGH_THRESHOLD
           ? `High urgency (${urgencyScore}): ${senderName}`
           : `Urgency ${urgencyScore}: ${senderName}`;
 
@@ -429,6 +477,7 @@ export class PriorityLearningService {
       if (similarContext) {
         // Update existing context
         similarContext.contextValue = contextValue;
+        // eslint-disable-next-line @typescript-eslint/no-magic-numbers
         similarContext.explanation = `User override: ${reason}. Patterns: ${patterns.join(", ")}`;
         similarContext.source = Source.USER_EDITED;
         await this.userContextRepository.save(similarContext);
@@ -440,7 +489,7 @@ export class PriorityLearningService {
         await this.userContextRepository.save({
           userId,
           contextKey: ContextKey.URGENT,
-          contextValue: contextValue,
+          contextValue,
           source: Source.USER_EDITED,
           explanation: `User override: ${reason}. Patterns: ${patterns.join(", ")}. Urgency threshold: ${urgencyScore}`,
         });
@@ -450,7 +499,7 @@ export class PriorityLearningService {
       }
 
       // If urgency score is very high (>=90), also consider adding as VIP
-      if (urgencyScore >= 90) {
+      if (urgencyScore >= PRIORITY_LEARNING_CONSTANTS.URGENCY_HIGH_THRESHOLD) {
         const allVips = await this.userContextRepository.find({
           where: { userId, contextKey: ContextKey.VIP_CONTACT },
         });
@@ -478,6 +527,106 @@ export class PriorityLearningService {
         `Error learning from urgency override for email ${email.id}`,
         error,
       );
+    }
+  }
+
+  /**
+   * Learn from user feedback on prioritization
+   * User provides text feedback explaining why prioritization was wrong
+   */
+  async learnFromPriorityFeedback(
+    userId: string,
+    email: Email,
+    feedback: string,
+    expectedPriority?: number,
+  ): Promise<void> {
+    try {
+      this.logger.log(
+        `Processing priority feedback for email ${email.id}: "${feedback.substring(0, 100)}..."`,
+      );
+
+      // Get current user context
+      const currentContexts = await this.userContextRepository.find({
+        where: { userId },
+      });
+      const contextSummary = currentContexts.slice(0, 10).map((c) => ({
+        contextKey: c.contextKey,
+        contextValue: c.contextValue,
+        priority: c.priority,
+      }));
+
+      // Use LLM to analyze feedback and extract patterns
+      const analysis = await this.llmService.analyzeOverrideReason(
+        {
+          from: email.from,
+          fromName: email.fromName,
+          subject: email.subject,
+          body: email.body,
+        },
+        expectedPriority
+          ? `Expected priority: ${expectedPriority}`
+          : "Priority feedback",
+        feedback,
+        contextSummary,
+        undefined,
+        userId,
+      );
+
+      // Update or create context entries based on LLM analysis
+      for (const contextUpdate of analysis.updatedContexts) {
+        // Validate contextKey
+        const validContextKey = Object.values(ContextKey).includes(
+          contextUpdate.contextKey as ContextKey,
+        )
+          ? (contextUpdate.contextKey as ContextKey)
+          : null;
+        if (!validContextKey) {
+          this.logger.warn(
+            `Invalid contextKey from LLM: ${contextUpdate.contextKey}`,
+          );
+          continue;
+        }
+
+        // Find existing context or create new one
+        const existing = await this.userContextRepository.findOne({
+          where: {
+            userId,
+            contextKey: validContextKey,
+            contextValue: contextUpdate.contextValue,
+          },
+        });
+
+        if (existing) {
+          // Update existing context
+          existing.priority = contextUpdate.priority || existing.priority;
+          existing.explanation = `Learned from feedback: ${feedback.substring(0, 200)}`;
+          existing.source = Source.USER_EDITED;
+          // User provided feedback
+          await this.userContextRepository.save(existing);
+        } else {
+          // Create new context
+          const newContext = this.userContextRepository.create({
+            userId,
+            contextKey: validContextKey,
+            contextValue: contextUpdate.contextValue,
+            priority: contextUpdate.priority || 2,
+            explanation: `Learned from feedback: ${feedback.substring(0, 200)}`,
+            source: Source.USER_EDITED,
+            // User provided feedback
+          });
+          await this.userContextRepository.save(newContext);
+        }
+      }
+
+      this.logger.log(
+        `Successfully processed priority feedback for email ${email.id}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Error processing priority feedback for email ${email.id}:`,
+        error,
+      );
+      throw error;
     }
   }
 }

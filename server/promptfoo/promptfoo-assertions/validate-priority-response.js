@@ -6,10 +6,13 @@
  */
 module.exports = (output, context) => {
   console.log('validate-priority-response', output, context);
-  // Validate JSON first
+  // Validate JSON first - handle markdown code blocks if present
   let parsed;
   try {
-    parsed = typeof output === 'string' ? JSON.parse(output) : output;
+    let jsonString = typeof output === 'string' ? output : JSON.stringify(output);
+    // Strip markdown code blocks if present
+    jsonString = jsonString.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+    parsed = JSON.parse(jsonString);
   } catch (e) {
     throw new Error('Response must be valid JSON. Got: ' + output.substring(0, 200));
   }
@@ -18,13 +21,17 @@ module.exports = (output, context) => {
     throw new Error('Response must be a JSON object');
   }
   
-  // Validate required fields
-  if (typeof parsed.score !== 'number' || parsed.score < 0 || parsed.score > 100) {
-    throw new Error('Response must have a valid score (0-100)');
+  // Validate required fields - new format uses urgencyScore, sentimentScore, reasoning, urgencyExplanation
+  if (typeof parsed.urgencyScore !== 'number' || parsed.urgencyScore < 0 || parsed.urgencyScore > 100) {
+    throw new Error('Response must have a valid urgencyScore (0-100)');
   }
   
-  if (typeof parsed.isUrgent !== 'boolean') {
-    throw new Error('Response must have a boolean isUrgent field');
+  if (!parsed.urgencyExplanation || typeof parsed.urgencyExplanation !== 'string') {
+    throw new Error('Response must have an urgencyExplanation string');
+  }
+  
+  if (typeof parsed.sentimentScore !== 'number' || parsed.sentimentScore < -1 || parsed.sentimentScore > 1) {
+    throw new Error('Response must have a valid sentimentScore (-1 to 1)');
   }
   
   if (!parsed.reasoning || typeof parsed.reasoning !== 'string') {
@@ -38,16 +45,20 @@ module.exports = (output, context) => {
   
   // Validate expected values from context.config
   if (context.config) {
-    if (context.config.minScore !== undefined && parsed.score < context.config.minScore) {
-      throw new Error(`Expected score >= ${context.config.minScore}, got ${parsed.score}`);
+    // Support both old format (score) and new format (urgencyScore)
+    const score = parsed.score !== undefined ? parsed.score : parsed.urgencyScore;
+    const isUrgent = parsed.isUrgent !== undefined ? parsed.isUrgent : (parsed.urgencyScore >= 90);
+    
+    if (context.config.minScore !== undefined && score < context.config.minScore) {
+      throw new Error(`Expected score >= ${context.config.minScore}, got ${score}`);
     }
     
-    if (context.config.maxScore !== undefined && parsed.score > context.config.maxScore) {
-      throw new Error(`Expected score <= ${context.config.maxScore}, got ${parsed.score}`);
+    if (context.config.maxScore !== undefined && score > context.config.maxScore) {
+      throw new Error(`Expected score <= ${context.config.maxScore}, got ${score}`);
     }
     
-    if (context.config.expectedIsUrgent !== undefined && parsed.isUrgent !== context.config.expectedIsUrgent) {
-      throw new Error(`Expected isUrgent to be ${context.config.expectedIsUrgent}, got ${parsed.isUrgent}`);
+    if (context.config.expectedIsUrgent !== undefined && isUrgent !== context.config.expectedIsUrgent) {
+      throw new Error(`Expected isUrgent to be ${context.config.expectedIsUrgent}, got ${isUrgent} (urgencyScore: ${parsed.urgencyScore})`);
     }
     
     if (context.config.expectedSentiment) {
@@ -55,18 +66,33 @@ module.exports = (output, context) => {
         ? context.config.expectedSentiment 
         : [context.config.expectedSentiment];
       
+      // Derive sentiment from sentimentScore if sentiment field is not present
+      let actualSentiment = parsed.sentiment;
+      if (actualSentiment === undefined && typeof parsed.sentimentScore === 'number') {
+        // Map sentimentScore to sentiment categories
+        if (parsed.sentimentScore > 0.3) {
+          actualSentiment = 'positive';
+        } else if (parsed.sentimentScore < -0.3) {
+          actualSentiment = 'negative';
+        } else if (parsed.sentimentScore < -0.1) {
+          actualSentiment = 'upset';
+        } else {
+          actualSentiment = 'neutral';
+        }
+      }
+      
       // If maxSentimentScore is also specified, allow OR logic: sentiment matches OR sentimentScore is negative
       if (context.config.maxSentimentScore !== undefined) {
-        const sentimentMatches = expectedSentiments.includes(parsed.sentiment);
+        const sentimentMatches = expectedSentiments.includes(actualSentiment);
         const sentimentScoreValid = typeof parsed.sentimentScore === 'number' && parsed.sentimentScore < context.config.maxSentimentScore;
         
         if (!sentimentMatches && !sentimentScoreValid) {
-          throw new Error(`Expected sentiment to be one of [${expectedSentiments.join(', ')}] OR sentimentScore < ${context.config.maxSentimentScore}, got sentiment=${parsed.sentiment}, sentimentScore=${parsed.sentimentScore}`);
+          throw new Error(`Expected sentiment to be one of [${expectedSentiments.join(', ')}] OR sentimentScore < ${context.config.maxSentimentScore}, got sentiment=${actualSentiment}, sentimentScore=${parsed.sentimentScore}`);
         }
       } else {
         // No sentimentScore check, just validate sentiment
-        if (!expectedSentiments.includes(parsed.sentiment)) {
-          throw new Error(`Expected sentiment to be one of [${expectedSentiments.join(', ')}], got ${parsed.sentiment}`);
+        if (!expectedSentiments.includes(actualSentiment)) {
+          throw new Error(`Expected sentiment to be one of [${expectedSentiments.join(', ')}], got ${actualSentiment} (derived from sentimentScore: ${parsed.sentimentScore})`);
         }
       }
     }

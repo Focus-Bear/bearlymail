@@ -3,6 +3,7 @@ import os from "os";
 import { NestFactory } from "@nestjs/core";
 import { Logger } from "@nestjs/common";
 import { WorkerModule } from "./worker.module";
+import { setupGlobalErrorHandlers, logErrorToFile } from "./utils/error-logger";
 
 const logger = new Logger("Worker");
 
@@ -10,9 +11,11 @@ const logger = new Logger("Worker");
 // In development, use half the CPU cores to leave resources for other dev tools
 const isDev = process.env.NODE_ENV !== "production";
 const cpuCores = os.cpus().length;
+// Half cores in dev, minimum 1
+// All cores in production, minimum 2
 const defaultWorkerCount = isDev
-  ? Math.max(1, Math.floor(cpuCores / 2)) // Half cores in dev, minimum 1
-  : Math.max(2, cpuCores); // All cores in production, minimum 2
+  ? Math.max(1, Math.floor(cpuCores / 2))
+  : Math.max(2, cpuCores);
 
 const WORKER_COUNT = parseInt(
   process.env.WORKER_PROCESSES || String(defaultWorkerCount),
@@ -47,7 +50,8 @@ async function bootstrapWorker(workerId: number) {
 }
 
 // cluster.isPrimary is available in Node 16+, fallback to isMaster for older versions
-const isPrimaryProcess = cluster.isPrimary ?? (cluster as any).isMaster;
+const isPrimaryProcess =
+  cluster.isPrimary ?? (cluster as { isMaster?: boolean }).isMaster;
 
 if (isPrimaryProcess) {
   const mode = isDev ? "development" : "production";
@@ -87,8 +91,16 @@ if (isPrimaryProcess) {
 } else {
   // Worker process
   const workerId = parseInt(process.env.WORKER_ID || "1", 10);
+  // Set up error handlers for this worker process
+  setupGlobalErrorHandlers(`Worker-${workerId}`);
+
   bootstrapWorker(workerId).catch((err) => {
     logger.error(`[Worker ${workerId}] Failed to start:`, err);
+    logErrorToFile(
+      `Worker ${workerId} failed to start`,
+      err,
+      `Worker-${workerId}`,
+    );
     process.exit(1);
   });
 }

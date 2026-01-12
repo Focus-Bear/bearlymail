@@ -25,7 +25,8 @@ export class WaitlistController {
 
   @Get()
   @UseGuards(JwtAuthGuard, AdminGuard)
-  async getAll(@Request() req) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async getAll(@Request() _req) {
     return this.waitlistService.findAll();
   }
 

@@ -1,8 +1,14 @@
 import React from 'react';
-import { theme } from '../../theme/theme';
-import { Email, InboxMode, TriageSuggestion } from '../../types/email';
-import { TriageSuggestionBanner } from './TriageSuggestionBanner';
-import { captureEvent } from '../../utils/posthog';
+import { useTranslation } from 'react-i18next';
+import { theme } from 'theme/theme';
+import { Email, InboxMode, TriageSuggestion } from 'types/email';
+import { MODE_TRIAGE } from 'constants/strings';
+import { StarButtons } from 'components/inbox/actions/StarButtons';
+import { SnoozeInput } from 'components/inbox/actions/SnoozeInput';
+import { EMOJI_INBOX, EMOJI_BLOCK, EMOJI_LINK } from 'constants/emojis';
+import { extractUnsubscribeLink } from 'utils/unsubscribeUtils';
+import { captureEvent } from 'utils/posthog';
+import { TOAST_DURATION_MS, OPACITY_DISABLED } from 'components/inbox/constants';
 
 interface EmailActionsRowProps {
   email: Email;
@@ -36,24 +42,32 @@ export const EmailActionsRow: React.FC<EmailActionsRowProps> = ({
   onBlockSender,
   onSnooze,
 }) => {
+  const { t } = useTranslation();
+  
+  const getSuggestedText = (count: number) => {
+    return count === 1 ? '1 star' : `${count} stars`;
+  };
+
   return (
     <div onClick={(e) => e.stopPropagation()}>
-      {/* Actions Card - Groups all actions together */}
+      {/* Actions Card - All actions in single row */}
       <div style={{
         backgroundColor: theme.colors.background.paper,
         borderRadius: theme.borderRadius.md,
         border: `1px solid ${theme.colors.border.light}`,
         padding: theme.spacing.md,
         display: 'flex',
-        flexDirection: 'column',
+        flexDirection: 'row',
         gap: theme.spacing.md,
+        alignItems: 'center',
+        flexWrap: 'wrap',
         marginBottom: theme.spacing.xs,
       }}>
         {/* Prioritise more deeply section */}
         <div style={{ 
           display: 'flex', 
           alignItems: 'center',
-          gap: theme.spacing.md,
+          gap: theme.spacing.xs,
         }}>
           <div style={{
             fontSize: theme.typography.fontSize.xs,
@@ -61,231 +75,149 @@ export const EmailActionsRow: React.FC<EmailActionsRowProps> = ({
             fontWeight: theme.typography.fontWeight.medium,
             whiteSpace: 'nowrap',
           }}>
-            Prioritise more deeply:
+            {t('inbox.prioritiseMoreDeeply')}:
           </div>
+          <StarButtons
+            email={email}
+            keyboardHint={keyboardHint}
+            onSetStarCount={onSetStarCount}
+          />
+        </div>
+
+        {/* Suggested section */}
+        {suggestion && mode === MODE_TRIAGE && suggestion.suggestedStarCount > 0 && (
           <div style={{ 
             display: 'flex', 
-            alignItems: 'center', 
+            alignItems: 'center',
             gap: theme.spacing.xs,
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            backgroundColor: theme.colors.background.subtle,
-            borderRadius: theme.borderRadius.md,
-            border: `1px solid ${theme.colors.border.light}`,
           }}>
-            {[1, 2, 3].map(count => (
-              <button
-                key={count}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const currentCount = email.starCount || 0;
-                  const newCount = currentCount === count ? 0 : count;
-                  onSetStarCount(email.id, newCount, e);
-                  if (e.type === 'click' && !e.ctrlKey && !e.shiftKey && !e.metaKey) {
-                    keyboardHint.showHint(email.id, `Press ${count} to set ${count} star${count > 1 ? 's' : ''}`);
-                    setTimeout(() => keyboardHint.hideHint(), 3000);
-                  }
-                }}
-                title={(email.starCount || 0) === count ? `Remove stars (or press ${count})` : `Set ${count} star${count > 1 ? 's' : ''} (or press ${count})`}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '1.4rem',
-                  padding: '2px 4px',
-                  color: (email.starCount || 0) >= count ? theme.colors.accent.warning : theme.colors.text.tertiary,
-                  opacity: (email.starCount || 0) >= count ? 1 : 0.5,
-                  transition: theme.transitions.fast,
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.opacity = '1';
-                  e.currentTarget.style.transform = 'scale(1.2)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.opacity = (email.starCount || 0) >= count ? '1' : '0.5';
-                  e.currentTarget.style.transform = 'scale(1)';
-                }}
-              >
-                ⭐
-              </button>
-            ))}
+            <div
+              onClick={async (e) => {
+                e.stopPropagation();
+                captureEvent('triage_suggestion_accepted', {
+                  email_id: email.id,
+                  suggested_star_count: suggestion.suggestedStarCount,
+                });
+                await onSetStarCount(email.id, suggestion.suggestedStarCount);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: theme.spacing.xs,
+                cursor: 'pointer',
+                opacity: 0.7,
+                transition: 'opacity 0.2s',
+                fontSize: theme.typography.fontSize.xs,
+                color: theme.colors.text.secondary,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.opacity = '1';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.opacity = '0.7';
+              }}
+              title={t('inbox.clickToSetStars', { count: suggestion.suggestedStarCount })}
+            >
+              <span style={{ fontWeight: theme.typography.fontWeight.medium }}>
+                {t('inbox.suggested')}: {getSuggestedText(suggestion.suggestedStarCount)}
+              </span>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Other actions section */}
         <div style={{ 
           display: 'flex', 
-          flexDirection: 'column',
-          gap: theme.spacing.xs,
+          gap: theme.spacing.sm, 
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          marginLeft: 'auto',
         }}>
-          <div style={{
-            fontSize: theme.typography.fontSize.xs,
-            color: theme.colors.error.main,
-            fontWeight: theme.typography.fontWeight.medium,
-            marginBottom: theme.spacing.xs,
-          }}>
-            Other actions:
-          </div>
-          <div style={{ 
-            display: 'flex', 
-            gap: theme.spacing.sm, 
-            alignItems: 'center',
-            flexWrap: 'wrap',
-          }}>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onArchive(email.id, e);
-                if (e.type === 'click' && !e.ctrlKey && !e.shiftKey && !e.metaKey) {
-                  keyboardHint.showHint(email.id, 'Press Delete to archive');
-                  setTimeout(() => keyboardHint.hideHint(), 3000);
-                }
-              }}
-              title="Archive (or press Delete)"
-              style={{
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '1.2rem',
-                padding: '0 4px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: theme.spacing.xs,
-              }}
-            >
-              <span>📥</span>
-              <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>Archive</span>
-            </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onArchive(email.id, e);
+              // eslint-disable-next-line no-restricted-syntax -- 'click' is a standard DOM event type
+              if (e.type === 'click' && !e.ctrlKey && !e.shiftKey && !e.metaKey) {
+                keyboardHint.showHint(email.id, t('inbox.pressDeleteToArchive'));
+                setTimeout(() => keyboardHint.hideHint(), TOAST_DURATION_MS);
+              }
+            }}
+            title={t('inbox.archiveOrPressDelete')}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '1.2rem',
+              padding: '0 4px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: theme.spacing.xs,
+            }}
+          >
+            {/* eslint-disable-next-line i18next/no-literal-string */}
+            <span>{EMOJI_INBOX}</span>
+            <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>{t('inbox.archive')}</span>
+          </button>
 
-            {/* Snooze (hidden in triage mode) */}
-            {mode !== 'triage' && (
-              <>
-                {snoozeInput.showSnoozeInput === email.id ? (
-                  <div style={{ display: 'flex', gap: theme.spacing.xs, alignItems: 'center' }}>
-                    <input
-                      type="text"
-                      placeholder="2h, tomorrow..."
-                      autoFocus
-                      value={snoozeInput.getSnoozeValue(email.id)}
-                      onChange={(e) => snoozeInput.setSnoozeValue(email.id, e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          if (snoozeInput.getSnoozeValue(email.id)?.trim()) {
-                            onSnooze(email.id);
-                          }
-                        }
-                        if (e.key === 'Escape') {
-                          snoozeInput.clearSnooze(email.id);
-                        }
-                      }}
-                      style={{
-                        padding: theme.spacing.xs,
-                        borderRadius: theme.borderRadius.sm,
-                        border: `1px solid ${theme.colors.primary.main}`,
-                        fontSize: theme.typography.fontSize.sm,
-                        width: '100px',
-                        outline: 'none',
-                      }}
-                    />
-                    <button
-                      onClick={() => {
-                        if (snoozeInput.getSnoozeValue(email.id)?.trim()) {
-                          onSnooze(email.id);
-                        }
-                      }}
-                      disabled={!snoozeInput.getSnoozeValue(email.id)?.trim()}
-                      style={{
-                        padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                        borderRadius: theme.borderRadius.sm,
-                        backgroundColor: snoozeInput.getSnoozeValue(email.id)?.trim() ? theme.colors.primary.main : theme.colors.background.subtle,
-                        color: snoozeInput.getSnoozeValue(email.id)?.trim() ? 'white' : theme.colors.text.tertiary,
-                        border: 'none',
-                        cursor: snoozeInput.getSnoozeValue(email.id)?.trim() ? 'pointer' : 'not-allowed',
-                        fontSize: theme.typography.fontSize.xs,
-                        fontWeight: theme.typography.fontWeight.medium,
-                        opacity: snoozeInput.getSnoozeValue(email.id)?.trim() ? 1 : 0.6,
-                      }}
-                    >
-                      Confirm
-                    </button>
-                    <button
-                      onClick={() => {
-                        captureEvent('email_snooze_cancelled', { email_id: email.id });
-                        snoozeInput.clearSnooze(email.id);
-                      }}
-                      style={{
-                        padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                        borderRadius: theme.borderRadius.sm,
-                        backgroundColor: 'transparent',
-                        color: theme.colors.text.secondary,
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontSize: theme.typography.fontSize.xs,
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => {
-                      captureEvent('email_snooze_clicked', { email_id: email.id });
-                      snoozeInput.showSnooze(email.id);
-                    }}
-                    title="Snooze"
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      cursor: 'pointer',
-                      fontSize: '1.1rem',
-                      padding: '0 4px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: theme.spacing.xs,
-                      color: theme.colors.text.tertiary,
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
-                    onMouseLeave={(e) => e.currentTarget.style.opacity = '0.6'}
-                  >
-                    <span>⏰</span>
-                    <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>Snooze</span>
-                  </button>
-                )}
-              </>
-            )}
+          {mode !== MODE_TRIAGE && (
+            <SnoozeInput
+              email={email}
+              snoozeInput={snoozeInput}
+              onSnooze={onSnooze}
+            />
+          )}
 
-            <button
-              onClick={(e) => onBlockSender(email.id, e)}
-              title="Block sender"
-              style={{
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '1.1rem',
-                padding: '0 4px',
-                opacity: 0.6,
-                display: 'flex',
-                alignItems: 'center',
-                gap: theme.spacing.xs,
-              }}
-            >
-              <span>🚫</span>
-              <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>Block sender</span>
-            </button>
-          </div>
+          {(() => {
+            const unsubscribeLink = extractUnsubscribeLink((email as any).htmlBody, email.body);
+            return unsubscribeLink ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(unsubscribeLink, '_blank', 'noopener,noreferrer');
+                  captureEvent('email_unsubscribe_clicked', { email_id: email.id });
+                }}
+                title={t('inbox.unsubscribe')}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '1.1rem',
+                  padding: '0 4px',
+                  opacity: OPACITY_DISABLED,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: theme.spacing.xs,
+                }}
+              >
+                {/* eslint-disable-next-line i18next/no-literal-string */}
+                <span>{EMOJI_LINK}</span>
+                <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>{t('inbox.unsubscribe')}</span>
+              </button>
+            ) : (
+              <button
+                onClick={(e) => onBlockSender(email.id, e)}
+                title={t('inbox.blockSender')}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '1.1rem',
+                  padding: '0 4px',
+                  opacity: OPACITY_DISABLED,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: theme.spacing.xs,
+                }}
+              >
+                {/* eslint-disable-next-line i18next/no-literal-string */}
+                <span>{EMOJI_BLOCK}</span>
+                <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary }}>{t('inbox.blockSender')}</span>
+              </button>
+            );
+          })()}
         </div>
       </div>
-
-      {/* Suggested Prioritization - Outside the card, not full width */}
-      {suggestion && mode === 'triage' && suggestion.suggestedStarCount > 0 && (
-        <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-          <TriageSuggestionBanner
-            suggestion={suggestion}
-            emailId={email.id}
-            onApply={onSetStarCount}
-          />
-        </div>
-      )}
     </div>
   );
 };

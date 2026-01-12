@@ -6,6 +6,8 @@ import { EmailProviderManager } from "./email-provider-manager.service";
 import { UsersService } from "../users/users.service";
 import { GmailProvider } from "./providers/gmail.provider";
 import { getJobPriority } from "../queue/job-priorities";
+import { DAYS } from "../constants/time-constants";
+import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 
 @Injectable()
 export class EmailSyncProcessor implements OnModuleInit {
@@ -23,8 +25,10 @@ export class EmailSyncProcessor implements OnModuleInit {
     // Get CPU cores for optimal concurrency
     const cpuCores = os.cpus().length;
     // For sync jobs (I/O bound), use more workers than CPU cores
-    const defaultSyncConcurrency = Math.max(3, Math.min(cpuCores, 6)); // 3-6 concurrent syncs
-    const defaultScanConcurrency = Math.max(10, cpuCores * 3); // Scan can be highly parallel
+    // 3-6 concurrent syncs
+    const defaultSyncConcurrency = Math.max(3, Math.min(cpuCores, DAYS.SIX));
+    // Scan can be highly parallel
+    const defaultScanConcurrency = Math.max(10, cpuCores * 3);
 
     this.syncConcurrency = parseInt(
       this.configService.get<string>("JOB_SYNC_CONCURRENCY") ||
@@ -42,52 +46,98 @@ export class EmailSyncProcessor implements OnModuleInit {
     );
   }
 
+  // eslint-disable-next-line max-lines-per-function
   async onModuleInit() {
     // Schedule recurring sync for all users every 5 minutes (for urgency checks and status updates)
-    await this.boss.schedule("sync-all-users-urgent", "*/5 * * * *");
+    await this.boss.schedule("schedule-email-fetch-jobs", "*/5 * * * *");
 
-    // Worker for urgent syncs (every 5 minutes) - checks for new emails and updates status
-    await this.boss.work("sync-all-users-urgent", async () => {
-      this.logger.log("Starting urgent email sync for all users (5-minute check)");
-      const users = await this.usersService.findAll();
-      for (const user of users) {
-        const provider = await this.emailProviderManager.getPrimaryProvider(
-          user.id,
-        );
-        if (provider) {
-          // Use singletonKey to prevent duplicate sync jobs per user
-          await this.boss.send(
-            "sync-emails",
-            { userId: user.id },
-            {
-              priority: getJobPriority("sync-emails", false), // Scheduled sync = medium priority
-              singletonKey: `sync-emails-${user.id}`,
-              singletonMinutes: 5, // Don't allow another sync for same user within 5 minutes
-            },
+    // Worker for scheduling email fetch jobs (every 5 minutes) - queues individual fetch-user-emails jobs for each user
+    await this.boss.work("schedule-email-fetch-jobs", async (job) => {
+      const workerId = job.id || "unknown";
+      const tracker = new JobPerformanceTracker("schedule-email-fetch-jobs", workerId);
+
+      this.logger.log(
+        "Starting email fetch job scheduling (5-minute check)",
+      );
+      try {
+        tracker.startPhase("fetchUsers");
+        const users = await this.usersService.findAll();
+        tracker.endPhase("fetchUsers");
+        tracker.startPhase("queueJobs");
+
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+        let jobsQueued = 0;
+        let jobsSkipped = 0;
+
+        for (const user of users) {
+          // Check if user was synced recently - skip if within 5 minutes
+          if (
+            user.lastEmailSyncAt &&
+            user.lastEmailSyncAt > fiveMinutesAgo
+          ) {
+            this.logger.debug(
+              `Skipping user ${user.id} - last sync was ${Math.round(
+                (Date.now() - user.lastEmailSyncAt.getTime()) / 1000,
+              )}s ago`,
+            );
+            jobsSkipped++;
+            continue;
+          }
+
+          const provider = await this.emailProviderManager.getPrimaryProvider(
+            user.id,
           );
+          if (provider) {
+            // Use singletonKey to prevent duplicate fetch jobs per user
+            await this.boss.send(
+              "fetch-user-emails",
+              { userId: user.id },
+              {
+                priority: getJobPriority("fetch-user-emails", false),
+                // Scheduled fetch = medium priority
+                singletonKey: `fetch-user-emails-${user.id}`,
+                // Don't allow another fetch for same user within 5 minutes
+                singletonMinutes: 5,
+              },
+            );
+            jobsQueued++;
+          }
         }
+        tracker.endPhase("queueJobs");
+        tracker.finish();
+
+        this.logger.log(
+          `Scheduled ${jobsQueued} email fetch jobs, skipped ${jobsSkipped} users (recently synced)`,
+        );
+      } catch (error) {
+        tracker.finish(error as Error);
+        throw error;
       }
     });
 
-    // Worker for syncing individual user (generic, works with any provider)
-    // Use CPU-based concurrency for parallel syncs
+    // Worker for fetching emails for individual user (generic, works with any provider)
+    // Use CPU-based concurrency for parallel fetches
     // Add retry on failure - jobs will be retried automatically
     await this.boss.work(
-      "sync-emails",
+      "fetch-user-emails",
       {
         teamSize: this.syncConcurrency,
-      } as any,
+      } as { teamSize: number },
       async (job) => {
         const { userId } = job.data as { userId: string };
         const workerId = job.id || "unknown";
+        const tracker = new JobPerformanceTracker("fetch-user-emails", workerId);
+        tracker.setMetadata({ userId });
+
         this.logger.log(
-          `[Worker ${workerId}] Starting background email sync for user ${userId}`,
+          `[Worker ${workerId}] Starting email fetch for user ${userId}`,
         );
         try {
           await this.emailProviderManager.syncAllProviders(userId);
           this.logger.log(
-            `[Worker ${workerId}] Completed background email sync for user ${userId}`,
+            `[Worker ${workerId}] Completed email fetch for user ${userId}`,
           );
+          tracker.finish();
         } catch (error) {
           this.logger.error(
             `[Worker ${workerId}] Failed to sync emails for user ${userId}`,
@@ -103,7 +153,9 @@ export class EmailSyncProcessor implements OnModuleInit {
               `[Worker ${workerId}] Connection error detected, job will be retried after reconnection`,
             );
           }
-          throw error; // Re-throw to trigger pg-boss retry mechanism
+          tracker.finish(error as Error);
+          throw error;
+          // Re-throw to trigger pg-boss retry mechanism
         }
       },
     );
@@ -123,13 +175,25 @@ export class EmailSyncProcessor implements OnModuleInit {
       }
     });
 
+    // Handle legacy 'sync-all-users' jobs - ignore/delete them
+    await this.boss.work("sync-all-users", async (job) => {
+      this.logger.warn(
+        `Legacy 'sync-all-users' job detected (id: ${job.id}). This job type is deprecated. Ignoring.`,
+      );
+      // Don't throw error - just complete the job to remove it from queue
+      // The new 'schedule-email-fetch-jobs' job handles this functionality
+    });
+
     // Worker for historical scan - just queues individual email jobs
     await this.boss.work(
       "scan-history",
-      { teamSize: this.syncConcurrency } as any,
+      { teamSize: this.syncConcurrency },
       async (job) => {
         const { userId } = job.data as { userId: string };
         const workerId = job.id || "unknown";
+        const tracker = new JobPerformanceTracker("scan-history", workerId);
+        tracker.setMetadata({ userId });
+
         this.logger.log(
           `[Worker ${workerId}] Starting historical email scan for user ${userId}`,
         );
@@ -146,11 +210,13 @@ export class EmailSyncProcessor implements OnModuleInit {
               `[Worker ${workerId}] No email provider connected for user ${userId}`,
             );
           }
+          tracker.finish();
         } catch (error) {
           this.logger.error(
             `[Worker ${workerId}] Failed to scan history for user ${userId}`,
             error,
           );
+          tracker.finish(error as Error);
           throw error;
         }
       },
@@ -162,13 +228,16 @@ export class EmailSyncProcessor implements OnModuleInit {
     );
     await this.boss.work(
       "scan-history-email",
-      { teamSize: this.scanConcurrency } as any,
+      { teamSize: this.scanConcurrency },
       async (job) => {
         const { userId, messageId } = job.data as {
           userId: string;
           messageId: string;
         };
         const workerId = job.id || "unknown";
+        const tracker = new JobPerformanceTracker("scan-history-email", workerId);
+        tracker.setMetadata({ userId });
+
         this.logger.log(
           `[Worker ${workerId}] Processing email ${messageId} for user ${userId}`,
         );
@@ -183,11 +252,13 @@ export class EmailSyncProcessor implements OnModuleInit {
           this.logger.debug(
             `[Worker ${workerId}] Successfully processed email ${messageId}`,
           );
+          tracker.finish();
         } catch (error) {
           this.logger.error(
             `[Worker ${workerId}] Failed to process email ${messageId} for user ${userId}`,
             error,
           );
+          tracker.finish(error as Error);
           throw error;
         }
       },

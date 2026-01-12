@@ -5,6 +5,7 @@ import { PriorityService } from "./priority.service";
 import { PriorityLearningService } from "./priority-learning.service";
 import { PriorityLearningProcessor } from "./priority-learning.processor";
 import { TriageSuggestionsService } from "./triage-suggestions.service";
+import { PriorityCacheService } from "./priority-cache.service";
 import { UserContext } from "../database/entities/user-context.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -33,7 +34,13 @@ import { EmailsModule } from "../emails/emails.module";
     PriorityLearningService,
     PriorityLearningProcessor,
     TriageSuggestionsService,
+    PriorityCacheService,
   ],
-  exports: [PriorityService, PriorityLearningService, TriageSuggestionsService],
+  exports: [
+    PriorityService,
+    PriorityLearningService,
+    TriageSuggestionsService,
+    PriorityCacheService,
+  ],
 })
 export class PriorityModule {}

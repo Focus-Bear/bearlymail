@@ -4,7 +4,8 @@
   "sourceRoot": "src",
   "compilerOptions": {
     "deleteOutDir": false,
-    "watchAssets": true
+    "watchAssets": false,
+    "assets": []
   }
 }
 

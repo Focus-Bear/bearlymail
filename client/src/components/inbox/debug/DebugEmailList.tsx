@@ -1,6 +1,6 @@
 import React from 'react';
-import { theme } from '../../../theme/theme';
-import { Email } from '../../../types/email';
+import { theme } from 'theme/theme';
+import { Email, getEmailPriorityScore } from 'types/email';
 
 interface DebugEmailListProps {
   emails: Email[];
@@ -70,7 +70,10 @@ export const DebugEmailList: React.FC<DebugEmailListProps> = ({ emails, mode }) 
                   <strong> Archived:</strong> {isArchived ? 'YES' : 'NO'} |
                   <strong> Should be in:</strong> {shouldBeIn} |
                   <strong> Current tab:</strong> {mode} |
-                  <strong> Priority:</strong> {email.priorityScore?.toFixed(1) || 'N/A'}
+                  <strong> Priority:</strong> {getEmailPriorityScore(email).toFixed(1)}
+                  {email.lastCheckedAt && (
+                    <> | <strong> Last checked:</strong> {new Date(email.lastCheckedAt).toLocaleString()}</>
+                  )}
                   {isArchived && (
                     <span style={{ color: 'red', fontWeight: 'bold' }}> ⚠️ ARCHIVED!</span>
                   )}

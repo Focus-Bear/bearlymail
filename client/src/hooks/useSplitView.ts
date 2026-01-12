@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useResponsiveBreakpoints } from './useResponsiveBreakpoints';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { TIMEOUT_300_MS } from 'constants/numbers';
 
 const STORAGE_KEY = 'bearlymail_split_position';
 const DEFAULT_SPLIT_POSITION = 50;
@@ -58,7 +59,7 @@ export function useSplitView(): UseSplitViewReturn {
       } catch (error) {
         console.error('Error saving split position to localStorage:', error);
       }
-    }, 300); // Debounce by 300ms
+      }, TIMEOUT_300_MS); // Debounce by 300ms
   }, []);
 
   const setSplitPosition = useCallback((position: number) => {

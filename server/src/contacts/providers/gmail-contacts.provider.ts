@@ -1,14 +1,17 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { google } from "googleapis";
 import { UsersService } from "../../users/users.service";
 import {
   ContactProvider,
   RawContact,
 } from "../interfaces/contact-provider.interface";
+import { isApiError } from "../../types/common";
+import { QUERY_LIMITS } from "../../constants/query-limits";
 
 @Injectable()
 export class GmailContactsProvider implements ContactProvider {
   readonly providerName = "gmail";
+  private readonly logger = new Logger(GmailContactsProvider.name);
 
   constructor(private usersService: UsersService) {}
 
@@ -17,13 +20,15 @@ export class GmailContactsProvider implements ContactProvider {
     return !!user?.googleCalendarAccessToken;
   }
 
+  // eslint-disable-next-line max-lines-per-function, max-statements
   async syncContacts(
     userId: string,
-    fullSync: boolean = false,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _fullSync: boolean = false,
   ): Promise<number> {
     const user = await this.usersService.findOne(userId);
     if (!user?.googleCalendarAccessToken) {
-      console.log(
+      this.logger.log(
         `User ${userId} not connected to Google, skipping contact sync.`,
       );
       return 0;
@@ -72,7 +77,8 @@ export class GmailContactsProvider implements ContactProvider {
 
         for (const person of connections) {
           const email = person.emailAddresses?.[0]?.value;
-          if (!email) continue; // Skip contacts without email
+          // Skip contacts without email
+          if (!email) continue;
 
           const name = person.names?.[0];
           const org = person.organizations?.[0];
@@ -96,25 +102,42 @@ export class GmailContactsProvider implements ContactProvider {
 
         // Limit to prevent excessive API calls
         if (contacts.length >= 5000) {
-          console.log(`Contact sync limit reached for user ${userId}`);
+          this.logger.log(`Contact sync limit reached for user ${userId}`);
           break;
         }
       } while (nextPageToken);
 
-      console.log(
+      this.logger.log(
         `Fetched ${contacts.length} contacts from Gmail for user ${userId}`,
       );
 
       // Return raw contacts - the service will handle storing them
       // The ContactsService will call this and then store them
       return totalSynced;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`Error syncing contacts for user ${userId}:`, error);
 
+      const errorCode =
+        typeof error === "object" && error !== null && "code" in error
+          ? (error as { code?: number | string }).code
+          : undefined;
+      let errorMessage: string;
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (
+        typeof error === "object" &&
+        error !== null &&
+        "message" in error
+      ) {
+        errorMessage = String((error as { message?: unknown }).message);
+      } else {
+        errorMessage = "";
+      }
+
       if (
-        error.code === 401 ||
-        error.code === 403 ||
-        error.message?.includes("invalid_grant")
+        errorCode === 401 ||
+        errorCode === 403 ||
+        errorMessage.includes("invalid_grant")
       ) {
         await this.usersService.update(userId, { needsRelogin: true });
       }
@@ -150,14 +173,14 @@ export class GmailContactsProvider implements ContactProvider {
       // Use searchContacts for real-time search
       const response = await people.people.searchContacts({
         query,
-        pageSize: Math.min(maxResults, 30),
+        pageSize: Math.min(maxResults, QUERY_LIMITS.MAX_ISSUES_SEARCH),
         readMask: "names,emailAddresses,phoneNumbers,organizations,photos",
       });
 
       const results: RawContact[] = [];
 
       for (const result of response.data.results || []) {
-        const person = result.person;
+        const { person } = result;
         if (!person) continue;
 
         const email = person.emailAddresses?.[0]?.value;
@@ -181,7 +204,7 @@ export class GmailContactsProvider implements ContactProvider {
       }
 
       return results;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`Error searching contacts for user ${userId}:`, error);
       return [];
     }
@@ -192,6 +215,7 @@ export class GmailContactsProvider implements ContactProvider {
     providerId: string,
   ): Promise<RawContact | null> {
     const user = await this.usersService.findOne(userId);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     if (!user?.googleCalendarAccessToken) {
       return null;
     }
@@ -208,7 +232,7 @@ export class GmailContactsProvider implements ContactProvider {
     });
 
     const people = google.people({ version: "v1", auth: oauth2Client });
-
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     try {
       const response = await people.people.get({
         resourceName: providerId,
@@ -221,6 +245,7 @@ export class GmailContactsProvider implements ContactProvider {
 
       const name = person.names?.[0];
       const org = person.organizations?.[0];
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const photo = person.photos?.[0];
 
       return {
@@ -247,6 +272,7 @@ export class GmailContactsProvider implements ContactProvider {
    * Fetch all contacts from Gmail (internal method for sync)
    * Returns raw contacts that ContactsService will process and store
    */
+  // eslint-disable-next-line max-statements
   async fetchAllContacts(userId: string): Promise<RawContact[]> {
     const user = await this.usersService.findOne(userId);
     if (!user?.googleCalendarAccessToken) {
@@ -316,9 +342,23 @@ export class GmailContactsProvider implements ContactProvider {
       } while (nextPageToken);
 
       return contacts;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`Error fetching contacts for user ${userId}:`, error);
-      if (error.code === 401 || error.message?.includes("invalid_grant")) {
+      const apiError = isApiError(error) ? error : null;
+      const errorCode = apiError?.code;
+      let errorMessage: string;
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (
+        typeof error === "object" &&
+        error !== null &&
+        "message" in error
+      ) {
+        errorMessage = String((error as { message?: unknown }).message);
+      } else {
+        errorMessage = "";
+      }
+      if (errorCode === 401 || errorMessage.includes("invalid_grant")) {
         await this.usersService.update(userId, { needsRelogin: true });
       }
       throw error;

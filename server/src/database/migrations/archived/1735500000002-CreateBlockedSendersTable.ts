@@ -9,6 +9,7 @@ export class CreateBlockedSendersTable1735500000002
     // Check if table already exists
     const tableExists = await queryRunner.hasTable("blocked_senders");
     if (tableExists) {
+      // eslint-disable-next-line no-console
       console.log('Table "blocked_senders" already exists, skipping creation');
       return;
     }

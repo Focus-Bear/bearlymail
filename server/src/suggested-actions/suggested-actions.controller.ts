@@ -1,0 +1,181 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  UseGuards,
+  Request,
+  BadRequestException,
+} from "@nestjs/common";
+import { SuggestedActionsService } from "./suggested-actions.service";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { UsersService } from "../users/users.service";
+import { GitHubApiService } from "../github/github-api.service";
+import { CalendarService } from "../calendar/calendar.service";
+import { EmailsService } from "../emails/emails.service";
+import { EncryptionHelper } from "../encryption/encryption.helper";
+
+@Controller("suggested-actions")
+@UseGuards(JwtAuthGuard)
+export class SuggestedActionsController {
+  constructor(
+    private readonly suggestedActionsService: SuggestedActionsService,
+    private readonly usersService: UsersService,
+    private readonly githubApiService: GitHubApiService,
+    private readonly calendarService: CalendarService,
+    private readonly emailsService: EmailsService,
+  ) {}
+
+  @Get("email/:id")
+  async getSuggestedActions(@Request() req, @Param("id") emailId: string) {
+    const { userId } = req.user;
+    return this.suggestedActionsService.detectActions(emailId, userId);
+  }
+
+  @Post("github/create-issue")
+  async createGitHubIssue(
+    @Request() req,
+    @Body()
+    body: {
+      owner: string;
+      repo: string;
+      title: string;
+      body: string;
+      labels?: string[];
+    },
+  ) {
+    const { userId } = req.user;
+    const user = await this.usersService.findOne(userId);
+    if (!user?.githubToken) {
+      throw new BadRequestException("GitHub token not configured");
+    }
+
+    const token = EncryptionHelper.decrypt(user.githubToken);
+    return this.githubApiService.createIssue(
+      token,
+      body.owner,
+      body.repo,
+      body.title,
+      body.body,
+      body.labels,
+    );
+  }
+
+  @Post("github/update-status")
+  async updateIssueStatus(
+    @Request() req,
+    @Body()
+    body: {
+      owner: string;
+      repo: string;
+      issueNumber: number;
+      state: "open" | "closed";
+    },
+  ) {
+    const { userId } = req.user;
+    const user = await this.usersService.findOne(userId);
+    if (!user?.githubToken) {
+      throw new BadRequestException("GitHub token not configured");
+    }
+
+    const token = EncryptionHelper.decrypt(user.githubToken);
+    return this.githubApiService.updateIssueStatus(
+      token,
+      body.owner,
+      body.repo,
+      body.issueNumber,
+      body.state,
+    );
+  }
+
+  @Post("github/add-comment")
+  async addIssueComment(
+    @Request() req,
+    @Body()
+    body: {
+      owner: string;
+      repo: string;
+      issueNumber: number;
+      body: string;
+    },
+  ) {
+    const { userId } = req.user;
+    const user = await this.usersService.findOne(userId);
+    if (!user?.githubToken) {
+      throw new BadRequestException("GitHub token not configured");
+    }
+
+    const token = EncryptionHelper.decrypt(user.githubToken);
+    return this.githubApiService.addIssueComment(
+      token,
+      body.owner,
+      body.repo,
+      body.issueNumber,
+      body.body,
+    );
+  }
+
+  @Post("github/search")
+  async searchIssues(
+    @Request() req,
+    @Body()
+    body: {
+      query: string;
+    },
+  ) {
+    const { userId } = req.user;
+    const user = await this.usersService.findOne(userId);
+    if (!user?.githubToken) {
+      throw new BadRequestException("GitHub token not configured");
+    }
+
+    const token = EncryptionHelper.decrypt(user.githubToken);
+    return this.githubApiService.searchIssues(token, body.query);
+  }
+
+  @Post("calendar/create-invite")
+  async createCalendarInvite(
+    @Request() req,
+    @Body()
+    body: {
+      startTime: string;
+      durationMinutes: number;
+      guestEmail: string;
+      guestName?: string;
+      title?: string;
+      description?: string;
+    },
+  ) {
+    const { userId } = req.user;
+    const event = await this.calendarService.createEvent(
+      userId,
+      body.startTime,
+      body.durationMinutes,
+      body.guestEmail,
+      body.guestName,
+      body.title,
+      body.description,
+    );
+    return event;
+  }
+
+  @Post("calendar/events")
+  async findEventsWithAttendee(
+    @Request() req,
+    @Body()
+    body: {
+      attendeeEmail: string;
+      daysAhead?: number;
+      daysBack?: number;
+    },
+  ) {
+    const { userId } = req.user;
+    return this.calendarService.findEventsWithAttendee(
+      userId,
+      body.attendeeEmail,
+      body.daysAhead,
+      body.daysBack,
+    );
+  }
+}

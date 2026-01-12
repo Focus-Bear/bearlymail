@@ -1,5 +1,5 @@
 import { Logger } from "@nestjs/common";
-import { Logger as TypeOrmLogger } from "typeorm";
+import { Logger as TypeOrmLogger, QueryRunner } from "typeorm";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -26,7 +26,14 @@ export class QueryPerformanceLogger implements TypeOrmLogger {
     10,
   );
 
-  logQuery(query: string, parameters?: any[], queryRunner?: any) {
+  logQuery(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _query: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _parameters?: unknown[],
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _queryRunner?: QueryRunner,
+  ) {
     // Don't log every query - TypeORM will call logQuerySlow for slow ones
     // This method is called for all queries, but we don't want to log them all
   }
@@ -34,8 +41,9 @@ export class QueryPerformanceLogger implements TypeOrmLogger {
   logQueryError(
     error: string | Error,
     query: string,
-    parameters?: any[],
-    queryRunner?: any,
+    parameters?: unknown[],
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _queryRunner?: QueryRunner,
   ) {
     const errorMsg = error instanceof Error ? error.message : error;
     const querySnippet = query.substring(0, 500);
@@ -48,8 +56,9 @@ export class QueryPerformanceLogger implements TypeOrmLogger {
   logQuerySlow(
     time: number,
     query: string,
-    parameters?: any[],
-    queryRunner?: any,
+    parameters?: unknown[],
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _queryRunner?: QueryRunner,
   ) {
     const querySnippet = query.substring(0, 500);
     const paramsStr =
@@ -65,16 +74,26 @@ export class QueryPerformanceLogger implements TypeOrmLogger {
     writeToLogFile(logMessage);
   }
 
-  logSchemaBuild(message: string, queryRunner?: any) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  logSchemaBuild(_message: string, _queryRunner?: QueryRunner) {
     // Don't log schema builds
   }
 
-  logMigration(message: string, queryRunner?: any) {
+  logMigration(
+    message: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _queryRunner?: QueryRunner,
+  ) {
     // Only log migrations to file, not console
     writeToLogFile(`Migration: ${message}`);
   }
 
-  log(level: "log" | "info" | "warn", message: any, queryRunner?: any) {
+  log(
+    level: "log" | "info" | "warn",
+    message: unknown,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _queryRunner?: QueryRunner,
+  ) {
     // Only log warnings
     if (level === "warn") {
       this.logger.warn(message);

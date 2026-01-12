@@ -2,7 +2,8 @@
  * Represents a raw contact from a contact provider (Gmail, Outlook, etc.)
  */
 export interface RawContact {
-  providerId: string; // Provider-specific ID (e.g., Google People resourceName)
+  // Provider-specific ID (e.g., Google People resourceName)
+  providerId: string;
   email: string;
   name?: string;
   firstName?: string;

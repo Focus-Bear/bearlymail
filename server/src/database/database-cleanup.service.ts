@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
 import { InjectConnection } from "@nestjs/typeorm";
 import { Connection } from "typeorm";
+import { getErrorMessage, isError } from "../types/common";
 
 @Injectable()
 export class DatabaseCleanupService implements OnApplicationBootstrap {
@@ -8,6 +9,7 @@ export class DatabaseCleanupService implements OnApplicationBootstrap {
 
   constructor(@InjectConnection() private connection: Connection) {}
 
+  // eslint-disable-next-line complexity, max-statements
   async onApplicationBootstrap() {
     try {
       this.logger.log("Cleaning up NULL userId values after UUID migration...");
@@ -55,19 +57,20 @@ export class DatabaseCleanupService implements OnApplicationBootstrap {
             this.logger.warn(`Deleted ${deleted} invalid rows from ${table}`);
             totalDeleted += deleted;
           }
-        } catch (err: any) {
+        } catch (err: unknown) {
           // Table might not exist yet or other error - silently skip
+          const errorMessage = getErrorMessage(err);
           if (
-            err.message?.includes("does not exist") ||
-            (err.message?.includes("relation") &&
-              err.message?.includes("does not exist"))
+            errorMessage?.includes("does not exist") ||
+            (errorMessage?.includes("relation") &&
+              errorMessage?.includes("does not exist"))
           ) {
             // Table doesn't exist yet - this is expected if migration hasn't run
             // Don't log as error, just skip silently
             continue;
           } else {
             // Only log actual errors, not missing table errors
-            this.logger.debug(`Error cleaning ${table}: ${err.message}`);
+            this.logger.debug(`Error cleaning ${table}: ${errorMessage}`);
           }
         }
       }
@@ -78,27 +81,30 @@ export class DatabaseCleanupService implements OnApplicationBootstrap {
 
       // Now try to make userId non-nullable (will fail silently if constraint already exists or column is already NOT NULL)
       try {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const result = await this.connection.query(`
           ALTER TABLE user_contexts 
           ALTER COLUMN "userId" SET NOT NULL;
         `);
         this.logger.log("Set userId as NOT NULL in user_contexts");
-      } catch (err: any) {
+      } catch (err: unknown) {
         // Ignore if already NOT NULL or constraint issues
+        const errorMessage = getErrorMessage(err);
         if (
-          !err.message?.includes("already") &&
-          !err.message?.includes("constraint")
+          !errorMessage?.includes("already") &&
+          !errorMessage?.includes("constraint")
         ) {
           this.logger.debug(
-            `Could not set NOT NULL constraint (this is okay): ${err.message}`,
+            `Could not set NOT NULL constraint (this is okay): ${errorMessage}`,
           );
         }
       }
 
       this.logger.log("Cleanup completed");
-    } catch (error: any) {
+    } catch (error: unknown) {
       // If tables don't exist yet (first run), that's okay
-      if (error.message?.includes("does not exist")) {
+      const errorMessage = isError(error) ? error.message : undefined;
+      if (errorMessage?.includes("does not exist")) {
         this.logger.log("Tables do not exist yet, skipping cleanup");
       } else {
         this.logger.error("Error during cleanup:", error);

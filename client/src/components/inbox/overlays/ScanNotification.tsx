@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { theme } from '../../../theme/theme';
+import { theme } from 'theme/theme';
 
 interface ScanProgress {
   current: number;
@@ -100,4 +100,11 @@ export const ScanNotification: React.FC<ScanNotificationProps> = ({ progress }) 
     </div>
   );
 };
+
+
+
+
+
+
+
 

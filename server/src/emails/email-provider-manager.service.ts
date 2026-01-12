@@ -1,8 +1,8 @@
 import { Injectable, Logger, Inject, forwardRef } from "@nestjs/common";
 import { EmailProvider } from "./interfaces/email-provider.interface";
 import { GmailProvider } from "./providers/gmail.provider";
-// Future: import { OutlookProvider } from './providers/outlook.provider';
-// Future: import { TeamsProvider } from './providers/teams.provider';
+import { Office365Provider } from "./providers/office365.provider";
+import { ZohoProvider } from "./providers/zoho.provider";
 
 /**
  * Manages email provider instances and routes requests to the appropriate provider
@@ -16,13 +16,15 @@ export class EmailProviderManager {
   constructor(
     @Inject(forwardRef(() => GmailProvider))
     private gmailProvider: GmailProvider,
-    // Future: private outlookProvider: OutlookProvider,
-    // Future: private teamsProvider: TeamsProvider,
+    @Inject(forwardRef(() => Office365Provider))
+    private office365Provider: Office365Provider,
+    @Inject(forwardRef(() => ZohoProvider))
+    private zohoProvider: ZohoProvider,
   ) {
     // Register providers
     this.providers.set("gmail", gmailProvider);
-    // Future: this.providers.set('outlook', outlookProvider);
-    // Future: this.providers.set('teams', teamsProvider);
+    this.providers.set("office365", office365Provider);
+    this.providers.set("zoho", zohoProvider);
   }
 
   /**
@@ -56,8 +58,8 @@ export class EmailProviderManager {
    * Tries providers in order of priority: Gmail, Outlook, Teams, etc.
    */
   async getPrimaryProvider(userId: string): Promise<EmailProvider | null> {
-    // Priority order: Gmail first, then others
-    const priorityOrder = ["gmail"]; // Future: ['gmail', 'outlook', 'teams'];
+    // Priority order: Gmail first, then Office 365, then Zoho
+    const priorityOrder = ["gmail", "office365", "zoho"];
 
     for (const providerType of priorityOrder) {
       const provider = await this.getProvider(userId, providerType);

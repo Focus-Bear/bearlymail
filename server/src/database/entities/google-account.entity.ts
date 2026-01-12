@@ -21,30 +21,42 @@ export class GoogleAccount {
   @Column()
   userId: string;
 
-  @Column()
+  @Column({ comment: "Google user ID" })
   @Index()
-  googleId: string; // Google user ID
+  googleId: string;
 
-  @Column({ transformer: encryptedColumnTransformer })
-  email: string; // Gmail address (encrypted)
+  @Column({
+    transformer: encryptedColumnTransformer,
+    comment: "Gmail address (encrypted)",
+  })
+  email: string;
 
-  @Column({ nullable: true })
-  name: string; // Display name from Google
+  @Column({ nullable: true, comment: "Display name from Google" })
+  name: string;
 
-  @Column({ transformer: encryptedColumnTransformer })
-  accessToken: string; // Google OAuth access token (encrypted)
+  @Column({
+    transformer: encryptedColumnTransformer,
+    comment: "Google OAuth access token (encrypted)",
+  })
+  accessToken: string;
 
-  @Column({ transformer: encryptedColumnTransformer })
-  refreshToken: string; // Google OAuth refresh token (encrypted)
+  @Column({
+    transformer: encryptedColumnTransformer,
+    comment: "Google OAuth refresh token (encrypted)",
+  })
+  refreshToken: string;
 
-  @Column({ default: true })
-  isActive: boolean; // Can be disabled without deleting
+  @Column({ default: true, comment: "Can be disabled without deleting" })
+  isActive: boolean;
 
-  @Column({ default: true })
-  isPrimary: boolean; // Primary account for this user (only one can be primary)
+  @Column({
+    default: true,
+    comment: "Primary account for this user (only one can be primary)",
+  })
+  isPrimary: boolean;
 
-  @Column({ default: false })
-  needsRelogin: boolean; // Flag if tokens need to be refreshed
+  @Column({ default: false, comment: "Flag if tokens need to be refreshed" })
+  needsRelogin: boolean;
 
   @CreateDateColumn()
   createdAt: Date;

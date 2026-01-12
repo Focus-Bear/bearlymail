@@ -1,10 +1,13 @@
 import React from 'react';
-import { theme } from '../../theme/theme';
+import { useTranslation } from 'react-i18next';
+import { theme } from 'theme/theme';
 
 /**
  * Consent modal header component
  */
 export const ConsentModalHeader: React.FC = () => {
+  const { t } = useTranslation();
+  
   return (
     <>
       <h2
@@ -15,7 +18,7 @@ export const ConsentModalHeader: React.FC = () => {
           color: theme.colors.text.primary,
         }}
       >
-        Welcome to BearlyMail
+        {t('consent.welcome')}
       </h2>
 
       <p
@@ -25,9 +28,13 @@ export const ConsentModalHeader: React.FC = () => {
           lineHeight: theme.typography.lineHeight.relaxed,
         }}
       >
-        To continue using BearlyMail, please review and accept our Terms of Use and Privacy Policy.
+        {t('consent.description')}
       </p>
     </>
   );
 };
+
+
+
+
 

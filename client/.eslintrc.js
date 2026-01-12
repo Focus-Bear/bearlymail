@@ -1,5 +1,6 @@
 module.exports = {
   extends: ['react-app', 'react-app/jest'],
+  plugins: ['i18next'],
   rules: {
     // ===========================================
     // FILE SIZE LIMITS
@@ -86,8 +87,20 @@ module.exports = {
     // CLEAN CODE - CODE QUALITY
     // ===========================================
     // Disallow magic numbers (use named constants instead)
-    // Disabled - too noisy for UI code with spacing/timing values
-    'no-magic-numbers': 'off',
+    // Configured to allow common UI values while flagging business logic numbers
+    'no-magic-numbers': [
+      'warn',
+      {
+        ignore: [
+          0, 1, -1, // Common zero/one values
+          2, 3, 4, 5, 6, 7, 8, 9, 10, // Common small numbers
+          100, 1000, // Common percentage/scale values
+          24, 60, 3600, // Time-related (hours, minutes, seconds)
+        ],
+        ignoreArrayIndexes: true,
+        ignoreDefaultValues: true,
+      },
+    ],
 
     // Require const for variables that are never reassigned
     'prefer-const': 'warn',
@@ -126,11 +139,90 @@ module.exports = {
     'react/jsx-max-depth': ['warn', { max: 8 }],
 
     // ===========================================
+    // MAGIC STRINGS ENFORCEMENT
+    // ===========================================
+    // Warn about magic strings (string literals that should be constants)
+    // This uses no-restricted-syntax to flag string literals in certain contexts
+    'no-restricted-syntax': [
+      'warn',
+      {
+        selector: 'BinaryExpression[operator=/^(===|!==|==|!=)$/] > Literal[value=/^[a-zA-Z_][a-zA-Z0-9_]*$/]',
+        message: 'Avoid magic strings in comparisons. Define them as constants instead.',
+      },
+      {
+        selector: 'CallExpression[callee.name=/^(includes|indexOf|startsWith|endsWith)$/] > Literal[value=/^[a-zA-Z_][a-zA-Z0-9_]*$/]',
+        message: 'Avoid magic strings in string methods. Define them as constants instead.',
+      },
+    ],
+
+    // ===========================================
     // I18N ENFORCEMENT
     // ===========================================
-    // Warn about literal strings in JSX that should use i18n
-    // This is a simple regex-based check - more sophisticated rules would require a plugin
-    'no-literal-strings': 'off', // Disabled - using custom check below
+    // Error on literal strings in JSX that should use i18n
+    // Use file-level overrides to disable for debug/test files
+    'i18next/no-literal-string': [
+      'error',
+      {
+        markupOnly: true, // Only check JSX, not regular code
+        onlyAttribute: [], // Check all attributes, not just specific ones
+        ignore: [
+          // Ignore common non-translatable strings
+          'className',
+          'id',
+          'data-testid',
+          'aria-label',
+          'aria-labelledby',
+          'aria-describedby',
+          'role',
+          'type',
+          'method',
+          'action',
+          'href',
+          'src',
+          'alt',
+          'title',
+          'placeholder',
+          'name',
+          'value',
+          'key',
+          'for',
+          'htmlFor',
+        ],
+        // Allow strings that are clearly not user-facing
+        validateTemplate: true,
+        ignoreAttribute: [
+          'className',
+          'id',
+          'data-testid',
+          'key',
+          'for',
+          'htmlFor',
+          'type',
+          'method',
+          'action',
+          'href',
+          'src',
+          'name',
+          'value',
+        ],
+      },
+    ],
+
+    // ===========================================
+    // IMPORT ENFORCEMENT
+    // ===========================================
+    // Disallow relative imports that go up directories (enforce absolute imports from src/)
+    'no-restricted-imports': [
+      'warn',
+      {
+        patterns: [
+          {
+            group: ['../*', '../../*', '../../../*', '../../../../*'],
+            message: 'Use absolute imports from src/ instead of relative imports (e.g., use "components/..." instead of "../components/...")',
+          },
+        ],
+      },
+    ],
   },
   overrides: [
     {
@@ -139,6 +231,8 @@ module.exports = {
       rules: {
         'max-lines-per-function': 'off',
         'max-lines': 'off',
+        'i18next/no-literal-string': 'off', // Test files don't need i18n
+        'no-magic-numbers': 'off', // Test files can use magic numbers
       },
     },
     {
@@ -147,6 +241,7 @@ module.exports = {
       rules: {
         'max-lines': 'off',
         'id-length': 'off',
+        'i18next/no-literal-string': 'off', // Config files don't need i18n
       },
     },
     {
@@ -154,6 +249,27 @@ module.exports = {
       files: ['**/pages/*.tsx', '**/pages/*.ts'],
       rules: {
         'max-lines-per-function': ['warn', { max: 200, skipBlankLines: true, skipComments: true }],
+      },
+    },
+    {
+      // Disable i18n for debug files - these are developer tools, not user-facing
+      files: ['**/debug/**/*.tsx', '**/debug/**/*.ts', '**/Debug*.tsx', '**/Debug*.ts'],
+      rules: {
+        'i18next/no-literal-string': 'off',
+      },
+    },
+    {
+      // Disable i18n for legal content files - legal text is typically not translated
+      files: ['**/terms/**/*.tsx', '**/privacy/**/*.tsx', '**/legal/**/*.tsx'],
+      rules: {
+        'i18next/no-literal-string': 'off',
+      },
+    },
+    {
+      // Disable i18n for booking/public pages - these may be intentionally in English
+      files: ['**/booking/**/*.tsx', '**/booking/**/*.ts'],
+      rules: {
+        'i18next/no-literal-string': 'warn', // Still warn, but don't block
       },
     },
   ],

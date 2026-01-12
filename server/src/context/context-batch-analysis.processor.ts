@@ -1,0 +1,639 @@
+import { Injectable, OnModuleInit, Logger, Inject } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import * as os from "os";
+import PgBoss = require("pg-boss");
+import { ContextService } from "./context.service";
+import { LLMService } from "../llm/llm.service";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { ContextAnalysis } from "../database/entities/context-analysis.entity";
+import { writeAnalysisLog } from "./context-analysis-logger";
+import { getJobPriority } from "../queue/job-priorities";
+import { getErrorMessage } from "../types/common";
+import { ContextGmailDataService } from "./context-gmail-data.service";
+import { cleanEmailContent } from "../llm/email-content-cleaner";
+import { GMAIL_LABELS } from "../constants/email-labels";
+import { UsersService } from "../users/users.service";
+import { PERCENTAGES } from "../constants/percentages";
+import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
+import { JobPerformanceTracker } from "../queue/job-performance-tracker";
+
+interface BatchAnalysisJob {
+  userId: string;
+  batchIndex: number;
+  threadIds?: string[]; // New: thread IDs to fetch and process
+  batch?: Array<{
+    threadId?: string;
+    from: string;
+    fromName?: string;
+    subject: string;
+    body: string;
+    receivedAt: string;
+    isRead?: boolean;
+    timeToReply?: number | null;
+    readAt?: string | null;
+    repliedAt?: string | null;
+    starCount?: number;
+    isArchived?: boolean;
+  }>; // Legacy: pre-processed payloads
+  sentPayload: Array<{
+    emailId?: string;
+    to: string;
+    subject: string;
+    body: string;
+    sentAt: string;
+  }>;
+  userEmail?: string;
+  currentContextForPrompt: Array<{
+    key: string;
+    value: string;
+    source: string;
+  }>;
+  analysisRecordId: string;
+  totalBatches: number;
+  after?: string; // Date range for fetching threads
+  before?: string;
+}
+
+/**
+ * Calculate exponential backoff delay with jitter
+ */
+function calculateBackoffDelay(
+  attemptNumber: number,
+  baseDelay: number = 1000,
+  maxDelay: number = 60000,
+  jitterFactor: number = 0.3,
+): number {
+  // Exponential backoff: baseDelay * 2^attemptNumber
+  const exponentialDelay = baseDelay * Math.pow(2, attemptNumber);
+  
+  // Cap at max delay
+  const cappedDelay = Math.min(exponentialDelay, maxDelay);
+  
+  // Add jitter: random(0, jitterFactor) * cappedDelay
+  const jitter = Math.random() * jitterFactor * cappedDelay;
+  
+  return Math.floor(cappedDelay + jitter);
+}
+
+@Injectable()
+export class ContextBatchAnalysisProcessor implements OnModuleInit {
+  private readonly logger = new Logger(ContextBatchAnalysisProcessor.name);
+  private readonly batchConcurrency: number;
+
+  constructor(
+    @Inject("PG_BOSS") private boss: PgBoss,
+    private llmService: LLMService,
+    @InjectRepository(ContextAnalysis)
+    private contextAnalysisRepository: Repository<ContextAnalysis>,
+    private configService: ConfigService,
+    private gmailDataService: ContextGmailDataService,
+    private usersService: UsersService,
+  ) {
+    // Get CPU cores for optimal concurrency
+    const cpuCores = os.cpus().length;
+    // For batch analysis (LLM bound), use moderate concurrency to avoid rate limits
+    // Allow more parallelism than full analysis since batches are smaller
+    const defaultConcurrency = Math.max(3, Math.min(cpuCores * 2, 10));
+
+    this.batchConcurrency = parseInt(
+      this.configService.get<string>("JOB_BATCH_ANALYSIS_CONCURRENCY") ||
+        String(defaultConcurrency),
+      10,
+    );
+
+    this.logger.log(
+      `CPU cores: ${cpuCores}, analyze-context-batch concurrency: ${this.batchConcurrency}`,
+    );
+  }
+
+  async onModuleInit() {
+    // Worker for batch analysis - process multiple batches in parallel
+    this.logger.log(
+      `Registering batch-analysis worker with concurrency: ${this.batchConcurrency}`,
+    );
+    console.log(
+      `[BATCH-PROCESSOR] Registering batch-analysis worker with concurrency: ${this.batchConcurrency}`,
+    );
+    writeAnalysisLog(
+      `===== Batch Analysis Worker Registered ===== (concurrency: ${this.batchConcurrency})`,
+      "log",
+    );
+
+    await this.boss.work(
+      "analyze-context-batch",
+      { teamSize: this.batchConcurrency },
+      async (job) => {
+        const jobData = job.data as BatchAnalysisJob;
+        const {
+          userId,
+          batchIndex,
+          threadIds,
+          batch: legacyBatch,
+          sentPayload,
+          userEmail,
+          currentContextForPrompt,
+          analysisRecordId,
+          totalBatches,
+          after,
+          before,
+        } = jobData;
+        const workerId = job.id || "unknown";
+        const tracker = new JobPerformanceTracker("analyze-context-batch", workerId);
+        tracker.setMetadata({ userId, threadId: analysisRecordId });
+
+        // Log job received with detailed information
+        const jobReceivedTime = new Date().toISOString();
+        this.logger.log(
+          `[Worker ${workerId}] ✅ JOB RECEIVED at ${jobReceivedTime}: batch ${batchIndex + 1}/${totalBatches} for user ${userId} (analysis ${analysisRecordId}, ${threadIds?.length || legacyBatch?.length || 0} threads)`,
+        );
+        console.log(
+          `[BATCH-PROCESSOR] [Worker ${workerId}] ✅ JOB RECEIVED at ${jobReceivedTime}: batch ${batchIndex + 1}/${totalBatches} for user ${userId} (analysis ${analysisRecordId}, ${threadIds?.length || legacyBatch?.length || 0} threads)`,
+        );
+        writeAnalysisLog(
+          `[Worker ${workerId}] ✅ JOB RECEIVED: batch ${batchIndex + 1}/${totalBatches} for analysis ${analysisRecordId}`,
+          "log",
+        );
+
+        this.logger.log(
+          `[Worker ${workerId}] 🚀 STARTING batch ${batchIndex + 1}/${totalBatches} for user ${userId} (${threadIds?.length || legacyBatch?.length || 0} threads)`,
+        );
+        console.log(
+          `[BATCH-PROCESSOR] [Worker ${workerId}] 🚀 STARTING batch ${batchIndex + 1}/${totalBatches} for user ${userId} (${threadIds?.length || legacyBatch?.length || 0} threads)`,
+        );
+        writeAnalysisLog(
+          `[Worker ${workerId}] 🚀 STARTING batch ${batchIndex + 1}/${totalBatches} for user ${userId}`,
+          "log",
+        );
+
+        let attemptNumber = 0;
+        const maxRetries = 5;
+        const baseDelay = 1000; // 1 second
+        const maxDelay = 60000; // 60 seconds
+
+        while (attemptNumber <= maxRetries) {
+          try {
+            if (attemptNumber > 0) {
+              const backoffDelay = calculateBackoffDelay(
+                attemptNumber - 1,
+                baseDelay,
+                maxDelay,
+              );
+              this.logger.log(
+                `[Worker ${workerId}] Retry attempt ${attemptNumber}/${maxRetries} after ${backoffDelay}ms backoff`,
+              );
+              console.log(
+                `[BATCH-PROCESSOR] [Worker ${workerId}] Retry attempt ${attemptNumber}/${maxRetries} after ${backoffDelay}ms backoff`,
+              );
+              writeAnalysisLog(
+                `[Worker ${workerId}] Retry attempt ${attemptNumber}/${maxRetries} after ${backoffDelay}ms backoff`,
+                "log",
+              );
+              await new Promise((resolve) => setTimeout(resolve, backoffDelay));
+            }
+
+            this.logger.log(
+              `[Worker ${workerId}] Processing batch ${batchIndex + 1}/${totalBatches} (attempt ${attemptNumber + 1})`,
+            );
+            console.log(
+              `[BATCH-PROCESSOR] [Worker ${workerId}] Processing batch ${batchIndex + 1}/${totalBatches} (attempt ${attemptNumber + 1})`,
+            );
+            writeAnalysisLog(
+              `[Worker ${workerId}] Processing batch ${batchIndex + 1}/${totalBatches} (attempt ${attemptNumber + 1})`,
+              "log",
+            );
+
+            // If threadIds provided, fetch and process threads; otherwise use legacy batch
+            let batch: Array<{
+              threadId?: string;
+              from: string;
+              fromName?: string;
+              subject: string;
+              body: string;
+              receivedAt: string;
+              isRead?: boolean;
+              timeToReply?: number | null;
+              starCount?: number;
+              isArchived?: boolean;
+              userReplied?: boolean;
+              emailCount?: number;
+              readCount?: number;
+              receivedHour?: number;
+            }>;
+            
+            // Track timing for performance budgets
+            let fetchDuration = 0;
+            let processDuration = 0;
+
+            if (threadIds && threadIds.length > 0) {
+              // New approach: fetch threads by IDs and process them
+              const fetchStartTime = Date.now();
+              this.logger.log(
+                `[Worker ${workerId}] 📥 Step 1/4: Fetching ${threadIds.length} threads by ID...`,
+              );
+              writeAnalysisLog(
+                `[Worker ${workerId}] 📥 Step 1/4: Fetching ${threadIds.length} threads by ID...`,
+                "log",
+              );
+              
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context-batch-analysis.processor.ts:225',message:'Starting fetch threads operation',data:{batchIndex,threadCount:threadIds.length,budget:PERFORMANCE_BUDGETS.BATCH_FETCH_THREADS},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'PERF'})}).catch(()=>{});
+              // #endregion
+              
+              const threads = await this.gmailDataService.fetchThreadsByIds(
+                userId,
+                threadIds,
+              );
+              fetchDuration = Date.now() - fetchStartTime;
+              
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context-batch-analysis.processor.ts:237',message:'Completed fetch threads operation',data:{batchIndex,fetchDuration,budget:PERFORMANCE_BUDGETS.BATCH_FETCH_THREADS,withinBudget:fetchDuration <= PERFORMANCE_BUDGETS.BATCH_FETCH_THREADS},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'PERF'})}).catch(()=>{});
+              // #endregion
+              
+              this.logger.log(
+                `[Worker ${workerId}] ✅ Fetched ${threads.length} threads in ${Math.round(fetchDuration / 1000)}s (budget: ${PERFORMANCE_BUDGETS.BATCH_FETCH_THREADS / 1000}s)${fetchDuration > PERFORMANCE_BUDGETS.BATCH_FETCH_THREADS ? ' ⚠️ OVER BUDGET' : ''}`,
+              );
+              writeAnalysisLog(
+                `[Worker ${workerId}] ✅ Fetched ${threads.length} threads in ${Math.round(fetchDuration / 1000)}s`,
+                "log",
+              );
+
+              // Process threads into payloads
+              const processStartTime = Date.now();
+              this.logger.log(
+                `[Worker ${workerId}] 🔄 Step 2/4: Processing ${threads.length} threads into analysis payloads...`,
+              );
+              writeAnalysisLog(
+                `[Worker ${workerId}] 🔄 Step 2/4: Processing ${threads.length} threads into analysis payloads...`,
+                "log",
+              );
+              
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context-batch-analysis.processor.ts:247',message:'Starting process threads operation',data:{batchIndex,threadCount:threads.length,budget:PERFORMANCE_BUDGETS.BATCH_PROCESS_THREADS},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'PERF'})}).catch(()=>{});
+              // #endregion
+              
+              batch = threads
+                .map((thread) => {
+                  const firstEmail = thread.emails?.sort(
+                    (a, b) => a.receivedAt.getTime() - b.receivedAt.getTime(),
+                  )[0];
+                  if (!firstEmail) {
+                    return null;
+                  }
+
+                  const userReplied = thread.emails?.some(
+                    (email) =>
+                      email.labelIds?.includes(GMAIL_LABELS.SENT) ||
+                      (userEmail && email.from.toLowerCase() === userEmail),
+                  );
+
+                  let quickestReply: number | null = null;
+                  if (userReplied) {
+                    const sentEmails = thread.emails.filter(
+                      (email) =>
+                        email.labelIds?.includes(GMAIL_LABELS.SENT) ||
+                        (userEmail && email.from.toLowerCase() === userEmail),
+                    );
+                    const receivedEmails = thread.emails.filter(
+                      (email) =>
+                        !email.labelIds?.includes(GMAIL_LABELS.SENT) &&
+                        (!userEmail || email.from.toLowerCase() !== userEmail),
+                    );
+
+                    if (sentEmails.length > 0 && receivedEmails.length > 0) {
+                      const firstReceived = receivedEmails[0].receivedAt;
+                      const firstSent = sentEmails[0].receivedAt;
+                      const replyTimeHours =
+                        (firstSent.getTime() - firstReceived.getTime()) /
+                        (1000 * 60 * 60);
+                      if (replyTimeHours >= 0) {
+                        quickestReply = replyTimeHours;
+                      }
+                    }
+                  }
+
+                  return {
+                    threadId: thread.id,
+                    from: firstEmail.from,
+                    fromName: firstEmail.fromName,
+                    subject: firstEmail.subject,
+                    body: cleanEmailContent(firstEmail.body, firstEmail.htmlBody, 1000),
+                    receivedAt: firstEmail.receivedAt.toISOString(),
+                    isRead: firstEmail.isRead,
+                    timeToReply: quickestReply ? quickestReply * 60 : null,
+                    starCount: thread.starCount || 0,
+                    isArchived: thread.isArchived || false,
+                    userReplied,
+                    emailCount: thread.emails?.length || 0,
+                    readCount: thread.emails?.filter((e) => e.isRead).length || 0,
+                    receivedHour: firstEmail.receivedAt.getHours(),
+                  };
+                })
+                .filter((t) => t !== null) as Array<{
+                  threadId?: string;
+                  from: string;
+                  fromName?: string;
+                  subject: string;
+                  body: string;
+                  receivedAt: string;
+                  isRead?: boolean;
+                  timeToReply?: number | null;
+                  starCount?: number;
+                  isArchived?: boolean;
+                  userReplied?: boolean;
+                  emailCount?: number;
+                  readCount?: number;
+                  receivedHour?: number;
+                }>;
+              processDuration = Date.now() - processStartTime;
+              
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context-batch-analysis.processor.ts:328',message:'Completed process threads operation',data:{batchIndex,processDuration,budget:PERFORMANCE_BUDGETS.BATCH_PROCESS_THREADS,withinBudget:processDuration <= PERFORMANCE_BUDGETS.BATCH_PROCESS_THREADS},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'PERF'})}).catch(()=>{});
+              // #endregion
+              
+              this.logger.log(
+                `[Worker ${workerId}] ✅ Processed ${batch.length} threads into payloads in ${Math.round(processDuration / 1000)}s (budget: ${PERFORMANCE_BUDGETS.BATCH_PROCESS_THREADS / 1000}s)${processDuration > PERFORMANCE_BUDGETS.BATCH_PROCESS_THREADS ? ' ⚠️ OVER BUDGET' : ''}`,
+              );
+              writeAnalysisLog(
+                `[Worker ${workerId}] ✅ Processed ${batch.length} threads into payloads in ${Math.round(processDuration / 1000)}s`,
+                "log",
+              );
+            } else if (legacyBatch) {
+              // Pre-processed batch (fetched upfront in main job - no Gmail API calls needed)
+              batch = legacyBatch;
+              
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context-batch-analysis.processor.ts:361',message:'Using pre-processed batch - skipping fetch/process steps',data:{batchIndex,batchSize:legacyBatch.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'PERF_FETCH'})}).catch(()=>{});
+              // #endregion
+              
+              this.logger.log(
+                `[Worker ${workerId}] ✅ Using pre-processed batch (${legacyBatch.length} threads) - skipping fetch/process steps (0s)`,
+              );
+              writeAnalysisLog(
+                `[Worker ${workerId}] ✅ Using pre-processed batch (${legacyBatch.length} threads) - skipping fetch/process steps`,
+                "log",
+              );
+              // fetchDuration and processDuration remain 0 (already initialized)
+            } else {
+              throw new Error("No threadIds or batch provided");
+            }
+
+            // Call LLM service to analyze the batch
+            const llmStartTime = Date.now();
+            this.logger.log(
+              `[Worker ${workerId}] 🤖 Step 3/4: Calling LLM to analyze ${batch.length} email patterns...`,
+            );
+            writeAnalysisLog(
+              `[Worker ${workerId}] 🤖 Step 3/4: Calling LLM to analyze ${batch.length} email patterns...`,
+              "log",
+            );
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context-batch-analysis.processor.ts:344',message:'Starting LLM analysis operation',data:{batchIndex,batchSize:batch.length,sentEmailsCount:sentPayload.length,budget:PERFORMANCE_BUDGETS.BATCH_LLM_ANALYSIS},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'PERF'})}).catch(()=>{});
+            // #endregion
+            
+            const batchAnalysis = await this.llmService.analyzeEmailPatterns(
+              batch,
+              sentPayload, // Only first batch has sent emails, others get empty array
+              undefined,
+              userId,
+              userEmail || undefined,
+              currentContextForPrompt,
+            );
+            const llmDuration = Date.now() - llmStartTime;
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context-batch-analysis.processor.ts:360',message:'Completed LLM analysis operation',data:{batchIndex,llmDuration,budget:PERFORMANCE_BUDGETS.BATCH_LLM_ANALYSIS,withinBudget:llmDuration <= PERFORMANCE_BUDGETS.BATCH_LLM_ANALYSIS},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'PERF'})}).catch(()=>{});
+            // #endregion
+            
+            this.logger.log(
+              `[Worker ${workerId}] ✅ LLM analysis completed in ${Math.round(llmDuration / 1000)}s (budget: ${PERFORMANCE_BUDGETS.BATCH_LLM_ANALYSIS / 1000}s)${llmDuration > PERFORMANCE_BUDGETS.BATCH_LLM_ANALYSIS ? ' ⚠️ OVER BUDGET' : ''}`,
+            );
+            writeAnalysisLog(
+              `[Worker ${workerId}] ✅ LLM analysis completed in ${Math.round(llmDuration / 1000)}s`,
+              "log",
+            );
+
+            // Store result in ContextAnalysis.stats field (keyed by batch index)
+            const saveStartTime = Date.now();
+            this.logger.log(
+              `[Worker ${workerId}] 💾 Step 4/4: Saving batch results to database...`,
+            );
+            writeAnalysisLog(
+              `[Worker ${workerId}] 💾 Step 4/4: Saving batch results to database...`,
+              "log",
+            );
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context-batch-analysis.processor.ts:369',message:'Starting save batch results operation',data:{batchIndex,budget:PERFORMANCE_BUDGETS.BATCH_SAVE_RESULTS},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'PERF'})}).catch(()=>{});
+            // #endregion
+            
+            const findRecordStartTime = Date.now();
+            const analysisRecord = await this.contextAnalysisRepository.findOne({
+              where: { id: analysisRecordId },
+            });
+            const findRecordDuration = Date.now() - findRecordStartTime;
+
+            if (!analysisRecord) {
+              throw new Error(
+                `Analysis record ${analysisRecordId} not found for batch ${batchIndex}`,
+              );
+            }
+
+            // Get existing stats or initialize
+            const stats = analysisRecord.stats || {
+              totalThreads: 0,
+              outboundEmails: 0,
+              threadsNeverOpened: 0,
+              threadsReadButNotReplied: 0,
+              vipContactsEvaluated: 0,
+            };
+            const batchResults = (stats.batchResults as Record<
+              string,
+              unknown
+            >) || {};
+
+            // Check if this batch was already completed (retry scenario)
+            const batchWasAlreadyCompleted = batchResults[String(batchIndex)] !== undefined;
+            
+            // Extract thread IDs from batch for source linking
+            const batchThreadIds = batch
+              .map((t: { threadId?: string }) => t.threadId)
+              .filter((id): id is string => !!id);
+            
+            // Store this batch's result (including thread IDs for fact-checking)
+            batchResults[String(batchIndex)] = {
+              context: batchAnalysis.context || [],
+              writingStyle: batchAnalysis.writingStyle || null,
+              completedAt: new Date().toISOString(),
+              threadIds: batchThreadIds, // Store thread IDs for source linking
+            };
+
+            // Update stats with batch results
+            stats.batchResults = batchResults;
+
+            // Update analyzed count only if this batch wasn't already completed (prevent double counting on retries)
+            const batchSize = batch.length;
+            const currentAnalyzedCount = analysisRecord.analyzedCount || 0;
+            if (!batchWasAlreadyCompleted) {
+              analysisRecord.analyzedCount = currentAnalyzedCount + batchSize;
+              this.logger.log(
+                `[Worker ${workerId}] ✅ Batch ${batchIndex} completed for the first time. Incrementing analyzedCount by ${batchSize} (was ${currentAnalyzedCount}, now ${currentAnalyzedCount + batchSize})`,
+              );
+            } else {
+              this.logger.warn(
+                `[Worker ${workerId}] ⚠️ Batch ${batchIndex} was already completed (retry detected). Not incrementing analyzedCount to prevent double counting.`,
+              );
+            }
+            analysisRecord.stats = stats;
+
+            const saveDbStartTime = Date.now();
+            await this.contextAnalysisRepository.save(analysisRecord);
+            const saveDbDuration = Date.now() - saveDbStartTime;
+            const saveDuration = Date.now() - saveStartTime;
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context-batch-analysis.processor.ts:417',message:'Completed save batch results operation',data:{batchIndex,saveDuration,findRecordDuration,saveDbDuration,budget:PERFORMANCE_BUDGETS.BATCH_SAVE_RESULTS,withinBudget:saveDuration <= PERFORMANCE_BUDGETS.BATCH_SAVE_RESULTS},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'PERF'})}).catch(()=>{});
+            // #endregion
+            
+            this.logger.log(
+              `[Worker ${workerId}] ✅ Saved batch results in ${Math.round(saveDuration / 1000)}s (find: ${Math.round(findRecordDuration / 1000)}s, save: ${Math.round(saveDbDuration / 1000)}s, budget: ${PERFORMANCE_BUDGETS.BATCH_SAVE_RESULTS / 1000}s)${saveDuration > PERFORMANCE_BUDGETS.BATCH_SAVE_RESULTS ? ' ⚠️ OVER BUDGET' : ''}`,
+            );
+            writeAnalysisLog(
+              `[Worker ${workerId}] ✅ Saved batch results in ${Math.round(saveDuration / 1000)}s`,
+              "log",
+            );
+            
+            // Calculate total time so far
+            const totalTimeSoFar = saveDuration + llmDuration + processDuration + fetchDuration;
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context-batch-analysis.processor.ts:426',message:'Batch performance summary',data:{batchIndex,totalTimeSoFar,budget:PERFORMANCE_BUDGETS.BATCH_TOTAL,fetchDuration,processDuration,llmDuration,saveDuration,withinTotalBudget:totalTimeSoFar <= PERFORMANCE_BUDGETS.BATCH_TOTAL},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'PERF'})}).catch(()=>{});
+            // #endregion
+            
+            if (totalTimeSoFar > PERFORMANCE_BUDGETS.BATCH_TOTAL) {
+              this.logger.warn(
+                `[Worker ${workerId}] ⚠️ BATCH OVER TOTAL BUDGET: ${Math.round(totalTimeSoFar / 1000)}s (budget: ${PERFORMANCE_BUDGETS.BATCH_TOTAL / 1000}s). Breakdown: fetch=${Math.round(fetchDuration / 1000)}s, process=${Math.round(processDuration / 1000)}s, llm=${Math.round(llmDuration / 1000)}s, save=${Math.round(saveDuration / 1000)}s`,
+              );
+            }
+
+            // Update user progress (30-70% during LLM analysis, distributed across batches)
+            const completedBatches = Object.keys(batchResults).length;
+            const progressPercent =
+              PERCENTAGES.THIRTY +
+              Math.floor((completedBatches / totalBatches) * (PERCENTAGES.SEVENTY - PERCENTAGES.THIRTY));
+            
+            try {
+              await this.usersService.update(userId, {
+                scanProgress: progressPercent,
+                scanTotal: 100,
+              });
+              this.logger.log(
+                `[Worker ${workerId}] Updated user progress to ${progressPercent}% (${completedBatches}/${totalBatches} batches completed)`,
+              );
+            } catch (progressError) {
+              this.logger.warn(
+                `[Worker ${workerId}] Failed to update user progress: ${getErrorMessage(progressError)}`,
+              );
+              // Don't fail the batch if progress update fails
+            }
+
+            const duration = Math.round((Date.now() - tracker.startTime) / 1000);
+            this.logger.log(
+              `[Worker ${workerId}] ✅ COMPLETED batch ${batchIndex + 1}/${totalBatches} in ${duration}s. Analyzed ${batchSize} threads.`,
+            );
+            console.log(
+              `[BATCH-PROCESSOR] [Worker ${workerId}] ✅ COMPLETED batch ${batchIndex + 1}/${totalBatches} in ${duration}s. Analyzed ${batchSize} threads.`,
+            );
+            writeAnalysisLog(
+              `[Worker ${workerId}] ✅ COMPLETED batch ${batchIndex + 1}/${totalBatches} in ${duration}s. Analyzed ${batchSize} threads.`,
+              "log",
+            );
+
+            // Success - break out of retry loop
+            tracker.finish();
+            return;
+          } catch (error: unknown) {
+            attemptNumber++;
+            const errorMessage =
+              error instanceof Error ? error.message : String(error);
+            const errorStack = error instanceof Error ? error.stack : undefined;
+
+            if (attemptNumber > maxRetries) {
+              // Max retries exceeded - mark batch as failed
+              this.logger.error(
+                `[Worker ${workerId}] Batch ${batchIndex + 1}/${totalBatches} failed after ${maxRetries} retries: ${errorMessage}`,
+                errorStack || error,
+              );
+              console.error(
+                `[BATCH-PROCESSOR] [Worker ${workerId}] Batch ${batchIndex + 1}/${totalBatches} failed after ${maxRetries} retries: ${errorMessage}`,
+              );
+              writeAnalysisLog(
+                `[Worker ${workerId}] Batch ${batchIndex + 1}/${totalBatches} failed after ${maxRetries} retries: ${errorMessage}`,
+                "error",
+              );
+
+              // Store failure in stats
+              try {
+                const analysisRecord =
+                  await this.contextAnalysisRepository.findOne({
+                    where: { id: analysisRecordId },
+                  });
+                if (analysisRecord) {
+                  const stats = analysisRecord.stats || {
+                    totalThreads: 0,
+                    outboundEmails: 0,
+                    threadsNeverOpened: 0,
+                    threadsReadButNotReplied: 0,
+                    vipContactsEvaluated: 0,
+                  };
+                  const batchResults = (stats.batchResults as Record<
+                    string,
+                    unknown
+                  >) || {};
+                  const failedBatches =
+                    (stats.failedBatches as number[]) || [];
+                  if (!failedBatches.includes(batchIndex)) {
+                    failedBatches.push(batchIndex);
+                  }
+                  batchResults[String(batchIndex)] = {
+                    error: errorMessage,
+                    failedAt: new Date().toISOString(),
+                  };
+                  stats.batchResults = batchResults;
+                  stats.failedBatches = failedBatches;
+                  analysisRecord.stats = stats;
+                  await this.contextAnalysisRepository.save(analysisRecord);
+                }
+              } catch (saveError) {
+                this.logger.error(
+                  `[Worker ${workerId}] Failed to save batch failure status: ${getErrorMessage(saveError)}`,
+                );
+              }
+
+              // Re-throw to mark job as failed in PgBoss
+              tracker.finish(error as Error);
+              throw error;
+            } else {
+              // Will retry - log but continue
+              this.logger.warn(
+                `[Worker ${workerId}] Batch ${batchIndex + 1}/${totalBatches} attempt ${attemptNumber} failed: ${errorMessage}. Will retry.`,
+              );
+              console.warn(
+                `[BATCH-PROCESSOR] [Worker ${workerId}] Batch ${batchIndex + 1}/${totalBatches} attempt ${attemptNumber} failed: ${errorMessage}. Will retry.`,
+              );
+              writeAnalysisLog(
+                `[Worker ${workerId}] Batch ${batchIndex + 1}/${totalBatches} attempt ${attemptNumber} failed: ${errorMessage}. Will retry.`,
+                "warn",
+              );
+            }
+          }
+        }
+      },
+    );
+
+    this.logger.log("Batch analysis worker registered successfully");
+    console.log("[BATCH-PROCESSOR] Batch analysis worker registered successfully");
+    writeAnalysisLog("Batch analysis worker registered successfully", "log");
+  }
+}
+

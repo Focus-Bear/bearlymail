@@ -1,6 +1,8 @@
 import React, { RefObject } from 'react';
-import { theme } from '../../theme/theme';
-import { EmailDetailInline } from '../EmailDetailInline';
+import { useTranslation } from 'react-i18next';
+import { theme } from 'theme/theme';
+import EmailDetail from 'pages/EmailDetail';
+import { EMOJI_CLOSE, EMOJI_EXPAND } from 'constants/emojis';
 
 interface SplitViewPanelProps {
   selectedEmailId: string;
@@ -21,6 +23,8 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
   onTogglePanel,
   onClose,
 }) => {
+  const { t } = useTranslation();
+  
   return (
     <div 
       ref={emailDetailRef}
@@ -45,11 +49,13 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
         backgroundColor: theme.colors.background.subtle,
       }}>
         <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
-          Email Details
+          {t('inbox.emailDetails')}
         </div>
         <div style={{ display: 'flex', gap: theme.spacing.xs }}>
           <button
-            onClick={onTogglePanel}
+            onClick={() => {
+              window.open(`/email/${selectedEmailId}`, '_blank');
+            }}
             style={{
               padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
               backgroundColor: 'transparent',
@@ -59,9 +65,9 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
               fontSize: theme.typography.fontSize.xs,
               color: theme.colors.text.secondary,
             }}
-            title={panelExpanded ? 'Show split view' : 'Expand to full width'}
+            title={t('inbox.openInNewTab')}
           >
-            {panelExpanded ? '⛶' : '⛶'}
+            {EMOJI_EXPAND}
           </button>
           <button
             onClick={onClose}
@@ -74,16 +80,16 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
               fontSize: theme.typography.fontSize.xs,
               color: theme.colors.text.secondary,
             }}
-            title="Close panel"
+            title={t('inbox.closePanel')}
           >
-            ✕
+            {EMOJI_CLOSE}
           </button>
         </div>
       </div>
       
       {/* EmailDetail component */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        <EmailDetailInline emailId={selectedEmailId} onClose={onClose} />
+        <EmailDetail emailId={selectedEmailId} compactMode={true} />
       </div>
     </div>
   );

@@ -14,7 +14,8 @@ import * as fs from "fs";
 import * as path from "path";
 
 // Performance budgets for consent-status
-const CONSENT_STATUS_BUDGET = 200; // 200ms - should be very fast (just a user lookup)
+// 200ms - should be very fast (just a user lookup)
+const CONSENT_STATUS_BUDGET = 200;
 
 class ConsentStatusPerformanceTracker {
   private startTime: number;
@@ -83,11 +84,13 @@ export class UsersController {
   @Get("me")
   async getProfile(@Request() req) {
     const user = await this.usersService.findOne(req.user.userId);
-    const { password, ...result } = user;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _password, ...result } = user;
     return result;
   }
 
   @Put("me")
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async updateProfile(@Request() req, @Body() updates: any) {
     return this.usersService.update(req.user.userId, updates);
   }

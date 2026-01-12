@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Email } from "../../database/entities/email.entity";
 
 /**
@@ -12,7 +13,8 @@ export interface RawEmailMessage {
   senderJobTitle?: string;
   body: string;
   htmlBody?: string;
-  starCount: number; // 0 = not starred, 1-3 = priority level
+  starCount: number;
+  // 0 = not starred, 1-3 = priority level
   receivedAt: Date;
   isRead?: boolean;
   labelIds?: string[];
@@ -82,12 +84,29 @@ export interface EmailProvider {
   ): Promise<RawEmailMessage[]>;
 
   /**
-   * Archive a thread (remove from inbox, add bearly-mail-archived label)
+   * Archive a thread (remove from inbox)
+   * Note: For Gmail, this removes the INBOX label. For O365/Zoho, this moves to archive folder.
    */
   archiveThread(userId: string, threadId: string): Promise<void>;
 
   /**
-   * Unarchive a thread (add to inbox, remove bearly-mail-archived label)
+   * Unarchive a thread (add back to inbox)
+   * Note: For Gmail, this adds the INBOX label. For O365/Zoho, this moves from archive folder back to inbox.
    */
   unarchiveThread(userId: string, threadId: string): Promise<void>;
+
+  /**
+   * Sync star status to the email provider
+   * Updates the starred/unstarred status of all messages in a thread
+   */
+  syncStarStatusToGmail(
+    userId: string,
+    threadId: string,
+    starCount: number,
+  ): Promise<void>;
+
+  /**
+   * Delete/trash a thread (move to trash folder)
+   */
+  trashThread(userId: string, threadId: string): Promise<void>;
 }

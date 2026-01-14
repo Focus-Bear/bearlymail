@@ -68,7 +68,7 @@ export const SidebarFooter: React.FC<SidebarFooterProps> = ({ userEmail, onLogou
         </button>
       </div>
       {!isCollapsed && (
-        <footer style={{ marginTop: '2px', textAlign: 'center' }}>
+        <footer style={{ marginTop: '2px', textAlign: 'left' }}>
           <a 
             href="https://focusbear.io" 
             target="_blank" 

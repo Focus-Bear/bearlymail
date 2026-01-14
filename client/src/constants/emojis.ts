@@ -47,4 +47,5 @@ export const EMOJI_LOCATION = '📍';
 export const EMOJI_PEOPLE = '👥';
 export const EMOJI_DELETE = '🗑️';
 export const EMOJI_TRASH = '🗑️';
+export const EMOJI_INFO = 'ℹ️';
 

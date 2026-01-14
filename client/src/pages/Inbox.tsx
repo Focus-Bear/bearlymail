@@ -51,6 +51,7 @@ const Inbox: React.FC = () => {
     decrypting,
     hasRunAnalysis,
     nextDelivery,
+    lastUrgentCheck,
     triageTabRef,
     actionTabRef,
     followUpTabRef,
@@ -115,7 +116,6 @@ const Inbox: React.FC = () => {
           mode={mode}
           setMode={setMode}
           loadingModeSwitch={loadingModeSwitch}
-          nextDelivery={nextDelivery}
           hasRunAnalysis={hasRunAnalysis}
           triageTabRef={triageTabRef}
           actionTabRef={actionTabRef}
@@ -175,6 +175,8 @@ const Inbox: React.FC = () => {
               emailActions={emailActions}
               modals={modals}
               splitView={splitView}
+              nextDelivery={nextDelivery}
+              lastUrgentCheck={lastUrgentCheck}
               onEmailClick={handleEmailClick}
               onEmailSelect={handleEmailSelect}
               onGenerateDrafts={async () => {

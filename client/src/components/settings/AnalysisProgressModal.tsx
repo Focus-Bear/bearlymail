@@ -113,7 +113,12 @@ export const AnalysisProgressModal: React.FC<AnalysisProgressModalProps> = ({
                       ? t(analyzeProgress.progress.messageKey, analyzeProgress.progress.messageValues || {})
                       : `${analyzeProgress.progress.current}% complete`}
                   </p>
-                  {analyzeProgress.progress.insights && analyzeProgress.progress.insights.length > 0 && (
+                  {/* Only show insights during analyzing or later stages, not during fetching/starting */}
+                  {analyzeProgress.progress.insights && analyzeProgress.progress.insights.length > 0 && 
+                   analyzeProgress.progress.messageKey && 
+                   (analyzeProgress.progress.messageKey.includes('analyzing') || 
+                    analyzeProgress.progress.messageKey.includes('summarizing') || 
+                    analyzeProgress.progress.messageKey.includes('complete')) && (
                     <div style={{
                       marginTop: theme.spacing.sm,
                       padding: theme.spacing.sm,

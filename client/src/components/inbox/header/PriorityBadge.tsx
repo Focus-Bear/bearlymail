@@ -37,6 +37,7 @@ export const PriorityBadge: React.FC<PriorityBadgeProps> = ({
         padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
         backgroundColor: priority.bg,
         color: priority.color,
+        border: `1px solid ${priority.color}`,
         borderRadius: theme.borderRadius.full,
         fontWeight: theme.typography.fontWeight.medium,
         display: 'flex',

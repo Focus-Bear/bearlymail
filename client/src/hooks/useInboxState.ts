@@ -59,7 +59,7 @@ export function useInboxState() {
   } = emailManagement;
 
   // Batch schedule hook
-  const { nextDelivery, fetchBatchStatus } = useBatchSchedule();
+  const { nextDelivery, lastUrgentCheck, fetchBatchStatus, updateLastUrgentCheck } = useBatchSchedule();
 
   // Email selection hook
   const {
@@ -290,6 +290,8 @@ export function useInboxState() {
     hasInitiallyLoaded,
     hasRunAnalysis,
     nextDelivery,
+    lastUrgentCheck,
+    updateLastUrgentCheck,
     // Refs
     triageTabRef,
     actionTabRef,

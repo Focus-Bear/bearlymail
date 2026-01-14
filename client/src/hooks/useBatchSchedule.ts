@@ -1,9 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import axios from 'axios';
 import { API_URL } from 'config/api';
 
 const BATCH_STATUS_CACHE_KEY = 'batchStatusCache';
 const BATCH_STATUS_CACHE_TTL = 30000; // 30 seconds
+const LAST_URGENT_CHECK_KEY = 'lastUrgentCheckTime';
 
 interface CacheEntry {
   nextDelivery: string | null;
@@ -12,11 +13,22 @@ interface CacheEntry {
 
 interface UseBatchScheduleReturn {
   nextDelivery: Date | null;
+  lastUrgentCheck: Date | null;
   fetchBatchStatus: () => Promise<void>;
+  updateLastUrgentCheck: () => void;
 }
 
 export function useBatchSchedule(): UseBatchScheduleReturn {
   const [nextDelivery, setNextDelivery] = useState<Date | null>(null);
+  const [lastUrgentCheck, setLastUrgentCheck] = useState<Date | null>(null);
+
+  // Load lastUrgentCheck from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem(LAST_URGENT_CHECK_KEY);
+    if (stored) {
+      setLastUrgentCheck(new Date(stored));
+    }
+  }, []);
 
   const fetchBatchStatus = useCallback(async () => {
     // Check localStorage cache first
@@ -51,8 +63,16 @@ export function useBatchSchedule(): UseBatchScheduleReturn {
     }
   }, []);
 
+  const updateLastUrgentCheck = useCallback(() => {
+    const now = new Date();
+    setLastUrgentCheck(now);
+    localStorage.setItem(LAST_URGENT_CHECK_KEY, now.toISOString());
+  }, []);
+
   return {
     nextDelivery,
+    lastUrgentCheck,
     fetchBatchStatus,
+    updateLastUrgentCheck,
   };
 }

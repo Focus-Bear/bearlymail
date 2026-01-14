@@ -25,41 +25,17 @@ export function useEmailFetching({
     try {
       const response = await axios.get(`${API_URL}/emails/inbox?mode=${mode}`);
       console.log(`Fetched ${response.data.length} emails for mode: ${mode}`, response.data);
-      let enrichedEmails = response.data;
-      
-      // Enrich emails with metadata (action items count, note status)
-      // Do this in parallel for better performance
-      const enrichmentPromises = enrichedEmails.map(async (email: Email) => {
-        const [actionItemsResponse, noteResponse] = await Promise.allSettled([
-          // eslint-disable-next-line id-denylist -- 'data' is a standard property in Axios responses
-          axios.get(`${API_URL}/action-items?emailId=${email.id}`).catch(() => ({ data: [] })),
-          // eslint-disable-next-line id-denylist -- 'data' is a standard property in Axios responses
-          email.threadId ? axios.get(`${API_URL}/notes/thread/${email.threadId}`).catch(() => ({ data: null })) : Promise.resolve({ data: null }),
-        ]);
-        
-        // eslint-disable-next-line id-denylist, no-restricted-syntax -- 'data' is a standard property in Axios responses; 'fulfilled' is a standard Promise.allSettled status
-        const actionItems = actionItemsResponse.status === 'fulfilled' ? actionItemsResponse.value.data : [];
-        // eslint-disable-next-line id-denylist, no-restricted-syntax -- 'data' is a standard property in Axios responses; 'fulfilled' is a standard Promise.allSettled status
-        const note = noteResponse.status === 'fulfilled' ? noteResponse.value.data : null;
-        
-        return {
-          ...email,
-          actionItemsCount: Array.isArray(actionItems) ? actionItems.length : 0,
-          hasPrivateNote: !!note,
-        };
-      });
-      
-      enrichedEmails = await Promise.all(enrichmentPromises);
+      const emails = response.data;
       
       // Filter out optimistically archived emails
       const archivedSet = new Set(optimisticallyArchived);
       console.log('[Archive Filter] Starting filter:', {
-        totalEmails: enrichedEmails.length,
+        totalEmails: emails.length,
         optimisticArchivedCount: optimisticallyArchived.length,
         optimisticArchivedIds: optimisticallyArchived,
       });
       
-      const filteredEmails = enrichedEmails.filter((email: Email) => {
+      const filteredEmails = emails.filter((email: Email) => {
         const shouldFilter = archivedSet.has(email.id);
         if (shouldFilter) {
           console.log('[Archive Filter] Filtering out email:', { id: email.id, subject: email.subject });
@@ -68,9 +44,9 @@ export function useEmailFetching({
       });
       
       console.log('[Archive Filter] Filter complete:', {
-        before: enrichedEmails.length,
+        before: emails.length,
         after: filteredEmails.length,
-        filtered: enrichedEmails.length - filteredEmails.length,
+        filtered: emails.length - filteredEmails.length,
         optimisticSetSize: optimisticallyArchived.length,
       });
       

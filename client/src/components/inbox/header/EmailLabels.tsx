@@ -47,7 +47,7 @@ export const EmailLabels: React.FC<EmailLabelsProps> = ({ labels }) => {
             backgroundColor: isCategory ? theme.colors.background.subtle : theme.colors.primary.subtle,
             color: theme.colors.text.secondary,
             borderRadius: theme.borderRadius.sm,
-            border: `1px solid ${isCategory ? theme.colors.border.light : 'transparent'}`,
+            border: `1px solid ${theme.colors.border.medium}`,
             textTransform: isCategory ? 'capitalize' : 'none',
           }}>
             {displayLabel.toLowerCase()}

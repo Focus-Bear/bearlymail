@@ -322,9 +322,9 @@ const ContextItemContent: React.FC<ContextItemContentProps> = ({ context }) => {
             cursor: 'pointer',
           }}>
             <a 
-              href={`/?thread=${context.sourceThreadIds[0]}`}
+              href={`/email/${context.sourceThreadIds[0]}`}
               style={{ color: theme.colors.primary.main, textDecoration: 'none' }}
-              title={`View ${context.sourceThreadIds.length} source email${context.sourceThreadIds.length > 1 ? 's' : ''}`}
+              title={`View source email thread (${context.sourceThreadIds.length} source${context.sourceThreadIds.length > 1 ? 's' : ''})`}
             >
               📧 {context.sourceThreadIds.length} source{context.sourceThreadIds.length > 1 ? 's' : ''}
             </a>

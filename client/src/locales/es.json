@@ -126,6 +126,18 @@
     "archive": "Archivar",
     "blockSender": "Bloquear remitente",
     "nextBatch": "Próximo lote",
+    "batchInfo": {
+      "lastUrgentCheck": "Última verificación de correos urgentes",
+      "neverChecked": "nunca",
+      "justNow": "hace un momento",
+      "oneMinuteAgo": "hace 1 minuto",
+      "minutesAgo": "hace {{count}} minutos",
+      "oneHourAgo": "hace 1 hora",
+      "hoursAgo": "hace {{count}} horas",
+      "deliveryTooltip": "La configuración de entrega de correos controla cuándo se agrupan y entregan los nuevos correos para reducir las distracciones.",
+      "changeInSettings": "Cambiar en Configuración",
+      "urgentTooltip": "BearlyMail busca periódicamente correos super urgentes que necesitan atención inmediata. Estos correos rompen el agrupamiento para asegurar que nunca te pierdas algo crítico. La IA evalúa la urgencia basándose en la importancia del remitente, palabras clave y tus patrones históricos de respuesta."
+    },
     "highUrgencyEmail": "Correo de alta urgencia",
     "urgentBadge": "🚨 Urgente ({{score}})",
     "urgent": "Urgente",

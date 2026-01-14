@@ -8,7 +8,6 @@ interface InboxHeaderProps {
   mode: InboxMode;
   setMode: (mode: InboxMode) => void;
   loadingModeSwitch: boolean;
-  nextDelivery: Date | null;
   hasRunAnalysis: boolean | null;
   triageTabRef: RefObject<HTMLButtonElement | null>;
   actionTabRef: RefObject<HTMLButtonElement | null>;
@@ -19,33 +18,12 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
   mode,
   setMode,
   loadingModeSwitch,
-  nextDelivery,
   hasRunAnalysis,
   triageTabRef,
   actionTabRef,
   followUpTabRef,
 }) => {
   const { t } = useTranslation();
-
-  const getNextDeliveryText = (): string | null => {
-    if (!nextDelivery) return null;
-    const now = new Date();
-    const diffMs = nextDelivery.getTime() - now.getTime();
-    const diffMins = Math.round(diffMs / (1000 * 60));
-    if (diffMins <= 0) return null;
-
-    const diffHours = Math.floor(diffMins / 60);
-    const remainingMins = diffMins % 60;
-    if (diffMins < 60) {
-      return `${diffMins}m`;
-    }
-    if (remainingMins === 0) {
-      return `${diffHours}h`;
-    }
-    return `${diffHours}h ${remainingMins}m`;
-  };
-
-  const nextDeliveryText = getNextDeliveryText();
 
   return (
     <header
@@ -90,7 +68,6 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
 
       <InboxHeaderActions
         mode={mode}
-        nextDeliveryText={nextDeliveryText}
         hasRunAnalysis={hasRunAnalysis}
       />
     </header>

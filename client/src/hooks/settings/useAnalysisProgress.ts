@@ -59,6 +59,18 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
   // Refs to track polling state across renders (needed because closures capture stale state)
   const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const cancelledRef = useRef(false);
+  const progressHighWaterMark = useRef(0); // Track highest progress to prevent going backwards
+  const messageKeyHighWaterMark = useRef<string | null>(null); // Track highest stage to prevent message going backwards
+  
+  // Define stage order - higher index = more advanced stage
+  const stageOrder: Record<string, number> = {
+    'settings.analysis.progress.starting': 0,
+    'settings.analysis.progress.fetching': 1,
+    'settings.analysis.progress.analyzing': 2,
+    'settings.analysis.progress.finalizing': 3,
+    'settings.analysis.progress.complete': 4,
+    'settings.analysis.progress.completeSimple': 4,
+  };
 
   const startAnalysis = useCallback(async () => {
     devLog('===== Starting Context Analysis =====');
@@ -66,8 +78,13 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
     devDebug('Setting analyzing state to true');
     console.log('[FRONTEND] Setting analyzing state to true');
     
-    // Reset cancellation flag when starting new analysis
+    // Reset cancellation flag and high water marks when starting new analysis
     cancelledRef.current = false;
+    progressHighWaterMark.current = 0;
+    messageKeyHighWaterMark.current = null;
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAnalysisProgress.ts:START_ANALYSIS',message:'HIGH WATER MARK RESET in startAnalysis',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'H6_FLICKERING'})}).catch(()=>{});
+    // #endregion
     
     setAnalyzing(true);
     setAnalyzeProgress({ show: true, progress: { current: 0, total: 100, messageKey: 'settings.analysis.progress.starting' }, error: null, isComplete: false });
@@ -148,17 +165,58 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
       }
       
       const { current, total, messageKey, messageValues, threadCount, analyzedCount, batchStatus, stats, insights } = progressData;
-      const isComplete = total > 0 && current >= total;
+      
+      // CRITICAL: Use high water mark to prevent progress from going backwards
+      // This handles race conditions where polling catches intermediate database states
+      const effectiveCurrent = Math.max(current, progressHighWaterMark.current);
+      if (current > progressHighWaterMark.current) {
+        progressHighWaterMark.current = current;
+        devLog(`High water mark updated: ${progressHighWaterMark.current}%`);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAnalysisProgress.ts:HIGH_WATER_MARK',message:'High water mark UPDATED',data:{oldValue:effectiveCurrent - current + progressHighWaterMark.current,newValue:progressHighWaterMark.current,backendValue:current},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'H6_FLICKERING'})}).catch(()=>{});
+        // #endregion
+      } else if (current < progressHighWaterMark.current) {
+        devLog(`Progress went backwards (${current}% < ${progressHighWaterMark.current}%), using high water mark: ${effectiveCurrent}%`);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAnalysisProgress.ts:HIGH_WATER_BLOCKED',message:'HIGH WATER MARK BLOCKED backward progress',data:{backendValue:current,highWaterMark:progressHighWaterMark.current,effectiveValue:effectiveCurrent},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'H6_FLICKERING'})}).catch(()=>{});
+        // #endregion
+      }
+      
+      const isComplete = total > 0 && effectiveCurrent >= total;
       errorCount = 0;
       retryCount = 0;
       
+      // CRITICAL: Use stage-based high water mark for messageKey to prevent message going backwards
+      // (e.g., showing "fetching" after "analyzing" due to backend race conditions)
+      let effectiveMessageKey = messageKey;
+      let effectiveMessageValues = messageValues;
+      const currentStageOrder = stageOrder[messageKey] ?? -1;
+      const highWaterStageOrder = messageKeyHighWaterMark.current ? (stageOrder[messageKeyHighWaterMark.current] ?? -1) : -1;
+      
+      if (currentStageOrder > highWaterStageOrder) {
+        // Stage advanced - update high water mark
+        messageKeyHighWaterMark.current = messageKey;
+        devLog(`Message stage advanced: ${messageKey} (order ${currentStageOrder})`);
+      } else if (currentStageOrder < highWaterStageOrder && messageKeyHighWaterMark.current) {
+        // Stage went backwards - use high water mark message instead
+        effectiveMessageKey = messageKeyHighWaterMark.current;
+        // Keep current values but log the override
+        devLog(`Message stage went backwards (${messageKey} order ${currentStageOrder} < ${messageKeyHighWaterMark.current} order ${highWaterStageOrder}), using high water mark: ${effectiveMessageKey}`);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAnalysisProgress.ts:MESSAGE_KEY_BLOCKED',message:'MESSAGE KEY HIGH WATER MARK BLOCKED backward stage',data:{backendMessageKey:messageKey,highWaterMessageKey:effectiveMessageKey,backendOrder:currentStageOrder,highWaterOrder:highWaterStageOrder},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'H8_MESSAGE_FLICKER'})}).catch(()=>{});
+        // #endregion
+      }
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAnalysisProgress.ts:SET_PROGRESS',message:'Setting progress state',data:{effectiveCurrent,total,effectiveMessageKey,isComplete},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'H6_FLICKERING'})}).catch(()=>{});
+      // #endregion
       setAnalyzeProgress({
         show: true,
         progress: {
-          current,
+          current: effectiveCurrent,
           total,
-          messageKey,
-          messageValues,
+          messageKey: effectiveMessageKey,
+          messageValues: effectiveMessageValues,
           threadCount,
           analyzedCount,
           batchStatus,
@@ -231,6 +289,18 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
     // #endregion
     
     const pollProgress = async () => {
+      // CRITICAL: Don't poll until we have an analysisId - prevents fetching old completed analyses
+      if (!analysisId) {
+        devDebug('Poll skipped - waiting for analysisId to be set');
+        // Retry in 500ms
+        pollingTimeoutRef.current = setTimeout(() => {
+          if (!cancelledRef.current) {
+            pollProgress();
+          }
+        }, 500);
+        return;
+      }
+      
       if (isPolling) {
         // #region agent log
         fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAnalysisProgress.ts:204',message:'Poll skipped - previous poll still in progress',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{});
@@ -242,8 +312,8 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
       const requestStartTime = Date.now();
       
       try {
-        // Pass analysis ID in polling request if available
-        const url = `${API_URL}/context/analyze-progress${analysisId ? `?analysisId=${analysisId}` : ''}`;
+        // Pass analysis ID in polling request - now always has value due to check above
+        const url = `${API_URL}/context/analyze-progress?analysisId=${analysisId}`;
         devDebug(`Polling progress from ${url}`);
         // #region agent log
         fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAnalysisProgress.ts:212',message:'Making progress request',data:{url,requestStartTime},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{});
@@ -263,14 +333,18 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
           devError('Progress check returned error:', response.data.error);
           handleErrorResponse(
             response.data.error.message || 'Analysis failed. Please try again.',
-            pollingTimeout
+            pollingTimeoutRef.current
           );
           isPolling = false;
           return;
         }
         
         if (response.data.progress) {
-          devLog(`Progress update: ${response.data.progress.current}/${response.data.progress.total} - ${response.data.progress.messageKey || 'No messageKey'}`);
+          const rawPercent = response.data.progress.current;
+          devLog(`[RAW] Progress update from backend: ${rawPercent}/${response.data.progress.total} - ${response.data.progress.messageKey || 'No messageKey'}, high water mark: ${progressHighWaterMark.current}`);
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAnalysisProgress.ts:PROGRESS_VALUES',message:'Progress values from backend',data:{rawPercent,total:response.data.progress.total,messageKey:response.data.progress.messageKey,highWaterMarkBefore:progressHighWaterMark.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'H6_FLICKERING'})}).catch(()=>{});
+          // #endregion
           await handleProgressResponse(response.data.progress, pollingTimeoutRef.current);
         } else {
           devDebug('No progress in response, calling handleNoProgressResponse');

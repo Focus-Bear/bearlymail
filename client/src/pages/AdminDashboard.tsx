@@ -8,7 +8,8 @@ import { AdminTabs } from 'components/admin/AdminTabs';
 import { WaitlistSection } from 'components/admin/WaitlistSection';
 import { SubscriptionsSection } from 'components/admin/SubscriptionsSection';
 import { JobsSection } from 'components/admin/JobsSection';
-import { ADMIN_TAB_WAITLIST, ADMIN_TAB_JOBS } from 'constants/adminTabs';
+import { TokenUsageSection } from 'components/admin/TokenUsageSection';
+import { ADMIN_TAB_WAITLIST, ADMIN_TAB_JOBS, ADMIN_TAB_TOKEN_USAGE } from 'constants/adminTabs';
 
 const DEFAULT_EXTEND_DAYS = 7;
 
@@ -31,7 +32,7 @@ const AdminDashboard: React.FC = () => {
   } = useAdminDashboard();
 
   const renderContent = () => {
-    if (loading && activeTab !== ADMIN_TAB_JOBS) {
+    if (loading && activeTab !== ADMIN_TAB_JOBS && activeTab !== ADMIN_TAB_TOKEN_USAGE) {
       return (
         <div style={{ textAlign: 'center', padding: theme.spacing['3xl'] }}>
           {t('admin.dashboard.loading')}
@@ -49,6 +50,9 @@ const AdminDashboard: React.FC = () => {
     }
     if (activeTab === ADMIN_TAB_JOBS) {
       return <JobsSection />;
+    }
+    if (activeTab === ADMIN_TAB_TOKEN_USAGE) {
+      return <TokenUsageSection />;
     }
     return (
       <SubscriptionsSection

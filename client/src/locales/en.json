@@ -118,6 +118,18 @@
     "blockSender": "Block sender",
     "unsubscribe": "Unsubscribe",
     "nextBatch": "Next batch",
+    "batchInfo": {
+      "lastUrgentCheck": "Last checked for urgent emails",
+      "neverChecked": "never",
+      "justNow": "just now",
+      "oneMinuteAgo": "1 minute ago",
+      "minutesAgo": "{{count}} minutes ago",
+      "oneHourAgo": "1 hour ago",
+      "hoursAgo": "{{count}} hours ago",
+      "deliveryTooltip": "Your email delivery settings control when new emails are batched and delivered to reduce distractions.",
+      "changeInSettings": "Change in Settings",
+      "urgentTooltip": "BearlyMail periodically scans for super-urgent emails that need immediate attention. These emails break through batching to ensure you never miss something critical. The AI evaluates urgency based on sender importance, keywords, and your historical response patterns."
+    },
     "actionTab": "Action",
     "followUpTab": "Follow Up",
     "emailDetails": "Email Details",
@@ -382,6 +394,7 @@
       "waitlist": "Waitlist",
       "subscriptions": "Subscriptions",
       "jobs": "Jobs",
+      "tokenUsage": "Token Usage",
       "days": "days",
       "extend": "Extend",
       "allUsers": "All Users",
@@ -407,6 +420,25 @@
       "avgCompletionTime": "Avg Completion Time",
       "noData": "No data",
       "noJobs": "No jobs found"
+    },
+    "tokenUsage": {
+      "title": "Token Usage Statistics",
+      "lastUpdated": "Last updated",
+      "operation": "Operation",
+      "calls": "Calls",
+      "promptTokens": "Prompt Tokens",
+      "completionTokens": "Completion Tokens",
+      "totalTokens": "Total Tokens",
+      "totalCalls": "Total Calls",
+      "avgDuration": "Avg Duration",
+      "noData": "No data",
+      "noUsage": "No token usage recorded",
+      "range": {
+        "24h": "Last 24 Hours",
+        "7d": "Last 7 Days",
+        "30d": "Last 30 Days",
+        "all": "All Time"
+      }
     }
   },
   "compose": {
@@ -811,7 +843,7 @@
       "progress": {
         "starting": "Starting analysis...",
         "searching": "Searching your inbox...",
-        "fetching": "Fetching threads ({{generalCount}} inbox, {{sentCount}} sent)...",
+        "fetching": "Fetching emails from Gmail ({{generalCount}} inbox + {{sentCount}} sent so far)...",
         "preparing": "Found {{count}} threads, preparing for analysis...",
         "identifyingVip": "Identifying VIP contacts from {{count}} threads...",
         "analyzing": "Analyzing email patterns with AI ({{analyzed}}/{{total}} threads analyzed)...",

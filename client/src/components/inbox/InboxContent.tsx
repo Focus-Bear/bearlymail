@@ -10,6 +10,7 @@ import { SplitViewPanel } from 'components/inbox/SplitViewPanel';
 import { EmailListStates } from 'components/inbox/EmailListStates';
 import { FollowUpActions } from 'components/inbox/FollowUpActions';
 import { DebugView } from 'components/inbox/DebugView';
+import { BatchInfoBar } from 'components/inbox/BatchInfoBar';
 import { useSplitView } from 'hooks/useSplitView';
 
 interface InboxContentProps {
@@ -32,6 +33,8 @@ interface InboxContentProps {
   emailActions: any;
   modals: any;
   splitView: ReturnType<typeof useSplitView>;
+  nextDelivery: Date | null;
+  lastUrgentCheck: Date | null;
   onEmailClick: (emailId: string, index: number, e: React.MouseEvent) => void;
   onEmailSelect: (emailId: string, e: React.MouseEvent) => void;
   onGenerateDrafts: () => Promise<void>;
@@ -64,6 +67,8 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   emailActions,
   modals,
   splitView,
+  nextDelivery,
+  lastUrgentCheck,
   onEmailClick,
   onEmailSelect,
   onGenerateDrafts,
@@ -127,6 +132,12 @@ export const InboxContent: React.FC<InboxContentProps> = ({
         }}
       >
         <div style={{ maxWidth: splitView.selectedEmailId ? '100%' : '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
+          {mode === MODE_TRIAGE && (
+            <BatchInfoBar
+              nextDelivery={nextDelivery}
+              lastUrgentCheck={lastUrgentCheck}
+            />
+          )}
           {mode === MODE_FOLLOW_UP && (
             <FollowUpActions
               onGenerateDrafts={onGenerateDrafts}
@@ -204,6 +215,7 @@ export const InboxContent: React.FC<InboxContentProps> = ({
       {!splitView.isMobile && splitView.selectedEmailId && (
         <SplitViewPanel
           selectedEmailId={splitView.selectedEmailId}
+          selectedEmail={emails.find(e => e.id === splitView.selectedEmailId)}
           panelExpanded={splitView.panelExpanded}
           splitPosition={splitView.splitPosition}
           isResizing={splitView.isResizing}

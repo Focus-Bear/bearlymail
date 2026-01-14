@@ -572,7 +572,9 @@ export class ContextEmailDataService {
             }
 
             const labelIds = msg.labelIds || [];
-            const isRead = labelIds.includes(GMAIL_LABELS.INBOX) && !labelIds.includes("UNREAD");
+            // isRead = true if the UNREAD label is NOT present
+            // (Fixed: previously required INBOX label, but archived emails would show as unread)
+            const isRead = !labelIds.includes("UNREAD");
 
             return {
               id: msg.id || "",

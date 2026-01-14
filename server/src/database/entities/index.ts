@@ -17,3 +17,4 @@ export { BlockedSender } from "./blocked-sender.entity";
 export { Waitlist } from "./waitlist.entity";
 export { PriorityOverride } from "./priority-override.entity";
 export { ContextAnalysis } from "./context-analysis.entity";
+export { TokenUsage } from "./token-usage.entity";

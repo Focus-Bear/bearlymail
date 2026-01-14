@@ -4,6 +4,13 @@ import { EmailsController } from "./emails.controller";
 import { EmailsService } from "./emails.service";
 import { EmailThreadService } from "./email-thread.service";
 import { ScanEmailService } from "./scan-email.service";
+import { EmailSearchService } from "./email-search.service";
+import { EmailStarService } from "./email-star.service";
+import { EmailDebugService } from "./email-debug.service";
+import { EmailReadService } from "./email-read.service";
+import { EmailCrudService } from "./email-crud.service";
+import { EmailGmailService } from "./email-gmail.service";
+import { EmailStatusService } from "./email-status.service";
 import { GmailProvider } from "./providers/gmail.provider";
 import { Office365Provider } from "./providers/office365.provider";
 import { ZohoProvider } from "./providers/zoho.provider";
@@ -51,6 +58,13 @@ import { GitHubModule } from "../github/github.module";
     EmailProviderManager,
     // Put EmailProviderManager before EmailsService to avoid circular dependency
     EmailThreadService,
+    EmailSearchService,
+    EmailStarService,
+    EmailDebugService,
+    EmailReadService,
+    EmailCrudService,
+    EmailGmailService,
+    EmailStatusService,
     EmailsService,
     ScanEmailService,
     GmailProvider,

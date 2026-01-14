@@ -169,15 +169,23 @@ export class ContextFinalizationProcessor implements OnModuleInit {
               totalBatches: actualTotalBatches,
             };
 
-            await this.boss.send(
+            // Use a unique key with timestamp to avoid singleton conflict with current job
+            const retryJobId = await this.boss.send(
               "finalize-context-analysis",
               updatedJobData,
               {
                 priority: getJobPriority("finalize-context-analysis", false),
-                singletonKey: `finalize-context-analysis-${analysisRecordId}`,
-                singletonMinutes: 60,
-                startAfter: new Date(Date.now() + 30000), // Retry in 30 seconds (increased from 10s)
+                singletonKey: `finalize-context-analysis-${analysisRecordId}-retry-${Date.now()}`,
+                singletonMinutes: 1, // Short duration for retry jobs
+                startAfter: new Date(Date.now() + 10000), // Retry in 10 seconds (faster retry)
               },
+            );
+            this.logger.log(
+              `[Worker ${workerId}] Re-queued finalization job with ID: ${retryJobId}`,
+            );
+            writeAnalysisLog(
+              `[Worker ${workerId}] Re-queued finalization job with ID: ${retryJobId}`,
+              "log",
             );
             tracker.finish(); // Log even when re-queuing
             return;

@@ -429,7 +429,7 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
             // #endregion
             
             const findRecordStartTime = Date.now();
-            const analysisRecord = await this.contextAnalysisRepository.findOne({
+            let analysisRecord = await this.contextAnalysisRepository.findOne({
               where: { id: analysisRecordId },
             });
             const findRecordDuration = Date.now() - findRecordStartTime;
@@ -478,14 +478,30 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
             if (!batchWasAlreadyCompleted) {
               analysisRecord.analyzedCount = currentAnalyzedCount + batchSize;
               this.logger.log(
-                `[Worker ${workerId}] ✅ Batch ${batchIndex} completed for the first time. Incrementing analyzedCount by ${batchSize} (was ${currentAnalyzedCount}, now ${currentAnalyzedCount + batchSize})`,
+                `[Worker ${workerId}] ✅ Batch ${batchIndex} completed for the first time. Incrementing analyzedCount by ${batchSize} (was ${currentAnalyzedCount}, now ${analysisRecord.analyzedCount})`,
               );
             } else {
               this.logger.warn(
                 `[Worker ${workerId}] ⚠️ Batch ${batchIndex} was already completed (retry detected). Not incrementing analyzedCount to prevent double counting.`,
               );
             }
-            analysisRecord.stats = stats;
+            
+            // Re-read the latest stats to preserve concurrent updates from main job
+            // This minimizes the race window - we read again right before saving
+            const latestRecord = await this.contextAnalysisRepository.findOne({
+              where: { id: analysisRecordId },
+            });
+            if (latestRecord && latestRecord.stats) {
+              // Merge our batchResults into the latest stats (preserving fetchingStatus, totalBatches, etc.)
+              const latestBatchResults = (latestRecord.stats.batchResults as Record<string, unknown>) || {};
+              latestBatchResults[String(batchIndex)] = batchResults[String(batchIndex)];
+              latestRecord.stats.batchResults = latestBatchResults;
+              latestRecord.analyzedCount = analysisRecord.analyzedCount;
+              analysisRecord = latestRecord;
+            } else {
+              // Fallback: use our version
+              analysisRecord.stats = stats;
+            }
 
             const saveDbStartTime = Date.now();
             await this.contextAnalysisRepository.save(analysisRecord);

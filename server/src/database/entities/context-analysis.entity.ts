@@ -51,6 +51,16 @@ export class ContextAnalysis {
   analyzedCount: number;
   // How many threads analyzed so far
 
+  // Separate columns for fetching progress to avoid race conditions with batch processors
+  @Column({ type: "varchar", nullable: true })
+  fetchingStatus: string | null;
+
+  @Column({ type: "integer", default: 0 })
+  fetchedGeneralCount: number;
+
+  @Column({ type: "integer", default: 0 })
+  fetchedSentCount: number;
+
   @Column({
     type: "jsonb",
     nullable: true,
@@ -69,10 +79,6 @@ export class ContextAnalysis {
     batchJobIds?: Record<number, string>;
     batchPayloadsForRetry?: Record<number, unknown>;
     totalBatches?: number;
-    // Fetching progress (set during thread fetching)
-    fetchingStatus?: string;
-    fetchedGeneral?: number;
-    fetchedSent?: number;
     uniqueThreads?: number;
     // Allow additional properties
     [key: string]: unknown;

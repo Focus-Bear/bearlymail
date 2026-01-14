@@ -79,8 +79,8 @@ export class ContextController {
 
     // Check if analysis failed
     if (progressInfo.status === "failed") {
-      return {
-        progress: null,
+        return {
+          progress: null,
         error: progressInfo.errorMessage || "Analysis failed. Please try again.",
       };
     }
@@ -103,19 +103,26 @@ export class ContextController {
     } else if (isStillRunning) {
       const { completedBatches, totalBatches, fetchingStatus, fetchedGeneral, fetchedSent } = progressInfo;
       
-      if (totalBatches === undefined || totalBatches === 0) {
-        // Batches not created yet - still in fetching stage (0-10%)
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context.controller.ts:STAGE_CALC',message:'Stage calculation inputs',data:{completedBatches,totalBatches,fetchingStatus,fetchedGeneral,fetchedSent,status:progressInfo.status},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'H7_STAGE_FLICKER'})}).catch(()=>{});
+      // #endregion
+      
+      // Check if any batches have completed - if so, we're in analyzing stage
+      const hasCompletedBatches = completedBatches !== undefined && completedBatches > 0;
+      
+      if ((totalBatches === undefined || totalBatches === 0) && !hasCompletedBatches) {
+        // Batches not created yet AND none completed - still in fetching stage (0-10%)
         // Calculate fetch progress based on fetched thread counts
-        if (fetchingStatus && (fetchedGeneral !== undefined || fetchedSent !== undefined)) {
+        if (fetchedGeneral !== undefined || fetchedSent !== undefined) {
           // Show progress based on what's been fetched (target: 300 general + 150 sent = 450 threads)
           const totalFetched = (fetchedGeneral || 0) + (fetchedSent || 0);
           const fetchPercent = Math.min(totalFetched / 450 * 10, 10); // 0-10% range
-          percent = Math.floor(fetchPercent);
+          percent = Math.max(1, Math.floor(fetchPercent)); // Minimum 1% to show progress, never 0%
         } else {
-          percent = 5; // Default while starting
+          percent = 1; // Minimum 1% while starting (not 0% or 5%)
         }
         stage = "fetching";
-      } else if (completedBatches !== undefined && completedBatches >= totalBatches) {
+      } else if (totalBatches > 0 && completedBatches !== undefined && completedBatches >= totalBatches && completedBatches > 0) {
         // All batches complete but analysis not finished - summarizing stage (70-99%)
         percent = 85; // Show 85% while finalizing
         stage = "summarizing";
@@ -129,8 +136,11 @@ export class ContextController {
       }
       
       this.logger.log(
-        `[PROGRESS-CALC] Stage: ${stage}, percent: ${percent}%, batches: ${progressInfo.completedBatches || 0}/${progressInfo.totalBatches || 'unknown'}`,
+        `[PROGRESS-CALC] Stage: ${stage}, percent: ${percent}%, batches: ${progressInfo.completedBatches || 0}/${progressInfo.totalBatches || 'unknown'}, fetched: general=${fetchedGeneral || 0}, sent=${fetchedSent || 0}, status=${progressInfo.status}`,
       );
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context.controller.ts:PERCENT_RESULT',message:'Calculated percent and stage',data:{stage,percent,completedBatches:progressInfo.completedBatches,totalBatches:progressInfo.totalBatches,status:progressInfo.status},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'H7_STAGE_FLICKER'})}).catch(()=>{});
+      // #endregion
     } else if (user.scanProgress !== null && user.scanTotal !== null) {
       // For completed/failed analyses that slipped through, use user.scanProgress
       percent = Math.floor((user.scanProgress / user.scanTotal) * 100);
@@ -143,15 +153,15 @@ export class ContextController {
     let messageKey = "";
     let messageValues: Record<string, unknown> = {};
 
-    const { threadCount } = progressInfo;
-    const { analyzedCount } = progressInfo;
-    const { stats } = progressInfo;
+      const { threadCount } = progressInfo;
+      const { analyzedCount } = progressInfo;
+      const { stats } = progressInfo;
     const { completedBatches, totalBatches, fetchingStatus, fetchedGeneral, fetchedSent } = progressInfo;
     const { insights } = progressInfo;
 
-    // Debug logging
-    if (percent >= PERCENTAGES.TWENTY_FIVE && percent < PERCENTAGES.SEVENTY) {
-      this.logger.log(
+      // Debug logging
+      if (percent >= PERCENTAGES.TWENTY_FIVE && percent < PERCENTAGES.SEVENTY) {
+        this.logger.log(
         `[PROGRESS-DEBUG] userId=${req.user.userId}, percent=${percent}, threadCount=${threadCount}, analyzedCount=${analyzedCount}, completedBatches=${completedBatches}, totalBatches=${totalBatches}`,
       );
     }
@@ -165,11 +175,7 @@ export class ContextController {
         
       case "fetching":
         messageKey = "settings.analysis.progress.fetching";
-        const totalFetched = (fetchedGeneral || 0) + (fetchedSent || 0);
         messageValues = { 
-          fetched: totalFetched, 
-          total: 450, // Target: 300 general + 150 sent
-          fetchingStatus: fetchingStatus || 'Fetching threads...',
           generalCount: fetchedGeneral || 0,
           sentCount: fetchedSent || 0,
         };
@@ -209,43 +215,43 @@ export class ContextController {
       default:
         // Fallback - shouldn't happen
         messageKey = "settings.analysis.progress.starting";
-    }
+      }
 
-    // Always include stats if available (not just at 100%)
-    // This ensures the frontend can display the summary even if isComplete check fails
-    const finalStats = stats || progressInfo.stats;
+      // Always include stats if available (not just at 100%)
+      // This ensures the frontend can display the summary even if isComplete check fails
+      const finalStats = stats || progressInfo.stats;
 
-    // Log for debugging
-    if (percent >= 100) {
-      this.logger.log(
+      // Log for debugging
+      if (percent >= 100) {
+        this.logger.log(
         `[PROGRESS-DEBUG] Completion check: userId=${req.user.userId}, percent=${percent}, status=${progressInfo.status}, isActuallyComplete=${isActuallyComplete}, stats=${finalStats ? "YES" : "NO"}, threadCount=${threadCount}, analyzedCount=${analyzedCount}`,
-      );
-    }
+        );
+      }
 
     // Include findings in response if available
     const findings = (finalStats?.findings as string[]) || undefined;
 
-    return {
-      progress: {
+      return {
+        progress: {
         current: percent, // Use calculated percent, not user.scanProgress
         total: 100, // Total is always 100 for percentage
         messageKey,
         messageValues,
-        threadCount,
-        analyzedCount,
+          threadCount,
+          analyzedCount,
         batchStatus: totalBatches !== undefined && completedBatches !== undefined ? {
           completedBatches,
           totalBatches,
         } : undefined,
-        // Always include stats when available
-        stats: finalStats,
+          // Always include stats when available
+          stats: finalStats,
         // Include findings for display
         findings,
         // Include insights for display
         insights,
-      },
-      error: null,
-    };
+        },
+        error: null,
+      };
   }
 
   @Post("analyze")
@@ -336,17 +342,31 @@ export class ContextController {
     @Request() req,
     @Body()
     body: {
-      key: ContextKey;
-      value: string;
+      // Accept both naming conventions (key/value or contextKey/contextValue)
+      key?: ContextKey;
+      value?: string;
+      contextKey?: ContextKey;
+      contextValue?: string;
       source?: Source;
       priority?: number;
       explanation?: string;
     },
   ) {
+    // Support both naming conventions from frontend
+    const contextKey = body.key || body.contextKey;
+    const contextValue = body.value || body.contextValue;
+    
+    if (!contextKey) {
+      throw new Error("Context key is required (use 'key' or 'contextKey')");
+    }
+    if (!contextValue) {
+      throw new Error("Context value is required (use 'value' or 'contextValue')");
+    }
+    
     return this.contextService.createOrUpdateContext(
       req.user.userId,
-      body.key,
-      body.value,
+      contextKey,
+      contextValue,
       body.source || Source.AUTOGENERATED,
       body.priority,
       body.explanation,

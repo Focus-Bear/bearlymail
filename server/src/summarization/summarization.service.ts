@@ -186,97 +186,90 @@ export class SummarizationService {
       (email as any).htmlBody,
     );
 
-    // Try simple keyword matching first for common patterns
+    // Fast path: Check for exact domain matches (e.g., "emails from @company.com")
+    // This is a simple optimization for obvious cases, but we still use LLM for semantic matching
+    const fromLower = (email.from || "").toLowerCase();
     for (const rule of rules) {
       const whenToUseLower = rule.whenToUse.toLowerCase();
-      const subjectLower = (email.subject || "").toLowerCase();
-      const bodyLower = cleanedBody.toLowerCase();
-      const fromLower = (email.from || "").toLowerCase();
-      const fromNameLower = (email.fromName || "").toLowerCase();
-
-      // Check for common patterns
-      if (
-        whenToUseLower.includes("github") &&
-        (subjectLower.includes("github") ||
-          bodyLower.includes("github") ||
-          fromLower.includes("github") ||
-          fromNameLower.includes("github"))
-      ) {
-        return rule;
-      }
-
-      // Check for email domain matches (e.g., "emails from @company.com")
       const domainMatch = whenToUseLower.match(/@([a-z0-9.-]+)/i);
       if (domainMatch) {
         const domain = domainMatch[1].toLowerCase();
-        if (
-          fromLower.includes(domain) ||
-          fromLower.includes(`@${domain}`)
-        ) {
-          return rule;
-        }
-      }
-
-      // Check for keyword matches in subject or body
-      const keywords = whenToUseLower
-        .split(/\s+/)
-        .filter((word) => word.length > 3 && !["from", "when", "the", "this"].includes(word));
-      
-      if (keywords.length > 0) {
-        const matchCount = keywords.filter(
-          (keyword) =>
-            subjectLower.includes(keyword) ||
-            bodyLower.includes(keyword) ||
-            fromLower.includes(keyword) ||
-            fromNameLower.includes(keyword),
-        ).length;
-        
-        // If more than 50% of keywords match, consider it a match
-        if (matchCount >= Math.ceil(keywords.length * 0.5)) {
+        // Extract domain from email address
+        const emailDomain = fromLower.match(/@([a-z0-9.-]+)/i)?.[1]?.toLowerCase();
+        if (emailDomain === domain) {
+          // Exact domain match - this is reliable enough to use without LLM
           return rule;
         }
       }
     }
 
-    // If simple matching didn't work, use LLM to evaluate rules
+    // Primary method: Use LLM to evaluate which rule matches based on whenToUse criteria
     try {
-      const emailText = `Subject: ${email.subject || ""}\n\nFrom: ${email.fromName || email.from || ""}\n\nBody:\n${cleanedBody.substring(0, 1000)}`;
+      // Prepare email context (use more content for better matching)
+      const emailPreview = cleanedBody.substring(0, 2000); // Increased from 1000 for better context
+      const emailText = `Subject: ${email.subject || "(no subject)"}\nFrom: ${email.fromName || email.from || "(unknown sender)"} <${email.from || ""}>\n\nEmail Body:\n${emailPreview}${cleanedBody.length > 2000 ? "\n\n[... email continues ...]" : ""}`;
       
+      // Format rules with their whenToUse criteria
       const ruleDescriptions = rules.map(
-        (rule, index) => `Rule ${index + 1}: ${rule.whenToUse}`,
+        (rule, index) => `Rule ${index + 1}: "${rule.whenToUse}"`,
       ).join("\n");
 
-      const prompt = `You are evaluating which summarization rule should be applied to an email.
+      const prompt = `You are evaluating which summarization rule should be applied to an email based on the "whenToUse" criteria for each rule.
 
-Email:
+Email to evaluate:
 ${emailText}
 
-Available rules:
+Available summarization rules (each has a "whenToUse" description that explains when it should be applied):
 ${ruleDescriptions}
 
-Which rule (1-${rules.length}) best matches this email? Consider the "whenToUse" criteria for each rule. If no rule clearly matches, respond with "0". Respond with only the number, nothing else.`;
+Your task:
+1. Carefully read the "whenToUse" criteria for each rule
+2. Determine if the email matches any of the rules based on their "whenToUse" descriptions
+3. Consider the email's subject, sender, and content when evaluating matches
+4. If the email clearly matches a rule's "whenToUse" criteria, return that rule's number (1-${rules.length})
+5. If no rule clearly matches, return "0"
+
+Examples:
+- If a rule says "Github emails" and the email is from GitHub (e.g., notifications@github.com, noreply@github.com) or contains GitHub-related content, it matches
+- If a rule says "emails from @company.com" and the sender's domain is company.com, it matches
+- If a rule says "newsletter emails" and the email is clearly a newsletter, it matches
+
+Respond with ONLY the rule number (1-${rules.length}) or "0" if no match. Do not include any explanation or other text.`;
 
       const response = await this.llmService.generateText(
         {
           prompt,
-          systemPrompt: "You are a helpful assistant that evaluates which rules match given criteria. Respond with only a number.",
-          temperature: 0.2,
-          maxTokens: 10,
+          systemPrompt: "You are a precise assistant that evaluates whether emails match rule criteria. You respond with only a number: the rule number (1-N) if a match is found, or 0 if no rule matches.",
+          temperature: 0.1, // Lower temperature for more consistent matching
+          maxTokens: 5, // Just need a number
           userId,
         },
         undefined,
         userId,
       );
 
-      const ruleIndex = parseInt(response.trim(), 10) - 1;
+      // Parse response - handle various formats the LLM might return
+      const cleanedResponse = response.trim().replace(/[^0-9]/g, ""); // Extract only digits
+      const ruleIndex = parseInt(cleanedResponse, 10) - 1;
+      
       if (ruleIndex >= 0 && ruleIndex < rules.length) {
         return rules[ruleIndex];
       }
+      
+      // If LLM returned 0 or invalid response, no rule matches
+      if (cleanedResponse === "0") {
+        return null; // No matching rule found
+      }
+      
+      // If response is invalid, log and fall through to fallback
+      console.warn(`LLM returned invalid rule index: "${response.trim()}", parsed as: ${ruleIndex}`);
     } catch (error) {
-      console.error("LLM rule matching failed, falling back to first rule", error);
+      console.error("LLM rule matching failed:", error);
+      // Fall through to fallback
     }
 
-    // Fallback to first rule if no match found
+    // Fallback: If LLM fails or returns invalid response, return first rule
+    // This ensures the system still works even if LLM is unavailable
     return rules[0];
   }
 

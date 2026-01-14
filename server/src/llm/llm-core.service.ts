@@ -4,6 +4,8 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
 import { UsersService } from "../users/users.service";
 import { LLMProvider, LLMRequest } from "./llm.types";
+import { TokenUsageService } from "./token-usage.service";
+import { LLM_OP_UNKNOWN } from "./llm-operations";
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { MILLISECONDS } from "../constants/time-constants";
@@ -19,6 +21,7 @@ export class LLMCoreService {
     private configService: ConfigService,
     @Inject(forwardRef(() => UsersService))
     private usersService: UsersService,
+    private tokenUsageService: TokenUsageService,
   ) {
     this.initializeClients();
     this.defaultProvider = (
@@ -125,6 +128,7 @@ export class LLMCoreService {
     this.logger.log(`Generating text using Gemini model: ${modelName}`);
 
     return this.retryOperation(async () => {
+      const startTime = Date.now();
       const model = this.geminiClient!.getGenerativeModel({
         model: modelName,
       });
@@ -141,7 +145,25 @@ export class LLMCoreService {
         },
       });
 
+      const durationMs = Date.now() - startTime;
       const { response } = result;
+
+      // Log token usage from Gemini response
+      // Cast to any to access usageMetadata which may not be in type definitions
+      const usageMetadata = (response as any).usageMetadata;
+      if (usageMetadata) {
+        await this.tokenUsageService.logUsage({
+          userId: userId || null,
+          operation: request.operation || LLM_OP_UNKNOWN,
+          provider: LLMProvider.GEMINI,
+          model: modelName,
+          promptTokens: usageMetadata.promptTokenCount || 0,
+          completionTokens: usageMetadata.candidatesTokenCount || 0,
+          totalTokens: usageMetadata.totalTokenCount || 0,
+          durationMs,
+        });
+      }
+
       return response.text();
     });
   }
@@ -179,6 +201,7 @@ export class LLMCoreService {
       this.configService.get<string>("OPENAI_MODEL") || "gpt-3.5-turbo";
 
     return this.retryOperation(async () => {
+      const startTime = Date.now();
       const messages: Array<{
         role: "system" | "user" | "assistant";
         content: string;
@@ -197,6 +220,22 @@ export class LLMCoreService {
         temperature: request.temperature || RATIOS.SEVENTY_PERCENT,
         max_tokens: request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
       });
+
+      const durationMs = Date.now() - startTime;
+
+      // Log token usage from OpenAI response
+      if (completion.usage) {
+        await this.tokenUsageService.logUsage({
+          userId: userId || null,
+          operation: request.operation || LLM_OP_UNKNOWN,
+          provider: LLMProvider.OPENAI,
+          model,
+          promptTokens: completion.usage.prompt_tokens || 0,
+          completionTokens: completion.usage.completion_tokens || 0,
+          totalTokens: completion.usage.total_tokens || 0,
+          durationMs,
+        });
+      }
 
       return completion.choices[0]?.message?.content || "";
     });

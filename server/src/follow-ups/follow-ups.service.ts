@@ -476,9 +476,7 @@ Clean up the draft to match the user's tone and writing style. Keep it concise (
 
       // Update status to pending
       followUp.generationStatus = "pending";
-      await this.followUpRepository.save(followUp);
-
-      // Queue background job
+      await this.followUpRepository.save(followUp);      // Queue background job
       await this.boss.send(
         "generate-follow-up-draft",
         {

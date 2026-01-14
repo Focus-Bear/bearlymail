@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { LLMCoreService } from "./llm-core.service";
 import { LLMProvider } from "./llm.types";
+import { LLM_OP_ANALYZE_PRIORITY } from "./llm-operations";
 import { cleanEmailContent } from "./email-content-cleaner";
 import { getPrompt, renderPrompt } from "./prompts";
 import { RATIOS } from "../constants/percentages";
@@ -77,6 +78,7 @@ export class PriorityAnalysisService {
           temperature: RATIOS.THIRTY_PERCENT,
           maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_SMALL,
           userId,
+          operation: LLM_OP_ANALYZE_PRIORITY,
         },
         provider,
         userId,
@@ -199,6 +201,7 @@ export class PriorityAnalysisService {
         // Lower temperature for more consistent scoring
         maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_SMALL,
         userId,
+        operation: LLM_OP_ANALYZE_PRIORITY,
       },
       provider,
       userId,

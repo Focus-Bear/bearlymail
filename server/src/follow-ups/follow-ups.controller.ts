@@ -232,9 +232,7 @@ export class FollowUpsController {
     );
     if (!followUp) {
       throw new BadRequestException("Follow-up not found");
-    }
-
-    return {
+    }    return {
       generationStatus: followUp.generationStatus,
       generationError: followUp.generationError,
       sendStatus: followUp.sendStatus,

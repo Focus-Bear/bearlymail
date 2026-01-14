@@ -22,42 +22,54 @@ export class EmailThreadService {
   ) {}
 
   /**
-   * Get all emails in a thread, sorted by date (most recent first)
+   * Get all emails in a thread, sorted by date
    */
-  async getThreadEmails(userId: string, threadId: string): Promise<Email[]> {
+  async getThreadEmails(
+    userId: string,
+    threadId: string,
+    options?: { limit?: number; order?: "ASC" | "DESC" },
+  ): Promise<Email[]> {
     // CRITICAL: Use query builder with explicit select to avoid decrypting body/htmlBody
     // These are large encrypted fields that cause significant slowdown
     // The frontend can fetch body/htmlBody separately if needed for individual emails
-    return (
-      this.emailRepository
-        .createQueryBuilder("email")
-        .select([
-          "email.id",
-          "email.userId",
-          "email.threadId",
-          "email.messageId",
-          "email.from",
-          "email.fromName",
-          "email.senderJobTitle",
-          "email.subject",
-          "email.isSnoozed",
-          "email.snoozeUntil",
-          "email.isBatched",
-          "email.batchReleaseAt",
-          "email.isRead",
-          "email.summary",
-          "email.receivedAt",
-          // Only include body/htmlBody if explicitly needed - they're large and encrypted
-          // For thread view, we can fetch them separately for expanded emails
-          "email.body",
-          "email.htmlBody",
-        ])
-        .where("email.userId = :userId", { userId })
-        .andWhere("email.threadId = :threadId", { threadId })
-        .orderBy("email.receivedAt", "DESC")
-        // Most recent first for thread view
-        .getMany()
-    );
+    const queryBuilder = this.emailRepository
+      .createQueryBuilder("email")
+      .select([
+        "email.id",
+        "email.userId",
+        "email.threadId",
+        "email.messageId",
+        "email.from",
+        "email.fromName",
+        "email.senderJobTitle",
+        "email.subject",
+        "email.isSnoozed",
+        "email.snoozeUntil",
+        "email.isBatched",
+        "email.batchReleaseAt",
+        "email.isRead",
+        "email.summary",
+        "email.receivedAt",
+        "email.labels", // Include labels field
+        // Only include body/htmlBody if explicitly needed - they're large and encrypted
+        // For thread view, we can fetch them separately for expanded emails
+        "email.body",
+        "email.htmlBody",
+      ])
+      .where("email.userId = :userId", { userId })
+      .andWhere("email.threadId = :threadId", { threadId });
+
+    // Apply ordering (default to ASC for thread view, DESC for priority calculation)
+    const order = options?.order || "ASC";
+    queryBuilder.orderBy("email.receivedAt", order);
+
+    // Apply limit if specified
+    if (options?.limit) {
+      queryBuilder.take(options.limit);
+    }
+
+    // TypeORM will automatically decrypt labels field due to the transformer
+    return queryBuilder.getMany();
   }
 
   /**
@@ -94,6 +106,31 @@ export class EmailThreadService {
       select: ["threadId"],
     });
     return threads.map((t) => t.threadId);
+  }
+
+  /**
+   * Get non-archived threads that need status verification
+   * Prioritizes threads that haven't been checked recently (oldest lastCheckedAt first)
+   * Limits to a reasonable number per user per run to spread work across sync cycles
+   */
+  async getNonArchivedThreadsNeedingCheck(
+    userId: string,
+    limit: number = 50,
+  ): Promise<string[]> {
+    const results = await this.emailThreadRepository
+      .createQueryBuilder("thread")
+      .select("thread.threadId", "threadId")
+      .where("thread.userId = :userId", { userId })
+      .andWhere("thread.isArchived = false")
+      .orderBy("thread.lastCheckedAt", "ASC", "NULLS FIRST")
+      // Prioritize threads that haven't been checked or were checked longest ago
+      .limit(limit)
+      .getRawMany();
+
+    // Filter out any null/undefined
+    return results
+      .map((r: { threadId: string }) => r.threadId)
+      .filter((id: string) => id);
   }
 
   /**
@@ -148,6 +185,25 @@ export class EmailThreadService {
       // Thread doesn't exist yet, create it
       await this.getOrCreateEmailThread(userId, threadId, 0, isArchived);
     }
+  }
+
+  /**
+   * Update lastCheckedAt for multiple threads (used to track verification without status changes)
+   */
+  async updateThreadsLastCheckedAt(
+    userId: string,
+    threadIds: string[],
+  ): Promise<void> {
+    if (threadIds.length === 0) return;
+
+    const now = new Date();
+    await this.emailThreadRepository
+      .createQueryBuilder()
+      .update()
+      .set({ lastCheckedAt: now })
+      .where("userId = :userId", { userId })
+      .andWhere("threadId IN (:...threadIds)", { threadIds })
+      .execute();
   }
 
   /**
@@ -307,6 +363,25 @@ export class EmailThreadService {
   /**
    * Get existing starred threads from database (for checking against Gmail)
    */
+  /**
+   * Get threads by thread IDs
+   */
+  async getThreadsByThreadIds(
+    userId: string,
+    threadIds: string[],
+  ): Promise<Array<{ threadId: string; updatedAt: Date }>> {
+    if (threadIds.length === 0) return [];
+    
+    const threads = await this.emailThreadRepository.find({
+      where: { userId, threadId: In(threadIds) },
+      select: ["threadId", "updatedAt"],
+    });
+    return threads.map((t) => ({
+      threadId: t.threadId,
+      updatedAt: t.updatedAt,
+    }));
+  }
+
   async getExistingStarredThreads(
     userId: string,
   ): Promise<

@@ -27,10 +27,14 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
     private configService: ConfigService,
     private authService: AuthService,
   ) {
+    const clientID = configService.get<string>("GOOGLE_CLIENT_ID");
+    const clientSecret = configService.get<string>("GOOGLE_CLIENT_SECRET");
+    const callbackURL = configService.get<string>("GOOGLE_REDIRECT_URI");
+
     super({
-      clientID: configService.get<string>("GOOGLE_CLIENT_ID"),
-      clientSecret: configService.get<string>("GOOGLE_CLIENT_SECRET"),
-      callbackURL: configService.get<string>("GOOGLE_REDIRECT_URI"),
+      clientID,
+      clientSecret,
+      callbackURL,
       scope: [
         "email",
         "profile",
@@ -41,6 +45,15 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
       ],
       // These need to be in authorizationParams, not here
     });
+
+    // Log OAuth configuration status at startup
+    this.logger.log(`[GoogleStrategy] Initialized with:`);
+    this.logger.log(`  - clientID: ${clientID ? "[SET]" : "[MISSING]"}`);
+    this.logger.log(`  - clientSecret: ${clientSecret ? "[SET]" : "[MISSING]"}`);
+    this.logger.log(`  - callbackURL: ${callbackURL || "[MISSING]"}`);
+    writeDebugLog(
+      `[GoogleStrategy] Initialized - clientID: ${clientID ? "SET" : "MISSING"}, clientSecret: ${clientSecret ? "SET" : "MISSING"}, callbackURL: ${callbackURL || "MISSING"}`,
+    );
 
     // Override authorizationParams to ensure refresh token is requested
     // This is the correct way to pass access_type and prompt to Google's OAuth endpoint

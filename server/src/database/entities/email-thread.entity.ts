@@ -82,6 +82,7 @@ export class EmailThread {
       sentiment: { score: number; type: string; reasons: string[] };
     };
     breakdown: Array<{ factor: string; value: number; description: string }>;
+    calculatedAt?: string; // ISO timestamp when priority was last calculated
   } | null;
 
   @Column({

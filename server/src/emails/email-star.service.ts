@@ -1,0 +1,158 @@
+import { Injectable, Logger, Inject, forwardRef } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import PgBoss = require("pg-boss");
+import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
+import { EmailProviderManager } from "./email-provider-manager.service";
+import { STAR_COUNTS } from "../constants/priority-constants";
+import { QUERY_LIMITS } from "../constants/query-limits";
+import { getJobPriority } from "../queue/job-priorities";
+
+@Injectable()
+export class EmailStarService {
+  private readonly logger = new Logger(EmailStarService.name);
+
+  constructor(
+    @InjectRepository(Email)
+    private emailRepository: Repository<Email>,
+    @InjectRepository(EmailThread)
+    private emailThreadRepository: Repository<EmailThread>,
+    @Inject(forwardRef(() => EmailProviderManager))
+    private emailProviderManager: EmailProviderManager,
+    @Inject("PG_BOSS") private readonly boss: PgBoss,
+  ) {}
+
+  /**
+   * Set star count for an email's thread
+   */
+  async setStarCount(
+    userId: string,
+    emailId: string,
+    starCount: number,
+    getEmailById: (userId: string, emailId: string) => Promise<Email>,
+    updateThreadStarCount: (
+      userId: string,
+      threadId: string,
+      starCount: number,
+    ) => Promise<void>,
+  ): Promise<Email> {
+    const email = await getEmailById(userId, emailId);
+    if (!email) {
+      throw new Error(`Email ${emailId} not found`);
+    }
+
+    if (!email.threadId) {
+      this.logger.warn(`Email ${emailId} has no threadId, cannot set star count`);
+      return email;
+    }
+
+    // Get current thread star count
+    const thread = await this.emailThreadRepository.findOne({
+      where: { userId, threadId: email.threadId },
+    });
+    const oldStarCount = thread?.starCount ?? 0;
+
+    // Ensure starCount is between 0-3
+    const newStarCount = Math.max(0, Math.min(3, starCount));
+    await updateThreadStarCount(userId, email.threadId, newStarCount);
+
+    // Sync star status to Gmail
+    try {
+      const provider =
+        await this.emailProviderManager.getPrimaryProvider(userId);
+      if (provider && "syncStarStatusToGmail" in provider) {
+        await provider.syncStarStatusToGmail(
+          userId,
+          email.threadId,
+          newStarCount,
+        );
+      }
+    } catch (error) {
+      // Log error but don't fail - star status can be fixed by sync job
+      this.logger.error(
+        `Failed to sync star status to Gmail for user ${userId}, thread ${email.threadId}:`,
+        error,
+      );
+    }
+
+    // Trigger learning if star count changed
+    if (oldStarCount !== newStarCount) {
+      // Queue learning job asynchronously (don't block the response)
+      this.boss
+        .send(
+          "learn-from-star",
+          { userId, emailId, starCount: newStarCount },
+          {
+            priority: getJobPriority("learn-from-star", false),
+          },
+        )
+        .catch((err) =>
+          this.logger.error("Failed to queue learning job", err),
+        );
+    }
+
+    this.logger.debug(
+      `Set star count to ${newStarCount} for email ${emailId} (thread: ${email.threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}...)`,
+    );
+
+    return email;
+  }
+
+  /**
+   * Toggle star for an email (backwards compatibility - toggle between 0 and 3 stars)
+   */
+  async toggleStar(
+    userId: string,
+    emailId: string,
+    getEmailById: (userId: string, emailId: string) => Promise<Email>,
+    updateThreadStarCount: (
+      userId: string,
+      threadId: string,
+      starCount: number,
+    ) => Promise<void>,
+  ): Promise<Email> {
+    const email = await getEmailById(userId, emailId);
+    if (!email) {
+      throw new Error(`Email ${emailId} not found`);
+    }
+
+    if (!email.threadId) {
+      this.logger.warn(`Email ${emailId} has no threadId, cannot toggle star`);
+      return email;
+    }
+
+    // Get current thread star count
+    const thread = await this.emailThreadRepository.findOne({
+      where: { userId, threadId: email.threadId },
+    });
+    const currentStarCount = thread?.starCount ?? 0;
+    const newStarCount = currentStarCount > 0 ? 0 : 3;
+    await updateThreadStarCount(userId, email.threadId, newStarCount);
+
+    // Sync star status to Gmail
+    try {
+      const provider =
+        await this.emailProviderManager.getPrimaryProvider(userId);
+      if (provider && "syncStarStatusToGmail" in provider) {
+        await provider.syncStarStatusToGmail(
+          userId,
+          email.threadId,
+          newStarCount,
+        );
+      }
+    } catch (error) {
+      // Log error but don't fail - star status can be fixed by sync job
+      this.logger.error(
+        `Failed to sync star status to Gmail for user ${userId}, thread ${email.threadId}:`,
+        error,
+      );
+    }
+
+    this.logger.debug(
+      `Toggled star for email ${emailId} (thread: ${email.threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}...): ${currentStarCount} -> ${newStarCount}`,
+    );
+
+    return email;
+  }
+}

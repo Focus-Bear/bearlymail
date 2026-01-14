@@ -5,6 +5,24 @@ import OpenAI from "openai";
 import { UsersService } from "../users/users.service";
 import { cleanEmailContent } from "./email-content-cleaner";
 import { getPrompt, renderPrompt } from "./prompts";
+import { TokenUsageService } from "./token-usage.service";
+import {
+  LLMOperation,
+  LLM_OP_ANALYZE_EMAIL_PATTERNS,
+  LLM_OP_SUMMARIZE_EMAIL,
+  LLM_OP_CHECK_TONE,
+  LLM_OP_EXTRACT_ACTION_ITEMS,
+  LLM_OP_SUGGEST_ACTIONS,
+  LLM_OP_GENERATE_REPLY,
+  LLM_OP_GENERATE_REPLY_OPTIONS,
+  LLM_OP_GENERATE_MEETING_REPLY,
+  LLM_OP_GENERATE_FOLLOW_UP,
+  LLM_OP_ANALYZE_OVERRIDE_REASON,
+  LLM_OP_EXTRACT_QANDA,
+  LLM_OP_SEARCH_RELEVANCE,
+  LLM_OP_SEARCH_RELEVANCE_BATCH,
+  LLM_OP_UNKNOWN,
+} from "./llm-operations";
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
@@ -35,6 +53,7 @@ export class LLMService {
     private configService: ConfigService,
     @Inject(forwardRef(() => UsersService))
     private usersService: UsersService,
+    private tokenUsageService: TokenUsageService,
   ) {
     this.initializeClients();
     this.defaultProvider = (
@@ -74,16 +93,18 @@ export class LLMService {
     request: LLMRequest,
     provider?: LLMProvider,
     userId?: string,
+    operation?: LLMOperation,
   ): Promise<string> {
     const selectedProvider = provider || this.defaultProvider;
     const effectiveUserId = userId || request.userId;
+    const effectiveOperation = operation || LLM_OP_UNKNOWN;
 
     try {
       switch (selectedProvider) {
         case LLMProvider.GEMINI:
-          return await this.generateWithGemini(request, effectiveUserId);
+          return await this.generateWithGemini(request, effectiveUserId, effectiveOperation);
         case LLMProvider.OPENAI:
-          return await this.generateWithOpenAI(request, effectiveUserId);
+          return await this.generateWithOpenAI(request, effectiveUserId, effectiveOperation);
         default:
           throw new Error(`Unsupported LLM provider: ${selectedProvider}`);
       }
@@ -97,10 +118,10 @@ export class LLMService {
         this.logger.log(
           `Gemini failed, falling back to OpenAI (default provider)`,
         );
-        return await this.generateWithOpenAI(request, effectiveUserId);
+        return await this.generateWithOpenAI(request, effectiveUserId, effectiveOperation);
       } else if (selectedProvider === LLMProvider.OPENAI) {
         this.logger.log(`OpenAI failed, falling back to Gemini`);
-        return await this.generateWithGemini(request, effectiveUserId);
+        return await this.generateWithGemini(request, effectiveUserId, effectiveOperation);
       }
       throw error;
     }
@@ -131,6 +152,7 @@ export class LLMService {
     request: LLMRequest,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     userId?: string,
+    operation?: LLMOperation,
   ): Promise<string> {
     // Note: Gemini doesn't support user-specific API keys, always uses system key
     if (!this.geminiClient) {
@@ -142,6 +164,7 @@ export class LLMService {
     this.logger.log(`Generating text using Gemini model: ${modelName}`);
 
     return this.retryOperation(async () => {
+      const startTime = Date.now();
       const model = this.geminiClient!.getGenerativeModel({
         model: modelName,
       });
@@ -158,7 +181,25 @@ export class LLMService {
         },
       });
 
+      const durationMs = Date.now() - startTime;
       const { response } = result;
+
+      // Log token usage from Gemini response
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const usageMetadata = (response as any).usageMetadata;
+      if (usageMetadata) {
+        await this.tokenUsageService.logUsage({
+          userId: userId || null,
+          operation: operation || LLM_OP_UNKNOWN,
+          provider: LLMProvider.GEMINI,
+          model: modelName,
+          promptTokens: usageMetadata.promptTokenCount || 0,
+          completionTokens: usageMetadata.candidatesTokenCount || 0,
+          totalTokens: usageMetadata.totalTokenCount || 0,
+          durationMs,
+        });
+      }
+
       return response.text();
     });
   }
@@ -166,6 +207,7 @@ export class LLMService {
   private async generateWithOpenAI(
     request: LLMRequest,
     userId?: string,
+    operation?: LLMOperation,
   ): Promise<string> {
     // Try to get user's API key if userId is provided
     let { openaiClient } = this;
@@ -196,6 +238,7 @@ export class LLMService {
       this.configService.get<string>("OPENAI_MODEL") || "gpt-3.5-turbo";
 
     return this.retryOperation(async () => {
+      const startTime = Date.now();
       const messages: Array<{
         role: "system" | "user" | "assistant";
         content: string;
@@ -214,6 +257,22 @@ export class LLMService {
         temperature: request.temperature || RATIOS.SEVENTY_PERCENT,
         max_tokens: request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
       });
+
+      const durationMs = Date.now() - startTime;
+
+      // Log token usage from OpenAI response
+      if (completion.usage) {
+        await this.tokenUsageService.logUsage({
+          userId: userId || null,
+          operation: operation || LLM_OP_UNKNOWN,
+          provider: LLMProvider.OPENAI,
+          model,
+          promptTokens: completion.usage.prompt_tokens || 0,
+          completionTokens: completion.usage.completion_tokens || 0,
+          totalTokens: completion.usage.total_tokens || 0,
+          durationMs,
+        });
+      }
 
       return completion.choices[0]?.message?.content || "";
     });
@@ -406,6 +465,7 @@ export class LLMService {
       },
       provider,
       userId,
+      LLM_OP_ANALYZE_EMAIL_PATTERNS,
     );
 
     const llmCallDuration = Date.now() - llmCallStart;
@@ -522,6 +582,7 @@ export class LLMService {
         },
         provider,
         userId,
+        LLM_OP_SUMMARIZE_EMAIL,
       );
     }
 
@@ -542,6 +603,7 @@ export class LLMService {
       },
       provider,
       userId,
+      LLM_OP_SUMMARIZE_EMAIL,
     );
   }
 
@@ -574,6 +636,7 @@ export class LLMService {
       },
       provider,
       userId,
+      LLM_OP_CHECK_TONE,
     );
 
     try {
@@ -641,6 +704,7 @@ export class LLMService {
       },
       provider,
       userId,
+      LLM_OP_EXTRACT_ACTION_ITEMS,
     );
 
     try {
@@ -742,6 +806,7 @@ export class LLMService {
       },
       provider,
       userId,
+      LLM_OP_SUGGEST_ACTIONS,
     );
 
     try {
@@ -844,6 +909,7 @@ export class LLMService {
       },
       provider,
       userId,
+      LLM_OP_GENERATE_REPLY_OPTIONS,
     );
 
     try {
@@ -919,6 +985,7 @@ export class LLMService {
       },
       provider,
       userId,
+      LLM_OP_GENERATE_REPLY,
     );
   }
 
@@ -976,6 +1043,7 @@ export class LLMService {
       },
       provider,
       userId,
+      LLM_OP_GENERATE_MEETING_REPLY,
     );
   }
 
@@ -1051,6 +1119,7 @@ export class LLMService {
       },
       provider,
       userId,
+      LLM_OP_GENERATE_FOLLOW_UP,
     );
   }
 
@@ -1113,6 +1182,7 @@ export class LLMService {
       },
       provider,
       userId,
+      LLM_OP_ANALYZE_OVERRIDE_REASON,
     );
 
     try {
@@ -1228,6 +1298,7 @@ export class LLMService {
       },
       provider,
       userId,
+      LLM_OP_EXTRACT_QANDA,
     );
 
     try {
@@ -1307,6 +1378,7 @@ export class LLMService {
       },
       provider,
       userId,
+      LLM_OP_SEARCH_RELEVANCE,
     );
 
     return response.trim();
@@ -1418,6 +1490,7 @@ export class LLMService {
         },
         provider,
         userId,
+        LLM_OP_SEARCH_RELEVANCE_BATCH,
       );
 
       this.logger.debug(

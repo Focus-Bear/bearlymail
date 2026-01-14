@@ -17,7 +17,6 @@ import { BlockedSendersService } from "../blocked-senders/blocked-senders.servic
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { LLMService } from "../llm/llm.service";
 import { UsersService } from "../users/users.service";
-import { google } from "googleapis";
 import { getJobPriority } from "../queue/job-priorities";
 import { GitHubService } from "../github/github.service";
 import { GitHubApiService } from "../github/github-api.service";
@@ -36,9 +35,15 @@ import {
   PRIORITY_SCORES,
   PRIORITY_BOOSTS,
 } from "../constants/priority-constants";
-import { GMAIL_LABELS } from "../constants/email-labels";
 import { isError, isDatabaseError } from "../types/common";
 import { EmailThreadService } from "./email-thread.service";
+import { EmailSearchService } from "./email-search.service";
+import { EmailStarService } from "./email-star.service";
+import { EmailDebugService } from "./email-debug.service";
+import { EmailReadService } from "./email-read.service";
+import { EmailCrudService } from "./email-crud.service";
+import { EmailGmailService } from "./email-gmail.service";
+import { EmailStatusService } from "./email-status.service";
 
 // Performance budgets in milliseconds
 // Use PERFORMANCE_BUDGETS and QUERY_LIMITS constants directly instead of local PERF_BUDGETS
@@ -50,10 +55,6 @@ interface RawEmailRow {
   [key: string]: unknown;
 }
 
-interface GmailHeader {
-  name: string;
-  value?: string;
-}
 
 interface RankedResult {
   index: number;
@@ -180,6 +181,13 @@ export class EmailsService {
     private llmService: LLMService,
     private usersService: UsersService,
     private emailThreadService: EmailThreadService,
+    private emailSearchService: EmailSearchService,
+    private emailStarService: EmailStarService,
+    private emailDebugService: EmailDebugService,
+    private emailReadService: EmailReadService,
+    private emailCrudService: EmailCrudService,
+    private emailGmailService: EmailGmailService,
+    private emailStatusService: EmailStatusService,
     @Inject(forwardRef(() => GitHubService))
     private githubService?: GitHubService,
     @Inject(forwardRef(() => GitHubApiService))
@@ -515,8 +523,8 @@ export class EmailsService {
 
   /**
    * Check if thread meets follow-up criteria: user sent last AND no reply received
+   * Uses database emails instead of provider-specific API calls
    */
-  // eslint-disable-next-line max-statements
   private async checkThreadFollowUpStatus(
     userId: string,
     threadId: string,
@@ -527,45 +535,21 @@ export class EmailsService {
     lastMyReplyAt: Date | null;
   }> {
     const user = await this.usersService.findOne(userId);
-    if (!user?.googleCalendarAccessToken) {
-      throw new Error("User not connected to Gmail");
+    if (!user) {
+      throw new Error("User not found");
     }
 
-    const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI,
-    );
-
-    oauth2Client.setCredentials({
-      access_token: user.googleCalendarAccessToken,
-      refresh_token: user.googleCalendarRefreshToken,
-    });
-
-    // Handle token refresh
-    oauth2Client.on("tokens", async (tokens) => {
-      if (tokens.access_token) {
-        await this.usersService.update(userId, {
-          googleCalendarAccessToken: tokens.access_token,
-          ...(tokens.refresh_token && {
-            googleCalendarRefreshToken: tokens.refresh_token,
-          }),
-        });
-      }
-    });
-
-    const gmail = google.gmail({ version: "v1", auth: oauth2Client });
     const userEmail = EncryptionHelper.decrypt(user.email);
 
     try {
-      const thread = await gmail.users.threads.get({
-        userId: "me",
-        id: threadId,
-        format: "full",
-      });
+      // Get all emails in the thread from database
+      const threadEmails = await this.emailThreadService.getThreadEmails(
+        userId,
+        threadId,
+        { order: "ASC" }, // Get in chronological order
+      );
 
-      const messages = thread.data.messages || [];
-      if (messages.length === 0) {
+      if (threadEmails.length === 0) {
         return {
           userSentLast: false,
           replyReceived: false,
@@ -574,51 +558,25 @@ export class EmailsService {
         };
       }
 
-      // Sort messages by internalDate (timestamp)
-      const sortedMessages = messages.sort((a, b) => {
-        const aDate = parseInt(a.internalDate || "0");
-        const bDate = parseInt(b.internalDate || "0");
-        return aDate - bDate;
-      });
-
       let lastTheirReplyAt: Date | null = null;
       let lastMyReplyAt: Date | null = null;
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      let lastMessageIsFromUser = false;
 
-      // Check each message to find last reply from them and from user
-      for (const msg of sortedMessages) {
-        const labelIds = msg.labelIds || [];
-        const isFromUser = labelIds.includes("SENT");
+      // Check each email to find last reply from them and from user
+      for (const email of threadEmails) {
+        const fromEmail = email.from?.toLowerCase() || "";
+        const isFromUser = fromEmail === userEmail.toLowerCase();
 
         if (isFromUser) {
-          lastMyReplyAt = new Date(parseInt(msg.internalDate || "0"));
-          lastMessageIsFromUser = true;
+          lastMyReplyAt = email.receivedAt;
         } else {
-          // Get the "From" header to check if it's from the user
-          const headers = msg.payload?.headers || [];
-          const fromHeader =
-            headers.find((h: GmailHeader) => h.name === "From")?.value || "";
-          const fromEmail = fromHeader.match(/<(.+)>/)
-            ? fromHeader.match(/<(.+)>/)?.[1]
-            : fromHeader;
-
-          // If not from user, it's from them
-          if (
-            fromEmail &&
-            fromEmail.toLowerCase() !== userEmail.toLowerCase()
-          ) {
-            lastTheirReplyAt = new Date(parseInt(msg.internalDate || "0"));
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            lastMessageIsFromUser = false;
-          }
+          lastTheirReplyAt = email.receivedAt;
         }
       }
 
-      // User sent last if the last message has SENT label
-      const lastMessage = sortedMessages[sortedMessages.length - 1];
-      const lastMessageLabelIds = lastMessage.labelIds || [];
-      const userSentLast = lastMessageLabelIds.includes("SENT");
+      // User sent last if the last email is from the user
+      const lastEmail = threadEmails[threadEmails.length - 1];
+      const lastEmailFrom = lastEmail.from?.toLowerCase() || "";
+      const userSentLast = lastEmailFrom === userEmail.toLowerCase();
 
       // No reply received if user sent last and there's no message after the last user message
       const replyReceived =
@@ -657,7 +615,7 @@ export class EmailsService {
 
     if (allLabelIds.size === 0) return;
 
-    // Get label names from Gmail
+    // Get label names from email provider
     const labelNames = await this.emailProviderManager.convertLabelIdsToNames(
       userId,
       Array.from(allLabelIds),
@@ -677,6 +635,7 @@ export class EmailsService {
       if (email.labels && Array.isArray(email.labels)) {
         // Convert each label ID to name, or keep as-is if not in mapping
         // Also filter out system labels and unmapped Label_* labels
+        // These are common system labels across providers (Gmail, O365, Zoho)
         const systemLabels = new Set([
           "INBOX", "SENT", "TRASH", "SPAM", "DRAFT", "UNREAD", "STARRED", "IMPORTANT",
           "CATEGORY_PERSONAL", "CATEGORY_SOCIAL", "CATEGORY_PROMOTIONS", "CATEGORY_UPDATES", "CATEGORY_FORUMS",
@@ -736,15 +695,17 @@ export class EmailsService {
     }
   }
 
+  /**
+   * Get email by ID
+   * Delegates to EmailCrudService
+   */
   async getEmailById(userId: string, emailId: string): Promise<Email> {
-    return this.emailRepository.findOne({
-      where: { id: emailId, userId },
-    });
+    return this.emailCrudService.getEmailById(userId, emailId);
   }
 
   /**
-   * Fetch current star status from Gmail for debugging
-   * Returns both DB starCount and Gmail star status for comparison
+   * Fetch current star status from email provider for debugging
+   * Delegates to EmailGmailService (provider-specific debugging)
    */
   async getGmailStarStatus(
     userId: string,
@@ -771,129 +732,16 @@ export class EmailsService {
       emailThreadId: string | null;
     };
   }> {
-    const email = await this.getEmailById(userId, emailId);
-    if (!email) {
-      throw new Error("Email not found");
-    }
-
-    // Get thread info from DB
-    let dbStarCount = 0;
-    if (email.emailThreadId) {
-      const thread = await this.emailThreadRepository.findOne({
-        where: { id: email.emailThreadId, userId },
-      });
-      dbStarCount = thread?.starCount || 0;
-    }
-
-    // Fetch from Gmail
-    let gmailStarStatus = {
-      isStarred: false,
-      starCount: 0,
-      threadId: email.threadId,
-      latestMessageLabelIds: [] as string[],
-      messageStarStatuses: [] as Array<{
-        messageIndex: number;
-        messageId: string;
-        isStarred: boolean;
-        labelIds: string[];
-      }>,
-      isAnyStarred: false,
-      starredMessageCount: 0,
-      error: undefined as string | undefined,
-    };
-
-    try {
-      const user = await this.usersService.findOne(userId);
-      if (!user?.googleCalendarAccessToken) {
-        gmailStarStatus.error = "User not connected to Gmail";
-        return {
-          dbStarCount,
-          gmailStarStatus,
-          threadInfo: {
-            threadId: email.threadId,
-            emailThreadId: email.emailThreadId,
-          },
-        };
-      }
-
-      const { google } = await import("googleapis");
-      const oauth2Client = new google.auth.OAuth2(
-        process.env.GOOGLE_CLIENT_ID,
-        process.env.GOOGLE_CLIENT_SECRET,
-        process.env.GOOGLE_REDIRECT_URI,
-      );
-      oauth2Client.setCredentials({
-        access_token: user.googleCalendarAccessToken,
-        refresh_token: user.googleCalendarRefreshToken,
-      });
-
-      const gmail = google.gmail({ version: "v1", auth: oauth2Client });
-
-      // Get thread from Gmail
-      const threadData = await gmail.users.threads.get({
-        userId: "me",
-        id: email.threadId,
-        format: "metadata",
-        metadataHeaders: ["Subject", "From"],
-      });
-
-      const thread = threadData.data;
-      if (thread.messages && thread.messages.length > 0) {
-        // Check all messages in the thread for STARRED label
-        const messageStarStatuses = thread.messages.map((msg, idx) => {
-          const labelIds = msg.labelIds || [];
-          const isStarred = labelIds.includes("STARRED");
-          return {
-            messageIndex: idx,
-            messageId: msg.id || "",
-            isStarred,
-            labelIds,
-          };
-        });
-
-        const isAnyStarred = messageStarStatuses.some((m) => m.isStarred);
-        const starredMessageCount = messageStarStatuses.filter(
-          (m) => m.isStarred,
-        ).length;
-
-        // Get the latest message (last in array) for backward compatibility
-        const latestMessage = thread.messages[thread.messages.length - 1];
-        const latestLabelIds = latestMessage.labelIds || [];
-        const latestIsStarred = latestLabelIds.includes("STARRED");
-
-        gmailStarStatus = {
-          isStarred: isAnyStarred, // Use isAnyStarred instead of just latest message
-          starCount: isAnyStarred ? 3 : 0,
-          threadId: email.threadId,
-          latestMessageLabelIds: latestLabelIds,
-          messageStarStatuses,
-          isAnyStarred,
-          starredMessageCount,
-          error: undefined,
-        };
-      } else {
-        gmailStarStatus.error = "Thread has no messages";
-      }
-    } catch (error) {
-      gmailStarStatus.error = isError(error)
-        ? error.message
-        : "Unknown error fetching from Gmail";
-      this.logger.error("Error fetching Gmail star status:", error);
-    }
-
-    return {
-      dbStarCount,
-      gmailStarStatus,
-      threadInfo: {
-        threadId: email.threadId,
-        emailThreadId: email.emailThreadId,
-      },
-    };
+    return this.emailGmailService.getGmailStarStatus(
+      userId,
+      emailId,
+      (userId, emailId) => this.getEmailById(userId, emailId),
+    );
   }
 
   /**
    * Fetch current labels from Gmail for a specific message for debugging
-   * Returns both DB labels and Gmail labels for comparison
+   * Delegates to EmailGmailService
    */
   async getGmailLabels(
     userId: string,
@@ -916,151 +764,11 @@ export class EmailsService {
       threadId: string;
     };
   }> {
-    const email = await this.getEmailById(userId, emailId);
-    if (!email) {
-      throw new Error("Email not found");
-    }
-
-    // Get labels from DB (need to query raw encrypted value)
-    // TypeORM automatically decrypts when using findOne, so we need to use raw query
-    let dbLabelsRaw: string[] | null = null;
-    const emailWithLabels = await this.emailRepository.query(
-      `SELECT labels FROM emails WHERE id = $1 AND "userId" = $2`,
-      [email.id, userId],
+    return this.emailGmailService.getGmailLabels(
+      userId,
+      emailId,
+      (userId, emailId) => this.getEmailById(userId, emailId),
     );
-
-    if (emailWithLabels && emailWithLabels.length > 0 && emailWithLabels[0].labels) {
-      try {
-        const decryptedLabels = EncryptionHelper.decrypt(
-          emailWithLabels[0].labels,
-        );
-        if (decryptedLabels) {
-          dbLabelsRaw = JSON.parse(decryptedLabels);
-        }
-      } catch (error) {
-        this.logger.warn(
-          `Failed to decrypt/parse labels for email ${email.id}:`,
-          error,
-        );
-        dbLabelsRaw = null;
-      }
-    }
-
-    // Fetch from Gmail
-    let gmailLabelIds: string[] = [];
-    let gmailLabelNames: string[] = [];
-    let labelMapping: Array<{ id: string; name: string }> = [];
-    let gmailError: string | undefined;
-
-    try {
-      const user = await this.usersService.findOne(userId);
-      if (!user?.googleCalendarAccessToken) {
-        gmailError = "User not connected to Gmail";
-        return {
-          dbLabels: {
-            raw: dbLabelsRaw,
-            names: dbLabelsRaw, // If stored as names, they're already names
-          },
-          gmailLabels: {
-            labelIds: [],
-            labelNames: [],
-            messageId: email.messageId,
-            error: gmailError,
-          },
-          labelMapping: [],
-          emailInfo: {
-            id: email.id,
-            messageId: email.messageId,
-            threadId: email.threadId,
-          },
-        };
-      }
-
-      const { google } = await import("googleapis");
-      const oauth2Client = new google.auth.OAuth2(
-        process.env.GOOGLE_CLIENT_ID,
-        process.env.GOOGLE_CLIENT_SECRET,
-        process.env.GOOGLE_REDIRECT_URI,
-      );
-      oauth2Client.setCredentials({
-        access_token: user.googleCalendarAccessToken,
-        refresh_token: user.googleCalendarRefreshToken,
-      });
-
-      const gmail = google.gmail({ version: "v1", auth: oauth2Client });
-
-      // Fetch specific message from Gmail (not thread)
-      const messageData = await gmail.users.messages.get({
-        userId: "me",
-        id: email.messageId,
-        format: "metadata",
-      });
-
-      const message = messageData.data;
-      if (message.labelIds) {
-        gmailLabelIds = message.labelIds;
-
-        // Convert label IDs to names (this will filter system labels and deduplicate)
-        gmailLabelNames = await this.emailProviderManager.convertLabelIdsToNames(
-          userId,
-          gmailLabelIds,
-        );
-
-        // Get the label map to show ID -> Name mapping
-        // Access GmailProvider through EmailProviderManager to get the raw label map
-        const provider = await this.emailProviderManager.getProvider(userId, "gmail");
-        if (provider && "getGmailLabels" in provider) {
-          const labelMap = await (provider as any).getGmailLabels(userId);
-          // Create mapping for all label IDs (including system labels for debugging)
-          labelMapping = gmailLabelIds.map((id) => ({
-            id,
-            name: labelMap.get(id) || id,
-          }));
-        } else {
-          // Fallback: build mapping from convertLabelIdsToNames result
-          // Note: convertLabelIdsToNames filters system labels, so we need to get raw map
-          const provider = await this.emailProviderManager.getProvider(userId, "gmail");
-          if (provider && "getGmailLabels" in provider) {
-            const labelMap = await (provider as any).getGmailLabels(userId);
-            labelMapping = gmailLabelIds.map((id) => ({
-              id,
-              name: labelMap.get(id) || id,
-            }));
-          } else {
-            labelMapping = gmailLabelIds.map((id) => ({
-              id,
-              name: id, // Fallback to ID if we can't get the map
-            }));
-          }
-        }
-      } else {
-        gmailError = "Message has no labelIds";
-      }
-    } catch (error) {
-      gmailError = isError(error)
-        ? error.message
-        : "Unknown error fetching from Gmail";
-      this.logger.error("Error fetching Gmail labels:", error);
-    }
-
-    return {
-      dbLabels: {
-        raw: dbLabelsRaw,
-        names: dbLabelsRaw, // DB stores converted names (or IDs if not yet converted)
-      },
-      gmailLabels: {
-        labelIds: gmailLabelIds,
-        labelNames: gmailLabelNames,
-        messageId: email.messageId,
-        error: gmailError,
-      },
-      labelMapping,
-      emailInfo: {
-        id: email.id,
-        messageId: email.messageId,
-        threadId: email.threadId,
-      },
-    };
   }
 
   async getThreadEmails(
@@ -1068,122 +776,43 @@ export class EmailsService {
     threadId: string,
     options?: { limit?: number; order?: "ASC" | "DESC" },
   ): Promise<Email[]> {
-    // CRITICAL: Use query builder with explicit select to avoid decrypting body/htmlBody
-    // These are large encrypted fields that cause significant slowdown
-    // The frontend can fetch body/htmlBody separately if needed for individual emails
-    const queryBuilder = this.emailRepository
-        .createQueryBuilder("email")
-        .select([
-          "email.id",
-          "email.userId",
-          "email.threadId",
-          "email.messageId",
-          "email.from",
-          "email.fromName",
-          "email.senderJobTitle",
-          "email.subject",
-          "email.isSnoozed",
-          "email.snoozeUntil",
-          "email.isBatched",
-          "email.batchReleaseAt",
-          "email.isRead",
-          "email.summary",
-          "email.receivedAt",
-          "email.labels", // Include labels field
-          // Only include body/htmlBody if explicitly needed - they're large and encrypted
-          // For thread view, we can fetch them separately for expanded emails
-          "email.body",
-          "email.htmlBody",
-        ])
-        .where("email.userId = :userId", { userId })
-      .andWhere("email.threadId = :threadId", { threadId });
-
-    // Apply ordering (default to ASC for thread view, DESC for priority calculation)
-    const order = options?.order || "ASC";
-    queryBuilder.orderBy("email.receivedAt", order);
-
-    // Apply limit if specified
-    if (options?.limit) {
-      queryBuilder.take(options.limit);
-    }
-
-    // TypeORM will automatically decrypt labels field due to the transformer
-    return queryBuilder.getMany();
+    // Delegate to EmailThreadService
+    return this.emailThreadService.getThreadEmails(userId, threadId, options);
   }
 
   /**
-   * Get recent thread IDs that are not archived (for checking archived status in Gmail)
+   * Get recent thread IDs that are not archived (for checking archived status in email provider)
+   * Delegates to EmailThreadService
    */
   async getRecentNonArchivedThreadIds(
     userId: string,
     days: number = DAYS.WEEK,
   ): Promise<string[]> {
-    const cutoffDate = new Date(Date.now() - days * MILLISECONDS.DAY);
-    const results = await this.emailThreadRepository
-      .createQueryBuilder("thread")
-      .select("thread.threadId", "threadId")
-      .where("thread.userId = :userId", { userId })
-      .andWhere("thread.isArchived = false")
-      .innerJoin("emails", "email", "email.emailThreadId = thread.id")
-      .andWhere("email.receivedAt >= :cutoffDate", { cutoffDate })
-      // Limit to avoid rate limits
-      .limit(QUERY_LIMITS.MAX_SENT_EMAILS_FOR_STYLE)
-      .getRawMany();
-
-    // Filter out any null/undefined
-    return results
-      .map((r: { threadId: string }) => r.threadId)
-      .filter((id: string) => id);
+    return this.emailThreadService.getRecentNonArchivedThreadIds(userId, days);
   }
 
   /**
-   * Get ALL non-archived thread IDs (for checking starred/archived status in Gmail)
-   * This is used to ensure all starred emails are properly synced
+   * Get ALL non-archived thread IDs (for checking starred/archived status in email provider)
+   * Delegates to EmailThreadService
    */
   async getAllNonArchivedThreadIds(userId: string): Promise<string[]> {
-    const results = await this.emailThreadRepository
-      .createQueryBuilder("thread")
-      .select("thread.threadId", "threadId")
-      .where("thread.userId = :userId", { userId })
-      .andWhere("thread.isArchived = false")
-      // Limit to avoid rate limits, but higher than recent threads
-      .limit(QUERY_LIMITS.MAX_THREADS_FOR_ANALYSIS)
-      .getRawMany();
-
-    // Filter out any null/undefined
-    return results
-      .map((r: { threadId: string }) => r.threadId)
-      .filter((id: string) => id);
+    return this.emailThreadService.getAllNonArchivedThreadIds(userId);
   }
 
   /**
    * Get non-archived threads that need status verification
-   * Prioritizes threads that haven't been checked recently (oldest lastCheckedAt first)
-   * Limits to a reasonable number per user per run to spread work across sync cycles
+   * Delegates to EmailThreadService
    */
   async getNonArchivedThreadsNeedingCheck(
     userId: string,
     limit: number = 50,
   ): Promise<string[]> {
-    const results = await this.emailThreadRepository
-      .createQueryBuilder("thread")
-      .select("thread.threadId", "threadId")
-      .where("thread.userId = :userId", { userId })
-      .andWhere("thread.isArchived = false")
-      .orderBy("thread.lastCheckedAt", "ASC", "NULLS FIRST")
-      // Prioritize threads that haven't been checked or were checked longest ago
-      .limit(limit)
-      .getRawMany();
-
-    // Filter out any null/undefined
-    return results
-      .map((r: { threadId: string }) => r.threadId)
-      .filter((id: string) => id);
+    return this.emailThreadService.getNonArchivedThreadsNeedingCheck(userId, limit);
   }
 
   /**
    * Get ALL threads for sync comparison (returns threadId, isArchived, starCount)
-   * Used by Gmail sync to compare with Gmail search results
+   * Used by email provider sync to compare with provider search results
    */
   async getAllThreadsForSync(
     userId: string,
@@ -1212,212 +841,65 @@ export class EmailsService {
 
   /**
    * Update archived status for a thread (updates EmailThread)
+   * Delegates to EmailThreadService
    */
   async updateThreadArchivedStatus(
     userId: string,
     threadId: string,
     isArchived: boolean,
   ): Promise<void> {
-    const thread = await this.emailThreadRepository.findOne({
-      where: { userId, threadId },
-    });
-
-    if (thread) {
-      // Only update if status changed to avoid unnecessary DB writes
-      if (thread.isArchived !== isArchived) {
-        thread.isArchived = isArchived;
-        await this.emailThreadRepository.save(thread);
-        this.logger.debug(
-          `Updated thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... archived status to ${isArchived}`,
-        );
-      }
-    } else {
-      // Thread doesn't exist yet, create it
-      await this.getOrCreateEmailThread(
-        userId,
-        threadId,
-        STAR_COUNTS.NONE,
-        isArchived,
-      );
-    }
+    return this.emailThreadService.updateThreadArchivedStatus(userId, threadId, isArchived);
   }
 
   /**
    * Update lastCheckedAt for multiple threads (used to track verification without status changes)
+   * Delegates to EmailThreadService
    */
   async updateThreadsLastCheckedAt(
     userId: string,
     threadIds: string[],
   ): Promise<void> {
-    if (threadIds.length === 0) return;
-
-    const now = new Date();
-    await this.emailThreadRepository
-      .createQueryBuilder()
-      .update()
-      .set({ lastCheckedAt: now })
-      .where("userId = :userId", { userId })
-      .andWhere("threadId IN (:...threadIds)", { threadIds })
-      .execute();
+    return this.emailThreadService.updateThreadsLastCheckedAt(userId, threadIds);
   }
 
   /**
    * Batch update thread archived statuses (more efficient than individual updates)
+   * Delegates to EmailThreadService
    */
   async batchUpdateThreadArchivedStatuses(
     userId: string,
     updates: Array<{ threadId: string; isArchived: boolean }>,
   ): Promise<void> {
-    if (updates.length === 0) return;
-
-    // Group by status for more efficient updates
-    const archivedThreadIds = updates
-      .filter((update) => update.isArchived)
-      .map((update) => update.threadId);
-    const unarchivedThreadIds = updates
-      .filter((update) => !update.isArchived)
-      .map((update) => update.threadId);
-
-    const now = new Date();
-    // Batch update archived threads
-    if (archivedThreadIds.length > 0) {
-      await this.emailThreadRepository.update(
-        { userId, threadId: In(archivedThreadIds) },
-        { isArchived: true, lastCheckedAt: now },
-      );
-    }
-
-    // Batch update unarchived threads
-    if (unarchivedThreadIds.length > 0) {
-      await this.emailThreadRepository.update(
-        { userId, threadId: In(unarchivedThreadIds) },
-        { isArchived: false, lastCheckedAt: now },
-      );
-    }
-
-    this.logger.debug(
-      `Batch updated ${updates.length} thread archived statuses`,
-    );
+    return this.emailThreadService.batchUpdateThreadArchivedStatuses(userId, updates);
   }
 
   /**
    * Update star count for a thread (updates EmailThread)
+   * Delegates to EmailThreadService
    */
   async updateThreadStarCount(
     userId: string,
     threadId: string,
     starCount: number,
   ): Promise<void> {
-    const thread = await this.emailThreadRepository.findOne({
-      where: { userId, threadId },
-    });
-
-    if (thread) {
-      thread.starCount = starCount;
-      await this.emailThreadRepository.save(thread);
-      this.logger.debug(
-        `Updated thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... star count to ${starCount}`,
-      );
-    } else {
-      // Thread doesn't exist yet, create it
-      await this.getOrCreateEmailThread(userId, threadId, starCount, false);
-    }
+    return this.emailThreadService.updateThreadStarCount(userId, threadId, starCount);
   }
 
   /**
    * Batch update thread statuses (archived + starred) in a single transaction
-   * This is MUCH faster than individual updates for syncing many threads
+   * Delegates to EmailThreadService
    */
-  // eslint-disable-next-line max-lines
   async batchUpdateThreadStatus(
     userId: string,
     updates: { threadId: string; isArchived: boolean; starCount: number }[],
     deletedThreadIds: string[],
   ): Promise<void> {
-    if (updates.length === 0 && deletedThreadIds.length === 0) return;
-
-    // Use a transaction for atomic updates
-    await this.emailThreadRepository.manager.transaction(async (manager) => {
-      const threadRepo = manager.getRepository(
-        this.emailThreadRepository.target,
-      );
-
-      // Batch update existing threads
-      if (updates.length > 0) {
-        // Group by archived status and star count to minimize queries
-        const archivedUpdates = updates.filter(
-          (updateItem) => updateItem.isArchived,
-        );
-        const starredUpdates = updates.filter(
-          (updateItem) => updateItem.starCount > 0,
-        );
-        const unstarredUpdates = updates.filter(
-          (updateItem) => updateItem.starCount === 0 && !updateItem.isArchived,
-        );
-
-        // Update archived threads
-        if (archivedUpdates.length > 0) {
-          const archivedIds = archivedUpdates.map(
-            (updateItem) => updateItem.threadId,
-          );
-          await threadRepo
-            .createQueryBuilder()
-            .update()
-            .set({ isArchived: true })
-            .where("userId = :userId", { userId })
-            .andWhere("threadId IN (:...threadIds)", { threadIds: archivedIds })
-            .execute();
-        }
-
-        // Update starred threads (starCount = 3)
-        if (starredUpdates.length > 0) {
-          const starredIds = starredUpdates.map(
-            (updateItem) => updateItem.threadId,
-          );
-          await threadRepo
-            .createQueryBuilder()
-            .update()
-            .set({ starCount: 3 })
-            .where("userId = :userId", { userId })
-            .andWhere("threadId IN (:...threadIds)", { threadIds: starredIds })
-            .execute();
-        }
-
-        // Update unstarred threads (starCount = 0)
-        if (unstarredUpdates.length > 0) {
-          const unstarredIds = unstarredUpdates.map(
-            (updateItem) => updateItem.threadId,
-          );
-          await threadRepo
-            .createQueryBuilder()
-            .update()
-            .set({ starCount: 0 })
-            .where("userId = :userId", { userId })
-            .andWhere("threadId IN (:...threadIds)", {
-              threadIds: unstarredIds,
-            })
-            .execute();
-        }
-      }
-
-      // Mark deleted threads as archived
-      if (deletedThreadIds.length > 0) {
-        await threadRepo
-          .createQueryBuilder()
-          .update()
-          .set({ isArchived: true })
-          .where("userId = :userId", { userId })
-          .andWhere("threadId IN (:...threadIds)", {
-            threadIds: deletedThreadIds,
-          })
-          .execute();
-      }
-    });
+    return this.emailThreadService.batchUpdateThreadStatus(userId, updates, deletedThreadIds);
   }
 
   /**
    * Get or create EmailThread for a given userId and threadId
-   * Handles race conditions by catching duplicate key errors
+   * Delegates to EmailThreadService
    */
   async getOrCreateEmailThread(
     userId: string,
@@ -1425,75 +907,15 @@ export class EmailsService {
     starCount: number = STAR_COUNTS.NONE,
     isArchived: boolean = false,
   ): Promise<EmailThread> {
-    // Try to find existing thread first
-    let thread = await this.emailThreadRepository.findOne({
-      where: { userId, threadId },
-    });
-
-    if (!thread) {
-      // Thread doesn't exist, try to create it
-      // Use a transaction to handle race conditions
-      try {
-        thread = this.emailThreadRepository.create({
-          userId,
-          threadId,
-          starCount,
-          isArchived,
-        });
-        thread = await this.emailThreadRepository.save(thread);
-        this.logger.debug(
-          `Created EmailThread for thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... (starCount=${starCount}, isArchived=${isArchived})`,
-        );
-      } catch (error: unknown) {
-        // Handle race condition: if another process created the thread between our check and save
-        const isDbError = isDatabaseError(error) && error.code === "23505";
-        const errorMessage = isError(error) ? error.message : undefined;
-        if (
-          isDbError ||
-          errorMessage?.includes("duplicate key") ||
-          errorMessage?.includes("unique constraint")
-        ) {
-          // Thread was created by another process, fetch it
-          this.logger.debug(
-            `Race condition detected for thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}..., fetching existing thread`,
-          );
-          thread = await this.emailThreadRepository.findOne({
-            where: { userId, threadId },
-          });
-          if (!thread) {
-            // Still not found, this is unexpected
-            throw new Error(
-              `Failed to create or find thread ${threadId} after race condition`,
-            );
-          }
-        } else {
-          // Some other error, rethrow
-          throw error;
-        }
-      }
-    }
-
-    // Update if values changed
-    if (thread) {
-      const needsUpdate =
-        thread.starCount !== starCount || thread.isArchived !== isArchived;
-      if (needsUpdate) {
-        thread.starCount = starCount;
-        thread.isArchived = isArchived;
-        thread = await this.emailThreadRepository.save(thread);
-        this.logger.debug(
-          `Updated EmailThread for thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... (starCount=${starCount}, isArchived=${isArchived})`,
-        );
-      }
-    }
-
-    return thread;
+    return this.emailThreadService.getOrCreateEmailThread(userId, threadId, starCount, isArchived);
   }
 
+  /**
+   * Get email by message ID
+   * Delegates to EmailCrudService
+   */
   async getEmailByMessageId(userId: string, messageId: string): Promise<Email> {
-    return this.emailRepository.findOne({
-      where: { messageId, userId },
-    });
+    return this.emailCrudService.getEmailByMessageId(userId, messageId);
   }
 
   // eslint-disable-next-line max-lines-per-function, max-statements
@@ -1619,6 +1041,15 @@ export class EmailsService {
     const savedEmail = await this.emailRepository.save(email);
     this.logger.debug(`[EmailsService] Saved email ${savedEmail.id} to database`);
     
+    // Ensure thread's updatedAt is updated when a new email is added
+    // This is critical for detecting new emails in priority recalculation logic
+    if (thread) {
+      await this.emailThreadRepository.update(
+        { id: thread.id },
+        { updatedAt: new Date() },
+      );
+    }
+    
     // Debug: Verify labels were saved correctly
     if (savedEmail.labels) {
       this.logger.debug(
@@ -1732,36 +1163,44 @@ export class EmailsService {
     );
   }
 
+  /**
+   * Mark an email as read
+   * Delegates to EmailReadService
+   */
   async markAsRead(userId: string, emailId: string): Promise<Email> {
-    await this.emailRepository.update(
-      { id: emailId, userId },
-      { isRead: true },
+    return this.emailReadService.markAsRead(
+      userId,
+      emailId,
+      (userId, emailId) => this.getEmailById(userId, emailId),
     );
-    return this.getEmailById(userId, emailId);
   }
 
+  /**
+   * Mark an email as unread
+   * Delegates to EmailReadService
+   */
   async markAsUnread(userId: string, emailId: string): Promise<Email> {
-    await this.emailRepository.update(
-      { id: emailId, userId },
-      { isRead: false },
+    return this.emailReadService.markAsUnread(
+      userId,
+      emailId,
+      (userId, emailId) => this.getEmailById(userId, emailId),
     );
-    return this.getEmailById(userId, emailId);
   }
 
+  /**
+   * Bulk mark multiple emails as read
+   * Delegates to EmailReadService
+   */
   async bulkMarkAsRead(userId: string, emailIds: string[]): Promise<void> {
-    if (emailIds.length === 0) return;
-    await this.emailRepository.update(
-      { id: In(emailIds), userId },
-      { isRead: true },
-    );
+    return this.emailReadService.bulkMarkAsRead(userId, emailIds);
   }
 
+  /**
+   * Bulk mark multiple emails as unread
+   * Delegates to EmailReadService
+   */
   async bulkMarkAsUnread(userId: string, emailIds: string[]): Promise<void> {
-    if (emailIds.length === 0) return;
-    await this.emailRepository.update(
-      { id: In(emailIds), userId },
-      { isRead: false },
-    );
+    return this.emailReadService.bulkMarkAsUnread(userId, emailIds);
   }
 
   async getSyncStatus(userId: string): Promise<{
@@ -1801,8 +1240,8 @@ export class EmailsService {
     
     this.logger.log(`[Archive] Thread info: threadId=${threadId}, isStarred=${isStarred}, currentIsArchived=${thread?.isArchived || false}`);
 
-      // Archive the thread in Gmail (this will also remove the star if present)
-      // Only update database if Gmail API call succeeds
+      // Archive the thread in email provider (this will also remove the star if present)
+      // Only update database if provider API call succeeds
       const provider =
         await this.emailProviderManager.getPrimaryProvider(userId);
       if (provider && "archiveThread" in provider) {
@@ -1815,7 +1254,7 @@ export class EmailsService {
       }
 
       // Update database: remove star and mark as archived
-      // Only reached if Gmail API call succeeded
+      // Only reached if provider API call succeeded
       if (isStarred) {
       this.logger.log(`[Archive] Removing star from thread: userId=${userId}, threadId=${threadId}`);
         await this.updateThreadStarCount(userId, threadId, 0);
@@ -1830,8 +1269,8 @@ export class EmailsService {
     if (email && email.threadId) {
       const { threadId } = email;
 
-      // Delete/trash the thread in Gmail
-      // Only update database if Gmail API call succeeds
+      // Delete/trash the thread in email provider
+      // Only update database if provider API call succeeds
       const provider =
         await this.emailProviderManager.getPrimaryProvider(userId);
       if (provider && "trashThread" in provider) {
@@ -1845,124 +1284,73 @@ export class EmailsService {
     }
   }
 
+  /**
+   * Update email
+   * Delegates to EmailCrudService
+   */
   async updateEmail(
     emailId: string,
     updates: Partial<Email>,
   ): Promise<Email | null> {
-    await this.emailRepository.update({ id: emailId }, updates);
-    return this.emailRepository.findOne({ where: { id: emailId } });
+    return this.emailCrudService.updateEmail(emailId, updates);
   }
 
+  /**
+   * Set star count for an email's thread
+   * Delegates to EmailStarService
+   */
   async setStarCount(
     userId: string,
     emailId: string,
     starCount: number,
   ): Promise<Email> {
-    const email = await this.getEmailById(userId, emailId);
-    if (email && email.threadId) {
-      const thread = await this.emailThreadRepository.findOne({
-        where: { userId, threadId: email.threadId },
-      });
-      const oldStarCount = thread?.starCount ?? 0;
-
-      // Ensure starCount is between 0-3
-      const newStarCount = Math.max(0, Math.min(3, starCount));
-      await this.updateThreadStarCount(userId, email.threadId, newStarCount);
-
-      // Sync star status to Gmail
-      try {
-        const provider =
-          await this.emailProviderManager.getPrimaryProvider(userId);
-        if (provider && "syncStarStatusToGmail" in provider) {
-          await provider.syncStarStatusToGmail(
-            userId,
-            email.threadId,
-            newStarCount,
-          );
-        }
-      } catch (error) {
-        // Log error but don't fail - star status can be fixed by sync job
-        this.logger.error(
-          `Failed to sync star status to Gmail for user ${userId}, thread ${email.threadId}:`,
-          error,
-        );
-      }
-
-      // Trigger learning if star count changed
-      if (oldStarCount !== newStarCount) {
-        // Queue learning job asynchronously (don't block the response)
-        this.boss
-          .send(
-            "learn-from-star",
-            { userId, emailId, starCount: newStarCount },
-            {
-              priority: getJobPriority("learn-from-star", false),
-            },
-          )
-          .catch((err) =>
-            this.logger.error("Failed to queue learning job", err),
-          );
-      }
-    }
-    return email;
-  }
-
-  // Backwards compatibility - toggle between 0 and 3 stars
-  async toggleStar(userId: string, emailId: string): Promise<Email> {
-    const email = await this.getEmailById(userId, emailId);
-    if (email && email.threadId) {
-      const thread = await this.emailThreadRepository.findOne({
-        where: { userId, threadId: email.threadId },
-      });
-      const currentStarCount = thread?.starCount ?? 0;
-      const newStarCount = currentStarCount > 0 ? 0 : 3;
-      await this.updateThreadStarCount(userId, email.threadId, newStarCount);
-
-      // Sync star status to Gmail
-      try {
-        const provider =
-          await this.emailProviderManager.getPrimaryProvider(userId);
-        if (provider && "syncStarStatusToGmail" in provider) {
-          await provider.syncStarStatusToGmail(
-            userId,
-            email.threadId,
-            newStarCount,
-          );
-        }
-      } catch (error) {
-        // Log error but don't fail - star status can be fixed by sync job
-        this.logger.error(
-          `Failed to sync star status to Gmail for user ${userId}, thread ${email.threadId}:`,
-          error,
-        );
-      }
-    }
-    return email;
-  }
-
-  async forceCheckNewEmails(userId: string): Promise<Email[]> {
-    // Unbatch ALL pending batched emails for the user, effectively "delivering" them now
-    await this.emailRepository.update(
-      {
-        userId,
-        isBatched: true,
-      },
-      { isBatched: false },
+    return this.emailStarService.setStarCount(
+      userId,
+      emailId,
+      starCount,
+      (userId, emailId) => this.getEmailById(userId, emailId),
+      (userId, threadId, starCount) =>
+        this.updateThreadStarCount(userId, threadId, starCount),
     );
-
-    // Return Triage inbox by default after force check
-    return this.getInbox(userId, true, "triage");
   }
 
+  /**
+   * Toggle star for an email (backwards compatibility - toggle between 0 and 3 stars)
+   * Delegates to EmailStarService
+   */
+  async toggleStar(userId: string, emailId: string): Promise<Email> {
+    return this.emailStarService.toggleStar(
+      userId,
+      emailId,
+      (userId, emailId) => this.getEmailById(userId, emailId),
+      (userId, threadId, starCount) =>
+        this.updateThreadStarCount(userId, threadId, starCount),
+    );
+  }
+
+  /**
+   * Force check for new emails by unbatting all pending batched emails
+   * Delegates to EmailStatusService
+   */
+  async forceCheckNewEmails(userId: string): Promise<Email[]> {
+    return this.emailStatusService.forceCheckNewEmails(
+      userId,
+      (userId, includeBatched, mode) => this.getInbox(userId, includeBatched, mode),
+    );
+  }
+
+  /**
+   * Get the next batch release time for a user
+   * Delegates to EmailStatusService
+   */
   async getNextBatchReleaseTime(userId: string): Promise<Date | null> {
-    const nextBatch = await this.emailRepository.findOne({
-      where: { userId, isBatched: true },
-      order: { batchReleaseAt: "ASC" },
-      select: ["batchReleaseAt"],
-    });
-    return nextBatch?.batchReleaseAt || null;
+    return this.emailStatusService.getNextBatchReleaseTime(userId);
   }
 
+  /**
+   * Check for urgent emails that are currently batched
+   * Delegates to EmailStatusService
+   */
   async checkForUrgentEmails(userId: string): Promise<{
     hasUrgent: boolean;
     urgentCount: number;
@@ -1972,57 +1360,7 @@ export class EmailsService {
       priorityScore: number;
     }>;
   }> {
-    // Get all batched emails that are marked as urgent AND have very high priority score
-    // Require BOTH conditions to be more strict about what counts as urgent
-    // Priority threshold raised to 90+ (was 80+) to reduce false positives
-    // Join with email_threads to check isArchived and get priority (now thread-level)
-    const urgentBatchedEmails = await this.emailRepository
-      .createQueryBuilder("email")
-      .innerJoin("email_threads", "thread", "thread.id = email.emailThreadId")
-      .where("email.userId = :userId", { userId })
-      .andWhere("thread.userId = :userId", { userId })
-      .andWhere("email.isBatched = true")
-      .andWhere("thread.isArchived = false")
-      // Must have high urgency score (90+)
-      .andWhere("thread.urgencyScore >= 90")
-      // AND must have very high priority (90+) - calculated from thread priorityExplanation
-      .andWhere(
-        `COALESCE(
-          (SELECT (jsonb_extract_path_text(thread."priorityExplanation"::jsonb, 'score')::int))
-          , 0
-        ) >= 90`,
-      )
-      .orderBy("email.receivedAt", "DESC")
-      .take(10)
-      .getMany();
-
-    // Get threads for priority scores
-    const emailThreadIds = urgentBatchedEmails
-      .map((e) => e.emailThreadId)
-      .filter((id): id is string => id !== null);
-    const threads = await this.emailThreadRepository.find({
-      where: { id: In(emailThreadIds) },
-    });
-    const threadMap = new Map(threads.map((t) => [t.id, t]));
-
-    return {
-      hasUrgent: urgentBatchedEmails.length > 0,
-      urgentCount: urgentBatchedEmails.length,
-      urgentEmails: urgentBatchedEmails.map((email) => {
-        const thread = email.emailThreadId
-          ? threadMap.get(email.emailThreadId)
-          : null;
-        return {
-          // Will be automatically decrypted by transformer
-          subject: email.subject,
-          // Will be automatically decrypted by transformer
-          from: email.fromName || email.from,
-          priorityScore: this.calculateScoreFromBreakdown(
-            thread?.priorityExplanation || null,
-          ),
-        };
-      }),
-    };
+    return this.emailStatusService.checkForUrgentEmails(userId);
   }
 
   /**
@@ -2586,140 +1924,9 @@ export class EmailsService {
    * Search emails using the email provider's search functionality
    */
   /**
-   * Detect if a query is time-sensitive (questions about meetings, events, etc.)
-   * Time-sensitive queries should penalize older emails more heavily
+   * Search emails using natural language query
+   * Delegates to EmailSearchService
    */
-  private isTimeSensitiveQuery(query: string): boolean {
-    const lowerQuery = query.toLowerCase();
-
-    // Patterns that indicate time-sensitive queries
-    const timeSensitivePatterns = [
-      // Questions about attendance/participation
-      /\b(is|are|will|coming|going|attending|joining|participating)\b/i,
-      // Meeting-related
-      /\b(meeting|appointment|call|conference|event|gathering|session)\b/i,
-      // Time-related questions
-      /\b(when|what time|what day|which day|tomorrow|today|this week|next week)\b/i,
-      // Status questions
-      /\b(status|confirmed|cancel|reschedule|postpone)\b/i,
-      // Questions about future plans
-      /\b(plan|schedule|arrange|organize|set up)\b/i,
-    ];
-
-    // Check if query contains question words AND time-sensitive patterns
-    const hasQuestionWord = /\b(is|are|will|when|what|where|who|how)\b/i.test(
-      lowerQuery,
-    );
-    const hasTimeSensitivePattern = timeSensitivePatterns.some((pattern) =>
-      pattern.test(lowerQuery),
-    );
-
-    // Also check for direct questions (starts with question word or contains "?")
-    const isDirectQuestion =
-      /\b(is|are|will|when|what|where|who|how)\b/i.test(
-        lowerQuery.trim().split(/\s+/)[0],
-      ) || lowerQuery.includes("?");
-
-    return (
-      (hasQuestionWord && hasTimeSensitivePattern) ||
-      (isDirectQuestion && hasTimeSensitivePattern)
-    );
-  }
-
-  /**
-   * Convert natural language query to Gmail search syntax using AI
-   */
-  private async convertQueryToGmailSearch(
-    userId: string,
-    query: string,
-  ): Promise<string> {
-    // Check if query already looks like Gmail syntax (contains operators like from:, to:, subject:, etc.)
-    const gmailOperators = [
-      "from:",
-      "to:",
-      "subject:",
-      "has:",
-      "before:",
-      "after:",
-      "is:",
-      "in:",
-      "label:",
-      "-",
-    ];
-    const hasGmailSyntax = gmailOperators.some((op) =>
-      query.toLowerCase().includes(op),
-    );
-
-    if (hasGmailSyntax) {
-      // User already provided Gmail syntax, use as-is
-      return query;
-    }
-
-    // Use AI to convert natural language to Gmail search syntax
-    const conversionPrompt = `Convert this natural language email search query into Gmail search syntax.
-
-User's query: "${query}"
-
-Gmail search syntax examples:
-- "emails from John" → "from:john"
-- "Is Jay coming to the meeting?" → "from:jay OR jay"
-- "meeting confirmations" → "subject:meeting OR subject:confirm"
-- "emails about project X" → "project X"
-- "attachments from last week" → "has:attachment after:2024/1/1"
-
-CRITICAL RULES:
-1. If the query mentions a person's name (like "Jay", "John", "Sarah"), prioritize searching FROM that person: "from:jay" or "from:john"
-2. Names should be searched in the from: field FIRST, then as a general term
-3. For questions about people (e.g., "Is Jay coming?"), search for the person's name in from: field
-4. Don't add unrelated terms - if query is about "Jay", don't add "meeting" unless the query explicitly asks about meetings with Jay
-5. Keep it focused - only include terms directly mentioned in the query
-6. Return ONLY the Gmail search query, nothing else
-
-Gmail search query:`;
-
-    try {
-      const gmailQuery = await this.llmService.generateText(
-        {
-          prompt: conversionPrompt,
-          systemPrompt:
-            "You are a helpful assistant that converts natural language to Gmail search syntax. Return only the search query.",
-          temperature: 0.2,
-          maxTokens: 100,
-          userId,
-        },
-        undefined,
-        userId,
-      );
-
-      // Clean up the response (remove quotes, extra text, etc.)
-      const cleaned = gmailQuery
-        .trim()
-        // Remove surrounding quotes
-        .replace(/^["']|["']$/g, "")
-        // Remove prefix
-        .replace(/^Gmail search query:?\s*/i, "")
-        .trim();
-
-      this.logger.debug(
-        `Converted query "${query}" to Gmail syntax: "${cleaned}"`,
-      );
-      // Fallback to original if conversion fails
-      return cleaned || query;
-    } catch (error) {
-      this.logger.warn(
-        "Failed to convert query to Gmail syntax, using original",
-        error,
-      );
-      // Fallback: extract key terms from the query
-      const words = query
-        .toLowerCase()
-        .split(/\s+/)
-        .filter((w) => w.length > 2);
-      return words.join(" OR ");
-    }
-  }
-
-  // eslint-disable-next-line max-lines-per-function, complexity, max-statements
   async searchEmails(
     userId: string,
     query: string,
@@ -2734,956 +1941,21 @@ Gmail search query:`;
       }
     >
   > {
-    const originalQuery = query;
-    const queriesTried: Array<{ query: string; resultCount: number }> = [];
-    const searchStartTime = Date.now();
-
-    // Log search start
-    searchLogger.logSearchStart(userId, originalQuery);
-
-    try {
-      // Use the injected EmailProviderManager
-      const provider =
-        await this.emailProviderManager.getPrimaryProvider(userId);
-      if (!provider) {
-        this.logger.warn(`No email provider connected for user ${userId}`);
-        searchLogger.logSearchError(
-          userId,
-          originalQuery,
-          "No email provider connected",
-        );
-        return [
-          {
-            id: "no-results",
-            subject: "",
-            from: "",
-            body: "",
-            receivedAt: new Date().toISOString(),
-            debugInfo: {
-              originalQuery,
-              queriesTried: [],
-              message: "No email provider connected",
-            },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any,
-        ];
-      }
-
-      // Step 1: Generate query variations and try them in order
-      onProgress?.("converting", "Crafting search query for Gmail...");
-
-      // Generate natural language variations first
-      const naturalVariations = [query]; // Simple implementation: use query as-is
-      this.logger.log(
-        `[SEARCH] Generated ${naturalVariations.length} variations: ${naturalVariations.join(", ")}`,
-      );
-      searchLogger.logQueryVariations(userId, originalQuery, naturalVariations);
-
-      // Convert each variation to Gmail syntax
-      const gmailQueries: string[] = [];
-      for (const naturalVar of naturalVariations) {
-        try {
-          const gmailQuery = await this.convertQueryToGmailSearch(
-            userId,
-            naturalVar,
-          );
-          if (gmailQuery && !gmailQueries.includes(gmailQuery)) {
-            gmailQueries.push(gmailQuery);
-          }
-        } catch (error) {
-          this.logger.warn(
-            `Failed to convert variation "${naturalVar}"`,
-            error,
-          );
-        }
-      }
-
-      // If no variations were generated, use the original conversion
-      if (gmailQueries.length === 0) {
-        const gmailQuery = await this.convertQueryToGmailSearch(userId, query);
-        gmailQueries.push(gmailQuery);
-      }
-
-      this.logger.log(
-        `[SEARCH] Will try ${gmailQueries.length} Gmail queries: ${gmailQueries.join(", ")}`,
-      );
-      searchLogger.logGmailQueries(userId, originalQuery, gmailQueries);
-
-      // Step 2: Try each query variation until we get results
-      onProgress?.("searching", "Searching for emails in Gmail...");
-      const initialMaxResults = QUERY_LIMITS.MAX_SENT_EMAILS_FOR_STYLE;
-      let rawEmails: Array<{
-        receivedAt: Date;
-        from?: string;
-        fromName?: string;
-        subject?: string;
-        [key: string]: unknown;
-      }> = [];
-      let successfulQuery: string | null = null;
-
-      for (let i = 0; i < gmailQueries.length; i++) {
-        const gmailQuery = gmailQueries[i];
-        this.logger.log(
-          `[SEARCH] Trying query ${i + 1}/${gmailQueries.length}: "${gmailQuery}"`,
-        );
-        searchLogger.logGmailQueryAttempt(
-          userId,
-          originalQuery,
-          gmailQuery,
-          i + 1,
-          gmailQueries.length,
-        );
-
-        try {
-          const queryStartTime = Date.now();
-          const results = await provider.searchEmails(
-            userId,
-            gmailQuery,
-            initialMaxResults,
-          );
-          const queryDuration = Date.now() - queryStartTime;
-          searchLogger.logPerformance(
-            userId,
-            originalQuery,
-            `Gmail query "${gmailQuery}"`,
-            queryDuration,
-          );
-
-          queriesTried.push({ query: gmailQuery, resultCount: results.length });
-          this.logger.log(
-            `[SEARCH] Query "${gmailQuery}" returned ${results.length} results`,
-          );
-          searchLogger.logGmailQueryResult(
-            userId,
-            originalQuery,
-            gmailQuery,
-            results.length,
-          );
-
-          if (results.length > 0) {
-            rawEmails = results as unknown as Array<{
-              receivedAt: Date;
-              from?: string;
-              fromName?: string;
-              subject?: string;
-              [key: string]: unknown;
-            }>;
-            successfulQuery = gmailQuery;
-            // Stop trying once we get results
-            break;
-          }
-        } catch (error) {
-          this.logger.warn(`Query "${gmailQuery}" failed:`, error);
-          searchLogger.logGmailQueryError(
-            userId,
-            originalQuery,
-            gmailQuery,
-            error,
-          );
-          queriesTried.push({ query: gmailQuery, resultCount: 0 });
-        }
-      }
-
-      if (rawEmails.length === 0) {
-        onProgress?.("complete", "No emails found");
-        // Log for debugging - ALWAYS log queriesTried
-        this.logger.log(
-          `[SEARCH] No results found for query "${originalQuery}". Queries tried: ${queriesTried.length}`,
-        );
-        searchLogger.logNoResults(userId, originalQuery, queriesTried);
-        const totalTime = Date.now() - searchStartTime;
-        searchLogger.logSearchComplete(userId, originalQuery, 0, totalTime);
-
-        // Return a special marker object with queriesTried info for the UI
-        return [
-          {
-            id: "no-results",
-            subject: "",
-            from: "",
-            body: "",
-            receivedAt: new Date().toISOString(),
-            debugInfo: {
-              originalQuery,
-              // Always include, even if empty
-              queriesTried,
-              message:
-                queriesTried.length === 0
-                  ? "No queries were attempted - check server logs for errors"
-                  : "No emails found with any of the attempted queries",
-            },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any,
-        ];
-      }
-
-      // Deduplicate by threadId immediately - keep only the most recent email per thread
-      // This ensures we only score and process one email per thread
-      const threadDedupMap = new Map<string, (typeof rawEmails)[0]>();
-      rawEmails.forEach((email) => {
-        const { threadId } = email as { threadId?: string };
-        if (!threadId) {
-          // If no threadId, keep the email (shouldn't happen, but handle it)
-          const { messageId } = email as { messageId?: string };
-          threadDedupMap.set(
-            (messageId as string) || `no-thread-${Math.random()}`,
-            email,
-          );
-          return;
-        }
-        const existing = threadDedupMap.get(threadId);
-        if (!existing) {
-          threadDedupMap.set(threadId, email);
-        } else {
-          // Keep the more recent email
-          const existingDate = new Date(existing.receivedAt);
-          const currentDate = new Date(email.receivedAt);
-          if (currentDate > existingDate) {
-            threadDedupMap.set(threadId, email);
-          }
-        }
-      });
-      const beforeDedupCount = rawEmails.length;
-      rawEmails = Array.from(threadDedupMap.values());
-      this.logger.debug(
-        `After initial thread deduplication: ${rawEmails.length} unique threads from ${threadDedupMap.size} emails`,
-      );
-      searchLogger.logThreadDeduplication(
-        userId,
-        originalQuery,
-        beforeDedupCount,
-        rawEmails.length,
-      );
-
-      // Step 3: Filter and rank with AI
-      onProgress?.(
-        "filtering",
-        `Filtering ${rawEmails.length} emails with AI...`,
-      );
-
-      // Score ALL raw emails first (for debug info)
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const now = new Date();
-      // Find the most recent email to calculate daysSinceLastEmail
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const mostRecentDate = Math.max(
-        ...rawEmails.map((email) => new Date(email.receivedAt).getTime()),
-      );
-      const daysSinceLastEmail = Math.floor(
-        (now.getTime() - mostRecentDate) / (1000 * 60 * 60 * 24),
-      );
-
-      const emailSummaries = rawEmails.map((email, index) => {
-        const receivedDate = new Date(email.receivedAt);
-        const daysAgo = Math.floor(
-          (now.getTime() - receivedDate.getTime()) / (1000 * 60 * 60 * 24),
-        );
-        return {
-          index,
-          from: email.fromName || email.from,
-          subject: email.subject,
-          snippet: ((email as { body?: string }).body?.substring(
-            0,
-            QUERY_LIMITS.SUBSTRING_SNIPPET_LENGTH,
-          ) || "") as string,
-          receivedAt: email.receivedAt,
-          daysAgo,
-          isRecent: daysAgo <= DAYS.WEEK,
-        };
-      });
-
-      // Use AI to filter and rank results if we have multiple results
-      let filteredEmails = rawEmails;
-      // Track scores for all emails (for debug)
-      const allScores: Map<number, number> = new Map();
-
-      // Always score emails, even if we don't need to filter
-      if (rawEmails.length > 0) {
-        try {
-          searchLogger.logAIScoringStart(
-            userId,
-            originalQuery,
-            rawEmails.length,
-          );
-          const aiScoringStartTime = Date.now();
-
-          // Detect if query is time-sensitive
-          const isTimeSensitive = this.isTimeSensitiveQuery(originalQuery);
-
-          // Adjust recency penalties based on time-sensitivity
-          // For time-sensitive queries (e.g., "Is Jay coming to the meeting?"),
-          // older emails are much less relevant
-          const recencyToday = PRIORITY_BOOSTS.RECENCY_TODAY;
-          const recency24H = PRIORITY_BOOSTS.RECENCY_24H;
-          const recency7D = PRIORITY_BOOSTS.RECENCY_7D;
-          const recency30D = PRIORITY_BOOSTS.RECENCY_30D;
-          // Stronger penalties for old emails in time-sensitive queries
-          const recency30DPenalty = isTimeSensitive
-            ? PRIORITY_BOOSTS.RECENCY_30D_PENALTY * 1.5 // 50% stronger penalty
-            : PRIORITY_BOOSTS.RECENCY_30D_PENALTY;
-          const recency60DPenalty = isTimeSensitive
-            ? PRIORITY_BOOSTS.RECENCY_60D_PENALTY * 1.5 // 50% stronger penalty
-            : PRIORITY_BOOSTS.RECENCY_60D_PENALTY;
-
-          const timeSensitivityNote = isTimeSensitive
-            ? "\n\n⚠️ TIME-SENSITIVE QUERY DETECTED: This query appears to be about a meeting, event, or time-sensitive question. OLDER emails should be penalized MORE HEAVILY as they are likely about past events, not the current question. Emails older than 30 days should receive significantly lower scores unless they are extremely relevant."
-            : "";
-
-          // Use AI to rank ALL emails by relevance to the ORIGINAL query (prioritizing newer emails) with scores
-          const rankingPrompt = `You are an email search assistant. Rank these ${emailSummaries.length} emails by relevance to the search query: "${originalQuery}"
-
-IMPORTANT CONTEXT:
-- The most recent email in this set was received ${daysSinceLastEmail} days ago (daysSinceLastEmail: ${daysSinceLastEmail})
-- Prioritize RECENT emails heavily - if two emails are equally relevant, the more recent one should rank much higher${timeSensitivityNote}
-
-CRITICAL RELEVANCE RULES:
-1. If the query asks about a specific person (e.g., "Is Jay coming?"), emails MUST be from that person or mention them prominently to be relevant
-2. Emails that don't mention the person at all should get a score of 0-20 (not relevant)
-3. Emails from automated services (like "Fireflies.ai", "noreply", etc.) that don't mention the person should get very low scores (0-15)
-4. Only emails that directly relate to the query should score above ${PRIORITY_SCORES.MEDIUM_THRESHOLD}
-
-CRITICAL RECENCY RULES (apply these bonuses/penalties):
-- Emails from TODAY (0 days ago) should get a +${recencyToday} bonus (STRONG priority for today's emails)
-- Emails from the last 24 hours (0-1 days ago) should get a +${recency24H} bonus
-- Emails from the last ${DAYS.WEEK} days should get a +${recency7D} bonus
-- Emails from ${DAYS.WEEK + 1}-${DAYS.MONTH} days ago should get a +${recency30D} bonus
-- Emails older than ${DAYS.MONTH} days should get a ${recency30DPenalty} penalty (${isTimeSensitive ? "VERY STRONG" : "STRONG"} penalty for old emails${isTimeSensitive ? " - time-sensitive query" : ""})
-- Emails older than 60 days should get a ${recency60DPenalty} penalty (${isTimeSensitive ? "EXTREMELY STRONG" : "VERY STRONG"} penalty${isTimeSensitive ? " - time-sensitive query" : ""})
-
-RELEVANCE SCORING (base score before recency adjustment):
-- 100 = Perfect match, directly answers the question (e.g., email from Jay about the meeting)
-- 80-99 = Very relevant, strong connection to query
-- 60-79 = Moderately relevant, some connection
-- 40-59 = Somewhat relevant, weak connection
-- 20-39 = Barely relevant, minimal connection
-- 0-19 = Not relevant at all (e.g., automated emails that don't mention the person)
-
-Then apply the recency bonus/penalty above. Final score = base score + recency adjustment (capped at 0-100).
-
-STRICT FILTERING: Only include emails with final score >= ${PRIORITY_BOOSTS.RELEVANCE_THRESHOLD} in the top results. Emails scoring below ${PRIORITY_BOOSTS.RELEVANCE_THRESHOLD} should be excluded even if they're recent.
-
-Return a JSON array of objects with index and relevanceScore for ALL ${emailSummaries.length} emails, sorted by relevanceScore (highest first).
-
-Format: [{"index": 2, "relevanceScore": 95}, {"index": 5, "relevanceScore": 87}, ...]
-
-Emails:
-${emailSummaries
-  .map((e, index) => {
-    let recencyLabel = "";
-    if (e.daysAgo === 0) {
-      recencyLabel = " (TODAY!)";
-    } else if (e.daysAgo <= 1) {
-      recencyLabel = " (LAST 24 HOURS!)";
-    } else if (e.isRecent) {
-      recencyLabel = " (RECENT)";
-    }
-    return `${index}. From: ${e.from}, Subject: ${e.subject}, Received: ${e.daysAgo} days ago${recencyLabel}, Preview: ${e.snippet.substring(0, QUERY_LIMITS.SUBSTRING_PREVIEW_LONG)}...`;
-  })
-  .join("\n")}
-
-Return ONLY a JSON array of objects.`;
-
-          const rankingResponse = await this.llmService.generateText(
-            {
-              prompt: rankingPrompt,
-              systemPrompt:
-                "You are a helpful email search assistant. Return only valid JSON arrays.",
-              temperature: QUERY_LIMITS.LLM_TEMPERATURE,
-              maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS,
-              userId,
-            },
-            undefined,
-            userId,
-          );
-
-          // Parse ranking with scores
-          try {
-            const jsonMatch = rankingResponse.match(/\[[\s\S]*\]/);
-            if (jsonMatch) {
-              const rankedResults = JSON.parse(jsonMatch[0]);
-              if (Array.isArray(rankedResults) && rankedResults.length > 0) {
-                // Create map of index to relevance score for ALL emails
-                rankedResults.forEach((item: RankedResult) => {
-                  if (
-                    item.index !== undefined &&
-                    item.relevanceScore !== undefined
-                  ) {
-                    allScores.set(item.index, item.relevanceScore);
-                    // Log individual email score if we have the email data
-                    const email = rawEmails[item.index];
-                    if (email) {
-                      const receivedDate = new Date(email.receivedAt);
-                      const daysAgo = Math.floor(
-                        (now.getTime() - receivedDate.getTime()) /
-                          (1000 * 60 * 60 * 24),
-                      );
-                      // Calculate recency adjustment (simplified - actual calculation is in the prompt)
-                      // Apply stronger penalties for time-sensitive queries
-                      const isTimeSensitive =
-                        this.isTimeSensitiveQuery(originalQuery);
-                      let recencyAdj = 0;
-                      if (daysAgo === 0)
-                        recencyAdj = PRIORITY_BOOSTS.RECENCY_TODAY;
-                      else if (daysAgo <= 1)
-                        recencyAdj = PRIORITY_BOOSTS.RECENCY_24H;
-                      else if (daysAgo <= DAYS.WEEK)
-                        recencyAdj = PRIORITY_BOOSTS.RECENCY_7D;
-                      else if (daysAgo <= DAYS.MONTH)
-                        recencyAdj = PRIORITY_BOOSTS.RECENCY_30D;
-                      else if (daysAgo > 60)
-                        recencyAdj = isTimeSensitive
-                          ? PRIORITY_BOOSTS.RECENCY_60D_PENALTY * 1.5
-                          : PRIORITY_BOOSTS.RECENCY_60D_PENALTY;
-                      else
-                        recencyAdj = isTimeSensitive
-                          ? PRIORITY_BOOSTS.RECENCY_30D_PENALTY * 1.5
-                          : PRIORITY_BOOSTS.RECENCY_30D_PENALTY;
-
-                      const baseScore = item.relevanceScore - recencyAdj;
-                      const included =
-                        item.relevanceScore >=
-                        PRIORITY_BOOSTS.RELEVANCE_THRESHOLD;
-                      searchLogger.logEmailScore(
-                        userId,
-                        originalQuery,
-                        item.index,
-                        email.fromName || email.from,
-                        email.subject || "",
-                        Math.max(0, Math.min(100, baseScore)),
-                        recencyAdj,
-                        item.relevanceScore,
-                        included,
-                        included
-                          ? undefined
-                          : `Score below threshold (${PRIORITY_BOOSTS.RELEVANCE_THRESHOLD})`,
-                      );
-                    }
-                  }
-                });
-
-                // Sort by relevance score (descending) and filter out low-scoring emails
-                const sorted = rankedResults
-                  // Only include emails with score >= threshold
-                  .filter(
-                    (item: RankedResult) =>
-                      (item.relevanceScore || 0) >=
-                      PRIORITY_BOOSTS.RELEVANCE_THRESHOLD,
-                  )
-                  .sort(
-                    (a: RankedResult, b: RankedResult) =>
-                      (b.relevanceScore || 0) - (a.relevanceScore || 0),
-                  )
-                  .slice(0, maxResults);
-
-                // Get emails in ranked order with scores
-                const scoredEmails = sorted
-                  .map((item: RankedResult) => {
-                    const email = rawEmails[item.index];
-                    if (email) {
-                      (email as { relevanceScore?: number }).relevanceScore =
-                        item.relevanceScore;
-                    }
-                    return email;
-                  })
-                  .filter(Boolean);
-
-                // Deduplicate by threadId - keep only the highest-scoring email per thread
-                const threadMap = new Map<
-                  string,
-                  (typeof rawEmails)[0] & { relevanceScore: number }
-                >();
-                scoredEmails.forEach((email) => {
-                  const emailTyped = email as unknown as EmailWithMetadata;
-                  const { threadId } = emailTyped;
-                  if (!threadId) {
-                    // If no threadId, use messageId as fallback (treat as unique)
-                    const messageId =
-                      (emailTyped.messageId as string) || undefined;
-                    this.logger.warn(
-                      `Email ${messageId?.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)} has no threadId, using messageId for deduplication`,
-                    );
-                    threadMap.set(
-                      messageId || `no-thread-${Math.random()}`,
-                      emailTyped as any,
-                    );
-                    return;
-                  }
-                  const existing = threadMap.get(threadId);
-                  if (
-                    !existing ||
-                    (emailTyped.relevanceScore || 0) >
-                      (existing.relevanceScore || 0)
-                  ) {
-                    threadMap.set(threadId, emailTyped as any);
-                  }
-                });
-
-                // Convert back to array and limit to maxResults
-                filteredEmails = Array.from(threadMap.values())
-                  .sort(
-                    (a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0),
-                  )
-                  .slice(0, maxResults);
-
-                this.logger.debug(
-                  `After thread deduplication: ${filteredEmails.length} unique threads from ${scoredEmails.length} emails`,
-                );
-
-                this.logger.debug(
-                  `AI ranking complete: ${filteredEmails.length} emails with scores. Top score: ${filteredEmails[0] ? ((filteredEmails[0] as unknown as EmailWithMetadata).relevanceScore ?? "N/A") : "N/A"}`,
-                );
-                const aiScoringDuration = Date.now() - aiScoringStartTime;
-                searchLogger.logPerformance(
-                  userId,
-                  originalQuery,
-                  "AI scoring",
-                  aiScoringDuration,
-                );
-                const rejectedCount = rawEmails.length - filteredEmails.length;
-                searchLogger.logAIScoringComplete(
-                  userId,
-                  originalQuery,
-                  rawEmails.length,
-                  filteredEmails.length,
-                  rejectedCount,
-                );
-              }
-            }
-          } catch (parseError) {
-            this.logger.warn(
-              "Failed to parse AI ranking, using first results",
-              parseError,
-            );
-            searchLogger.logAIScoringError(userId, originalQuery, parseError);
-            // Deduplicate by thread even in fallback case
-            const threadMap = new Map<string, (typeof rawEmails)[0]>();
-            rawEmails.slice(0, maxResults * 2).forEach((email) => {
-              const emailTyped = email as {
-                threadId?: string;
-                messageId?: string;
-              };
-              const { threadId } = emailTyped;
-              if (!threadId) {
-                // If no threadId, use messageId as fallback
-                threadMap.set(
-                  (emailTyped.messageId as string) ||
-                    `no-thread-${Math.random()}`,
-                  email,
-                );
-                return;
-              }
-              if (!threadMap.has(threadId)) {
-                threadMap.set(threadId, email);
-              }
-            });
-            filteredEmails = Array.from(threadMap.values()).slice(
-              0,
-              maxResults,
-            );
-            this.logger.debug(
-              `Fallback deduplication: ${filteredEmails.length} unique threads from ${rawEmails.length} emails`,
-            );
-          }
-        } catch (error) {
-          // If AI filtering fails, just take first maxResults and deduplicate by thread
-          this.logger.warn("AI filtering failed, using first results", error);
-          const threadMap = new Map<string, (typeof rawEmails)[0]>();
-          rawEmails.slice(0, maxResults * 2).forEach((email) => {
-            const emailTyped = email as {
-              threadId?: string;
-              messageId?: string;
-            };
-            const { threadId } = emailTyped;
-            if (!threadId) {
-              // If no threadId, use messageId as fallback
-              threadMap.set(
-                (emailTyped.messageId as string) ||
-                  `no-thread-${Math.random()}`,
-                email,
-              );
-              return;
-            }
-            if (!threadMap.has(threadId)) {
-              threadMap.set(threadId, email);
-            }
-          });
-          filteredEmails = Array.from(threadMap.values()).slice(0, maxResults);
-          this.logger.debug(
-            `Error fallback deduplication: ${filteredEmails.length} unique threads from ${rawEmails.length} emails`,
-          );
-        }
-      }
-
-      // Step 4: Generate AI-powered explanations that explain WHY the email is relevant
-      onProgress?.("explaining", `Generating explanations...`);
-
-      // #region agent log
-      try {
-        // fs is already imported at the top
-        const logPath =
-          "/Users/s3255727/Documents/dev/email-client/.cursor/debug.log";
-        const logEntry = `${JSON.stringify({
-          location: "emails.service.ts:1770",
-          message: "Starting AI explanation generation",
-          logData: {
-            filteredEmailsCount: filteredEmails.length,
-            originalQuery,
-          },
-          timestamp: Date.now(),
-          sessionId: "debug-session",
-          runId: "run1",
-          hypothesisId: "E",
-        })}\n`;
-        fs.appendFileSync(logPath, logEntry);
-      } catch (e) {}
-      // #endregion
-
-      // Generate AI explanations in parallel for all filtered emails
-      const emailsWithExplanations = await Promise.all(
-        // eslint-disable-next-line max-lines-per-function
-        filteredEmails.map(async (rawEmail) => {
-          try {
-            const from = rawEmail.fromName || rawEmail.from;
-            const subject = rawEmail.subject || "";
-            // Use first 500 chars for context
-            const bodyPreview = ((rawEmail.body as string) || "").substring(
-              0,
-              QUERY_LIMITS.SUBSTRING_BODY_PREVIEW,
-            );
-
-            // Generate explanation using AI
-            const explanationPrompt = `The user searched for: "${originalQuery}"
-
-Email details:
-- From: ${from}
-- Subject: ${subject}
-- Preview: ${bodyPreview}
-
-Explain in ONE SHORT SENTENCE (max 100 characters) why this email is relevant to the search query. Be specific about what connection you see. Examples:
-- "Jeremy asked Jay if he's coming to the meeting"
-- "Email from Sarah confirming the project deadline"
-- "Meeting invitation that matches the search query"
-
-Explanation:`;
-
-            const explanation = await this.llmService.generateText(
-              {
-                prompt: explanationPrompt,
-                systemPrompt:
-                  "You are a helpful email search assistant. Provide concise, specific explanations of why emails are relevant to search queries.",
-                temperature: QUERY_LIMITS.LLM_TEMPERATURE,
-                maxTokens: QUERY_LIMITS.SUBSTRING_EXPLANATION_MAX,
-                userId,
-              },
-              undefined,
-              userId,
-            );
-
-            // #region agent log
-            try {
-              // fs is already imported at the top
-              const logPath =
-                "/Users/s3255727/Documents/dev/email-client/.cursor/debug.log";
-              const logEntry = `${JSON.stringify({
-                location: "emails.service.ts:1785",
-                message: "AI explanation generated",
-                logData: {
-                  emailId: (rawEmail.messageId as string)?.substring(
-                    0,
-                    QUERY_LIMITS.THREAD_ID_SHORT,
-                  ),
-                  originalQuery,
-                  explanationLength: explanation?.length,
-                  explanationPreview: explanation?.substring(
-                    0,
-                    QUERY_LIMITS.SUBSTRING_PREVIEW_LENGTH,
-                  ),
-                },
-                timestamp: Date.now(),
-                sessionId: "debug-session",
-                runId: "run1",
-                hypothesisId: "E",
-              })}\n`;
-              fs.appendFileSync(logPath, logEntry);
-            } catch (e) {}
-            // #endregion
-
-            // Clean up the explanation (remove quotes, trim, ensure it's not too long)
-            let cleanedExplanation = explanation.trim();
-            // Remove surrounding quotes if present
-            if (
-              (cleanedExplanation.startsWith('"') &&
-                cleanedExplanation.endsWith('"')) ||
-              (cleanedExplanation.startsWith("'") &&
-                cleanedExplanation.endsWith("'"))
-            ) {
-              cleanedExplanation = cleanedExplanation.slice(1, -1);
-            }
-            // Limit to 100 characters
-            if (
-              cleanedExplanation.length > QUERY_LIMITS.SUBSTRING_EXPLANATION_MAX
-            ) {
-              cleanedExplanation = `${cleanedExplanation.substring(0, QUERY_LIMITS.SUBSTRING_EXPLANATION_TRUNCATE)}...`;
-            }
-
-            // #region agent log
-            try {
-              // fs is already imported at the top
-              const logPath =
-                "/Users/s3255727/Documents/dev/email-client/.cursor/debug.log";
-              const logEntry = `${JSON.stringify({
-                location: "emails.service.ts:1805",
-                message: "Explanation cleaned and finalized",
-                logData: {
-                  emailId: (rawEmail.messageId as string)?.substring(
-                    0,
-                    QUERY_LIMITS.THREAD_ID_SHORT,
-                  ),
-                  finalExplanation:
-                    cleanedExplanation || `Relevant to "${originalQuery}"`,
-                },
-                timestamp: Date.now(),
-                sessionId: "debug-session",
-                runId: "run1",
-                hypothesisId: "E",
-              })}\n`;
-              fs.appendFileSync(logPath, logEntry);
-            } catch (e) {}
-            // #endregion
-
-            return {
-              rawEmail,
-              explanation:
-                cleanedExplanation || `Relevant to "${originalQuery}"`,
-            };
-          } catch (error) {
-            // Fallback to simple explanation if AI generation fails
-            this.logger.warn(
-              `Failed to generate AI explanation for email ${rawEmail.messageId}:`,
-              error,
-            );
-            // #region agent log
-            try {
-              // fs is already imported at the top
-              const logPath =
-                "/Users/s3255727/Documents/dev/email-client/.cursor/debug.log";
-              const logEntry = `${JSON.stringify({
-                location: "emails.service.ts:1815",
-                message: "AI explanation generation failed, using fallback",
-                logData: {
-                  emailId: (rawEmail.messageId as string)?.substring(
-                    0,
-                    QUERY_LIMITS.THREAD_ID_SHORT,
-                  ),
-                  error: error?.message,
-                },
-                timestamp: Date.now(),
-                sessionId: "debug-session",
-                runId: "run1",
-                hypothesisId: "E",
-              })}\n`;
-              fs.appendFileSync(logPath, logEntry);
-            } catch (e) {}
-            // #endregion
-            const from = rawEmail.fromName || rawEmail.from;
-            const subject = rawEmail.subject || "";
-            return {
-              rawEmail,
-              explanation: `From ${from}${subject ? `: ${subject.substring(0, QUERY_LIMITS.SUBSTRING_PREVIEW_LENGTH)}` : ""}`,
-            };
-          }
-        }),
-      );
-
-      // Step 5: Save emails to database
-      onProgress?.("saving", "Saving emails to database...");
-
-      // Convert raw emails to database entities and save/fetch them
-      // Process in parallel for better performance
-      const emailPromises = emailsWithExplanations.map(
-        async ({ rawEmail, explanation }) => {
-          // Check if email already exists in DB
-          let email = await this.getEmailByMessageId(
-            userId,
-            rawEmail.messageId as string,
-          );
-
-          if (!email) {
-            // Check if thread is archived by checking Gmail labels
-            const labelIds = (rawEmail.labelIds as string[]) || [];
-            const isArchived = !labelIds.includes(GMAIL_LABELS.INBOX);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const starCount = (rawEmail as any).starCount || 0;
-
-            // Get or create thread with correct archived status
-            const thread = await this.getOrCreateEmailThread(
-              userId,
-              rawEmail.threadId as string,
-              starCount,
-              isArchived,
-            );
-
-            email = this.emailRepository.create({
-              userId,
-              messageId: rawEmail.messageId as string,
-              threadId: rawEmail.threadId as string,
-              emailThreadId: thread.id,
-              subject: rawEmail.subject as string,
-              from: rawEmail.from as string,
-              fromName: rawEmail.fromName as string | undefined,
-              body: rawEmail.body as string,
-              htmlBody: rawEmail.htmlBody as string | undefined,
-              receivedAt: rawEmail.receivedAt,
-              // Priority score will be calculated from breakdown
-              isRead: (rawEmail.isRead as boolean) || false,
-              isBatched: false,
-              labels: (rawEmail.labelIds as string[]) || [],
-            } as Partial<Email>);
-            email = await this.emailRepository.save(email);
-          } else {
-            // Update thread archived status if email exists (defer to batch update)
-            // We'll batch these updates at the end for better performance
-          }
-
-          // Add explanation and relevance score to email object (not stored in DB, just for this search result)
-          const emailWithMetadata = email as EmailWithMetadata;
-          // Always include explanation - use generated one or create a simple one
-          emailWithMetadata.searchExplanation =
-            explanation || `Relevant to "${originalQuery}"`;
-          emailWithMetadata.relevanceScore =
-            (rawEmail as unknown as EmailWithMetadata).relevanceScore ??
-            undefined;
-          const isArchived = !((rawEmail.labelIds as string[]) || []).includes(
-            GMAIL_LABELS.INBOX,
-          );
-          if (email.emailThreadId && isArchived) {
-            emailWithMetadata._needsThreadUpdate = {
-              threadId: email.threadId,
-              isArchived: true,
-            };
-          }
-
-          return emailWithMetadata;
-        },
-      );
-
-      const emails = await Promise.all(emailPromises);
-
-      // Batch update thread archived statuses (more efficient than individual updates)
-      const threadUpdates = emails
-        .filter((e) => e._needsThreadUpdate)
-        .map((e) => {
-          const update = e._needsThreadUpdate;
-          // Clean up temporary property
-          delete e._needsThreadUpdate;
-          return update;
-        });
-
-      // Use batch update for better performance
-      if (threadUpdates.length > 0) {
-        this.batchUpdateThreadArchivedStatuses(userId, threadUpdates).catch(
-          (err) => {
-            this.logger.warn("Failed to batch update thread statuses:", err);
-          },
-        );
-      }
-
-      // Build debug info with all raw emails and their scores
-      const debugInfo = {
-        originalQuery,
-        gmailQuery: successfulQuery || gmailQueries[0] || query,
-        queriesTried,
-        totalRawEmails: rawEmails.length,
-        maxResultsRequested: maxResults,
-        filteredCount: filteredEmails.length,
-        allRawEmails: rawEmails.map((rawEmail, index) => {
-          const receivedDate = new Date(rawEmail.receivedAt);
-          const daysAgo = Math.floor(
-            (now.getTime() - receivedDate.getTime()) / (1000 * 60 * 60 * 24),
-          );
-          return {
-            index,
-            from: rawEmail.fromName || rawEmail.from,
-            subject: rawEmail.subject,
-            receivedAt: rawEmail.receivedAt,
-            daysAgo,
-            aiScore: allScores.get(index) ?? null,
-            includedInResults: filteredEmails.includes(rawEmail),
-          };
-        }),
-      };
-
-      // Sort results by relevance score (highest first) before returning
-      emails.sort((a, b) => {
-        const scoreA = (a as EmailWithMetadata).relevanceScore ?? 0;
-        const scoreB = (b as EmailWithMetadata).relevanceScore ?? 0;
-        // Descending order
-        return scoreB - scoreA;
-      });
-
-      // Return emails with metadata (explanations and relevance scores)
-      // Convert to plain objects to ensure custom properties are serialized
-      const result = emails.map((email) => {
-        const emailTyped = email as EmailWithMetadata;
-        const plain: EmailWithMetadata = {
-          ...emailTyped,
-          getPriorityScore:
-            emailTyped.getPriorityScore?.bind(emailTyped) || (() => 0),
-        };
-        // Explicitly include searchExplanation, relevanceScore, and debugInfo
-        // Use Object.assign to ensure properties are copied
-        const emailWithMeta = email as EmailWithMetadata;
-        plain.searchExplanation = emailWithMeta.searchExplanation;
-        plain.relevanceScore = emailWithMeta.relevanceScore;
-        // Add debug info to first email only (to avoid bloating response)
-        if (emails.indexOf(email) === 0) {
-          plain.debugInfo = debugInfo;
-        }
-        return plain;
-      });
-
-      this.logger.debug(
-        `Search returning ${result.length} emails, sorted by relevance. First email has explanation: ${!!result[0]?.searchExplanation}, relevanceScore: ${result[0]?.relevanceScore}`,
-      );
-
-      onProgress?.("complete", `Found ${result.length} emails`);
-
-      return result as Array<
-        Email & {
-          searchExplanation?: string;
-          relevanceScore?: number;
-          debugInfo?: Record<string, unknown>;
-        }
-      >;
-    } catch (error) {
-      this.logger.error(
-        `Error in searchEmails for query "${originalQuery}":`,
-        error,
-      );
-      // Always return no-results marker with queriesTried, even on error
-      return [
-        {
-          id: "no-results",
-          subject: "",
-          from: "",
-          body: "",
-          receivedAt: new Date().toISOString(),
-          debugInfo: {
-            originalQuery,
-            queriesTried: queriesTried.length > 0 ? queriesTried : [],
-            message: `Error occurred: ${error instanceof Error ? error.message : "Unknown error"}`,
-            error: true,
-          },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any,
-      ];
-    }
+    return this.emailSearchService.searchEmails(
+      userId,
+      query,
+      maxResults,
+      onProgress,
+      (userId, email) => this.calculateDaysSinceLastEmail(userId, email),
+    );
   }
+
+
 
   /**
    * Debug endpoint to find missing starred threads
-   * Compares Gmail starred emails with what's in our DB
+   * Delegates to EmailDebugService
    */
-  // eslint-disable-next-line max-lines-per-function
   async debugStarredThreads(userId: string): Promise<{
     gmail: {
       starredThreadCount: number;
@@ -3717,179 +1989,16 @@ Explanation:`;
       details: Record<string, unknown>;
     }>;
   }> {
-    // 1. Search Gmail for starred emails in inbox
-    let gmailStarredThreadIds: string[] = [];
-    let gmailError: string | undefined;
-
-    try {
-      const provider =
-        await this.emailProviderManager.getPrimaryProvider(userId);
-      if (provider) {
-        // Search for starred emails in inbox
-        const starredEmails = await provider.searchEmails(
-          userId,
-          "is:starred is:inbox",
-          100,
-        );
-        // Get unique thread IDs
-        gmailStarredThreadIds = [
-          ...new Set(starredEmails.map((e) => e.threadId)),
-        ];
-        this.logger.debug(
-          `Gmail search found ${starredEmails.length} starred emails in ${gmailStarredThreadIds.length} threads`,
-        );
-      } else {
-        gmailError = "No email provider connected";
-      }
-    } catch (error: unknown) {
-      gmailError = isError(error) ? error.message : "Failed to search Gmail";
-      this.logger.error("Error searching Gmail for starred emails:", error);
-    }
-
-    // 2. Get all starred threads from email_threads table
-    const allStarredThreads = await this.emailThreadRepository
-      .createQueryBuilder("thread")
-      .where("thread.userId = :userId", { userId })
-      .andWhere('thread."starCount" > 0')
-      .getMany();
-
-    // 3. Get all emails that belong to starred threads
-    const starredThreadIds = allStarredThreads.map((t) => t.id);
-    const emailsInStarredThreads =
-      starredThreadIds.length > 0
-        ? await this.emailRepository
-            .createQueryBuilder("email")
-            .where("email.userId = :userId", { userId })
-            .andWhere('email."emailThreadId" IN (:...threadIds)', {
-              threadIds: starredThreadIds,
-            })
-            .getMany()
-        : [];
-
-    // 4. Run the actual getInbox query for action mode to see what's returned
-    const actionTabEmails = await this.getInbox(userId, false, "action");
-
-    // 5. Compare Gmail vs DB
-    const dbThreadIds = allStarredThreads.map((t) => t.threadId);
-    const inGmailNotInDb = gmailStarredThreadIds.filter(
-      (id) => !dbThreadIds.includes(id),
+    return this.emailDebugService.debugStarredThreads(
+      userId,
+      (userId, includeBatched, mode) =>
+        this.getInbox(userId, includeBatched, mode),
     );
-    const inDbNotInGmail = dbThreadIds.filter(
-      (id) => !gmailStarredThreadIds.includes(id),
-    );
-    const inDbButArchived = allStarredThreads
-      .filter((t) => t.isArchived)
-      .map((t) => t.threadId);
-
-    // 6. Identify issues for each starred thread
-    const threadDetails = await Promise.all(
-      allStarredThreads.map(async (thread) => {
-        const threadEmails = emailsInStarredThreads.filter(
-          (e) => e.emailThreadId === thread.id,
-        );
-        const latestEmail = threadEmails.sort(
-          (a, b) =>
-            new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime(),
-        )[0];
-
-        const issues: string[] = [];
-        const inGmail = gmailStarredThreadIds.includes(thread.threadId);
-
-        // Check if archived
-        if (thread.isArchived) {
-          issues.push("Thread is ARCHIVED");
-        }
-
-        // Check if in Gmail
-        if (!inGmail && !gmailError) {
-          issues.push("NOT STARRED IN GMAIL (or not in inbox)");
-        }
-
-        // Check if all emails are snoozed
-        const allSnoozed = threadEmails.every(
-          (e) =>
-            e.isSnoozed &&
-            e.snoozeUntil &&
-            new Date(e.snoozeUntil) > new Date(),
-        );
-        if (allSnoozed && threadEmails.length > 0) {
-          issues.push("All emails in thread are SNOOZED");
-        }
-
-        // Check if thread appears in action tab results
-        const inActionTab = actionTabEmails.some(
-          (e) => e.threadId === thread.threadId,
-        );
-        if (!inActionTab && issues.length === 0) {
-          issues.push("NOT IN ACTION TAB (unknown reason)");
-        }
-
-        return {
-          threadId: `${thread.threadId.substring(0, QUERY_LIMITS.THREAD_ID_PREVIEW)}...`,
-          starCount: thread.starCount,
-          isArchived: thread.isArchived,
-          isSnoozed: allSnoozed,
-          emailCount: threadEmails.length,
-          latestSubject:
-            latestEmail?.subject?.substring(
-              0,
-              QUERY_LIMITS.SUBSTRING_PREVIEW_LENGTH,
-            ) || "N/A",
-          latestFrom: latestEmail?.fromName || latestEmail?.from || "N/A",
-          issues,
-          inGmail,
-        };
-      }),
-    );
-
-    // 7. Identify threads missing from process tab
-    const missingFromProcessTab = threadDetails
-      .filter((t) => t.issues.length > 0)
-      .map((t) => ({
-        threadId: t.threadId,
-        reason: t.issues.join(", "),
-        details: {
-          starCount: t.starCount,
-          isArchived: t.isArchived,
-          isSnoozed: t.isSnoozed,
-          emailCount: t.emailCount,
-          subject: t.latestSubject,
-          from: t.latestFrom,
-          inGmail: t.inGmail,
-        },
-      }));
-
-    return {
-      gmail: {
-        starredThreadCount: gmailStarredThreadIds.length,
-        starredThreadIds: gmailStarredThreadIds.map(
-          (id) => `${id.substring(0, QUERY_LIMITS.THREAD_ID_PREVIEW)}...`,
-        ),
-        error: gmailError,
-      },
-      database: {
-        starredThreadCount: allStarredThreads.length,
-        starredEmailCount: emailsInStarredThreads.length,
-      },
-      actionTabResults: actionTabEmails.length,
-      comparison: {
-        inGmailNotInDb: inGmailNotInDb.map(
-          (id) => `${id.substring(0, QUERY_LIMITS.THREAD_ID_PREVIEW)}...`,
-        ),
-        inDbNotInGmail: inDbNotInGmail.map(
-          (id) => `${id.substring(0, QUERY_LIMITS.THREAD_ID_PREVIEW)}...`,
-        ),
-        inDbButArchived: inDbButArchived.map(
-          (id) => `${id.substring(0, QUERY_LIMITS.THREAD_ID_PREVIEW)}...`,
-        ),
-      },
-      starredThreads: threadDetails,
-      missingFromProcessTab,
-    };
   }
 
   /**
    * Debug endpoint to find emails without emailThreadId (orphan emails)
+   * Delegates to EmailDebugService
    */
   async debugOrphanEmails(userId: string): Promise<{
     totalEmailsInDb: number;
@@ -3911,240 +2020,31 @@ Explanation:`;
       isArchived: boolean;
     }>;
   }> {
-    // Count total emails
-    const totalEmailsInDb = await this.emailRepository.count({
-      where: { userId },
-    });
-
-    // Count emails with emailThreadId set
-    const emailsWithThreadId = await this.emailRepository.count({
-      where: { userId, emailThreadId: Not(IsNull()) },
-    });
-
-    // Get orphan emails (no emailThreadId)
-    const orphanEmailsList = await this.emailRepository.find({
-      where: { userId, emailThreadId: IsNull() },
-      select: [
-        "id",
-        "threadId",
-        "emailThreadId",
-        "subject",
-        "from",
-        "receivedAt",
-      ],
-      // Limit to 50 for performance
-      take: QUERY_LIMITS.MAX_RESULTS_DEFAULT,
-    });
-
-    // Get all threads
-    const allThreads = await this.emailThreadRepository.find({
-      where: { userId },
-    });
-
-    // Find threads that have no emails pointing to them
-    const threadIdsWithEmails = await this.emailRepository
-      .createQueryBuilder("email")
-      .select('DISTINCT email."emailThreadId"', "emailThreadId")
-      .where("email.userId = :userId", { userId })
-      .andWhere('email."emailThreadId" IS NOT NULL')
-      .getRawMany();
-
-    const threadIdsWithEmailsSet = new Set(
-      threadIdsWithEmails.map((r) => r.emailThreadId),
-    );
-
-    const threadsWithoutEmails = allThreads
-      .filter((t) => !threadIdsWithEmailsSet.has(t.id))
-      .map((t) => ({
-        id: `${t.id.substring(0, QUERY_LIMITS.THREAD_ID_PREVIEW)}...`,
-        threadId: `${t.threadId.substring(0, QUERY_LIMITS.THREAD_ID_PREVIEW)}...`,
-        starCount: t.starCount,
-        isArchived: t.isArchived,
-      }));
-
-    return {
-      totalEmailsInDb,
-      emailsWithThreadId,
-      orphanEmails: totalEmailsInDb - emailsWithThreadId,
-      orphanEmailDetails: orphanEmailsList.map((e) => ({
-        id: `${e.id.substring(0, QUERY_LIMITS.THREAD_ID_PREVIEW)}...`,
-        threadId:
-          `${e.threadId?.substring(0, QUERY_LIMITS.THREAD_ID_PREVIEW)}...` ||
-          "N/A",
-        emailThreadId:
-          `${e.emailThreadId?.substring(0, QUERY_LIMITS.THREAD_ID_PREVIEW)}...` ||
-          null,
-        subject:
-          e.subject?.substring(0, QUERY_LIMITS.SUBSTRING_PREVIEW_LENGTH) ||
-          "N/A",
-        from: e.from?.substring(0, MINUTES.THIRTY) || "N/A",
-        receivedAt: e.receivedAt,
-      })),
-      threadsInDb: allThreads.length,
-      threadsWithoutEmails,
-    };
+    return this.emailDebugService.debugOrphanEmails(userId);
   }
 
   /**
    * Fix orphan emails by creating/linking EmailThread records
    */
+  /**
+   * Fix orphan emails by linking them to their threads
+   * Delegates to EmailDebugService
+   */
   async fixOrphanEmails(userId: string): Promise<{
     fixed: number;
     errors: string[];
   }> {
-    const errors: string[] = [];
-    let fixed = 0;
-
-    // Get all orphan emails
-    const orphanEmails = await this.emailRepository.find({
-      where: { userId, emailThreadId: IsNull() },
-    });
-
-    this.logger.log(`Found ${orphanEmails.length} orphan emails to fix`);
-
-    for (const email of orphanEmails) {
-      try {
-        // Check if a thread already exists for this Gmail threadId
-        let thread = await this.emailThreadRepository.findOne({
-          where: { userId, threadId: email.threadId },
-        });
-
-        if (!thread) {
-          // Create a new thread
-          thread = this.emailThreadRepository.create({
-            userId,
-            threadId: email.threadId,
-            starCount: 0,
-            isArchived: false,
-          });
-          thread = await this.emailThreadRepository.save(thread);
-          this.logger.log(
-            `Created new thread ${thread.id} for Gmail thread ${email.threadId}`,
-          );
-        }
-
-        // Link email to thread
-        await this.emailRepository.update(email.id, {
-          emailThreadId: thread.id,
-        });
-        fixed++;
-      } catch (err) {
-        const errorMsg = `Failed to fix email ${email.id}: ${isError(err) ? err.message : "Unknown error"}`;
-        this.logger.error(errorMsg);
-        errors.push(errorMsg);
-      }
-    }
-
-    this.logger.log(`Fixed ${fixed} orphan emails, ${errors.length} errors`);
-
-    return { fixed, errors };
+    return this.emailDebugService.fixOrphanEmails(userId);
   }
 
   /**
    * Fix threads stuck in "calculating" status
-   * Finds emails with isProcessingPriority=true that are older than 10 minutes
-   * and either resets them or re-queues the job
+   * Delegates to EmailDebugService
    */
   async fixStuckCalculatingThreads(
     userId: string,
   ): Promise<{ fixed: number; requeued: number; errors: string[] }> {
-    this.logger.log(
-      `Checking for stuck calculating threads for user ${userId}`,
-    );
-
-    // Find threads that have been in "calculating" state for more than 10 minutes
-    // Priority is now thread-level, so check threads instead of emails
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-
-    const stuckThreads = await this.emailThreadRepository.find({
-      where: {
-        userId,
-        isProcessingPriority: true,
-      },
-      select: ["id", "updatedAt", "priorityExplanation"],
-    });
-
-    // Filter to only those that are actually stuck (older than 10 minutes or no breakdown)
-    const actuallyStuck = stuckThreads.filter((thread) => {
-      const threadAge = Date.now() - new Date(thread.updatedAt).getTime();
-      const hasBreakdown =
-        thread.priorityExplanation?.breakdown &&
-        thread.priorityExplanation.breakdown.length > 0;
-      return threadAge > 10 * 60 * 1000 || !hasBreakdown;
-    });
-
-    this.logger.log(
-      `Found ${actuallyStuck.length} stuck calculating threads (out of ${stuckThreads.length} total)`,
-    );
-
-    let fixed = 0;
-    let requeued = 0;
-    const errors: string[] = [];
-
-    for (const thread of actuallyStuck) {
-      try {
-        // Get an email from this thread to use for the job
-        const email = await this.emailRepository.findOne({
-          where: { emailThreadId: thread.id, userId },
-          select: ["id"],
-        });
-
-        if (!email) {
-          // No email found for this thread, just reset the flag
-          await this.emailThreadRepository.update(
-            { id: thread.id },
-            { isProcessingPriority: false },
-          );
-          fixed++;
-          continue;
-        }
-
-        // Reset the flag first
-        await this.emailThreadRepository.update(
-          { id: thread.id },
-          { isProcessingPriority: false },
-        );
-
-        // Re-queue the job
-        const jobId = await this.boss
-          .send(
-            "refine-priority",
-            { userId, emailId: email.id },
-            {
-              priority: getJobPriority("refine-priority-background", false),
-              singletonKey: `refine-priority-${email.id}`,
-              singletonMinutes: 5,
-            },
-          )
-          .catch((err) => {
-            this.logger.error(
-              `Failed to re-queue priority job for thread ${thread.id} (email ${email.id}):`,
-              err,
-            );
-            return null;
-          });
-
-        if (jobId) {
-          requeued++;
-          this.logger.debug(
-            `Re-queued priority job ${jobId} for stuck thread ${thread.id} (email ${email.id})`,
-          );
-        } else {
-          // Just reset the flag, couldn't queue
-          fixed++;
-        }
-      } catch (err: unknown) {
-        const errorMsg = `Failed to fix stuck thread ${thread.id}: ${isError(err) ? err.message : "Unknown error"}`;
-        this.logger.error(errorMsg);
-        errors.push(errorMsg);
-      }
-    }
-
-    this.logger.log(
-      `Fixed ${fixed} stuck threads, re-queued ${requeued} jobs, ${errors.length} errors`,
-    );
-
-    return { fixed, requeued, errors };
+    return this.emailDebugService.fixStuckCalculatingThreads(userId);
   }
 
   /**
@@ -4234,38 +2134,25 @@ Explanation:`;
   }
 
   /**
-   * Get existing starred threads from database
+   * Get threads by thread IDs
    * Delegates to EmailThreadService
    */
   async getThreadsByThreadIds(
     userId: string,
     threadIds: string[],
   ): Promise<Array<{ threadId: string; updatedAt: Date }>> {
-    if (threadIds.length === 0) return [];
-    
-    const threads = await this.emailThreadRepository.find({
-      where: { userId, threadId: In(threadIds) },
-      select: ["threadId", "updatedAt"],
-    });
-    return threads.map((t) => ({
-      threadId: t.threadId,
-      updatedAt: t.updatedAt,
-    }));
+    return this.emailThreadService.getThreadsByThreadIds(userId, threadIds);
   }
 
+  /**
+   * Get existing starred threads from database
+   * Delegates to EmailThreadService
+   */
   async getExistingStarredThreads(
     userId: string,
   ): Promise<
     Array<{ threadId: string; starCount: number; isArchived: boolean }>
   > {
-    const threads = await this.emailThreadRepository.find({
-      where: { userId, starCount: MoreThan(0) },
-      select: ["threadId", "starCount", "isArchived"],
-    });
-    return threads.map((t) => ({
-      threadId: t.threadId,
-      starCount: t.starCount,
-      isArchived: t.isArchived,
-    }));
+    return this.emailThreadService.getExistingStarredThreads(userId);
   }
 }

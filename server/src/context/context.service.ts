@@ -1234,10 +1234,10 @@ export class ContextService {
     // Return most recent unique insights (limit to 10, most recent first)
     const recentInsights = uniqueInsights.slice(-10).reverse();
 
-    // Extract fetching status from stats for progress display
-    const fetchingStatus = (analysis.stats?.fetchingStatus as string) || undefined;
-    const fetchedGeneral = (analysis.stats?.fetchedGeneral as number) || undefined;
-    const fetchedSent = (analysis.stats?.fetchedSent as number) || undefined;
+    // Read fetching status from separate columns (not stats) to avoid race condition issues
+    const fetchingStatus = analysis.fetchingStatus ?? undefined;
+    const fetchedGeneral = analysis.fetchedGeneralCount ?? undefined;
+    const fetchedSent = analysis.fetchedSentCount ?? undefined;
     
     return {
       threadCount: analysis.threadCount ?? undefined,
@@ -1248,7 +1248,7 @@ export class ContextService {
       totalBatches,
       status: analysis.status,
       insights: recentInsights.length > 0 ? recentInsights : undefined,
-      // Fetching progress
+      // Fetching progress (from separate columns)
       fetchingStatus,
       fetchedGeneral,
       fetchedSent,
@@ -1324,20 +1324,33 @@ export class ContextService {
           `[CONTEXT-ANALYSIS] Created new analysis record ${analysisRecord.id} with initialized stats`,
         );
       } else {
-        // Ensure existing analysis record has stats initialized
-        if (!analysisRecord.stats) {
-          analysisRecord.stats = {
-            totalThreads: 0,
-            outboundEmails: 0,
-            threadsNeverOpened: 0,
-            threadsReadButNotReplied: 0,
-            vipContactsEvaluated: 0,
-          };
-          await this.contextAnalysisRepository.save(analysisRecord);
-          this.logger.log(
-            `[CONTEXT-ANALYSIS] Initialized stats for existing analysis record ${analysisRecord.id}`,
-          );
-        }
+        // CRITICAL: Reset ALL stats to prevent stale data from previous runs
+        // This fixes the issue where progress jumps around due to old batchResults/totalBatches
+        analysisRecord.status = "running";
+        analysisRecord.progress = 0;
+        analysisRecord.total = 100;
+        analysisRecord.threadCount = undefined;
+        analysisRecord.analyzedCount = 0;
+        analysisRecord.stats = {
+          totalThreads: 0,
+          outboundEmails: 0,
+          threadsNeverOpened: 0,
+          threadsReadButNotReplied: 0,
+          vipContactsEvaluated: 0,
+          // IMPORTANT: Reset all batch-related data to prevent progress jumping
+          batchResults: {},
+          batchJobIds: {},
+          batchPayloadsForRetry: {},
+          totalBatches: 0,
+        };
+        // Reset fetching progress columns (separate from stats to avoid race conditions)
+        analysisRecord.fetchingStatus = null;
+        analysisRecord.fetchedGeneralCount = 0;
+        analysisRecord.fetchedSentCount = 0;
+        await this.contextAnalysisRepository.save(analysisRecord);
+        this.logger.log(
+          `[CONTEXT-ANALYSIS] Reset stats for existing analysis record ${analysisRecord.id} to prevent stale data`,
+        );
       }
     }
 
@@ -1397,13 +1410,10 @@ export class ContextService {
         "log",
       );
 
-      // Update progress to show fetching status
-      analysisRecord.stats = {
-        ...(analysisRecord.stats || {}),
-        fetchingStatus: 'Fetching general threads...',
-        fetchedGeneral: 0,
-        fetchedSent: 0,
-      };
+      // Update progress to show fetching status (use separate columns to avoid race conditions)
+      analysisRecord.fetchingStatus = 'Fetching general threads...';
+      analysisRecord.fetchedGeneralCount = 0;
+      analysisRecord.fetchedSentCount = 0;
       await this.contextAnalysisRepository.save(analysisRecord);
 
       // Fetch 300 general threads from 5-12 days ago (inbox)
@@ -1414,13 +1424,10 @@ export class ContextService {
         300, // Limit to 300 threads
       );
 
-      // Update progress with general threads count
-      analysisRecord.stats = {
-        ...(analysisRecord.stats || {}),
-        fetchingStatus: 'Fetching sent threads...',
-        fetchedGeneral: generalThreadIds.length,
-        fetchedSent: 0,
-      };
+      // Update progress with general threads count (use separate columns)
+      analysisRecord.fetchingStatus = 'Fetching sent threads...';
+      analysisRecord.fetchedGeneralCount = generalThreadIds.length;
+      analysisRecord.fetchedSentCount = 0;
       await this.contextAnalysisRepository.save(analysisRecord);
 
       this.logger.log(
@@ -1440,12 +1447,10 @@ export class ContextService {
         );
         
         // Update progress with sent threads count
-        analysisRecord.stats = {
-          ...(analysisRecord.stats || {}),
-          fetchingStatus: 'Combining threads...',
-          fetchedGeneral: generalThreadIds.length,
-          fetchedSent: sentThreadIds.length,
-        };
+        // Update fetching progress (use separate columns to avoid race conditions)
+        analysisRecord.fetchingStatus = 'Combining threads...';
+        analysisRecord.fetchedGeneralCount = generalThreadIds.length;
+        analysisRecord.fetchedSentCount = sentThreadIds.length;
         await this.contextAnalysisRepository.save(analysisRecord);
         
         this.logger.log(
@@ -1473,12 +1478,13 @@ export class ContextService {
       // Deduplicate thread IDs (in case a sent thread overlaps with general threads)
       const threadIds = Array.from(new Set(allThreadIds));
       
-      // Clear fetching status now that we have thread IDs
+      // Clear fetching status now that we have thread IDs (use separate columns)
+      analysisRecord.fetchingStatus = null;
+      analysisRecord.fetchedGeneralCount = generalThreadIds.length;
+      analysisRecord.fetchedSentCount = sentThreadIds.length;
+      // Keep uniqueThreads in stats as it's not updated by batch processors
       analysisRecord.stats = {
         ...(analysisRecord.stats || {}),
-        fetchingStatus: null,
-        fetchedGeneral: generalThreadIds.length,
-        fetchedSent: sentThreadIds.length,
         uniqueThreads: threadIds.length,
       };
       await this.contextAnalysisRepository.save(analysisRecord);
@@ -2643,47 +2649,17 @@ export class ContextService {
     }>>) || {};
     let totalBatches = (stats.totalBatches as number);
     
-    // CRITICAL: If totalBatches is 0 or missing, try to infer it from completed batches
-    // This should never happen, but if it does, we need to fix it
+    // If totalBatches is 0 or missing, DON'T try to infer it from completed batches
+    // This was causing the bug where totalBatches=2 was being set during progressive fetching
+    // The totalBatches should ONLY be set by analyzeAndLearnFromEmails after all batches are enqueued
     if (!totalBatches || totalBatches === 0) {
-      const completedBatchIndices = Object.keys(batchResults).map(k => parseInt(k, 10)).sort((a, b) => b - a);
-      const maxCompletedIndex = completedBatchIndices.length > 0 ? completedBatchIndices[0] : -1;
-      const inferredTotal = Math.max(maxCompletedIndex + 1, completedBatchIndices.length, Object.keys(batchJobIds).length);
-      
-      if (inferredTotal > 0) {
-        this.logger.error(
-          `[PROGRESS-CHECK] ❌ CRITICAL: totalBatches is ${totalBatches || 'missing'} but found ${completedBatchIndices.length} completed batches (max index: ${maxCompletedIndex}). Inferring totalBatches = ${inferredTotal}`,
-        );
-        
-        // Update stats with inferred totalBatches
-        analysis.stats = {
-          ...analysis.stats,
-          totalBatches: inferredTotal,
-        };
-        await this.contextAnalysisRepository.save(analysis);
-        totalBatches = inferredTotal;
-        
-        // Reload stats after fixing to ensure we have the latest data
-        const fixedAnalysis = await this.contextAnalysisRepository.findOne({
-          where: { id: analysis.id },
-        });
-        if (fixedAnalysis && fixedAnalysis.stats) {
-          // Use fixed stats
-          const fixedStats = fixedAnalysis.stats;
-          batchResults = (fixedStats.batchResults as Record<string, unknown>) || {};
-          failedBatches = (fixedStats.failedBatches as number[]) || [];
-          batchJobIds = (fixedStats.batchJobIds as Record<number, string | null>) || {};
-        }
-        
-        this.logger.log(
-          `[PROGRESS-CHECK] ✅ Fixed totalBatches: set to ${totalBatches}`,
-        );
-      } else {
-        this.logger.error(
-          `[PROGRESS-CHECK] ❌ Cannot infer totalBatches - no batch data available. Analysis ${analysis.id} may be corrupted.`,
-        );
-        return; // Can't proceed without valid totalBatches
-      }
+      const completedBatchIndices = Object.keys(batchResults).map(k => parseInt(k, 10));
+      this.logger.log(
+        `[PROGRESS-CHECK] totalBatches is ${totalBatches || 'not set'} and ${completedBatchIndices.length} batches completed. ` +
+        `This is normal during progressive fetching - NOT inferring totalBatches (would corrupt stats).`,
+      );
+      // Don't infer or update - just exit. The main job will set totalBatches when it's done.
+      return;
     }
 
     // Check DB state
@@ -3305,7 +3281,7 @@ export class ContextService {
       fromName?: string;
       threadCount: number;
     }> = Array.from(vipContactsFromPayloads.values())
-      .filter(v => v.starCount >= 1 || v.quickReplyCount >= 2 || v.threadCount >= 3)
+      .filter(v => v.starCount >= 3 || v.quickReplyCount >= 2 || v.threadCount >= 3)
       .map(v => ({
         emailKey: v.emailKey,
         from: v.from,
@@ -3869,8 +3845,30 @@ export class ContextService {
       starCount?: number;
     }>>) || {};
     
+    // Debug: Count total threads and sample data
+    const batchKeys = Object.keys(batchPayloadsForStats);
+    let totalThreadsInPayloads = 0;
+    let sampleThread: unknown = null;
+    let isReadTrueCount = 0;
+    let isReadFalseCount = 0;
+    let isReadUndefinedCount = 0;
+    let hasStarCount = 0;
+    let hasTimeToReplyCount = 0;
+    
     for (const batchPayload of Object.values(batchPayloadsForStats)) {
+      totalThreadsInPayloads += batchPayload.length;
+      if (!sampleThread && batchPayload.length > 0) {
+        sampleThread = batchPayload[0];
+      }
       for (const thread of batchPayload) {
+        // Count isRead values for debugging
+        if (thread.isRead === true) isReadTrueCount++;
+        else if (thread.isRead === false) isReadFalseCount++;
+        else isReadUndefinedCount++;
+        
+        if (thread.starCount && thread.starCount > 0) hasStarCount++;
+        if (thread.timeToReply !== null && thread.timeToReply !== undefined) hasTimeToReplyCount++;
+        
         if (thread.isRead === false) {
           threadsNeverOpened++;
         } else if (thread.isRead === true && (thread.timeToReply === null || thread.timeToReply === undefined)) {
@@ -3881,7 +3879,32 @@ export class ContextService {
     }
     
     this.logger.log(
-      `[FINALIZATION] Computed thread stats: neverOpened=${threadsNeverOpened}, readButNotReplied=${threadsReadButNotReplied}, vipContacts=${actualVipContactsEvaluated}`,
+      `[FINALIZATION] ===== BATCH PAYLOAD DEBUG =====`,
+    );
+    this.logger.log(
+      `[FINALIZATION] Batches: ${batchKeys.length}, Threads: ${totalThreadsInPayloads}`,
+    );
+    this.logger.log(
+      `[FINALIZATION] isRead breakdown: TRUE=${isReadTrueCount}, FALSE=${isReadFalseCount}, UNDEFINED=${isReadUndefinedCount}`,
+    );
+    this.logger.log(
+      `[FINALIZATION] starCount>0: ${hasStarCount}, hasTimeToReply: ${hasTimeToReplyCount}`,
+    );
+    if (sampleThread) {
+      this.logger.log(
+        `[FINALIZATION] Sample thread: ${JSON.stringify(sampleThread).substring(0, 500)}`,
+      );
+    } else {
+      this.logger.warn(
+        `[FINALIZATION] ⚠️ NO BATCH PAYLOADS! Stats keys: ${JSON.stringify(Object.keys(finalStats))}`,
+      );
+    }
+    this.logger.log(
+      `[FINALIZATION] ===== END DEBUG =====`,
+    );
+    
+    this.logger.log(
+      `[FINALIZATION] Computed stats: neverOpened=${threadsNeverOpened}, readButNotReplied=${threadsReadButNotReplied}, vipContacts=${actualVipContactsEvaluated}`,
     );
     
       const analysisStatsForDb = {

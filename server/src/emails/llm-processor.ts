@@ -135,18 +135,39 @@ export class LLMProcessor implements OnModuleInit {
           );
 
           // Check if thread has new emails since last calculation
-          // Force recalculation if thread was updated recently (within last hour) or if current email is new
+          // Improved detection: query the most recent email in the thread and compare with current email
           let hasNewEmails = false;
-          if (thread && email.receivedAt) {
-            const threadUpdatedAt = thread.updatedAt || thread.createdAt;
-            const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-            // If thread was updated in the last hour, assume new emails arrived
-            if (threadUpdatedAt && threadUpdatedAt > oneHourAgo) {
-              hasNewEmails = true;
-            }
-            // Also check if current email is newer than thread's last update
-            if (threadUpdatedAt && email.receivedAt > threadUpdatedAt) {
-              hasNewEmails = true;
+          if (thread && email.receivedAt && email.emailThreadId) {
+            // Query the most recent email in the thread by receivedAt
+            const mostRecentEmail = await this.emailRepository.findOne({
+              where: { emailThreadId: email.emailThreadId },
+              order: { receivedAt: "DESC" },
+              select: ["id", "receivedAt"],
+            });
+
+            if (mostRecentEmail) {
+              // Get the timestamp when priority was last calculated (if available)
+              const priorityCalculatedAt = threadPriorityExplanation?.calculatedAt
+                ? new Date(threadPriorityExplanation.calculatedAt)
+                : null;
+              
+              // Use calculatedAt if available, otherwise fall back to thread.updatedAt
+              const lastCalculationTime = priorityCalculatedAt || thread.updatedAt || thread.createdAt;
+
+              // Check if the current email being processed is the most recent email in the thread
+              // This indicates a new email arrived that should trigger recalculation
+              if (mostRecentEmail.id === email.id) {
+                // Current email is the most recent - check if it's newer than when priority was last calculated
+                if (email.receivedAt > lastCalculationTime) {
+                  hasNewEmails = true;
+                }
+              } else if (mostRecentEmail.receivedAt) {
+                // There's a more recent email than the one being processed
+                // Check if the most recent email is newer than when priority was last calculated
+                if (mostRecentEmail.receivedAt > lastCalculationTime) {
+                  hasNewEmails = true;
+                }
+              }
             }
           }
 
@@ -498,11 +519,12 @@ export class LLMProcessor implements OnModuleInit {
           tracker.endPhase("llmCall");
           tracker.startPhase("dbUpdate");
 
-          // Build priority explanation
+          // Build priority explanation with timestamp
           const priorityExplanation = {
             score: finalScore,
             breakdown,
             dimensions,
+            calculatedAt: new Date().toISOString(), // Track when priority was calculated
           };
 
           // Update email with sentiment (priority explanation is now thread-level)

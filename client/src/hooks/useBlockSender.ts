@@ -1,9 +1,12 @@
 import { useCallback } from 'react';
 import axios from 'axios';
 import { SetStateAction } from 'react';
-import { Email } from 'types/email';
+import { Email, getEmailPriorityScore } from 'types/email';
 import { API_URL } from 'config/api';
 import { captureEvent } from 'utils/posthog';
+
+// Threshold for considering priority scores "equal" (matches backend RATIOS.TINY)
+const PRIORITY_SCORE_TINY_THRESHOLD = 0.01;
 
 interface UseBlockSenderProps {
   emails: Email[];
@@ -35,10 +38,23 @@ export function useBlockSender({
       fetchEmails().catch(err => console.error('Error refreshing after block:', err));
     } catch (error) {
       console.error('Error blocking sender:', error);
-      // Revert on error
-      setEmails(prevEmails => [...prevEmails, emailToBlock].sort((a, b) => 
-        new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime()
-      ));
+      // Revert on error with consistent sorting: priority DESC, threadUpdatedAt DESC, threadId (stable)
+      setEmails(prevEmails => [...prevEmails, emailToBlock].sort((a, b) => {
+        // Primary: priority score DESC
+        const aScore = getEmailPriorityScore(a);
+        const bScore = getEmailPriorityScore(b);
+        if (Math.abs(bScore - aScore) > PRIORITY_SCORE_TINY_THRESHOLD) {
+          return bScore - aScore;
+        }
+        // Secondary: threadUpdatedAt DESC
+        const aUpdatedAt = a.threadUpdatedAt ? new Date(a.threadUpdatedAt).getTime() : 0;
+        const bUpdatedAt = b.threadUpdatedAt ? new Date(b.threadUpdatedAt).getTime() : 0;
+        if (bUpdatedAt !== aUpdatedAt) {
+          return bUpdatedAt - aUpdatedAt;
+        }
+        // Final stable tiebreaker: threadId
+        return a.threadId.localeCompare(b.threadId);
+      }));
     }
   }, [blockConfirmEmail, onHideBlockConfirm, setEmails, fetchEmails]);
 

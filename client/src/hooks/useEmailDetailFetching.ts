@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { API_URL } from 'config/api';
 import { useEmailDetailGithub } from 'hooks/useEmailDetailGithub';
+import { emailMentionsGitHub } from 'utils/githubUtils';
 
 interface Email {
   id: string;
@@ -42,7 +43,10 @@ export function useEmailDetailFetching(emailId: string) {
       if (emailData.githubMetadata?.links) {
         setGithubLinks(emailData.githubMetadata.links);
       } else {
-        fetchGithubInfo();
+        // Only fetch if email mentions GitHub - instant keyword check
+        if (emailMentionsGitHub(emailData.subject, emailData.body, emailData.htmlBody)) {
+          fetchGithubInfo();
+        }
       }
       
       axios.put(`${API_URL}/emails/${emailId}/read`).catch(err => console.error('Error marking as read:', err));
@@ -72,10 +76,11 @@ export function useEmailDetailFetching(emailId: string) {
     if (emailId) {
       fetchEmail().then(() => {
         fetchThreadEmails();
-        fetchGithubInfo();
+        // Note: fetchGithubInfo is called inside fetchEmail when needed
+        // Don't call it here to avoid duplicate fetches
       });
     }
-  }, [emailId, fetchEmail, fetchThreadEmails, fetchGithubInfo]);
+  }, [emailId, fetchEmail, fetchThreadEmails]);
 
   useEffect(() => {
     if (email?.id && threadEmails.length > 0) {

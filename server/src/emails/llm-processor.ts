@@ -567,6 +567,14 @@ export class LLMProcessor implements OnModuleInit {
                   ? llmResult.urgencyExplanation
                   : thread.urgencyExplanation;
 
+              // Calculate priorityScore from breakdown for efficient SQL sorting
+              const priorityScore = priorityExplanation?.breakdown
+                ? priorityExplanation.breakdown.reduce(
+                    (sum, item) => sum + (item.value || 0),
+                    0,
+                  )
+                : finalScore;
+
               await this.emailThreadRepository.update(
                 { id: email.emailThreadId },
                 {
@@ -574,22 +582,24 @@ export class LLMProcessor implements OnModuleInit {
                   urgencyExplanation:
                     newUrgencyExplanation || thread.urgencyExplanation,
                   priorityExplanation, // Store priority explanation on thread
+                  priorityScore, // Store denormalized score for efficient sorting
                   isProcessingPriority: false,
                 },
               );
 
-              // If priority score > 60, un-batch the email (high priority emails shouldn't be batched)
-              // Priority score > 60 indicates important emails that should be shown immediately
-              if (finalScore > 60) {
+              // If priority score > 50, un-batch the email (high priority emails shouldn't be batched)
+              // Priority score > 50 indicates important emails that should be shown immediately
+              if (finalScore > 50) {
                 await this.emailRepository.update(
                   { emailThreadId: email.emailThreadId, userId },
                   {
                     isBatched: false,
                     batchReleaseAt: null,
+                    wasDeliveredEarly: true,
                   },
                 );
                 this.logger.log(
-                  `[Worker ${workerId}] Un-batched email ${emailId} due to high priority score: ${finalScore}`,
+                  `[Worker ${workerId}] Emergency delivery: Un-batched email ${emailId} due to high priority score: ${finalScore}`,
                 );
               }
 

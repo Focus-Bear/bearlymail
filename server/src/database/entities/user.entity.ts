@@ -20,6 +20,7 @@ import {
   emailTransformer,
   encryptedJsonTransformer,
 } from "../../encryption/encryption.helper";
+import { AutoResponderConfig } from "../../auto-responder/types/auto-responder.types";
 
 @Entity("users")
 export class User {
@@ -183,6 +184,14 @@ export class User {
     comment: "e.g., { rules: ['Be concise', 'Use non-violent communication'] }",
   })
   toneSettings: { rules: string[] };
+
+  @Column({
+    type: "text",
+    nullable: true,
+    transformer: encryptedJsonTransformer,
+    comment: "Auto-responder configuration settings",
+  })
+  autoResponderSettings: AutoResponderConfig | null;
 
   @CreateDateColumn()
   createdAt: Date;

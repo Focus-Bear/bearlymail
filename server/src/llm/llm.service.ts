@@ -21,6 +21,7 @@ import {
   LLM_OP_EXTRACT_QANDA,
   LLM_OP_SEARCH_RELEVANCE,
   LLM_OP_SEARCH_RELEVANCE_BATCH,
+  LLM_OP_REDACT_NAMES,
   LLM_OP_UNKNOWN,
 } from "./llm-operations";
 import { RATIOS } from "../constants/percentages";
@@ -560,29 +561,9 @@ export class LLMService {
 
     promptConfig = getPrompt(promptId);
     if (!promptConfig) {
-      this.logger.warn(
-        `${promptId} prompt not found in markdown files - using fallback`,
-      );
-      // Fallback: use inline prompt
-      const fallbackSystemPrompt = `You are a helpful assistant that creates ${summaryType === "tldr" ? "concise TL;DR" : summaryType === "bullet-points" ? "bullet-point" : "action item"} summaries of emails.`;
-      const summaryInstruction =
-        summaryType === "tldr"
-          ? "Please provide a concise TL;DR summary"
-          : summaryType === "bullet-points"
-            ? "Please provide a bullet-point summary"
-            : "Please extract action items";
-      const fallbackPrompt = `${summaryInstruction}${isThread ? " for the following email thread" : " for the following email"}:\n\nSubject: ${emailSubject}\n\n${contextNote ? `${contextNote}\n\n` : ""}Body:\n${emailBody}`;
-      return await this.generateText(
-        {
-          prompt: fallbackPrompt,
-          systemPrompt: fallbackSystemPrompt,
-          temperature: RATIOS.HALF,
-          maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_SMALL,
-          userId,
-        },
-        provider,
-        userId,
-        LLM_OP_SUMMARIZE_EMAIL,
+      const expectedFileName = promptId.replace(/_/g, "-") + ".md";
+      throw new Error(
+        `Prompt template not found: ${promptId}. Expected file: ${expectedFileName} in server/promptfoo/prompts/ directory. Please ensure the prompt template file exists.`,
       );
     }
 
@@ -946,6 +927,7 @@ export class LLMService {
       tone?: string;
       commonPhrases?: string[];
       writingStyle?: string;
+      emailExamples?: string[];
     },
     provider?: LLMProvider,
     userId?: string,
@@ -966,6 +948,9 @@ export class LLMService {
       ? userContext.commonPhrases.slice(0, 3).join(", ")
       : "";
 
+    // Limit email examples to 5 most relevant ones
+    const emailExamples = userContext.emailExamples?.slice(0, 5) || [];
+
     const prompt = renderPrompt(promptConfig.prompt || "", {
       tone,
       writingStyle: userContext.writingStyle || "",
@@ -973,6 +958,7 @@ export class LLMService {
       subject: originalEmail.subject,
       body: cleanedBody,
       commonPhrases: contextPhrases || "",
+      emailExamples,
     });
 
     return await this.generateText(
@@ -1601,5 +1587,52 @@ export class LLMService {
 
     // Fallback: return empty map (will trigger individual calls)
     return new Map();
+  }
+
+  /**
+   * Redact person names from text using LLM for better accuracy.
+   * Replaces names with [Name] placeholder.
+   * Falls back to regex-based redaction if LLM fails.
+   */
+  async redactNamesWithLLM(text: string): Promise<string> {
+    if (!text || text.trim().length === 0) {
+      return text;
+    }
+
+    const promptConfig = getPrompt("redact_names");
+    if (!promptConfig) {
+      this.logger.warn(
+        "redact_names prompt not found - falling back to original text",
+      );
+      return text;
+    }
+
+    const prompt = renderPrompt(promptConfig.prompt || "", {
+      text,
+    });
+
+    try {
+      const redacted = await this.generateText(
+        {
+          prompt,
+          systemPrompt: promptConfig.systemPrompt || "",
+          temperature: 0.1, // Low temperature for consistent output
+          maxTokens: text.length + 100, // Allow some overhead for replacements
+        },
+        undefined,
+        undefined,
+        LLM_OP_REDACT_NAMES,
+      );
+
+      // Basic validation - ensure we got something back
+      if (redacted && redacted.trim().length > 0) {
+        return redacted.trim();
+      }
+      
+      return text;
+    } catch (error) {
+      this.logger.error("Failed to redact names with LLM:", error);
+      return text;
+    }
   }
 }

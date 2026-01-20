@@ -206,7 +206,7 @@ export class PriorityController {
     }
 
     // Use priority learning service to process feedback and update context
-    await this.priorityLearningService.learnFromPriorityFeedback(
+    const result = await this.priorityLearningService.learnFromPriorityFeedback(
       req.user.userId,
       email,
       body.feedback,
@@ -215,6 +215,11 @@ export class PriorityController {
 
     return {
       message: "Feedback received and will be used to improve prioritization",
+      contextUpdated: result.updated.length > 0,
+      contextUpdates: result.updated,
+      summary: result.updated.length > 0
+        ? `Updated ${result.updated.length} context ${result.updated.length === 1 ? "entry" : "entries"} based on your feedback`
+        : "No context updates were needed based on your feedback",
     };
   }
 }

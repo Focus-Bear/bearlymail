@@ -70,37 +70,46 @@ export class EmailSyncProcessor implements OnModuleInit {
         let jobsSkipped = 0;
 
         for (const user of users) {
-          // Check if user was synced recently - skip if within 5 minutes
-          if (
-            user.lastEmailSyncAt &&
-            user.lastEmailSyncAt > fiveMinutesAgo
-          ) {
-            this.logger.debug(
-              `Skipping user ${user.id} - last sync was ${Math.round(
+          try {
+            // Check if user was synced recently - skip if within 5 minutes
+            if (
+              user.lastEmailSyncAt &&
+              user.lastEmailSyncAt > fiveMinutesAgo
+            ) {
+              const secondsSinceSync = Math.round(
                 (Date.now() - user.lastEmailSyncAt.getTime()) / 1000,
-              )}s ago`,
-            );
-            jobsSkipped++;
-            continue;
-          }
+              );
+              this.logger.debug(
+                `Skipping user ${user.id} - last sync was ${secondsSinceSync}s ago (< 5 minutes)`,
+              );
+              jobsSkipped++;
+              continue;
+            }
 
-          const provider = await this.emailProviderManager.getPrimaryProvider(
-            user.id,
-          );
-          if (provider) {
-            // Use singletonKey to prevent duplicate fetch jobs per user
-            await this.boss.send(
-              "fetch-user-emails",
-              { userId: user.id },
-              {
-                priority: getJobPriority("fetch-user-emails", false),
-                // Scheduled fetch = medium priority
-                singletonKey: `fetch-user-emails-${user.id}`,
-                // Don't allow another fetch for same user within 5 minutes
-                singletonMinutes: 5,
-              },
+            const provider = await this.emailProviderManager.getPrimaryProvider(
+              user.id,
             );
-            jobsQueued++;
+            if (provider) {
+              // Use singletonKey to prevent duplicate fetch jobs per user
+              await this.boss.send(
+                "fetch-user-emails",
+                { userId: user.id },
+                {
+                  priority: getJobPriority("fetch-user-emails", false),
+                  // Scheduled fetch = medium priority
+                  singletonKey: `fetch-user-emails-${user.id}`,
+                  // Don't allow another fetch for same user within 5 minutes
+                  singletonMinutes: 5,
+                },
+              );
+              jobsQueued++;
+            }
+          } catch (userError) {
+            this.logger.error(
+              `Error processing user ${user.id} for email fetch scheduling:`,
+              userError,
+            );
+            // Continue with other users instead of failing entire job
           }
         }
         tracker.endPhase("queueJobs");
@@ -110,6 +119,10 @@ export class EmailSyncProcessor implements OnModuleInit {
           `Scheduled ${jobsQueued} email fetch jobs, skipped ${jobsSkipped} users (recently synced)`,
         );
       } catch (error) {
+        this.logger.error(
+          `Error in schedule-email-fetch-jobs:`,
+          error,
+        );
         tracker.finish(error as Error);
         throw error;
       }
@@ -179,6 +192,26 @@ export class EmailSyncProcessor implements OnModuleInit {
     await this.boss.work("sync-all-users", async (job) => {
       this.logger.warn(
         `Legacy 'sync-all-users' job detected (id: ${job.id}). This job type is deprecated. Ignoring.`,
+      );
+      // Don't throw error - just complete the job to remove it from queue
+      // The new 'schedule-email-fetch-jobs' job handles this functionality
+    });
+
+    // Handle legacy 'queue-user-syncs-urgent' jobs - route to new system
+    await this.boss.work("queue-user-syncs-urgent", async (job) => {
+      const workerId = job.id || "unknown";
+      this.logger.warn(
+        `Legacy 'queue-user-syncs-urgent' job detected (id: ${workerId}). This job type is deprecated. Ignoring.`,
+      );
+      // Don't throw error - just complete the job to remove it from queue
+      // The new 'schedule-email-fetch-jobs' job handles this functionality
+    });
+
+    // Handle legacy 'sync-all-users-urgent' jobs - route to new system
+    await this.boss.work("sync-all-users-urgent", async (job) => {
+      const workerId = job.id || "unknown";
+      this.logger.warn(
+        `Legacy 'sync-all-users-urgent' job detected (id: ${workerId}). This job type is deprecated. Ignoring.`,
       );
       // Don't throw error - just complete the job to remove it from queue
       // The new 'schedule-email-fetch-jobs' job handles this functionality

@@ -1213,10 +1213,17 @@ export class Office365Provider implements EmailProvider {
       const messages = response.data.value || [];
       this.logger.log(`[Office365 Archive] Found ${messages.length} messages in conversation: userId=${userId}, threadId=${threadId}`);
 
-      // Move messages to archive folder
+      // Mark messages as read and move to archive folder
       let archivedCount = 0;
       for (const msg of messages) {
         try {
+          // First mark the message as read
+          this.logger.log(`[Office365 Archive] Marking message as read: userId=${userId}, threadId=${threadId}, messageId=${msg.id}`);
+          await graphClient.patch(`/me/messages/${msg.id}`, {
+            isRead: true,
+          });
+
+          // Then move to archive folder
           this.logger.log(`[Office365 Archive] Moving message to archive: userId=${userId}, threadId=${threadId}, messageId=${msg.id}`);
           await graphClient.post(`/me/messages/${msg.id}/move`, {
             destinationId: "archive",
@@ -1226,7 +1233,7 @@ export class Office365Provider implements EmailProvider {
           this.logger.error(`[Office365 Archive] Failed to archive message ${msg.id}:`, error);
         }
       }
-      this.logger.log(`[Office365 Archive] Moved ${archivedCount}/${messages.length} messages to archive: userId=${userId}, threadId=${threadId}`);
+      this.logger.log(`[Office365 Archive] Marked as read and moved ${archivedCount}/${messages.length} messages to archive: userId=${userId}, threadId=${threadId}`);
 
       // Update in our database
       this.logger.log(`[Office365 Archive] Updating thread archived status in database: userId=${userId}, threadId=${threadId}`);

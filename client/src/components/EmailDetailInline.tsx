@@ -9,7 +9,6 @@ import { API_URL } from 'config/api';
 import { captureEvent } from 'utils/posthog';
 
 // Immediate log when module loads
-console.log('[EmailDetailInline] ===== MODULE LOADED =====');
 
 interface EmailDetailInlineProps {
   emailId: string;
@@ -78,7 +77,6 @@ export const EmailDetailInline: React.FC<EmailDetailInlineProps> = ({
   onSetStarCount,
   onBlockSender,
 }) => {
-  console.log('[EmailDetailInline] ===== COMPONENT RENDERING =====', { emailId });
   const navigate = useNavigate();
   const {
     email,

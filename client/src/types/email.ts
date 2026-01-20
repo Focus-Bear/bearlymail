@@ -48,12 +48,15 @@ export interface Email {
   urgencyScore?: number; // Thread-level urgency score (0-100)
   urgencyExplanation?: string | null; // Thread-level urgency explanation
   emailThreadId?: string; // Database thread ID for override endpoint
+  threadUpdatedAt?: string; // Thread updatedAt timestamp for stable sorting
   githubMetadata?: {
     links: GitHubLink[];
   };
   // Metadata for list view
   actionItemsCount?: number;
   hasPrivateNote?: boolean;
+  // Emergency delivery flag - true if email was delivered early due to high priority
+  wasDeliveredEarly?: boolean;
 }
 
 export interface TriageSuggestion {

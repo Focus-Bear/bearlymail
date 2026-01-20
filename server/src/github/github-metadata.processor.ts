@@ -1,0 +1,149 @@
+import { Injectable, OnModuleInit, Logger, Inject } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import PgBoss = require("pg-boss");
+import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
+import { GitHubService } from "./github.service";
+import { GitHubApiService } from "./github-api.service";
+import { UsersService } from "../users/users.service";
+import { EncryptionHelper } from "../encryption/encryption.helper";
+
+interface FetchGitHubMetadataJob {
+  userId: string;
+  emailId: string;
+  threadId: string;
+}
+
+@Injectable()
+export class GitHubMetadataProcessor implements OnModuleInit {
+  private readonly logger = new Logger(GitHubMetadataProcessor.name);
+
+  constructor(
+    @Inject("PG_BOSS") private boss: PgBoss,
+    @InjectRepository(Email)
+    private emailRepository: Repository<Email>,
+    @InjectRepository(EmailThread)
+    private emailThreadRepository: Repository<EmailThread>,
+    private readonly githubService: GitHubService,
+    private readonly githubApiService: GitHubApiService,
+    private readonly usersService: UsersService,
+  ) {}
+
+  async onModuleInit() {
+    // Register worker for fetching GitHub metadata
+    await this.boss.work<FetchGitHubMetadataJob>(
+      "fetch-github-metadata",
+      { teamConcurrency: 5 },
+      async (job) => {
+        const { userId, emailId, threadId } = job.data;
+
+        try {
+          await this.processJob(userId, emailId, threadId);
+        } catch (error) {
+          this.logger.error(
+            `Failed to fetch GitHub metadata for email ${emailId}:`,
+            error,
+          );
+          throw error; // Let pg-boss handle retry
+        }
+      },
+    );
+
+    this.logger.log("GitHub metadata processor initialized");
+  }
+
+  private async processJob(
+    userId: string,
+    emailId: string,
+    threadId: string,
+  ): Promise<void> {
+    // Check if user has GitHub token
+    const user = await this.usersService.findOne(userId);
+    if (!user?.githubToken) {
+      this.logger.debug(`No GitHub token for user ${userId}, skipping`);
+      return;
+    }
+
+    // Get the email to parse GitHub links
+    const email = await this.emailRepository.findOne({
+      where: { id: emailId, userId },
+    });
+
+    if (!email) {
+      this.logger.warn(`Email ${emailId} not found for user ${userId}`);
+      return;
+    }
+
+    // Parse GitHub links from email body
+    const body = email.body ? EncryptionHelper.decrypt(email.body) : "";
+    const htmlBody = email.htmlBody
+      ? EncryptionHelper.decrypt(email.htmlBody)
+      : undefined;
+
+    const links = this.githubService.parseGitHubLinks(body || "", htmlBody);
+
+    if (links.length === 0) {
+      this.logger.debug(`No GitHub links found in email ${emailId}`);
+      return;
+    }
+
+    // Fetch status for all links
+    const token = EncryptionHelper.decrypt(user.githubToken);
+    if (!token) {
+      this.logger.warn(`Failed to decrypt GitHub token for user ${userId}`);
+      return;
+    }
+
+    const statuses = await this.githubApiService.fetchMultipleStatuses(
+      token,
+      links,
+    );
+
+    // Build metadata
+    const metadataLinks = links.map((link) => {
+      const status = statuses.get(link.url);
+      return {
+        type: link.type,
+        repo: link.repo,
+        owner: link.owner,
+        number: link.number,
+        url: link.url,
+        status: status
+          ? {
+              ...status,
+              fetchedAt: new Date().toISOString(),
+            }
+          : undefined,
+        fetchedAt: status ? new Date().toISOString() : undefined,
+      };
+    });
+
+    // Get existing thread metadata to merge (avoid overwriting other data)
+    const thread = await this.emailThreadRepository.findOne({
+      where: { id: threadId, userId },
+    });
+
+    if (!thread) {
+      this.logger.warn(`Thread ${threadId} not found for user ${userId}`);
+      return;
+    }
+
+    // Update thread with GitHub metadata
+    const existingMetadata = thread.githubMetadata || {};
+    const updatedMetadata = {
+      ...existingMetadata,
+      links: metadataLinks,
+      lastFetchedAt: new Date().toISOString(),
+    };
+
+    await this.emailThreadRepository.update(
+      { id: threadId, userId },
+      { githubMetadata: updatedMetadata },
+    );
+
+    this.logger.debug(
+      `Updated GitHub metadata for thread ${threadId} with ${metadataLinks.length} links`,
+    );
+  }
+}

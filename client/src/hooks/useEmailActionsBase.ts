@@ -12,12 +12,16 @@ interface UseEmailActionsBaseProps {
   fetchEmails: () => Promise<void>;
   onSuggestionRemove?: (emailId: string) => void;
   onShowPriorityOverride?: (emailId: string, originalPriorityScore: number, newPriorityScore: number, context?: 'archive' | 'star' | 'manual') => void;
+  onTabCountsUpdate?: (forceRefresh?: boolean) => void;
+  mode?: string;
 }
 
 export function useEmailActionsBase({
   fetchEmails,
   onSuggestionRemove,
   onShowPriorityOverride,
+  onTabCountsUpdate,
+  mode,
 }: UseEmailActionsBaseProps) {
   const dispatch = useDispatch<AppDispatch>();
   const emails = useSelector(selectEmails);
@@ -30,10 +34,20 @@ export function useEmailActionsBase({
       ? Math.round((getEmailPriorityScore(email) / 100) * 3)
       : Math.round(DEFAULT_PRIORITY_SCORE / 100 * 3);
 
-    // Optimistic update - update UI immediately
-    dispatch(updateEmail({ id: emailId, updates: { starCount } }));
-
-    onSuggestionRemove?.(emailId);
+    // In Triage mode, starring an email (starCount > 0) should remove it from the list
+    // since starred emails belong in the Action tab
+    if (mode === 'triage' && starCount > 0) {
+      dispatch(removeEmail(emailId));
+      onSuggestionRemove?.(emailId);
+      // Update tab counts to reflect the change
+      if (onTabCountsUpdate) {
+        onTabCountsUpdate(true);
+      }
+    } else {
+      // Optimistic update - update UI immediately
+      dispatch(updateEmail({ id: emailId, updates: { starCount } }));
+      onSuggestionRemove?.(emailId);
+    }
 
     // Calculate and return discrepancy info immediately (for modal display)
     const discrepancy = Math.abs(starCount - predictedStarCount);
@@ -43,17 +57,27 @@ export function useEmailActionsBase({
 
     // Make API call in background (non-blocking)
     axios.put(`${API_URL}/emails/${emailId}/star-count`, { starCount })
+      .then(() => {
+        // Update tab counts after successful star update
+        if (onTabCountsUpdate) {
+          onTabCountsUpdate(true);
+        }
+      })
       .catch((error) => {
         console.error('Error setting star count:', error);
-        // Revert optimistic update on error - restore original star count
-        dispatch(updateEmail({ id: emailId, updates: { starCount: originalStarCount } }));
+        // Revert optimistic update on error - restore email to list or star count
+        if (mode === 'triage' && starCount > 0 && email) {
+          dispatch(restoreEmail(email));
+        } else {
+          dispatch(updateEmail({ id: emailId, updates: { starCount: originalStarCount } }));
+        }
         // Only refresh on error to sync state
         fetchEmails().catch(err => console.error('Error refreshing after star update error:', err));
       });
 
     // Return immediately without waiting for API
     return result;
-  }, [emails, fetchEmails, onSuggestionRemove, dispatch]);
+  }, [emails, fetchEmails, onSuggestionRemove, dispatch, mode, onTabCountsUpdate]);
 
   const handleArchive = useCallback(async (emailId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -89,6 +113,10 @@ export function useEmailActionsBase({
         console.log('[Archive] API call successful:', response.data);
         // After successful archive, keep it in optimistic set - it will be filtered out anyway
         // No need to call fetchEmails() - the optimistic update is sufficient
+        // Update tab counts to reflect the archived email (force refresh to bypass cache)
+        if (onTabCountsUpdate) {
+          onTabCountsUpdate(true);
+        }
       })
       .catch((error) => {
         console.error('[Archive] API call failed:', error);
@@ -101,7 +129,7 @@ export function useEmailActionsBase({
         // Only refresh on error to sync state
         fetchEmails().catch(err => console.error('Error refreshing after archive error:', err));
       });
-  }, [emails, fetchEmails, onSuggestionRemove, dispatch, onShowPriorityOverride]);
+  }, [emails, fetchEmails, onSuggestionRemove, dispatch, onShowPriorityOverride, onTabCountsUpdate]);
 
   const handleSnooze = useCallback(async (emailId: string, duration: string) => {
     if (!duration.trim()) {

@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { theme } from 'theme/theme';
 import { Z_INDEX_MODAL_OVERLAY, TOOLTIP_MIN_WIDTH_SMALL, TOOLTIP_MAX_WIDTH_SMALL, VIEWPORT_HEIGHT_75 } from 'constants/numbers';
 
@@ -15,7 +16,7 @@ export const PriorityTooltipContainer: React.FC<PriorityTooltipContainerProps> =
   minWidth = `${TOOLTIP_MIN_WIDTH_SMALL}px`,
   maxWidth = `${TOOLTIP_MAX_WIDTH_SMALL}px`,
 }) => {
-  return (
+  const tooltipContent = (
     <div
       data-priority-tooltip={emailId}
       style={{
@@ -49,6 +50,9 @@ export const PriorityTooltipContainer: React.FC<PriorityTooltipContainerProps> =
       {children}
     </div>
   );
+
+  // Use portal to render tooltip at document body level, escaping any overflow:hidden containers
+  return createPortal(tooltipContent, document.body);
 };
 
 

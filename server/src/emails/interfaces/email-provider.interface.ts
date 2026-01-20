@@ -2,6 +2,16 @@
 import { Email } from "../../database/entities/email.entity";
 
 /**
+ * Email attachment metadata
+ */
+export interface EmailAttachment {
+  attachmentId: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+}
+
+/**
  * Represents a raw email message from an email provider
  */
 export interface RawEmailMessage {
@@ -18,6 +28,7 @@ export interface RawEmailMessage {
   receivedAt: Date;
   isRead?: boolean;
   labelIds?: string[];
+  attachments?: EmailAttachment[];
 }
 
 /**
@@ -26,6 +37,15 @@ export interface RawEmailMessage {
 export interface EmailRecipient {
   email: string;
   name?: string;
+}
+
+/**
+ * Attachment data for sending emails
+ */
+export interface EmailAttachmentData {
+  filename: string;
+  mimeType: string;
+  content: Buffer;
 }
 
 /**
@@ -54,6 +74,7 @@ export interface EmailProvider {
     to: string,
     subject: string,
     body: string,
+    attachments?: EmailAttachmentData[],
   ): Promise<void>;
 
   /**
@@ -66,6 +87,7 @@ export interface EmailProvider {
     body: string,
     cc?: EmailRecipient[],
     bcc?: EmailRecipient[],
+    attachments?: EmailAttachmentData[],
   ): Promise<{ messageId: string; threadId: string }>;
 
   /**
@@ -109,4 +131,19 @@ export interface EmailProvider {
    * Delete/trash a thread (move to trash folder)
    */
   trashThread(userId: string, threadId: string): Promise<void>;
+
+  /**
+   * Get attachment data from an email
+   * Returns the attachment file data and metadata
+   */
+  getAttachment(
+    userId: string,
+    messageId: string,
+    attachmentId: string,
+  ): Promise<{
+    data: Buffer;
+    filename: string;
+    mimeType: string;
+    size: number;
+  }>;
 }

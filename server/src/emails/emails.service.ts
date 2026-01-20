@@ -44,6 +44,7 @@ import { EmailReadService } from "./email-read.service";
 import { EmailCrudService } from "./email-crud.service";
 import { EmailGmailService } from "./email-gmail.service";
 import { EmailStatusService } from "./email-status.service";
+import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
 
 // Performance budgets in milliseconds
 // Use PERFORMANCE_BUDGETS and QUERY_LIMITS constants directly instead of local PERF_BUDGETS
@@ -188,6 +189,7 @@ export class EmailsService {
     private emailCrudService: EmailCrudService,
     private emailGmailService: EmailGmailService,
     private emailStatusService: EmailStatusService,
+    private batchScheduleService: BatchScheduleService,
     @Inject(forwardRef(() => GitHubService))
     private githubService?: GitHubService,
     @Inject(forwardRef(() => GitHubApiService))
@@ -250,7 +252,10 @@ export class EmailsService {
         thread."isArchived",
         thread."urgencyScore",
         thread."priorityExplanation",
+        thread."priorityScore",
         thread."isProcessingPriority",
+        thread."githubMetadata",
+        thread."updatedAt" as "threadUpdatedAt",
         e.id,
         e."userId",
         e."threadId",
@@ -298,7 +303,11 @@ export class EmailsService {
       WHERE thread."userId" = $1
         ${threadFilter}
         AND (e."isBatched" = false OR e."batchReleaseAt" IS NULL OR e."batchReleaseAt" <= NOW())
-      LIMIT 200`,
+      ORDER BY 
+        COALESCE(thread."priorityScore", 0) DESC,
+        thread."updatedAt" DESC,
+        thread."threadId" ASC
+      LIMIT ${mode === "action" ? QUERY_LIMITS.INBOX_PROCESS_TOTAL : QUERY_LIMITS.INBOX_TOTAL}`,
       [userId],
     );
 
@@ -391,6 +400,8 @@ export class EmailsService {
         starCount: row.starCount,
         isArchived: row.isArchived,
         urgencyScore: row.urgencyScore,
+        githubMetadata: row.githubMetadata || null,
+        threadUpdatedAt: row.threadUpdatedAt,
       } as unknown as Email;
     });
 
@@ -430,21 +441,13 @@ export class EmailsService {
       endPriorityCalc();
     }
 
-    // STEP 6: Sort by priority (DESC), then by received date (DESC)
-    const sortedEmails = threadRepresentatives.sort((a, b) => {
-      // Calculate scores - use 0 as fallback (not MEDIUM_THRESHOLD) to avoid inflating scores
-      // Emails without priority explanation should sort to the bottom
-      const aScore =
-        this.calculateScoreFromBreakdown((a as any).priorityExplanation) ?? 0;
-      const bScore =
-        this.calculateScoreFromBreakdown((b as any).priorityExplanation) ?? 0;
-      if (Math.abs(bScore - aScore) > RATIOS.TINY) {
-        return bScore - aScore; // Higher scores first (DESC order)
-      }
-      return (
-        new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime()
-      );
-    });
+    // STEP 6: Emails are already sorted by the database query:
+    // ORDER BY priorityScore DESC, updatedAt DESC, threadId ASC
+    // No need for JavaScript sorting - database handles it efficiently
+    const sortedEmails = threadRepresentatives;
+
+    // Limit to top results (database already limited, but we apply a final limit after filtering)
+    const maxResults = 200;
 
     // STEP 7: Filter out blocked senders
     const endBlockedFilter = perf.startSpan(
@@ -513,12 +516,15 @@ export class EmailsService {
       this.logger.error("Error converting labels:", err),
     );
 
+    // Apply final limit after all filtering to ensure consistent page size
+    const finalEmails = filteredEmails.slice(0, maxResults);
+
     this.logger.log(
-      `getInbox(${mode}): Returning ${filteredEmails.length} threads (from ${rawEmails.length} matching threads, ${blockedEmailIds.length} blocked)`,
+      `getInbox(${mode}): Returning ${finalEmails.length} threads (from ${rawEmails.length} matching threads, ${blockedEmailIds.length} blocked)`,
     );
 
     perf.finish(mode);
-    return filteredEmails;
+    return finalEmails;
   }
 
   /**
@@ -769,6 +775,46 @@ export class EmailsService {
       emailId,
       (userId, emailId) => this.getEmailById(userId, emailId),
     );
+  }
+
+  /**
+   * Get attachment data from an email
+   */
+  async getAttachment(
+    userId: string,
+    emailId: string,
+    attachmentId: string,
+  ): Promise<{
+    data: Buffer;
+    filename: string;
+    mimeType: string;
+    size: number;
+  }> {
+    // Get the email to find the messageId
+    const email = await this.getEmailById(userId, emailId);
+    if (!email) {
+      throw new Error("Email not found");
+    }
+
+    // Verify the attachment exists in the email
+    if (!email.attachments || email.attachments.length === 0) {
+      throw new Error("Email has no attachments");
+    }
+
+    const attachment = email.attachments.find(
+      (att) => att.attachmentId === attachmentId,
+    );
+    if (!attachment) {
+      throw new Error("Attachment not found in email");
+    }
+
+    // Get the provider and fetch the attachment
+    const provider = await this.emailProviderManager.getPrimaryProvider(userId);
+    if (!provider) {
+      throw new Error("No email provider connected");
+    }
+
+    return provider.getAttachment(userId, email.messageId, attachmentId);
   }
 
   async getThreadEmails(
@@ -1126,13 +1172,29 @@ export class EmailsService {
       );
     }
 
-    // Detect GitHub links and fetch status asynchronously (fire and forget)
-    this.detectAndFetchGitHubLinks(userId, savedEmail).catch((err) => {
-      this.logger.error(
-        `Failed to detect/fetch GitHub links for email ${savedEmail.id}:`,
-        err,
-      );
-    });
+    // Queue GitHub metadata fetch job (processes in background)
+    if (savedEmail.emailThreadId) {
+      this.boss
+        .send(
+          "fetch-github-metadata",
+          {
+            userId,
+            emailId: savedEmail.id,
+            threadId: savedEmail.emailThreadId,
+          },
+          {
+            priority: getJobPriority("generate-summary-background", false),
+            singletonKey: `github-metadata-${savedEmail.emailThreadId}`,
+            singletonMinutes: 60, // Only refetch once per hour per thread
+          },
+        )
+        .catch((err) => {
+          this.logger.error(
+            `Failed to queue GitHub metadata job for email ${savedEmail.id}:`,
+            err,
+          );
+        });
+    }
 
     return savedEmail;
   }
@@ -1230,37 +1292,50 @@ export class EmailsService {
 
     this.logger.log(`[Archive] Email found: emailId=${emailId}, threadId=${email.threadId}`);
     
-      // Check if the thread is starred
-      const thread = await this.emailThreadRepository.findOne({
-        where: { userId, threadId: email.threadId },
-      });
+    // Check if the thread is starred
+    const thread = await this.emailThreadRepository.findOne({
+      where: { userId, threadId: email.threadId },
+    });
 
-      const isStarred = thread && thread.starCount > 0;
-      const { threadId } = email;
+    const isStarred = thread && thread.starCount > 0;
+    const { threadId } = email;
     
     this.logger.log(`[Archive] Thread info: threadId=${threadId}, isStarred=${isStarred}, currentIsArchived=${thread?.isArchived || false}`);
 
       // Archive the thread in email provider (this will also remove the star if present)
       // Only update database if provider API call succeeds
-      const provider =
-        await this.emailProviderManager.getPrimaryProvider(userId);
-      if (provider && "archiveThread" in provider) {
+    const provider =
+      await this.emailProviderManager.getPrimaryProvider(userId);
+    if (provider && "archiveThread" in provider) {
       this.logger.log(`[Archive] Calling provider.archiveThread: userId=${userId}, threadId=${threadId}`);
-        await provider.archiveThread(userId, threadId);
+      await provider.archiveThread(userId, threadId);
       this.logger.log(`[Archive] provider.archiveThread completed successfully: userId=${userId}, threadId=${threadId}`);
-      } else {
+    } else {
       this.logger.error(`[Archive] No email provider available: userId=${userId}`);
-        throw new Error("No email provider available to archive thread");
-      }
+      throw new Error("No email provider available to archive thread");
+    }
 
-      // Update database: remove star and mark as archived
+    // Update database: remove star, mark as read, and mark as archived
       // Only reached if provider API call succeeded
-      if (isStarred) {
+    if (isStarred) {
       this.logger.log(`[Archive] Removing star from thread: userId=${userId}, threadId=${threadId}`);
-        await this.updateThreadStarCount(userId, threadId, 0);
-      }
+      await this.updateThreadStarCount(userId, threadId, 0);
+    }
+
+    // Mark all emails in the thread as read in the database
+    this.logger.log(`[Archive] Marking all emails in thread as read: userId=${userId}, threadId=${threadId}`);
+    const threadEmails = await this.emailRepository.find({
+      where: { userId, threadId, isRead: false },
+      select: ["id"],
+    });
+    if (threadEmails.length > 0) {
+      const emailIds = threadEmails.map((e) => e.id);
+      await this.bulkMarkAsRead(userId, emailIds);
+      this.logger.log(`[Archive] Marked ${emailIds.length} emails as read: userId=${userId}, threadId=${threadId}`);
+    }
+
     this.logger.log(`[Archive] Updating thread archived status to true: userId=${userId}, threadId=${threadId}`);
-      await this.updateThreadArchivedStatus(userId, threadId, true);
+    await this.updateThreadArchivedStatus(userId, threadId, true);
     this.logger.log(`[Archive] archiveEmail completed successfully: userId=${userId}, emailId=${emailId}, threadId=${threadId}`);
   }
 
@@ -1305,7 +1380,7 @@ export class EmailsService {
     starCount: number,
   ): Promise<Email> {
     return this.emailStarService.setStarCount(
-      userId,
+            userId,
       emailId,
       starCount,
       (userId, emailId) => this.getEmailById(userId, emailId),
@@ -1320,7 +1395,7 @@ export class EmailsService {
    */
   async toggleStar(userId: string, emailId: string): Promise<Email> {
     return this.emailStarService.toggleStar(
-      userId,
+            userId,
       emailId,
       (userId, emailId) => this.getEmailById(userId, emailId),
       (userId, threadId, starCount) =>
@@ -1334,7 +1409,7 @@ export class EmailsService {
    */
   async forceCheckNewEmails(userId: string): Promise<Email[]> {
     return this.emailStatusService.forceCheckNewEmails(
-      userId,
+        userId,
       (userId, includeBatched, mode) => this.getInbox(userId, includeBatched, mode),
     );
   }
@@ -1634,6 +1709,61 @@ export class EmailsService {
               );
             });
           // Continue to fallback calculation below
+        } else if (hasCalculatingItems && thread.isProcessingPriority) {
+          // Return partial explanation even if still calculating - don't make user wait
+          const explanation = thread.priorityExplanation as {
+            score: number;
+            dimensions?: {
+              urgency?: { score: number; reasons: string[] };
+              goalAlignment?: { score: number; reasons: string[] };
+              vipContact?: { score: number; reasons: string[] };
+              sentiment?: { score: number; type: string; reasons: string[] };
+            };
+            breakdown?: Array<{ factor: string; value: number; description: string }>;
+          };
+          if (!explanation.dimensions?.sentiment) {
+            explanation.dimensions = {
+              ...explanation.dimensions,
+              sentiment: {
+                score: email.sentimentScore ?? 0,
+                type:
+                  // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+                  (email.sentimentScore ?? 0) < -0.3
+                    ? "negative"
+                    : // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+                      (email.sentimentScore ?? 0) > 0.3
+                      ? "positive"
+                      : "neutral",
+                reasons: [],
+              },
+            };
+          }
+          endTotal();
+          perf.finish();
+          this.logger.debug(
+            `Returning partial priority explanation for email ${emailId} (still calculating)`,
+          );
+          return {
+            score: explanation.score,
+            dimensions: {
+              urgency: explanation.dimensions?.urgency || { score: 0, reasons: [] },
+              goalAlignment: explanation.dimensions?.goalAlignment || { score: 0, reasons: [] },
+              vipContact: explanation.dimensions?.vipContact || { score: 0, reasons: [] },
+              sentiment: explanation.dimensions?.sentiment || {
+                score: email.sentimentScore ?? 0,
+                type:
+                  // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+                  (email.sentimentScore ?? 0) < -0.3
+                    ? "negative"
+                    : // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+                      (email.sentimentScore ?? 0) > 0.3
+                      ? "positive"
+                      : "neutral",
+                reasons: [],
+              },
+            },
+            breakdown: explanation.breakdown || [],
+          };
         } else if (!hasOldStructure && !hasCalculatingItems) {
           // New structure - return it with sentiment dimension
           const explanation = thread.priorityExplanation as {
@@ -1849,10 +1979,15 @@ export class EmailsService {
 
       // Save the explanation to the thread (non-blocking)
       // Priority explanation is now thread-level, not email-level
+      // Also save denormalized priorityScore for efficient SQL sorting
       if (email.emailThreadId) {
         const endSave = perf.startSpan("save-explanation", 500);
+        const priorityScore = this.calculateScoreFromBreakdown(explanation) ?? 0;
         this.emailThreadRepository
-          .update({ id: email.emailThreadId }, { priorityExplanation: explanation })
+          .update(
+            { id: email.emailThreadId },
+            { priorityExplanation: explanation, priorityScore },
+          )
           .catch((err) =>
             this.logger.warn(
               `Failed to save priority explanation for thread ${email.emailThreadId}:`,
@@ -1942,9 +2077,9 @@ export class EmailsService {
     >
   > {
     return this.emailSearchService.searchEmails(
-      userId,
+          userId,
       query,
-      maxResults,
+              maxResults,
       onProgress,
       (userId, email) => this.calculateDaysSinceLastEmail(userId, email),
     );
@@ -1990,7 +2125,7 @@ export class EmailsService {
     }>;
   }> {
     return this.emailDebugService.debugStarredThreads(
-      userId,
+          userId,
       (userId, includeBatched, mode) =>
         this.getInbox(userId, includeBatched, mode),
     );
@@ -2140,7 +2275,14 @@ export class EmailsService {
   async getThreadsByThreadIds(
     userId: string,
     threadIds: string[],
-  ): Promise<Array<{ threadId: string; updatedAt: Date }>> {
+  ): Promise<
+    Array<{
+      threadId: string;
+      updatedAt: Date;
+      starCount: number;
+      isArchived: boolean;
+    }>
+  > {
     return this.emailThreadService.getThreadsByThreadIds(userId, threadIds);
   }
 

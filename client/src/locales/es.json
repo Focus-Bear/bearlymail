@@ -141,6 +141,8 @@
     "highUrgencyEmail": "Correo de alta urgencia",
     "urgentBadge": "🚨 Urgente ({{score}})",
     "urgent": "Urgente",
+    "emergencyDelivery": "Emergencia – entregado temprano",
+    "emergencyDeliveryTooltip": "Este correo fue entregado fuera del horario de lote regular porque fue identificado como de alta prioridad",
     "from": "De",
     "moreUrgentEmails": "+{{count}} correo urgente más",
     "moreUrgentEmails_plural": "+{{count}} correos urgentes más",

@@ -173,6 +173,8 @@
     "urgentBadge": "🚨 Urgent ({{score}})",
     "urgent": "Urgent",
     "highUrgencyEmail": "High urgency email",
+    "emergencyDelivery": "Emergency – delivered early",
+    "emergencyDeliveryTooltip": "This email was delivered outside the regular batch window because it was identified as high priority",
     "moreUrgentEmails": "+{{count}} more urgent email",
     "moreUrgentEmails_plural": "+{{count}} more urgent emails",
     "urgentEmailsWaiting": "You have urgent emails waiting. They will be delivered at the next batch time.",
@@ -262,7 +264,18 @@
     "deleteActionItem": "Delete action item",
     "regenerateActions": "Regenerate Actions",
     "suggestedReplies": "Suggested Replies",
-    "generating": "Generating..."
+    "generating": "Generating...",
+    "calendarInvite": {
+      "title": "Calendar Invitation",
+      "accept": "Accept",
+      "decline": "Decline",
+      "accepting": "Accepting...",
+      "declining": "Declining...",
+      "accepted": "Accepted",
+      "declined": "Declined",
+      "acceptError": "Failed to accept invitation. Please try again.",
+      "declineError": "Failed to decline invitation. Please try again."
+    }
   },
   "settings": {
     "title": "Settings",
@@ -407,7 +420,9 @@
       "extendTrial": "Extend Trial",
       "approve": "Approve",
       "pendingApproval": "Pending Approval",
-      "approved": "Approved"
+      "approved": "Approved",
+      "noPendingRequests": "No pending requests",
+      "noApprovedEntries": "No approved entries"
     },
     "jobs": {
       "title": "Job Queue Statistics",

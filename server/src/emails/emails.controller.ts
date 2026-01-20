@@ -112,6 +112,8 @@ export class EmailsController {
 
     try {
       // Get next delivery time from the batch schedule, not from batched emails
+      // Use getNextScheduledDeliveryTime to always show the next scheduled time
+      // regardless of whether batching is enabled (for display purposes)
       const schedule = await this.batchScheduleService.getSchedule(
         req.user.userId,
       );
@@ -125,16 +127,14 @@ export class EmailsController {
           createdAt: new Date(),
           updatedAt: new Date(),
         } as BatchSchedule;
-        const nextTime = this.batchScheduleService.getNextBatchReleaseTime(
+        const nextTime = this.batchScheduleService.getNextScheduledDeliveryTime(
           tempSchedule,
-          0,
         );
         perf.finish();
         return { nextDelivery: nextTime };
       }
-      const nextTime = this.batchScheduleService.getNextBatchReleaseTime(
+      const nextTime = this.batchScheduleService.getNextScheduledDeliveryTime(
         schedule,
-        0,
       );
       perf.finish();
       return { nextDelivery: nextTime };
@@ -142,6 +142,40 @@ export class EmailsController {
       perf.finish();
       throw error;
     }
+  }
+
+  @Get("tab-counts")
+  async getTabCounts(@Request() req) {
+    const userId = req.user.userId;
+
+    // Query counts for each tab mode in parallel
+    // Use getInbox() for all modes to ensure counts match what's actually displayed
+    // This accounts for filtering like batched emails, blocked senders, etc.
+    const [triageEmails, actionCount, followUpEmails] = await Promise.all([
+      // Triage count: use the same logic as the inbox view
+      // This accounts for batched emails, blocked senders, and other filters
+      this.emailsService.getInbox(userId, false, "triage"),
+
+      // Action count: unarchived, starred
+      // Note: Action mode may also have additional filters, but for now we keep the simple count
+      // to avoid performance impact. If action count becomes inaccurate, update this similarly.
+      this.emailThreadRepository
+        .createQueryBuilder("thread")
+        .where("thread.userId = :userId", { userId })
+        .andWhere("thread.isArchived = false")
+        .andWhere("thread.starCount > 0")
+        .getCount(),
+
+      // Follow-up count: use the same logic as the inbox view
+      // This checks for threads where user sent last and no reply received
+      this.emailsService.getInbox(userId, false, "follow-up"),
+    ]);
+
+    return {
+      triage: triageEmails.length,
+      action: actionCount,
+      followUp: followUpEmails.length,
+    };
   }
 
   @Get("search")
@@ -206,10 +240,20 @@ export class EmailsController {
       const thread = await this.emailThreadRepository.findOne({
         where: { id: email.emailThreadId, userId: req.user.userId },
       });
-      if (thread && thread.githubMetadata) {
+      if (thread && thread.githubMetadata && thread.githubMetadata.links) {
+        // Deduplicate links by URL to prevent duplicate cards in UI
+        const seenUrls = new Set<string>();
+        const uniqueLinks = thread.githubMetadata.links.filter((link) => {
+          const key = link.url || `${link.owner}-${link.repo}-${link.number}`;
+          if (seenUrls.has(key)) {
+            return false;
+          }
+          seenUrls.add(key);
+          return true;
+        });
         return {
           ...email,
-          githubMetadata: thread.githubMetadata,
+          githubMetadata: { links: uniqueLinks },
         };
       }
     }
@@ -227,6 +271,28 @@ export class EmailsController {
   @UseGuards(JwtAuthGuard)
   async getGmailLabels(@Request() req, @Param("id") id: string) {
     return this.emailsService.getGmailLabels(req.user.userId, id);
+  }
+
+  @Get(":id/attachments/:attachmentId")
+  @UseGuards(JwtAuthGuard)
+  async getAttachment(
+    @Request() req,
+    @Param("id") id: string,
+    @Param("attachmentId") attachmentId: string,
+  ) {
+    const attachment = await this.emailsService.getAttachment(
+      req.user.userId,
+      id,
+      attachmentId,
+    );
+
+    // Set appropriate headers for file download
+    return {
+      data: attachment.data.toString("base64"),
+      filename: attachment.filename,
+      mimeType: attachment.mimeType,
+      size: attachment.size,
+    };
   }
 
   @Post()

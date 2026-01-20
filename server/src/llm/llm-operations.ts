@@ -45,6 +45,18 @@ export const LLM_OP_SEARCH_RELEVANCE_BATCH = "search_relevance_batch";
 // Priority calculation/analysis
 export const LLM_OP_ANALYZE_PRIORITY = "analyze_priority";
 
+// Auto-responder: email classification
+export const LLM_OP_CLASSIFY_EMAIL = "classify_email_type";
+
+// Auto-responder: Q&A answer generation
+export const LLM_OP_GENERATE_QA_ANSWER = "generate_qa_answer";
+
+// Auto-responder: opt-out detection
+export const LLM_OP_DETECT_OPT_OUT = "detect_opt_out";
+
+// Name redaction for privacy
+export const LLM_OP_REDACT_NAMES = "redact_names";
+
 // Generic/unknown operation (fallback)
 export const LLM_OP_UNKNOWN = "unknown";
 
@@ -66,6 +78,10 @@ export type LLMOperation =
   | typeof LLM_OP_SEARCH_RELEVANCE
   | typeof LLM_OP_SEARCH_RELEVANCE_BATCH
   | typeof LLM_OP_ANALYZE_PRIORITY
+  | typeof LLM_OP_CLASSIFY_EMAIL
+  | typeof LLM_OP_GENERATE_QA_ANSWER
+  | typeof LLM_OP_DETECT_OPT_OUT
+  | typeof LLM_OP_REDACT_NAMES
   | typeof LLM_OP_UNKNOWN;
 
 /**
@@ -86,5 +102,9 @@ export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
   [LLM_OP_SEARCH_RELEVANCE]: "Search Relevance",
   [LLM_OP_SEARCH_RELEVANCE_BATCH]: "Search Relevance (Batch)",
   [LLM_OP_ANALYZE_PRIORITY]: "Analyze Priority",
+  [LLM_OP_CLASSIFY_EMAIL]: "Classify Email Type",
+  [LLM_OP_GENERATE_QA_ANSWER]: "Generate Q&A Answer",
+  [LLM_OP_DETECT_OPT_OUT]: "Detect Opt-Out",
+  [LLM_OP_REDACT_NAMES]: "Redact Names",
   [LLM_OP_UNKNOWN]: "Unknown Operation",
 };

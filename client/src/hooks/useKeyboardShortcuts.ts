@@ -13,6 +13,7 @@ interface UseKeyboardShortcutsProps {
   emailListRef?: React.RefObject<HTMLDivElement | null>;
   emailDetailRef?: React.RefObject<HTMLDivElement | null>;
   splitViewSelectedEmailId?: string | null;
+  onSplitViewArchive?: (emailId: string) => void;
 }
 
 export function useKeyboardShortcuts({
@@ -26,6 +27,7 @@ export function useKeyboardShortcuts({
   emailListRef,
   emailDetailRef,
   splitViewSelectedEmailId,
+  onSplitViewArchive,
 }: UseKeyboardShortcutsProps): void {
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     // Ignore if typing in an input
@@ -80,11 +82,18 @@ export function useKeyboardShortcuts({
 
     // Archive (Delete, Backspace, or 'e')
     if (e.key === KEY_DELETE || e.key === KEY_BACKSPACE || e.key === KEY_E) {
-      // If split view is open with an email, archive that email regardless of focus location
+      // If split view is open with an email, use the split view archive handler
+      // which will archive and navigate to the next email
       if (splitViewSelectedEmailId) {
         e.preventDefault();
-        const fakeEvent = { stopPropagation: () => {} } as React.MouseEvent;
-        onArchive(splitViewSelectedEmailId, fakeEvent);
+        if (onSplitViewArchive) {
+          // Use the split view archive handler that handles next email navigation
+          onSplitViewArchive(splitViewSelectedEmailId);
+        } else {
+          // Fallback to basic archive if no split view handler provided
+          const fakeEvent = { stopPropagation: () => {} } as React.MouseEvent;
+          onArchive(splitViewSelectedEmailId, fakeEvent);
+        }
         return;
       }
       
@@ -124,7 +133,7 @@ export function useKeyboardShortcuts({
         onSetStarCount(emailId, 0);
       });
     }
-  }, [emails, selectedEmailIndex, selectedEmailIds, setSelectedEmailIndex, onArchive, onSetStarCount, emailListRef, emailDetailRef, splitViewSelectedEmailId]);
+  }, [emails, selectedEmailIndex, selectedEmailIds, setSelectedEmailIndex, onArchive, onSetStarCount, emailListRef, emailDetailRef, splitViewSelectedEmailId, onSplitViewArchive]);
 
   useEffect(() => {
     if (!enabled) return;

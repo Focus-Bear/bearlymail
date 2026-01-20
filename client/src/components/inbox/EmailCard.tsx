@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
 
@@ -9,7 +10,8 @@ interface EmailCardProps {
   children: React.ReactNode;
 }
 
-const getBorderColor = (isSelected: boolean, isRead: boolean): string => {
+const getBorderColor = (isSelected: boolean, isRead: boolean, wasDeliveredEarly: boolean): string => {
+  if (wasDeliveredEarly) return theme.colors.warning.main;
   if (isSelected) return theme.colors.primary.main;
   if (isRead) return theme.colors.border.light;
   return theme.colors.primary.light;
@@ -21,6 +23,9 @@ export const EmailCard: React.FC<EmailCardProps> = ({
   onCardClick,
   children,
 }) => {
+  const { t } = useTranslation();
+  const wasDeliveredEarly = email.wasDeliveredEarly ?? false;
+
   return (
     <div
       onClick={onCardClick}
@@ -29,12 +34,14 @@ export const EmailCard: React.FC<EmailCardProps> = ({
         backgroundColor: isSelected ? theme.colors.primary.subtle : theme.colors.background.paper,
         borderRadius: theme.borderRadius.lg,
         padding: theme.spacing.lg,
-        border: `2px solid ${getBorderColor(isSelected, email.isRead)}`,
-        borderLeft: email.isRead ? `1px solid ${theme.colors.border.light}` : `4px solid ${theme.colors.primary.main}`,
+        paddingTop: wasDeliveredEarly ? theme.spacing.xl : theme.spacing.lg,
+        border: `2px solid ${getBorderColor(isSelected, email.isRead, wasDeliveredEarly)}`,
+        borderLeft: email.isRead ? `1px solid ${theme.colors.border.light}` : `4px solid ${wasDeliveredEarly ? theme.colors.warning.main : theme.colors.primary.main}`,
         boxShadow: theme.shadows.sm,
         cursor: 'pointer',
         transition: theme.transitions.default,
         position: 'relative',
+        overflow: 'hidden',
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.transform = 'translateY(-2px)';
@@ -45,6 +52,29 @@ export const EmailCard: React.FC<EmailCardProps> = ({
         e.currentTarget.style.boxShadow = theme.shadows.sm;
       }}
     >
+      {/* Emergency delivery label */}
+      {wasDeliveredEarly && (
+        <div
+          title={t('inbox.emergencyDeliveryTooltip')}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            background: `linear-gradient(90deg, ${theme.colors.warning.main} 0%, ${theme.colors.warning.light} 100%)`,
+            color: '#92400E',
+            fontSize: theme.fontSizes.xs,
+            fontWeight: 600,
+            textAlign: 'center',
+            padding: `${theme.spacing.xxs} ${theme.spacing.sm}`,
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+            borderBottom: `1px solid ${theme.colors.warning.main}`,
+          }}
+        >
+          {t('inbox.emergencyDelivery')}
+        </div>
+      )}
       {children}
     </div>
   );

@@ -44,6 +44,7 @@ interface InboxContentProps {
   fetchThreadsWithDrafts: () => void;
   emailListRef: React.RefObject<HTMLDivElement | null>;
   emailDetailRef: React.RefObject<HTMLDivElement | null>;
+  onSplitViewArchive?: (emailId: string) => void;
 }
 
 // eslint-disable-next-line max-lines-per-function -- Inbox content component requires handling multiple inbox modes, emails, and UI states
@@ -78,6 +79,7 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   fetchThreadsWithDrafts,
   emailListRef,
   emailDetailRef,
+  onSplitViewArchive,
 }) => {
   const splitViewContainerRef = useRef<HTMLDivElement>(null);
 
@@ -126,7 +128,7 @@ export const InboxContent: React.FC<InboxContentProps> = ({
             return 1;
           })(),
           overflowY: 'auto', 
-          padding: theme.spacing['2xl'],
+          padding: `${theme.spacing.md} ${theme.spacing['2xl']} ${theme.spacing['2xl']}`,
           transition: splitView.isResizing ? 'none' : 'flex 0.3s ease',
           borderRight: splitView.selectedEmailId && !splitView.panelExpanded && !splitView.isMobile ? `1px solid ${theme.colors.border.light}` : 'none',
         }}
@@ -184,6 +186,7 @@ export const InboxContent: React.FC<InboxContentProps> = ({
                     }
                   }}
                   onProvideFeedback={() => {
+                    priorityTooltip.hidePriorityTooltip();
                     modals.showPriorityFeedback(email.id, getEmailPriorityScore(email));
                   }}
                   followUpData={followUpData}
@@ -222,6 +225,11 @@ export const InboxContent: React.FC<InboxContentProps> = ({
           emailDetailRef={emailDetailRef}
           onTogglePanel={splitView.togglePanel}
           onClose={splitView.closeEmail}
+          onArchiveComplete={() => {
+            if (onSplitViewArchive && splitView.selectedEmailId) {
+              onSplitViewArchive(splitView.selectedEmailId);
+            }
+          }}
         />
       )}
     </div>

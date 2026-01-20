@@ -1,14 +1,21 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { API_URL } from 'config/api';
 
 const BATCH_STATUS_CACHE_KEY = 'batchStatusCache';
 const BATCH_STATUS_CACHE_TTL = 30000; // 30 seconds
 const LAST_URGENT_CHECK_KEY = 'lastUrgentCheckTime';
+const URGENT_CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 interface CacheEntry {
   nextDelivery: string | null;
   timestamp: number;
+}
+
+interface UrgentCheckResult {
+  hasUrgent: boolean;
+  count: number;
+  emails: Array<{ subject: string; from: string; priorityScore: number }>;
 }
 
 interface UseBatchScheduleReturn {
@@ -16,11 +23,13 @@ interface UseBatchScheduleReturn {
   lastUrgentCheck: Date | null;
   fetchBatchStatus: () => Promise<void>;
   updateLastUrgentCheck: () => void;
+  checkForUrgentEmails: () => Promise<UrgentCheckResult>;
 }
 
 export function useBatchSchedule(): UseBatchScheduleReturn {
   const [nextDelivery, setNextDelivery] = useState<Date | null>(null);
   const [lastUrgentCheck, setLastUrgentCheck] = useState<Date | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load lastUrgentCheck from localStorage on mount
   useEffect(() => {
@@ -29,6 +38,46 @@ export function useBatchSchedule(): UseBatchScheduleReturn {
       setLastUrgentCheck(new Date(stored));
     }
   }, []);
+
+  const updateLastUrgentCheck = useCallback(() => {
+    const now = new Date();
+    setLastUrgentCheck(now);
+    localStorage.setItem(LAST_URGENT_CHECK_KEY, now.toISOString());
+  }, []);
+
+  const checkForUrgentEmails = useCallback(async (): Promise<UrgentCheckResult> => {
+    try {
+      const response = await axios.post(`${API_URL}/emails/check-urgent`);
+      updateLastUrgentCheck();
+      return {
+        hasUrgent: response.data.hasUrgent || false,
+        count: response.data.count || 0,
+        emails: response.data.emails || [],
+      };
+    } catch (error) {
+      console.error('Error checking for urgent emails:', error);
+      // Still update the timestamp even on error - we attempted a check
+      updateLastUrgentCheck();
+      return { hasUrgent: false, count: 0, emails: [] };
+    }
+  }, [updateLastUrgentCheck]);
+
+  // Set up periodic urgent email check every 5 minutes
+  useEffect(() => {
+    // Check immediately on mount
+    checkForUrgentEmails();
+
+    // Then set up interval
+    intervalRef.current = setInterval(() => {
+      checkForUrgentEmails();
+    }, URGENT_CHECK_INTERVAL_MS);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [checkForUrgentEmails]);
 
   const fetchBatchStatus = useCallback(async () => {
     // Check localStorage cache first
@@ -63,16 +112,11 @@ export function useBatchSchedule(): UseBatchScheduleReturn {
     }
   }, []);
 
-  const updateLastUrgentCheck = useCallback(() => {
-    const now = new Date();
-    setLastUrgentCheck(now);
-    localStorage.setItem(LAST_URGENT_CHECK_KEY, now.toISOString());
-  }, []);
-
   return {
     nextDelivery,
     lastUrgentCheck,
     fetchBatchStatus,
     updateLastUrgentCheck,
+    checkForUrgentEmails,
   };
 }

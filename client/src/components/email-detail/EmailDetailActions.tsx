@@ -3,11 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
 import { QuickActionsSection } from 'components/email-detail/QuickActionsSection';
+import { CalendarInviteActions } from 'components/email-detail/CalendarInviteActions';
 import { EMOJI_REPLY, EMOJI_ARCHIVE, EMOJI_BLOCK, EMOJI_LINK, EMOJI_DELETE, EMOJI_STAR } from 'constants/emojis';
 import { OPACITY_DISABLED } from 'constants/numbers';
 import { REPLY_MODE_REPLY } from 'constants/strings';
 import { extractUnsubscribeLink } from 'utils/unsubscribeUtils';
 import { captureEvent } from 'utils/posthog';
+import { isCalendarInvitation } from 'utils/calendarUtils';
 
 interface EmailDetailActionsProps {
   email: Email;
@@ -24,6 +26,8 @@ interface EmailDetailActionsProps {
   onDelete: () => void;
   onSetStarCount: (emailId: string, starCount: number) => Promise<void>;
   onBlockSender: (emailId: string) => void;
+  onRespondToInvitation?: (emailId: string, response: 'accepted' | 'declined' | 'tentative') => Promise<void>;
+  hideActionButtons?: boolean; // Hide the action buttons bar (used in split view where actions are in header)
 }
 
 export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
@@ -41,11 +45,16 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
   onDelete,
   onSetStarCount,
   onBlockSender,
+  onRespondToInvitation,
+  hideActionButtons = false,
 }) => {
   const { t } = useTranslation();
   
   const emailWithStarCount = email as any;
   const starCount = emailWithStarCount?.starCount ?? 0;
+
+  // Check if email is a calendar invitation
+  const isInvitation = useMemo(() => isCalendarInvitation(email), [email]);
 
   // Extract unsubscribe link from email
   const unsubscribeLink = useMemo(() => {
@@ -68,6 +77,15 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
       flexDirection: 'column',
       gap: theme.spacing.md,
     }}>
+      {/* Calendar Invitation Actions - shown prominently when email is an invitation */}
+      {isInvitation && onRespondToInvitation && (
+        <CalendarInviteActions
+          email={email}
+          onAccept={() => onRespondToInvitation(email.id, 'accepted')}
+          onDecline={() => onRespondToInvitation(email.id, 'declined')}
+        />
+      )}
+
       <QuickActionsSection
         suggestedActions={suggestedActions}
         showQuickActionsMenu={showQuickActionsMenu}
@@ -80,7 +98,8 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
         onActionSuccess={onActionSuccess}
       />
 
-      {/* All Actions in Single Row */}
+      {/* All Actions in Single Row - hidden in split view mode where actions are in header */}
+      {!hideActionButtons && (
       <div style={{
         backgroundColor: theme.colors.background.paper,
         borderRadius: theme.borderRadius.md,
@@ -164,7 +183,11 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
           </button>
 
           <button
-            onClick={onArchive}
+            onClick={() => {
+              console.log('%c[ARCHIVE DEBUG] EmailDetailActions Archive button clicked!', 'background: purple; color: white; font-size: 20px;');
+              console.log('%c[ARCHIVE DEBUG] onArchive function:', 'background: orange; color: black; font-size: 16px;', typeof onArchive);
+              onArchive();
+            }}
             style={{
               padding: `${theme.spacing.sm} ${theme.spacing.md}`,
               backgroundColor: 'transparent',
@@ -232,28 +255,9 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
             </button>
           )}
 
-          <button
-            onClick={onDelete}
-            style={{
-              padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-              backgroundColor: 'transparent',
-              color: theme.colors.text.secondary,
-              border: `1px solid ${theme.colors.border.medium}`,
-              borderRadius: theme.borderRadius.md,
-              fontWeight: theme.typography.fontWeight.medium,
-              cursor: 'pointer',
-              fontSize: theme.typography.fontSize.sm,
-              display: 'flex',
-              alignItems: 'center',
-              gap: theme.spacing.xs,
-            }}
-          >
-            {/* eslint-disable-next-line i18next/no-literal-string */}
-            <span>{EMOJI_DELETE}</span>
-            {t('emailDetail.delete') || 'Delete'}
-          </button>
         </div>
       </div>
+      )}
     </div>
   );
 };

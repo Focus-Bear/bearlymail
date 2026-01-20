@@ -1,0 +1,154 @@
+import {
+  Controller,
+  Get,
+  Put,
+  Post,
+  Body,
+  Query,
+  UseGuards,
+  Request,
+  Logger,
+} from "@nestjs/common";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { AutoResponderService } from "./auto-responder.service";
+import { QueueStatsService } from "./queue-stats.service";
+import { AutoResponderConfig } from "./types/auto-responder.types";
+
+interface AuthenticatedRequest {
+  user: {
+    userId: string;
+    email: string;
+  };
+}
+
+@Controller("auto-responder")
+@UseGuards(JwtAuthGuard)
+export class AutoResponderController {
+  private readonly logger = new Logger(AutoResponderController.name);
+
+  constructor(
+    private autoResponderService: AutoResponderService,
+    private queueStatsService: QueueStatsService,
+  ) {}
+
+  /**
+   * Get user's auto-responder configuration
+   */
+  @Get("settings")
+  async getSettings(@Request() req: AuthenticatedRequest) {
+    const config = await this.autoResponderService.getConfig(req.user.userId);
+    return { config };
+  }
+
+  /**
+   * Update user's auto-responder configuration
+   */
+  @Put("settings")
+  async updateSettings(
+    @Request() req: AuthenticatedRequest,
+    @Body() body: Partial<AutoResponderConfig>,
+  ) {
+    const config = await this.autoResponderService.updateConfig(
+      req.user.userId,
+      body,
+    );
+    return { config };
+  }
+
+  /**
+   * Get current queue statistics for preview
+   */
+  @Get("stats")
+  async getStats(@Request() req: AuthenticatedRequest) {
+    const stats = await this.queueStatsService.getQueueStats(req.user.userId);
+    return { stats };
+  }
+
+  /**
+   * Get auto-response analytics
+   */
+  @Get("analytics")
+  async getAnalytics(
+    @Request() req: AuthenticatedRequest,
+    @Query("startDate") startDate?: string,
+    @Query("endDate") endDate?: string,
+  ) {
+    const dateRange =
+      startDate && endDate
+        ? {
+            start: new Date(startDate),
+            end: new Date(endDate),
+          }
+        : undefined;
+
+    const analytics = await this.autoResponderService.getAnalytics(
+      req.user.userId,
+      dateRange,
+    );
+    return { analytics };
+  }
+
+  /**
+   * Preview auto-response template with sample data
+   */
+  @Post("preview")
+  async previewTemplate(
+    @Request() req: AuthenticatedRequest,
+    @Body()
+    body: {
+      templateType: "standard" | "highPriority" | "lowPriority" | "zeroBacklog";
+    },
+  ) {
+    const preview = await this.autoResponderService.previewAutoResponse(
+      req.user.userId,
+      body.templateType,
+    );
+    return { preview };
+  }
+
+  /**
+   * Test auto-response by triggering it for a specific thread
+   */
+  @Post("test")
+  async testAutoResponse(
+    @Request() req: AuthenticatedRequest,
+    @Body() body: { emailThreadId: string },
+  ) {
+    const result = await this.autoResponderService.processEmailForAutoResponse(
+      req.user.userId,
+      body.emailThreadId,
+    );
+    return { result };
+  }
+
+  /**
+   * Add opt-out suppression for a sender
+   */
+  @Post("opt-out")
+  async addOptOut(
+    @Request() req: AuthenticatedRequest,
+    @Body() body: { senderEmail: string; notes?: string },
+  ) {
+    await this.autoResponderService.addOptOutSuppression(
+      req.user.userId,
+      body.senderEmail,
+      body.notes,
+    );
+    return { success: true };
+  }
+
+  /**
+   * Remove opt-out suppression for a sender
+   */
+  @Post("remove-opt-out")
+  async removeOptOut(
+    @Request() req: AuthenticatedRequest,
+    @Body() body: { senderEmail: string },
+  ) {
+    await this.autoResponderService.removeOptOutSuppression(
+      req.user.userId,
+      body.senderEmail,
+    );
+    return { success: true };
+  }
+}

@@ -8,6 +8,8 @@ import { ContextQaExtractionService } from "./context-qa-extraction.service";
 import { ContextAnalysisProcessor } from "./context-analysis.processor";
 import { ContextBatchAnalysisProcessor } from "./context-batch-analysis.processor";
 import { ContextFinalizationProcessor } from "./context-finalization.processor";
+import { WritingStyleLearningService } from "./writing-style-learning.service";
+import { WritingStyleLearningProcessor } from "./writing-style-learning.processor";
 import { UserContext } from "../database/entities/user-context.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -40,7 +42,9 @@ import { EmailsModule } from "../emails/emails.module";
     ContextAnalysisProcessor,
     ContextBatchAnalysisProcessor,
     ContextFinalizationProcessor,
+    WritingStyleLearningService,
+    WritingStyleLearningProcessor,
   ],
-  exports: [ContextService],
+  exports: [ContextService, WritingStyleLearningService],
 })
 export class ContextModule {}

@@ -1,5 +1,8 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { Email } from 'types/email';
+import { Email, getEmailPriorityScore } from 'types/email';
+
+// Threshold for considering priority scores "equal" (matches backend RATIOS.TINY)
+const PRIORITY_SCORE_TINY_THRESHOLD = 0.01;
 
 interface EmailState {
   emails: Email[];
@@ -61,10 +64,23 @@ const emailSlice = createSlice({
       }
     },
     restoreEmail: (state, action: PayloadAction<Email>) => {
-      // Insert email back in sorted order (by receivedAt DESC)
-      const newEmails = [...state.emails, action.payload].sort((a, b) =>
-        new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime()
-      );
+      // Insert email back in sorted order: priority DESC, threadUpdatedAt DESC, threadId (stable)
+      const newEmails = [...state.emails, action.payload].sort((a, b) => {
+        // Primary: priority score DESC
+        const aScore = getEmailPriorityScore(a);
+        const bScore = getEmailPriorityScore(b);
+        if (Math.abs(bScore - aScore) > PRIORITY_SCORE_TINY_THRESHOLD) {
+          return bScore - aScore;
+        }
+        // Secondary: threadUpdatedAt DESC
+        const aUpdatedAt = a.threadUpdatedAt ? new Date(a.threadUpdatedAt).getTime() : 0;
+        const bUpdatedAt = b.threadUpdatedAt ? new Date(b.threadUpdatedAt).getTime() : 0;
+        if (bUpdatedAt !== aUpdatedAt) {
+          return bUpdatedAt - aUpdatedAt;
+        }
+        // Final stable tiebreaker: threadId
+        return a.threadId.localeCompare(b.threadId);
+      });
       state.emails = newEmails;
     },
     setLoading: (state, action: PayloadAction<boolean>) => {

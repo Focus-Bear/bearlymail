@@ -533,13 +533,18 @@ export class PriorityLearningService {
   /**
    * Learn from user feedback on prioritization
    * User provides text feedback explaining why prioritization was wrong
+   * Returns information about what context was updated
    */
   async learnFromPriorityFeedback(
     userId: string,
     email: Email,
     feedback: string,
     expectedPriority?: number,
-  ): Promise<void> {
+  ): Promise<{
+    updated: Array<{ contextKey: string; contextValue: string; action: "created" | "updated" }>;
+  }> {
+    const updated: Array<{ contextKey: string; contextValue: string; action: "created" | "updated" }> = [];
+    
     try {
       this.logger.log(
         `Processing priority feedback for email ${email.id}: "${feedback.substring(0, 100)}..."`,
@@ -603,6 +608,14 @@ export class PriorityLearningService {
           existing.source = Source.USER_EDITED;
           // User provided feedback
           await this.userContextRepository.save(existing);
+          updated.push({
+            contextKey: validContextKey,
+            contextValue: contextUpdate.contextValue,
+            action: "updated",
+          });
+          this.logger.log(
+            `Updated context: ${validContextKey} = "${contextUpdate.contextValue}"`,
+          );
         } else {
           // Create new context
           const newContext = this.userContextRepository.create({
@@ -615,12 +628,22 @@ export class PriorityLearningService {
             // User provided feedback
           });
           await this.userContextRepository.save(newContext);
+          updated.push({
+            contextKey: validContextKey,
+            contextValue: contextUpdate.contextValue,
+            action: "created",
+          });
+          this.logger.log(
+            `Created new context: ${validContextKey} = "${contextUpdate.contextValue}"`,
+          );
         }
       }
 
       this.logger.log(
-        `Successfully processed priority feedback for email ${email.id}`,
+        `Successfully processed priority feedback for email ${email.id}. Updated ${updated.length} context entries.`,
       );
+      
+      return { updated };
     } catch (error) {
       this.logger.error(
         `Error processing priority feedback for email ${email.id}:`,

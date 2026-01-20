@@ -25,6 +25,8 @@ import {
 @Index(["userId", "isArchived", "starCount"])
 // For urgency-based queries
 @Index(["userId", "urgencyScore"])
+// For priority-based sorting
+@Index(["userId", "priorityScore"])
 export class EmailThread {
   @PrimaryGeneratedColumn("uuid")
   id: string;
@@ -52,6 +54,14 @@ export class EmailThread {
     comment: "0-100 urgency score determined by LLM",
   })
   urgencyScore: number;
+
+  @Column({
+    type: "float",
+    default: 0,
+    nullable: true,
+    comment: "Denormalized priority score for efficient sorting (calculated from priorityExplanation breakdown)",
+  })
+  priorityScore: number | null;
 
   @Column("text", {
     nullable: true,

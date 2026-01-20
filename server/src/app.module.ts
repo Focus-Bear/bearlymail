@@ -32,6 +32,7 @@ import { Office365AccountsModule } from "./office365-accounts/office365-accounts
 import { ZohoAccountsModule } from "./zoho-accounts/zoho-accounts.module";
 import { GitHubModule } from "./github/github.module";
 import { SuggestedActionsModule } from "./suggested-actions/suggested-actions.module";
+import { AutoResponderModule } from "./auto-responder/auto-responder.module";
 // Import entities from index file to ensure proper loading order
 import {
   GoogleAccount,
@@ -52,6 +53,9 @@ import {
   Waitlist,
   ContextAnalysis,
   PriorityOverride,
+  TokenUsage,
+  AutoResponseLog,
+  AutoResponseSuppression,
 } from "./database/entities";
 
 @Module({
@@ -91,6 +95,9 @@ import {
           Waitlist,
           ContextAnalysis,
           PriorityOverride,
+          TokenUsage,
+          AutoResponseLog,
+          AutoResponseSuppression,
         ];
 
         // Ensure all entities are properly registered before TypeORM processes relationships
@@ -146,6 +153,7 @@ import {
     ZohoAccountsModule,
     GitHubModule,
     SuggestedActionsModule,
+    AutoResponderModule,
   ],
   controllers: [AppController],
   providers: [AppService],

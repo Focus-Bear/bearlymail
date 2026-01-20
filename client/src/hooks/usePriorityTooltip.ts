@@ -41,7 +41,19 @@ export function usePriorityTooltip(): UsePriorityTooltipReturn {
     fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePriorityTooltip.ts:35',message:'Starting API fetch',logData:{emailId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
     // #endregion
     try {
-      const response = await axios.get(`${API_URL}/emails/${emailId}/priority-explanation`);
+      // Add timeout of 10 seconds to prevent infinite loading
+      const TIMEOUT_MS = 10000;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('Priority explanation request timed out'));
+        }, TIMEOUT_MS);
+      });
+
+      const response = await Promise.race([
+        axios.get(`${API_URL}/emails/${emailId}/priority-explanation`),
+        timeoutPromise,
+      ]);
+      
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePriorityTooltip.ts:38',message:'API response received',logData:{emailId,hasData:!!response.data,score:response.data?.score},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
       // #endregion
@@ -51,7 +63,9 @@ export function usePriorityTooltip(): UsePriorityTooltipReturn {
       fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePriorityTooltip.ts:42',message:'API fetch error',logData:{emailId,error:error instanceof Error ? error.message : 'unknown'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
       // #endregion
       console.error('Error fetching priority explanation:', error);
+      // Don't set explanation on error - keep previous state or null
     } finally {
+      // Always reset loading state, even on timeout or error
       setLoadingPriorityExplanation(false);
     }
   }, [loadingPriorityExplanation, priorityExplanation]);
@@ -81,6 +95,8 @@ export function usePriorityTooltip(): UsePriorityTooltipReturn {
   const hidePriorityTooltip = useCallback(() => {
     setHoveredPriorityEmailId(null);
     setPriorityExplanation(null);
+    // Reset loading state when hiding tooltip
+    setLoadingPriorityExplanation(false);
   }, []);
 
   const expeditePriorityCalculation = useCallback(async (emailId: string) => {

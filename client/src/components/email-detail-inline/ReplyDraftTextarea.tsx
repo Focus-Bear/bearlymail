@@ -7,6 +7,7 @@ interface ReplyDraftTextareaProps {
   loadingReplies: boolean;
   hasToneError: boolean;
   onDraftChange: (draft: string) => void;
+  textareaRef?: React.RefObject<HTMLTextAreaElement>;
 }
 
 export const ReplyDraftTextarea: React.FC<ReplyDraftTextareaProps> = ({
@@ -14,9 +15,11 @@ export const ReplyDraftTextarea: React.FC<ReplyDraftTextareaProps> = ({
   loadingReplies,
   hasToneError,
   onDraftChange,
+  textareaRef,
 }) => {
   return (
     <textarea
+      ref={textareaRef}
       value={draft || ''}
       onChange={(e) => onDraftChange(e.target.value)}
       placeholder={loadingReplies ? "Generating reply suggestions..." : "Type your reply here..."}

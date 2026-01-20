@@ -1,4 +1,8 @@
 import React from 'react';
+
+// ULTRA-VISIBLE: This confirms the Inbox.tsx module is loaded with the updated code
+console.log('%c[INBOX MODULE] Inbox.tsx module loaded!', 'background: magenta; color: white; font-size: 24px;');
+
 import { ERROR_CODE_GMAIL_REQUIRED } from 'constants/strings';
 import axios from 'axios';
 import { theme } from 'theme/theme';
@@ -27,6 +31,7 @@ const Inbox: React.FC = () => {
     fetchError,
     fetchEmails,
     selectedEmailIndex,
+    setSelectedEmailIndex,
     selectedEmailIds,
     setSelectedEmailIds,
     triageSuggestions,
@@ -52,6 +57,7 @@ const Inbox: React.FC = () => {
     hasRunAnalysis,
     nextDelivery,
     lastUrgentCheck,
+    tabCounts,
     triageTabRef,
     actionTabRef,
     followUpTabRef,
@@ -120,77 +126,114 @@ const Inbox: React.FC = () => {
           triageTabRef={triageTabRef}
           actionTabRef={actionTabRef}
           followUpTabRef={followUpTabRef}
+          tabCounts={tabCounts}
         />
 
+        {user?.isAdmin && (
+          <DebugPanel
+            mode={mode}
+            emails={emails}
+            isOpen={debugPanel.debugViewOpen}
+            onToggle={() => debugPanel.setDebugViewOpen(!debugPanel.debugViewOpen)}
+            syncStatus={debugPanel.syncStatus}
+            loadingSyncStatus={debugPanel.loadingSyncStatus}
+            debugStarredData={debugPanel.debugStarredData}
+            loadingDebugData={debugPanel.loadingDebugData}
+            onFetchDebugStarred={debugPanel.fetchDebugStarredThreads}
+            debugOrphanData={debugPanel.debugOrphanData}
+            loadingOrphanData={debugPanel.loadingOrphanData}
+            onFetchDebugOrphan={debugPanel.fetchDebugOrphanEmails}
+            fixingOrphans={debugPanel.fixingOrphans}
+            onFixOrphans={() => debugPanel.handleFixOrphanEmails()}
+          />
+        )}
 
+        <BulkOperationsBar
+          selectedCount={selectedEmailIds.size}
+          onBulkStar={emailActions.handleBulkStar}
+          onBulkArchive={emailActions.handleBulkArchive}
+          onBulkMarkAsRead={emailActions.handleBulkMarkAsRead}
+          onBulkMarkAsUnread={emailActions.handleBulkMarkAsUnread}
+          onClearSelection={() => setSelectedEmailIds(new Set())}
+        />
 
-            <DebugPanel
-              mode={mode}
-              emails={emails}
-              isOpen={debugPanel.debugViewOpen}
-              onToggle={() => debugPanel.setDebugViewOpen(!debugPanel.debugViewOpen)}
-              syncStatus={debugPanel.syncStatus}
-              loadingSyncStatus={debugPanel.loadingSyncStatus}
-              debugStarredData={debugPanel.debugStarredData}
-              loadingDebugData={debugPanel.loadingDebugData}
-              onFetchDebugStarred={debugPanel.fetchDebugStarredThreads}
-              debugOrphanData={debugPanel.debugOrphanData}
-              loadingOrphanData={debugPanel.loadingOrphanData}
-              onFetchDebugOrphan={debugPanel.fetchDebugOrphanEmails}
-              fixingOrphans={debugPanel.fixingOrphans}
-              onFixOrphans={() => debugPanel.handleFixOrphanEmails()}
-            />
+        {/* Keyboard Hint Tooltip */}
+        {keyboardHint.showKeyboardHint && (
+          <KeyboardHintTooltip action={keyboardHint.showKeyboardHint.action} />
+        )}
 
-            <BulkOperationsBar
-              selectedCount={selectedEmailIds.size}
-              onBulkStar={emailActions.handleBulkStar}
-              onBulkArchive={emailActions.handleBulkArchive}
-              onBulkMarkAsRead={emailActions.handleBulkMarkAsRead}
-              onBulkMarkAsUnread={emailActions.handleBulkMarkAsUnread}
-              onClearSelection={() => setSelectedEmailIds(new Set())}
-            />
+        <InboxContent
+          mode={mode}
+          emails={emails}
+          loading={loading}
+          hasInitiallyLoaded={hasInitiallyLoaded}
+          loadingModeSwitch={loadingModeSwitch}
+          decrypting={decrypting}
+          fetchError={fetchError}
+          selectedEmailIndex={selectedEmailIndex}
+          selectedEmailIds={selectedEmailIds}
+          triageSuggestions={triageSuggestions}
+          followUpDataMap={followUpDataMap}
+          isGeneratingDrafts={isGeneratingDrafts}
+          followUpsError={followUpsError}
+          priorityTooltip={priorityTooltip}
+          keyboardHint={keyboardHint}
+          snoozeInput={snoozeInput}
+          emailActions={emailActions}
+          modals={modals}
+          splitView={splitView}
+          nextDelivery={nextDelivery}
+          lastUrgentCheck={lastUrgentCheck}
+          onEmailClick={handleEmailClick}
+          onEmailSelect={handleEmailSelect}
+          onGenerateDrafts={async () => {
+            const threadIds = emails.filter(e => !e.isArchived).map(e => e.threadId);
+            await generateDrafts(threadIds);
+          }}
+          onRetry={fetchEmails}
+          updateDraft={updateDraft}
+          bulkSend={bulkSend}
+          fetchThreadsWithDrafts={fetchThreadsWithDrafts}
+          emailListRef={emailListRef}
+          emailDetailRef={emailDetailRef}
+          onSplitViewArchive={(archivedEmailId) => {
+            console.log('%c[SPLIT VIEW ARCHIVE] onSplitViewArchive callback triggered!', 'background: cyan; color: black; font-size: 20px;');
+            console.log('[SplitViewArchive] Archived email ID:', archivedEmailId);
+            console.log('[SplitViewArchive] Current selectedEmailIndex:', selectedEmailIndex);
+            
+            // IMPORTANT: Filter out BOTH archived emails AND the just-archived email by ID
+            // The Redux state update may not have propagated yet (stale closure issue)
+            const visibleEmails = emails.filter(e => !e.isArchived && e.id !== archivedEmailId);
+            console.log('[SplitViewArchive] Visible emails (excluding archived):', visibleEmails.length);
+            console.log('[SplitViewArchive] First 5 visible emails:', visibleEmails.slice(0, 5).map(e => ({ id: e.id, subject: e.subject?.substring(0, 50) })));
+            
+            if (visibleEmails.length === 0) {
+              console.log('[SplitViewArchive] No visible emails, closing split view');
+              splitView.closeEmail();
+              return;
+            }
+            
+            // Use the current index as the next index (since we removed the current email)
+            // If we were at the last email, go to the new last one
+            const currentIndex = selectedEmailIndex >= 0 ? selectedEmailIndex : 0;
+            const nextIndex = currentIndex < visibleEmails.length 
+              ? currentIndex 
+              : Math.max(0, visibleEmails.length - 1);
+            
+            const nextEmail = visibleEmails[nextIndex];
+            console.log('[SplitViewArchive] Next email to open:', nextEmail ? { id: nextEmail.id, subject: nextEmail.subject?.substring(0, 50) } : 'NOT FOUND');
+            
+            if (nextEmail) {
+              splitView.openEmail(nextEmail.id);
+              setSelectedEmailIndex(nextIndex);
+              console.log('[SplitViewArchive] Opened next email successfully');
+            } else {
+              console.log('[SplitViewArchive] No next email found, closing split view');
+              splitView.closeEmail();
+            }
+          }}
+        />
 
-            {/* Keyboard Hint Tooltip */}
-            {keyboardHint.showKeyboardHint && (
-              <KeyboardHintTooltip action={keyboardHint.showKeyboardHint.action} />
-            )}
-
-            <InboxContent
-              mode={mode}
-              emails={emails}
-              loading={loading}
-              hasInitiallyLoaded={hasInitiallyLoaded}
-              loadingModeSwitch={loadingModeSwitch}
-              decrypting={decrypting}
-              fetchError={fetchError}
-              selectedEmailIndex={selectedEmailIndex}
-              selectedEmailIds={selectedEmailIds}
-              triageSuggestions={triageSuggestions}
-              followUpDataMap={followUpDataMap}
-              isGeneratingDrafts={isGeneratingDrafts}
-              followUpsError={followUpsError}
-              priorityTooltip={priorityTooltip}
-              keyboardHint={keyboardHint}
-              snoozeInput={snoozeInput}
-              emailActions={emailActions}
-              modals={modals}
-              splitView={splitView}
-              nextDelivery={nextDelivery}
-              lastUrgentCheck={lastUrgentCheck}
-              onEmailClick={handleEmailClick}
-              onEmailSelect={handleEmailSelect}
-              onGenerateDrafts={async () => {
-                const threadIds = emails.filter(e => !e.isArchived).map(e => e.threadId);
-                await generateDrafts(threadIds);
-              }}
-              onRetry={fetchEmails}
-              updateDraft={updateDraft}
-              bulkSend={bulkSend}
-              fetchThreadsWithDrafts={fetchThreadsWithDrafts}
-              emailListRef={emailListRef}
-              emailDetailRef={emailDetailRef}
-            />
-        
         <AppFooter />
       </div>
 

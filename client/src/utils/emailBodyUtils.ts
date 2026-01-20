@@ -271,21 +271,48 @@ function processGitHubImages(html: string): string {
       if (link.parentNode) {
         link.parentNode.replaceChild(imageLink, link);
         processedCount++;
-        console.log('[GitHub Images] Processed image link:', {
-          originalText: linkText,
-          href,
-          imageUrl,
-        });
       }
     }
   });
   
-  if (processedCount > 0) {
-    console.log(`[GitHub Images] Processed ${processedCount} image(s) from ${links.length} total links`);
-  }
-  
   return tempDiv.innerHTML;
 }
+
+// Email-compatible allowed tags - comprehensive list for proper email rendering
+const EMAIL_ALLOWED_TAGS = [
+  // Text formatting
+  'p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'strike', 'del', 'ins',
+  'mark', 'small', 'big', 'sub', 'sup', 'font', 'center',
+  // Headings
+  'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+  // Structure
+  'div', 'span', 'section', 'article', 'header', 'footer', 'main', 'aside', 'nav',
+  // Lists
+  'ul', 'ol', 'li', 'dl', 'dt', 'dd',
+  // Tables (full support for email layouts)
+  'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'caption', 'colgroup', 'col',
+  // Media
+  'img', 'figure', 'figcaption',
+  // Other common elements
+  'a', 'blockquote', 'pre', 'code', 'hr', 'address', 'cite', 'q',
+  // Styles (needed for email CSS)
+  'style',
+];
+
+// Email-compatible allowed attributes - includes table layout attributes common in emails
+const EMAIL_ALLOWED_ATTR = [
+  // Links and images
+  'href', 'src', 'alt', 'title',
+  // Styling
+  'class', 'style', 'id',
+  // Link behavior
+  'target', 'rel',
+  // Table layout attributes (heavily used in email HTML)
+  'width', 'height', 'align', 'valign', 'bgcolor', 'background',
+  'border', 'cellpadding', 'cellspacing', 'colspan', 'rowspan',
+  // Font attributes (legacy but common in emails)
+  'color', 'size', 'face',
+];
 
 /**
  * Helper function to sanitize and process HTML for safe rendering
@@ -298,22 +325,25 @@ export function sanitizeAndProcessHtml(html: string): string {
   // Step 1: Sanitize the HTML first to prevent XSS attacks
   // DOMPurify removes dangerous content and attributes
   const sanitized = DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'div', 'span', 'img', 'table', 'tr', 'td', 'th', 'style', 'blockquote'],
-    ALLOWED_ATTR: ['href', 'src', 'alt', 'class', 'style', 'scoped', 'target', 'rel'],
+    ALLOWED_TAGS: EMAIL_ALLOWED_TAGS,
+    ALLOWED_ATTR: EMAIL_ALLOWED_ATTR,
     ALLOW_DATA_ATTR: false,
     // Prevent javascript: and data: URLs in href/src
-    FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form'],
-    FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur'],
+    FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'select', 'textarea'],
+    FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur', 'onsubmit', 'onchange'],
   });
   
-  // Step 1.5: Remove avatar images from being processed (they're already img tags)
+  // Step 1.5: Remove problematic images
   const tempDivForAvatars = document.createElement('div');
   tempDivForAvatars.innerHTML = sanitized;
+  
+  // Remove all images with cid: URLs (embedded email images that can't be resolved)
+  const cidImages = tempDivForAvatars.querySelectorAll('img[src^="cid:"]');
+  cidImages.forEach((img) => img.remove());
+  
+  // Remove avatar images entirely - they're small profile pics that look bad when expanded
   const avatarImages = tempDivForAvatars.querySelectorAll('img[src*="avatars.githubusercontent.com"]');
-  avatarImages.forEach((img) => {
-    // Mark these so processGitHubImages skips them if they're in links
-    img.setAttribute('data-skip-processing', 'true');
-  });
+  avatarImages.forEach((img) => img.remove());
   
   // Step 2: Process GitHub images to display inline
   const withImages = processGitHubImages(tempDivForAvatars.innerHTML);

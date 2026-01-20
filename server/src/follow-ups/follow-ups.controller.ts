@@ -219,9 +219,7 @@ export class FollowUpsController {
   @Get(":id")
   async getFollowUp(@Request() req, @Param("id") id: string) {
     return this.followUpsService.getFollowUp(id, req.user.userId);
-  }
-
-  /**
+  }  /**
    * Get generation/send status for a follow-up
    */
   @Get(":id/status")

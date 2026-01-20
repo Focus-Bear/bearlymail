@@ -1,0 +1,123 @@
+# PromptFoo test configuration for email classification prompt
+
+description: "Tests for email classification prompt used by auto-responder"
+
+prompts:
+  - file://prompts/classify-email-type.md
+
+providers:
+  - openai:gpt-4o-mini
+
+defaultTest:
+  options:
+    provider:
+      config:
+        temperature: 0.3
+        max_tokens: 500
+
+tests:
+  - description: "Should classify automated email correctly"
+    vars:
+      from: "noreply@company.com"
+      fromName: "Company Notifications"
+      subject: "Your order #12345 has shipped"
+      body: |
+        Your order has been shipped!
+        
+        Tracking number: 1Z999AA10123456784
+        
+        This is an automated message, please do not reply.
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "JSON.parse(output).isAutomated === true"
+
+  - description: "Should classify newsletter correctly"
+    vars:
+      from: "newsletter@updates.company.com"
+      fromName: "Company Weekly Digest"
+      subject: "Your Weekly Digest - Top Stories"
+      body: |
+        Here's what happened this week:
+        
+        1. New feature launched
+        2. Company milestone reached
+        
+        Unsubscribe | View in browser
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "JSON.parse(output).isNewsletter === true"
+
+  - description: "Should classify cold outreach correctly"
+    vars:
+      from: "sales@vendor.com"
+      fromName: "Sales Rep"
+      subject: "Quick question about your business"
+      body: |
+        Dear Sir/Madam,
+        
+        I hope this finds you well. I wanted to reach out regarding an exciting opportunity for your company.
+        
+        Would you be available for a quick 15-minute call this week?
+        
+        Best regards,
+        Sales Rep
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "JSON.parse(output).isColdOutreach === true"
+      - type: javascript
+        value: "JSON.parse(output).personalizationScore < 0.5"
+
+  - description: "Should classify personalized email as NOT cold outreach"
+    vars:
+      from: "john@partner.com"
+      fromName: "John Smith"
+      subject: "Follow up on Project Alpha discussion"
+      body: |
+        Hi there,
+        
+        Following up on our conversation last week about Project Alpha. 
+        I've attached the updated requirements document we discussed.
+        
+        Looking forward to our meeting on Thursday.
+        
+        Best,
+        John
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "JSON.parse(output).isColdOutreach === false"
+      - type: javascript
+        value: "JSON.parse(output).personalizationScore > 0.6"
+
+  - description: "Should detect high urgency"
+    vars:
+      from: "manager@company.com"
+      fromName: "Manager"
+      subject: "URGENT: Need response ASAP"
+      body: |
+        This is critical - we need your input before the deadline today.
+        
+        Please respond immediately.
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "JSON.parse(output).urgencyLevel === 'high'"
+
+  - description: "Should detect out-of-office reply"
+    vars:
+      from: "colleague@company.com"
+      fromName: "Colleague"
+      subject: "Out of Office: Re: Meeting"
+      body: |
+        I am currently out of the office with limited access to email.
+        
+        I will respond to your message when I return on Monday.
+        
+        For urgent matters, please contact support@company.com.
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "JSON.parse(output).isOutOfOffice === true"

@@ -11,7 +11,8 @@ export const SidebarHeader: React.FC<SidebarHeaderProps> = ({ isCollapsed = fals
 
   return (
     <div style={{ 
-      marginBottom: theme.spacing.xs, 
+      marginTop: theme.spacing.lg,
+      marginBottom: theme.spacing.md, 
       paddingLeft: isCollapsed ? theme.spacing.xs : 0, 
       display: 'flex', 
       alignItems: 'center', 

@@ -76,6 +76,22 @@ export class BatchScheduleService {
       return null;
     }
 
+    return this.getNextScheduledDeliveryTime(schedule);
+  }
+
+  /**
+   * Calculate the next scheduled delivery time based on the schedule
+   * This ignores the isEnabled flag and urgency scores - used for display purposes
+   */
+  getNextScheduledDeliveryTime(schedule: BatchSchedule): Date | null {
+    // If no delivery days or times configured, return null
+    if (!schedule.deliveryDays || schedule.deliveryDays.length === 0) {
+      return null;
+    }
+    if (!schedule.deliveryTimes || schedule.deliveryTimes.length === 0) {
+      return null;
+    }
+
     const now = new Date();
     const userTimezone = schedule.timezone || "UTC";
 
@@ -116,7 +132,7 @@ export class BatchScheduleService {
       daysToAdd++;
     }
 
-    // No delivery days configured - release immediately
+    // No delivery days configured
     return null;
   }
 

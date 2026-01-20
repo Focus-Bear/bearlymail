@@ -12,6 +12,7 @@ import { selectEmails, selectLoading, selectDecrypting, selectRefreshing, select
 interface UseEmailManagementProps {
   mode: InboxMode;
   onSuggestionRemove?: (emailId: string) => void;
+  onTabCountsUpdate?: () => void;
 }
 
 interface UseEmailManagementReturn {
@@ -34,7 +35,7 @@ interface UseEmailManagementReturn {
   handleCheckUrgent: () => Promise<{ hasUrgent: boolean; count: number; emails: any[] }>;
 }
 
-export function useEmailManagement({ mode, onSuggestionRemove }: UseEmailManagementProps): UseEmailManagementReturn {
+export function useEmailManagement({ mode, onSuggestionRemove, onTabCountsUpdate }: UseEmailManagementProps): UseEmailManagementReturn {
   const dispatch = useDispatch<AppDispatch>();
   const emails = useSelector(selectEmails);
   const loading = useSelector(selectLoading);
@@ -48,6 +49,8 @@ export function useEmailManagement({ mode, onSuggestionRemove }: UseEmailManagem
   const { handleSetStarCount, handleArchive, handleSnooze } = useEmailActionsBase({
     fetchEmails,
     onSuggestionRemove,
+    onTabCountsUpdate,
+    mode,
     // Note: onShowPriorityOverride is not available here - it's passed from useInboxState
     // This hook is used in other contexts where priority override might not be needed
   });

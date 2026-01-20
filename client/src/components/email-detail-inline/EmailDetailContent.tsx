@@ -378,6 +378,9 @@ export const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
             loading={loadingGithub}
             hasToken={hasGithubToken}
             onRefresh={onRefreshGithub}
+            emailSubject={email.subject}
+            emailBody={email.body}
+            emailHtmlBody={email.htmlBody}
           />
         )}
       </div>

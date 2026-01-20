@@ -1216,10 +1216,18 @@ export class ZohoProvider implements EmailProvider {
       const messages = response.data.data || [];
       this.logger.log(`[Zoho Archive] Found ${messages.length} messages in thread: userId=${userId}, threadId=${threadId}`);
 
-      // Move messages to archive folder
+      // Mark messages as read and move to archive folder
       let archivedCount = 0;
       for (const msg of messages) {
         try {
+          // First mark the message as read
+          this.logger.log(`[Zoho Archive] Marking message as read: userId=${userId}, threadId=${threadId}, messageUid=${msg.uid}`);
+          await zohoClient.put(
+            `/accounts/${zohoAccountId}/messages/${msg.uid}/markAsRead`,
+            {},
+          );
+
+          // Then move to archive folder
           this.logger.log(`[Zoho Archive] Moving message to archive: userId=${userId}, threadId=${threadId}, messageUid=${msg.uid}`);
           await zohoClient.post(
             `/accounts/${zohoAccountId}/messages/${msg.uid}/move`,
@@ -1232,7 +1240,7 @@ export class ZohoProvider implements EmailProvider {
           this.logger.error(`[Zoho Archive] Failed to archive message ${msg.uid}:`, error);
         }
       }
-      this.logger.log(`[Zoho Archive] Moved ${archivedCount}/${messages.length} messages to archive: userId=${userId}, threadId=${threadId}`);
+      this.logger.log(`[Zoho Archive] Marked as read and moved ${archivedCount}/${messages.length} messages to archive: userId=${userId}, threadId=${threadId}`);
 
       // Update in our database
       this.logger.log(`[Zoho Archive] Updating thread archived status in database: userId=${userId}, threadId=${threadId}`);

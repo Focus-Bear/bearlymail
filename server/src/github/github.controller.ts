@@ -109,13 +109,24 @@ export class GitHubController {
 
       // If all links are cached and fresh, return cached data
       if (allLinksCachedAndFresh) {
-        // Return cached links that match current links
+        // Return cached links that match current links (already deduplicated via uniqueLinks)
         const cachedLinksToReturn = uniqueLinks
           .map((link) => cachedLinksMap.get(link.url))
           .filter((link) => link !== undefined);
         
+        // Double-check deduplication before returning
+        const seenUrls = new Set<string>();
+        const dedupedLinks = cachedLinksToReturn.filter((link) => {
+          const key = link.url || `${link.owner}-${link.repo}-${link.number}`;
+          if (seenUrls.has(key)) {
+            return false;
+          }
+          seenUrls.add(key);
+          return true;
+        });
+        
         return {
-          links: cachedLinksToReturn,
+          links: dedupedLinks,
           hasToken: true,
         };
       }

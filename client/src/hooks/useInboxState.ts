@@ -9,6 +9,7 @@ import { useEmailManagement } from 'hooks/useEmailManagement';
 import { useTriageSuggestions } from 'hooks/useTriageSuggestions';
 import { useEmailSelection } from 'hooks/useEmailSelection';
 import { useBatchSchedule } from 'hooks/useBatchSchedule';
+import { useTabCounts } from 'hooks/useTabCounts';
 import { useKeyboardShortcuts } from 'hooks/useKeyboardShortcuts';
 import { useOnboarding } from 'hooks/useOnboarding';
 import { useDebugPanel } from 'hooks/useDebugPanel';
@@ -41,8 +42,15 @@ export function useInboxState() {
     clearSuggestionsCache,
   } = useTriageSuggestions();
 
+  // Tab counts hook - must be before useEmailManagement since it's passed to it
+  const { tabCounts, fetchTabCounts } = useTabCounts();
+
   // Email management hook
-  const emailManagement = useEmailManagement({ mode, onSuggestionRemove: removeSuggestion });
+  const emailManagement = useEmailManagement({ 
+    mode, 
+    onSuggestionRemove: removeSuggestion,
+    onTabCountsUpdate: fetchTabCounts,
+  });
   const {
     emails,
     setEmails,
@@ -195,6 +203,37 @@ export function useInboxState() {
     }
   }, [user, authLoading, hasInitiallyLoaded, mode]);
 
+  // Handler for keyboard-based archive in split view
+  // This archives the email and navigates to the next one
+  const handleSplitViewArchiveFromKeyboard = useCallback((archivedEmailId: string) => {
+    // First, archive the email
+    const fakeEvent = { stopPropagation: () => {} } as React.MouseEvent;
+    handleArchiveBase(archivedEmailId, fakeEvent);
+    
+    // Then navigate to the next email (same logic as onSplitViewArchive in Inbox.tsx)
+    // Filter out the just-archived email to get the remaining visible emails
+    const visibleEmails = emails.filter(e => !e.isArchived && e.id !== archivedEmailId);
+    
+    if (visibleEmails.length === 0) {
+      splitView.closeEmail();
+      return;
+    }
+    
+    // Use the current index as the next index (since we removed the current email)
+    const currentIndex = selectedEmailIndex >= 0 ? selectedEmailIndex : 0;
+    const nextIndex = currentIndex < visibleEmails.length 
+      ? currentIndex 
+      : Math.max(0, visibleEmails.length - 1);
+    
+    const nextEmail = visibleEmails[nextIndex];
+    if (nextEmail) {
+      splitView.openEmail(nextEmail.id);
+      setSelectedEmailIndex(nextIndex);
+    } else {
+      splitView.closeEmail();
+    }
+  }, [emails, selectedEmailIndex, handleArchiveBase, splitView, setSelectedEmailIndex]);
+
   // Use keyboard shortcuts hook
   useKeyboardShortcuts({
     emails,
@@ -206,6 +245,7 @@ export function useInboxState() {
     emailListRef,
     emailDetailRef,
     splitViewSelectedEmailId: splitView.selectedEmailId,
+    onSplitViewArchive: handleSplitViewArchiveFromKeyboard,
   });
 
   // Wrapper for email click that passes emails array
@@ -292,6 +332,8 @@ export function useInboxState() {
     nextDelivery,
     lastUrgentCheck,
     updateLastUrgentCheck,
+    tabCounts,
+    fetchTabCounts,
     // Refs
     triageTabRef,
     actionTabRef,

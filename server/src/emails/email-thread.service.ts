@@ -369,16 +369,25 @@ export class EmailThreadService {
   async getThreadsByThreadIds(
     userId: string,
     threadIds: string[],
-  ): Promise<Array<{ threadId: string; updatedAt: Date }>> {
+  ): Promise<
+    Array<{
+      threadId: string;
+      updatedAt: Date;
+      starCount: number;
+      isArchived: boolean;
+    }>
+  > {
     if (threadIds.length === 0) return [];
-    
+
     const threads = await this.emailThreadRepository.find({
       where: { userId, threadId: In(threadIds) },
-      select: ["threadId", "updatedAt"],
+      select: ["threadId", "updatedAt", "starCount", "isArchived"],
     });
     return threads.map((t) => ({
       threadId: t.threadId,
       updatedAt: t.updatedAt,
+      starCount: t.starCount,
+      isArchived: t.isArchived,
     }));
   }
 

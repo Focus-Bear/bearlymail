@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useImperativeHandle, forwardRef, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
@@ -22,35 +22,30 @@ import { CustomRuleModal } from 'components/email-detail/CustomRuleModal';
 import { Email } from 'types/email';
 import { ACTION_TYPE_CUSTOM, SUMMARY_TYPE_CUSTOM, SUMMARY_TYPE_CUSTOM_PREFIX } from 'constants/strings';
 
-// Immediate log when module loads - this should ALWAYS show
-console.log('[EmailDetail] ===== MODULE LOADED =====');
-console.log('[EmailDetail] File is being imported/executed');
-console.log('[EmailDetail] Current URL:', typeof window !== 'undefined' ? window.location.href : 'N/A');
-
 interface EmailDetailProps {
   emailId?: string;
   compactMode?: boolean; // When true, renders without sidebar, overlay, and full-page layout for use in split view
+  onArchiveComplete?: () => void; // Called after archive completes in split view mode
+}
+
+// Methods exposed via ref for external control (e.g., from SplitViewPanel header)
+export interface EmailDetailRef {
+  openReplyComposer: () => void;
+  archive: () => void;
+  setStarCount: (count: number) => void;
+  getStarCount: () => number;
 }
 
 // eslint-disable-next-line max-lines-per-function -- Email detail page requires handling multiple email operations and UI states
-const EmailDetail: React.FC<EmailDetailProps> = ({ emailId: propEmailId, compactMode = false }) => {
-  console.log('[EmailDetail] ===== COMPONENT FUNCTION CALLED =====');
+const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: propEmailId, compactMode = false, onArchiveComplete }, ref) => {
   const params = useParams<{ id: string }>();
   const id = propEmailId || params.id;
   const { t } = useTranslation();
   const { user } = useAuth();
-  
-  // Always log to verify component is rendering (even if not localhost)
-  console.log('[EmailDetail] Component rendering', { 
-    id, 
-    hasUser: !!user, 
-    isAdmin: user?.isAdmin,
-    userObject: user,
-    windowLocation: typeof window !== 'undefined' ? window.location.href : 'N/A'
-  });
+  const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
   
   const state = useEmailDetailState();
-  const operations = useEmailDetailOperations(id, state);
+  const operations = useEmailDetailOperations(id, state, { onArchiveComplete });
   
   const {
     email,
@@ -89,6 +84,7 @@ const EmailDetail: React.FC<EmailDetailProps> = ({ emailId: propEmailId, compact
     selectedAction,
     animationClass,
     loading,
+    setThreadEmails,
     setExpandedThreadItems,
     setNoteContent,
     setNotesCollapsed,
@@ -140,6 +136,7 @@ const EmailDetail: React.FC<EmailDetailProps> = ({ emailId: propEmailId, compact
     handleDelete,
     handleSetStarCount,
     handleBlockSender,
+    handleRespondToInvitation,
     extractCleanBody,
     removeSignature,
     extractCleanHtmlBody,
@@ -165,33 +162,37 @@ const EmailDetail: React.FC<EmailDetailProps> = ({ emailId: propEmailId, compact
     setSummaryCollapsed,
     setActionItems,
     setExpandedThreadItems,
+    setThreadEmails,
     threadEmails,
   });
+
+  // Expose methods via ref for external control (e.g., SplitViewPanel header actions)
+  useImperativeHandle(ref, () => ({
+    openReplyComposer: () => {
+      handleOpenReplyComposer('reply');
+      // Focus the reply textarea after a short delay to ensure it's mounted
+      setTimeout(() => {
+        replyTextareaRef.current?.focus();
+      }, 100);
+    },
+    archive: () => {
+      handleArchive();
+    },
+    setStarCount: (count: number) => {
+      if (email?.id) {
+        handleSetStarCount(email.id, count);
+      }
+    },
+    getStarCount: () => {
+      return (email as any)?.starCount ?? 0;
+    },
+  }), [handleOpenReplyComposer, handleArchive, handleSetStarCount, email]);
 
   useEffect(() => {
     if (id && email) {
       captureEvent('email_detail_viewed', { email_id: id });
     }
   }, [id, email]);
-
-  // Debug logging for admin check
-  useEffect(() => {
-    // Always log to console to verify useEffect is running
-    console.log('[EmailDetail] useEffect - User check:', { 
-      user: user ? { id: user.id, email: user.email, isAdmin: user.isAdmin } : null,
-      hasUser: !!user,
-      isAdmin: user?.isAdmin,
-      hasEmail: !!email,
-      emailId: email?.id,
-    });
-    devLog('EmailDetail - User check:', { 
-      user: user ? { id: user.id, email: user.email, isAdmin: user.isAdmin } : null,
-      hasUser: !!user,
-      isAdmin: user?.isAdmin,
-      hasEmail: !!email,
-      emailId: email?.id,
-    });
-  }, [user, email]);
 
   if (loading) {
     return (
@@ -272,6 +273,8 @@ const EmailDetail: React.FC<EmailDetailProps> = ({ emailId: propEmailId, compact
           onDelete={handleDelete}
           onSetStarCount={handleSetStarCount}
           onBlockSender={handleBlockSender}
+          onRespondToInvitation={handleRespondToInvitation}
+          hideActionButtons={compactMode}
         />
 
         {showReplyComposer && (
@@ -286,6 +289,7 @@ const EmailDetail: React.FC<EmailDetailProps> = ({ emailId: propEmailId, compact
                 checkingTone={checkingTone}
                 toneCheckResult={toneCheckResult}
                 sending={sending}
+                textareaRef={replyTextareaRef}
                 onReplyRecipientsChange={setReplyRecipients}
                 onDraftChange={(draft) => {
                   setDraft(draft);
@@ -308,6 +312,19 @@ const EmailDetail: React.FC<EmailDetailProps> = ({ emailId: propEmailId, compact
                 onUseRevisedText={(text) => setDraft(text)}
               />
         )}
+
+        {/* GitHubStatusSection - visible in both modes, positioned above summary */}
+        <div style={{ marginBottom: compactMode ? theme.spacing.md : theme.spacing.xl }}>
+          <GitHubStatusSection
+            links={githubLinks}
+            loading={loadingGithub}
+            hasToken={hasGithubToken}
+            onRefresh={refreshGithubInfo}
+            emailSubject={email?.subject}
+            emailBody={email?.body}
+            emailHtmlBody={email?.htmlBody}
+          />
+        </div>
 
         <SummarySection
           summary={summary}
@@ -349,48 +366,9 @@ const EmailDetail: React.FC<EmailDetailProps> = ({ emailId: propEmailId, compact
         />
       </div>
 
-      {/* GitHubStatusSection - visible in both modes */}
-      <div style={{ marginBottom: compactMode ? theme.spacing.md : theme.spacing.xl }}>
-        <GitHubStatusSection
-          links={githubLinks}
-          loading={loadingGithub}
-          hasToken={hasGithubToken}
-          onRefresh={refreshGithubInfo}
-        />
-      </div>
-
-      {!compactMode && (
+      {!compactMode && user?.isAdmin && email && (
           /* eslint-disable i18next/no-literal-string */
           (() => {
-                // Always log to console to verify this code is running
-                console.log('[EmailDetail] Debug section render check:', {
-                  hasUser: !!user,
-                  isAdmin: user?.isAdmin,
-                  hasEmail: !!email,
-                  userObject: user,
-                });
-                
-                devLog('EmailDetail - Debug section render check:', {
-                  hasUser: !!user,
-                  isAdmin: user?.isAdmin,
-                  hasEmail: !!email,
-                  userObject: user,
-                });
-                
-                if (!user?.isAdmin) {
-                  console.log('[EmailDetail] Debug section not shown: user is not admin', { user });
-                  devLog('EmailDetail - Debug section not shown: user is not admin');
-                  return null;
-                }
-                
-                if (!email) {
-                  console.log('[EmailDetail] Debug section not shown: no email');
-                  devLog('EmailDetail - Debug section not shown: no email');
-                  return null;
-                }
-                
-                console.log('[EmailDetail] Showing debug section!');
-                devLog('EmailDetail - Showing debug section');
                 const emailData = email as any;
                 return (
                   <div style={{
@@ -496,6 +474,6 @@ const EmailDetail: React.FC<EmailDetailProps> = ({ emailId: propEmailId, compact
       />
     </div>
   );
-};
+});
 
 export default EmailDetail;

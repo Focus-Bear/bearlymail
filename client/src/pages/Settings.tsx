@@ -7,11 +7,14 @@ import { GuideOurAISection } from 'components/settings/GuideOurAISection';
 import { IntegrationsSection } from 'components/settings/IntegrationsSection';
 import { SettingsHeader } from 'components/settings/SettingsHeader';
 import { AnalysisProgressModal } from 'components/settings/AnalysisProgressModal';
+import { AutoResponderSection } from 'components/settings/auto-responder';
 import { useSettingsData } from 'hooks/useSettingsData';
+import { useAutoResponder } from 'hooks/useAutoResponder';
 
 const Settings: React.FC = () => {
   const { user, logout } = useAuth();
   const settingsData = useSettingsData();
+  const autoResponder = useAutoResponder();
 
   // Handle anchor scrolling when navigating with hash (from sidebar navigation)
   useEffect(() => {
@@ -58,6 +61,13 @@ const Settings: React.FC = () => {
           onBatchScheduleChange={settingsData.setBatchSchedule}
           onNewDeliveryTimeChange={settingsData.setNewDeliveryTime}
           onUnblockSender={settingsData.handleUnblockSender}
+        />
+
+        <AutoResponderSection
+          config={autoResponder.config}
+          queueStats={autoResponder.queueStats}
+          onConfigChange={autoResponder.updateConfig}
+          loading={autoResponder.loading}
         />
 
         <GuideOurAISection

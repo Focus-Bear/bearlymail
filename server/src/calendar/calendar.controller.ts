@@ -34,4 +34,18 @@ export class CalendarController {
       ),
     };
   }
+
+  @Post("invitation/:emailId/respond")
+  async respondToInvitation(
+    @Request() req,
+    @Param("emailId") emailId: string,
+    @Body() body: { response: "accepted" | "declined" | "tentative" },
+  ) {
+    await this.calendarService.respondToInvitation(
+      req.user.userId,
+      emailId,
+      body.response,
+    );
+    return { success: true };
+  }
 }

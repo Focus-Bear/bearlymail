@@ -37,6 +37,7 @@ interface ReplyComposerProps {
   onClose: () => void;
   onSend: () => void;
   onUseRevisedText: (text: string) => void;
+  textareaRef?: React.RefObject<HTMLTextAreaElement>;
 }
 
 export const ReplyComposer: React.FC<ReplyComposerProps> = ({
@@ -56,6 +57,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
   onClose,
   onSend,
   onUseRevisedText,
+  textareaRef,
 }) => {
   if (!showReplyComposer) {
     return null;
@@ -96,6 +98,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
         loadingReplies={loadingReplies}
         hasToneError={!!(toneCheckResult && !toneCheckResult.isOk)}
         onDraftChange={handleDraftChange}
+        textareaRef={textareaRef}
       />
       <ToneCheckResult
         toneCheckResult={toneCheckResult}

@@ -1,0 +1,184 @@
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+
+interface EmailBodyIframeProps {
+  html: string;
+  minHeight?: number;
+}
+
+/**
+ * Renders email HTML content inside an iframe for complete CSS isolation.
+ * This prevents BearlyMail styles from affecting email rendering and vice versa.
+ */
+export const EmailBodyIframe: React.FC<EmailBodyIframeProps> = ({ 
+  html, 
+  minHeight = 100 
+}) => {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [height, setHeight] = useState(minHeight);
+
+  // Base styles to apply inside the iframe for readability
+  const baseStyles = `
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      html, body {
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        font-size: 16px;
+        line-height: 1.6;
+        color: #333;
+        background: transparent;
+        overflow-x: hidden;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+      }
+      body {
+        padding: 0;
+      }
+      a {
+        color: #E9902C;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      img {
+        max-width: 100%;
+        height: auto;
+      }
+      table {
+        max-width: 100%;
+        border-collapse: collapse;
+      }
+      blockquote {
+        margin: 1em 0;
+        padding-left: 1em;
+        border-left: 3px solid #ddd;
+        color: #666;
+      }
+      pre, code {
+        font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, monospace;
+        background: #f5f5f5;
+        border-radius: 4px;
+      }
+      pre {
+        padding: 1em;
+        overflow-x: auto;
+      }
+      code {
+        padding: 0.2em 0.4em;
+        font-size: 0.9em;
+      }
+      pre code {
+        padding: 0;
+        background: none;
+      }
+      /* Reset common email quirks */
+      p {
+        margin: 0 0 1em 0;
+      }
+      h1, h2, h3, h4, h5, h6 {
+        margin: 0 0 0.5em 0;
+        line-height: 1.3;
+      }
+    </style>
+  `;
+
+  // Build the full HTML document for the iframe
+  const fullDocument = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <base target="_blank">
+        ${baseStyles}
+      </head>
+      <body>
+        ${html}
+      </body>
+    </html>
+  `;
+
+  // Resize iframe to match content height
+  const updateHeight = useCallback(() => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+
+    try {
+      const doc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (doc && doc.body) {
+        // Get the full scroll height of the content
+        const contentHeight = doc.body.scrollHeight;
+        // Add small buffer to prevent any scrollbar flickering
+        const newHeight = Math.max(contentHeight + 10, minHeight);
+        setHeight(newHeight);
+      }
+    } catch {
+      // Cross-origin access error - should not happen with srcdoc
+      console.warn('Could not access iframe content for height calculation');
+    }
+  }, [minHeight]);
+
+  // Update height when iframe loads and when content changes
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+
+    const handleLoad = () => {
+      // Initial height update
+      updateHeight();
+      
+      // Set up ResizeObserver to watch for content changes
+      try {
+        const doc = iframe.contentDocument || iframe.contentWindow?.document;
+        if (doc && doc.body) {
+          const resizeObserver = new ResizeObserver(() => {
+            updateHeight();
+          });
+          resizeObserver.observe(doc.body);
+          
+          // Also watch for images loading which can change height
+          const images = doc.querySelectorAll('img');
+          images.forEach(img => {
+            if (!img.complete) {
+              img.addEventListener('load', updateHeight);
+              img.addEventListener('error', updateHeight);
+            }
+          });
+
+          return () => {
+            resizeObserver.disconnect();
+            images.forEach(img => {
+              img.removeEventListener('load', updateHeight);
+              img.removeEventListener('error', updateHeight);
+            });
+          };
+        }
+      } catch {
+        // Ignore cross-origin errors
+      }
+    };
+
+    iframe.addEventListener('load', handleLoad);
+    return () => iframe.removeEventListener('load', handleLoad);
+  }, [html, updateHeight]);
+
+  return (
+    <iframe
+      ref={iframeRef}
+      srcDoc={fullDocument}
+      title="Email content"
+      sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+      style={{
+        width: '100%',
+        height: `${height}px`,
+        border: 'none',
+        display: 'block',
+        backgroundColor: 'transparent',
+      }}
+    />
+  );
+};

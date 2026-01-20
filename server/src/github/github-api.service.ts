@@ -121,80 +121,48 @@ export class GitHubApiService {
         });
       } catch (error: any) {
         // GraphQL can return errors but still have data in the response
-        // GitHub API sometimes returns errors with responseData containing the actual data
         // Check multiple possible locations for the data
         if (error?.responseData) {
-          this.logger.debug(
-            `GraphQL returned error but has responseData for ${owner}/${repo}#${issueNumber}`,
-          );
           response = error.responseData;
         } else if (error?.data) {
-          this.logger.debug(
-            `GraphQL returned error but has data for ${owner}/${repo}#${issueNumber}`,
-          );
           response = error.data;
         } else if (error?.response?.data) {
-          this.logger.debug(
-            `GraphQL returned error but has response.data for ${owner}/${repo}#${issueNumber}`,
-          );
           response = error.response.data;
         } else {
-          // No data in error, log and re-throw
-          this.logger.debug(
-            `GraphQL error with no usable data for ${owner}/${repo}#${issueNumber}`,
-            { error: error?.message || getErrorMessage(error) },
-          );
-          throw error;
+          // No data in error - return empty (don't throw to avoid breaking the flow)
+          return [];
         }
       }
 
-      this.logger.debug(
-        `GraphQL response for ${owner}/${repo}#${issueNumber}:`,
-        JSON.stringify(response, null, 2),
-      );
-
       if (!response?.repository?.issue?.projectItems?.nodes) {
-        this.logger.debug(
-          `No project items found in GraphQL response for ${owner}/${repo}#${issueNumber}`,
-        );
         return [];
       }
 
       const projects: Array<{ name: string; status?: string }> = [];
 
-      this.logger.debug(
-        `Processing ${response.repository.issue.projectItems.nodes.length} project item(s) for ${owner}/${repo}#${issueNumber}`,
-      );
+      // Check if we have null items (indicates permission issue with read:project scope)
+      const nullItemCount = response.repository.issue.projectItems.nodes.filter(
+        (item: any) => item === null,
+      ).length;
+      if (nullItemCount > 0 && response.repository.issue.projectItems.nodes.length === nullItemCount) {
+        // All items are null - token may be missing 'read:project' permission
+        this.logger.warn(
+          `GitHub token may need 'Projects' permission - project items returned as null for ${owner}/${repo}#${issueNumber}`,
+        );
+      }
 
       for (const item of response.repository.issue.projectItems.nodes) {
-        // Skip null items (GitHub API can return null in the nodes array)
-        if (!item) {
-          this.logger.debug(
-            `Skipping null project item for ${owner}/${repo}#${issueNumber}`,
-          );
-          continue;
-        }
+        // Skip null items (GitHub API returns null when token lacks project permissions)
+        if (!item) continue;
 
-        // Extract project name - might be null due to permissions, but we can still get field values
         const projectName = item?.project?.title;
         let status: string | undefined;
-
-        // Log the full item structure for debugging
-        this.logger.debug(
-          `Raw project item for ${owner}/${repo}#${issueNumber}:`,
-          JSON.stringify(item, null, 2),
-        );
 
         // Find the status field value
         if (item.fieldValues?.nodes) {
           for (const fieldValue of item.fieldValues.nodes) {
             if (!fieldValue) continue;
-            
             const fieldName = fieldValue.field?.name?.toLowerCase();
-            this.logger.debug(
-              `Checking field: ${fieldName}, value: ${fieldValue.name}`,
-            );
-            
             if (fieldName === "status") {
               status = fieldValue.name;
               break;
@@ -202,43 +170,15 @@ export class GitHubApiService {
           }
         }
 
-        this.logger.debug(
-          `Project item for ${owner}/${repo}#${issueNumber}:`,
-          {
-            projectName,
-            status,
-            hasProject: !!item?.project,
-            hasFieldValues: !!item?.fieldValues?.nodes,
-            fieldValueCount: item?.fieldValues?.nodes?.length || 0,
-            projectObject: item?.project ? JSON.stringify(item.project) : 'null',
-          },
-        );
-
-        // Only add project if we have a name OR a status (some permissions might allow field values but not project name)
+        // Only add project if we have a name or status
         if (projectName || status) {
           projects.push({
             name: projectName || 'Unknown Project',
             ...(status && { status }),
           });
-          this.logger.debug(
-            `Added project: ${projectName || 'Unknown Project'}, status: ${status || 'none'}`,
-          );
-        } else {
-          this.logger.debug(
-            `Skipping project item with no name or status for ${owner}/${repo}#${issueNumber}`,
-            { 
-              item: JSON.stringify(item),
-              projectName,
-              status,
-              fieldValues: item?.fieldValues?.nodes,
-            },
-          );
         }
       }
 
-      this.logger.debug(
-        `Successfully fetched ${projects.length} project(s) for ${owner}/${repo}#${issueNumber}`,
-      );
       return projects;
     } catch (error: unknown) {
       // Log error but don't throw - we want to continue even if project fetching fails
@@ -270,12 +210,6 @@ export class GitHubApiService {
     try {
       const octokit = this.createClient(token);
 
-      // Log the API endpoint being called
-      const apiUrl = `GET /repos/${owner}/${repo}/issues/${issueNumber}`;
-      this.logger.debug(
-        `Fetching issue: ${owner}/${repo}#${issueNumber} (${apiUrl})`,
-      );
-
       const response = await octokit.rest.issues.get({
         owner,
         repo,
@@ -285,17 +219,11 @@ export class GitHubApiService {
       const issue = response.data;
 
       // Fetch project information using GraphQL
-      this.logger.debug(
-        `Fetching projects for issue ${owner}/${repo}#${issueNumber}`,
-      );
       const projects = await this.fetchIssueProjects(
         token,
         owner,
         repo,
         issueNumber,
-      );
-      this.logger.debug(
-        `Found ${projects.length} project(s) for issue ${owner}/${repo}#${issueNumber}`,
       );
 
       return {
@@ -388,12 +316,6 @@ export class GitHubApiService {
     try {
       const octokit = this.createClient(token);
 
-      // Log the API endpoint being called
-      const apiUrl = `GET /repos/${owner}/${repo}/pulls/${prNumber}`;
-      this.logger.debug(
-        `Fetching PR: ${owner}/${repo}#${prNumber} (${apiUrl})`,
-      );
-
       // Fetch PR details
       const [prResponse, reviewsResponse, commentsResponse] = await Promise.all(
         [
@@ -465,17 +387,11 @@ export class GitHubApiService {
       }
 
       // Fetch project information using GraphQL (PRs use the same issue endpoint)
-      this.logger.debug(
-        `Fetching projects for PR ${owner}/${repo}#${prNumber}`,
-      );
       const projects = await this.fetchIssueProjects(
         token,
         owner,
         repo,
         prNumber,
-      );
-      this.logger.debug(
-        `Found ${projects.length} project(s) for PR ${owner}/${repo}#${prNumber}`,
       );
 
       return {

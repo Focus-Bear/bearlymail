@@ -4,6 +4,12 @@ import { theme } from 'theme/theme';
 import { InboxMode } from 'types/email';
 import { InboxHeaderTabs, InboxHeaderActions } from 'components/inbox/header';
 
+interface TabCounts {
+  triage: number;
+  action: number;
+  followUp: number;
+}
+
 interface InboxHeaderProps {
   mode: InboxMode;
   setMode: (mode: InboxMode) => void;
@@ -12,6 +18,7 @@ interface InboxHeaderProps {
   triageTabRef: RefObject<HTMLButtonElement | null>;
   actionTabRef: RefObject<HTMLButtonElement | null>;
   followUpTabRef: RefObject<HTMLButtonElement | null>;
+  tabCounts?: TabCounts | null;
 }
 
 export const InboxHeader: React.FC<InboxHeaderProps> = ({
@@ -22,6 +29,7 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
   triageTabRef,
   actionTabRef,
   followUpTabRef,
+  tabCounts,
 }) => {
   const { t } = useTranslation();
 
@@ -62,6 +70,7 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
             triageTabRef={triageTabRef}
             actionTabRef={actionTabRef}
             followUpTabRef={followUpTabRef}
+            tabCounts={tabCounts}
           />
         </div>
       </div>

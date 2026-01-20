@@ -1,8 +1,8 @@
-import React, { RefObject } from 'react';
+import React, { RefObject, useRef, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import EmailDetail from 'pages/EmailDetail';
-import { EMOJI_CLOSE, EMOJI_EXPAND } from 'constants/emojis';
+import EmailDetail, { EmailDetailRef } from 'pages/EmailDetail';
+import { EMOJI_CLOSE, EMOJI_EXPAND, EMOJI_REPLY, EMOJI_ARCHIVE, EMOJI_STAR } from 'constants/emojis';
 
 interface SelectedEmail {
   subject: string;
@@ -19,6 +19,7 @@ interface SplitViewPanelProps {
   emailDetailRef: RefObject<HTMLDivElement | null>;
   onTogglePanel: () => void;
   onClose: () => void;
+  onArchiveComplete?: () => void;
 }
 
 export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
@@ -30,11 +31,33 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
   emailDetailRef,
   onTogglePanel,
   onClose,
+  onArchiveComplete,
 }) => {
   const { t } = useTranslation();
+  const emailDetailComponentRef = useRef<EmailDetailRef>(null);
+  const [starCount, setStarCount] = useState<number>((selectedEmail as any)?.starCount ?? 0);
   
   const senderName = selectedEmail?.fromName || selectedEmail?.from || '';
   const subject = selectedEmail?.subject || t('inbox.emailDetails');
+
+  // Sync starCount when selectedEmail changes
+  useEffect(() => {
+    setStarCount((selectedEmail as any)?.starCount ?? 0);
+  }, [selectedEmail]);
+
+  const handleReplyClick = () => {
+    emailDetailComponentRef.current?.openReplyComposer();
+  };
+
+  const handleArchiveClick = () => {
+    emailDetailComponentRef.current?.archive();
+  };
+
+  const handleStarClick = (count: number) => {
+    const newCount = starCount === count ? 0 : count;
+    setStarCount(newCount);
+    emailDetailComponentRef.current?.setStarCount(newCount);
+  };
   
   return (
     <div 
@@ -100,6 +123,80 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
             </span>
           )}
         </div>
+
+        {/* Action buttons - always visible in header */}
+        <div style={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center', flexShrink: 0 }}>
+          {/* Star buttons */}
+          <div style={{ display: 'flex', gap: theme.spacing.xs, alignItems: 'center' }}>
+            {[1, 2, 3].map((count) => (
+              <button
+                key={count}
+                onClick={() => handleStarClick(count)}
+                style={{
+                  padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                  backgroundColor: starCount === count ? theme.colors.primary.main : 'transparent',
+                  color: starCount === count ? 'white' : theme.colors.text.secondary,
+                  border: `1px solid ${starCount === count ? theme.colors.primary.main : theme.colors.border.medium}`,
+                  borderRadius: theme.borderRadius.sm,
+                  cursor: 'pointer',
+                  fontSize: theme.typography.fontSize.xs,
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+                title={t('inbox.prioritise')}
+              >
+                {/* eslint-disable-next-line i18next/no-literal-string */}
+                {EMOJI_STAR}
+              </button>
+            ))}
+          </div>
+
+          {/* Reply button */}
+          <button
+            onClick={handleReplyClick}
+            style={{
+              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+              backgroundColor: 'transparent',
+              border: `1px solid ${theme.colors.border.medium}`,
+              borderRadius: theme.borderRadius.sm,
+              cursor: 'pointer',
+              fontSize: theme.typography.fontSize.xs,
+              color: theme.colors.text.secondary,
+              display: 'flex',
+              alignItems: 'center',
+              gap: theme.spacing.xs,
+            }}
+            title={t('emailDetail.reply')}
+          >
+            {/* eslint-disable-next-line i18next/no-literal-string */}
+            <span>{EMOJI_REPLY}</span>
+            <span>{t('emailDetail.reply')}</span>
+          </button>
+
+          {/* Archive button */}
+          <button
+            onClick={handleArchiveClick}
+            style={{
+              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+              backgroundColor: 'transparent',
+              border: `1px solid ${theme.colors.border.medium}`,
+              borderRadius: theme.borderRadius.sm,
+              cursor: 'pointer',
+              fontSize: theme.typography.fontSize.xs,
+              color: theme.colors.text.secondary,
+              display: 'flex',
+              alignItems: 'center',
+              gap: theme.spacing.xs,
+            }}
+            title={t('emailDetail.archive')}
+          >
+            {/* eslint-disable-next-line i18next/no-literal-string */}
+            <span>{EMOJI_ARCHIVE}</span>
+            <span>{t('emailDetail.archive')}</span>
+          </button>
+        </div>
+
+        {/* Expand/Close buttons */}
         <div style={{ display: 'flex', gap: theme.spacing.xs, flexShrink: 0 }}>
           <button
             onClick={() => {
@@ -138,7 +235,7 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
       
       {/* EmailDetail component */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        <EmailDetail emailId={selectedEmailId} compactMode={true} />
+        <EmailDetail ref={emailDetailComponentRef} emailId={selectedEmailId} compactMode={true} onArchiveComplete={onArchiveComplete} />
       </div>
     </div>
   );

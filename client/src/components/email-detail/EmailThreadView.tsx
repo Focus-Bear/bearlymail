@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { humanizeTimestamp } from 'utils/dateUtils';
 import { Email } from 'types/email';
+import { EmailBodyIframe } from './EmailBodyIframe';
 
 interface EmailThreadViewProps {
   email: Email;
@@ -47,9 +48,6 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = ({
           const rawBody = threadEmail.body || '';
           const rawHtmlBody = (threadEmail as any).htmlBody || '';
           const cleanBody = rawBody ? extractCleanBody(rawBody, rawHtmlBody) : '';
-          const cleanHtmlBody = rawHtmlBody 
-            ? removeSignature(extractCleanHtmlBody(rawHtmlBody), true) 
-            : null;
           
           return (
             <div
@@ -112,7 +110,7 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = ({
                 </div>
               </div>
               
-              {isExpanded ? (
+                {isExpanded ? (
                 <div style={{
                   padding: theme.spacing.lg,
                   color: theme.colors.text.primary,
@@ -120,18 +118,9 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = ({
                   fontSize: theme.typography.fontSize.lg,
                   fontWeight: theme.typography.fontWeight.normal,
                 }}>
-                  {cleanHtmlBody || (threadEmail as any).htmlBody ? (
-                    <div 
-                      style={{
-                        maxWidth: '100%',
-                        overflow: 'auto',
-                        isolation: 'isolate',
-                      }}
-                      dangerouslySetInnerHTML={{ 
-                        __html: sanitizeAndProcessHtml(
-                          (cleanHtmlBody || (threadEmail as any).htmlBody).replace(/<style([^>]*)>/gi, '<style$1 scoped>')
-                        )
-                      }} 
+                  {rawHtmlBody ? (
+                    <EmailBodyIframe 
+                      html={sanitizeAndProcessHtml(rawHtmlBody)}
                     />
                   ) : (
                     <div style={{ whiteSpace: 'pre-wrap' }}>
@@ -164,6 +153,8 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = ({
     );
   }
 
+  const singleEmailHtmlBody = (email as any).htmlBody || '';
+
   return (
     <div style={{
       color: theme.colors.text.primary,
@@ -171,18 +162,9 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = ({
       fontSize: theme.typography.fontSize.lg,
       marginBottom: theme.spacing.xl,
     }}>
-      {(email as any).htmlBody ? (
-        <div 
-          style={{
-            maxWidth: '100%',
-            overflow: 'auto',
-            isolation: 'isolate',
-          }}
-          dangerouslySetInnerHTML={{ 
-            __html: sanitizeAndProcessHtml(
-              removeSignature(extractCleanHtmlBody((email as any).htmlBody), true).replace(/<style([^>]*)>/gi, '<style$1 scoped>')
-            )
-          }} 
+      {singleEmailHtmlBody ? (
+        <EmailBodyIframe 
+          html={sanitizeAndProcessHtml(singleEmailHtmlBody)}
         />
       ) : (
         <div style={{ whiteSpace: 'pre-wrap' }}>

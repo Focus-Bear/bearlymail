@@ -5,6 +5,12 @@ import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 import { InboxMode } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
+interface TabCounts {
+  triage: number;
+  action: number;
+  followUp: number;
+}
+
 interface InboxHeaderTabsProps {
   mode: InboxMode;
   setMode: (mode: InboxMode) => void;
@@ -12,6 +18,7 @@ interface InboxHeaderTabsProps {
   triageTabRef: RefObject<HTMLButtonElement | null>;
   actionTabRef: RefObject<HTMLButtonElement | null>;
   followUpTabRef: RefObject<HTMLButtonElement | null>;
+  tabCounts?: TabCounts | null;
 }
 
 /**
@@ -25,6 +32,7 @@ export const InboxHeaderTabs: React.FC<InboxHeaderTabsProps> = ({
   triageTabRef,
   actionTabRef,
   followUpTabRef,
+  tabCounts,
 }) => {
   const { t } = useTranslation();
 
@@ -57,16 +65,29 @@ export const InboxHeaderTabs: React.FC<InboxHeaderTabsProps> = ({
     if (loadingModeSwitch && mode === tabMode) {
       return 'Loading...';
     }
+    let label = '';
+    let count: number | undefined;
     switch (tabMode) {
       case 'triage':
-        return t('inbox.triageTab');
+        label = t('inbox.triageTab');
+        count = tabCounts?.triage;
+        break;
       case 'action':
-        return t('inbox.actionTab');
+        label = t('inbox.actionTab');
+        count = tabCounts?.action;
+        break;
       case 'follow-up':
-        return t('inbox.followUpTab');
+        label = t('inbox.followUpTab');
+        count = tabCounts?.followUp;
+        break;
       default:
-        return '';
+        label = '';
     }
+    // Show count for all tabs (including 0)
+    if (count !== undefined) {
+      return `${label} (${count})`;
+    }
+    return label;
   };
 
   return (

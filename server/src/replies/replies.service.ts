@@ -3,6 +3,7 @@ import { EmailsService } from "../emails/emails.service";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { ContextService } from "../context/context.service";
 import { LLMService } from "../llm/llm.service";
+import { UsersService } from "../users/users.service";
 import { ContextKey } from "../database/entities/user-context.entity";
 import { Email } from "../database/entities/email.entity";
 
@@ -24,6 +25,7 @@ export class RepliesService {
     private emailProviderManager: EmailProviderManager,
     private contextService: ContextService,
     private llmService: LLMService,
+    private usersService: UsersService,
   ) {}
 
   async generateDraftReply(
@@ -36,7 +38,7 @@ export class RepliesService {
       throw new Error("Email not found");
     }
 
-    // Get user context
+    // Get user context from UserContext entities
     const contexts = await this.contextService.getUserContext(userId);
     const tone =
       contexts.find((c) => c.contextKey === ContextKey.WRITING_STYLE_TONE)
@@ -47,6 +49,17 @@ export class RepliesService {
     const writingStyle = contexts.find(
       (c) => c.contextKey === ContextKey.WRITING_STYLE_TONE,
     )?.contextValue;
+
+    // Get writing style examples from user.toneSettings.rules
+    const user = await this.usersService.findOne(userId);
+    const toneRules = user?.toneSettings?.rules || [];
+    // Filter to get email examples (entries that don't start with "Tone:", "Style:", or "Common phrase:")
+    const emailExamples = toneRules.filter(
+      (rule: string) =>
+        !rule.startsWith("Tone:") &&
+        !rule.startsWith("Style:") &&
+        !rule.startsWith("Common phrase:"),
+    );
 
     // Check for matching reply rules first
     const rules = this.replyRules.get(userId) || [];
@@ -79,6 +92,7 @@ export class RepliesService {
           tone,
           commonPhrases,
           writingStyle,
+          emailExamples,
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         provider as any,

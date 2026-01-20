@@ -3820,9 +3820,60 @@ export class ContextService {
       writeAnalysisLog(`[FINALIZATION] ✅ Step 6/6: Processed ${contextProcessed} context items in ${Math.round(contextDuration / 1000)}s`, "log");
     }
 
-    // Note: Q&A extraction and writing style saving would go here
-    // For now, we'll skip them to keep the method simpler and complete faster
-    // They can be added back if needed
+    // Save writing style to user.toneSettings.rules
+    writeAnalysisLog(`[FINALIZATION] Saving writing style to toneSettings.rules...`, "log");
+    if (analysis.writingStyle) {
+      const writingStyleRules: string[] = [];
+      
+      // Add tone if available
+      if (analysis.writingStyle.tone && analysis.writingStyle.tone.trim()) {
+        writingStyleRules.push(`Tone: ${analysis.writingStyle.tone}`);
+      }
+      
+      // Add style if available
+      if (analysis.writingStyle.style && analysis.writingStyle.style.trim()) {
+        writingStyleRules.push(`Style: ${analysis.writingStyle.style}`);
+      }
+      
+      // Add common phrases
+      for (const phrase of analysis.writingStyle.commonPhrases || []) {
+        if (phrase && phrase.trim()) {
+          writingStyleRules.push(`Common phrase: "${phrase}"`);
+        }
+      }
+      
+      // Add email examples with name redaction (use LLM-based redaction)
+      for (const example of (analysis.writingStyle as { emailExamples?: string[] }).emailExamples || []) {
+        if (example && example.trim()) {
+          // Use LLM to redact names for better accuracy
+          const redacted = await this.llmService.redactNamesWithLLM(example);
+          writingStyleRules.push(redacted);
+        }
+      }
+      
+      if (writingStyleRules.length > 0) {
+        // Merge with existing user rules (don't overwrite manual additions)
+        const user = await this.usersService.findOne(userId);
+        const existingRules = user?.toneSettings?.rules || [];
+        // Add new rules, avoiding duplicates, limit to 20 total
+        const newRules = writingStyleRules.filter(
+          (rule) => !existingRules.some((existing: string) => existing === rule),
+        );
+        const mergedRules = [...existingRules, ...newRules].slice(0, 20);
+        
+        await this.usersService.update(userId, { 
+          toneSettings: { rules: mergedRules } 
+        });
+        
+        this.logger.log(
+          `[CONTEXT-ANALYSIS] Saved ${newRules.length} new writing style rules (total: ${mergedRules.length})`,
+        );
+        writeAnalysisLog(
+          `[FINALIZATION] ✅ Saved ${newRules.length} new writing style rules (total: ${mergedRules.length})`,
+          "log",
+        );
+      }
+    }
 
     // Store statistics
     writeAnalysisLog(`[FINALIZATION] Saving final statistics and marking analysis as complete...`, "log");

@@ -130,6 +130,19 @@ export class Email {
   })
   labels: string[];
 
+  @Column({
+    type: "text",
+    nullable: true,
+    transformer: encryptedJsonTransformer,
+    comment: "JSON array of attachment metadata: {attachmentId, filename, mimeType, size}[]",
+  })
+  attachments: Array<{
+    attachmentId: string;
+    filename: string;
+    mimeType: string;
+    size: number;
+  }> | null;
+
   // Priority explanation moved to EmailThread entity (thread-level property)
 
   @Column({
@@ -137,6 +150,12 @@ export class Email {
     comment: "Flag to indicate summary is being generated",
   })
   isProcessingSummary: boolean;
+
+  @Column({
+    default: false,
+    comment: "Flag to indicate email was delivered early (emergency) due to high priority outside batch window",
+  })
+  wasDeliveredEarly: boolean;
 
   @CreateDateColumn()
   receivedAt: Date;

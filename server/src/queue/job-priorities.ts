@@ -70,6 +70,9 @@ export const JobTypePriority = {
 
   // Legacy sync job
   "sync-gmail": JobPriority.MEDIUM,
+
+  // Auto-responder (after triage completion)
+  "auto-responder": JobPriority.LOW,
 } as const;
 
 /**

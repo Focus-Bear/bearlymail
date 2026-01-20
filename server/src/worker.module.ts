@@ -27,6 +27,7 @@ import { SummarizationRule } from "./database/entities/summarization-rule.entity
 import { Waitlist } from "./database/entities/waitlist.entity";
 import { BlockedSender } from "./database/entities/blocked-sender.entity";
 import { PriorityOverride } from "./database/entities/priority-override.entity";
+import { TokenUsage } from "./database/entities/token-usage.entity";
 
 // Worker processors
 import { EmailSyncProcessor } from "./emails/email-sync.processor";
@@ -44,6 +45,13 @@ import { GmailProvider } from "./emails/providers/gmail.provider";
 import { Office365Provider } from "./emails/providers/office365.provider";
 import { ZohoProvider } from "./emails/providers/zoho.provider";
 import { ScanEmailService } from "./emails/scan-email.service";
+import { EmailSearchService } from "./emails/email-search.service";
+import { EmailStarService } from "./emails/email-star.service";
+import { EmailDebugService } from "./emails/email-debug.service";
+import { EmailReadService } from "./emails/email-read.service";
+import { EmailCrudService } from "./emails/email-crud.service";
+import { EmailGmailService } from "./emails/email-gmail.service";
+import { EmailStatusService } from "./emails/email-status.service";
 import { UsersService } from "./users/users.service";
 import { PriorityService } from "./priority/priority.service";
 import { PriorityLearningService } from "./priority/priority-learning.service";
@@ -95,6 +103,7 @@ import { BlockedSendersService } from "./blocked-senders/blocked-senders.service
             Waitlist,
             BlockedSender,
             PriorityOverride,
+            TokenUsage,
           ],
           synchronize: false,
           ssl: useSsl,
@@ -131,6 +140,13 @@ import { BlockedSendersService } from "./blocked-senders/blocked-senders.service
     EncryptionService,
     UsersService,
     EmailThreadService,
+    EmailSearchService,
+    EmailStarService,
+    EmailDebugService,
+    EmailReadService,
+    EmailCrudService,
+    EmailGmailService,
+    EmailStatusService,
     EmailsService,
     EmailProviderManager,
     GmailProvider,

@@ -10,6 +10,7 @@ import {
   EmailProvider,
   RawEmailMessage,
   EmailRecipient,
+  EmailAttachmentData,
 } from "../interfaces/email-provider.interface";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Email } from "../../database/entities/email.entity";
@@ -502,8 +503,8 @@ export class GmailProvider implements EmailProvider {
         `Found ${inboxThreads.length} inbox threads and ${starredThreads.length} starred threads (${allThreadIds.size} unique) updated since ${syncWindowStart.toISOString()}`,
       );
 
-      // Check which threads actually need processing by comparing with DB
-      // Get existing threads from DB to check their updatedAt
+      // Get existing threads from DB to check their current status
+      // We'll compare with Gmail status to detect changes (star, archive)
       const existingThreads = await this.emailsService.getThreadsByThreadIds(
         userId,
         Array.from(allThreadIds),
@@ -512,28 +513,17 @@ export class GmailProvider implements EmailProvider {
         existingThreads.map((t) => [t.threadId, t]),
       );
 
-      // Filter to only threads that need processing
-      // A thread needs processing if:
+      // Process ALL threads returned by Gmail (they're already filtered by "after:")
+      // We need to check each thread's status in Gmail to detect changes
+      // A thread needs full processing if:
       // 1. It doesn't exist in DB, OR
-      // 2. It exists but was updated after our last sync (new messages, status changes)
-      const threadsToProcess: string[] = [];
-      for (const threadId of allThreadIds) {
-        const existingThread = existingThreadMap.get(threadId);
-        if (!existingThread) {
-          // New thread - needs processing
-          threadsToProcess.push(threadId);
-        } else if (lastSyncAt && existingThread.updatedAt > lastSyncAt) {
-          // Thread was updated in DB after last sync - might have new messages
-          threadsToProcess.push(threadId);
-        } else if (!lastSyncAt) {
-          // First sync - process all threads
-          threadsToProcess.push(threadId);
-        }
-        // Otherwise, thread exists and hasn't been updated - skip it
-      }
+      // 2. Status changed (star, archive), OR
+      // 3. Has new messages
+      // Otherwise, just check read status (lightweight)
+      const threadsToProcess: string[] = Array.from(allThreadIds);
 
       this.logger.debug(
-        `Filtered to ${threadsToProcess.length} threads that need processing (out of ${allThreadIds.size} total)`,
+        `Processing ${threadsToProcess.length} threads to check status and detect changes`,
       );
 
       // Process threads in batches of 5 for better performance
@@ -553,7 +543,23 @@ export class GmailProvider implements EmailProvider {
       }[] = [];
 
       // Process batches sequentially, but threads within batch in parallel
-      for (const batch of threadBatches) {
+      // Add limits to prevent jobs from running too long (max 100 threads per sync)
+      const MAX_THREADS_TO_PROCESS = 100;
+      const threadsToProcessLimited = threadsToProcess.slice(0, MAX_THREADS_TO_PROCESS);
+      
+      if (threadsToProcess.length > MAX_THREADS_TO_PROCESS) {
+        this.logger.warn(
+          `Limiting thread processing to ${MAX_THREADS_TO_PROCESS} threads (out of ${threadsToProcess.length} total) to prevent job timeout`,
+        );
+      }
+
+      const limitedBatches: string[][] = [];
+      for (let i = 0; i < threadsToProcessLimited.length; i += BATCH_SIZE) {
+        limitedBatches.push(threadsToProcessLimited.slice(i, i + BATCH_SIZE));
+      }
+
+      let processedThreads = 0;
+      for (const batch of limitedBatches) {
         await Promise.all(
           batch
             .filter((threadId) => threadId) // Filter out null/undefined
@@ -580,9 +586,19 @@ export class GmailProvider implements EmailProvider {
               const isStarred = latestLabelIds.includes("STARRED");
               const starCount = isStarred ? 3 : 0;
 
+              // Check if status changed compared to DB (for existing threads)
+              const existingThread = existingThreadMap.get(threadId);
+              const statusChanged =
+                existingThread &&
+                (existingThread.starCount !== starCount ||
+                  existingThread.isArchived !== isArchived);
+
               // Collect thread updates (only once per thread, not per message)
-              threadStarCountUpdates.push({ threadId, starCount });
-              threadArchivedUpdates.push({ threadId, isArchived });
+              // Only update if status changed or thread is new
+              if (!existingThread || statusChanged) {
+                threadStarCountUpdates.push({ threadId, starCount });
+                threadArchivedUpdates.push({ threadId, isArchived });
+              }
 
               // Process all messages in the thread
               for (const message of thread.messages) {
@@ -637,6 +653,7 @@ export class GmailProvider implements EmailProvider {
                   starCount,
                   receivedAt: rawEmail.receivedAt,
                   labels: labelIds,
+                  attachments: rawEmail.attachments,
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 } as any);
               }
@@ -1429,6 +1446,7 @@ export class GmailProvider implements EmailProvider {
     to: string,
     subject: string,
     body: string,
+    attachments?: EmailAttachmentData[],
   ): Promise<void> {
     const user = await this.usersService.findOneWithTokens(userId);
     if (!user?.googleCalendarAccessToken) {
@@ -1447,14 +1465,18 @@ export class GmailProvider implements EmailProvider {
 
     const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
-    const emailContent = [
-      `To: ${to}`,
-      `Subject: ${subject}`,
-      `In-Reply-To: <${threadId}@mail.gmail.com>`,
-      `References: <${threadId}@mail.gmail.com>`,
-      "",
-      body,
-    ].join("\n");
+    const emailContent = this.buildEmailContent(
+      {
+        to: [{ email: to }],
+        subject,
+        body,
+        attachments,
+        headers: {
+          "In-Reply-To": `<${threadId}@mail.gmail.com>`,
+          References: `<${threadId}@mail.gmail.com>`,
+        },
+      },
+    );
 
     const encodedEmail = Buffer.from(emailContent)
       .toString("base64")
@@ -1496,6 +1518,7 @@ export class GmailProvider implements EmailProvider {
     body: string,
     cc?: EmailRecipient[],
     bcc?: EmailRecipient[],
+    attachments?: EmailAttachmentData[],
   ): Promise<{ messageId: string; threadId: string }> {
     const user = await this.usersService.findOneWithTokens(userId);
     if (!user?.googleCalendarAccessToken) {
@@ -1536,22 +1559,14 @@ export class GmailProvider implements EmailProvider {
     const bccHeader =
       bcc && bcc.length > 0 ? bcc.map(formatRecipient).join(", ") : null;
 
-    // Build email headers
-    const headers: string[] = [
-      `To: ${toHeader}`,
-      `Subject: ${subject}`,
-      "MIME-Version: 1.0",
-      "Content-Type: text/plain; charset=UTF-8",
-    ];
-
-    if (ccHeader) {
-      headers.push(`Cc: ${ccHeader}`);
-    }
-    if (bccHeader) {
-      headers.push(`Bcc: ${bccHeader}`);
-    }
-
-    const emailContent = [...headers, "", body].join("\r\n");
+    const emailContent = this.buildEmailContent({
+      to,
+      subject,
+      body,
+      cc,
+      bcc,
+      attachments,
+    });
 
     const encodedEmail = Buffer.from(emailContent)
       .toString("base64")
@@ -1593,6 +1608,100 @@ export class GmailProvider implements EmailProvider {
     }
   }
 
+  /**
+   * Build email content with support for attachments using multipart MIME
+   */
+  private buildEmailContent(options: {
+    to: EmailRecipient[];
+    subject: string;
+    body: string;
+    cc?: EmailRecipient[];
+    bcc?: EmailRecipient[];
+    attachments?: EmailAttachmentData[];
+    headers?: Record<string, string>;
+  }): string {
+    const formatRecipient = (r: EmailRecipient) =>
+      r.name ? `${r.name} <${r.email}>` : r.email;
+
+    const toHeader = options.to.map(formatRecipient).join(", ");
+    const ccHeader =
+      options.cc && options.cc.length > 0
+        ? options.cc.map(formatRecipient).join(", ")
+        : null;
+    const bccHeader =
+      options.bcc && options.bcc.length > 0
+        ? options.bcc.map(formatRecipient).join(", ")
+        : null;
+
+    const hasAttachments =
+      options.attachments && options.attachments.length > 0;
+
+    // Build email headers
+    const headers: string[] = [
+      `To: ${toHeader}`,
+      `Subject: ${options.subject}`,
+      "MIME-Version: 1.0",
+    ];
+
+    if (ccHeader) {
+      headers.push(`Cc: ${ccHeader}`);
+    }
+    if (bccHeader) {
+      headers.push(`Bcc: ${bccHeader}`);
+    }
+
+    // Add custom headers if provided
+    if (options.headers) {
+      for (const [key, value] of Object.entries(options.headers)) {
+        headers.push(`${key}: ${value}`);
+      }
+    }
+
+    let bodyContent: string;
+
+    if (hasAttachments) {
+      // Use multipart/mixed when attachments are present
+      const boundary = `----=_Part_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+      headers.push(`Content-Type: multipart/mixed; boundary="${boundary}"`);
+
+      // Build multipart body
+      const parts: string[] = [];
+
+      // Text body part
+      parts.push(`--${boundary}`);
+      parts.push("Content-Type: text/plain; charset=UTF-8");
+      parts.push("Content-Transfer-Encoding: 7bit");
+      parts.push("");
+      parts.push(options.body);
+
+      // Attachment parts
+      for (const attachment of options.attachments!) {
+        parts.push(`--${boundary}`);
+        parts.push(
+          `Content-Type: ${attachment.mimeType}; name="${attachment.filename}"`,
+        );
+        parts.push("Content-Transfer-Encoding: base64");
+        parts.push(
+          `Content-Disposition: attachment; filename="${attachment.filename}"`,
+        );
+        parts.push("");
+        // Encode attachment content as base64, split into 76-character lines
+        const base64Content = attachment.content.toString("base64");
+        const chunkedContent = base64Content.match(/.{1,76}/g)?.join("\r\n") || base64Content;
+        parts.push(chunkedContent);
+      }
+
+      parts.push(`--${boundary}--`);
+      bodyContent = parts.join("\r\n");
+    } else {
+      // Simple text email
+      headers.push("Content-Type: text/plain; charset=UTF-8");
+      bodyContent = options.body;
+    }
+
+    return [...headers, "", bodyContent].join("\r\n");
+  }
+
   private parseGmailMessage(
     messageData: gmail_v1.Schema$Message,
   ): RawEmailMessage | null {
@@ -1620,6 +1729,10 @@ export class GmailProvider implements EmailProvider {
       messageData.snippet,
     );
 
+    const attachments = this.extractAttachmentsFromPayload(
+      messageData.payload,
+    );
+
     return {
       messageId: messageData.id,
       threadId: messageData.threadId,
@@ -1634,6 +1747,7 @@ export class GmailProvider implements EmailProvider {
       ),
       isRead: !labelIds.includes("UNREAD"),
       labelIds,
+      attachments: attachments.length > 0 ? attachments : undefined,
     };
   }
 
@@ -1686,6 +1800,58 @@ export class GmailProvider implements EmailProvider {
     }
 
     return { body, htmlBody };
+  }
+
+  private extractAttachmentsFromPayload(
+    payload: gmail_v1.Schema$MessagePart | undefined,
+  ): Array<{
+    attachmentId: string;
+    filename: string;
+    mimeType: string;
+    size: number;
+  }> {
+    const attachments: Array<{
+      attachmentId: string;
+      filename: string;
+      mimeType: string;
+      size: number;
+    }> = [];
+
+    if (!payload) return attachments;
+
+    const extractFromPart = (
+      part: gmail_v1.Schema$MessagePart,
+    ): void => {
+      // Check if this part is an attachment
+      // Attachments have a filename and attachmentId
+      if (part.filename && part.body?.attachmentId) {
+        attachments.push({
+          attachmentId: part.body.attachmentId,
+          filename: part.filename,
+          mimeType: part.mimeType || "application/octet-stream",
+          size: part.body.size || 0,
+        });
+      }
+
+      // Recursively check nested parts
+      if (part.parts) {
+        for (const nestedPart of part.parts) {
+          extractFromPart(nestedPart);
+        }
+      }
+    };
+
+    // Start extraction from root payload
+    if (payload.parts) {
+      for (const part of payload.parts) {
+        extractFromPart(part);
+      }
+    } else {
+      // Single part message
+      extractFromPart(payload);
+    }
+
+    return attachments;
   }
 
   async searchEmails(
@@ -1796,6 +1962,116 @@ export class GmailProvider implements EmailProvider {
     }
   }
 
+  async getAttachment(
+    userId: string,
+    messageId: string,
+    attachmentId: string,
+  ): Promise<{
+    data: Buffer;
+    filename: string;
+    mimeType: string;
+    size: number;
+  }> {
+    const user = await this.usersService.findOneWithTokens(userId);
+    if (!user?.googleCalendarAccessToken) {
+      throw new Error("Gmail account not connected. Cannot fetch attachment.");
+    }
+
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI,
+    );
+    oauth2Client.setCredentials({
+      access_token: user.googleCalendarAccessToken,
+      refresh_token: user.googleCalendarRefreshToken,
+    });
+
+    // Handle token refresh
+    oauth2Client.on("tokens", async (tokens) => {
+      if (tokens.access_token) {
+        await this.usersService.update(userId, {
+          googleCalendarAccessToken: tokens.access_token,
+          ...(tokens.refresh_token && {
+            googleCalendarRefreshToken: tokens.refresh_token,
+          }),
+        });
+      }
+    });
+
+    const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+
+    try {
+      // First, get the message to find attachment metadata
+      const message = await gmail.users.messages.get({
+        userId: "me",
+        id: messageId,
+        format: "full",
+      });
+
+      // Find the attachment in the message parts
+      let attachmentPart: gmail_v1.Schema$MessagePart | undefined;
+      const findAttachment = (part: gmail_v1.Schema$MessagePart): void => {
+        if (part.body?.attachmentId === attachmentId) {
+          attachmentPart = part;
+          return;
+        }
+        if (part.parts) {
+          for (const nestedPart of part.parts) {
+            findAttachment(nestedPart);
+          }
+        }
+      };
+
+      if (message.data.payload) {
+        findAttachment(message.data.payload);
+      }
+
+      if (!attachmentPart) {
+        throw new Error(`Attachment ${attachmentId} not found in message ${messageId}`);
+      }
+
+      // Get the attachment data
+      const attachmentResponse = await gmail.users.messages.attachments.get({
+        userId: "me",
+        messageId,
+        id: attachmentId,
+      });
+
+      if (!attachmentResponse.data.data) {
+        throw new Error(`No data returned for attachment ${attachmentId}`);
+      }
+
+      // Decode base64 attachment data
+      const attachmentData = Buffer.from(
+        attachmentResponse.data.data,
+        "base64",
+      );
+
+      return {
+        data: attachmentData,
+        filename: attachmentPart.filename || "attachment",
+        mimeType: attachmentPart.mimeType || "application/octet-stream",
+        size: attachmentPart.body?.size || attachmentData.length,
+      };
+    } catch (error: unknown) {
+      this.logger.error(
+        `Failed to get attachment ${attachmentId} from message ${messageId} for user ${userId}:`,
+        error,
+      );
+      const apiError = isApiError(error) ? error : null;
+      const errorMsg = isError(error) ? error.message : apiError?.message || "";
+      if (
+        apiError?.code === 401 ||
+        (apiError?.response && (apiError.response as any).status === 401) ||
+        (errorMsg && errorMsg.includes("invalid_grant"))
+      ) {
+        await this.usersService.update(userId, { needsRelogin: true });
+      }
+      throw new Error(`Failed to get attachment: ${errorMsg || "Unknown error"}`);
+    }
+  }
+
   async archiveThread(userId: string, threadId: string): Promise<void> {
     this.logger.log(`[Gmail Archive] Starting archiveThread: userId=${userId}, threadId=${threadId}`);
     const user = await this.usersService.findOneWithTokens(userId);
@@ -1857,18 +2133,18 @@ export class GmailProvider implements EmailProvider {
         this.logger.log(`[Gmail Archive] Removed STAR from ${removedStarCount} messages: userId=${userId}, threadId=${threadId}`);
       }
 
-      // Remove from inbox (this archives the thread in Gmail)
+      // Remove from inbox and mark as read (this archives the thread in Gmail)
       // Note: Gmail doesn't allow adding custom labels via addLabelIds in threads.modify
-      // Removing INBOX label is sufficient to archive the thread
-      this.logger.log(`[Gmail Archive] Archiving thread in Gmail (removing INBOX label): userId=${userId}, threadId=${threadId}`);
+      // Removing INBOX label archives the thread, removing UNREAD label marks it as read
+      this.logger.log(`[Gmail Archive] Archiving thread in Gmail (removing INBOX and UNREAD labels): userId=${userId}, threadId=${threadId}`);
       const archiveResult = await gmail.users.threads.modify({
         userId: "me",
         id: threadId,
         requestBody: {
-          removeLabelIds: ["INBOX"],
+          removeLabelIds: ["INBOX", "UNREAD"],
         },
       });
-      this.logger.log(`[Gmail Archive] Thread archived successfully in Gmail: userId=${userId}, threadId=${threadId}, result=${JSON.stringify(archiveResult.data)}`);
+      this.logger.log(`[Gmail Archive] Thread archived and marked as read in Gmail: userId=${userId}, threadId=${threadId}, result=${JSON.stringify(archiveResult.data)}`);
     } catch (error: unknown) {
       this.logger.error(
         `[Gmail Archive] Error archiving thread ${threadId} for user ${userId}:`,

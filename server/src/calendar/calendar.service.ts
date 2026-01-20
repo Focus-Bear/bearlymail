@@ -6,6 +6,7 @@ import { LLMService } from "../llm/llm.service";
 import { LLMProvider } from "../llm/llm.types";
 import { EmailsService } from "../emails/emails.service";
 import { HOURS } from "../constants/time-constants";
+import { EncryptionHelper } from "../encryption/encryption.helper";
 
 export interface TimeSlot {
   start: string;
@@ -244,6 +245,238 @@ export class CalendarService {
       console.error("Error finding calendar events:", error);
       throw new Error("Failed to find calendar events");
     }
+  }
+
+  /**
+   * Detect if an email is a calendar invitation
+   * Uses strict criteria to avoid false positives
+   */
+  isCalendarInvitation(email: {
+    subject?: string;
+    body?: string;
+    htmlBody?: string;
+  }): boolean {
+    const subject = (email.subject || "").toLowerCase();
+    const body = (email.body || "").toLowerCase();
+    const htmlBody = (email.htmlBody || "").toLowerCase();
+    const combinedText = `${subject} ${body} ${htmlBody}`;
+
+    // Check subject for specific invitation keywords (more strict)
+    const invitationKeywords = [
+      "invitation:", // Most common format
+      "invite:", // Alternative format
+      "meeting invitation",
+      "event invitation",
+      "calendar invitation",
+      "you're invited to",
+      "you are invited to",
+      "meeting request",
+      "event request",
+    ];
+
+    const hasInvitationKeyword = invitationKeywords.some((keyword) =>
+      subject.includes(keyword),
+    );
+
+    // Check for iCal content patterns (most reliable indicator)
+    const hasICalPattern =
+      combinedText.includes("begin:vcalendar") ||
+      combinedText.includes("method:request") ||
+      combinedText.includes("content-type:text/calendar") ||
+      combinedText.includes("content-type: text/calendar") ||
+      (combinedText.includes('attachment; filename="') &&
+        combinedText.includes(".ics"));
+
+    // Check for iCal-specific headers (strict patterns)
+    const hasICalHeaders =
+      combinedText.includes("dtstart:") ||
+      combinedText.includes("dtend:") ||
+      combinedText.includes("organizer:mailto:") ||
+      combinedText.includes("attendee:mailto:") ||
+      (combinedText.includes("uid:") && combinedText.includes("@"));
+
+    // Only return true if we have strong indicators
+    // Require either invitation keyword in subject OR iCal patterns
+    return hasInvitationKeyword || hasICalPattern || hasICalHeaders;
+  }
+
+  /**
+   * Respond to a calendar invitation
+   */
+  async respondToInvitation(
+    userId: string,
+    emailId: string,
+    response: "accepted" | "declined" | "tentative",
+  ): Promise<void> {
+    const user = await this.usersService.findOne(userId);
+    if (!user?.googleCalendarAccessToken) {
+      throw new Error("Google Calendar not connected");
+    }
+
+    const email = await this.emailsService.getEmailById(userId, emailId);
+    if (!email) {
+      throw new Error("Email not found");
+    }
+
+    // Check if email is a calendar invitation
+    if (!this.isCalendarInvitation(email)) {
+      throw new Error("Email is not a calendar invitation");
+    }
+
+    this.oauth2Client.setCredentials({
+      access_token: user.googleCalendarAccessToken,
+      refresh_token: user.googleCalendarRefreshToken,
+    });
+
+    const calendar = google.calendar({
+      version: "v3",
+      auth: this.oauth2Client,
+    });
+
+    // Try to find the event by searching for events with matching subject/time
+    // First, try to extract event details from email
+    const subject = email.subject || "";
+    const body = email.body || email.htmlBody || "";
+
+    // Parse iCal content if present
+    let eventId: string | null = null;
+    let organizerEmail: string | null = null;
+    let eventStart: Date | null = null;
+
+    // Try to extract from iCal format
+    const icalMatch = body.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/);
+    if (icalMatch) {
+      const icalContent = icalMatch[0];
+      const uidMatch = icalContent.match(/UID:([^\r\n]+)/);
+      const organizerMatch = icalContent.match(/ORGANIZER[^:]*:MAILTO:([^\r\n]+)/i);
+      const dtstartMatch = icalContent.match(/DTSTART[^:]*:([^\r\n]+)/i);
+
+      if (uidMatch) {
+        // UID might be the event ID or contain it
+        eventId = uidMatch[1].trim();
+      }
+      if (organizerMatch) {
+        organizerEmail = organizerMatch[1].trim();
+      }
+      if (dtstartMatch) {
+        try {
+          // Parse iCal date format (YYYYMMDDTHHMMSS or YYYYMMDD)
+          const dateStr = dtstartMatch[1].trim();
+          if (dateStr.length >= 8) {
+            const year = dateStr.substring(0, 4);
+            const month = dateStr.substring(4, 6);
+            const day = dateStr.substring(6, 8);
+            const hour = dateStr.length > 8 ? dateStr.substring(9, 11) : "00";
+            const minute = dateStr.length > 10 ? dateStr.substring(11, 13) : "00";
+            eventStart = new Date(
+              `${year}-${month}-${day}T${hour}:${minute}:00`,
+            );
+          }
+        } catch (error) {
+          console.error("Error parsing iCal date:", error);
+        }
+      }
+    }
+
+    // If we have event details, try to find the event in Google Calendar
+    if (eventStart) {
+      const timeMin = new Date(eventStart.getTime() - 24 * 60 * 60 * 1000); // 1 day before
+      const timeMax = new Date(eventStart.getTime() + 24 * 60 * 60 * 1000); // 1 day after
+
+      try {
+        const eventsResponse = await calendar.events.list({
+          calendarId: "primary",
+          timeMin: timeMin.toISOString(),
+          timeMax: timeMax.toISOString(),
+          maxResults: 50,
+          singleEvents: true,
+        });
+
+        // Try to match by subject or UID
+        const matchingEvent = eventsResponse.data.items?.find((event) => {
+          if (eventId && event.iCalUID === eventId) {
+            return true;
+          }
+          if (event.summary && subject.includes(event.summary.toLowerCase())) {
+            return true;
+          }
+          // Check if user is an attendee
+          if (event.attendees) {
+            const userEmail = EncryptionHelper.decrypt(user.email);
+            return event.attendees.some(
+              (attendee) =>
+                attendee.email?.toLowerCase() === userEmail?.toLowerCase(),
+            );
+          }
+          return false;
+        });
+
+        if (matchingEvent?.id) {
+          eventId = matchingEvent.id;
+        }
+      } catch (error) {
+        console.error("Error searching for calendar event:", error);
+      }
+    }
+
+    // If we found an event ID, update the attendee response
+    if (eventId) {
+      try {
+        // Get the event first to check current attendee status
+        const event = await calendar.events.get({
+          calendarId: "primary",
+          eventId: eventId,
+        });
+
+        if (!event.data.attendees) {
+          throw new Error("Event has no attendees");
+        }
+
+        const userEmail = EncryptionHelper.decrypt(user.email);
+        const attendeeIndex = event.data.attendees.findIndex(
+          (attendee) => attendee.email?.toLowerCase() === userEmail?.toLowerCase(),
+        );
+
+        if (attendeeIndex === -1) {
+          throw new Error("User is not an attendee of this event");
+        }
+
+        // Map response to Google Calendar response status
+        const responseStatus =
+          response === "accepted"
+            ? "accepted"
+            : response === "declined"
+              ? "declined"
+              : "tentative";
+
+        // Update the attendee's response status
+        const updatedAttendees = [...(event.data.attendees || [])];
+        updatedAttendees[attendeeIndex] = {
+          ...updatedAttendees[attendeeIndex],
+          responseStatus: responseStatus,
+        };
+
+        await calendar.events.patch({
+          calendarId: "primary",
+          eventId: eventId,
+          requestBody: {
+            attendees: updatedAttendees,
+          },
+        });
+
+        return;
+      } catch (error) {
+        console.error("Error updating calendar event:", error);
+        throw new Error(
+          `Failed to respond to invitation: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
+      }
+    }
+
+    // If we couldn't find the event, throw an error
+    throw new Error(
+      "Could not find corresponding calendar event. Please respond to the invitation directly in your calendar.",
+    );
   }
 
   async generateMeetingReply(

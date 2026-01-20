@@ -108,6 +108,7 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
         <EmailSubject email={email} />
         <EmailPreview email={email} />
         <MetadataIndicators email={email} />
+        {/* Show GitHub badges only if we have cached links */}
         {email.githubMetadata?.links && email.githubMetadata.links.length > 0 && (
           <GitHubProjectBadges 
             emailId={email.id} 

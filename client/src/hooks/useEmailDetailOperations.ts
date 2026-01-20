@@ -1,13 +1,18 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useDispatch, useSelector } from 'react-redux';
 import axios from 'axios';
 import { HTTP_UNAUTHORIZED, HTTP_FORBIDDEN } from 'constants/numbers';
 import { captureEvent } from 'utils/posthog';
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 import { extractCleanBody, removeSignature, extractCleanHtmlBody, sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
+import { emailMentionsGitHub } from 'utils/githubUtils';
 import { ACTION_ITEM_SOURCE_LLM, REPLY_MODE_REPLY_ALL, ANIMATION_TYPE_SEND, ANIMATION_TYPE_ARCHIVE, GITHUB_ACTION_PREFIX } from 'constants/strings';
 import { TIMEOUT_800_MS } from 'constants/numbers';
+import { AppDispatch } from 'store/store';
+import { removeEmail, addOptimisticArchive, restoreEmail, removeOptimisticArchive } from 'store/slices/emailSlice';
+import { selectEmails } from 'store/selectors/emailSelectors';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -95,9 +100,15 @@ interface EmailDetailState {
 }
 
 // eslint-disable-next-line max-lines-per-function -- Email detail operations hook requires handling multiple email operations, state management, and API calls
-export function useEmailDetailOperations(id: string | undefined, state: EmailDetailState) {
+interface EmailDetailOperationsOptions {
+  onArchiveComplete?: () => void;
+}
+
+export function useEmailDetailOperations(id: string | undefined, state: EmailDetailState, options: EmailDetailOperationsOptions = {}) {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const dispatch = useDispatch<AppDispatch>();
+  const emails = useSelector(selectEmails);
   const {
     email,
     setEmail,
@@ -147,6 +158,17 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     setAnimationClass,
     setLoading,
   } = state;
+
+  // Clear GitHub data immediately when email ID changes to prevent showing old data
+  useEffect(() => {
+    if (id) {
+      setGithubLinks([]);
+      setLoadingGithub(true);
+    } else {
+      setGithubLinks([]);
+      setLoadingGithub(false);
+    }
+  }, [id, setGithubLinks, setLoadingGithub]);
 
   const triggerAnimation = useCallback((type: 'send' | 'archive') => {
     const animations = type === ANIMATION_TYPE_SEND 
@@ -235,7 +257,17 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
       // Use cached GitHub metadata from email response if available
       // This provides immediate data display while fetchGithubInfo checks if refresh is needed
       if (emailData.githubMetadata?.links) {
-        setGithubLinks(emailData.githubMetadata.links);
+        // Deduplicate links by URL before setting state
+        const seen = new Set<string>();
+        const uniqueLinks = emailData.githubMetadata.links.filter((link: any) => {
+          const key = link.url || `${link.owner}-${link.repo}-${link.number}`;
+          if (seen.has(key)) {
+            return false;
+          }
+          seen.add(key);
+          return true;
+        });
+        setGithubLinks(uniqueLinks);
         setLoadingGithub(false);
       } else {
         // If no cached data, show loading state
@@ -292,43 +324,75 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     }
   }, [email?.id, setActionItems]);
 
+  // Track which email IDs we've already fetched GitHub data for
+  const githubFetchedRef = useRef<string | null>(null);
+
+  // Stable function that doesn't change on re-renders - uses refs for tracking
   const fetchGithubInfo = useCallback(async () => {
     if (!id) {
-      setGithubLinks([]);
-      setLoadingGithub(false);
       return;
     }
-    // Don't clear existing data - the backend will return cached data if it's fresh (< 1 hour)
-    // This allows cached data to be shown immediately while we check if a refresh is needed
-    // Only show loading if we don't already have data (check current state)
-    setLoadingGithub((prev) => {
-      // Only set loading if we don't have links yet
-      return prev || false;
-    });
     
+    // Don't re-fetch if we already fetched for this email
+    if (githubFetchedRef.current === id) {
+      return;
+    }
+    
+    // Quick keyword check - if email doesn't mention GitHub, skip fetching entirely
+    if (email && !emailMentionsGitHub(email.subject, email.body, email.htmlBody)) {
+      setGithubLinks([]);
+      setLoadingGithub(false);
+      githubFetchedRef.current = id; // Mark as processed so we don't check again
+      return;
+    }
+    
+    // Mark as fetched BEFORE starting the async operation
+    githubFetchedRef.current = id;
+    
+    // Async fetch - doesn't block render
     try {
       const response = await axios.get(`${API_URL}/github/emails/${id}`);
-      // Update with fresh or cached data from backend
-      // Backend returns cached data if < 1 hour old, or fetches fresh data if > 1 hour old
-      setGithubLinks(response.data.links || []);
-      setHasGithubToken(response.data.hasToken !== false);
+      // Only update if we're still looking at the same email
+      if (githubFetchedRef.current === id) {
+        const links = response.data.links || [];
+        const seen = new Set<string>();
+        const uniqueLinks = links.filter((link: any) => {
+          const key = link.url || `${link.owner}-${link.repo}-${link.number}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+        setGithubLinks(uniqueLinks);
+        setHasGithubToken(response.data.hasToken !== false);
+      }
     } catch (error: any) {
-      console.error('Error fetching GitHub info:', error);
       if (error.response?.status === HTTP_UNAUTHORIZED || error.response?.status === HTTP_FORBIDDEN) {
         setHasGithubToken(false);
       }
-      // Don't clear existing data on error - keep what we have
     } finally {
-      setLoadingGithub(false);
+      if (githubFetchedRef.current === id) {
+        setLoadingGithub(false);
+      }
     }
-  }, [id, setLoadingGithub, setGithubLinks, setHasGithubToken]);
+  }, [id, email, setLoadingGithub, setGithubLinks, setHasGithubToken]);
 
   const refreshGithubInfo = useCallback(async () => {
     if (!id) return;
     setLoadingGithub(true);
     try {
       const response = await axios.post(`${API_URL}/github/emails/${id}/refresh`);
-      setGithubLinks(response.data.links || []);
+      // Deduplicate links by URL before setting state
+      const links = response.data.links || [];
+      const seen = new Set<string>();
+      const uniqueLinks = links.filter((link: any) => {
+        const key = link.url || `${link.owner}-${link.repo}-${link.number}`;
+        if (seen.has(key)) {
+          return false;
+        }
+        seen.add(key);
+        return true;
+      });
+      setGithubLinks(uniqueLinks);
     } catch (error) {
       console.error('Error refreshing GitHub info:', error);
       alert('Failed to refresh GitHub status. Please try again.');
@@ -605,14 +669,69 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
   }, [id, draft, replyMode, replyRecipients, triggerAnimation, t, navigate, setCheckingTone, setToneCheckResult, setSending, setDraft, setShowReplyComposer]);
 
   const handleArchive = useCallback(async () => {
+    // ULTRA-VISIBLE DEBUG: This should ALWAYS show in console
+    console.log('%c[ARCHIVE DEBUG] handleArchive called!', 'background: red; color: white; font-size: 20px;');
+    console.log('%c[ARCHIVE DEBUG] Email ID:', 'background: blue; color: white; font-size: 16px;', id);
+    console.log('%c[ARCHIVE DEBUG] Has onArchiveComplete:', 'background: green; color: white; font-size: 16px;', !!options.onArchiveComplete);
+    
     if (!id) return;
+    console.log('[EmailDetailArchive] Starting archive for emailId:', id);
     captureEvent('email_archive_clicked', { email_id: id });
-    await triggerAnimation(ANIMATION_TYPE_ARCHIVE);
-    navigate('/inbox');
-    axios.put(`${API_URL}/emails/${id}/archive`).catch(error => {
-      console.error('Error archiving email:', error);
-    });
-  }, [id, triggerAnimation, navigate]);
+    
+    // Find the email in Redux store
+    const emailToArchive = emails.find(e => e.id === id);
+    console.log('[EmailDetailArchive] Email in Redux store:', emailToArchive ? { id: emailToArchive.id, subject: emailToArchive.subject } : 'NOT FOUND');
+    console.log('[EmailDetailArchive] Total emails in Redux:', emails.length);
+    if (!emailToArchive) {
+      console.warn('[EmailDetailArchive] Email not found in Redux store:', id);
+      // Still try to archive via API even if not in store
+    }
+    
+    // Optimistic update - remove from list immediately and add to optimistic archive set
+    if (emailToArchive) {
+      console.log('[EmailDetailArchive] Dispatching removeEmail and addOptimisticArchive for:', id);
+      dispatch(removeEmail(id));
+      dispatch(addOptimisticArchive(id));
+      console.log('[EmailDetailArchive] Optimistic update dispatched');
+    }
+    
+    // If we have an onArchiveComplete callback (split view mode), use it instead of navigating
+    if (options.onArchiveComplete) {
+      console.log('[EmailDetailArchive] Split view mode - has onArchiveComplete callback');
+      try {
+        // Await the archive API call before calling onArchiveComplete
+        // This ensures the email is archived before we try to open the next one
+        console.log('[EmailDetailArchive] Calling archive API...');
+        await axios.put(`${API_URL}/emails/${id}/archive`);
+        console.log('[EmailDetailArchive] Archive API successful, calling onArchiveComplete');
+        options.onArchiveComplete();
+        console.log('[EmailDetailArchive] onArchiveComplete called');
+      } catch (error) {
+        console.error('[EmailDetailArchive] Error archiving email:', error);
+        // Revert optimistic update on error
+        if (emailToArchive) {
+          console.log('[EmailDetailArchive] Reverting optimistic update due to error');
+          dispatch(restoreEmail(emailToArchive));
+          dispatch(removeOptimisticArchive(id));
+        }
+        // Still call onArchiveComplete even if archive fails, to allow navigation
+        console.log('[EmailDetailArchive] Calling onArchiveComplete after error');
+        options.onArchiveComplete();
+      }
+    } else {
+      await triggerAnimation(ANIMATION_TYPE_ARCHIVE);
+      navigate('/inbox');
+      axios.put(`${API_URL}/emails/${id}/archive`)
+        .catch((error) => {
+          console.error('Error archiving email:', error);
+          // Revert optimistic update on error
+          if (emailToArchive) {
+            dispatch(restoreEmail(emailToArchive));
+            dispatch(removeOptimisticArchive(id));
+          }
+        });
+    }
+  }, [id, triggerAnimation, navigate, options, dispatch, emails]);
 
   const handleSnooze = useCallback(async () => {
     if (!id || !snoozeInput.trim()) return;
@@ -662,6 +781,18 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     }
   }, [email, triggerAnimation, navigate]);
 
+  const handleRespondToInvitation = useCallback(async (emailId: string, response: 'accepted' | 'declined' | 'tentative') => {
+    if (!emailId) return;
+    captureEvent('calendar_invitation_responded', { email_id: emailId, response });
+    try {
+      await axios.post(`${API_URL}/calendar/invitation/${emailId}/respond`, { response });
+      return Promise.resolve();
+    } catch (error: any) {
+      console.error('Error responding to calendar invitation:', error);
+      throw new Error(error.response?.data?.message || 'Failed to respond to invitation');
+    }
+  }, []);
+
   // Export helper functions for use in component
   return {
     triggerAnimation,
@@ -694,6 +825,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     handleDelete,
     handleSetStarCount,
     handleBlockSender,
+    handleRespondToInvitation,
     // Helper functions
     extractCleanBody,
     removeSignature,

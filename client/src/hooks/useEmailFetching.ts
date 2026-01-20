@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import axios from 'axios';
 import { HTTP_UNAUTHORIZED } from 'constants/numbers';
@@ -19,6 +19,14 @@ export function useEmailFetching({
 }: UseEmailFetchingProps) {
   const dispatch = useDispatch<AppDispatch>();
   const optimisticallyArchived = useSelector(selectOptimisticallyArchived);
+  
+  // Use a ref to always access the LATEST optimisticallyArchived value
+  // This prevents stale closure issues when fetchEmails is called during polling
+  const optimisticallyArchivedRef = useRef(optimisticallyArchived);
+  useEffect(() => {
+    optimisticallyArchivedRef.current = optimisticallyArchived;
+  }, [optimisticallyArchived]);
+
   const fetchEmails = useCallback(async () => {
     dispatch(setDecrypting(true));
     dispatch(setFetchError(null));
@@ -27,12 +35,13 @@ export function useEmailFetching({
       console.log(`Fetched ${response.data.length} emails for mode: ${mode}`, response.data);
       const emails = response.data;
       
-      // Filter out optimistically archived emails
-      const archivedSet = new Set(optimisticallyArchived);
+      // Filter out optimistically archived emails using the REF to get the latest value
+      const currentOptimisticArchived = optimisticallyArchivedRef.current;
+      const archivedSet = new Set(currentOptimisticArchived);
       console.log('[Archive Filter] Starting filter:', {
         totalEmails: emails.length,
-        optimisticArchivedCount: optimisticallyArchived.length,
-        optimisticArchivedIds: optimisticallyArchived,
+        optimisticArchivedCount: currentOptimisticArchived.length,
+        optimisticArchivedIds: currentOptimisticArchived,
       });
       
       const filteredEmails = emails.filter((email: Email) => {
@@ -47,7 +56,7 @@ export function useEmailFetching({
         before: emails.length,
         after: filteredEmails.length,
         filtered: emails.length - filteredEmails.length,
-        optimisticSetSize: optimisticallyArchived.length,
+        optimisticSetSize: currentOptimisticArchived.length,
       });
       
       dispatch(setEmails(filteredEmails));
@@ -74,7 +83,8 @@ export function useEmailFetching({
       dispatch(setRefreshing(false));
       dispatch(setLoadingModeSwitch(false));
     }
-  }, [mode, dispatch, optimisticallyArchived]);
+    // Note: optimisticallyArchivedRef is a ref, not a dependency - we read .current inside
+  }, [mode, dispatch]);
 
   return { fetchEmails };
 }

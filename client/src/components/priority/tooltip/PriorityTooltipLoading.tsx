@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { theme } from 'theme/theme';
 import { Z_INDEX_MODAL_OVERLAY, TOOLTIP_MIN_WIDTH_MEDIUM, TOOLTIP_MAX_WIDTH_MEDIUM } from 'constants/numbers';
 
@@ -7,7 +8,7 @@ interface PriorityTooltipLoadingProps {
 }
 
 export const PriorityTooltipLoading: React.FC<PriorityTooltipLoadingProps> = ({ emailId }) => {
-  return (
+  const loadingContent = (
     <div
       data-priority-tooltip={emailId}
       style={{
@@ -38,6 +39,9 @@ export const PriorityTooltipLoading: React.FC<PriorityTooltipLoadingProps> = ({ 
       </div>
     </div>
   );
+
+  // Use portal to render at document body level
+  return createPortal(loadingContent, document.body);
 };
 
 

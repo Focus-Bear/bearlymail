@@ -283,6 +283,50 @@ export function loadPrompts(): Map<string, PromptConfig> {
         systemPrompt: "",
       });
     }
+
+    // Load classify-email-type.md (auto-responder)
+    const classifyEmailTypePath = path.join(promptsDir, "classify-email-type.md");
+    if (fs.existsSync(classifyEmailTypePath)) {
+      const content = fs.readFileSync(classifyEmailTypePath, "utf-8");
+      promptsCache.set("classify_email_type", {
+        id: "classify_email_type",
+        prompt: content,
+        systemPrompt: "You are an email classification assistant. Analyze emails and provide structured classification results.",
+      });
+    }
+
+    // Load generate-qa-answer.md (auto-responder)
+    const generateQaAnswerPath = path.join(promptsDir, "generate-qa-answer.md");
+    if (fs.existsSync(generateQaAnswerPath)) {
+      const content = fs.readFileSync(generateQaAnswerPath, "utf-8");
+      promptsCache.set("generate_qa_answer", {
+        id: "generate_qa_answer",
+        prompt: content,
+        systemPrompt: "You are a helpful assistant that answers questions based on historical Q&A context. Only use information from the provided context.",
+      });
+    }
+
+    // Load detect-opt-out.md (auto-responder)
+    const detectOptOutPath = path.join(promptsDir, "detect-opt-out.md");
+    if (fs.existsSync(detectOptOutPath)) {
+      const content = fs.readFileSync(detectOptOutPath, "utf-8");
+      promptsCache.set("detect_opt_out", {
+        id: "detect_opt_out",
+        prompt: content,
+        systemPrompt: "You are an assistant that detects opt-out requests in email replies.",
+      });
+    }
+
+    // Load redact-names.md (privacy - name redaction for email examples)
+    const redactNamesPath = path.join(promptsDir, "redact-names.md");
+    if (fs.existsSync(redactNamesPath)) {
+      const content = fs.readFileSync(redactNamesPath, "utf-8");
+      promptsCache.set("redact_names", {
+        id: "redact_names",
+        prompt: content,
+        systemPrompt: "You are a privacy assistant that redacts person names from text.",
+      });
+    }
   } catch (error) {
     console.error("Failed to load prompts from markdown files:", error);
   }

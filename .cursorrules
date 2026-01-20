@@ -35,6 +35,26 @@ After making code changes:
 - Write clear, maintainable code
 - Test your changes when possible
 
+## Performance Rules - CRITICAL
+
+### UI Must Load Fast (< 1 second)
+- **NEVER** block initial render with slow operations
+- Slow data (GitHub status, external APIs) must load **asynchronously** AFTER the main UI renders
+- Use loading states and progressive enhancement - show skeleton/placeholder while loading
+- Don't add API calls to useEffect dependencies that could cause re-fetching loops
+
+### Avoid Infinite Loops and Duplicate Calls
+- Be extremely careful with useEffect dependency arrays
+- NEVER use object/array literals like `|| []` in dependency arrays - they create new references on every render
+- Use `useRef` to track if data has already been fetched for a given ID
+- Use `useMemo` for derived values used in dependencies
+
+### Priority Order
+1. Main UI renders immediately with cached data
+2. Secondary data (GitHub, external APIs) loads async in background
+3. Show loading indicators for slow operations
+4. Cache results to avoid refetching
+
 
 
 

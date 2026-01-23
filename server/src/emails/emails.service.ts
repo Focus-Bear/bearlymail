@@ -2418,6 +2418,44 @@ export class EmailsService {
   }
 
   /**
+   * Look up a thread by its Gmail threadId and explain why it may not be showing
+   * Delegates to EmailDebugService
+   */
+  async lookupThread(
+    userId: string,
+    threadId: string,
+  ): Promise<{
+    found: boolean;
+    threadId: string;
+    thread: {
+      id: string;
+      threadId: string;
+      starCount: number;
+      isArchived: boolean;
+      priorityScore: number | null;
+      updatedAt: Date;
+    } | null;
+    emails: Array<{
+      id: string;
+      subject: string;
+      from: string;
+      receivedAt: Date;
+      isSnoozed: boolean;
+      snoozeUntil: Date | null;
+      isBatched: boolean;
+      batchReleaseAt: Date | null;
+    }>;
+    visibility: {
+      wouldShowInTriage: boolean;
+      wouldShowInAction: boolean;
+      wouldShowInFollowUp: boolean;
+    };
+    reasons: string[];
+  }> {
+    return this.emailDebugService.lookupThread(userId, threadId);
+  }
+
+  /**
    * Detect GitHub links in email and fetch their status
    * This runs asynchronously and doesn't block email processing
    */

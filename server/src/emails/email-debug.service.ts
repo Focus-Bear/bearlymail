@@ -4,10 +4,40 @@ import { Repository, IsNull, Not, In, MoreThan } from "typeorm";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { EmailProviderManager } from "./email-provider-manager.service";
+import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { isError } from "../types/common";
 import PgBoss = require("pg-boss");
 import { getJobPriority } from "../queue/job-priorities";
+
+export interface ThreadLookupResult {
+  found: boolean;
+  threadId: string;
+  thread: {
+    id: string;
+    threadId: string;
+    starCount: number;
+    isArchived: boolean;
+    priorityScore: number | null;
+    updatedAt: Date;
+  } | null;
+  emails: Array<{
+    id: string;
+    subject: string;
+    from: string;
+    receivedAt: Date;
+    isSnoozed: boolean;
+    snoozeUntil: Date | null;
+    isBatched: boolean;
+    batchReleaseAt: Date | null;
+  }>;
+  visibility: {
+    wouldShowInTriage: boolean;
+    wouldShowInAction: boolean;
+    wouldShowInFollowUp: boolean;
+  };
+  reasons: string[];
+}
 
 @Injectable()
 export class EmailDebugService {
@@ -21,6 +51,7 @@ export class EmailDebugService {
     @Inject(forwardRef(() => EmailProviderManager))
     private emailProviderManager: EmailProviderManager,
     @Inject("PG_BOSS") private readonly boss: PgBoss,
+    private blockedSendersService: BlockedSendersService,
   ) {}
 
   /**
@@ -478,5 +509,171 @@ export class EmailDebugService {
     );
 
     return { fixed, requeued, errors };
+  }
+
+  /**
+   * Look up a thread by its Gmail threadId and explain why it may not be showing
+   * in the current inbox view
+   */
+  async lookupThread(
+    userId: string,
+    threadId: string,
+  ): Promise<ThreadLookupResult> {
+    this.logger.log(`Looking up thread ${threadId} for user ${userId}`);
+
+    const reasons: string[] = [];
+
+    // 1. Find the thread in the database
+    const thread = await this.emailThreadRepository.findOne({
+      where: { userId, threadId },
+    });
+
+    if (!thread) {
+      return {
+        found: false,
+        threadId,
+        thread: null,
+        emails: [],
+        visibility: {
+          wouldShowInTriage: false,
+          wouldShowInAction: false,
+          wouldShowInFollowUp: false,
+        },
+        reasons: [
+          "Thread not found in database - it may not have been synced yet",
+        ],
+      };
+    }
+
+    // 2. Get all emails in this thread
+    const emails = await this.emailRepository.find({
+      where: { userId, emailThreadId: thread.id },
+      order: { receivedAt: "DESC" },
+    });
+
+    if (emails.length === 0) {
+      reasons.push(
+        "Thread exists but has no emails linked to it (orphan thread)",
+      );
+    }
+
+    // 3. Check thread-level conditions
+    if (thread.isArchived) {
+      reasons.push(
+        "Thread is ARCHIVED - archived threads don't show in any inbox view",
+      );
+    }
+
+    // 4. Check email-level conditions for the latest email
+    const latestEmail = emails[0];
+    if (latestEmail) {
+      // Check if sender is blocked
+      const isBlocked = await this.blockedSendersService.isSenderBlocked(
+        userId,
+        latestEmail.from || "",
+      );
+      if (isBlocked) {
+        reasons.push(`Sender "${latestEmail.from}" is BLOCKED`);
+      }
+
+      // Check if snoozed
+      if (
+        latestEmail.isSnoozed &&
+        latestEmail.snoozeUntil &&
+        new Date(latestEmail.snoozeUntil) > new Date()
+      ) {
+        reasons.push(
+          `Email is SNOOZED until ${new Date(latestEmail.snoozeUntil).toISOString()}`,
+        );
+      }
+
+      // Check if batched
+      if (
+        latestEmail.isBatched &&
+        latestEmail.batchReleaseAt &&
+        new Date(latestEmail.batchReleaseAt) > new Date()
+      ) {
+        reasons.push(
+          `Email is BATCHED and will be released at ${new Date(latestEmail.batchReleaseAt).toISOString()}`,
+        );
+      }
+    }
+
+    // 5. Determine visibility in each mode
+    const isNotArchived = !thread.isArchived;
+    const hasNoBlockedSender =
+      !latestEmail ||
+      !(await this.blockedSendersService.isSenderBlocked(
+        userId,
+        latestEmail.from || "",
+      ));
+    const isNotSnoozed =
+      !latestEmail ||
+      !latestEmail.isSnoozed ||
+      !latestEmail.snoozeUntil ||
+      new Date(latestEmail.snoozeUntil) <= new Date();
+    const isNotBatched =
+      !latestEmail ||
+      !latestEmail.isBatched ||
+      !latestEmail.batchReleaseAt ||
+      new Date(latestEmail.batchReleaseAt) <= new Date();
+
+    const baseConditionsMet =
+      isNotArchived && hasNoBlockedSender && isNotSnoozed && isNotBatched;
+
+    // Triage: starCount = 0
+    const wouldShowInTriage = baseConditionsMet && thread.starCount === 0;
+
+    // Action: starCount > 0
+    const wouldShowInAction = baseConditionsMet && thread.starCount > 0;
+
+    // Follow-up: starCount > 0 (additional filtering for user_sent_last happens elsewhere)
+    const wouldShowInFollowUp = baseConditionsMet && thread.starCount > 0;
+
+    // 6. Add mode-specific reasons
+    if (baseConditionsMet) {
+      if (thread.starCount === 0) {
+        reasons.push(
+          "Thread has starCount=0, so it would appear in TRIAGE mode (not Action/Follow-up)",
+        );
+      } else {
+        reasons.push(
+          `Thread has starCount=${thread.starCount}, so it would appear in ACTION/FOLLOW-UP mode (not Triage)`,
+        );
+      }
+    }
+
+    if (reasons.length === 0) {
+      reasons.push("Thread should be visible - no issues detected");
+    }
+
+    return {
+      found: true,
+      threadId,
+      thread: {
+        id: thread.id,
+        threadId: thread.threadId,
+        starCount: thread.starCount,
+        isArchived: thread.isArchived,
+        priorityScore: thread.priorityScore,
+        updatedAt: thread.updatedAt,
+      },
+      emails: emails.map((e) => ({
+        id: e.id,
+        subject: e.subject || "",
+        from: e.from || "",
+        receivedAt: e.receivedAt,
+        isSnoozed: e.isSnoozed,
+        snoozeUntil: e.snoozeUntil,
+        isBatched: e.isBatched,
+        batchReleaseAt: e.batchReleaseAt,
+      })),
+      visibility: {
+        wouldShowInTriage,
+        wouldShowInAction,
+        wouldShowInFollowUp,
+      },
+      reasons,
+    };
   }
 }

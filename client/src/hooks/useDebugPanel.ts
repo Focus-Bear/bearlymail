@@ -69,6 +69,35 @@ interface DebugOrphanData {
   }>;
 }
 
+export interface ThreadLookupResult {
+  found: boolean;
+  threadId: string;
+  thread: {
+    id: string;
+    threadId: string;
+    starCount: number;
+    isArchived: boolean;
+    priorityScore: number | null;
+    updatedAt: string;
+  } | null;
+  emails: Array<{
+    id: string;
+    subject: string;
+    from: string;
+    receivedAt: string;
+    isSnoozed: boolean;
+    snoozeUntil: string | null;
+    isBatched: boolean;
+    batchReleaseAt: string | null;
+  }>;
+  visibility: {
+    wouldShowInTriage: boolean;
+    wouldShowInAction: boolean;
+    wouldShowInFollowUp: boolean;
+  };
+  reasons: string[];
+}
+
 interface UseDebugPanelReturn {
   debugViewOpen: boolean;
   setDebugViewOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -79,10 +108,13 @@ interface UseDebugPanelReturn {
   debugOrphanData: DebugOrphanData | null;
   loadingOrphanData: boolean;
   fixingOrphans: boolean;
+  threadLookupResult: ThreadLookupResult | null;
+  loadingThreadLookup: boolean;
   fetchSyncStatus: () => Promise<void>;
   fetchDebugStarredThreads: () => Promise<void>;
   fetchDebugOrphanEmails: () => Promise<void>;
   handleFixOrphanEmails: (onSuccess?: () => void) => Promise<void>;
+  lookupThread: (threadId: string) => Promise<void>;
 }
 
 export function useDebugPanel(onSuccess?: () => void): UseDebugPanelReturn {
@@ -94,6 +126,8 @@ export function useDebugPanel(onSuccess?: () => void): UseDebugPanelReturn {
   const [debugOrphanData, setDebugOrphanData] = useState<DebugOrphanData | null>(null);
   const [loadingOrphanData, setLoadingOrphanData] = useState(false);
   const [fixingOrphans, setFixingOrphans] = useState(false);
+  const [threadLookupResult, setThreadLookupResult] = useState<ThreadLookupResult | null>(null);
+  const [loadingThreadLookup, setLoadingThreadLookup] = useState(false);
 
   const fetchSyncStatus = useCallback(async () => {
     setLoadingSyncStatus(true);
@@ -154,6 +188,34 @@ export function useDebugPanel(onSuccess?: () => void): UseDebugPanelReturn {
     }
   }, [fetchDebugOrphanEmails, onSuccess]);
 
+  const lookupThread = useCallback(async (threadId: string) => {
+    if (!threadId.trim()) {
+      return;
+    }
+    setLoadingThreadLookup(true);
+    setThreadLookupResult(null);
+    try {
+      const response = await axios.get(`${API_URL}/emails/debug/thread-lookup/${encodeURIComponent(threadId)}`);
+      setThreadLookupResult(response.data);
+    } catch (error) {
+      console.error('Error looking up thread:', error);
+      setThreadLookupResult({
+        found: false,
+        threadId,
+        thread: null,
+        emails: [],
+        visibility: {
+          wouldShowInTriage: false,
+          wouldShowInAction: false,
+          wouldShowInFollowUp: false,
+        },
+        reasons: ['Error looking up thread - please check the thread ID and try again'],
+      });
+    } finally {
+      setLoadingThreadLookup(false);
+    }
+  }, []);
+
   return {
     debugViewOpen,
     setDebugViewOpen,
@@ -164,10 +226,13 @@ export function useDebugPanel(onSuccess?: () => void): UseDebugPanelReturn {
     debugOrphanData,
     loadingOrphanData,
     fixingOrphans,
+    threadLookupResult,
+    loadingThreadLookup,
     fetchSyncStatus,
     fetchDebugStarredThreads,
     fetchDebugOrphanEmails,
     handleFixOrphanEmails,
+    lookupThread,
   };
 }
 

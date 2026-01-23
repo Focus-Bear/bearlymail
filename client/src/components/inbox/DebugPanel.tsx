@@ -8,8 +8,10 @@ import {
   DebugStatsSection,
   DebugStarredSection,
   DebugOrphanSection,
+  DebugThreadLookupSection,
   DebugEmailList,
 } from 'components/inbox/debug';
+import { ThreadLookupResult } from 'hooks/useDebugPanel';
 
 interface DebugStarredData {
   lastSyncTime: string | null;
@@ -93,6 +95,9 @@ interface DebugPanelProps {
   onFetchDebugOrphan: () => void;
   fixingOrphans: boolean;
   onFixOrphans: () => void;
+  threadLookupResult: ThreadLookupResult | null;
+  loadingThreadLookup: boolean;
+  onLookupThread: (threadId: string) => void;
 }
 
 export const DebugPanel: React.FC<DebugPanelProps> = ({
@@ -110,6 +115,9 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
   onFetchDebugOrphan,
   fixingOrphans,
   onFixOrphans,
+  threadLookupResult,
+  loadingThreadLookup,
+  onLookupThread,
 }) => {
   const { t } = useTranslation();
   const threadCount = (() => {
@@ -190,6 +198,12 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
             onFetchDebugOrphan={onFetchDebugOrphan}
             fixingOrphans={fixingOrphans}
             onFixOrphans={onFixOrphans}
+          />
+
+          <DebugThreadLookupSection
+            threadLookupResult={threadLookupResult}
+            loadingThreadLookup={loadingThreadLookup}
+            onLookupThread={onLookupThread}
           />
 
           <DebugEmailList emails={emails} mode={mode} />

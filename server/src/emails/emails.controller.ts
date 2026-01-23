@@ -485,6 +485,11 @@ export class EmailsController {
     return this.emailsService.fixStuckCalculatingThreads(req.user.userId);
   }
 
+  @Get("debug/thread-lookup/:threadId")
+  async lookupThread(@Request() req, @Param("threadId") threadId: string) {
+    return this.emailsService.lookupThread(req.user.userId, threadId);
+  }
+
   @Post("send")
   @UseInterceptors(FilesInterceptor("files", 10))
   async sendEmail(

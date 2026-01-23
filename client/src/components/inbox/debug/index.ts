@@ -1,6 +1,7 @@
 export { DebugStatsSection } from 'components/inbox/debug/DebugStatsSection';
 export { DebugStarredSection } from 'components/inbox/debug/DebugStarredSection';
 export { DebugOrphanSection } from 'components/inbox/debug/DebugOrphanSection';
+export { DebugThreadLookupSection } from 'components/inbox/debug/DebugThreadLookupSection';
 export { DebugEmailList } from 'components/inbox/debug/DebugEmailList';
 export { OrphanStatsGrid } from 'components/inbox/debug/OrphanStatsGrid';
 export { OrphanEmailList } from 'components/inbox/debug/OrphanEmailList';

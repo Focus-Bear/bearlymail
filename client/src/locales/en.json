@@ -676,6 +676,19 @@
     },
     "view": {
       "title": "Debug View"
+    },
+    "threadLookup": {
+      "sectionTitle": "Thread Lookup",
+      "placeholder": "Enter thread ID (e.g., 18f1a2b3c4d5e6f7)",
+      "lookupButton": "Lookup",
+      "threadId": "Thread ID",
+      "status": "Status",
+      "found": "Found in database",
+      "notFound": "Not found in database",
+      "threadDetails": "Thread Details",
+      "visibility": "Visibility in Modes",
+      "reasons": "Diagnostic Reasons",
+      "emails": "Emails in Thread"
     }
   },
   "search": {

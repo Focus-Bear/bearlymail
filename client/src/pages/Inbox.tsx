@@ -155,6 +155,9 @@ const Inbox: React.FC = () => {
             onFetchDebugOrphan={debugPanel.fetchDebugOrphanEmails}
             fixingOrphans={debugPanel.fixingOrphans}
             onFixOrphans={() => debugPanel.handleFixOrphanEmails()}
+            threadLookupResult={debugPanel.threadLookupResult}
+            loadingThreadLookup={debugPanel.loadingThreadLookup}
+            onLookupThread={debugPanel.lookupThread}
           />
         )}
 

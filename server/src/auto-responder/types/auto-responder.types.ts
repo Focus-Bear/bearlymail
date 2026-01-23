@@ -12,10 +12,8 @@ export interface AutoResponderConfig {
     lowPriority: boolean;
   };
 
-  // Exclusion rules (all default to true)
-  excludeAutomated: boolean;
-  excludeNewsletters: boolean;
-  excludeColdOutreach: boolean;
+  // Custom exclusion rules - AI will interpret these to determine if email should be excluded
+  customExclusionRules: string[];
 
   // Template customization
   templates: {
@@ -95,7 +93,7 @@ export const DEFAULT_TEMPLATES = {
 
 Thanks for reaching out to {{userName}}.
 
-This is an automated response from BearlyMail, {{userName}}'s AI email assistant (think of me as a friendly bouncer for his inbox, but I promise I'm nicer than most bouncers).
+This is an automated response from BearlyMail, {{userName}}'s AI email assistant (think of me as an email bouncer, but I promise I'm nicer than most bouncers).
 
 I've reviewed your email and categorized it as medium priority, which means it'll be in {{userName}}'s queue but not at the top. Currently:
 - 📬 {{actionCount}} emails flagged for action
@@ -117,7 +115,7 @@ I've reviewed your email and categorized it as medium priority, which means it'l
 {{/unless}}
 
 ---
-*You're receiving this because {{userName}} uses BearlyMail to manage email overload. If you'd prefer not to receive auto-responses, just let me know in your reply.*`,
+*If you'd like help prioritising your inbox, check out BearlyMail*`,
 
   highPriority: `Hi!
 
@@ -143,7 +141,7 @@ Here's what's happening:
 {{/unless}}
 
 ---
-*You're receiving this because {{userName}} uses BearlyMail to manage email overload. This email was flagged as high priority based on urgency indicators.*`,
+*If you'd like help prioritising your inbox, check out BearlyMail*`,
 
   lowPriority: `Hey there!
 
@@ -167,7 +165,7 @@ If this is actually urgent, just reply and let me know—I'll bump it up!
 {{/if}}
 
 ---
-*You're receiving this because {{userName}} uses BearlyMail to manage email overload.*`,
+*If you'd like help prioritising your inbox, check out BearlyMail*`,
 
   noAnswer: `**I tried to help, but...** I looked through {{userName}}'s previous emails to see if I could answer your question preemptively, but this seems like something that needs {{userName}}'s direct attention. He'll get back to you as soon as he works through the queue!`,
 
@@ -188,7 +186,7 @@ Good news! {{userName}}'s inbox is looking pretty clear right now, so he should 
 {{/if}}
 
 ---
-*You're receiving this because {{userName}} uses BearlyMail to manage email overload.*`,
+*If you'd like help prioritising your inbox, check out BearlyMail*`,
 };
 
 export const DEFAULT_AUTO_RESPONDER_CONFIG: AutoResponderConfig = {
@@ -198,9 +196,7 @@ export const DEFAULT_AUTO_RESPONDER_CONFIG: AutoResponderConfig = {
     highPriority: true,
     lowPriority: false,
   },
-  excludeAutomated: true,
-  excludeNewsletters: true,
-  excludeColdOutreach: true,
+  customExclusionRules: [],
   templates: DEFAULT_TEMPLATES,
   qaContextEnabled: true,
   qaMinConfidence: 0.7,

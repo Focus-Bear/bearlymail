@@ -5,9 +5,7 @@ export interface AutoResponderConfig {
     highPriority: boolean;
     lowPriority: boolean;
   };
-  excludeAutomated: boolean;
-  excludeNewsletters: boolean;
-  excludeColdOutreach: boolean;
+  customExclusionRules: string[];
   templates: {
     standard: string;
     highPriority: string;
@@ -43,9 +41,7 @@ export const DEFAULT_AUTO_RESPONDER_CONFIG: AutoResponderConfig = {
     highPriority: true,
     lowPriority: false,
   },
-  excludeAutomated: true,
-  excludeNewsletters: true,
-  excludeColdOutreach: true,
+  customExclusionRules: [],
   templates: {
     standard: '',
     highPriority: '',

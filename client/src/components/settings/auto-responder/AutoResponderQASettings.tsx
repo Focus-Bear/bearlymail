@@ -34,8 +34,7 @@ export const AutoResponderQASettings: React.FC<AutoResponderQASettingsProps> = (
         marginTop: 0,
         marginBottom: theme.spacing.md,
       }}>
-        When enabled, the auto-responder will try to answer common questions based on your
-        previous email conversations.
+        When enabled, the auto-responder will try to answer common questions based on the Q&A in your context.
       </p>
 
       <label

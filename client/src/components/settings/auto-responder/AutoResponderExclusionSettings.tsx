@@ -1,45 +1,56 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { theme } from 'theme/theme';
 
 interface AutoResponderExclusionSettingsProps {
-  excludeAutomated: boolean;
-  excludeNewsletters: boolean;
-  excludeColdOutreach: boolean;
-  onChange: (exclusion: 'excludeAutomated' | 'excludeNewsletters' | 'excludeColdOutreach', value: boolean) => void;
+  customExclusionRules: string[];
+  onChange: (rules: string[]) => void;
 }
 
 export const AutoResponderExclusionSettings: React.FC<AutoResponderExclusionSettingsProps> = ({
-  excludeAutomated,
-  excludeNewsletters,
-  excludeColdOutreach,
+  customExclusionRules,
   onChange,
 }) => {
-  const exclusions = [
-    {
-      key: 'excludeAutomated' as const,
-      label: 'Automated Emails',
-      description: 'System notifications, alerts, receipts',
-      value: excludeAutomated,
-      emoji: '🤖',
-    },
-    {
-      key: 'excludeNewsletters' as const,
-      label: 'Newsletters',
-      description: 'Marketing emails, digests, promotions',
-      value: excludeNewsletters,
-      emoji: '📰',
-    },
-    {
-      key: 'excludeColdOutreach' as const,
-      label: 'Cold Outreach',
-      description: 'Unsolicited sales and outreach emails',
-      value: excludeColdOutreach,
-      emoji: '❄️',
-    },
-  ];
+  const [isAdding, setIsAdding] = useState(false);
+  const [newRule, setNewRule] = useState('');
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editValue, setEditValue] = useState('');
+
+  const handleAddRule = () => {
+    if (newRule.trim()) {
+      onChange([...customExclusionRules, newRule.trim()]);
+      setNewRule('');
+      setIsAdding(false);
+    }
+  };
+
+  const handleDeleteRule = (index: number) => {
+    const updatedRules = customExclusionRules.filter((_, i) => i !== index);
+    onChange(updatedRules);
+  };
+
+  const handleEditRule = (index: number) => {
+    setEditingIndex(index);
+    setEditValue(customExclusionRules[index]);
+  };
+
+  const handleSaveEdit = () => {
+    if (editingIndex !== null && editValue.trim()) {
+      const updatedRules = [...customExclusionRules];
+      updatedRules[editingIndex] = editValue.trim();
+      onChange(updatedRules);
+      setEditingIndex(null);
+      setEditValue('');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingIndex(null);
+    setEditValue('');
+  };
 
   return (
     <div style={{
+      marginTop: theme.spacing.lg,
       backgroundColor: theme.colors.background.subtle,
       borderRadius: theme.borderRadius.md,
       padding: theme.spacing.md,
@@ -54,48 +65,183 @@ export const AutoResponderExclusionSettings: React.FC<AutoResponderExclusionSett
       </h3>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
-        {exclusions.map((exclusion) => (
-          <label
-            key={exclusion.key}
-            style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: theme.spacing.sm,
-              cursor: 'pointer',
-              padding: theme.spacing.sm,
-              borderRadius: theme.borderRadius.sm,
-              transition: theme.transitions.fast,
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={exclusion.value}
-              onChange={(e) => onChange(exclusion.key, e.target.checked)}
+        {customExclusionRules.length > 0 ? (
+          customExclusionRules.map((rule, index) => (
+            <div
+              key={index}
               style={{
-                width: '18px',
-                height: '18px',
-                accentColor: theme.colors.primary.main,
-                cursor: 'pointer',
-                marginTop: '2px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: theme.spacing.sm,
+                backgroundColor: theme.colors.background.paper,
+                borderRadius: theme.borderRadius.sm,
+                border: `1px solid ${theme.colors.border.light}`,
+              }}
+            >
+              {editingIndex === index ? (
+                <div style={{ display: 'flex', flex: 1, gap: theme.spacing.sm }}>
+                  <input
+                    type="text"
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    style={{
+                      flex: 1,
+                      padding: theme.spacing.xs,
+                      borderRadius: theme.borderRadius.sm,
+                      border: `1px solid ${theme.colors.border.medium}`,
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveEdit();
+                      if (e.key === 'Escape') handleCancelEdit();
+                    }}
+                    autoFocus
+                  />
+                  <button
+                    onClick={handleSaveEdit}
+                    style={{
+                      cursor: 'pointer',
+                      color: theme.colors.primary.main,
+                      border: 'none',
+                      background: 'none',
+                    }}
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={handleCancelEdit}
+                    style={{
+                      cursor: 'pointer',
+                      color: theme.colors.text.secondary,
+                      border: 'none',
+                      background: 'none',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <span style={{
+                    ...theme.typography.body.large,
+                    color: theme.colors.text.primary,
+                  }}>
+                    {rule}
+                  </span>
+                  <div style={{ display: 'flex', gap: theme.spacing.sm }}>
+                    <button
+                      onClick={() => handleEditRule(index)}
+                      style={{
+                        cursor: 'pointer',
+                        color: theme.colors.primary.main,
+                        border: 'none',
+                        background: 'none',
+                        fontSize: theme.typography.fontSize.sm,
+                      }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDeleteRule(index)}
+                      style={{
+                        cursor: 'pointer',
+                        color: theme.colors.accent.error,
+                        border: 'none',
+                        background: 'none',
+                        fontSize: theme.typography.fontSize.sm,
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ))
+        ) : (
+          <div style={{
+            color: theme.colors.text.tertiary,
+            fontSize: theme.typography.fontSize.sm,
+            fontStyle: 'italic',
+          }}>
+            No exclusion rules added yet
+          </div>
+        )}
+
+        {isAdding ? (
+          <div style={{ display: 'flex', gap: theme.spacing.sm, marginTop: theme.spacing.xs }}>
+            <input
+              type="text"
+              value={newRule}
+              onChange={(e) => setNewRule(e.target.value)}
+              placeholder="e.g., Automated emails, Newsletters, Cold outreach..."
+              autoFocus
+              style={{
+                flex: 1,
+                padding: theme.spacing.sm,
+                borderRadius: theme.borderRadius.md,
+                border: `1px solid ${theme.colors.primary.main}`,
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleAddRule();
+                if (e.key === 'Escape') {
+                  setIsAdding(false);
+                  setNewRule('');
+                }
               }}
             />
-            <div>
-              <div style={{
-                ...theme.typography.body.xLarge,
-                fontWeight: theme.typography.fontWeight.medium,
-                color: theme.colors.text.primary,
-              }}>
-                {exclusion.emoji} {exclusion.label}
-              </div>
-              <div style={{
-                ...theme.typography.body.medium,
-                color: theme.colors.text.tertiary,
-              }}>
-                {exclusion.description}
-              </div>
-            </div>
-          </label>
-        ))}
+            <button
+              onClick={handleAddRule}
+              disabled={!newRule.trim()}
+              style={{
+                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+                backgroundColor: theme.colors.primary.main,
+                color: 'white',
+                border: 'none',
+                borderRadius: theme.borderRadius.md,
+                cursor: newRule.trim() ? 'pointer' : 'not-allowed',
+                opacity: newRule.trim() ? 1 : 0.5,
+              }}
+            >
+              Add
+            </button>
+            <button
+              onClick={() => {
+                setIsAdding(false);
+                setNewRule('');
+              }}
+              style={{
+                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+                backgroundColor: 'transparent',
+                color: theme.colors.text.secondary,
+                border: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setIsAdding(true)}
+            style={{
+              alignSelf: 'flex-start',
+              marginTop: theme.spacing.xs,
+              background: 'transparent',
+              border: `1px dashed ${theme.colors.border.medium}`,
+              borderRadius: theme.borderRadius.md,
+              padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+              color: theme.colors.text.secondary,
+              cursor: 'pointer',
+              fontSize: theme.typography.fontSize.sm,
+              display: 'flex',
+              alignItems: 'center',
+              gap: theme.spacing.xs,
+            }}
+          >
+            <span>+</span> Add exclusion rule
+          </button>
+        )}
       </div>
 
       <p style={{
@@ -105,7 +251,7 @@ export const AutoResponderExclusionSettings: React.FC<AutoResponderExclusionSett
         marginBottom: 0,
         fontStyle: 'italic',
       }}>
-        These are detected automatically using email headers and AI analysis.
+        AI will interpret these rules to determine which emails should not receive auto-responses.
       </p>
     </div>
   );

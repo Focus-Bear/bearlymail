@@ -2,7 +2,6 @@ import React from 'react';
 import { theme } from 'theme/theme';
 import { AutoResponderHeader } from './AutoResponderHeader';
 import { AutoResponderToggle } from './AutoResponderToggle';
-import { AutoResponderPrioritySettings } from './AutoResponderPrioritySettings';
 import { AutoResponderExclusionSettings } from './AutoResponderExclusionSettings';
 import { AutoResponderQASettings } from './AutoResponderQASettings';
 import { AutoResponderPreview } from './AutoResponderPreview';
@@ -13,6 +12,7 @@ interface AutoResponderSectionProps {
   queueStats: QueueStats | null;
   onConfigChange: (config: Partial<AutoResponderConfig>) => Promise<void>;
   loading?: boolean;
+  userName?: string;
 }
 
 export const AutoResponderSection: React.FC<AutoResponderSectionProps> = ({
@@ -20,22 +20,14 @@ export const AutoResponderSection: React.FC<AutoResponderSectionProps> = ({
   queueStats,
   onConfigChange,
   loading = false,
+  userName,
 }) => {
   const handleToggle = async (enabled: boolean) => {
     await onConfigChange({ enabled });
   };
 
-  const handlePriorityChange = async (priority: keyof AutoResponderConfig['sendFor'], value: boolean) => {
-    await onConfigChange({
-      sendFor: {
-        ...config.sendFor,
-        [priority]: value,
-      },
-    });
-  };
-
-  const handleExclusionChange = async (exclusion: 'excludeAutomated' | 'excludeNewsletters' | 'excludeColdOutreach', value: boolean) => {
-    await onConfigChange({ [exclusion]: value });
+  const handleExclusionRulesChange = async (customExclusionRules: string[]) => {
+    await onConfigChange({ customExclusionRules });
   };
 
   const handleQASettingsChange = async (settings: { qaContextEnabled?: boolean; qaMinConfidence?: number }) => {
@@ -64,24 +56,10 @@ export const AutoResponderSection: React.FC<AutoResponderSectionProps> = ({
 
       {config.enabled && (
         <>
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-            gap: theme.spacing.lg,
-            marginTop: theme.spacing.lg,
-          }}>
-            <AutoResponderPrioritySettings
-              sendFor={config.sendFor}
-              onChange={handlePriorityChange}
-            />
-
-            <AutoResponderExclusionSettings
-              excludeAutomated={config.excludeAutomated}
-              excludeNewsletters={config.excludeNewsletters}
-              excludeColdOutreach={config.excludeColdOutreach}
-              onChange={handleExclusionChange}
-            />
-          </div>
+          <AutoResponderExclusionSettings
+            customExclusionRules={config.customExclusionRules || []}
+            onChange={handleExclusionRulesChange}
+          />
 
           <AutoResponderQASettings
             qaContextEnabled={config.qaContextEnabled}
@@ -89,7 +67,7 @@ export const AutoResponderSection: React.FC<AutoResponderSectionProps> = ({
             onChange={handleQASettingsChange}
           />
 
-          <AutoResponderPreview queueStats={queueStats} />
+          <AutoResponderPreview queueStats={queueStats} userName={userName} />
         </>
       )}
     </div>

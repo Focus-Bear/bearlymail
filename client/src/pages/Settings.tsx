@@ -87,6 +87,7 @@ const Settings: React.FC = () => {
           queueStats={autoResponder.queueStats}
           onConfigChange={autoResponder.updateConfig}
           loading={autoResponder.loading}
+          userName={user?.name}
         />
 
         <GuideOurAISection

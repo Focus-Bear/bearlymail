@@ -5,7 +5,10 @@ import * as crypto from "crypto";
 import { User } from "../database/entities/user.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { Email } from "../database/entities/email.entity";
-import { UserContext, ContextKey } from "../database/entities/user-context.entity";
+import {
+  UserContext,
+  ContextKey,
+} from "../database/entities/user-context.entity";
 import { AutoResponseLog } from "../database/entities/auto-response-log.entity";
 import { AutoResponseSuppression } from "../database/entities/auto-response-suppression.entity";
 import { EmailClassifierService } from "./email-classifier.service";
@@ -76,7 +79,8 @@ export class AutoResponderService {
       throw new Error("User not found");
     }
 
-    const currentConfig = user.autoResponderSettings || DEFAULT_AUTO_RESPONDER_CONFIG;
+    const currentConfig =
+      user.autoResponderSettings || DEFAULT_AUTO_RESPONDER_CONFIG;
     const newConfig = { ...currentConfig, ...config };
 
     await this.userRepository.update(userId, {
@@ -113,7 +117,8 @@ export class AutoResponderService {
 
     // Get the latest email in the thread (the one that triggered this)
     const latestEmail = thread.emails.sort(
-      (a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime(),
+      (a, b) =>
+        new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime(),
     )[0];
 
     // Check if this is a new thread (only one email, no replies)
@@ -127,14 +132,20 @@ export class AutoResponderService {
       where: { userId, emailThreadId },
     });
     if (existingResponse) {
-      return { sent: false, reason: "Auto-response already sent to this thread" };
+      return {
+        sent: false,
+        reason: "Auto-response already sent to this thread",
+      };
     }
 
     // Check sender suppression (opt-out or cooldown)
     const senderEmailHash = this.hashEmail(latestEmail.from);
     const suppression = await this.checkSuppression(userId, senderEmailHash);
     if (suppression) {
-      return { sent: false, reason: `Sender suppressed: ${suppression.reason}` };
+      return {
+        sent: false,
+        reason: `Sender suppressed: ${suppression.reason}`,
+      };
     }
 
     // Classify the email
@@ -150,21 +161,33 @@ export class AutoResponderService {
       hasUserReplies,
     );
 
-    // Check exclusion rules
-    if (config.excludeAutomated && classification.isAutomated) {
-      return { sent: false, reason: "Automated email excluded" };
-    }
-    if (config.excludeNewsletters && classification.isNewsletter) {
-      return { sent: false, reason: "Newsletter excluded" };
-    }
-    if (config.excludeColdOutreach && classification.isColdOutreach) {
-      return { sent: false, reason: "Cold outreach excluded" };
-    }
+    // Always exclude bounce and out-of-office emails
     if (classification.isBounce) {
       return { sent: false, reason: "Bounce email excluded" };
     }
     if (classification.isOutOfOffice) {
       return { sent: false, reason: "Out-of-office reply excluded" };
+    }
+
+    // Check custom exclusion rules using AI
+    if (config.customExclusionRules && config.customExclusionRules.length > 0) {
+      const customExclusionResult =
+        await this.emailClassifierService.checkCustomExclusionRules(
+          {
+            from: latestEmail.from,
+            fromName: latestEmail.fromName || undefined,
+            subject: latestEmail.subject,
+            body: latestEmail.body,
+          },
+          config.customExclusionRules,
+        );
+
+      if (customExclusionResult.matched) {
+        return {
+          sent: false,
+          reason: `Custom exclusion rule matched: ${customExclusionResult.matchedRule} (${customExclusionResult.reason})`,
+        };
+      }
     }
 
     // Determine priority level from thread
@@ -175,7 +198,10 @@ export class AutoResponderService {
       return { sent: false, reason: "High priority auto-response disabled" };
     }
     if (priorityLevel === "medium" && !config.sendFor.standardPriority) {
-      return { sent: false, reason: "Standard priority auto-response disabled" };
+      return {
+        sent: false,
+        reason: "Standard priority auto-response disabled",
+      };
     }
     if (priorityLevel === "low" && !config.sendFor.lowPriority) {
       return { sent: false, reason: "Low priority auto-response disabled" };
@@ -220,7 +246,8 @@ export class AutoResponderService {
 
     // Send the auto-response
     try {
-      const provider = await this.emailProviderManager.getPrimaryProvider(userId);
+      const provider =
+        await this.emailProviderManager.getPrimaryProvider(userId);
       if (!provider) {
         return { sent: false, reason: "No email provider connected" };
       }
@@ -253,7 +280,11 @@ export class AutoResponderService {
       );
 
       // Add cooldown suppression for this sender
-      await this.addCooldownSuppression(userId, senderEmailHash, config.cooldownPeriodDays);
+      await this.addCooldownSuppression(
+        userId,
+        senderEmailHash,
+        config.cooldownPeriodDays,
+      );
 
       this.logger.log(
         `Auto-response sent for thread ${emailThreadId} to ${latestEmail.from}`,
@@ -265,7 +296,10 @@ export class AutoResponderService {
         `Failed to send auto-response for thread ${emailThreadId}`,
         error,
       );
-      return { sent: false, reason: `Send failed: ${(error as Error).message}` };
+      return {
+        sent: false,
+        reason: `Send failed: ${(error as Error).message}`,
+      };
     }
   }
 
@@ -307,26 +341,28 @@ export class AutoResponderService {
     const now = new Date();
 
     // Check for permanent suppression (opt-out)
-    const permanentSuppression = await this.autoResponseSuppressionRepository.findOne({
-      where: {
-        userId,
-        senderEmailHash,
-        reason: SuppressionReason.OPT_OUT,
-      },
-    });
+    const permanentSuppression =
+      await this.autoResponseSuppressionRepository.findOne({
+        where: {
+          userId,
+          senderEmailHash,
+          reason: SuppressionReason.OPT_OUT,
+        },
+      });
     if (permanentSuppression) {
       return permanentSuppression;
     }
 
     // Check for active cooldown
-    const cooldownSuppression = await this.autoResponseSuppressionRepository.findOne({
-      where: {
-        userId,
-        senderEmailHash,
-        reason: SuppressionReason.COOLDOWN,
-        suppressUntil: MoreThan(now),
-      },
-    });
+    const cooldownSuppression =
+      await this.autoResponseSuppressionRepository.findOne({
+        where: {
+          userId,
+          senderEmailHash,
+          reason: SuppressionReason.COOLDOWN,
+          suppressUntil: MoreThan(now),
+        },
+      });
 
     return cooldownSuppression;
   }
@@ -362,7 +398,9 @@ export class AutoResponderService {
   /**
    * Determine priority level from thread's star count and urgency
    */
-  private determinePriorityLevel(thread: EmailThread): "low" | "medium" | "high" {
+  private determinePriorityLevel(
+    thread: EmailThread,
+  ): "low" | "medium" | "high" {
     // High priority: 3 stars or high urgency score
     if (thread.starCount >= 3 || thread.urgencyScore >= 70) {
       return "high";
@@ -402,7 +440,10 @@ export class AutoResponderService {
   /**
    * Render template with variables
    */
-  private renderTemplate(template: string, vars: AutoResponseTemplateVars): string {
+  private renderTemplate(
+    template: string,
+    vars: AutoResponseTemplateVars,
+  ): string {
     let result = template;
 
     // Simple variable replacement
@@ -410,10 +451,19 @@ export class AutoResponderService {
     result = result.replace(/\{\{senderName\}\}/g, vars.senderName);
     result = result.replace(/\{\{originalSubject\}\}/g, vars.originalSubject);
     result = result.replace(/\{\{priorityLevel\}\}/g, vars.priorityLevel);
-    result = result.replace(/\{\{actionCount\}\}/g, String(vars.actionCount > 100 ? "100+" : vars.actionCount));
-    result = result.replace(/\{\{triageCount\}\}/g, String(vars.triageCount > 100 ? "100+" : vars.triageCount));
+    result = result.replace(
+      /\{\{actionCount\}\}/g,
+      String(vars.actionCount > 100 ? "100+" : vars.actionCount),
+    );
+    result = result.replace(
+      /\{\{triageCount\}\}/g,
+      String(vars.triageCount > 100 ? "100+" : vars.triageCount),
+    );
     result = result.replace(/\{\{avgResponseTime\}\}/g, vars.avgResponseTime);
-    result = result.replace(/\{\{urgentResponseTime\}\}/g, vars.urgentResponseTime);
+    result = result.replace(
+      /\{\{urgentResponseTime\}\}/g,
+      vars.urgentResponseTime,
+    );
     result = result.replace(/\{\{aiAnswer\}\}/g, vars.aiAnswer || "");
 
     // Handle conditional blocks
@@ -466,7 +516,10 @@ export class AutoResponderService {
           // If not JSON, try to parse as "Q: ... A: ..." format
           const match = ctx.contextValue.match(/Q:\s*(.*?)\s*A:\s*(.*)/is);
           if (match) {
-            qaPairs.push({ question: match[1].trim(), answer: match[2].trim() });
+            qaPairs.push({
+              question: match[1].trim(),
+              answer: match[2].trim(),
+            });
           }
         }
       }
@@ -485,7 +538,9 @@ export class AutoResponderService {
       const prompt = renderPrompt(promptConfig.prompt || "", {
         subject,
         body: body.substring(0, 1500),
-        qaPairs: qaPairs.map((qa, i) => `${i + 1}. Q: ${qa.question}\n   A: ${qa.answer}`).join("\n\n"),
+        qaPairs: qaPairs
+          .map((qa, i) => `${i + 1}. Q: ${qa.question}\n   A: ${qa.answer}`)
+          .join("\n\n"),
       });
 
       const response = await this.llmService.generateText(
@@ -587,7 +642,10 @@ export class AutoResponderService {
   /**
    * Remove opt-out suppression for a sender
    */
-  async removeOptOutSuppression(userId: string, senderEmail: string): Promise<void> {
+  async removeOptOutSuppression(
+    userId: string,
+    senderEmail: string,
+  ): Promise<void> {
     const senderEmailHash = this.hashEmail(senderEmail);
     await this.autoResponseSuppressionRepository.delete({
       userId,
@@ -623,16 +681,21 @@ export class AutoResponderService {
 
     const totalSent = logs.length;
     const byPriority = {
-      low: logs.filter((l) => l.priorityLevel === AutoResponseLogPriority.LOW).length,
-      medium: logs.filter((l) => l.priorityLevel === AutoResponseLogPriority.MEDIUM).length,
-      high: logs.filter((l) => l.priorityLevel === AutoResponseLogPriority.HIGH).length,
+      low: logs.filter((l) => l.priorityLevel === AutoResponseLogPriority.LOW)
+        .length,
+      medium: logs.filter(
+        (l) => l.priorityLevel === AutoResponseLogPriority.MEDIUM,
+      ).length,
+      high: logs.filter((l) => l.priorityLevel === AutoResponseLogPriority.HIGH)
+        .length,
     };
     const qaAnswerCount = logs.filter((l) => l.qaAnswerProvided).length;
     const escalationCount = logs.filter((l) => l.escalationRequested).length;
 
     const templateBreakdown: Record<string, number> = {};
     for (const log of logs) {
-      templateBreakdown[log.templateUsed] = (templateBreakdown[log.templateUsed] || 0) + 1;
+      templateBreakdown[log.templateUsed] =
+        (templateBreakdown[log.templateUsed] || 0) + 1;
     }
 
     return {
@@ -659,12 +722,18 @@ export class AutoResponderService {
       userName: user?.name || "Your Name",
       senderName: "John Smith",
       originalSubject: "Question about your project",
-      priorityLevel: templateType === "highPriority" ? "high" : templateType === "lowPriority" ? "low" : "medium",
+      priorityLevel:
+        templateType === "highPriority"
+          ? "high"
+          : templateType === "lowPriority"
+            ? "low"
+            : "medium",
       actionCount: queueStats.actionCount || 37,
       triageCount: queueStats.triageCount || 21,
       avgResponseTime: queueStats.avgResponseTime || "~4 days",
       urgentResponseTime: queueStats.urgentResponseTime || "12-24 hours",
-      aiAnswer: "Based on previous conversations, the project timeline is approximately 3-4 weeks from kickoff to delivery.",
+      aiAnswer:
+        "Based on previous conversations, the project timeline is approximately 3-4 weeks from kickoff to delivery.",
       hasAiAnswer: true,
     };
 

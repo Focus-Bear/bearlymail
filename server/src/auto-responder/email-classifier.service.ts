@@ -140,7 +140,10 @@ export class EmailClassifierService {
     if (senderClassification.isAutomated && !headerClassification.isAutomated) {
       reasons.push(`Automated sender pattern: ${email.from}`);
     }
-    if (senderClassification.isNewsletter && !headerClassification.isNewsletter) {
+    if (
+      senderClassification.isNewsletter &&
+      !headerClassification.isNewsletter
+    ) {
       reasons.push(`Newsletter sender pattern: ${email.from}`);
     }
 
@@ -160,7 +163,7 @@ export class EmailClassifierService {
       subjectClassification.isAutomated;
     const isNewsletter =
       headerClassification.isNewsletter || senderClassification.isNewsletter;
-    const isBounce = headerClassification.isBounce;
+    const { isBounce } = headerClassification;
     const isOutOfOffice =
       headerClassification.isOutOfOffice || subjectClassification.isOutOfOffice;
 
@@ -488,8 +491,108 @@ export class EmailClassifierService {
     }
 
     return (
-      !!normalizedHeaders["in-reply-to"] ||
-      !!normalizedHeaders["references"]
+      !!normalizedHeaders["in-reply-to"] || !!normalizedHeaders["references"]
     );
+  }
+
+  /**
+   * Check if an email matches any custom exclusion rules using AI
+   * @param email Email content and metadata
+   * @param customRules Array of custom exclusion rule descriptions
+   * @returns The matched rule description if any, or null if no rules match
+   */
+  async checkCustomExclusionRules(
+    email: {
+      from: string;
+      fromName?: string;
+      subject: string;
+      body: string;
+    },
+    customRules: string[],
+  ): Promise<{ matched: boolean; matchedRule: string | null; reason: string }> {
+    if (!customRules || customRules.length === 0) {
+      return {
+        matched: false,
+        matchedRule: null,
+        reason: "No custom rules defined",
+      };
+    }
+
+    try {
+      const cleanedBody = cleanEmailContent(email.body, null, 1500);
+
+      const rulesText = customRules
+        .map((rule, index) => `${index + 1}. ${rule}`)
+        .join("\n");
+
+      const prompt = `You are an email classification assistant. Analyze the following email and determine if it matches ANY of the user's custom exclusion rules.
+
+CUSTOM EXCLUSION RULES:
+${rulesText}
+
+EMAIL TO ANALYZE:
+From: ${email.fromName || email.from} <${email.from}>
+Subject: ${email.subject}
+Body:
+${cleanedBody}
+
+INSTRUCTIONS:
+- Carefully read each exclusion rule and the email content
+- Determine if the email matches ANY of the rules
+- Be reasonably flexible in interpretation (e.g., "Automated emails" should match system notifications, auto-replies, etc.)
+- If the email matches a rule, explain why
+
+Respond with a JSON object in this exact format:
+{
+  "matched": true/false,
+  "matchedRule": "the exact rule text that matched" or null if no match,
+  "reason": "brief explanation of why it matched or didn't match"
+}`;
+
+      const response = await this.llmService.generateText(
+        {
+          prompt,
+          systemPrompt:
+            "You are an email classification assistant. Analyze emails against user-defined exclusion rules and provide structured results.",
+          temperature: RATIOS.THIRTY_PERCENT,
+          maxTokens: 300,
+        },
+        LLMProvider.OPENAI,
+        undefined,
+        "check_custom_exclusion_rules" as any,
+      );
+
+      // Parse JSON response
+      let jsonString = response;
+      jsonString = jsonString
+        .replace(/^```json\s*/i, "")
+        .replace(/^```\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim();
+
+      const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return {
+          matched: parsed.matched || false,
+          matchedRule: parsed.matchedRule || null,
+          reason: parsed.reason || "No reason provided",
+        };
+      }
+
+      this.logger.warn("Failed to parse custom exclusion rules response");
+      return {
+        matched: false,
+        matchedRule: null,
+        reason: "Failed to parse LLM response",
+      };
+    } catch (error) {
+      this.logger.error("Error checking custom exclusion rules", error);
+      return {
+        matched: false,
+        matchedRule: null,
+        reason: `Error: ${(error as Error).message}`,
+      };
+    }
   }
 }

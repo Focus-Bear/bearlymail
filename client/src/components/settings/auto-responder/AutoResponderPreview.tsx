@@ -2,12 +2,44 @@ import React, { useState } from 'react';
 import { theme } from 'theme/theme';
 import { QueueStats } from './types';
 
+const renderFormattedText = (text: string): React.ReactNode => {
+  const parts: React.ReactNode[] = [];
+  let currentIndex = 0;
+  
+  const regex = /(\*\*([^*]+)\*\*)|(\*([^*]+)\*)|(_([^_]+)_)/g;
+  let match;
+  
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > currentIndex) {
+      parts.push(text.slice(currentIndex, match.index));
+    }
+    
+    if (match[1]) {
+      parts.push(<strong key={match.index}>{match[2]}</strong>);
+    } else if (match[3]) {
+      parts.push(<em key={match.index}>{match[4]}</em>);
+    } else if (match[5]) {
+      parts.push(<em key={match.index}>{match[6]}</em>);
+    }
+    
+    currentIndex = match.index + match[0].length;
+  }
+  
+  if (currentIndex < text.length) {
+    parts.push(text.slice(currentIndex));
+  }
+  
+  return parts.length > 0 ? parts : text;
+};
+
 interface AutoResponderPreviewProps {
   queueStats: QueueStats | null;
+  userName?: string;
 }
 
 export const AutoResponderPreview: React.FC<AutoResponderPreviewProps> = ({
   queueStats,
+  userName,
 }) => {
   const [selectedTemplate, setSelectedTemplate] = useState<'standard' | 'highPriority' | 'lowPriority'>('standard');
   const [isExpanded, setIsExpanded] = useState(false);
@@ -19,6 +51,8 @@ export const AutoResponderPreview: React.FC<AutoResponderPreviewProps> = ({
     urgentResponseTime: '12-24 hours',
   };
 
+  const displayName = userName || 'the user';
+
   const templatePreviews = {
     standard: {
       label: 'Standard Priority',
@@ -28,9 +62,9 @@ export const AutoResponderPreview: React.FC<AutoResponderPreviewProps> = ({
 
 Thanks for reaching out.
 
-This is an automated response from BearlyMail, your AI email assistant (think of me as a friendly bouncer for his inbox, but I promise I'm nicer than most bouncers).
+This is an automated response from BearlyMail, ${displayName}'s AI email assistant (think of me as an email bouncer, but I promise I'm nicer than most bouncers).
 
-I've reviewed your email and categorized it as medium priority, which means it'll be in the queue but not at the top. Currently:
+I've reviewed your email and categorized it as medium priority, which means it'll be in the queue but not at the top. ${displayName} has quite a few other emails to deal with:
 - 📬 ${stats.actionCount > 100 ? '100+' : stats.actionCount} emails flagged for action
 - 📋 ${stats.triageCount > 100 ? '100+' : stats.triageCount} emails still to triage
 - ⏱️ Average response time for similar emails: ${stats.avgResponseTime}
@@ -42,7 +76,7 @@ I've reviewed your email and categorized it as medium priority, which means it'l
 _[AI-generated answer would appear here based on your email history]_
 
 ---
-*You're receiving this because BearlyMail is being used to manage email overload.*`,
+*If you'd like help prioritising your inbox, check out BearlyMail*`,
     },
     highPriority: {
       label: 'High Priority',
@@ -52,7 +86,7 @@ _[AI-generated answer would appear here based on your email history]_
 
 Thanks for your email—this one caught my attention.
 
-I'm BearlyMail, your AI email assistant. I've flagged your email as high priority and moved it to the top of the action queue. You should see a response within the next 24 hours.
+I'm BearlyMail, ${displayName}'s AI email assistant. I've flagged your email as high priority and moved it to the top of the action queue. You should see a response within the next 24 hours.
 
 Here's what's happening:
 - ⚡ Your email has been escalated
@@ -60,7 +94,7 @@ Here's what's happening:
 - 🎯 Typical response time for urgent emails: ${stats.urgentResponseTime}
 
 ---
-*This email was flagged as high priority based on urgency indicators.*`,
+*If you'd like help prioritising your inbox, check out BearlyMail*`,
     },
     lowPriority: {
       label: 'Low Priority',
@@ -72,7 +106,7 @@ Thanks for reaching out.
 
 This is an automated response from BearlyMail.
 
-I've reviewed your email and it looks like it's not super time-sensitive, so I've placed it in the general queue. Currently:
+I've reviewed your email and it looks like it's not super time-sensitive, so I've placed it in the general queue. ${displayName} has quite a few other emails to deal with:
 - 📬 ${stats.actionCount} emails flagged for action
 - 📋 ${stats.triageCount} emails still to triage
 - ⏱️ Typical response time: ${stats.avgResponseTime}
@@ -80,7 +114,7 @@ I've reviewed your email and it looks like it's not super time-sensitive, so I'v
 If this is actually urgent, just reply and let me know—I'll bump it up!
 
 ---
-*You're receiving this because BearlyMail is being used to manage email overload.*`,
+*If you'd like help prioritising your inbox, check out BearlyMail*`,
     },
   };
 
@@ -113,7 +147,7 @@ If this is actually urgent, just reply and let me know—I'll bump it up!
             color: theme.colors.text.primary,
             margin: 0,
           }}>
-            👀 Preview Auto-Responses
+            Edit Auto-Responses
           </h3>
           <p style={{
             ...theme.typography.body.medium,
@@ -121,7 +155,7 @@ If this is actually urgent, just reply and let me know—I'll bump it up!
             margin: 0,
             marginTop: theme.spacing.xs,
           }}>
-            See what your auto-responses will look like
+            Customize your auto-response templates
           </p>
         </div>
         <span style={{
@@ -200,7 +234,7 @@ If this is actually urgent, just reply and let me know—I'll bump it up!
               color: theme.colors.text.primary,
               lineHeight: 1.6,
             }}>
-              {currentPreview.body}
+              {renderFormattedText(currentPreview.body)}
             </div>
           </div>
 

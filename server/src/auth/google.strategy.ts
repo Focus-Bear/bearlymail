@@ -42,6 +42,8 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
         // Includes read + modify (labels, etc.)
         "https://www.googleapis.com/auth/gmail.modify",
         "https://www.googleapis.com/auth/gmail.send",
+        // Required for contacts sync via People API
+        "https://www.googleapis.com/auth/contacts.readonly",
       ],
       // These need to be in authorizationParams, not here
     });

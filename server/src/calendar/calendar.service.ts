@@ -397,7 +397,7 @@ export class CalendarService {
           if (eventId && event.iCalUID === eventId) {
             return true;
           }
-          if (event.summary && subject.includes(event.summary.toLowerCase())) {
+          if (event.summary && subject.toLowerCase().includes(event.summary.toLowerCase())) {
             return true;
           }
           // Check if user is an attendee

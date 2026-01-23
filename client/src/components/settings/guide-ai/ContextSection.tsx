@@ -303,10 +303,17 @@ const ContextItemContent: React.FC<ContextItemContentProps> = ({ context }) => {
                       plural: count > 1 ? 's' : ''
                     });
                   }
-                  return t(`settings.contextExplanations.${key}`, params.reduce((acc, param, idx) => {
-                    acc[`param${idx}`] = param;
-                    return acc;
-                  }, {} as Record<string, string>));
+                  // Normalize key: convert "Learned from override" to "learnedFromOverride"
+                  const normalizedKey = key.trim()
+                    .toLowerCase()
+                    .split(/\s+/)
+                    .map((word, index) => index === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1))
+                    .join('');
+                  const translationKey = `settings.contextExplanations.${normalizedKey}`;
+                  const reasonText = params.join(':').trim();
+                  // Try to translate, fallback to showing the explanation if translation doesn't exist
+                  const translated = t(translationKey, { reason: reasonText, defaultValue: context.explanation });
+                  return translated;
                 } catch {
                   return context.explanation;
                 }

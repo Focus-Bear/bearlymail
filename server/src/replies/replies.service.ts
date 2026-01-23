@@ -4,6 +4,7 @@ import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { ContextService } from "../context/context.service";
 import { LLMService } from "../llm/llm.service";
 import { UsersService } from "../users/users.service";
+import { WritingStyleLearningService } from "../context/writing-style-learning.service";
 import { ContextKey } from "../database/entities/user-context.entity";
 import { Email } from "../database/entities/email.entity";
 
@@ -26,6 +27,7 @@ export class RepliesService {
     private contextService: ContextService,
     private llmService: LLMService,
     private usersService: UsersService,
+    private writingStyleLearningService: WritingStyleLearningService,
   ) {}
 
   async generateDraftReply(
@@ -60,6 +62,17 @@ export class RepliesService {
         !rule.startsWith("Style:") &&
         !rule.startsWith("Common phrase:"),
     );
+
+    // Log for debugging
+    if (emailExamples.length > 0) {
+      console.log(
+        `[RepliesService] Using ${emailExamples.length} email examples for reply generation`,
+      );
+    } else {
+      console.log(
+        `[RepliesService] No email examples found in toneSettings.rules (total rules: ${toneRules.length})`,
+      );
+    }
 
     // Check for matching reply rules first
     const rules = this.replyRules.get(userId) || [];
@@ -237,6 +250,11 @@ ${closing}`;
     userId: string,
     emailId: string,
     body: string,
+    attachments?: Array<{
+      filename: string;
+      mimeType: string;
+      content: Buffer;
+    }>,
   ): Promise<void> {
     const email = await this.emailsService.getEmailById(userId, emailId);
     if (!email) {
@@ -263,6 +281,19 @@ ${closing}`;
       email.from,
       replySubject,
       body,
+      attachments,
     );
+
+    // Trigger immediate learning from the sent reply
+    // This will add it to toneSettings.rules if we need more examples
+    try {
+      await this.writingStyleLearningService.learnFromSentEmailBodies(
+        userId,
+        [body],
+      );
+    } catch (learningError) {
+      // Don't fail the send if learning fails
+      console.error("Failed to learn from sent reply:", learningError);
+    }
   }
 }

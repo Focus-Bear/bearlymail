@@ -69,6 +69,11 @@ GOOGLE_CLIENT_SECRET=your-client-secret
 GOOGLE_REDIRECT_URI=http://localhost:3001/auth/google/callback
 FRONTEND_URL=http://localhost:3000
 
+# GitHub App OAuth (for GitHub integration)
+GITHUB_APP_CLIENT_ID=your-github-app-client-id
+GITHUB_APP_CLIENT_SECRET=your-github-app-client-secret
+GITHUB_APP_REDIRECT_URI=http://localhost:3001/github/callback
+
 # LLM Configuration
 LLM_PROVIDER=gemini
 GEMINI_API_KEY=your-gemini-api-key

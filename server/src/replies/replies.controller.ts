@@ -8,7 +8,10 @@ import {
   Body,
   UseGuards,
   Request,
+  UseInterceptors,
+  UploadedFiles,
 } from "@nestjs/common";
+import { FilesInterceptor } from "@nestjs/platform-express";
 import { RepliesService, ReplyRule } from "./replies.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 
@@ -72,12 +75,26 @@ export class RepliesController {
   }
 
   @Post("send/:id")
+  @UseInterceptors(FilesInterceptor("files", 10))
   async sendReply(
     @Request() req,
     @Param("id") id: string,
     @Body() body: { reply: string },
+    @UploadedFiles() files?: Express.Multer.File[],
   ) {
-    await this.repliesService.sendReply(req.user.userId, id, body.reply);
+    const attachments =
+      files?.map((file) => ({
+        filename: file.originalname,
+        mimeType: file.mimetype,
+        content: file.buffer,
+      })) || undefined;
+
+    await this.repliesService.sendReply(
+      req.user.userId,
+      id,
+      body.reply,
+      attachments,
+    );
     return { message: "Reply sent successfully" };
   }
 }

@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Repository, Not, IsNull } from "typeorm";
 import { ActionItem } from "../database/entities/action-item.entity";
 
 @Injectable()
@@ -29,6 +29,40 @@ export class ActionItemsService {
     return this.actionItemRepository.find({
       where,
       order: { isCompleted: "ASC", createdAt: "DESC" },
+    });
+  }
+
+  async findByThread(
+    userId: string,
+    emailThreadId: string,
+  ): Promise<ActionItem[]> {
+    return this.actionItemRepository.find({
+      where: { userId, emailThreadId },
+      order: { isCompleted: "ASC", createdAt: "DESC" },
+    });
+  }
+
+  async findSuggestedActionsByThread(
+    userId: string,
+    emailThreadId: string,
+  ): Promise<ActionItem[]> {
+    return this.actionItemRepository.find({
+      where: {
+        userId,
+        emailThreadId,
+        actionType: Not(IsNull()),
+      },
+      order: { isCompleted: "ASC", createdAt: "DESC" },
+    });
+  }
+
+  async invalidateLLMSuggestedActions(
+    emailThreadId: string,
+  ): Promise<void> {
+    await this.actionItemRepository.delete({
+      emailThreadId,
+      source: "llm",
+      actionType: Not(IsNull()),
     });
   }
 

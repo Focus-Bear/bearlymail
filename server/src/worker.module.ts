@@ -10,6 +10,7 @@ import { ZohoAccountsModule } from "./zoho-accounts/zoho-accounts.module";
 import { GoogleAccountsModule } from "./google-accounts/google-accounts.module";
 import { PriorityModule } from "./priority/priority.module";
 import { LLMModule } from "./llm/llm.module";
+import { BatchScheduleModule } from "./batch-schedule/batch-schedule.module";
 
 // Database entities
 import { User } from "./database/entities/user.entity";
@@ -134,6 +135,7 @@ import { BlockedSendersService } from "./blocked-senders/blocked-senders.service
     GoogleAccountsModule,
     PriorityModule,
     LLMModule,
+    BatchScheduleModule,
   ],
   providers: [
     // Core services

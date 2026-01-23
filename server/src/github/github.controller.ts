@@ -6,12 +6,16 @@ import {
   UseGuards,
   Request,
   Logger,
+  Res,
+  Query,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
+import { Response } from "express";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { GitHubService } from "./github.service";
 import { GitHubApiService } from "./github-api.service";
+import { GitHubAppService } from "./github-app.service";
 import { UsersService } from "../users/users.service";
 import { isError } from "../types/common";
 import { EmailsService } from "../emails/emails.service";
@@ -27,6 +31,7 @@ export class GitHubController {
   constructor(
     private readonly githubService: GitHubService,
     private readonly githubApiService: GitHubApiService,
+    private readonly githubAppService: GitHubAppService,
     private readonly usersService: UsersService,
     private readonly emailsService: EmailsService,
     @InjectRepository(EmailThread)
@@ -264,6 +269,54 @@ export class GitHubController {
       const errorMessage = isError(error) ? error.message : "Unknown error";
       this.logger.error(`Error refreshing GitHub statuses: ${errorMessage}`);
       throw error;
+    }
+  }
+
+  @Get("connect")
+  @UseGuards(JwtAuthGuard)
+  async connect(@Request() req, @Res() res: Response) {
+    const { userId } = req.user;
+    const authUrl = this.githubAppService.getAuthorizationUrl(userId);
+    return res.redirect(authUrl);
+  }
+
+  @Get("callback")
+  async callback(
+    @Query("code") code: string,
+    @Query("state") state: string,
+    @Res() res: Response,
+  ) {
+    const frontendUrl = this.githubAppService.getFrontendUrl();
+    const settingsUrl = `${frontendUrl}/settings?github=connected`;
+
+    try {
+      if (!code) {
+        this.logger.error("GitHub OAuth callback missing authorization code");
+        return res.redirect(`${frontendUrl}/settings?github=error`);
+      }
+
+      // Decode state to get userId
+      let userId: string;
+      try {
+        const stateData = JSON.parse(Buffer.from(state, "base64").toString());
+        userId = stateData.userId;
+      } catch (error) {
+        this.logger.error("Failed to decode state parameter:", error);
+        return res.redirect(`${frontendUrl}/settings?github=error`);
+      }
+
+      // Exchange code for access token
+      const accessToken = await this.githubAppService.exchangeCodeForToken(code);
+
+      // Store token for user
+      await this.githubAppService.storeTokenForUser(userId, accessToken);
+
+      this.logger.log(`GitHub OAuth successful for user ${userId}`);
+      return res.redirect(settingsUrl);
+    } catch (error) {
+      const errorMessage = isError(error) ? error.message : "Unknown error";
+      this.logger.error(`GitHub OAuth callback error: ${errorMessage}`, error);
+      return res.redirect(`${frontendUrl}/settings?github=error`);
     }
   }
 }

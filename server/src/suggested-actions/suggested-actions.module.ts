@@ -7,16 +7,18 @@ import { EmailsModule } from "../emails/emails.module";
 import { LLMModule } from "../llm/llm.module";
 import { GitHubModule } from "../github/github.module";
 import { CalendarModule } from "../calendar/calendar.module";
-import { Email } from "../database/entities/email.entity";
+import { ActionItemsModule } from "../action-items/action-items.module";
+import { ActionItem } from "../database/entities/action-item.entity";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Email]),
+    TypeOrmModule.forFeature([ActionItem]),
     UsersModule,
     forwardRef(() => EmailsModule),
     LLMModule,
     GitHubModule,
     CalendarModule,
+    ActionItemsModule,
   ],
   controllers: [SuggestedActionsController],
   providers: [SuggestedActionsService],

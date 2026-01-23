@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Module, forwardRef } from "@nestjs/common";
 import { RepliesController } from "./replies.controller";
 import { RepliesService } from "./replies.service";
 import { EmailsModule } from "../emails/emails.module";
@@ -7,7 +7,12 @@ import { LLMModule } from "../llm/llm.module";
 import { UsersModule } from "../users/users.module";
 
 @Module({
-  imports: [EmailsModule, ContextModule, LLMModule, UsersModule],
+  imports: [
+    EmailsModule,
+    forwardRef(() => ContextModule),
+    LLMModule,
+    UsersModule,
+  ],
   controllers: [RepliesController],
   providers: [RepliesService],
   exports: [RepliesService],

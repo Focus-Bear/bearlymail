@@ -717,6 +717,7 @@ export class LLMService {
     emailContent: {
       subject: string;
       body: string;
+      htmlBody?: string;
       from: string;
       fromName?: string;
     },
@@ -741,11 +742,11 @@ export class LLMService {
       metadata?: Record<string, unknown>;
     }>
   > {
-    // Clean email body: strip HTML, remove signatures, limit to 3000 chars
+    // Clean email body: strip HTML, remove signatures, limit to 2000 chars
     const cleanedBody = cleanEmailContent(
       emailContent.body,
-      null,
-      PERFORMANCE_BUDGETS.EMAIL_CONTENT_CLEAN,
+      emailContent.htmlBody || null,
+      2000, // Reduced from 3000 to save tokens
     );
 
     const promptConfig = getPrompt("suggest_actions");
@@ -950,6 +951,16 @@ export class LLMService {
 
     // Limit email examples to 5 most relevant ones
     const emailExamples = userContext.emailExamples?.slice(0, 5) || [];
+
+    if (emailExamples.length > 0) {
+      this.logger.debug(
+        `[generateReplyDraft] Using ${emailExamples.length} email examples for reply generation`,
+      );
+    } else {
+      this.logger.debug(
+        `[generateReplyDraft] No email examples provided (userContext.emailExamples: ${userContext.emailExamples?.length || 0})`,
+      );
+    }
 
     const prompt = renderPrompt(promptConfig.prompt || "", {
       tone,

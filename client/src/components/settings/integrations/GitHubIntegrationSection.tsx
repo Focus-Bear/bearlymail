@@ -2,30 +2,18 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { INPUT_WIDTH_PX } from 'constants/numbers';
-import { GitHubTokenInput } from 'components/settings/integrations/GitHubTokenInput';
-import { GitHubTokenActions } from 'components/settings/integrations/GitHubTokenActions';
 import { EMOJI_CHECK } from 'constants/emojis';
 
 interface GitHubIntegrationSectionProps {
-  githubToken: string;
-  showGithubToken: boolean;
-  githubTokenSaved: boolean;
   hasGithubToken: boolean;
-  onGithubTokenChange: (token: string) => void;
-  onShowGithubTokenChange: (show: boolean) => void;
-  onSaveGithubToken: () => Promise<void>;
-  onRemoveGithubToken: () => Promise<void>;
+  onConnectGitHub: () => void;
+  onDisconnectGitHub: () => Promise<void>;
 }
 
 export const GitHubIntegrationSection: React.FC<GitHubIntegrationSectionProps> = ({
-  githubToken,
-  showGithubToken,
-  githubTokenSaved,
   hasGithubToken,
-  onGithubTokenChange,
-  onShowGithubTokenChange,
-  onSaveGithubToken,
-  onRemoveGithubToken,
+  onConnectGitHub,
+  onDisconnectGitHub,
 }) => {
   const { t } = useTranslation();
   
@@ -51,11 +39,15 @@ export const GitHubIntegrationSection: React.FC<GitHubIntegrationSectionProps> =
         fontSize: theme.typography.fontSize.sm,
       }}>
         {t('settings.github.description')}{' '}
-        {t('settings.github.permissions')}{' '}
-        <code>{t('settings.github.permissionIssues')}</code>{' '}
-        {t('settings.github.and')}{' '}
-        <code>{t('settings.github.permissionPullRequests')}</code>{' '}
-        {t('settings.github.permissionsEnd')}.
+        {t('settings.github.oauthDescription')}
+      </p>
+      <p style={{
+        color: theme.colors.text.tertiary,
+        marginBottom: theme.spacing.md,
+        fontSize: theme.typography.fontSize.xs,
+        fontStyle: 'italic',
+      }}>
+        {t('settings.github.orgProjectNote')}
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
         {hasGithubToken && (
@@ -68,22 +60,44 @@ export const GitHubIntegrationSection: React.FC<GitHubIntegrationSectionProps> =
             fontSize: theme.typography.fontSize.sm,
           }}>
             {/* eslint-disable-next-line i18next/no-literal-string */}
-            {EMOJI_CHECK} {t('settings.github.tokenConfigured')}
+            {EMOJI_CHECK} {t('settings.github.connected')}
           </div>
         )}
-        <GitHubTokenInput
-          githubToken={githubToken}
-          showGithubToken={showGithubToken}
-          onGithubTokenChange={onGithubTokenChange}
-          onShowGithubTokenChange={onShowGithubTokenChange}
-        />
-        <GitHubTokenActions
-          githubToken={githubToken}
-          githubTokenSaved={githubTokenSaved}
-          hasGithubToken={hasGithubToken}
-          onSaveGithubToken={onSaveGithubToken}
-          onRemoveGithubToken={onRemoveGithubToken}
-        />
+        <div style={{ display: 'flex', gap: theme.spacing.md, alignItems: 'center' }}>
+          {!hasGithubToken ? (
+            <button
+              onClick={onConnectGitHub}
+              style={{
+                padding: `${theme.spacing.md} ${theme.spacing.lg}`,
+                backgroundColor: theme.colors.primary.main,
+                color: 'white',
+                border: 'none',
+                borderRadius: theme.borderRadius.md,
+                cursor: 'pointer',
+                fontSize: theme.typography.fontSize.md,
+                fontWeight: 500,
+              }}
+            >
+              {t('settings.github.connect')}
+            </button>
+          ) : (
+            <button
+              onClick={onDisconnectGitHub}
+              style={{
+                padding: `${theme.spacing.md} ${theme.spacing.lg}`,
+                backgroundColor: theme.colors.accent.error,
+                color: 'white',
+                border: 'none',
+                borderRadius: theme.borderRadius.md,
+                cursor: 'pointer',
+                fontSize: theme.typography.fontSize.md,
+                fontWeight: 500,
+              }}
+            >
+              {t('settings.github.disconnect')}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -10,11 +10,16 @@ import {
 } from "typeorm";
 import { User } from "./user.entity";
 import { Email } from "./email.entity";
-import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
+import {
+  encryptedColumnTransformer,
+  encryptedJsonTransformer,
+} from "../../encryption/encryption.helper";
 
 @Entity("action_items")
 // For querying active tasks
 @Index(["userId", "isCompleted"])
+// For cache invalidation checks
+@Index(["userId", "emailThreadId", "lastEmailId", "source"])
 export class ActionItem {
   @PrimaryGeneratedColumn("uuid")
   id: string;
@@ -42,6 +47,37 @@ export class ActionItem {
   @Column({ type: "float", nullable: true })
   confidenceScore: number;
   // For LLM suggestions
+
+  @Column({
+    nullable: true,
+    comment:
+      "Action type for suggested actions (e.g., 'github_update_status', 'calendar_create_invite'). NULL for regular action items.",
+  })
+  actionType: string | null;
+
+  @Column({
+    type: "text",
+    nullable: true,
+    transformer: encryptedColumnTransformer,
+    comment: "Explanation/reason for suggested actions",
+  })
+  reason: string | null;
+
+  @Column({
+    type: "text",
+    nullable: true,
+    transformer: encryptedJsonTransformer,
+    comment: "Action-specific metadata (e.g., GitHub issue info)",
+  })
+  metadata: Record<string, unknown> | null;
+
+  @Column({
+    type: "uuid",
+    nullable: true,
+    comment:
+      "ID of the last email used for LLM generation of suggested actions",
+  })
+  lastEmailId: string | null;
 
   @CreateDateColumn()
   createdAt: Date;

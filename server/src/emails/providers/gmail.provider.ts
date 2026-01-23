@@ -472,7 +472,7 @@ export class GmailProvider implements EmailProvider {
 
       // Use thread-level queries like GmailApp.search() - more reliable than message-level queries
       // Fetch threads (not messages) from inbox and starred threads, only those updated since last sync
-      const baseQuery = "-label:SnoozedFocusBear -label:VA-to-action";
+      const baseQuery = "-label:SnoozedBearlyMail -label:VA-to-action";
       const afterQuery = `after:${syncWindowTimestamp}`;
       
       const [inboxThreadsResponse, starredThreadsResponse] = await Promise.all([
@@ -990,13 +990,13 @@ export class GmailProvider implements EmailProvider {
         gmail.users.threads.list({
           userId: "me",
           maxResults: 500,
-          q: "in:inbox -label:SnoozedFocusBear -label:VA-to-action",
+          q: "in:inbox -label:SnoozedBearlyMail -label:VA-to-action",
         }),
         // Get all starred threads
         gmail.users.threads.list({
           userId: "me",
           maxResults: 500,
-          q: "is:starred -label:SnoozedFocusBear -label:VA-to-action",
+          q: "is:starred -label:SnoozedBearlyMail -label:VA-to-action",
         }),
       ]);
 
@@ -2411,6 +2411,281 @@ export class GmailProvider implements EmailProvider {
       );
       logErrorToFile(
         `Failed to trash thread in Gmail (userId: ${userId}, threadId: ${threadId})`,
+        error,
+        "GmailProvider",
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Ensure the SnoozedBearlyMail label exists in Gmail, creating it if necessary
+   * Returns the label ID for use in message modifications
+   */
+  private async ensureSnoozeLabelExists(
+    userId: string,
+    gmail: gmail_v1.Gmail,
+  ): Promise<string> {
+    const cacheKey = `${userId}_SnoozedBearlyMail`;
+    const cachedLabelId = this.bearlyMailLabelCache.get(cacheKey);
+    if (cachedLabelId) {
+      return cachedLabelId;
+    }
+
+    const labelName = "SnoozedBearlyMail";
+
+    try {
+      // First, try to find the label in existing labels
+      const labelMap = await this.getGmailLabels(userId);
+      for (const [labelId, name] of labelMap.entries()) {
+        if (name === labelName) {
+          this.bearlyMailLabelCache.set(cacheKey, labelId);
+          return labelId;
+        }
+      }
+
+      // Label doesn't exist, create it
+      this.logger.log(
+        `Creating SnoozedBearlyMail label for user ${userId}`,
+      );
+      const createResponse = await gmail.users.labels.create({
+        userId: "me",
+        requestBody: {
+          name: labelName,
+          labelListVisibility: "labelShow",
+          messageListVisibility: "show",
+        },
+      });
+
+      const labelId = createResponse.data.id;
+      if (labelId) {
+        this.bearlyMailLabelCache.set(cacheKey, labelId);
+        // Invalidate label cache to force refresh
+        this.labelCache.delete(userId);
+        this.labelCacheExpiry.delete(userId);
+        return labelId;
+      }
+
+      throw new Error("Failed to create label: no ID returned");
+    } catch (error: unknown) {
+      // If label already exists (409 conflict), try to find it again
+      if (isApiError(error) && error.code === 409) {
+        this.logger.log(
+          `Label ${labelName} already exists, fetching label list again`,
+        );
+        // Invalidate cache and try again
+        this.labelCache.delete(userId);
+        this.labelCacheExpiry.delete(userId);
+        const labelMap = await this.getGmailLabels(userId);
+        for (const [labelId, name] of labelMap.entries()) {
+          if (name === labelName) {
+            this.bearlyMailLabelCache.set(cacheKey, labelId);
+            return labelId;
+          }
+        }
+      }
+
+      this.logger.error(
+        `Failed to ensure snooze label exists for user ${userId}:`,
+        error,
+      );
+      logErrorToFile(
+        `Failed to ensure snooze label exists (userId: ${userId})`,
+        error,
+        "GmailProvider",
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Snooze a thread by adding the SnoozedBearlyMail label to all messages
+   */
+  async snoozeThread(
+    userId: string,
+    threadId: string,
+    snoozeUntil: Date,
+  ): Promise<void> {
+    this.logger.log(
+      `[Gmail Snooze] Starting snoozeThread: userId=${userId}, threadId=${threadId}, snoozeUntil=${snoozeUntil.toISOString()}`,
+    );
+    const user = await this.usersService.findOneWithTokens(userId);
+    if (!user?.googleCalendarAccessToken) {
+      this.logger.error(
+        `[Gmail Snooze] User not connected to Gmail: userId=${userId}`,
+      );
+      throw new Error("User not connected to Gmail");
+    }
+
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI,
+    );
+
+    oauth2Client.setCredentials({
+      access_token: user.googleCalendarAccessToken,
+      refresh_token: user.googleCalendarRefreshToken,
+    });
+
+    const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+
+    try {
+      // Get the thread with all messages
+      this.logger.log(
+        `[Gmail Snooze] Fetching thread data: userId=${userId}, threadId=${threadId}`,
+      );
+      const threadData = await gmail.users.threads.get({
+        userId: "me",
+        id: threadId,
+        format: "full",
+      });
+
+      const thread = threadData.data;
+      const messages = thread.messages || [];
+      this.logger.log(
+        `[Gmail Snooze] Thread fetched: userId=${userId}, threadId=${threadId}, messageCount=${messages.length}`,
+      );
+
+      // Ensure the snooze label exists
+      const snoozeLabelId = await this.ensureSnoozeLabelExists(userId, gmail);
+      this.logger.log(
+        `[Gmail Snooze] Snooze label ID: ${snoozeLabelId} for userId=${userId}`,
+      );
+
+      // Add the snooze label to all messages in the thread
+      // Gmail requires modifying individual messages, not threads
+      let labeledCount = 0;
+      for (const message of messages) {
+        if (!message.id) continue;
+
+        const messageLabelIds = message.labelIds || [];
+        const isCurrentlySnoozed = messageLabelIds.includes(snoozeLabelId);
+
+        // Only add label if it's not already present
+        if (!isCurrentlySnoozed) {
+          await gmail.users.messages.modify({
+            userId: "me",
+            id: message.id,
+            requestBody: {
+              addLabelIds: [snoozeLabelId],
+            },
+          });
+          labeledCount++;
+        }
+      }
+
+      this.logger.log(
+        `[Gmail Snooze] Thread snoozed successfully: userId=${userId}, threadId=${threadId}, labeledCount=${labeledCount}`,
+      );
+    } catch (error: unknown) {
+      this.logger.error(
+        `[Gmail Snooze] Error snoozing thread ${threadId} for user ${userId}:`,
+        error,
+      );
+      logErrorToFile(
+        `Failed to snooze thread in Gmail (userId: ${userId}, threadId: ${threadId})`,
+        error,
+        "GmailProvider",
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Unsnooze a thread by removing the SnoozedBearlyMail label from all messages
+   */
+  async unsnoozeThread(userId: string, threadId: string): Promise<void> {
+    this.logger.log(
+      `[Gmail Unsnooze] Starting unsnoozeThread: userId=${userId}, threadId=${threadId}`,
+    );
+    const user = await this.usersService.findOneWithTokens(userId);
+    if (!user?.googleCalendarAccessToken) {
+      this.logger.error(
+        `[Gmail Unsnooze] User not connected to Gmail: userId=${userId}`,
+      );
+      throw new Error("User not connected to Gmail");
+    }
+
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI,
+    );
+
+    oauth2Client.setCredentials({
+      access_token: user.googleCalendarAccessToken,
+      refresh_token: user.googleCalendarRefreshToken,
+    });
+
+    const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+
+    try {
+      // Get the thread with all messages
+      this.logger.log(
+        `[Gmail Unsnooze] Fetching thread data: userId=${userId}, threadId=${threadId}`,
+      );
+      const threadData = await gmail.users.threads.get({
+        userId: "me",
+        id: threadId,
+        format: "full",
+      });
+
+      const thread = threadData.data;
+      const messages = thread.messages || [];
+      this.logger.log(
+        `[Gmail Unsnooze] Thread fetched: userId=${userId}, threadId=${threadId}, messageCount=${messages.length}`,
+      );
+
+      // Get the snooze label ID
+      const labelMap = await this.getGmailLabels(userId);
+      let snoozeLabelId: string | null = null;
+      for (const [labelId, name] of labelMap.entries()) {
+        if (name === "SnoozedBearlyMail") {
+          snoozeLabelId = labelId;
+          break;
+        }
+      }
+
+      if (!snoozeLabelId) {
+        this.logger.log(
+          `[Gmail Unsnooze] Snooze label not found, thread may not be snoozed: userId=${userId}, threadId=${threadId}`,
+        );
+        // Label doesn't exist, so thread is already unsnoozed - this is fine
+        return;
+      }
+
+      // Remove the snooze label from all messages in the thread
+      let unlabeledCount = 0;
+      for (const message of messages) {
+        if (!message.id) continue;
+
+        const messageLabelIds = message.labelIds || [];
+        const isCurrentlySnoozed = messageLabelIds.includes(snoozeLabelId);
+
+        // Only remove label if it's present
+        if (isCurrentlySnoozed) {
+          await gmail.users.messages.modify({
+            userId: "me",
+            id: message.id,
+            requestBody: {
+              removeLabelIds: [snoozeLabelId],
+            },
+          });
+          unlabeledCount++;
+        }
+      }
+
+      this.logger.log(
+        `[Gmail Unsnooze] Thread unsnoozed successfully: userId=${userId}, threadId=${threadId}, unlabeledCount=${unlabeledCount}`,
+      );
+    } catch (error: unknown) {
+      this.logger.error(
+        `[Gmail Unsnooze] Error unsnoozing thread ${threadId} for user ${userId}:`,
+        error,
+      );
+      logErrorToFile(
+        `Failed to unsnooze thread in Gmail (userId: ${userId}, threadId: ${threadId})`,
         error,
         "GmailProvider",
       );

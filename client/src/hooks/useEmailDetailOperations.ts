@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
 import axios from 'axios';
+import { useNotifications } from 'contexts/NotificationContext';
 import { HTTP_UNAUTHORIZED, HTTP_FORBIDDEN } from 'constants/numbers';
 import { captureEvent } from 'utils/posthog';
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
@@ -109,6 +110,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
   const { t } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
   const emails = useSelector(selectEmails);
+  const { showSuccess, showError } = useNotifications();
   const {
     email,
     setEmail,
@@ -625,7 +627,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     handleGenerateDraft();
   }, [id, email, setReplyMode, setShowReplyComposer, setDraft, setToneCheckResult, setReplyRecipients, handleGenerateDraft]);
 
-  const handleSendReply = useCallback(async () => {
+  const handleSendReply = useCallback(async (files: File[] = []) => {
     if (!id || !draft) return;
     
     setCheckingTone(true);
@@ -650,23 +652,42 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
         reply_type: replyMode,
         draft_was_edited: false,
       });
-      await axios.post(`${API_URL}/replies/send/${id}`, { 
-        reply: draft,
-        recipients: replyRecipients,
-        replyAll: replyMode === REPLY_MODE_REPLY_ALL,
-      });
+      
+      // Create FormData if files are present, otherwise use JSON
+      if (files.length > 0) {
+        const formData = new FormData();
+        formData.append('reply', draft);
+        formData.append('recipients', replyRecipients);
+        formData.append('replyAll', String(replyMode === REPLY_MODE_REPLY_ALL));
+        files.forEach((file) => {
+          formData.append('files', file);
+        });
+        
+        await axios.post(`${API_URL}/replies/send/${id}`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+      } else {
+        await axios.post(`${API_URL}/replies/send/${id}`, { 
+          reply: draft,
+          recipients: replyRecipients,
+          replyAll: replyMode === REPLY_MODE_REPLY_ALL,
+        });
+      }
+      
       setDraft(null);
       setShowReplyComposer(false);
       await triggerAnimation(ANIMATION_TYPE_SEND);
-      alert(t('emailDetail.replySentSuccess'));
+      showSuccess(t('emailDetail.replySentSuccess'));
       navigate('/inbox');
     } catch (error: any) {
       console.error('Error sending reply:', error);
-      alert(error.response?.data?.message || t('emailDetail.replySentError'));
+      showError(error.response?.data?.message || t('emailDetail.replySentError'));
     } finally {
       setSending(false);
     }
-  }, [id, draft, replyMode, replyRecipients, triggerAnimation, t, navigate, setCheckingTone, setToneCheckResult, setSending, setDraft, setShowReplyComposer]);
+  }, [id, draft, replyMode, replyRecipients, triggerAnimation, t, navigate, setCheckingTone, setToneCheckResult, setSending, setDraft, setShowReplyComposer, showSuccess, showError]);
 
   const handleArchive = useCallback(async () => {
     // ULTRA-VISIBLE DEBUG: This should ALWAYS show in console

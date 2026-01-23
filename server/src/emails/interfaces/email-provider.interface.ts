@@ -133,6 +133,22 @@ export interface EmailProvider {
   trashThread(userId: string, threadId: string): Promise<void>;
 
   /**
+   * Snooze a thread (apply snooze label/action to hide from inbox until snoozeUntil date)
+   * Note: For Gmail, this adds a custom label. For O365/Zoho, this may use folders or categories.
+   */
+  snoozeThread(
+    userId: string,
+    threadId: string,
+    snoozeUntil: Date,
+  ): Promise<void>;
+
+  /**
+   * Unsnooze a thread (remove snooze label/action to restore to inbox)
+   * Note: For Gmail, this removes the snooze label. For O365/Zoho, this restores from snooze folder.
+   */
+  unsnoozeThread(userId: string, threadId: string): Promise<void>;
+
+  /**
    * Get attachment data from an email
    * Returns the attachment file data and metadata
    */

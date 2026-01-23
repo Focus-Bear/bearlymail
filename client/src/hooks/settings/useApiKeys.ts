@@ -10,9 +10,6 @@ export const useApiKeys = () => {
   const [openAiApiKey, setOpenAiApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
   const [apiKeySaved, setApiKeySaved] = useState(false);
-  const [githubToken, setGithubToken] = useState('');
-  const [showGithubToken, setShowGithubToken] = useState(false);
-  const [githubTokenSaved, setGithubTokenSaved] = useState(false);
   const [hasGithubToken, setHasGithubToken] = useState(false);
 
   const fetchApiKeys = useCallback(async () => {
@@ -58,33 +55,18 @@ export const useApiKeys = () => {
     }
   }, [t]);
 
-  const saveGithubToken = useCallback(async () => {
-    if (!githubToken.trim()) {
-      alert(t('settings.enterGithubToken'));
-      return;
-    }
+  const connectGitHub = useCallback(() => {
+    // Redirect to backend OAuth endpoint
+    window.location.href = `${API_URL}/github/connect`;
+  }, []);
 
-    try {
-      await axios.put(`${API_URL}/users/me`, { githubToken: githubToken.trim() });
-      setGithubTokenSaved(true);
-      setGithubToken('');
-      setHasGithubToken(true);
-      setTimeout(() => setGithubTokenSaved(false), TOAST_DURATION_MS);
-    } catch (error) {
-      console.error('Error saving GitHub token:', error);
-      alert(t('settings.githubTokenError'));
-    }
-  }, [githubToken, t]);
-
-  const removeGithubToken = useCallback(async () => {
+  const disconnectGitHub = useCallback(async () => {
     if (!window.confirm(t('settings.confirmRemoveGithubToken'))) {
       return;
     }
 
     try {
       await axios.put(`${API_URL}/users/me`, { githubToken: null });
-      setGithubToken('');
-      setShowGithubToken(false);
       setHasGithubToken(false);
       alert(t('settings.githubTokenRemoved'));
     } catch (error) {
@@ -97,19 +79,14 @@ export const useApiKeys = () => {
     openAiApiKey,
     showApiKey,
     apiKeySaved,
-    githubToken,
-    showGithubToken,
-    githubTokenSaved,
     hasGithubToken,
     setOpenAiApiKey,
     setShowApiKey,
-    setGithubToken,
-    setShowGithubToken,
     fetchApiKeys,
     saveOpenAiApiKey,
     removeOpenAiApiKey,
-    saveGithubToken,
-    removeGithubToken,
+    connectGitHub,
+    disconnectGitHub,
   };
 };
 

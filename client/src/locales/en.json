@@ -341,11 +341,9 @@
     "contextExplanations": {
       "vipContactStarredExplanation": "You've starred {{count}} email{{plural}} from this contact"
     },
-    "enterGithubToken": "Please enter a GitHub token",
-    "githubTokenError": "Failed to save GitHub token",
-    "confirmRemoveGithubToken": "Are you sure you want to remove your GitHub token?",
-    "githubTokenRemoved": "GitHub token removed",
-    "githubTokenRemoveError": "Failed to remove GitHub token",
+    "confirmRemoveGithubToken": "Are you sure you want to disconnect your GitHub account?",
+    "githubTokenRemoved": "GitHub disconnected successfully",
+    "githubTokenRemoveError": "Failed to disconnect GitHub",
     "nav": {
       "emailDelivery": "Email Delivery",
       "googleAccounts": "Google Accounts",
@@ -962,11 +960,11 @@
     "github": {
       "title": "GitHub Integration",
       "description": "Connect your GitHub account to see PR and issue status directly in your emails.",
-      "permissions": "This requires",
-      "permissionIssues": "issues",
-      "and": "and",
-      "permissionPullRequests": "pull_requests",
-      "permissionsEnd": "permissions",
+      "oauthDescription": "Click 'Connect GitHub' to authorize the app through GitHub OAuth. No manual token setup required.",
+      "orgProjectNote": "Note: To access organization-level projects (ProjectV2), an organization admin must install the GitHub App on your organization. Personal installation only accesses your user repositories.",
+      "connect": "Connect GitHub",
+      "disconnect": "Disconnect GitHub",
+      "connected": "GitHub connected",
       "tokenConfigured": "GitHub token configured"
     }
   },

@@ -16,6 +16,25 @@ const Settings: React.FC = () => {
   const settingsData = useSettingsData();
   const autoResponder = useAutoResponder();
 
+  // Handle OAuth callback
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const github = params.get('github');
+    if (github === 'connected') {
+      // Refresh GitHub token status
+      settingsData.fetchApiKeys();
+      // Remove query parameter from URL
+      window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+      // Show success message
+      alert('GitHub connected successfully!');
+    } else if (github === 'error') {
+      // Remove query parameter from URL
+      window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+      // Show error message
+      alert('Failed to connect GitHub. Please try again.');
+    }
+  }, [settingsData]);
+
   // Handle anchor scrolling when navigating with hash (from sidebar navigation)
   useEffect(() => {
     const handleHashChange = () => {
@@ -115,18 +134,13 @@ const Settings: React.FC = () => {
           openAiApiKey={settingsData.openAiApiKey}
           showApiKey={settingsData.showApiKey}
           apiKeySaved={settingsData.apiKeySaved}
-          githubToken={settingsData.githubToken}
-          showGithubToken={settingsData.showGithubToken}
-          githubTokenSaved={settingsData.githubTokenSaved}
           hasGithubToken={settingsData.hasGithubToken}
           onOpenAiApiKeyChange={settingsData.setOpenAiApiKey}
           onShowApiKeyChange={settingsData.setShowApiKey}
           onSaveApiKey={settingsData.handleSaveApiKey}
           onRemoveApiKey={settingsData.handleRemoveApiKey}
-          onGithubTokenChange={settingsData.setGithubToken}
-          onShowGithubTokenChange={settingsData.setShowGithubToken}
-          onSaveGithubToken={settingsData.handleSaveGithubToken}
-          onRemoveGithubToken={settingsData.handleRemoveGithubToken}
+          onConnectGitHub={settingsData.handleConnectGitHub}
+          onDisconnectGitHub={settingsData.handleDisconnectGitHub}
         />
       </div>
     </div>

@@ -184,6 +184,108 @@ export class WritingStyleLearningService {
   }
 
   /**
+   * Learn from sent email bodies directly (used when fetching from provider)
+   */
+  async learnFromSentEmailBodies(
+    userId: string,
+    emailBodies: string[],
+  ): Promise<void> {
+    if (emailBodies.length === 0) {
+      return;
+    }
+
+    try {
+      const user = await this.usersService.findOne(userId);
+      if (!user) {
+        return;
+      }
+
+      const existingRules = user.toneSettings?.rules || [];
+      const existingExamples = existingRules.filter(
+        (rule: string) =>
+          !rule.startsWith("Tone:") &&
+          !rule.startsWith("Style:") &&
+          !rule.startsWith("Common phrase:"),
+      );
+
+      if (existingExamples.length >= TARGET_EXAMPLE_COUNT) {
+        return;
+      }
+
+      const needCount = Math.min(
+        TARGET_EXAMPLE_COUNT - existingExamples.length,
+        MAX_EXAMPLES_PER_SYNC,
+      );
+
+      const newExamples: string[] = [];
+      for (const body of emailBodies) {
+        if (newExamples.length >= needCount) {
+          break;
+        }
+
+        const trimmed = body?.trim();
+        if (!trimmed || trimmed.length < MIN_EMAIL_LENGTH) {
+          continue;
+        }
+
+        let snippet = trimmed.substring(0, MAX_EMAIL_LENGTH);
+        snippet = snippet
+          .replace(/<[^>]+>/g, "")
+          .replace(/\s+/g, " ")
+          .trim();
+
+        if (snippet.length < MIN_EMAIL_LENGTH) {
+          continue;
+        }
+
+        if (snippet.length === MAX_EMAIL_LENGTH) {
+          const lastPeriod = snippet.lastIndexOf(".");
+          const lastNewline = snippet.lastIndexOf("\n");
+          const lastSpace = snippet.lastIndexOf(" ");
+          const cutPoint = Math.max(lastPeriod, lastNewline, lastSpace);
+          if (cutPoint > MIN_EMAIL_LENGTH) {
+            snippet = snippet.substring(0, cutPoint + 1).trim();
+          }
+          snippet = snippet + "...";
+        }
+
+        const redacted = await this.llmService.redactNamesWithLLM(snippet);
+
+        const isDuplicate = existingExamples.some(
+          (existing: string) =>
+            this.areSimilar(existing.toLowerCase(), redacted.toLowerCase()),
+        );
+
+        if (!isDuplicate) {
+          newExamples.push(redacted);
+        }
+      }
+
+      if (newExamples.length === 0) {
+        return;
+      }
+
+      const updatedRules = [...existingRules, ...newExamples].slice(
+        0,
+        TARGET_EXAMPLE_COUNT + 10,
+      );
+
+      await this.usersService.update(userId, {
+        toneSettings: { rules: updatedRules },
+      });
+
+      this.logger.log(
+        `Added ${newExamples.length} new writing style examples for user ${userId} (total: ${updatedRules.length})`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Error learning from sent email bodies for user ${userId}:`,
+        error,
+      );
+    }
+  }
+
+  /**
    * Get the count of email examples for a user
    */
   async getExampleCount(userId: string): Promise<number> {

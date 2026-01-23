@@ -24,6 +24,7 @@ interface UseEmailDetailInitializationProps {
   setExpandedThreadItems: (items: Set<string>) => void;
   setThreadEmails: (emails: any[]) => void;
   threadEmails: any[];
+  actionItems: any[];
 }
 
 export const useEmailDetailInitialization = ({
@@ -47,6 +48,7 @@ export const useEmailDetailInitialization = ({
   setExpandedThreadItems,
   setThreadEmails,
   threadEmails,
+  actionItems,
 }: UseEmailDetailInitializationProps) => {
   // Track which email ID we've initialized to prevent re-initialization
   const initializedEmailIdRef = useRef<string | null>(null);
@@ -182,10 +184,35 @@ export const useEmailDetailInitialization = ({
     fetchThreadEmails();
     const fetchAndAutoExtract = async () => {
       try {
+        // Fetch action items for the thread (not just this email)
         const response = await axios.get(`${API_URL}/action-items?emailId=${email.id}`);
         setActionItems(response.data);
         
+        // Store response for later use in the threadEmails effect
         if (response.data.length === 0 && email.body) {
+          // Will be handled in the threadEmails effect below
+        }
+      } catch (error) {
+        console.error('Error fetching action items:', error);
+      }
+    };
+    fetchAndAutoExtract();
+  }, [email?.threadId, email?.id, email?.body, email?.from, email?.fromName, fetchNote, fetchThreadEmails, setActionItems]);
+
+  useEffect(() => {
+    if (threadEmails.length > 0) {
+      const mostRecentId = threadEmails[0]?.id;
+      if (mostRecentId) {
+        setExpandedThreadItems(new Set([mostRecentId]));
+      }
+      
+      // Check if we should auto-extract action items
+      // Only if: no action items exist AND this email is the latest in thread
+      const latestEmailInThread = threadEmails[0];
+      const isLatestEmail = latestEmailInThread && latestEmailInThread.id === email?.id;
+      
+      if (isLatestEmail && email?.body && actionItems.length === 0) {
+        const autoExtract = async () => {
           try {
             const extractResponse = await axios.post(`${API_URL}/llm/extract-actions`, {
               emailBody: email.body,
@@ -209,22 +236,11 @@ export const useEmailDetailInitialization = ({
           } catch (extractError) {
             console.error('Error auto-extracting actions:', extractError);
           }
-        }
-      } catch (error) {
-        console.error('Error fetching action items:', error);
-      }
-    };
-    fetchAndAutoExtract();
-  }, [email?.threadId, email?.id, email?.body, email?.from, email?.fromName, fetchNote, fetchThreadEmails, setActionItems]);
-
-  useEffect(() => {
-    if (threadEmails.length > 0) {
-      const mostRecentId = threadEmails[0]?.id;
-      if (mostRecentId) {
-        setExpandedThreadItems(new Set([mostRecentId]));
+        };
+        autoExtract();
       }
     }
-  }, [threadEmails, setExpandedThreadItems]);
+  }, [threadEmails, setExpandedThreadItems, email, actionItems, setActionItems]);
 };
 
 

@@ -57,6 +57,13 @@ export interface Email {
   hasPrivateNote?: boolean;
   // Emergency delivery flag - true if email was delivered early due to high priority
   wasDeliveredEarly?: boolean;
+  // Email attachments
+  attachments?: Array<{
+    attachmentId: string;
+    filename: string;
+    mimeType: string;
+    size: number;
+  }>;
 }
 
 export interface TriageSuggestion {

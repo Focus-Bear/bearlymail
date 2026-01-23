@@ -359,7 +359,8 @@ export class LLMProcessor implements OnModuleInit {
 
           // Get sentiment score from LLM (required, no fallback to old score)
           const sentimentScore = llmResult.sentimentScore ?? 0;
-          // Only contribute if sentiment is clearly negative (< -0.3) or positive (> 0.3)
+          // Only contribute if sentiment is clearly negative (< -0.3)
+          // Positive sentiment should contribute 0 (not negative) - positive emails don't need urgent attention
           // Neutral sentiment (between -0.3 and 0.3) always contributes 0
           let sentimentContribution = 0;
           // eslint-disable-next-line @typescript-eslint/no-magic-numbers
@@ -369,22 +370,18 @@ export class LLMProcessor implements OnModuleInit {
             sentimentContribution = Math.round(
               -sentimentScore * LLM_PROCESSOR_CONSTANTS.SENTIMENT_MULTIPLIER,
             );
-            // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-          } else if (sentimentScore > 0.3) {
-            // Positive sentiment: decrease priority
-            // Map +1 to contribution: +1 (very positive) = -30 contribution
-            sentimentContribution = Math.round(
-              -sentimentScore * LLM_PROCESSOR_CONSTANTS.SENTIMENT_MULTIPLIER,
-            );
           }
-          // else: neutral (between -0.3 and 0.3) = 0
+          // Positive sentiment (> 0.3): contribute 0 (don't penalize positive emails)
+          // Neutral sentiment (between -0.3 and 0.3): contribute 0
 
           // Get urgency score from LLM (replaces keyword matching)
           const urgencyScore = llmResult.urgencyScore || 0;
-          // Convert urgency (0-100) to contribution: urgency of 50 is neutral (0 contribution), 90+ is high (+12)
+          // Convert urgency (0-100) to contribution: urgency of 50 is neutral (0 contribution)
+          // Use a less harsh formula for low urgency: meetings a few days away should be -5, not -15
+          // Formula: (urgencyScore - 50) * 0.17 gives -5 for urgency 20 (a few days away)
+          // This makes low urgency less negative while keeping high urgency impactful
           const urgencyContribution = Math.round(
-            (urgencyScore - LLM_PROCESSOR_CONSTANTS.URGENCY_NEUTRAL) *
-              LLM_PROCESSOR_CONSTANTS.URGENCY_MULTIPLIER,
+            (urgencyScore - LLM_PROCESSOR_CONSTANTS.URGENCY_NEUTRAL) * 0.17,
           );
 
           // Calculate total score from components:

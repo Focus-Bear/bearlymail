@@ -80,10 +80,11 @@ export const PriorityTooltipActions: React.FC<PriorityTooltipActionsProps> = ({
           style={{
             background: 'none',
             border: 'none',
-            color: theme.colors.text.secondary,
+            color: theme.colors.primary.main,
             cursor: 'pointer',
             fontSize: '0.65rem',
             textDecoration: 'underline',
+            fontWeight: theme.typography.fontWeight.medium,
           }}
         >
           {t('priority.tooltip.learnMore')} →

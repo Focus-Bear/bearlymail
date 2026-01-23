@@ -43,6 +43,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
   const { t } = useTranslation();
   const { user } = useAuth();
   const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const replyComposerRef = useRef<HTMLDivElement>(null);
   
   const state = useEmailDetailState();
   const operations = useEmailDetailOperations(id, state, { onArchiveComplete });
@@ -164,14 +165,16 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
     setExpandedThreadItems,
     setThreadEmails,
     threadEmails,
+    actionItems,
   });
 
   // Expose methods via ref for external control (e.g., SplitViewPanel header actions)
   useImperativeHandle(ref, () => ({
     openReplyComposer: () => {
       handleOpenReplyComposer('reply');
-      // Focus the reply textarea after a short delay to ensure it's mounted
+      // Scroll to reply composer and focus the textarea after a short delay to ensure it's mounted
       setTimeout(() => {
+        replyComposerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         replyTextareaRef.current?.focus();
       }, 100);
     },
@@ -193,6 +196,16 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
       captureEvent('email_detail_viewed', { email_id: id });
     }
   }, [id, email]);
+
+  // Scroll to reply composer when it opens
+  useEffect(() => {
+    if (showReplyComposer && replyComposerRef.current) {
+      // Use a small delay to ensure the component is fully rendered
+      setTimeout(() => {
+        replyComposerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
+  }, [showReplyComposer]);
 
   if (loading) {
     return (
@@ -278,39 +291,41 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
         />
 
         {showReplyComposer && (
-              <ReplyComposer
-                showReplyComposer={showReplyComposer}
-                replyMode={replyMode}
-                replyRecipients={replyRecipients}
-                draft={draft}
-                replyOptions={replyOptions}
-                selectedReplyOption={selectedReplyOption}
-                loadingReplies={loadingReplies}
-                checkingTone={checkingTone}
-                toneCheckResult={toneCheckResult}
-                sending={sending}
-                textareaRef={replyTextareaRef}
-                onReplyRecipientsChange={setReplyRecipients}
-                onDraftChange={(draft) => {
-                  setDraft(draft);
-                  if (replyOptions && selectedReplyOption !== replyOptions.length - 1) {
-                    const customIdx = replyOptions.findIndex(option => option.label === ACTION_TYPE_CUSTOM);
-                    if (customIdx >= 0) setSelectedReplyOption(customIdx);
-                  }
-                }}
-                onReplyOptionSelect={(index, text) => {
-                  setSelectedReplyOption(index);
-                  setDraft(text);
-                }}
-                onClose={() => {
-                  setShowReplyComposer(false);
-                  setDraft('');
-                  setReplyOptions(null);
-                  setToneCheckResult(null);
-                }}
-                onSend={handleSendReply}
-                onUseRevisedText={(text) => setDraft(text)}
-              />
+          <div ref={replyComposerRef}>
+            <ReplyComposer
+              showReplyComposer={showReplyComposer}
+              replyMode={replyMode}
+              replyRecipients={replyRecipients}
+              draft={draft}
+              replyOptions={replyOptions}
+              selectedReplyOption={selectedReplyOption}
+              loadingReplies={loadingReplies}
+              checkingTone={checkingTone}
+              toneCheckResult={toneCheckResult}
+              sending={sending}
+              textareaRef={replyTextareaRef}
+              onReplyRecipientsChange={setReplyRecipients}
+              onDraftChange={(draft) => {
+                setDraft(draft);
+                if (replyOptions && selectedReplyOption !== replyOptions.length - 1) {
+                  const customIdx = replyOptions.findIndex(option => option.label === ACTION_TYPE_CUSTOM);
+                  if (customIdx >= 0) setSelectedReplyOption(customIdx);
+                }
+              }}
+              onReplyOptionSelect={(index, text) => {
+                setSelectedReplyOption(index);
+                setDraft(text);
+              }}
+              onClose={() => {
+                setShowReplyComposer(false);
+                setDraft('');
+                setReplyOptions(null);
+                setToneCheckResult(null);
+              }}
+              onSend={handleSendReply}
+              onUseRevisedText={(text) => setDraft(text)}
+            />
+          </div>
         )}
 
         {/* GitHubStatusSection - visible in both modes, positioned above summary */}

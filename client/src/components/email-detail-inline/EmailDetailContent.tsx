@@ -4,6 +4,7 @@ import axios from 'axios';
 import { theme } from 'theme/theme';
 import { GitHubStatusSection } from 'components/github/GitHubStatusSection';
 import { EmailDetailBody, EmailThreadList } from 'components/email-detail';
+import { EmailAttachments } from 'components/email-detail/EmailAttachments';
 import { PrivateNotesSection } from 'components/email-detail-inline/PrivateNotesSection';
 import { ActionItemsSection } from 'components/email-detail-inline/ActionItemsSection';
 import { EMOJI_ARCHIVE, EMOJI_REPLY, EMOJI_BLOCK, EMOJI_LINK, EMOJI_STAR } from 'constants/emojis';
@@ -395,6 +396,13 @@ export const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
       />
 
       <EmailDetailBody body={email.body} htmlBody={email.htmlBody || undefined} />
+      
+      {(email as any).attachments && (email as any).attachments.length > 0 && (
+        <EmailAttachments
+          emailId={emailId}
+          attachments={(email as any).attachments}
+        />
+      )}
 
       {/* eslint-disable i18next/no-literal-string */}
       {user?.isAdmin && email && (() => {

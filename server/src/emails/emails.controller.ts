@@ -11,7 +11,10 @@ import {
   Query,
   Inject,
   Logger,
+  UseInterceptors,
+  UploadedFiles,
 } from "@nestjs/common";
+import { FilesInterceptor } from "@nestjs/platform-express";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { EmailsService } from "./emails.service";
@@ -484,6 +487,7 @@ export class EmailsController {
   }
 
   @Post("send")
+  @UseInterceptors(FilesInterceptor("files", 10))
   async sendEmail(
     @Request() req,
     @Body()
@@ -494,6 +498,7 @@ export class EmailsController {
       cc?: EmailRecipient[];
       bcc?: EmailRecipient[];
     },
+    @UploadedFiles() files?: Express.Multer.File[],
   ) {
     const { userId } = req.user;
     const provider = await this.emailProviderManager.getPrimaryProvider(userId);
@@ -504,6 +509,13 @@ export class EmailsController {
       );
     }
 
+    const attachments =
+      files?.map((file) => ({
+        filename: file.originalname,
+        mimeType: file.mimetype,
+        content: file.buffer,
+      })) || undefined;
+
     // Send the email
     const result = await provider.sendEmail(
       userId,
@@ -512,6 +524,7 @@ export class EmailsController {
       body.body,
       body.cc,
       body.bcc,
+      attachments,
     );
 
     // Track contact frequency for each recipient

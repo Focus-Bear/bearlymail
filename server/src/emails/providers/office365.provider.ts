@@ -7,6 +7,7 @@ import {
   EmailProvider,
   RawEmailMessage,
   EmailRecipient,
+  EmailAttachmentData,
 } from "../interfaces/email-provider.interface";
 import PgBoss = require("pg-boss");
 import { getJobPriority } from "../../queue/job-priorities";
@@ -987,6 +988,7 @@ export class Office365Provider implements EmailProvider {
     to: string,
     subject: string,
     body: string,
+    attachments?: import("../interfaces/email-provider.interface").EmailAttachmentData[],
   ): Promise<void> {
     const primaryAccount =
       await this.office365AccountsService.findPrimary(userId);
@@ -1028,7 +1030,7 @@ export class Office365Provider implements EmailProvider {
             primaryAccount.id,
           );
           // Retry with new token
-          await this.sendReply(userId, threadId, to, subject, body);
+          await this.sendReply(userId, threadId, to, subject, body, attachments);
           return;
         } catch (refreshError) {
           this.logger.error("Failed to refresh token:", refreshError);
@@ -1047,6 +1049,7 @@ export class Office365Provider implements EmailProvider {
     body: string,
     cc?: EmailRecipient[],
     bcc?: EmailRecipient[],
+    attachments?: EmailAttachmentData[],
   ): Promise<{ messageId: string; threadId: string }> {
     const primaryAccount =
       await this.office365AccountsService.findPrimary(userId);
@@ -1343,6 +1346,45 @@ export class Office365Provider implements EmailProvider {
     this.logger.debug(
       `syncStarStatusToGmail called for Office365 (not yet implemented): userId=${userId}, threadId=${threadId}, starCount=${starCount}`,
     );
+  }
+
+  async snoozeThread(
+    userId: string,
+    threadId: string,
+    snoozeUntil: Date,
+  ): Promise<void> {
+    // TODO: Implement snooze for Office365
+    // Office365 doesn't have native snooze like Gmail, but could use:
+    // - Categories (if supported)
+    // - Custom folders
+    // - Flag with reminder date
+    // For now, log a warning but don't fail
+    this.logger.warn(
+      `snoozeThread called for Office365 (not yet implemented): userId=${userId}, threadId=${threadId}, snoozeUntil=${snoozeUntil.toISOString()}`,
+    );
+    // Database update will still succeed, but provider sync is skipped
+  }
+
+  async unsnoozeThread(userId: string, threadId: string): Promise<void> {
+    // TODO: Implement unsnooze for Office365
+    this.logger.warn(
+      `unsnoozeThread called for Office365 (not yet implemented): userId=${userId}, threadId=${threadId}`,
+    );
+    // Database update will still succeed, but provider sync is skipped
+  }
+
+  async getAttachment(
+    userId: string,
+    messageId: string,
+    attachmentId: string,
+  ): Promise<{
+    data: Buffer;
+    filename: string;
+    mimeType: string;
+    size: number;
+  }> {
+    // TODO: Implement attachment download for Office365
+    throw new Error("Attachment download not yet implemented for Office365");
   }
 
   async trashThread(userId: string, threadId: string): Promise<void> {

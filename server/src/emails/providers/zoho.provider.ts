@@ -7,6 +7,7 @@ import {
   EmailProvider,
   RawEmailMessage,
   EmailRecipient,
+  EmailAttachmentData,
 } from "../interfaces/email-provider.interface";
 import PgBoss = require("pg-boss");
 import { getJobPriority } from "../../queue/job-priorities";
@@ -1005,6 +1006,7 @@ export class ZohoProvider implements EmailProvider {
     to: string,
     subject: string,
     body: string,
+    attachments?: import("../interfaces/email-provider.interface").EmailAttachmentData[],
   ): Promise<void> {
     const primaryAccount = await this.zohoAccountsService.findPrimary(userId);
     if (!primaryAccount) {
@@ -1039,7 +1041,7 @@ export class ZohoProvider implements EmailProvider {
             primaryAccount.id,
           );
           // Retry with new token
-          await this.sendReply(userId, threadId, to, subject, body);
+          await this.sendReply(userId, threadId, to, subject, body, attachments);
           return;
         } catch (refreshError) {
           this.logger.error("Failed to refresh token:", refreshError);
@@ -1058,6 +1060,7 @@ export class ZohoProvider implements EmailProvider {
     body: string,
     cc?: EmailRecipient[],
     bcc?: EmailRecipient[],
+    attachments?: EmailAttachmentData[],
   ): Promise<{ messageId: string; threadId: string }> {
     const primaryAccount = await this.zohoAccountsService.findPrimary(userId);
     if (!primaryAccount) {
@@ -1353,6 +1356,42 @@ export class ZohoProvider implements EmailProvider {
     this.logger.debug(
       `syncStarStatusToGmail called for Zoho (not yet implemented): userId=${userId}, threadId=${threadId}, starCount=${starCount}`,
     );
+  }
+
+  async snoozeThread(
+    userId: string,
+    threadId: string,
+    snoozeUntil: Date,
+  ): Promise<void> {
+    // TODO: Implement snooze for Zoho
+    // Zoho Mail may support labels or folders similar to Gmail
+    // For now, log a warning but don't fail
+    this.logger.warn(
+      `snoozeThread called for Zoho (not yet implemented): userId=${userId}, threadId=${threadId}, snoozeUntil=${snoozeUntil.toISOString()}`,
+    );
+    // Database update will still succeed, but provider sync is skipped
+  }
+
+  async unsnoozeThread(userId: string, threadId: string): Promise<void> {
+    // TODO: Implement unsnooze for Zoho
+    this.logger.warn(
+      `unsnoozeThread called for Zoho (not yet implemented): userId=${userId}, threadId=${threadId}`,
+    );
+    // Database update will still succeed, but provider sync is skipped
+  }
+
+  async getAttachment(
+    userId: string,
+    messageId: string,
+    attachmentId: string,
+  ): Promise<{
+    data: Buffer;
+    filename: string;
+    mimeType: string;
+    size: number;
+  }> {
+    // TODO: Implement attachment download for Zoho
+    throw new Error("Attachment download not yet implemented for Zoho");
   }
 
   async trashThread(userId: string, threadId: string): Promise<void> {

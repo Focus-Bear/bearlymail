@@ -6,6 +6,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { ActionItem } from "../database/entities/action-item.entity";
 import {
   UserContext,
   ContextKey,
@@ -45,6 +46,7 @@ import { EmailCrudService } from "./email-crud.service";
 import { EmailGmailService } from "./email-gmail.service";
 import { EmailStatusService } from "./email-status.service";
 import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
+import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 
 // Performance budgets in milliseconds
 // Use PERFORMANCE_BUDGETS and QUERY_LIMITS constants directly instead of local PERF_BUDGETS
@@ -174,6 +176,8 @@ export class EmailsService {
     private emailThreadRepository: Repository<EmailThread>,
     @InjectRepository(UserContext)
     private userContextRepository: Repository<UserContext>,
+    @InjectRepository(ActionItem)
+    private actionItemRepository: Repository<ActionItem>,
     private priorityService: PriorityService,
     @Inject("PG_BOSS") private readonly boss: PgBoss,
     @Inject(forwardRef(() => EmailProviderManager))
@@ -303,6 +307,7 @@ export class EmailsService {
       WHERE thread."userId" = $1
         ${threadFilter}
         AND (e."isBatched" = false OR e."batchReleaseAt" IS NULL OR e."batchReleaseAt" <= NOW())
+        AND (e."isSnoozed" = false OR e."snoozeUntil" IS NULL OR e."snoozeUntil" <= NOW())
       ORDER BY 
         COALESCE(thread."priorityScore", 0) DESC,
         thread."updatedAt" DESC,
@@ -1072,16 +1077,39 @@ export class EmailsService {
       email.isProcessingSummary = true;
 
     // Check if urgent (override batching) - urgency is now stored on thread as urgencyScore
-    const isUrgent = (thread.urgencyScore || 0) >= 90;
+    const urgencyScore = thread.urgencyScore || 0;
+    const isUrgent = urgencyScore >= 90;
 
     // Apply batching if not urgent and not starred (starCount = 0)
     if (!isUrgent && starCount === 0) {
-      // Use default batch hours (6 hours)
-      const batchHours = HOURS.SIX;
-      email.isBatched = true;
-      email.batchReleaseAt = new Date(
-        Date.now() + batchHours * MILLISECONDS.HOUR,
+      // Get user's batch schedule
+      let schedule = await this.batchScheduleService.getSchedule(userId);
+      
+      // If no schedule exists, use default schedule
+      if (!schedule) {
+        const defaultScheduleData = this.batchScheduleService.getDefaultSchedule();
+        // Create a temporary schedule object with default values for calculation
+        schedule = {
+          ...defaultScheduleData,
+          userId,
+          id: "",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        } as BatchSchedule;
+      }
+
+      // Calculate next batch release time based on schedule
+      const nextReleaseTime = this.batchScheduleService.getNextBatchReleaseTime(
+        schedule,
+        urgencyScore,
       );
+
+      // If getNextBatchReleaseTime returns null, don't batch (immediate delivery)
+      // Otherwise, set the batch release time
+      if (nextReleaseTime !== null) {
+        email.isBatched = true;
+        email.batchReleaseAt = nextReleaseTime;
+      }
     }
 
     const savedEmail = await this.emailRepository.save(email);
@@ -1094,6 +1122,25 @@ export class EmailsService {
         { id: thread.id },
         { updatedAt: new Date() },
       );
+
+      // Invalidate LLM-generated suggested actions for this thread
+      // Only delete LLM-generated suggested actions, preserve user-created ones and regular action items
+      try {
+        await this.actionItemRepository.delete({
+          emailThreadId: thread.id,
+          source: "llm",
+          actionType: Not(IsNull()),
+        });
+        this.logger.debug(
+          `Invalidated LLM suggested actions cache for thread ${thread.id}`,
+        );
+      } catch (error) {
+        // Log but don't fail email creation if cache invalidation fails
+        this.logger.warn(
+          `Failed to invalidate suggested actions cache for thread ${thread.id}:`,
+          error,
+        );
+      }
     }
     
     // Debug: Verify labels were saved correctly

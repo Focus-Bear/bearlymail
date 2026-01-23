@@ -1,11 +1,10 @@
 import { Injectable, OnModuleInit, Logger, Inject } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import PgBoss = require("pg-boss");
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, MoreThan } from "typeorm";
-import { Email } from "../database/entities/email.entity";
 import { UsersService } from "../users/users.service";
 import { WritingStyleLearningService } from "./writing-style-learning.service";
+import { EmailProviderManager } from "../emails/email-provider-manager.service";
+import { ContextEmailDataService } from "./context-gmail-data.service";
 import { getJobPriority } from "../queue/job-priorities";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 
@@ -18,10 +17,10 @@ export class WritingStyleLearningProcessor implements OnModuleInit {
 
   constructor(
     @Inject("PG_BOSS") private boss: PgBoss,
-    @InjectRepository(Email)
-    private emailRepository: Repository<Email>,
     private usersService: UsersService,
     private writingStyleLearningService: WritingStyleLearningService,
+    private emailProviderManager: EmailProviderManager,
+    private contextEmailDataService: ContextEmailDataService,
     private configService: ConfigService,
   ) {}
 
@@ -65,30 +64,53 @@ export class WritingStyleLearningProcessor implements OnModuleInit {
                 continue;
               }
 
-              // Find recent sent emails (last 7 days) for this user
-              // Emails with SENT label are sent by the user
+              // Check if user has email provider connected
+              const provider = await this.emailProviderManager.getPrimaryProvider(
+                user.id,
+              );
+              if (!provider) {
+                usersSkipped++;
+                continue;
+              }
+
+              // Find recent sent emails (last 7 days) using the email provider
               const sevenDaysAgo = new Date();
               sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+              const now = new Date();
 
-              const recentSentEmails = await this.emailRepository
-                .createQueryBuilder("email")
-                .where("email.userId = :userId", { userId: user.id })
-                .andWhere("email.receivedAt > :since", { since: sevenDaysAgo })
-                .andWhere("email.labelIds LIKE :sentLabel", {
-                  sentLabel: "%SENT%",
-                })
-                .orderBy("email.receivedAt", "DESC")
-                .take(10)
-                .getMany();
+              try {
+                // Get user email for the query
+                const userEmail = user.email || "";
+                if (!userEmail) {
+                  usersSkipped++;
+                  continue;
+                }
 
-              if (recentSentEmails.length > 0) {
-                const sentEmailIds = recentSentEmails.map((e) => e.id);
-                await this.writingStyleLearningService.learnFromNewSentEmails(
-                  user.id,
-                  sentEmailIds,
+                const sentEmails =
+                  await this.contextEmailDataService.fetchSentThreadsFromProvider(
+                    user.id,
+                    userEmail,
+                    sevenDaysAgo,
+                    now,
+                    10, // Limit to 10 most recent
+                  );
+
+                if (sentEmails.length > 0) {
+                  // Extract email bodies for learning
+                  const emailBodies = sentEmails.map((e) => e.body);
+                  await this.writingStyleLearningService.learnFromSentEmailBodies(
+                    user.id,
+                    emailBodies,
+                  );
+                  usersProcessed++;
+                } else {
+                  usersSkipped++;
+                }
+              } catch (fetchError) {
+                this.logger.warn(
+                  `Failed to fetch sent emails for user ${user.id}:`,
+                  fetchError,
                 );
-                usersProcessed++;
-              } else {
                 usersSkipped++;
               }
             } catch (userError) {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { AuthProvider, useAuth } from 'contexts/AuthContext';
+import { NotificationProvider } from 'contexts/NotificationContext';
 import { store } from 'store/store';
 import { ConsentModal } from 'components/ConsentModal';
 import Landing from 'pages/Landing';
@@ -114,7 +115,8 @@ function App() {
   return (
     <Provider store={store}>
       <AuthProvider>
-        <Router>
+        <NotificationProvider>
+          <Router>
           <div className="App" style={{ 
             backgroundColor: theme.colors.background.default,
             minHeight: '100vh',
@@ -194,6 +196,7 @@ function App() {
             </Routes>
           </div>
         </Router>
+        </NotificationProvider>
       </AuthProvider>
     </Provider>
   );

@@ -1,8 +1,10 @@
 import { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { API_URL } from 'config/api';
 import { useEmailDetailToneCheck } from 'hooks/useEmailDetailToneCheck';
 import { useReplyDraftGeneration } from 'hooks/useReplyDraftGeneration';
+import { useNotifications } from 'contexts/NotificationContext';
 import { REPLY_MODE_REPLY_ALL } from 'constants/strings';
 
 interface Email {
@@ -14,6 +16,8 @@ interface Email {
 }
 
 export function useEmailDetailReplies(emailId: string, email: Email | null) {
+  const { t } = useTranslation();
+  const { showSuccess, showError } = useNotifications();
   const [showReplyComposer, setShowReplyComposer] = useState(false);
   const [replyMode, setReplyMode] = useState<'reply' | 'replyAll'>('reply');
   const [replyRecipients, setReplyRecipients] = useState<string>('');
@@ -68,15 +72,17 @@ export function useEmailDetailReplies(emailId: string, email: Email | null) {
       });
       setDraft(null);
       setShowReplyComposer(false);
+      showSuccess(t('emailDetail.replySentSuccess'));
       if (onClose) {
         onClose();
       }
     } catch (error: any) {
       console.error('Error sending reply:', error);
+      showError(error.response?.data?.message || t('emailDetail.replySentError'));
     } finally {
       setSending(false);
     }
-  }, [emailId, draft, replyRecipients, replyMode, checkTone, setDraft]);
+  }, [emailId, draft, replyRecipients, replyMode, checkTone, setDraft, showSuccess, showError, t]);
 
   return {
     replyOptions,

@@ -219,7 +219,7 @@ export class GmailService {
         userId: "me",
         maxResults: 20,
         // Fetch both starred (Process) and Inbox (Triage), excluding snoozed/VA
-        q: "(is:starred OR label:INBOX) -label:SnoozedFocusBear -label:VA-to-action",
+        q: "(is:starred OR label:INBOX) -label:SnoozedBearlyMail -label:VA-to-action",
       });
 
       const messages = response.data.messages || [];

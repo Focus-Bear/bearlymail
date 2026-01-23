@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { theme } from 'theme/theme';
 import { ReplyOptionsSelector } from 'components/email-detail-inline/ReplyOptionsSelector';
 import { ToneCheckResult } from 'components/email-detail-inline/ToneCheckResult';
@@ -6,6 +6,7 @@ import { ReplyComposerHeader } from 'components/email-detail-inline/ReplyCompose
 import { ReplyRecipientsInput } from 'components/email-detail-inline/ReplyRecipientsInput';
 import { ReplyDraftTextarea } from 'components/email-detail-inline/ReplyDraftTextarea';
 import { ReplyComposerFooter } from 'components/email-detail-inline/ReplyComposerFooter';
+import { ReplyComposerAttachments } from 'components/email-detail-inline/ReplyComposerAttachments';
 
 const REPLY_OPTION_LABEL_CUSTOM = 'Custom';
 
@@ -35,7 +36,7 @@ interface ReplyComposerProps {
   onDraftChange: (draft: string) => void;
   onReplyOptionSelect: (index: number, text: string) => void;
   onClose: () => void;
-  onSend: () => void;
+  onSend: (files: File[]) => void;
   onUseRevisedText: (text: string) => void;
   textareaRef?: React.RefObject<HTMLTextAreaElement>;
 }
@@ -59,6 +60,8 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
   onUseRevisedText,
   textareaRef,
 }) => {
+  const [files, setFiles] = useState<File[]>([]);
+
   if (!showReplyComposer) {
     return null;
   }
@@ -73,6 +76,16 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
     }
   };
 
+  const handleSend = () => {
+    onSend(files);
+    setFiles([]); // Clear files after sending
+  };
+
+  const handleClose = () => {
+    setFiles([]); // Clear files when closing
+    onClose();
+  };
+
   return (
     <div className="animate-fade-in" style={{
       marginBottom: theme.spacing.xl,
@@ -82,7 +95,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
       border: `1px solid ${theme.colors.primary.light}`,
       boxShadow: theme.shadows.md,
     }}>
-      <ReplyComposerHeader replyMode={replyMode} onClose={onClose} />
+      <ReplyComposerHeader replyMode={replyMode} onClose={handleClose} />
       <ReplyRecipientsInput
         replyRecipients={replyRecipients}
         onRecipientsChange={onReplyRecipientsChange}
@@ -100,6 +113,10 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
         onDraftChange={handleDraftChange}
         textareaRef={textareaRef}
       />
+      <ReplyComposerAttachments
+        files={files}
+        onFilesChange={setFiles}
+      />
       <ToneCheckResult
         toneCheckResult={toneCheckResult}
         onUseRevisedText={onUseRevisedText}
@@ -108,8 +125,8 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
         sending={sending}
         checkingTone={checkingTone}
         draft={draft}
-        onClose={onClose}
-        onSend={onSend}
+        onClose={handleClose}
+        onSend={handleSend}
       />
     </div>
   );

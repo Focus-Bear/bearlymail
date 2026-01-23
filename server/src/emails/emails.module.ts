@@ -22,6 +22,8 @@ import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { ScanEmail } from "../database/entities/scan-email.entity";
 import { UserContext } from "../database/entities/user-context.entity";
+import { ActionItem } from "../database/entities/action-item.entity";
+import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { PriorityModule } from "../priority/priority.module";
 import { SummarizationModule } from "../summarization/summarization.module";
 import { UsersModule } from "../users/users.module";
@@ -38,7 +40,14 @@ import { GitHubModule } from "../github/github.module";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Email, EmailThread, ScanEmail, UserContext]),
+    TypeOrmModule.forFeature([
+      Email,
+      EmailThread,
+      ScanEmail,
+      UserContext,
+      ActionItem,
+      BatchSchedule,
+    ]),
     PriorityModule,
     forwardRef(() => SummarizationModule),
     UsersModule,

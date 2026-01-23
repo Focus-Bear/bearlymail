@@ -130,15 +130,13 @@ export class EmailsController {
           createdAt: new Date(),
           updatedAt: new Date(),
         } as BatchSchedule;
-        const nextTime = this.batchScheduleService.getNextScheduledDeliveryTime(
-          tempSchedule,
-        );
+        const nextTime =
+          this.batchScheduleService.getNextScheduledDeliveryTime(tempSchedule);
         perf.finish();
         return { nextDelivery: nextTime };
       }
-      const nextTime = this.batchScheduleService.getNextScheduledDeliveryTime(
-        schedule,
-      );
+      const nextTime =
+        this.batchScheduleService.getNextScheduledDeliveryTime(schedule);
       perf.finish();
       return { nextDelivery: nextTime };
     } catch (error) {
@@ -149,25 +147,19 @@ export class EmailsController {
 
   @Get("tab-counts")
   async getTabCounts(@Request() req) {
-    const userId = req.user.userId;
+    const { userId } = req.user;
 
     // Query counts for each tab mode in parallel
     // Use getInbox() for all modes to ensure counts match what's actually displayed
     // This accounts for filtering like batched emails, blocked senders, etc.
-    const [triageEmails, actionCount, followUpEmails] = await Promise.all([
+    const [triageEmails, actionEmails, followUpEmails] = await Promise.all([
       // Triage count: use the same logic as the inbox view
       // This accounts for batched emails, blocked senders, and other filters
       this.emailsService.getInbox(userId, false, "triage"),
 
-      // Action count: unarchived, starred
-      // Note: Action mode may also have additional filters, but for now we keep the simple count
-      // to avoid performance impact. If action count becomes inaccurate, update this similarly.
-      this.emailThreadRepository
-        .createQueryBuilder("thread")
-        .where("thread.userId = :userId", { userId })
-        .andWhere("thread.isArchived = false")
-        .andWhere("thread.starCount > 0")
-        .getCount(),
+      // Action count: use the same logic as the inbox view
+      // This accounts for batched emails, blocked senders, snoozed emails, and other filters
+      this.emailsService.getInbox(userId, false, "action"),
 
       // Follow-up count: use the same logic as the inbox view
       // This checks for threads where user sent last and no reply received
@@ -176,7 +168,7 @@ export class EmailsController {
 
     return {
       triage: triageEmails.length,
-      action: actionCount,
+      action: actionEmails.length,
       followUp: followUpEmails.length,
     };
   }
@@ -327,7 +319,9 @@ export class EmailsController {
 
   @Put(":id/archive")
   async archiveEmail(@Request() req, @Param("id") id: string) {
-    this.logger.log(`[Archive] Archive request received for emailId: ${id}, userId: ${req.user.userId}`);
+    this.logger.log(
+      `[Archive] Archive request received for emailId: ${id}, userId: ${req.user.userId}`,
+    );
     try {
       // Queue archive operation as background job instead of executing synchronously
       await this.boss.send(
@@ -338,10 +332,15 @@ export class EmailsController {
           singletonKey: `archive-email-${req.user.userId}-${id}`, // Prevent duplicate jobs
         },
       );
-      this.logger.log(`[Archive] Archive job queued: emailId: ${id}, userId: ${req.user.userId}`);
+      this.logger.log(
+        `[Archive] Archive job queued: emailId: ${id}, userId: ${req.user.userId}`,
+      );
       return { message: "Email archive queued" };
     } catch (error) {
-      this.logger.error(`[Archive] Failed to queue archive job: emailId: ${id}, userId: ${req.user.userId}`, error);
+      this.logger.error(
+        `[Archive] Failed to queue archive job: emailId: ${id}, userId: ${req.user.userId}`,
+        error,
+      );
       throw error;
     }
   }
@@ -560,7 +559,7 @@ export class EmailsController {
     // Cancel existing jobs for this email before requeuing
     // Use raw SQL to find and cancel jobs matching the emailId
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const db = (this.boss as any).db;
+    const { db } = this.boss as any;
 
     // Cancel existing refine-priority jobs for this email
     const priorityCancelResult = await db.executeSql(
@@ -607,7 +606,7 @@ export class EmailsController {
     // If priority is default, queue refinement with highest priority
     const priorityScore = email.getPriorityScore();
     const DEFAULT_PRIORITY_SCORE = 50;
-    
+
     // Get thread to check isProcessingPriority (priority is thread-level)
     let thread = null;
     if (email.emailThreadId) {
@@ -615,7 +614,7 @@ export class EmailsController {
         where: { id: email.emailThreadId },
       });
     }
-    
+
     if (
       priorityScore === DEFAULT_PRIORITY_SCORE ||
       thread?.isProcessingPriority
@@ -632,8 +631,8 @@ export class EmailsController {
       queued.push("refine-priority");
     }
 
-    return { 
-      message: "Accelerated processing", 
+    return {
+      message: "Accelerated processing",
       queued,
       cancelled: cancelled.length > 0 ? cancelled : undefined,
     };
@@ -644,7 +643,7 @@ export class EmailsController {
   async getJobStats(@Request() req) {
     // Get job queue statistics for admin dashboard
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const db = (this.boss as any).db;
+    const { db } = this.boss as any;
 
     // Get current queue stats by job type and state
     const queueStats = await db.executeSql(`
@@ -707,52 +706,57 @@ export class EmailsController {
 
     // Populate queue stats
     if (queueStats?.rows) {
-      queueStats.rows.forEach((row: { jobType: string; state: string; count: string }) => {
-        const jobType = row.jobType;
-        const state = row.state;
-        const count = parseInt(row.count, 10);
+      queueStats.rows.forEach(
+        (row: { jobType: string; state: string; count: string }) => {
+          const { jobType } = row;
+          const { state } = row;
+          const count = parseInt(row.count, 10);
 
-        if (!statsByJobType[jobType]) {
-          statsByJobType[jobType] = {
-            queued: 0,
-            active: 0,
-            retry: 0,
-            failed: 0,
-            avgCompletionTimeMs: null,
-          };
-        }
+          if (!statsByJobType[jobType]) {
+            statsByJobType[jobType] = {
+              queued: 0,
+              active: 0,
+              retry: 0,
+              failed: 0,
+              avgCompletionTimeMs: null,
+            };
+          }
 
-        if (state === "created") {
-          statsByJobType[jobType].queued = count;
-        } else if (state === "active") {
-          statsByJobType[jobType].active = count;
-        } else if (state === "retry") {
-          statsByJobType[jobType].retry = count;
-        } else if (state === "failed") {
-          statsByJobType[jobType].failed = count;
-        }
-      });
+          if (state === "created") {
+            statsByJobType[jobType].queued = count;
+          } else if (state === "active") {
+            statsByJobType[jobType].active = count;
+          } else if (state === "retry") {
+            statsByJobType[jobType].retry = count;
+          } else if (state === "failed") {
+            statsByJobType[jobType].failed = count;
+          }
+        },
+      );
     }
 
     // Populate average completion times
     if (avgCompletionTimes?.rows) {
       avgCompletionTimes.rows.forEach(
         (row: { jobType: string; avgCompletionTimeMs: string | null }) => {
-          const jobType = row.jobType;
+          const { jobType } = row;
           if (statsByJobType[jobType]) {
-            statsByJobType[jobType].avgCompletionTimeMs = row.avgCompletionTimeMs
-              ? Math.round(parseFloat(row.avgCompletionTimeMs))
-              : null;
+            statsByJobType[jobType].avgCompletionTimeMs =
+              row.avgCompletionTimeMs
+                ? Math.round(parseFloat(row.avgCompletionTimeMs))
+                : null;
           }
         },
       );
     }
 
     // Convert to array format for easier frontend consumption
-    const statsArray = Object.entries(statsByJobType).map(([jobType, stats]) => ({
-      jobType,
-      ...stats,
-    }));
+    const statsArray = Object.entries(statsByJobType).map(
+      ([jobType, stats]) => ({
+        jobType,
+        ...stats,
+      }),
+    );
 
     return {
       stats: statsArray,

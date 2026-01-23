@@ -395,14 +395,14 @@ export const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
         onToggleThreadItem={onToggleThreadItem}
       />
 
-      <EmailDetailBody body={email.body} htmlBody={email.htmlBody || undefined} />
-      
       {(email as any).attachments && (email as any).attachments.length > 0 && (
         <EmailAttachments
           emailId={emailId}
           attachments={(email as any).attachments}
         />
       )}
+
+      <EmailDetailBody body={email.body} htmlBody={email.htmlBody || undefined} />
 
       {/* eslint-disable i18next/no-literal-string */}
       {user?.isAdmin && email && (() => {
@@ -596,6 +596,35 @@ export const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
                   })}
                 </div>
               )}
+              <div style={{ marginTop: theme.spacing.md, paddingTop: theme.spacing.md, borderTop: `1px solid ${theme.colors.border.light}` }}>
+                <strong>Attachments:</strong>
+                <div style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs }}>
+                  <div><strong>Has Attachments Property:</strong> {emailData.attachments !== undefined ? 'true' : 'false'}</div>
+                  <div><strong>Attachments Count:</strong> {emailData.attachments?.length ?? 0}</div>
+                  <div><strong>Raw Attachments Data:</strong> {emailData.attachments ? JSON.stringify(emailData.attachments) : 'null/undefined'}</div>
+                  {emailData.attachments && emailData.attachments.length > 0 && (
+                    <div style={{ marginTop: theme.spacing.xs }}>
+                      <strong>Attachment Details:</strong>
+                      {emailData.attachments.map((attachment: any, idx: number) => (
+                        <div key={attachment.attachmentId || idx} style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs }}>
+                          [{idx}] ID: {attachment.attachmentId || 'N/A'} | Filename: {attachment.filename || 'N/A'} | MIME: {attachment.mimeType || 'N/A'} | Size: {attachment.size ?? 'N/A'} bytes
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {(!emailData.attachments || emailData.attachments.length === 0) && (
+                    <div style={{ 
+                      marginTop: theme.spacing.xs,
+                      padding: theme.spacing.xs,
+                      backgroundColor: '#ffebee',
+                      borderRadius: theme.borderRadius.sm,
+                      color: '#d32f2f',
+                    }}>
+                      No attachments found on email object. Check if attachments are being fetched from Gmail API and stored in database.
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         );

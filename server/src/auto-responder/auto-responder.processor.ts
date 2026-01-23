@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit, Inject } from "@nestjs/common";
 import PgBoss from "pg-boss";
 import { AutoResponderService } from "./auto-responder.service";
 import { getJobPriority } from "../queue/job-priorities";
+import { autoresponderLogger } from "./autoresponder-logger";
 
 interface AutoResponderJobData {
   userId: string;
@@ -27,17 +28,19 @@ export class AutoResponderProcessor implements OnModuleInit {
         teamSize: 1,
       },
       async (job) => {
-        const { userId, emailThreadId, headers } = job.data as AutoResponderJobData;
+        const { userId, emailThreadId, headers } =
+          job.data as AutoResponderJobData;
         this.logger.debug(
           `Processing auto-responder job for thread ${emailThreadId}`,
         );
 
         try {
-          const result = await this.autoResponderService.processEmailForAutoResponse(
-            userId,
-            emailThreadId,
-            headers,
-          );
+          const result =
+            await this.autoResponderService.processEmailForAutoResponse(
+              userId,
+              emailThreadId,
+              headers,
+            );
 
           this.logger.log(
             `Auto-responder result for thread ${emailThreadId}: ${result.reason}`,
@@ -66,6 +69,8 @@ export class AutoResponderProcessor implements OnModuleInit {
     emailThreadId: string,
     headers?: Record<string, string>,
   ): Promise<string | null> {
+    const logContext = { userId, emailThreadId };
+
     try {
       const jobId = await this.boss.send(
         "auto-responder",
@@ -87,12 +92,17 @@ export class AutoResponderProcessor implements OnModuleInit {
         `Queued auto-responder job ${jobId} for thread ${emailThreadId}`,
       );
 
+      autoresponderLogger.logQueueJob(logContext, jobId, true);
+
       return jobId;
     } catch (error) {
       this.logger.error(
         `Failed to queue auto-responder job for thread ${emailThreadId}`,
         error,
       );
+
+      autoresponderLogger.logQueueJob(logContext, null, false);
+
       return null;
     }
   }

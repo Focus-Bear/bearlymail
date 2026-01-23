@@ -28,6 +28,10 @@ import {
 } from "./types/auto-responder.types";
 import { RATIOS } from "../constants/percentages";
 import { DAYS } from "../constants/time-constants";
+import {
+  autoresponderLogger,
+  AutoresponderDecisionContext,
+} from "./autoresponder-logger";
 
 const LLM_OP_GENERATE_QA_ANSWER = "generate_qa_answer";
 
@@ -98,11 +102,32 @@ export class AutoResponderService {
     emailThreadId: string,
     headers?: Record<string, string>,
   ): Promise<{ sent: boolean; reason: string }> {
+    const logContext: AutoresponderDecisionContext = {
+      userId,
+      emailThreadId,
+    };
+
+    autoresponderLogger.logProcessingStart(logContext);
+
     const config = await this.getConfig(userId);
+
+    // Log config check
+    autoresponderLogger.logConfigCheck(logContext, config.enabled, {
+      sendForHighPriority: config.sendFor.highPriority,
+      sendForStandardPriority: config.sendFor.standardPriority,
+      sendForLowPriority: config.sendFor.lowPriority,
+      qaContextEnabled: config.qaContextEnabled,
+      customExclusionRulesCount: config.customExclusionRules?.length || 0,
+    });
 
     // Check if auto-responder is enabled
     if (!config.enabled) {
-      return { sent: false, reason: "Auto-responder disabled" };
+      const reason = "Auto-responder disabled";
+      autoresponderLogger.logDecision(logContext, {
+        decision: "SKIP",
+        reason,
+      });
+      return { sent: false, reason };
     }
 
     // Get the email thread with emails
@@ -112,7 +137,13 @@ export class AutoResponderService {
     });
 
     if (!thread || !thread.emails || thread.emails.length === 0) {
-      return { sent: false, reason: "Thread or emails not found" };
+      const reason = "Thread or emails not found";
+      autoresponderLogger.logDecision(logContext, {
+        decision: "SKIP",
+        reason,
+        details: { threadFound: !!thread, emailCount: thread?.emails?.length },
+      });
+      return { sent: false, reason };
     }
 
     // Get the latest email in the thread (the one that triggered this)
@@ -121,10 +152,20 @@ export class AutoResponderService {
         new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime(),
     )[0];
 
+    // Update log context with email details
+    logContext.senderEmail = latestEmail.from;
+    logContext.subject = latestEmail.subject;
+
     // Check if this is a new thread (only one email, no replies)
     const hasUserReplies = await this.threadHasUserReplies(userId, thread);
     if (hasUserReplies) {
-      return { sent: false, reason: "Thread already has user replies" };
+      const reason = "Thread already has user replies";
+      autoresponderLogger.logDecision(logContext, {
+        decision: "SKIP",
+        reason,
+        details: { emailCount: thread.emails.length },
+      });
+      return { sent: false, reason };
     }
 
     // Check if we've already sent an auto-response to this thread
@@ -132,20 +173,36 @@ export class AutoResponderService {
       where: { userId, emailThreadId },
     });
     if (existingResponse) {
-      return {
-        sent: false,
-        reason: "Auto-response already sent to this thread",
-      };
+      const reason = "Auto-response already sent to this thread";
+      autoresponderLogger.logDecision(logContext, {
+        decision: "SKIP",
+        reason,
+        details: { previousResponseId: existingResponse.id },
+      });
+      return { sent: false, reason };
     }
 
     // Check sender suppression (opt-out or cooldown)
     const senderEmailHash = this.hashEmail(latestEmail.from);
     const suppression = await this.checkSuppression(userId, senderEmailHash);
+
+    autoresponderLogger.logSuppressionCheck(
+      logContext,
+      !!suppression,
+      suppression?.reason,
+    );
+
     if (suppression) {
-      return {
-        sent: false,
-        reason: `Sender suppressed: ${suppression.reason}`,
-      };
+      const reason = `Sender suppressed: ${suppression.reason}`;
+      autoresponderLogger.logDecision(logContext, {
+        decision: "SKIP",
+        reason,
+        details: {
+          suppressionReason: suppression.reason,
+          suppressUntil: suppression.suppressUntil,
+        },
+      });
+      return { sent: false, reason };
     }
 
     // Classify the email
@@ -161,12 +218,35 @@ export class AutoResponderService {
       hasUserReplies,
     );
 
+    // Log classification results
+    autoresponderLogger.logClassification(logContext, {
+      isAutomated: classification.isAutomated,
+      isNewsletter: classification.isNewsletter,
+      isColdOutreach: classification.isColdOutreach,
+      isBounce: classification.isBounce,
+      isOutOfOffice: classification.isOutOfOffice,
+      personalizationScore: classification.personalizationScore,
+      reasons: classification.reasons,
+    });
+
     // Always exclude bounce and out-of-office emails
     if (classification.isBounce) {
-      return { sent: false, reason: "Bounce email excluded" };
+      const reason = "Bounce email excluded";
+      autoresponderLogger.logDecision(logContext, {
+        decision: "SKIP",
+        reason,
+        details: { classification: "bounce" },
+      });
+      return { sent: false, reason };
     }
     if (classification.isOutOfOffice) {
-      return { sent: false, reason: "Out-of-office reply excluded" };
+      const reason = "Out-of-office reply excluded";
+      autoresponderLogger.logDecision(logContext, {
+        decision: "SKIP",
+        reason,
+        details: { classification: "out-of-office" },
+      });
+      return { sent: false, reason };
     }
 
     // Check custom exclusion rules using AI
@@ -183,34 +263,76 @@ export class AutoResponderService {
         );
 
       if (customExclusionResult.matched) {
-        return {
-          sent: false,
-          reason: `Custom exclusion rule matched: ${customExclusionResult.matchedRule} (${customExclusionResult.reason})`,
-        };
+        const reason = `Custom exclusion rule matched: ${customExclusionResult.matchedRule} (${customExclusionResult.reason})`;
+        autoresponderLogger.logDecision(logContext, {
+          decision: "SKIP",
+          reason,
+          details: {
+            matchedRule: customExclusionResult.matchedRule,
+            ruleReason: customExclusionResult.reason,
+          },
+        });
+        return { sent: false, reason };
       }
     }
 
     // Determine priority level from thread
     const priorityLevel = this.determinePriorityLevel(thread);
 
+    // Log priority check
+    autoresponderLogger.logPriorityCheck(
+      logContext,
+      priorityLevel,
+      thread.starCount,
+      thread.urgencyScore,
+      {
+        sendForHighPriority: config.sendFor.highPriority,
+        sendForStandardPriority: config.sendFor.standardPriority,
+        sendForLowPriority: config.sendFor.lowPriority,
+      },
+    );
+
     // Check if we should send for this priority level
     if (priorityLevel === "high" && !config.sendFor.highPriority) {
-      return { sent: false, reason: "High priority auto-response disabled" };
+      const reason = "High priority auto-response disabled";
+      autoresponderLogger.logDecision(logContext, {
+        decision: "SKIP",
+        reason,
+        details: { priorityLevel, configSetting: "sendFor.highPriority=false" },
+      });
+      return { sent: false, reason };
     }
     if (priorityLevel === "medium" && !config.sendFor.standardPriority) {
-      return {
-        sent: false,
-        reason: "Standard priority auto-response disabled",
-      };
+      const reason = "Standard priority auto-response disabled";
+      autoresponderLogger.logDecision(logContext, {
+        decision: "SKIP",
+        reason,
+        details: {
+          priorityLevel,
+          configSetting: "sendFor.standardPriority=false",
+        },
+      });
+      return { sent: false, reason };
     }
     if (priorityLevel === "low" && !config.sendFor.lowPriority) {
-      return { sent: false, reason: "Low priority auto-response disabled" };
+      const reason = "Low priority auto-response disabled";
+      autoresponderLogger.logDecision(logContext, {
+        decision: "SKIP",
+        reason,
+        details: { priorityLevel, configSetting: "sendFor.lowPriority=false" },
+      });
+      return { sent: false, reason };
     }
 
     // Get user info and queue stats
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
-      return { sent: false, reason: "User not found" };
+      const reason = "User not found";
+      autoresponderLogger.logDecision(logContext, {
+        decision: "SKIP",
+        reason,
+      });
+      return { sent: false, reason };
     }
 
     const queueStats = await this.queueStatsService.getQueueStats(userId);
@@ -241,15 +363,40 @@ export class AutoResponderService {
     };
 
     const template = this.selectTemplate(config, priorityLevel, queueStats);
+    const templateUsed =
+      template === config.templates.highPriority
+        ? "highPriority"
+        : template === config.templates.lowPriority
+          ? "lowPriority"
+          : template === config.templates.zeroBacklog
+            ? "zeroBacklog"
+            : "standard";
     const responseBody = this.renderTemplate(template, templateVars);
     const responseSubject = `Re: ${latestEmail.subject} - BearlyMail Auto-Response`;
+
+    // Log send attempt
+    autoresponderLogger.logSendAttempt(
+      logContext,
+      templateUsed,
+      responseSubject,
+    );
 
     // Send the auto-response
     try {
       const provider =
         await this.emailProviderManager.getPrimaryProvider(userId);
       if (!provider) {
-        return { sent: false, reason: "No email provider connected" };
+        const reason = "No email provider connected";
+        autoresponderLogger.logSendError(
+          logContext,
+          new Error(reason),
+          "get_provider",
+        );
+        autoresponderLogger.logDecision(logContext, {
+          decision: "SKIP",
+          reason,
+        });
+        return { sent: false, reason };
       }
 
       await provider.sendReply(
@@ -267,13 +414,7 @@ export class AutoResponderService {
         senderEmailHash,
         priorityLevel,
         qaResult,
-        template === config.templates.highPriority
-          ? "highPriority"
-          : template === config.templates.lowPriority
-            ? "lowPriority"
-            : template === config.templates.zeroBacklog
-              ? "zeroBacklog"
-              : "standard",
+        templateUsed,
         responseSubject,
         responseBody,
         classification,
@@ -286,12 +427,32 @@ export class AutoResponderService {
         config.cooldownPeriodDays,
       );
 
+      // Log success
+      autoresponderLogger.logSendSuccess(logContext, templateUsed, !!qaResult);
+      autoresponderLogger.logDecision(logContext, {
+        decision: "SEND",
+        reason: "Auto-response sent successfully",
+        details: {
+          templateUsed,
+          priorityLevel,
+          qaAnswerProvided: !!qaResult,
+          recipient: latestEmail.from,
+        },
+      });
+
       this.logger.log(
         `Auto-response sent for thread ${emailThreadId} to ${latestEmail.from}`,
       );
 
       return { sent: true, reason: "Auto-response sent successfully" };
     } catch (error) {
+      autoresponderLogger.logSendError(logContext, error, "send_reply");
+      autoresponderLogger.logDecision(logContext, {
+        decision: "SKIP",
+        reason: `Send failed: ${(error as Error).message}`,
+        details: { error: (error as Error).message },
+      });
+
       this.logger.error(
         `Failed to send auto-response for thread ${emailThreadId}`,
         error,

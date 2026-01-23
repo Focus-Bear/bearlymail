@@ -245,7 +245,9 @@
   "emailActions": {
     "archive": "Archivar",
     "snooze": "Posponer",
-    "snoozePlaceholder": "2h, mañana...",
+    "snoozeUntil": "Posponer hasta",
+    "snoozeTooltip": "Ingresa un tiempo como '2h', 'mañana', 'próximo lunes' o 'en 3 días'",
+    "snoozePlaceholder": "ej., mañana...",
     "toggleStar": "Alternar estrella"
   },
   "emailDetail": {
@@ -333,6 +335,23 @@
     "useRevision": "Utilice esta revisión",
     "whenToUseLabel": "¿Cuándo se debe utilizar esta regla? (por ejemplo, \"Para correos electrónicos de mi gerente\", \"Para solicitudes de reunión\")",
     "whenToUsePlaceholder": "Describe cuándo usar esta regla..."
+  },
+  "contacts": {
+    "title": "Contactos",
+    "backToInbox": "Volver a la bandeja de entrada",
+    "syncContacts": "Sincronizar contactos",
+    "syncing": "Sincronizando...",
+    "syncNow": "Sincronizar ahora",
+    "searchPlaceholder": "Buscar contactos...",
+    "loading": "Cargando contactos...",
+    "errorLoading": "Error al cargar los contactos. Por favor, inténtalo de nuevo.",
+    "errorSyncing": "Error al sincronizar los contactos. Por favor, inténtalo de nuevo.",
+    "noContacts": "Aún no hay contactos",
+    "syncToGetStarted": "Sincroniza tus contactos de Gmail para comenzar.",
+    "noSearchResults": "No se encontraron contactos",
+    "tryDifferentSearch": "Prueba con un término de búsqueda diferente.",
+    "totalContacts": "{{count}} contacto",
+    "totalContacts_plural": "{{count}} contactos"
   },
   "footer": {
     "focusBear": "Oso de enfoque",

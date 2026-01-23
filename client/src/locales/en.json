@@ -71,7 +71,9 @@
   "emailActions": {
     "archive": "Archive",
     "snooze": "Snooze",
-    "snoozePlaceholder": "2h, tomorrow...",
+    "snoozeUntil": "Snooze Until",
+    "snoozeTooltip": "Enter a time like '2h', 'tomorrow', 'next Monday', or 'in 3 days'",
+    "snoozePlaceholder": "e.g., tomorrow...",
     "toggleStar": "Toggle star"
   },
   "inbox": {

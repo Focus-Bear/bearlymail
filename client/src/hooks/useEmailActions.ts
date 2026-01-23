@@ -31,6 +31,11 @@ interface UseEmailActionsProps {
   emailListRef?: React.RefObject<HTMLDivElement | null>;
   selectedEmailIndex?: number;
   setSelectedEmailIndex?: (index: number) => void;
+  splitView?: {
+    selectedEmailId: string | null;
+    openEmail: (emailId: string) => void;
+    closeEmail: () => void;
+  };
 }
 
 interface UseEmailActionsReturn {
@@ -66,6 +71,7 @@ export function useEmailActions({
   emailListRef,
   selectedEmailIndex,
   setSelectedEmailIndex,
+  splitView,
 }: UseEmailActionsProps): UseEmailActionsReturn {
   const { handleSetStarCount } = useStarCountHandler({
     emails,
@@ -151,14 +157,66 @@ export function useEmailActions({
       snooze_input_length: duration.length,
     });
 
-    try {
-      await handleSnoozeBase(emailId, duration);
-      snoozeInput.clearSnooze(emailId);
-    } catch (error: any) {
-      console.error('Error snoozing email:', error);
-      alert(error.response?.data?.message || 'Failed to snooze email. Please try again.');
+    // Find the index of the email being snoozed for navigation
+    const visibleEmails = emails.filter(email => !email.isArchived);
+    const snoozedIndex = visibleEmails.findIndex(email => email.id === emailId);
+
+    // Clear snooze input first
+    snoozeInput.clearSnooze(emailId);
+
+    // Remove from selection
+    setSelectedEmailIds(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(emailId);
+      return newSet;
+    });
+
+    // Call the base snooze handler (now optimistic, doesn't wait for API)
+    handleSnoozeBase(emailId, duration);
+
+    // Navigate to next email in split view after snoozing
+    if (splitView?.selectedEmailId === emailId) {
+      // Filter out the just-snoozed email to get the remaining visible emails
+      const remainingEmails = visibleEmails.filter(e => e.id !== emailId);
+      
+      if (remainingEmails.length === 0) {
+        splitView.closeEmail();
+        return;
+      }
+      
+      // Use the current index as the next index (since we removed the current email)
+      const nextIndex = snoozedIndex < remainingEmails.length 
+        ? snoozedIndex 
+        : Math.max(0, remainingEmails.length - 1);
+      
+      const nextEmail = remainingEmails[nextIndex];
+      if (nextEmail) {
+        splitView.openEmail(nextEmail.id);
+        if (setSelectedEmailIndex !== undefined) {
+          setSelectedEmailIndex(nextIndex);
+        }
+      } else {
+        splitView.closeEmail();
+      }
+    } else if (emailListRef?.current && snoozedIndex >= 0 && visibleEmails.length > 1) {
+      // Scroll to next email in list view after snoozing
+      const nextIndex = snoozedIndex < visibleEmails.length - 1 
+        ? snoozedIndex 
+        : Math.max(0, snoozedIndex - 1);
+      
+      setTimeout(() => {
+        const emailElement = emailListRef.current?.querySelector(
+          `[data-email-index="${nextIndex}"]`
+        ) as HTMLElement;
+        if (emailElement) {
+          emailElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          if (setSelectedEmailIndex !== undefined) {
+            setSelectedEmailIndex(nextIndex);
+          }
+        }
+      }, 100);
     }
-  }, [snoozeInput, handleSnoozeBase]);
+  }, [snoozeInput, handleSnoozeBase, emails, splitView, emailListRef, setSelectedEmailIndex, setSelectedEmailIds]);
 
   return {
     handleSetStarCount,

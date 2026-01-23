@@ -7,6 +7,7 @@ const PRIORITY_SCORE_TINY_THRESHOLD = 0.01;
 interface EmailState {
   emails: Email[];
   optimisticallyArchived: string[];
+  optimisticallySnoozed: string[];
   loading: boolean;
   decrypting: boolean;
   refreshing: boolean;
@@ -17,6 +18,7 @@ interface EmailState {
 const initialState: EmailState = {
   emails: [],
   optimisticallyArchived: [],
+  optimisticallySnoozed: [],
   loading: true,
   decrypting: false,
   refreshing: false,
@@ -51,6 +53,21 @@ const emailSlice = createSlice({
         id => id !== action.payload
       );
       console.log('[Redux] Removed from optimistic archive:', action.payload, 'Before:', before, 'After:', state.optimisticallyArchived.length);
+    },
+    addOptimisticSnooze: (state, action: PayloadAction<string>) => {
+      if (!state.optimisticallySnoozed.includes(action.payload)) {
+        state.optimisticallySnoozed.push(action.payload);
+        console.log('[Redux] Added to optimistic snooze:', action.payload, 'Total:', state.optimisticallySnoozed.length);
+      } else {
+        console.log('[Redux] Email already in optimistic snooze:', action.payload);
+      }
+    },
+    removeOptimisticSnooze: (state, action: PayloadAction<string>) => {
+      const before = state.optimisticallySnoozed.length;
+      state.optimisticallySnoozed = state.optimisticallySnoozed.filter(
+        id => id !== action.payload
+      );
+      console.log('[Redux] Removed from optimistic snooze:', action.payload, 'Before:', before, 'After:', state.optimisticallySnoozed.length);
     },
     removeEmail: (state, action: PayloadAction<string>) => {
       const before = state.emails.length;
@@ -105,6 +122,8 @@ export const {
   setEmails,
   addOptimisticArchive,
   removeOptimisticArchive,
+  addOptimisticSnooze,
+  removeOptimisticSnooze,
   removeEmail,
   updateEmail,
   restoreEmail,

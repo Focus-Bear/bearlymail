@@ -188,6 +188,7 @@ export function useInboxState() {
     emailListRef,
     selectedEmailIndex,
     setSelectedEmailIndex,
+    splitView,
   });
 
   // Poll for email updates when emails are actively processing

@@ -5,7 +5,7 @@ import axios from 'axios';
 import { Email, getEmailPriorityScore } from 'types/email';
 import { API_URL } from 'config/api';
 import { AppDispatch } from 'store/store';
-import { removeEmail, updateEmail, restoreEmail, addOptimisticArchive, removeOptimisticArchive } from 'store/slices/emailSlice';
+import { removeEmail, updateEmail, restoreEmail, addOptimisticArchive, removeOptimisticArchive, addOptimisticSnooze, removeOptimisticSnooze } from 'store/slices/emailSlice';
 import { selectEmails } from 'store/selectors/emailSelectors';
 
 interface UseEmailActionsBaseProps {
@@ -137,14 +137,43 @@ export function useEmailActionsBase({
       return;
     }
 
-    try {
-      await axios.post(`${API_URL}/snooze/${emailId}`, { duration });
-      fetchEmails();
-    } catch (error: any) {
-      console.error('Error snoozing email:', error);
-      throw error;
+    console.log('[Snooze] Starting snooze for email:', emailId);
+    const emailToSnooze = emails.find(e => e.id === emailId);
+    if (!emailToSnooze) {
+      console.warn('[Snooze] Email not found in list:', emailId);
+      return;
     }
-  }, [fetchEmails]);
+
+    // Optimistic update - remove from list immediately and add to optimistic snooze set
+    console.log('[Snooze] Dispatching removeEmail and addOptimisticSnooze');
+    dispatch(removeEmail(emailId));
+    dispatch(addOptimisticSnooze(emailId));
+    onSuggestionRemove?.(emailId);
+
+    console.log('[Snooze] Making API call to snooze email');
+    // Make API call in background (non-blocking)
+    axios.post(`${API_URL}/snooze/${emailId}`, { duration })
+      .then(() => {
+        console.log('[Snooze] API call successful');
+        // Update tab counts to reflect the snoozed email
+        if (onTabCountsUpdate) {
+          onTabCountsUpdate(true);
+        }
+      })
+      .catch((error) => {
+        console.error('[Snooze] API call failed:', error);
+        // Revert optimistic update on error - restore email to list and remove from optimistic set
+        console.log('[Snooze] Reverting optimistic update');
+        if (emailToSnooze) {
+          dispatch(restoreEmail(emailToSnooze));
+        }
+        dispatch(removeOptimisticSnooze(emailId));
+        // Only refresh on error to sync state
+        fetchEmails().catch(err => console.error('Error refreshing after snooze error:', err));
+        // Re-throw so the caller can show an error message
+        throw error;
+      });
+  }, [emails, fetchEmails, onSuggestionRemove, dispatch, onTabCountsUpdate]);
 
   return {
     handleSetStarCount,

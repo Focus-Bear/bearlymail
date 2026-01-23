@@ -333,6 +333,13 @@
     "tweakRules": "Modificar las reglas de priorización",
     "useRevisedText": "Usar texto revisado",
     "useRevision": "Utilice esta revisión",
+    "expectedReply": {
+      "label": "Esperar respuesta en",
+      "none": "Sin seguimiento",
+      "hours": "{{count}}h",
+      "days": "{{count}}d",
+      "custom": "Personalizado"
+    },
     "whenToUseLabel": "¿Cuándo se debe utilizar esta regla? (por ejemplo, \"Para correos electrónicos de mi gerente\", \"Para solicitudes de reunión\")",
     "whenToUsePlaceholder": "Describe cuándo usar esta regla..."
   },

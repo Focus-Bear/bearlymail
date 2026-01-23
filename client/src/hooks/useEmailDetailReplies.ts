@@ -74,7 +74,7 @@ export function useEmailDetailReplies(
     handleGenerateDraft();
   }, [email, handleGenerateDraft, setDraft, setToneCheckResult]);
 
-  const handleSendReply = useCallback(async (onClose?: () => void) => {
+  const handleSendReply = useCallback(async (onClose?: () => void, expectedReplyHours?: number) => {
     if (!emailId || !draft) return;
     
     const toneOk = await checkTone(draft);
@@ -88,6 +88,7 @@ export function useEmailDetailReplies(
         cc: replyCc || undefined,
         bcc: replyBcc || undefined,
         replyAll: replyMode === REPLY_MODE_REPLY_ALL,
+        expectedReplyHours: expectedReplyHours || undefined,
       });
       setDraft(null);
       setShowReplyComposer(false);

@@ -79,7 +79,7 @@ export class RepliesController {
   async sendReply(
     @Request() req,
     @Param("id") id: string,
-    @Body() body: { reply: string },
+    @Body() body: { reply: string; expectedReplyHours?: number },
     @UploadedFiles() files?: Express.Multer.File[],
   ) {
     const attachments =
@@ -94,6 +94,7 @@ export class RepliesController {
       id,
       body.reply,
       attachments,
+      body.expectedReplyHours,
     );
     return { message: "Reply sent successfully" };
   }

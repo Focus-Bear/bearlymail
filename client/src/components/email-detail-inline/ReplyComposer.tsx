@@ -44,7 +44,7 @@ interface ReplyComposerProps {
   onDraftChange: (draft: string) => void;
   onReplyOptionSelect: (index: number, text: string) => void;
   onClose: () => void;
-  onSend: (files: File[]) => void;
+  onSend: (files: File[], expectedReplyHours?: number) => void;
   onUseRevisedText: (text: string) => void;
   textareaRef?: React.RefObject<HTMLTextAreaElement>;
 }
@@ -92,8 +92,8 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
     }
   };
 
-  const handleSend = () => {
-    onSend(files);
+  const handleSend = (expectedReplyHours?: number) => {
+    onSend(files, expectedReplyHours);
     setFiles([]); // Clear files after sending
   };
 

@@ -248,6 +248,13 @@
     "send": "Send",
     "useRevisedText": "Use revised text",
     "delete": "Delete",
+    "expectedReply": {
+      "label": "Expect reply in",
+      "none": "No follow-up",
+      "hours": "{{count}}h",
+      "days": "{{count}}d",
+      "custom": "Custom"
+    },
     "sentiment": {
       "negative": "Negative",
       "positive": "Positive",

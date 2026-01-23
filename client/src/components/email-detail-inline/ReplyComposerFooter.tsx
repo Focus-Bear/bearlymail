@@ -1,13 +1,27 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+
+const DEFAULT_EXPECTED_REPLY_HOURS = 48;
+
+const LABEL_KEY_NONE = 'none';
+const LABEL_KEY_HOURS = 'hours';
+const LABEL_KEY_DAYS = 'days';
+
+const EXPECTED_REPLY_OPTIONS = [
+  { value: 0, labelKey: LABEL_KEY_NONE },
+  { value: 24, labelKey: LABEL_KEY_HOURS, count: 24 },
+  { value: 48, labelKey: LABEL_KEY_HOURS, count: 48 },
+  { value: 72, labelKey: LABEL_KEY_DAYS, count: 3 },
+  { value: 168, labelKey: LABEL_KEY_DAYS, count: 7 },
+];
 
 interface ReplyComposerFooterProps {
   sending: boolean;
   checkingTone: boolean;
   draft: string | null;
   onClose: () => void;
-  onSend: () => void;
+  onSend: (expectedReplyHours?: number) => void;
 }
 
 export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = ({
@@ -18,6 +32,7 @@ export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = ({
   onSend,
 }) => {
   const { t } = useTranslation();
+  const [expectedReplyHours, setExpectedReplyHours] = useState<number>(DEFAULT_EXPECTED_REPLY_HOURS);
 
   const isDisabled = !draft || sending || checkingTone;
 
@@ -27,39 +42,91 @@ export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = ({
     return t('emailDetail.send');
   };
 
+  const handleSend = () => {
+    onSend(expectedReplyHours > 0 ? expectedReplyHours : undefined);
+  };
+
+  const getOptionLabel = (option: typeof EXPECTED_REPLY_OPTIONS[0]): string => {
+    if (option.labelKey === LABEL_KEY_NONE) {
+      return t('emailDetail.expectedReply.none');
+    }
+    return t(`emailDetail.expectedReply.${option.labelKey}`, { count: option.count });
+  };
+
   return (
-    <div style={{ display: 'flex', gap: theme.spacing.sm, justifyContent: 'flex-end', marginTop: theme.spacing.md }}>
-      <button
-        onClick={onClose}
-        disabled={sending || checkingTone}
-        style={{
-          padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-          backgroundColor: 'transparent',
+    <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md, marginTop: theme.spacing.md }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
+        <span style={{ 
+          fontSize: theme.typography.fontSize.sm, 
           color: theme.colors.text.secondary,
-          border: `1px solid ${theme.colors.border.medium}`,
-          borderRadius: theme.borderRadius.md,
-          cursor: (sending || checkingTone) ? 'not-allowed' : 'pointer',
-          fontSize: theme.typography.fontSize.sm,
-        }}
-      >
-        {t('common.cancel')}
-      </button>
-      <button
-        onClick={onSend}
-        disabled={isDisabled}
-        style={{
-          padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-          backgroundColor: isDisabled ? theme.colors.background.subtle : theme.colors.primary.main,
-          color: isDisabled ? theme.colors.text.tertiary : 'white',
-          border: 'none',
-          borderRadius: theme.borderRadius.md,
-          cursor: isDisabled ? 'not-allowed' : 'pointer',
-          fontSize: theme.typography.fontSize.sm,
-          fontWeight: theme.typography.fontWeight.medium,
-        }}
-      >
-        {getButtonText()}
-      </button>
+          whiteSpace: 'nowrap',
+        }}>
+          {t('emailDetail.expectedReply.label')}:
+        </span>
+        <div style={{ display: 'flex', gap: theme.spacing.xs, flexWrap: 'wrap' }}>
+          {EXPECTED_REPLY_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              onClick={() => setExpectedReplyHours(option.value)}
+              disabled={sending || checkingTone}
+              style={{
+                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                backgroundColor: expectedReplyHours === option.value 
+                  ? theme.colors.primary.main 
+                  : theme.colors.background.subtle,
+                color: expectedReplyHours === option.value 
+                  ? 'white' 
+                  : theme.colors.text.secondary,
+                border: `1px solid ${expectedReplyHours === option.value 
+                  ? theme.colors.primary.main 
+                  : theme.colors.border.light}`,
+                borderRadius: theme.borderRadius.sm,
+                cursor: (sending || checkingTone) ? 'not-allowed' : 'pointer',
+                fontSize: theme.typography.fontSize.xs,
+                fontWeight: expectedReplyHours === option.value 
+                  ? theme.typography.fontWeight.medium 
+                  : theme.typography.fontWeight.regular,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {getOptionLabel(option)}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: theme.spacing.sm, justifyContent: 'flex-end' }}>
+        <button
+          onClick={onClose}
+          disabled={sending || checkingTone}
+          style={{
+            padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
+            backgroundColor: 'transparent',
+            color: theme.colors.text.secondary,
+            border: `1px solid ${theme.colors.border.medium}`,
+            borderRadius: theme.borderRadius.md,
+            cursor: (sending || checkingTone) ? 'not-allowed' : 'pointer',
+            fontSize: theme.typography.fontSize.sm,
+          }}
+        >
+          {t('common.cancel')}
+        </button>
+        <button
+          onClick={handleSend}
+          disabled={isDisabled}
+          style={{
+            padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
+            backgroundColor: isDisabled ? theme.colors.background.subtle : theme.colors.primary.main,
+            color: isDisabled ? theme.colors.text.tertiary : 'white',
+            border: 'none',
+            borderRadius: theme.borderRadius.md,
+            cursor: isDisabled ? 'not-allowed' : 'pointer',
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.medium,
+          }}
+        >
+          {getButtonText()}
+        </button>
+      </div>
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Inject, forwardRef, Logger } from "@nestjs/common";
 import { EmailsService } from "../emails/emails.service";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { ContextService } from "../context/context.service";
@@ -7,6 +7,8 @@ import { UsersService } from "../users/users.service";
 import { WritingStyleLearningService } from "../context/writing-style-learning.service";
 import { ContextKey } from "../database/entities/user-context.entity";
 import { Email } from "../database/entities/email.entity";
+import { SnoozeService } from "../snooze/snooze.service";
+import { FollowUpsService } from "../follow-ups/follow-ups.service";
 
 export interface ReplyRule {
   ruleId?: string;
@@ -19,6 +21,7 @@ export interface ReplyRule {
 
 @Injectable()
 export class RepliesService {
+  private readonly logger = new Logger(RepliesService.name);
   private replyRules: Map<string, ReplyRule[]> = new Map();
 
   constructor(
@@ -28,6 +31,9 @@ export class RepliesService {
     private llmService: LLMService,
     private usersService: UsersService,
     private writingStyleLearningService: WritingStyleLearningService,
+    private snoozeService: SnoozeService,
+    @Inject(forwardRef(() => FollowUpsService))
+    private followUpsService: FollowUpsService,
   ) {}
 
   async generateDraftReply(
@@ -255,6 +261,7 @@ ${closing}`;
       mimeType: string;
       content: Buffer;
     }>,
+    expectedReplyHours?: number,
   ): Promise<void> {
     const email = await this.emailsService.getEmailById(userId, emailId);
     if (!email) {
@@ -287,13 +294,41 @@ ${closing}`;
     // Trigger immediate learning from the sent reply
     // This will add it to toneSettings.rules if we need more examples
     try {
-      await this.writingStyleLearningService.learnFromSentEmailBodies(
-        userId,
-        [body],
-      );
+      await this.writingStyleLearningService.learnFromSentEmailBodies(userId, [
+        body,
+      ]);
     } catch (learningError) {
       // Don't fail the send if learning fails
       console.error("Failed to learn from sent reply:", learningError);
+    }
+
+    // If expected reply hours is set, snooze the email and create a follow-up
+    if (expectedReplyHours && expectedReplyHours > 0) {
+      try {
+        // Snooze the email for the expected reply duration
+        await this.snoozeService.snoozeEmail(
+          userId,
+          emailId,
+          `${expectedReplyHours}h`,
+        );
+
+        // Create a follow-up reminder
+        // Convert hours to days (rounding up to at least 1 day for the follow-up)
+        const followUpDays = Math.max(1, Math.ceil(expectedReplyHours / 24));
+        await this.followUpsService.createFollowUp(
+          userId,
+          email.threadId,
+          followUpDays,
+          emailId,
+        );
+
+        this.logger.log(
+          `Created follow-up for thread ${email.threadId} with ${expectedReplyHours}h expected reply time`,
+        );
+      } catch (followUpError) {
+        // Don't fail the send if follow-up creation fails
+        this.logger.error("Failed to create follow-up:", followUpError);
+      }
     }
   }
 }

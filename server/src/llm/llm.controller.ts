@@ -91,9 +91,26 @@ export class LLMController {
       context?: { tone?: string; writingStyle?: string };
     },
   ) {
+    const user = await this.llmService["usersService"].findOne(req.user.userId);
+    const toneRules = user?.toneSettings?.rules || [];
+    const emailExamples = toneRules.filter(
+      (rule: string) =>
+        !rule.startsWith("Tone:") &&
+        !rule.startsWith("Style:") &&
+        !rule.startsWith("Common phrase:"),
+    );
+
+    const userContext = {
+      tone: body.context?.tone || "professional",
+      writingStyle: body.context?.writingStyle,
+      userName: user?.displayName || user?.name || "User",
+      userJobTitle: user?.jobTitle || "",
+      emailExamples,
+    };
+
     return this.llmService.generateReplyOptions(
       body.originalEmail,
-      body.context || {},
+      userContext,
       undefined,
       req.user.userId,
     );

@@ -61,6 +61,21 @@ export class User {
   @Column({ nullable: true, transformer: encryptedColumnTransformer })
   name: string;
 
+  @Column({
+    nullable: true,
+    transformer: encryptedColumnTransformer,
+    comment:
+      "User's preferred display name for email signatures (encrypted). Guessed from email during signup.",
+  })
+  displayName: string;
+
+  @Column({
+    nullable: true,
+    transformer: encryptedColumnTransformer,
+    comment: "User's job title for context in email replies (encrypted).",
+  })
+  jobTitle: string;
+
   @Column({ nullable: true, transformer: encryptedColumnTransformer })
   googleCalendarAccessToken: string;
 

@@ -230,6 +230,7 @@ export const InboxContent: React.FC<InboxContentProps> = ({
               onSplitViewArchive(splitView.selectedEmailId);
             }
           }}
+          mode={mode}
         />
       )}
     </div>

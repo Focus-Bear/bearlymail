@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import EmailDetail, { EmailDetailRef } from 'pages/EmailDetail';
 import { EMOJI_CLOSE, EMOJI_EXPAND, EMOJI_REPLY, EMOJI_ARCHIVE, EMOJI_STAR } from 'constants/emojis';
+import { InboxMode } from 'types/email';
+import { MODE_ACTION } from 'constants/strings';
 
 interface SelectedEmail {
   subject: string;
@@ -20,6 +22,7 @@ interface SplitViewPanelProps {
   onTogglePanel: () => void;
   onClose: () => void;
   onArchiveComplete?: () => void;
+  mode?: InboxMode;
 }
 
 export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
@@ -32,6 +35,7 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
   onTogglePanel,
   onClose,
   onArchiveComplete,
+  mode,
 }) => {
   const { t } = useTranslation();
   const emailDetailComponentRef = useRef<EmailDetailRef>(null);
@@ -235,7 +239,7 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
       
       {/* EmailDetail component */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        <EmailDetail ref={emailDetailComponentRef} emailId={selectedEmailId} compactMode={true} onArchiveComplete={onArchiveComplete} />
+        <EmailDetail ref={emailDetailComponentRef} emailId={selectedEmailId} compactMode={true} onArchiveComplete={onArchiveComplete} autoGenerateReplies={mode === MODE_ACTION} />
       </div>
     </div>
   );

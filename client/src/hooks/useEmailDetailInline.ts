@@ -3,7 +3,16 @@ import { useEmailDetailNotes } from 'hooks/useEmailDetailNotes';
 import { useEmailDetailActionItems } from 'hooks/useEmailDetailActionItems';
 import { useEmailDetailReplies } from 'hooks/useEmailDetailReplies';
 
-export const useEmailDetailInline = (emailId: string) => {
+interface UseEmailDetailInlineOptions {
+  autoGenerateReplies?: boolean;
+}
+
+export const useEmailDetailInline = (
+  emailId: string,
+  options: UseEmailDetailInlineOptions = {},
+) => {
+  const { autoGenerateReplies = false } = options;
+
   const {
     email,
     threadEmails,
@@ -54,7 +63,7 @@ export const useEmailDetailInline = (emailId: string) => {
     setToneCheckResult,
     handleOpenReplyComposer,
     handleSendReply,
-  } = useEmailDetailReplies(emailId, email);
+  } = useEmailDetailReplies(emailId, email, { autoGenerateReplies });
 
   return {
     email,

@@ -103,9 +103,17 @@ export class LLMService {
     try {
       switch (selectedProvider) {
         case LLMProvider.GEMINI:
-          return await this.generateWithGemini(request, effectiveUserId, effectiveOperation);
+          return await this.generateWithGemini(
+            request,
+            effectiveUserId,
+            effectiveOperation,
+          );
         case LLMProvider.OPENAI:
-          return await this.generateWithOpenAI(request, effectiveUserId, effectiveOperation);
+          return await this.generateWithOpenAI(
+            request,
+            effectiveUserId,
+            effectiveOperation,
+          );
         default:
           throw new Error(`Unsupported LLM provider: ${selectedProvider}`);
       }
@@ -119,10 +127,18 @@ export class LLMService {
         this.logger.log(
           `Gemini failed, falling back to OpenAI (default provider)`,
         );
-        return await this.generateWithOpenAI(request, effectiveUserId, effectiveOperation);
+        return await this.generateWithOpenAI(
+          request,
+          effectiveUserId,
+          effectiveOperation,
+        );
       } else if (selectedProvider === LLMProvider.OPENAI) {
         this.logger.log(`OpenAI failed, falling back to Gemini`);
-        return await this.generateWithGemini(request, effectiveUserId, effectiveOperation);
+        return await this.generateWithGemini(
+          request,
+          effectiveUserId,
+          effectiveOperation,
+        );
       }
       throw error;
     }
@@ -187,7 +203,7 @@ export class LLMService {
 
       // Log token usage from Gemini response
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const usageMetadata = (response as any).usageMetadata;
+      const { usageMetadata } = response as any;
       if (usageMetadata) {
         await this.tokenUsageService.logUsage({
           userId: userId || null,
@@ -561,7 +577,7 @@ export class LLMService {
 
     promptConfig = getPrompt(promptId);
     if (!promptConfig) {
-      const expectedFileName = promptId.replace(/_/g, "-") + ".md";
+      const expectedFileName = `${promptId.replace(/_/g, "-")}.md`;
       throw new Error(
         `Prompt template not found: ${promptId}. Expected file: ${expectedFileName} in server/promptfoo/prompts/ directory. Please ensure the prompt template file exists.`,
       );
@@ -850,6 +866,9 @@ export class LLMService {
     userContext: {
       tone?: string;
       writingStyle?: string;
+      userName?: string;
+      userJobTitle?: string;
+      emailExamples?: string[];
     },
     provider?: LLMProvider,
     userId?: string,
@@ -873,9 +892,21 @@ export class LLMService {
     }
 
     const tone = userContext.tone || "professional";
+    const userName = userContext.userName || "User";
+    const userJobTitle = userContext.userJobTitle || "";
+    const emailExamples = userContext.emailExamples?.slice(0, 5) || [];
+
+    if (emailExamples.length > 0) {
+      this.logger.debug(
+        `[generateReplyOptions] Using ${emailExamples.length} email examples for reply generation`,
+      );
+    }
 
     const prompt = renderPrompt(promptConfig.prompt || "", {
       tone,
+      userName,
+      userJobTitle,
+      emailExamples,
       fromName: originalEmail.fromName || originalEmail.from,
       subject: originalEmail.subject,
       body: cleanedBody,
@@ -1043,7 +1074,6 @@ export class LLMService {
       LLM_OP_GENERATE_MEETING_REPLY,
     );
   }
-
 
   /**
    * Generate a follow-up draft for an email that hasn't received a reply
@@ -1639,7 +1669,7 @@ export class LLMService {
       if (redacted && redacted.trim().length > 0) {
         return redacted.trim();
       }
-      
+
       return text;
     } catch (error) {
       this.logger.error("Failed to redact names with LLM:", error);

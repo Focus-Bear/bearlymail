@@ -17,6 +17,7 @@ interface EmailDetailInlineProps {
   onArchive?: (emailId: string, e: React.MouseEvent) => void;
   onSetStarCount?: (emailId: string, starCount: number, e?: React.MouseEvent) => void;
   onBlockSender?: (emailId: string) => void;
+  autoGenerateReplies?: boolean;
 }
 
 /**
@@ -26,10 +27,11 @@ interface EmailDetailInlineProps {
 const useEmailDetailInlineHandlers = (
   emailId: string,
   onClose?: () => void,
+  autoGenerateReplies?: boolean,
 ) => {
   const { t } = useTranslation();
   const { showSuccess } = useNotifications();
-  const hookData = useEmailDetailInline(emailId);
+  const hookData = useEmailDetailInline(emailId, { autoGenerateReplies });
 
   const handleSendReplyWithClose = async () => {
     try {
@@ -83,6 +85,7 @@ export const EmailDetailInline: React.FC<EmailDetailInlineProps> = ({
   onArchive,
   onSetStarCount,
   onBlockSender,
+  autoGenerateReplies = false,
 }) => {
   const navigate = useNavigate();
   const {
@@ -124,7 +127,7 @@ export const EmailDetailInline: React.FC<EmailDetailInlineProps> = ({
     handleReplyComposerClose,
     handleReplyOptionSelect,
     handleToggleNotesCollapsed,
-  } = useEmailDetailInlineHandlers(emailId, onClose);
+  } = useEmailDetailInlineHandlers(emailId, onClose, autoGenerateReplies);
 
   // Block sender handler
   const handleBlockSender = React.useCallback(async (emailIdToBlock: string) => {

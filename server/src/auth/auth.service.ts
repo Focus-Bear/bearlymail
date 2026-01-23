@@ -18,6 +18,16 @@ interface GoogleProfile {
   displayName?: string;
 }
 
+function guessNameFromEmail(email: string): string {
+  const localPart = email.split("@")[0];
+  const nameParts = localPart
+    .replace(/[._-]/g, " ")
+    .split(" ")
+    .filter((part) => part.length > 0)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase());
+  return nameParts.join(" ");
+}
+
 interface UserWithoutPassword extends Omit<User, "password"> {}
 
 interface UserUpdateData {
@@ -153,9 +163,11 @@ export class AuthService {
           "Google OAuth did not provide a refresh token. Please try logging in again. If the issue persists, you may need to revoke app access at https://myaccount.google.com/permissions and try again.",
         );
       }
+      const guessedName = profile.displayName || guessNameFromEmail(email);
       user = await this.usersService.create({
         email,
-        name: profile.displayName,
+        name: guessedName,
+        displayName: guessedName,
         // No password for Google users
         password: "",
         googleId: profile.id,
@@ -285,9 +297,11 @@ export class AuthService {
           "Microsoft OAuth did not provide a refresh token. Please try logging in again.",
         );
       }
+      const guessedName = profile.displayName || guessNameFromEmail(email);
       user = await this.usersService.create({
         email,
-        name: profile.displayName || "",
+        name: guessedName,
+        displayName: guessedName,
         password: "",
         // Don't store tokens on user - they go in Office365Account entity
         isApproved: isJeremy,
@@ -339,9 +353,11 @@ export class AuthService {
           "Zoho OAuth did not provide a refresh token. Please try logging in again.",
         );
       }
+      const guessedName = profile.Display_Name || guessNameFromEmail(email);
       user = await this.usersService.create({
         email,
-        name: profile.Display_Name || "",
+        name: guessedName,
+        displayName: guessedName,
         password: "",
         // Don't store tokens on user - they go in ZohoAccount entity
         isApproved: isJeremy,

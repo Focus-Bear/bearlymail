@@ -15,7 +15,16 @@ interface Email {
   body: string;
 }
 
-export function useEmailDetailReplies(emailId: string, email: Email | null) {
+interface UseEmailDetailRepliesOptions {
+  autoGenerateReplies?: boolean;
+}
+
+export function useEmailDetailReplies(
+  emailId: string,
+  email: Email | null,
+  options: UseEmailDetailRepliesOptions = {},
+) {
+  const { autoGenerateReplies = false } = options;
   const { t } = useTranslation();
   const { showSuccess, showError } = useNotifications();
   const [showReplyComposer, setShowReplyComposer] = useState(false);
@@ -39,7 +48,7 @@ export function useEmailDetailReplies(emailId: string, email: Email | null) {
     setDraft,
     setSelectedReplyOption,
     handleGenerateDraft,
-  } = useReplyDraftGeneration(emailId, email);
+  } = useReplyDraftGeneration(emailId, email, { autoGenerate: autoGenerateReplies });
 
   const handleOpenReplyComposer = useCallback((mode: 'reply' | 'replyAll') => {
     setReplyMode(mode);

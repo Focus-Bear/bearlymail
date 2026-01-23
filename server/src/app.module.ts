@@ -26,6 +26,7 @@ import { BatchScheduleModule } from "./batch-schedule/batch-schedule.module";
 import { FollowUpsModule } from "./follow-ups/follow-ups.module";
 import { ContactsModule } from "./contacts/contacts.module";
 import { BlockedSendersModule } from "./blocked-senders/blocked-senders.module";
+import { BlockedKeywordsModule } from "./blocked-keywords/blocked-keywords.module";
 import { EmailModule } from "./email/email.module";
 import { GoogleAccountsModule } from "./google-accounts/google-accounts.module";
 import { Office365AccountsModule } from "./office365-accounts/office365-accounts.module";
@@ -50,6 +51,7 @@ import {
   FollowUp,
   Contact,
   BlockedSender,
+  BlockedKeyword,
   Waitlist,
   ContextAnalysis,
   PriorityOverride,
@@ -92,6 +94,7 @@ import {
           FollowUp,
           Contact,
           BlockedSender,
+          BlockedKeyword,
           Waitlist,
           ContextAnalysis,
           PriorityOverride,
@@ -147,6 +150,7 @@ import {
     FollowUpsModule,
     ContactsModule,
     BlockedSendersModule,
+    BlockedKeywordsModule,
     EmailModule,
     GoogleAccountsModule,
     Office365AccountsModule,

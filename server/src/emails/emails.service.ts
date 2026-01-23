@@ -15,6 +15,7 @@ import { PriorityService } from "../priority/priority.service";
 import { User } from "../database/entities/user.entity";
 import { EmailProviderManager } from "./email-provider-manager.service";
 import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
+ wimport { BlockedKeywordsService } from "../blocked-keywords/blocked-keywords.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { LLMService } from "../llm/llm.service";
 import { UsersService } from "../users/users.service";
@@ -57,7 +58,6 @@ interface RawEmailRow {
   priorityExplanation?: string;
   [key: string]: unknown;
 }
-
 
 interface RankedResult {
   index: number;
@@ -183,6 +183,7 @@ export class EmailsService {
     @Inject(forwardRef(() => EmailProviderManager))
     private emailProviderManager: EmailProviderManager,
     private blockedSendersService: BlockedSendersService,
+    private blockedKeywordsService: BlockedKeywordsService,
     private llmService: LLMService,
     private usersService: UsersService,
     private emailThreadService: EmailThreadService,
@@ -280,7 +281,7 @@ export class EmailsService {
         e.labels
       FROM email_threads thread
       CROSS JOIN LATERAL (
-        SELECT 
+        SELECT
           em.id,
           em."userId",
           em."threadId",
@@ -308,7 +309,7 @@ export class EmailsService {
         ${threadFilter}
         AND (e."isBatched" = false OR e."batchReleaseAt" IS NULL OR e."batchReleaseAt" <= NOW())
         AND (e."isSnoozed" = false OR e."snoozeUntil" IS NULL OR e."snoozeUntil" <= NOW())
-      ORDER BY 
+      ORDER BY
         COALESCE(thread."priorityScore", 0) DESC,
         thread."updatedAt" DESC,
         thread."threadId" ASC
@@ -341,14 +342,41 @@ export class EmailsService {
             const parsedLabels = JSON.parse(decryptedLabels);
             // Filter system labels and remove duplicates from stored labels
             const systemLabels = new Set([
-              "INBOX", "SENT", "TRASH", "SPAM", "DRAFT", "UNREAD", "STARRED", "IMPORTANT",
-              "CATEGORY_PERSONAL", "CATEGORY_SOCIAL", "CATEGORY_PROMOTIONS", "CATEGORY_UPDATES", "CATEGORY_FORUMS",
-              "GREEN_CIRCLE", "BLUE_STAR", "YELLOW_STAR", "RED_BANG", "YELLOW_BANG", "PURPLE_QUESTION", "ORANGE_GUILLEMET",
-              "BLUE_INFO", "RED_MINUS", "YELLOW_MINUS", "GREEN_CHECK", "BLUE_CHECK", "RED_CHECK", "ORANGE_CHECK",
+              "INBOX",
+              "SENT",
+              "TRASH",
+              "SPAM",
+              "DRAFT",
+              "UNREAD",
+              "STARRED",
+              "IMPORTANT",
+              "CATEGORY_PERSONAL",
+              "CATEGORY_SOCIAL",
+              "CATEGORY_PROMOTIONS",
+              "CATEGORY_UPDATES",
+              "CATEGORY_FORUMS",
+              "GREEN_CIRCLE",
+              "BLUE_STAR",
+              "YELLOW_STAR",
+              "RED_BANG",
+              "YELLOW_BANG",
+              "PURPLE_QUESTION",
+              "ORANGE_GUILLEMET",
+              "BLUE_INFO",
+              "RED_MINUS",
+              "YELLOW_MINUS",
+              "GREEN_CHECK",
+              "BLUE_CHECK",
+              "RED_CHECK",
+              "ORANGE_CHECK",
             ]);
-            labels = Array.from(new Set(
-              parsedLabels.filter((label: string) => !systemLabels.has(label))
-            ));
+            labels = Array.from(
+              new Set(
+                parsedLabels.filter(
+                  (label: string) => !systemLabels.has(label),
+                ),
+              ),
+            );
           }
         } catch (error) {
           this.logger.warn(
@@ -648,19 +676,42 @@ export class EmailsService {
         // Also filter out system labels and unmapped Label_* labels
         // These are common system labels across providers (Gmail, O365, Zoho)
         const systemLabels = new Set([
-          "INBOX", "SENT", "TRASH", "SPAM", "DRAFT", "UNREAD", "STARRED", "IMPORTANT",
-          "CATEGORY_PERSONAL", "CATEGORY_SOCIAL", "CATEGORY_PROMOTIONS", "CATEGORY_UPDATES", "CATEGORY_FORUMS",
-          "GREEN_CIRCLE", "BLUE_STAR", "YELLOW_STAR", "RED_BANG", "YELLOW_BANG", "PURPLE_QUESTION", "ORANGE_GUILLEMET",
-          "BLUE_INFO", "RED_MINUS", "YELLOW_MINUS", "GREEN_CHECK", "BLUE_CHECK", "RED_CHECK", "ORANGE_CHECK",
+          "INBOX",
+          "SENT",
+          "TRASH",
+          "SPAM",
+          "DRAFT",
+          "UNREAD",
+          "STARRED",
+          "IMPORTANT",
+          "CATEGORY_PERSONAL",
+          "CATEGORY_SOCIAL",
+          "CATEGORY_PROMOTIONS",
+          "CATEGORY_UPDATES",
+          "CATEGORY_FORUMS",
+          "GREEN_CIRCLE",
+          "BLUE_STAR",
+          "YELLOW_STAR",
+          "RED_BANG",
+          "YELLOW_BANG",
+          "PURPLE_QUESTION",
+          "ORANGE_GUILLEMET",
+          "BLUE_INFO",
+          "RED_MINUS",
+          "YELLOW_MINUS",
+          "GREEN_CHECK",
+          "BLUE_CHECK",
+          "RED_CHECK",
+          "ORANGE_CHECK",
         ]);
-        
+
         const convertedLabels = email.labels
           .map((idOrName) => {
             // First check if it's a system label (by ID or name)
             if (systemLabels.has(idOrName)) {
               return null; // Skip system labels
             }
-            
+
             // If it's an ID, try to convert it
             if (labelIdToName.has(idOrName)) {
               const convertedName = labelIdToName.get(idOrName)!;
@@ -670,9 +721,12 @@ export class EmailsService {
               }
               return convertedName;
             }
-            
+
             // If it doesn't start with Label_ and isn't a system label, it might already be a name
-            if (!idOrName.startsWith("Label_") && !idOrName.startsWith("label_")) {
+            if (
+              !idOrName.startsWith("Label_") &&
+              !idOrName.startsWith("label_")
+            ) {
               // Double-check it's not a system label (in case it was stored as a name)
               if (systemLabels.has(idOrName)) {
                 return null;
@@ -682,12 +736,14 @@ export class EmailsService {
             return null; // Skip unmapped Label_* labels
           })
           .filter((label): label is string => label !== null);
-        
+
         // Remove duplicates using Set
         const uniqueConvertedLabels = Array.from(new Set(convertedLabels));
 
         // Only update if labels changed
-        if (JSON.stringify(uniqueConvertedLabels) !== JSON.stringify(email.labels)) {
+        if (
+          JSON.stringify(uniqueConvertedLabels) !== JSON.stringify(email.labels)
+        ) {
           this.logger.debug(
             `[EmailsService] Updating labels for email ${email.id}: ${JSON.stringify(email.labels)} -> ${JSON.stringify(uniqueConvertedLabels)}`,
           );
@@ -858,7 +914,10 @@ export class EmailsService {
     userId: string,
     limit: number = 50,
   ): Promise<string[]> {
-    return this.emailThreadService.getNonArchivedThreadsNeedingCheck(userId, limit);
+    return this.emailThreadService.getNonArchivedThreadsNeedingCheck(
+      userId,
+      limit,
+    );
   }
 
   /**
@@ -899,7 +958,11 @@ export class EmailsService {
     threadId: string,
     isArchived: boolean,
   ): Promise<void> {
-    return this.emailThreadService.updateThreadArchivedStatus(userId, threadId, isArchived);
+    return this.emailThreadService.updateThreadArchivedStatus(
+      userId,
+      threadId,
+      isArchived,
+    );
   }
 
   /**
@@ -910,7 +973,10 @@ export class EmailsService {
     userId: string,
     threadIds: string[],
   ): Promise<void> {
-    return this.emailThreadService.updateThreadsLastCheckedAt(userId, threadIds);
+    return this.emailThreadService.updateThreadsLastCheckedAt(
+      userId,
+      threadIds,
+    );
   }
 
   /**
@@ -921,7 +987,10 @@ export class EmailsService {
     userId: string,
     updates: Array<{ threadId: string; isArchived: boolean }>,
   ): Promise<void> {
-    return this.emailThreadService.batchUpdateThreadArchivedStatuses(userId, updates);
+    return this.emailThreadService.batchUpdateThreadArchivedStatuses(
+      userId,
+      updates,
+    );
   }
 
   /**
@@ -933,7 +1002,11 @@ export class EmailsService {
     threadId: string,
     starCount: number,
   ): Promise<void> {
-    return this.emailThreadService.updateThreadStarCount(userId, threadId, starCount);
+    return this.emailThreadService.updateThreadStarCount(
+      userId,
+      threadId,
+      starCount,
+    );
   }
 
   /**
@@ -945,7 +1018,11 @@ export class EmailsService {
     updates: { threadId: string; isArchived: boolean; starCount: number }[],
     deletedThreadIds: string[],
   ): Promise<void> {
-    return this.emailThreadService.batchUpdateThreadStatus(userId, updates, deletedThreadIds);
+    return this.emailThreadService.batchUpdateThreadStatus(
+      userId,
+      updates,
+      deletedThreadIds,
+    );
   }
 
   /**
@@ -958,7 +1035,12 @@ export class EmailsService {
     starCount: number = STAR_COUNTS.NONE,
     isArchived: boolean = false,
   ): Promise<EmailThread> {
-    return this.emailThreadService.getOrCreateEmailThread(userId, threadId, starCount, isArchived);
+    return this.emailThreadService.getOrCreateEmailThread(
+      userId,
+      threadId,
+      starCount,
+      isArchived,
+    );
   }
 
   /**
@@ -977,10 +1059,21 @@ export class EmailsService {
 
     // Check if sender is blocked
     const senderEmail = emailData.from || "";
-    const isBlocked = await this.blockedSendersService.isSenderBlocked(
+    const isSenderBlocked = await this.blockedSendersService.isSenderBlocked(
       userId,
       senderEmail,
     );
+
+    // Check if subject contains blocked keywords
+    const subject = emailData.subject || "";
+    const hasBlockedKeyword =
+      await this.blockedKeywordsService.checkSubjectForBlockedKeywords(
+        userId,
+        subject,
+      );
+
+    // Email is blocked if sender is blocked OR subject contains blocked keyword
+    const isBlocked = isSenderBlocked || hasBlockedKeyword;
 
     // Extract thread-level properties (these should come from EmailThread, not Email)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1018,7 +1111,7 @@ export class EmailsService {
       // Link to EmailThread
       emailThreadId: thread.id,
     };
-    
+
     // Debug: Log labels being saved
     const labelsToSave = (emailDataToCreate as any).labels;
     if (labelsToSave) {
@@ -1030,29 +1123,61 @@ export class EmailsService {
         `[EmailsService] Creating email ${emailDataToCreate.messageId} with no labels`,
       );
     }
-    
+
     const createdEntities = this.emailRepository.create(emailDataToCreate);
     const email = (
       Array.isArray(createdEntities) ? createdEntities[0] : createdEntities
     ) as Email;
 
-    // If sender is blocked, skip priority calculation and LLM processing
+    // If sender is blocked or subject contains blocked keyword, skip priority calculation and LLM processing
     if (isBlocked) {
+      const blockReason = isSenderBlocked
+        ? `blocked sender ${senderEmail}`
+        : `blocked keyword in subject "${subject}"`;
       this.logger.log(
-        `📛 Email from blocked sender ${senderEmail} - auto-archiving and skipping LLM processing`,
+        `📛 Email from ${blockReason} - auto-archiving and skipping LLM processing`,
       );
-      // Priority score will be calculated from breakdown (0 for blocked senders)
+      // Priority score will be calculated from breakdown (0 for blocked emails)
       // Update thread flag (priority is thread-level)
       thread.isProcessingPriority = false;
       await this.emailThreadRepository.save(thread);
       email.isProcessingSummary = false;
-      email.summary = "[Blocked sender]";
+      email.summary = isSenderBlocked
+        ? "[Blocked sender]"
+        : "[Blocked keyword]";
 
       // Add blocked-by-bearlymail label
       const existingLabels = email.labels || [];
       email.labels = [...existingLabels, "blocked-by-bearlymail"];
 
       const savedEmail = await this.emailRepository.save(email);
+
+      // Queue archive job to archive the thread in the email provider (Gmail, Outlook, Zoho)
+      // This ensures the email is actually archived in the user's email client, not just hidden in BearlyMail
+      this.boss
+        .send(
+          "archive-email",
+          { userId, emailId: savedEmail.id },
+          {
+            priority: getJobPriority("archive-email", false),
+            singletonKey: `archive-blocked-${savedEmail.threadId}`,
+            singletonMinutes: 5,
+          },
+        )
+        .then((jobId) => {
+          if (jobId) {
+            this.logger.log(
+              `📛 Queued archive job ${jobId} for blocked sender email: threadId=${savedEmail.threadId}`,
+            );
+          }
+        })
+        .catch((err) => {
+          this.logger.error(
+            `Failed to queue archive job for blocked sender email ${savedEmail.id}:`,
+            err,
+          );
+        });
+
       return savedEmail;
     }
 
@@ -1067,14 +1192,14 @@ export class EmailsService {
       email,
     );
 
-      // Priority score is now calculated from breakdown, not stored directly
-      // Mark thread as processing for LLM refinement (priority is thread-level)
-      if (thread) {
-        thread.isProcessingPriority = true;
-        await this.emailThreadRepository.save(thread);
-      }
-      // Mark as processing for summary generation
-      email.isProcessingSummary = true;
+    // Priority score is now calculated from breakdown, not stored directly
+    // Mark thread as processing for LLM refinement (priority is thread-level)
+    if (thread) {
+      thread.isProcessingPriority = true;
+      await this.emailThreadRepository.save(thread);
+    }
+    // Mark as processing for summary generation
+    email.isProcessingSummary = true;
 
     // Check if urgent (override batching) - urgency is now stored on thread as urgencyScore
     const urgencyScore = thread.urgencyScore || 0;
@@ -1084,10 +1209,11 @@ export class EmailsService {
     if (!isUrgent && starCount === 0) {
       // Get user's batch schedule
       let schedule = await this.batchScheduleService.getSchedule(userId);
-      
+
       // If no schedule exists, use default schedule
       if (!schedule) {
-        const defaultScheduleData = this.batchScheduleService.getDefaultSchedule();
+        const defaultScheduleData =
+          this.batchScheduleService.getDefaultSchedule();
         // Create a temporary schedule object with default values for calculation
         schedule = {
           ...defaultScheduleData,
@@ -1113,8 +1239,10 @@ export class EmailsService {
     }
 
     const savedEmail = await this.emailRepository.save(email);
-    this.logger.debug(`[EmailsService] Saved email ${savedEmail.id} to database`);
-    
+    this.logger.debug(
+      `[EmailsService] Saved email ${savedEmail.id} to database`,
+    );
+
     // Ensure thread's updatedAt is updated when a new email is added
     // This is critical for detecting new emails in priority recalculation logic
     if (thread) {
@@ -1142,14 +1270,16 @@ export class EmailsService {
         );
       }
     }
-    
+
     // Debug: Verify labels were saved correctly
     if (savedEmail.labels) {
       this.logger.debug(
         `[EmailsService] Email ${savedEmail.id} saved with labels (after TypeORM): ${JSON.stringify(savedEmail.labels)}`,
       );
     } else {
-      this.logger.debug(`[EmailsService] Email ${savedEmail.id} saved with no labels`);
+      this.logger.debug(
+        `[EmailsService] Email ${savedEmail.id} saved with no labels`,
+      );
     }
 
     // IMPORTANT: Always queue jobs immediately when isProcessingPriority/Summary is set
@@ -1325,20 +1455,28 @@ export class EmailsService {
   }
 
   async archiveEmail(userId: string, emailId: string): Promise<void> {
-    this.logger.log(`[Archive] archiveEmail called: userId=${userId}, emailId=${emailId}`);
+    this.logger.log(
+      `[Archive] archiveEmail called: userId=${userId}, emailId=${emailId}`,
+    );
     const email = await this.getEmailById(userId, emailId);
     if (!email) {
-      this.logger.warn(`[Archive] Email not found: userId=${userId}, emailId=${emailId}`);
+      this.logger.warn(
+        `[Archive] Email not found: userId=${userId}, emailId=${emailId}`,
+      );
       throw new Error("Email not found");
     }
-    
+
     if (!email.threadId) {
-      this.logger.warn(`[Archive] Email has no threadId: userId=${userId}, emailId=${emailId}`);
+      this.logger.warn(
+        `[Archive] Email has no threadId: userId=${userId}, emailId=${emailId}`,
+      );
       throw new Error("Email has no threadId");
     }
 
-    this.logger.log(`[Archive] Email found: emailId=${emailId}, threadId=${email.threadId}`);
-    
+    this.logger.log(
+      `[Archive] Email found: emailId=${emailId}, threadId=${email.threadId}`,
+    );
+
     // Check if the thread is starred
     const thread = await this.emailThreadRepository.findOne({
       where: { userId, threadId: email.threadId },
@@ -1346,31 +1484,42 @@ export class EmailsService {
 
     const isStarred = thread && thread.starCount > 0;
     const { threadId } = email;
-    
-    this.logger.log(`[Archive] Thread info: threadId=${threadId}, isStarred=${isStarred}, currentIsArchived=${thread?.isArchived || false}`);
 
-      // Archive the thread in email provider (this will also remove the star if present)
-      // Only update database if provider API call succeeds
-    const provider =
-      await this.emailProviderManager.getPrimaryProvider(userId);
+    this.logger.log(
+      `[Archive] Thread info: threadId=${threadId}, isStarred=${isStarred}, currentIsArchived=${thread?.isArchived || false}`,
+    );
+
+    // Archive the thread in email provider (this will also remove the star if present)
+    // Only update database if provider API call succeeds
+    const provider = await this.emailProviderManager.getPrimaryProvider(userId);
     if (provider && "archiveThread" in provider) {
-      this.logger.log(`[Archive] Calling provider.archiveThread: userId=${userId}, threadId=${threadId}`);
+      this.logger.log(
+        `[Archive] Calling provider.archiveThread: userId=${userId}, threadId=${threadId}`,
+      );
       await provider.archiveThread(userId, threadId);
-      this.logger.log(`[Archive] provider.archiveThread completed successfully: userId=${userId}, threadId=${threadId}`);
+      this.logger.log(
+        `[Archive] provider.archiveThread completed successfully: userId=${userId}, threadId=${threadId}`,
+      );
     } else {
-      this.logger.error(`[Archive] No email provider available: userId=${userId}`);
+      this.logger.error(
+        `[Archive] No email provider available: userId=${userId}`,
+      );
       throw new Error("No email provider available to archive thread");
     }
 
     // Update database: remove star, mark as read, and mark as archived
-      // Only reached if provider API call succeeded
+    // Only reached if provider API call succeeded
     if (isStarred) {
-      this.logger.log(`[Archive] Removing star from thread: userId=${userId}, threadId=${threadId}`);
+      this.logger.log(
+        `[Archive] Removing star from thread: userId=${userId}, threadId=${threadId}`,
+      );
       await this.updateThreadStarCount(userId, threadId, 0);
     }
 
     // Mark all emails in the thread as read in the database
-    this.logger.log(`[Archive] Marking all emails in thread as read: userId=${userId}, threadId=${threadId}`);
+    this.logger.log(
+      `[Archive] Marking all emails in thread as read: userId=${userId}, threadId=${threadId}`,
+    );
     const threadEmails = await this.emailRepository.find({
       where: { userId, threadId, isRead: false },
       select: ["id"],
@@ -1378,12 +1527,18 @@ export class EmailsService {
     if (threadEmails.length > 0) {
       const emailIds = threadEmails.map((e) => e.id);
       await this.bulkMarkAsRead(userId, emailIds);
-      this.logger.log(`[Archive] Marked ${emailIds.length} emails as read: userId=${userId}, threadId=${threadId}`);
+      this.logger.log(
+        `[Archive] Marked ${emailIds.length} emails as read: userId=${userId}, threadId=${threadId}`,
+      );
     }
 
-    this.logger.log(`[Archive] Updating thread archived status to true: userId=${userId}, threadId=${threadId}`);
+    this.logger.log(
+      `[Archive] Updating thread archived status to true: userId=${userId}, threadId=${threadId}`,
+    );
     await this.updateThreadArchivedStatus(userId, threadId, true);
-    this.logger.log(`[Archive] archiveEmail completed successfully: userId=${userId}, emailId=${emailId}, threadId=${threadId}`);
+    this.logger.log(
+      `[Archive] archiveEmail completed successfully: userId=${userId}, emailId=${emailId}, threadId=${threadId}`,
+    );
   }
 
   async deleteEmail(userId: string, emailId: string): Promise<void> {
@@ -1427,7 +1582,7 @@ export class EmailsService {
     starCount: number,
   ): Promise<Email> {
     return this.emailStarService.setStarCount(
-            userId,
+      userId,
       emailId,
       starCount,
       (userId, emailId) => this.getEmailById(userId, emailId),
@@ -1442,7 +1597,7 @@ export class EmailsService {
    */
   async toggleStar(userId: string, emailId: string): Promise<Email> {
     return this.emailStarService.toggleStar(
-            userId,
+      userId,
       emailId,
       (userId, emailId) => this.getEmailById(userId, emailId),
       (userId, threadId, starCount) =>
@@ -1456,8 +1611,9 @@ export class EmailsService {
    */
   async forceCheckNewEmails(userId: string): Promise<Email[]> {
     return this.emailStatusService.forceCheckNewEmails(
-        userId,
-      (userId, includeBatched, mode) => this.getInbox(userId, includeBatched, mode),
+      userId,
+      (userId, includeBatched, mode) =>
+        this.getInbox(userId, includeBatched, mode),
     );
   }
 
@@ -1711,16 +1867,19 @@ export class EmailsService {
               item.factor === "🤖 AI Analysis" ||
               item.factor === "AI Analysis",
           ) ?? false;
-        
+
         // Check if breakdown has "Calculating..." items (incomplete calculation)
         const hasCalculatingItems =
           thread.priorityExplanation.breakdown?.some(
-            (item) => item.description === "Calculating..." || item.description?.includes("Calculating...")
+            (item) =>
+              item.description === "Calculating..." ||
+              item.description?.includes("Calculating..."),
           ) ?? false;
 
         // If stuck in "Calculating..." for more than 10 minutes, reset flag and requeue
         if (hasCalculatingItems && thread.isProcessingPriority) {
-          const processingTime = Date.now() - new Date(thread.updatedAt).getTime();
+          const processingTime =
+            Date.now() - new Date(thread.updatedAt).getTime();
           const tenMinutes = 10 * 60 * 1000;
           if (processingTime > tenMinutes) {
             this.logger.warn(
@@ -1733,9 +1892,14 @@ export class EmailsService {
           }
         }
 
-        if ((hasOldStructure || hasCalculatingItems) && !thread.isProcessingPriority) {
+        if (
+          (hasOldStructure || hasCalculatingItems) &&
+          !thread.isProcessingPriority
+        ) {
           // Queue recalculation job for old structure or incomplete calculation
-          const reason = hasOldStructure ? "old priority structure" : "calculating items";
+          const reason = hasOldStructure
+            ? "old priority structure"
+            : "calculating items";
           this.logger.log(
             `Detected ${reason} for email ${emailId}, queuing recalculation`,
           );
@@ -1766,7 +1930,11 @@ export class EmailsService {
               vipContact?: { score: number; reasons: string[] };
               sentiment?: { score: number; type: string; reasons: string[] };
             };
-            breakdown?: Array<{ factor: string; value: number; description: string }>;
+            breakdown?: Array<{
+              factor: string;
+              value: number;
+              description: string;
+            }>;
           };
           if (!explanation.dimensions?.sentiment) {
             explanation.dimensions = {
@@ -1793,9 +1961,18 @@ export class EmailsService {
           return {
             score: explanation.score,
             dimensions: {
-              urgency: explanation.dimensions?.urgency || { score: 0, reasons: [] },
-              goalAlignment: explanation.dimensions?.goalAlignment || { score: 0, reasons: [] },
-              vipContact: explanation.dimensions?.vipContact || { score: 0, reasons: [] },
+              urgency: explanation.dimensions?.urgency || {
+                score: 0,
+                reasons: [],
+              },
+              goalAlignment: explanation.dimensions?.goalAlignment || {
+                score: 0,
+                reasons: [],
+              },
+              vipContact: explanation.dimensions?.vipContact || {
+                score: 0,
+                reasons: [],
+              },
               sentiment: explanation.dimensions?.sentiment || {
                 score: email.sentimentScore ?? 0,
                 type:
@@ -1821,7 +1998,11 @@ export class EmailsService {
               vipContact?: { score: number; reasons: string[] };
               sentiment?: { score: number; type: string; reasons: string[] };
             };
-            breakdown?: Array<{ factor: string; value: number; description: string }>;
+            breakdown?: Array<{
+              factor: string;
+              value: number;
+              description: string;
+            }>;
           };
           if (!explanation.dimensions?.sentiment) {
             explanation.dimensions = {
@@ -1845,9 +2026,18 @@ export class EmailsService {
           return {
             score: explanation.score,
             dimensions: {
-              urgency: explanation.dimensions?.urgency || { score: 0, reasons: [] },
-              goalAlignment: explanation.dimensions?.goalAlignment || { score: 0, reasons: [] },
-              vipContact: explanation.dimensions?.vipContact || { score: 0, reasons: [] },
+              urgency: explanation.dimensions?.urgency || {
+                score: 0,
+                reasons: [],
+              },
+              goalAlignment: explanation.dimensions?.goalAlignment || {
+                score: 0,
+                reasons: [],
+              },
+              vipContact: explanation.dimensions?.vipContact || {
+                score: 0,
+                reasons: [],
+              },
               sentiment: explanation.dimensions?.sentiment || {
                 score: email.sentimentScore ?? 0,
                 type:
@@ -2029,7 +2219,8 @@ export class EmailsService {
       // Also save denormalized priorityScore for efficient SQL sorting
       if (email.emailThreadId) {
         const endSave = perf.startSpan("save-explanation", 500);
-        const priorityScore = this.calculateScoreFromBreakdown(explanation) ?? 0;
+        const priorityScore =
+          this.calculateScoreFromBreakdown(explanation) ?? 0;
         this.emailThreadRepository
           .update(
             { id: email.emailThreadId },
@@ -2124,15 +2315,13 @@ export class EmailsService {
     >
   > {
     return this.emailSearchService.searchEmails(
-          userId,
+      userId,
       query,
-              maxResults,
+      maxResults,
       onProgress,
       (userId, email) => this.calculateDaysSinceLastEmail(userId, email),
     );
   }
-
-
 
   /**
    * Debug endpoint to find missing starred threads
@@ -2172,7 +2361,7 @@ export class EmailsService {
     }>;
   }> {
     return this.emailDebugService.debugStarredThreads(
-          userId,
+      userId,
       (userId, includeBatched, mode) =>
         this.getInbox(userId, includeBatched, mode),
     );

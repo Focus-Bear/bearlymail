@@ -75,11 +75,14 @@ const Settings: React.FC = () => {
           zohoAccounts={settingsData.zohoAccounts}
           batchSchedule={settingsData.batchSchedule}
           blockedSenders={settingsData.blockedSenders}
+          blockedKeywords={settingsData.blockedKeywords}
           newDeliveryTime={settingsData.newDeliveryTime}
           onFetchData={settingsData.fetchData}
           onBatchScheduleChange={settingsData.setBatchSchedule}
           onNewDeliveryTimeChange={settingsData.setNewDeliveryTime}
           onUnblockSender={settingsData.handleUnblockSender}
+          onUnblockKeyword={settingsData.handleUnblockKeyword}
+          onAddKeyword={settingsData.handleAddKeyword}
         />
 
         <AutoResponderSection

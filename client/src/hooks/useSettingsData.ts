@@ -7,12 +7,14 @@ import { useSummarizationRules } from 'hooks/settings/useSummarizationRules';
 import { useApiKeys } from 'hooks/settings/useApiKeys';
 import { useAnalysisProgress, AnalyzeProgress } from 'hooks/settings/useAnalysisProgress';
 import { useBlockedSenders } from 'hooks/settings/useBlockedSenders';
+import { useBlockedKeywords } from 'hooks/settings/useBlockedKeywords';
 import { useBatchSchedule, BatchSchedule } from 'hooks/settings/useBatchSchedule';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 export type { SummarizationRule } from 'hooks/settings/useSummarizationRules';
 export type { BlockedSender } from 'hooks/settings/useBlockedSenders';
+export type { BlockedKeyword } from 'hooks/settings/useBlockedKeywords';
 export type { UserContext } from 'hooks/settings/useContextManagement';
 export type { BatchSchedule };
 export type { AnalyzeProgress };
@@ -28,6 +30,7 @@ export function useSettingsData() {
   const summarizationRules = useSummarizationRules();
   const apiKeys = useApiKeys();
   const blockedSenders = useBlockedSenders();
+  const blockedKeywords = useBlockedKeywords();
   const batchSchedule = useBatchSchedule();
 
   // Destructure fetch functions to get stable references
@@ -40,6 +43,9 @@ export function useSettingsData() {
   const {
     fetchBlockedSenders,
   } = blockedSenders;
+  const {
+    fetchBlockedKeywords,
+  } = blockedKeywords;
   const {
     fetchBatchSchedule,
   } = batchSchedule;
@@ -66,6 +72,7 @@ export function useSettingsData() {
         fetchSummarizationRules(),
         fetchContexts(),
         fetchBlockedSenders(),
+        fetchBlockedKeywords(),
         fetchBatchSchedule(),
         fetchToneRules(),
         fetchApiKeys(),
@@ -102,6 +109,7 @@ export function useSettingsData() {
     fetchSummarizationRules,
     fetchContexts,
     fetchBlockedSenders,
+    fetchBlockedKeywords,
     fetchBatchSchedule,
     fetchToneRules,
     fetchApiKeys,
@@ -121,6 +129,7 @@ export function useSettingsData() {
     // State from extracted hooks
     ...summarizationRules,
     ...blockedSenders,
+    ...blockedKeywords,
     ...contextManagement,
     ...batchSchedule,
     ...toneRules,
@@ -151,6 +160,8 @@ export function useSettingsData() {
     handleSaveSummarizationRule: summarizationRules.updateSummarizationRule,
     handleDeleteSummarizationRule: summarizationRules.deleteSummarizationRule,
     handleUnblockSender: blockedSenders.removeBlockedSender,
+    handleUnblockKeyword: blockedKeywords.removeBlockedKeyword,
+    handleAddKeyword: blockedKeywords.addBlockedKeyword,
     dismissAnalyzeProgress: analysisProgress.dismissProgress,
   };
 }

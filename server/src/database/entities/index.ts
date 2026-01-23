@@ -14,6 +14,7 @@ export { BatchSchedule } from "./batch-schedule.entity";
 export { FollowUp } from "./follow-up.entity";
 export { Contact } from "./contact.entity";
 export { BlockedSender } from "./blocked-sender.entity";
+export { BlockedKeyword } from "./blocked-keyword.entity";
 export { Waitlist } from "./waitlist.entity";
 export { PriorityOverride } from "./priority-override.entity";
 export { ContextAnalysis } from "./context-analysis.entity";

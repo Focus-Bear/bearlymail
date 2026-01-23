@@ -4,11 +4,20 @@ import { theme } from 'theme/theme';
 import { EmailAccountsSection } from 'components/settings/email-delivery/EmailAccountsSection';
 import { EmailBatchingSection } from 'components/settings/email-delivery/EmailBatchingSection';
 import { BlockedSendersSection } from 'components/settings/email-delivery/BlockedSendersSection';
+import { BlockedKeywordsSection } from 'components/settings/email-delivery/BlockedKeywordsSection';
 
 interface BlockedSender {
   id: string;
   email: string;
   senderName?: string;
+  reason?: string;
+  blockedAt: string;
+}
+
+interface BlockedKeyword {
+  id: string;
+  keyword: string;
+  exactMatch: boolean;
   reason?: string;
   blockedAt: string;
 }
@@ -27,11 +36,14 @@ interface EmailDeliverySectionProps {
   zohoAccounts: any[];
   batchSchedule: BatchSchedule;
   blockedSenders: BlockedSender[];
+  blockedKeywords: BlockedKeyword[];
   newDeliveryTime: string;
   onFetchData: () => Promise<void>;
   onBatchScheduleChange: (schedule: BatchSchedule) => void;
   onNewDeliveryTimeChange: (time: string) => void;
   onUnblockSender: (id: string) => Promise<void>;
+  onUnblockKeyword: (id: string) => Promise<void>;
+  onAddKeyword: (keyword: string, exactMatch: boolean, reason?: string) => Promise<void>;
 }
 
 export const EmailDeliverySection: React.FC<EmailDeliverySectionProps> = ({
@@ -40,11 +52,14 @@ export const EmailDeliverySection: React.FC<EmailDeliverySectionProps> = ({
   zohoAccounts,
   batchSchedule,
   blockedSenders,
+  blockedKeywords,
   newDeliveryTime,
   onFetchData,
   onBatchScheduleChange,
   onNewDeliveryTimeChange,
   onUnblockSender,
+  onUnblockKeyword,
+  onAddKeyword,
 }) => {
   const { t } = useTranslation();
   
@@ -73,6 +88,11 @@ export const EmailDeliverySection: React.FC<EmailDeliverySectionProps> = ({
       <BlockedSendersSection
         blockedSenders={blockedSenders}
         onUnblockSender={onUnblockSender}
+      />
+      <BlockedKeywordsSection
+        blockedKeywords={blockedKeywords}
+        onUnblockKeyword={onUnblockKeyword}
+        onAddKeyword={onAddKeyword}
       />
     </div>
   );

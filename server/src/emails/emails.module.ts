@@ -32,6 +32,7 @@ import { LLMModule } from "../llm/llm.module";
 import { ContextModule } from "../context/context.module";
 import { ContactsModule } from "../contacts/contacts.module";
 import { BlockedSendersModule } from "../blocked-senders/blocked-senders.module";
+import { BlockedKeywordsModule } from "../blocked-keywords/blocked-keywords.module";
 import { BatchScheduleModule } from "../batch-schedule/batch-schedule.module";
 import { GoogleAccountsModule } from "../google-accounts/google-accounts.module";
 import { Office365AccountsModule } from "../office365-accounts/office365-accounts.module";
@@ -56,6 +57,7 @@ import { GitHubModule } from "../github/github.module";
     ContextModule,
     forwardRef(() => ContactsModule),
     BlockedSendersModule,
+    BlockedKeywordsModule,
     BatchScheduleModule,
     forwardRef(() => GoogleAccountsModule),
     forwardRef(() => Office365AccountsModule),

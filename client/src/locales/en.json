@@ -938,6 +938,18 @@
       "blocked": "Blocked",
       "unblock": "Unblock"
     },
+    "blockedKeywords": {
+      "title": "Blocked Keywords",
+      "description": "Emails with these keywords in the subject line will be automatically archived",
+      "emptyState": "No blocked keywords",
+      "reason": "Reason",
+      "blocked": "Blocked",
+      "unblock": "Unblock",
+      "exactMatch": "Exact",
+      "exactMatchLabel": "Exact phrase match",
+      "placeholder": "Enter keyword to block...",
+      "addKeyword": "Add Keyword"
+    },
     "contextAboutMe": {
       "description1": "Help BearlyMail understand your priorities by providing information about yourself and your work.",
       "learnMore": "Learn more",

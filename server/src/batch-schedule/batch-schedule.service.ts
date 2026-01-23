@@ -59,20 +59,18 @@ export class BatchScheduleService {
    */
   getNextBatchReleaseTime(
     schedule: BatchSchedule,
-    urgencyScore: number = 0,
+    priorityScore: number = 0,
   ): Date | null {
-    // If batching is disabled or urgency score >= 90 (super urgent) bypasses schedule
-    if (
-      !schedule.isEnabled ||
-      urgencyScore >= PRIORITY_SCORES.URGENT_THRESHOLD
-    ) {
-      // Release immediately
+    // If batching is disabled, release immediately
+    if (!schedule.isEnabled) {
       return null;
     }
 
-    // If urgency score is high but < 90, check if urgentBypassSchedule is enabled
-    if (urgencyScore > 0 && schedule.urgentBypassSchedule) {
-      // Release immediately for any urgent email if bypass is enabled
+    // If priority score > 50 and urgentBypassSchedule is enabled, release immediately
+    if (
+      priorityScore > PRIORITY_SCORES.MEDIUM_THRESHOLD &&
+      schedule.urgentBypassSchedule
+    ) {
       return null;
     }
 

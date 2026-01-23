@@ -1201,12 +1201,11 @@ export class EmailsService {
     // Mark as processing for summary generation
     email.isProcessingSummary = true;
 
-    // Check if urgent (override batching) - urgency is now stored on thread as urgencyScore
-    const urgencyScore = thread.urgencyScore || 0;
-    const isUrgent = urgencyScore >= 90;
+    // Get priority score from thread for batch bypass decision
+    const priorityScore = thread.priorityScore || 0;
 
-    // Apply batching if not urgent and not starred (starCount = 0)
-    if (!isUrgent && starCount === 0) {
+    // Apply batching if not starred (starCount = 0)
+    if (starCount === 0) {
       // Get user's batch schedule
       let schedule = await this.batchScheduleService.getSchedule(userId);
 
@@ -1224,10 +1223,10 @@ export class EmailsService {
         } as BatchSchedule;
       }
 
-      // Calculate next batch release time based on schedule
+      // Calculate next batch release time based on schedule and priority score
       const nextReleaseTime = this.batchScheduleService.getNextBatchReleaseTime(
         schedule,
-        urgencyScore,
+        priorityScore,
       );
 
       // If getNextBatchReleaseTime returns null, don't batch (immediate delivery)

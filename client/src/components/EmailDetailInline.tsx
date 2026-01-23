@@ -105,6 +105,10 @@ export const EmailDetailInline: React.FC<EmailDetailInlineProps> = ({
     showReplyComposer,
     replyMode,
     replyRecipients,
+    replyCc,
+    replyBcc,
+    showCc,
+    showBcc,
     draft,
     loadingReplies,
     sending,
@@ -114,6 +118,10 @@ export const EmailDetailInline: React.FC<EmailDetailInlineProps> = ({
     setNoteContent,
     setNewActionItem,
     setReplyRecipients,
+    setReplyCc,
+    setReplyBcc,
+    setShowCc,
+    setShowBcc,
     refreshGithubInfo,
     handleSaveNote,
     handleAddActionItem,
@@ -191,6 +199,10 @@ export const EmailDetailInline: React.FC<EmailDetailInlineProps> = ({
         showReplyComposer={showReplyComposer}
         replyMode={replyMode}
         replyRecipients={replyRecipients}
+        replyCc={replyCc}
+        replyBcc={replyBcc}
+        showCc={showCc}
+        showBcc={showBcc}
         draft={draft}
         replyOptions={replyOptions}
         selectedReplyOption={selectedReplyOption}
@@ -199,6 +211,10 @@ export const EmailDetailInline: React.FC<EmailDetailInlineProps> = ({
         toneCheckResult={toneCheckResult}
         sending={sending}
         onReplyRecipientsChange={setReplyRecipients}
+        onCcChange={setReplyCc}
+        onBccChange={setReplyBcc}
+        onShowCc={() => setShowCc(true)}
+        onShowBcc={() => setShowBcc(true)}
         onDraftChange={handleDraftChange}
         onReplyOptionSelect={handleReplyOptionSelect}
         onClose={handleReplyComposerClose}

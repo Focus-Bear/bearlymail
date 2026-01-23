@@ -30,6 +30,10 @@ export function useEmailDetailReplies(
   const [showReplyComposer, setShowReplyComposer] = useState(false);
   const [replyMode, setReplyMode] = useState<'reply' | 'replyAll'>('reply');
   const [replyRecipients, setReplyRecipients] = useState<string>('');
+  const [replyCc, setReplyCc] = useState<string>('');
+  const [replyBcc, setReplyBcc] = useState<string>('');
+  const [showCc, setShowCc] = useState(false);
+  const [showBcc, setShowBcc] = useState(false);
   const [sending, setSending] = useState(false);
   
   const {
@@ -55,6 +59,10 @@ export function useEmailDetailReplies(
     setShowReplyComposer(true);
     setDraft('');
     setToneCheckResult(null);
+    setReplyCc('');
+    setReplyBcc('');
+    setShowCc(false);
+    setShowBcc(false);
     if (email) {
       if (mode === REPLY_MODE_REPLY_ALL) {
         const recipients = [email.from];
@@ -77,10 +85,16 @@ export function useEmailDetailReplies(
       await axios.post(`${API_URL}/replies/send/${emailId}`, { 
         reply: draft,
         recipients: replyRecipients,
+        cc: replyCc || undefined,
+        bcc: replyBcc || undefined,
         replyAll: replyMode === REPLY_MODE_REPLY_ALL,
       });
       setDraft(null);
       setShowReplyComposer(false);
+      setReplyCc('');
+      setReplyBcc('');
+      setShowCc(false);
+      setShowBcc(false);
       showSuccess(t('emailDetail.replySentSuccess'));
       if (onClose) {
         onClose();
@@ -91,7 +105,7 @@ export function useEmailDetailReplies(
     } finally {
       setSending(false);
     }
-  }, [emailId, draft, replyRecipients, replyMode, checkTone, setDraft, showSuccess, showError, t]);
+  }, [emailId, draft, replyRecipients, replyCc, replyBcc, replyMode, checkTone, setDraft, showSuccess, showError, t]);
 
   return {
     replyOptions,
@@ -99,12 +113,20 @@ export function useEmailDetailReplies(
     showReplyComposer,
     replyMode,
     replyRecipients,
+    replyCc,
+    replyBcc,
+    showCc,
+    showBcc,
     draft,
     loadingReplies,
     sending,
     checkingTone,
     toneCheckResult,
     setReplyRecipients,
+    setReplyCc,
+    setReplyBcc,
+    setShowCc,
+    setShowBcc,
     setDraft,
     setSelectedReplyOption,
     setShowReplyComposer,

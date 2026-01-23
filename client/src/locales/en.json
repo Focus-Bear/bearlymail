@@ -480,6 +480,23 @@
     "errorNoBody": "Please enter a message body",
     "errorSendFailed": "Failed to send email. Please try again."
   },
+  "contacts": {
+    "title": "Contacts",
+    "backToInbox": "Back to Inbox",
+    "syncContacts": "Sync Contacts",
+    "syncing": "Syncing...",
+    "syncNow": "Sync Now",
+    "searchPlaceholder": "Search contacts...",
+    "loading": "Loading contacts...",
+    "errorLoading": "Failed to load contacts. Please try again.",
+    "errorSyncing": "Failed to sync contacts. Please try again.",
+    "noContacts": "No contacts yet",
+    "syncToGetStarted": "Sync your contacts from Gmail to get started.",
+    "noSearchResults": "No contacts found",
+    "tryDifferentSearch": "Try a different search term.",
+    "totalContacts": "{{count}} contact",
+    "totalContacts_plural": "{{count}} contacts"
+  },
   "footer": {
     "madeBy": "Made by",
     "focusBear": "Focus Bear",

@@ -16,6 +16,7 @@ import PrivacyPolicy from 'pages/PrivacyPolicy';
 import TermsOfUse from 'pages/TermsOfUse';
 import Search from 'pages/Search';
 import Compose from 'pages/Compose';
+import Contacts from 'pages/Contacts';
 import SetupPassword from 'pages/SetupPassword';
 import Help from 'pages/Help';
 import HelpArticle from 'pages/HelpArticle';
@@ -157,6 +158,14 @@ function App() {
                 element={
                   <PrivateRoute>
                     <Search />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/contacts"
+                element={
+                  <PrivateRoute>
+                    <Contacts />
                   </PrivateRoute>
                 }
               />

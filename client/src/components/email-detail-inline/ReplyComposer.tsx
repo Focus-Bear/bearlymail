@@ -25,6 +25,10 @@ interface ReplyComposerProps {
   showReplyComposer: boolean;
   replyMode: 'reply' | 'replyAll';
   replyRecipients: string;
+  replyCc: string;
+  replyBcc: string;
+  showCc: boolean;
+  showBcc: boolean;
   draft: string | null;
   replyOptions: ReplyOption[] | null;
   selectedReplyOption: number;
@@ -33,6 +37,10 @@ interface ReplyComposerProps {
   toneCheckResult: ToneCheckResultData | null;
   sending: boolean;
   onReplyRecipientsChange: (recipients: string) => void;
+  onCcChange: (cc: string) => void;
+  onBccChange: (bcc: string) => void;
+  onShowCc: () => void;
+  onShowBcc: () => void;
   onDraftChange: (draft: string) => void;
   onReplyOptionSelect: (index: number, text: string) => void;
   onClose: () => void;
@@ -45,6 +53,10 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
   showReplyComposer,
   replyMode,
   replyRecipients,
+  replyCc,
+  replyBcc,
+  showCc,
+  showBcc,
   draft,
   replyOptions,
   selectedReplyOption,
@@ -53,6 +65,10 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
   toneCheckResult,
   sending,
   onReplyRecipientsChange,
+  onCcChange,
+  onBccChange,
+  onShowCc,
+  onShowBcc,
   onDraftChange,
   onReplyOptionSelect,
   onClose,
@@ -98,7 +114,15 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
       <ReplyComposerHeader replyMode={replyMode} onClose={handleClose} />
       <ReplyRecipientsInput
         replyRecipients={replyRecipients}
+        replyCc={replyCc}
+        replyBcc={replyBcc}
+        showCc={showCc}
+        showBcc={showBcc}
         onRecipientsChange={onReplyRecipientsChange}
+        onCcChange={onCcChange}
+        onBccChange={onBccChange}
+        onShowCc={onShowCc}
+        onShowBcc={onShowBcc}
       />
       <ReplyOptionsSelector
         loadingReplies={loadingReplies}

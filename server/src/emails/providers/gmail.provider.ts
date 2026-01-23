@@ -160,7 +160,7 @@ export class GmailProvider implements EmailProvider {
         return name;
       })
       .filter((name): name is string => name !== null);
-    
+
     // Remove duplicates using Set
     const uniqueConverted = Array.from(new Set(converted));
 
@@ -169,10 +169,14 @@ export class GmailProvider implements EmailProvider {
       `[GmailProvider] Converting labelIds ${JSON.stringify(labelIds)} to names: ${JSON.stringify(uniqueConverted)}`,
     );
     this.logger.debug(
-      `[GmailProvider] Label mapping for userId ${userId}: ${Array.from(labelMap.entries())
+      `[GmailProvider] Label mapping for userId ${userId}: ${Array.from(
+        labelMap.entries(),
+      )
         .slice(0, 20)
         .map(([id, name]) => `${id} -> ${name}`)
-        .join(", ")}${labelMap.size > 20 ? ` ... (${labelMap.size} total)` : ""}`,
+        .join(
+          ", ",
+        )}${labelMap.size > 20 ? ` ... (${labelMap.size} total)` : ""}`,
     );
 
     return uniqueConverted;
@@ -456,16 +460,16 @@ export class GmailProvider implements EmailProvider {
       const lastSyncAt = user.lastEmailSyncAt;
       const twentyMinutesInMs = 20 * 60 * 1000;
       const sevenDaysAgo = new Date(Date.now() - DAYS.WEEK * MILLISECONDS.DAY);
-      
+
       // Calculate sync window: if we have lastSyncAt, subtract 20 minutes for overlap
       // Otherwise, default to 7 days ago
       const syncWindowStart = lastSyncAt
         ? new Date(lastSyncAt.getTime() - twentyMinutesInMs)
         : sevenDaysAgo;
-      
+
       // Convert to Unix timestamp in seconds for Gmail API
       const syncWindowTimestamp = Math.floor(syncWindowStart.getTime() / 1000);
-      
+
       this.logger.log(
         `[GmailProvider] Syncing emails for user ${userId}. Last sync: ${lastSyncAt?.toISOString() || "never"}, sync window starts: ${syncWindowStart.toISOString()}`,
       );
@@ -474,7 +478,7 @@ export class GmailProvider implements EmailProvider {
       // Fetch threads (not messages) from inbox and starred threads, only those updated since last sync
       const baseQuery = "-label:SnoozedBearlyMail -label:VA-to-action";
       const afterQuery = `after:${syncWindowTimestamp}`;
-      
+
       const [inboxThreadsResponse, starredThreadsResponse] = await Promise.all([
         // Fetch unread threads from inbox updated since last sync
         gmail.users.threads.list({
@@ -545,8 +549,11 @@ export class GmailProvider implements EmailProvider {
       // Process batches sequentially, but threads within batch in parallel
       // Add limits to prevent jobs from running too long (max 100 threads per sync)
       const MAX_THREADS_TO_PROCESS = 100;
-      const threadsToProcessLimited = threadsToProcess.slice(0, MAX_THREADS_TO_PROCESS);
-      
+      const threadsToProcessLimited = threadsToProcess.slice(
+        0,
+        MAX_THREADS_TO_PROCESS,
+      );
+
       if (threadsToProcess.length > MAX_THREADS_TO_PROCESS) {
         this.logger.warn(
           `Limiting thread processing to ${MAX_THREADS_TO_PROCESS} threads (out of ${threadsToProcess.length} total) to prevent job timeout`,
@@ -558,129 +565,154 @@ export class GmailProvider implements EmailProvider {
         limitedBatches.push(threadsToProcessLimited.slice(i, i + BATCH_SIZE));
       }
 
-      let processedThreads = 0;
+      const processedThreads = 0;
       for (const batch of limitedBatches) {
         await Promise.all(
           batch
             .filter((threadId) => threadId) // Filter out null/undefined
             .map(async (threadId) => {
+              try {
+                // Get the thread with all messages to check archived/starred status accurately
+                const threadData = await gmail.users.threads.get({
+                  userId: "me",
+                  id: threadId,
+                  format: "full",
+                });
 
-            try {
-              // Get the thread with all messages to check archived/starred status accurately
-              const threadData = await gmail.users.threads.get({
-                userId: "me",
-                id: threadId,
-                format: "full",
-              });
+                const thread = threadData.data;
+                if (!thread.messages || thread.messages.length === 0) return;
 
-              const thread = threadData.data;
-              if (!thread.messages || thread.messages.length === 0) return;
+                // Get the latest message (first in array) to determine current status
+                const latestMessage =
+                  thread.messages[thread.messages.length - 1];
+                const latestLabelIds = latestMessage.labelIds || [];
 
-              // Get the latest message (first in array) to determine current status
-              const latestMessage = thread.messages[thread.messages.length - 1];
-              const latestLabelIds = latestMessage.labelIds || [];
+                // A thread is archived if ALL messages lack the INBOX label
+                // More accurately: if the latest message doesn't have INBOX, the thread is archived
+                const isArchived = !latestLabelIds.includes("INBOX");
+                const isStarred = latestLabelIds.includes("STARRED");
+                const starCount = isStarred ? 3 : 0;
 
-              // A thread is archived if ALL messages lack the INBOX label
-              // More accurately: if the latest message doesn't have INBOX, the thread is archived
-              const isArchived = !latestLabelIds.includes("INBOX");
-              const isStarred = latestLabelIds.includes("STARRED");
-              const starCount = isStarred ? 3 : 0;
+                // Check if status changed compared to DB (for existing threads)
+                const existingThread = existingThreadMap.get(threadId);
+                const statusChanged =
+                  existingThread &&
+                  (existingThread.starCount !== starCount ||
+                    existingThread.isArchived !== isArchived);
 
-              // Check if status changed compared to DB (for existing threads)
-              const existingThread = existingThreadMap.get(threadId);
-              const statusChanged =
-                existingThread &&
-                (existingThread.starCount !== starCount ||
-                  existingThread.isArchived !== isArchived);
+                // Collect thread updates (only once per thread, not per message)
+                // Only update if status changed or thread is new
+                if (!existingThread || statusChanged) {
+                  threadStarCountUpdates.push({ threadId, starCount });
+                  threadArchivedUpdates.push({ threadId, isArchived });
+                }
 
-              // Collect thread updates (only once per thread, not per message)
-              // Only update if status changed or thread is new
-              if (!existingThread || statusChanged) {
-                threadStarCountUpdates.push({ threadId, starCount });
-                threadArchivedUpdates.push({ threadId, isArchived });
-              }
+                // Process all messages in the thread
+                for (const message of thread.messages) {
+                  if (!message.id) continue;
 
-              // Process all messages in the thread
-              for (const message of thread.messages) {
-                if (!message.id) continue;
+                  // Verify we're using this specific message's labelIds, not thread-level
+                  const messageLabelIds = message.labelIds || [];
+                  this.logger.debug(
+                    `[GmailProvider] Processing message ${message.id} in thread ${threadId} with labelIds: ${JSON.stringify(messageLabelIds)}`,
+                  );
 
-                // Verify we're using this specific message's labelIds, not thread-level
-                const messageLabelIds = message.labelIds || [];
-                this.logger.debug(
-                  `[GmailProvider] Processing message ${message.id} in thread ${threadId} with labelIds: ${JSON.stringify(messageLabelIds)}`,
-                );
+                  const rawEmail = this.parseGmailMessage(message);
+                  if (!rawEmail) continue;
 
-                const rawEmail = this.parseGmailMessage(message);
-                if (!rawEmail) continue;
+                  // Verify parseGmailMessage extracted the correct labelIds
+                  if (
+                    JSON.stringify(rawEmail.labelIds) !==
+                    JSON.stringify(messageLabelIds)
+                  ) {
+                    this.logger.warn(
+                      `[GmailProvider] Mismatch: message.labelIds=${JSON.stringify(messageLabelIds)} vs rawEmail.labelIds=${JSON.stringify(rawEmail.labelIds)}`,
+                    );
+                  }
 
-                // Verify parseGmailMessage extracted the correct labelIds
-                if (JSON.stringify(rawEmail.labelIds) !== JSON.stringify(messageLabelIds)) {
+                  const existing = await this.emailsService.getEmailByMessageId(
+                    userId,
+                    message.id,
+                  );
+
+                  if (existing) {
+                    // Sync read status from Gmail (use labelIds from this specific message)
+                    const isReadInGmail = !messageLabelIds.includes("UNREAD");
+                    const updates: Partial<{
+                      isRead: boolean;
+                      attachments: typeof rawEmail.attachments;
+                    }> = {};
+
+                    if (existing.isRead !== isReadInGmail) {
+                      updates.isRead = isReadInGmail;
+                    }
+
+                    // Backfill attachments for existing emails that don't have them
+                    if (
+                      !existing.attachments &&
+                      rawEmail.attachments &&
+                      rawEmail.attachments.length > 0
+                    ) {
+                      updates.attachments = rawEmail.attachments;
+                      this.logger.debug(
+                        `[GmailProvider] Backfilling ${rawEmail.attachments.length} attachments for email ${existing.id}`,
+                      );
+                    }
+
+                    if (Object.keys(updates).length > 0) {
+                      await this.emailsService.updateEmail(
+                        existing.id,
+                        updates,
+                      );
+                    }
+                    continue;
+                  }
+
+                  // Create new email - use thread-level archived/starred status
+                  const labelIds = rawEmail.labelIds || [];
+                  this.logger.debug(
+                    `[GmailProvider] Saving email ${rawEmail.messageId} (message ${message.id}) with raw labelIds from Gmail: ${JSON.stringify(labelIds)}`,
+                  );
+                  await this.emailsService.createEmail(userId, {
+                    messageId: rawEmail.messageId,
+                    threadId: rawEmail.threadId,
+                    subject: rawEmail.subject,
+                    from: rawEmail.from,
+                    fromName: rawEmail.fromName,
+                    body: rawEmail.body,
+                    htmlBody: rawEmail.htmlBody,
+                    // Use thread-level star count
+                    starCount,
+                    receivedAt: rawEmail.receivedAt,
+                    labels: labelIds,
+                    attachments: rawEmail.attachments,
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  } as any);
+                }
+              } catch (threadError: unknown) {
+                // Skip threads that fail (deleted, permissions, etc.)
+                if (isApiError(threadError) && threadError.code === 404) {
+                  this.logger.debug(
+                    `Thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... not found (may be deleted)`,
+                  );
+                } else {
+                  const errorMsg = isError(threadError)
+                    ? threadError.message
+                    : isApiError(threadError)
+                      ? threadError.message
+                      : "Unknown error";
                   this.logger.warn(
-                    `[GmailProvider] Mismatch: message.labelIds=${JSON.stringify(messageLabelIds)} vs rawEmail.labelIds=${JSON.stringify(rawEmail.labelIds)}`,
+                    `Error processing thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}...:`,
+                    errorMsg,
+                  );
+                  logErrorToFile(
+                    `Error processing thread in syncEmails (userId: ${userId}, threadId: ${threadId})`,
+                    threadError,
+                    "GmailProvider",
                   );
                 }
-
-                const existing = await this.emailsService.getEmailByMessageId(
-                  userId,
-                  message.id,
-                );
-
-                if (existing) {
-                  // Sync read status from Gmail (use labelIds from this specific message)
-                  const isReadInGmail = !messageLabelIds.includes("UNREAD");
-                  if (existing.isRead !== isReadInGmail) {
-                    await this.emailsService.updateEmail(existing.id, {
-                      isRead: isReadInGmail,
-                    });
-                  }
-                  continue;
-                }
-
-                // Create new email - use thread-level archived/starred status
-                const labelIds = rawEmail.labelIds || [];
-                this.logger.debug(
-                  `[GmailProvider] Saving email ${rawEmail.messageId} (message ${message.id}) with raw labelIds from Gmail: ${JSON.stringify(labelIds)}`,
-                );
-                await this.emailsService.createEmail(userId, {
-                  messageId: rawEmail.messageId,
-                  threadId: rawEmail.threadId,
-                  subject: rawEmail.subject,
-                  from: rawEmail.from,
-                  fromName: rawEmail.fromName,
-                  body: rawEmail.body,
-                  htmlBody: rawEmail.htmlBody,
-                  // Use thread-level star count
-                  starCount,
-                  receivedAt: rawEmail.receivedAt,
-                  labels: labelIds,
-                  attachments: rawEmail.attachments,
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                } as any);
               }
-            } catch (threadError: unknown) {
-              // Skip threads that fail (deleted, permissions, etc.)
-              if (isApiError(threadError) && threadError.code === 404) {
-                this.logger.debug(
-                  `Thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... not found (may be deleted)`,
-                );
-              } else {
-                const errorMsg = isError(threadError)
-                  ? threadError.message
-                  : isApiError(threadError)
-                    ? threadError.message
-                    : "Unknown error";
-                this.logger.warn(
-                  `Error processing thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}...:`,
-                  errorMsg,
-                );
-                logErrorToFile(
-                  `Error processing thread in syncEmails (userId: ${userId}, threadId: ${threadId})`,
-                  threadError,
-                  "GmailProvider",
-                );
-              }
-            }
-          }),
+            }),
         );
       }
 
@@ -1465,18 +1497,16 @@ export class GmailProvider implements EmailProvider {
 
     const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
-    const emailContent = this.buildEmailContent(
-      {
-        to: [{ email: to }],
-        subject,
-        body,
-        attachments,
-        headers: {
-          "In-Reply-To": `<${threadId}@mail.gmail.com>`,
-          References: `<${threadId}@mail.gmail.com>`,
-        },
+    const emailContent = this.buildEmailContent({
+      to: [{ email: to }],
+      subject,
+      body,
+      attachments,
+      headers: {
+        "In-Reply-To": `<${threadId}@mail.gmail.com>`,
+        References: `<${threadId}@mail.gmail.com>`,
       },
-    );
+    });
 
     const encodedEmail = Buffer.from(emailContent)
       .toString("base64")
@@ -1687,7 +1717,8 @@ export class GmailProvider implements EmailProvider {
         parts.push("");
         // Encode attachment content as base64, split into 76-character lines
         const base64Content = attachment.content.toString("base64");
-        const chunkedContent = base64Content.match(/.{1,76}/g)?.join("\r\n") || base64Content;
+        const chunkedContent =
+          base64Content.match(/.{1,76}/g)?.join("\r\n") || base64Content;
         parts.push(chunkedContent);
       }
 
@@ -1729,9 +1760,7 @@ export class GmailProvider implements EmailProvider {
       messageData.snippet,
     );
 
-    const attachments = this.extractAttachmentsFromPayload(
-      messageData.payload,
-    );
+    const attachments = this.extractAttachmentsFromPayload(messageData.payload);
 
     return {
       messageId: messageData.id,
@@ -1819,9 +1848,7 @@ export class GmailProvider implements EmailProvider {
 
     if (!payload) return attachments;
 
-    const extractFromPart = (
-      part: gmail_v1.Schema$MessagePart,
-    ): void => {
+    const extractFromPart = (part: gmail_v1.Schema$MessagePart): void => {
       // Check if this part is an attachment
       // Attachments have a filename and attachmentId
       if (part.filename && part.body?.attachmentId) {
@@ -2028,7 +2055,9 @@ export class GmailProvider implements EmailProvider {
       }
 
       if (!attachmentPart) {
-        throw new Error(`Attachment ${attachmentId} not found in message ${messageId}`);
+        throw new Error(
+          `Attachment ${attachmentId} not found in message ${messageId}`,
+        );
       }
 
       // Get the attachment data
@@ -2068,19 +2097,27 @@ export class GmailProvider implements EmailProvider {
       ) {
         await this.usersService.update(userId, { needsRelogin: true });
       }
-      throw new Error(`Failed to get attachment: ${errorMsg || "Unknown error"}`);
+      throw new Error(
+        `Failed to get attachment: ${errorMsg || "Unknown error"}`,
+      );
     }
   }
 
   async archiveThread(userId: string, threadId: string): Promise<void> {
-    this.logger.log(`[Gmail Archive] Starting archiveThread: userId=${userId}, threadId=${threadId}`);
+    this.logger.log(
+      `[Gmail Archive] Starting archiveThread: userId=${userId}, threadId=${threadId}`,
+    );
     const user = await this.usersService.findOneWithTokens(userId);
     if (!user?.googleCalendarAccessToken) {
-      this.logger.error(`[Gmail Archive] User not connected to Gmail: userId=${userId}`);
+      this.logger.error(
+        `[Gmail Archive] User not connected to Gmail: userId=${userId}`,
+      );
       throw new Error("User not connected to Gmail");
     }
 
-    this.logger.log(`[Gmail Archive] User found, creating OAuth2 client: userId=${userId}`);
+    this.logger.log(
+      `[Gmail Archive] User found, creating OAuth2 client: userId=${userId}`,
+    );
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
@@ -2096,7 +2133,9 @@ export class GmailProvider implements EmailProvider {
 
     try {
       // Get the thread to check if it's starred and get all messages
-      this.logger.log(`[Gmail Archive] Fetching thread data: userId=${userId}, threadId=${threadId}`);
+      this.logger.log(
+        `[Gmail Archive] Fetching thread data: userId=${userId}, threadId=${threadId}`,
+      );
       const threadData = await gmail.users.threads.get({
         userId: "me",
         id: threadId,
@@ -2105,13 +2144,19 @@ export class GmailProvider implements EmailProvider {
 
       const thread = threadData.data;
       const messages = thread.messages || [];
-      this.logger.log(`[Gmail Archive] Thread fetched: userId=${userId}, threadId=${threadId}, messageCount=${messages.length}`);
+      this.logger.log(
+        `[Gmail Archive] Thread fetched: userId=${userId}, threadId=${threadId}, messageCount=${messages.length}`,
+      );
 
       // If any message is starred, remove STARRED label from each message individually
       // (Gmail requires removing stars from individual messages, not threads)
-      const hasStarred = messages.some((msg) => msg.labelIds?.includes("STARRED"));
-      this.logger.log(`[Gmail Archive] Thread has starred messages: userId=${userId}, threadId=${threadId}, hasStarred=${hasStarred}`);
-      
+      const hasStarred = messages.some((msg) =>
+        msg.labelIds?.includes("STARRED"),
+      );
+      this.logger.log(
+        `[Gmail Archive] Thread has starred messages: userId=${userId}, threadId=${threadId}, hasStarred=${hasStarred}`,
+      );
+
       if (hasStarred) {
         let removedStarCount = 0;
         for (const message of messages) {
@@ -2119,7 +2164,9 @@ export class GmailProvider implements EmailProvider {
 
           // Only remove STARRED if this message has it
           if (message.labelIds?.includes("STARRED")) {
-            this.logger.log(`[Gmail Archive] Removing STAR from message: userId=${userId}, threadId=${threadId}, messageId=${message.id}`);
+            this.logger.log(
+              `[Gmail Archive] Removing STAR from message: userId=${userId}, threadId=${threadId}, messageId=${message.id}`,
+            );
             await gmail.users.messages.modify({
               userId: "me",
               id: message.id,
@@ -2130,13 +2177,17 @@ export class GmailProvider implements EmailProvider {
             removedStarCount++;
           }
         }
-        this.logger.log(`[Gmail Archive] Removed STAR from ${removedStarCount} messages: userId=${userId}, threadId=${threadId}`);
+        this.logger.log(
+          `[Gmail Archive] Removed STAR from ${removedStarCount} messages: userId=${userId}, threadId=${threadId}`,
+        );
       }
 
       // Remove from inbox and mark as read (this archives the thread in Gmail)
       // Note: Gmail doesn't allow adding custom labels via addLabelIds in threads.modify
       // Removing INBOX label archives the thread, removing UNREAD label marks it as read
-      this.logger.log(`[Gmail Archive] Archiving thread in Gmail (removing INBOX and UNREAD labels): userId=${userId}, threadId=${threadId}`);
+      this.logger.log(
+        `[Gmail Archive] Archiving thread in Gmail (removing INBOX and UNREAD labels): userId=${userId}, threadId=${threadId}`,
+      );
       const archiveResult = await gmail.users.threads.modify({
         userId: "me",
         id: threadId,
@@ -2144,7 +2195,9 @@ export class GmailProvider implements EmailProvider {
           removeLabelIds: ["INBOX", "UNREAD"],
         },
       });
-      this.logger.log(`[Gmail Archive] Thread archived and marked as read in Gmail: userId=${userId}, threadId=${threadId}, result=${JSON.stringify(archiveResult.data)}`);
+      this.logger.log(
+        `[Gmail Archive] Thread archived and marked as read in Gmail: userId=${userId}, threadId=${threadId}, result=${JSON.stringify(archiveResult.data)}`,
+      );
     } catch (error: unknown) {
       this.logger.error(
         `[Gmail Archive] Error archiving thread ${threadId} for user ${userId}:`,
@@ -2338,7 +2391,9 @@ export class GmailProvider implements EmailProvider {
     try {
       // Add back to inbox (unarchive the thread)
       // Note: We don't need to remove any custom label since we never added one
-      this.logger.log(`[Gmail Unarchive] Unarchiving thread in Gmail (adding INBOX label): userId=${userId}, threadId=${threadId}`);
+      this.logger.log(
+        `[Gmail Unarchive] Unarchiving thread in Gmail (adding INBOX label): userId=${userId}, threadId=${threadId}`,
+      );
       await gmail.users.threads.modify({
         userId: "me",
         id: threadId,
@@ -2346,7 +2401,9 @@ export class GmailProvider implements EmailProvider {
           addLabelIds: ["INBOX"],
         },
       });
-      this.logger.log(`[Gmail Unarchive] Thread unarchived successfully in Gmail: userId=${userId}, threadId=${threadId}`);
+      this.logger.log(
+        `[Gmail Unarchive] Thread unarchived successfully in Gmail: userId=${userId}, threadId=${threadId}`,
+      );
     } catch (error: unknown) {
       this.logger.error(
         `Error unarchiving thread ${threadId} for user ${userId}:`,
@@ -2445,9 +2502,7 @@ export class GmailProvider implements EmailProvider {
       }
 
       // Label doesn't exist, create it
-      this.logger.log(
-        `Creating SnoozedBearlyMail label for user ${userId}`,
-      );
+      this.logger.log(`Creating SnoozedBearlyMail label for user ${userId}`);
       const createResponse = await gmail.users.labels.create({
         userId: "me",
         requestBody: {

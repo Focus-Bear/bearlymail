@@ -1,188 +1,246 @@
 {
-  "common": {
-    "appName": "BearlyMail",
-    "loading": "Cargando...",
-    "error": "Error",
-    "dismiss": "Descartar",
-    "save": "Guardar",
-    "cancel": "Cancelar",
-    "confirm": "Confirmar",
-    "delete": "Eliminar",
-    "edit": "Editar",
-    "remove": "Eliminar",
-    "back": "Atrás",
-    "add": "Agregar",
-    "auto": "Automático"
+  "admin": {
+    "dashboard": {
+      "allUsers": "Todos los usuarios",
+      "approve": "Aprobar",
+      "approved": "Aprobado",
+      "backToInbox": "Volver a la bandeja de entrada",
+      "days": "días",
+      "description": "Administrar listas de espera, suscripciones y trabajos del sistema",
+      "expires": "Vence",
+      "extend": "Extender",
+      "extendTrial": "Ampliar la prueba",
+      "jobs": "Empleos",
+      "joined": "Unido",
+      "loading": "Cargando...",
+      "noApprovedEntries": "No hay entradas aprobadas",
+      "noName": "Sin nombre",
+      "noPendingRequests": "No hay solicitudes pendientes",
+      "noUsersFound": "No se encontraron usuarios",
+      "none": "Ninguno",
+      "pendingApproval": "Pendiente de aprobación",
+      "status": "Estado",
+      "subscriptions": "Suscripciones",
+      "title": "Panel de administración",
+      "tokenUsage": "Uso de tokens",
+      "waitlist": "Lista de espera"
+    },
+    "jobs": {
+      "active": "Activo",
+      "avgCompletionTime": "Tiempo promedio de finalización",
+      "failed": "Fallido",
+      "jobType": "Tipo de trabajo",
+      "lastUpdated": "Última actualización",
+      "noData": "Sin datos",
+      "noJobs": "No se encontraron trabajos",
+      "queued": "En cola",
+      "retry": "Rever",
+      "title": "Estadísticas de cola de trabajos"
+    },
+    "title": "Administración",
+    "tokenUsage": {
+      "avgDuration": "Duración promedio",
+      "calls": "llamadas",
+      "completionTokens": "Fichas de finalización",
+      "lastUpdated": "Última actualización",
+      "noData": "Sin datos",
+      "noUsage": "No se registró ningún uso de token",
+      "operation": "Operación",
+      "promptTokens": "Fichas de aviso",
+      "range": {
+        "24h": "Últimas 24 horas",
+        "30d": "Últimos 30 días",
+        "7d": "Últimos 7 días",
+        "all": "Todo el tiempo"
+      },
+      "title": "Estadísticas de uso de tokens",
+      "totalCalls": "Llamadas totales",
+      "totalTokens": "Fichas totales"
+    }
   },
   "auth": {
-    "loginTitle": "Bienvenido de nuevo",
-    "registerTitle": "Crear cuenta",
-    "continueWithGoogle": "Continuar con Google",
-    "or": "O",
-    "email": "Correo electrónico",
-    "password": "Contraseña",
-    "name": "Nombre",
-    "signIn": "Iniciar sesión",
-    "signUp": "Registrarse",
-    "haveAccount": "¿Ya tienes una cuenta? Inicia sesión",
-    "noAccount": "¿No tienes una cuenta? Regístrate",
-    "reloginRequired": "Acción requerida: Por favor, inicia sesión nuevamente para restaurar la sincronización de correo electrónico.",
-    "logout": "Cerrar sesión",
-    "reloginLink": "inicia sesión nuevamente",
     "authenticationFailed": "Error de autenticación",
-    "setupAccountTitle": "Configurar tu cuenta",
-    "setupAccountDescription": "¡Bienvenido! Por favor, crea una contraseña para completar la configuración de tu cuenta.",
+    "confirmPassword": "Confirmar contraseña",
+    "continueWithGoogle": "Continuar con Google",
+    "email": "Correo electrónico",
+    "haveAccount": "¿Ya tienes una cuenta? Inicia sesión",
     "invalidSetupLink": "Enlace de configuración inválido. Por favor, verifica tu correo electrónico para el enlace correcto.",
+    "loginTitle": "Bienvenido de nuevo",
+    "logout": "Cerrar sesión",
+    "name": "Nombre",
+    "noAccount": "¿No tienes una cuenta? Regístrate",
+    "or": "O",
+    "password": "Contraseña",
+    "passwordMinLength": "Debe tener al menos 8 caracteres",
     "passwordTooShort": "La contraseña debe tener al menos 8 caracteres.",
     "passwordsDoNotMatch": "Las contraseñas no coinciden.",
-    "passwordMinLength": "Debe tener al menos 8 caracteres",
-    "confirmPassword": "Confirmar contraseña",
-    "settingUp": "Configurando...",
+    "registerTitle": "Crear cuenta",
+    "reloginLink": "inicia sesión nuevamente",
+    "reloginRequired": "Acción requerida: Por favor, inicia sesión nuevamente para restaurar la sincronización de correo electrónico.",
     "setUpAccount": "Configurar cuenta",
-    "setupPasswordError": "Error al configurar la contraseña. El enlace puede haber expirado."
+    "settingUp": "Configurando...",
+    "setupAccountDescription": "¡Bienvenido! Por favor, crea una contraseña para completar la configuración de tu cuenta.",
+    "setupAccountTitle": "Configurar tu cuenta",
+    "setupPasswordError": "Error al configurar la contraseña. El enlace puede haber expirado.",
+    "signIn": "Iniciar sesión",
+    "signUp": "Registrarse"
+  },
+  "booking": {
+    "availableTimes": "Horarios disponibles",
+    "booking": "Reserva...",
+    "confirmBooking": "Confirmar reserva",
+    "confirmed": "¡Reserva confirmada!",
+    "durationMinutes": "{{minutes}} min",
+    "failedToBook": "No se pudo reservar el horario seleccionado. Por favor inténtalo de nuevo.",
+    "failedToLoad": "No se pudieron cargar los horarios disponibles. Inténtelo de nuevo más tarde.",
+    "invitationSent": "Se envió una invitación de calendario a {{email}}",
+    "loading": "Cargando horarios disponibles...",
+    "noSlotsAvailable": "No hay franjas horarias disponibles por el momento.",
+    "selectSlotFirst": "Por favor seleccione primero un horario",
+    "subtitle": "Seleccione un horario disponible para programar una reunión",
+    "title": "Reserve una reunión",
+    "yourDetails": "Tus detalles"
+  },
+  "calendar": {
+    "attendeeEmail": "Correo electrónico del asistente",
+    "attendeeName": "Nombre del asistente",
+    "description": "Descripción",
+    "duration": "Duración",
+    "duration120": "120 minutos",
+    "duration15": "15 minutos",
+    "duration30": "30 minutos",
+    "duration45": "45 minutos",
+    "duration60": "60 minutos",
+    "duration90": "90 minutos",
+    "eventTitle": "Título del evento",
+    "startTime": "Hora de inicio"
+  },
+  "common": {
+    "add": "Agregar",
+    "appName": "BearlyMail",
+    "auto": "Automático",
+    "back": "Atrás",
+    "cancel": "Cancelar",
+    "close": "Cerca",
+    "confirm": "Confirmar",
+    "delete": "Eliminar",
+    "deselectAll": "Deseleccionar todo",
+    "dismiss": "Descartar",
+    "edit": "Editar",
+    "error": "Error",
+    "loading": "Cargando...",
+    "null": "nulo",
+    "remove": "Eliminar",
+    "retry": "Rever",
+    "save": "Guardar",
+    "saved": "✓ Guardado",
+    "saving": "Ahorro...",
+    "selectAll": "Seleccionar todo",
+    "selected": "seleccionado",
+    "send": "Enviar",
+    "showLess": "Mostrar menos",
+    "showMore": "Mostrar más"
+  },
+  "compose": {
+    "addBcc": "Agregar CCO",
+    "addCc": "Agregar CC",
+    "backToInbox": "Volver a la bandeja de entrada",
+    "bcc": "BCC",
+    "bodyPlaceholder": "Escribe tu mensaje...",
+    "cc": "CC",
+    "discard": "Desechar",
+    "emailSentSuccess": "¡Correo electrónico enviado exitosamente!",
+    "errorNoBody": "Por favor ingresa el cuerpo de un mensaje",
+    "errorNoRecipient": "Por favor agregue al menos un destinatario",
+    "errorNoSubject": "Por favor ingresa un asunto",
+    "errorSendFailed": "No se pudo enviar el correo electrónico. Por favor inténtalo de nuevo.",
+    "frequentContacts": "Contactos frecuentes",
+    "newMessage": "Nuevo mensaje",
+    "recipientPlaceholder": "Introduzca la dirección de correo electrónico",
+    "send": "Enviar",
+    "sending": "Envío...",
+    "sent": "Enviado",
+    "subject": "Sujeto",
+    "subjectPlaceholder": "Sujeto",
+    "syncContacts": "Sincronizar contactos",
+    "syncing": "Sincronizando...",
+    "title": "Redactar",
+    "to": "A"
+  },
+  "consent": {
+    "acceptAndContinue": "Aceptar y continuar",
+    "description": "Para continuar, revise y acepte nuestros Términos de uso y Política de privacidad.",
+    "iAcceptThe": "Acepto el",
+    "pleaseAcceptBoth": "Acepte los Términos de uso y la Política de privacidad para continuar.",
+    "privacyPolicy": "política de privacidad",
+    "saveError": "No se pudo guardar su consentimiento. Por favor inténtalo de nuevo.",
+    "saving": "Ahorro...",
+    "termsOfUse": "Condiciones de uso",
+    "welcome": "Bienvenido a Bearly Mail"
+  },
+  "debug": {
+    "comparison": {
+      "actionTabResults": "Resultados de la pestaña de acción",
+      "inDbNotInGmail": "En la base de datos pero no en Gmail",
+      "inGmailNotInDb": "En Gmail pero no en la base de datos"
+    },
+    "orphan": {
+      "dbThread": "Hilo de base de datos",
+      "emailId": "ID de correo electrónico",
+      "fetchButton": "Obtener datos huérfanos",
+      "fixButton": "Reparar huérfanos",
+      "fixing": "Fijación...",
+      "gmailThread": "Hilo de Gmail",
+      "more": "+{{count}} más",
+      "orphanEmails": "Correos huérfanos",
+      "sectionTitle": "Correos electrónicos huérfanos",
+      "threadsInDb": "Hilos en la base de datos",
+      "title": "Correos electrónicos huérfanos",
+      "totalEmails": "Total de correos electrónicos",
+      "withThreadId": "Con ID de hilo"
+    },
+    "panel": {
+      "syncStatus": "Estado de sincronización",
+      "title": "Panel de depuración (modo {{mode}}, subprocesos {{count}})"
+    },
+    "starred": {
+      "database": "Base de datos",
+      "fetchButton": "Obtener datos destacados",
+      "gmailTitle": "Gmail",
+      "starredEmails": "correos electrónicos destacados",
+      "starredThreads": "hilos destacados",
+      "title": "Comparación destacada"
+    },
+    "stats": {
+      "deliverySchedule": "Calendario de entrega",
+      "lastSync": "Última sincronización",
+      "loading": "Cargando...",
+      "nextBatchDelivery": "Entrega del siguiente lote",
+      "nextDelivery": "Próxima entrega",
+      "noSyncHistory": "No hay historial de sincronización disponible",
+      "seeScheduleAbove": "Ver horario arriba",
+      "syncDescription": "Sincronizando cada {{minutes}} minutos. Horario: {{schedule}}",
+      "syncStale": "Sincronización obsoleta"
+    },
+    "view": {
+      "title": "Vista de depuración"
+    }
   },
   "email": {
+    "batched": "por lotes",
+    "calculating": "Calculador...",
+    "generatingSummary": "Generando resumen...",
+    "processingPriority": "Prioridad de procesamiento...",
     "waitlistApproval": {
-      "subject": "Bienvenido a BearlyMail - Configura tu cuenta",
-      "greeting": "¡Bienvenido a BearlyMail, {{firstName}}!",
-      "message": "¡Buenas noticias! Tu solicitud en la lista de espera ha sido aprobada. Ya estás listo para configurar tu cuenta de BearlyMail.",
-      "cta": "Haz clic en el botón de abajo para crear tu contraseña y comenzar:",
       "button": "Configurar tu cuenta",
-      "linkText": "O copia y pega este enlace en tu navegador:",
+      "cta": "Haz clic en el botón de abajo para crear tu contraseña y comenzar:",
       "expiry": "Este enlace expirará en 7 días. Si no solicitaste esto, por favor ignora este correo electrónico.",
-      "footer": "© {{year}} BearlyMail. Todos los derechos reservados."
+      "footer": "© {{year}} BearlyMail. Todos los derechos reservados.",
+      "greeting": "¡Bienvenido a BearlyMail, {{firstName}}!",
+      "linkText": "O copia y pega este enlace en tu navegador:",
+      "message": "¡Buenas noticias! Tu solicitud en la lista de espera ha sido aprobada. Ya estás listo para configurar tu cuenta de BearlyMail.",
+      "subject": "Bienvenido a BearlyMail - Configura tu cuenta"
     }
-  },
-  "inbox": {
-    "title": "Bandeja de entrada",
-    "triage": "Clasificación",
-    "action": "Acción",
-    "followUp": "Seguimiento",
-    "triageTab": "Clasificación",
-    "actionTab": "Acción",
-    "followUpTab": "Seguimiento",
-    "deliverNow": "Entregar ahora",
-    "delivering": "Entregando...",
-    "nextDelivery": "Próxima entrega: {{time}}",
-    "inboxZero": "¡Bandeja de entrada vacía!",
-    "inboxZeroSub": "Estás al día. Disfruta de tu tiempo de concentración.",
-    "noEmailsTriage": "¡No hay correos nuevos para clasificar!",
-    "noEmailsTriageSub": "Estás al día con los nuevos mensajes.",
-    "noTriageEmails": "¡No hay correos nuevos para clasificar!",
-    "triageCaughtUp": "Estás al día con los nuevos mensajes.",
-    "noEmailsAction": "¡No hay correos para procesar!",
-    "noEmailsActionSub": "Todos los correos marcados han sido procesados.",
-    "noActionEmails": "¡No hay correos para procesar!",
-    "actionCaughtUp": "Todos los correos marcados han sido procesados.",
-    "noEmailsFollowUp": "¡No se necesitan seguimientos!",
-    "noEmailsFollowUpSub": "Todos tus correos enviados han sido respondidos.",
-    "noFollowUpEmails": "¡No se necesitan seguimientos!",
-    "followUpCaughtUp": "Todos tus correos enviados han sido respondidos.",
-    "loadingInbox": "Cargando tu bandeja de entrada...",
-    "generateFollowUps": "Generar seguimientos",
-    "generateFollowUpsDescription": "La IA redactará mensajes de seguimiento para todos los hilos en vista",
-    "generating": "Generando...",
-    "followUps": "seguimientos",
-    "sendFollowUps": "Enviar {{count}} seguimientos",
-    "maxFollowUpsWarning": "Máximo {{max}} seguimientos permitidos por envío masivo",
-    "confirmBulkSend": "¿Enviar {{count}} correos de seguimiento?",
-    "sending": "Enviando...",
-    "sent": "Enviado",
-    "followUp": {
-      "with": "Con",
-      "daysSinceResponse": "Días desde su última respuesta",
-      "day": "día",
-      "day_plural": "días",
-      "status": "Estado",
-      "noReplyReceived": "No se recibió respuesta",
-      "youSentLast": "Tú enviaste el último"
-    },
-    "sendResults": "Resultados del envío",
-    "andMore": "y {{count}} más",
-    "error": "Error",
-    "loadingEmails": "Cargando correos...",
-    "loadingEmailsSub": "Obteniendo tus correos del servidor.",
-    "checkUrgent": "Verificar urgentes",
-    "checkingUrgent": "Verificando...",
-    "urgentNotification": "¡Se encontraron {{count}} correo(s) urgente(s)!",
-    "noUrgentEmails": "No se encontraron correos urgentes.",
-    "noUrgentEmailsFound": "No se encontraron correos urgentes. Verifica nuevamente en la próxima entrega por lotes.",
-    "urgentCheckError": "Error al verificar correos urgentes.",
-    "noPreview": "Haz clic para ver el correo",
-    "errorLoadingEmails": "Error al cargar correos electrónicos",
-    "sendFailed": "Error al enviar",
-    "generatingDraft": "Generando borrador...",
-    "failedToGenerateDraft": "Error al generar borrador",
-    "moreLinks": "+{{count}} más",
-    "emailDetails": "Detalles del correo",
-    "showSplitView": "Mostrar vista dividida",
-    "expandToFullWidth": "Expandir a ancho completo",
-    "closePanel": "Cerrar panel",
-    "suggested": "Sugerido",
-    "clickToSetStars": "Haz clic para establecer {{count}} estrellas (o presiona {{count}})",
-    "otherActions": "Otras acciones",
-    "pressDeleteToArchive": "Presiona Eliminar para archivar",
-    "archiveOrPressDelete": "Archivar (o presiona Eliminar)",
-    "archive": "Archivar",
-    "blockSender": "Bloquear remitente",
-    "nextBatch": "Próximo lote",
-    "batchInfo": {
-      "lastUrgentCheck": "Última verificación de correos urgentes",
-      "neverChecked": "nunca",
-      "justNow": "hace un momento",
-      "oneMinuteAgo": "hace 1 minuto",
-      "minutesAgo": "hace {{count}} minutos",
-      "oneHourAgo": "hace 1 hora",
-      "hoursAgo": "hace {{count}} horas",
-      "deliveryTooltip": "La configuración de entrega de correos controla cuándo se agrupan y entregan los nuevos correos para reducir las distracciones.",
-      "changeInSettings": "Cambiar en Configuración",
-      "urgentTooltip": "BearlyMail busca periódicamente correos super urgentes que necesitan atención inmediata. Estos correos rompen el agrupamiento para asegurar que nunca te pierdas algo crítico. La IA evalúa la urgencia basándose en la importancia del remitente, palabras clave y tus patrones históricos de respuesta."
-    },
-    "highUrgencyEmail": "Correo de alta urgencia",
-    "urgentBadge": "🚨 Urgente ({{score}})",
-    "urgent": "Urgente",
-    "emergencyDelivery": "Emergencia – entregado temprano",
-    "emergencyDeliveryTooltip": "Este correo fue entregado fuera del horario de lote regular porque fue identificado como de alta prioridad",
-    "from": "De",
-    "moreUrgentEmails": "+{{count}} correo urgente más",
-    "moreUrgentEmails_plural": "+{{count}} correos urgentes más",
-    "urgentEmailsWaiting": "Tienes correos urgentes esperando. Se entregarán en el próximo horario de lote.",
-    "urgentEmailsFound": "¡Se encontró {{count}} correo urgente!",
-    "urgentEmailsFound_plural": "¡Se encontraron {{count}} correos urgentes!",
-    "bulk": {
-      "selected": "{{count}} correo seleccionado",
-      "selected_plural": "{{count}} correos seleccionados",
-      "markAsRead": "Marcar como leído",
-      "markAsUnread": "Marcar como no leído",
-      "archive": "Archivar"
-    }
-  },
-  "emailDetail": {
-    "checkingTone": "Verificando tono...",
-    "send": "Enviar",
-    "useRevisedText": "Usar texto revisado"
-  },
-  "search": {
-    "title": "Buscar correos electrónicos",
-    "help": "Ayuda",
-    "backToInbox": "← Volver a la bandeja de entrada",
-    "placeholder": "Haz una pregunta o busca (ej., 'correos de Juan', 'confirmaciones de reunión', 'de:juan@ejemplo.com')",
-    "hint": "💡 Haz una pregunta en lenguaje natural o usa la sintaxis de búsqueda de Gmail: de:, para:, asunto:, tiene:adjunto, antes:, después:, etc.",
-    "search": "Buscar",
-    "searching": "Buscando...",
-    "noResults": "No se encontraron correos electrónicos",
-    "noResultsHint": "Intenta ajustar tu consulta de búsqueda o usar diferentes palabras clave.",
-    "found": "Se encontraron {{count}} correo{{plural}}",
-    "relevance": "Relevancia: {{score}}%",
-    "clickToSeeBreakdown": "Haz clic para ver el desglose de puntuación",
-    "scoreBreakdown": "Desglose de puntuación",
-    "baseRelevanceScore": "Puntuación de relevancia base",
-    "baseRelevanceDescription": "Qué tan relevante es el correo electrónico para tu consulta de búsqueda",
-    "recencyAdjustment": "Ajuste de actualidad",
-    "recencyDescription": "Bonificación para correos recientes, penalización para correos antiguos",
-    "finalScore": "Puntuación final",
-    "finalScoreDescription": "Relevancia base + ajuste de actualidad (limitado a 0-100)",
-    "close": "Cerrar"
   },
   "emailActions": {
     "archive": "Archivar",
@@ -190,66 +248,759 @@
     "snoozePlaceholder": "2h, mañana...",
     "toggleStar": "Alternar estrella"
   },
-  "settings": {
-    "nav": {
-      "emailBatching": "Agrupación de correos electrónicos"
+  "emailDetail": {
+    "actionItems": "Elementos de acción",
+    "addTaskPlaceholder": "Añadir una tarea...",
+    "aiBadge": "AI",
+    "aiSummary": "Resumen de IA",
+    "archive": "Archivo",
+    "backToInbox": "Volver a la bandeja de entrada",
+    "calendarInvite": {
+      "accept": "Aceptar",
+      "acceptError": "No se pudo aceptar la invitación. Por favor inténtalo de nuevo.",
+      "accepted": "Aceptado",
+      "accepting": "Aceptando...",
+      "decline": "Rechazar",
+      "declineError": "No se pudo rechazar la invitación. Por favor inténtalo de nuevo.",
+      "declined": "Rechazado",
+      "declining": "Declinante...",
+      "title": "Invitación del calendario"
     },
-    "batchScheduleUpdated": "Horario de lotes actualizado correctamente",
-    "batchScheduleError": "Error al actualizar el horario de lotes",
-    "emailBatching": {
-      "title": "Agrupación de correos electrónicos",
-      "description": "Los correos no urgentes se agruparán y se entregarán en estos horarios programados. Los correos urgentes siempre llegan inmediatamente."
-    }
+    "checkTone": "Comprobar tono",
+    "checking": "De cheques...",
+    "checkingTone": "Verificando tono...",
+    "clickToExpand": "haga clic para ampliar",
+    "clickToSeeScore": "Haga clic para ver por qué se asignó esta puntuación",
+    "collapseSummary": "Contraer resumen",
+    "createAndUse": "Crear y usar",
+    "createCustomRule": "Crear regla de resumen personalizada",
+    "delete": "Borrar",
+    "deleteActionItem": "Eliminar elemento de acción",
+    "draftReply": "Borrador de respuesta",
+    "emailNotFound": "Correo electrónico no encontrado",
+    "expandSummary": "Ampliar resumen",
+    "extracting": "Extrayendo...",
+    "forward": "Adelante",
+    "forwardSoon": "Funcionalidad avanzada próximamente",
+    "generating": "Generando...",
+    "generatingSummary": "Generando resumen...",
+    "goalAlignment": "Alineación de objetivos",
+    "howToSummarizeLabel": "¿Cómo se debe resumir el correo electrónico? (por ejemplo, \"Extraer sólo los plazos y los elementos de acción\", \"Resumir en 3 viñetas\")",
+    "howToSummarizePlaceholder": "Describe cómo resumir...",
+    "loadingEmail": "Cargando correo electrónico...",
+    "message": "mensaje",
+    "messages": "mensajes",
+    "noSummary": "Aún no hay resumen. Seleccione un tipo de resumen arriba para generar uno.",
+    "priorityBecause": "Prioridad porque",
+    "priorityScore": "Puntuación de prioridad: {{score}}",
+    "privateNotes": "Notas privadas",
+    "privateNotesPlaceholder": "Añade pensamientos, contexto o recordatorios sobre este hilo... (Solo visible para ti)",
+    "regenerateActions": "Regenerar acciones",
+    "reply": "Responder",
+    "replyAll": "Responder a todos",
+    "replyAllSoon": "Responder todas las funciones próximamente",
+    "replySentError": "No se pudo enviar la respuesta. Por favor inténtalo de nuevo.",
+    "replySentSuccess": "¡Respuesta enviada exitosamente!",
+    "saveNote": "Guardar nota",
+    "scoreBreakdown": "Desglose de puntuación",
+    "send": "Enviar",
+    "sendReply": "Enviar respuesta",
+    "sending": "Envío...",
+    "sentiment": {
+      "label": "Sentimiento",
+      "negative": "Negativo",
+      "neutral": "Neutral",
+      "positive": "Positivo"
+    },
+    "snooze": "Siesta",
+    "snoozePlaceholder": "2h, mañana...",
+    "suggestActions": "Sugerir acciones",
+    "suggestedReplies": "Respuestas sugeridas",
+    "suggestedRevision": "Revisión sugerida:",
+    "summaryTypes": {
+      "actionItems": "Elementos de acción",
+      "bulletPoints": "Puntos de viñeta",
+      "customRules": "Reglas personalizadas",
+      "senderRequest": "Solicitud del remitente",
+      "tldr": "TL;DR"
+    },
+    "thread": "Hilo",
+    "toneCheckIssues": "Verificación de tono: problemas encontrados",
+    "toneCheckPassed": "¡Se pasó la verificación de tono!",
+    "totalScore": "Puntuación total",
+    "tweakRules": "Modificar las reglas de priorización",
+    "useRevisedText": "Usar texto revisado",
+    "useRevision": "Utilice esta revisión",
+    "whenToUseLabel": "¿Cuándo se debe utilizar esta regla? (por ejemplo, \"Para correos electrónicos de mi gerente\", \"Para solicitudes de reunión\")",
+    "whenToUsePlaceholder": "Describe cuándo usar esta regla..."
   },
-  "debug": {
-    "stats": {
-      "loading": "Cargando...",
-      "noSyncHistory": "No hay historial de sincronización disponible"
-    },
-    "comparison": {
-      "actionTabResults": "Resultados de la pestaña de acción",
-      "inDbNotInGmail": "En la base de datos pero no en Gmail",
-      "inGmailNotInDb": "En Gmail pero no en la base de datos"
-    },
-    "orphan": {
-      "orphanEmails": "Correos huérfanos",
-      "threadsInDb": "Hilos en la base de datos",
-      "totalEmails": "Total de correos electrónicos",
-      "withThreadId": "Con ID de hilo"
-    }
-  },
-  "compose": {
-    "title": "Redactar"
+  "footer": {
+    "focusBear": "Oso de enfoque",
+    "focusBearLogo": "Logotipo del oso de enfoque",
+    "madeBy": "Hecho por"
   },
   "github": {
-    "status": "Estado de GitHub",
-    "refresh": "Actualizar",
-    "refreshing": "Actualizando...",
-    "assignedTo": "Asignado a",
-    "statusNotAvailable": "Estado no disponible",
-    "statusNoLinks": "No se encontraron enlaces de GitHub en este correo",
     "approved": "Aprobado",
+    "assignedTo": "Asignado a",
     "changesRequested": "Cambios solicitados",
     "comments": "{{count}} comentario",
     "comments_plural": "{{count}} comentarios",
-    "readyToMerge": "Listo para fusionar",
-    "saveToken": "Guardar token",
-    "removeToken": "Eliminar token",
     "howToCreateToken": "Cómo crear un token de GitHub",
-    "pr": "PR",
     "issue": "Problema",
-    "repositoryOwner": "Propietario del repositorio",
-    "repositoryOwnerPlaceholder": "ej., facebook",
-    "repositoryName": "Nombre del repositorio",
-    "repositoryNamePlaceholder": "ej., react",
-    "issueTitle": "Título del problema",
     "issueDescription": "Descripción del problema",
+    "issueTitle": "Título del problema",
     "labels": "Etiquetas",
     "labelsPlaceholder": "ej., bug, mejora (separadas por comas)",
-    "project": "Proyecto"
+    "pr": "PR",
+    "project": "Proyecto",
+    "readyToMerge": "Listo para fusionar",
+    "refresh": "Actualizar",
+    "refreshing": "Actualizando...",
+    "removeToken": "Eliminar token",
+    "repositoryName": "Nombre del repositorio",
+    "repositoryNamePlaceholder": "ej., react",
+    "repositoryOwner": "Propietario del repositorio",
+    "repositoryOwnerPlaceholder": "ej., facebook",
+    "saveToken": "Guardar token",
+    "status": "Estado de GitHub",
+    "statusNoLinks": "No se encontraron enlaces de GitHub en este correo",
+    "statusNotAvailable": "Estado no disponible"
+  },
+  "gmail": {
+    "connectButton": "Conectar Gmail",
+    "connectDescription": "Para comenzar con BearlyMail, conecte su cuenta de Gmail. Sincronizaremos sus correos electrónicos de forma segura y lo ayudaremos a administrarlos de manera más efectiva.",
+    "connectMultipleHint": "Puedes conectar varias cuentas de Gmail más adelante en la configuración.",
+    "connectTitle": "Conecte su cuenta de Gmail"
+  },
+  "help": {
+    "articleNotFound": "Artículo no encontrado",
+    "articles": {
+      "context": {
+        "description": "Aprenda a proporcionar contexto para ayudar a BearlyMail a comprender sus prioridades y preferencias.",
+        "title": "Contexto Acerca de mí"
+      },
+      "followUp": {
+        "description": "Descubra cómo gestionar y enviar correos electrónicos de seguimiento a conversaciones en espera de respuestas.",
+        "title": "Pestaña de seguimiento"
+      },
+      "process": {
+        "description": "Aprenda a trabajar con correos electrónicos destacados que necesitan acción en la pestaña Proceso.",
+        "title": "Pestaña Proceso"
+      },
+      "search": {
+        "description": "Domine la funcionalidad de búsqueda para encontrar rápidamente correos electrónicos utilizando lenguaje natural o sintaxis de Gmail.",
+        "title": "Buscar"
+      },
+      "settings": {
+        "description": "Configure la entrega de correo electrónico, las preferencias de IA y las integraciones para personalizar su experiencia BearlyMail.",
+        "title": "Ajustes"
+      },
+      "triage": {
+        "description": "Comprenda cómo clasificar rápidamente los nuevos correos electrónicos en la pestaña Triage.",
+        "title": "Pestaña de clasificación"
+      }
+    },
+    "backToHelp": "Volver a Ayuda",
+    "description": "Encuentre respuestas a preguntas comunes y aprenda a utilizar BearlyMail de forma eficaz.",
+    "title": "Ayuda"
+  },
+  "inbox": {
+    "action": "Acción",
+    "actionCaughtUp": "Todos los correos marcados han sido procesados.",
+    "actionItems": "{{count}} elemento de acción",
+    "actionItems_plural": "{{count}} elementos de acción",
+    "actionTab": "Acción",
+    "andMore": "y {{count}} más",
+    "archive": "Archivar",
+    "archiveOrPressDelete": "Archivar (o presiona Eliminar)",
+    "batchInfo": {
+      "changeInSettings": "Cambiar en Configuración",
+      "deliveryTooltip": "La configuración de entrega de correos controla cuándo se agrupan y entregan los nuevos correos para reducir las distracciones.",
+      "hoursAgo": "hace {{count}} horas",
+      "justNow": "hace un momento",
+      "lastUrgentCheck": "Última verificación de correos urgentes",
+      "minutesAgo": "hace {{count}} minutos",
+      "neverChecked": "nunca",
+      "oneHourAgo": "hace 1 hora",
+      "oneMinuteAgo": "hace 1 minuto",
+      "urgentTooltip": "BearlyMail busca periódicamente correos super urgentes que necesitan atención inmediata. Estos correos rompen el agrupamiento para asegurar que nunca te pierdas algo crítico. La IA evalúa la urgencia basándose en la importancia del remitente, palabras clave y tus patrones históricos de respuesta."
+    },
+    "blockSender": "Bloquear remitente",
+    "bulk": {
+      "archive": "Archivar",
+      "markAsRead": "Marcar como leído",
+      "markAsUnread": "Marcar como no leído",
+      "selected": "{{count}} correo seleccionado",
+      "selected_plural": "{{count}} correos seleccionados"
+    },
+    "checkUrgent": "Verificar urgentes",
+    "checkingUrgent": "Verificando...",
+    "clickToSetStars": "Haz clic para establecer {{count}} estrellas (o presiona {{count}})",
+    "closePanel": "Cerrar panel",
+    "confirmBulkSend": "¿Enviar {{count}} correos de seguimiento?",
+    "deliverNow": "Entregar ahora",
+    "delivering": "Entregando...",
+    "emailDetails": "Detalles del correo",
+    "emergencyDelivery": "Emergencia – entregado temprano",
+    "emergencyDeliveryTooltip": "Este correo fue entregado fuera del horario de lote regular porque fue identificado como de alta prioridad",
+    "error": "Error",
+    "errorLoadingEmails": "Error al cargar correos electrónicos",
+    "expandToFullWidth": "Expandir a ancho completo",
+    "failedToGenerateDraft": "Error al generar borrador",
+    "followUp": {
+      "day": "día",
+      "day_plural": "días",
+      "daysSinceResponse": "Días desde su última respuesta",
+      "noReplyReceived": "No se recibió respuesta",
+      "status": "Estado",
+      "with": "Con",
+      "youSentLast": "Tú enviaste el último"
+    },
+    "followUpCaughtUp": "Todos tus correos enviados han sido respondidos.",
+    "followUpTab": "Seguimiento",
+    "followUps": "seguimientos",
+    "from": "De",
+    "generateFollowUps": "Generar seguimientos",
+    "generateFollowUpsDescription": "La IA redactará mensajes de seguimiento para todos los hilos en vista",
+    "generating": "Generando...",
+    "generatingDraft": "Generando borrador...",
+    "highUrgencyEmail": "Correo de alta urgencia",
+    "inboxZero": "¡Bandeja de entrada vacía!",
+    "inboxZeroSub": "Estás al día. Disfruta de tu tiempo de concentración.",
+    "loadingEmails": "Cargando correos...",
+    "loadingEmailsSub": "Obteniendo tus correos del servidor.",
+    "loadingInbox": "Cargando tu bandeja de entrada...",
+    "maxFollowUpsWarning": "Máximo {{max}} seguimientos permitidos por envío masivo",
+    "moreLinks": "+{{count}} más",
+    "moreUrgentEmails": "+{{count}} correo urgente más",
+    "moreUrgentEmails_plural": "+{{count}} correos urgentes más",
+    "nextBatch": "Próximo lote",
+    "nextDelivery": "Próxima entrega: {{time}}",
+    "noActionEmails": "¡No hay correos para procesar!",
+    "noEmailsAction": "¡No hay correos para procesar!",
+    "noEmailsActionSub": "Todos los correos marcados han sido procesados.",
+    "noEmailsFollowUp": "¡No se necesitan seguimientos!",
+    "noEmailsFollowUpSub": "Todos tus correos enviados han sido respondidos.",
+    "noEmailsProcess": "¡No hay correos electrónicos para procesar!",
+    "noEmailsProcessSub": "Todos los correos electrónicos destacados han sido procesados.",
+    "noEmailsTriage": "¡No hay correos nuevos para clasificar!",
+    "noEmailsTriageSub": "Estás al día con los nuevos mensajes.",
+    "noFollowUpEmails": "¡No se necesitan seguimientos!",
+    "noPreview": "Haz clic para ver el correo",
+    "noProcessEmails": "¡No hay correos electrónicos para procesar!",
+    "noTriageEmails": "¡No hay correos nuevos para clasificar!",
+    "noUrgentEmails": "No se encontraron correos urgentes.",
+    "noUrgentEmailsFound": "No se encontraron correos urgentes. Verifica nuevamente en la próxima entrega por lotes.",
+    "note": "Nota",
+    "otherActions": "Otras acciones",
+    "pressDeleteToArchive": "Presiona Eliminar para archivar",
+    "prioritise": "priorizar",
+    "prioritiseMoreDeeply": "Priorizar más profundamente",
+    "process": "Proceso",
+    "processCaughtUp": "Todos los correos electrónicos destacados han sido procesados.",
+    "processTab": "Proceso",
+    "sendFailed": "Error al enviar",
+    "sendFollowUps": "Enviar {{count}} seguimientos",
+    "sendResults": "Resultados del envío",
+    "sending": "Enviando...",
+    "sent": "Enviado",
+    "showSplitView": "Mostrar vista dividida",
+    "suggested": "Sugerido",
+    "title": "Bandeja de entrada",
+    "triage": "Clasificación",
+    "triageCaughtUp": "Estás al día con los nuevos mensajes.",
+    "triageTab": "Clasificación",
+    "unsubscribe": "Darse de baja",
+    "urgent": "Urgente",
+    "urgentBadge": "🚨 Urgente ({{score}})",
+    "urgentCheckError": "Error al verificar correos urgentes.",
+    "urgentEmailsFound": "¡Se encontró {{count}} correo urgente!",
+    "urgentEmailsFound_plural": "¡Se encontraron {{count}} correos urgentes!",
+    "urgentEmailsWaiting": "Tienes correos urgentes esperando. Se entregarán en el próximo horario de lote.",
+    "urgentNotification": "¡Se encontraron {{count}} correo(s) urgente(s)!"
+  },
+  "landing": {
+    "bearlyMailIcon": "Icono de correo Bearly",
+    "closing": {
+      "content": {
+        "paragraph1": "BearlyMail se encuentra actualmente en versión beta privada. Únase a la lista de espera para obtener acceso temprano y ayudar a dar forma al futuro del correo electrónico.",
+        "paragraph2": "Estamos creando esto para personas que necesitan tiempo de concentración para hacer su mejor trabajo. Si ese eres tú, nos encantaría tenerte.",
+        "paragraph3": "Sin spam, sin compromiso. Sólo tu dirección de correo electrónico para reservar tu lugar."
+      },
+      "cta": "Únase a la lista de espera",
+      "heading": "¿Listo para recuperar tu concentración?"
+    },
+    "comparison": {
+      "bearlyMailAsks": "BearlyMail pregunta:",
+      "bearlyMailQuestion": "\"¿Cuándo quieres ver este correo electrónico?\"",
+      "heading": "Cómo se compara BearlyMail",
+      "highlight": {
+        "bearlyMail": "BearlyMail: agrupa correos electrónicos no urgentes, prioriza por importancia, aprende sus preferencias",
+        "gmail": "Gmail: gratuito, pero sin procesamiento por lotes ni priorización",
+        "learning": "BearlyMail aprende lo que es urgente para usted analizando su comportamiento de correo electrónico",
+        "superhuman": "Sobrehumano: Rápido, pero aún muestra todos los correos electrónicos inmediatamente"
+      },
+      "superhumanAsks": "Sobrehumano pregunta:",
+      "superhumanQuestion": "\"¿Qué quieres hacer con este correo electrónico?\"",
+      "table": {
+        "bearlyMail": "Correo electrónico",
+        "gmail": "Gmail",
+        "rows": {
+          "emailDelivery": {
+            "bearlyMail": "En lotes según su horario",
+            "gmail": "Inmediato",
+            "label": "Entrega de correo electrónico",
+            "superhuman": "Inmediato"
+          },
+          "philosophy": {
+            "bearlyMail": "Respeta el tiempo de concentración",
+            "gmail": "Acceso universal",
+            "label": "Filosofía",
+            "superhuman": "Velocidad y eficiencia"
+          },
+          "prioritization": {
+            "bearlyMail": "Puntuación de 0 a 100 impulsada por IA",
+            "gmail": "clasificación manual",
+            "label": "Priorización",
+            "superhuman": "clasificación manual"
+          },
+          "urgentFiltering": {
+            "bearlyMail": "La IA aprende lo que es urgente para ti",
+            "gmail": "Filtros manuales",
+            "label": "Filtrado Urgente",
+            "superhuman": "Filtros manuales"
+          }
+        },
+        "superhuman": "Sobrehumano"
+      }
+    },
+    "founder": {
+      "heading": "La historia del fundador",
+      "name": "James Nguyen",
+      "story": {
+        "desktop": {
+          "paragraph1": "Creé BearlyMail porque el correo electrónico estaba destruyendo mi capacidad de concentración.",
+          "paragraph2": "Como ingeniero de software, necesito largos periodos de tiempo ininterrumpido para escribir código. Pero el correo electrónico seguía sacándome del estado de fluidez. Revisaba mi bandeja de entrada \"sólo para ver\" y perdía una hora respondiendo a cosas que podían esperar.",
+          "paragraph3": "Lo intenté todo: bandeja de entrada cero, filtros de Gmail, Superhuman. Nada resolvió el problema central: el correo electrónico llega cuando los remitentes quieren, no cuando yo quiero verlo.",
+          "paragraph4": "Entonces construí BearlyMail. Ahora, los correos electrónicos no urgentes llegan en lotes programados. Los correos electrónicos urgentes llegan de inmediato. Mi bandeja de entrada es una tarea planificada, no una distracción constante.",
+          "paragraph5": "La IA aprende qué es urgente para mí analizando mi historial de correo electrónico: qué tan rápido respondo, qué remitentes priorizo, qué archivo de inmediato. Una barrera alta para \"urgente\" significa que sólo lo que realmente importa interrumpe mi flujo.",
+          "paragraph6": "Si eres como yo, alguien que necesita tiempo de concentración para hacer tu mejor trabajo, BearlyMail es para ti."
+        },
+        "mobile": {
+          "paragraph1": "Creé BearlyMail porque el correo electrónico estaba destruyendo mi capacidad de concentración.",
+          "paragraph2": "Como ingeniero de software, necesito largos periodos de tiempo ininterrumpido para escribir código. Pero el correo electrónico seguía sacándome del estado de fluidez. Revisaba mi bandeja de entrada \"sólo para ver\" y perdía una hora respondiendo a cosas que podían esperar.",
+          "paragraph3": "Lo intenté todo: bandeja de entrada cero, filtros de Gmail, Superhuman. Nada resolvió el problema central: el correo electrónico llega cuando los remitentes quieren, no cuando yo quiero verlo.",
+          "paragraph4": "Entonces construí BearlyMail. Ahora, los correos electrónicos no urgentes llegan en lotes programados. Los correos electrónicos urgentes llegan de inmediato. Mi bandeja de entrada es una tarea planificada, no una distracción constante."
+        }
+      },
+      "title": "Fundador y director ejecutivo"
+    },
+    "hero": {
+      "cta": "Únase a la lista de espera",
+      "description": "BearlyMail agrupa correos electrónicos no urgentes y los entrega según su horario. Los correos electrónicos urgentes llegan de inmediato. Tu bandeja de entrada se convierte en una tarea planificada, no en una distracción constante.",
+      "headline1": "Correo electrónico que respeta",
+      "headline2": "tu tiempo de concentración"
+    },
+    "howItWorks": {
+      "features": {
+        "prioritization": {
+          "description": "Cada lote se clasifica automáticamente del 0 al 100 por importancia según sus patrones de comportamiento. Aborde primero la pregunta del director ejecutivo, no la notificación de grabación de Zoom.",
+          "title": "Vea lo que importa primero, una acción a la vez"
+        },
+        "scheduled-delivery": {
+          "description": {
+            "0": "Elija cuándo se entregan los correos electrónicos: 2 veces, 3 veces o 4 veces al día. Establezca horas de silencio: no envíe correos electrónicos antes de las 10 a. m. ni después de las 6 p. m. Bloquea fines de semana completos. Tienes el control total.",
+            "1": "Tu bandeja de entrada se convierte en una tarea planificada, no en una distracción constante."
+          },
+          "title": "Todo lo demás llega según tu horario."
+        },
+        "snoozing": {
+          "description": "Escribe \"2h\" o \"mañana\" para posponer la alarma. Sin navegación por calendario ni programación compleja.",
+          "title": "Posposición inteligente que realmente funciona"
+        },
+        "urgent-emails": {
+          "description": {
+            "0": "¿Emergencia del cliente a las 2 p. m.? Lo verás al instante. ¿Boletín de esa herramienta SaaS? En lotes hasta su próxima entrega programada.",
+            "1": "Nuestra IA aprende qué es urgente para usted analizando su historial de correo electrónico: qué tan rápido responde, qué remitentes prioriza y qué archiva inmediatamente. Una barrera alta para \"urgente\" significa que sólo lo que realmente importa interrumpe su flujo."
+          },
+          "title": "Los correos electrónicos verdaderamente urgentes llegan inmediatamente"
+        },
+        "workflow": {
+          "description": "Los nuevos correos electrónicos se envían a Triage para tomar decisiones rápidas. Los correos electrónicos destacados se mueven a Proceso para un trabajo concentrado. No más desplazamientos interminables para encontrar lo que necesita atención.",
+          "title": "Triaje → Flujo de trabajo del proceso"
+        }
+      },
+      "heading": "Cómo funciona"
+    },
+    "intro": {
+      "description": "El correo electrónico fue diseñado para la comunicación asincrónica, pero se ha convertido en una interrupción constante. BearlyMail recupera la promesa original: revise su correo electrónico cuando funcione para usted, no cuando funcione para los demás.",
+      "heading": "Por qué existe BearlyMail"
+    },
+    "waitlist": {
+      "description": "Obtenga acceso temprano a BearlyMail y ayude a dar forma al futuro del correo electrónico.",
+      "heading": "Únase a la lista de espera",
+      "success": {
+        "description": "Te enviaremos un correo electrónico cuando tu lugar esté listo. Mientras tanto, consulte nuestro blog para obtener actualizaciones.",
+        "goToLogin": "Ir a Iniciar sesión",
+        "heading": "¡Estás en la lista!"
+      }
+    }
+  },
+  "onboarding": {
+    "scan": {
+      "analyzing": "Analizando tus correos electrónicos...",
+      "content": "Para ayudar a BearlyMail a conocer sus prioridades y estilo de escritura, podemos escanear su historial de correo electrónico reciente. Estos datos permanecen privados y solo se utilizan para entrenar su modelo personal.",
+      "permission": "Permitir el escaneo de los últimos 7 días de correos electrónicos",
+      "progress": "{{current}} de {{total}} correos electrónicos procesados",
+      "scanning": "Escaneando tu historial...",
+      "skip": "Saltar por ahora",
+      "startScan": "Iniciar escaneo",
+      "title": "Personaliza tu experiencia"
+    },
+    "tour": {
+      "actionContent": "Destaca un correo electrónico para moverlo aquí. Este es su espacio de trabajo enfocado a los correos electrónicos que necesitan acción.",
+      "actionTitle": "Pestaña Acción",
+      "deliveryContent": "Los nuevos correos electrónicos se agrupan y entregan cada pocas horas para evitar distracciones. Utilice 'Entregar ahora' si necesita realizar una verificación urgente.",
+      "deliveryTitle": "Entrega programada",
+      "finish": "Finalizar",
+      "next": "Próximo",
+      "processContent": "Destaca un correo electrónico para moverlo aquí. Este es su espacio de trabajo enfocado a los correos electrónicos que necesitan acción.",
+      "processTitle": "Pestaña Proceso",
+      "skip": "Saltar",
+      "stepProgress": "{{current}} de {{total}}",
+      "triageContent": "Aquí es donde llegan los nuevos correos electrónicos. Decide rápidamente responderlos, archivarlos o posponerlos.",
+      "triageTitle": "Pestaña de clasificación",
+      "welcome": "¡Bienvenido a BearlyMail!",
+      "welcomeContent": "Hagamos un recorrido rápido para ayudarle a comenzar con su nueva experiencia de correo electrónico enfocada."
+    }
+  },
+  "priority": {
+    "feedback": {
+      "currentScore": "Puntuación de prioridad actual: {{score}}",
+      "expectedScoreLabel": "Puntuación esperada",
+      "feedbackLabel": "Comentario",
+      "feedbackPlaceholder": "Explique por qué esta prioridad es incorrecta...",
+      "pleaseExplain": "Por favor explique por qué esta prioridad es incorrecta.",
+      "submit": "Entregar",
+      "submitError": "No se pudieron enviar comentarios prioritarios. Por favor inténtalo de nuevo.",
+      "submitting": "Sumisión...",
+      "title": "Comentarios prioritarios"
+    },
+    "high": "alta prioridad",
+    "low": "Bajo",
+    "medium": "Medio",
+    "override": {
+      "additionalDetails": "Detalles adicionales",
+      "archiveHighPriority": "Estás archivando un correo electrónico que la IA marcó como prioridad {{priority}} (puntuación: {{score}}). Queremos mejorar nuestras reglas de prioridad. ¿Puede decirnos por qué debería archivarse este correo electrónico?",
+      "archiveLowPriority": "Estás archivando un correo electrónico que la IA marcó como prioridad {{priority}} (puntuación: {{score}}). Queremos mejorar nuestras reglas de prioridad. ¿Puede decirnos por qué debería archivarse este correo electrónico?",
+      "critical": "(Crítico)",
+      "currentScore": "Puntuación de urgencia actual: {{score}}/{{max}}",
+      "description": "Estás cambiando la prioridad de {{from}} a {{to}}. Ayúdanos a aprender contándonos por qué:",
+      "newScoreLabel": "Nueva puntuación de urgencia",
+      "placeholder": "Explique por qué esta prioridad es incorrecta...",
+      "pleaseProvideReason": "Indique el motivo de la anulación.",
+      "reason": {
+        "other": "Otro",
+        "topicMismatch": "No coincide el tema",
+        "wrongSenderPriority": "Prioridad de remitente incorrecta",
+        "wrongUrgency": "Urgencia equivocada"
+      },
+      "reasonLabel": "Razón",
+      "reasonPlaceholder": "Explique por qué está cambiando la puntuación de urgencia...",
+      "submitError": "No se pudo enviar la anulación de prioridad. Por favor inténtalo de nuevo.",
+      "title": "Anular puntuación de prioridad",
+      "urgency": {
+        "critical": "Crítico",
+        "high": "Alto",
+        "low": "Bajo",
+        "moderate": "Moderado"
+      }
+    },
+    "star": {
+      "helpUsLearn": "Ayúdanos a aprender",
+      "noStars": "sin estrellas",
+      "notStarred": "No destacado",
+      "prediction": "Predicción: {{predicted}}, Real: {{actual}}",
+      "skip": "Saltar",
+      "starCount": "{{count}} estrella",
+      "starCount_plural": "{{count}} estrellas",
+      "submit": "Entregar",
+      "submitting": "Sumisión..."
+    },
+    "tooltip": {
+      "adjustContext": "Ajustar el contexto",
+      "correctPrioritization": "Priorización correcta",
+      "hoverToSeeDetails": "Pase el cursor para ver detalles",
+      "learnMore": "Más información"
+    },
+    "veryLow": "Muy bajo"
+  },
+  "quickActions": {
+    "calendar": {
+      "createInvite": "Crear invitación",
+      "creating": "Creando...",
+      "foundEvents": "Se encontró el evento {{count}}",
+      "foundEvents_plural": "Se encontraron {{count}} eventos",
+      "noEventsFound": "No se encontraron eventos para {{email}}",
+      "openInGoogleCalendar": "Abrir en Google Calendar",
+      "untitledEvent": "Evento sin título"
+    },
+    "github": {
+      "closed": "Cerrado",
+      "commentLabel": "Comentario",
+      "foundIssues": "Se encontró el problema {{count}}",
+      "foundIssues_plural": "Se encontraron {{count}} problemas",
+      "issue": "Asunto",
+      "noIssuesFound": "No se encontraron problemas",
+      "open": "Abierto",
+      "status": "Estado"
+    },
+    "title": "Acciones Rápidas"
+  },
+  "search": {
+    "backToInbox": "← Volver a la bandeja de entrada",
+    "baseRelevanceDescription": "Qué tan relevante es el correo electrónico para tu consulta de búsqueda",
+    "baseRelevanceScore": "Puntuación de relevancia base",
+    "clickToSeeBreakdown": "Haz clic para ver el desglose de puntuación",
+    "close": "Cerrar",
+    "finalScore": "Puntuación final",
+    "finalScoreDescription": "Relevancia base + ajuste de actualidad (limitado a 0-100)",
+    "found": "Se encontraron {{count}} correo{{plural}}",
+    "help": "Ayuda",
+    "hint": "💡 Haz una pregunta en lenguaje natural o usa la sintaxis de búsqueda de Gmail: de:, para:, asunto:, tiene:adjunto, antes:, después:, etc.",
+    "noResults": "No se encontraron correos electrónicos",
+    "noResultsHint": "Intenta ajustar tu consulta de búsqueda o usar diferentes palabras clave.",
+    "placeholder": "Haz una pregunta o busca (ej., 'correos de Juan', 'confirmaciones de reunión', 'de:juan@ejemplo.com')",
+    "recencyAdjustment": "Ajuste de actualidad",
+    "recencyDescription": "Bonificación para correos recientes, penalización para correos antiguos",
+    "relevance": "Relevancia: {{score}}%",
+    "scoreBreakdown": "Desglose de puntuación",
+    "search": "Buscar",
+    "searching": "Buscando...",
+    "title": "Buscar correos electrónicos"
+  },
+  "settings": {
+    "addContext": {
+      "notImportant": "Agregar elemento no importante",
+      "placeholder": "Introduzca el valor...",
+      "projects": "Agregar tema/proyecto",
+      "urgent": "Agregar artículo urgente",
+      "userInfo": "Agregar información personal",
+      "vip": "Agregar contacto VIP"
+    },
+    "addRule": "Agregar regla",
+    "addRulePlaceholder": "Agregar una nueva regla (por ejemplo, \"Sea profesional\")",
+    "addSummarizationRule": "Agregar nueva regla",
+    "analysis": {
+      "complete": "Análisis completo",
+      "failed": "El análisis falló",
+      "progress": {
+        "analyzing": "Analizando patrones de correo electrónico con IA ({{analyzed}}/{{total}} hilos analizados)...",
+        "analyzingGeneric": "Análisis de patrones de correo electrónico con IA (esto puede tardar entre 30 y 60 segundos)...",
+        "complete": "¡Análisis completo! Se analizaron {{threads}} hilos, {{outbound}} correos electrónicos salientes. Se encontraron {{unopened}} hilos sin abrir, {{readNotReplied}} leídos pero no respondidos, {{vipCount}} contactos evaluados.",
+        "completeSimple": "¡Análisis completo! Se analizaron {{count}} subprocesos.",
+        "fetching": "Recuperando correos electrónicos de Gmail ({{generalCount}} bandeja de entrada + {{sentCount}} enviados hasta ahora)...",
+        "finalizing": "Finalizando análisis...",
+        "identifyingVip": "Identificando contactos VIP de {{count}} hilos...",
+        "preparing": "Se encontraron {{count}} subprocesos, preparándose para el análisis...",
+        "processingResults": "Procesando resultados del análisis...",
+        "savingInsights": "Guardando información para su contexto...",
+        "searching": "Buscando en tu bandeja de entrada...",
+        "starting": "Iniciando análisis..."
+      },
+      "stats": {
+        "neverOpened_one": "{{count}} hilo nunca abierto",
+        "neverOpened_other": "{{count}} hilos nunca abiertos",
+        "outboundAnalyzed_one": "{{count}} correo electrónico saliente analizado",
+        "outboundAnalyzed_other": "{{count}} correos electrónicos salientes analizados",
+        "readNotReplied_one": "{{count}} hilo leído pero no respondido",
+        "readNotReplied_other": "{{count}} hilos leídos pero no respondidos",
+        "threadsAnalyzed_one": "{{count}} hilo analizado",
+        "threadsAnalyzed_other": "{{count}} hilos analizados",
+        "vipContacts_one": "{{count}} Contacto VIP evaluado",
+        "vipContacts_other": "{{count}} Contactos VIP evaluados"
+      },
+      "summary": "Resumen"
+    },
+    "analyzeEmails": "Analizar correos electrónicos",
+    "analyzing": "Analizando...",
+    "apiKeyError": "No se pudo guardar la clave API",
+    "backToInbox": "Volver a la bandeja de entrada",
+    "batchHoursError": "No se pudieron actualizar las horas del lote",
+    "batchHoursUpdated": "Horas de lote actualizadas exitosamente",
+    "batchScheduleError": "Error al actualizar el horario de lotes",
+    "batchScheduleUpdated": "Horario de lotes actualizado correctamente",
+    "blockedKeywords": {
+      "addKeyword": "Agregar palabra clave",
+      "blocked": "Obstruido",
+      "description": "Los correos electrónicos con estas palabras clave en la línea de asunto se archivarán automáticamente",
+      "emptyState": "Sin palabras clave bloqueadas",
+      "exactMatch": "Exacto",
+      "exactMatchLabel": "Coincidencia exacta de frase",
+      "placeholder": "Ingrese la palabra clave para bloquear...",
+      "reason": "Razón",
+      "title": "Palabras clave bloqueadas",
+      "unblock": "Desatascar"
+    },
+    "blockedSenders": {
+      "blocked": "Obstruido",
+      "description": "Los correos electrónicos de estos remitentes se archivarán automáticamente",
+      "emptyState": "No hay remitentes bloqueados",
+      "reason": "Razón",
+      "title": "Remitentes bloqueados",
+      "unblock": "Desatascar"
+    },
+    "confirmDeleteRule": "¿Está seguro de que desea eliminar esta regla de prioridad?",
+    "confirmRemoveKey": "¿Está seguro de que desea eliminar su clave API de OpenAI? Utilizará la clave predeterminada del sistema.",
+    "context": {
+      "answer": "Respuesta",
+      "noItems": "Aún no hay artículos",
+      "question": "Pregunta"
+    },
+    "contextAboutMe": {
+      "description1": "Ayude a BearlyMail a comprender sus prioridades brindándole información sobre usted y su trabajo.",
+      "description2": "Esto ayuda a la IA a priorizar los correos electrónicos y generar mejores resúmenes y respuestas.",
+      "impactDescription": "Cuando proporciona contexto, BearlyMail puede comprender mejor qué correos electrónicos son importantes para usted, priorizarlos correctamente y generar resúmenes y respuestas más relevantes.",
+      "impactTitle": "Cómo el contexto mejora su experiencia",
+      "learnMore": "Más información"
+    },
+    "contextAboutMeTitle": "Contexto Acerca de mí",
+    "contextExplanations": {
+      "vipContactStarredExplanation": "Has destacado {{count}} correo electrónico {{plural}} de este contacto"
+    },
+    "contextSections": {
+      "notImportant": "Lo que no considero importante",
+      "other": "Otro contexto",
+      "projects": "Proyectos y temas actuales",
+      "urgent": "Lo que considero urgente",
+      "userInfo": "Información sobre mí",
+      "vip": "Contactos VIP"
+    },
+    "created": "Creado {{date}}",
+    "delivery": {
+      "days": {
+        "description": "Seleccione qué días de la semana se deben entregar los correos electrónicos",
+        "fri": "Viernes",
+        "label": "Días de entrega",
+        "mon": "Lunes",
+        "sat": "Sábado",
+        "sun": "Domingo",
+        "thu": "Jueves",
+        "tue": "Martes",
+        "wed": "Miércoles"
+      },
+      "times": {
+        "addTime": "Agregar hora",
+        "label": "Plazos de entrega",
+        "removeTime": "quitar tiempo"
+      },
+      "timezone": "Zona horaria"
+    },
+    "emailAccounts": {
+      "connect": "Conectar cuenta",
+      "connectAnother": "Conectar otro",
+      "noAccounts": "No hay cuentas de correo electrónico conectadas",
+      "providers": {
+        "gmail": {
+          "description": "Conecta tu cuenta de Gmail"
+        },
+        "office365": {
+          "description": "Conecte su cuenta de Office 365"
+        },
+        "zoho": {
+          "description": "Conecte su cuenta Zoho"
+        }
+      },
+      "selectProvider": "Seleccione proveedor de correo electrónico",
+      "title": "Cuentas de correo electrónico"
+    },
+    "emailBatching": {
+      "description": "Los correos no urgentes se agruparán y se entregarán en estos horarios programados. Los correos urgentes siempre llegan inmediatamente.",
+      "title": "Agrupación de correos electrónicos"
+    },
+    "emailsFrom": "Correos electrónicos de {{value}}",
+    "emailsSubject": "Correos electrónicos con asunto que contiene \"{{value}}\"",
+    "enterApiKey": "Ingrese una clave API de OpenAI",
+    "getKey": "Obtener clave API →",
+    "github": {
+      "connect": "Conectar GitHub",
+      "connected": "GitHub conectado",
+      "description": "Conecte su cuenta de GitHub para ver las relaciones públicas y el estado del problema directamente en sus correos electrónicos.",
+      "disconnect": "Desconectar GitHub",
+      "oauthDescription": "Haga clic en 'Conectar GitHub' para autorizar la aplicación a través de GitHub OAuth. No se requiere configuración manual del token.",
+      "orgProjectNote": "Nota: Para acceder a proyectos a nivel de organización (ProjectV2), un administrador de la organización debe instalar la aplicación GitHub en su organización. La instalación personal sólo accede a sus repositorios de usuarios.",
+      "title": "Integración de GitHub",
+      "tokenConfigured": "Token de GitHub configurado"
+    },
+    "gmail": {
+      "accounts": "Cuentas de Gmail",
+      "confirmDisconnect": "¿Estás seguro de que deseas desconectar esta cuenta de Gmail?",
+      "connectAccount": "Conectar cuenta de Gmail",
+      "connectAnother": "Conectar otra cuenta de Gmail",
+      "disconnect": "Desconectar",
+      "emptyState": "No hay cuentas de Gmail conectadas",
+      "primary": "Primario",
+      "setPrimary": "Establecer como principal",
+      "ssoLogin": "Iniciar sesión SSO"
+    },
+    "guideAI": {
+      "description": "Personalice cómo BearlyMail entiende y procesa sus correos electrónicos",
+      "title": "Guía nuestra IA"
+    },
+    "hide": "Esconder",
+    "hideNonUrgent": "Ocultar correos electrónicos no urgentes durante (horas):",
+    "howIWrite": "Cómo escribo correos electrónicos",
+    "howToSummarize": "¿Cómo se debe resumir el correo electrónico?",
+    "howToSummarizePlaceholder": "por ejemplo, extraer solo elementos de acción y plazos, resumir en 3 viñetas...",
+    "keyRemoveError": "No se pudo eliminar la clave API",
+    "keyRemoved": "La clave API se eliminó correctamente",
+    "learnedContext": "Contexto aprendido",
+    "nav": {
+      "blockedSenders": "Remitentes bloqueados",
+      "emailBatching": "Agrupación de correos electrónicos",
+      "emailDelivery": "Entrega de correo electrónico",
+      "githubIntegration": "Integración de GitHub",
+      "googleAccounts": "Cuentas de Google",
+      "guideOurAI": "Guía nuestra IA",
+      "integrations": "Integraciones",
+      "openAiApiKey": "Clave API de OpenAI",
+      "summarization": "Resumen",
+      "toneSettings": "Configuración de tono"
+    },
+    "noContext": "Aún no se ha aprendido ningún contexto. Haga clic en \"Analizar correos electrónicos\" para conocer su historial de correo electrónico.",
+    "noSummarizationRules": "Aún no hay reglas de resumen. Agregue reglas para personalizar cómo se resumen los correos electrónicos.",
+    "office365": {
+      "accounts": "Cuentas de Office 365",
+      "confirmDisconnect": "¿Está seguro de que desea desconectar esta cuenta de Office 365?",
+      "connect": "Conectar Office 365",
+      "connectAnother": "Conectar otra cuenta de Office 365",
+      "noAccounts": "No hay cuentas de Office 365 conectadas"
+    },
+    "openAiDesc": "Utilice su propia clave API de OpenAI para las funciones de IA. Si no se proporciona, se utilizará la clave predeterminada del sistema. Su clave está cifrada y almacenada de forma segura.",
+    "openAiTitle": "Clave API de OpenAI (opcional)",
+    "removeKey": "Quitar clave",
+    "ruleDeleteError": "No se pudo eliminar la regla",
+    "ruleUpdateError": "No se pudo actualizar la regla",
+    "saveApiKey": "Guardar clave API",
+    "saved": "✓ Guardado",
+    "show": "Espectáculo",
+    "source": "Fuente: {{source}}",
+    "summarizationRules": "Reglas de resumen",
+    "summarizationRulesDesc": "Cree reglas personalizadas sobre cómo se deben resumir los correos electrónicos. Por ejemplo, extraiga solo elementos de acción de las convocatorias de reuniones o resuma los boletines en viñetas.",
+    "title": "Ajustes",
+    "tone": {
+      "viewEmail": "Ver correo electrónico"
+    },
+    "toneConfig": "Configure reglas para que el verificador de tono las aplique al redactar respuestas. Esto se aprende de los correos electrónicos enviados.",
+    "toneRulesError": "No se pudieron actualizar las reglas de tono",
+    "whenToUse": "¿Cuándo debería aplicarse esta regla?",
+    "whenToUsePlaceholder": "por ejemplo, para correos electrónicos de mi gerente, para solicitudes de reunión...",
+    "zoho": {
+      "accounts": "Cuentas Zoho",
+      "confirmDisconnect": "¿Está seguro de que desea desconectar esta cuenta de Zoho?",
+      "connect": "Conecta Zoho",
+      "connectAnother": "Conecte otra cuenta de Zoho",
+      "noAccounts": "No hay cuentas de Zoho conectadas"
+    }
   }
 }
-
-
-
-

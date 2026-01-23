@@ -37,7 +37,9 @@
     "lint": "eslint src/ --ext .ts,.tsx,.js,.jsx",
     "lint:fix": "eslint src/ --ext .ts,.tsx,.js,.jsx --fix",
     "i18n:check-missing": "node scripts/check-missing-translations.js",
-    "i18n:validate": "node scripts/validate-locales.js"
+    "i18n:validate": "node scripts/validate-locales.js",
+    "i18n:fix": "node scripts/fix-missing-translations.js",
+    "i18n:check": "node scripts/fix-missing-translations.js --check"
   },
   "browserslist": {
     "production": [

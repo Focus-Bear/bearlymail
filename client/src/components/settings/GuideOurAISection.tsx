@@ -38,6 +38,8 @@ interface GuideOurAISectionProps {
   editingContextId: string | null;
   editContextValue: string;
   editContextPriority: number;
+  displayName?: string;
+  jobTitle?: string;
   onAnalyzeContext: () => Promise<void>;
   onAddToneRule: () => void;
   onRemoveToneRule: (index: number) => void;
@@ -60,6 +62,7 @@ interface GuideOurAISectionProps {
   onEditingContextIdChange: (id: string | null) => void;
   onEditContextValueChange: (value: string) => void;
   onEditContextPriorityChange: (priority: number) => void;
+  onUpdateProfile?: (updates: { displayName?: string; jobTitle?: string }) => Promise<void>;
 }
 
 export const GuideOurAISection: React.FC<GuideOurAISectionProps> = ({
@@ -79,6 +82,8 @@ export const GuideOurAISection: React.FC<GuideOurAISectionProps> = ({
   editingContextId,
   editContextValue,
   editContextPriority,
+  displayName,
+  jobTitle,
   onAnalyzeContext,
   onAddToneRule,
   onRemoveToneRule,
@@ -101,6 +106,7 @@ export const GuideOurAISection: React.FC<GuideOurAISectionProps> = ({
   onEditingContextIdChange,
   onEditContextValueChange,
   onEditContextPriorityChange,
+  onUpdateProfile,
 }) => {
   return (
     <div id="guide-our-ai" style={{
@@ -119,6 +125,8 @@ export const GuideOurAISection: React.FC<GuideOurAISectionProps> = ({
         editingContextId={editingContextId}
         editContextValue={editContextValue}
         newContextValue={newContextValue}
+        displayName={displayName}
+        jobTitle={jobTitle}
         onAnalyzeContext={onAnalyzeContext}
         onAddContext={onAddContext}
         onUpdateContext={onUpdateContext}
@@ -127,6 +135,7 @@ export const GuideOurAISection: React.FC<GuideOurAISectionProps> = ({
         onAddingContextTypeChange={onAddingContextTypeChange}
         onEditingContextIdChange={onEditingContextIdChange}
         onEditContextValueChange={onEditContextValueChange}
+        onUpdateProfile={onUpdateProfile}
       />
 
       <ToneSettingsSection

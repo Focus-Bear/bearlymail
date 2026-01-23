@@ -21,7 +21,18 @@ export const AutoResponderHeader: React.FC = () => {
         marginBottom: 0,
       }}>
         Automatically respond to new emails with queue status and helpful information.
-        The auto-responder can even answer common questions based on your email history.
+        The auto-responder can even answer common questions based on the Q&A in your context.{' '}
+        <a
+          href="https://bearlymail.com/support/auto-responder"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            color: theme.colors.primary.main,
+            textDecoration: 'none',
+          }}
+        >
+          Learn more
+        </a>
       </p>
     </div>
   );

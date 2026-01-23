@@ -347,10 +347,19 @@
       "notImportant": "Add Not Important Item",
       "placeholder": "Enter value..."
     },
-    "contextExplanations": {
-      "vipContactStarredExplanation": "You've starred {{count}} email{{plural}} from this contact"
-    },
-    "confirmRemoveGithubToken": "Are you sure you want to disconnect your GitHub account?",
+        "contextExplanations": {
+          "vipContactStarredExplanation": "You've starred {{count}} email{{plural}} from this contact"
+        },
+        "profile": {
+          "title": "Your Profile",
+          "description": "This information is used in auto-responses and email replies.",
+          "displayNameLabel": "Display Name (used in auto-responses)",
+          "displayNamePlaceholder": "e.g., Jeremy",
+          "jobTitleLabel": "Job Title (provides context for AI)",
+          "jobTitlePlaceholder": "e.g., Software Engineer, Product Manager",
+          "notSet": "Not set"
+        },
+        "confirmRemoveGithubToken":"Are you sure you want to disconnect your GitHub account?",
     "githubTokenRemoved": "GitHub disconnected successfully",
     "githubTokenRemoveError": "Failed to disconnect GitHub",
     "nav": {

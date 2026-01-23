@@ -5,6 +5,7 @@ import { ContextAboutMeHeader } from 'components/settings/guide-ai/ContextAboutM
 import { ContextImpactInfo } from 'components/settings/guide-ai/ContextImpactInfo';
 import { AnalyzeContextButton } from 'components/settings/guide-ai/AnalyzeContextButton';
 import { ContextSectionsList } from 'components/settings/guide-ai/ContextSectionsList';
+import { ProfileSettingsSection } from 'components/settings/guide-ai/ProfileSettingsSection';
 
 interface UserContext {
   contextId: string;
@@ -22,6 +23,8 @@ interface ContextAboutMeSectionProps {
   editingContextId: string | null;
   editContextValue: string;
   newContextValue: string;
+  displayName?: string;
+  jobTitle?: string;
   onAnalyzeContext: () => Promise<void>;
   onAddContext: () => Promise<void>;
   onUpdateContext: () => Promise<void>;
@@ -30,6 +33,7 @@ interface ContextAboutMeSectionProps {
   onAddingContextTypeChange: (type: string | null) => void;
   onEditingContextIdChange: (id: string | null) => void;
   onEditContextValueChange: (value: string) => void;
+  onUpdateProfile?: (updates: { displayName?: string; jobTitle?: string }) => Promise<void>;
 }
 
 export const ContextAboutMeSection: React.FC<ContextAboutMeSectionProps> = ({
@@ -39,6 +43,8 @@ export const ContextAboutMeSection: React.FC<ContextAboutMeSectionProps> = ({
   editingContextId,
   editContextValue,
   newContextValue,
+  displayName,
+  jobTitle,
   onAnalyzeContext,
   onAddContext,
   onUpdateContext,
@@ -47,6 +53,7 @@ export const ContextAboutMeSection: React.FC<ContextAboutMeSectionProps> = ({
   onAddingContextTypeChange,
   onEditingContextIdChange,
   onEditContextValueChange,
+  onUpdateProfile,
 }) => {
   const { t } = useTranslation();
 
@@ -58,6 +65,15 @@ export const ContextAboutMeSection: React.FC<ContextAboutMeSectionProps> = ({
     }}>
       <ContextAboutMeHeader />
       <ContextImpactInfo />
+
+      {onUpdateProfile && (
+        <ProfileSettingsSection
+          displayName={displayName}
+          jobTitle={jobTitle}
+          onUpdate={onUpdateProfile}
+        />
+      )}
+
       <AnalyzeContextButton analyzing={analyzing} onAnalyzeContext={onAnalyzeContext} />
       
       {contexts.length === 0 && (

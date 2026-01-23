@@ -24,6 +24,8 @@ export function useSettingsData() {
   const [googleAccounts, setGoogleAccounts] = useState<any[]>([]);
   const [office365Accounts, setOffice365Accounts] = useState<any[]>([]);
   const [zohoAccounts, setZohoAccounts] = useState<any[]>([]);
+  const [displayName, setDisplayName] = useState<string | undefined>(undefined);
+  const [jobTitle, setJobTitle] = useState<string | undefined>(undefined);
 
   const contextManagement = useContextManagement();
   const toneRules = useToneRules();
@@ -87,6 +89,9 @@ export function useSettingsData() {
       const zohoAccountsData = zohoAccountsRes.data;
       const hasTokens = !!(user.googleCalendarAccessToken || user.googleCalendarRefreshToken);
       
+      setDisplayName(user.displayName);
+      setJobTitle(user.jobTitle);
+      
       if (hasTokens && googleAccountsData.length === 0) {
         setGoogleAccounts([{
           id: 'sso-account',
@@ -117,6 +122,21 @@ export function useSettingsData() {
 
   const analysisProgress = useAnalysisProgress(fetchData);
 
+  const updateProfile = useCallback(async (updates: { displayName?: string; jobTitle?: string }) => {
+    try {
+      await axios.put(`${API_URL}/users/me`, updates);
+      if (updates.displayName !== undefined) {
+        setDisplayName(updates.displayName);
+      }
+      if (updates.jobTitle !== undefined) {
+        setJobTitle(updates.jobTitle);
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      throw error;
+    }
+  }, []);
+
   useEffect(() => {
     const hash = window.location.hash;
     captureEvent('settings_viewed', {
@@ -143,8 +163,11 @@ export function useSettingsData() {
     setOffice365Accounts,
     zohoAccounts,
     setZohoAccounts,
+    displayName,
+    jobTitle,
     // Handlers
     fetchData,
+    updateProfile,
     handleAnalyzeContext: analysisProgress.startAnalysis,
     handleAddContext: contextManagement.addContext,
     handleUpdateContext: contextManagement.updateContext,

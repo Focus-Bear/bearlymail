@@ -5,31 +5,49 @@ import { QueueStats } from './types';
 const renderFormattedText = (text: string): React.ReactNode => {
   const parts: React.ReactNode[] = [];
   let currentIndex = 0;
-  
-  const regex = /(\*\*([^*]+)\*\*)|(\*([^*]+)\*)|(_([^_]+)_)/g;
+
+  const regex = /(\*\*([^*]+)\*\*)|(\*([^*]+)\*)|(_([^_]+)_)|(\[([^\]]+)\]\(([^)]+)\))/g;
   let match;
-  
+
   while ((match = regex.exec(text)) !== null) {
     if (match.index > currentIndex) {
       parts.push(text.slice(currentIndex, match.index));
     }
-    
+
     if (match[1]) {
       parts.push(<strong key={match.index}>{match[2]}</strong>);
     } else if (match[3]) {
       parts.push(<em key={match.index}>{match[4]}</em>);
     } else if (match[5]) {
       parts.push(<em key={match.index}>{match[6]}</em>);
+    } else if (match[7]) {
+      parts.push(
+        <a
+          key={match.index}
+          href={match[9]}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: 'inherit' }}
+        >
+          {match[8]}
+        </a>
+      );
     }
-    
+
     currentIndex = match.index + match[0].length;
   }
-  
+
   if (currentIndex < text.length) {
     parts.push(text.slice(currentIndex));
   }
-  
+
   return parts.length > 0 ? parts : text;
+};
+
+const getFirstName = (fullName: string | undefined): string => {
+  if (!fullName) return 'the user';
+  const firstName = fullName.split(' ')[0];
+  return firstName || fullName;
 };
 
 interface AutoResponderPreviewProps {
@@ -43,6 +61,12 @@ export const AutoResponderPreview: React.FC<AutoResponderPreviewProps> = ({
 }) => {
   const [selectedTemplate, setSelectedTemplate] = useState<'standard' | 'highPriority' | 'lowPriority'>('standard');
   const [isExpanded, setIsExpanded] = useState(false);
+  const [subjects, setSubjects] = useState({
+    standard: 'Re: Question about your project - BearlyMail Auto-Response',
+    highPriority: 'Re: Urgent request - Escalated',
+    lowPriority: 'Re: FYI - Auto-Response',
+  });
+  const [editingSubject, setEditingSubject] = useState<'standard' | 'highPriority' | 'lowPriority' | null>(null);
 
   const stats = queueStats || {
     actionCount: 37,
@@ -51,42 +75,40 @@ export const AutoResponderPreview: React.FC<AutoResponderPreviewProps> = ({
     urgentResponseTime: '12-24 hours',
   };
 
-  const displayName = userName || 'the user';
+  const firstName = getFirstName(userName);
 
   const templatePreviews = {
     standard: {
       label: 'Standard Priority',
       emoji: '📬',
-      subject: 'Re: Question about your project - BearlyMail Auto-Response',
       body: `Hey there!
 
 Thanks for reaching out.
 
-This is an automated response from BearlyMail, ${displayName}'s AI email assistant (think of me as an email bouncer, but I promise I'm nicer than most bouncers).
+This is an automated response from BearlyMail, ${firstName}'s AI email assistant (think of me as an email bouncer, but I promise I'm nicer than most bouncers).
 
-I've reviewed your email and categorized it as medium priority, which means it'll be in the queue but not at the top. ${displayName} has quite a few other emails to deal with:
+I've reviewed your email and categorized it as medium priority, which means it'll be in the queue but not at the top. ${firstName} has quite a few other emails to deal with:
 - 📬 ${stats.actionCount > 100 ? '100+' : stats.actionCount} emails flagged for action
 - 📋 ${stats.triageCount > 100 ? '100+' : stats.triageCount} emails still to triage
 - ⏱️ Average response time for similar emails: ${stats.avgResponseTime}
 
 **Want to jump the queue?** Just reply and let me know why this is time-sensitive. I'm not a monster.
 
-**Might I be helpful in the meantime?** Based on previous conversations, I think I might be able to help with your question:
+**Might I be helpful in the meantime?** Based on the Q&A in your context, I think I might be able to help with your question:
 
-_[AI-generated answer would appear here based on your email history]_
+_[AI-generated answer would appear here based on your Q&A context]_
 
 ---
-*If you'd like help prioritising your inbox, check out BearlyMail*`,
+*If you'd like help prioritising your inbox, check out [BearlyMail](https://bearlymail.com)*`,
     },
     highPriority: {
       label: 'High Priority',
       emoji: '🔥',
-      subject: 'Re: Urgent request - Escalated',
       body: `Hi!
 
 Thanks for your email—this one caught my attention.
 
-I'm BearlyMail, ${displayName}'s AI email assistant. I've flagged your email as high priority and moved it to the top of the action queue. You should see a response within the next 24 hours.
+I'm BearlyMail, ${firstName}'s AI email assistant. I've flagged your email as high priority and moved it to the top of the action queue. You should see a response within the next 24 hours.
 
 Here's what's happening:
 - ⚡ Your email has been escalated
@@ -94,19 +116,18 @@ Here's what's happening:
 - 🎯 Typical response time for urgent emails: ${stats.urgentResponseTime}
 
 ---
-*If you'd like help prioritising your inbox, check out BearlyMail*`,
+*If you'd like help prioritising your inbox, check out [BearlyMail](https://bearlymail.com)*`,
     },
     lowPriority: {
       label: 'Low Priority',
       emoji: '📭',
-      subject: 'Re: FYI - Auto-Response',
       body: `Hey there!
 
 Thanks for reaching out.
 
 This is an automated response from BearlyMail.
 
-I've reviewed your email and it looks like it's not super time-sensitive, so I've placed it in the general queue. ${displayName} has quite a few other emails to deal with:
+I've reviewed your email and it looks like it's not super time-sensitive, so I've placed it in the general queue. ${firstName} has quite a few other emails to deal with:
 - 📬 ${stats.actionCount} emails flagged for action
 - 📋 ${stats.triageCount} emails still to triage
 - ⏱️ Typical response time: ${stats.avgResponseTime}
@@ -114,7 +135,7 @@ I've reviewed your email and it looks like it's not super time-sensitive, so I'v
 If this is actually urgent, just reply and let me know—I'll bump it up!
 
 ---
-*If you'd like help prioritising your inbox, check out BearlyMail*`,
+*If you'd like help prioritising your inbox, check out [BearlyMail](https://bearlymail.com)*`,
     },
   };
 
@@ -218,13 +239,46 @@ If this is actually urgent, just reply and let me know—I'll bump it up!
               }}>
                 Subject:
               </div>
-              <div style={{
-                ...theme.typography.body.xLarge,
-                fontWeight: theme.typography.fontWeight.medium,
-                color: theme.colors.text.primary,
-              }}>
-                {currentPreview.subject}
-              </div>
+              {editingSubject === selectedTemplate ? (
+                <input
+                  type="text"
+                  value={subjects[selectedTemplate]}
+                  onChange={(e) => setSubjects({ ...subjects, [selectedTemplate]: e.target.value })}
+                  onBlur={() => setEditingSubject(null)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === 'Escape') {
+                      setEditingSubject(null);
+                    }
+                  }}
+                  autoFocus
+                  style={{
+                    ...theme.typography.body.xLarge,
+                    fontWeight: theme.typography.fontWeight.medium,
+                    color: theme.colors.text.primary,
+                    width: '100%',
+                    border: `1px solid ${theme.colors.primary.main}`,
+                    borderRadius: theme.borderRadius.sm,
+                    padding: theme.spacing.xs,
+                    backgroundColor: theme.colors.background.paper,
+                  }}
+                />
+              ) : (
+                <div
+                  onClick={() => setEditingSubject(selectedTemplate)}
+                  style={{
+                    ...theme.typography.body.xLarge,
+                    fontWeight: theme.typography.fontWeight.medium,
+                    color: theme.colors.text.primary,
+                    cursor: 'pointer',
+                    padding: theme.spacing.xs,
+                    borderRadius: theme.borderRadius.sm,
+                    border: '1px solid transparent',
+                  }}
+                  title="Click to edit subject"
+                >
+                  {subjects[selectedTemplate]}
+                </div>
+              )}
             </div>
 
             <div style={{

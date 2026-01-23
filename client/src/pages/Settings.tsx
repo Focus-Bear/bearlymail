@@ -110,6 +110,8 @@ const Settings: React.FC = () => {
           editingContextId={settingsData.editingContextId}
           editContextValue={settingsData.editContextValue}
           editContextPriority={settingsData.editContextPriority}
+          displayName={settingsData.displayName}
+          jobTitle={settingsData.jobTitle}
           onAnalyzeContext={settingsData.handleAnalyzeContext}
           onAddToneRule={settingsData.handleAddToneRule}
           onRemoveToneRule={settingsData.handleRemoveToneRule}
@@ -132,6 +134,7 @@ const Settings: React.FC = () => {
           onEditingContextIdChange={settingsData.setEditingContextId}
           onEditContextValueChange={settingsData.setEditContextValue}
           onEditContextPriorityChange={settingsData.setEditContextPriority}
+          onUpdateProfile={settingsData.updateProfile}
         />
 
         <IntegrationsSection

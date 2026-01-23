@@ -41,7 +41,12 @@ export const DEFAULT_AUTO_RESPONDER_CONFIG: AutoResponderConfig = {
     highPriority: true,
     lowPriority: false,
   },
-  customExclusionRules: [],
+  customExclusionRules: [
+    'Newsletters',
+    'Spam',
+    'Automated emails',
+    'Cold outreach with no real personalisation',
+  ],
   templates: {
     standard: '',
     highPriority: '',

@@ -7,17 +7,30 @@ export const AppFooter: React.FC = () => {
   
   return (
     <footer style={{
-      padding: theme.spacing.lg,
+      padding: theme.spacing.sm,
       borderTop: `1px solid ${theme.colors.border.light}`,
       backgroundColor: theme.colors.background.paper,
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
       gap: theme.spacing.sm,
+      flexShrink: 0,
     }}>
       <span style={{
         color: theme.colors.text.secondary,
-        fontSize: theme.typography.fontSize.sm,
+        fontSize: theme.typography.fontSize.xs,
+      }}>
+        {t('footer.copyright', { year: new Date().getFullYear() })}
+      </span>
+      <span style={{
+        color: theme.colors.text.tertiary,
+        fontSize: theme.typography.fontSize.xs,
+      }}>
+        •
+      </span>
+      <span style={{
+        color: theme.colors.text.secondary,
+        fontSize: theme.typography.fontSize.xs,
       }}>
         {t('footer.madeBy')}
       </span>
@@ -35,7 +48,7 @@ export const AppFooter: React.FC = () => {
           src="https://focus-bear.github.io/assets/focus-blocked/images/FocusBearLogo.svg" 
           alt="Focus Bear" 
           style={{ 
-            height: '24px',
+            height: '20px',
             width: 'auto',
             objectFit: 'contain'
           }}

@@ -267,10 +267,10 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
       <div style={{
         backgroundColor: theme.colors.background.paper,
         borderRadius: compactMode ? 0 : theme.borderRadius.xl,
-        padding: compactMode ? `${theme.spacing.sm} ${theme.spacing.md}` : theme.spacing['2xl'],
-        paddingTop: compactMode ? theme.spacing.sm : theme.spacing['2xl'],
+        padding: compactMode ? `${theme.spacing.xs} ${theme.spacing.sm}` : theme.spacing['2xl'],
+        paddingTop: compactMode ? theme.spacing.xs : theme.spacing['2xl'],
         boxShadow: compactMode ? 'none' : theme.shadows.md,
-        marginBottom: compactMode ? theme.spacing.md : theme.spacing.xl,
+        marginBottom: compactMode ? theme.spacing.xs : theme.spacing.xl,
       }}>
         <div style={{ marginBottom: compactMode ? theme.spacing.sm : theme.spacing.xl }}>
           <EmailDetailHeader
@@ -454,7 +454,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
   // In compact mode, return just the content without full-page layout
   if (compactMode) {
     return (
-      <div style={{ padding: theme.spacing.md }}>
+      <div style={{ padding: theme.spacing.sm, paddingBottom: 0 }}>
         {emailContent}
         <CustomRuleModal
           show={showRuleModal}

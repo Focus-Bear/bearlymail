@@ -7,9 +7,10 @@ interface SidebarFooterProps {
   userEmail?: string;
   onLogout: () => void;
   isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
-export const SidebarFooter: React.FC<SidebarFooterProps> = ({ userEmail, onLogout, isCollapsed = false }) => {
+export const SidebarFooter: React.FC<SidebarFooterProps> = ({ userEmail, onLogout, isCollapsed = false, onToggleCollapse }) => {
   const { t } = useTranslation();
 
   return (
@@ -17,9 +18,10 @@ export const SidebarFooter: React.FC<SidebarFooterProps> = ({ userEmail, onLogou
       <div style={{ 
         borderTop: `1px solid ${theme.colors.border.light}`, 
         paddingTop: theme.spacing.sm,
-        display: isCollapsed ? 'block' : 'flex',
+        display: isCollapsed ? 'flex' : 'flex',
+        flexDirection: isCollapsed ? 'column' : 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        justifyContent: isCollapsed ? 'center' : 'space-between',
         gap: theme.spacing.sm,
       }}>
         {!isCollapsed && (
@@ -34,38 +36,73 @@ export const SidebarFooter: React.FC<SidebarFooterProps> = ({ userEmail, onLogou
             {userEmail}
           </div>
         )}
-        <button
-          onClick={() => {
-            captureEvent('sidebar_logout_clicked');
-            onLogout();
-          }}
-          title={isCollapsed ? t('auth.logout') : undefined}
-          style={{
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            backgroundColor: 'transparent',
-            color: theme.colors.text.secondary,
-            border: `1px solid ${theme.colors.border.medium}`,
-            borderRadius: theme.borderRadius.md,
-            cursor: 'pointer',
-            fontSize: theme.typography.fontSize.xs,
-            fontWeight: theme.typography.fontWeight.medium,
-            transition: theme.transitions.fast,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            whiteSpace: 'nowrap',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = theme.colors.text.primary;
-            e.currentTarget.style.color = theme.colors.text.primary;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = theme.colors.border.medium;
-            e.currentTarget.style.color = theme.colors.text.secondary;
-          }}
-        >
-          {isCollapsed ? '🚪' : t('auth.logout')}
-        </button>
+        {isCollapsed && onToggleCollapse ? (
+          <button
+            onClick={() => {
+              captureEvent('sidebar_expand_clicked');
+              onToggleCollapse();
+            }}
+            title={t('sidebar.expand')}
+            style={{
+              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+              backgroundColor: 'transparent',
+              color: theme.colors.text.secondary,
+              border: `1px solid ${theme.colors.border.medium}`,
+              borderRadius: theme.borderRadius.md,
+              cursor: 'pointer',
+              fontSize: theme.typography.fontSize.xs,
+              fontWeight: theme.typography.fontWeight.medium,
+              transition: theme.transitions.fast,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = theme.colors.text.primary;
+              e.currentTarget.style.color = theme.colors.text.primary;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = theme.colors.border.medium;
+              e.currentTarget.style.color = theme.colors.text.secondary;
+            }}
+          >
+            ☰
+          </button>
+        ) : (
+          <button
+            onClick={() => {
+              captureEvent('sidebar_logout_clicked');
+              onLogout();
+            }}
+            title={isCollapsed ? t('auth.logout') : undefined}
+            style={{
+              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+              backgroundColor: 'transparent',
+              color: theme.colors.text.secondary,
+              border: `1px solid ${theme.colors.border.medium}`,
+              borderRadius: theme.borderRadius.md,
+              cursor: 'pointer',
+              fontSize: theme.typography.fontSize.xs,
+              fontWeight: theme.typography.fontWeight.medium,
+              transition: theme.transitions.fast,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = theme.colors.text.primary;
+              e.currentTarget.style.color = theme.colors.text.primary;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = theme.colors.border.medium;
+              e.currentTarget.style.color = theme.colors.text.secondary;
+            }}
+          >
+            {t('auth.logout')}
+          </button>
+        )}
       </div>
       {!isCollapsed && (
         <footer style={{ marginTop: '2px', textAlign: 'left' }}>

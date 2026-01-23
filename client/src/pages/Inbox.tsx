@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 
 // ULTRA-VISIBLE: This confirms the Inbox.tsx module is loaded with the updated code
 console.log('%c[INBOX MODULE] Inbox.tsx module loaded!', 'background: magenta; color: white; font-size: 24px;');
@@ -70,6 +70,16 @@ const Inbox: React.FC = () => {
     emails,
   } = useInboxState();
 
+  const [sidebarManuallyExpanded, setSidebarManuallyExpanded] = useState(false);
+  
+  const handleToggleSidebarCollapse = useCallback(() => {
+    if (splitView.selectedEmailId) {
+      setSidebarManuallyExpanded(prev => !prev);
+    }
+  }, [splitView.selectedEmailId]);
+
+  const isSidebarCollapsed = !!splitView.selectedEmailId && !sidebarManuallyExpanded;
+
   if (loading) {
     return <InboxLoadingState />;
   }
@@ -85,7 +95,7 @@ const Inbox: React.FC = () => {
       backgroundColor: theme.colors.background.default,
       overflow: 'hidden',
     }}>
-      <Sidebar user={user} logout={logout} isCollapsed={!!splitView.selectedEmailId} />
+      <Sidebar user={user} logout={logout} isCollapsed={isSidebarCollapsed} onToggleCollapse={handleToggleSidebarCollapse} />
 
       {/* Main Content */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>

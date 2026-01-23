@@ -502,7 +502,8 @@
   "footer": {
     "madeBy": "Made by",
     "focusBear": "Focus Bear",
-    "focusBearLogo": "Focus Bear Logo"
+    "focusBearLogo": "Focus Bear Logo",
+    "copyright": "© {{year}} Focus Bear"
   },
   "onboarding": {
     "tour": {
@@ -1166,6 +1167,9 @@
         "description": "We'll send you an email when your spot is ready. In the meantime, check out our blog for updates.",
         "goToLogin": "Go to Login"
       }
+    },
+    "sidebar": {
+      "expand": "Expand sidebar"
     }
   }
 }

@@ -186,9 +186,10 @@ interface SidebarProps {
   user: any;
   logout: () => void;
   isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ user, logout, isCollapsed = false }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ user, logout, isCollapsed = false, onToggleCollapse }) => {
   const { t } = useTranslation();
   const location = useLocation();
   const isSettingsPage = location.pathname === '/settings';
@@ -269,7 +270,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, logout, isCollapsed = fa
         )}
       </nav>
 
-      <SidebarFooter userEmail={user?.email} onLogout={logout} isCollapsed={isCollapsed} />
+      <SidebarFooter userEmail={user?.email} onLogout={logout} isCollapsed={isCollapsed} onToggleCollapse={onToggleCollapse} />
     </div>
   );
 };

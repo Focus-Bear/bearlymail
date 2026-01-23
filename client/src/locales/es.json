@@ -356,7 +356,8 @@
   "footer": {
     "focusBear": "Oso de enfoque",
     "focusBearLogo": "Logotipo del oso de enfoque",
-    "madeBy": "Hecho por"
+    "madeBy": "Hecho por",
+    "copyright": "© {{year}} Focus Bear"
   },
   "github": {
     "approved": "Aprobado",
@@ -663,6 +664,9 @@
         "goToLogin": "Ir a Iniciar sesión",
         "heading": "¡Estás en la lista!"
       }
+    },
+    "sidebar": {
+      "expand": "Expandir barra lateral"
     }
   },
   "onboarding": {

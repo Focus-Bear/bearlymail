@@ -1,6 +1,6 @@
 import React from 'react';
 import { theme } from 'theme/theme';
-import { removeSignature, sanitizeAndProcessHtml } from 'utils/emailUtils';
+import { removeSignature, sanitizeAndProcessHtml, extractCleanHtmlBody } from 'utils/emailBodyUtils';
 
 interface ThreadItemBodyProps {
   body: string;
@@ -12,7 +12,7 @@ export const ThreadItemBody: React.FC<ThreadItemBodyProps> = ({
   htmlBody,
 }) => {
   const processedContent = htmlBody
-    ? sanitizeAndProcessHtml(removeSignature(htmlBody))
+    ? sanitizeAndProcessHtml(extractCleanHtmlBody(removeSignature(htmlBody)))
     : removeSignature(body || '');
 
   return (

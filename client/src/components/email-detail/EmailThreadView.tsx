@@ -118,11 +118,11 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = ({
                   fontSize: theme.typography.fontSize.lg,
                   fontWeight: theme.typography.fontWeight.normal,
                 }}>
-                  {rawHtmlBody ? (
-                    <EmailBodyIframe 
-                      html={sanitizeAndProcessHtml(rawHtmlBody)}
-                    />
-                  ) : (
+                    {rawHtmlBody ? (
+                      <EmailBodyIframe 
+                        html={sanitizeAndProcessHtml(extractCleanHtmlBody(rawHtmlBody))}
+                      />
+                    ) : (
                     <div style={{ whiteSpace: 'pre-wrap' }}>
                       {cleanBody || threadEmail.body}
                     </div>
@@ -164,7 +164,7 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = ({
     }}>
       {singleEmailHtmlBody ? (
         <EmailBodyIframe 
-          html={sanitizeAndProcessHtml(singleEmailHtmlBody)}
+          html={sanitizeAndProcessHtml(extractCleanHtmlBody(singleEmailHtmlBody))}
         />
       ) : (
         <div style={{ whiteSpace: 'pre-wrap' }}>

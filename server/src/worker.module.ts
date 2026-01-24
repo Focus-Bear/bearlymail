@@ -27,6 +27,7 @@ import { PrivateNote } from "./database/entities/private-note.entity";
 import { SummarizationRule } from "./database/entities/summarization-rule.entity";
 import { Waitlist } from "./database/entities/waitlist.entity";
 import { BlockedSender } from "./database/entities/blocked-sender.entity";
+import { BlockedKeyword } from "./database/entities/blocked-keyword.entity";
 import { PriorityOverride } from "./database/entities/priority-override.entity";
 import { TokenUsage } from "./database/entities/token-usage.entity";
 
@@ -65,6 +66,7 @@ import { ContextGmailDataService } from "./context/context-gmail-data.service";
 import { ContextQaExtractionService } from "./context/context-qa-extraction.service";
 import { EncryptionService } from "./encryption/encryption.service";
 import { BlockedSendersService } from "./blocked-senders/blocked-senders.service";
+import { BlockedKeywordsService } from "./blocked-keywords/blocked-keywords.service";
 
 @Module({
   imports: [
@@ -103,6 +105,7 @@ import { BlockedSendersService } from "./blocked-senders/blocked-senders.service
             SummarizationRule,
             Waitlist,
             BlockedSender,
+            BlockedKeyword,
             PriorityOverride,
             TokenUsage,
           ],
@@ -126,6 +129,7 @@ import { BlockedSendersService } from "./blocked-senders/blocked-senders.service
       PrivateNote,
       SummarizationRule,
       BlockedSender,
+      BlockedKeyword,
       PriorityOverride,
     ]),
     QueueModule,
@@ -165,6 +169,7 @@ import { BlockedSendersService } from "./blocked-senders/blocked-senders.service
     ContextGmailDataService,
     ContextQaExtractionService,
     BlockedSendersService,
+    BlockedKeywordsService,
 
     // Worker processors (these register themselves with pg-boss on init)
     EmailSyncProcessor,

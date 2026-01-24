@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from 'contexts/AuthContext';
 import { InboxMode } from 'types/email';
 import { captureEvent } from 'utils/posthog';
-import { MODE_FOLLOW_UP } from 'constants/strings';
+import { MODE_FOLLOW_UP, MODE_TRIAGE, MODE_ACTION } from 'constants/strings';
 import { useEmailManagement } from 'hooks/useEmailManagement';
 import { useTriageSuggestions } from 'hooks/useTriageSuggestions';
 import { useEmailSelection } from 'hooks/useEmailSelection';
@@ -26,12 +26,34 @@ import { useInboxInitialization } from 'hooks/useInboxInitialization';
 import { useInboxModeChanges } from 'hooks/useInboxModeChanges';
 import { useInboxKeyboardNavigation } from 'hooks/useInboxKeyboardNavigation';
 
+const VALID_MODES: InboxMode[] = [MODE_TRIAGE, MODE_ACTION, MODE_FOLLOW_UP];
+
+function isValidMode(mode: string | undefined): mode is InboxMode {
+  return mode !== undefined && VALID_MODES.includes(mode as InboxMode);
+}
+
+interface UseInboxStateOptions {
+  isFocusedMode?: boolean;
+}
+
 // eslint-disable-next-line max-lines-per-function -- Inbox state hook requires managing multiple inbox states, modes, and operations
-export function useInboxState() {
+export function useInboxState(options: UseInboxStateOptions = {}) {
+  const { isFocusedMode = false } = options;
   const { t } = useTranslation();
   const { user, logout, refreshUser, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [mode, setMode] = useState<InboxMode>('triage');
+  const { mode: urlMode, threadId: urlThreadId } = useParams<{ mode?: string; threadId?: string }>();
+  
+  const getInitialMode = (): InboxMode => {
+    if (urlMode && isValidMode(urlMode)) {
+      return urlMode;
+    }
+    return MODE_TRIAGE;
+  };
+  
+  const [mode, setModeState] = useState<InboxMode>(getInitialMode);
+  const isInitialMount = useRef(true);
+  const lastUrlRef = useRef<string>('');
 
   // Triage suggestions hook
   const {
@@ -285,10 +307,67 @@ export function useInboxState() {
     emailDetailRef,
   });
 
+  const getBasePath = useCallback(() => {
+    return isFocusedMode ? '/focused-inbox' : '/inbox';
+  }, [isFocusedMode]);
+
+  const setMode = useCallback((newMode: InboxMode) => {
+    setModeState(newMode);
+  }, []);
+
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      
+      if (urlThreadId && splitView.selectedEmailId !== urlThreadId) {
+        splitView.openEmail(urlThreadId);
+      }
+      
+      if (!urlMode) {
+        const basePath = getBasePath();
+        navigate(`${basePath}/${mode}`, { replace: true });
+      }
+      return;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isInitialMount.current) return;
+
+    const basePath = getBasePath();
+    let newPath: string;
+    
+    if (splitView.selectedEmailId) {
+      newPath = `${basePath}/${mode}/${splitView.selectedEmailId}`;
+    } else {
+      newPath = `${basePath}/${mode}`;
+    }
+
+    if (newPath !== lastUrlRef.current) {
+      lastUrlRef.current = newPath;
+      navigate(newPath, { replace: true });
+    }
+  }, [mode, splitView.selectedEmailId, navigate, getBasePath]);
+
+  useEffect(() => {
+    if (isInitialMount.current) return;
+
+    if (urlMode && isValidMode(urlMode) && urlMode !== mode) {
+      setModeState(urlMode);
+    }
+
+    if (urlThreadId && urlThreadId !== splitView.selectedEmailId) {
+      splitView.openEmail(urlThreadId);
+    } else if (!urlThreadId && splitView.selectedEmailId) {
+      splitView.closeEmail();
+    }
+  }, [urlMode, urlThreadId]);
+
   return {
     // State
     mode,
     setMode,
+    isFocusedMode,
     user,
     logout,
     refreshUser,

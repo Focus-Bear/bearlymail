@@ -8,6 +8,7 @@ import { ConsentModal } from 'components/ConsentModal';
 import Landing from 'pages/Landing';
 import Login from 'pages/Login';
 import Inbox from 'pages/Inbox';
+import FocusedInbox from 'pages/FocusedInbox';
 import EmailDetail from 'pages/EmailDetail';
 import Settings from 'pages/Settings';
 import BookingPage from 'pages/BookingPage';
@@ -134,6 +135,38 @@ function App() {
                 element={
                   <PrivateRoute>
                     <Inbox />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/inbox/:mode"
+                element={
+                  <PrivateRoute>
+                    <Inbox />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/inbox/:mode/:threadId"
+                element={
+                  <PrivateRoute>
+                    <Inbox />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/focused-inbox/:mode"
+                element={
+                  <PrivateRoute>
+                    <FocusedInbox />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/focused-inbox/:mode/:threadId"
+                element={
+                  <PrivateRoute>
+                    <FocusedInbox />
                   </PrivateRoute>
                 }
               />

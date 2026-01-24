@@ -1250,6 +1250,66 @@ export class EmailsService {
         { updatedAt: new Date() },
       );
 
+      // Cancel snooze for any snoozed emails in this thread when a new email arrives
+      // This ensures users see replies immediately instead of waiting for snooze to expire
+      try {
+        const snoozedEmailsInThread = await this.emailRepository.find({
+          where: {
+            emailThreadId: thread.id,
+            userId,
+            isSnoozed: true,
+          },
+        });
+
+        if (snoozedEmailsInThread.length > 0) {
+          await this.emailRepository.update(
+            {
+              emailThreadId: thread.id,
+              userId,
+              isSnoozed: true,
+            },
+            {
+              isSnoozed: false,
+              snoozeUntil: null,
+            },
+          );
+          this.logger.log(
+            `Cancelled snooze for ${snoozedEmailsInThread.length} email(s) in thread ${thread.id} due to new reply`,
+          );
+
+          // Also sync the unsnooze to the email provider (Gmail, Office365, etc.)
+          // Use the first snoozed email's threadId for the provider sync
+          const firstSnoozedEmail = snoozedEmailsInThread[0];
+          if (firstSnoozedEmail?.threadId) {
+            try {
+              const provider =
+                await this.emailProviderManager.getPrimaryProvider(userId);
+              if (provider) {
+                await provider.unsnoozeThread(
+                  userId,
+                  firstSnoozedEmail.threadId,
+                );
+                this.logger.log(
+                  `Successfully synced unsnooze to provider for thread ${firstSnoozedEmail.threadId}`,
+                );
+              }
+            } catch (providerError) {
+              // Log error but don't fail - database update succeeded
+              this.logger.error(
+                `Failed to sync unsnooze to email provider for thread ${firstSnoozedEmail.threadId}:`,
+                providerError,
+              );
+            }
+          }
+        }
+      } catch (error) {
+        // Log but don't fail email creation if snooze cancellation fails
+        this.logger.warn(
+          `Failed to cancel snooze for thread ${thread.id}:`,
+          error,
+        );
+      }
+
       // Invalidate LLM-generated suggested actions for this thread
       // Only delete LLM-generated suggested actions, preserve user-created ones and regular action items
       try {

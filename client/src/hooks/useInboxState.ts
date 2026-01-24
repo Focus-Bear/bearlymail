@@ -150,6 +150,7 @@ export function useInboxState() {
     authLoading,
     fetchEmails,
     fetchBatchStatus,
+    fetchTabCounts,
     setEmails,
     setLoadingModeSwitch,
     clearSuggestionsCache,

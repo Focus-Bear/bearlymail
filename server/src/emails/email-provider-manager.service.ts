@@ -73,13 +73,20 @@ export class EmailProviderManager {
 
   /**
    * Sync emails from all connected providers for a user
+   * @param userId - The user ID to sync emails for
+   * @param syncWindowHours - Optional custom sync window in hours (overrides default calculation)
    */
-  async syncAllProviders(userId: string): Promise<void> {
+  async syncAllProviders(
+    userId: string,
+    syncWindowHours?: number,
+  ): Promise<void> {
     for (const [providerType, provider] of this.providers.entries()) {
       if (await provider.isConnected(userId)) {
         try {
-          this.logger.debug(`Syncing ${providerType} for user ${userId}`);
-          await provider.syncEmails(userId);
+          this.logger.debug(
+            `Syncing ${providerType} for user ${userId}${syncWindowHours ? ` (${syncWindowHours}h window)` : ""}`,
+          );
+          await provider.syncEmails(userId, syncWindowHours);
         } catch (error) {
           this.logger.error(
             `Failed to sync ${providerType} for user ${userId}`,

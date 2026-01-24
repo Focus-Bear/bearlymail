@@ -51,14 +51,21 @@ export class EmailSyncProcessor implements OnModuleInit {
     // Schedule recurring sync for all users every 5 minutes (for urgency checks and status updates)
     await this.boss.schedule("schedule-email-fetch-jobs", "*/5 * * * *");
 
+    // Schedule extended sync (48 hours) every 2 hours to catch any missed emails
+    await this.boss.schedule(
+      "schedule-extended-email-fetch-jobs",
+      "0 */2 * * *",
+    );
+
     // Worker for scheduling email fetch jobs (every 5 minutes) - queues individual fetch-user-emails jobs for each user
     await this.boss.work("schedule-email-fetch-jobs", async (job) => {
       const workerId = job.id || "unknown";
-      const tracker = new JobPerformanceTracker("schedule-email-fetch-jobs", workerId);
-
-      this.logger.log(
-        "Starting email fetch job scheduling (5-minute check)",
+      const tracker = new JobPerformanceTracker(
+        "schedule-email-fetch-jobs",
+        workerId,
       );
+
+      this.logger.log("Starting email fetch job scheduling (5-minute check)");
       try {
         tracker.startPhase("fetchUsers");
         const users = await this.usersService.findAll();
@@ -72,10 +79,7 @@ export class EmailSyncProcessor implements OnModuleInit {
         for (const user of users) {
           try {
             // Check if user was synced recently - skip if within 5 minutes
-            if (
-              user.lastEmailSyncAt &&
-              user.lastEmailSyncAt > fiveMinutesAgo
-            ) {
+            if (user.lastEmailSyncAt && user.lastEmailSyncAt > fiveMinutesAgo) {
               const secondsSinceSync = Math.round(
                 (Date.now() - user.lastEmailSyncAt.getTime()) / 1000,
               );
@@ -119,10 +123,7 @@ export class EmailSyncProcessor implements OnModuleInit {
           `Scheduled ${jobsQueued} email fetch jobs, skipped ${jobsSkipped} users (recently synced)`,
         );
       } catch (error) {
-        this.logger.error(
-          `Error in schedule-email-fetch-jobs:`,
-          error,
-        );
+        this.logger.error(`Error in schedule-email-fetch-jobs:`, error);
         tracker.finish(error as Error);
         throw error;
       }
@@ -139,7 +140,10 @@ export class EmailSyncProcessor implements OnModuleInit {
       async (job) => {
         const { userId } = job.data as { userId: string };
         const workerId = job.id || "unknown";
-        const tracker = new JobPerformanceTracker("fetch-user-emails", workerId);
+        const tracker = new JobPerformanceTracker(
+          "fetch-user-emails",
+          workerId,
+        );
         tracker.setMetadata({ userId });
 
         this.logger.log(
@@ -169,6 +173,108 @@ export class EmailSyncProcessor implements OnModuleInit {
           tracker.finish(error as Error);
           throw error;
           // Re-throw to trigger pg-boss retry mechanism
+        }
+      },
+    );
+
+    // Worker for scheduling extended email fetch jobs (every 2 hours) - syncs last 48 hours to catch missed emails
+    await this.boss.work("schedule-extended-email-fetch-jobs", async (job) => {
+      const workerId = job.id || "unknown";
+      const tracker = new JobPerformanceTracker(
+        "schedule-extended-email-fetch-jobs",
+        workerId,
+      );
+
+      this.logger.log(
+        "Starting extended email fetch job scheduling (48-hour sync)",
+      );
+      try {
+        tracker.startPhase("fetchUsers");
+        const users = await this.usersService.findAll();
+        tracker.endPhase("fetchUsers");
+        tracker.startPhase("queueJobs");
+
+        let jobsQueued = 0;
+
+        for (const user of users) {
+          try {
+            const provider = await this.emailProviderManager.getPrimaryProvider(
+              user.id,
+            );
+            if (provider) {
+              // Use singletonKey to prevent duplicate extended fetch jobs per user
+              await this.boss.send(
+                "fetch-user-emails-extended",
+                { userId: user.id, syncWindowHours: 48 },
+                {
+                  priority: getJobPriority("fetch-user-emails", false),
+                  singletonKey: `fetch-user-emails-extended-${user.id}`,
+                  // Don't allow another extended fetch for same user within 2 hours
+                  singletonMinutes: 120,
+                },
+              );
+              jobsQueued++;
+            }
+          } catch (userError) {
+            this.logger.error(
+              `Error processing user ${user.id} for extended email fetch scheduling:`,
+              userError,
+            );
+          }
+        }
+        tracker.endPhase("queueJobs");
+        tracker.finish();
+
+        this.logger.log(
+          `Scheduled ${jobsQueued} extended email fetch jobs (48-hour sync)`,
+        );
+      } catch (error) {
+        this.logger.error(
+          `Error in schedule-extended-email-fetch-jobs:`,
+          error,
+        );
+        tracker.finish(error as Error);
+        throw error;
+      }
+    });
+
+    // Worker for extended email fetch (48-hour sync window)
+    await this.boss.work(
+      "fetch-user-emails-extended",
+      {
+        teamSize: this.syncConcurrency,
+      } as { teamSize: number },
+      async (job) => {
+        const { userId, syncWindowHours } = job.data as {
+          userId: string;
+          syncWindowHours: number;
+        };
+        const workerId = job.id || "unknown";
+        const tracker = new JobPerformanceTracker(
+          "fetch-user-emails-extended",
+          workerId,
+        );
+        tracker.setMetadata({ userId, syncWindowHours });
+
+        this.logger.log(
+          `[Worker ${workerId}] Starting extended email fetch (${syncWindowHours}h) for user ${userId}`,
+        );
+        try {
+          await this.emailProviderManager.syncAllProviders(
+            userId,
+            syncWindowHours,
+          );
+          this.logger.log(
+            `[Worker ${workerId}] Completed extended email fetch for user ${userId}`,
+          );
+          tracker.finish();
+        } catch (error) {
+          this.logger.error(
+            `[Worker ${workerId}] Failed to sync emails (extended) for user ${userId}`,
+            error,
+          );
+          tracker.finish(error as Error);
+          throw error;
         }
       },
     );
@@ -268,7 +374,10 @@ export class EmailSyncProcessor implements OnModuleInit {
           messageId: string;
         };
         const workerId = job.id || "unknown";
-        const tracker = new JobPerformanceTracker("scan-history-email", workerId);
+        const tracker = new JobPerformanceTracker(
+          "scan-history-email",
+          workerId,
+        );
         tracker.setMetadata({ userId });
 
         this.logger.log(

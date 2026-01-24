@@ -9,6 +9,7 @@ interface UseInboxModeChangesProps {
   authLoading: boolean;
   fetchEmails: () => Promise<void>;
   fetchBatchStatus: () => Promise<void>;
+  fetchTabCounts: (force?: boolean) => Promise<void>;
   setEmails: React.Dispatch<React.SetStateAction<any[]>>;
   setLoadingModeSwitch: (loading: boolean) => void;
   clearSuggestionsCache: () => void;
@@ -24,6 +25,7 @@ export function useInboxModeChanges({
   authLoading,
   fetchEmails,
   fetchBatchStatus,
+  fetchTabCounts,
   setEmails,
   setLoadingModeSwitch,
   clearSuggestionsCache,
@@ -62,9 +64,11 @@ export function useInboxModeChanges({
     clearSuggestionsCache();
 
     // fetchEmails uses mode from its closure, so it will use the current mode value
+    // Force refresh tab counts to ensure they're in sync with the inbox data
     Promise.all([
       fetchEmails().catch(err => console.error('Error fetching emails on mode change:', err)),
-      fetchBatchStatus().catch(err => console.error('Error fetching batch status on mode change:', err))
+      fetchBatchStatus().catch(err => console.error('Error fetching batch status on mode change:', err)),
+      fetchTabCounts(true).catch(err => console.error('Error fetching tab counts on mode change:', err))
     ]).finally(() => {
       setLoadingModeSwitch(false);
     });

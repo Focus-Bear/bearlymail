@@ -56,8 +56,10 @@ export interface EmailProvider {
   /**
    * Sync emails from the provider's inbox
    * Should fetch new emails and create/update them in the database
+   * @param userId - The user ID to sync emails for
+   * @param syncWindowHours - Optional custom sync window in hours (overrides default calculation)
    */
-  syncEmails(userId: string): Promise<void>;
+  syncEmails(userId: string, syncWindowHours?: number): Promise<void>;
 
   /**
    * Scan historical emails for analysis

@@ -299,7 +299,7 @@ export class GmailProvider implements EmailProvider {
   }
 
   // eslint-disable-next-line max-lines-per-function, complexity, max-statements
-  async syncEmails(userId: string): Promise<void> {
+  async syncEmails(userId: string, syncWindowHours?: number): Promise<void> {
     const user = await this.usersService.findOneWithTokens(userId);
     if (!user?.googleCalendarAccessToken) {
       this.logger.log(
@@ -456,16 +456,27 @@ export class GmailProvider implements EmailProvider {
     const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
     try {
-      // Get last sync time and calculate sync window with 20-minute overlap
+      // Get last sync time and calculate sync window
+      // If syncWindowHours is provided, use that as a fixed window (for extended syncs)
+      // Otherwise, use lastSyncAt - 4 hours for overlap (for regular syncs)
       const lastSyncAt = user.lastEmailSyncAt;
-      const twentyMinutesInMs = 20 * 60 * 1000;
+      const fourHoursInMs = 4 * 60 * 60 * 1000;
       const sevenDaysAgo = new Date(Date.now() - DAYS.WEEK * MILLISECONDS.DAY);
 
-      // Calculate sync window: if we have lastSyncAt, subtract 20 minutes for overlap
-      // Otherwise, default to 7 days ago
-      const syncWindowStart = lastSyncAt
-        ? new Date(lastSyncAt.getTime() - twentyMinutesInMs)
-        : sevenDaysAgo;
+      // Calculate sync window based on syncWindowHours parameter or lastSyncAt
+      let syncWindowStart: Date;
+      if (syncWindowHours !== undefined) {
+        // Use fixed sync window (e.g., 48 hours for extended sync)
+        syncWindowStart = new Date(
+          Date.now() - syncWindowHours * 60 * 60 * 1000,
+        );
+      } else if (lastSyncAt) {
+        // Regular sync: use lastSyncAt - 4 hours for overlap
+        syncWindowStart = new Date(lastSyncAt.getTime() - fourHoursInMs);
+      } else {
+        // First sync: default to 7 days ago
+        syncWindowStart = sevenDaysAgo;
+      }
 
       // Convert to Unix timestamp in seconds for Gmail API
       const syncWindowTimestamp = Math.floor(syncWindowStart.getTime() / 1000);
@@ -475,7 +486,7 @@ export class GmailProvider implements EmailProvider {
       );
 
       // Use thread-level queries like GmailApp.search() - more reliable than message-level queries
-      // Fetch threads (not messages) from inbox and starred threads, only those updated since last sync
+      // Fetch threads (not messages) from inbox and starred threads
       const baseQuery = "-label:SnoozedBearlyMail -label:VA-to-action";
       const afterQuery = `after:${syncWindowTimestamp}`;
 
@@ -486,11 +497,11 @@ export class GmailProvider implements EmailProvider {
           maxResults: 500,
           q: `is:unread in:inbox ${baseQuery} ${afterQuery}`,
         }),
-        // Fetch ALL starred threads updated since last sync
+        // Fetch ALL starred threads in inbox (no time filter to ensure old starred emails are synced)
         gmail.users.threads.list({
           userId: "me",
           maxResults: 500,
-          q: `is:starred ${baseQuery} ${afterQuery}`,
+          q: `is:starred in:inbox ${baseQuery}`,
         }),
       ]);
 

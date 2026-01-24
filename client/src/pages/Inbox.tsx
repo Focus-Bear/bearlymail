@@ -12,7 +12,6 @@ import { InboxHeader } from 'components/inbox/InboxHeader';
 import { BulkOperationsBar } from 'components/inbox/BulkOperationsBar';
 import { Sidebar } from 'components/inbox/Sidebar';
 import { KeyboardHintTooltip } from 'components/inbox/KeyboardHintTooltip';
-import { AppFooter } from 'components/AppFooter';
 import { InboxLoadingState } from 'components/inbox/InboxLoadingState';
 import { GmailConnectionScreen } from 'components/inbox/GmailConnectionScreen';
 import { InboxContent } from 'components/inbox/InboxContent';
@@ -246,8 +245,6 @@ const Inbox: React.FC = () => {
             }
           }}
         />
-
-        <AppFooter />
       </div>
 
       <InboxModals

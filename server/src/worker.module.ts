@@ -11,6 +11,8 @@ import { GoogleAccountsModule } from "./google-accounts/google-accounts.module";
 import { PriorityModule } from "./priority/priority.module";
 import { LLMModule } from "./llm/llm.module";
 import { BatchScheduleModule } from "./batch-schedule/batch-schedule.module";
+import { AutoResponderModule } from "./auto-responder/auto-responder.module";
+import { FollowUpsModule } from "./follow-ups/follow-ups.module";
 
 // Database entities
 import { User } from "./database/entities/user.entity";
@@ -38,6 +40,10 @@ import { PriorityLearningProcessor } from "./priority/priority-learning.processo
 import { ScanAnalysisProcessor } from "./onboarding/scan-analysis.processor";
 import { ContextAnalysisProcessor } from "./context/context-analysis.processor";
 import { ContextBatchAnalysisProcessor } from "./context/context-batch-analysis.processor";
+import { ContextFinalizationProcessor } from "./context/context-finalization.processor";
+import { WritingStyleLearningProcessor } from "./context/writing-style-learning.processor";
+import { WritingStyleLearningService } from "./context/writing-style-learning.service";
+import { ArchiveEmailProcessor } from "./emails/archive-email.processor";
 
 // Services needed by processors
 import { EmailsService } from "./emails/emails.service";
@@ -140,6 +146,8 @@ import { BlockedKeywordsService } from "./blocked-keywords/blocked-keywords.serv
     PriorityModule,
     LLMModule,
     BatchScheduleModule,
+    AutoResponderModule,
+    FollowUpsModule,
   ],
   providers: [
     // Core services
@@ -178,6 +186,10 @@ import { BlockedKeywordsService } from "./blocked-keywords/blocked-keywords.serv
     ScanAnalysisProcessor,
     ContextAnalysisProcessor,
     ContextBatchAnalysisProcessor,
+    ContextFinalizationProcessor,
+    WritingStyleLearningService,
+    WritingStyleLearningProcessor,
+    ArchiveEmailProcessor,
   ],
 })
 export class WorkerModule {}

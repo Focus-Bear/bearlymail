@@ -15,7 +15,7 @@ import { PriorityService } from "../priority/priority.service";
 import { User } from "../database/entities/user.entity";
 import { EmailProviderManager } from "./email-provider-manager.service";
 import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
- wimport { BlockedKeywordsService } from "../blocked-keywords/blocked-keywords.service";
+import { BlockedKeywordsService } from "../blocked-keywords/blocked-keywords.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { LLMService } from "../llm/llm.service";
 import { UsersService } from "../users/users.service";
@@ -1367,6 +1367,39 @@ export class EmailsService {
         .catch((err) => {
           this.logger.error(
             `Failed to queue GitHub metadata job for email ${savedEmail.id}:`,
+            err,
+          );
+        });
+    }
+
+    // Queue auto-responder job for new emails
+    // This triggers the autoresponder evaluation for all email providers (Gmail, Office365, Zoho)
+    if (savedEmail.emailThreadId) {
+      this.boss
+        .send(
+          "auto-responder",
+          {
+            userId,
+            emailThreadId: savedEmail.emailThreadId,
+          },
+          {
+            priority: getJobPriority("auto-responder"),
+            retryLimit: 2,
+            retryDelay: 30,
+            expireInMinutes: 60,
+            singletonKey: `auto-responder-${savedEmail.emailThreadId}`,
+          },
+        )
+        .then((jobId) => {
+          if (jobId) {
+            this.logger.debug(
+              `Queued auto-responder job ${jobId} for thread ${savedEmail.emailThreadId}`,
+            );
+          }
+        })
+        .catch((err) => {
+          this.logger.error(
+            `Failed to queue auto-responder job for email ${savedEmail.id}:`,
             err,
           );
         });

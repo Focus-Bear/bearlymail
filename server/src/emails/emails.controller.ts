@@ -645,27 +645,30 @@ export class EmailsController {
 
   @Get("admin/job-stats")
   @UseGuards(JwtAuthGuard, AdminGuard)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async getJobStats(@Request() req) {
     // Get job queue statistics for admin dashboard
+    // Dynamically fetch all job types from the database instead of hardcoding
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { db } = this.boss as any;
 
-    // Get current queue stats by job type and state
+    // Get current queue stats by job type and state (dynamically discovers all job types)
     const queueStats = await db.executeSql(`
       SELECT 
         name as "jobType",
         state,
         COUNT(*) as count
       FROM pgboss.job
-      WHERE state IN ('created', 'retry', 'active', 'failed')
+      WHERE state IN ('created', 'retry', 'active', 'failed', 'completed')
       GROUP BY name, state
       ORDER BY name, state
     `);
 
-    // Get average completion times from archive
-    const avgCompletionTimes = await db.executeSql(`
+    // Get completed counts and average completion times from archive
+    const archiveStats = await db.executeSql(`
       SELECT 
         name as "jobType",
+        COUNT(*) as "completedCount",
         AVG(EXTRACT(EPOCH FROM (completedon - createdon))) * 1000 as "avgCompletionTimeMs"
       FROM pgboss.archive
       WHERE completedon IS NOT NULL
@@ -683,33 +686,12 @@ export class EmailsController {
         active: number;
         retry: number;
         failed: number;
+        completed: number;
         avgCompletionTimeMs: number | null;
       }
     > = {};
 
-    // Initialize all job types
-    const jobTypes = [
-      "refine-priority",
-      "generate-summary",
-      "fetch-user-emails",
-      "sync-emails", // Legacy
-      "scan-history",
-      "learn-from-star",
-      "analyze-context",
-      "schedule-email-fetch-jobs",
-    ];
-
-    jobTypes.forEach((jobType) => {
-      statsByJobType[jobType] = {
-        queued: 0,
-        active: 0,
-        retry: 0,
-        failed: 0,
-        avgCompletionTimeMs: null,
-      };
-    });
-
-    // Populate queue stats
+    // Populate queue stats (this dynamically discovers all job types)
     if (queueStats?.rows) {
       queueStats.rows.forEach(
         (row: { jobType: string; state: string; count: string }) => {
@@ -723,6 +705,7 @@ export class EmailsController {
               active: 0,
               retry: 0,
               failed: 0,
+              completed: 0,
               avgCompletionTimeMs: null,
             };
           }
@@ -735,33 +718,49 @@ export class EmailsController {
             statsByJobType[jobType].retry = count;
           } else if (state === "failed") {
             statsByJobType[jobType].failed = count;
+          } else if (state === "completed") {
+            statsByJobType[jobType].completed = count;
           }
         },
       );
     }
 
-    // Populate average completion times
-    if (avgCompletionTimes?.rows) {
-      avgCompletionTimes.rows.forEach(
-        (row: { jobType: string; avgCompletionTimeMs: string | null }) => {
+    // Populate completed counts and average completion times from archive
+    if (archiveStats?.rows) {
+      archiveStats.rows.forEach(
+        (row: {
+          jobType: string;
+          completedCount: string;
+          avgCompletionTimeMs: string | null;
+        }) => {
           const { jobType } = row;
-          if (statsByJobType[jobType]) {
-            statsByJobType[jobType].avgCompletionTimeMs =
-              row.avgCompletionTimeMs
-                ? Math.round(parseFloat(row.avgCompletionTimeMs))
-                : null;
+          if (!statsByJobType[jobType]) {
+            statsByJobType[jobType] = {
+              queued: 0,
+              active: 0,
+              retry: 0,
+              failed: 0,
+              completed: 0,
+              avgCompletionTimeMs: null,
+            };
           }
+          // Add archived completed count to any completed jobs still in main table
+          statsByJobType[jobType].completed += parseInt(row.completedCount, 10);
+          statsByJobType[jobType].avgCompletionTimeMs = row.avgCompletionTimeMs
+            ? Math.round(parseFloat(row.avgCompletionTimeMs))
+            : null;
         },
       );
     }
 
     // Convert to array format for easier frontend consumption
-    const statsArray = Object.entries(statsByJobType).map(
-      ([jobType, stats]) => ({
+    // Sort by job type name for consistent ordering
+    const statsArray = Object.entries(statsByJobType)
+      .map(([jobType, stats]) => ({
         jobType,
         ...stats,
-      }),
-    );
+      }))
+      .sort((a, b) => a.jobType.localeCompare(b.jobType));
 
     return {
       stats: statsArray,

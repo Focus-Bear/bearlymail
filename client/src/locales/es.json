@@ -28,6 +28,7 @@
     "jobs": {
       "active": "Activo",
       "avgCompletionTime": "Tiempo promedio de finalización",
+      "completed": "Completados",
       "failed": "Fallido",
       "jobType": "Tipo de trabajo",
       "lastUpdated": "Última actualización",

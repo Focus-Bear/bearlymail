@@ -448,6 +448,7 @@
       "active": "Active",
       "retry": "Retry",
       "failed": "Failed",
+      "completed": "Completed",
       "avgCompletionTime": "Avg Completion Time",
       "noData": "No data",
       "noJobs": "No jobs found"

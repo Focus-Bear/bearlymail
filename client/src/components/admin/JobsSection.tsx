@@ -11,6 +11,7 @@ interface JobStat {
   active: number;
   retry: number;
   failed: number;
+  completed: number;
   avgCompletionTimeMs: number | null;
 }
 
@@ -126,6 +127,15 @@ export const JobsSection: React.FC = () => {
           textAlign: 'center',
           fontWeight: theme.typography.fontWeight.semibold,
           color: theme.colors.text.primary,
+          borderRight: `1px solid ${theme.colors.border.light}`,
+        }}>
+          {t('admin.jobs.completed')}
+        </th>
+        <th style={{
+          padding: theme.spacing.md,
+          textAlign: 'center',
+          fontWeight: theme.typography.fontWeight.semibold,
+          color: theme.colors.text.primary,
         }}>
           {t('admin.jobs.avgCompletionTime')}
         </th>
@@ -138,7 +148,7 @@ export const JobsSection: React.FC = () => {
       return (
         <tbody>
           <tr>
-            <td colSpan={6} style={{
+            <td colSpan={7} style={{
               padding: theme.spacing.xl,
               textAlign: 'center',
               color: theme.colors.text.secondary,
@@ -199,6 +209,14 @@ export const JobsSection: React.FC = () => {
               borderRight: `1px solid ${theme.colors.border.light}`,
             }}>
               {stat.failed}
+            </td>
+            <td style={{
+              padding: theme.spacing.md,
+              textAlign: 'center',
+              color: stat.completed > 0 ? theme.colors.accent.success : theme.colors.text.secondary,
+              borderRight: `1px solid ${theme.colors.border.light}`,
+            }}>
+              {stat.completed.toLocaleString()}
             </td>
             <td style={{
               padding: theme.spacing.md,

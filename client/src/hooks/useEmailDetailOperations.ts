@@ -368,6 +368,9 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
 
   // Track which email IDs we've already fetched GitHub data for
   const githubFetchedRef = useRef<string | null>(null);
+  
+  // Track current email ID for draft generation to prevent race conditions
+  const draftGenerationEmailIdRef = useRef<string | null>(null);
 
   // Stable function that doesn't change on re-renders - uses refs for tracking
   const fetchGithubInfo = useCallback(async () => {
@@ -611,6 +614,11 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
 
   const handleGenerateDraft = useCallback(async () => {
     if (!id || !email) return;
+    
+    // Track which email we're generating for to prevent race conditions
+    const currentEmailId = id;
+    draftGenerationEmailIdRef.current = currentEmailId;
+    
     setLoadingReplies(true);
     try {
       const response = await axios.post(`${API_URL}/llm/suggest-replies`, {
@@ -621,6 +629,12 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
           body: email.body,
         }
       });
+      
+      // Only update state if we're still looking at the same email
+      // This prevents showing suggestions from a previous email after switching
+      if (draftGenerationEmailIdRef.current !== currentEmailId) {
+        return;
+      }
       
       if (response.data && Array.isArray(response.data) && response.data.length > 0) {
         captureEvent('reply_draft_generated', {
@@ -640,12 +654,19 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
         setSelectedReplyOption(0);
       }
     } catch (error) {
+      // Only update state if we're still looking at the same email
+      if (draftGenerationEmailIdRef.current !== currentEmailId) {
+        return;
+      }
       console.error('Error generating draft:', error);
       setReplyOptions([{ label: 'Custom', text: '' }]);
       setDraft('');
       setSelectedReplyOption(0);
     } finally {
-      setLoadingReplies(false);
+      // Only update loading state if we're still looking at the same email
+      if (draftGenerationEmailIdRef.current === currentEmailId) {
+        setLoadingReplies(false);
+      }
     }
   }, [id, email, setLoadingReplies, setReplyOptions, setDraft, setSelectedReplyOption]);
 

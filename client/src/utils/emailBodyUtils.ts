@@ -174,111 +174,7 @@ export function extractCleanHtmlBody(htmlBody: string): string {
   return htmlBody;
 }
 
-/**
- * Process GitHub image links to display images inline
- * GitHub emails often have links like "image.png (view on web)" that should be converted to actual images
- */
-function processGitHubImages(html: string): string {
-  if (!html) return '';
-  
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = html;
-  
-  // Find links that look like GitHub image references
-  // Pattern: links containing "image" and "(view on web)" or similar
-  const links = Array.from(tempDiv.querySelectorAll('a[href]'));
-  
-  let processedCount = 0;
-  
-  links.forEach((link) => {
-    const href = link.getAttribute('href');
-    const linkText = (link.textContent || '').trim();
-    
-    // Skip avatar images - don't expand these
-    if (href && href.includes('avatars.githubusercontent.com')) {
-      return;
-    }
-    
-    // Skip if the link contains an img tag that's marked to skip
-    const imgInLink = link.querySelector('img[data-skip-processing="true"]');
-    if (imgInLink) {
-      return;
-    }
-    
-    // Check if this looks like a GitHub image link
-    // GitHub image links often have patterns like:
-    // - "image.png (view on web)" or "Screenshot.png (view on web)" - any filename with image extension
-    // - Links to github.com/user-attachments/assets/ (GitHub user attachments)
-    // - Links to github.com with image references
-    // - Links containing "notifications/beacon" (GitHub notification tracking)
-    const hasImageFileName = linkText.match(/\.(png|jpg|jpeg|gif|webp|svg)\s*\(view\s+on\s+web\)/i);
-    const hasViewOnWeb = linkText.match(/view\s+on\s+web/i); // Match "view on web" with any whitespace
-    const isGitHubImageUrl = href && (
-      (href.includes('github.com') && (
-        href.includes('/images/') ||
-        href.includes('notifications/beacon') ||
-        href.includes('user-attachments/assets/') || // GitHub user attachment URLs
-        href.match(/\.(png|jpg|jpeg|gif|webp|svg)(\?|$)/i) ||
-        href.match(/\/issues\/\d+\/images\//) ||
-        href.match(/\/pull\/\d+\/images\//)
-      ))
-    );
-    
-    // Match if: (has image filename with "view on web") OR (has "view on web" AND GitHub URL) OR (GitHub image URL)
-    const isImageLink = hasImageFileName || (hasViewOnWeb && href?.includes('github.com')) || isGitHubImageUrl;
-    
-    if (isImageLink && href) {
-      // Extract the actual image URL
-      // GitHub notification emails often use tracking URLs that redirect to the actual image
-      // The browser will automatically follow redirects for img src
-      let imageUrl = href;
-      
-      // If it's a notification beacon URL, it will redirect to the actual image
-      // The browser handles this automatically
-      if (href.includes('notifications/beacon')) {
-        // Keep the beacon URL - browser will follow redirect
-        imageUrl = href;
-      } else if (href.match(/\.(png|jpg|jpeg|gif|webp|svg)(\?|$)/i)) {
-        // Direct image URL
-        imageUrl = href;
-      } else if (href.includes('github.com')) {
-        // GitHub link that should point to an image
-        imageUrl = href;
-      }
-      
-      // Create an img element wrapped in a link
-      const img = document.createElement('img');
-      img.src = imageUrl;
-      img.alt = linkText.replace(/\s*\(view on web\)/i, '').trim() || 'GitHub image';
-      img.style.maxWidth = '100%';
-      img.style.height = 'auto';
-      img.style.display = 'block';
-      img.style.borderRadius = '4px';
-      img.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-      
-      // Wrap image in a link so users can click to view full size
-      const imageLink = document.createElement('a');
-      imageLink.href = href;
-      imageLink.target = '_blank';
-      imageLink.rel = 'noopener noreferrer';
-      imageLink.style.display = 'block';
-      imageLink.style.margin = '10px 0';
-      imageLink.style.textDecoration = 'none';
-      imageLink.title = 'Click to view full size';
-      imageLink.appendChild(img);
-      
-      // Replace the original link with the new image link
-      if (link.parentNode) {
-        link.parentNode.replaceChild(imageLink, link);
-        processedCount++;
-      }
-    }
-  });
-  
-  return tempDiv.innerHTML;
-}
-
-// Email-compatible allowed tags - comprehensive list for proper email rendering
+// Email-compatible allowed tags- comprehensive list for proper email rendering
 const EMAIL_ALLOWED_TAGS = [
   // Text formatting
   'p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'strike', 'del', 'ins',
@@ -317,7 +213,6 @@ const EMAIL_ALLOWED_ATTR = [
 /**
  * Helper function to sanitize and process HTML for safe rendering
  * This function sanitizes first (for XSS protection), then adds target="_blank" to links
- * and processes GitHub images to display inline
  */
 export function sanitizeAndProcessHtml(html: string): string {
   if (!html) return '';
@@ -333,27 +228,20 @@ export function sanitizeAndProcessHtml(html: string): string {
     FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur', 'onsubmit', 'onchange'],
   });
   
-  // Step 1.5: Remove problematic images
-  const tempDivForAvatars = document.createElement('div');
-  tempDivForAvatars.innerHTML = sanitized;
+  // Step 2: Remove problematic images
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = sanitized;
   
   // Remove all images with cid: URLs (embedded email images that can't be resolved)
-  const cidImages = tempDivForAvatars.querySelectorAll('img[src^="cid:"]');
+  const cidImages = tempDiv.querySelectorAll('img[src^="cid:"]');
   cidImages.forEach((img) => img.remove());
   
   // Remove avatar images entirely - they're small profile pics that look bad when expanded
-  const avatarImages = tempDivForAvatars.querySelectorAll('img[src*="avatars.githubusercontent.com"]');
+  const avatarImages = tempDiv.querySelectorAll('img[src*="avatars.githubusercontent.com"]');
   avatarImages.forEach((img) => img.remove());
   
-  // Step 2: Process GitHub images to display inline
-  const withImages = processGitHubImages(tempDivForAvatars.innerHTML);
-  
   // Step 3: Process links to add target="_blank" and rel="noopener noreferrer"
-  // Reuse tempDivForAvatars for processing links
-  tempDivForAvatars.innerHTML = withImages;
-  
-  // Find all links and add target="_blank" and rel="noopener noreferrer"
-  const links = tempDivForAvatars.querySelectorAll('a[href]');
+  const links = tempDiv.querySelectorAll('a[href]');
   links.forEach((link) => {
     const href = link.getAttribute('href');
     // Only add target="_blank" for http/https links (not mailto:, tel:, etc.)
@@ -363,7 +251,7 @@ export function sanitizeAndProcessHtml(html: string): string {
     }
   });
   
-  return tempDivForAvatars.innerHTML;
+  return tempDiv.innerHTML;
 }
 
 /**

@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
+import axios from 'axios';
 import { theme } from 'theme/theme';
 import { Sidebar } from 'components/inbox/Sidebar';
 import { useAuth } from 'contexts/AuthContext';
@@ -11,10 +12,13 @@ import { AutoResponderSection } from 'components/settings/auto-responder';
 import { useSettingsData } from 'hooks/useSettingsData';
 import { useAutoResponder } from 'hooks/useAutoResponder';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
 const Settings: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const settingsData = useSettingsData();
   const autoResponder = useAutoResponder();
+  const hasTriggeredAutoAnalyze = useRef(false);
 
   // Handle OAuth callback
   useEffect(() => {
@@ -34,6 +38,26 @@ const Settings: React.FC = () => {
       alert('Failed to connect GitHub. Please try again.');
     }
   }, [settingsData]);
+
+  // Handle autoAnalyze query parameter from onboarding flow
+  useEffect(() => {
+    if (settingsData.loading || hasTriggeredAutoAnalyze.current) return;
+    
+    const params = new URLSearchParams(window.location.search);
+    const autoAnalyze = params.get('autoAnalyze');
+    
+    if (autoAnalyze === 'true') {
+      hasTriggeredAutoAnalyze.current = true;
+      // Remove query parameter from URL but keep the hash
+      window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+      // Mark user as having scanned history (so modal doesn't show again)
+      axios.put(`${API_URL}/users/me`, { hasScannedHistory: true })
+        .then(() => refreshUser())
+        .catch((error) => console.error('Error updating hasScannedHistory:', error));
+      // Auto-trigger context analysis
+      settingsData.handleAnalyzeContext();
+    }
+  }, [settingsData.loading, settingsData.handleAnalyzeContext, refreshUser]);
 
   // Handle anchor scrolling when navigating with hash (from sidebar navigation)
   useEffect(() => {

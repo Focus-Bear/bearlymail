@@ -1,7 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import axios from 'axios';
-import { DELAY_1_SECOND_MS, SHORT_TIMEOUT_MS } from 'constants/numbers';
-import { API_URL } from 'config/api';
+import { useNavigate } from 'react-router-dom';
 
 interface ScanProgress {
   current: number;
@@ -32,12 +30,12 @@ export function useOnboarding({
   user,
   authLoading,
   refreshUser,
-  onScanComplete,
 }: UseOnboardingProps): UseOnboardingReturn {
+  const navigate = useNavigate();
   const [tourStep, setTourStep] = useState<number | null>(null);
   const [showScanModal, setShowScanModal] = useState(false);
-  const [isScanning, setIsScanning] = useState(false);
-  const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null);
+  const [isScanning] = useState(false);
+  const [scanProgress] = useState<ScanProgress | null>(null);
 
   // Check if user needs to see tour
   useEffect(() => {
@@ -61,35 +59,10 @@ export function useOnboarding({
     }
   }, [user, authLoading, isScanning, showScanModal]);
 
-  // Poll for scan progress
-  useEffect(() => {
-    if (!isScanning) return;
-
-    const progressInterval = setInterval(async () => {
-      try {
-        const response = await axios.get(`${API_URL}/onboarding/scan-progress`);
-        if (response.data.progress) {
-          const { current, total } = response.data.progress;
-          setScanProgress({ current, total });
-
-          if (total > 0 && current >= total) {
-            clearInterval(progressInterval);
-            setIsScanning(false);
-            await new Promise(resolve => setTimeout(resolve, DELAY_1_SECOND_MS));
-            await refreshUser();
-            onScanComplete?.();
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching scan progress:', error);
-      }
-    }, SHORT_TIMEOUT_MS);
-
-    return () => clearInterval(progressInterval);
-  }, [isScanning, refreshUser, onScanComplete]);
-
   const markTourComplete = useCallback(async () => {
     try {
+      const axios = (await import('axios')).default;
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
       await axios.put(`${API_URL}/users/tour-complete`);
       await refreshUser();
     } catch (error) {
@@ -113,16 +86,9 @@ export function useOnboarding({
 
   const handleStartScan = useCallback(async () => {
     setShowScanModal(false);
-    setIsScanning(true);
-    setScanProgress({ current: 0, total: 0 });
-
-    try {
-      await axios.post(`${API_URL}/onboarding/start-scan`);
-    } catch (error) {
-      console.error('Error starting scan:', error);
-      setIsScanning(false);
-    }
-  }, []);
+    // Navigate to settings page with autoAnalyze param to trigger context analysis
+    navigate('/settings?autoAnalyze=true#context');
+  }, [navigate]);
 
   return {
     tourStep,

@@ -97,8 +97,17 @@ export class ZohoStrategy extends PassportStrategy(Strategy, "zoho") {
 
       done(null, userWithZohoData);
     } catch (error) {
-      this.logger.error("Error in Zoho OAuth validation:", error);
-      done(error, false);
+      // Log the error for debugging
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      const email = zohoProfile?.Email || "unknown";
+      this.logger.error(
+        `[ZohoStrategy] Authentication failed for ${email}: ${errorMessage}`,
+      );
+
+      // Pass error through both err parameter AND info parameter
+      // Some versions of Passport.js pass the error through info instead of err
+      done(error as Error, false, { message: errorMessage });
     }
   }
 

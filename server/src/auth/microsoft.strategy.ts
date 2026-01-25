@@ -103,8 +103,18 @@ export class MicrosoftStrategy extends PassportStrategy(Strategy, "microsoft") {
 
       done(null, userWithMicrosoftData);
     } catch (error) {
-      this.logger.error("Error in Microsoft OAuth validation:", error);
-      done(error, false);
+      // Log the error for debugging
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      const email =
+        graphProfile?.mail || graphProfile?.userPrincipalName || "unknown";
+      this.logger.error(
+        `[MicrosoftStrategy] Authentication failed for ${email}: ${errorMessage}`,
+      );
+
+      // Pass error through both err parameter AND info parameter
+      // Some versions of Passport.js pass the error through info instead of err
+      done(error as Error, false, { message: errorMessage });
     }
   }
 

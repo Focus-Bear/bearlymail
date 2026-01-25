@@ -108,7 +108,16 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
 
       done(null, userWithGoogleData);
     } catch (error) {
-      done(error, false);
+      // Log the error for debugging
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      this.logger.error(
+        `[GoogleStrategy] Authentication failed for ${profile.emails?.[0]?.value || "unknown"}: ${errorMessage}`,
+      );
+
+      // Pass error through both err parameter AND info parameter
+      // Some versions of Passport.js pass the error through info instead of err
+      done(error as Error, false, { message: errorMessage });
     }
   }
 }

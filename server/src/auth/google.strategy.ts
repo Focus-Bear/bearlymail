@@ -42,8 +42,10 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
         // Includes read + modify (labels, etc.)
         "https://www.googleapis.com/auth/gmail.modify",
         "https://www.googleapis.com/auth/gmail.send",
-        // Required for contacts sync via People API
+        // Required for contacts sync via People API (explicit contacts)
         "https://www.googleapis.com/auth/contacts.readonly",
+        // Required for "Other contacts" sync (auto-created from interactions)
+        "https://www.googleapis.com/auth/contacts.other.readonly",
       ],
       // These need to be in authorizationParams, not here
     });
@@ -51,7 +53,9 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
     // Log OAuth configuration status at startup
     this.logger.log(`[GoogleStrategy] Initialized with:`);
     this.logger.log(`  - clientID: ${clientID ? "[SET]" : "[MISSING]"}`);
-    this.logger.log(`  - clientSecret: ${clientSecret ? "[SET]" : "[MISSING]"}`);
+    this.logger.log(
+      `  - clientSecret: ${clientSecret ? "[SET]" : "[MISSING]"}`,
+    );
     this.logger.log(`  - callbackURL: ${callbackURL || "[MISSING]"}`);
     writeDebugLog(
       `[GoogleStrategy] Initialized - clientID: ${clientID ? "SET" : "MISSING"}, clientSecret: ${clientSecret ? "SET" : "MISSING"}, callbackURL: ${callbackURL || "MISSING"}`,

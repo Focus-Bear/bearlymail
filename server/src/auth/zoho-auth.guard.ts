@@ -1,8 +1,10 @@
-import { Injectable, ExecutionContext } from "@nestjs/common";
+import { Injectable, ExecutionContext, Logger } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 
 @Injectable()
 export class ZohoAuthGuard extends AuthGuard("zoho") {
+  private readonly logger = new Logger(ZohoAuthGuard.name);
+
   handleRequest<TUser = unknown>(
     err: Error | null,
     user: TUser | false,
@@ -11,9 +13,27 @@ export class ZohoAuthGuard extends AuthGuard("zoho") {
   ): TUser {
     if (err || !user) {
       const request = context.switchToHttp().getRequest();
-      request.authError = err || new Error("Authentication failed");
+
+      // Log what we received for debugging
+      this.logger.warn(
+        `Zoho auth failed - err: ${err?.message || "null"}, user: ${user ? "present" : "false"}, info: ${JSON.stringify(info)}`,
+      );
+
+      // The error might come through as `err` or through `info` depending on how Passport handles it
+      let errorMessage = "Authentication failed";
+      if (err?.message) {
+        errorMessage = err.message;
+      } else if (info && typeof info === "object" && "message" in info) {
+        errorMessage = (info as { message: string }).message;
+      } else if (info && typeof info === "string") {
+        errorMessage = info;
+      }
+
+      request.authError = new Error(errorMessage);
       return { authFailed: true } as TUser;
     }
     return user;
   }
 }
+
+

@@ -74,14 +74,22 @@ export class AuthController {
       const errorMessage = error?.message || "Authentication failed";
       this.logger.warn(`Google auth error: ${errorMessage}`);
 
-      // Determine error type and waitlist status
-      const isPendingApproval = errorMessage.includes("pending approval");
+      // Determine error type based on message content
+      let errorType = "auth_error";
+      if (errorMessage.includes("pending approval")) {
+        errorType = "pending_approval";
+      } else if (
+        errorMessage.includes("waitlist") ||
+        errorMessage.includes("join the waitlist")
+      ) {
+        errorType = "not_on_waitlist";
+      }
 
       // Build redirect URL with error info
       const errorParams = new URLSearchParams({
         error: "auth_failed",
         message: errorMessage,
-        type: isPendingApproval ? "pending_approval" : "auth_error",
+        type: errorType,
       });
 
       return res.redirect(
@@ -182,11 +190,21 @@ export class AuthController {
       const errorMessage = error?.message || "Authentication failed";
       this.logger.warn(`Microsoft auth error: ${errorMessage}`);
 
-      const isPendingApproval = errorMessage.includes("pending approval");
+      // Determine error type based on message content
+      let errorType = "auth_error";
+      if (errorMessage.includes("pending approval")) {
+        errorType = "pending_approval";
+      } else if (
+        errorMessage.includes("waitlist") ||
+        errorMessage.includes("join the waitlist")
+      ) {
+        errorType = "not_on_waitlist";
+      }
+
       const errorParams = new URLSearchParams({
         error: "auth_failed",
         message: errorMessage,
-        type: isPendingApproval ? "pending_approval" : "auth_error",
+        type: errorType,
       });
 
       return res.redirect(
@@ -283,11 +301,21 @@ export class AuthController {
       const errorMessage = error?.message || "Authentication failed";
       this.logger.warn(`Zoho auth error: ${errorMessage}`);
 
-      const isPendingApproval = errorMessage.includes("pending approval");
+      // Determine error type based on message content
+      let errorType = "auth_error";
+      if (errorMessage.includes("pending approval")) {
+        errorType = "pending_approval";
+      } else if (
+        errorMessage.includes("waitlist") ||
+        errorMessage.includes("join the waitlist")
+      ) {
+        errorType = "not_on_waitlist";
+      }
+
       const errorParams = new URLSearchParams({
         error: "auth_failed",
         message: errorMessage,
-        type: isPendingApproval ? "pending_approval" : "auth_error",
+        type: errorType,
       });
 
       return res.redirect(

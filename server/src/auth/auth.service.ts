@@ -227,7 +227,13 @@ export class AuthService {
     // Check if user is approved (unless it's jeremy who was just auto-approved)
     if (!user.isApproved && !isJeremy) {
       // Check if user is on the waitlist and approved there
+      this.logger.log(
+        `[LOGIN] User ${user.id} (${email}) is not approved, checking waitlist...`,
+      );
       const waitlistEntry = await this.waitlistService.findByEmail(email);
+      this.logger.log(
+        `[LOGIN] Waitlist lookup result for ${email}: ${waitlistEntry ? `found (approved: ${waitlistEntry.approved})` : "not found"}`,
+      );
       if (waitlistEntry?.approved) {
         // User is approved on waitlist - auto-approve them for OAuth login
         this.logger.log(
@@ -235,13 +241,20 @@ export class AuthService {
         );
         await this.usersService.update(user.id, { isApproved: true });
         user = await this.usersService.findOne(user.id);
+        this.logger.log(
+          `[LOGIN] User ${user.id} auto-approved successfully, isApproved: ${user.isApproved}`,
+        );
       } else if (waitlistEntry) {
         // User is on waitlist but not yet approved
+        this.logger.warn(
+          `[LOGIN] User ${email} is on waitlist but not approved yet`,
+        );
         throw new Error(
           "Your account is pending approval. Please wait for admin approval.",
         );
       } else {
         // User is not on the waitlist
+        this.logger.warn(`[LOGIN] User ${email} is not on the waitlist`);
         throw new Error(
           "You need to join the waitlist first. Please sign up at our website.",
         );

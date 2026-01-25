@@ -97,12 +97,11 @@ export class ZohoStrategy extends PassportStrategy(Strategy, "zoho") {
 
       done(null, userWithZohoData);
     } catch (error) {
-      // Log the error for debugging
+      // Log the error for debugging (profile may be unavailable if fetch failed)
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
-      const email = zohoProfile?.Email || "unknown";
       this.logger.error(
-        `[ZohoStrategy] Authentication failed for ${email}: ${errorMessage}`,
+        `[ZohoStrategy] Authentication failed: ${errorMessage}`,
       );
 
       // Pass error through both err parameter AND info parameter

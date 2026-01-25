@@ -103,13 +103,11 @@ export class MicrosoftStrategy extends PassportStrategy(Strategy, "microsoft") {
 
       done(null, userWithMicrosoftData);
     } catch (error) {
-      // Log the error for debugging
+      // Log the error for debugging (profile may be unavailable if fetch failed)
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
-      const email =
-        graphProfile?.mail || graphProfile?.userPrincipalName || "unknown";
       this.logger.error(
-        `[MicrosoftStrategy] Authentication failed for ${email}: ${errorMessage}`,
+        `[MicrosoftStrategy] Authentication failed: ${errorMessage}`,
       );
 
       // Pass error through both err parameter AND info parameter

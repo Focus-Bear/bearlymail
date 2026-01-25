@@ -294,8 +294,7 @@ export function loadPrompts(): Map<string, PromptConfig> {
       promptsCache.set("classify_email_type", {
         id: "classify_email_type",
         prompt: content,
-        systemPrompt:
-          "You are an email classification assistant. Analyze emails and provide structured classification results.",
+        systemPrompt: "",
       });
     }
 
@@ -306,8 +305,7 @@ export function loadPrompts(): Map<string, PromptConfig> {
       promptsCache.set("generate_qa_answer", {
         id: "generate_qa_answer",
         prompt: content,
-        systemPrompt:
-          "You are a helpful assistant that answers questions based on historical Q&A context. Only use information from the provided context.",
+        systemPrompt: "",
       });
     }
 
@@ -318,8 +316,7 @@ export function loadPrompts(): Map<string, PromptConfig> {
       promptsCache.set("detect_opt_out", {
         id: "detect_opt_out",
         prompt: content,
-        systemPrompt:
-          "You are an assistant that detects opt-out requests in email replies.",
+        systemPrompt: "",
       });
     }
 
@@ -330,8 +327,7 @@ export function loadPrompts(): Map<string, PromptConfig> {
       promptsCache.set("redact_names", {
         id: "redact_names",
         prompt: content,
-        systemPrompt:
-          "You are a privacy assistant that redacts person names from text.",
+        systemPrompt: "",
       });
     }
 

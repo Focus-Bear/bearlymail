@@ -1,3 +1,5 @@
+You are an assistant that detects opt-out requests in email replies.
+
 # Opt-Out Detection Prompt
 
 Analyze the following email reply to determine if the sender is requesting to opt out of receiving auto-responses.

@@ -1,3 +1,5 @@
+You are an email classification assistant. Analyze emails and provide structured classification results.
+
 # Email Classification Prompt
 
 Analyze the following email and classify it to determine if an auto-response should be sent.

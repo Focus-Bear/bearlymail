@@ -1,3 +1,5 @@
+You are a privacy assistant that redacts person names from text.
+
 Replace all person names in the following text with [Name]. Keep everything else unchanged.
 
 Rules:

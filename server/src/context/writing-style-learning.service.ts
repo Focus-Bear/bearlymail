@@ -47,12 +47,9 @@ export class WritingStyleLearningService {
 
       const existingRules = user.toneSettings?.rules || [];
 
-      // Count existing email examples (not Tone:, Style:, or Common phrase:)
+      // Count existing email examples (rules starting with "Example:")
       const existingExamples = existingRules.filter(
-        (rule: string) =>
-          !rule.startsWith("Tone:") &&
-          !rule.startsWith("Style:") &&
-          !rule.startsWith("Common phrase:"),
+        (rule: string) => rule.startsWith("Example:"),
       );
 
       // If we already have enough examples, skip
@@ -136,7 +133,7 @@ export class WritingStyleLearningService {
         );
 
         if (!isDuplicate) {
-          newExamples.push(redacted);
+          newExamples.push(`Example: ${redacted}`);
         }
       }
 
@@ -258,11 +255,9 @@ export class WritingStyleLearningService {
       }
 
       const existingRules = user.toneSettings?.rules || [];
+      // Count existing email examples (rules starting with "Example:")
       const existingExamples = existingRules.filter(
-        (rule: string) =>
-          !rule.startsWith("Tone:") &&
-          !rule.startsWith("Style:") &&
-          !rule.startsWith("Common phrase:"),
+        (rule: string) => rule.startsWith("Example:"),
       );
 
       if (existingExamples.length >= TARGET_EXAMPLE_COUNT) {
@@ -319,7 +314,7 @@ export class WritingStyleLearningService {
         );
 
         if (!isDuplicate) {
-          newExamples.push(redacted);
+          newExamples.push(`Example: ${redacted}`);
         }
       }
 
@@ -356,11 +351,9 @@ export class WritingStyleLearningService {
       return 0;
     }
 
+    // Count rules starting with "Example:"
     return user.toneSettings.rules.filter(
-      (rule: string) =>
-        !rule.startsWith("Tone:") &&
-        !rule.startsWith("Style:") &&
-        !rule.startsWith("Common phrase:"),
+      (rule: string) => rule.startsWith("Example:"),
     ).length;
   }
 }

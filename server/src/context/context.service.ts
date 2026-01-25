@@ -3318,6 +3318,13 @@ export class ContextService {
       this.logger.log(
         `[CONTEXT-ANALYSIS] LLM returned ${analysis.context?.length || 0} context items`,
       );
+      this.logger.log(
+        `[CONTEXT-ANALYSIS] Writing style: tone="${analysis.writingStyle?.tone || 'none'}", style="${analysis.writingStyle?.style || 'none'}", commonPhrases=${analysis.writingStyle?.commonPhrases?.length || 0}, emailExamples=${(analysis.writingStyle as { emailExamples?: string[] })?.emailExamples?.length || 0}`,
+      );
+      writeAnalysisLog(
+        `Writing style: tone="${analysis.writingStyle?.tone || 'none'}", style="${analysis.writingStyle?.style || 'none'}", commonPhrases=${analysis.writingStyle?.commonPhrases?.length || 0}, emailExamples=${(analysis.writingStyle as { emailExamples?: string[] })?.emailExamples?.length || 0}`,
+        "log",
+      );
 
       await this.usersService.update(userId, {
         scanProgress: 70,
@@ -3783,11 +3790,19 @@ export class ContextService {
       }
       
       // Add email examples with name redaction (use LLM-based redaction)
-      for (const example of (analysis.writingStyle as { emailExamples?: string[] }).emailExamples || []) {
+      const emailExamples = (analysis.writingStyle as { emailExamples?: string[] }).emailExamples || [];
+      this.logger.log(
+        `[CONTEXT-ANALYSIS] Writing style has ${emailExamples.length} email examples to process`,
+      );
+      writeAnalysisLog(
+        `[FINALIZATION] Writing style has ${emailExamples.length} email examples to process`,
+        "log",
+      );
+      for (const example of emailExamples) {
         if (example && example.trim()) {
           // Use LLM to redact names for better accuracy
           const redacted = await this.llmService.redactNamesWithLLM(example);
-          writingStyleRules.push(redacted);
+          writingStyleRules.push(`Example: ${redacted}`);
         }
       }
       

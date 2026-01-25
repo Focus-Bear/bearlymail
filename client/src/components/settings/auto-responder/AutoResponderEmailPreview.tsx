@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { useAuth } from 'contexts/AuthContext';
+import { API_URL } from 'config/api';
 
 interface RecentEmail {
   id: string;
@@ -92,7 +93,7 @@ export const AutoResponderEmailPreview: React.FC = () => {
     setError(null);
     
     try {
-      const response = await fetch('/api/auto-responder/recent-emails?limit=10', {
+      const response = await fetch(`${API_URL}/auto-responder/recent-emails?limit=10`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -118,7 +119,7 @@ export const AutoResponderEmailPreview: React.FC = () => {
     setError(null);
     
     try {
-      const response = await fetch('/api/auto-responder/preview-email', {
+      const response = await fetch(`${API_URL}/auto-responder/preview-email`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

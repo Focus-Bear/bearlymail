@@ -8,6 +8,7 @@ import {
   Res,
   BadRequestException,
   Query,
+  Logger,
 } from "@nestjs/common";
 import { AuthService } from "./auth.service";
 import { LocalAuthGuard } from "./local-auth.guard";
@@ -17,14 +18,18 @@ import { ZohoAuthGuard } from "./zoho-auth.guard";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
 import { Office365AccountsService } from "../office365-accounts/office365-accounts.service";
 import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
+import { WaitlistService } from "../waitlist/waitlist.service";
 
 @Controller("auth")
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private authService: AuthService,
     private googleAccountsService: GoogleAccountsService,
     private office365AccountsService: Office365AccountsService,
     private zohoAccountsService: ZohoAccountsService,
+    private waitlistService: WaitlistService,
   ) {}
 
   @Post("register")
@@ -62,6 +67,27 @@ export class AuthController {
     @Query("state") state?: string,
   ) {
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+
+    // Check if there was an auth error (set by GoogleAuthGuard)
+    if (req.authError || req.user?.authFailed) {
+      const error = req.authError as Error;
+      const errorMessage = error?.message || "Authentication failed";
+      this.logger.warn(`Google auth error: ${errorMessage}`);
+
+      // Determine error type and waitlist status
+      const isPendingApproval = errorMessage.includes("pending approval");
+
+      // Build redirect URL with error info
+      const errorParams = new URLSearchParams({
+        error: "auth_failed",
+        message: errorMessage,
+        type: isPendingApproval ? "pending_approval" : "auth_error",
+      });
+
+      return res.redirect(
+        `${frontendUrl}/auth-error?${errorParams.toString()}`,
+      );
+    }
 
     // Check if this is a connection flow (has state with userId)
     if (state) {
@@ -150,6 +176,24 @@ export class AuthController {
   ) {
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
 
+    // Check if there was an auth error (set by MicrosoftAuthGuard)
+    if (req.authError || req.user?.authFailed) {
+      const error = req.authError as Error;
+      const errorMessage = error?.message || "Authentication failed";
+      this.logger.warn(`Microsoft auth error: ${errorMessage}`);
+
+      const isPendingApproval = errorMessage.includes("pending approval");
+      const errorParams = new URLSearchParams({
+        error: "auth_failed",
+        message: errorMessage,
+        type: isPendingApproval ? "pending_approval" : "auth_error",
+      });
+
+      return res.redirect(
+        `${frontendUrl}/auth-error?${errorParams.toString()}`,
+      );
+    }
+
     // Check if this is a connection flow (has state with userId)
     if (state) {
       try {
@@ -232,6 +276,24 @@ export class AuthController {
     @Query("state") state?: string,
   ) {
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+
+    // Check if there was an auth error (set by ZohoAuthGuard)
+    if (req.authError || req.user?.authFailed) {
+      const error = req.authError as Error;
+      const errorMessage = error?.message || "Authentication failed";
+      this.logger.warn(`Zoho auth error: ${errorMessage}`);
+
+      const isPendingApproval = errorMessage.includes("pending approval");
+      const errorParams = new URLSearchParams({
+        error: "auth_failed",
+        message: errorMessage,
+        type: isPendingApproval ? "pending_approval" : "auth_error",
+      });
+
+      return res.redirect(
+        `${frontendUrl}/auth-error?${errorParams.toString()}`,
+      );
+    }
 
     // Check if this is a connection flow (has state with userId)
     if (state) {

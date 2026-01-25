@@ -3,10 +3,12 @@ import {
   Inject,
   Logger,
   UnauthorizedException,
+  forwardRef,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import PgBoss = require("pg-boss");
 import { UsersService } from "../users/users.service";
+import { WaitlistService } from "../waitlist/waitlist.service";
 import * as bcrypt from "bcrypt";
 import { writeDebugLog, AuthLogger } from "./auth-logger";
 import { getJobPriority } from "../queue/job-priorities";
@@ -47,6 +49,8 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService,
     @Inject("PG_BOSS") private readonly boss: PgBoss,
+    @Inject(forwardRef(() => WaitlistService))
+    private waitlistService: WaitlistService,
   ) {}
 
   async validateUser(
@@ -222,9 +226,26 @@ export class AuthService {
 
     // Check if user is approved (unless it's jeremy who was just auto-approved)
     if (!user.isApproved && !isJeremy) {
-      throw new Error(
-        "Your account is pending approval. Please wait for admin approval.",
-      );
+      // Check if user is on the waitlist and approved there
+      const waitlistEntry = await this.waitlistService.findByEmail(email);
+      if (waitlistEntry?.approved) {
+        // User is approved on waitlist - auto-approve them for OAuth login
+        this.logger.log(
+          `[LOGIN] Auto-approving user ${user.id} - approved on waitlist`,
+        );
+        await this.usersService.update(user.id, { isApproved: true });
+        user = await this.usersService.findOne(user.id);
+      } else if (waitlistEntry) {
+        // User is on waitlist but not yet approved
+        throw new Error(
+          "Your account is pending approval. Please wait for admin approval.",
+        );
+      } else {
+        // User is not on the waitlist
+        throw new Error(
+          "You need to join the waitlist first. Please sign up at our website.",
+        );
+      }
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -322,9 +343,26 @@ export class AuthService {
     }
 
     if (!user.isApproved && !isJeremy) {
-      throw new Error(
-        "Your account is pending approval. Please wait for admin approval.",
-      );
+      // Check if user is on the waitlist and approved there
+      const waitlistEntry = await this.waitlistService.findByEmail(email);
+      if (waitlistEntry?.approved) {
+        // User is approved on waitlist - auto-approve them for OAuth login
+        this.logger.log(
+          `[LOGIN] Auto-approving user ${user.id} - approved on waitlist`,
+        );
+        await this.usersService.update(user.id, { isApproved: true });
+        user = await this.usersService.findOne(user.id);
+      } else if (waitlistEntry) {
+        // User is on waitlist but not yet approved
+        throw new Error(
+          "Your account is pending approval. Please wait for admin approval.",
+        );
+      } else {
+        // User is not on the waitlist
+        throw new Error(
+          "You need to join the waitlist first. Please sign up at our website.",
+        );
+      }
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -378,9 +416,26 @@ export class AuthService {
     }
 
     if (!user.isApproved && !isJeremy) {
-      throw new Error(
-        "Your account is pending approval. Please wait for admin approval.",
-      );
+      // Check if user is on the waitlist and approved there
+      const waitlistEntry = await this.waitlistService.findByEmail(email);
+      if (waitlistEntry?.approved) {
+        // User is approved on waitlist - auto-approve them for OAuth login
+        this.logger.log(
+          `[LOGIN] Auto-approving user ${user.id} - approved on waitlist`,
+        );
+        await this.usersService.update(user.id, { isApproved: true });
+        user = await this.usersService.findOne(user.id);
+      } else if (waitlistEntry) {
+        // User is on waitlist but not yet approved
+        throw new Error(
+          "Your account is pending approval. Please wait for admin approval.",
+        );
+      } else {
+        // User is not on the waitlist
+        throw new Error(
+          "You need to join the waitlist first. Please sign up at our website.",
+        );
+      }
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

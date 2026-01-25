@@ -14,6 +14,7 @@ import { EmailsModule } from "../emails/emails.module";
 import { GoogleAccountsModule } from "../google-accounts/google-accounts.module";
 import { Office365AccountsModule } from "../office365-accounts/office365-accounts.module";
 import { ZohoAccountsModule } from "../zoho-accounts/zoho-accounts.module";
+import { WaitlistModule } from "../waitlist/waitlist.module";
 import { AdminGuard } from "./admin.guard";
 import { GmailRequiredGuard } from "./gmail-required.guard";
 
@@ -24,6 +25,7 @@ import { GmailRequiredGuard } from "./gmail-required.guard";
     forwardRef(() => GoogleAccountsModule),
     forwardRef(() => Office365AccountsModule),
     forwardRef(() => ZohoAccountsModule),
+    forwardRef(() => WaitlistModule),
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

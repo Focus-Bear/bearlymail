@@ -19,6 +19,7 @@ import Search from 'pages/Search';
 import Compose from 'pages/Compose';
 import Contacts from 'pages/Contacts';
 import SetupPassword from 'pages/SetupPassword';
+import AuthError from 'pages/AuthError';
 import Help from 'pages/Help';
 import HelpArticle from 'pages/HelpArticle';
 import axios from 'axios';
@@ -126,8 +127,9 @@ function App() {
           }}>
             <Routes>
               <Route path="/" element={<Landing />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/setup-password" element={<SetupPassword />} />
+                            <Route path="/login" element={<Login />} />
+                            <Route path="/auth-error" element={<AuthError />} />
+                            <Route path="/setup-password" element={<SetupPassword />} />
               <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/terms" element={<TermsOfUse />} />
               <Route

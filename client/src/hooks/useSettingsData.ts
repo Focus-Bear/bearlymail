@@ -174,6 +174,7 @@ export function useSettingsData() {
     handleDeleteContext: contextManagement.deleteContext,
     handleAddToneRule: toneRules.addToneRule,
     handleRemoveToneRule: toneRules.removeToneRule,
+    handleEditToneRule: toneRules.editToneRule,
     handleSaveApiKey: apiKeys.saveOpenAiApiKey,
     handleRemoveApiKey: apiKeys.removeOpenAiApiKey,
     handleConnectGitHub: apiKeys.connectGitHub,

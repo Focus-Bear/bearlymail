@@ -148,6 +148,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     setSending,
     setToneCheckResult,
     setCheckingTone,
+    disputeResult,
     setDisputing,
     setDisputeResult,
     snoozeInput,
@@ -668,19 +669,22 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
   const handleSendReply = useCallback(async (files: File[] = []) => {
     if (!id || !draft) return;
     
-    setCheckingTone(true);
-    try {
-      const toneResponse = await axios.post(`${API_URL}/llm/check-tone`, { text: draft });
-      setToneCheckResult(toneResponse.data);
-      
-      if (!toneResponse.data.isOk) {
+    // Skip tone check if dispute was already accepted
+    if (!disputeResult?.accepted) {
+      setCheckingTone(true);
+      try {
+        const toneResponse = await axios.post(`${API_URL}/llm/check-tone`, { text: draft });
+        setToneCheckResult(toneResponse.data);
+        
+        if (!toneResponse.data.isOk) {
+          setCheckingTone(false);
+          return;
+        }
+      } catch (error) {
+        console.error('Error checking tone:', error);
+      } finally {
         setCheckingTone(false);
-        return;
       }
-    } catch (error) {
-      console.error('Error checking tone:', error);
-    } finally {
-      setCheckingTone(false);
     }
     
     setSending(true);
@@ -726,7 +730,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     } finally {
       setSending(false);
     }
-  }, [id, draft, replyMode, replyRecipients, triggerAnimation, t, navigate, setCheckingTone, setToneCheckResult, setSending, setDraft, setShowReplyComposer, showSuccess, showError, deleteDraft]);
+  }, [id, draft, replyMode, replyRecipients, disputeResult, triggerAnimation, t, navigate, setCheckingTone, setToneCheckResult, setSending, setDraft, setShowReplyComposer, showSuccess, showError, deleteDraft]);
 
   const disputeToneCheck = useCallback(async (emailText: string, userArgument: string) => {
     setDisputing(true);

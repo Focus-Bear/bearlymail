@@ -42,6 +42,12 @@ export const useToneRules = () => {
     updateToneRules(newRules);
   }, [toneRules, updateToneRules]);
 
+  const editToneRule = useCallback((index: number, newValue: string) => {
+    const newRules = [...toneRules];
+    newRules[index] = newValue;
+    updateToneRules(newRules);
+  }, [toneRules, updateToneRules]);
+
   return {
     toneRules,
     newToneRule,
@@ -50,6 +56,7 @@ export const useToneRules = () => {
     fetchToneRules,
     addToneRule,
     removeToneRule,
+    editToneRule,
     updateToneRules,
   };
 };

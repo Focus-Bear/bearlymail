@@ -9,6 +9,7 @@ interface ToneSettingsSectionProps {
   newToneRule: string;
   onAddToneRule: () => void;
   onRemoveToneRule: (index: number) => void;
+  onEditToneRule?: (index: number, newValue: string) => void;
   onNewToneRuleChange: (rule: string) => void;
 }
 
@@ -17,6 +18,7 @@ export const ToneSettingsSection: React.FC<ToneSettingsSectionProps> = ({
   newToneRule,
   onAddToneRule,
   onRemoveToneRule,
+  onEditToneRule,
   onNewToneRuleChange,
 }) => {
   const { t } = useTranslation();
@@ -53,6 +55,7 @@ export const ToneSettingsSection: React.FC<ToneSettingsSectionProps> = ({
               rule={rule}
               index={position}
               onRemove={() => onRemoveToneRule(position)}
+              onEdit={onEditToneRule}
             />
           );
         })}

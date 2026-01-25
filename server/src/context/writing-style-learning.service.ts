@@ -46,7 +46,7 @@ export class WritingStyleLearningService {
       }
 
       const existingRules = user.toneSettings?.rules || [];
-      
+
       // Count existing email examples (not Tone:, Style:, or Common phrase:)
       const existingExamples = existingRules.filter(
         (rule: string) =>
@@ -91,14 +91,20 @@ export class WritingStyleLearningService {
           break;
         }
 
-        const body = email.body?.trim();
+        const rawBody = email.body?.trim();
+        if (!rawBody || rawBody.length < MIN_EMAIL_LENGTH) {
+          continue;
+        }
+
+        // Strip quoted content to get only the user's own writing
+        const body = this.stripQuotedContent(rawBody);
         if (!body || body.length < MIN_EMAIL_LENGTH) {
           continue;
         }
 
         // Extract a representative snippet (first part of email)
         let snippet = body.substring(0, MAX_EMAIL_LENGTH);
-        
+
         // Clean up the snippet - remove excessive whitespace, HTML artifacts
         snippet = snippet
           .replace(/<[^>]+>/g, "") // Remove HTML tags
@@ -118,16 +124,15 @@ export class WritingStyleLearningService {
           if (cutPoint > MIN_EMAIL_LENGTH) {
             snippet = snippet.substring(0, cutPoint + 1).trim();
           }
-          snippet = snippet + "...";
+          snippet = `${snippet}...`;
         }
 
         // Use LLM to redact names
         const redacted = await this.llmService.redactNamesWithLLM(snippet);
-        
+
         // Check for duplicates (similar content)
-        const isDuplicate = existingExamples.some(
-          (existing: string) =>
-            this.areSimilar(existing.toLowerCase(), redacted.toLowerCase()),
+        const isDuplicate = existingExamples.some((existing: string) =>
+          this.areSimilar(existing.toLowerCase(), redacted.toLowerCase()),
         );
 
         if (!isDuplicate) {
@@ -136,9 +141,7 @@ export class WritingStyleLearningService {
       }
 
       if (newExamples.length === 0) {
-        this.logger.debug(
-          `No new suitable examples found for user ${userId}`,
-        );
+        this.logger.debug(`No new suitable examples found for user ${userId}`);
         return;
       }
 
@@ -162,6 +165,60 @@ export class WritingStyleLearningService {
         error,
       );
     }
+  }
+
+  /**
+   * Strip quoted content from email body to get only the user's own writing.
+   * Removes:
+   * - Lines starting with ">" (quoted text)
+   * - "On [date], [name] wrote:" patterns and everything after
+   * - "From: [email]" headers in forwarded/replied emails
+   * - "-----Original Message-----" markers and everything after
+   * - Gmail-style quoted blocks
+   */
+  private stripQuotedContent(body: string): string {
+    let cleaned = body;
+
+    // Remove "On [date], [name] wrote:" patterns and everything after
+    // Matches: "On Mon, Jan 1, 2024 at 10:00 AM John Doe <john@example.com> wrote:"
+    const onWrotePattern = /\n\s*On\s+.{10,100}\s+wrote:\s*\n/i;
+    const onWroteMatch = cleaned.match(onWrotePattern);
+    if (onWroteMatch && onWroteMatch.index !== undefined) {
+      cleaned = cleaned.substring(0, onWroteMatch.index);
+    }
+
+    // Remove "-----Original Message-----" and everything after
+    const originalMessagePattern = /\n\s*-{3,}\s*Original Message\s*-{3,}/i;
+    const originalMatch = cleaned.match(originalMessagePattern);
+    if (originalMatch && originalMatch.index !== undefined) {
+      cleaned = cleaned.substring(0, originalMatch.index);
+    }
+
+    // Remove "From: [email]" header blocks (forwarded emails)
+    const fromHeaderPattern =
+      /\n\s*From:\s*[^\n]+\n\s*(?:Sent|Date|To|Subject):/i;
+    const fromMatch = cleaned.match(fromHeaderPattern);
+    if (fromMatch && fromMatch.index !== undefined) {
+      cleaned = cleaned.substring(0, fromMatch.index);
+    }
+
+    // Remove Gmail-style "---------- Forwarded message ---------"
+    const forwardedPattern = /\n\s*-{5,}\s*Forwarded message\s*-{5,}/i;
+    const forwardedMatch = cleaned.match(forwardedPattern);
+    if (forwardedMatch && forwardedMatch.index !== undefined) {
+      cleaned = cleaned.substring(0, forwardedMatch.index);
+    }
+
+    // Remove lines starting with ">" (quoted text)
+    cleaned = cleaned
+      .split("\n")
+      .filter((line) => !line.trim().startsWith(">"))
+      .join("\n");
+
+    // Remove excessive whitespace left behind
+    cleaned = cleaned.replace(/\n{3,}/g, "\n\n").trim();
+
+    return cleaned;
   }
 
   /**
@@ -223,7 +280,13 @@ export class WritingStyleLearningService {
           break;
         }
 
-        const trimmed = body?.trim();
+        const rawBody = body?.trim();
+        if (!rawBody || rawBody.length < MIN_EMAIL_LENGTH) {
+          continue;
+        }
+
+        // Strip quoted content to get only the user's own writing
+        const trimmed = this.stripQuotedContent(rawBody);
         if (!trimmed || trimmed.length < MIN_EMAIL_LENGTH) {
           continue;
         }
@@ -246,14 +309,13 @@ export class WritingStyleLearningService {
           if (cutPoint > MIN_EMAIL_LENGTH) {
             snippet = snippet.substring(0, cutPoint + 1).trim();
           }
-          snippet = snippet + "...";
+          snippet = `${snippet}...`;
         }
 
         const redacted = await this.llmService.redactNamesWithLLM(snippet);
 
-        const isDuplicate = existingExamples.some(
-          (existing: string) =>
-            this.areSimilar(existing.toLowerCase(), redacted.toLowerCase()),
+        const isDuplicate = existingExamples.some((existing: string) =>
+          this.areSimilar(existing.toLowerCase(), redacted.toLowerCase()),
         );
 
         if (!isDuplicate) {

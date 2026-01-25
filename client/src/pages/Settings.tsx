@@ -115,6 +115,7 @@ const Settings: React.FC = () => {
           onAnalyzeContext={settingsData.handleAnalyzeContext}
           onAddToneRule={settingsData.handleAddToneRule}
           onRemoveToneRule={settingsData.handleRemoveToneRule}
+          onEditToneRule={settingsData.handleEditToneRule}
           onNewToneRuleChange={settingsData.setNewToneRule}
           onAddSummarizationRule={settingsData.handleAddSummarizationRule}
           onEditSummarizationRule={settingsData.handleEditSummarizationRule}

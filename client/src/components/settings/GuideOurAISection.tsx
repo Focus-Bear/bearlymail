@@ -43,6 +43,7 @@ interface GuideOurAISectionProps {
   onAnalyzeContext: () => Promise<void>;
   onAddToneRule: () => void;
   onRemoveToneRule: (index: number) => void;
+  onEditToneRule?: (index: number, newValue: string) => void;
   onNewToneRuleChange: (rule: string) => void;
   onAddSummarizationRule: () => Promise<void>;
   onEditSummarizationRule: (rule: SummarizationRule) => void;
@@ -87,6 +88,7 @@ export const GuideOurAISection: React.FC<GuideOurAISectionProps> = ({
   onAnalyzeContext,
   onAddToneRule,
   onRemoveToneRule,
+  onEditToneRule,
   onNewToneRuleChange,
   onAddSummarizationRule,
   onEditSummarizationRule,
@@ -143,6 +145,7 @@ export const GuideOurAISection: React.FC<GuideOurAISectionProps> = ({
         newToneRule={newToneRule}
         onAddToneRule={onAddToneRule}
         onRemoveToneRule={onRemoveToneRule}
+        onEditToneRule={onEditToneRule}
         onNewToneRuleChange={onNewToneRuleChange}
       />
 

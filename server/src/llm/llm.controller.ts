@@ -32,10 +32,20 @@ export class LLMController {
     @Body() body: { text: string; rules?: string[] },
   ) {
     // Fetch user tone settings if rules not provided
-    // For now, use defaults or provided rules
+    let { rules } = body;
+    if (!rules || rules.length === 0) {
+      const user = await this.usersService.findOne(req.user.userId);
+      rules = user?.toneSettings?.rules || [];
+    }
+
+    // If user has no tone settings, skip tone check and return OK
+    if (!rules || rules.length === 0) {
+      return { isOk: true, suggestions: [], revisedText: undefined };
+    }
+
     return this.llmService.checkTone(
       body.text,
-      body.rules,
+      rules,
       undefined,
       req.user.userId,
     );

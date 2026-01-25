@@ -8,10 +8,10 @@ import { RATIOS } from "../constants/percentages";
 @Injectable()
 export class ContextPiiRedactionService {
   /**
-   * Redact PII (names) from text, replacing with placeholders.
-   * Uses conservative approach - only redacts in high-confidence name contexts.
+   * Redact PII from text, replacing with placeholders.
+   * Handles: names, email addresses, phone numbers, bank details, addresses, SSN/ID numbers.
    *
-   * High-confidence contexts:
+   * High-confidence contexts for names:
    * - After greetings: "Hi John,", "Hello Sarah,"
    * - In signatures: "Best, John"
    * - Before verbs: "John said", "Sarah wrote"
@@ -21,7 +21,7 @@ export class ContextPiiRedactionService {
   redactPII(text: string, userEmail?: string): string {
     let redacted = text;
 
-    // Remove email addresses (keep domain structure but redact user part)
+    // 1. Redact email addresses
     if (userEmail) {
       const emailRegex = new RegExp(
         userEmail.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
@@ -29,6 +29,77 @@ export class ContextPiiRedactionService {
       );
       redacted = redacted.replace(emailRegex, "[Your Email]");
     }
+    // Redact other email addresses
+    redacted = redacted.replace(
+      /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
+      "[Email]",
+    );
+
+    // 2. Redact phone numbers (various formats)
+    // International format: +1 234 567 8901, +61 4 1234 5678
+    redacted = redacted.replace(
+      /\+\d{1,3}[\s.-]?\d{1,4}[\s.-]?\d{1,4}[\s.-]?\d{1,4}[\s.-]?\d{0,4}/g,
+      "[Phone]",
+    );
+    // US format: (123) 456-7890, 123-456-7890, 123.456.7890
+    redacted = redacted.replace(
+      /\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/g,
+      "[Phone]",
+    );
+
+    // 3. Redact bank account numbers (6-17 digits, possibly with spaces/dashes)
+    // BSB (Australia): 123-456 or 123456
+    redacted = redacted.replace(/\b\d{3}[-\s]?\d{3}\b/g, "[BSB]");
+    // Account numbers: typically 6-12 digits
+    redacted = redacted.replace(
+      /\b(?:account|acct|a\/c)[\s:#]*\d{6,12}\b/gi,
+      "[Account Number]",
+    );
+    // Credit card numbers: 13-19 digits with spaces/dashes
+    redacted = redacted.replace(
+      /\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{1,7}\b/g,
+      "[Card Number]",
+    );
+    // IBAN: 2 letters + 2 digits + up to 30 alphanumeric
+    redacted = redacted.replace(/\b[A-Z]{2}\d{2}[A-Z0-9]{4,30}\b/g, "[IBAN]");
+    // SWIFT/BIC codes: 8 or 11 characters
+    redacted = redacted.replace(
+      /\b[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?\b/g,
+      "[SWIFT Code]",
+    );
+
+    // 4. Redact SSN/Tax ID numbers
+    // US SSN: 123-45-6789
+    redacted = redacted.replace(/\b\d{3}-\d{2}-\d{4}\b/g, "[SSN]");
+    // Australian TFN: 123 456 789
+    redacted = redacted.replace(/\b\d{3}\s\d{3}\s\d{3}\b/g, "[Tax ID]");
+
+    // 5. Redact street addresses (basic patterns)
+    // Street addresses: 123 Main Street, 456 Oak Ave
+    redacted = redacted.replace(
+      /\b\d{1,5}\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Lane|Ln|Boulevard|Blvd|Court|Ct|Place|Pl|Way|Circle|Cir)\b/gi,
+      "[Address]",
+    );
+    // PO Box
+    redacted = redacted.replace(/\bP\.?O\.?\s*Box\s*\d+\b/gi, "[PO Box]");
+    // Postal/ZIP codes (various formats)
+    redacted = redacted.replace(/\b\d{5}(?:-\d{4})?\b/g, "[Postal Code]"); // US ZIP
+    redacted = redacted.replace(
+      /\b\d{4}\b(?=\s*[A-Z]{2,3}\b)/g,
+      "[Postal Code]",
+    ); // Australian postcode before state
+
+    // 6. Redact dates of birth in common formats
+    redacted = redacted.replace(
+      /\b(?:DOB|Date of Birth|Born|Birthday)[\s:]*\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}\b/gi,
+      "[Date of Birth]",
+    );
+
+    // 7. Redact passport/license numbers (generic pattern after keywords)
+    redacted = redacted.replace(
+      /\b(?:passport|license|licence|ID)[\s:#]*[A-Z0-9]{6,12}\b/gi,
+      "[ID Number]",
+    );
 
     // Conservative name redaction - only in high-confidence contexts
     const namesToRedact = new Set<string>();
@@ -53,9 +124,10 @@ export class ContextPiiRedactionService {
         namesToRedact.add(name);
       }
     }
-    
+
     // Also catch "Ok thanks Name" pattern
-    const okThanksPattern = /\b(?:ok|okay)\s+(?:thanks|thank you)\s+([A-Z][a-z]+)/gi;
+    const okThanksPattern =
+      /\b(?:ok|okay)\s+(?:thanks|thank you)\s+([A-Z][a-z]+)/gi;
     while ((match = okThanksPattern.exec(redacted)) !== null) {
       const name = match[1];
       if (!this.isCommonWord(name) && name.length >= 2) {
@@ -64,7 +136,8 @@ export class ContextPiiRedactionService {
     }
 
     // 3. Two-part names after greetings: "Hi John Smith," - catch second name too
-    const twoPartNamePattern = /\b(Hi|Hello|Hey|Dear)\s+[A-Z][a-z]+\s+([A-Z][a-z]+)[,.:]/g;
+    const twoPartNamePattern =
+      /\b(Hi|Hello|Hey|Dear)\s+[A-Z][a-z]+\s+([A-Z][a-z]+)[,.:]/g;
     while ((match = twoPartNamePattern.exec(redacted)) !== null) {
       const name = match[2];
       if (!this.isCommonWord(name) && name.length >= 2) {
@@ -81,7 +154,7 @@ export class ContextPiiRedactionService {
         namesToRedact.add(name);
       }
     }
-    
+
     // 5. Names after [Name] placeholder (catches two-part names)
     const afterPlaceholderPattern = /\[Name\]\s+([A-Z][a-z]+)/g;
     while ((match = afterPlaceholderPattern.exec(redacted)) !== null) {

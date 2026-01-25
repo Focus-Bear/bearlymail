@@ -48,6 +48,7 @@ import { EmailGmailService } from "./email-gmail.service";
 import { EmailStatusService } from "./email-status.service";
 import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
+import { SuggestedRepliesService } from "../suggested-replies/suggested-replies.service";
 
 // Performance budgets in milliseconds
 // Use PERFORMANCE_BUDGETS and QUERY_LIMITS constants directly instead of local PERF_BUDGETS
@@ -199,6 +200,8 @@ export class EmailsService {
     private githubService?: GitHubService,
     @Inject(forwardRef(() => GitHubApiService))
     private githubApiService?: GitHubApiService,
+    @Inject(forwardRef(() => SuggestedRepliesService))
+    private suggestedRepliesService?: SuggestedRepliesService,
   ) {}
 
   // eslint-disable-next-line max-lines-per-function, max-statements
@@ -1460,6 +1463,19 @@ export class EmailsService {
         .catch((err) => {
           this.logger.error(
             `Failed to queue auto-responder job for email ${savedEmail.id}:`,
+            err,
+          );
+        });
+    }
+
+    // Queue suggested reply regeneration if thread is in action inbox (starCount > 0)
+    // This ensures suggested replies are updated when new emails arrive in flagged threads
+    if (thread && thread.starCount > 0 && this.suggestedRepliesService) {
+      this.suggestedRepliesService
+        .queueSuggestedReplyGeneration(userId, thread.id, savedEmail.id)
+        .catch((err) => {
+          this.logger.error(
+            `Failed to queue suggested reply regeneration for thread ${thread.id}:`,
             err,
           );
         });

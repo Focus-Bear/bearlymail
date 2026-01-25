@@ -1,0 +1,129 @@
+import { Injectable, Logger, Inject } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import PgBoss = require("pg-boss");
+import { SuggestedReply } from "../database/entities/suggested-reply.entity";
+import { getJobPriority } from "../queue/job-priorities";
+
+@Injectable()
+export class SuggestedRepliesService {
+  private readonly logger = new Logger(SuggestedRepliesService.name);
+
+  constructor(
+    @InjectRepository(SuggestedReply)
+    private suggestedReplyRepository: Repository<SuggestedReply>,
+    @Inject("PG_BOSS") private readonly boss: PgBoss,
+  ) {}
+
+  async getSuggestedReplies(
+    userId: string,
+    threadId: string,
+  ): Promise<SuggestedReply | null> {
+    return this.suggestedReplyRepository.findOne({
+      where: { userId, emailThreadId: threadId },
+    });
+  }
+
+  async saveSuggestedReplies(
+    userId: string,
+    threadId: string,
+    options: Array<{ label: string; text: string }>,
+    lastEmailId: string | null,
+  ): Promise<SuggestedReply> {
+    const existing = await this.getSuggestedReplies(userId, threadId);
+
+    if (existing) {
+      existing.options = options;
+      existing.lastEmailId = lastEmailId;
+      existing.isGenerating = false;
+      return this.suggestedReplyRepository.save(existing);
+    }
+
+    const suggestedReply = this.suggestedReplyRepository.create({
+      userId,
+      emailThreadId: threadId,
+      options,
+      lastEmailId,
+      isGenerating: false,
+    });
+
+    return this.suggestedReplyRepository.save(suggestedReply);
+  }
+
+  async markAsGenerating(userId: string, threadId: string): Promise<void> {
+    const existing = await this.getSuggestedReplies(userId, threadId);
+
+    if (existing) {
+      existing.isGenerating = true;
+      await this.suggestedReplyRepository.save(existing);
+    } else {
+      const suggestedReply = this.suggestedReplyRepository.create({
+        userId,
+        emailThreadId: threadId,
+        options: [],
+        lastEmailId: null,
+        isGenerating: true,
+      });
+      await this.suggestedReplyRepository.save(suggestedReply);
+    }
+  }
+
+  async markAsNotGenerating(userId: string, threadId: string): Promise<void> {
+    await this.suggestedReplyRepository.update(
+      { userId, emailThreadId: threadId },
+      { isGenerating: false },
+    );
+  }
+
+  async deleteSuggestedReplies(
+    userId: string,
+    threadId: string,
+  ): Promise<void> {
+    await this.suggestedReplyRepository.delete({
+      userId,
+      emailThreadId: threadId,
+    });
+  }
+
+  async queueSuggestedReplyGeneration(
+    userId: string,
+    threadId: string,
+    emailId: string,
+  ): Promise<void> {
+    this.logger.log(
+      `Queueing suggested reply generation for thread ${threadId.substring(0, 8)}...`,
+    );
+
+    await this.boss.send(
+      "generate-suggested-replies",
+      { userId, threadId, emailId },
+      {
+        priority: getJobPriority("generate-suggested-replies", false),
+        singletonKey: `generate-suggested-replies-${userId}-${threadId}`,
+        singletonMinutes: 5,
+      },
+    );
+  }
+
+  async needsRegeneration(
+    userId: string,
+    threadId: string,
+    latestEmailId: string,
+  ): Promise<boolean> {
+    const existing = await this.getSuggestedReplies(userId, threadId);
+
+    if (!existing) {
+      return true;
+    }
+
+    if (existing.isGenerating) {
+      return false;
+    }
+
+    if (existing.lastEmailId !== latestEmailId) {
+      return true;
+    }
+
+    return false;
+  }
+}

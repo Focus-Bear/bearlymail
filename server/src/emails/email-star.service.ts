@@ -5,6 +5,7 @@ import PgBoss = require("pg-boss");
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { EmailProviderManager } from "./email-provider-manager.service";
+import { SuggestedRepliesService } from "../suggested-replies/suggested-replies.service";
 import { STAR_COUNTS } from "../constants/priority-constants";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { getJobPriority } from "../queue/job-priorities";
@@ -20,6 +21,8 @@ export class EmailStarService {
     private emailThreadRepository: Repository<EmailThread>,
     @Inject(forwardRef(() => EmailProviderManager))
     private emailProviderManager: EmailProviderManager,
+    @Inject(forwardRef(() => SuggestedRepliesService))
+    private suggestedRepliesService: SuggestedRepliesService,
     @Inject("PG_BOSS") private readonly boss: PgBoss,
   ) {}
 
@@ -43,7 +46,9 @@ export class EmailStarService {
     }
 
     if (!email.threadId) {
-      this.logger.warn(`Email ${emailId} has no threadId, cannot set star count`);
+      this.logger.warn(
+        `Email ${emailId} has no threadId, cannot set star count`,
+      );
       return email;
     }
 
@@ -87,9 +92,19 @@ export class EmailStarService {
             priority: getJobPriority("learn-from-star", false),
           },
         )
-        .catch((err) =>
-          this.logger.error("Failed to queue learning job", err),
-        );
+        .catch((err) => this.logger.error("Failed to queue learning job", err));
+
+      // If email is being flagged for action (starCount > 0), queue suggested reply generation
+      if (newStarCount > 0 && oldStarCount === 0) {
+        this.suggestedRepliesService
+          .queueSuggestedReplyGeneration(userId, email.threadId, emailId)
+          .catch((err) =>
+            this.logger.error(
+              "Failed to queue suggested reply generation",
+              err,
+            ),
+          );
+      }
     }
 
     this.logger.debug(

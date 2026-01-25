@@ -73,6 +73,9 @@ export const JobTypePriority = {
 
   // Auto-responder (after triage completion)
   "auto-responder": JobPriority.LOW,
+
+  // Background suggested reply generation
+  "generate-suggested-replies": JobPriority.LOW,
 } as const;
 
 /**

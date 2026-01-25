@@ -38,6 +38,7 @@ import { GoogleAccountsModule } from "../google-accounts/google-accounts.module"
 import { Office365AccountsModule } from "../office365-accounts/office365-accounts.module";
 import { ZohoAccountsModule } from "../zoho-accounts/zoho-accounts.module";
 import { GitHubModule } from "../github/github.module";
+import { SuggestedRepliesModule } from "../suggested-replies/suggested-replies.module";
 
 @Module({
   imports: [
@@ -63,6 +64,7 @@ import { GitHubModule } from "../github/github.module";
     forwardRef(() => Office365AccountsModule),
     forwardRef(() => ZohoAccountsModule),
     forwardRef(() => GitHubModule),
+    forwardRef(() => SuggestedRepliesModule),
   ],
   controllers: [EmailsController],
   providers: [

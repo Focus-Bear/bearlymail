@@ -4,6 +4,7 @@ import { API_URL } from 'config/api';
 
 interface Email {
   id: string;
+  emailThreadId?: string;
   from: string;
   fromName?: string;
   subject: string;
@@ -12,6 +13,12 @@ interface Email {
 
 interface UseReplyDraftGenerationOptions {
   autoGenerate?: boolean;
+}
+
+interface SuggestedReplyResponse {
+  options: Array<{ label: string; text: string }>;
+  isGenerating: boolean;
+  lastEmailId: string | null;
 }
 
 export function useReplyDraftGeneration(
@@ -24,55 +31,97 @@ export function useReplyDraftGeneration(
   const [selectedReplyOption, setSelectedReplyOption] = useState<number>(0);
   const [draft, setDraft] = useState<string | null>(null);
   const [loadingReplies, setLoadingReplies] = useState(false);
+  const [isGeneratingInBackground, setIsGeneratingInBackground] = useState(false);
   const lastGeneratedEmailId = useRef<string | null>(null);
-  // Track current email ID for draft generation to prevent race conditions
   const currentGenerationEmailIdRef = useRef<string | null>(null);
-  // Track previous email ID to reset state when switching emails
   const previousEmailIdRef = useRef<string | null>(null);
 
-  // Reset state when email ID changes to prevent showing stale data
   useEffect(() => {
     if (previousEmailIdRef.current !== null && previousEmailIdRef.current !== emailId) {
-      // Email changed - reset reply state immediately
       setReplyOptions(null);
       setDraft(null);
       setSelectedReplyOption(0);
       setLoadingReplies(false);
+      setIsGeneratingInBackground(false);
     }
     previousEmailIdRef.current = emailId;
   }, [emailId]);
 
+  const fetchPreGeneratedReplies = useCallback(async (threadId: string): Promise<SuggestedReplyResponse | null> => {
+    try {
+      const response = await axios.get(`${API_URL}/suggested-replies/${threadId}`);
+      return response.data;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const generateRepliesOnDemand = useCallback(async (currentEmail: Email): Promise<Array<{ label: string; text: string }> | null> => {
+    try {
+      const response = await axios.post(`${API_URL}/llm/suggest-replies`, {
+        originalEmail: {
+          from: currentEmail.from,
+          fromName: currentEmail.fromName,
+          subject: currentEmail.subject,
+          body: currentEmail.body,
+        }
+      });
+      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+        return response.data;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }, []);
+
   const handleGenerateDraft = useCallback(async () => {
     if (!emailId || !email) return;
     
-    // Track which email we're generating for to prevent race conditions
     const currentEmailId = emailId;
     currentGenerationEmailIdRef.current = currentEmailId;
     
     setLoadingReplies(true);
+    
     try {
-      const response = await axios.post(`${API_URL}/llm/suggest-replies`, {
-        originalEmail: {
-          from: email.from,
-          fromName: email.fromName,
-          subject: email.subject,
-          body: email.body,
-        }
-      });
+      let generatedOptions: Array<{ label: string; text: string }> | null = null;
       
-      // Only update state if we're still looking at the same email
-      // This prevents showing suggestions from a previous email after switching
+      if (email.emailThreadId) {
+        const preGenerated = await fetchPreGeneratedReplies(email.emailThreadId);
+        
+        if (currentGenerationEmailIdRef.current !== currentEmailId) {
+          return;
+        }
+        
+        if (preGenerated) {
+          if (preGenerated.isGenerating) {
+            setIsGeneratingInBackground(true);
+          }
+          
+          if (preGenerated.options && preGenerated.options.length > 0) {
+            generatedOptions = preGenerated.options;
+          }
+        }
+      }
+      
+      if (!generatedOptions) {
+        if (currentGenerationEmailIdRef.current !== currentEmailId) {
+          return;
+        }
+        generatedOptions = await generateRepliesOnDemand(email);
+      }
+      
       if (currentGenerationEmailIdRef.current !== currentEmailId) {
         return;
       }
       
-      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+      if (generatedOptions && generatedOptions.length > 0) {
         const optionsWithCustom = [
-          ...response.data,
+          ...generatedOptions,
           { label: 'Custom', text: '' }
         ];
         setReplyOptions(optionsWithCustom);
-        setDraft(response.data[0].text);
+        setDraft(generatedOptions[0].text);
         setSelectedReplyOption(0);
       } else {
         setReplyOptions([{ label: 'Custom', text: '' }]);
@@ -81,7 +130,6 @@ export function useReplyDraftGeneration(
       }
       lastGeneratedEmailId.current = emailId;
     } catch (error) {
-      // Only update state if we're still looking at the same email
       if (currentGenerationEmailIdRef.current !== currentEmailId) {
         return;
       }
@@ -90,12 +138,12 @@ export function useReplyDraftGeneration(
       setDraft('');
       setSelectedReplyOption(0);
     } finally {
-      // Only update loading state if we're still looking at the same email
       if (currentGenerationEmailIdRef.current === currentEmailId) {
         setLoadingReplies(false);
+        setIsGeneratingInBackground(false);
       }
     }
-  }, [emailId, email]);
+  }, [emailId, email, fetchPreGeneratedReplies, generateRepliesOnDemand]);
 
   useEffect(() => {
     if (autoGenerate && emailId && email && lastGeneratedEmailId.current !== emailId) {
@@ -108,6 +156,7 @@ export function useReplyDraftGeneration(
     selectedReplyOption,
     draft,
     loadingReplies,
+    isGeneratingInBackground,
     setReplyOptions,
     setDraft,
     setSelectedReplyOption,

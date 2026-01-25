@@ -53,6 +53,14 @@ export function useEmailDetailState() {
   const [sending, setSending] = useState(false);
   const [toneCheckResult, setToneCheckResult] = useState<{ isOk: boolean; suggestions: string[]; revisedText?: string } | null>(null);
   const [checkingTone, setCheckingTone] = useState(false);
+  const [disputing, setDisputing] = useState(false);
+  const [disputeResult, setDisputeResult] = useState<{
+    accepted: boolean;
+    rulesToRemove: string[];
+    explanation: string;
+    rulesUpdated: boolean;
+    remainingRules: string[];
+  } | null>(null);
 
   // Snooze state
   const [snoozeInput, setSnoozeInput] = useState<string>('');
@@ -144,6 +152,10 @@ export function useEmailDetailState() {
     setToneCheckResult,
     checkingTone,
     setCheckingTone,
+    disputing,
+    setDisputing,
+    disputeResult,
+    setDisputeResult,
 
     // Snooze
     snoozeInput,

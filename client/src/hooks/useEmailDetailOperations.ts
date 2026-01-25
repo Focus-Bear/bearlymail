@@ -70,6 +70,10 @@ interface EmailDetailState {
   setToneCheckResult: (result: { isOk: boolean; suggestions: string[]; revisedText?: string } | null) => void;
   checkingTone: boolean;
   setCheckingTone: (checking: boolean) => void;
+  disputing: boolean;
+  setDisputing: (disputing: boolean) => void;
+  disputeResult: { accepted: boolean; rulesToRemove: string[]; explanation: string; rulesUpdated: boolean; remainingRules: string[] } | null;
+  setDisputeResult: (result: { accepted: boolean; rulesToRemove: string[]; explanation: string; rulesUpdated: boolean; remainingRules: string[] } | null) => void;
   snoozeInput: string;
   // eslint-disable-next-line no-restricted-syntax -- Type parameter must remain literal type for TypeScript compatibility
   setSnoozeInput: (input: string) => void;
@@ -144,6 +148,8 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     setSending,
     setToneCheckResult,
     setCheckingTone,
+    setDisputing,
+    setDisputeResult,
     snoozeInput,
     setSnoozeInput,
     setShowSnoozeInput,
@@ -689,6 +695,21 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     }
   }, [id, draft, replyMode, replyRecipients, triggerAnimation, t, navigate, setCheckingTone, setToneCheckResult, setSending, setDraft, setShowReplyComposer, showSuccess, showError]);
 
+  const disputeToneCheck = useCallback(async (emailText: string, userArgument: string) => {
+    setDisputing(true);
+    try {
+      const response = await axios.post(`${API_URL}/llm/dispute-tone-check`, {
+        emailText,
+        userArgument,
+      });
+      setDisputeResult(response.data);
+    } catch (error) {
+      console.error('Error disputing tone check:', error);
+    } finally {
+      setDisputing(false);
+    }
+  }, [setDisputing, setDisputeResult]);
+
   const handleArchive = useCallback(async () => {
     // ULTRA-VISIBLE DEBUG: This should ALWAYS show in console
     console.log('%c[ARCHIVE DEBUG] handleArchive called!', 'background: red; color: white; font-size: 20px;');
@@ -841,6 +862,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     handleOpenReplyComposer,
     handleGenerateDraft,
     handleSendReply,
+    disputeToneCheck,
     handleArchive,
     handleSnooze,
     handleDelete,

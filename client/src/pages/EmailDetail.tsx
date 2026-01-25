@@ -74,6 +74,8 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
     sending,
     toneCheckResult,
     checkingTone,
+    disputing,
+    disputeResult,
     snoozeInput,
     showSnoozeInput,
     priorityExplanation,
@@ -134,6 +136,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
     handleOpenReplyComposer,
     handleGenerateDraft,
     handleSendReply,
+    disputeToneCheck,
     handleArchive,
     handleSnooze,
     handleDelete,
@@ -336,6 +339,9 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
               }}
               onSend={handleSendReply}
               onUseRevisedText={(text) => setDraft(text)}
+              onDispute={disputeToneCheck}
+              disputing={disputing}
+              disputeResult={disputeResult}
             />
           </div>
         )}

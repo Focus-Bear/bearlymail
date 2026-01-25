@@ -322,6 +322,38 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     }
   }, [email?.threadId, setNoteContent, setNotesCollapsed]);
 
+  const fetchDraft = useCallback(async () => {
+    if (!email?.threadId) return null;
+    try {
+      const response = await axios.get(`${API_URL}/drafts/thread/${email.threadId}`);
+      return response.data;
+    } catch (error) {
+      return null;
+    }
+  }, [email?.threadId]);
+
+  const saveDraft = useCallback(async (content: string, mode: 'reply' | 'replyAll', recipients: string) => {
+    if (!email?.threadId || !content.trim()) return;
+    try {
+      await axios.post(`${API_URL}/drafts/thread/${email.threadId}`, {
+        content,
+        replyMode: mode,
+        recipients,
+      });
+    } catch (error) {
+      console.error('Error saving draft:', error);
+    }
+  }, [email?.threadId]);
+
+  const deleteDraft = useCallback(async () => {
+    if (!email?.threadId) return;
+    try {
+      await axios.delete(`${API_URL}/drafts/thread/${email.threadId}`);
+    } catch (error) {
+      console.error('Error deleting draft:', error);
+    }
+  }, [email?.threadId]);
+
   const fetchActionItems = useCallback(async () => {
     if (!email?.id) return;
     try {
@@ -684,6 +716,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
       
       setDraft(null);
       setShowReplyComposer(false);
+      deleteDraft();
       await triggerAnimation(ANIMATION_TYPE_SEND);
       showSuccess(t('emailDetail.replySentSuccess'));
       navigate('/inbox');
@@ -693,7 +726,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     } finally {
       setSending(false);
     }
-  }, [id, draft, replyMode, replyRecipients, triggerAnimation, t, navigate, setCheckingTone, setToneCheckResult, setSending, setDraft, setShowReplyComposer, showSuccess, showError]);
+  }, [id, draft, replyMode, replyRecipients, triggerAnimation, t, navigate, setCheckingTone, setToneCheckResult, setSending, setDraft, setShowReplyComposer, showSuccess, showError, deleteDraft]);
 
   const disputeToneCheck = useCallback(async (emailText: string, userArgument: string) => {
     setDisputing(true);
@@ -844,6 +877,9 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     fetchEmail,
     fetchThreadEmails,
     fetchNote,
+    fetchDraft,
+    saveDraft,
+    deleteDraft,
     fetchActionItems,
     fetchGithubInfo,
     refreshGithubInfo,

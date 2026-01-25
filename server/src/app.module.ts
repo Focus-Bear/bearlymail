@@ -34,6 +34,7 @@ import { ZohoAccountsModule } from "./zoho-accounts/zoho-accounts.module";
 import { GitHubModule } from "./github/github.module";
 import { SuggestedActionsModule } from "./suggested-actions/suggested-actions.module";
 import { AutoResponderModule } from "./auto-responder/auto-responder.module";
+import { DraftsModule } from "./drafts/drafts.module";
 // Import entities from index file to ensure proper loading order
 import {
   GoogleAccount,
@@ -58,6 +59,7 @@ import {
   TokenUsage,
   AutoResponseLog,
   AutoResponseSuppression,
+  ReplyDraft,
 } from "./database/entities";
 
 @Module({
@@ -101,6 +103,7 @@ import {
           TokenUsage,
           AutoResponseLog,
           AutoResponseSuppression,
+          ReplyDraft,
         ];
 
         // Ensure all entities are properly registered before TypeORM processes relationships
@@ -158,6 +161,7 @@ import {
     GitHubModule,
     SuggestedActionsModule,
     AutoResponderModule,
+    DraftsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

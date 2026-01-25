@@ -119,6 +119,8 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
     fetchEmail,
     fetchThreadEmails,
     fetchNote,
+    fetchDraft,
+    saveDraft,
     fetchGithubInfo,
     refreshGithubInfo,
     fetchSuggestedActions,
@@ -201,6 +203,86 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
       captureEvent('email_detail_viewed', { email_id: id });
     }
   }, [id, email]);
+
+  // Track previous email ID for draft saving when switching emails
+  const previousEmailIdRef = useRef<string | null>(null);
+  const previousThreadIdRef = useRef<string | null>(null);
+  const previousDraftRef = useRef<string | null>(null);
+  const previousReplyModeRef = useRef<'reply' | 'replyAll'>('reply');
+  const previousRecipientsRef = useRef<string>('');
+
+  // Save draft when switching to a different email
+  useEffect(() => {
+    const previousId = previousEmailIdRef.current;
+    const previousThreadId = previousThreadIdRef.current;
+    const previousDraft = previousDraftRef.current;
+    const previousReplyMode = previousReplyModeRef.current;
+    const previousRecipients = previousRecipientsRef.current;
+
+    if (previousId && previousId !== id && previousThreadId && previousDraft && previousDraft.trim()) {
+      saveDraft(previousDraft, previousReplyMode, previousRecipients);
+    }
+
+    previousEmailIdRef.current = id || null;
+    previousThreadIdRef.current = email?.threadId || null;
+
+    if (previousId !== id) {
+      setShowReplyComposer(false);
+      setDraft('');
+      setReplyOptions(null);
+      setToneCheckResult(null);
+    }
+  }, [id, email?.threadId, setShowReplyComposer, setDraft, setReplyOptions, setToneCheckResult, saveDraft]);
+
+  // Keep refs updated with current draft state
+  useEffect(() => {
+    previousDraftRef.current = draft;
+  }, [draft]);
+
+  useEffect(() => {
+    previousReplyModeRef.current = replyMode;
+  }, [replyMode]);
+
+  useEffect(() => {
+    previousRecipientsRef.current = replyRecipients;
+  }, [replyRecipients]);
+
+  // Load existing draft when opening an email
+  useEffect(() => {
+    if (email?.threadId) {
+      const loadDraft = async () => {
+        const savedDraft = await fetchDraft();
+        if (savedDraft && savedDraft.content) {
+          setDraft(savedDraft.content);
+          setShowReplyComposer(true);
+          if (savedDraft.replyMode) {
+            state.setReplyMode(savedDraft.replyMode);
+          }
+          if (savedDraft.recipients) {
+            setReplyRecipients(savedDraft.recipients);
+          }
+        }
+      };
+      loadDraft();
+    }
+  }, [email?.threadId, fetchDraft, setDraft, setShowReplyComposer, setReplyRecipients, state]);
+
+  // Auto-save draft every 10 seconds while reply composer is open
+  useEffect(() => {
+    if (!showReplyComposer || !email?.threadId) {
+      return;
+    }
+
+    const autoSaveInterval = setInterval(() => {
+      if (draft && draft.trim()) {
+        saveDraft(draft, replyMode, replyRecipients);
+      }
+    }, 10000);
+
+    return () => {
+      clearInterval(autoSaveInterval);
+    };
+  }, [showReplyComposer, email?.threadId, draft, replyMode, replyRecipients, saveDraft]);
 
   // Scroll to reply composer when it opens
   useEffect(() => {

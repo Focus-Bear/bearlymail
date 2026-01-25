@@ -137,6 +137,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     setNewActionItem,
     draft,
     setDraft,
+    replyOptions,
     setReplyOptions,
     setSelectedReplyOption,
     setShowReplyComposer,
@@ -653,7 +654,6 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     captureEvent('reply_button_clicked', { email_id: id, reply_type: mode });
     setReplyMode(mode);
     setShowReplyComposer(true);
-    setDraft('');
     setToneCheckResult(null);
     if (email) {
       if (mode === REPLY_MODE_REPLY_ALL) {
@@ -663,8 +663,16 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
         setReplyRecipients(email.from);
       }
     }
-    handleGenerateDraft();
-  }, [id, email, setReplyMode, setShowReplyComposer, setDraft, setToneCheckResult, setReplyRecipients, handleGenerateDraft]);
+    // Only generate suggestions if we don't already have them (they may have been pre-generated in background)
+    // Also don't clear draft if we have pre-generated suggestions
+    if (!replyOptions || replyOptions.length === 0) {
+      setDraft('');
+      handleGenerateDraft();
+    } else if (replyOptions.length > 0 && !draft) {
+      // If we have suggestions but no draft selected, select the first one
+      setDraft(replyOptions[0].text);
+    }
+  }, [id, email, draft, replyOptions, setReplyMode, setShowReplyComposer, setDraft, setToneCheckResult, setReplyRecipients, handleGenerateDraft]);
 
   const handleSendReply = useCallback(async (files: File[] = []) => {
     if (!id || !draft) return;

@@ -271,11 +271,16 @@ export class GmailContactsProvider implements ContactProvider {
   /**
    * Fetch all contacts from Gmail (internal method for sync)
    * Returns raw contacts that ContactsService will process and store
+   * Fetches from both "connections" (explicitly added contacts) and
+   * "otherContacts" (auto-created from interactions like emails)
    */
-  // eslint-disable-next-line max-statements
+  // eslint-disable-next-line max-statements, max-lines-per-function
   async fetchAllContacts(userId: string): Promise<RawContact[]> {
     const user = await this.usersService.findOne(userId);
     if (!user?.googleCalendarAccessToken) {
+      this.logger.log(
+        `User ${userId} has no Google access token, skipping contact fetch`,
+      );
       return [];
     }
 
@@ -302,7 +307,30 @@ export class GmailContactsProvider implements ContactProvider {
     });
 
     const people = google.people({ version: "v1", auth: oauth2Client });
-    const contacts: RawContact[] = [];
+    const contactsMap = new Map<string, RawContact>();
+
+    // Fetch from connections (explicitly added contacts)
+    await this.fetchConnectionsContacts(userId, people, contactsMap);
+
+    // Fetch from "Other contacts" (auto-created from interactions)
+    await this.fetchOtherContacts(userId, people, contactsMap);
+
+    const contacts = Array.from(contactsMap.values());
+    this.logger.log(
+      `Fetched ${contacts.length} total contacts for user ${userId}`,
+    );
+
+    return contacts;
+  }
+
+  /**
+   * Fetch contacts from people.connections (explicitly added contacts)
+   */
+  private async fetchConnectionsContacts(
+    userId: string,
+    people: ReturnType<typeof google.people>,
+    contactsMap: Map<string, RawContact>,
+  ): Promise<void> {
     let nextPageToken: string | undefined;
 
     try {
@@ -315,17 +343,25 @@ export class GmailContactsProvider implements ContactProvider {
           pageToken: nextPageToken,
         });
 
-        for (const person of response.data.connections || []) {
+        const connections = response.data.connections || [];
+        this.logger.log(
+          `Fetched ${connections.length} connections for user ${userId}`,
+        );
+
+        for (const person of connections) {
           const email = person.emailAddresses?.[0]?.value;
           if (!email) continue;
+
+          const emailKey = email.toLowerCase().trim();
+          if (contactsMap.has(emailKey)) continue;
 
           const name = person.names?.[0];
           const org = person.organizations?.[0];
           const photo = person.photos?.[0];
 
-          contacts.push({
+          contactsMap.set(emailKey, {
             providerId: person.resourceName || "",
-            email: email.toLowerCase().trim(),
+            email: emailKey,
             name: name?.displayName,
             firstName: name?.givenName,
             lastName: name?.familyName,
@@ -338,30 +374,107 @@ export class GmailContactsProvider implements ContactProvider {
 
         nextPageToken = response.data.nextPageToken || undefined;
 
-        if (contacts.length >= 5000) break;
+        if (contactsMap.size >= 5000) {
+          this.logger.log(`Contact limit reached for user ${userId}`);
+          return;
+        }
       } while (nextPageToken);
-
-      return contacts;
     } catch (error: unknown) {
-      console.error(`Error fetching contacts for user ${userId}:`, error);
-      const apiError = isApiError(error) ? error : null;
-      const errorCode = apiError?.code;
-      let errorMessage: string;
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      } else if (
-        typeof error === "object" &&
-        error !== null &&
-        "message" in error
-      ) {
-        errorMessage = String((error as { message?: unknown }).message);
-      } else {
-        errorMessage = "";
-      }
-      if (errorCode === 401 || errorMessage.includes("invalid_grant")) {
-        await this.usersService.update(userId, { needsRelogin: true });
-      }
+      this.logger.error(
+        `Error fetching connections for user ${userId}:`,
+        error,
+      );
+      await this.handleApiError(userId, error);
       throw error;
+    }
+  }
+
+  /**
+   * Fetch contacts from otherContacts (auto-created from interactions like emails)
+   * These are contacts that Google automatically creates when you email someone
+   */
+  private async fetchOtherContacts(
+    userId: string,
+    people: ReturnType<typeof google.people>,
+    contactsMap: Map<string, RawContact>,
+  ): Promise<void> {
+    let nextPageToken: string | undefined;
+
+    try {
+      do {
+        const response = await people.otherContacts.list({
+          pageSize: 1000,
+          readMask: "names,emailAddresses,phoneNumbers,organizations,photos",
+          pageToken: nextPageToken,
+        });
+
+        const otherContacts = response.data.otherContacts || [];
+        this.logger.log(
+          `Fetched ${otherContacts.length} other contacts for user ${userId}`,
+        );
+
+        for (const person of otherContacts) {
+          const email = person.emailAddresses?.[0]?.value;
+          if (!email) continue;
+
+          const emailKey = email.toLowerCase().trim();
+          // Skip if we already have this contact from connections
+          if (contactsMap.has(emailKey)) continue;
+
+          const name = person.names?.[0];
+          const org = person.organizations?.[0];
+          const photo = person.photos?.[0];
+
+          contactsMap.set(emailKey, {
+            providerId: person.resourceName || "",
+            email: emailKey,
+            name: name?.displayName,
+            firstName: name?.givenName,
+            lastName: name?.familyName,
+            phone: person.phoneNumbers?.[0]?.value,
+            company: org?.name,
+            jobTitle: org?.title,
+            photoUrl: photo?.url,
+          });
+        }
+
+        nextPageToken = response.data.nextPageToken || undefined;
+
+        if (contactsMap.size >= 5000) {
+          this.logger.log(`Contact limit reached for user ${userId}`);
+          return;
+        }
+      } while (nextPageToken);
+    } catch (error: unknown) {
+      // Log but don't throw - otherContacts might fail if scope isn't granted
+      // but we still want to return the connections we already fetched
+      this.logger.warn(
+        `Error fetching other contacts for user ${userId} (this may be expected if scope not granted):`,
+        error,
+      );
+    }
+  }
+
+  /**
+   * Handle API errors and update user status if needed
+   */
+  private async handleApiError(userId: string, error: unknown): Promise<void> {
+    const apiError = isApiError(error) ? error : null;
+    const errorCode = apiError?.code;
+    let errorMessage: string;
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    } else if (
+      typeof error === "object" &&
+      error !== null &&
+      "message" in error
+    ) {
+      errorMessage = String((error as { message?: unknown }).message);
+    } else {
+      errorMessage = "";
+    }
+    if (errorCode === 401 || errorMessage.includes("invalid_grant")) {
+      await this.usersService.update(userId, { needsRelogin: true });
     }
   }
 }

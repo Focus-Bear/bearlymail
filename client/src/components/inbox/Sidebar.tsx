@@ -136,6 +136,7 @@ const SettingsSubNav: React.FC<{ hash?: string }> = ({ hash }) => {
         { id: 'context', label: t('settings.contextAboutMeTitle'), anchor: 'context' },
         { id: 'tone-settings', label: t('settings.nav.toneSettings'), anchor: 'tone-settings' },
         { id: 'summarization', label: t('settings.nav.summarization'), anchor: 'summarization' },
+        { id: 'auto-responder', label: t('settings.nav.autoResponder'), anchor: 'auto-responder' },
       ],
     },
     {

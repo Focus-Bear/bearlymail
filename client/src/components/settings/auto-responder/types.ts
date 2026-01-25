@@ -42,10 +42,10 @@ export const DEFAULT_AUTO_RESPONDER_CONFIG: AutoResponderConfig = {
     lowPriority: false,
   },
   customExclusionRules: [
-    'Newsletters',
-    'Spam',
-    'Automated emails',
-    'Cold outreach with no real personalisation',
+    'Emails from automated systems (e.g., no-reply addresses, system notifications)',
+    'Marketing newsletters and promotional emails',
+    'Cold outreach that lacks genuine personalisation',
+    'Obvious spam or unsolicited bulk messages',
   ],
   templates: {
     standard: '',

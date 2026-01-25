@@ -906,4 +906,142 @@ export class AutoResponderService {
       body,
     };
   }
+
+  /**
+   * Preview auto-response for a specific email (shows what would actually be sent)
+   */
+  async previewAutoResponseForEmail(
+    userId: string,
+    emailId: string,
+  ): Promise<{
+    subject: string;
+    body: string;
+    templateUsed: string;
+    priorityLevel: string;
+    senderName: string;
+    originalSubject: string;
+  }> {
+    const config = await this.getConfig(userId);
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    const queueStats = await this.queueStatsService.getQueueStats(userId);
+
+    // Get the email
+    const email = await this.emailRepository.findOne({
+      where: { id: emailId, userId },
+    });
+
+    if (!email) {
+      throw new Error("Email not found");
+    }
+
+    // Get the thread to determine priority
+    const thread = email.emailThreadId
+      ? await this.emailThreadRepository.findOne({
+          where: { id: email.emailThreadId, userId },
+        })
+      : null;
+
+    // Determine priority level from thread's priority score
+    const priorityLevel = this.determinePriorityLevel(
+      thread?.priorityScore || 50,
+    );
+
+    // Build template variables with real data
+    const templateVars: AutoResponseTemplateVars = {
+      userName: user?.name || "the recipient",
+      senderName: email.fromName || email.from.split("@")[0],
+      originalSubject: email.subject,
+      priorityLevel,
+      actionCount: queueStats.actionCount,
+      triageCount: queueStats.triageCount,
+      avgResponseTime: queueStats.avgResponseTime,
+      urgentResponseTime: queueStats.urgentResponseTime,
+      aiAnswer: null,
+      hasAiAnswer: false,
+    };
+
+    // Generate Q&A answer if enabled
+    if (config.qaContextEnabled) {
+      const qaResult = await this.generateQAAnswer(
+        userId,
+        email.subject,
+        email.body,
+        config.qaMinConfidence,
+      );
+      if (qaResult && qaResult.confidence >= config.qaMinConfidence) {
+        templateVars.aiAnswer = qaResult.answer;
+        templateVars.hasAiAnswer = true;
+      }
+    }
+
+    // Select the appropriate template
+    const template = this.selectTemplate(config, priorityLevel, queueStats);
+    const templateUsed =
+      template === config.templates.highPriority
+        ? "highPriority"
+        : template === config.templates.lowPriority
+          ? "lowPriority"
+          : template === config.templates.zeroBacklog
+            ? "zeroBacklog"
+            : "standard";
+
+    const body = this.renderTemplate(template, templateVars);
+
+    return {
+      subject: `Re: ${email.subject} - BearlyMail Auto-Response`,
+      body,
+      templateUsed,
+      priorityLevel,
+      senderName: templateVars.senderName,
+      originalSubject: email.subject,
+    };
+  }
+
+  /**
+   * Get recent emails for preview selection
+   */
+  async getRecentEmailsForPreview(
+    userId: string,
+    limit = 10,
+  ): Promise<
+    Array<{
+      id: string;
+      from: string;
+      fromName: string | null;
+      subject: string;
+      receivedAt: Date;
+      priorityScore: number | null;
+    }>
+  > {
+    const emails = await this.emailRepository.find({
+      where: { userId },
+      order: { receivedAt: "DESC" },
+      take: limit,
+      select: ["id", "from", "fromName", "subject", "receivedAt", "emailThreadId"],
+    });
+
+    // Get thread priority scores
+    const emailsWithPriority = await Promise.all(
+      emails.map(async (email) => {
+        let priorityScore: number | null = null;
+        if (email.emailThreadId) {
+          const thread = await this.emailThreadRepository.findOne({
+            where: { id: email.emailThreadId, userId },
+            select: ["priorityScore"],
+          });
+          priorityScore = thread?.priorityScore || null;
+        }
+        return {
+          id: email.id,
+          from: email.from,
+          fromName: email.fromName,
+          subject: email.subject,
+          receivedAt: email.receivedAt,
+          priorityScore,
+        };
+      }),
+    );
+
+    return emailsWithPriority;
+  }
 }

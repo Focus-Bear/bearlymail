@@ -378,9 +378,42 @@
       "guideOurAI": "Guide Our AI",
       "toneSettings": "Tone Settings",
       "summarization": "Summarization",
+      "autoResponder": "Auto-Responder",
       "integrations": "Integrations",
       "openAiApiKey": "OpenAI API Key",
       "githubIntegration": "GitHub Integration"
+    },
+    "autoResponder": {
+      "title": "Auto-Responder",
+      "description": "Automatically respond to new emails with queue status and helpful information. The auto-responder can even answer common questions based on the Q&A in your context. Responses are sent as replies to the original email, keeping the conversation thread intact.",
+      "preview": {
+        "title": "Preview Auto-Responses",
+        "description": "See what your auto-response messages will look like",
+        "subject": "Subject:",
+        "subjectPlaceholder": "Re: [Original email subject]",
+        "subjectNote": "The auto-responder replies to the original email, keeping the subject line unchanged.",
+        "note": "Note: The actual response will use your real queue statistics and may include AI-generated answers if enabled and relevant."
+      },
+      "templates": {
+        "title": "Edit Auto-Response Templates",
+        "description": "Customize the messages sent for each priority level",
+        "edit": "Edit Template",
+        "mergeTags": "Insert Variable",
+        "mergeTagsHelp": "Click a variable to insert it at the cursor position:",
+        "placeholder": "Enter your template here. Use merge tags like {{userName}} to personalize the message.",
+        "noTemplate": "No template configured. Click 'Edit Template' to create one.",
+        "livePreview": "Live Preview"
+      },
+      "emailPreview": {
+        "title": "Preview with Real Email",
+        "description": "See exactly what auto-response would be sent for a recent email",
+        "selectEmail": "Select a recent email to preview:",
+        "selectPlaceholder": "Choose an email...",
+        "noEmails": "No recent emails found",
+        "generating": "Generating preview...",
+        "templateUsed": "Using {{template}} template",
+        "hint": "Select an email above to see the exact auto-response that would be sent"
+      }
     }
   },
   "priority": {

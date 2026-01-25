@@ -1017,9 +1017,42 @@
       "integrations": "Integraciones",
       "openAiApiKey": "Clave API de OpenAI",
       "summarization": "Resumen",
-      "toneSettings": "Configuración de tono"
+      "toneSettings": "Configuración de tono",
+      "autoResponder": "Respuesta automática"
     },
-    "noContext": "Aún no se ha aprendido ningún contexto. Haga clic en \"Analizar correos electrónicos\" para conocer su historial de correo electrónico.",
+    "autoResponder": {
+      "title": "Respuesta automática",
+      "description": "Responda automáticamente a nuevos correos electrónicos con el estado de la cola e información útil. El respondedor automático incluso puede responder preguntas comunes basándose en las preguntas y respuestas de su contexto. Las respuestas se envían como respuestas al correo electrónico original, manteniendo intacto el hilo de conversación.",
+      "preview": {
+        "title": "Vista previa de respuestas automáticas",
+        "description": "Vea cómo se verán sus mensajes de respuesta automática",
+        "subject": "Asunto:",
+        "subjectPlaceholder": "Re: [Asunto del correo original]",
+        "subjectNote": "El respondedor automático responde al correo electrónico original, manteniendo la línea de asunto sin cambios.",
+        "note": "Nota: La respuesta real utilizará las estadísticas reales de su cola y puede incluir respuestas generadas por IA si están habilitadas y son relevantes."
+      },
+      "templates": {
+        "title": "Editar plantillas de respuesta automática",
+        "description": "Personalice los mensajes enviados para cada nivel de prioridad",
+        "edit": "Editar plantilla",
+        "mergeTags": "Insertar variable",
+        "mergeTagsHelp": "Haga clic en una variable para insertarla en la posición del cursor:",
+        "placeholder": "Ingrese su plantilla aquí. Use etiquetas de combinación como {{userName}} para personalizar el mensaje.",
+        "noTemplate": "No hay plantilla configurada. Haga clic en 'Editar plantilla' para crear una.",
+        "livePreview": "Vista previa en vivo"
+      },
+      "emailPreview": {
+        "title": "Vista previa con correo real",
+        "description": "Vea exactamente qué respuesta automática se enviaría para un correo reciente",
+        "selectEmail": "Seleccione un correo reciente para previsualizar:",
+        "selectPlaceholder": "Elija un correo...",
+        "noEmails": "No se encontraron correos recientes",
+        "generating": "Generando vista previa...",
+        "templateUsed": "Usando plantilla {{template}}",
+        "hint": "Seleccione un correo arriba para ver la respuesta automática exacta que se enviaría"
+      }
+    },
+    "noContext":"Aún no se ha aprendido ningún contexto.Haga clic en \"Analizar correos electrónicos\" para conocer su historial de correo electrónico.",
     "noSummarizationRules": "Aún no hay reglas de resumen. Agregue reglas para personalizar cómo se resumen los correos electrónicos.",
     "office365": {
       "accounts": "Cuentas de Office 365",

@@ -1,7 +1,10 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 export const AutoResponderHeader: React.FC = () => {
+  const { t } = useTranslation();
+
   return (
     <div style={{ marginBottom: theme.spacing.lg }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
@@ -11,7 +14,7 @@ export const AutoResponderHeader: React.FC = () => {
           color: theme.colors.text.primary,
           margin: 0,
         }}>
-          Auto-Responder
+          {t('settings.autoResponder.title')}
         </h2>
       </div>
       <p style={{
@@ -20,19 +23,7 @@ export const AutoResponderHeader: React.FC = () => {
         marginTop: theme.spacing.sm,
         marginBottom: 0,
       }}>
-        Automatically respond to new emails with queue status and helpful information.
-        The auto-responder can even answer common questions based on the Q&A in your context.{' '}
-        <a
-          href="https://bearlymail.com/support/auto-responder"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            color: theme.colors.primary.main,
-            textDecoration: 'none',
-          }}
-        >
-          Learn more
-        </a>
+        {t('settings.autoResponder.description')}
       </p>
     </div>
   );

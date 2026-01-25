@@ -4,7 +4,8 @@ import { AutoResponderHeader } from './AutoResponderHeader';
 import { AutoResponderToggle } from './AutoResponderToggle';
 import { AutoResponderExclusionSettings } from './AutoResponderExclusionSettings';
 import { AutoResponderQASettings } from './AutoResponderQASettings';
-import { AutoResponderPreview } from './AutoResponderPreview';
+import { AutoResponderTemplateEditor } from './AutoResponderTemplateEditor';
+import { AutoResponderEmailPreview } from './AutoResponderEmailPreview';
 import { AutoResponderConfig, QueueStats } from './types';
 
 interface AutoResponderSectionProps {
@@ -32,6 +33,10 @@ export const AutoResponderSection: React.FC<AutoResponderSectionProps> = ({
 
   const handleQASettingsChange = async (settings: { qaContextEnabled?: boolean; qaMinConfidence?: number }) => {
     await onConfigChange(settings);
+  };
+
+  const handleTemplateChange = async (templates: Partial<AutoResponderConfig['templates']>) => {
+    await onConfigChange({ templates: { ...config.templates, ...templates } });
   };
 
   return (
@@ -67,7 +72,14 @@ export const AutoResponderSection: React.FC<AutoResponderSectionProps> = ({
             onChange={handleQASettingsChange}
           />
 
-          <AutoResponderPreview queueStats={queueStats} userName={userName} />
+          <AutoResponderTemplateEditor
+            config={config}
+            queueStats={queueStats}
+            userName={userName}
+            onTemplateChange={handleTemplateChange}
+          />
+
+          <AutoResponderEmailPreview />
         </>
       )}
     </div>

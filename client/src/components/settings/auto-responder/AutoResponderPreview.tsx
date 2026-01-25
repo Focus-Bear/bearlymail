@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { QueueStats } from './types';
 
@@ -6,7 +7,7 @@ const renderFormattedText = (text: string): React.ReactNode => {
   const parts: React.ReactNode[] = [];
   let currentIndex = 0;
 
-  const regex = /(\*\*([^*]+)\*\*)|(\*([^*]+)\*)|(_([^_]+)_)|(\[([^\]]+)\]\(([^)]+)\))/g;
+  const regex = /(\*\*([^*]+)\*\*)|(\[([^\]]+)\]\(([^)]+)\))|(\*([^*]+)\*)|(_([^_]+)_)/g;
   let match;
 
   while ((match = regex.exec(text)) !== null) {
@@ -15,23 +16,23 @@ const renderFormattedText = (text: string): React.ReactNode => {
     }
 
     if (match[1]) {
-      parts.push(<strong key={match.index}>{match[2]}</strong>);
+      parts.push(<strong key={match.index}>{renderFormattedText(match[2])}</strong>);
     } else if (match[3]) {
-      parts.push(<em key={match.index}>{match[4]}</em>);
-    } else if (match[5]) {
-      parts.push(<em key={match.index}>{match[6]}</em>);
-    } else if (match[7]) {
       parts.push(
         <a
           key={match.index}
-          href={match[9]}
+          href={match[5]}
           target="_blank"
           rel="noopener noreferrer"
-          style={{ color: 'inherit' }}
+          style={{ color: theme.colors.primary.main }}
         >
-          {match[8]}
+          {match[4]}
         </a>
       );
+    } else if (match[6]) {
+      parts.push(<em key={match.index}>{renderFormattedText(match[7])}</em>);
+    } else if (match[8]) {
+      parts.push(<em key={match.index}>{renderFormattedText(match[9])}</em>);
     }
 
     currentIndex = match.index + match[0].length;
@@ -59,14 +60,9 @@ export const AutoResponderPreview: React.FC<AutoResponderPreviewProps> = ({
   queueStats,
   userName,
 }) => {
+  const { t } = useTranslation();
   const [selectedTemplate, setSelectedTemplate] = useState<'standard' | 'highPriority' | 'lowPriority'>('standard');
   const [isExpanded, setIsExpanded] = useState(false);
-  const [subjects, setSubjects] = useState({
-    standard: 'Re: Question about your project - BearlyMail Auto-Response',
-    highPriority: 'Re: Urgent request - Escalated',
-    lowPriority: 'Re: FYI - Auto-Response',
-  });
-  const [editingSubject, setEditingSubject] = useState<'standard' | 'highPriority' | 'lowPriority' | null>(null);
 
   const stats = queueStats || {
     actionCount: 37,
@@ -168,7 +164,7 @@ If this is actually urgent, just reply and let me know—I'll bump it up!
             color: theme.colors.text.primary,
             margin: 0,
           }}>
-            Edit Auto-Responses
+            {t('settings.autoResponder.preview.title')}
           </h3>
           <p style={{
             ...theme.typography.body.medium,
@@ -176,15 +172,12 @@ If this is actually urgent, just reply and let me know—I'll bump it up!
             margin: 0,
             marginTop: theme.spacing.xs,
           }}>
-            Customize your auto-response templates
+            {t('settings.autoResponder.preview.description')}
           </p>
         </div>
-        <span style={{
-          fontSize: '1.25rem',
-          transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-          transition: theme.transitions.fast,
-        }}>
-          ▼
+        {/* eslint-disable-next-line i18next/no-literal-string */}
+        <span style={{ fontSize: theme.typography.fontSize.lg }}>
+          {isExpanded ? '▼' : '▶'}
         </span>
       </button>
 
@@ -237,48 +230,26 @@ If this is actually urgent, just reply and let me know—I'll bump it up!
                 ...theme.typography.body.medium,
                 color: theme.colors.text.tertiary,
               }}>
-                Subject:
+                {t('settings.autoResponder.preview.subject')}
               </div>
-              {editingSubject === selectedTemplate ? (
-                <input
-                  type="text"
-                  value={subjects[selectedTemplate]}
-                  onChange={(e) => setSubjects({ ...subjects, [selectedTemplate]: e.target.value })}
-                  onBlur={() => setEditingSubject(null)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === 'Escape') {
-                      setEditingSubject(null);
-                    }
-                  }}
-                  autoFocus
-                  style={{
-                    ...theme.typography.body.xLarge,
-                    fontWeight: theme.typography.fontWeight.medium,
-                    color: theme.colors.text.primary,
-                    width: '100%',
-                    border: `1px solid ${theme.colors.primary.main}`,
-                    borderRadius: theme.borderRadius.sm,
-                    padding: theme.spacing.xs,
-                    backgroundColor: theme.colors.background.paper,
-                  }}
-                />
-              ) : (
-                <div
-                  onClick={() => setEditingSubject(selectedTemplate)}
-                  style={{
-                    ...theme.typography.body.xLarge,
-                    fontWeight: theme.typography.fontWeight.medium,
-                    color: theme.colors.text.primary,
-                    cursor: 'pointer',
-                    padding: theme.spacing.xs,
-                    borderRadius: theme.borderRadius.sm,
-                    border: '1px solid transparent',
-                  }}
-                  title="Click to edit subject"
-                >
-                  {subjects[selectedTemplate]}
-                </div>
-              )}
+              <div
+                style={{
+                  ...theme.typography.body.xLarge,
+                  fontWeight: theme.typography.fontWeight.medium,
+                  color: theme.colors.text.primary,
+                  padding: theme.spacing.xs,
+                }}
+              >
+                {t('settings.autoResponder.preview.subjectPlaceholder')}
+              </div>
+              <div style={{
+                ...theme.typography.body.small,
+                color: theme.colors.text.tertiary,
+                fontStyle: 'italic',
+                marginTop: theme.spacing.xs,
+              }}>
+                {t('settings.autoResponder.preview.subjectNote')}
+              </div>
             </div>
 
             <div style={{
@@ -299,8 +270,7 @@ If this is actually urgent, just reply and let me know—I'll bump it up!
             marginBottom: 0,
             fontStyle: 'italic',
           }}>
-            Note: The actual response will use your real queue statistics and may include
-            AI-generated answers if enabled and relevant.
+            {t('settings.autoResponder.preview.note')}
           </p>
         </div>
       )}

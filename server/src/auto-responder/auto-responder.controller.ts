@@ -107,6 +107,36 @@ export class AutoResponderController {
   }
 
   /**
+   * Preview auto-response for a specific email (shows what would actually be sent)
+   */
+  @Post("preview-email")
+  async previewForEmail(
+    @Request() req: AuthenticatedRequest,
+    @Body() body: { emailId: string },
+  ) {
+    const preview = await this.autoResponderService.previewAutoResponseForEmail(
+      req.user.userId,
+      body.emailId,
+    );
+    return { preview };
+  }
+
+  /**
+   * Get recent emails for preview selection
+   */
+  @Get("recent-emails")
+  async getRecentEmails(
+    @Request() req: AuthenticatedRequest,
+    @Query("limit") limit?: string,
+  ) {
+    const emails = await this.autoResponderService.getRecentEmailsForPreview(
+      req.user.userId,
+      limit ? parseInt(limit, 10) : 10,
+    );
+    return { emails };
+  }
+
+  /**
    * Test auto-response by triggering it for a specific thread
    */
   @Post("test")

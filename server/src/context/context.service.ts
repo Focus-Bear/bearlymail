@@ -1558,8 +1558,13 @@ export class ContextService {
 
       // Get sent email threads from Gmail using the Gmail data service
       // This uses SENT label only (no From header matching or fallback to messages[0])
+      // Use a wider date range (90 days) to capture more sent emails for writing style analysis
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+      const today = new Date();
+      
         this.logger.log(
-        `[CONTEXT-ANALYSIS] Fetching sent email threads from 5-12 days ago (target: 100 threads)`,
+        `[CONTEXT-ANALYSIS] Fetching sent email threads from last 90 days (target: 100 threads)`,
         );
 
       // Get sent emails (quick operation - only 100 threads)
@@ -1574,8 +1579,8 @@ export class ContextService {
         await this.gmailDataService.fetchSentThreadsFromGmail(
           userId,
           userEmail || "",
-          twelveDaysAgo,
-          fiveDaysAgo,
+          ninetyDaysAgo,
+          today,
           100, // Target 100 sent threads
         );
 

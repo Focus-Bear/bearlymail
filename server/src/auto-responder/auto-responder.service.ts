@@ -560,8 +560,12 @@ export class AutoResponderService {
    * Determine priority level from thread's star count and urgency
    */
   private determinePriorityLevel(
-    thread: EmailThread,
+    thread: EmailThread | null,
   ): "low" | "medium" | "high" {
+    // If no thread, default to medium priority
+    if (!thread) {
+      return "medium";
+    }
     // High priority: 3 stars or high urgency score
     if (thread.starCount >= 3 || thread.urgencyScore >= 70) {
       return "high";
@@ -941,10 +945,8 @@ export class AutoResponderService {
         })
       : null;
 
-    // Determine priority level from thread's priority score
-    const priorityLevel = this.determinePriorityLevel(
-      thread?.priorityScore || 50,
-    );
+    // Determine priority level from thread's star count and urgency
+    const priorityLevel = this.determinePriorityLevel(thread);
 
     // Build template variables with real data
     const templateVars: AutoResponseTemplateVars = {

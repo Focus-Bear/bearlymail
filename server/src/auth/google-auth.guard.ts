@@ -5,20 +5,36 @@ import { AuthGuard } from "@nestjs/passport";
 export class GoogleAuthGuard extends AuthGuard("google") {
   private readonly logger = new Logger(GoogleAuthGuard.name);
 
+  canActivate(context: ExecutionContext) {
+    const request = context.switchToHttp().getRequest();
+    const url = request.url;
+    const method = request.method;
+    this.logger.log(
+      `[canActivate] Called for ${method} ${url} - has code: ${!!request.query?.code}`,
+    );
+    return super.canActivate(context);
+  }
+
   handleRequest<TUser = unknown>(
     err: Error | null,
     user: TUser | false,
     info: unknown,
     context: ExecutionContext,
   ): TUser {
+    const request = context.switchToHttp().getRequest();
+    const url = request.url?.split("?")[0]; // Remove query params for cleaner logging
+
+    // Always log what we received for debugging
+    this.logger.log(
+      `[handleRequest] ${url} - err: ${err?.message || "null"}, user: ${user ? "present" : "false"}, info type: ${typeof info}`,
+    );
+
     // If there's an error or no user, attach the error to the request
     // so the controller can handle it and redirect appropriately
     if (err || !user) {
-      const request = context.switchToHttp().getRequest();
-
-      // Log what we received for debugging
+      // Log detailed error info
       this.logger.warn(
-        `Google auth failed - err: ${err?.message || "null"}, user: ${user ? "present" : "false"}, info: ${JSON.stringify(info)}`,
+        `[handleRequest] Auth failed for ${url} - err: ${err?.message || "null"}, user: ${user ? "present" : "false"}, info: ${JSON.stringify(info)}`,
       );
 
       // The error might come through as `err` or through `info` depending on how Passport handles it

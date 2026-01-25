@@ -114,6 +114,8 @@ export const EmailDetailInline: React.FC<EmailDetailInlineProps> = ({
     sending,
     checkingTone,
     toneCheckResult,
+    disputing,
+    disputeResult,
     isGeneratingSummary,
     setNoteContent,
     setNewActionItem,
@@ -135,6 +137,7 @@ export const EmailDetailInline: React.FC<EmailDetailInlineProps> = ({
     handleReplyComposerClose,
     handleReplyOptionSelect,
     handleToggleNotesCollapsed,
+    disputeToneCheck,
   } = useEmailDetailInlineHandlers(emailId, onClose, autoGenerateReplies);
 
   // Block sender handler
@@ -220,6 +223,9 @@ export const EmailDetailInline: React.FC<EmailDetailInlineProps> = ({
         onClose={handleReplyComposerClose}
         onSend={handleSendReplyWithClose}
         onUseRevisedText={handleDraftChange}
+        onDispute={disputeToneCheck}
+        disputing={disputing}
+        disputeResult={disputeResult}
       />
     </>
   );

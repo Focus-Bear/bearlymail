@@ -59,6 +59,8 @@ export const useEmailDetailInline = (
     sending,
     checkingTone,
     toneCheckResult,
+    disputing,
+    disputeResult,
     setReplyRecipients,
     setReplyCc,
     setReplyBcc,
@@ -71,6 +73,8 @@ export const useEmailDetailInline = (
     setToneCheckResult,
     handleOpenReplyComposer,
     handleSendReply,
+    disputeToneCheck,
+    clearDisputeResult,
   } = useEmailDetailReplies(emailId, email, { autoGenerateReplies });
 
   return {
@@ -99,6 +103,8 @@ export const useEmailDetailInline = (
     sending,
     checkingTone,
     toneCheckResult,
+    disputing,
+    disputeResult,
     isGeneratingSummary,
     setNoteContent,
     setNewActionItem,
@@ -121,6 +127,8 @@ export const useEmailDetailInline = (
     handleExtractActions,
     handleOpenReplyComposer,
     handleSendReply,
+    disputeToneCheck,
+    clearDisputeResult,
     toggleThreadItem,
   };
 };

@@ -22,6 +22,7 @@ import {
   LLM_OP_SEARCH_RELEVANCE,
   LLM_OP_SEARCH_RELEVANCE_BATCH,
   LLM_OP_REDACT_NAMES,
+  LLM_OP_DISPUTE_TONE_CHECK,
   LLM_OP_UNKNOWN,
 } from "./llm-operations";
 import { RATIOS } from "../constants/percentages";
@@ -1675,5 +1676,75 @@ export class LLMService {
       this.logger.error("Failed to redact names with LLM:", error);
       return text;
     }
+  }
+
+  async disputeToneCheck(
+    emailText: string,
+    rules: string[],
+    suggestions: string[],
+    userArgument: string,
+    provider?: LLMProvider,
+    userId?: string,
+  ): Promise<{
+    accepted: boolean;
+    rulesToRemove: string[];
+    explanation: string;
+  }> {
+    const promptConfig = getPrompt("dispute_tone_check");
+    if (!promptConfig) {
+      this.logger.error(
+        "dispute_tone_check prompt not found in markdown files",
+      );
+      return {
+        accepted: false,
+        rulesToRemove: [],
+        explanation: "Unable to process dispute - prompt not available",
+      };
+    }
+
+    const prompt = renderPrompt(promptConfig.prompt || "", {
+      emailText,
+      rules,
+      suggestions,
+      userArgument,
+    });
+
+    const response = await this.generateText(
+      {
+        prompt,
+        systemPrompt: promptConfig.systemPrompt || "",
+        temperature: RATIOS.THIRTY_PERCENT,
+        maxTokens: 800,
+        userId,
+      },
+      provider,
+      userId,
+      LLM_OP_DISPUTE_TONE_CHECK,
+    );
+
+    try {
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return {
+          accepted: !!parsed.accepted,
+          rulesToRemove: Array.isArray(parsed.rulesToRemove)
+            ? parsed.rulesToRemove
+            : [],
+          explanation: parsed.explanation || "",
+        };
+      }
+    } catch (error) {
+      this.logger.warn(
+        "Failed to parse LLM dispute tone check response as JSON",
+        error,
+      );
+    }
+
+    return {
+      accepted: false,
+      rulesToRemove: [],
+      explanation: "Unable to process your argument",
+    };
   }
 }

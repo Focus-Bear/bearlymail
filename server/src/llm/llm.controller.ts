@@ -8,11 +8,15 @@ import {
 } from "@nestjs/common";
 import { LLMService } from "./llm.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { UsersService } from "../users/users.service";
 
 @Controller("llm")
 @UseGuards(JwtAuthGuard)
 export class LLMController {
-  constructor(private readonly llmService: LLMService) {}
+  constructor(
+    private readonly llmService: LLMService,
+    private readonly usersService: UsersService,
+  ) {}
 
   @Get("providers")
   async getAvailableProviders() {
@@ -114,5 +118,50 @@ export class LLMController {
       undefined,
       req.user.userId,
     );
+  }
+
+  @Post("dispute-tone-check")
+  async disputeToneCheck(
+    @Request() req,
+    @Body()
+    body: {
+      emailText: string;
+      suggestions: string[];
+      userArgument: string;
+    },
+  ) {
+    const user = await this.usersService.findOne(req.user.userId);
+    const currentRules = user?.toneSettings?.rules || [];
+
+    const result = await this.llmService.disputeToneCheck(
+      body.emailText,
+      currentRules,
+      body.suggestions,
+      body.userArgument,
+      undefined,
+      req.user.userId,
+    );
+
+    if (result.accepted && result.rulesToRemove.length > 0) {
+      const updatedRules = currentRules.filter(
+        (rule: string) => !result.rulesToRemove.includes(rule),
+      );
+
+      await this.usersService.update(req.user.userId, {
+        toneSettings: { rules: updatedRules },
+      });
+
+      return {
+        ...result,
+        rulesUpdated: true,
+        remainingRules: updatedRules,
+      };
+    }
+
+    return {
+      ...result,
+      rulesUpdated: false,
+      remainingRules: currentRules,
+    };
   }
 }

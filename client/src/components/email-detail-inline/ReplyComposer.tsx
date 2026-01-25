@@ -21,6 +21,14 @@ interface ToneCheckResultData {
   revisedText?: string;
 }
 
+interface DisputeResult {
+  accepted: boolean;
+  rulesToRemove: string[];
+  explanation: string;
+  rulesUpdated: boolean;
+  remainingRules: string[];
+}
+
 interface ReplyComposerProps {
   showReplyComposer: boolean;
   replyMode: 'reply' | 'replyAll';
@@ -47,6 +55,9 @@ interface ReplyComposerProps {
   onSend: (files: File[], expectedReplyHours?: number) => void;
   onUseRevisedText: (text: string) => void;
   textareaRef?: React.RefObject<HTMLTextAreaElement>;
+  onDispute?: (emailText: string, suggestions: string[], argument: string) => Promise<DisputeResult | null>;
+  disputing?: boolean;
+  disputeResult?: DisputeResult | null;
 }
 
 export const ReplyComposer: React.FC<ReplyComposerProps> = ({
@@ -75,6 +86,9 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
   onSend,
   onUseRevisedText,
   textareaRef,
+  onDispute,
+  disputing,
+  disputeResult,
 }) => {
   const [files, setFiles] = useState<File[]>([]);
 
@@ -144,6 +158,10 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
       <ToneCheckResult
         toneCheckResult={toneCheckResult}
         onUseRevisedText={onUseRevisedText}
+        emailText={draft || ''}
+        onDispute={onDispute}
+        disputing={disputing}
+        disputeResult={disputeResult}
       />
       <ReplyComposerFooter
         sending={sending}

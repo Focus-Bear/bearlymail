@@ -1,7 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { EMOJI_CHECK, EMOJI_WARNING } from 'constants/emojis';
+
+interface DisputeResult {
+  accepted: boolean;
+  rulesToRemove: string[];
+  explanation: string;
+  rulesUpdated: boolean;
+  remainingRules: string[];
+}
 
 interface ToneCheckResultProps {
   toneCheckResult: {
@@ -10,13 +18,23 @@ interface ToneCheckResultProps {
     revisedText?: string;
   } | null;
   onUseRevisedText: (text: string) => void;
+  emailText?: string;
+  onDispute?: (emailText: string, suggestions: string[], argument: string) => Promise<DisputeResult | null>;
+  disputing?: boolean;
+  disputeResult?: DisputeResult | null;
 }
 
 export const ToneCheckResult: React.FC<ToneCheckResultProps> = ({
   toneCheckResult,
   onUseRevisedText,
+  emailText,
+  onDispute,
+  disputing = false,
+  disputeResult,
 }) => {
   const { t } = useTranslation();
+  const [showDisputeForm, setShowDisputeForm] = useState(false);
+  const [disputeArgument, setDisputeArgument] = useState('');
 
   if (!toneCheckResult) {
     return null;
@@ -41,6 +59,13 @@ export const ToneCheckResult: React.FC<ToneCheckResultProps> = ({
       </div>
     );
   }
+
+  const handleDisputeSubmit = async () => {
+    if (!onDispute || !emailText || !disputeArgument.trim()) return;
+    await onDispute(emailText, toneCheckResult.suggestions, disputeArgument);
+    setDisputeArgument('');
+    setShowDisputeForm(false);
+  };
 
   return (
     <div style={{
@@ -87,6 +112,118 @@ export const ToneCheckResult: React.FC<ToneCheckResultProps> = ({
           >
             {t('emailDetail.useRevisedText')}
           </button>
+        </div>
+      )}
+
+      {onDispute && emailText && (
+        <div style={{ marginTop: theme.spacing.md, borderTop: `1px solid ${theme.colors.border.light}`, paddingTop: theme.spacing.md }}>
+          {disputeResult && (
+            <div style={{
+              marginBottom: theme.spacing.md,
+              padding: theme.spacing.sm,
+              backgroundColor: disputeResult.accepted ? theme.colors.sunray.light4 : theme.colors.background.default,
+              border: `1px solid ${disputeResult.accepted ? theme.colors.accent.success : theme.colors.border.medium}`,
+              borderRadius: theme.borderRadius.sm,
+              fontSize: theme.typography.fontSize.sm,
+            }}>
+              <div style={{ 
+                fontWeight: 'bold', 
+                color: disputeResult.accepted ? theme.colors.accent.success : theme.colors.text.primary,
+                marginBottom: theme.spacing.xs,
+              }}>
+                {disputeResult.accepted 
+                  ? t('emailDetail.disputeAccepted')
+                  : t('emailDetail.disputeRejected')}
+              </div>
+              <div style={{ color: theme.colors.text.secondary }}>
+                {disputeResult.explanation}
+              </div>
+              {disputeResult.accepted && disputeResult.rulesToRemove.length > 0 && (
+                <div style={{ marginTop: theme.spacing.xs, color: theme.colors.text.secondary }}>
+                  {t('emailDetail.rulesUpdated', { count: disputeResult.rulesToRemove.length })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {!showDisputeForm && !disputeResult?.accepted && (
+            <button
+              onClick={() => setShowDisputeForm(true)}
+              style={{
+                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                backgroundColor: 'transparent',
+                color: theme.colors.text.secondary,
+                border: `1px solid ${theme.colors.border.medium}`,
+                borderRadius: theme.borderRadius.sm,
+                cursor: 'pointer',
+                fontSize: theme.typography.fontSize.sm,
+              }}
+            >
+              {t('emailDetail.disputeToneCheck')}
+            </button>
+          )}
+
+          {showDisputeForm && (
+            <div style={{ marginTop: theme.spacing.sm }}>
+              <div style={{ 
+                fontSize: theme.typography.fontSize.sm, 
+                color: theme.colors.text.secondary,
+                marginBottom: theme.spacing.xs,
+              }}>
+                {t('emailDetail.disputeExplanation')}
+              </div>
+              <textarea
+                value={disputeArgument}
+                onChange={(e) => setDisputeArgument(e.target.value)}
+                placeholder={t('emailDetail.disputePlaceholder')}
+                style={{
+                  width: '100%',
+                  minHeight: '80px',
+                  padding: theme.spacing.sm,
+                  border: `1px solid ${theme.colors.border.medium}`,
+                  borderRadius: theme.borderRadius.sm,
+                  fontSize: theme.typography.fontSize.sm,
+                  resize: 'vertical',
+                  boxSizing: 'border-box',
+                }}
+              />
+              <div style={{ display: 'flex', gap: theme.spacing.sm, marginTop: theme.spacing.sm }}>
+                <button
+                  onClick={handleDisputeSubmit}
+                  disabled={!disputeArgument.trim() || disputing}
+                  style={{
+                    padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                    backgroundColor: theme.colors.secondary.main,
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: theme.borderRadius.sm,
+                    cursor: disputeArgument.trim() && !disputing ? 'pointer' : 'not-allowed',
+                    fontSize: theme.typography.fontSize.sm,
+                    opacity: !disputeArgument.trim() || disputing ? 0.6 : 1,
+                  }}
+                >
+                  {disputing ? t('emailDetail.disputeSubmitting') : t('emailDetail.disputeSubmit')}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowDisputeForm(false);
+                    setDisputeArgument('');
+                  }}
+                  style={{
+                    padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                    backgroundColor: 'transparent',
+                    color: theme.colors.text.secondary,
+                    border: `1px solid ${theme.colors.border.medium}`,
+                    borderRadius: theme.borderRadius.sm,
+                    cursor: 'pointer',
+                    fontSize: theme.typography.fontSize.sm,
+                  }}
+                >
+                  {t('common.cancel')}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

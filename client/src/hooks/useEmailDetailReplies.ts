@@ -41,6 +41,10 @@ export function useEmailDetailReplies(
     toneCheckResult,
     setToneCheckResult,
     checkTone,
+    disputing,
+    disputeResult,
+    disputeToneCheck,
+    clearDisputeResult,
   } = useEmailDetailToneCheck();
 
   const {
@@ -123,6 +127,8 @@ export function useEmailDetailReplies(
     sending,
     checkingTone,
     toneCheckResult,
+    disputing,
+    disputeResult,
     setReplyRecipients,
     setReplyCc,
     setReplyBcc,
@@ -135,6 +141,8 @@ export function useEmailDetailReplies(
     setToneCheckResult,
     handleOpenReplyComposer,
     handleSendReply,
+    disputeToneCheck,
+    clearDisputeResult,
   };
 }
 

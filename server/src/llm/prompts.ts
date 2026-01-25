@@ -285,13 +285,17 @@ export function loadPrompts(): Map<string, PromptConfig> {
     }
 
     // Load classify-email-type.md (auto-responder)
-    const classifyEmailTypePath = path.join(promptsDir, "classify-email-type.md");
+    const classifyEmailTypePath = path.join(
+      promptsDir,
+      "classify-email-type.md",
+    );
     if (fs.existsSync(classifyEmailTypePath)) {
       const content = fs.readFileSync(classifyEmailTypePath, "utf-8");
       promptsCache.set("classify_email_type", {
         id: "classify_email_type",
         prompt: content,
-        systemPrompt: "You are an email classification assistant. Analyze emails and provide structured classification results.",
+        systemPrompt:
+          "You are an email classification assistant. Analyze emails and provide structured classification results.",
       });
     }
 
@@ -302,7 +306,8 @@ export function loadPrompts(): Map<string, PromptConfig> {
       promptsCache.set("generate_qa_answer", {
         id: "generate_qa_answer",
         prompt: content,
-        systemPrompt: "You are a helpful assistant that answers questions based on historical Q&A context. Only use information from the provided context.",
+        systemPrompt:
+          "You are a helpful assistant that answers questions based on historical Q&A context. Only use information from the provided context.",
       });
     }
 
@@ -313,7 +318,8 @@ export function loadPrompts(): Map<string, PromptConfig> {
       promptsCache.set("detect_opt_out", {
         id: "detect_opt_out",
         prompt: content,
-        systemPrompt: "You are an assistant that detects opt-out requests in email replies.",
+        systemPrompt:
+          "You are an assistant that detects opt-out requests in email replies.",
       });
     }
 
@@ -324,7 +330,19 @@ export function loadPrompts(): Map<string, PromptConfig> {
       promptsCache.set("redact_names", {
         id: "redact_names",
         prompt: content,
-        systemPrompt: "You are a privacy assistant that redacts person names from text.",
+        systemPrompt:
+          "You are a privacy assistant that redacts person names from text.",
+      });
+    }
+
+    // Load dispute-tone-check.md (tone check dispute feature)
+    const disputeToneCheckPath = path.join(promptsDir, "dispute-tone-check.md");
+    if (fs.existsSync(disputeToneCheckPath)) {
+      const content = fs.readFileSync(disputeToneCheckPath, "utf-8");
+      promptsCache.set("dispute_tone_check", {
+        id: "dispute_tone_check",
+        prompt: content,
+        systemPrompt: "",
       });
     }
   } catch (error) {

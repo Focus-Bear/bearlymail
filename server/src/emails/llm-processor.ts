@@ -127,11 +127,15 @@ export class LLMProcessor implements OnModuleInit {
           const existingBreakdown = threadPriorityExplanation?.breakdown || [];
           const hasValidBreakdown =
             existingBreakdown.length > 0 &&
-            existingBreakdown.some((item) => item.value !== 0 && item.value !== undefined);
-          
+            existingBreakdown.some(
+              (item) => item.value !== 0 && item.value !== undefined,
+            );
+
           // Check if breakdown has "Calculating..." items (incomplete calculation)
           const hasCalculatingItems = existingBreakdown.some(
-            (item) => item.description === "Calculating..." || item.description?.includes("Calculating...")
+            (item) =>
+              item.description === "Calculating..." ||
+              item.description?.includes("Calculating..."),
           );
 
           // Check if thread has new emails since last calculation
@@ -147,12 +151,14 @@ export class LLMProcessor implements OnModuleInit {
 
             if (mostRecentEmail) {
               // Get the timestamp when priority was last calculated (if available)
-              const priorityCalculatedAt = threadPriorityExplanation?.calculatedAt
-                ? new Date(threadPriorityExplanation.calculatedAt)
-                : null;
-              
+              const priorityCalculatedAt =
+                threadPriorityExplanation?.calculatedAt
+                  ? new Date(threadPriorityExplanation.calculatedAt)
+                  : null;
+
               // Use calculatedAt if available, otherwise fall back to thread.updatedAt
-              const lastCalculationTime = priorityCalculatedAt || thread.updatedAt || thread.createdAt;
+              const lastCalculationTime =
+                priorityCalculatedAt || thread.updatedAt || thread.createdAt;
 
               // Check if the current email being processed is the most recent email in the thread
               // This indicates a new email arrived that should trigger recalculation
@@ -197,10 +203,10 @@ export class LLMProcessor implements OnModuleInit {
           }
 
           if (hasOldStructure || !hasValidBreakdown || hasCalculatingItems) {
-            const reason = hasOldStructure 
-              ? "old" 
-              : hasCalculatingItems 
-                ? "calculating items" 
+            const reason = hasOldStructure
+              ? "old"
+              : hasCalculatingItems
+                ? "calculating items"
                 : "incomplete";
             this.logger.log(
               `[Worker ${workerId}] Detected ${reason} priority structure for thread ${email.emailThreadId}, recalculating with new format`,
@@ -259,14 +265,18 @@ export class LLMProcessor implements OnModuleInit {
               const userLastEmail = [...threadEmails]
                 .reverse()
                 .find(
-                  (e) => e.from && e.from.toLowerCase() !== email.from.toLowerCase(),
+                  (e) =>
+                    e.from && e.from.toLowerCase() !== email.from.toLowerCase(),
                 );
               if (userLastEmail && userLastEmail.receivedAt) {
                 const daysDiff =
                   (email.receivedAt.getTime() -
                     userLastEmail.receivedAt.getTime()) /
                   (1000 * 60 * 60 * 24);
-                daysSinceLastReply = Math.max(0, Math.round(daysDiff * 10) / 10);
+                daysSinceLastReply = Math.max(
+                  0,
+                  Math.round(daysDiff * 10) / 10,
+                );
                 lastReplyFrom = userLastEmail.from || undefined;
               }
             }
@@ -307,11 +317,11 @@ export class LLMProcessor implements OnModuleInit {
             `[Worker ${workerId}] Analyzing priority for email ${emailId} (thread: ${email.threadId?.substring(0, LLM_PROCESSOR_CONSTANTS.SUBSTRING_PREVIEW_LENGTH)}..., subject: ${email.subject?.substring(0, LLM_PROCESSOR_CONSTANTS.SUBJECT_PREVIEW_LENGTH)}...)`,
           );
 
-          // Clean email body: strip HTML, remove signatures, limit to 2000 chars
+          // Clean email body: strip HTML, remove signatures, limit to 1000 chars
           const cleanedBody = cleanEmailContent(
             email.body,
             email.htmlBody,
-            2000,
+            1000,
           );
 
           tracker.endPhase("processing");
@@ -448,8 +458,12 @@ export class LLMProcessor implements OnModuleInit {
           );
           const matchedVip = vipContacts.find(
             (vip) =>
-              email.from?.toLowerCase().includes(vip.contextValue.toLowerCase()) ||
-              email.fromName?.toLowerCase().includes(vip.contextValue.toLowerCase()),
+              email.from
+                ?.toLowerCase()
+                .includes(vip.contextValue.toLowerCase()) ||
+              email.fromName
+                ?.toLowerCase()
+                .includes(vip.contextValue.toLowerCase()),
           );
           if (matchedVip) {
             const vipBoost = 25; // PRIORITY_BOOSTS.URGENT_KEYWORD
@@ -464,7 +478,14 @@ export class LLMProcessor implements OnModuleInit {
           if (email.senderJobTitle) {
             // Simple job title scoring (can be enhanced)
             const jobTitleLower = email.senderJobTitle.toLowerCase();
-            const highPriorityTitles = ["ceo", "president", "director", "manager", "lead", "head"];
+            const highPriorityTitles = [
+              "ceo",
+              "president",
+              "director",
+              "manager",
+              "lead",
+              "head",
+            ];
             const hasHighPriorityTitle = highPriorityTitles.some((title) =>
               jobTitleLower.includes(title),
             );
@@ -481,23 +502,31 @@ export class LLMProcessor implements OnModuleInit {
           // Calculate final score from breakdown
           // Don't clamp to 0-100 - allow negative scores as breakdown can legitimately be negative
           // The breakdown items can have negative values (e.g., low urgency = -12)
-          const finalScore = breakdown.reduce((sum, item) => sum + (item.value || 0), 0);
+          const finalScore = breakdown.reduce(
+            (sum, item) => sum + (item.value || 0),
+            0,
+          );
 
           // Build dimensions for compatibility
           const dimensions = {
             urgency: {
               score: urgencyScore,
-              reasons: [llmResult.urgencyExplanation || "No urgency explanation"],
+              reasons: [
+                llmResult.urgencyExplanation || "No urgency explanation",
+              ],
             },
             goalAlignment: {
               score: goalAlignmentScore,
               reasons: [
-                llmResult.goalAlignmentExplanation || "No goal alignment explanation",
+                llmResult.goalAlignmentExplanation ||
+                  "No goal alignment explanation",
               ],
             },
             vipContact: {
               score: matchedVip ? 25 : 0,
-              reasons: matchedVip ? [`VIP contact: ${matchedVip.contextValue}`] : [],
+              reasons: matchedVip
+                ? [`VIP contact: ${matchedVip.contextValue}`]
+                : [],
             },
             sentiment: {
               score: sentimentScore,

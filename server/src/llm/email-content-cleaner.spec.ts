@@ -124,8 +124,8 @@ describe("EmailContentCleaner", () => {
 
     it("should truncate text longer than maxLength", () => {
       const longText = "A".repeat(3000);
-      const result = cleanEmailContent(longText, undefined, 2000);
-      expect(result.length).toBeLessThanOrEqual(2000 + 3); // +3 for "..."
+      const result = cleanEmailContent(longText, undefined, 1000);
+      expect(result.length).toBeLessThanOrEqual(1000 + 3); // +3 for "..."
     });
 
     it("should prefer plain text body over htmlBody", () => {
@@ -179,14 +179,14 @@ describe("EmailContentCleaner", () => {
   describe("cleanEmailForThread", () => {
     it("should use smaller maxLength per message", () => {
       const longText = "A".repeat(2000);
-      const result = cleanEmailForThread(longText, undefined, 800);
-      expect(result.length).toBeLessThanOrEqual(803); // +3 for "..."
+      const result = cleanEmailForThread(longText, undefined, 500);
+      expect(result.length).toBeLessThanOrEqual(503); // +3 for "..."
     });
 
-    it("should default to 800 maxLength", () => {
+    it("should default to 500 maxLength", () => {
       const longText = "A".repeat(2000);
       const result = cleanEmailForThread(longText);
-      expect(result.length).toBeLessThanOrEqual(803);
+      expect(result.length).toBeLessThanOrEqual(503);
     });
 
     it("should process content same as cleanEmailContent", () => {
@@ -235,8 +235,8 @@ describe("EmailContentCleaner", () => {
   describe("Edge Cases", () => {
     it("should handle very long HTML content", () => {
       const html = `<div>${"A".repeat(10000)}</div>`;
-      const result = cleanEmailContent(html, undefined, 2000);
-      expect(result.length).toBeLessThanOrEqual(2003);
+      const result = cleanEmailContent(html, undefined, 1000);
+      expect(result.length).toBeLessThanOrEqual(1003);
     });
 
     it("should handle content with only HTML tags", () => {

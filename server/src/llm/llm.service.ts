@@ -759,11 +759,11 @@ export class LLMService {
       metadata?: Record<string, unknown>;
     }>
   > {
-    // Clean email body: strip HTML, remove signatures, limit to 2000 chars
+    // Clean email body: strip HTML, remove signatures, limit to 1000 chars
     const cleanedBody = cleanEmailContent(
       emailContent.body,
       emailContent.htmlBody || null,
-      2000, // Reduced from 3000 to save tokens
+      1000, // Reduced from 2000 to save tokens
     );
 
     const promptConfig = getPrompt("suggest_actions");
@@ -874,8 +874,8 @@ export class LLMService {
     provider?: LLMProvider,
     userId?: string,
   ): Promise<Array<{ label: string; text: string }>> {
-    // Clean email body: strip HTML, remove signatures, limit to 2000 chars
-    const cleanedBody = cleanEmailContent(originalEmail.body, null, 2000);
+    // Clean email body: strip HTML, remove signatures, limit to 1000 chars
+    const cleanedBody = cleanEmailContent(originalEmail.body, null, 1000);
 
     const promptConfig = getPrompt("generate_multiple_replies");
     if (!promptConfig) {
@@ -965,8 +965,8 @@ export class LLMService {
     provider?: LLMProvider,
     userId?: string,
   ): Promise<string> {
-    // Clean email body: strip HTML, remove signatures, limit to 2000 chars
-    const cleanedBody = cleanEmailContent(originalEmail.body, null, 2000);
+    // Clean email body: strip HTML, remove signatures, limit to 1000 chars
+    const cleanedBody = cleanEmailContent(originalEmail.body, null, 1000);
 
     const promptConfig = getPrompt("generate_reply");
     if (!promptConfig) {
@@ -1030,8 +1030,8 @@ export class LLMService {
     provider?: LLMProvider,
     userId?: string,
   ): Promise<string> {
-    // Clean email body: strip HTML, remove signatures, limit to 2000 chars
-    const cleanedBody = cleanEmailContent(originalEmail.body, null, 2000);
+    // Clean email body: strip HTML, remove signatures, limit to 1000 chars
+    const cleanedBody = cleanEmailContent(originalEmail.body, null, 1000);
 
     const promptConfig = getPrompt("generate_meeting_reply");
     if (!promptConfig) {

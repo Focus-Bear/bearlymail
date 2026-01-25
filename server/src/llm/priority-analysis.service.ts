@@ -57,7 +57,7 @@ export class PriorityAnalysisService {
     reasoning: string;
   }> {
     // Defensive cleaning in case body wasn't pre-cleaned by caller
-    const cleanedBody = cleanEmailContent(email.body, null, 2000);
+    const cleanedBody = cleanEmailContent(email.body, null, 1000);
 
     // Load prompt from markdown file
     const promptConfig = getPrompt("analyze_priority");
@@ -96,9 +96,13 @@ export class PriorityAnalysisService {
               parsed.sentimentScore !== undefined
                 ? Math.max(-1, Math.min(1, parsed.sentimentScore))
                 : 0,
-            goalAlignmentScore: Math.max(0, Math.min(100, parsed.goalAlignmentScore || 0)),
+            goalAlignmentScore: Math.max(
+              0,
+              Math.min(100, parsed.goalAlignmentScore || 0),
+            ),
             goalAlignmentExplanation:
-              parsed.goalAlignmentExplanation || "No goal alignment explanation provided",
+              parsed.goalAlignmentExplanation ||
+              "No goal alignment explanation provided",
             reasoning: parsed.reasoning || "No reasoning provided",
           };
         }
@@ -129,21 +133,46 @@ export class PriorityAnalysisService {
     });
 
     // Format user context for prompt
-    const urgentContextText = userContext?.urgentItems && userContext.urgentItems.length > 0
-      ? userContext.urgentItems.map(item => `- ${item.value}${item.explanation ? ` (${item.explanation})` : ""}`).join("\n")
-      : "";
-    const notUrgentContextText = userContext?.notUrgentItems && userContext.notUrgentItems.length > 0
-      ? userContext.notUrgentItems.map(item => `- ${item.value}${item.explanation ? ` (${item.explanation})` : ""}`).join("\n")
-      : "";
-    const goalsContextText = userContext?.goals && userContext.goals.length > 0
-      ? userContext.goals.map(goal => `- ${goal.value}${goal.priority ? ` (Priority ${goal.priority})` : ""}`).join("\n")
-      : "";
-    const workingOnContextText = userContext?.workingOn && userContext.workingOn.length > 0
-      ? userContext.workingOn.map(item => `- ${item.value}${item.priority ? ` (Priority ${item.priority})` : ""}`).join("\n")
-      : "";
-    const dontCareContextText = userContext?.dontCare && userContext.dontCare.length > 0
-      ? userContext.dontCare.map(item => `- ${item.value}`).join("\n")
-      : "";
+    const urgentContextText =
+      userContext?.urgentItems && userContext.urgentItems.length > 0
+        ? userContext.urgentItems
+            .map(
+              (item) =>
+                `- ${item.value}${item.explanation ? ` (${item.explanation})` : ""}`,
+            )
+            .join("\n")
+        : "";
+    const notUrgentContextText =
+      userContext?.notUrgentItems && userContext.notUrgentItems.length > 0
+        ? userContext.notUrgentItems
+            .map(
+              (item) =>
+                `- ${item.value}${item.explanation ? ` (${item.explanation})` : ""}`,
+            )
+            .join("\n")
+        : "";
+    const goalsContextText =
+      userContext?.goals && userContext.goals.length > 0
+        ? userContext.goals
+            .map(
+              (goal) =>
+                `- ${goal.value}${goal.priority ? ` (Priority ${goal.priority})` : ""}`,
+            )
+            .join("\n")
+        : "";
+    const workingOnContextText =
+      userContext?.workingOn && userContext.workingOn.length > 0
+        ? userContext.workingOn
+            .map(
+              (item) =>
+                `- ${item.value}${item.priority ? ` (Priority ${item.priority})` : ""}`,
+            )
+            .join("\n")
+        : "";
+    const dontCareContextText =
+      userContext?.dontCare && userContext.dontCare.length > 0
+        ? userContext.dontCare.map((item) => `- ${item.value}`).join("\n")
+        : "";
 
     // Format thread info for prompt
     const threadInfoText = threadInfo
@@ -162,7 +191,11 @@ export class PriorityAnalysisService {
       const emailsToInclude = sortedThreadEmails.slice(-10);
 
       const threadMessages = emailsToInclude.map((threadEmail, index) => {
-        const cleanedThreadBody = cleanEmailContent(threadEmail.body, null, 500);
+        const cleanedThreadBody = cleanEmailContent(
+          threadEmail.body,
+          null,
+          500,
+        );
         const dateStr = threadEmail.receivedAt.toLocaleDateString("en-US", {
           month: "short",
           day: "numeric",
@@ -220,9 +253,13 @@ export class PriorityAnalysisService {
             parsed.sentimentScore !== undefined
               ? Math.max(-1, Math.min(1, parsed.sentimentScore))
               : 0,
-          goalAlignmentScore: Math.max(0, Math.min(100, parsed.goalAlignmentScore || 0)),
+          goalAlignmentScore: Math.max(
+            0,
+            Math.min(100, parsed.goalAlignmentScore || 0),
+          ),
           goalAlignmentExplanation:
-            parsed.goalAlignmentExplanation || "No goal alignment explanation provided",
+            parsed.goalAlignmentExplanation ||
+            "No goal alignment explanation provided",
           reasoning: parsed.reasoning || "No reasoning provided",
         };
       }
@@ -249,4 +286,3 @@ export class PriorityAnalysisService {
     };
   }
 }
-

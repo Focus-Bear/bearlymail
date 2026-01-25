@@ -42,12 +42,12 @@ const HTML_PATTERNS = {
  * Clean email content for LLM analysis
  * @param body Email body (plain text or HTML)
  * @param htmlBody Optional HTML body (will use this to extract text if body is empty)
- * @param maxLength Maximum characters to return (default 2000)
+ * @param maxLength Maximum characters to return (default 1000)
  */
 export function cleanEmailContent(
   body: string | null | undefined,
   htmlBody?: string | null,
-  maxLength: number = 2000,
+  maxLength: number = 1000,
 ): string {
   // Prefer plain text body, fallback to stripped HTML
   let content = body?.trim() || "";
@@ -115,12 +115,13 @@ function stripHtml(html: string): string {
 }
 
 /**
- * Remove quoted reply content
+ * Remove quoted reply content - detect reply separators and only keep the last reply
  */
 function removeQuotedReplies(text: string): string {
   let result = text;
 
-  // Find "On [date] [person] wrote:" pattern and remove everything after
+  // Gmail-style "On [date], [person] <email> wrote:" or "On [date] [person] wrote:"
+  // Match various formats: "On Jan 1, 2024, John wrote:", "On 1/1/24, John <john@example.com> wrote:"
   const onWroteMatch = result.match(/^On .+wrote:\s*$/im);
   if (onWroteMatch) {
     const index = result.indexOf(onWroteMatch[0]);
@@ -130,7 +131,25 @@ function removeQuotedReplies(text: string): string {
     }
   }
 
-  // Remove lines starting with >
+  // Gmail forwarded message separator
+  const gmailForwardMatch = result.match(/-{5,}\s*Forwarded message\s*-{5,}/i);
+  if (gmailForwardMatch) {
+    const index = result.indexOf(gmailForwardMatch[0]);
+    if (index > 100) {
+      result = result.substring(0, index).trim();
+    }
+  }
+
+  // Apple Mail "Begin forwarded message:" separator
+  const appleForwardMatch = result.match(/^Begin forwarded message:\s*$/im);
+  if (appleForwardMatch) {
+    const index = result.indexOf(appleForwardMatch[0]);
+    if (index > 100) {
+      result = result.substring(0, index).trim();
+    }
+  }
+
+  // Remove lines starting with > (quoted text)
   result = result.replace(/^>+\s*.*$/gm, "");
 
   // Remove Outlook-style "Original Message" blocks
@@ -148,6 +167,37 @@ function removeQuotedReplies(text: string): string {
   );
   if (outlookHeaderMatch) {
     const index = result.indexOf(outlookHeaderMatch[0]);
+    if (index > 100) {
+      result = result.substring(0, index).trim();
+    }
+  }
+
+  // Remove "On [date] at [time], [person] wrote:" (alternative Gmail format)
+  const onAtWroteMatch = result.match(/^On .+ at .+, .+ wrote:\s*$/im);
+  if (onAtWroteMatch) {
+    const index = result.indexOf(onAtWroteMatch[0]);
+    if (index > 100) {
+      result = result.substring(0, index).trim();
+    }
+  }
+
+  // Remove "[date] [time] [person] <email>:" format (some email clients)
+  const dateTimeEmailMatch = result.match(
+    /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\s+\d{1,2}:\d{2}\s*(AM|PM)?\s*.+<.+@.+>:\s*$/im,
+  );
+  if (dateTimeEmailMatch) {
+    const index = result.indexOf(dateTimeEmailMatch[0]);
+    if (index > 100) {
+      result = result.substring(0, index).trim();
+    }
+  }
+
+  // Remove "---- Reply above this line ----" or similar markers
+  const replyLineMatch = result.match(
+    /-{3,}\s*(Reply|Write|Respond)\s+(above|below)\s+this\s+line\s*-{3,}/i,
+  );
+  if (replyLineMatch) {
+    const index = result.indexOf(replyLineMatch[0]);
     if (index > 100) {
       result = result.substring(0, index).trim();
     }
@@ -241,7 +291,7 @@ function smartTruncate(text: string, maxLength: number): string {
 export function cleanEmailForThread(
   body: string | null | undefined,
   htmlBody?: string | null,
-  maxLengthPerMessage: number = 800,
+  maxLengthPerMessage: number = 500,
 ): string {
   return cleanEmailContent(body, htmlBody, maxLengthPerMessage);
 }

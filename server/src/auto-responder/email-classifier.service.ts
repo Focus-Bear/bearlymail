@@ -412,7 +412,7 @@ export class EmailClassifierService {
     }
 
     // Clean and truncate body for LLM
-    const cleanedBody = cleanEmailContent(email.body, null, 2000);
+    const cleanedBody = cleanEmailContent(email.body, null, 1000);
 
     const prompt = renderPrompt(promptConfig.prompt || "", {
       from: email.from,
@@ -519,7 +519,7 @@ export class EmailClassifierService {
     }
 
     try {
-      const cleanedBody = cleanEmailContent(email.body, null, 1500);
+      const cleanedBody = cleanEmailContent(email.body, null, 1000);
 
       const rulesText = customRules
         .map((rule, index) => `${index + 1}. ${rule}`)

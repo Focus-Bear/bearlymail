@@ -28,18 +28,12 @@ export function usePriorityTooltip(): UsePriorityTooltipReturn {
   const [loadingPriorityExplanation, setLoadingPriorityExplanation] = useState(false);
 
   const fetchPriorityExplanation = useCallback(async (emailId: string) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePriorityTooltip.ts:29',message:'fetchPriorityExplanation called',logData:{emailId,loadingPriorityExplanation,hasPriorityExplanation:!!priorityExplanation},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     // Don't return early if loading - allow it to fetch for the current email
     if (loadingPriorityExplanation) {
       return;
     }
     
     setLoadingPriorityExplanation(true);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePriorityTooltip.ts:35',message:'Starting API fetch',logData:{emailId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     try {
       // Add timeout of 10 seconds to prevent infinite loading
       const TIMEOUT_MS = 10000;
@@ -54,14 +48,8 @@ export function usePriorityTooltip(): UsePriorityTooltipReturn {
         timeoutPromise,
       ]);
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePriorityTooltip.ts:38',message:'API response received',logData:{emailId,hasData:!!response.data,score:response.data?.score},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       setPriorityExplanation(response.data);
     } catch (error) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePriorityTooltip.ts:42',message:'API fetch error',logData:{emailId,error:error instanceof Error ? error.message : 'unknown'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       console.error('Error fetching priority explanation:', error);
       // Don't set explanation on error - keep previous state or null
     } finally {
@@ -71,23 +59,14 @@ export function usePriorityTooltip(): UsePriorityTooltipReturn {
   }, [loadingPriorityExplanation, priorityExplanation]);
 
   const togglePriorityTooltip = useCallback((emailId: string) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePriorityTooltip.ts:43',message:'togglePriorityTooltip called',logData:{emailId,currentHoveredId:hoveredPriorityEmailId,hasPriorityExplanation:!!priorityExplanation},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
     if (hoveredPriorityEmailId === emailId) {
       setHoveredPriorityEmailId(null);
       setPriorityExplanation(null);
       setLoadingPriorityExplanation(false);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePriorityTooltip.ts:46',message:'Closing tooltip',logData:{emailId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
     } else {
       // Clear previous explanation when switching to a different email
       setPriorityExplanation(null);
       setHoveredPriorityEmailId(emailId);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePriorityTooltip.ts:50',message:'Opening tooltip for new email',logData:{emailId,previousEmailId:hoveredPriorityEmailId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       fetchPriorityExplanation(emailId);
     }
   }, [hoveredPriorityEmailId, fetchPriorityExplanation, priorityExplanation]);

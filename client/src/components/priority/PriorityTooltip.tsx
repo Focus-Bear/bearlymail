@@ -40,12 +40,6 @@ export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
   onExpedite,
 }) => {
 
-  // #region agent log
-  // eslint-disable-next-line no-restricted-syntax -- 'undefined' is a standard JavaScript typeof result
-  if (typeof window !== 'undefined') {
-    fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PriorityTooltip.tsx:30',message:'PriorityTooltip render check',logData:{emailId,hasPriorityExplanation:!!priorityExplanation,loadingPriorityExplanation},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  }
-  // #endregion
   // Always show the tooltip if it's the hovered email, even if loading or no explanation yet
   // This prevents the blank popup from auto-closing
   if (!priorityExplanation && !loadingPriorityExplanation) {

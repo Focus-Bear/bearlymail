@@ -1128,9 +1128,6 @@ export class ContextService {
             const keyLower = ctx.key.toLowerCase();
             const valueLower = ctx.value.toLowerCase();
             
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context.service.ts:1052',message:'Evaluating insight type',data:{key:ctx.key,keyLower,valuePreview:ctx.value.substring(0,100),valueLower:valueLower.substring(0,100)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H5'})}).catch(()=>{});
-            // #endregion
             
             // Check for non-importance indicators in the value (e.g., "archived unread", "without replies", "deprioritization")
             const nonImportantIndicators = ['archived unread', 'without replies', 'deprioritization', 'low priority', 'not replied', 'ignored', 'unopened', 'not important'];
@@ -1143,9 +1140,6 @@ export class ContextService {
               });
             } else if (keyLower.includes('vip') || keyLower.includes('contact') || keyLower.includes('important')) {
               // Has VIP-related key but value indicates non-importance - skip or mark as pattern instead
-              // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context.service.ts:1062',message:'Filtered out non-important VIP insight',data:{key:ctx.key,valuePreview:ctx.value.substring(0,100)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H5'})}).catch(()=>{});
-              // #endregion
               // Skip this insight - don't show "important contact" if it's not actually important
             } else if (keyLower.includes('style') || keyLower.includes('tone')) {
               insights.push({
@@ -1184,11 +1178,6 @@ export class ContextService {
                                        isNAPattern ||
                                        styleText === '';
           
-          // #region agent log
-          if (isBatchSpecificError) {
-            fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context.service.ts:1095',message:'Filtered out writing style insight',data:{batchIndex,styleText:styleText.substring(0,100),isNAPattern,isBatchSpecificError},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'N_A_FILTER'})}).catch(()=>{});
-          }
-          // #endregion
           
           if (styleText && !isBatchSpecificError) {
             insights.push({
@@ -1639,9 +1628,6 @@ export class ContextService {
         "log",
       );
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context.service.ts:1408',message:'Starting progressive thread fetching',data:{totalThreadIds:threadIds.length,fetchBatchSize:FETCH_BATCH_SIZE,analysisBatchSize:ANALYSIS_BATCH_SIZE},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'PERF_FETCH'})}).catch(()=>{});
-      // #endregion
       
       const allProcessedBatches: Array<Array<{
         threadId?: string;
@@ -1664,9 +1650,6 @@ export class ContextService {
         const fetchBatchEnd = Math.min(fetchBatchStart + FETCH_BATCH_SIZE, threadIds.length);
         const fetchBatchThreadIds = threadIds.slice(fetchBatchStart, fetchBatchEnd);
         
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context.service.ts:1425',message:'Fetching thread batch',data:{fetchBatchNum:Math.floor(fetchBatchStart / FETCH_BATCH_SIZE) + 1,threadCount:fetchBatchThreadIds.length,fetchBatchStart,fetchBatchEnd},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'PERF_FETCH'})}).catch(()=>{});
-        // #endregion
         
         const fetchBatchStartTime = Date.now();
         const fetchedThreads = await this.gmailDataService.fetchThreadsByIds(
@@ -1675,9 +1658,6 @@ export class ContextService {
         );
         const fetchBatchDuration = Date.now() - fetchBatchStartTime;
         
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context.service.ts:1435',message:'Completed fetching thread batch',data:{fetchBatchNum:Math.floor(fetchBatchStart / FETCH_BATCH_SIZE) + 1,fetchedCount:fetchedThreads.length,expectedCount:fetchBatchThreadIds.length,fetchDuration:fetchBatchDuration},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'PERF_FETCH'})}).catch(()=>{});
-        // #endregion
         
         this.logger.log(
           `[CONTEXT-ANALYSIS] ✅ Fetched batch ${Math.floor(fetchBatchStart / FETCH_BATCH_SIZE) + 1}: ${fetchedThreads.length}/${fetchBatchThreadIds.length} threads in ${Math.round(fetchBatchDuration / 1000)}s`,
@@ -1690,9 +1670,6 @@ export class ContextService {
         }
         
         // Process fetched threads into analysis batch payloads
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context.service.ts:1442',message:'Processing fetched threads into analysis batches',data:{fetchedThreadCount:fetchedThreads.length,analysisBatchSize:ANALYSIS_BATCH_SIZE},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'PERF_FETCH'})}).catch(()=>{});
-        // #endregion
         
         // Process threads into payloads (same logic as before)
         const processedBatches: Array<Array<{
@@ -1948,9 +1925,6 @@ export class ContextService {
         );
       }
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context.service.ts:1619',message:'Progressive enqueueing complete',data:{totalBatches,successfulEnqueues,failedEnqueues,jobResultsCount:jobResults.length,jobResults:jobResults.slice(0,5).map(r => ({batchNum:r.batchNum,hasJobId:r.jobId !== null}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'PERF_FETCH'})}).catch(()=>{});
-      // #endregion
       
       this.logger.log(
         `[CONTEXT-ANALYSIS] ✅ Progressive fetch and enqueue complete: ${successfulEnqueues}/${totalBatches} analysis batches enqueued (${failedEnqueues} failed)`,
@@ -2065,15 +2039,8 @@ export class ContextService {
         this.logger.warn(
           `[CONTEXT-ANALYSIS] WARNING: Job IDs count (${Object.keys(batchJobIds).length}) doesn't match batch payloads count (${Object.keys(batchPayloadsForRetry).length})`,
         );
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context.service.ts:1765',message:'Job IDs and batch payloads count mismatch',data:{jobIdsCount:Object.keys(batchJobIds).length,payloadsCount:Object.keys(batchPayloadsForRetry).length,totalBatches},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'BATCH_ALIGNMENT'})}).catch(()=>{});
-        // #endregion
       }
       
-      // #region agent log
-      const nullJobIdsCount = Object.values(batchJobIds).filter(id => id === null).length;
-      fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context.service.ts:1535',message:'Storing job IDs in analysis stats',data:{analysisRecordId:analysisRecord.id,totalBatches,batchJobIdsCount:Object.keys(batchJobIds).length,nonNullJobIds:nonNullJobIds,nullJobIdsCount,expectedBatches:totalBatches},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})}).catch(()=>{});
-      // #endregion
       
           if (analysisRecord.stats) {
         analysisRecord.stats = {
@@ -2858,9 +2825,6 @@ export class ContextService {
 
     if (!analysisRecord || !analysisRecord.stats) {
       writeAnalysisLog(`[BATCH-CHECK] Analysis record ${analysisRecordId} not found or has no stats`, "warn");
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context.service.ts:1953',message:'Analysis record not found or no stats',data:{analysisRecordId,hasRecord:!!analysisRecord,hasStats:!!analysisRecord?.stats},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})}).catch(()=>{});
-      // #endregion
       return false;
     }
 
@@ -2897,9 +2861,6 @@ export class ContextService {
       return false;
     }
     
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context.service.ts:1970',message:'Checking batch completion status',data:{analysisRecordId,completedBatches,totalExpectedBatches,failedBatchesCount:failedBatches.length,hasBatchJobIds:Object.keys(batchJobIds).length > 0,batchJobIdsCount:Object.keys(batchJobIds).length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})}).catch(()=>{});
-    // #endregion
     
     this.logger.log(
       `[BATCH-CHECK] Checking completion: ${completedBatches}/${totalExpectedBatches} batches complete, ${failedBatches.length} failed`,
@@ -2959,9 +2920,6 @@ export class ContextService {
         );
       }
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context.service.ts:2231',message:'Missing batches detected',data:{analysisRecordId,missingBatchIndices,neverEnqueued,hasJobIdButExpired,completedBatchIndices,failedBatches,totalExpectedBatches,hasBatchPayloads:Object.keys(stats.batchPayloadsForRetry || {}).length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'MISSING_JOBS'})}).catch(()=>{});
-      // #endregion
     }
 
     // Check job statuses in PgBoss for stuck/failed jobs if we have job IDs
@@ -2982,9 +2940,6 @@ export class ContextService {
         if (!hasResult) {
           // Batch doesn't have a result yet - check job status in PgBoss
           try {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context.service.ts:1982',message:'Checking job status in PgBoss',data:{jobId,batchIndex,hasResult},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2,H3'})}).catch(()=>{});
-            // #endregion
             
             // PgBoss stores jobs in database - try to get job info
             // Note: pg-boss doesn't expose getJobById directly, but we can check queue status
@@ -2997,9 +2952,6 @@ export class ContextService {
               // Job is older than 15 minutes (expireInMinutes limit) and has no result
               expiredJobs++;
               
-              // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context.service.ts:2284',message:'Detected expired job - attempting retry',data:{jobId,batchIndex,jobAgeMinutes,analysisRecordId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'RETRY_EXPIRED'})}).catch(()=>{});
-              // #endregion
               
               // Attempt to retry the expired job if we have the batch payload stored
               const batchPayloadsForRetry = (stats.batchPayloadsForRetry as Record<number, Array<{
@@ -3087,9 +3039,6 @@ export class ContextService {
                     await this.contextAnalysisRepository.save(analysisRecord);
                   }
                   
-                  // #region agent log
-                  fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context.service.ts:2320',message:'Successfully retried expired job',data:{oldJobId:jobId,newJobId:retryJobId,batchIndex,threadCount:batchPayload.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'RETRY_EXPIRED'})}).catch(()=>{});
-                  // #endregion
                 } catch (retryError) {
                   this.logger.error(
                     `[BATCH-CHECK] Failed to retry expired batch ${batchIndex}: ${getErrorMessage(retryError)}`,
@@ -3099,9 +3048,6 @@ export class ContextService {
                     "error",
                   );
                   
-                  // #region agent log
-                  fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context.service.ts:2332',message:'Failed to retry expired job',data:{jobId,batchIndex,error:getErrorMessage(retryError)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'RETRY_EXPIRED'})}).catch(()=>{});
-                  // #endregion
                 }
               } else {
                 this.logger.error(
@@ -3112,9 +3058,6 @@ export class ContextService {
                   "error",
                 );
                 
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context.service.ts:2342',message:'Cannot retry - batch payload missing',data:{jobId,batchIndex,hasPayloads:Object.keys(batchPayloadsForRetry).length > 0,availableBatchIndices:Object.keys(batchPayloadsForRetry)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'RETRY_EXPIRED'})}).catch(()=>{});
-                // #endregion
               }
             }
           } catch (error) {
@@ -3126,9 +3069,6 @@ export class ContextService {
         }
       }
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context.service.ts:2010',message:'Job status summary',data:{completedJobs,stuckJobs,failedJobs,expiredJobs,activeJobs,totalWithJobIds:Object.keys(batchJobIds).length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2,H3'})}).catch(()=>{});
-      // #endregion
     }
 
     // Don't update progress here - progress is updated by batch processors after each batch completes

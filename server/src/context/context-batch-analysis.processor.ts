@@ -236,9 +236,6 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
                 "log",
               );
               
-              // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context-batch-analysis.processor.ts:225',message:'Starting fetch threads operation',data:{batchIndex,threadCount:threadIds.length,budget:PERFORMANCE_BUDGETS.BATCH_FETCH_THREADS},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'PERF'})}).catch(()=>{});
-              // #endregion
               
               const threads = await this.gmailDataService.fetchThreadsByIds(
                 userId,
@@ -246,9 +243,6 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
               );
               fetchDuration = Date.now() - fetchStartTime;
               
-              // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context-batch-analysis.processor.ts:237',message:'Completed fetch threads operation',data:{batchIndex,fetchDuration,budget:PERFORMANCE_BUDGETS.BATCH_FETCH_THREADS,withinBudget:fetchDuration <= PERFORMANCE_BUDGETS.BATCH_FETCH_THREADS},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'PERF'})}).catch(()=>{});
-              // #endregion
               
               this.logger.log(
                 `[Worker ${workerId}] ✅ Fetched ${threads.length} threads in ${Math.round(fetchDuration / 1000)}s (budget: ${PERFORMANCE_BUDGETS.BATCH_FETCH_THREADS / 1000}s)${fetchDuration > PERFORMANCE_BUDGETS.BATCH_FETCH_THREADS ? ' ⚠️ OVER BUDGET' : ''}`,
@@ -268,9 +262,6 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
                 "log",
               );
               
-              // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context-batch-analysis.processor.ts:247',message:'Starting process threads operation',data:{batchIndex,threadCount:threads.length,budget:PERFORMANCE_BUDGETS.BATCH_PROCESS_THREADS},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'PERF'})}).catch(()=>{});
-              // #endregion
               
               batch = threads
                 .map((thread) => {
@@ -347,9 +338,6 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
                 }>;
               processDuration = Date.now() - processStartTime;
               
-              // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context-batch-analysis.processor.ts:328',message:'Completed process threads operation',data:{batchIndex,processDuration,budget:PERFORMANCE_BUDGETS.BATCH_PROCESS_THREADS,withinBudget:processDuration <= PERFORMANCE_BUDGETS.BATCH_PROCESS_THREADS},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'PERF'})}).catch(()=>{});
-              // #endregion
               
               this.logger.log(
                 `[Worker ${workerId}] ✅ Processed ${batch.length} threads into payloads in ${Math.round(processDuration / 1000)}s (budget: ${PERFORMANCE_BUDGETS.BATCH_PROCESS_THREADS / 1000}s)${processDuration > PERFORMANCE_BUDGETS.BATCH_PROCESS_THREADS ? ' ⚠️ OVER BUDGET' : ''}`,
@@ -362,9 +350,6 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
               // Pre-processed batch (fetched upfront in main job - no Gmail API calls needed)
               batch = legacyBatch;
               
-              // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context-batch-analysis.processor.ts:361',message:'Using pre-processed batch - skipping fetch/process steps',data:{batchIndex,batchSize:legacyBatch.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'PERF_FETCH'})}).catch(()=>{});
-              // #endregion
               
               this.logger.log(
                 `[Worker ${workerId}] ✅ Using pre-processed batch (${legacyBatch.length} threads) - skipping fetch/process steps (0s)`,
@@ -388,9 +373,6 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
               "log",
             );
             
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context-batch-analysis.processor.ts:344',message:'Starting LLM analysis operation',data:{batchIndex,batchSize:batch.length,sentEmailsCount:sentPayload.length,budget:PERFORMANCE_BUDGETS.BATCH_LLM_ANALYSIS},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'PERF'})}).catch(()=>{});
-            // #endregion
             
             const batchAnalysis = await this.llmService.analyzeEmailPatterns(
               batch,
@@ -402,9 +384,6 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
             );
             const llmDuration = Date.now() - llmStartTime;
             
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context-batch-analysis.processor.ts:360',message:'Completed LLM analysis operation',data:{batchIndex,llmDuration,budget:PERFORMANCE_BUDGETS.BATCH_LLM_ANALYSIS,withinBudget:llmDuration <= PERFORMANCE_BUDGETS.BATCH_LLM_ANALYSIS},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'PERF'})}).catch(()=>{});
-            // #endregion
             
             this.logger.log(
               `[Worker ${workerId}] ✅ LLM analysis completed in ${Math.round(llmDuration / 1000)}s (budget: ${PERFORMANCE_BUDGETS.BATCH_LLM_ANALYSIS / 1000}s)${llmDuration > PERFORMANCE_BUDGETS.BATCH_LLM_ANALYSIS ? ' ⚠️ OVER BUDGET' : ''}`,
@@ -424,9 +403,6 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
               "log",
             );
             
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context-batch-analysis.processor.ts:369',message:'Starting save batch results operation',data:{batchIndex,budget:PERFORMANCE_BUDGETS.BATCH_SAVE_RESULTS},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'PERF'})}).catch(()=>{});
-            // #endregion
             
             const findRecordStartTime = Date.now();
             let analysisRecord = await this.contextAnalysisRepository.findOne({
@@ -508,9 +484,6 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
             const saveDbDuration = Date.now() - saveDbStartTime;
             const saveDuration = Date.now() - saveStartTime;
             
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context-batch-analysis.processor.ts:417',message:'Completed save batch results operation',data:{batchIndex,saveDuration,findRecordDuration,saveDbDuration,budget:PERFORMANCE_BUDGETS.BATCH_SAVE_RESULTS,withinBudget:saveDuration <= PERFORMANCE_BUDGETS.BATCH_SAVE_RESULTS},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'PERF'})}).catch(()=>{});
-            // #endregion
             
             this.logger.log(
               `[Worker ${workerId}] ✅ Saved batch results in ${Math.round(saveDuration / 1000)}s (find: ${Math.round(findRecordDuration / 1000)}s, save: ${Math.round(saveDbDuration / 1000)}s, budget: ${PERFORMANCE_BUDGETS.BATCH_SAVE_RESULTS / 1000}s)${saveDuration > PERFORMANCE_BUDGETS.BATCH_SAVE_RESULTS ? ' ⚠️ OVER BUDGET' : ''}`,
@@ -522,9 +495,6 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
             
             // Calculate total time so far
             const totalTimeSoFar = saveDuration + llmDuration + processDuration + fetchDuration;
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context-batch-analysis.processor.ts:426',message:'Batch performance summary',data:{batchIndex,totalTimeSoFar,budget:PERFORMANCE_BUDGETS.BATCH_TOTAL,fetchDuration,processDuration,llmDuration,saveDuration,withinTotalBudget:totalTimeSoFar <= PERFORMANCE_BUDGETS.BATCH_TOTAL},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'PERF'})}).catch(()=>{});
-            // #endregion
             
             if (totalTimeSoFar > PERFORMANCE_BUDGETS.BATCH_TOTAL) {
               this.logger.warn(

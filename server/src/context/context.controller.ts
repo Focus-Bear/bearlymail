@@ -63,9 +63,6 @@ export class ContextController {
       analysisId, // Pass analysis ID to filter
     );
     
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context.controller.ts:PROGRESS_QUERY',message:'Progress query result',data:{inputAnalysisId:analysisId,returnedStatus:progressInfo.status,returnedTotalBatches:progressInfo.totalBatches,returnedCompletedBatches:progressInfo.completedBatches,hasStats:!!progressInfo.stats},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'H1_OLD_ANALYSIS'})}).catch(()=>{});
-    // #endregion
     
     // Check and sync jobs between DB and PgBoss for active analyses
     if (progressInfo.status === "running" || progressInfo.status === "pending") {
@@ -103,9 +100,6 @@ export class ContextController {
     } else if (isStillRunning) {
       const { completedBatches, totalBatches, fetchingStatus, fetchedGeneral, fetchedSent } = progressInfo;
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context.controller.ts:STAGE_CALC',message:'Stage calculation inputs',data:{completedBatches,totalBatches,fetchingStatus,fetchedGeneral,fetchedSent,status:progressInfo.status},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'H7_STAGE_FLICKER'})}).catch(()=>{});
-      // #endregion
       
       // Check if any batches have completed - if so, we're in analyzing stage
       const hasCompletedBatches = completedBatches !== undefined && completedBatches > 0;
@@ -138,9 +132,6 @@ export class ContextController {
       this.logger.log(
         `[PROGRESS-CALC] Stage: ${stage}, percent: ${percent}%, batches: ${progressInfo.completedBatches || 0}/${progressInfo.totalBatches || 'unknown'}, fetched: general=${fetchedGeneral || 0}, sent=${fetchedSent || 0}, status=${progressInfo.status}`,
       );
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/19275245-ae64-4c47-b20b-42ab4a612288',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'context.controller.ts:PERCENT_RESULT',message:'Calculated percent and stage',data:{stage,percent,completedBatches:progressInfo.completedBatches,totalBatches:progressInfo.totalBatches,status:progressInfo.status},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'H7_STAGE_FLICKER'})}).catch(()=>{});
-      // #endregion
     } else if (user.scanProgress !== null && user.scanTotal !== null) {
       // For completed/failed analyses that slipped through, use user.scanProgress
       percent = Math.floor((user.scanProgress / user.scanTotal) * 100);

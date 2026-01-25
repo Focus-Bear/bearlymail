@@ -1,4 +1,6 @@
 import { Injectable, Inject, forwardRef, Logger } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
 import { EmailsService } from "../emails/emails.service";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { ContextService } from "../context/context.service";
@@ -7,8 +9,10 @@ import { UsersService } from "../users/users.service";
 import { WritingStyleLearningService } from "../context/writing-style-learning.service";
 import { ContextKey } from "../database/entities/user-context.entity";
 import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
 import { SnoozeService } from "../snooze/snooze.service";
 import { FollowUpsService } from "../follow-ups/follow-ups.service";
+import { EncryptionHelper } from "../encryption/encryption.helper";
 
 export interface ReplyRule {
   ruleId?: string;
@@ -34,6 +38,10 @@ export class RepliesService {
     private snoozeService: SnoozeService,
     @Inject(forwardRef(() => FollowUpsService))
     private followUpsService: FollowUpsService,
+    @InjectRepository(Email)
+    private emailRepository: Repository<Email>,
+    @InjectRepository(EmailThread)
+    private emailThreadRepository: Repository<EmailThread>,
   ) {}
 
   async generateDraftReply(
@@ -268,6 +276,13 @@ ${closing}`;
       throw new Error("Email not found");
     }
 
+    // Get user's email address for the "from" field
+    const user = await this.usersService.findOne(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+    const userEmail = EncryptionHelper.decrypt(user.email);
+
     // Determine reply subject (add Re: if not already present)
     let replySubject = email.subject;
     if (!replySubject.toLowerCase().startsWith("re:")) {
@@ -282,7 +297,7 @@ ${closing}`;
       );
     }
 
-    await provider.sendReply(
+    const sentMessage = await provider.sendReply(
       userId,
       email.threadId,
       email.from,
@@ -290,6 +305,36 @@ ${closing}`;
       body,
       attachments,
     );
+
+    // Store the sent reply in the database so it appears in the thread view
+    try {
+      // Get or find the email thread
+      const thread = await this.emailThreadRepository.findOne({
+        where: { userId, threadId: email.threadId },
+      });
+
+      const sentEmail = this.emailRepository.create({
+        userId,
+        threadId: email.threadId,
+        emailThreadId: thread?.id,
+        messageId: sentMessage.messageId,
+        from: userEmail,
+        fromName: user.name || undefined,
+        subject: replySubject,
+        body,
+        isRead: true,
+        receivedAt: new Date(),
+        labels: ["SENT"],
+      });
+
+      await this.emailRepository.save(sentEmail);
+      this.logger.log(
+        `Stored sent reply in database: messageId=${sentMessage.messageId}, threadId=${email.threadId}`,
+      );
+    } catch (storeError) {
+      // Don't fail the send if storing fails - the email was already sent
+      this.logger.error("Failed to store sent reply in database:", storeError);
+    }
 
     // Trigger immediate learning from the sent reply
     // This will add it to toneSettings.rules if we need more examples

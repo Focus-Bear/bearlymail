@@ -1490,7 +1490,7 @@ export class GmailProvider implements EmailProvider {
     subject: string,
     body: string,
     attachments?: EmailAttachmentData[],
-  ): Promise<void> {
+  ): Promise<{ messageId: string; threadId: string }> {
     const user = await this.usersService.findOneWithTokens(userId);
     if (!user?.googleCalendarAccessToken) {
       throw new Error("Gmail account not connected. Cannot send email.");
@@ -1526,7 +1526,7 @@ export class GmailProvider implements EmailProvider {
       .replace(/=+$/, "");
 
     try {
-      await gmail.users.messages.send({
+      const response = await gmail.users.messages.send({
         userId: "me",
         requestBody: {
           raw: encodedEmail,
@@ -1534,6 +1534,10 @@ export class GmailProvider implements EmailProvider {
         },
       });
       this.logger.log(`Reply sent successfully for user ${userId} to ${to}`);
+      return {
+        messageId: response.data.id || "",
+        threadId: response.data.threadId || threadId,
+      };
     } catch (error: unknown) {
       this.logger.error(
         `Failed to send reply for user ${userId} to ${to}:`,

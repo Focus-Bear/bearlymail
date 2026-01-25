@@ -989,7 +989,7 @@ export class Office365Provider implements EmailProvider {
     subject: string,
     body: string,
     attachments?: import("../interfaces/email-provider.interface").EmailAttachmentData[],
-  ): Promise<void> {
+  ): Promise<{ messageId: string; threadId: string }> {
     const primaryAccount =
       await this.office365AccountsService.findPrimary(userId);
     if (!primaryAccount) {
@@ -1000,7 +1000,7 @@ export class Office365Provider implements EmailProvider {
     const graphClient = this.client.createGraphClient(accessToken);
 
     try {
-      await graphClient.post("/me/sendMail", {
+      const response = await graphClient.post("/me/sendMail", {
         message: {
           subject: subject.startsWith("Re:") ? subject : `Re: ${subject}`,
           body: {
@@ -1018,6 +1018,10 @@ export class Office365Provider implements EmailProvider {
       });
 
       this.logger.log(`Reply sent successfully for user ${userId} to ${to}`);
+      return {
+        messageId: response?.data?.id || `office365-${Date.now()}`,
+        threadId,
+      };
     } catch (error: unknown) {
       const apiError = isApiError(error) ? error : null;
       if (
@@ -1030,8 +1034,14 @@ export class Office365Provider implements EmailProvider {
             primaryAccount.id,
           );
           // Retry with new token
-          await this.sendReply(userId, threadId, to, subject, body, attachments);
-          return;
+          return await this.sendReply(
+            userId,
+            threadId,
+            to,
+            subject,
+            body,
+            attachments,
+          );
         } catch (refreshError) {
           this.logger.error("Failed to refresh token:", refreshError);
           throw new Error("Token refresh failed - please reconnect");
@@ -1191,21 +1201,29 @@ export class Office365Provider implements EmailProvider {
   }
 
   async archiveThread(userId: string, threadId: string): Promise<void> {
-    this.logger.log(`[Office365 Archive] Starting archiveThread: userId=${userId}, threadId=${threadId}`);
+    this.logger.log(
+      `[Office365 Archive] Starting archiveThread: userId=${userId}, threadId=${threadId}`,
+    );
     const primaryAccount =
       await this.office365AccountsService.findPrimary(userId);
     if (!primaryAccount) {
-      this.logger.error(`[Office365 Archive] Office 365 account not connected: userId=${userId}`);
+      this.logger.error(
+        `[Office365 Archive] Office 365 account not connected: userId=${userId}`,
+      );
       throw new Error("Office 365 account not connected");
     }
 
-    this.logger.log(`[Office365 Archive] Primary account found, creating Graph client: userId=${userId}`);
+    this.logger.log(
+      `[Office365 Archive] Primary account found, creating Graph client: userId=${userId}`,
+    );
     let { accessToken } = primaryAccount;
     const graphClient = this.client.createGraphClient(accessToken);
 
     try {
       // Get all messages in the conversation
-      this.logger.log(`[Office365 Archive] Fetching messages for conversation: userId=${userId}, threadId=${threadId}`);
+      this.logger.log(
+        `[Office365 Archive] Fetching messages for conversation: userId=${userId}, threadId=${threadId}`,
+      );
       const response = await graphClient.get("/me/messages", {
         params: {
           $filter: `conversationId eq '${threadId}'`,
@@ -1214,38 +1232,53 @@ export class Office365Provider implements EmailProvider {
       });
 
       const messages = response.data.value || [];
-      this.logger.log(`[Office365 Archive] Found ${messages.length} messages in conversation: userId=${userId}, threadId=${threadId}`);
+      this.logger.log(
+        `[Office365 Archive] Found ${messages.length} messages in conversation: userId=${userId}, threadId=${threadId}`,
+      );
 
       // Mark messages as read and move to archive folder
       let archivedCount = 0;
       for (const msg of messages) {
         try {
           // First mark the message as read
-          this.logger.log(`[Office365 Archive] Marking message as read: userId=${userId}, threadId=${threadId}, messageId=${msg.id}`);
+          this.logger.log(
+            `[Office365 Archive] Marking message as read: userId=${userId}, threadId=${threadId}, messageId=${msg.id}`,
+          );
           await graphClient.patch(`/me/messages/${msg.id}`, {
             isRead: true,
           });
 
           // Then move to archive folder
-          this.logger.log(`[Office365 Archive] Moving message to archive: userId=${userId}, threadId=${threadId}, messageId=${msg.id}`);
+          this.logger.log(
+            `[Office365 Archive] Moving message to archive: userId=${userId}, threadId=${threadId}, messageId=${msg.id}`,
+          );
           await graphClient.post(`/me/messages/${msg.id}/move`, {
             destinationId: "archive",
           });
           archivedCount++;
         } catch (error) {
-          this.logger.error(`[Office365 Archive] Failed to archive message ${msg.id}:`, error);
+          this.logger.error(
+            `[Office365 Archive] Failed to archive message ${msg.id}:`,
+            error,
+          );
         }
       }
-      this.logger.log(`[Office365 Archive] Marked as read and moved ${archivedCount}/${messages.length} messages to archive: userId=${userId}, threadId=${threadId}`);
+      this.logger.log(
+        `[Office365 Archive] Marked as read and moved ${archivedCount}/${messages.length} messages to archive: userId=${userId}, threadId=${threadId}`,
+      );
 
       // Update in our database
-      this.logger.log(`[Office365 Archive] Updating thread archived status in database: userId=${userId}, threadId=${threadId}`);
+      this.logger.log(
+        `[Office365 Archive] Updating thread archived status in database: userId=${userId}, threadId=${threadId}`,
+      );
       await this.emailsService.updateThreadArchivedStatus(
         userId,
         threadId,
         true,
       );
-      this.logger.log(`[Office365 Archive] Thread archived successfully: userId=${userId}, threadId=${threadId}`);
+      this.logger.log(
+        `[Office365 Archive] Thread archived successfully: userId=${userId}, threadId=${threadId}`,
+      );
     } catch (error: unknown) {
       const apiError = isApiError(error) ? error : null;
       if (

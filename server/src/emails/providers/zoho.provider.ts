@@ -16,10 +16,7 @@ import { DAYS } from "../../constants/time-constants";
 import { isApiError, isError } from "../../types/common";
 import { ZohoAccountsService } from "../../zoho-accounts/zoho-accounts.service";
 import { ConfigService } from "@nestjs/config";
-import {
-  parseZohoMessage,
-  ZohoMailMessage,
-} from "./zoho/zoho-message-parser";
+import { parseZohoMessage, ZohoMailMessage } from "./zoho/zoho-message-parser";
 import { ZohoClient } from "./zoho/zoho-client";
 import {
   isWithinGracePeriod,
@@ -90,7 +87,7 @@ export class ZohoProvider implements EmailProvider {
               `/accounts/${zohoAccountId}/messages`,
               {
                 params: {
-                  threadId: threadId,
+                  threadId,
                   limit: 1,
                 },
               },
@@ -163,9 +160,6 @@ export class ZohoProvider implements EmailProvider {
   /**
    * Extract body content from Zoho Mail message
    */
-
-
-
 
   /**
    * Check if user is within grace period (5 minutes after login)
@@ -1007,7 +1001,7 @@ export class ZohoProvider implements EmailProvider {
     subject: string,
     body: string,
     attachments?: import("../interfaces/email-provider.interface").EmailAttachmentData[],
-  ): Promise<void> {
+  ): Promise<{ messageId: string; threadId: string }> {
     const primaryAccount = await this.zohoAccountsService.findPrimary(userId);
     if (!primaryAccount) {
       throw new Error("Zoho Mail account not connected. Cannot send email.");
@@ -1019,16 +1013,23 @@ export class ZohoProvider implements EmailProvider {
     try {
       const zohoAccountId = await this.client.getAccountId(userId, accessToken);
 
-      await zohoClient.post(`/accounts/${zohoAccountId}/messages`, {
-        to: [{ address: to }],
-        subject: subject.startsWith("Re:") ? subject : `Re: ${subject}`,
-        content: {
-          html: body,
+      const response = await zohoClient.post(
+        `/accounts/${zohoAccountId}/messages`,
+        {
+          to: [{ address: to }],
+          subject: subject.startsWith("Re:") ? subject : `Re: ${subject}`,
+          content: {
+            html: body,
+          },
+          inReplyTo: threadId,
         },
-        inReplyTo: threadId,
-      });
+      );
 
       this.logger.log(`Reply sent successfully for user ${userId} to ${to}`);
+      return {
+        messageId: response?.data?.messageId || `zoho-${Date.now()}`,
+        threadId,
+      };
     } catch (error: unknown) {
       const apiError = isApiError(error) ? error : null;
       if (
@@ -1041,8 +1042,14 @@ export class ZohoProvider implements EmailProvider {
             primaryAccount.id,
           );
           // Retry with new token
-          await this.sendReply(userId, threadId, to, subject, body, attachments);
-          return;
+          return await this.sendReply(
+            userId,
+            threadId,
+            to,
+            subject,
+            body,
+            attachments,
+          );
         } catch (refreshError) {
           this.logger.error("Failed to refresh token:", refreshError);
           throw new Error("Token refresh failed - please reconnect");
@@ -1189,24 +1196,34 @@ export class ZohoProvider implements EmailProvider {
   }
 
   async archiveThread(userId: string, threadId: string): Promise<void> {
-    this.logger.log(`[Zoho Archive] Starting archiveThread: userId=${userId}, threadId=${threadId}`);
+    this.logger.log(
+      `[Zoho Archive] Starting archiveThread: userId=${userId}, threadId=${threadId}`,
+    );
     const primaryAccount = await this.zohoAccountsService.findPrimary(userId);
     if (!primaryAccount) {
-      this.logger.error(`[Zoho Archive] Zoho Mail account not connected: userId=${userId}`);
+      this.logger.error(
+        `[Zoho Archive] Zoho Mail account not connected: userId=${userId}`,
+      );
       throw new Error("Zoho Mail account not connected");
     }
 
-    this.logger.log(`[Zoho Archive] Primary account found, creating Zoho client: userId=${userId}`);
+    this.logger.log(
+      `[Zoho Archive] Primary account found, creating Zoho client: userId=${userId}`,
+    );
     let { accessToken } = primaryAccount;
     const zohoClient = this.client.createZohoClient(accessToken);
 
     try {
       this.logger.log(`[Zoho Archive] Getting account ID: userId=${userId}`);
       const zohoAccountId = await this.client.getAccountId(userId, accessToken);
-      this.logger.log(`[Zoho Archive] Account ID retrieved: userId=${userId}, accountId=${zohoAccountId}`);
+      this.logger.log(
+        `[Zoho Archive] Account ID retrieved: userId=${userId}, accountId=${zohoAccountId}`,
+      );
 
       // Get all messages in the thread
-      this.logger.log(`[Zoho Archive] Fetching messages for thread: userId=${userId}, threadId=${threadId}`);
+      this.logger.log(
+        `[Zoho Archive] Fetching messages for thread: userId=${userId}, threadId=${threadId}`,
+      );
       const response = await zohoClient.get(
         `/accounts/${zohoAccountId}/messages`,
         {
@@ -1217,21 +1234,27 @@ export class ZohoProvider implements EmailProvider {
       );
 
       const messages = response.data.data || [];
-      this.logger.log(`[Zoho Archive] Found ${messages.length} messages in thread: userId=${userId}, threadId=${threadId}`);
+      this.logger.log(
+        `[Zoho Archive] Found ${messages.length} messages in thread: userId=${userId}, threadId=${threadId}`,
+      );
 
       // Mark messages as read and move to archive folder
       let archivedCount = 0;
       for (const msg of messages) {
         try {
           // First mark the message as read
-          this.logger.log(`[Zoho Archive] Marking message as read: userId=${userId}, threadId=${threadId}, messageUid=${msg.uid}`);
+          this.logger.log(
+            `[Zoho Archive] Marking message as read: userId=${userId}, threadId=${threadId}, messageUid=${msg.uid}`,
+          );
           await zohoClient.put(
             `/accounts/${zohoAccountId}/messages/${msg.uid}/markAsRead`,
             {},
           );
 
           // Then move to archive folder
-          this.logger.log(`[Zoho Archive] Moving message to archive: userId=${userId}, threadId=${threadId}, messageUid=${msg.uid}`);
+          this.logger.log(
+            `[Zoho Archive] Moving message to archive: userId=${userId}, threadId=${threadId}, messageUid=${msg.uid}`,
+          );
           await zohoClient.post(
             `/accounts/${zohoAccountId}/messages/${msg.uid}/move`,
             {
@@ -1240,19 +1263,28 @@ export class ZohoProvider implements EmailProvider {
           );
           archivedCount++;
         } catch (error) {
-          this.logger.error(`[Zoho Archive] Failed to archive message ${msg.uid}:`, error);
+          this.logger.error(
+            `[Zoho Archive] Failed to archive message ${msg.uid}:`,
+            error,
+          );
         }
       }
-      this.logger.log(`[Zoho Archive] Marked as read and moved ${archivedCount}/${messages.length} messages to archive: userId=${userId}, threadId=${threadId}`);
+      this.logger.log(
+        `[Zoho Archive] Marked as read and moved ${archivedCount}/${messages.length} messages to archive: userId=${userId}, threadId=${threadId}`,
+      );
 
       // Update in our database
-      this.logger.log(`[Zoho Archive] Updating thread archived status in database: userId=${userId}, threadId=${threadId}`);
+      this.logger.log(
+        `[Zoho Archive] Updating thread archived status in database: userId=${userId}, threadId=${threadId}`,
+      );
       await this.emailsService.updateThreadArchivedStatus(
         userId,
         threadId,
         true,
       );
-      this.logger.log(`[Zoho Archive] Thread archived successfully: userId=${userId}, threadId=${threadId}`);
+      this.logger.log(
+        `[Zoho Archive] Thread archived successfully: userId=${userId}, threadId=${threadId}`,
+      );
     } catch (error: unknown) {
       const apiError = isApiError(error) ? error : null;
       if (

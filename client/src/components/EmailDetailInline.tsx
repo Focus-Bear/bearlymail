@@ -36,6 +36,8 @@ const useEmailDetailInlineHandlers = (
   const handleSendReplyWithClose = async (_files: File[], expectedReplyHours?: number) => {
     try {
       await hookData.handleSendReply(undefined, expectedReplyHours);
+      // Refresh thread emails to show the sent reply
+      await hookData.fetchThreadEmails();
       if (onClose) {
         showSuccess(t('emailDetail.replySentSuccess'));
         onClose();

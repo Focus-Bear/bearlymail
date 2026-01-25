@@ -77,7 +77,7 @@ export interface EmailProvider {
     subject: string,
     body: string,
     attachments?: EmailAttachmentData[],
-  ): Promise<void>;
+  ): Promise<{ messageId: string; threadId: string }>;
 
   /**
    * Send a new email (creates a new thread)

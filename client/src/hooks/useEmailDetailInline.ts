@@ -23,6 +23,7 @@ export const useEmailDetailInline = (
     hasGithubToken,
     refreshGithubInfo,
     toggleThreadItem,
+    fetchThreadEmails,
   } = useEmailDetailFetching(emailId);
 
   const {
@@ -130,6 +131,7 @@ export const useEmailDetailInline = (
     disputeToneCheck,
     clearDisputeResult,
     toggleThreadItem,
+    fetchThreadEmails,
   };
 };
 

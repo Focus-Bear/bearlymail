@@ -115,6 +115,7 @@ export function useEmailDetailFetching(emailId: string) {
     hasGithubToken,
     refreshGithubInfo,
     toggleThreadItem,
+    fetchThreadEmails,
   };
 }
 

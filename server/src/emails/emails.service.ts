@@ -305,10 +305,10 @@ export class EmailsService {
         ORDER BY em."receivedAt" DESC, em.id DESC
         LIMIT 1
       ) e
-      WHERE thread."userId" = $1
-        ${threadFilter}
-        AND (e."isBatched" = false OR e."batchReleaseAt" IS NULL OR e."batchReleaseAt" <= NOW())
-        AND (e."isSnoozed" = false OR e."snoozeUntil" IS NULL OR e."snoozeUntil" <= NOW())
+            WHERE thread."userId" = $1
+              ${threadFilter}
+              AND (e."isBatched" = false OR e."batchReleaseAt" IS NULL OR e."batchReleaseAt" <= NOW())
+              AND (thread."isSnoozed" = false OR thread."snoozeUntil" IS NULL OR thread."snoozeUntil" <= NOW())
       ORDER BY
         COALESCE(thread."priorityScore", 0) DESC,
         thread."updatedAt" DESC,

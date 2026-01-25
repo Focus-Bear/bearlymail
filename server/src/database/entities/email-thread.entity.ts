@@ -131,14 +131,20 @@ export class EmailThread {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @Column({
-    type: "timestamp",
-    nullable: true,
-    comment: "Last time this thread was checked against Gmail",
-  })
-  lastCheckedAt: Date | null;
+    @Column({
+      type: "timestamp",
+      nullable: true,
+      comment: "Last time this thread was checked against Gmail",
+    })
+    lastCheckedAt: Date | null;
 
-  @ManyToOne(() => User)
+    @Column({ default: false })
+    isSnoozed: boolean;
+
+    @Column({ type: "timestamp", nullable: true })
+    snoozeUntil: Date | null;
+
+    @ManyToOne(() => User)
   @JoinColumn({ name: "userId" })
   user: User;
 

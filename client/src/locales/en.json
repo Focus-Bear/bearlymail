@@ -922,6 +922,15 @@
     "contextExplanations": {
       "vipContactStarredExplanation": "You've starred {{count}} email{{plural}} from this contact"
     },
+    "profile": {
+      "title": "Your Profile",
+      "description": "This information is used in auto-responses and email replies.",
+      "displayNameLabel": "Display Name (used in auto-responses)",
+      "displayNamePlaceholder": "e.g., Jeremy",
+      "jobTitleLabel": "Job Title (provides context for AI)",
+      "jobTitlePlaceholder": "e.g., Software Engineer, Product Manager",
+      "notSet": "Not set"
+    },
     "nav": {
       "emailDelivery": "Email Delivery",
       "googleAccounts": "Google Accounts",

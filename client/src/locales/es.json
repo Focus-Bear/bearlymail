@@ -926,6 +926,15 @@
     "contextExplanations": {
       "vipContactStarredExplanation": "Has destacado {{count}} correo electrónico {{plural}} de este contacto"
     },
+    "profile": {
+      "title": "Tu Perfil",
+      "description": "Esta información se utiliza en respuestas automáticas y respuestas de correo electrónico.",
+      "displayNameLabel": "Nombre para mostrar (usado en respuestas automáticas)",
+      "displayNamePlaceholder": "ej., Jeremy",
+      "jobTitleLabel": "Título del puesto (proporciona contexto para la IA)",
+      "jobTitlePlaceholder": "ej., Ingeniero de Software, Gerente de Producto",
+      "notSet": "No establecido"
+    },
     "contextSections": {
       "notImportant": "Lo que no considero importante",
       "other": "Otro contexto",

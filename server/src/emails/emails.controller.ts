@@ -646,11 +646,26 @@ export class EmailsController {
   @Get("admin/job-stats")
   @UseGuards(JwtAuthGuard, AdminGuard)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async getJobStats(@Request() req) {
+  async getJobStats(
+    @Request() req,
+    @Query("range") range: "24h" | "7d" | "30d" | "all" = "all",
+  ) {
     // Get job queue statistics for admin dashboard
     // Dynamically fetch all job types from the database instead of hardcoding
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { db } = this.boss as any;
+
+    // Calculate date filter based on range
+    let dateFilter = "";
+    if (range !== "all") {
+      const hoursMap: Record<string, number> = {
+        "24h": 24,
+        "7d": 168,
+        "30d": 720,
+      };
+      const hours = hoursMap[range] || 24;
+      dateFilter = `AND createdon >= NOW() - INTERVAL '${hours} hours'`;
+    }
 
     // Get current queue stats by job type and state (dynamically discovers all job types)
     const queueStats = await db.executeSql(`
@@ -660,6 +675,7 @@ export class EmailsController {
         COUNT(*) as count
       FROM pgboss.job
       WHERE state IN ('created', 'retry', 'active', 'failed', 'completed')
+        ${dateFilter}
       GROUP BY name, state
       ORDER BY name, state
     `);
@@ -674,6 +690,7 @@ export class EmailsController {
       WHERE completedon IS NOT NULL
         AND createdon IS NOT NULL
         AND completedon > createdon
+        ${dateFilter}
       GROUP BY name
       ORDER BY name
     `);

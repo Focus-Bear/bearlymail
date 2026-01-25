@@ -492,7 +492,13 @@
       "completed": "Completed",
       "avgCompletionTime": "Avg Completion Time",
       "noData": "No data",
-      "noJobs": "No jobs found"
+      "noJobs": "No jobs found",
+      "range": {
+        "24h": "Last 24 Hours",
+        "7d": "Last 7 Days",
+        "30d": "Last 30 Days",
+        "all": "All Time"
+      }
     },
     "tokenUsage": {
       "title": "Token Usage Statistics",

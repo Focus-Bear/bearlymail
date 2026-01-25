@@ -35,6 +35,12 @@
       "noData": "Sin datos",
       "noJobs": "No se encontraron trabajos",
       "queued": "En cola",
+      "range": {
+        "24h": "Últimas 24 horas",
+        "7d": "Últimos 7 días",
+        "30d": "Últimos 30 días",
+        "all": "Todo el tiempo"
+      },
       "retry": "Rever",
       "title": "Estadísticas de cola de trabajos"
     },

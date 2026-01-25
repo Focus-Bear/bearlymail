@@ -1,11 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, IsNull, Not, LessThan, MoreThan } from "typeorm";
+import { Repository, MoreThan } from "typeorm";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { Email } from "../database/entities/email.entity";
 import { AutoResponseLog } from "../database/entities/auto-response-log.entity";
 import { QueueStats } from "./types/auto-responder.types";
-import { DAYS, HOURS, MILLISECONDS } from "../constants/time-constants";
 
 @Injectable()
 export class QueueStatsService {

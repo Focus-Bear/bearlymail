@@ -2,6 +2,7 @@ import { PassportStrategy } from "@nestjs/passport";
 import { Strategy } from "passport-oauth2";
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import axios from "axios";
 import { AuthService } from "./auth.service";
 import { writeDebugLog } from "./auth-logger";
 import { User } from "../database/entities/user.entity";
@@ -117,7 +118,6 @@ export class MicrosoftStrategy extends PassportStrategy(Strategy, "microsoft") {
   private async fetchMicrosoftProfile(
     accessToken: string,
   ): Promise<MicrosoftProfile> {
-    const axios = require("axios");
     const response = await axios.get("https://graph.microsoft.com/v1.0/me", {
       headers: {
         Authorization: `Bearer ${accessToken}`,

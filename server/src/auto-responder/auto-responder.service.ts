@@ -1,6 +1,6 @@
 import { Injectable, Logger, Inject, forwardRef } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, MoreThan, IsNull } from "typeorm";
+import { Repository, MoreThan } from "typeorm";
 import * as crypto from "crypto";
 import { User } from "../database/entities/user.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -27,7 +27,6 @@ import {
   SuppressionReason,
 } from "./types/auto-responder.types";
 import { RATIOS } from "../constants/percentages";
-import { DAYS } from "../constants/time-constants";
 import {
   autoresponderLogger,
   AutoresponderDecisionContext,

@@ -2,6 +2,7 @@ import { PassportStrategy } from "@nestjs/passport";
 import { Strategy } from "passport-oauth2";
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import axios from "axios";
 import { AuthService } from "./auth.service";
 import { writeDebugLog } from "./auth-logger";
 import { User } from "../database/entities/user.entity";
@@ -109,7 +110,6 @@ export class ZohoStrategy extends PassportStrategy(Strategy, "zoho") {
   }
 
   private async fetchZohoProfile(accessToken: string): Promise<ZohoProfile> {
-    const axios = require("axios");
     const apiDomain =
       this.configService.get<string>("ZOHO_API_DOMAIN") ||
       "https://accounts.zoho.com";

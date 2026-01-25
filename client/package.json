@@ -60,5 +60,13 @@
     "jscodeshift": "^17.3.0",
     "vite": "^7.3.0",
     "vite-tsconfig-paths": "^6.0.3"
-  }
+  },
+    "jest": {
+      "transformIgnorePatterns": [
+        "node_modules/(?!(axios)/)"
+      ],
+      "moduleNameMapper": {
+        "^(\\.\\./)*config/api$": "<rootDir>/src/__mocks__/config/api.ts"
+      }
+    }
 }

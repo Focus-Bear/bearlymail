@@ -7,7 +7,8 @@ import { UsersService } from "../users/users.service";
 describe("JwtStrategy", () => {
   let strategy: JwtStrategy;
   let usersService: UsersService;
-  let configService: ConfigService;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let _configService: ConfigService;
 
   const mockUsersService = {
     findOne: jest.fn(),
@@ -34,7 +35,7 @@ describe("JwtStrategy", () => {
 
     strategy = module.get<JwtStrategy>(JwtStrategy);
     usersService = module.get<UsersService>(UsersService);
-    configService = module.get<ConfigService>(ConfigService);
+    _configService = module.get<ConfigService>(ConfigService);
   });
 
   afterEach(() => {

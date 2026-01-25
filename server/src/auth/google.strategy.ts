@@ -1,5 +1,5 @@
 import { PassportStrategy } from "@nestjs/passport";
-import { Strategy, VerifyCallback } from "passport-google-oauth20";
+import { Strategy } from "passport-google-oauth20";
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { AuthService } from "./auth.service";
@@ -81,22 +81,21 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
     accessToken: string,
     refreshToken: string,
     profile: GoogleProfile,
-    done: VerifyCallback,
-  ): Promise<void> {
-    try {
-      this.logger.log(`[GoogleStrategy] OAuth callback received:`);
-      this.logger.log(`  - accessToken: ${accessToken ? "[PRESENT]" : "NULL"}`);
-      this.logger.log(
-        `  - refreshToken: ${refreshToken ? "[PRESENT]" : "NULL"}`,
-      );
-      this.logger.log(`  - profile.id: ${profile.id}`);
-      this.logger.log(
-        `  - profile.email: ${profile.emails?.[0]?.value || "N/A"}`,
-      );
-      writeDebugLog(
-        `[GoogleStrategy] OAuth callback - accessToken: ${accessToken ? "PRESENT" : "NULL"}, refreshToken: ${refreshToken ? "PRESENT" : "NULL"}`,
-      );
+  ): Promise<UserWithGoogleData> {
+    // NestJS Passport pattern: return user on success, throw error on failure
+    // Do NOT call done() directly - NestJS Passport wrapper handles that
+    this.logger.log(`[GoogleStrategy] OAuth callback received:`);
+    this.logger.log(`  - accessToken: ${accessToken ? "[PRESENT]" : "NULL"}`);
+    this.logger.log(`  - refreshToken: ${refreshToken ? "[PRESENT]" : "NULL"}`);
+    this.logger.log(`  - profile.id: ${profile.id}`);
+    this.logger.log(
+      `  - profile.email: ${profile.emails?.[0]?.value || "N/A"}`,
+    );
+    writeDebugLog(
+      `[GoogleStrategy] OAuth callback - accessToken: ${accessToken ? "PRESENT" : "NULL"}, refreshToken: ${refreshToken ? "PRESENT" : "NULL"}`,
+    );
 
+    try {
       const user = await this.authService.validateGoogleUser(
         profile as any,
         accessToken,
@@ -110,7 +109,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
       userWithGoogleData.googleRefreshToken = refreshToken;
       userWithGoogleData.googleId = profile.id;
 
-      done(null, userWithGoogleData);
+      return userWithGoogleData;
     } catch (error) {
       // Log the error for debugging
       const errorMessage =
@@ -119,9 +118,8 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
         `[GoogleStrategy] Authentication failed for ${profile.emails?.[0]?.value || "unknown"}: ${errorMessage}`,
       );
 
-      // Pass error through both err parameter AND info parameter
-      // Some versions of Passport.js pass the error through info instead of err
-      done(error as Error, false, { message: errorMessage });
+      // Throw the error - NestJS Passport will pass it to handleRequest
+      throw error;
     }
   }
 }

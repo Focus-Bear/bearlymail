@@ -1,5 +1,5 @@
 import { PassportStrategy } from "@nestjs/passport";
-import { Strategy, VerifyCallback } from "passport-oauth2";
+import { Strategy } from "passport-oauth2";
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { AuthService } from "./auth.service";
@@ -65,18 +65,17 @@ export class ZohoStrategy extends PassportStrategy(Strategy, "zoho") {
     refreshToken: string,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _profile: unknown,
-    done: VerifyCallback,
-  ): Promise<void> {
-    try {
-      this.logger.log(`[ZohoStrategy] OAuth callback received:`);
-      this.logger.log(`  - accessToken: ${accessToken ? "[PRESENT]" : "NULL"}`);
-      this.logger.log(
-        `  - refreshToken: ${refreshToken ? "[PRESENT]" : "NULL"}`,
-      );
-      writeDebugLog(
-        `[ZohoStrategy] OAuth callback - accessToken: ${accessToken ? "PRESENT" : "NULL"}, refreshToken: ${refreshToken ? "PRESENT" : "NULL"}`,
-      );
+  ): Promise<UserWithZohoData> {
+    // NestJS Passport pattern: return user on success, throw error on failure
+    // Do NOT call done() directly - NestJS Passport wrapper handles that
+    this.logger.log(`[ZohoStrategy] OAuth callback received:`);
+    this.logger.log(`  - accessToken: ${accessToken ? "[PRESENT]" : "NULL"}`);
+    this.logger.log(`  - refreshToken: ${refreshToken ? "[PRESENT]" : "NULL"}`);
+    writeDebugLog(
+      `[ZohoStrategy] OAuth callback - accessToken: ${accessToken ? "PRESENT" : "NULL"}, refreshToken: ${refreshToken ? "PRESENT" : "NULL"}`,
+    );
 
+    try {
       // Fetch user profile from Zoho API
       const zohoProfile = await this.fetchZohoProfile(accessToken);
       this.logger.log(`  - profile.ZUID: ${zohoProfile.ZUID}`);
@@ -95,7 +94,7 @@ export class ZohoStrategy extends PassportStrategy(Strategy, "zoho") {
       userWithZohoData.zohoRefreshToken = refreshToken;
       userWithZohoData.zohoId = zohoProfile.ZUID;
 
-      done(null, userWithZohoData);
+      return userWithZohoData;
     } catch (error) {
       // Log the error for debugging (profile may be unavailable if fetch failed)
       const errorMessage =
@@ -104,9 +103,8 @@ export class ZohoStrategy extends PassportStrategy(Strategy, "zoho") {
         `[ZohoStrategy] Authentication failed: ${errorMessage}`,
       );
 
-      // Pass error through both err parameter AND info parameter
-      // Some versions of Passport.js pass the error through info instead of err
-      done(error as Error, false, { message: errorMessage });
+      // Throw the error - NestJS Passport will pass it to handleRequest
+      throw error;
     }
   }
 

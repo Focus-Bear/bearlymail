@@ -1,5 +1,5 @@
 import { PassportStrategy } from "@nestjs/passport";
-import { Strategy, VerifyCallback } from "passport-oauth2";
+import { Strategy } from "passport-oauth2";
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { AuthService } from "./auth.service";
@@ -69,18 +69,17 @@ export class MicrosoftStrategy extends PassportStrategy(Strategy, "microsoft") {
     refreshToken: string,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _profile: unknown,
-    done: VerifyCallback,
-  ): Promise<void> {
-    try {
-      this.logger.log(`[MicrosoftStrategy] OAuth callback received:`);
-      this.logger.log(`  - accessToken: ${accessToken ? "[PRESENT]" : "NULL"}`);
-      this.logger.log(
-        `  - refreshToken: ${refreshToken ? "[PRESENT]" : "NULL"}`,
-      );
-      writeDebugLog(
-        `[MicrosoftStrategy] OAuth callback - accessToken: ${accessToken ? "PRESENT" : "NULL"}, refreshToken: ${refreshToken ? "PRESENT" : "NULL"}`,
-      );
+  ): Promise<UserWithMicrosoftData> {
+    // NestJS Passport pattern: return user on success, throw error on failure
+    // Do NOT call done() directly - NestJS Passport wrapper handles that
+    this.logger.log(`[MicrosoftStrategy] OAuth callback received:`);
+    this.logger.log(`  - accessToken: ${accessToken ? "[PRESENT]" : "NULL"}`);
+    this.logger.log(`  - refreshToken: ${refreshToken ? "[PRESENT]" : "NULL"}`);
+    writeDebugLog(
+      `[MicrosoftStrategy] OAuth callback - accessToken: ${accessToken ? "PRESENT" : "NULL"}, refreshToken: ${refreshToken ? "PRESENT" : "NULL"}`,
+    );
 
+    try {
       // Fetch user profile from Microsoft Graph API
       const graphProfile = await this.fetchMicrosoftProfile(accessToken);
       this.logger.log(`  - profile.id: ${graphProfile.id}`);
@@ -101,7 +100,7 @@ export class MicrosoftStrategy extends PassportStrategy(Strategy, "microsoft") {
       userWithMicrosoftData.microsoftRefreshToken = refreshToken;
       userWithMicrosoftData.microsoftId = graphProfile.id;
 
-      done(null, userWithMicrosoftData);
+      return userWithMicrosoftData;
     } catch (error) {
       // Log the error for debugging (profile may be unavailable if fetch failed)
       const errorMessage =
@@ -110,9 +109,8 @@ export class MicrosoftStrategy extends PassportStrategy(Strategy, "microsoft") {
         `[MicrosoftStrategy] Authentication failed: ${errorMessage}`,
       );
 
-      // Pass error through both err parameter AND info parameter
-      // Some versions of Passport.js pass the error through info instead of err
-      done(error as Error, false, { message: errorMessage });
+      // Throw the error - NestJS Passport will pass it to handleRequest
+      throw error;
     }
   }
 

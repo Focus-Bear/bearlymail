@@ -11,29 +11,29 @@ export class ZohoAuthGuard extends AuthGuard("zoho") {
     info: unknown,
     context: ExecutionContext,
   ): TUser {
-    if (err || !user) {
-      const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest();
 
-      // Log what we received for debugging
-      this.logger.warn(
-        `Zoho auth failed - err: ${err?.message || "null"}, user: ${user ? "present" : "false"}, info: ${JSON.stringify(info)}`,
-      );
-
-      // The error might come through as `err` or through `info` depending on how Passport handles it
-      let errorMessage = "Authentication failed";
-      if (err?.message) {
-        errorMessage = err.message;
-      } else if (info && typeof info === "object" && "message" in info) {
-        errorMessage = (info as { message: string }).message;
-      } else if (info && typeof info === "string") {
-        errorMessage = info;
-      }
-
-      request.authError = new Error(errorMessage);
-      return { authFailed: true } as TUser;
+    // If authentication succeeded, return the user
+    if (user && !err) {
+      return user;
     }
-    return user;
+
+    // If there's an error or no user, attach the error to the request
+    this.logger.warn(
+      `Zoho auth failed - err: ${err?.message || "null"}, user: ${user ? "present" : "false"}, info: ${JSON.stringify(info)}`,
+    );
+
+    // The error might come through as `err` or through `info` depending on how Passport handles it
+    let errorMessage = "Authentication failed";
+    if (err?.message) {
+      errorMessage = err.message;
+    } else if (info && typeof info === "object" && "message" in info) {
+      errorMessage = (info as { message: string }).message;
+    } else if (info && typeof info === "string") {
+      errorMessage = info;
+    }
+
+    request.authError = new Error(errorMessage);
+    return { authFailed: true } as TUser;
   }
 }
-
-

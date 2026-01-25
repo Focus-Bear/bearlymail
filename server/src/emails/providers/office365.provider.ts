@@ -170,6 +170,9 @@ export class Office365Provider implements EmailProvider {
       return;
     }
 
+    // Detect initial sync (new user) - skip batching so their triage isn't blank
+    const isInitialSync = !user.lastEmailSyncAt;
+
     // GRACE PERIOD: If user just logged in (within last 5 minutes), be lenient with errors
     const isRecentLogin = isWithinGracePeriod(user);
     const minutesSinceUpdate = user.updatedAt
@@ -397,18 +400,23 @@ export class Office365Provider implements EmailProvider {
             }
 
             // Create new email - use thread-level archived/starred status
-            await this.emailsService.createEmail(userId, {
-              messageId: rawEmail.messageId,
-              threadId: rawEmail.threadId,
-              subject: rawEmail.subject,
-              from: rawEmail.from,
-              fromName: rawEmail.fromName,
-              body: rawEmail.body,
-              htmlBody: rawEmail.htmlBody,
-              starCount,
-              receivedAt: rawEmail.receivedAt,
-              isRead: rawEmail.isRead,
-            } as RawEmailMessage);
+            await this.emailsService.createEmail(
+              userId,
+              {
+                messageId: rawEmail.messageId,
+                threadId: rawEmail.threadId,
+                subject: rawEmail.subject,
+                from: rawEmail.from,
+                fromName: rawEmail.fromName,
+                body: rawEmail.body,
+                htmlBody: rawEmail.htmlBody,
+                starCount,
+                receivedAt: rawEmail.receivedAt,
+                isRead: rawEmail.isRead,
+              } as RawEmailMessage,
+              // Skip batching for initial sync so new users see emails immediately
+              { skipBatching: isInitialSync },
+            );
           }
         } catch (threadError: unknown) {
           // Skip conversations that fail (deleted, permissions, etc.)

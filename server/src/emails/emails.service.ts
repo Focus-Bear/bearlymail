@@ -1055,7 +1055,11 @@ export class EmailsService {
   }
 
   // eslint-disable-next-line max-lines-per-function, max-statements
-  async createEmail(userId: string, emailData: Partial<Email>): Promise<Email> {
+  async createEmail(
+    userId: string,
+    emailData: Partial<Email>,
+    options?: { skipBatching?: boolean },
+  ): Promise<Email> {
     this.logger.debug(
       `Creating email for user ${userId}: ${emailData.subject}`,
     );
@@ -1207,8 +1211,9 @@ export class EmailsService {
     // Get priority score from thread for batch bypass decision
     const priorityScore = thread.priorityScore || 0;
 
-    // Apply batching if not starred (starCount = 0)
-    if (starCount === 0) {
+    // Apply batching if not starred (starCount = 0) and not skipping batching
+    // Skip batching for initial sync (new users) so their triage isn't blank
+    if (starCount === 0 && !options?.skipBatching) {
       // Get user's batch schedule
       let schedule = await this.batchScheduleService.getSchedule(userId);
 

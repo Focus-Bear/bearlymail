@@ -460,6 +460,8 @@ export class GmailProvider implements EmailProvider {
       // If syncWindowHours is provided, use that as a fixed window (for extended syncs)
       // Otherwise, use lastSyncAt - 4 hours for overlap (for regular syncs)
       const lastSyncAt = user.lastEmailSyncAt;
+      // Detect initial sync (new user) - skip batching so their triage isn't blank
+      const isInitialSync = !lastSyncAt;
       const fourHoursInMs = 4 * 60 * 60 * 1000;
       const sevenDaysAgo = new Date(Date.now() - DAYS.WEEK * MILLISECONDS.DAY);
 
@@ -684,21 +686,26 @@ export class GmailProvider implements EmailProvider {
                   this.logger.debug(
                     `[GmailProvider] Saving email ${rawEmail.messageId} (message ${message.id}) with raw labelIds from Gmail: ${JSON.stringify(labelIds)}`,
                   );
-                  await this.emailsService.createEmail(userId, {
-                    messageId: rawEmail.messageId,
-                    threadId: rawEmail.threadId,
-                    subject: rawEmail.subject,
-                    from: rawEmail.from,
-                    fromName: rawEmail.fromName,
-                    body: rawEmail.body,
-                    htmlBody: rawEmail.htmlBody,
-                    // Use thread-level star count
-                    starCount,
-                    receivedAt: rawEmail.receivedAt,
-                    labels: labelIds,
-                    attachments: rawEmail.attachments,
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  } as any);
+                  await this.emailsService.createEmail(
+                    userId,
+                    {
+                      messageId: rawEmail.messageId,
+                      threadId: rawEmail.threadId,
+                      subject: rawEmail.subject,
+                      from: rawEmail.from,
+                      fromName: rawEmail.fromName,
+                      body: rawEmail.body,
+                      htmlBody: rawEmail.htmlBody,
+                      // Use thread-level star count
+                      starCount,
+                      receivedAt: rawEmail.receivedAt,
+                      labels: labelIds,
+                      attachments: rawEmail.attachments,
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    } as any,
+                    // Skip batching for initial sync so new users see emails immediately
+                    { skipBatching: isInitialSync },
+                  );
                 }
               } catch (threadError: unknown) {
                 // Skip threads that fail (deleted, permissions, etc.)

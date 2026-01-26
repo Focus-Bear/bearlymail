@@ -55,8 +55,7 @@ Determine the following about this email:
 
 ## Response Format
 
-Return a JSON object with the following structure:
-```json
+Return ONLY a valid JSON object (no markdown code blocks, no explanations outside the JSON). The JSON object must have the following structure:
 {
   "isAutomated": boolean,
   "isNewsletter": boolean,
@@ -66,6 +65,5 @@ Return a JSON object with the following structure:
   "urgencyLevel": "low" | "medium" | "high",
   "reasons": ["reason1", "reason2", ...]
 }
-```
 
-Provide clear, concise reasons for your classification decisions.
+CRITICAL: Return ONLY the JSON object itself, without any markdown formatting, code blocks, or additional text. Start your response with { and end with }.

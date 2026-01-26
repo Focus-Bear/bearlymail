@@ -71,11 +71,11 @@ Example context item format:
     * Be High Level but Specific: "System alerts" or "Critical infrastructure issues" not "Sentry alert about app hanging", but also not "communications from key contributors" (too vague).
     * Example: If you see "From: System Alerts, ReplyTime: 3m (QUICK)" and "From: System Alerts, ReplyTime: 5m (QUICK)", you MUST extract: "System alerts are urgent - user replies within 3-8 minutes consistently"
   - key="NOT_IMPORTANT": Things the user doesn't consider important based on STRONG behavioral evidence. CRITICAL REQUIREMENTS before marking as NOT_IMPORTANT:
-    * You MUST check at least 10+ emails from that source/category before making this assessment
-    * At least 80% of emails from that source must be unread AND not replied to (isRead=false AND timeToReply is null/NoReply)
+    * For a reliable assessment, ideally check 10+ emails from that source/category. However, if you see a CLEAR pattern with 3+ emails where ALL emails from that source are unread AND archived without reading AND have no replies (ReplyTime: NoReply, Behavior: ArchivedWithoutReading), you can mark it as NOT_IMPORTANT.
+    * At least 80% of emails from that source must be unread AND not replied to (isRead=false AND timeToReply is null/NoReply). For smaller samples (3-9 emails), ALL emails must meet this criteria.
     * If ANY emails from that source were read, replied to, or starred, DO NOT mark it as NOT_IMPORTANT - the user clearly engages with some of these emails
     * Be ABSTRACT and HIGH-LEVEL: "Automated system notifications" not "Sentry alert about app hanging"
-    * Examples of valid NOT_IMPORTANT: "Automated grant newsletters are consistently unread" (only if 10+ emails, 80%+ unread, no replies)
+    * Examples of valid NOT_IMPORTANT: "Newsletter emails are consistently unread and archived" (if 3+ emails, all unread, all archived without reading, no replies)
     * If you see mixed behavior (some read, some unread), DO NOT mark as NOT_IMPORTANT - the user clearly prioritizes some of these emails
     * When in doubt, DO NOT mark as NOT_IMPORTANT - it's better to miss a deprioritization than to incorrectly deprioritize something the user cares about
   - key="OTHER": Only include truly meaningful insights about the user's work patterns, priorities, or professional context that would help prioritize emails or understand their work better. 
@@ -110,11 +110,13 @@ Example context item format:
   * "tone" (e.g., direct, friendly, formal, casual, professional, warm) - MUST be empty string if no sent emails
   * "style" (e.g., short sentences, uses greetings, starts with name, uses bullet points, conversational) - MUST be empty string if no sent emails
   * "commonPhrases" (list of 3-5 actual recurring phrases the user uses in their own writing - CRITICAL RULES:
-      - These MUST be exact phrases that appear in the "Full Email Body:" sections provided. Do NOT make up phrases. Only include phrases you can see in the actual email content.
-      - DO NOT include generic phrases that most people use (e.g., "thank you", "let me know", "I hope", "please let me know", "looking forward", "best regards", "thanks", "I'd be happy to", "feel free to", "please don't hesitate", "let me know if you have any questions").
-      - Only include DISTINCTIVE phrases that are specific to this user's writing style and would help identify their unique communication patterns.
-      - If you can only find generic phrases that everyone uses, return an empty array - it's better to have no phrases than generic ones.
-      - If you can't find distinctive recurring phrases, return an empty array.)
+      - These MUST be exact phrases that appear MULTIPLE TIMES across different "Full Email Body:" sections provided. Do NOT make up phrases. Only include phrases you can see in the actual email content.
+      - Include phrases that appear consistently across multiple emails, even if they seem somewhat generic, as long as they demonstrate a pattern in THIS user's writing style.
+      - Prefer phrases that appear 2+ times across different emails. If a phrase appears multiple times, it's part of this user's writing style.
+      - DO NOT include extremely common single-use phrases that appear only once (e.g., "thank you" appearing once).
+      - Examples of phrases to include if they appear multiple times: "I'd be happy to", "Let me know if", "Best regards", "Thanks for reaching out" - these show the user's consistent style even if somewhat generic.
+      - If you can only find phrases that appear only once, return an empty array - we need recurring patterns.
+      - If you can't find recurring phrases across multiple emails, return an empty array.)
   * "emailExamples" - Array of 0-3 email excerpts that best demonstrate the user's writing style. Only include examples that are HELPFUL for understanding writing style. Skip if no examples are truly helpful. Examples should show distinctive phrasing, structure, or style characteristics. Exclude generic emails or emails that don't demonstrate unique writing patterns. Each example should be a short excerpt (50-200 characters) from the "Full Email Body:" sections that showcases the user's unique writing style.
 
 Be specific and insightful. Avoid generic observations. Only identify TRUE VIPs as VIP_CONTACTs.

@@ -47,7 +47,10 @@ tests:
     assert:
       - type: is-json
       - type: javascript
-        value: "JSON.parse(output).isNewsletter === true"
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          return parsed.isNewsletter === true;
 
   - description: "Should classify cold outreach correctly"
     vars:
@@ -66,9 +69,15 @@ tests:
     assert:
       - type: is-json
       - type: javascript
-        value: "JSON.parse(output).isColdOutreach === true"
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          return parsed.isColdOutreach === true;
       - type: javascript
-        value: "JSON.parse(output).personalizationScore < 0.5"
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          return parsed.personalizationScore < 0.5;
 
   - description: "Should classify personalized email as NOT cold outreach"
     vars:
@@ -88,9 +97,15 @@ tests:
     assert:
       - type: is-json
       - type: javascript
-        value: "JSON.parse(output).isColdOutreach === false"
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          return parsed.isColdOutreach === false;
       - type: javascript
-        value: "JSON.parse(output).personalizationScore > 0.6"
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          return parsed.personalizationScore > 0.6;
 
   - description: "Should detect high urgency"
     vars:
@@ -104,7 +119,10 @@ tests:
     assert:
       - type: is-json
       - type: javascript
-        value: "JSON.parse(output).urgencyLevel === 'high'"
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          return parsed.urgencyLevel === 'high';
 
   - description: "Should detect out-of-office reply"
     vars:
@@ -120,4 +138,7 @@ tests:
     assert:
       - type: is-json
       - type: javascript
-        value: "JSON.parse(output).isOutOfOffice === true"
+        value: |
+          const cleaned = output.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          const parsed = JSON.parse(cleaned);
+          return parsed.isOutOfOffice === true;

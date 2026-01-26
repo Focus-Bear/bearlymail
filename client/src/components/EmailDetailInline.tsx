@@ -49,6 +49,7 @@ const useEmailDetailInlineHandlers = (
 
   const handleDraftChange = (newDraft: string) => {
     hookData.setDraft(newDraft);
+    hookData.setToneCheckResult(null);
     if (hookData.replyOptions && hookData.selectedReplyOption !== hookData.replyOptions.length - 1) {
       const customIdx = hookData.replyOptions.findIndex(option => option.label === ACTION_TYPE_CUSTOM);
       if (customIdx >= 0) hookData.setSelectedReplyOption(customIdx);

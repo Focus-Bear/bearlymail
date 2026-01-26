@@ -417,6 +417,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
               onReplyRecipientsChange={setReplyRecipients}
               onDraftChange={(draft) => {
                 setDraft(draft);
+                setToneCheckResult(null);
                 if (replyOptions && selectedReplyOption !== replyOptions.length - 1) {
                   const customIdx = replyOptions.findIndex(option => option.label === ACTION_TYPE_CUSTOM);
                   if (customIdx >= 0) setSelectedReplyOption(customIdx);
@@ -433,7 +434,10 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
                 setToneCheckResult(null);
               }}
               onSend={handleSendReply}
-              onUseRevisedText={(text) => setDraft(text)}
+              onUseRevisedText={(text) => {
+                setDraft(text);
+                setToneCheckResult(null);
+              }}
               onDispute={disputeToneCheck}
               disputing={disputing}
               disputeResult={disputeResult}

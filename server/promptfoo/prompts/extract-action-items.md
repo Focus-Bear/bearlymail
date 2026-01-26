@@ -13,7 +13,11 @@ Rules:
    - Questions that require action from the recipient
    - Deadlines or tasks assigned to the recipient
    - Imperative statements directed at the recipient
-7. DO NOT extract actions that involve telling the sender something - those are not action items for the recipient
+7. DO NOT extract "let me know" or "let [sender name] know" requests as action items - these are just communication requests, not real work tasks. Examples to IGNORE:
+   - "Let me know if you have any questions" - NOT an action item
+   - "Let me know what you think" - NOT an action item
+   - "Let me know if there's anything specific you should prioritize" - NOT an action item
+   Only extract actual work tasks like "review the document", "schedule a meeting", "test the code", etc.
 
 Context:
 - From: {{fromName}} ({{from}}) - this is the SENDER (ignore their actions)

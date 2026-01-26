@@ -10,7 +10,9 @@ module.exports = (output, context) => {
   let parsed;
   try {
     let jsonString = typeof output === 'string' ? output : JSON.stringify(output);
-    // Strip markdown code blocks if present
+    // Trim first, then strip markdown code blocks if present (handles leading/trailing whitespace)
+    jsonString = jsonString.trim();
+    // Remove markdown code blocks - handle various formats with optional whitespace/newlines
     jsonString = jsonString.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
     parsed = JSON.parse(jsonString);
   } catch (e) {

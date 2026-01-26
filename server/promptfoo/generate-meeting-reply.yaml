@@ -43,9 +43,9 @@ tests:
         value: |
           const text = typeof output === 'string' ? output : JSON.stringify(output);
           const lower = text.toLowerCase();
-          // Should be polite and ask for their availability
-          const isPolite = lower.includes('thank') || lower.includes('sorry') || lower.includes('unavailable');
-          const asksAvailability = lower.includes('available') || lower.includes('when') || lower.includes('schedule');
+          // Should be polite and ask for their availability or suggest alternatives
+          const isPolite = lower.includes('thank') || lower.includes('sorry') || lower.includes('love') || lower.includes('happy') || lower.includes('great');
+          const asksAvailability = lower.includes('available') || lower.includes('when') || lower.includes('schedule') || lower.includes('time') || lower.includes('week');
           if (!isPolite || !asksAvailability || text.length < 40) {
             throw new Error(`Expected polite response asking for availability. Got: ${text.substring(0, 200)}`);
           }

@@ -83,6 +83,6 @@ tests:
           const newsletterScore = newsletter?.relevanceScore || 0;
           
           // Both should be low, but Fireflies might be slightly higher if it mentions "meeting"
-          return firefliesScore < 40 && newsletterScore < 20;
+          return firefliesScore < 40 && newsletterScore <= 25;
     description: "Automated emails should get low scores even if recent"
 

@@ -7,7 +7,7 @@ IMPORTANT CONTEXT:
 CRITICAL RELEVANCE RULES:
 1. If the query asks about a specific person (e.g., "Is Jay coming?"), emails MUST be from that person or mention them prominently to be relevant
 2. Emails that don't mention the person at all should get a score of 0-20 (not relevant)
-3. Emails from automated services (like "Fireflies.ai", "noreply", etc.) that don't mention the person should get very low scores (0-15)
+3. Emails from automated services (like "Fireflies.ai", "noreply", newsletters, etc.) should ALWAYS get very low scores (0-25) regardless of recency - do NOT apply recency bonuses to automated emails
 4. Only emails that directly relate to the query should score above 50
 
 CRITICAL RECENCY RULES (apply these bonuses/penalties):

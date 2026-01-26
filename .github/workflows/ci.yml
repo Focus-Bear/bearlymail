@@ -126,7 +126,6 @@ jobs:
   promptfoo-tests:
     name: Promptfoo Tests
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run-promptfoo'))
 
     steps:
       - name: Checkout code
@@ -147,4 +146,6 @@ jobs:
         working-directory: server
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          PROMPTFOO_REQUEST_BACKOFF_MS: 1000
+          OPENAI_MAX_RETRIES: 3
         run: npm run promptfoo:test

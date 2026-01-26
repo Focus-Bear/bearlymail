@@ -5,6 +5,7 @@ import { AutoResponderService } from "./auto-responder.service";
 import { AutoResponderProcessor } from "./auto-responder.processor";
 import { EmailClassifierService } from "./email-classifier.service";
 import { QueueStatsService } from "./queue-stats.service";
+import { AutoResponderTemplateService } from "./auto-responder-template.service";
 import { User } from "../database/entities/user.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -35,6 +36,7 @@ import { QueueModule } from "../queue/queue.module";
     AutoResponderProcessor,
     EmailClassifierService,
     QueueStatsService,
+    AutoResponderTemplateService,
   ],
   exports: [
     AutoResponderService,

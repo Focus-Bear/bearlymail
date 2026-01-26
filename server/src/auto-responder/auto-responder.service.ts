@@ -13,6 +13,7 @@ import { AutoResponseLog } from "../database/entities/auto-response-log.entity";
 import { AutoResponseSuppression } from "../database/entities/auto-response-suppression.entity";
 import { EmailClassifierService } from "./email-classifier.service";
 import { QueueStatsService } from "./queue-stats.service";
+import { AutoResponderTemplateService } from "./auto-responder-template.service";
 import { LLMService } from "../llm/llm.service";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { getPrompt, renderPrompt } from "../llm/prompts";
@@ -20,7 +21,6 @@ import {
   AutoResponderConfig,
   DEFAULT_AUTO_RESPONDER_CONFIG,
   EmailClassification,
-  QueueStats,
   QASearchResult,
   AutoResponseTemplateVars,
   AutoResponseLogPriority,
@@ -33,7 +33,6 @@ import {
 } from "./autoresponder-logger";
 import {
   PRIORITY_THRESHOLDS,
-  DISPLAY_LIMITS,
   LLM_CONFIG,
   PREVIEW_DEFAULTS,
 } from "./auto-responder-constants";
@@ -59,6 +58,7 @@ export class AutoResponderService {
     private autoResponseSuppressionRepository: Repository<AutoResponseSuppression>,
     private emailClassifierService: EmailClassifierService,
     private queueStatsService: QueueStatsService,
+    private templateService: AutoResponderTemplateService,
     @Inject(forwardRef(() => LLMService))
     private llmService: LLMService,
     @Inject(forwardRef(() => EmailProviderManager))
@@ -367,16 +367,16 @@ export class AutoResponderService {
       hasAiAnswer: !!qaResult && qaResult.confidence >= config.qaMinConfidence,
     };
 
-    const template = this.selectTemplate(config, priorityLevel, queueStats);
-    const templateUsed =
-      template === config.templates.highPriority
-        ? "highPriority"
-        : template === config.templates.lowPriority
-          ? "lowPriority"
-          : template === config.templates.zeroBacklog
-            ? "zeroBacklog"
-            : "standard";
-    const responseBody = this.renderTemplate(template, templateVars);
+    const template = this.templateService.selectTemplate(
+      config,
+      priorityLevel,
+      queueStats,
+    );
+    const templateUsed = this.templateService.getTemplateType(config, template);
+    const responseBody = this.templateService.renderTemplate(
+      template,
+      templateVars,
+    );
     const responseSubject = `Re: ${latestEmail.subject} - BearlyMail Auto-Response`;
 
     // Log send attempt
@@ -587,83 +587,6 @@ export class AutoResponderService {
     }
     // Medium priority: default
     return "medium";
-  }
-
-  /**
-   * Select the appropriate template based on priority and queue state
-   */
-  private selectTemplate(
-    config: AutoResponderConfig,
-    priorityLevel: "low" | "medium" | "high",
-    queueStats: QueueStats,
-  ): string {
-    // Check for zero backlog
-    if (queueStats.actionCount === 0 && queueStats.triageCount === 0) {
-      return config.templates.zeroBacklog;
-    }
-
-    // Select by priority
-    switch (priorityLevel) {
-      case "high":
-        return config.templates.highPriority;
-      case "low":
-        return config.templates.lowPriority;
-      default:
-        return config.templates.standard;
-    }
-  }
-
-  /**
-   * Render template with variables
-   */
-  private renderTemplate(
-    template: string,
-    vars: AutoResponseTemplateVars,
-  ): string {
-    let result = template;
-
-    // Simple variable replacement
-    result = result.replace(/\{\{userName\}\}/g, vars.userName);
-    result = result.replace(/\{\{senderName\}\}/g, vars.senderName);
-    result = result.replace(/\{\{originalSubject\}\}/g, vars.originalSubject);
-    result = result.replace(/\{\{priorityLevel\}\}/g, vars.priorityLevel);
-    result = result.replace(
-      /\{\{actionCount\}\}/g,
-      String(
-        vars.actionCount > DISPLAY_LIMITS.MAX_DISPLAY_COUNT
-          ? `${DISPLAY_LIMITS.MAX_DISPLAY_COUNT}+`
-          : vars.actionCount,
-      ),
-    );
-    result = result.replace(
-      /\{\{triageCount\}\}/g,
-      String(
-        vars.triageCount > DISPLAY_LIMITS.MAX_DISPLAY_COUNT
-          ? `${DISPLAY_LIMITS.MAX_DISPLAY_COUNT}+`
-          : vars.triageCount,
-      ),
-    );
-    result = result.replace(/\{\{avgResponseTime\}\}/g, vars.avgResponseTime);
-    result = result.replace(
-      /\{\{urgentResponseTime\}\}/g,
-      vars.urgentResponseTime,
-    );
-    result = result.replace(/\{\{aiAnswer\}\}/g, vars.aiAnswer || "");
-
-    // Handle conditional blocks
-    // {{#if hasAiAnswer}}...{{/if}}
-    result = result.replace(
-      /\{\{#if hasAiAnswer\}\}([\s\S]*?)\{\{\/if\}\}/g,
-      vars.hasAiAnswer ? "$1" : "",
-    );
-
-    // {{#unless hasAiAnswer}}...{{/unless}}
-    result = result.replace(
-      /\{\{#unless hasAiAnswer\}\}([\s\S]*?)\{\{\/unless\}\}/g,
-      vars.hasAiAnswer ? "" : "$1",
-    );
-
-    return result.trim();
   }
 
   /**
@@ -924,7 +847,7 @@ export class AutoResponderService {
     };
 
     const template = config.templates[templateType];
-    const body = this.renderTemplate(template, sampleVars);
+    const body = this.templateService.renderTemplate(template, sampleVars);
 
     return {
       subject: `Re: ${sampleVars.originalSubject} - BearlyMail Auto-Response`,
@@ -998,17 +921,14 @@ export class AutoResponderService {
     }
 
     // Select the appropriate template
-    const template = this.selectTemplate(config, priorityLevel, queueStats);
-    const templateUsed =
-      template === config.templates.highPriority
-        ? "highPriority"
-        : template === config.templates.lowPriority
-          ? "lowPriority"
-          : template === config.templates.zeroBacklog
-            ? "zeroBacklog"
-            : "standard";
+    const template = this.templateService.selectTemplate(
+      config,
+      priorityLevel,
+      queueStats,
+    );
+    const templateUsed = this.templateService.getTemplateType(config, template);
 
-    const body = this.renderTemplate(template, templateVars);
+    const body = this.templateService.renderTemplate(template, templateVars);
 
     return {
       subject: `Re: ${email.subject} - BearlyMail Auto-Response`,

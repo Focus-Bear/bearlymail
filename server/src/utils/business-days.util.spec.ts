@@ -199,14 +199,14 @@ describe("BusinessDaysUtil", () => {
     });
 
     it("should exclude weekends", () => {
-      // Jan 8, 2024 is a Monday, Jan 15, 2024 is a Monday
-      // Jan 8 (Mon), 9 (Tue), 10 (Wed), 11 (Thu), 12 (Fri), 13 (Sat), 14 (Sun), 15 (Mon)
-      // Business days: Mon, Tue, Wed, Thu, Fri, Mon = 6 days (inclusive)
+      // Jan 8, 2024 is a Monday, Jan 15, 2024 is a Monday (MLK Day - US holiday)
+      // Jan 8 (Mon), 9 (Tue), 10 (Wed), 11 (Thu), 12 (Fri), 13 (Sat), 14 (Sun), 15 (Mon - MLK Day)
+      // Business days: Mon, Tue, Wed, Thu, Fri = 5 days (Jan 15 is MLK Day holiday)
       const monday1 = new Date(2024, 0, 8);
       const monday2 = new Date(2024, 0, 15);
       const result = calculateBusinessDays(monday1, monday2);
-      // Should be 6 business days (Jan 8, 9, 10, 11, 12, 15) - both endpoints included
-      expect(result).toBe(6);
+      // Should be 5 business days (Jan 8, 9, 10, 11, 12) - Jan 15 is MLK Day
+      expect(result).toBe(5);
     });
 
     it("should exclude holidays", () => {

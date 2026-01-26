@@ -5,6 +5,7 @@ import { EmailThread } from "../database/entities/email-thread.entity";
 import { Email } from "../database/entities/email.entity";
 import { AutoResponseLog } from "../database/entities/auto-response-log.entity";
 import { QueueStats } from "./types/auto-responder.types";
+import { DISPLAY_LIMITS, STATS_CONFIG } from "./auto-responder-constants";
 
 @Injectable()
 export class QueueStatsService {
@@ -76,9 +77,11 @@ export class QueueStatsService {
    */
   private async calculateAverageResponseTime(userId: string): Promise<string> {
     try {
-      // Get emails with timeToReply in the last 30 days
+      // Get emails with timeToReply in the last N days
       const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      thirtyDaysAgo.setDate(
+        thirtyDaysAgo.getDate() - STATS_CONFIG.LOOKBACK_DAYS,
+      );
 
       const emailsWithReply = await this.emailRepository
         .createQueryBuilder("email")
@@ -108,7 +111,9 @@ export class QueueStatsService {
     try {
       // Get starred (high priority) emails with timeToReply
       const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      thirtyDaysAgo.setDate(
+        thirtyDaysAgo.getDate() - STATS_CONFIG.LOOKBACK_DAYS,
+      );
 
       const urgentEmails = await this.emailRepository
         .createQueryBuilder("email")
@@ -169,12 +174,12 @@ export class QueueStatsService {
    */
   formatStatsForDisplay(stats: QueueStats): string {
     const actionText =
-      stats.actionCount > 100
-        ? "100+ emails flagged for action"
+      stats.actionCount > DISPLAY_LIMITS.MAX_DISPLAY_COUNT
+        ? `${DISPLAY_LIMITS.MAX_DISPLAY_COUNT}+ emails flagged for action`
         : `${stats.actionCount} emails flagged for action`;
     const triageText =
-      stats.triageCount > 100
-        ? "100+ emails still to triage"
+      stats.triageCount > DISPLAY_LIMITS.MAX_DISPLAY_COUNT
+        ? `${DISPLAY_LIMITS.MAX_DISPLAY_COUNT}+ emails still to triage`
         : `${stats.triageCount} emails still to triage`;
 
     return `📬 ${actionText}\n📋 ${triageText}\n⏱️ Average response time: ${stats.avgResponseTime}`;

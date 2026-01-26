@@ -31,6 +31,12 @@ import {
   autoresponderLogger,
   AutoresponderDecisionContext,
 } from "./autoresponder-logger";
+import {
+  PRIORITY_THRESHOLDS,
+  DISPLAY_LIMITS,
+  LLM_CONFIG,
+  PREVIEW_DEFAULTS,
+} from "./auto-responder-constants";
 
 const LLM_OP_GENERATE_QA_ANSWER = "generate_qa_answer";
 
@@ -566,11 +572,17 @@ export class AutoResponderService {
       return "medium";
     }
     // High priority: 3 stars or high urgency score
-    if (thread.starCount >= 3 || thread.urgencyScore >= 70) {
+    if (
+      thread.starCount >= PRIORITY_THRESHOLDS.HIGH_PRIORITY_STARS ||
+      thread.urgencyScore >= PRIORITY_THRESHOLDS.HIGH_URGENCY
+    ) {
       return "high";
     }
     // Low priority: 1 star or low urgency
-    if (thread.starCount === 1 || thread.urgencyScore < 30) {
+    if (
+      thread.starCount === PRIORITY_THRESHOLDS.LOW_PRIORITY_STARS ||
+      thread.urgencyScore < PRIORITY_THRESHOLDS.LOW_URGENCY
+    ) {
       return "low";
     }
     // Medium priority: default
@@ -617,11 +629,19 @@ export class AutoResponderService {
     result = result.replace(/\{\{priorityLevel\}\}/g, vars.priorityLevel);
     result = result.replace(
       /\{\{actionCount\}\}/g,
-      String(vars.actionCount > 100 ? "100+" : vars.actionCount),
+      String(
+        vars.actionCount > DISPLAY_LIMITS.MAX_DISPLAY_COUNT
+          ? `${DISPLAY_LIMITS.MAX_DISPLAY_COUNT}+`
+          : vars.actionCount,
+      ),
     );
     result = result.replace(
       /\{\{triageCount\}\}/g,
-      String(vars.triageCount > 100 ? "100+" : vars.triageCount),
+      String(
+        vars.triageCount > DISPLAY_LIMITS.MAX_DISPLAY_COUNT
+          ? `${DISPLAY_LIMITS.MAX_DISPLAY_COUNT}+`
+          : vars.triageCount,
+      ),
     );
     result = result.replace(/\{\{avgResponseTime\}\}/g, vars.avgResponseTime);
     result = result.replace(
@@ -701,7 +721,7 @@ export class AutoResponderService {
 
       const prompt = renderPrompt(promptConfig.prompt || "", {
         subject,
-        body: body.substring(0, 1500),
+        body: body.substring(0, LLM_CONFIG.MAX_BODY_LENGTH_FOR_QA),
         qaPairs: qaPairs
           .map((qa, i) => `${i + 1}. Q: ${qa.question}\n   A: ${qa.answer}`)
           .join("\n\n"),
@@ -712,7 +732,7 @@ export class AutoResponderService {
           prompt,
           systemPrompt: promptConfig.systemPrompt || "",
           temperature: RATIOS.THIRTY_PERCENT,
-          maxTokens: 500,
+          maxTokens: LLM_CONFIG.QA_MAX_TOKENS,
         },
         undefined,
         userId,
@@ -892,8 +912,10 @@ export class AutoResponderService {
           : templateType === "lowPriority"
             ? "low"
             : "medium",
-      actionCount: queueStats.actionCount || 37,
-      triageCount: queueStats.triageCount || 21,
+      actionCount:
+        queueStats.actionCount || PREVIEW_DEFAULTS.SAMPLE_ACTION_COUNT,
+      triageCount:
+        queueStats.triageCount || PREVIEW_DEFAULTS.SAMPLE_TRIAGE_COUNT,
       avgResponseTime: queueStats.avgResponseTime || "~4 days",
       urgentResponseTime: queueStats.urgentResponseTime || "12-24 hours",
       aiAnswer:

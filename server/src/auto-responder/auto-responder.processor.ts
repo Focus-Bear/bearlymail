@@ -3,6 +3,7 @@ import PgBoss from "pg-boss";
 import { AutoResponderService } from "./auto-responder.service";
 import { getJobPriority } from "../queue/job-priorities";
 import { autoresponderLogger } from "./autoresponder-logger";
+import { QUEUE_CONFIG } from "./auto-responder-constants";
 
 interface AutoResponderJobData {
   userId: string;
@@ -82,7 +83,7 @@ export class AutoResponderProcessor implements OnModuleInit {
         {
           priority: getJobPriority("auto-responder"),
           retryLimit: 2,
-          retryDelay: 30, // 30 seconds
+          retryDelay: QUEUE_CONFIG.RETRY_DELAY_SECONDS,
           expireInMinutes: 60, // Expire after 1 hour
           singletonKey: `auto-responder-${emailThreadId}`, // Prevent duplicate jobs for same thread
         },

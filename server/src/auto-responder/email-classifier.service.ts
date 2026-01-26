@@ -4,6 +4,7 @@ import { getPrompt, renderPrompt } from "../llm/prompts";
 import { EmailClassification } from "./types/auto-responder.types";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { RATIOS } from "../constants/percentages";
+import { LLM_CONFIG } from "./auto-responder-constants";
 
 // LLM operation for email classification
 const LLM_OP_CLASSIFY_EMAIL = "classify_email_type";
@@ -426,7 +427,7 @@ export class EmailClassifierService {
         prompt,
         systemPrompt: promptConfig.systemPrompt || "",
         temperature: RATIOS.THIRTY_PERCENT,
-        maxTokens: 500,
+        maxTokens: LLM_CONFIG.CLASSIFICATION_MAX_TOKENS,
       },
       LLMProvider.OPENAI,
       undefined,
@@ -555,7 +556,7 @@ Respond with a JSON object in this exact format:
           systemPrompt:
             "You are an email classification assistant. Analyze emails against user-defined exclusion rules and provide structured results.",
           temperature: RATIOS.THIRTY_PERCENT,
-          maxTokens: 300,
+          maxTokens: LLM_CONFIG.CUSTOM_RULES_MAX_TOKENS,
         },
         LLMProvider.OPENAI,
         undefined,

@@ -1,6 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
 import { SummarizationService } from "./summarization.service";
 import { EmailsService } from "../emails/emails.service";
 import { LLMService } from "../llm/llm.service";
@@ -8,7 +7,9 @@ import { SummarizationRule as SummarizationRuleEntity } from "../database/entiti
 
 describe("SummarizationService", () => {
   let service: SummarizationService;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let emailsService: EmailsService;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let llmService: LLMService;
 
   const mockEmailsService = {

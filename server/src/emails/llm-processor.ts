@@ -241,10 +241,8 @@ export class LLMProcessor implements OnModuleInit {
           tracker.startPhase("processing");
 
           // Calculate basic score (synchronous, fast) - for other factors like VIP
-          const basicScore = this.priorityService.calculateBasicPriorityScore(
-            email,
-            contexts,
-          );
+          // Note: basicScore is used for VIP contact matching below
+          this.priorityService.calculateBasicPriorityScore(email, contexts);
 
           // Determine if user should reply and days since last reply
           // threadEmails are in ASC order (oldest first) for chronological context
@@ -402,17 +400,6 @@ export class LLMProcessor implements OnModuleInit {
           const goalAlignmentContribution = Math.round(
             goalAlignmentScore * LLM_PROCESSOR_CONSTANTS.GOAL_ALIGNMENT_WEIGHT,
           );
-          const otherFactorsContribution = Math.round(
-            basicScore * LLM_PROCESSOR_CONSTANTS.OTHER_FACTORS_WEIGHT,
-          );
-
-          // Total = base components + urgency adjustment
-          const combinedScore =
-            goalAlignmentContribution +
-            sentimentContribution +
-            // Neutral sentiment = 0, no baseline
-            otherFactorsContribution +
-            urgencyContribution;
 
           // Build breakdown from LLM results and other factors
           const breakdown: Array<{

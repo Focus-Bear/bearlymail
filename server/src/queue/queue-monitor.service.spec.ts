@@ -2,7 +2,6 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { DataSource } from "typeorm";
 import { QueueMonitorService } from "./queue-monitor.service";
 import { QUEUE_CONSTANTS } from "../constants/queue-constants";
-import { RESOURCE_MONITOR_CONSTANTS } from "../constants/resource-monitor-constants";
 import * as fs from "fs";
 import * as path from "path";
 

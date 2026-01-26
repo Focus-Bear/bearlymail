@@ -86,6 +86,3 @@ export class Office365Client {
     }
   }
 }
-
-
-

@@ -110,7 +110,7 @@ describe("RepliesService", () => {
       ] as any);
 
       // Create rule
-      const rule = await service.createReplyRule(userId, {
+      await service.createReplyRule(userId, {
         trigger: "subject contains 'test'",
         template: "Hi {sender}, thanks for your email about {subject}",
         priority: 1,
@@ -467,5 +467,3 @@ describe("RepliesService", () => {
     });
   });
 });
-
-

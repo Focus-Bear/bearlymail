@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner, TableColumn } from "typeorm";
 
-export class AddAttachmentsToEmails1770000000000
-  implements MigrationInterface
-{
+export class AddAttachmentsToEmails1770000000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Add attachments column to emails table
     const emailsTable = await queryRunner.getTable("emails");
@@ -15,7 +13,8 @@ export class AddAttachmentsToEmails1770000000000
             name: "attachments",
             type: "text",
             isNullable: true,
-            comment: "JSON array of attachment metadata: {attachmentId, filename, mimeType, size}[]",
+            comment:
+              "JSON array of attachment metadata: {attachmentId, filename, mimeType, size}[]",
           }),
         );
       }

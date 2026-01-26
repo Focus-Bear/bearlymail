@@ -173,5 +173,3 @@ describe("SubscriptionGuard", () => {
     });
   });
 });
-
-

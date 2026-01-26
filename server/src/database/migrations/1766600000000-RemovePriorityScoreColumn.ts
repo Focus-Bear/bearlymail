@@ -43,5 +43,3 @@ export class RemovePriorityScoreColumn1766600000000
     );
   }
 }
-
-

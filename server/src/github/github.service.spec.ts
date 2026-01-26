@@ -203,5 +203,3 @@ describe("GitHubService", () => {
     });
   });
 });
-
-

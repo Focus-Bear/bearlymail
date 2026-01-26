@@ -144,7 +144,10 @@ export class GitHubApiService {
       const nullItemCount = response.repository.issue.projectItems.nodes.filter(
         (item: any) => item === null,
       ).length;
-      if (nullItemCount > 0 && response.repository.issue.projectItems.nodes.length === nullItemCount) {
+      if (
+        nullItemCount > 0 &&
+        response.repository.issue.projectItems.nodes.length === nullItemCount
+      ) {
         // All items are null - token may be missing 'read:project' permission
         this.logger.warn(
           `GitHub token may need 'Projects' permission - project items returned as null for ${owner}/${repo}#${issueNumber}`,
@@ -173,7 +176,7 @@ export class GitHubApiService {
         // Only add project if we have a name or status
         if (projectName || status) {
           projects.push({
-            name: projectName || 'Unknown Project',
+            name: projectName || "Unknown Project",
             ...(status && { status }),
           });
         }
@@ -185,7 +188,7 @@ export class GitHubApiService {
       const errorMessage = getErrorMessage(error);
       const apiError = isApiError(error) ? error : null;
       const errorStatus = apiError?.status || apiError?.code;
-      
+
       this.logger.warn(
         `Failed to fetch projects for ${owner}/${repo}#${issueNumber}`,
         {

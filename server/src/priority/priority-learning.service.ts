@@ -541,10 +541,18 @@ export class PriorityLearningService {
     feedback: string,
     expectedPriority?: number,
   ): Promise<{
-    updated: Array<{ contextKey: string; contextValue: string; action: "created" | "updated" }>;
+    updated: Array<{
+      contextKey: string;
+      contextValue: string;
+      action: "created" | "updated";
+    }>;
   }> {
-    const updated: Array<{ contextKey: string; contextValue: string; action: "created" | "updated" }> = [];
-    
+    const updated: Array<{
+      contextKey: string;
+      contextValue: string;
+      action: "created" | "updated";
+    }> = [];
+
     try {
       this.logger.log(
         `Processing priority feedback for email ${email.id}: "${feedback.substring(0, 100)}..."`,
@@ -642,7 +650,7 @@ export class PriorityLearningService {
       this.logger.log(
         `Successfully processed priority feedback for email ${email.id}. Updated ${updated.length} context entries.`,
       );
-      
+
       return { updated };
     } catch (error) {
       this.logger.error(

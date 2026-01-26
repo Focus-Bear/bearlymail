@@ -56,9 +56,7 @@ export class ActionItemsService {
     });
   }
 
-  async invalidateLLMSuggestedActions(
-    emailThreadId: string,
-  ): Promise<void> {
+  async invalidateLLMSuggestedActions(emailThreadId: string): Promise<void> {
     await this.actionItemRepository.delete({
       emailThreadId,
       source: "llm",

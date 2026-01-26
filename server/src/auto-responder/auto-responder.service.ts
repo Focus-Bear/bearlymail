@@ -1018,7 +1018,14 @@ export class AutoResponderService {
       where: { userId },
       order: { receivedAt: "DESC" },
       take: limit,
-      select: ["id", "from", "fromName", "subject", "receivedAt", "emailThreadId"],
+      select: [
+        "id",
+        "from",
+        "fromName",
+        "subject",
+        "receivedAt",
+        "emailThreadId",
+      ],
     });
 
     // Get thread priority scores

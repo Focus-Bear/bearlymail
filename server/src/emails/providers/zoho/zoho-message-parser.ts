@@ -36,14 +36,17 @@ export function parseZohoMessage(
   const from = messageData.from?.address || "";
   const fromName = messageData.from?.personal || "";
   const subject = messageData.subject || "(No Subject)";
-  const threadId = messageData.threadId;
+  const { threadId } = messageData;
   const importance = messageData.importance || "normal";
   const starCount = importance === "high" ? 3 : importance === "low" ? 1 : 0;
 
   // Extract body content
   const htmlBody = messageData.content?.html || messageData.body || "";
   const bodyText = messageData.content?.text || "";
-  const body = bodyText || (htmlBody ? htmlBody.replace(/<[^>]*>/g, "").trim() : "") || "(No content)";
+  const body =
+    bodyText ||
+    (htmlBody ? htmlBody.replace(/<[^>]*>/g, "").trim() : "") ||
+    "(No content)";
 
   return {
     messageId: messageData.uid,
@@ -64,9 +67,10 @@ export function parseZohoMessage(
 /**
  * Extract body content from Zoho Mail message
  */
-export function extractBodyFromZohoMessage(
-  messageData: ZohoMailMessage,
-): { body: string; htmlBody?: string } {
+export function extractBodyFromZohoMessage(messageData: ZohoMailMessage): {
+  body: string;
+  htmlBody?: string;
+} {
   const htmlBody = messageData.content?.html || messageData.body || "";
   const bodyText = messageData.content?.text || "";
 
@@ -92,6 +96,3 @@ export function extractBodyFromZohoMessage(
 
   return { body, htmlBody: htmlBodyResult };
 }
-
-
-

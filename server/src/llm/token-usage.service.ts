@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, MoreThanOrEqual, Between } from "typeorm";
+import { Repository } from "typeorm";
 import { TokenUsage } from "../database/entities/token-usage.entity";
 import { LLMOperation, LLM_OP_UNKNOWN } from "./llm-operations";
 
@@ -126,7 +126,9 @@ export class TokenUsageService {
   /**
    * Get total usage summary
    */
-  async getUsageSummary(options: UsageQueryOptions = {}): Promise<UsageSummary> {
+  async getUsageSummary(
+    options: UsageQueryOptions = {},
+  ): Promise<UsageSummary> {
     const queryBuilder = this.tokenUsageRepository
       .createQueryBuilder("tu")
       .select("COUNT(*)::int", "totalCalls")

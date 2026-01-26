@@ -1,6 +1,6 @@
 import { Injectable, Logger, Inject, forwardRef } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, IsNull, Not, In, MoreThan } from "typeorm";
+import { Repository, IsNull, Not } from "typeorm";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { EmailProviderManager } from "./email-provider-manager.service";
@@ -136,7 +136,7 @@ export class EmailDebugService {
       .andWhere("thread.starCount > 0")
       .getMany();
 
-    const dbStarredThreadIds = allStarredThreads.map((t) => t.threadId);
+    // dbStarredThreadIds used for comparison below via dbThreadIds
 
     // 3. Get emails in starred threads
     const starredThreadIds = allStarredThreads.map((t) => t.id);
@@ -433,8 +433,6 @@ export class EmailDebugService {
 
     // Find threads that have been in "calculating" state for more than 10 minutes
     // Priority is now thread-level, so check threads instead of emails
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-
     const stuckThreads = await this.emailThreadRepository.find({
       where: {
         userId,

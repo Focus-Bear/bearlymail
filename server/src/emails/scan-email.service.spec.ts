@@ -1,12 +1,10 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
 import { ScanEmailService } from "./scan-email.service";
 import { ScanEmail } from "../database/entities/scan-email.entity";
 
 describe("ScanEmailService", () => {
   let service: ScanEmailService;
-  let repository: Repository<ScanEmail>;
 
   const mockRepository = {
     create: jest.fn(),
@@ -29,9 +27,6 @@ describe("ScanEmailService", () => {
     }).compile();
 
     service = module.get<ScanEmailService>(ScanEmailService);
-    repository = module.get<Repository<ScanEmail>>(
-      getRepositoryToken(ScanEmail),
-    );
   });
 
   afterEach(() => {

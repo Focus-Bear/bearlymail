@@ -30,14 +30,20 @@ export class GitHubAppService {
     private configService: ConfigService,
     private usersService: UsersService,
   ) {
-    this.clientId = this.configService.get<string>("GITHUB_APP_CLIENT_ID") || "";
-    this.clientSecret = this.configService.get<string>("GITHUB_APP_CLIENT_SECRET") || "";
-    this.redirectUri = this.configService.get<string>("GITHUB_APP_REDIRECT_URI") || "";
-    this.frontendUrl = this.configService.get<string>("FRONTEND_URL") || "http://localhost:3000";
+    this.clientId =
+      this.configService.get<string>("GITHUB_APP_CLIENT_ID") || "";
+    this.clientSecret =
+      this.configService.get<string>("GITHUB_APP_CLIENT_SECRET") || "";
+    this.redirectUri =
+      this.configService.get<string>("GITHUB_APP_REDIRECT_URI") || "";
+    this.frontendUrl =
+      this.configService.get<string>("FRONTEND_URL") || "http://localhost:3000";
 
     this.logger.log(`[GitHubAppService] Initialized with:`);
     this.logger.log(`  - clientId: ${this.clientId ? "[SET]" : "[MISSING]"}`);
-    this.logger.log(`  - clientSecret: ${this.clientSecret ? "[SET]" : "[MISSING]"}`);
+    this.logger.log(
+      `  - clientSecret: ${this.clientSecret ? "[SET]" : "[MISSING]"}`,
+    );
     this.logger.log(`  - redirectUri: ${this.redirectUri || "[MISSING]"}`);
   }
 

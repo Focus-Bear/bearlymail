@@ -7,6 +7,7 @@ import { Office365AccountsService } from "../../office365-accounts/office365-acc
 import { ConfigService } from "@nestjs/config";
 import PgBoss = require("pg-boss");
 import { MINUTES, MILLISECONDS } from "../../constants/time-constants";
+import axios from "axios";
 
 describe("Office365Provider", () => {
   let provider: Office365Provider;
@@ -228,7 +229,6 @@ describe("Office365Provider", () => {
       });
 
       // Mock axios for Graph API call
-      const axios = require("axios");
       jest.spyOn(axios, "create").mockReturnValue({
         get: jest.fn().mockResolvedValue({
           data: {
@@ -242,7 +242,7 @@ describe("Office365Provider", () => {
             parentFolderId: "inbox",
           },
         }),
-      });
+      } as any);
 
       await provider.processScanEmail("user-123", "msg-123");
 
@@ -275,7 +275,6 @@ describe("Office365Provider", () => {
         isComplete: true,
       });
 
-      const axios = require("axios");
       jest.spyOn(axios, "create").mockReturnValue({
         get: jest.fn().mockResolvedValue({
           data: {
@@ -289,7 +288,7 @@ describe("Office365Provider", () => {
             parentFolderId: "inbox",
           },
         }),
-      });
+      } as any);
 
       await provider.processScanEmail("user-123", "msg-123");
 

@@ -1,6 +1,6 @@
 import { Injectable, Inject, forwardRef, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, IsNull, Not, In, MoreThan } from "typeorm";
+import { Repository, IsNull, Not } from "typeorm";
 import PgBoss = require("pg-boss");
 import * as fs from "fs";
 import * as path from "path";
@@ -12,7 +12,6 @@ import {
   ContextKey,
 } from "../database/entities/user-context.entity";
 import { PriorityService } from "../priority/priority.service";
-import { User } from "../database/entities/user.entity";
 import { EmailProviderManager } from "./email-provider-manager.service";
 import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
 import { BlockedKeywordsService } from "../blocked-keywords/blocked-keywords.service";
@@ -22,14 +21,8 @@ import { UsersService } from "../users/users.service";
 import { getJobPriority } from "../queue/job-priorities";
 import { GitHubService } from "../github/github.service";
 import { GitHubApiService } from "../github/github-api.service";
-import { searchLogger } from "../utils/search-logger";
-import { PERCENTAGES, RATIOS } from "../constants/percentages";
-import {
-  MINUTES,
-  DAYS,
-  MILLISECONDS,
-  HOURS,
-} from "../constants/time-constants";
+import { RATIOS } from "../constants/percentages";
+import { DAYS } from "../constants/time-constants";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
 import { STAR_COUNTS } from "../constants/priority-constants";
@@ -37,7 +30,7 @@ import {
   PRIORITY_SCORES,
   PRIORITY_BOOSTS,
 } from "../constants/priority-constants";
-import { isError, isDatabaseError } from "../types/common";
+import { isError } from "../types/common";
 import { EmailThreadService } from "./email-thread.service";
 import { EmailSearchService } from "./email-search.service";
 import { EmailStarService } from "./email-star.service";
@@ -60,10 +53,7 @@ interface RawEmailRow {
   [key: string]: unknown;
 }
 
-interface RankedResult {
-  index: number;
-  relevanceScore: number;
-}
+// RankedResult interface used by email search service
 
 interface EmailWithMetadata extends Email {
   searchExplanation?: string;
@@ -1555,11 +1545,11 @@ export class EmailsService {
     return this.emailReadService.bulkMarkAsUnread(userId, emailIds);
   }
 
-  async getSyncStatus(userId: string): Promise<{
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async getSyncStatus(_userId: string): Promise<{
     lastSyncAt: Date | null;
     isSyncing: boolean;
   }> {
-    const user = await this.usersService.findOne(userId);
     return {
       lastSyncAt: null, // TODO: Add lastEmailSyncAt property to User entity
       // TODO: Track active sync jobs
@@ -2179,10 +2169,7 @@ export class EmailsService {
       endContextQuery();
 
       const endDaysCalc = perf.startSpan("days-since-last-email", 500);
-      const daysSinceLastEmail = await this.calculateDaysSinceLastEmail(
-        userId,
-        email,
-      );
+      await this.calculateDaysSinceLastEmail(userId, email);
       endDaysCalc();
 
       // Initialize dimensions
@@ -2210,7 +2197,6 @@ export class EmailsService {
         description: string;
       }> = [];
       let currentScore = 0;
-      const emailText = `${email.subject} ${email.body}`.toLowerCase();
       const senderEmail = email.from?.toLowerCase() || "";
       const senderName = email.fromName?.toLowerCase() || "";
 

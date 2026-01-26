@@ -1,6 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
 import { NotFoundException } from "@nestjs/common";
 import { GoogleAccountsService } from "./google-accounts.service";
 import { GoogleAccount } from "../database/entities/google-account.entity";
@@ -8,8 +7,6 @@ import { UsersService } from "../users/users.service";
 
 describe("GoogleAccountsService", () => {
   let service: GoogleAccountsService;
-  let repository: jest.Mocked<Repository<GoogleAccount>>;
-  let usersService: jest.Mocked<UsersService>;
 
   const mockGoogleAccount: GoogleAccount = {
     id: "account-1",
@@ -48,8 +45,6 @@ describe("GoogleAccountsService", () => {
     }).compile();
 
     service = module.get<GoogleAccountsService>(GoogleAccountsService);
-    repository = module.get(getRepositoryToken(GoogleAccount));
-    usersService = module.get(UsersService);
     jest.clearAllMocks();
   });
 

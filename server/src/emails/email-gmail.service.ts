@@ -8,7 +8,6 @@ import { EmailProviderManager } from "./email-provider-manager.service";
 import { UsersService } from "../users/users.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { isError } from "../types/common";
-import { GMAIL_LABELS } from "../constants/email-labels";
 
 @Injectable()
 export class EmailGmailService {
@@ -141,7 +140,6 @@ export class EmailGmailService {
         // Get the latest message (last in array) for backward compatibility
         const latestMessage = thread.messages[thread.messages.length - 1];
         const latestLabelIds = latestMessage.labelIds || [];
-        const latestIsStarred = latestLabelIds.includes("STARRED");
 
         gmailStarStatus = {
           isStarred: isAnyStarred, // Use isAnyStarred instead of just latest message
@@ -212,7 +210,11 @@ export class EmailGmailService {
       [email.id, userId],
     );
 
-    if (emailWithLabels && emailWithLabels.length > 0 && emailWithLabels[0].labels) {
+    if (
+      emailWithLabels &&
+      emailWithLabels.length > 0 &&
+      emailWithLabels[0].labels
+    ) {
       try {
         const decryptedLabels = EncryptionHelper.decrypt(
           emailWithLabels[0].labels,
@@ -283,14 +285,18 @@ export class EmailGmailService {
         gmailLabelIds = message.labelIds;
 
         // Convert label IDs to names (this will filter system labels and deduplicate)
-        gmailLabelNames = await this.emailProviderManager.convertLabelIdsToNames(
-          userId,
-          gmailLabelIds,
-        );
+        gmailLabelNames =
+          await this.emailProviderManager.convertLabelIdsToNames(
+            userId,
+            gmailLabelIds,
+          );
 
         // Get the label map to show ID -> Name mapping
         // Access GmailProvider through EmailProviderManager to get the raw label map
-        const provider = await this.emailProviderManager.getProvider(userId, "gmail");
+        const provider = await this.emailProviderManager.getProvider(
+          userId,
+          "gmail",
+        );
         if (provider && "getGmailLabels" in provider) {
           const labelMap = await (provider as any).getGmailLabels(userId);
           // Create mapping for all label IDs (including system labels for debugging)
@@ -301,7 +307,10 @@ export class EmailGmailService {
         } else {
           // Fallback: build mapping from convertLabelIdsToNames result
           // Note: convertLabelIdsToNames filters system labels, so we need to get raw map
-          const provider = await this.emailProviderManager.getProvider(userId, "gmail");
+          const provider = await this.emailProviderManager.getProvider(
+            userId,
+            "gmail",
+          );
           if (provider && "getGmailLabels" in provider) {
             const labelMap = await (provider as any).getGmailLabels(userId);
             labelMapping = gmailLabelIds.map((id) => ({

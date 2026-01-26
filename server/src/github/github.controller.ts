@@ -99,9 +99,9 @@ export class GitHubController {
 
       // Check if all links in the cache match current links and have been fetched recently
       const cachedLinksMap = new Map(
-        thread.githubMetadata.links.map((link) => [link.url, link])
+        thread.githubMetadata.links.map((link) => [link.url, link]),
       );
-      
+
       // Check if all current links are in cache and fresh
       const allLinksCachedAndFresh = uniqueLinks.every((link) => {
         const cachedLink = cachedLinksMap.get(link.url);
@@ -118,7 +118,7 @@ export class GitHubController {
         const cachedLinksToReturn = uniqueLinks
           .map((link) => cachedLinksMap.get(link.url))
           .filter((link) => link !== undefined);
-        
+
         // Double-check deduplication before returning
         const seenUrls = new Set<string>();
         const dedupedLinks = cachedLinksToReturn.filter((link) => {
@@ -129,7 +129,7 @@ export class GitHubController {
           seenUrls.add(key);
           return true;
         });
-        
+
         return {
           links: dedupedLinks,
           hasToken: true,
@@ -306,7 +306,8 @@ export class GitHubController {
       }
 
       // Exchange code for access token
-      const accessToken = await this.githubAppService.exchangeCodeForToken(code);
+      const accessToken =
+        await this.githubAppService.exchangeCodeForToken(code);
 
       // Store token for user
       await this.githubAppService.storeTokenForUser(userId, accessToken);

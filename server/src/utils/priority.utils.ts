@@ -27,5 +27,3 @@ export function calculateScoreFromBreakdown(
   // (e.g., low urgency = -12, low goal alignment = -5, etc.)
   return total;
 }
-
-

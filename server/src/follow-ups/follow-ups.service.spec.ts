@@ -1,6 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository, LessThanOrEqual } from "typeorm";
+import { Repository } from "typeorm";
 import { FollowUpsService } from "./follow-ups.service";
 import {
   FollowUp,
@@ -12,7 +12,6 @@ import { LLMService } from "../llm/llm.service";
 import { UsersService } from "../users/users.service";
 import { ContextService } from "../context/context.service";
 import { EmailsService } from "../emails/emails.service";
-import { EncryptionHelper } from "../encryption/encryption.helper";
 import PgBoss = require("pg-boss");
 
 jest.mock("../encryption/encryption.helper", () => ({

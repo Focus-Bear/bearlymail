@@ -163,5 +163,3 @@ describe("SubscriptionsController", () => {
     });
   });
 });
-
-

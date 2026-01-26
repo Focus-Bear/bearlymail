@@ -15,5 +15,3 @@ export interface LLMRequest {
   operation?: LLMOperation;
   // Operation type for token usage tracking
 }
-
-

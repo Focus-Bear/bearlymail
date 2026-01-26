@@ -6,7 +6,6 @@ import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { EmailProviderManager } from "./email-provider-manager.service";
 import { SuggestedRepliesService } from "../suggested-replies/suggested-replies.service";
-import { STAR_COUNTS } from "../constants/priority-constants";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { getJobPriority } from "../queue/job-priorities";
 

@@ -578,7 +578,6 @@ export class GmailProvider implements EmailProvider {
         limitedBatches.push(threadsToProcessLimited.slice(i, i + BATCH_SIZE));
       }
 
-      const processedThreads = 0;
       for (const batch of limitedBatches) {
         await Promise.all(
           batch
@@ -1606,10 +1605,6 @@ export class GmailProvider implements EmailProvider {
       r.name ? `${r.name} <${r.email}>` : r.email;
 
     const toHeader = to.map(formatRecipient).join(", ");
-    const ccHeader =
-      cc && cc.length > 0 ? cc.map(formatRecipient).join(", ") : null;
-    const bccHeader =
-      bcc && bcc.length > 0 ? bcc.map(formatRecipient).join(", ") : null;
 
     const emailContent = this.buildEmailContent({
       to,

@@ -10,7 +10,7 @@ export class AddPriorityScoreToThreads1769200000000
 {
   public async up(queryRunner: QueryRunner): Promise<void> {
     const emailThreadsTable = await queryRunner.getTable("email_threads");
-    
+
     if (emailThreadsTable) {
       // Add priorityScore column to email_threads
       const hasPriorityScore =
@@ -23,16 +23,18 @@ export class AddPriorityScoreToThreads1769200000000
             type: "float",
             isNullable: true,
             default: 0,
-            comment: "Denormalized priority score for efficient sorting (calculated from priorityExplanation breakdown)",
+            comment:
+              "Denormalized priority score for efficient sorting (calculated from priorityExplanation breakdown)",
           }),
         );
       }
 
       // Add index for efficient sorting
       const hasIndex = emailThreadsTable.indices.some(
-        (index) => index.columnNames.length === 2 &&
+        (index) =>
+          index.columnNames.length === 2 &&
           index.columnNames.includes("userId") &&
-          index.columnNames.includes("priorityScore")
+          index.columnNames.includes("priorityScore"),
       );
       if (!hasIndex) {
         await queryRunner.createIndex(
@@ -48,13 +50,14 @@ export class AddPriorityScoreToThreads1769200000000
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     const emailThreadsTable = await queryRunner.getTable("email_threads");
-    
+
     if (emailThreadsTable) {
       // Drop index
       const hasIndex = emailThreadsTable.indices.some(
-        (index) => index.columnNames.length === 2 &&
+        (index) =>
+          index.columnNames.length === 2 &&
           index.columnNames.includes("userId") &&
-          index.columnNames.includes("priorityScore")
+          index.columnNames.includes("priorityScore"),
       );
       if (hasIndex) {
         await queryRunner.dropIndex(

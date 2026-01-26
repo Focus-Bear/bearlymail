@@ -748,7 +748,7 @@ export class Office365Provider implements EmailProvider {
       return;
     }
 
-    let { accessToken } = primaryAccount;
+    const { accessToken } = primaryAccount;
     const graphClient = this.client.createGraphClient(accessToken);
 
     try {
@@ -869,16 +869,12 @@ export class Office365Provider implements EmailProvider {
         }
       }
       const apiError = isApiError(error) ? error : null;
-      const errorMsg = isError(error) ? error.message : apiError?.message || "";
       if (
         apiError?.code === 401 ||
         (apiError?.response && (apiError.response as any).status === 401)
       ) {
         try {
-          accessToken = await this.client.refreshTokenIfNeeded(
-            userId,
-            primaryAccount.id,
-          );
+          await this.client.refreshTokenIfNeeded(userId, primaryAccount.id);
           // Retry with new token
           await this.processScanEmail(userId, messageId);
           return;
@@ -1067,7 +1063,8 @@ export class Office365Provider implements EmailProvider {
     body: string,
     cc?: EmailRecipient[],
     bcc?: EmailRecipient[],
-    attachments?: EmailAttachmentData[],
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _attachments?: EmailAttachmentData[],
   ): Promise<{ messageId: string; threadId: string }> {
     const primaryAccount =
       await this.office365AccountsService.findPrimary(userId);
@@ -1075,7 +1072,7 @@ export class Office365Provider implements EmailProvider {
       throw new Error("Office 365 account not connected. Cannot send email.");
     }
 
-    let { accessToken } = primaryAccount;
+    const { accessToken } = primaryAccount;
     const graphClient = this.client.createGraphClient(accessToken);
 
     try {
@@ -1111,7 +1108,7 @@ export class Office365Provider implements EmailProvider {
         }));
       }
 
-      const response = await graphClient.post("/me/sendMail", {
+      await graphClient.post("/me/sendMail", {
         message,
       });
 
@@ -1415,9 +1412,12 @@ export class Office365Provider implements EmailProvider {
   }
 
   async getAttachment(
-    userId: string,
-    messageId: string,
-    attachmentId: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _userId: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _messageId: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _attachmentId: string,
   ): Promise<{
     data: Buffer;
     filename: string;

@@ -150,7 +150,9 @@ export class AddAutoResponderTables1769000000000 implements MigrationInterface {
     `);
 
     // Drop tables
-    await queryRunner.query(`DROP TABLE IF EXISTS "auto_response_suppressions"`);
+    await queryRunner.query(
+      `DROP TABLE IF EXISTS "auto_response_suppressions"`,
+    );
     await queryRunner.query(`DROP TABLE IF EXISTS "auto_response_logs"`);
 
     // Drop column from users
@@ -160,6 +162,8 @@ export class AddAutoResponderTables1769000000000 implements MigrationInterface {
 
     // Drop enums
     await queryRunner.query(`DROP TYPE IF EXISTS "suppression_reason_enum"`);
-    await queryRunner.query(`DROP TYPE IF EXISTS "auto_response_log_priority_enum"`);
+    await queryRunner.query(
+      `DROP TYPE IF EXISTS "auto_response_log_priority_enum"`,
+    );
   }
 }

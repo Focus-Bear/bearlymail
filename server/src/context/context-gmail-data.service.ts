@@ -1,11 +1,11 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { UsersService } from "../users/users.service";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
-import { EmailProvider, RawEmailMessage } from "../emails/interfaces/email-provider.interface";
+import {
+  EmailProvider,
+  RawEmailMessage,
+} from "../emails/interfaces/email-provider.interface";
 import { GmailProvider } from "../emails/providers/gmail.provider";
-import { Office365Provider } from "../emails/providers/office365.provider";
-import { ZohoProvider } from "../emails/providers/zoho.provider";
-import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { GMAIL_LABELS } from "../constants/email-labels";
 import { getErrorMessage } from "../types/common";
 import { google, gmail_v1 } from "googleapis";
@@ -72,7 +72,8 @@ export class ContextEmailDataService {
     // Use constructor name to identify provider type without instanceof checks
     const providerName = provider.constructor.name;
     if (providerName.includes("Gmail")) return "Gmail";
-    if (providerName.includes("Office365") || providerName.includes("Office")) return "Office365";
+    if (providerName.includes("Office365") || providerName.includes("Office"))
+      return "Office365";
     if (providerName.includes("Zoho")) return "Zoho";
     return providerName;
   }
@@ -110,12 +111,15 @@ export class ContextEmailDataService {
     before: Date,
   ): string {
     const providerName = provider.constructor.name;
-    
+
     if (providerName.includes("Gmail")) {
       const gmailAfter = this.formatGmailDate(after);
       const gmailBefore = this.formatGmailDate(before);
       return `after:${gmailAfter} before:${gmailBefore}`;
-    } else if (providerName.includes("Office365") || providerName.includes("Office")) {
+    } else if (
+      providerName.includes("Office365") ||
+      providerName.includes("Office")
+    ) {
       // Office365 uses $filter with receivedDateTime
       // Format: receivedDateTime ge {ISO_DATE} and receivedDateTime le {ISO_DATE}
       const afterISO = this.formatOffice365Date(after);
@@ -145,12 +149,15 @@ export class ContextEmailDataService {
     before: Date,
   ): string {
     const providerName = provider.constructor.name;
-    
+
     if (providerName.includes("Gmail")) {
       const gmailAfter = this.formatGmailDate(after);
       const gmailBefore = this.formatGmailDate(before);
       return `after:${gmailAfter} before:${gmailBefore} in:sent`;
-    } else if (providerName.includes("Office365") || providerName.includes("Office")) {
+    } else if (
+      providerName.includes("Office365") ||
+      providerName.includes("Office")
+    ) {
       // Office365 sent items folder
       const afterISO = this.formatOffice365Date(after);
       const beforeISO = this.formatOffice365Date(before);
@@ -177,7 +184,7 @@ export class ContextEmailDataService {
     // Group messages by threadId
     const threadMap = new Map<string, RawEmailMessage[]>();
     for (const message of messages) {
-      const threadId = message.threadId;
+      const { threadId } = message;
       if (!threadMap.has(threadId)) {
         threadMap.set(threadId, []);
       }
@@ -261,7 +268,13 @@ export class ContextEmailDataService {
 
     // For Gmail, use the thread API directly (more efficient and reliable)
     if (provider instanceof GmailProvider) {
-      return await this.fetchGmailThreads(userId, after, before, limit, onProgress);
+      return await this.fetchGmailThreads(
+        userId,
+        after,
+        before,
+        limit,
+        onProgress,
+      );
     }
 
     // For Office365 and Zoho, use searchEmails and group by threadId
@@ -269,7 +282,7 @@ export class ContextEmailDataService {
     this.logger.log(
       `[CONTEXT-ANALYSIS] ${providerType} search query: "${dateQuery}"`,
     );
-    
+
     // Fetch more messages to account for filtering and grouping by thread
     const messages = await provider.searchEmails(userId, dateQuery, limit * 2);
 
@@ -279,7 +292,7 @@ export class ContextEmailDataService {
 
     // Filter messages by date range (in case provider doesn't fully support date queries)
     const filteredMessages = messages.filter((msg) => {
-      const receivedAt = msg.receivedAt;
+      const { receivedAt } = msg;
       return receivedAt >= after && receivedAt <= before;
     });
 
@@ -334,7 +347,9 @@ export class ContextEmailDataService {
     const gmailBefore = this.formatGmailDate(before);
     const gmailQuery = `after:${gmailAfter} before:${gmailBefore}`;
 
-    this.logger.log(`[CONTEXT-ANALYSIS] Gmail search query for thread IDs: "${gmailQuery}"`);
+    this.logger.log(
+      `[CONTEXT-ANALYSIS] Gmail search query for thread IDs: "${gmailQuery}"`,
+    );
 
     // Query Gmail for threads (just IDs, no full data)
     let allThreadIds: string[] = [];
@@ -389,7 +404,10 @@ export class ContextEmailDataService {
     // For Gmail, use the Gmail API directly
     if (providerType === "Gmail") {
       const user = await this.usersService.findOne(userId);
-      if (!user?.googleCalendarAccessToken || !user?.googleCalendarRefreshToken) {
+      if (
+        !user?.googleCalendarAccessToken ||
+        !user?.googleCalendarRefreshToken
+      ) {
         throw new Error("Gmail access token missing - please log in again");
       }
 
@@ -545,49 +563,63 @@ export class ContextEmailDataService {
           }
 
           // Convert Gmail thread to ThreadData
-          const threadEmails: ThreadEmail[] = messages.map((msg: gmail_v1.Schema$Message) => {
-            const payload = msg.payload;
-            const headers = payload?.headers || [];
-            const getHeader = (name: string) =>
-              headers.find((h) => h.name?.toLowerCase() === name.toLowerCase())?.value || "";
+          const threadEmails: ThreadEmail[] = messages.map(
+            (msg: gmail_v1.Schema$Message) => {
+              const { payload } = msg;
+              const headers = payload?.headers || [];
+              const getHeader = (name: string) =>
+                headers.find(
+                  (h) => h.name?.toLowerCase() === name.toLowerCase(),
+                )?.value || "";
 
-            const from = getHeader("From");
-            const fromMatch = from.match(/^(.+?)\s*<(.+?)>$/) || [null, from, from];
-            const fromName = fromMatch[1]?.trim() || "";
-            const fromEmail = fromMatch[2]?.trim() || from;
+              const from = getHeader("From");
+              const fromMatch = from.match(/^(.+?)\s*<(.+?)>$/) || [
+                null,
+                from,
+                from,
+              ];
+              const fromName = fromMatch[1]?.trim() || "";
+              const fromEmail = fromMatch[2]?.trim() || from;
 
-            // Extract body
-            let body = "";
-            let htmlBody = "";
-            if (payload?.body?.data) {
-              body = Buffer.from(payload.body.data, "base64").toString("utf-8");
-            } else if (payload?.parts) {
-              for (const part of payload.parts) {
-                if (part.mimeType === "text/plain" && part.body?.data) {
-                  body = Buffer.from(part.body.data, "base64").toString("utf-8");
-                } else if (part.mimeType === "text/html" && part.body?.data) {
-                  htmlBody = Buffer.from(part.body.data, "base64").toString("utf-8");
+              // Extract body
+              let body = "";
+              let htmlBody = "";
+              if (payload?.body?.data) {
+                body = Buffer.from(payload.body.data, "base64").toString(
+                  "utf-8",
+                );
+              } else if (payload?.parts) {
+                for (const part of payload.parts) {
+                  if (part.mimeType === "text/plain" && part.body?.data) {
+                    body = Buffer.from(part.body.data, "base64").toString(
+                      "utf-8",
+                    );
+                  } else if (part.mimeType === "text/html" && part.body?.data) {
+                    htmlBody = Buffer.from(part.body.data, "base64").toString(
+                      "utf-8",
+                    );
+                  }
                 }
               }
-            }
 
-            const labelIds = msg.labelIds || [];
-            // isRead = true if the UNREAD label is NOT present
-            // (Fixed: previously required INBOX label, but archived emails would show as unread)
-            const isRead = !labelIds.includes("UNREAD");
+              const labelIds = msg.labelIds || [];
+              // isRead = true if the UNREAD label is NOT present
+              // (Fixed: previously required INBOX label, but archived emails would show as unread)
+              const isRead = !labelIds.includes("UNREAD");
 
-            return {
-              id: msg.id || "",
-              from: fromEmail,
-              fromName: fromName || undefined,
-              subject: getHeader("Subject") || "",
-              body,
-              htmlBody: htmlBody || undefined,
-              receivedAt: new Date(parseInt(msg.internalDate || "0")),
-              isRead,
-              labelIds,
-            };
-          });
+              return {
+                id: msg.id || "",
+                from: fromEmail,
+                fromName: fromName || undefined,
+                subject: getHeader("Subject") || "",
+                body,
+                htmlBody: htmlBody || undefined,
+                receivedAt: new Date(parseInt(msg.internalDate || "0")),
+                isRead,
+                labelIds,
+              };
+            },
+          );
 
           // Sort by receivedAt
           threadEmails.sort(
@@ -597,7 +629,9 @@ export class ContextEmailDataService {
           const lastMessage = threadEmails[threadEmails.length - 1];
           const labelIds = lastMessage.labelIds || [];
           const isArchived = !labelIds.includes(GMAIL_LABELS.INBOX);
-          const starCount = labelIds.filter((id) => id.startsWith("STARRED")).length;
+          const starCount = labelIds.filter((id) =>
+            id.startsWith("STARRED"),
+          ).length;
 
           return {
             id: threadId,
@@ -615,7 +649,9 @@ export class ContextEmailDataService {
       });
 
       const batchResults = await Promise.all(batchPromises);
-      threadsInRange.push(...batchResults.filter((t) => t !== null) as ThreadData[]);
+      threadsInRange.push(
+        ...(batchResults.filter((t) => t !== null) as ThreadData[]),
+      );
     }
 
     return threadsInRange;
@@ -639,7 +675,13 @@ export class ContextEmailDataService {
       findings?: string[];
     }) => Promise<void>,
   ): Promise<ThreadData[]> {
-    return this.fetchThreadsFromProvider(userId, after, before, limit, onProgress);
+    return this.fetchThreadsFromProvider(
+      userId,
+      after,
+      before,
+      limit,
+      onProgress,
+    );
   }
 
   /**
@@ -922,7 +964,8 @@ export class ContextEmailDataService {
 
       // Update progress during fetching (3-10%)
       if (onProgress) {
-        const fetchProgress = 3 + Math.floor((threadsInRange.length / allThreadIds.length) * 7);
+        const fetchProgress =
+          3 + Math.floor((threadsInRange.length / allThreadIds.length) * 7);
         const currentFindings = [
           `Fetched ${threadsInRange.length}/${allThreadIds.length} threads...`,
           ...interestingSubjects.slice(0, 3), // Show up to 3 interesting subjects
@@ -981,7 +1024,7 @@ export class ContextEmailDataService {
 
     // Filter by date range (in case provider doesn't fully support date queries)
     const filteredMessages = messages.filter((msg) => {
-      const receivedAt = msg.receivedAt;
+      const { receivedAt } = msg;
       return receivedAt >= after && receivedAt <= before;
     });
 
@@ -1022,7 +1065,13 @@ export class ContextEmailDataService {
     before: Date,
     limit: number = 100,
   ): Promise<SentEmailData[]> {
-    return this.fetchSentThreadsFromProvider(userId, userEmail, after, before, limit);
+    return this.fetchSentThreadsFromProvider(
+      userId,
+      userEmail,
+      after,
+      before,
+      limit,
+    );
   }
 
   /**

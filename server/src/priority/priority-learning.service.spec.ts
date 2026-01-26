@@ -10,14 +10,14 @@ import {
 } from "../database/entities/user-context.entity";
 import { LLMService } from "../llm/llm.service";
 import { UsersService } from "../users/users.service";
-import { PRIORITY_LEARNING_CONSTANTS } from "../constants/priority-learning-constants";
-import { QUERY_LIMITS } from "../constants/query-limits";
 
 describe("PriorityLearningService", () => {
   let service: PriorityLearningService;
   let emailRepository: jest.Mocked<Repository<Email>>;
   let userContextRepository: jest.Mocked<Repository<UserContext>>;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let llmService: jest.Mocked<LLMService>;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let usersService: jest.Mocked<UsersService>;
 
   beforeEach(async () => {
@@ -284,5 +284,3 @@ describe("PriorityLearningService", () => {
     // is tested indirectly through integration tests.
   });
 });
-
-

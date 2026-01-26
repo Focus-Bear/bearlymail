@@ -6,8 +6,8 @@ import { ScanEmailService } from "../scan-email.service";
 import { ZohoAccountsService } from "../../zoho-accounts/zoho-accounts.service";
 import { ConfigService } from "@nestjs/config";
 import PgBoss = require("pg-boss");
-import { RawEmailMessage } from "../interfaces/email-provider.interface";
 import { MINUTES, MILLISECONDS } from "../../constants/time-constants";
+import axios from "axios";
 
 describe("ZohoProvider", () => {
   let provider: ZohoProvider;
@@ -234,8 +234,6 @@ describe("ZohoProvider", () => {
       });
 
       // Mock axios for Zoho API call
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const axios = require("axios");
       jest.spyOn(axios, "create").mockReturnValue({
         get: jest
           .fn()
@@ -260,7 +258,7 @@ describe("ZohoProvider", () => {
               },
             },
           }),
-      });
+      } as any);
 
       await provider.processScanEmail("user-123", "msg-123");
 
@@ -289,7 +287,6 @@ describe("ZohoProvider", () => {
         isComplete: true,
       });
 
-      const axios = require("axios");
       jest.spyOn(axios, "create").mockReturnValue({
         get: jest
           .fn()
@@ -314,7 +311,7 @@ describe("ZohoProvider", () => {
               },
             },
           }),
-      });
+      } as any);
 
       await provider.processScanEmail("user-123", "msg-123");
 

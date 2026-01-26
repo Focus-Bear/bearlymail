@@ -350,5 +350,3 @@ describe("QueueAutoscalingService", () => {
     });
   });
 });
-
-

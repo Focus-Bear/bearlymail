@@ -6,6 +6,7 @@ import { PrivateNote } from "../database/entities/private-note.entity";
 
 describe("NotesService", () => {
   let service: NotesService;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let repository: Repository<PrivateNote>;
 
   const mockRepository = {

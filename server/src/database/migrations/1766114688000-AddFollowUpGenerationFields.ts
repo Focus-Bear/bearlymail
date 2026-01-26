@@ -108,5 +108,3 @@ export class AddFollowUpGenerationFields1766114688000
     }
   }
 }
-
-

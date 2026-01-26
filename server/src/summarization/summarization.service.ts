@@ -195,7 +195,9 @@ export class SummarizationService {
       if (domainMatch) {
         const domain = domainMatch[1].toLowerCase();
         // Extract domain from email address
-        const emailDomain = fromLower.match(/@([a-z0-9.-]+)/i)?.[1]?.toLowerCase();
+        const emailDomain = fromLower
+          .match(/@([a-z0-9.-]+)/i)?.[1]
+          ?.toLowerCase();
         if (emailDomain === domain) {
           // Exact domain match - this is reliable enough to use without LLM
           return rule;
@@ -208,11 +210,11 @@ export class SummarizationService {
       // Prepare email context (use more content for better matching)
       const emailPreview = cleanedBody.substring(0, 2000); // Increased from 1000 for better context
       const emailText = `Subject: ${email.subject || "(no subject)"}\nFrom: ${email.fromName || email.from || "(unknown sender)"} <${email.from || ""}>\n\nEmail Body:\n${emailPreview}${cleanedBody.length > 2000 ? "\n\n[... email continues ...]" : ""}`;
-      
+
       // Format rules with their whenToUse criteria
-      const ruleDescriptions = rules.map(
-        (rule, index) => `Rule ${index + 1}: "${rule.whenToUse}"`,
-      ).join("\n");
+      const ruleDescriptions = rules
+        .map((rule, index) => `Rule ${index + 1}: "${rule.whenToUse}"`)
+        .join("\n");
 
       const prompt = `You are evaluating which summarization rule should be applied to an email based on the "whenToUse" criteria for each rule.
 
@@ -239,7 +241,8 @@ Respond with ONLY the rule number (1-${rules.length}) or "0" if no match. Do not
       const response = await this.llmService.generateText(
         {
           prompt,
-          systemPrompt: "You are a precise assistant that evaluates whether emails match rule criteria. You respond with only a number: the rule number (1-N) if a match is found, or 0 if no rule matches.",
+          systemPrompt:
+            "You are a precise assistant that evaluates whether emails match rule criteria. You respond with only a number: the rule number (1-N) if a match is found, or 0 if no rule matches.",
           temperature: 0.1, // Lower temperature for more consistent matching
           maxTokens: 5, // Just need a number
           userId,
@@ -251,18 +254,20 @@ Respond with ONLY the rule number (1-${rules.length}) or "0" if no match. Do not
       // Parse response - handle various formats the LLM might return
       const cleanedResponse = response.trim().replace(/[^0-9]/g, ""); // Extract only digits
       const ruleIndex = parseInt(cleanedResponse, 10) - 1;
-      
+
       if (ruleIndex >= 0 && ruleIndex < rules.length) {
         return rules[ruleIndex];
       }
-      
+
       // If LLM returned 0 or invalid response, no rule matches
       if (cleanedResponse === "0") {
         return null; // No matching rule found
       }
-      
+
       // If response is invalid, log and fall through to fallback
-      console.warn(`LLM returned invalid rule index: "${response.trim()}", parsed as: ${ruleIndex}`);
+      console.warn(
+        `LLM returned invalid rule index: "${response.trim()}", parsed as: ${ruleIndex}`,
+      );
     } catch (error) {
       console.error("LLM rule matching failed:", error);
       // Fall through to fallback

@@ -68,5 +68,3 @@ export class ZohoAccount {
   @JoinColumn({ name: "userId" })
   user: User;
 }
-
-

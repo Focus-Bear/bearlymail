@@ -19,65 +19,64 @@ export class SnoozeService {
     private emailProviderManager: EmailProviderManager,
   ) {}
 
-    async snoozeEmail(
-      userId: string,
-      emailId: string,
-      duration: string,
-    ): Promise<Email> {
-      const email = await this.emailRepository.findOne({
-        where: { id: emailId, userId },
-      });
+  async snoozeEmail(
+    userId: string,
+    emailId: string,
+    duration: string,
+  ): Promise<Email> {
+    const email = await this.emailRepository.findOne({
+      where: { id: emailId, userId },
+    });
 
-      if (!email) {
-        throw new Error("Email not found");
-      }
-
-      const snoozeUntil = this.parseDuration(duration);
-
-      // Snooze at the thread level
-      const thread = await this.emailThreadRepository.findOne({
-        where: { userId, threadId: email.threadId },
-      });
-
-      if (thread) {
-        thread.isSnoozed = true;
-        thread.snoozeUntil = snoozeUntil;
-        await this.emailThreadRepository.save(thread);
-        this.logger.log(
-          `Snoozed thread ${email.threadId} until ${snoozeUntil.toISOString()}`,
-        );
-      }
-
-      // Also update the email for backward compatibility
-      email.isSnoozed = true;
-      email.snoozeUntil = snoozeUntil;
-      const savedEmail = await this.emailRepository.save(email);
-
-      // Sync to email provider (Gmail, Office365, etc.)
-      try {
-        const provider = await this.emailProviderManager.getPrimaryProvider(
-          userId,
-        );
-        if (provider) {
-          await provider.snoozeThread(userId, email.threadId, snoozeUntil);
-          this.logger.log(
-            `Successfully synced snooze to provider for email ${emailId}, thread ${email.threadId}`,
-          );
-        } else {
-          this.logger.warn(
-            `No email provider connected for user ${userId}, skipping provider sync for snooze`,
-          );
-        }
-      } catch (error: unknown) {
-        // Log error but don't fail the request - database update succeeded
-        this.logger.error(
-          `Failed to sync snooze to email provider for email ${emailId}:`,
-          error,
-        );
-      }
-
-      return savedEmail;
+    if (!email) {
+      throw new Error("Email not found");
     }
+
+    const snoozeUntil = this.parseDuration(duration);
+
+    // Snooze at the thread level
+    const thread = await this.emailThreadRepository.findOne({
+      where: { userId, threadId: email.threadId },
+    });
+
+    if (thread) {
+      thread.isSnoozed = true;
+      thread.snoozeUntil = snoozeUntil;
+      await this.emailThreadRepository.save(thread);
+      this.logger.log(
+        `Snoozed thread ${email.threadId} until ${snoozeUntil.toISOString()}`,
+      );
+    }
+
+    // Also update the email for backward compatibility
+    email.isSnoozed = true;
+    email.snoozeUntil = snoozeUntil;
+    const savedEmail = await this.emailRepository.save(email);
+
+    // Sync to email provider (Gmail, Office365, etc.)
+    try {
+      const provider =
+        await this.emailProviderManager.getPrimaryProvider(userId);
+      if (provider) {
+        await provider.snoozeThread(userId, email.threadId, snoozeUntil);
+        this.logger.log(
+          `Successfully synced snooze to provider for email ${emailId}, thread ${email.threadId}`,
+        );
+      } else {
+        this.logger.warn(
+          `No email provider connected for user ${userId}, skipping provider sync for snooze`,
+        );
+      }
+    } catch (error: unknown) {
+      // Log error but don't fail the request - database update succeeded
+      this.logger.error(
+        `Failed to sync snooze to email provider for email ${emailId}:`,
+        error,
+      );
+    }
+
+    return savedEmail;
+  }
 
   private parseDuration(duration: string): Date {
     const normalized = duration.toLowerCase().trim();
@@ -147,55 +146,54 @@ export class SnoozeService {
     return new Date(now.getTime() + 60 * 60 * 1000);
   }
 
-    async unsnoozeEmail(userId: string, emailId: string): Promise<Email> {
-      const email = await this.emailRepository.findOne({
-        where: { id: emailId, userId },
-      });
+  async unsnoozeEmail(userId: string, emailId: string): Promise<Email> {
+    const email = await this.emailRepository.findOne({
+      where: { id: emailId, userId },
+    });
 
-      if (!email) {
-        throw new Error("Email not found");
-      }
-
-      // Unsnooze at the thread level
-      const thread = await this.emailThreadRepository.findOne({
-        where: { userId, threadId: email.threadId },
-      });
-
-      if (thread) {
-        thread.isSnoozed = false;
-        thread.snoozeUntil = null;
-        await this.emailThreadRepository.save(thread);
-        this.logger.log(`Unsnoozed thread ${email.threadId}`);
-      }
-
-      // Also update the email for backward compatibility
-      email.isSnoozed = false;
-      email.snoozeUntil = null;
-      const savedEmail = await this.emailRepository.save(email);
-
-      // Sync to email provider (Gmail, Office365, etc.)
-      try {
-        const provider = await this.emailProviderManager.getPrimaryProvider(
-          userId,
-        );
-        if (provider) {
-          await provider.unsnoozeThread(userId, email.threadId);
-          this.logger.log(
-            `Successfully synced unsnooze to provider for email ${emailId}, thread ${email.threadId}`,
-          );
-        } else {
-          this.logger.warn(
-            `No email provider connected for user ${userId}, skipping provider sync for unsnooze`,
-          );
-        }
-      } catch (error: unknown) {
-        // Log error but don't fail the request - database update succeeded
-        this.logger.error(
-          `Failed to sync unsnooze to email provider for email ${emailId}:`,
-          error,
-        );
-      }
-
-      return savedEmail;
+    if (!email) {
+      throw new Error("Email not found");
     }
+
+    // Unsnooze at the thread level
+    const thread = await this.emailThreadRepository.findOne({
+      where: { userId, threadId: email.threadId },
+    });
+
+    if (thread) {
+      thread.isSnoozed = false;
+      thread.snoozeUntil = null;
+      await this.emailThreadRepository.save(thread);
+      this.logger.log(`Unsnoozed thread ${email.threadId}`);
+    }
+
+    // Also update the email for backward compatibility
+    email.isSnoozed = false;
+    email.snoozeUntil = null;
+    const savedEmail = await this.emailRepository.save(email);
+
+    // Sync to email provider (Gmail, Office365, etc.)
+    try {
+      const provider =
+        await this.emailProviderManager.getPrimaryProvider(userId);
+      if (provider) {
+        await provider.unsnoozeThread(userId, email.threadId);
+        this.logger.log(
+          `Successfully synced unsnooze to provider for email ${emailId}, thread ${email.threadId}`,
+        );
+      } else {
+        this.logger.warn(
+          `No email provider connected for user ${userId}, skipping provider sync for unsnooze`,
+        );
+      }
+    } catch (error: unknown) {
+      // Log error but don't fail the request - database update succeeded
+      this.logger.error(
+        `Failed to sync unsnooze to email provider for email ${emailId}:`,
+        error,
+      );
+    }
+
+    return savedEmail;
+  }
 }

@@ -15,5 +15,3 @@ export const SNOOZE_CONSTANTS = {
   // Maximum snooze duration in days
   MAX_SNOOZE_DAYS: 20,
 } as const;
-
-

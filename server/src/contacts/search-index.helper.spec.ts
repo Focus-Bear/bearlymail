@@ -1,4 +1,3 @@
-import * as crypto from "crypto";
 import { SearchIndexHelper } from "./search-index.helper";
 
 describe("SearchIndexHelper", () => {

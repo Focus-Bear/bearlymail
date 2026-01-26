@@ -11,5 +11,3 @@ export const ENCRYPTION_CONSTANTS = {
   // scrypt salt length (32 bytes)
   SALT_LENGTH: 32,
 } as const;
-
-

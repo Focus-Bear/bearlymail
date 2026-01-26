@@ -27,7 +27,6 @@ import {
 } from "./llm-operations";
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
-import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
 import { MINUTES, MILLISECONDS } from "../constants/time-constants";
 
 export enum LLMProvider {
@@ -1179,7 +1178,8 @@ export class LLMService {
     }>;
   }> {
     const cleanedBody = cleanEmailContent(email.body || "", null, 1000);
-    const contextSummary = currentContext
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const _contextSummary = currentContext
       .slice(0, 10)
       .map((c) => `${c.contextKey}: ${c.contextValue}`)
       .join("\n");

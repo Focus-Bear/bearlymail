@@ -1,21 +1,18 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
 import { EmailsController } from "./emails.controller";
 import { EmailsService } from "./emails.service";
 import { EmailProviderManager } from "./email-provider-manager.service";
 import { ContactsService } from "../contacts/contacts.service";
 import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
 import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
-import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
-import PgBoss = require("pg-boss");
 
 describe("EmailsController", () => {
   let controller: EmailsController;
   let emailsService: EmailsService;
-  let emailThreadRepository: Repository<EmailThread>;
+  let emailThreadRepository: EmailThread;
 
   const mockEmailsService = {
     getInbox: jest.fn(),
@@ -509,5 +506,3 @@ describe("EmailsController", () => {
     });
   });
 });
-
-

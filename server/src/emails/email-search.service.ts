@@ -6,7 +6,10 @@ import { EmailProviderManager } from "./email-provider-manager.service";
 import { LLMService } from "../llm/llm.service";
 import { searchLogger } from "../utils/search-logger";
 import { QUERY_LIMITS } from "../constants/query-limits";
-import { PRIORITY_BOOSTS, PRIORITY_SCORES } from "../constants/priority-constants";
+import {
+  PRIORITY_BOOSTS,
+  PRIORITY_SCORES,
+} from "../constants/priority-constants";
 import { DAYS } from "../constants/time-constants";
 
 // Type for emails with search metadata
@@ -269,7 +272,6 @@ export class EmailSearchService {
             originalQuery,
             matchedEmails.length,
           );
-          const aiScoringStartTime = Date.now();
 
           // Detect if query is time-sensitive
           const isTimeSensitive = this.isTimeSensitiveQuery(originalQuery);
@@ -359,7 +361,6 @@ Return ONLY a JSON array of objects.`;
             userId,
           );
 
-          const aiScoringDuration = Date.now() - aiScoringStartTime;
           searchLogger.logAIScoringComplete(
             userId,
             originalQuery,
@@ -422,22 +423,24 @@ Return ONLY a JSON array of objects.`;
       }
 
       // Add search explanation and relevance scores to emails
-      const emailsWithMetadata: EmailWithMetadata[] = filteredEmails.map((email) => {
-        const emailIndex = matchedEmails.indexOf(email);
-        const relevanceScore = allScores.get(emailIndex) ?? undefined;
+      const emailsWithMetadata: EmailWithMetadata[] = filteredEmails.map(
+        (email) => {
+          const emailIndex = matchedEmails.indexOf(email);
+          const relevanceScore = allScores.get(emailIndex) ?? undefined;
 
-        // Create EmailWithMetadata by spreading email and adding metadata
-        // Email already has getPriorityScore method, so we just add the metadata
-        const emailWithMeta = {
-          ...email,
-          searchExplanation: successfulQuery
-            ? `Found using query: "${successfulQuery}"`
-            : "Search completed",
-          relevanceScore,
-        } as EmailWithMetadata;
+          // Create EmailWithMetadata by spreading email and adding metadata
+          // Email already has getPriorityScore method, so we just add the metadata
+          const emailWithMeta = {
+            ...email,
+            searchExplanation: successfulQuery
+              ? `Found using query: "${successfulQuery}"`
+              : "Search completed",
+            relevanceScore,
+          } as EmailWithMetadata;
 
-        return emailWithMeta;
-      });
+          return emailWithMeta;
+        },
+      );
 
       // Build debug info
       const debugInfo = {
@@ -459,7 +462,11 @@ Return ONLY a JSON array of objects.`;
             receivedAt: rawEmail.receivedAt,
             daysAgo,
             aiScore: allScores.get(index) ?? null,
-            includedInResults: filteredEmails.some((e) => (e as { messageId?: string }).messageId === (rawEmail.messageId as string)),
+            includedInResults: filteredEmails.some(
+              (e) =>
+                (e as { messageId?: string }).messageId ===
+                (rawEmail.messageId as string),
+            ),
           };
         }),
       };
@@ -604,7 +611,11 @@ Return ONLY the Gmail search query, nothing else.`;
       );
 
       // Extract the query (remove any markdown formatting or extra text)
-      const cleaned = response.trim().replace(/^```[\w]*\n?/g, "").replace(/\n?```$/g, "").trim();
+      const cleaned = response
+        .trim()
+        .replace(/^```[\w]*\n?/g, "")
+        .replace(/\n?```$/g, "")
+        .trim();
 
       // If the response looks valid, use it; otherwise fall back to simple keyword search
       if (cleaned.length > 0 && cleaned.length < 500) {

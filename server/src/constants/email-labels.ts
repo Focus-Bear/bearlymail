@@ -15,5 +15,3 @@ export const GMAIL_LABELS = {
 } as const;
 
 export type GmailLabel = (typeof GMAIL_LABELS)[keyof typeof GMAIL_LABELS];
-
-

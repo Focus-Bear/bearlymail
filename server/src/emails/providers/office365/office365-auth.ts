@@ -31,6 +31,3 @@ export async function logOffice365AuthFailure(
   const { authLogger } = require("../../../auth/auth-logger");
   authLogger.logAuthFailure(userId, userEmail, context, error, metadata);
 }
-
-
-

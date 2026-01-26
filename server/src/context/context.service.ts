@@ -10,7 +10,7 @@ import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { getErrorMessage } from "../types/common";
 import { GMAIL_LABELS } from "../constants/email-labels";
-import { RATIOS, PERCENTAGES } from "../constants/percentages";
+import { RATIOS } from "../constants/percentages";
 import { DAYS } from "../constants/time-constants";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
@@ -19,7 +19,7 @@ import { LLMService } from "../llm/llm.service";
 import { UsersService } from "../users/users.service";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { ContextPiiRedactionService } from "./context-pii-redaction.service";
-import { ContextGmailDataService, ThreadData } from "./context-gmail-data.service";
+import { ContextGmailDataService } from "./context-gmail-data.service";
 import { ContextQaExtractionService } from "./context-qa-extraction.service";
 import { writeAnalysisLog } from "./context-analysis-logger";
 import { classifyContextAnalysisError } from "./context-error-handler";
@@ -898,7 +898,7 @@ export class ContextService {
         ],
         order: { createdAt: "DESC" },
       });
-      
+
       if (!analysis) {
         // Try without date filter as fallback (for analyses older than 1 hour)
         analysis = await this.contextAnalysisRepository.findOne({
@@ -918,60 +918,89 @@ export class ContextService {
         where: { userId, status: "completed" },
         order: { createdAt: "DESC" },
       });
-      
+
       // Only return completed analysis if it was completed very recently (< 5 min ago)
       if (recentCompleted && recentCompleted.updatedAt) {
         const completedAgo = Date.now() - recentCompleted.updatedAt.getTime();
-        if (completedAgo < 5 * 60 * 1000) { // 5 minutes
+        if (completedAgo < 5 * 60 * 1000) {
+          // 5 minutes
           // Return completed analysis for completion message
           const completedAnalysis = recentCompleted;
-          
+
           // Get batch completion status
           let completedBatches: number | undefined;
           let totalBatches: number | undefined;
           if (completedAnalysis.stats) {
-            const batchResults = (completedAnalysis.stats.batchResults as Record<string, unknown>) || {};
+            const batchResults =
+              (completedAnalysis.stats.batchResults as Record<
+                string,
+                unknown
+              >) || {};
             completedBatches = Object.keys(batchResults).length;
-            
+
             if (completedAnalysis.stats.totalBatches) {
               totalBatches = completedAnalysis.stats.totalBatches as number;
             }
           }
-          
+
           // Ensure completedBatches is always defined if totalBatches exists
           if (totalBatches !== undefined) {
-            completedBatches = completedBatches !== undefined ? completedBatches : 0;
+            completedBatches =
+              completedBatches !== undefined ? completedBatches : 0;
           }
 
           // Extract insights from completed analysis too
-          const completedInsights: Array<{ type: string; message: string }> = [];
+          const completedInsights: Array<{ type: string; message: string }> =
+            [];
           if (completedAnalysis.stats?.batchResults) {
-            const batchResults = completedAnalysis.stats.batchResults as Record<string, {
-              context?: Array<{ key: string; value: string; source?: string }>;
-              writingStyle?: { tone?: string; style?: string; commonPhrases?: string[] };
-            }>;
+            const batchResults = completedAnalysis.stats.batchResults as Record<
+              string,
+              {
+                context?: Array<{
+                  key: string;
+                  value: string;
+                  source?: string;
+                }>;
+                writingStyle?: {
+                  tone?: string;
+                  style?: string;
+                  commonPhrases?: string[];
+                };
+              }
+            >;
             Object.entries(batchResults).forEach(([, result]) => {
               if (result.context) {
                 result.context.forEach((ctx) => {
                   const keyLower = ctx.key.toLowerCase();
-                  if (keyLower.includes('vip') || keyLower.includes('contact') || keyLower.includes('important')) {
+                  if (
+                    keyLower.includes("vip") ||
+                    keyLower.includes("contact") ||
+                    keyLower.includes("important")
+                  ) {
                     completedInsights.push({
-                      type: 'vip',
+                      type: "vip",
                       message: `Found important contact: ${ctx.value}`,
                     });
-                  } else if (keyLower.includes('style') || keyLower.includes('tone')) {
+                  } else if (
+                    keyLower.includes("style") ||
+                    keyLower.includes("tone")
+                  ) {
                     completedInsights.push({
-                      type: 'style',
+                      type: "style",
                       message: `Your communication style: ${ctx.value}`,
                     });
-                  } else if (keyLower.includes('working') || keyLower.includes('project') || keyLower.includes('team')) {
+                  } else if (
+                    keyLower.includes("working") ||
+                    keyLower.includes("project") ||
+                    keyLower.includes("team")
+                  ) {
                     completedInsights.push({
-                      type: 'project',
+                      type: "project",
                       message: `Current focus: ${ctx.value}`,
                     });
                   } else {
                     completedInsights.push({
-                      type: 'pattern',
+                      type: "pattern",
                       message: `${ctx.key}: ${ctx.value}`,
                     });
                   }
@@ -979,49 +1008,61 @@ export class ContextService {
               }
               if (result.writingStyle) {
                 // Filter out batch-specific "no sent emails" messages, N/A, and empty values (same as active analysis)
-                const styleText = `${result.writingStyle.tone || ''} ${result.writingStyle.style || ''}`.trim();
+                const styleText =
+                  `${result.writingStyle.tone || ""} ${result.writingStyle.style || ""}`.trim();
                 const styleLower = styleText.toLowerCase();
-                
+
                 // Check for N/A patterns (exact match, or starts with N/A followed by error text)
-                const isNAPattern = styleText === 'n/a' || 
-                                    styleText === 'n/a n/a' ||
-                                    styleLower.startsWith('n/a') ||
-                                    styleLower.startsWith('n/a -') ||
-                                    styleLower.match(/^n\/a\s*-?\s*(no|unable|not available|absence)/i);
-                
-                const isBatchSpecificError = styleLower.includes('no sent emails') || 
-                                             styleLower.includes('no user sent emails') ||
-                                             styleLower.includes('unable to analyze') || 
-                                             styleLower.includes('not available') ||
-                                             styleLower.includes('absence of sent email') ||
-                                             styleLower.includes('not analyzable') ||
-                                             isNAPattern ||
-                                             styleText === '';
-                
+                const isNAPattern =
+                  styleText === "n/a" ||
+                  styleText === "n/a n/a" ||
+                  styleLower.startsWith("n/a") ||
+                  styleLower.startsWith("n/a -") ||
+                  styleLower.match(
+                    /^n\/a\s*-?\s*(no|unable|not available|absence)/i,
+                  );
+
+                const isBatchSpecificError =
+                  styleLower.includes("no sent emails") ||
+                  styleLower.includes("no user sent emails") ||
+                  styleLower.includes("unable to analyze") ||
+                  styleLower.includes("not available") ||
+                  styleLower.includes("absence of sent email") ||
+                  styleLower.includes("not analyzable") ||
+                  isNAPattern ||
+                  styleText === "";
+
                 if (styleText && !isBatchSpecificError) {
                   completedInsights.push({
-                    type: 'style',
+                    type: "style",
                     message: `Writing style: ${styleText}`,
                   });
                 }
-                
-                if (result.writingStyle.commonPhrases && result.writingStyle.commonPhrases.length > 0) {
+
+                if (
+                  result.writingStyle.commonPhrases &&
+                  result.writingStyle.commonPhrases.length > 0
+                ) {
                   // Also filter common phrases if they're error messages or meaningless
-                  const phrases = result.writingStyle.commonPhrases.filter(phrase => {
-                    const phraseLower = phrase.toLowerCase();
-                    return !phraseLower.includes('no sent emails') && 
-                           !phraseLower.includes('no user sent emails') &&
-                           !phraseLower.includes('unable to analyze') && 
-                           !phraseLower.includes('not available') &&
-                           !phraseLower.includes('not analyzable') &&
-                           phraseLower !== 'n/a' &&
-                           phrase.trim() !== '';
-                  });
-                  
+                  const phrases = result.writingStyle.commonPhrases.filter(
+                    (phrase) => {
+                      const phraseLower = phrase.toLowerCase();
+                      return (
+                        !phraseLower.includes("no sent emails") &&
+                        !phraseLower.includes("no user sent emails") &&
+                        !phraseLower.includes("unable to analyze") &&
+                        !phraseLower.includes("not available") &&
+                        !phraseLower.includes("not analyzable") &&
+                        phraseLower !== "n/a" &&
+                        phrase.trim() !== ""
+                      );
+                    },
+                  );
+
                   if (phrases.length > 0) {
                     completedInsights.push({
-                      type: 'phrases',
-                      message: `Common phrases: ${phrases.slice(0, 3).join(', ')}`,
+                      type: "phrases",
+                      message: `Common phrases: ${phrases.slice(0, 3).join(", ")}`,
                     });
                   }
                 }
@@ -1031,14 +1072,16 @@ export class ContextService {
 
           // Deduplicate completed insights by message content
           const seenCompletedMessages = new Set<string>();
-          const uniqueCompletedInsights = completedInsights.filter(insight => {
-            if (seenCompletedMessages.has(insight.message)) {
-              return false;
-            }
-            seenCompletedMessages.add(insight.message);
-            return true;
-          });
-          
+          const uniqueCompletedInsights = completedInsights.filter(
+            (insight) => {
+              if (seenCompletedMessages.has(insight.message)) {
+                return false;
+              }
+              seenCompletedMessages.add(insight.message);
+              return true;
+            },
+          );
+
           return {
             threadCount: completedAnalysis.threadCount ?? undefined,
             analyzedCount: completedAnalysis.analyzedCount ?? undefined,
@@ -1047,20 +1090,24 @@ export class ContextService {
             completedBatches,
             totalBatches,
             status: "completed",
-            insights: uniqueCompletedInsights.slice(-10).reverse().length > 0 ? uniqueCompletedInsights.slice(-10).reverse() : undefined,
+            insights:
+              uniqueCompletedInsights.slice(-10).reverse().length > 0
+                ? uniqueCompletedInsights.slice(-10).reverse()
+                : undefined,
           };
         }
       }
-      
+
       // No active or recent analysis - check for failed analysis too
       const recentFailed = await this.contextAnalysisRepository.findOne({
         where: { userId, status: "failed" },
         order: { createdAt: "DESC" },
       });
-      
+
       if (recentFailed && recentFailed.updatedAt) {
         const failedAgo = Date.now() - recentFailed.updatedAt.getTime();
-        if (failedAgo < 5 * 60 * 1000) { // 5 minutes
+        if (failedAgo < 5 * 60 * 1000) {
+          // 5 minutes
           return {
             threadCount: recentFailed.threadCount ?? undefined,
             analyzedCount: recentFailed.analyzedCount ?? undefined,
@@ -1070,7 +1117,7 @@ export class ContextService {
           };
         }
       }
-      
+
       // No active or recent analysis
       this.logger.debug(
         `[CONTEXT-ANALYSIS] No active or recent analysis found for user ${userId}`,
@@ -1082,26 +1129,25 @@ export class ContextService {
     let completedBatches: number | undefined;
     let totalBatches: number | undefined;
     if (analysis.stats) {
-      const batchResults = (analysis.stats.batchResults as Record<string, unknown>) || {};
+      const batchResults =
+        (analysis.stats.batchResults as Record<string, unknown>) || {};
       completedBatches = Object.keys(batchResults).length;
-      
+
       // Get totalBatches from stats (should be set when batches are enqueued)
       if (analysis.stats.totalBatches) {
         totalBatches = analysis.stats.totalBatches as number;
       }
       // If totalBatches is not in stats yet, don't estimate - return undefined
       // This prevents false "all batches complete" detection
-      
+
       // Log batch status for debugging
       this.logger.log(
-        `[PROGRESS-CALC] Analysis ${analysis.id}: completedBatches=${completedBatches}, totalBatches=${totalBatches}, batchResults keys: ${Object.keys(batchResults).slice(0, 10).join(', ')}${Object.keys(batchResults).length > 10 ? '...' : ''}`,
+        `[PROGRESS-CALC] Analysis ${analysis.id}: completedBatches=${completedBatches}, totalBatches=${totalBatches}, batchResults keys: ${Object.keys(batchResults).slice(0, 10).join(", ")}${Object.keys(batchResults).length > 10 ? "..." : ""}`,
       );
     } else {
-      this.logger.warn(
-        `[PROGRESS-CALC] Analysis ${analysis.id} has no stats!`,
-      );
+      this.logger.warn(`[PROGRESS-CALC] Analysis ${analysis.id} has no stats!`);
     }
-    
+
     // Initialize completedBatches to 0 if we have totalBatches but no batch results yet
     if (totalBatches !== undefined) {
       completedBatches = completedBatches !== undefined ? completedBatches : 0;
@@ -1112,114 +1158,156 @@ export class ContextService {
 
     // Extract insights from completed batch results
     const insights: Array<{ type: string; message: string }> = [];
-    
+
     if (analysis.stats?.batchResults) {
-      const batchResults = analysis.stats.batchResults as Record<string, {
-        context?: Array<{ key: string; value: string; source?: string }>;
-        writingStyle?: { tone?: string; style?: string; commonPhrases?: string[] };
-        completedAt?: string;
-      }>;
-      
+      const batchResults = analysis.stats.batchResults as Record<
+        string,
+        {
+          context?: Array<{ key: string; value: string; source?: string }>;
+          writingStyle?: {
+            tone?: string;
+            style?: string;
+            commonPhrases?: string[];
+          };
+          completedAt?: string;
+        }
+      >;
+
       // Iterate through completed batches and extract insights
-      Object.entries(batchResults).forEach(([batchIndex, result]) => {
+      Object.entries(batchResults).forEach(([, result]) => {
         if (result.context) {
           result.context.forEach((ctx) => {
             // Format context items as insights
             const keyLower = ctx.key.toLowerCase();
             const valueLower = ctx.value.toLowerCase();
-            
-            
+
             // Check for non-importance indicators in the value (e.g., "archived unread", "without replies", "deprioritization")
-            const nonImportantIndicators = ['archived unread', 'without replies', 'deprioritization', 'low priority', 'not replied', 'ignored', 'unopened', 'not important'];
-            const isActuallyImportant = !nonImportantIndicators.some(indicator => valueLower.includes(indicator));
-            
-            if ((keyLower.includes('vip') || keyLower.includes('contact') || keyLower.includes('important')) && isActuallyImportant) {
+            const nonImportantIndicators = [
+              "archived unread",
+              "without replies",
+              "deprioritization",
+              "low priority",
+              "not replied",
+              "ignored",
+              "unopened",
+              "not important",
+            ];
+            const isActuallyImportant = !nonImportantIndicators.some(
+              (indicator) => valueLower.includes(indicator),
+            );
+
+            if (
+              (keyLower.includes("vip") ||
+                keyLower.includes("contact") ||
+                keyLower.includes("important")) &&
+              isActuallyImportant
+            ) {
               insights.push({
-                type: 'vip',
+                type: "vip",
                 message: `Analyzed importance of contact: ${ctx.value}`,
               });
-            } else if (keyLower.includes('vip') || keyLower.includes('contact') || keyLower.includes('important')) {
+            } else if (
+              keyLower.includes("vip") ||
+              keyLower.includes("contact") ||
+              keyLower.includes("important")
+            ) {
               // Has VIP-related key but value indicates non-importance - skip or mark as pattern instead
               // Skip this insight - don't show "important contact" if it's not actually important
-            } else if (keyLower.includes('style') || keyLower.includes('tone')) {
+            } else if (
+              keyLower.includes("style") ||
+              keyLower.includes("tone")
+            ) {
               insights.push({
-                type: 'style',
+                type: "style",
                 message: `Your communication style: ${ctx.value}`,
               });
-            } else if (keyLower.includes('working') || keyLower.includes('project') || keyLower.includes('team')) {
+            } else if (
+              keyLower.includes("working") ||
+              keyLower.includes("project") ||
+              keyLower.includes("team")
+            ) {
               insights.push({
-                type: 'project',
+                type: "project",
                 message: `Current focus: ${ctx.value}`,
               });
             }
             // Skip "OTHER" insights completely - they're just garbage
           });
         }
-        
+
         if (result.writingStyle) {
           // Filter out batch-specific "no sent emails" messages, N/A, and empty values
           // Only include if the message is meaningful and not batch-specific error text
-          const styleText = `${result.writingStyle.tone || ''} ${result.writingStyle.style || ''}`.trim();
+          const styleText =
+            `${result.writingStyle.tone || ""} ${result.writingStyle.style || ""}`.trim();
           const styleLower = styleText.toLowerCase();
-          
+
           // Check for N/A patterns (exact match, or starts with N/A followed by error text)
-          const isNAPattern = styleText === 'n/a' || 
-                              styleText === 'n/a n/a' ||
-                              styleLower.startsWith('n/a') ||
-                              styleLower.startsWith('n/a -') ||
-                              styleLower.match(/^n\/a\s*-?\s*(no|unable|not available|absence)/i);
-          
-          const isBatchSpecificError = styleLower.includes('no sent emails') || 
-                                       styleLower.includes('no user sent emails') ||
-                                       styleLower.includes('unable to analyze') || 
-                                       styleLower.includes('not available') ||
-                                       styleLower.includes('absence of sent email') ||
-                                       styleLower.includes('not analyzable') ||
-                                       isNAPattern ||
-                                       styleText === '';
-          
-          
+          const isNAPattern =
+            styleText === "n/a" ||
+            styleText === "n/a n/a" ||
+            styleLower.startsWith("n/a") ||
+            styleLower.startsWith("n/a -") ||
+            styleLower.match(/^n\/a\s*-?\s*(no|unable|not available|absence)/i);
+
+          const isBatchSpecificError =
+            styleLower.includes("no sent emails") ||
+            styleLower.includes("no user sent emails") ||
+            styleLower.includes("unable to analyze") ||
+            styleLower.includes("not available") ||
+            styleLower.includes("absence of sent email") ||
+            styleLower.includes("not analyzable") ||
+            isNAPattern ||
+            styleText === "";
+
           if (styleText && !isBatchSpecificError) {
             insights.push({
-              type: 'style',
+              type: "style",
               message: `Writing style: ${styleText}`,
             });
           }
-          
-          if (result.writingStyle.commonPhrases && result.writingStyle.commonPhrases.length > 0) {
+
+          if (
+            result.writingStyle.commonPhrases &&
+            result.writingStyle.commonPhrases.length > 0
+          ) {
             // Also filter common phrases if they're error messages or meaningless
-            const phrases = result.writingStyle.commonPhrases.filter(phrase => {
-              const phraseLower = phrase.toLowerCase();
-              return !phraseLower.includes('no sent emails') && 
-                     !phraseLower.includes('no user sent emails') &&
-                     !phraseLower.includes('unable to analyze') && 
-                     !phraseLower.includes('not available') &&
-                     !phraseLower.includes('not analyzable') &&
-                     phraseLower !== 'n/a' &&
-                     phrase.trim() !== '';
-            });
-            
+            const phrases = result.writingStyle.commonPhrases.filter(
+              (phrase) => {
+                const phraseLower = phrase.toLowerCase();
+                return (
+                  !phraseLower.includes("no sent emails") &&
+                  !phraseLower.includes("no user sent emails") &&
+                  !phraseLower.includes("unable to analyze") &&
+                  !phraseLower.includes("not available") &&
+                  !phraseLower.includes("not analyzable") &&
+                  phraseLower !== "n/a" &&
+                  phrase.trim() !== ""
+                );
+              },
+            );
+
             if (phrases.length > 0) {
               insights.push({
-                type: 'phrases',
-                message: `Common phrases: ${phrases.slice(0, 3).join(', ')}`,
+                type: "phrases",
+                message: `Common phrases: ${phrases.slice(0, 3).join(", ")}`,
               });
             }
           }
         }
       });
     }
-    
+
     // Deduplicate insights by message content before limiting
     const seenMessages = new Set<string>();
-    const uniqueInsights = insights.filter(insight => {
+    const uniqueInsights = insights.filter((insight) => {
       if (seenMessages.has(insight.message)) {
         return false;
       }
       seenMessages.add(insight.message);
       return true;
     });
-    
+
     // Return most recent unique insights (limit to 10, most recent first)
     const recentInsights = uniqueInsights.slice(-10).reverse();
 
@@ -1227,12 +1315,15 @@ export class ContextService {
     const fetchingStatus = analysis.fetchingStatus ?? undefined;
     const fetchedGeneral = analysis.fetchedGeneralCount ?? undefined;
     const fetchedSent = analysis.fetchedSentCount ?? undefined;
-    
+
     return {
       threadCount: analysis.threadCount ?? undefined,
       analyzedCount: analysis.analyzedCount ?? undefined,
       stats: analysis.stats ?? undefined,
-      errorMessage: analysis.status === "failed" ? analysis.errorMessage ?? undefined : undefined,
+      errorMessage:
+        analysis.status === "failed"
+          ? (analysis.errorMessage ?? undefined)
+          : undefined,
       completedBatches,
       totalBatches,
       status: analysis.status,
@@ -1367,13 +1458,13 @@ export class ContextService {
       analysisRecord.total = 100;
       analysisRecord.analyzedCount = 0; // Ensure analyzedCount starts at 0
       await this.contextAnalysisRepository.save(analysisRecord);
-      
+
       // Also reset user.scanProgress to 0 to prevent fallback to old progress
       await this.usersService.update(userId, {
         scanProgress: 0,
         scanTotal: 100,
       });
-      
+
       this.logger.log(
         `[CONTEXT-ANALYSIS] ✅ Analysis record and user progress reset to 0 for new analysis`,
       );
@@ -1394,27 +1485,25 @@ export class ContextService {
       this.logger.log(
         `[CONTEXT-ANALYSIS] Getting thread IDs from 5-12 days ago (quick operation)`,
       );
-      writeAnalysisLog(
-        `Getting thread IDs from 5-12 days ago`,
-        "log",
-      );
+      writeAnalysisLog(`Getting thread IDs from 5-12 days ago`, "log");
 
       // Update progress to show fetching status (use separate columns to avoid race conditions)
-      analysisRecord.fetchingStatus = 'Fetching general threads...';
+      analysisRecord.fetchingStatus = "Fetching general threads...";
       analysisRecord.fetchedGeneralCount = 0;
       analysisRecord.fetchedSentCount = 0;
       await this.contextAnalysisRepository.save(analysisRecord);
 
       // Fetch 300 general threads from 5-12 days ago (inbox)
-      const generalThreadIds = await this.gmailDataService.getThreadIdsFromGmail(
-        userId,
-        twelveDaysAgo,
-        fiveDaysAgo,
-        300, // Limit to 300 threads
-      );
+      const generalThreadIds =
+        await this.gmailDataService.getThreadIdsFromGmail(
+          userId,
+          twelveDaysAgo,
+          fiveDaysAgo,
+          300, // Limit to 300 threads
+        );
 
       // Update progress with general threads count (use separate columns)
-      analysisRecord.fetchingStatus = 'Fetching sent threads...';
+      analysisRecord.fetchingStatus = "Fetching sent threads...";
       analysisRecord.fetchedGeneralCount = generalThreadIds.length;
       analysisRecord.fetchedSentCount = 0;
       await this.contextAnalysisRepository.save(analysisRecord);
@@ -1434,14 +1523,14 @@ export class ContextService {
           userId,
           150, // Fetch 150 to ensure ~100 unique after dedup with general threads
         );
-        
+
         // Update progress with sent threads count
         // Update fetching progress (use separate columns to avoid race conditions)
-        analysisRecord.fetchingStatus = 'Combining threads...';
+        analysisRecord.fetchingStatus = "Combining threads...";
         analysisRecord.fetchedGeneralCount = generalThreadIds.length;
         analysisRecord.fetchedSentCount = sentThreadIds.length;
         await this.contextAnalysisRepository.save(analysisRecord);
-        
+
         this.logger.log(
           `[CONTEXT-ANALYSIS] Found ${sentThreadIds.length} most recent sent thread IDs`,
         );
@@ -1466,7 +1555,7 @@ export class ContextService {
 
       // Deduplicate thread IDs (in case a sent thread overlaps with general threads)
       const threadIds = Array.from(new Set(allThreadIds));
-      
+
       // Clear fetching status now that we have thread IDs (use separate columns)
       analysisRecord.fetchingStatus = null;
       analysisRecord.fetchedGeneralCount = generalThreadIds.length;
@@ -1503,13 +1592,13 @@ export class ContextService {
       // Clear findings from stats now that fetching is complete (but preserve existing stats like totalBatches)
       if (analysisRecord.stats) {
         // Only clear findings if they exist, preserve all other stats (especially totalBatches, batchJobIds, etc.)
-        if ((analysisRecord.stats.findings as string[])) {
+        if (analysisRecord.stats.findings as string[]) {
           const stats = { ...analysisRecord.stats };
           delete stats.findings;
           analysisRecord.stats = stats;
           await this.contextAnalysisRepository.save(analysisRecord);
           this.logger.log(
-            `[CONTEXT-ANALYSIS] Cleared findings from stats (preserved totalBatches: ${(analysisRecord.stats.totalBatches as number) || 'not set'})`,
+            `[CONTEXT-ANALYSIS] Cleared findings from stats (preserved totalBatches: ${(analysisRecord.stats.totalBatches as number) || "not set"})`,
           );
         }
       }
@@ -1526,7 +1615,7 @@ export class ContextService {
       // Store thread count in analysis record and RESET batch-related stats for fresh start
       analysisRecord.threadCount = totalThreads;
       analysisRecord.analyzedCount = 0;
-      
+
       // CRITICAL: Reset ALL batch-related stats to prevent stale data from previous runs
       // This is the source of bugs like:
       // - Progress jumping to 85% (old completedBatches >= new totalBatches)
@@ -1540,21 +1629,17 @@ export class ContextService {
         threadsReadButNotReplied: 0,
         vipContactsEvaluated: 0,
         // CRITICAL: Clear these to start fresh
-        batchResults: {},       // Clear old batch results
-        batchJobIds: {},        // Clear old job ID mappings
+        batchResults: {}, // Clear old batch results
+        batchJobIds: {}, // Clear old job ID mappings
         batchPayloadsForRetry: {}, // Clear old retry payloads
-        totalBatches: 0,        // Will be set once all batches are enqueued
+        totalBatches: 0, // Will be set once all batches are enqueued
       };
-      
+
       this.logger.log(
         `[CONTEXT-ANALYSIS] ✅ Reset batch stats for fresh analysis (batchResults cleared, totalBatches=0)`,
       );
-      
+
       await this.contextAnalysisRepository.save(analysisRecord);
-      
-      // Calculate expected total batches (will be updated as we process, but this gives us an estimate)
-      const ANALYSIS_BATCH_SIZE = 10; // Each analysis batch processes 10 threads
-      const expectedTotalBatches = Math.ceil(totalThreads / ANALYSIS_BATCH_SIZE);
 
       // Get sent email threads from Gmail using the Gmail data service
       // This uses SENT label only (no From header matching or fallback to messages[0])
@@ -1562,13 +1647,13 @@ export class ContextService {
       const ninetyDaysAgo = new Date();
       ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
       const today = new Date();
-      
-        this.logger.log(
+
+      this.logger.log(
         `[CONTEXT-ANALYSIS] Fetching sent email threads from last 90 days (target: 100 threads)`,
-        );
+      );
 
       // Get sent emails (quick operation - only 100 threads)
-          this.logger.log(
+      this.logger.log(
         `[CONTEXT-ANALYSIS] About to fetch sent emails from Gmail data service`,
       );
       writeAnalysisLog(
@@ -1602,7 +1687,7 @@ export class ContextService {
 
       // Initialize stats (VIP contacts will be calculated in finalization job)
       const analysisStats = {
-        totalThreads: totalThreads,
+        totalThreads,
         outboundEmails: sentEmailsData.length,
         threadsNeverOpened: 0,
         threadsReadButNotReplied: 0,
@@ -1624,7 +1709,7 @@ export class ContextService {
       // This avoids waiting for all 400 threads to be fetched before starting analysis
       const FETCH_BATCH_SIZE = 30; // Fetch 30 threads at a time
       // ANALYSIS_BATCH_SIZE is already declared above
-      
+
       this.logger.log(
         `[CONTEXT-ANALYSIS] Fetching threads progressively (${FETCH_BATCH_SIZE} at a time) and starting analysis jobs as ready...`,
       );
@@ -1632,52 +1717,9 @@ export class ContextService {
         `Fetching threads progressively (${FETCH_BATCH_SIZE} at a time) and starting analysis jobs as ready...`,
         "log",
       );
-      
-      
-      const allProcessedBatches: Array<Array<{
-        threadId?: string;
-        from: string;
-        fromName?: string;
-        subject: string;
-        body: string;
-        receivedAt: string;
-        isRead?: boolean;
-        timeToReply?: number | null;
-        starCount?: number;
-        isArchived?: boolean;
-      }>> = [];
-      let globalBatchIndex = 0;
-      const jobPromises: Promise<{ jobId: string | null; batchNum: number }>[] = [];
-      const enqueueErrors: Array<{ batchNum: number; error: string }> = [];
-      
-      // Fetch threads in batches of 30, process and enqueue analysis jobs as they're ready
-      for (let fetchBatchStart = 0; fetchBatchStart < threadIds.length; fetchBatchStart += FETCH_BATCH_SIZE) {
-        const fetchBatchEnd = Math.min(fetchBatchStart + FETCH_BATCH_SIZE, threadIds.length);
-        const fetchBatchThreadIds = threadIds.slice(fetchBatchStart, fetchBatchEnd);
-        
-        
-        const fetchBatchStartTime = Date.now();
-        const fetchedThreads = await this.gmailDataService.fetchThreadsByIds(
-          userId,
-          fetchBatchThreadIds,
-        );
-        const fetchBatchDuration = Date.now() - fetchBatchStartTime;
-        
-        
-        this.logger.log(
-          `[CONTEXT-ANALYSIS] ✅ Fetched batch ${Math.floor(fetchBatchStart / FETCH_BATCH_SIZE) + 1}: ${fetchedThreads.length}/${fetchBatchThreadIds.length} threads in ${Math.round(fetchBatchDuration / 1000)}s`,
-        );
-        
-        if (fetchedThreads.length === 0) {
-          this.logger.warn(
-            `[CONTEXT-ANALYSIS] ⚠️ No threads fetched for batch ${Math.floor(fetchBatchStart / FETCH_BATCH_SIZE) + 1} (expected ${fetchBatchThreadIds.length})`,
-          );
-        }
-        
-        // Process fetched threads into analysis batch payloads
-        
-        // Process threads into payloads (same logic as before)
-        const processedBatches: Array<Array<{
+
+      const allProcessedBatches: Array<
+        Array<{
           threadId?: string;
           from: string;
           fromName?: string;
@@ -1688,25 +1730,83 @@ export class ContextService {
           timeToReply?: number | null;
           starCount?: number;
           isArchived?: boolean;
-        }>> = [];
-        
+        }>
+      > = [];
+      let globalBatchIndex = 0;
+      const jobPromises: Promise<{ jobId: string | null; batchNum: number }>[] =
+        [];
+      const enqueueErrors: Array<{ batchNum: number; error: string }> = [];
+
+      // Fetch threads in batches of 30, process and enqueue analysis jobs as they're ready
+      for (
+        let fetchBatchStart = 0;
+        fetchBatchStart < threadIds.length;
+        fetchBatchStart += FETCH_BATCH_SIZE
+      ) {
+        const fetchBatchEnd = Math.min(
+          fetchBatchStart + FETCH_BATCH_SIZE,
+          threadIds.length,
+        );
+        const fetchBatchThreadIds = threadIds.slice(
+          fetchBatchStart,
+          fetchBatchEnd,
+        );
+
+        const fetchBatchStartTime = Date.now();
+        const fetchedThreads = await this.gmailDataService.fetchThreadsByIds(
+          userId,
+          fetchBatchThreadIds,
+        );
+        const fetchBatchDuration = Date.now() - fetchBatchStartTime;
+
+        this.logger.log(
+          `[CONTEXT-ANALYSIS] ✅ Fetched batch ${Math.floor(fetchBatchStart / FETCH_BATCH_SIZE) + 1}: ${fetchedThreads.length}/${fetchBatchThreadIds.length} threads in ${Math.round(fetchBatchDuration / 1000)}s`,
+        );
+
+        if (fetchedThreads.length === 0) {
+          this.logger.warn(
+            `[CONTEXT-ANALYSIS] ⚠️ No threads fetched for batch ${Math.floor(fetchBatchStart / FETCH_BATCH_SIZE) + 1} (expected ${fetchBatchThreadIds.length})`,
+          );
+        }
+
+        // Process fetched threads into analysis batch payloads
+
+        // Process threads into payloads (same logic as before)
+        const processedBatches: Array<
+          Array<{
+            threadId?: string;
+            from: string;
+            fromName?: string;
+            subject: string;
+            body: string;
+            receivedAt: string;
+            isRead?: boolean;
+            timeToReply?: number | null;
+            starCount?: number;
+            isArchived?: boolean;
+          }>
+        > = [];
+
         this.logger.log(
           `[CONTEXT-ANALYSIS] Processing ${fetchedThreads.length} fetched threads into analysis batches of ${ANALYSIS_BATCH_SIZE}...`,
         );
-        
+
         if (fetchedThreads.length === 0) {
           this.logger.warn(
             `[CONTEXT-ANALYSIS] ⚠️ No threads to process for fetch batch ${Math.floor(fetchBatchStart / FETCH_BATCH_SIZE) + 1}`,
           );
         }
-        
+
         for (let i = 0; i < fetchedThreads.length; i += ANALYSIS_BATCH_SIZE) {
-          const analysisBatchThreads = fetchedThreads.slice(i, i + ANALYSIS_BATCH_SIZE);
-          
+          const analysisBatchThreads = fetchedThreads.slice(
+            i,
+            i + ANALYSIS_BATCH_SIZE,
+          );
+
           this.logger.log(
             `[CONTEXT-ANALYSIS] Processing analysis batch ${Math.floor(i / ANALYSIS_BATCH_SIZE) + 1} with ${analysisBatchThreads.length} threads...`,
           );
-          
+
           const batchPayloads = analysisBatchThreads
             .map((thread) => {
               const firstEmail = thread.emails?.sort(
@@ -1722,7 +1822,8 @@ export class ContextService {
               const userReplied = thread.emails?.some(
                 (email) =>
                   email.labelIds?.includes(GMAIL_LABELS.SENT) ||
-                  (userEmail && email.from.toLowerCase() === userEmail.toLowerCase()),
+                  (userEmail &&
+                    email.from.toLowerCase() === userEmail.toLowerCase()),
               );
 
               let quickestReply: number | null = null;
@@ -1730,12 +1831,14 @@ export class ContextService {
                 const sentEmails = thread.emails.filter(
                   (email) =>
                     email.labelIds?.includes(GMAIL_LABELS.SENT) ||
-                    (userEmail && email.from.toLowerCase() === userEmail.toLowerCase()),
+                    (userEmail &&
+                      email.from.toLowerCase() === userEmail.toLowerCase()),
                 );
                 const receivedEmails = thread.emails.filter(
                   (email) =>
                     !email.labelIds?.includes(GMAIL_LABELS.SENT) &&
-                    (!userEmail || email.from.toLowerCase() !== userEmail.toLowerCase()),
+                    (!userEmail ||
+                      email.from.toLowerCase() !== userEmail.toLowerCase()),
                 );
 
                 if (sentEmails.length > 0 && receivedEmails.length > 0) {
@@ -1755,7 +1858,11 @@ export class ContextService {
                 from: firstEmail.from,
                 fromName: firstEmail.fromName,
                 subject: firstEmail.subject,
-                body: cleanEmailContent(firstEmail.body, firstEmail.htmlBody, 1000),
+                body: cleanEmailContent(
+                  firstEmail.body,
+                  firstEmail.htmlBody,
+                  1000,
+                ),
                 receivedAt: firstEmail.receivedAt.toISOString(),
                 isRead: firstEmail.isRead,
                 timeToReply: quickestReply,
@@ -1764,18 +1871,18 @@ export class ContextService {
               };
             })
             .filter((t) => t !== null) as Array<{
-              threadId?: string;
-              from: string;
-              fromName?: string;
-              subject: string;
-              body: string;
-              receivedAt: string;
-              isRead?: boolean;
-              timeToReply?: number | null;
-              starCount?: number;
-              isArchived?: boolean;
-            }>;
-          
+            threadId?: string;
+            from: string;
+            fromName?: string;
+            subject: string;
+            body: string;
+            receivedAt: string;
+            isRead?: boolean;
+            timeToReply?: number | null;
+            starCount?: number;
+            isArchived?: boolean;
+          }>;
+
           if (batchPayloads.length === 0) {
             this.logger.warn(
               `[CONTEXT-ANALYSIS] ⚠️ Analysis batch ${Math.floor(i / ANALYSIS_BATCH_SIZE) + 1} has 0 payloads after processing (all threads had no emails?)`,
@@ -1785,21 +1892,21 @@ export class ContextService {
               `[CONTEXT-ANALYSIS] ✅ Created analysis batch ${Math.floor(i / ANALYSIS_BATCH_SIZE) + 1} with ${batchPayloads.length} payloads`,
             );
           }
-          
+
           processedBatches.push(batchPayloads);
         }
-        
+
         this.logger.log(
-          `[CONTEXT-ANALYSIS] Created ${processedBatches.length} analysis batches from ${fetchedThreads.length} threads (${processedBatches.filter(b => b.length > 0).length} non-empty)`,
+          `[CONTEXT-ANALYSIS] Created ${processedBatches.length} analysis batches from ${fetchedThreads.length} threads (${processedBatches.filter((b) => b.length > 0).length} non-empty)`,
         );
-        
+
         // Enqueue analysis jobs for this fetch batch immediately (don't wait for all threads)
         if (processedBatches.length === 0) {
           this.logger.warn(
             `[CONTEXT-ANALYSIS] ⚠️ No processed batches from fetched threads (${fetchedThreads.length} threads fetched). Skipping this fetch batch.`,
           );
         }
-        
+
         for (const batchPayload of processedBatches) {
           if (batchPayload.length === 0) {
             this.logger.warn(
@@ -1807,14 +1914,14 @@ export class ContextService {
             );
             continue;
           }
-          
+
           const batchNum = globalBatchIndex++;
           const singletonKey = `analyze-context-batch-${analysisRecord.id}-${batchNum}`;
 
           this.logger.log(
             `[CONTEXT-ANALYSIS] Enqueueing analysis batch ${batchNum} (batch index: ${batchNum}, ${batchPayload.length} threads) with singleton key: ${singletonKey}`,
           );
-          
+
           const jobPromise = (async () => {
             try {
               const jobId = await this.boss.send(
@@ -1827,7 +1934,9 @@ export class ContextService {
                   userEmail: userEmail || undefined,
                   currentContextForPrompt,
                   analysisRecordId: analysisRecord.id,
-                  totalBatches: Math.ceil(threadIds.length / ANALYSIS_BATCH_SIZE), // Estimate (will be refined to actual count in stats)
+                  totalBatches: Math.ceil(
+                    threadIds.length / ANALYSIS_BATCH_SIZE,
+                  ), // Estimate (will be refined to actual count in stats)
                   after: twelveDaysAgo.toISOString(),
                   before: fiveDaysAgo.toISOString(),
                 },
@@ -1837,7 +1946,7 @@ export class ContextService {
                   singletonMinutes: 60,
                 },
               );
-              
+
               if (jobId) {
                 this.logger.log(
                   `[CONTEXT-ANALYSIS] Successfully enqueued analysis batch ${batchNum + 1} with job ID: ${jobId}`,
@@ -1847,7 +1956,7 @@ export class ContextService {
                   `[CONTEXT-ANALYSIS] WARNING: Analysis batch ${batchNum + 1} returned null job ID (may be singleton duplicate)`,
                 );
               }
-              
+
               // Return both job ID and batch number so we can map correctly
               return { jobId, batchNum };
             } catch (error) {
@@ -1855,29 +1964,32 @@ export class ContextService {
               this.logger.error(
                 `[CONTEXT-ANALYSIS] ERROR: Failed to enqueue analysis batch ${batchNum + 1}: ${errorMessage}`,
               );
-              enqueueErrors.push({ batchNum: batchNum + 1, error: errorMessage });
+              enqueueErrors.push({
+                batchNum: batchNum + 1,
+                error: errorMessage,
+              });
               return { jobId: null, batchNum };
             }
           })();
-          
+
           jobPromises.push(jobPromise);
         }
-        
+
         allProcessedBatches.push(...processedBatches);
       }
-      
+
       // Total batches is the number we actually enqueued (globalBatchIndex tracks this)
       // CRITICAL: Use globalBatchIndex only - it tracks the actual number of batches enqueued
       // Don't use allProcessedBatches.length because some batches might not have been enqueued
       const totalBatches = globalBatchIndex;
-      
+
       this.logger.log(
-        `[CONTEXT-ANALYSIS] Calculated totalBatches: ${totalBatches} (globalBatchIndex: ${globalBatchIndex}, allProcessedBatches with content: ${allProcessedBatches.filter(b => b.length > 0).length}, jobPromises.length: ${jobPromises.length})`,
+        `[CONTEXT-ANALYSIS] Calculated totalBatches: ${totalBatches} (globalBatchIndex: ${globalBatchIndex}, allProcessedBatches with content: ${allProcessedBatches.filter((b) => b.length > 0).length}, jobPromises.length: ${jobPromises.length})`,
       );
-      
+
       // Note: totalBatches in job payloads was set to expectedTotalBatches when enqueuing
       // We'll store the actual totalBatches in analysis stats for accurate progress tracking
-      
+
       // CRITICAL: Ensure totalBatches is at least 1 to prevent division by zero in progress calculations
       if (totalBatches === 0) {
         this.logger.error(
@@ -1885,11 +1997,14 @@ export class ContextService {
         );
         // Mark analysis as failed
         analysisRecord.status = "failed";
-        analysisRecord.errorMessage = "No batches were enqueued. Analysis cannot proceed.";
+        analysisRecord.errorMessage =
+          "No batches were enqueued. Analysis cannot proceed.";
         await this.contextAnalysisRepository.save(analysisRecord);
-        throw new Error(`Cannot proceed with analysis: totalBatches is 0. No batches were processed.`);
+        throw new Error(
+          `Cannot proceed with analysis: totalBatches is 0. No batches were processed.`,
+        );
       }
-      
+
       // Wait for all jobs to be enqueued (they were enqueued progressively as batches were fetched)
       let jobResults: Array<{ jobId: string | null; batchNum: number }> = [];
       try {
@@ -1899,20 +2014,19 @@ export class ContextService {
         this.logger.error(
           `[CONTEXT-ANALYSIS] ERROR: Promise.all failed while enqueueing jobs: ${errorMessage}`,
         );
-        writeAnalysisLog(
-          `ERROR: Promise.all failed: ${errorMessage}`,
-          "error",
-        );
+        writeAnalysisLog(`ERROR: Promise.all failed: ${errorMessage}`, "error");
       }
-      
-      const successfulEnqueues = jobResults.filter((r) => r.jobId !== null).length;
+
+      const successfulEnqueues = jobResults.filter(
+        (r) => r.jobId !== null,
+      ).length;
       const failedEnqueues = jobResults.length - successfulEnqueues;
-      
+
       // Log job ID storage for debugging
       this.logger.log(
         `[CONTEXT-ANALYSIS] Job enqueueing complete: ${successfulEnqueues} successful, ${failedEnqueues} failed, total batches attempted: ${totalBatches}, jobResults.length: ${jobResults.length}`,
       );
-      
+
       // CRITICAL: If no jobs were successfully enqueued, we cannot proceed
       if (successfulEnqueues === 0 && totalBatches > 0) {
         this.logger.error(
@@ -1921,16 +2035,17 @@ export class ContextService {
         analysisRecord.status = "failed";
         analysisRecord.errorMessage = `All ${totalBatches} batches failed to enqueue. Check logs for enqueue errors.`;
         await this.contextAnalysisRepository.save(analysisRecord);
-        throw new Error(`All ${totalBatches} batches failed to enqueue. Analysis cannot proceed.`);
+        throw new Error(
+          `All ${totalBatches} batches failed to enqueue. Analysis cannot proceed.`,
+        );
       }
-      
+
       if (successfulEnqueues < totalBatches) {
         this.logger.warn(
           `[CONTEXT-ANALYSIS] ⚠️ WARNING: Only ${successfulEnqueues}/${totalBatches} batches successfully enqueued. ${failedEnqueues} failed. Analysis may be incomplete.`,
         );
       }
-      
-      
+
       this.logger.log(
         `[CONTEXT-ANALYSIS] ✅ Progressive fetch and enqueue complete: ${successfulEnqueues}/${totalBatches} analysis batches enqueued (${failedEnqueues} failed)`,
       );
@@ -1938,7 +2053,7 @@ export class ContextService {
         `✅ Progressive fetch and enqueue complete: ${successfulEnqueues}/${totalBatches} analysis batches enqueued`,
         "log",
       );
-      
+
       if (enqueueErrors.length > 0) {
         this.logger.error(
           `[CONTEXT-ANALYSIS] Enqueue errors: ${JSON.stringify(enqueueErrors)}`,
@@ -1951,18 +2066,15 @@ export class ContextService {
 
       // Wait a moment for jobs to be fully registered in the queue before checking
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      
+
       // Verify jobs are in queue
       const queuedCount = await this.boss.getQueueSize("analyze-context-batch");
-      
+
       this.logger.log(
         `[CONTEXT-ANALYSIS] Queue verification: ${queuedCount} jobs currently queued for analyze-context-batch`,
       );
-      writeAnalysisLog(
-        `Queue verification: ${queuedCount} jobs queued`,
-        "log",
-      );
-      
+      writeAnalysisLog(`Queue verification: ${queuedCount} jobs queued`, "log");
+
       if (queuedCount < totalBatches) {
         const activeOrProcessing = totalBatches - queuedCount;
         this.logger.warn(
@@ -1978,19 +2090,22 @@ export class ContextService {
       // Note: We need to rebuild the batchPayloadsForRetry map by re-iterating through the enqueueing process
       // because allProcessedBatches order may not match the batch indices used during enqueueing
       const batchJobIds: Record<number, string | null> = {};
-      const batchPayloadsForRetry: Record<number, Array<{
-        threadId?: string;
-        from: string;
-        fromName?: string;
-        subject: string;
-        body: string;
-        receivedAt: string;
-        isRead?: boolean;
-        timeToReply?: number | null;
-        starCount?: number;
-        isArchived?: boolean;
-      }>> = {};
-      
+      const batchPayloadsForRetry: Record<
+        number,
+        Array<{
+          threadId?: string;
+          from: string;
+          fromName?: string;
+          subject: string;
+          body: string;
+          receivedAt: string;
+          isRead?: boolean;
+          timeToReply?: number | null;
+          starCount?: number;
+          isArchived?: boolean;
+        }>
+      > = {};
+
       // Rebuild batch payload map by iterating through allProcessedBatches in the same order as enqueueing
       // This ensures batch indices match between jobIds and payloads
       let payloadIndex = 0;
@@ -2000,7 +2115,7 @@ export class ContextService {
           payloadIndex++;
         }
       }
-      
+
       // Map job IDs to batch indices using the batchNum from job results (ensures correct alignment)
       for (const result of jobResults) {
         batchJobIds[result.batchNum] = result.jobId;
@@ -2014,14 +2129,18 @@ export class ContextService {
           );
         }
       }
-      
+
       // Log job ID mapping for debugging
-      const nonNullJobIds = Object.values(batchJobIds).filter(id => id !== null).length;
-      const nullJobIds = Object.values(batchJobIds).filter(id => id === null).length;
+      const nonNullJobIds = Object.values(batchJobIds).filter(
+        (id) => id !== null,
+      ).length;
+      const nullJobIds = Object.values(batchJobIds).filter(
+        (id) => id === null,
+      ).length;
       this.logger.log(
         `[CONTEXT-ANALYSIS] Job ID mapping summary: ${nonNullJobIds} non-null, ${nullJobIds} null, ${Object.keys(batchJobIds).length} total mapped, ${totalBatches} expected batches`,
       );
-      
+
       // Warn if we're missing job IDs
       if (nonNullJobIds < totalBatches) {
         const missing = totalBatches - nonNullJobIds;
@@ -2035,19 +2154,21 @@ export class ContextService {
           }
         }
         this.logger.error(
-          `[CONTEXT-ANALYSIS] Missing job IDs for batches: ${missingBatchIndices.slice(0, 20).join(', ')}${missingBatchIndices.length > 20 ? ` ... (${missingBatchIndices.length - 20} more)` : ''}`,
+          `[CONTEXT-ANALYSIS] Missing job IDs for batches: ${missingBatchIndices.slice(0, 20).join(", ")}${missingBatchIndices.length > 20 ? ` ... (${missingBatchIndices.length - 20} more)` : ""}`,
         );
       }
-      
+
       // Verify alignment: jobIds length should match batchPayloadsForRetry length
-      if (Object.keys(batchJobIds).length !== Object.keys(batchPayloadsForRetry).length) {
+      if (
+        Object.keys(batchJobIds).length !==
+        Object.keys(batchPayloadsForRetry).length
+      ) {
         this.logger.warn(
           `[CONTEXT-ANALYSIS] WARNING: Job IDs count (${Object.keys(batchJobIds).length}) doesn't match batch payloads count (${Object.keys(batchPayloadsForRetry).length})`,
         );
       }
-      
-      
-          if (analysisRecord.stats) {
+
+      if (analysisRecord.stats) {
         analysisRecord.stats = {
           ...analysisRecord.stats,
           totalBatches,
@@ -2067,18 +2188,28 @@ export class ContextService {
           batchPayloadsForRetry, // Store batch payloads so we can retry expired jobs
         };
       }
-      
+
       // Log before saving - ensure totalBatches is set
-      const jobIdsBeforeSave = Object.keys(analysisRecord.stats.batchJobIds as Record<number, string | null> || {}).length;
-      const nonNullBeforeSave = Object.values(analysisRecord.stats.batchJobIds as Record<number, string | null> || {}).filter(id => id !== null).length;
-      const totalBatchesBeforeSave = (analysisRecord.stats.totalBatches as number) || 0;
-      
+      const jobIdsBeforeSave = Object.keys(
+        (analysisRecord.stats.batchJobIds as Record<number, string | null>) ||
+          {},
+      ).length;
+      const nonNullBeforeSave = Object.values(
+        (analysisRecord.stats.batchJobIds as Record<number, string | null>) ||
+          {},
+      ).filter((id) => id !== null).length;
+      const totalBatchesBeforeSave =
+        (analysisRecord.stats.totalBatches as number) || 0;
+
       this.logger.log(
         `[CONTEXT-ANALYSIS] About to save analysis stats: job IDs: ${jobIdsBeforeSave} (${nonNullBeforeSave} non-null), totalBatches: ${totalBatches} (current in stats: ${totalBatchesBeforeSave})`,
       );
-      
+
       // Ensure totalBatches is set correctly before saving
-      if (!analysisRecord.stats.totalBatches || (analysisRecord.stats.totalBatches as number) !== totalBatches) {
+      if (
+        !analysisRecord.stats.totalBatches ||
+        (analysisRecord.stats.totalBatches as number) !== totalBatches
+      ) {
         analysisRecord.stats = {
           ...analysisRecord.stats,
           totalBatches, // Force update totalBatches
@@ -2087,28 +2218,33 @@ export class ContextService {
           `[CONTEXT-ANALYSIS] Updated totalBatches in stats from ${totalBatchesBeforeSave} to ${totalBatches}`,
         );
       }
-      
+
       await this.contextAnalysisRepository.save(analysisRecord);
-      
+
       // Log immediately after save
       this.logger.log(
         `[CONTEXT-ANALYSIS] ✅ Saved analysis stats: totalBatches=${totalBatches}, job IDs: ${jobIdsBeforeSave}`,
       );
-      
+
       // Verify after saving - check both job IDs and totalBatches
       const savedRecord = await this.contextAnalysisRepository.findOne({
         where: { id: analysisRecord.id },
       });
       if (savedRecord && savedRecord.stats) {
-        const savedJobIds = (savedRecord.stats.batchJobIds as Record<number, string | null>) || {};
+        const savedJobIds =
+          (savedRecord.stats.batchJobIds as Record<number, string | null>) ||
+          {};
         const savedJobIdsCount = Object.keys(savedJobIds).length;
-        const savedNonNullCount = Object.values(savedJobIds).filter(id => id !== null).length;
-        const savedTotalBatches = (savedRecord.stats.totalBatches as number) || 0;
-        
+        const savedNonNullCount = Object.values(savedJobIds).filter(
+          (id) => id !== null,
+        ).length;
+        const savedTotalBatches =
+          (savedRecord.stats.totalBatches as number) || 0;
+
         this.logger.log(
           `[CONTEXT-ANALYSIS] ✅ Verified save: ${savedJobIdsCount} job IDs in DB (${savedNonNullCount} non-null), totalBatches: ${savedTotalBatches} (expected: ${totalBatches})`,
         );
-        
+
         if (savedTotalBatches !== totalBatches) {
           this.logger.error(
             `[CONTEXT-ANALYSIS] ❌ ERROR: totalBatches mismatch after save! Expected: ${totalBatches}, Saved: ${savedTotalBatches}. Attempting to fix...`,
@@ -2123,8 +2259,11 @@ export class ContextService {
             `[CONTEXT-ANALYSIS] ✅ Fixed totalBatches: updated to ${totalBatches}`,
           );
         }
-        
-        if (savedJobIdsCount !== jobIdsBeforeSave || savedNonNullCount !== nonNullBeforeSave) {
+
+        if (
+          savedJobIdsCount !== jobIdsBeforeSave ||
+          savedNonNullCount !== nonNullBeforeSave
+        ) {
           this.logger.error(
             `[CONTEXT-ANALYSIS] ❌ ERROR: Job ID count mismatch after save! Before: ${jobIdsBeforeSave} (${nonNullBeforeSave} non-null), After: ${savedJobIdsCount} (${savedNonNullCount} non-null)`,
           );
@@ -2173,7 +2312,9 @@ export class ContextService {
         analysisRecord.status = "failed";
         analysisRecord.errorMessage = `No batches were successfully enqueued. totalBatches: ${totalBatches}, successfulEnqueues: ${successfulEnqueues}`;
         await this.contextAnalysisRepository.save(analysisRecord);
-        throw new Error(`Cannot proceed with analysis: totalBatches is ${totalBatches}, but only ${successfulEnqueues} batches were successfully enqueued`);
+        throw new Error(
+          `Cannot proceed with analysis: totalBatches is ${totalBatches}, but only ${successfulEnqueues} batches were successfully enqueued`,
+        );
       }
 
       // Main job completes here - post-processing will happen in finalization job
@@ -2255,7 +2396,7 @@ export class ContextService {
       );
       throw new Error(`Context value cannot be blank for key ${contextKey}`);
     }
-    
+
     // Apply PII redaction to protect user privacy
     const redactedValue = this.piiRedactionService.redactPII(trimmedValue);
 
@@ -2317,7 +2458,7 @@ export class ContextService {
       });
 
       if (existingContext.length <= 1) {
-      this.logger.log(
+        this.logger.log(
           `[CONTEXT-ANALYSIS] No duplicates to consolidate (${existingContext.length} autogenerated items)`,
         );
         return;
@@ -2355,7 +2496,7 @@ export class ContextService {
                 current.contextValue,
               )
             ) {
-        this.logger.log(
+              this.logger.log(
                 `[CONTEXT-ANALYSIS] Consolidating duplicate: "${current.contextValue.substring(0, QUERY_LIMITS.SUBSTRING_PREVIEW_LENGTH)}..." (keeping newer: "${keep.contextValue.substring(0, QUERY_LIMITS.SUBSTRING_PREVIEW_LENGTH)}...")`,
               );
               toDelete.push(current.contextId);
@@ -2376,7 +2517,7 @@ export class ContextService {
           `[CONTEXT-ANALYSIS] Removed ${duplicatesRemoved} duplicate context items`,
         );
       } else {
-      this.logger.log(
+        this.logger.log(
           `[CONTEXT-ANALYSIS] No duplicates found in existing context`,
         );
       }
@@ -2394,11 +2535,11 @@ export class ContextService {
   private async extractQAndAFromSentEmails(
     userId: string,
     sentEmailsData: Array<{
-        id: string;
-        body: string;
-        htmlBody?: string;
-        subject: string;
-        receivedAt: Date;
+      id: string;
+      body: string;
+      htmlBody?: string;
+      subject: string;
+      receivedAt: Date;
     }>,
   ): Promise<void> {
     try {
@@ -2512,7 +2653,7 @@ export class ContextService {
           }
 
           if (isDuplicate) {
-      this.logger.log(
+            this.logger.log(
               `[CONTEXT-ANALYSIS] Skipping duplicate Q&A: ${qa.question.substring(0, 50)}...`, // eslint-disable-line @typescript-eslint/no-magic-numbers
             );
             continue;
@@ -2536,7 +2677,7 @@ export class ContextService {
             explanation,
           );
 
-      this.logger.log(
+          this.logger.log(
             // eslint-disable-next-line @typescript-eslint/no-magic-numbers
             `[CONTEXT-ANALYSIS] Added Q&A: ${qa.question.substring(0, 50)}...`,
           );
@@ -2551,7 +2692,9 @@ export class ContextService {
   /**
    * Get an analysis record by ID
    */
-  async getAnalysisRecordById(analysisRecordId: string): Promise<ContextAnalysis | null> {
+  async getAnalysisRecordById(
+    analysisRecordId: string,
+  ): Promise<ContextAnalysis | null> {
     return await this.contextAnalysisRepository.findOne({
       where: { id: analysisRecordId },
     });
@@ -2560,9 +2703,7 @@ export class ContextService {
   /**
    * Check if all batches are complete for an analysis
    */
-  async getCompletedBatchCount(
-    analysisRecordId: string,
-  ): Promise<number> {
+  async getCompletedBatchCount(analysisRecordId: string): Promise<number> {
     const analysisRecord = await this.contextAnalysisRepository.findOne({
       where: { id: analysisRecordId },
     });
@@ -2571,7 +2712,7 @@ export class ContextService {
       return 0;
     }
 
-    const stats = analysisRecord.stats;
+    const { stats } = analysisRecord;
     const batchResults = (stats.batchResults as Record<string, unknown>) || {};
     return Object.keys(batchResults).length;
   }
@@ -2599,36 +2740,45 @@ export class ContextService {
     }
 
     if (!analysis || !analysis.stats) {
-      this.logger.debug(`[PROGRESS-CHECK] No active analysis found for user ${userId}`);
+      this.logger.debug(
+        `[PROGRESS-CHECK] No active analysis found for user ${userId}`,
+      );
       return;
     }
 
-    let stats = analysis.stats;
-    let batchResults = (stats.batchResults as Record<string, unknown>) || {};
-    let failedBatches = (stats.failedBatches as number[]) || [];
-    let batchJobIds = (stats.batchJobIds as Record<number, string | null>) || {};
-    const batchPayloadsForRetry = (stats.batchPayloadsForRetry as Record<number, Array<{
-      threadId?: string;
-      from: string;
-      fromName?: string;
-      subject: string;
-      body: string;
-      receivedAt: string;
-      isRead?: boolean;
-      timeToReply?: number | null;
-      starCount?: number;
-      isArchived?: boolean;
-    }>>) || {};
-    let totalBatches = (stats.totalBatches as number);
-    
+    const { stats } = analysis;
+    const batchResults = (stats.batchResults as Record<string, unknown>) || {};
+    const failedBatches = (stats.failedBatches as number[]) || [];
+    const batchJobIds =
+      (stats.batchJobIds as Record<number, string | null>) || {};
+    const batchPayloadsForRetry =
+      (stats.batchPayloadsForRetry as Record<
+        number,
+        Array<{
+          threadId?: string;
+          from: string;
+          fromName?: string;
+          subject: string;
+          body: string;
+          receivedAt: string;
+          isRead?: boolean;
+          timeToReply?: number | null;
+          starCount?: number;
+          isArchived?: boolean;
+        }>
+      >) || {};
+    const totalBatches = stats.totalBatches as number;
+
     // If totalBatches is 0 or missing, DON'T try to infer it from completed batches
     // This was causing the bug where totalBatches=2 was being set during progressive fetching
     // The totalBatches should ONLY be set by analyzeAndLearnFromEmails after all batches are enqueued
     if (!totalBatches || totalBatches === 0) {
-      const completedBatchIndices = Object.keys(batchResults).map(k => parseInt(k, 10));
+      const completedBatchIndices = Object.keys(batchResults).map((k) =>
+        parseInt(k, 10),
+      );
       this.logger.log(
-        `[PROGRESS-CHECK] totalBatches is ${totalBatches || 'not set'} and ${completedBatchIndices.length} batches completed. ` +
-        `This is normal during progressive fetching - NOT inferring totalBatches (would corrupt stats).`,
+        `[PROGRESS-CHECK] totalBatches is ${totalBatches || "not set"} and ${completedBatchIndices.length} batches completed. ` +
+          `This is normal during progressive fetching - NOT inferring totalBatches (would corrupt stats).`,
       );
       // Don't infer or update - just exit. The main job will set totalBatches when it's done.
       return;
@@ -2637,56 +2787,65 @@ export class ContextService {
     // Check DB state
     const completedBatchesInDb = Object.keys(batchResults).length;
     const failedBatchesInDb = failedBatches.length;
-    const batchesWithJobIdsInDb = Object.keys(batchJobIds).filter(k => batchJobIds[parseInt(k, 10)] !== null).length;
-    const remainingBatchesInDb = totalBatches - completedBatchesInDb - failedBatchesInDb;
+    const batchesWithJobIdsInDb = Object.keys(batchJobIds).filter(
+      (k) => batchJobIds[parseInt(k, 10)] !== null,
+    ).length;
+    const remainingBatchesInDb =
+      totalBatches - completedBatchesInDb - failedBatchesInDb;
 
     // Check PgBoss queue state
     let queuedJobsInPgBoss = 0;
-    
+
     try {
-      queuedJobsInPgBoss = await this.boss.getQueueSize("analyze-context-batch");
+      queuedJobsInPgBoss = await this.boss.getQueueSize(
+        "analyze-context-batch",
+      );
       // PgBoss getQueueSize returns the number of jobs in the queue (pending + active)
       // This is the most reliable metric we can get without querying the database directly
     } catch (error) {
-      this.logger.error(`[PROGRESS-CHECK] Failed to get PgBoss queue size: ${getErrorMessage(error)}`);
+      this.logger.error(
+        `[PROGRESS-CHECK] Failed to get PgBoss queue size: ${getErrorMessage(error)}`,
+      );
       return;
     }
 
     // Calculate missing jobs
     const missingJobs = Math.max(0, remainingBatchesInDb - queuedJobsInPgBoss);
-    
+
     // Log the comparison
     console.log(
       `\n[PROGRESS-CHECK] =========================================\n` +
-      `Analysis: ${analysis.id} (User: ${userId})\n` +
-      `\n📊 DB State:\n` +
-      `  • Total batches: ${totalBatches}\n` +
-      `  • Completed in DB: ${completedBatchesInDb}\n` +
-      `  • Failed in DB: ${failedBatchesInDb}\n` +
-      `  • Remaining in DB: ${remainingBatchesInDb}\n` +
-      `  • Batches with job IDs: ${batchesWithJobIdsInDb}\n` +
-      `\n📦 PgBoss State:\n` +
-      `  • Queued jobs (pending + active): ${queuedJobsInPgBoss}\n` +
-      `\n🔍 Difference:\n` +
-      `  • Expected remaining: ${remainingBatchesInDb}\n` +
-      `  • Actually queued: ${queuedJobsInPgBoss}\n` +
-      `  • Missing jobs: ${missingJobs}\n` +
-      `=========================================\n`
+        `Analysis: ${analysis.id} (User: ${userId})\n` +
+        `\n📊 DB State:\n` +
+        `  • Total batches: ${totalBatches}\n` +
+        `  • Completed in DB: ${completedBatchesInDb}\n` +
+        `  • Failed in DB: ${failedBatchesInDb}\n` +
+        `  • Remaining in DB: ${remainingBatchesInDb}\n` +
+        `  • Batches with job IDs: ${batchesWithJobIdsInDb}\n` +
+        `\n📦 PgBoss State:\n` +
+        `  • Queued jobs (pending + active): ${queuedJobsInPgBoss}\n` +
+        `\n🔍 Difference:\n` +
+        `  • Expected remaining: ${remainingBatchesInDb}\n` +
+        `  • Actually queued: ${queuedJobsInPgBoss}\n` +
+        `  • Missing jobs: ${missingJobs}\n` +
+        `=========================================\n`,
     );
-    
+
     // Also log using logger for file logging
     this.logger.log(
       `[PROGRESS-CHECK] Analysis ${analysis.id} (user ${userId}): ` +
-      `DB: ${completedBatchesInDb}/${totalBatches} completed, ` +
-      `${failedBatchesInDb} failed, ${remainingBatchesInDb} remaining | ` +
-      `PgBoss: ${queuedJobsInPgBoss} queued | ` +
-      `Missing: ${missingJobs}`
+        `DB: ${completedBatchesInDb}/${totalBatches} completed, ` +
+        `${failedBatchesInDb} failed, ${remainingBatchesInDb} remaining | ` +
+        `PgBoss: ${queuedJobsInPgBoss} queued | ` +
+        `Missing: ${missingJobs}`,
     );
 
     // Find missing batches that need to be re-queued
-    const completedBatchIndices = Object.keys(batchResults).map(k => parseInt(k, 10));
+    const completedBatchIndices = Object.keys(batchResults).map((k) =>
+      parseInt(k, 10),
+    );
     const missingBatchIndices: number[] = [];
-    
+
     for (let i = 0; i < totalBatches; i++) {
       if (!completedBatchIndices.includes(i) && !failedBatches.includes(i)) {
         missingBatchIndices.push(i);
@@ -2695,7 +2854,7 @@ export class ContextService {
 
     if (missingBatchIndices.length > 0) {
       this.logger.warn(
-        `[PROGRESS-CHECK] Found ${missingBatchIndices.length} missing batches: ${missingBatchIndices.slice(0, 10).join(', ')}${missingBatchIndices.length > 10 ? ` ... (${missingBatchIndices.length - 10} more)` : ''}`
+        `[PROGRESS-CHECK] Found ${missingBatchIndices.length} missing batches: ${missingBatchIndices.slice(0, 10).join(", ")}${missingBatchIndices.length > 10 ? ` ... (${missingBatchIndices.length - 10} more)` : ""}`,
       );
 
       // Attempt to re-queue missing batches
@@ -2710,29 +2869,34 @@ export class ContextService {
           // If it doesn't exist (expired or deleted), we need to re-queue
           try {
             const jobDetails = await this.boss.getJobById(existingJobId);
-            if (jobDetails && (jobDetails.state === 'created' || jobDetails.state === 'active' || jobDetails.state === 'retry')) {
+            if (
+              jobDetails &&
+              (jobDetails.state === "created" ||
+                jobDetails.state === "active" ||
+                jobDetails.state === "retry")
+            ) {
               // Job exists and is pending/active - skip re-queue
               this.logger.debug(
-                `[PROGRESS-CHECK] Batch ${batchIndex} has job ID ${existingJobId} with state '${jobDetails.state}' - still processing, skipping re-queue`
+                `[PROGRESS-CHECK] Batch ${batchIndex} has job ID ${existingJobId} with state '${jobDetails.state}' - still processing, skipping re-queue`,
               );
               continue;
             } else {
               // Job doesn't exist or is in a terminal state (completed/failed/cancelled/expired)
               this.logger.warn(
-                `[PROGRESS-CHECK] ⚠️ Batch ${batchIndex} has job ID ${existingJobId} but job is ${jobDetails ? `in state '${jobDetails.state}'` : 'not found in PgBoss'} - will re-queue`
+                `[PROGRESS-CHECK] ⚠️ Batch ${batchIndex} has job ID ${existingJobId} but job is ${jobDetails ? `in state '${jobDetails.state}'` : "not found in PgBoss"} - will re-queue`,
               );
               // Fall through to re-queue logic
             }
           } catch (error) {
             this.logger.warn(
-              `[PROGRESS-CHECK] ⚠️ Failed to check job ${existingJobId} for batch ${batchIndex}: ${getErrorMessage(error)} - will attempt re-queue`
+              `[PROGRESS-CHECK] ⚠️ Failed to check job ${existingJobId} for batch ${batchIndex}: ${getErrorMessage(error)} - will attempt re-queue`,
             );
             // Fall through to re-queue logic
           }
         }
-        
+
         const batchPayload = batchPayloadsForRetry[batchIndex];
-        
+
         if (batchPayload && batchPayload.length > 0) {
           try {
             const user = await this.usersService.findOne(userId);
@@ -2748,7 +2912,7 @@ export class ContextService {
             // PgBoss blocks new jobs with the same singletonKey within singletonMinutes, even if "completed"
             const retryTimestamp = Date.now();
             const singletonKey = `analyze-context-batch-${analysis.id}-${batchIndex}-retry-${retryTimestamp}`;
-            
+
             const retryJobId = await this.boss.send(
               "analyze-context-batch",
               {
@@ -2764,7 +2928,7 @@ export class ContextService {
               },
               {
                 priority: getJobPriority("analyze-context-batch", false),
-                singletonKey: singletonKey,
+                singletonKey,
                 singletonMinutes: 60,
               },
             );
@@ -2774,7 +2938,7 @@ export class ContextService {
             // Don't treat as error, just log and skip
             if (retryJobId === null) {
               this.logger.debug(
-                `[PROGRESS-CHECK] Batch ${batchIndex} re-queue returned null - job with singletonKey '${singletonKey}' already exists (likely still processing). Skipping.`
+                `[PROGRESS-CHECK] Batch ${batchIndex} re-queue returned null - job with singletonKey '${singletonKey}' already exists (likely still processing). Skipping.`,
               );
               // Don't count as success or failure - job is already queued/processing
               continue;
@@ -2783,7 +2947,12 @@ export class ContextService {
             // Update job ID in stats
             if (analysis.stats) {
               const updatedStats = { ...analysis.stats };
-              const updatedBatchJobIds = { ...(updatedStats.batchJobIds as Record<number, string | null>) || {} };
+              const updatedBatchJobIds = {
+                ...((updatedStats.batchJobIds as Record<
+                  number,
+                  string | null
+                >) || {}),
+              };
               updatedBatchJobIds[batchIndex] = retryJobId;
               updatedStats.batchJobIds = updatedBatchJobIds;
               analysis.stats = updatedStats;
@@ -2792,30 +2961,30 @@ export class ContextService {
 
             requeuedCount++;
             this.logger.log(
-              `[PROGRESS-CHECK] ✅ Re-queued batch ${batchIndex} with new job ID: ${retryJobId} (singletonKey: ${singletonKey})`
+              `[PROGRESS-CHECK] ✅ Re-queued batch ${batchIndex} with new job ID: ${retryJobId} (singletonKey: ${singletonKey})`,
             );
           } catch (error) {
             requeueFailedCount++;
             this.logger.error(
-              `[PROGRESS-CHECK] ❌ Failed to re-queue batch ${batchIndex}: ${getErrorMessage(error)}`
+              `[PROGRESS-CHECK] ❌ Failed to re-queue batch ${batchIndex}: ${getErrorMessage(error)}`,
             );
           }
         } else {
           requeueFailedCount++;
           this.logger.warn(
-            `[PROGRESS-CHECK] ⚠️ Cannot re-queue batch ${batchIndex}: batch payload not found in stats`
+            `[PROGRESS-CHECK] ⚠️ Cannot re-queue batch ${batchIndex}: batch payload not found in stats`,
           );
         }
       }
 
       if (requeuedCount > 0 || requeueFailedCount > 0) {
         this.logger.log(
-          `[PROGRESS-CHECK] Re-queue summary: ${requeuedCount} successful, ${requeueFailedCount} failed`
+          `[PROGRESS-CHECK] Re-queue summary: ${requeuedCount} successful, ${requeueFailedCount} failed`,
         );
       }
     } else {
       this.logger.log(
-        `[PROGRESS-CHECK] ✅ All batches accounted for - no missing jobs detected`
+        `[PROGRESS-CHECK] ✅ All batches accounted for - no missing jobs detected`,
       );
     }
   }
@@ -2829,14 +2998,18 @@ export class ContextService {
     });
 
     if (!analysisRecord || !analysisRecord.stats) {
-      writeAnalysisLog(`[BATCH-CHECK] Analysis record ${analysisRecordId} not found or has no stats`, "warn");
+      writeAnalysisLog(
+        `[BATCH-CHECK] Analysis record ${analysisRecordId} not found or has no stats`,
+        "warn",
+      );
       return false;
     }
 
-    const stats = analysisRecord.stats;
+    const { stats } = analysisRecord;
     const batchResults = (stats.batchResults as Record<string, unknown>) || {};
     const failedBatches = (stats.failedBatches as number[]) || [];
-    const batchJobIds = (stats.batchJobIds as Record<number, string | null>) || {};
+    const batchJobIds =
+      (stats.batchJobIds as Record<number, string | null>) || {};
 
     // CRITICAL: If totalBatches is 0, batches haven't been enqueued yet - not complete
     if (totalBatches === 0 || !totalBatches) {
@@ -2849,11 +3022,11 @@ export class ContextService {
       );
       return false; // Cannot be complete if no batches were enqueued
     }
-    
+
     // Check if all batches are complete (either succeeded or failed)
     const completedBatches = Object.keys(batchResults).length;
     const totalExpectedBatches = totalBatches;
-    
+
     // CRITICAL: If no batches have completed and totalBatches > 0, we're definitely not complete
     if (completedBatches === 0 && totalExpectedBatches > 0) {
       this.logger.log(
@@ -2865,8 +3038,7 @@ export class ContextService {
       );
       return false;
     }
-    
-    
+
     this.logger.log(
       `[BATCH-CHECK] Checking completion: ${completedBatches}/${totalExpectedBatches} batches complete, ${failedBatches.length} failed`,
     );
@@ -2874,125 +3046,128 @@ export class ContextService {
       `[BATCH-CHECK] Checking completion: ${completedBatches}/${totalExpectedBatches} batches complete, ${failedBatches.length} failed`,
       "log",
     );
-    
+
     // Log which batches are missing
-    const completedBatchIndices = Object.keys(batchResults).map(k => parseInt(k, 10)).sort((a, b) => a - b);
+    const completedBatchIndices = Object.keys(batchResults)
+      .map((k) => parseInt(k, 10))
+      .sort((a, b) => a - b);
     const missingBatchIndices: number[] = [];
     for (let i = 0; i < totalExpectedBatches; i++) {
       if (!completedBatchIndices.includes(i) && !failedBatches.includes(i)) {
         missingBatchIndices.push(i);
       }
     }
-    
+
     if (missingBatchIndices.length > 0) {
       this.logger.warn(
-        `[BATCH-CHECK] ⚠️ Missing batches: ${missingBatchIndices.slice(0, 20).join(', ')}${missingBatchIndices.length > 20 ? ` ... (${missingBatchIndices.length - 20} more)` : ''} (out of ${totalExpectedBatches} total). Completed: ${completedBatchIndices.slice(0, 10).join(', ') || 'none'}${completedBatchIndices.length > 10 ? '...' : ''}. Failed: ${failedBatches.slice(0, 10).join(', ') || 'none'}${failedBatches.length > 10 ? '...' : ''}`,
+        `[BATCH-CHECK] ⚠️ Missing batches: ${missingBatchIndices.slice(0, 20).join(", ")}${missingBatchIndices.length > 20 ? ` ... (${missingBatchIndices.length - 20} more)` : ""} (out of ${totalExpectedBatches} total). Completed: ${completedBatchIndices.slice(0, 10).join(", ") || "none"}${completedBatchIndices.length > 10 ? "..." : ""}. Failed: ${failedBatches.slice(0, 10).join(", ") || "none"}${failedBatches.length > 10 ? "..." : ""}`,
       );
       writeAnalysisLog(
-        `[BATCH-CHECK] ⚠️ Missing batches: ${missingBatchIndices.length} missing (indices: ${missingBatchIndices.slice(0, 20).join(', ')})`,
+        `[BATCH-CHECK] ⚠️ Missing batches: ${missingBatchIndices.length} missing (indices: ${missingBatchIndices.slice(0, 20).join(", ")})`,
         "warn",
       );
-      
+
       // Categorize missing batches: never enqueued vs expired
       const neverEnqueued: number[] = [];
       const hasJobIdButExpired: number[] = [];
-      
+
       for (const batchIndex of missingBatchIndices) {
-        if (batchJobIds[batchIndex] === null || batchJobIds[batchIndex] === undefined) {
+        if (
+          batchJobIds[batchIndex] === null ||
+          batchJobIds[batchIndex] === undefined
+        ) {
           neverEnqueued.push(batchIndex);
         } else {
           hasJobIdButExpired.push(batchIndex);
         }
       }
-      
+
       if (neverEnqueued.length > 0) {
         this.logger.error(
-          `[BATCH-CHECK] ❌ Batches that were NEVER ENQUEUED: ${neverEnqueued.join(', ')}. These cannot be retried without batch payloads.`,
+          `[BATCH-CHECK] ❌ Batches that were NEVER ENQUEUED: ${neverEnqueued.join(", ")}. These cannot be retried without batch payloads.`,
         );
         writeAnalysisLog(
-          `[BATCH-CHECK] ❌ Batches never enqueued: ${neverEnqueued.join(', ')}`,
+          `[BATCH-CHECK] ❌ Batches never enqueued: ${neverEnqueued.join(", ")}`,
           "error",
         );
       }
-      
+
       if (hasJobIdButExpired.length > 0) {
         this.logger.warn(
-          `[BATCH-CHECK] ⚠️ Batches with job IDs but no results (likely expired): ${hasJobIdButExpired.join(', ')}. Will attempt retry.`,
+          `[BATCH-CHECK] ⚠️ Batches with job IDs but no results (likely expired): ${hasJobIdButExpired.join(", ")}. Will attempt retry.`,
         );
         writeAnalysisLog(
-          `[BATCH-CHECK] ⚠️ Batches likely expired: ${hasJobIdButExpired.join(', ')}`,
+          `[BATCH-CHECK] ⚠️ Batches likely expired: ${hasJobIdButExpired.join(", ")}`,
           "warn",
         );
       }
-      
     }
 
     // Check job statuses in PgBoss for stuck/failed jobs if we have job IDs
     if (Object.keys(batchJobIds).length > 0) {
-      let stuckJobs = 0;
-      let failedJobs = 0;
-      let expiredJobs = 0;
-      let activeJobs = 0;
-      let completedJobs = 0;
-      
       for (const [batchIndexStr, jobId] of Object.entries(batchJobIds)) {
         if (!jobId) continue; // Skip null job IDs
-        
+
         const batchIndex = parseInt(batchIndexStr, 10);
         // Check if this batch has a result
         const hasResult = batchResults[String(batchIndex)] !== undefined;
-        
+
         if (!hasResult) {
           // Batch doesn't have a result yet - check job status in PgBoss
           try {
-            
             // PgBoss stores jobs in database - try to get job info
             // Note: pg-boss doesn't expose getJobById directly, but we can check queue status
             // For now, we'll use a timeout heuristic: if job was created > 15 minutes ago and no result, it's likely expired
             const jobCreatedTime = analysisRecord.createdAt.getTime();
             const now = Date.now();
             const jobAgeMinutes = (now - jobCreatedTime) / (1000 * 60);
-            
+
             if (jobAgeMinutes > 15) {
               // Job is older than 15 minutes (expireInMinutes limit) and has no result
               expiredJobs++;
-              
-              
+
               // Attempt to retry the expired job if we have the batch payload stored
-              const batchPayloadsForRetry = (stats.batchPayloadsForRetry as Record<number, Array<{
-                threadId?: string;
-                from: string;
-                fromName?: string;
-                subject: string;
-                body: string;
-                receivedAt: string;
-                isRead?: boolean;
-                timeToReply?: number | null;
-                starCount?: number;
-                isArchived?: boolean;
-              }>>) || {};
-              
+              const batchPayloadsForRetry =
+                (stats.batchPayloadsForRetry as Record<
+                  number,
+                  Array<{
+                    threadId?: string;
+                    from: string;
+                    fromName?: string;
+                    subject: string;
+                    body: string;
+                    receivedAt: string;
+                    isRead?: boolean;
+                    timeToReply?: number | null;
+                    starCount?: number;
+                    isArchived?: boolean;
+                  }>
+                >) || {};
+
               const batchPayload = batchPayloadsForRetry[batchIndex];
               if (batchPayload && batchPayload.length > 0) {
                 // Retry the expired batch job
                 try {
-                  const userId = analysisRecord.userId;
+                  const { userId } = analysisRecord;
                   const user = await this.usersService.findOne(userId);
                   const userEmail = user?.email;
                   const existingContext = await this.getUserContext(userId);
-                  const currentContextForPrompt = existingContext.map((ctx) => ({
-                    key: ctx.contextKey,
-                    value: ctx.contextValue,
-                    source: ctx.source,
-                  }));
-                  
+                  const currentContextForPrompt = existingContext.map(
+                    (ctx) => ({
+                      key: ctx.contextKey,
+                      value: ctx.contextValue,
+                      source: ctx.source,
+                    }),
+                  );
+
                   // Get totalBatches from stats
-                  const totalBatchesForRetry = (stats.totalBatches as number) || totalExpectedBatches;
-                  
+                  const totalBatchesForRetry =
+                    (stats.totalBatches as number) || totalExpectedBatches;
+
                   // Use the same singleton key pattern as original jobs to allow replacement
                   // If the original job expired, this will replace it
                   const singletonKey = `analyze-context-batch-${analysisRecordId}-${batchIndex}`;
-                  
+
                   const retryJobId = await this.boss.send(
                     "analyze-context-batch",
                     {
@@ -3007,11 +3182,11 @@ export class ContextService {
                     },
                     {
                       priority: getJobPriority("analyze-context-batch", false),
-                      singletonKey: singletonKey,
+                      singletonKey,
                       singletonMinutes: 60,
                     },
                   );
-                  
+
                   // CRITICAL: boss.send() returns null if a job with the same singletonKey already exists
                   // This can happen if the job was just re-queued by another process or is still active
                   if (retryJobId === null) {
@@ -3025,7 +3200,7 @@ export class ContextService {
                     // Don't update stats or count as error - job is already queued/processing
                     continue;
                   }
-                  
+
                   this.logger.warn(
                     `[BATCH-CHECK] ✅ Retried expired batch ${batchIndex} with new job ID: ${retryJobId} (old job: ${jobId}, singletonKey: ${singletonKey})`,
                   );
@@ -3033,17 +3208,21 @@ export class ContextService {
                     `[BATCH-CHECK] ✅ Retried expired batch ${batchIndex} with new job ID: ${retryJobId}`,
                     "warn",
                   );
-                  
+
                   // Update the job ID in stats
                   if (analysisRecord.stats) {
                     const updatedStats = { ...analysisRecord.stats };
-                    const updatedBatchJobIds = { ...(updatedStats.batchJobIds as Record<number, string | null>) || {} };
+                    const updatedBatchJobIds = {
+                      ...((updatedStats.batchJobIds as Record<
+                        number,
+                        string | null
+                      >) || {}),
+                    };
                     updatedBatchJobIds[batchIndex] = retryJobId;
                     updatedStats.batchJobIds = updatedBatchJobIds;
                     analysisRecord.stats = updatedStats;
                     await this.contextAnalysisRepository.save(analysisRecord);
                   }
-                  
                 } catch (retryError) {
                   this.logger.error(
                     `[BATCH-CHECK] Failed to retry expired batch ${batchIndex}: ${getErrorMessage(retryError)}`,
@@ -3052,7 +3231,6 @@ export class ContextService {
                     `[BATCH-CHECK] ❌ Failed to retry expired batch ${batchIndex}: ${getErrorMessage(retryError)}`,
                     "error",
                   );
-                  
                 }
               } else {
                 this.logger.error(
@@ -3062,26 +3240,29 @@ export class ContextService {
                   `[BATCH-CHECK] ❌ Cannot retry expired batch ${batchIndex}: batch payload not found`,
                   "error",
                 );
-                
               }
             }
           } catch (error) {
             // Error checking job status - assume it's still processing
-            this.logger.warn(`[BATCH-CHECK] Error checking job status for ${jobId}: ${getErrorMessage(error)}`);
+            this.logger.warn(
+              `[BATCH-CHECK] Error checking job status for ${jobId}: ${getErrorMessage(error)}`,
+            );
           }
         } else {
           completedJobs++;
         }
       }
-      
     }
 
     // Don't update progress here - progress is updated by batch processors after each batch completes
     // This prevents progress from jumping when checkBatchesComplete is called during polling
 
     // Final check: only return true if we actually have completed batches AND they match the expected total
-    const isComplete = completedBatches >= totalExpectedBatches && completedBatches > 0 && totalExpectedBatches > 0;
-    
+    const isComplete =
+      completedBatches >= totalExpectedBatches &&
+      completedBatches > 0 &&
+      totalExpectedBatches > 0;
+
     this.logger.log(
       `[BATCH-CHECK] Final result: isComplete=${isComplete} (completedBatches: ${completedBatches}, totalExpectedBatches: ${totalExpectedBatches}, failedBatches: ${failedBatches.length})`,
     );
@@ -3089,7 +3270,7 @@ export class ContextService {
       `[BATCH-CHECK] Final result: isComplete=${isComplete} (${completedBatches}/${totalExpectedBatches} completed, ${failedBatches.length} failed)`,
       isComplete ? "log" : "warn",
     );
-    
+
     if (isComplete) {
       this.logger.log(
         `[BATCH-CHECK] ✅ All batches complete! ${completedBatches} batches completed, ${failedBatches.length} failed, ${totalExpectedBatches} total expected.`,
@@ -3099,7 +3280,7 @@ export class ContextService {
         `[BATCH-CHECK] ⏳ Not all batches complete yet. ${completedBatches}/${totalExpectedBatches} completed, ${missingBatchIndices.length} missing, ${failedBatches.length} failed.`,
       );
     }
-    
+
     return isComplete;
   }
 
@@ -3127,11 +3308,10 @@ export class ContextService {
       fromName?: string;
       threadCount: number;
     }> = [],
-    userEmail?: string,
   ): Promise<void> {
     // Ensure trueVipContacts is always an array
     const vipContacts = trueVipContacts || [];
-      this.logger.log(
+    this.logger.log(
       `[CONTEXT-ANALYSIS] Starting finalization for analysis ${analysisRecordId}`,
     );
     writeAnalysisLog(
@@ -3145,60 +3325,69 @@ export class ContextService {
     });
 
     if (!analysisRecord || !analysisRecord.stats) {
-      throw new Error(
-        `Analysis record ${analysisRecordId} or stats not found`,
-      );
+      throw new Error(`Analysis record ${analysisRecordId} or stats not found`);
     }
 
     const finalStats = analysisRecord.stats;
-    const finalBatchResults = (finalStats.batchResults as Record<
+    const finalBatchResults =
+      (finalStats.batchResults as Record<
+        string,
+        {
+          context?: Array<{ key: string; value: string; source: string }>;
+          writingStyle?: {
+            tone: string;
+            style: string;
+            commonPhrases: string[];
+            emailExamples?: string[];
+          } | null;
+          threadIds?: string[]; // Thread IDs for source linking
+          error?: string;
+          completedAt?: string;
+          failedAt?: string;
+        }
+      >) || {};
+
+    // Compute VIP contacts from batch payloads (starred emails or quick replies)
+    const batchPayloads =
+      (finalStats.batchPayloadsForRetry as Record<
+        number,
+        Array<{
+          threadId?: string;
+          from: string;
+          fromName?: string;
+          subject: string;
+          body: string;
+          receivedAt: string;
+          isRead?: boolean;
+          timeToReply?: number | null;
+          starCount?: number;
+          isArchived?: boolean;
+        }>
+      >) || {};
+
+    const vipContactsFromPayloads = new Map<
       string,
       {
-        context?: Array<{ key: string; value: string; source: string }>;
-        writingStyle?: {
-          tone: string;
-          style: string;
-          commonPhrases: string[];
-          emailExamples?: string[];
-        } | null;
-        threadIds?: string[]; // Thread IDs for source linking
-        error?: string;
-        completedAt?: string;
-        failedAt?: string;
+        emailKey: string;
+        from: string;
+        fromName?: string;
+        threadCount: number;
+        starCount: number;
+        quickReplyCount: number;
       }
-    >) || {};
-    
-    // Compute VIP contacts from batch payloads (starred emails or quick replies)
-    const batchPayloads = (finalStats.batchPayloadsForRetry as Record<number, Array<{
-      threadId?: string;
-      from: string;
-      fromName?: string;
-      subject: string;
-      body: string;
-      receivedAt: string;
-      isRead?: boolean;
-      timeToReply?: number | null;
-      starCount?: number;
-      isArchived?: boolean;
-    }>>) || {};
-    
-    const vipContactsFromPayloads = new Map<string, {
-      emailKey: string;
-      from: string;
-      fromName?: string;
-      threadCount: number;
-      starCount: number;
-      quickReplyCount: number;
-    }>();
-    
+    >();
+
     for (const batchPayload of Object.values(batchPayloads)) {
       for (const thread of batchPayload) {
         const emailKey = thread.from.toLowerCase();
-        
+
         // A contact is VIP if they have starred emails OR quick replies (< 1 hour = 3600000ms)
         const isStarred = thread.starCount && thread.starCount > 0;
-        const isQuickReply = thread.timeToReply !== null && thread.timeToReply !== undefined && thread.timeToReply < 3600000;
-        
+        const isQuickReply =
+          thread.timeToReply !== null &&
+          thread.timeToReply !== undefined &&
+          thread.timeToReply < 3600000;
+
         if (isStarred || isQuickReply) {
           const existing = vipContactsFromPayloads.get(emailKey);
           if (existing) {
@@ -3218,7 +3407,7 @@ export class ContextService {
         }
       }
     }
-    
+
     // Convert to the expected format and filter to only include contacts with multiple signals or high star count
     const computedVipContacts: Array<{
       emailKey: string;
@@ -3226,17 +3415,20 @@ export class ContextService {
       fromName?: string;
       threadCount: number;
     }> = Array.from(vipContactsFromPayloads.values())
-      .filter(v => v.starCount >= 3 || v.quickReplyCount >= 2 || v.threadCount >= 3)
-      .map(v => ({
+      .filter(
+        (v) => v.starCount >= 3 || v.quickReplyCount >= 2 || v.threadCount >= 3,
+      )
+      .map((v) => ({
         emailKey: v.emailKey,
         from: v.from,
         fromName: v.fromName,
         threadCount: v.threadCount,
       }));
-    
+
     // Use computed VIP contacts if the passed array is empty
-    const effectiveVipContacts = vipContacts.length > 0 ? vipContacts : computedVipContacts;
-    
+    const effectiveVipContacts =
+      vipContacts.length > 0 ? vipContacts : computedVipContacts;
+
     this.logger.log(
       `[CONTEXT-ANALYSIS] VIP contacts: ${vipContacts.length} passed, ${computedVipContacts.length} computed from payloads, using ${effectiveVipContacts.length}`,
     );
@@ -3246,21 +3438,21 @@ export class ContextService {
     );
 
     // Combine results from all batches
-      const allContextItems: Array<{
-        key: string;
-        value: string;
-        source?: string;
-        sourceThreadIds?: string[];
-      }> = [];
-      let combinedWritingStyle: {
-        tone: string;
-        style: string;
-        commonPhrases: string[];
-        emailExamples?: string[];
-      } | null = null;
+    const allContextItems: Array<{
+      key: string;
+      value: string;
+      source?: string;
+      sourceThreadIds?: string[];
+    }> = [];
+    let combinedWritingStyle: {
+      tone: string;
+      style: string;
+      commonPhrases: string[];
+      emailExamples?: string[];
+    } | null = null;
 
     // Process batches in order
-      for (let batchNum = 0; batchNum < totalBatches; batchNum++) {
+    for (let batchNum = 0; batchNum < totalBatches; batchNum++) {
       const batchResult = finalBatchResults[String(batchNum)];
       if (!batchResult) {
         this.logger.warn(
@@ -3280,20 +3472,22 @@ export class ContextService {
       if (batchResult.context) {
         const batchThreadIds = (batchResult.threadIds as string[]) || [];
         // Add thread IDs to each context item from this batch
-        const contextWithThreads = batchResult.context.map((item: { key: string; value: string; source?: string }) => ({
-          ...item,
-          sourceThreadIds: batchThreadIds,
-        }));
+        const contextWithThreads = batchResult.context.map(
+          (item: { key: string; value: string; source?: string }) => ({
+            ...item,
+            sourceThreadIds: batchThreadIds,
+          }),
+        );
         allContextItems.push(...contextWithThreads);
-        }
+      }
 
-        // Combine writing style (use first batch's writing style, or merge if needed)
+      // Combine writing style (use first batch's writing style, or merge if needed)
       if (batchResult.writingStyle && !combinedWritingStyle) {
         combinedWritingStyle = batchResult.writingStyle;
       } else if (batchResult.writingStyle && combinedWritingStyle) {
-          // Merge common phrases
-          combinedWritingStyle.commonPhrases = [
-            ...combinedWritingStyle.commonPhrases,
+        // Merge common phrases
+        combinedWritingStyle.commonPhrases = [
+          ...combinedWritingStyle.commonPhrases,
           ...batchResult.writingStyle.commonPhrases,
         ];
         // Merge email examples
@@ -3306,73 +3500,79 @@ export class ContextService {
             ...batchResult.writingStyle.emailExamples,
           ].slice(0, 3); // Limit to 3 examples total
         }
-        }
       }
+    }
 
-      const analysis = {
-        context: allContextItems,
-        writingStyle: combinedWritingStyle || {
-          tone: "Professional",
-          style: "Concise",
-          commonPhrases: [],
-        },
-      };
+    const analysis = {
+      context: allContextItems,
+      writingStyle: combinedWritingStyle || {
+        tone: "Professional",
+        style: "Concise",
+        commonPhrases: [],
+      },
+    };
 
-      this.logger.log(`[CONTEXT-ANALYSIS] ===== LLM SERVICE RETURNED =====`);
+    this.logger.log(`[CONTEXT-ANALYSIS] ===== LLM SERVICE RETURNED =====`);
     writeAnalysisLog(`===== LLM SERVICE RETURNED =====`, "log");
-      this.logger.log(
-        `[CONTEXT-ANALYSIS] LLM returned ${analysis.context?.length || 0} context items`,
-      );
-      this.logger.log(
-        `[CONTEXT-ANALYSIS] Writing style: tone="${analysis.writingStyle?.tone || 'none'}", style="${analysis.writingStyle?.style || 'none'}", commonPhrases=${analysis.writingStyle?.commonPhrases?.length || 0}, emailExamples=${(analysis.writingStyle as { emailExamples?: string[] })?.emailExamples?.length || 0}`,
-      );
-      writeAnalysisLog(
-        `Writing style: tone="${analysis.writingStyle?.tone || 'none'}", style="${analysis.writingStyle?.style || 'none'}", commonPhrases=${analysis.writingStyle?.commonPhrases?.length || 0}, emailExamples=${(analysis.writingStyle as { emailExamples?: string[] })?.emailExamples?.length || 0}`,
-        "log",
-      );
+    this.logger.log(
+      `[CONTEXT-ANALYSIS] LLM returned ${analysis.context?.length || 0} context items`,
+    );
+    this.logger.log(
+      `[CONTEXT-ANALYSIS] Writing style: tone="${analysis.writingStyle?.tone || "none"}", style="${analysis.writingStyle?.style || "none"}", commonPhrases=${analysis.writingStyle?.commonPhrases?.length || 0}, emailExamples=${(analysis.writingStyle as { emailExamples?: string[] })?.emailExamples?.length || 0}`,
+    );
+    writeAnalysisLog(
+      `Writing style: tone="${analysis.writingStyle?.tone || "none"}", style="${analysis.writingStyle?.style || "none"}", commonPhrases=${analysis.writingStyle?.commonPhrases?.length || 0}, emailExamples=${(analysis.writingStyle as { emailExamples?: string[] })?.emailExamples?.length || 0}`,
+      "log",
+    );
 
-      await this.usersService.update(userId, {
-        scanProgress: 70,
-        scanTotal: 100,
-      });
-      this.logger.log(`[CONTEXT-ANALYSIS] Processing analysis results...`);
-    writeAnalysisLog(`[FINALIZATION] Step 1/6: Starting to process analysis results...`, "log");
+    await this.usersService.update(userId, {
+      scanProgress: 70,
+      scanTotal: 100,
+    });
+    this.logger.log(`[CONTEXT-ANALYSIS] Processing analysis results...`);
+    writeAnalysisLog(
+      `[FINALIZATION] Step 1/6: Starting to process analysis results...`,
+      "log",
+    );
 
     // Step 2: Deduplicate within LLM output itself before processing
-      if (analysis.context) {
-      writeAnalysisLog(`[FINALIZATION] Step 2/6: Deduplicating ${analysis.context.length} context items from LLM output...`, "log");
-        const deduplicatedContext: Array<{
-          key: string;
-          value: string;
-          source?: string;
-          sourceThreadIds?: string[];
-        }> = [];
+    if (analysis.context) {
+      writeAnalysisLog(
+        `[FINALIZATION] Step 2/6: Deduplicating ${analysis.context.length} context items from LLM output...`,
+        "log",
+      );
+      const deduplicatedContext: Array<{
+        key: string;
+        value: string;
+        source?: string;
+        sourceThreadIds?: string[];
+      }> = [];
 
-        for (const item of analysis.context) {
-          if (!item || !item.key || !item.value) continue;
+      for (const item of analysis.context) {
+        if (!item || !item.key || !item.value) continue;
 
-          const valueStr = String(item.value || "").trim();
-          const keyStr = String(item.key || "").toUpperCase();
+        const valueStr = String(item.value || "").trim();
+        const keyStr = String(item.key || "").toUpperCase();
 
-          // Filter out insulting/repetitive statements
-          const lowerValue = valueStr.toLowerCase();
-          if (
-            lowerValue.includes("does not reply to any emails") ||
-            lowerValue.includes("doesn't reply to any") ||
-            lowerValue.includes("never replies") ||
-            lowerValue.includes("no emails show evidence of reply") ||
-            lowerValue.includes("deprioritize direct email replies overall") ||
-            lowerValue.includes("strong preference for asynchronous, non-email")
-          ) {
-            this.logger.log(
-              `[CONTEXT-ANALYSIS] Filtering out insulting/repetitive statement: ${valueStr.substring(0, QUERY_LIMITS.SUBSTRING_PREVIEW_LENGTH)}...`,
-            );
-            continue;
-          }
+        // Filter out insulting/repetitive statements
+        const lowerValue = valueStr.toLowerCase();
+        if (
+          lowerValue.includes("does not reply to any emails") ||
+          lowerValue.includes("doesn't reply to any") ||
+          lowerValue.includes("never replies") ||
+          lowerValue.includes("no emails show evidence of reply") ||
+          lowerValue.includes("deprioritize direct email replies overall") ||
+          lowerValue.includes("strong preference for asynchronous, non-email")
+        ) {
+          this.logger.log(
+            `[CONTEXT-ANALYSIS] Filtering out insulting/repetitive statement: ${valueStr.substring(0, QUERY_LIMITS.SUBSTRING_PREVIEW_LENGTH)}...`,
+          );
+          continue;
+        }
 
-          // Check for duplicates within the LLM output itself
-          let isDuplicate = false;
-          for (const existing of deduplicatedContext) {
+        // Check for duplicates within the LLM output itself
+        let isDuplicate = false;
+        for (const existing of deduplicatedContext) {
           try {
             if (
               existing.key.toUpperCase() === keyStr &&
@@ -3388,188 +3588,215 @@ export class ContextService {
             this.logger.warn(
               `[CONTEXT-ANALYSIS] Error checking similarity: ${getErrorMessage(similarityError)}`,
             );
-            }
-          }
-
-          if (!isDuplicate) {
-            deduplicatedContext.push(item);
           }
         }
 
-        const originalCount = analysis.context.length;
-        analysis.context = deduplicatedContext;
-        this.logger.log(
-        `[CONTEXT-ANALYSIS] Deduplicated LLM output: ${deduplicatedContext.length} unique items (from ${originalCount} original)`,
-        );
-      writeAnalysisLog(`[FINALIZATION] ✅ Step 2/6: Deduplicated to ${deduplicatedContext.length} unique items`, "log");
+        if (!isDuplicate) {
+          deduplicatedContext.push(item);
+        }
       }
 
-    // Step 3: Save Context
-    writeAnalysisLog(`[FINALIZATION] Step 3/6: Updating progress to 80%...`, "log");
-      await this.usersService.update(userId, {
-        scanProgress: 80,
-        scanTotal: 100,
-      });
-
-      // Step 3.1: Deduplicate existing autogenerated context
-    writeAnalysisLog(`[FINALIZATION] Step 4/6: Deduplicating existing autogenerated context...`, "log");
-      await this.usersService.update(userId, {
-        scanProgress: 81,
-        scanTotal: 100,
-      });
+      const originalCount = analysis.context.length;
+      analysis.context = deduplicatedContext;
       this.logger.log(
-        `[CONTEXT-ANALYSIS] Deduplicating existing autogenerated context...`,
+        `[CONTEXT-ANALYSIS] Deduplicated LLM output: ${deduplicatedContext.length} unique items (from ${originalCount} original)`,
       );
+      writeAnalysisLog(
+        `[FINALIZATION] ✅ Step 2/6: Deduplicated to ${deduplicatedContext.length} unique items`,
+        "log",
+      );
+    }
+
+    // Step 3: Save Context
+    writeAnalysisLog(
+      `[FINALIZATION] Step 3/6: Updating progress to 80%...`,
+      "log",
+    );
+    await this.usersService.update(userId, {
+      scanProgress: 80,
+      scanTotal: 100,
+    });
+
+    // Step 3.1: Deduplicate existing autogenerated context
+    writeAnalysisLog(
+      `[FINALIZATION] Step 4/6: Deduplicating existing autogenerated context...`,
+      "log",
+    );
+    await this.usersService.update(userId, {
+      scanProgress: 81,
+      scanTotal: 100,
+    });
+    this.logger.log(
+      `[CONTEXT-ANALYSIS] Deduplicating existing autogenerated context...`,
+    );
     const dedupStartTime = Date.now();
-      await this.deduplicateExistingContext(userId);
+    await this.deduplicateExistingContext(userId);
     const dedupDuration = Date.now() - dedupStartTime;
-    writeAnalysisLog(`[FINALIZATION] ✅ Step 4/6: Deduplication completed in ${Math.round(dedupDuration / 1000)}s`, "log");
+    writeAnalysisLog(
+      `[FINALIZATION] ✅ Step 4/6: Deduplication completed in ${Math.round(dedupDuration / 1000)}s`,
+      "log",
+    );
 
     // Save VIP contacts from starred/replied threads
-    writeAnalysisLog(`[FINALIZATION] Step 5/6: Saving ${effectiveVipContacts.length} VIP contacts from starred/replied emails...`, "log");
-      this.logger.log(
+    writeAnalysisLog(
+      `[FINALIZATION] Step 5/6: Saving ${effectiveVipContacts.length} VIP contacts from starred/replied emails...`,
+      "log",
+    );
+    this.logger.log(
       `[CONTEXT-ANALYSIS] Saving ${effectiveVipContacts.length} VIP contacts from starred/replied emails...`,
     );
     const vipStartTime = Date.now();
-    const vipContactsMap = new Map(
-      effectiveVipContacts.map((v) => [v.emailKey, v]),
-      );
-      let vipCount = 0;
+    let vipCount = 0;
     let vipProcessed = 0;
     for (const contact of effectiveVipContacts) {
       vipProcessed++;
       if (vipProcessed % 10 === 0) {
-        writeAnalysisLog(`[FINALIZATION] Step 5/6: Processed ${vipProcessed}/${effectiveVipContacts.length} VIP contacts...`, "log");
+        writeAnalysisLog(
+          `[FINALIZATION] Step 5/6: Processed ${vipProcessed}/${effectiveVipContacts.length} VIP contacts...`,
+          "log",
+        );
       }
-        const displayName = contact.fromName || contact.from;
+      const displayName = contact.fromName || contact.from;
 
-        // Check if this email or similar already exists
-        const existingVip = await this.contextRepository
-          .createQueryBuilder("context")
-          .where("context.userId = :userId", { userId })
-          .andWhere("context.contextKey = :key", {
-            key: ContextKey.VIP_CONTACT,
-          })
-          .andWhere("LOWER(context.contextValue) = LOWER(:value)", {
-            value: displayName,
-          })
-          .getOne();
+      // Check if this email or similar already exists
+      const existingVip = await this.contextRepository
+        .createQueryBuilder("context")
+        .where("context.userId = :userId", { userId })
+        .andWhere("context.contextKey = :key", {
+          key: ContextKey.VIP_CONTACT,
+        })
+        .andWhere("LOWER(context.contextValue) = LOWER(:value)", {
+          value: displayName,
+        })
+        .getOne();
 
-        if (existingVip) {
-          this.logger.log(
-            `[CONTEXT-ANALYSIS] Skipping duplicate VIP contact: ${displayName}`,
+      if (existingVip) {
+        this.logger.log(
+          `[CONTEXT-ANALYSIS] Skipping duplicate VIP contact: ${displayName}`,
+        );
+        continue;
+      }
+
+      const explanation = `vipContactStarredExplanation:${contact.threadCount}`;
+      await this.createOrUpdateContext(
+        userId,
+        ContextKey.VIP_CONTACT,
+        displayName,
+        Source.AUTOGENERATED,
+        undefined,
+        explanation,
+      );
+      vipCount++;
+      this.logger.log(
+        `[CONTEXT-ANALYSIS] Added VIP contact ${vipCount}/${effectiveVipContacts.length}: ${displayName}`,
+      );
+    }
+    const vipDuration = Date.now() - vipStartTime;
+    writeAnalysisLog(
+      `[FINALIZATION] ✅ Step 5/6: Saved ${vipCount} VIP contacts in ${Math.round(vipDuration / 1000)}s`,
+      "log",
+    );
+
+    // Process LLM analysis results (but filter out VIP_CONTACT since we've already handled it)
+    writeAnalysisLog(
+      `[FINALIZATION] Step 6/6: Processing ${analysis.context?.length || 0} context items from LLM analysis...`,
+      "log",
+    );
+    if (analysis.context) {
+      let contextProcessed = 0;
+      const contextStartTime = Date.now();
+      for (const item of analysis.context) {
+        contextProcessed++;
+        if (contextProcessed % 20 === 0) {
+          writeAnalysisLog(
+            `[FINALIZATION] Step 6/6: Processed ${contextProcessed}/${analysis.context.length} context items...`,
+            "log",
+          );
+        }
+        // Validate context item - must have key and non-blank value
+        if (!item || !item.key || !item.value) {
+          this.logger.warn("Skipping context item with invalid data:", item);
+          continue;
+        }
+
+        // Check if value is blank/whitespace only
+        const trimmedValue = String(item.value || "").trim();
+        if (!trimmedValue || trimmedValue === "") {
+          this.logger.warn(
+            `Skipping context item with blank value (key: ${item.key}):`,
+            item,
           );
           continue;
         }
 
-        const explanation = `vipContactStarredExplanation:${contact.threadCount}`;
-        await this.createOrUpdateContext(
-          userId,
-          ContextKey.VIP_CONTACT,
-          displayName,
-          Source.AUTOGENERATED,
-          undefined,
-          explanation,
-        );
-        vipCount++;
-        this.logger.log(
-        `[CONTEXT-ANALYSIS] Added VIP contact ${vipCount}/${effectiveVipContacts.length}: ${displayName}`,
-        );
-      }
-    const vipDuration = Date.now() - vipStartTime;
-    writeAnalysisLog(`[FINALIZATION] ✅ Step 5/6: Saved ${vipCount} VIP contacts in ${Math.round(vipDuration / 1000)}s`, "log");
+        let key = ContextKey.OTHER;
+        let priority: number | undefined;
 
-      // Process LLM analysis results (but filter out VIP_CONTACT since we've already handled it)
-    writeAnalysisLog(`[FINALIZATION] Step 6/6: Processing ${analysis.context?.length || 0} context items from LLM analysis...`, "log");
-      if (analysis.context) {
-      let contextProcessed = 0;
-      const contextStartTime = Date.now();
-        for (const item of analysis.context) {
-        contextProcessed++;
-        if (contextProcessed % 20 === 0) {
-          writeAnalysisLog(`[FINALIZATION] Step 6/6: Processed ${contextProcessed}/${analysis.context.length} context items...`, "log");
-        }
-          // Validate context item - must have key and non-blank value
-          if (!item || !item.key || !item.value) {
-            this.logger.warn("Skipping context item with invalid data:", item);
-            continue;
-          }
-          
-          // Check if value is blank/whitespace only
-          const trimmedValue = String(item.value || "").trim();
-          if (!trimmedValue || trimmedValue === "") {
-            this.logger.warn(`Skipping context item with blank value (key: ${item.key}):`, item);
-            continue;
-          }
-
-          let key = ContextKey.OTHER;
-          let priority: number | undefined;
-
-          const keyStr = String(item.key || "");
-          const valueStr = trimmedValue; // Use already-trimmed value
-          const keyUpper = keyStr.toUpperCase();
-          const keyLower = keyStr.toLowerCase();
-          const valueLower = valueStr.toLowerCase();
+        const keyStr = String(item.key || "");
+        const valueStr = trimmedValue; // Use already-trimmed value
+        const keyUpper = keyStr.toUpperCase();
+        const keyLower = keyStr.toLowerCase();
+        const valueLower = valueStr.toLowerCase();
 
         // Skip VIP_CONTACT from LLM
-          if (
-            keyUpper === "VIP_CONTACT" ||
-            keyUpper === "VIP" ||
-            keyLower.includes("vip") ||
-            keyLower.includes("important contact")
-          ) {
-            this.logger.log(
-              `Skipping LLM VIP contact suggestion: ${valueStr} (VIP contacts are determined from starred emails)`,
-            );
-            continue;
-          }
+        if (
+          keyUpper === "VIP_CONTACT" ||
+          keyUpper === "VIP" ||
+          keyLower.includes("vip") ||
+          keyLower.includes("important contact")
+        ) {
+          this.logger.log(
+            `Skipping LLM VIP contact suggestion: ${valueStr} (VIP contacts are determined from starred emails)`,
+          );
+          continue;
+        }
 
         // Map keys to ContextKey enum with expanded matching (synonyms, partial matches)
-          // USER_INFO patterns
-          if (
-            keyUpper === "USER_INFO" ||
-            keyUpper === "USER" ||
-            keyLower.includes("role") ||
-            keyLower.includes("responsibility") ||
-            keyLower.includes("job") ||
-            keyLower.includes("position") ||
-            keyLower.includes("works as") ||
-            keyLower.includes("occupation")
-          ) {
-            key = ContextKey.USER_INFO;
-            this.logger.debug(
-              `[CONTEXT-ANALYSIS] Mapped key "${keyStr}" to USER_INFO`,
-            );
+        // USER_INFO patterns
+        if (
+          keyUpper === "USER_INFO" ||
+          keyUpper === "USER" ||
+          keyLower.includes("role") ||
+          keyLower.includes("responsibility") ||
+          keyLower.includes("job") ||
+          keyLower.includes("position") ||
+          keyLower.includes("works as") ||
+          keyLower.includes("occupation")
+        ) {
+          key = ContextKey.USER_INFO;
+          this.logger.debug(
+            `[CONTEXT-ANALYSIS] Mapped key "${keyStr}" to USER_INFO`,
+          );
+        }
+        // WORKING_ON patterns
+        else if (
+          keyUpper === "CURRENT_TOPIC" ||
+          keyUpper === "WORKING_ON" ||
+          keyUpper === "PROJECT" ||
+          keyLower.includes("team") ||
+          keyLower.includes("management") ||
+          keyLower.includes("coordination") ||
+          keyLower.includes("work") ||
+          keyLower.includes("task") ||
+          keyLower.includes("project") ||
+          keyLower.includes("initiative") ||
+          keyLower.includes("coordinate") ||
+          keyLower.includes("supervise")
+        ) {
+          key = ContextKey.WORKING_ON;
+          if (valueLower.includes("high") || valueLower.includes("urgent")) {
+            priority = 1;
+          } else if (valueLower.includes("low")) {
+            priority = 3;
+          } else {
+            priority = 2;
           }
-          // WORKING_ON patterns
-          else if (
-            keyUpper === "CURRENT_TOPIC" ||
-            keyUpper === "WORKING_ON" ||
-            keyUpper === "PROJECT" ||
-            keyLower.includes("team") ||
-            keyLower.includes("management") ||
-            keyLower.includes("coordination") ||
-            keyLower.includes("work") ||
-            keyLower.includes("task") ||
-            keyLower.includes("project") ||
-            keyLower.includes("initiative") ||
-            keyLower.includes("coordinate") ||
-            keyLower.includes("supervise")
-          ) {
-            key = ContextKey.WORKING_ON;
-            if (valueLower.includes("high") || valueLower.includes("urgent")) {
-              priority = 1;
-            } else if (valueLower.includes("low")) {
-              priority = 3;
-            } else {
-              priority = 2;
-            }
-            this.logger.debug(
-              `[CONTEXT-ANALYSIS] Mapped key "${keyStr}" to WORKING_ON with priority ${priority}`,
-            );
-          }
-          // URGENT patterns
-          else if (keyUpper === "URGENT") {
+          this.logger.debug(
+            `[CONTEXT-ANALYSIS] Mapped key "${keyStr}" to WORKING_ON with priority ${priority}`,
+          );
+        }
+        // URGENT patterns
+        else if (keyUpper === "URGENT") {
           // Validate that items marked as URGENT actually describe urgent behavior
           // If the value indicates low priority, delayed, or not urgent, re-categorize as NOT_IMPORTANT
           const notUrgentIndicators = [
@@ -3591,7 +3818,7 @@ export class ContextService {
           const hasNotUrgentIndicator = notUrgentIndicators.some((indicator) =>
             valueLower.includes(indicator),
           );
-          
+
           if (hasNotUrgentIndicator) {
             this.logger.log(
               `[CONTEXT-ANALYSIS] Re-categorizing URGENT item as NOT_IMPORTANT due to content: ${valueStr.substring(0, QUERY_LIMITS.SUBSTRING_PREVIEW_LENGTH)}...`,
@@ -3600,130 +3827,129 @@ export class ContextService {
           } else {
             key = ContextKey.URGENT;
           }
-          }
-          // NOT_IMPORTANT patterns
-          else if (
-            keyUpper === "NOT_IMPORTANT" ||
-            keyUpper === "NOT IMPORTANT" ||
-            keyLower.includes("don't care") ||
-            keyLower.includes("dont care") ||
-            keyLower.includes("low priority") ||
-            keyLower.includes("ignore")
+        }
+        // NOT_IMPORTANT patterns
+        else if (
+          keyUpper === "NOT_IMPORTANT" ||
+          keyUpper === "NOT IMPORTANT" ||
+          keyLower.includes("don't care") ||
+          keyLower.includes("dont care") ||
+          keyLower.includes("low priority") ||
+          keyLower.includes("ignore")
+        ) {
+          key = ContextKey.NOT_IMPORTANT;
+          this.logger.debug(
+            `[CONTEXT-ANALYSIS] Mapped key "${keyStr}" to NOT_IMPORTANT`,
+          );
+        }
+        // MY_GOALS patterns
+        else if (
+          keyUpper === "MY_GOALS" ||
+          keyUpper === "GOALS" ||
+          keyUpper === "GOAL" ||
+          keyLower.includes("objective") ||
+          keyLower.includes("target") ||
+          keyLower.includes("aspiration")
+        ) {
+          key = ContextKey.MY_GOALS;
+          this.logger.debug(
+            `[CONTEXT-ANALYSIS] Mapped key "${keyStr}" to MY_GOALS`,
+          );
+        }
+        // DONT_CARE patterns
+        else if (
+          keyUpper === "DONT_CARE" ||
+          keyUpper === "DON'T_CARE" ||
+          keyLower.includes("dont care") ||
+          keyLower.includes("don't care")
+        ) {
+          key = ContextKey.DONT_CARE;
+          this.logger.debug(
+            `[CONTEXT-ANALYSIS] Mapped key "${keyStr}" to DONT_CARE`,
+          );
+        }
+
+        // Content-based key inference if still OTHER after mapping
+        if (key === ContextKey.OTHER) {
+          // Infer from content if key mapping failed
+          if (
+            valueLower.includes("manages") ||
+            valueLower.includes("coordinates") ||
+            valueLower.includes("team") ||
+            valueLower.includes("supervises") ||
+            valueLower.includes("oversees") ||
+            valueLower.includes("leads") ||
+            valueLower.includes("coordination") ||
+            valueLower.includes("management") ||
+            valueLower.includes("project") ||
+            valueLower.includes("working on") ||
+            valueLower.includes("currently") ||
+            valueLower.includes("initiative")
           ) {
-            key = ContextKey.NOT_IMPORTANT;
-            this.logger.debug(
-              `[CONTEXT-ANALYSIS] Mapped key "${keyStr}" to NOT_IMPORTANT`,
+            key = ContextKey.WORKING_ON;
+            priority = 2;
+            this.logger.log(
+              `[CONTEXT-ANALYSIS] Content-based inference: Mapped "${keyStr}" to WORKING_ON based on content: ${valueStr.substring(0, QUERY_LIMITS.SUBSTRING_PREVIEW_LENGTH)}...`,
             );
-          }
-          // MY_GOALS patterns
-          else if (
-            keyUpper === "MY_GOALS" ||
-            keyUpper === "GOALS" ||
-            keyUpper === "GOAL" ||
-            keyLower.includes("objective") ||
-            keyLower.includes("target") ||
-            keyLower.includes("aspiration")
+          } else if (
+            valueLower.includes("role") ||
+            valueLower.includes("responsible for") ||
+            valueLower.includes("works as") ||
+            valueLower.includes("position") ||
+            valueLower.includes("occupation") ||
+            valueLower.includes("job") ||
+            valueLower.includes("career")
+          ) {
+            key = ContextKey.USER_INFO;
+            this.logger.log(
+              `[CONTEXT-ANALYSIS] Content-based inference: Mapped "${keyStr}" to USER_INFO based on content: ${valueStr.substring(0, QUERY_LIMITS.SUBSTRING_PREVIEW_LENGTH)}...`,
+            );
+          } else if (
+            valueLower.includes("goal") ||
+            valueLower.includes("objective") ||
+            valueLower.includes("target") ||
+            valueLower.includes("aspiration") ||
+            valueLower.includes("strive")
           ) {
             key = ContextKey.MY_GOALS;
-            this.logger.debug(
-              `[CONTEXT-ANALYSIS] Mapped key "${keyStr}" to MY_GOALS`,
+            this.logger.log(
+              `[CONTEXT-ANALYSIS] Content-based inference: Mapped "${keyStr}" to MY_GOALS based on content: ${valueStr.substring(0, QUERY_LIMITS.SUBSTRING_PREVIEW_LENGTH)}...`,
             );
           }
-          // DONT_CARE patterns
-          else if (
-            keyUpper === "DONT_CARE" ||
-            keyUpper === "DON'T_CARE" ||
-            keyLower.includes("dont care") ||
-            keyLower.includes("don't care")
-          ) {
-            key = ContextKey.DONT_CARE;
-            this.logger.debug(
-              `[CONTEXT-ANALYSIS] Mapped key "${keyStr}" to DONT_CARE`,
-            );
-          }
-          
-          // Content-based key inference if still OTHER after mapping
+          // Keep as OTHER if no inference possible
           if (key === ContextKey.OTHER) {
-            // Infer from content if key mapping failed
-            if (
-              valueLower.includes("manages") ||
-              valueLower.includes("coordinates") ||
-              valueLower.includes("team") ||
-              valueLower.includes("supervises") ||
-              valueLower.includes("oversees") ||
-              valueLower.includes("leads") ||
-              valueLower.includes("coordination") ||
-              valueLower.includes("management") ||
-              valueLower.includes("project") ||
-              valueLower.includes("working on") ||
-              valueLower.includes("currently") ||
-              valueLower.includes("initiative")
-            ) {
-              key = ContextKey.WORKING_ON;
-              priority = 2;
-              this.logger.log(
-                `[CONTEXT-ANALYSIS] Content-based inference: Mapped "${keyStr}" to WORKING_ON based on content: ${valueStr.substring(0, QUERY_LIMITS.SUBSTRING_PREVIEW_LENGTH)}...`,
-              );
-            } else if (
-              valueLower.includes("role") ||
-              valueLower.includes("responsible for") ||
-              valueLower.includes("works as") ||
-              valueLower.includes("position") ||
-              valueLower.includes("occupation") ||
-              valueLower.includes("job") ||
-              valueLower.includes("career")
-            ) {
-              key = ContextKey.USER_INFO;
-              this.logger.log(
-                `[CONTEXT-ANALYSIS] Content-based inference: Mapped "${keyStr}" to USER_INFO based on content: ${valueStr.substring(0, QUERY_LIMITS.SUBSTRING_PREVIEW_LENGTH)}...`,
-              );
-            } else if (
-              valueLower.includes("goal") ||
-              valueLower.includes("objective") ||
-              valueLower.includes("target") ||
-              valueLower.includes("aspiration") ||
-              valueLower.includes("strive")
-            ) {
-              key = ContextKey.MY_GOALS;
-              this.logger.log(
-                `[CONTEXT-ANALYSIS] Content-based inference: Mapped "${keyStr}" to MY_GOALS based on content: ${valueStr.substring(0, QUERY_LIMITS.SUBSTRING_PREVIEW_LENGTH)}...`,
-              );
-            }
-            // Keep as OTHER if no inference possible
-            if (key === ContextKey.OTHER) {
-              this.logger.debug(
-                `[CONTEXT-ANALYSIS] No mapping found for key "${keyStr}", keeping as OTHER`,
-              );
-            }
+            this.logger.debug(
+              `[CONTEXT-ANALYSIS] No mapping found for key "${keyStr}", keeping as OTHER`,
+            );
           }
+        }
 
         // Check for existing similar context before creating
-          const exactMatch = await this.contextRepository
-            .createQueryBuilder("context")
-            .where("context.userId = :userId", { userId })
-            .andWhere("context.contextKey = :key", { key })
-            .andWhere(
-              "LOWER(TRIM(context.contextValue)) = LOWER(TRIM(:value))",
-              { value: valueStr },
-            )
-            .getOne();
+        const exactMatch = await this.contextRepository
+          .createQueryBuilder("context")
+          .where("context.userId = :userId", { userId })
+          .andWhere("context.contextKey = :key", { key })
+          .andWhere("LOWER(TRIM(context.contextValue)) = LOWER(TRIM(:value))", {
+            value: valueStr,
+          })
+          .getOne();
 
-          if (exactMatch) {
-            this.logger.log(
-              `[CONTEXT-ANALYSIS] Skipping exact duplicate context: ${key} - ${valueStr.substring(0, QUERY_LIMITS.SUBSTRING_PREVIEW_LENGTH)}...`,
-            );
-            continue;
-          }
+        if (exactMatch) {
+          this.logger.log(
+            `[CONTEXT-ANALYSIS] Skipping exact duplicate context: ${key} - ${valueStr.substring(0, QUERY_LIMITS.SUBSTRING_PREVIEW_LENGTH)}...`,
+          );
+          continue;
+        }
 
         // Check for similar/overlapping context across ALL context keys (cross-key deduplication)
-          const existingContexts = await this.contextRepository.find({
-            where: { userId },
-            // Don't filter by contextKey - check all keys for duplicates
-          });
+        const existingContexts = await this.contextRepository.find({
+          where: { userId },
+          // Don't filter by contextKey - check all keys for duplicates
+        });
 
-          let isSimilar = false;
-          let similarContextKey: ContextKey | undefined;
-          for (const existing of existingContexts) {
+        let isSimilar = false;
+        let similarContextKey: ContextKey | undefined;
+        for (const existing of existingContexts) {
           try {
             if (
               this.piiRedactionService.areContextValuesSimilar(
@@ -3739,63 +3965,71 @@ export class ContextService {
             this.logger.warn(
               `[CONTEXT-ANALYSIS] Error checking similarity: ${getErrorMessage(similarityError)}`,
             );
-            }
           }
-
-          if (isSimilar && similarContextKey) {
-            this.logger.log(
-              `[CONTEXT-ANALYSIS] Skipping duplicate context (similar to existing ${similarContextKey}): ${valueStr.substring(0, QUERY_LIMITS.SUBSTRING_PREVIEW_LENGTH)}... (would have been ${key})`,
-            );
-            continue;
-          }
-
-          const explanationStr = item.source ? String(item.source) : undefined;
-          await this.createOrUpdateContext(
-            userId,
-            key,
-            valueStr,
-            Source.AUTOGENERATED,
-            priority,
-            explanationStr,
-            item.sourceThreadIds, // Pass source thread IDs for fact-checking
-          );
-          this.logger.log(
-            `[CONTEXT-ANALYSIS] Added context: ${key} - ${valueStr.substring(0, QUERY_LIMITS.SUBSTRING_PREVIEW_LENGTH)}...`,
-          );
         }
 
-        await this.usersService.update(userId, {
-          scanProgress: 85,
-          scanTotal: 100,
-        });
+        if (isSimilar && similarContextKey) {
+          this.logger.log(
+            `[CONTEXT-ANALYSIS] Skipping duplicate context (similar to existing ${similarContextKey}): ${valueStr.substring(0, QUERY_LIMITS.SUBSTRING_PREVIEW_LENGTH)}... (would have been ${key})`,
+          );
+          continue;
+        }
+
+        const explanationStr = item.source ? String(item.source) : undefined;
+        await this.createOrUpdateContext(
+          userId,
+          key,
+          valueStr,
+          Source.AUTOGENERATED,
+          priority,
+          explanationStr,
+          item.sourceThreadIds, // Pass source thread IDs for fact-checking
+        );
+        this.logger.log(
+          `[CONTEXT-ANALYSIS] Added context: ${key} - ${valueStr.substring(0, QUERY_LIMITS.SUBSTRING_PREVIEW_LENGTH)}...`,
+        );
+      }
+
+      await this.usersService.update(userId, {
+        scanProgress: 85,
+        scanTotal: 100,
+      });
       const contextDuration = Date.now() - contextStartTime;
-      writeAnalysisLog(`[FINALIZATION] ✅ Step 6/6: Processed ${contextProcessed} context items in ${Math.round(contextDuration / 1000)}s`, "log");
+      writeAnalysisLog(
+        `[FINALIZATION] ✅ Step 6/6: Processed ${contextProcessed} context items in ${Math.round(contextDuration / 1000)}s`,
+        "log",
+      );
     }
 
     // Save writing style to user.toneSettings.rules
-    writeAnalysisLog(`[FINALIZATION] Saving writing style to toneSettings.rules...`, "log");
+    writeAnalysisLog(
+      `[FINALIZATION] Saving writing style to toneSettings.rules...`,
+      "log",
+    );
     if (analysis.writingStyle) {
       const writingStyleRules: string[] = [];
-      
+
       // Add tone if available
       if (analysis.writingStyle.tone && analysis.writingStyle.tone.trim()) {
         writingStyleRules.push(`Tone: ${analysis.writingStyle.tone}`);
       }
-      
+
       // Add style if available
       if (analysis.writingStyle.style && analysis.writingStyle.style.trim()) {
         writingStyleRules.push(`Style: ${analysis.writingStyle.style}`);
       }
-      
+
       // Add common phrases
       for (const phrase of analysis.writingStyle.commonPhrases || []) {
         if (phrase && phrase.trim()) {
           writingStyleRules.push(`Common phrase: "${phrase}"`);
         }
       }
-      
+
       // Add email examples with name redaction (use LLM-based redaction)
-      const emailExamples = (analysis.writingStyle as { emailExamples?: string[] }).emailExamples || [];
+      const emailExamples =
+        (analysis.writingStyle as { emailExamples?: string[] }).emailExamples ||
+        [];
       this.logger.log(
         `[CONTEXT-ANALYSIS] Writing style has ${emailExamples.length} email examples to process`,
       );
@@ -3810,21 +4044,22 @@ export class ContextService {
           writingStyleRules.push(`Example: ${redacted}`);
         }
       }
-      
+
       if (writingStyleRules.length > 0) {
         // Merge with existing user rules (don't overwrite manual additions)
         const user = await this.usersService.findOne(userId);
         const existingRules = user?.toneSettings?.rules || [];
         // Add new rules, avoiding duplicates, limit to 20 total
         const newRules = writingStyleRules.filter(
-          (rule) => !existingRules.some((existing: string) => existing === rule),
+          (rule) =>
+            !existingRules.some((existing: string) => existing === rule),
         );
         const mergedRules = [...existingRules, ...newRules].slice(0, 20);
-        
-        await this.usersService.update(userId, { 
-          toneSettings: { rules: mergedRules } 
+
+        await this.usersService.update(userId, {
+          toneSettings: { rules: mergedRules },
         });
-        
+
         this.logger.log(
           `[CONTEXT-ANALYSIS] Saved ${newRules.length} new writing style rules (total: ${mergedRules.length})`,
         );
@@ -3836,26 +4071,33 @@ export class ContextService {
     }
 
     // Store statistics
-    writeAnalysisLog(`[FINALIZATION] Saving final statistics and marking analysis as complete...`, "log");
-    
+    writeAnalysisLog(
+      `[FINALIZATION] Saving final statistics and marking analysis as complete...`,
+      "log",
+    );
+
     // IMPORTANT: vipContactsEvaluated should be the count of VIP contacts we processed/saved
     // Use effectiveVipContacts (computed or passed) length
     const actualVipContactsEvaluated = effectiveVipContacts.length;
-    
+
     // Compute thread stats and VIP contacts from batch payloads
     let threadsNeverOpened = 0;
     let threadsReadButNotReplied = 0;
-    
+
     // Get batch payloads from stats to compute thread-level stats
-    const batchPayloadsForStats = (finalStats.batchPayloadsForRetry as Record<number, Array<{
-      from: string;
-      fromName?: string;
-      isRead?: boolean;
-      isArchived?: boolean;
-      timeToReply?: number | null;
-      starCount?: number;
-    }>>) || {};
-    
+    const batchPayloadsForStats =
+      (finalStats.batchPayloadsForRetry as Record<
+        number,
+        Array<{
+          from: string;
+          fromName?: string;
+          isRead?: boolean;
+          isArchived?: boolean;
+          timeToReply?: number | null;
+          starCount?: number;
+        }>
+      >) || {};
+
     // Debug: Count total threads and sample data
     const batchKeys = Object.keys(batchPayloadsForStats);
     let totalThreadsInPayloads = 0;
@@ -3865,7 +4107,7 @@ export class ContextService {
     let isReadUndefinedCount = 0;
     let hasStarCount = 0;
     let hasTimeToReplyCount = 0;
-    
+
     for (const batchPayload of Object.values(batchPayloadsForStats)) {
       totalThreadsInPayloads += batchPayload.length;
       if (!sampleThread && batchPayload.length > 0) {
@@ -3876,22 +4118,24 @@ export class ContextService {
         if (thread.isRead === true) isReadTrueCount++;
         else if (thread.isRead === false) isReadFalseCount++;
         else isReadUndefinedCount++;
-        
+
         if (thread.starCount && thread.starCount > 0) hasStarCount++;
-        if (thread.timeToReply !== null && thread.timeToReply !== undefined) hasTimeToReplyCount++;
-        
+        if (thread.timeToReply !== null && thread.timeToReply !== undefined)
+          hasTimeToReplyCount++;
+
         if (thread.isRead === false) {
           threadsNeverOpened++;
-        } else if (thread.isRead === true && (thread.timeToReply === null || thread.timeToReply === undefined)) {
+        } else if (
+          thread.isRead === true &&
+          (thread.timeToReply === null || thread.timeToReply === undefined)
+        ) {
           // Read but no reply time recorded = read but not replied
           threadsReadButNotReplied++;
         }
       }
     }
-    
-    this.logger.log(
-      `[FINALIZATION] ===== BATCH PAYLOAD DEBUG =====`,
-    );
+
+    this.logger.log(`[FINALIZATION] ===== BATCH PAYLOAD DEBUG =====`);
     this.logger.log(
       `[FINALIZATION] Batches: ${batchKeys.length}, Threads: ${totalThreadsInPayloads}`,
     );
@@ -3910,62 +4154,67 @@ export class ContextService {
         `[FINALIZATION] ⚠️ NO BATCH PAYLOADS! Stats keys: ${JSON.stringify(Object.keys(finalStats))}`,
       );
     }
-    this.logger.log(
-      `[FINALIZATION] ===== END DEBUG =====`,
-    );
-    
+    this.logger.log(`[FINALIZATION] ===== END DEBUG =====`);
+
     this.logger.log(
       `[FINALIZATION] Computed stats: neverOpened=${threadsNeverOpened}, readButNotReplied=${threadsReadButNotReplied}, vipContacts=${actualVipContactsEvaluated}`,
     );
-    
-      const analysisStatsForDb = {
+
+    const analysisStatsForDb = {
       totalThreads: analysisStats.totalThreads || totalThreads,
       outboundEmails: analysisStats.outboundEmails || sentEmailsCount,
-        threadsNeverOpened,
-        threadsReadButNotReplied,
-        // Use actual VIP contacts count from the array, not the passed-in value (which is always 0)
-        vipContactsEvaluated: actualVipContactsEvaluated || analysisStats.vipContactsEvaluated || 0,
-      };
+      threadsNeverOpened,
+      threadsReadButNotReplied,
+      // Use actual VIP contacts count from the array, not the passed-in value (which is always 0)
+      vipContactsEvaluated:
+        actualVipContactsEvaluated || analysisStats.vipContactsEvaluated || 0,
+    };
 
-      analysisRecord.stats = analysisStatsForDb;
-      await this.contextAnalysisRepository.save(analysisRecord);
+    analysisRecord.stats = analysisStatsForDb;
+    await this.contextAnalysisRepository.save(analysisRecord);
 
     // Mark analysis as complete
-      analysisRecord.status = "completed";
-      analysisRecord.progress = 100;
-      analysisRecord.total = 100;
-      // Update threadCount to match analyzedCount (actual threads processed)
-      // Some threads might not have emails and were skipped, so analyzedCount is accurate
-      const actualThreadCount = analysisRecord.analyzedCount || totalThreads;
-      analysisRecord.threadCount = actualThreadCount;
-      analysisRecord.analyzedCount = actualThreadCount;
-      this.logger.log(
-        `[FINALIZATION] Updated threadCount to ${actualThreadCount} to match analyzedCount (originally ${totalThreads})`,
-      );
-      writeAnalysisLog(
-        `Updated threadCount to ${actualThreadCount} to match analyzedCount (originally ${totalThreads})`,
-        "log",
-      );
-      await this.contextAnalysisRepository.save(analysisRecord);
+    analysisRecord.status = "completed";
+    analysisRecord.progress = 100;
+    analysisRecord.total = 100;
+    // Update threadCount to match analyzedCount (actual threads processed)
+    // Some threads might not have emails and were skipped, so analyzedCount is accurate
+    const actualThreadCount = analysisRecord.analyzedCount || totalThreads;
+    analysisRecord.threadCount = actualThreadCount;
+    analysisRecord.analyzedCount = actualThreadCount;
+    this.logger.log(
+      `[FINALIZATION] Updated threadCount to ${actualThreadCount} to match analyzedCount (originally ${totalThreads})`,
+    );
+    writeAnalysisLog(
+      `Updated threadCount to ${actualThreadCount} to match analyzedCount (originally ${totalThreads})`,
+      "log",
+    );
+    await this.contextAnalysisRepository.save(analysisRecord);
 
     // Update user scan progress
-    writeAnalysisLog(`[FINALIZATION] ✅ All steps complete! Updating progress to 100%...`, "log");
-      await this.usersService.update(userId, {
-        scanProgress: 100,
-        scanTotal: 100,
-      });
-    writeAnalysisLog(`[FINALIZATION] ✅✅✅ FINALIZATION COMPLETE for user ${userId}`, "log");
+    writeAnalysisLog(
+      `[FINALIZATION] ✅ All steps complete! Updating progress to 100%...`,
+      "log",
+    );
+    await this.usersService.update(userId, {
+      scanProgress: 100,
+      scanTotal: 100,
+    });
+    writeAnalysisLog(
+      `[FINALIZATION] ✅✅✅ FINALIZATION COMPLETE for user ${userId}`,
+      "log",
+    );
 
-      this.logger.log(
-        `[Context Analysis] Completed email analysis for user ${userId}. Analyzed ${totalThreads} threads.`,
-      );
+    this.logger.log(
+      `[Context Analysis] Completed email analysis for user ${userId}. Analyzed ${totalThreads} threads.`,
+    );
 
     // Clear progress after a short delay
-      setTimeout(async () => {
-        await this.usersService.update(userId, {
-          scanProgress: null,
-          scanTotal: null,
-        });
-      }, 5000);
+    setTimeout(async () => {
+      await this.usersService.update(userId, {
+        scanProgress: null,
+        scanTotal: null,
+      });
+    }, 5000);
   }
 }

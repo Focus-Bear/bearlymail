@@ -119,5 +119,3 @@ export class Office365AccountsService {
     return count > 0;
   }
 }
-
-

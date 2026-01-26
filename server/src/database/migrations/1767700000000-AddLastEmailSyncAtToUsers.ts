@@ -33,4 +33,3 @@ export class AddLastEmailSyncAtToUsers1767700000000
     }
   }
 }
-

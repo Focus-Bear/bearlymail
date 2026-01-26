@@ -5,7 +5,6 @@ import { UsersService } from "../users/users.service";
 import { WritingStyleLearningService } from "./writing-style-learning.service";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { ContextEmailDataService } from "./context-gmail-data.service";
-import { getJobPriority } from "../queue/job-priorities";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 
 // Check for learning opportunities every 30 minutes
@@ -32,109 +31,106 @@ export class WritingStyleLearningProcessor implements OnModuleInit {
     );
 
     // Worker for checking and triggering writing style learning
-    await this.boss.work(
-      "check-writing-style-learning",
-      async (job) => {
-        const workerId = job.id || "unknown";
-        const tracker = new JobPerformanceTracker(
-          "check-writing-style-learning",
-          workerId,
-        );
+    await this.boss.work("check-writing-style-learning", async (job) => {
+      const workerId = job.id || "unknown";
+      const tracker = new JobPerformanceTracker(
+        "check-writing-style-learning",
+        workerId,
+      );
 
-        this.logger.log(
-          `[Worker ${workerId}] Starting writing style learning check`,
-        );
+      this.logger.log(
+        `[Worker ${workerId}] Starting writing style learning check`,
+      );
 
-        try {
-          tracker.startPhase("fetchUsers");
-          const users = await this.usersService.findAll();
-          tracker.endPhase("fetchUsers");
+      try {
+        tracker.startPhase("fetchUsers");
+        const users = await this.usersService.findAll();
+        tracker.endPhase("fetchUsers");
 
-          let usersProcessed = 0;
-          let usersSkipped = 0;
+        let usersProcessed = 0;
+        let usersSkipped = 0;
 
-          for (const user of users) {
-            try {
-              // Check if user needs more examples
-              const exampleCount =
-                await this.writingStyleLearningService.getExampleCount(user.id);
+        for (const user of users) {
+          try {
+            // Check if user needs more examples
+            const exampleCount =
+              await this.writingStyleLearningService.getExampleCount(user.id);
 
-              if (exampleCount >= 20) {
-                usersSkipped++;
-                continue;
-              }
-
-              // Check if user has email provider connected
-              const provider = await this.emailProviderManager.getPrimaryProvider(
-                user.id,
-              );
-              if (!provider) {
-                usersSkipped++;
-                continue;
-              }
-
-              // Find recent sent emails (last 7 days) using the email provider
-              const sevenDaysAgo = new Date();
-              sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-              const now = new Date();
-
-              try {
-                // Get user email for the query
-                const userEmail = user.email || "";
-                if (!userEmail) {
-                  usersSkipped++;
-                  continue;
-                }
-
-                const sentEmails =
-                  await this.contextEmailDataService.fetchSentThreadsFromProvider(
-                    user.id,
-                    userEmail,
-                    sevenDaysAgo,
-                    now,
-                    10, // Limit to 10 most recent
-                  );
-
-                if (sentEmails.length > 0) {
-                  // Extract email bodies for learning
-                  const emailBodies = sentEmails.map((e) => e.body);
-                  await this.writingStyleLearningService.learnFromSentEmailBodies(
-                    user.id,
-                    emailBodies,
-                  );
-                  usersProcessed++;
-                } else {
-                  usersSkipped++;
-                }
-              } catch (fetchError) {
-                this.logger.warn(
-                  `Failed to fetch sent emails for user ${user.id}:`,
-                  fetchError,
-                );
-                usersSkipped++;
-              }
-            } catch (userError) {
-              this.logger.error(
-                `Error processing writing style learning for user ${user.id}:`,
-                userError,
-              );
+            if (exampleCount >= 20) {
+              usersSkipped++;
+              continue;
             }
-          }
 
-          tracker.finish();
-          this.logger.log(
-            `[Worker ${workerId}] Writing style learning check complete. Processed: ${usersProcessed}, Skipped: ${usersSkipped}`,
-          );
-        } catch (error) {
-          this.logger.error(
-            `[Worker ${workerId}] Writing style learning check failed:`,
-            error,
-          );
-          tracker.finish(error as Error);
-          throw error;
+            // Check if user has email provider connected
+            const provider = await this.emailProviderManager.getPrimaryProvider(
+              user.id,
+            );
+            if (!provider) {
+              usersSkipped++;
+              continue;
+            }
+
+            // Find recent sent emails (last 7 days) using the email provider
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            const now = new Date();
+
+            try {
+              // Get user email for the query
+              const userEmail = user.email || "";
+              if (!userEmail) {
+                usersSkipped++;
+                continue;
+              }
+
+              const sentEmails =
+                await this.contextEmailDataService.fetchSentThreadsFromProvider(
+                  user.id,
+                  userEmail,
+                  sevenDaysAgo,
+                  now,
+                  10, // Limit to 10 most recent
+                );
+
+              if (sentEmails.length > 0) {
+                // Extract email bodies for learning
+                const emailBodies = sentEmails.map((e) => e.body);
+                await this.writingStyleLearningService.learnFromSentEmailBodies(
+                  user.id,
+                  emailBodies,
+                );
+                usersProcessed++;
+              } else {
+                usersSkipped++;
+              }
+            } catch (fetchError) {
+              this.logger.warn(
+                `Failed to fetch sent emails for user ${user.id}:`,
+                fetchError,
+              );
+              usersSkipped++;
+            }
+          } catch (userError) {
+            this.logger.error(
+              `Error processing writing style learning for user ${user.id}:`,
+              userError,
+            );
+          }
         }
-      },
-    );
+
+        tracker.finish();
+        this.logger.log(
+          `[Worker ${workerId}] Writing style learning check complete. Processed: ${usersProcessed}, Skipped: ${usersSkipped}`,
+        );
+      } catch (error) {
+        this.logger.error(
+          `[Worker ${workerId}] Writing style learning check failed:`,
+          error,
+        );
+        tracker.finish(error as Error);
+        throw error;
+      }
+    });
 
     this.logger.log("Writing style learning processor registered");
   }

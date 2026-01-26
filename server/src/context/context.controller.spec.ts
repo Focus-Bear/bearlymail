@@ -1,15 +1,11 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { Inject } from "@nestjs/common";
 import { ContextController } from "./context.controller";
 import { ContextService } from "./context.service";
 import { UsersService } from "../users/users.service";
-import PgBoss = require("pg-boss");
 
 describe("ContextController", () => {
   let controller: ContextController;
   let contextService: ContextService;
-  let usersService: UsersService;
-  let boss: PgBoss;
 
   const mockContextService = {
     getUserContext: jest.fn(),
@@ -48,8 +44,6 @@ describe("ContextController", () => {
 
     controller = module.get<ContextController>(ContextController);
     contextService = module.get<ContextService>(ContextService);
-    usersService = module.get<UsersService>(UsersService);
-    boss = module.get<PgBoss>("PG_BOSS");
   });
 
   afterEach(() => {
@@ -155,5 +149,3 @@ describe("ContextController", () => {
     });
   });
 });
-
-

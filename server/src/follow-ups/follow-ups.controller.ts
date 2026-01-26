@@ -219,7 +219,7 @@ export class FollowUpsController {
   @Get(":id")
   async getFollowUp(@Request() req, @Param("id") id: string) {
     return this.followUpsService.getFollowUp(id, req.user.userId);
-  }  /**
+  } /**
    * Get generation/send status for a follow-up
    */
   @Get(":id/status")
@@ -230,7 +230,8 @@ export class FollowUpsController {
     );
     if (!followUp) {
       throw new BadRequestException("Follow-up not found");
-    }    return {
+    }
+    return {
       generationStatus: followUp.generationStatus,
       generationError: followUp.generationError,
       sendStatus: followUp.sendStatus,

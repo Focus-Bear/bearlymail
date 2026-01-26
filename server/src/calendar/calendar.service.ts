@@ -340,7 +340,6 @@ export class CalendarService {
 
     // Parse iCal content if present
     let eventId: string | null = null;
-    let organizerEmail: string | null = null;
     let eventStart: Date | null = null;
 
     // Try to extract from iCal format
@@ -348,7 +347,9 @@ export class CalendarService {
     if (icalMatch) {
       const icalContent = icalMatch[0];
       const uidMatch = icalContent.match(/UID:([^\r\n]+)/);
-      const organizerMatch = icalContent.match(/ORGANIZER[^:]*:MAILTO:([^\r\n]+)/i);
+      const organizerMatch = icalContent.match(
+        /ORGANIZER[^:]*:MAILTO:([^\r\n]+)/i,
+      );
       const dtstartMatch = icalContent.match(/DTSTART[^:]*:([^\r\n]+)/i);
 
       if (uidMatch) {
@@ -356,7 +357,8 @@ export class CalendarService {
         eventId = uidMatch[1].trim();
       }
       if (organizerMatch) {
-        organizerEmail = organizerMatch[1].trim();
+        // organizerEmail extracted for potential future use
+        organizerMatch[1].trim();
       }
       if (dtstartMatch) {
         try {
@@ -367,7 +369,8 @@ export class CalendarService {
             const month = dateStr.substring(4, 6);
             const day = dateStr.substring(6, 8);
             const hour = dateStr.length > 8 ? dateStr.substring(9, 11) : "00";
-            const minute = dateStr.length > 10 ? dateStr.substring(11, 13) : "00";
+            const minute =
+              dateStr.length > 10 ? dateStr.substring(11, 13) : "00";
             eventStart = new Date(
               `${year}-${month}-${day}T${hour}:${minute}:00`,
             );
@@ -397,7 +400,10 @@ export class CalendarService {
           if (eventId && event.iCalUID === eventId) {
             return true;
           }
-          if (event.summary && subject.toLowerCase().includes(event.summary.toLowerCase())) {
+          if (
+            event.summary &&
+            subject.toLowerCase().includes(event.summary.toLowerCase())
+          ) {
             return true;
           }
           // Check if user is an attendee
@@ -425,7 +431,7 @@ export class CalendarService {
         // Get the event first to check current attendee status
         const event = await calendar.events.get({
           calendarId: "primary",
-          eventId: eventId,
+          eventId,
         });
 
         if (!event.data.attendees) {
@@ -434,7 +440,8 @@ export class CalendarService {
 
         const userEmail = EncryptionHelper.decrypt(user.email);
         const attendeeIndex = event.data.attendees.findIndex(
-          (attendee) => attendee.email?.toLowerCase() === userEmail?.toLowerCase(),
+          (attendee) =>
+            attendee.email?.toLowerCase() === userEmail?.toLowerCase(),
         );
 
         if (attendeeIndex === -1) {
@@ -453,12 +460,12 @@ export class CalendarService {
         const updatedAttendees = [...(event.data.attendees || [])];
         updatedAttendees[attendeeIndex] = {
           ...updatedAttendees[attendeeIndex],
-          responseStatus: responseStatus,
+          responseStatus,
         };
 
         await calendar.events.patch({
           calendarId: "primary",
-          eventId: eventId,
+          eventId,
           requestBody: {
             attendees: updatedAttendees,
           },

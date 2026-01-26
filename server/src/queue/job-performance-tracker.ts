@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface Phase {
   name: string;
   duration: number;
@@ -49,7 +50,8 @@ export class JobPerformanceTracker {
     this.startTime = Date.now();
 
     // Get budget for this job type
-    const budgetKey = `JOB_${jobName.toUpperCase().replace(/-/g, "_")}` as keyof typeof PERFORMANCE_BUDGETS;
+    const budgetKey =
+      `JOB_${jobName.toUpperCase().replace(/-/g, "_")}` as keyof typeof PERFORMANCE_BUDGETS;
     this.budget =
       PERFORMANCE_BUDGETS[budgetKey] || PERFORMANCE_BUDGETS.JOB_REFINE_PRIORITY;
 
@@ -62,7 +64,12 @@ export class JobPerformanceTracker {
   /**
    * Set metadata for the job (userId, emailId, etc.)
    */
-  setMetadata(metadata: { userId?: string; emailId?: string; threadId?: string; syncWindowHours?: number }): void {
+  setMetadata(metadata: {
+    userId?: string;
+    emailId?: string;
+    threadId?: string;
+    syncWindowHours?: number;
+  }): void {
     this.metadata = { ...this.metadata, ...metadata };
   }
 
@@ -137,4 +144,3 @@ export class JobPerformanceTracker {
     }
   }
 }
-

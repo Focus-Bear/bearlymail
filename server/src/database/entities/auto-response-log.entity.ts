@@ -55,7 +55,8 @@ export class AutoResponseLog {
   confidenceScore: number | null;
 
   @Column({
-    comment: "Template type used (standard, highPriority, lowPriority, zeroBacklog)",
+    comment:
+      "Template type used (standard, highPriority, lowPriority, zeroBacklog)",
   })
   templateUsed: string;
 

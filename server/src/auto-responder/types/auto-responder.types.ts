@@ -117,7 +117,7 @@ I've reviewed your email and categorized it as medium priority, which means it'l
 ---
 *You're receiving this because {{userName}} uses [BearlyMail](https://bearlymail.com) to manage email overload. If you'd prefer not to receive auto-responses, just let me know in your reply.*`,
 
-  highPriority:`Hi!
+  highPriority: `Hi!
 
 Thanks for your email—this one caught my attention.
 
@@ -143,7 +143,7 @@ Here's what's happening:
 ---
 *You're receiving this because {{userName}} uses [BearlyMail](https://bearlymail.com) to manage email overload. If you'd prefer not to receive auto-responses, just let me know in your reply.*`,
 
-  lowPriority:`Hey there!
+  lowPriority: `Hey there!
 
 Thanks for reaching out to {{userName}}.
 
@@ -167,7 +167,7 @@ If this is actually urgent, just reply and let me know—I'll bump it up!
 ---
 *You're receiving this because {{userName}} uses [BearlyMail](https://bearlymail.com) to manage email overload. If you'd prefer not to receive auto-responses, just let me know in your reply.*`,
 
-  noAnswer:`**I tried to help, but...** I looked through {{userName}}'s previous emails to see if I could answer your question preemptively, but this seems like something that needs {{userName}}'s direct attention. He'll get back to you as soon as he works through the queue!`,
+  noAnswer: `**I tried to help, but...** I looked through {{userName}}'s previous emails to see if I could answer your question preemptively, but this seems like something that needs {{userName}}'s direct attention. He'll get back to you as soon as he works through the queue!`,
 
   zeroBacklog: `Hey there!
 

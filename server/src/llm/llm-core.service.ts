@@ -150,7 +150,7 @@ export class LLMCoreService {
 
       // Log token usage from Gemini response
       // Cast to any to access usageMetadata which may not be in type definitions
-      const usageMetadata = (response as any).usageMetadata;
+      const { usageMetadata } = response as any;
       if (usageMetadata) {
         await this.tokenUsageService.logUsage({
           userId: userId || null,

@@ -134,7 +134,8 @@ export class Email {
     type: "text",
     nullable: true,
     transformer: encryptedJsonTransformer,
-    comment: "JSON array of attachment metadata: {attachmentId, filename, mimeType, size}[]",
+    comment:
+      "JSON array of attachment metadata: {attachmentId, filename, mimeType, size}[]",
   })
   attachments: Array<{
     attachmentId: string;
@@ -153,7 +154,8 @@ export class Email {
 
   @Column({
     default: false,
-    comment: "Flag to indicate email was delivered early (emergency) due to high priority outside batch window",
+    comment:
+      "Flag to indicate email was delivered early (emergency) due to high priority outside batch window",
   })
   wasDeliveredEarly: boolean;
 
@@ -175,7 +177,10 @@ export class Email {
    * @returns The calculated score (0-100), or 0 if no breakdown exists
    */
   getPriorityScore(): number {
-    if (!this.thread?.priorityExplanation || !this.thread.priorityExplanation.breakdown) {
+    if (
+      !this.thread?.priorityExplanation ||
+      !this.thread.priorityExplanation.breakdown
+    ) {
       return 0;
     }
 

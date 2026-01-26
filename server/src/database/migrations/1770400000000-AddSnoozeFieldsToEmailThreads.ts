@@ -1,6 +1,13 @@
-import { MigrationInterface, QueryRunner, TableColumn, TableIndex } from "typeorm";
+import {
+  MigrationInterface,
+  QueryRunner,
+  TableColumn,
+  TableIndex,
+} from "typeorm";
 
-export class AddSnoozeFieldsToEmailThreads1770400000000 implements MigrationInterface {
+export class AddSnoozeFieldsToEmailThreads1770400000000
+  implements MigrationInterface
+{
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.addColumn(
       "email_threads",

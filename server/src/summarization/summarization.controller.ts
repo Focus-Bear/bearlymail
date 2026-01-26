@@ -60,10 +60,7 @@ export class SummarizationController {
   }
 
   @Post("match-rule/:id")
-  async matchRule(
-    @Request() req,
-    @Param("id") id: string,
-  ) {
+  async matchRule(@Request() req, @Param("id") id: string) {
     const matchedRule = await this.summarizationService.matchRuleForEmail(
       req.user.userId,
       id,

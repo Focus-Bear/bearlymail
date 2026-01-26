@@ -17,5 +17,3 @@ export const QUEUE_CONSTANTS = {
   // Maximum queue size
   MAX_QUEUE_SIZE: 800,
 } as const;
-
-

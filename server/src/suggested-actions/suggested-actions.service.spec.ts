@@ -1,6 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
 import { SuggestedActionsService } from "./suggested-actions.service";
 import { UsersService } from "../users/users.service";
 import { EmailsService } from "../emails/emails.service";
@@ -15,6 +14,7 @@ describe("SuggestedActionsService", () => {
   let emailsService: EmailsService;
   let usersService: UsersService;
   let llmService: LLMService;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let githubService: GitHubService;
 
   const mockEmailsService = {

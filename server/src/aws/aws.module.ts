@@ -8,5 +8,3 @@ import { CloudWatchService } from "./cloudwatch.service";
   exports: [CloudWatchService],
 })
 export class AwsModule {}
-
-

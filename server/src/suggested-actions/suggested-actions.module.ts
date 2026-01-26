@@ -25,5 +25,3 @@ import { ActionItem } from "../database/entities/action-item.entity";
   exports: [SuggestedActionsService],
 })
 export class SuggestedActionsModule {}
-
-

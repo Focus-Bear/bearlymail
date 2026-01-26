@@ -1,13 +1,11 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
 import { BlockedSendersService } from "./blocked-senders.service";
 import { BlockedSender } from "../database/entities/blocked-sender.entity";
 import { SearchIndexHelper } from "../contacts/search-index.helper";
 
 describe("BlockedSendersService", () => {
   let service: BlockedSendersService;
-  let repository: Repository<BlockedSender>;
 
   const mockRepository = {
     findOne: jest.fn(),
@@ -29,9 +27,6 @@ describe("BlockedSendersService", () => {
     }).compile();
 
     service = module.get<BlockedSendersService>(BlockedSendersService);
-    repository = module.get<Repository<BlockedSender>>(
-      getRepositoryToken(BlockedSender),
-    );
   });
 
   afterEach(() => {

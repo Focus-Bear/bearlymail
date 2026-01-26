@@ -28,7 +28,9 @@ describe("AutoResponderService", () => {
   let userRepository: jest.Mocked<Repository<User>>;
   let emailThreadRepository: jest.Mocked<Repository<EmailThread>>;
   let autoResponseLogRepository: jest.Mocked<Repository<AutoResponseLog>>;
-  let autoResponseSuppressionRepository: jest.Mocked<Repository<AutoResponseSuppression>>;
+  let autoResponseSuppressionRepository: jest.Mocked<
+    Repository<AutoResponseSuppression>
+  >;
   let emailClassifierService: jest.Mocked<EmailClassifierService>;
   let queueStatsService: jest.Mocked<QueueStatsService>;
   let emailProviderManager: jest.Mocked<EmailProviderManager>;
@@ -146,7 +148,10 @@ describe("AutoResponderService", () => {
 
   describe("getConfig", () => {
     it("should return default config when user has no settings", async () => {
-      userRepository.findOne.mockResolvedValue({ ...mockUser, autoResponderSettings: null } as any);
+      userRepository.findOne.mockResolvedValue({
+        ...mockUser,
+        autoResponderSettings: null,
+      } as any);
 
       const config = await service.getConfig("user-1");
 
@@ -213,10 +218,16 @@ describe("AutoResponderService", () => {
     it("should not send when auto-responder is disabled", async () => {
       userRepository.findOne.mockResolvedValue({
         ...mockUser,
-        autoResponderSettings: { ...DEFAULT_AUTO_RESPONDER_CONFIG, enabled: false },
+        autoResponderSettings: {
+          ...DEFAULT_AUTO_RESPONDER_CONFIG,
+          enabled: false,
+        },
       } as any);
 
-      const result = await service.processEmailForAutoResponse("user-1", "thread-1");
+      const result = await service.processEmailForAutoResponse(
+        "user-1",
+        "thread-1",
+      );
 
       expect(result.sent).toBe(false);
       expect(result.reason).toBe("Auto-responder disabled");
@@ -225,7 +236,10 @@ describe("AutoResponderService", () => {
     it("should not send to automated emails when excluded", async () => {
       userRepository.findOne.mockResolvedValue({
         ...mockUser,
-        autoResponderSettings: { ...DEFAULT_AUTO_RESPONDER_CONFIG, enabled: true },
+        autoResponderSettings: {
+          ...DEFAULT_AUTO_RESPONDER_CONFIG,
+          enabled: true,
+        },
       } as any);
       emailClassifierService.classifyEmail.mockResolvedValue({
         isAutomated: true,
@@ -239,7 +253,10 @@ describe("AutoResponderService", () => {
         reasons: ["Automated email"],
       });
 
-      const result = await service.processEmailForAutoResponse("user-1", "thread-1");
+      const result = await service.processEmailForAutoResponse(
+        "user-1",
+        "thread-1",
+      );
 
       expect(result.sent).toBe(false);
       expect(result.reason).toBe("Automated email excluded");
@@ -248,11 +265,19 @@ describe("AutoResponderService", () => {
     it("should not send when thread already has auto-response", async () => {
       userRepository.findOne.mockResolvedValue({
         ...mockUser,
-        autoResponderSettings: { ...DEFAULT_AUTO_RESPONDER_CONFIG, enabled: true },
+        autoResponderSettings: {
+          ...DEFAULT_AUTO_RESPONDER_CONFIG,
+          enabled: true,
+        },
       } as any);
-      autoResponseLogRepository.findOne.mockResolvedValue({ id: "log-1" } as any);
+      autoResponseLogRepository.findOne.mockResolvedValue({
+        id: "log-1",
+      } as any);
 
-      const result = await service.processEmailForAutoResponse("user-1", "thread-1");
+      const result = await service.processEmailForAutoResponse(
+        "user-1",
+        "thread-1",
+      );
 
       expect(result.sent).toBe(false);
       expect(result.reason).toBe("Auto-response already sent to this thread");
@@ -261,14 +286,20 @@ describe("AutoResponderService", () => {
     it("should not send to suppressed senders", async () => {
       userRepository.findOne.mockResolvedValue({
         ...mockUser,
-        autoResponderSettings: { ...DEFAULT_AUTO_RESPONDER_CONFIG, enabled: true },
+        autoResponderSettings: {
+          ...DEFAULT_AUTO_RESPONDER_CONFIG,
+          enabled: true,
+        },
       } as any);
       autoResponseSuppressionRepository.findOne.mockResolvedValue({
         id: "suppression-1",
         reason: "opt_out",
       } as any);
 
-      const result = await service.processEmailForAutoResponse("user-1", "thread-1");
+      const result = await service.processEmailForAutoResponse(
+        "user-1",
+        "thread-1",
+      );
 
       expect(result.sent).toBe(false);
       expect(result.reason).toContain("Sender suppressed");
@@ -280,13 +311,21 @@ describe("AutoResponderService", () => {
       };
       userRepository.findOne.mockResolvedValue({
         ...mockUser,
-        autoResponderSettings: { ...DEFAULT_AUTO_RESPONDER_CONFIG, enabled: true },
+        autoResponderSettings: {
+          ...DEFAULT_AUTO_RESPONDER_CONFIG,
+          enabled: true,
+        },
       } as any);
-      emailProviderManager.getPrimaryProvider.mockResolvedValue(mockProvider as any);
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(
+        mockProvider as any,
+      );
       autoResponseLogRepository.save.mockResolvedValue({} as any);
       autoResponseSuppressionRepository.save.mockResolvedValue({} as any);
 
-      const result = await service.processEmailForAutoResponse("user-1", "thread-1");
+      const result = await service.processEmailForAutoResponse(
+        "user-1",
+        "thread-1",
+      );
 
       expect(result.sent).toBe(true);
       expect(mockProvider.sendReply).toHaveBeenCalled();
@@ -299,7 +338,11 @@ describe("AutoResponderService", () => {
       autoResponseSuppressionRepository.delete.mockResolvedValue({} as any);
       autoResponseSuppressionRepository.save.mockResolvedValue({} as any);
 
-      await service.addOptOutSuppression("user-1", "sender@example.com", "User requested");
+      await service.addOptOutSuppression(
+        "user-1",
+        "sender@example.com",
+        "User requested",
+      );
 
       expect(autoResponseSuppressionRepository.delete).toHaveBeenCalled();
       expect(autoResponseSuppressionRepository.save).toHaveBeenCalledWith(

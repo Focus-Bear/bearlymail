@@ -13,7 +13,10 @@ interface CacheEntry<T> {
 export class PriorityCacheService {
   private readonly logger = new Logger(PriorityCacheService.name);
   private readonly contextsCache = new Map<string, CacheEntry<UserContext[]>>();
-  private readonly avgTimeToReplyCache = new Map<string, CacheEntry<number | undefined>>();
+  private readonly avgTimeToReplyCache = new Map<
+    string,
+    CacheEntry<number | undefined>
+  >();
 
   // TTL in milliseconds
   private readonly CONTEXTS_TTL = 5 * 60 * 1000; // 5 minutes
@@ -117,4 +120,3 @@ export class PriorityCacheService {
     this.logger.debug("Cleared all priority caches");
   }
 }
-

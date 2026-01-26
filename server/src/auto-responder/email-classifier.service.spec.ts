@@ -42,7 +42,9 @@ describe("EmailClassifierService", () => {
         );
 
         expect(result.isAutomated).toBe(true);
-        expect(result.reasons).toContain("Automated email detected via headers");
+        expect(result.reasons).toContain(
+          "Automated email detected via headers",
+        );
       });
 
       it("should detect newsletters via List-Unsubscribe header", async () => {
@@ -100,9 +102,9 @@ describe("EmailClassifierService", () => {
         );
 
         expect(result.isAutomated).toBe(true);
-        expect(result.reasons.some((r) => r.includes("Automated sender pattern"))).toBe(
-          true,
-        );
+        expect(
+          result.reasons.some((r) => r.includes("Automated sender pattern")),
+        ).toBe(true);
       });
 
       it("should detect do-not-reply senders as automated", async () => {
@@ -144,9 +146,9 @@ describe("EmailClassifierService", () => {
         );
 
         expect(result.isAutomated).toBe(true);
-        expect(result.reasons.some((r) => r.includes("Automated subject pattern"))).toBe(
-          true,
-        );
+        expect(
+          result.reasons.some((r) => r.includes("Automated subject pattern")),
+        ).toBe(true);
       });
 
       it("should detect out-of-office subjects", async () => {
@@ -237,7 +239,10 @@ We noticed you've been looking at our products...`,
             isOutOfOffice: false,
             personalizationScore: 0.85,
             urgencyLevel: "medium",
-            reasons: ["References specific project", "Shows prior relationship"],
+            reasons: [
+              "References specific project",
+              "Shows prior relationship",
+            ],
           }),
         );
 

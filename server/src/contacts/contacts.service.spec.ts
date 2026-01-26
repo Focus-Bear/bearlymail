@@ -1,6 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
 import { ContactsService } from "./contacts.service";
 import { Contact } from "../database/entities/contact.entity";
 import { GmailContactsProvider } from "./providers/gmail-contacts.provider";
@@ -8,8 +7,6 @@ import { SearchIndexHelper } from "./search-index.helper";
 
 describe("ContactsService", () => {
   let service: ContactsService;
-  let repository: Repository<Contact>;
-  let gmailContactsProvider: GmailContactsProvider;
 
   const mockRepository = {
     findOne: jest.fn(),
@@ -44,10 +41,6 @@ describe("ContactsService", () => {
     }).compile();
 
     service = module.get<ContactsService>(ContactsService);
-    repository = module.get<Repository<Contact>>(getRepositoryToken(Contact));
-    gmailContactsProvider = module.get<GmailContactsProvider>(
-      GmailContactsProvider,
-    );
   });
 
   afterEach(() => {

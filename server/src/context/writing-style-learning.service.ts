@@ -1,10 +1,9 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, MoreThan } from "typeorm";
+import { Repository } from "typeorm";
 import { Email } from "../database/entities/email.entity";
 import { UsersService } from "../users/users.service";
 import { LLMService } from "../llm/llm.service";
-import { QUERY_LIMITS } from "../constants/query-limits";
 
 // Target number of email examples to collect
 const TARGET_EXAMPLE_COUNT = 20;
@@ -48,8 +47,8 @@ export class WritingStyleLearningService {
       const existingRules = user.toneSettings?.rules || [];
 
       // Count existing email examples (rules starting with "Example:")
-      const existingExamples = existingRules.filter(
-        (rule: string) => rule.startsWith("Example:"),
+      const existingExamples = existingRules.filter((rule: string) =>
+        rule.startsWith("Example:"),
       );
 
       // If we already have enough examples, skip
@@ -256,8 +255,8 @@ export class WritingStyleLearningService {
 
       const existingRules = user.toneSettings?.rules || [];
       // Count existing email examples (rules starting with "Example:")
-      const existingExamples = existingRules.filter(
-        (rule: string) => rule.startsWith("Example:"),
+      const existingExamples = existingRules.filter((rule: string) =>
+        rule.startsWith("Example:"),
       );
 
       if (existingExamples.length >= TARGET_EXAMPLE_COUNT) {
@@ -352,8 +351,8 @@ export class WritingStyleLearningService {
     }
 
     // Count rules starting with "Example:"
-    return user.toneSettings.rules.filter(
-      (rule: string) => rule.startsWith("Example:"),
+    return user.toneSettings.rules.filter((rule: string) =>
+      rule.startsWith("Example:"),
     ).length;
   }
 }

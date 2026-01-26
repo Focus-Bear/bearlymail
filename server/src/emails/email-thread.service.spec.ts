@@ -1,6 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
 import { EmailThreadService } from "./email-thread.service";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { Email } from "../database/entities/email.entity";
@@ -8,8 +7,6 @@ import { QUERY_LIMITS } from "../constants/query-limits";
 
 describe("EmailThreadService", () => {
   let service: EmailThreadService;
-  let emailThreadRepository: Repository<EmailThread>;
-  let emailRepository: Repository<Email>;
 
   const mockEmailThreadRepository = {
     find: jest.fn(),
@@ -36,10 +33,6 @@ describe("EmailThreadService", () => {
     }).compile();
 
     service = module.get<EmailThreadService>(EmailThreadService);
-    emailThreadRepository = module.get<Repository<EmailThread>>(
-      getRepositoryToken(EmailThread),
-    );
-    emailRepository = module.get<Repository<Email>>(getRepositoryToken(Email));
   });
 
   afterEach(() => {

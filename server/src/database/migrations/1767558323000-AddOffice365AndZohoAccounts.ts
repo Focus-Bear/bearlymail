@@ -1,11 +1,4 @@
-import {
-  MigrationInterface,
-  QueryRunner,
-  Table,
-  TableColumn,
-  TableForeignKey,
-  TableIndex,
-} from "typeorm";
+import { MigrationInterface, QueryRunner, Table, TableIndex } from "typeorm";
 
 export class AddOffice365AndZohoAccounts1767558323000
   implements MigrationInterface
@@ -189,5 +182,3 @@ export class AddOffice365AndZohoAccounts1767558323000
     }
   }
 }
-
-

@@ -102,6 +102,3 @@ export function extractBodyFromOffice365Message(
 
   return { body, htmlBody };
 }
-
-
-

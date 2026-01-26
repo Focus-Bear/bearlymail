@@ -59,7 +59,8 @@ export class EmailThread {
     type: "float",
     default: 0,
     nullable: true,
-    comment: "Denormalized priority score for efficient sorting (calculated from priorityExplanation breakdown)",
+    comment:
+      "Denormalized priority score for efficient sorting (calculated from priorityExplanation breakdown)",
   })
   priorityScore: number | null;
 
@@ -97,7 +98,8 @@ export class EmailThread {
 
   @Column({
     default: false,
-    comment: "Flag to indicate LLM priority is being calculated for this thread",
+    comment:
+      "Flag to indicate LLM priority is being calculated for this thread",
   })
   isProcessingPriority: boolean;
 
@@ -131,20 +133,20 @@ export class EmailThread {
   @UpdateDateColumn()
   updatedAt: Date;
 
-    @Column({
-      type: "timestamp",
-      nullable: true,
-      comment: "Last time this thread was checked against Gmail",
-    })
-    lastCheckedAt: Date | null;
+  @Column({
+    type: "timestamp",
+    nullable: true,
+    comment: "Last time this thread was checked against Gmail",
+  })
+  lastCheckedAt: Date | null;
 
-    @Column({ default: false })
-    isSnoozed: boolean;
+  @Column({ default: false })
+  isSnoozed: boolean;
 
-    @Column({ type: "timestamp", nullable: true })
-    snoozeUntil: Date | null;
+  @Column({ type: "timestamp", nullable: true })
+  snoozeUntil: Date | null;
 
-    @ManyToOne(() => User)
+  @ManyToOne(() => User)
   @JoinColumn({ name: "userId" })
   user: User;
 

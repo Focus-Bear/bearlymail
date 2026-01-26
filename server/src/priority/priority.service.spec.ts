@@ -1,6 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
 import { PriorityService } from "./priority.service";
 import { Email } from "../database/entities/email.entity";
 import {
@@ -13,10 +12,6 @@ import { LLMService } from "../llm/llm.service";
 
 describe("PriorityService", () => {
   let service: PriorityService;
-  let emailRepository: Repository<Email>;
-  let userContextRepository: Repository<UserContext>;
-  let priorityOverrideRepository: Repository<PriorityOverride>;
-  let llmService: LLMService;
 
   const mockEmailRepository = {
     findOne: jest.fn(),
@@ -56,14 +51,6 @@ describe("PriorityService", () => {
     }).compile();
 
     service = module.get<PriorityService>(PriorityService);
-    emailRepository = module.get<Repository<Email>>(getRepositoryToken(Email));
-    userContextRepository = module.get<Repository<UserContext>>(
-      getRepositoryToken(UserContext),
-    );
-    priorityOverrideRepository = module.get<Repository<PriorityOverride>>(
-      getRepositoryToken(PriorityOverride),
-    );
-    llmService = module.get<LLMService>(LLMService);
   });
 
   afterEach(() => {

@@ -20,5 +20,3 @@ export const RESOURCE_MONITOR_CONSTANTS = {
   P95: 0.95,
   P99: 0.99,
 } as const;
-
-

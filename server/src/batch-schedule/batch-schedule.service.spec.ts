@@ -1,13 +1,10 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
 import { BatchScheduleService } from "./batch-schedule.service";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
-import { PRIORITY_SCORES } from "../constants/priority-constants";
 
 describe("BatchScheduleService", () => {
   let service: BatchScheduleService;
-  let repository: Repository<BatchSchedule>;
 
   const mockRepository = {
     findOne: jest.fn(),

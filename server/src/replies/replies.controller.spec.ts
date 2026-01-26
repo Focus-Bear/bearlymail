@@ -82,7 +82,7 @@ describe("RepliesController", () => {
 
       mockRepliesService.generateDraftReply.mockResolvedValue(mockDraft);
 
-      const result = await controller.generateDraft(mockRequest, emailId, body);
+      await controller.generateDraft(mockRequest, emailId, body);
 
       expect(repliesService.generateDraftReply).toHaveBeenCalledWith(
         userId,

@@ -1,9 +1,9 @@
 /**
  * Script to bulk recalculate priority for threads that don't have priority explanations
- * 
+ *
  * Usage:
  *   npm run ts-node -r tsconfig-paths/register src/scripts/bulk-recalculate-priority.ts <userId> [--limit N]
- * 
+ *
  * Example:
  *   npm run ts-node -r tsconfig-paths/register src/scripts/bulk-recalculate-priority.ts user-123 --limit 100
  */
@@ -27,10 +27,7 @@ async function bulkRecalculatePriority(userId?: string, limit: number = 100) {
     username: process.env.DB_USERNAME,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
-    ssl:
-      process.env.DB_SSL === "true"
-        ? { rejectUnauthorized: false }
-        : false,
+    ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : false,
     entities: [EmailThread, Email],
   });
 
@@ -40,10 +37,7 @@ async function bulkRecalculatePriority(userId?: string, limit: number = 100) {
   // Initialize pg-boss
   const boss = new PgBoss({
     connectionString: `postgres://${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`,
-    ssl:
-      process.env.DB_SSL === "true"
-        ? { rejectUnauthorized: false }
-        : false,
+    ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : false,
   });
 
   await boss.start();
@@ -69,7 +63,9 @@ async function bulkRecalculatePriority(userId?: string, limit: number = 100) {
 
     const threads = await queryBuilder.getMany();
 
-    console.log(`Found ${threads.length} threads needing priority recalculation`);
+    console.log(
+      `Found ${threads.length} threads needing priority recalculation`,
+    );
 
     let queued = 0;
     let skipped = 0;
@@ -146,8 +142,12 @@ const limitArg = args.find((arg) => arg.startsWith("--limit"));
 const limit = limitArg ? parseInt(limitArg.split("=")[1] || "100", 10) : 100;
 
 if (!userIdArg) {
-  console.error("Usage: npm run ts-node -r tsconfig-paths/register src/scripts/bulk-recalculate-priority.ts <userId> [--limit N]");
-  console.error("Example: npm run ts-node -r tsconfig-paths/register src/scripts/bulk-recalculate-priority.ts user-123 --limit 100");
+  console.error(
+    "Usage: npm run ts-node -r tsconfig-paths/register src/scripts/bulk-recalculate-priority.ts <userId> [--limit N]",
+  );
+  console.error(
+    "Example: npm run ts-node -r tsconfig-paths/register src/scripts/bulk-recalculate-priority.ts user-123 --limit 100",
+  );
   process.exit(1);
 }
 
@@ -160,4 +160,3 @@ bulkRecalculatePriority(userIdArg, limit)
     console.error("Fatal error:", error);
     process.exit(1);
   });
-

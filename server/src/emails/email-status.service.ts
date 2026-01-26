@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, MoreThan } from "typeorm";
+import { Repository } from "typeorm";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { QUERY_LIMITS } from "../constants/query-limits";
@@ -20,7 +20,8 @@ export class EmailStatusService {
   /**
    * Get sync status for a user
    */
-  async getSyncStatus(userId: string): Promise<{
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async getSyncStatus(_userId: string): Promise<{
     lastSyncAt: Date | null;
     isSyncing: boolean;
   }> {

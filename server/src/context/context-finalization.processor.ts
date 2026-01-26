@@ -81,7 +81,10 @@ export class ContextFinalizationProcessor implements OnModuleInit {
           userEmail,
         } = jobData;
         const workerId = job.id || "unknown";
-        const tracker = new JobPerformanceTracker("finalize-context-analysis", workerId);
+        const tracker = new JobPerformanceTracker(
+          "finalize-context-analysis",
+          workerId,
+        );
         tracker.setMetadata({ userId, threadId: analysisRecordId });
 
         this.logger.log(
@@ -95,10 +98,15 @@ export class ContextFinalizationProcessor implements OnModuleInit {
         // CRITICAL: Get actual totalBatches from analysis record stats, not from job data
         // Job data might be stale or incorrect - always use the source of truth (DB stats)
         // Load analysis record first to get the actual totalBatches
-        const analysisRecord = await this.contextService.getAnalysisRecordById(analysisRecordId);
+        const analysisRecord =
+          await this.contextService.getAnalysisRecordById(analysisRecordId);
         let actualTotalBatches = totalBatches;
-        
-        if (analysisRecord && analysisRecord.stats && analysisRecord.stats.totalBatches) {
+
+        if (
+          analysisRecord &&
+          analysisRecord.stats &&
+          analysisRecord.stats.totalBatches
+        ) {
           actualTotalBatches = analysisRecord.stats.totalBatches as number;
           if (actualTotalBatches !== totalBatches) {
             this.logger.warn(
@@ -117,14 +125,18 @@ export class ContextFinalizationProcessor implements OnModuleInit {
             `[Worker ${workerId}] ❌ ERROR: Analysis record ${analysisRecordId} not found or has no stats!`,
             "error",
           );
-          tracker.finish(new Error(`Analysis record ${analysisRecordId} not found or has no stats`));
+          tracker.finish(
+            new Error(
+              `Analysis record ${analysisRecordId} not found or has no stats`,
+            ),
+          );
           return;
         } else {
           this.logger.warn(
             `[Worker ${workerId}] ⚠️ Analysis record exists but totalBatches not in stats. Using job data value: ${totalBatches}`,
           );
         }
-        
+
         // CRITICAL: If totalBatches is 0, this is an invalid finalization job - batches were never enqueued
         // checkBatchesComplete will also check this, but we should fail fast here
         if (!actualTotalBatches || actualTotalBatches === 0) {
@@ -135,26 +147,32 @@ export class ContextFinalizationProcessor implements OnModuleInit {
             `[Worker ${workerId}] ❌ ERROR: Finalization job with totalBatches = ${actualTotalBatches}. Batches were never enqueued.`,
             "error",
           );
-          
+
           // Don't proceed - checkBatchesComplete will return false, and we'll re-queue
           // But log this as an error since it shouldn't happen
-          tracker.finish(new Error(`Invalid finalization job: totalBatches is ${actualTotalBatches}`));
+          tracker.finish(
+            new Error(
+              `Invalid finalization job: totalBatches is ${actualTotalBatches}`,
+            ),
+          );
           return; // Exit early - don't process (checkBatchesComplete will handle re-queueing)
         }
 
         try {
           // Check if all batches are complete using actual totalBatches from stats
           // CRITICAL: Use actualTotalBatches from stats, not from job data
-          const allBatchesComplete = await this.contextService.checkBatchesComplete(
-            analysisRecordId,
-            actualTotalBatches, // Use actual value from stats, not job data
-          );
+          const allBatchesComplete =
+            await this.contextService.checkBatchesComplete(
+              analysisRecordId,
+              actualTotalBatches, // Use actual value from stats, not job data
+            );
 
           if (!allBatchesComplete) {
             // Not all batches are done yet - re-queue this job with a delay
-            const completedBatches = await this.contextService.getCompletedBatchCount(
-              analysisRecordId,
-            );
+            const completedBatches =
+              await this.contextService.getCompletedBatchCount(
+                analysisRecordId,
+              );
             this.logger.log(
               `[Worker ${workerId}] Not all batches complete yet (${completedBatches}/${actualTotalBatches}). Re-queuing finalization job in 30 seconds.`,
             );
@@ -192,9 +210,8 @@ export class ContextFinalizationProcessor implements OnModuleInit {
           }
 
           // All batches are complete - do the post-processing
-          const completedBatches = await this.contextService.getCompletedBatchCount(
-            analysisRecordId,
-          );
+          const completedBatches =
+            await this.contextService.getCompletedBatchCount(analysisRecordId);
           this.logger.log(
             `[Worker ${workerId}] ✅ All batches complete (${completedBatches}/${actualTotalBatches}). Starting post-processing.`,
           );
@@ -244,7 +261,9 @@ export class ContextFinalizationProcessor implements OnModuleInit {
     );
 
     this.logger.log("Context finalization worker registered successfully");
-    writeAnalysisLog("Context finalization worker registered successfully", "log");
+    writeAnalysisLog(
+      "Context finalization worker registered successfully",
+      "log",
+    );
   }
 }
-

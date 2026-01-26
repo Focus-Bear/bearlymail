@@ -34,5 +34,3 @@ export class AddGithubMetadataToThreads1766300000000
     }
   }
 }
-
-

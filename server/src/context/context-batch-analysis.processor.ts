@@ -2,19 +2,16 @@ import { Injectable, OnModuleInit, Logger, Inject } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as os from "os";
 import PgBoss = require("pg-boss");
-import { ContextService } from "./context.service";
 import { LLMService } from "../llm/llm.service";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
 import { writeAnalysisLog } from "./context-analysis-logger";
-import { getJobPriority } from "../queue/job-priorities";
 import { getErrorMessage } from "../types/common";
 import { ContextGmailDataService } from "./context-gmail-data.service";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { GMAIL_LABELS } from "../constants/email-labels";
 import { UsersService } from "../users/users.service";
-import { PERCENTAGES } from "../constants/percentages";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 
@@ -66,13 +63,13 @@ function calculateBackoffDelay(
 ): number {
   // Exponential backoff: baseDelay * 2^attemptNumber
   const exponentialDelay = baseDelay * Math.pow(2, attemptNumber);
-  
+
   // Cap at max delay
   const cappedDelay = Math.min(exponentialDelay, maxDelay);
-  
+
   // Add jitter: random(0, jitterFactor) * cappedDelay
   const jitter = Math.random() * jitterFactor * cappedDelay;
-  
+
   return Math.floor(cappedDelay + jitter);
 }
 
@@ -135,11 +132,12 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
           currentContextForPrompt,
           analysisRecordId,
           totalBatches,
-          after,
-          before,
         } = jobData;
         const workerId = job.id || "unknown";
-        const tracker = new JobPerformanceTracker("analyze-context-batch", workerId);
+        const tracker = new JobPerformanceTracker(
+          "analyze-context-batch",
+          workerId,
+        );
         tracker.setMetadata({ userId, threadId: analysisRecordId });
 
         // Log job received with detailed information
@@ -220,7 +218,7 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
               readCount?: number;
               receivedHour?: number;
             }>;
-            
+
             // Track timing for performance budgets
             let fetchDuration = 0;
             let processDuration = 0;
@@ -235,17 +233,15 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
                 `[Worker ${workerId}] 📥 Step 1/4: Fetching ${threadIds.length} threads by ID...`,
                 "log",
               );
-              
-              
+
               const threads = await this.gmailDataService.fetchThreadsByIds(
                 userId,
                 threadIds,
               );
               fetchDuration = Date.now() - fetchStartTime;
-              
-              
+
               this.logger.log(
-                `[Worker ${workerId}] ✅ Fetched ${threads.length} threads in ${Math.round(fetchDuration / 1000)}s (budget: ${PERFORMANCE_BUDGETS.BATCH_FETCH_THREADS / 1000}s)${fetchDuration > PERFORMANCE_BUDGETS.BATCH_FETCH_THREADS ? ' ⚠️ OVER BUDGET' : ''}`,
+                `[Worker ${workerId}] ✅ Fetched ${threads.length} threads in ${Math.round(fetchDuration / 1000)}s (budget: ${PERFORMANCE_BUDGETS.BATCH_FETCH_THREADS / 1000}s)${fetchDuration > PERFORMANCE_BUDGETS.BATCH_FETCH_THREADS ? " ⚠️ OVER BUDGET" : ""}`,
               );
               writeAnalysisLog(
                 `[Worker ${workerId}] ✅ Fetched ${threads.length} threads in ${Math.round(fetchDuration / 1000)}s`,
@@ -261,8 +257,7 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
                 `[Worker ${workerId}] 🔄 Step 2/4: Processing ${threads.length} threads into analysis payloads...`,
                 "log",
               );
-              
-              
+
               batch = threads
                 .map((thread) => {
                   const firstEmail = thread.emails?.sort(
@@ -308,7 +303,11 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
                     from: firstEmail.from,
                     fromName: firstEmail.fromName,
                     subject: firstEmail.subject,
-                    body: cleanEmailContent(firstEmail.body, firstEmail.htmlBody, 1000),
+                    body: cleanEmailContent(
+                      firstEmail.body,
+                      firstEmail.htmlBody,
+                      1000,
+                    ),
                     receivedAt: firstEmail.receivedAt.toISOString(),
                     isRead: firstEmail.isRead,
                     timeToReply: quickestReply ? quickestReply * 60 : null,
@@ -316,31 +315,31 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
                     isArchived: thread.isArchived || false,
                     userReplied,
                     emailCount: thread.emails?.length || 0,
-                    readCount: thread.emails?.filter((e) => e.isRead).length || 0,
+                    readCount:
+                      thread.emails?.filter((e) => e.isRead).length || 0,
                     receivedHour: firstEmail.receivedAt.getHours(),
                   };
                 })
                 .filter((t) => t !== null) as Array<{
-                  threadId?: string;
-                  from: string;
-                  fromName?: string;
-                  subject: string;
-                  body: string;
-                  receivedAt: string;
-                  isRead?: boolean;
-                  timeToReply?: number | null;
-                  starCount?: number;
-                  isArchived?: boolean;
-                  userReplied?: boolean;
-                  emailCount?: number;
-                  readCount?: number;
-                  receivedHour?: number;
-                }>;
+                threadId?: string;
+                from: string;
+                fromName?: string;
+                subject: string;
+                body: string;
+                receivedAt: string;
+                isRead?: boolean;
+                timeToReply?: number | null;
+                starCount?: number;
+                isArchived?: boolean;
+                userReplied?: boolean;
+                emailCount?: number;
+                readCount?: number;
+                receivedHour?: number;
+              }>;
               processDuration = Date.now() - processStartTime;
-              
-              
+
               this.logger.log(
-                `[Worker ${workerId}] ✅ Processed ${batch.length} threads into payloads in ${Math.round(processDuration / 1000)}s (budget: ${PERFORMANCE_BUDGETS.BATCH_PROCESS_THREADS / 1000}s)${processDuration > PERFORMANCE_BUDGETS.BATCH_PROCESS_THREADS ? ' ⚠️ OVER BUDGET' : ''}`,
+                `[Worker ${workerId}] ✅ Processed ${batch.length} threads into payloads in ${Math.round(processDuration / 1000)}s (budget: ${PERFORMANCE_BUDGETS.BATCH_PROCESS_THREADS / 1000}s)${processDuration > PERFORMANCE_BUDGETS.BATCH_PROCESS_THREADS ? " ⚠️ OVER BUDGET" : ""}`,
               );
               writeAnalysisLog(
                 `[Worker ${workerId}] ✅ Processed ${batch.length} threads into payloads in ${Math.round(processDuration / 1000)}s`,
@@ -349,8 +348,7 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
             } else if (legacyBatch) {
               // Pre-processed batch (fetched upfront in main job - no Gmail API calls needed)
               batch = legacyBatch;
-              
-              
+
               this.logger.log(
                 `[Worker ${workerId}] ✅ Using pre-processed batch (${legacyBatch.length} threads) - skipping fetch/process steps (0s)`,
               );
@@ -372,8 +370,7 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
               `[Worker ${workerId}] 🤖 Step 3/4: Calling LLM to analyze ${batch.length} email patterns...`,
               "log",
             );
-            
-            
+
             const batchAnalysis = await this.llmService.analyzeEmailPatterns(
               batch,
               sentPayload, // Only first batch has sent emails, others get empty array
@@ -383,10 +380,9 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
               currentContextForPrompt,
             );
             const llmDuration = Date.now() - llmStartTime;
-            
-            
+
             this.logger.log(
-              `[Worker ${workerId}] ✅ LLM analysis completed in ${Math.round(llmDuration / 1000)}s (budget: ${PERFORMANCE_BUDGETS.BATCH_LLM_ANALYSIS / 1000}s)${llmDuration > PERFORMANCE_BUDGETS.BATCH_LLM_ANALYSIS ? ' ⚠️ OVER BUDGET' : ''}`,
+              `[Worker ${workerId}] ✅ LLM analysis completed in ${Math.round(llmDuration / 1000)}s (budget: ${PERFORMANCE_BUDGETS.BATCH_LLM_ANALYSIS / 1000}s)${llmDuration > PERFORMANCE_BUDGETS.BATCH_LLM_ANALYSIS ? " ⚠️ OVER BUDGET" : ""}`,
             );
             writeAnalysisLog(
               `[Worker ${workerId}] ✅ LLM analysis completed in ${Math.round(llmDuration / 1000)}s`,
@@ -402,8 +398,7 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
               `[Worker ${workerId}] 💾 Step 4/4: Saving batch results to database...`,
               "log",
             );
-            
-            
+
             const findRecordStartTime = Date.now();
             let analysisRecord = await this.contextAnalysisRepository.findOne({
               where: { id: analysisRecordId },
@@ -424,19 +419,18 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
               threadsReadButNotReplied: 0,
               vipContactsEvaluated: 0,
             };
-            const batchResults = (stats.batchResults as Record<
-              string,
-              unknown
-            >) || {};
+            const batchResults =
+              (stats.batchResults as Record<string, unknown>) || {};
 
             // Check if this batch was already completed (retry scenario)
-            const batchWasAlreadyCompleted = batchResults[String(batchIndex)] !== undefined;
-            
+            const batchWasAlreadyCompleted =
+              batchResults[String(batchIndex)] !== undefined;
+
             // Extract thread IDs from batch for source linking
             const batchThreadIds = batch
               .map((t: { threadId?: string }) => t.threadId)
               .filter((id): id is string => !!id);
-            
+
             // Store this batch's result (including thread IDs for fact-checking)
             batchResults[String(batchIndex)] = {
               context: batchAnalysis.context || [],
@@ -461,7 +455,7 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
                 `[Worker ${workerId}] ⚠️ Batch ${batchIndex} was already completed (retry detected). Not incrementing analyzedCount to prevent double counting.`,
               );
             }
-            
+
             // Re-read the latest stats to preserve concurrent updates from main job
             // This minimizes the race window - we read again right before saving
             const latestRecord = await this.contextAnalysisRepository.findOne({
@@ -469,8 +463,11 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
             });
             if (latestRecord && latestRecord.stats) {
               // Merge our batchResults into the latest stats (preserving fetchingStatus, totalBatches, etc.)
-              const latestBatchResults = (latestRecord.stats.batchResults as Record<string, unknown>) || {};
-              latestBatchResults[String(batchIndex)] = batchResults[String(batchIndex)];
+              const latestBatchResults =
+                (latestRecord.stats.batchResults as Record<string, unknown>) ||
+                {};
+              latestBatchResults[String(batchIndex)] =
+                batchResults[String(batchIndex)];
               latestRecord.stats.batchResults = latestBatchResults;
               latestRecord.analyzedCount = analysisRecord.analyzedCount;
               analysisRecord = latestRecord;
@@ -483,19 +480,19 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
             await this.contextAnalysisRepository.save(analysisRecord);
             const saveDbDuration = Date.now() - saveDbStartTime;
             const saveDuration = Date.now() - saveStartTime;
-            
-            
+
             this.logger.log(
-              `[Worker ${workerId}] ✅ Saved batch results in ${Math.round(saveDuration / 1000)}s (find: ${Math.round(findRecordDuration / 1000)}s, save: ${Math.round(saveDbDuration / 1000)}s, budget: ${PERFORMANCE_BUDGETS.BATCH_SAVE_RESULTS / 1000}s)${saveDuration > PERFORMANCE_BUDGETS.BATCH_SAVE_RESULTS ? ' ⚠️ OVER BUDGET' : ''}`,
+              `[Worker ${workerId}] ✅ Saved batch results in ${Math.round(saveDuration / 1000)}s (find: ${Math.round(findRecordDuration / 1000)}s, save: ${Math.round(saveDbDuration / 1000)}s, budget: ${PERFORMANCE_BUDGETS.BATCH_SAVE_RESULTS / 1000}s)${saveDuration > PERFORMANCE_BUDGETS.BATCH_SAVE_RESULTS ? " ⚠️ OVER BUDGET" : ""}`,
             );
             writeAnalysisLog(
               `[Worker ${workerId}] ✅ Saved batch results in ${Math.round(saveDuration / 1000)}s`,
               "log",
             );
-            
+
             // Calculate total time so far
-            const totalTimeSoFar = saveDuration + llmDuration + processDuration + fetchDuration;
-            
+            const totalTimeSoFar =
+              saveDuration + llmDuration + processDuration + fetchDuration;
+
             if (totalTimeSoFar > PERFORMANCE_BUDGETS.BATCH_TOTAL) {
               this.logger.warn(
                 `[Worker ${workerId}] ⚠️ BATCH OVER TOTAL BUDGET: ${Math.round(totalTimeSoFar / 1000)}s (budget: ${PERFORMANCE_BUDGETS.BATCH_TOTAL / 1000}s). Breakdown: fetch=${Math.round(fetchDuration / 1000)}s, process=${Math.round(processDuration / 1000)}s, llm=${Math.round(llmDuration / 1000)}s, save=${Math.round(saveDuration / 1000)}s`,
@@ -506,8 +503,11 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
             const completedBatches = Object.keys(batchResults).length;
             const progressPercent =
               PERCENTAGES.THIRTY +
-              Math.floor((completedBatches / totalBatches) * (PERCENTAGES.SEVENTY - PERCENTAGES.THIRTY));
-            
+              Math.floor(
+                (completedBatches / totalBatches) *
+                  (PERCENTAGES.SEVENTY - PERCENTAGES.THIRTY),
+              );
+
             try {
               await this.usersService.update(userId, {
                 scanProgress: progressPercent,
@@ -523,7 +523,9 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
               // Don't fail the batch if progress update fails
             }
 
-            const duration = Math.round((Date.now() - tracker.startTime) / 1000);
+            const duration = Math.round(
+              (Date.now() - tracker.startTime) / 1000,
+            );
             this.logger.log(
               `[Worker ${workerId}] ✅ COMPLETED batch ${batchIndex + 1}/${totalBatches} in ${duration}s. Analyzed ${batchSize} threads.`,
             );
@@ -572,12 +574,9 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
                     threadsReadButNotReplied: 0,
                     vipContactsEvaluated: 0,
                   };
-                  const batchResults = (stats.batchResults as Record<
-                    string,
-                    unknown
-                  >) || {};
-                  const failedBatches =
-                    (stats.failedBatches as number[]) || [];
+                  const batchResults =
+                    (stats.batchResults as Record<string, unknown>) || {};
+                  const failedBatches = (stats.failedBatches as number[]) || [];
                   if (!failedBatches.includes(batchIndex)) {
                     failedBatches.push(batchIndex);
                   }
@@ -618,8 +617,9 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
     );
 
     this.logger.log("Batch analysis worker registered successfully");
-    console.log("[BATCH-PROCESSOR] Batch analysis worker registered successfully");
+    console.log(
+      "[BATCH-PROCESSOR] Batch analysis worker registered successfully",
+    );
     writeAnalysisLog("Batch analysis worker registered successfully", "log");
   }
 }
-

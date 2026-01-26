@@ -135,12 +135,32 @@ describe('AuthContext', () => {
     });
 
     it('should handle login errors', async () => {
-      const error = new Error('Login failed');
-      mockedAxios.post.mockRejectedValue(error);
+      mockedAxios.post.mockRejectedValue({ message: 'Login failed' });
+
+      // Create a component that catches the error
+      const TestComponentWithErrorHandling: React.FC = () => {
+        const auth = useAuth();
+        const [loginError, setLoginError] = React.useState<string | null>(null);
+        
+        const handleLogin = async () => {
+          try {
+            await auth.login('test@example.com', 'password');
+          } catch {
+            setLoginError('error');
+          }
+        };
+        
+        return (
+          <div>
+            <div data-testid="login-error">{loginError || 'no-error'}</div>
+            <button onClick={handleLogin}>Login</button>
+          </div>
+        );
+      };
 
       render(
         <AuthProvider>
-          <TestComponent />
+          <TestComponentWithErrorHandling />
         </AuthProvider>
       );
 
@@ -149,6 +169,10 @@ describe('AuthContext', () => {
 
       await waitFor(() => {
         expect(mockedAxios.post).toHaveBeenCalled();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('login-error')).toHaveTextContent('error');
       });
 
       // Should not set token on error
@@ -238,12 +262,32 @@ describe('AuthContext', () => {
     });
 
     it('should handle registration errors', async () => {
-      const error = new Error('Registration failed');
-      mockedAxios.post.mockRejectedValue(error);
+      mockedAxios.post.mockRejectedValue({ message: 'Registration failed' });
+
+      // Create a component that catches the error
+      const TestComponentWithErrorHandling: React.FC = () => {
+        const auth = useAuth();
+        const [registerError, setRegisterError] = React.useState<string | null>(null);
+        
+        const handleRegister = async () => {
+          try {
+            await auth.register('test@example.com', 'password', 'Test User');
+          } catch {
+            setRegisterError('error');
+          }
+        };
+        
+        return (
+          <div>
+            <div data-testid="register-error">{registerError || 'no-error'}</div>
+            <button onClick={handleRegister}>Register</button>
+          </div>
+        );
+      };
 
       render(
         <AuthProvider>
-          <TestComponent />
+          <TestComponentWithErrorHandling />
         </AuthProvider>
       );
 
@@ -252,6 +296,10 @@ describe('AuthContext', () => {
 
       await waitFor(() => {
         expect(mockedAxios.post).toHaveBeenCalled();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('register-error')).toHaveTextContent('error');
       });
 
       // Should not set token on error

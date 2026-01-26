@@ -2,8 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { LONG_TIMEOUT_MS, POLLING_INTERVAL_MS, PROGRESS_THRESHOLD_30, PROGRESS_THRESHOLD_40, PROGRESS_THRESHOLD_75, PROGRESS_THRESHOLD_85, PROGRESS_THRESHOLD_95 } from 'constants/numbers';
 import { devLog, devError, devDebug } from 'utils/dev-logger';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from 'config/api';
 
 export interface AnalyzeProgress {
   show: boolean;

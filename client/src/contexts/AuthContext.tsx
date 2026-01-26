@@ -3,8 +3,7 @@ import axios from 'axios';
 import { identifyUser, resetPostHog, captureEvent } from 'utils/posthog';
 import { useAuthInitialization } from 'contexts/useAuthInitialization';
 import { devLog } from 'utils/dev-logger';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from 'config/api';
 
 interface User {
   id: string;

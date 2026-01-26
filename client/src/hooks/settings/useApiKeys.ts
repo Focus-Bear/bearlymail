@@ -2,8 +2,7 @@ import { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { TOAST_DURATION_MS } from 'constants/numbers';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from 'config/api';
 
 export const useApiKeys = () => {
   const { t } = useTranslation();

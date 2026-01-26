@@ -1,12 +1,11 @@
 /* eslint-disable id-denylist -- 'data' is a standard property name for axios responses */
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react';
 import axios from 'axios';
 import { useEmailDetail } from './useEmailDetail';
+import { API_URL } from 'config/api';
 
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 describe('useEmailDetail', () => {
   beforeEach(() => {
@@ -159,11 +158,15 @@ describe('useEmailDetail', () => {
       expect(result.current.expandedThreadItems.has('email-1')).toBe(true);
 
       // Toggle to collapse
-      result.current.toggleThreadItem('email-1');
+      act(() => {
+        result.current.toggleThreadItem('email-1');
+      });
       expect(result.current.expandedThreadItems.has('email-1')).toBe(false);
 
       // Toggle to expand again
-      result.current.toggleThreadItem('email-1');
+      act(() => {
+        result.current.toggleThreadItem('email-1');
+      });
       expect(result.current.expandedThreadItems.has('email-1')).toBe(true);
     });
 
@@ -183,7 +186,9 @@ describe('useEmailDetail', () => {
       });
 
       // Expand a different email
-      result.current.toggleThreadItem('email-2');
+      act(() => {
+        result.current.toggleThreadItem('email-2');
+      });
       expect(result.current.expandedThreadItems.has('email-2')).toBe(true);
       expect(result.current.expandedThreadItems.size).toBe(1);
     });
@@ -203,9 +208,11 @@ describe('useEmailDetail', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      result.current.toggleThreadItem('email-2');
-      result.current.toggleThreadItem('email-3');
-      result.current.toggleThreadItem('email-4');
+      act(() => {
+        result.current.toggleThreadItem('email-2');
+        result.current.toggleThreadItem('email-3');
+        result.current.toggleThreadItem('email-4');
+      });
 
       expect(result.current.expandedThreadItems.size).toBe(3);
       expect(result.current.expandedThreadItems.has('email-2')).toBe(true);

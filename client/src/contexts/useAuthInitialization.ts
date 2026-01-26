@@ -3,8 +3,7 @@ import axios from 'axios';
 import { HTTP_UNAUTHORIZED } from 'constants/numbers';
 import { identifyUser } from 'utils/posthog';
 import { setupAxiosInterceptors } from 'utils/axios-interceptors';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from 'config/api';
 
 interface User {
   id: string;

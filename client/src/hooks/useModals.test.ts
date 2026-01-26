@@ -71,6 +71,7 @@ describe('useModals', () => {
         emailId: 'email-1',
         originalPriorityScore: 50,
         newPriorityScore: 80,
+        context: 'manual',
       });
     });
 

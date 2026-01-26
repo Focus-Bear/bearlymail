@@ -3,8 +3,7 @@ import axios from 'axios';
 import { Contact } from 'types/contact';
 import { DEBOUNCE_DELAY_200_MS } from 'constants/numbers';
 import { EMAIL_FIELD_TO, EMAIL_FIELD_CC } from 'constants/strings';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from 'config/api';
 
 export const useContactSearch = () => {
   const [toSearch, setToSearch] = useState('');

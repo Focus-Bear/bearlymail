@@ -5,6 +5,7 @@ import { useFollowUps } from './useFollowUps';
 import { useFollowUpPolling } from 'hooks/useFollowUpPolling';
 import { MAX_BULK_SEND_COUNT, POLLING_INTERVAL_MS, POLLING_TIMEOUT_5_MIN_MS } from 'constants/numbers';
 import { FOLLOW_UP_SEND_STATUS_SENT } from 'constants/strings';
+import { API_URL } from 'config/api';
 
 jest.mock('axios');
 jest.mock('hooks/useFollowUpPolling', () => ({
@@ -13,8 +14,6 @@ jest.mock('hooks/useFollowUpPolling', () => ({
 
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 const mockedUseFollowUpPolling = useFollowUpPolling as jest.MockedFunction<typeof useFollowUpPolling>;
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 describe('useFollowUps', () => {
   const mockStartGenerationPolling = jest.fn();
@@ -182,7 +181,9 @@ describe('useFollowUps', () => {
         result.current.updateDraft('followup-1', 'draft')
       ).rejects.toEqual(error);
 
-      expect(result.current.error).toBe('Update failed');
+      await waitFor(() => {
+        expect(result.current.error).toBe('Update failed');
+      });
     });
   });
 
@@ -283,7 +284,9 @@ describe('useFollowUps', () => {
         result.current.bulkSend(['followup-1'])
       ).rejects.toEqual(error);
 
-      expect(result.current.error).toBe('Send failed');
+      await waitFor(() => {
+        expect(result.current.error).toBe('Send failed');
+      });
     });
   });
 });

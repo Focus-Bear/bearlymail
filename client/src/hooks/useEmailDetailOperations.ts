@@ -14,8 +14,7 @@ import { TIMEOUT_800_MS } from 'constants/numbers';
 import { AppDispatch } from 'store/store';
 import { removeEmail, addOptimisticArchive, restoreEmail, removeOptimisticArchive } from 'store/slices/emailSlice';
 import { selectEmails } from 'store/selectors/emailSelectors';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from 'config/api';
 
 interface EmailDetailState {
   email: any;

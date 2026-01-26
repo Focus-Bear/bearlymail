@@ -5,6 +5,7 @@ import { useSearch } from './useSearch';
 import { useNavigate } from 'react-router-dom';
 import { HTTP_UNAUTHORIZED } from 'constants/numbers';
 import { captureEvent } from 'utils/posthog';
+import { API_URL } from 'config/api';
 
 jest.mock('axios');
 jest.mock('react-router-dom', () => ({
@@ -17,8 +18,6 @@ jest.mock('utils/posthog', () => ({
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 const mockedUseNavigate = useNavigate as jest.MockedFunction<typeof useNavigate>;
 const mockedCaptureEvent = captureEvent as jest.MockedFunction<typeof captureEvent>;
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 describe('useSearch', () => {
   const mockNavigate = jest.fn();

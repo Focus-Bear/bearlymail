@@ -16,14 +16,16 @@ function isLocalhost(): boolean {
   }
   
   const hostname = window.location.hostname;
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+  // Dynamically import to avoid import.meta.env issues in Jest
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { API_URL } = require('config/api');
   
   return (
     hostname === 'localhost' ||
     hostname === '127.0.0.1' ||
     hostname === '[::1]' ||
-    apiUrl.includes('localhost') ||
-    apiUrl.includes('127.0.0.1')
+    API_URL.includes('localhost') ||
+    API_URL.includes('127.0.0.1')
   );
 }
 

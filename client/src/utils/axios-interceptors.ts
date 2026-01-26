@@ -4,6 +4,11 @@ import { API_ENDPOINT_USERS_ME, HTTP_METHOD_GET } from 'constants/strings';
 
 let interceptorsSetup = false;
 
+// For testing purposes only - allows resetting the interceptors flag
+export const resetInterceptorsForTesting = () => {
+  interceptorsSetup = false;
+};
+
 const isTokenExpired = (token: string): boolean => {
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));

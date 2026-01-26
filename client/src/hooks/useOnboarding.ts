@@ -62,7 +62,7 @@ export function useOnboarding({
   const markTourComplete = useCallback(async () => {
     try {
       const axios = (await import('axios')).default;
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const { API_URL } = await import('config/api');
       await axios.put(`${API_URL}/users/tour-complete`);
       await refreshUser();
     } catch (error) {

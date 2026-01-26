@@ -64,12 +64,15 @@ describe('useSplitView', () => {
       expect(result.current.isResizing).toBe(false);
     });
 
-    it('should load saved position from localStorage', () => {
-      mockLocalStorage.setItem(STORAGE_KEY, '65');
+    it('should load saved position from localStorage', async () => {
+      // Set up the mock to return the saved value
+      mockLocalStorage.getItem.mockReturnValue('65');
 
       const { result } = renderHook(() => useSplitView());
 
-      expect(result.current.splitPosition).toBe(65);
+      await waitFor(() => {
+        expect(result.current.splitPosition).toBe(65);
+      });
       expect(mockLocalStorage.getItem).toHaveBeenCalledWith(STORAGE_KEY);
     });
 

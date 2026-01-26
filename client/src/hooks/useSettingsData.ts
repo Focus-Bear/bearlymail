@@ -9,8 +9,7 @@ import { useAnalysisProgress, AnalyzeProgress } from 'hooks/settings/useAnalysis
 import { useBlockedSenders } from 'hooks/settings/useBlockedSenders';
 import { useBlockedKeywords } from 'hooks/settings/useBlockedKeywords';
 import { useBatchSchedule, BatchSchedule } from 'hooks/settings/useBatchSchedule';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from 'config/api';
 
 export type { SummarizationRule } from 'hooks/settings/useSummarizationRules';
 export type { BlockedSender } from 'hooks/settings/useBlockedSenders';

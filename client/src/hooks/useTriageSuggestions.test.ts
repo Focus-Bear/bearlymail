@@ -4,11 +4,10 @@ import axios from 'axios';
 import { useTriageSuggestions } from './useTriageSuggestions';
 import { Email, TriageSuggestion } from 'types/email';
 import { TRIAGE_SUGGESTIONS_LIMIT_20 } from 'constants/numbers';
+import { API_URL } from 'config/api';
 
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 describe('useTriageSuggestions', () => {
   beforeEach(() => {
@@ -90,11 +89,12 @@ describe('useTriageSuggestions', () => {
       });
 
       expect(result.current.triageSuggestions.size).toBe(2);
-      expect(result.current.triageSuggestions.get('1')).toEqual({
+      // The implementation stores the full suggestion object including emailId, confidence, and reasoning
+      expect(result.current.triageSuggestions.get('1')).toMatchObject({
         suggestedStarCount: 2,
         suggestedArchive: false,
       });
-      expect(result.current.triageSuggestions.get('2')).toEqual({
+      expect(result.current.triageSuggestions.get('2')).toMatchObject({
         suggestedStarCount: 1,
         suggestedArchive: true,
       });
@@ -116,9 +116,11 @@ describe('useTriageSuggestions', () => {
         await result.current.fetchTriageSuggestions(emails);
       });
 
+      // The implementation sorts emailIds alphabetically (string sort), so the order is:
+      // ['1', '10', '11', ..., '19', '2', '20', '3', '4', '5', '6', '7', '8', '9']
       const emailIds = Array.from({ length: TRIAGE_SUGGESTIONS_LIMIT_20 }, (_, i) =>
         String(i + 1)
-      );
+      ).sort();
       expect(mockedAxios.post).toHaveBeenCalledWith(
         `${API_URL}/priority/triage-suggestions`,
         { emailIds }

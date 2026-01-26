@@ -1,8 +1,7 @@
 import { useState, useCallback } from 'react';
 import axios from 'axios';
 import { CONTEXT_SOURCE_USER_EDITED, CONTEXT_KEY_WORKING_ON } from 'constants/strings';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from 'config/api';
 
 export interface UserContext {
   contextId: string;

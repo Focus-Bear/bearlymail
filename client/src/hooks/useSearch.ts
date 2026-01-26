@@ -5,8 +5,7 @@ import { HTTP_UNAUTHORIZED } from 'constants/numbers';
 import { captureEvent } from 'utils/posthog';
 import { Email } from 'types/email';
 import { SEARCH_RESULT_NO_RESULTS } from 'constants/strings';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from 'config/api';
 
 export const useSearch = () => {
   const navigate = useNavigate();

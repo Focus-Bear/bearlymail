@@ -3,11 +3,10 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import axios from 'axios';
 import { useContactSearch } from './useContactSearch';
 import { DEBOUNCE_DELAY_200_MS } from 'constants/numbers';
+import { API_URL } from 'config/api';
 
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 describe('useContactSearch', () => {
   beforeEach(() => {

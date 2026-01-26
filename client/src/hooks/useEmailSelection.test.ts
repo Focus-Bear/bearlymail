@@ -103,8 +103,13 @@ describe('useEmailSelection', () => {
       const regularEvent = { shiftKey: false, ctrlKey: false, metaKey: false } as React.MouseEvent;
       const shiftEvent = { shiftKey: true, ctrlKey: false, metaKey: false } as React.MouseEvent;
 
+      // First click to set lastSelectedIndex
       act(() => {
         result.current.handleEmailClick('1', 0, regularEvent, mockEmails);
+      });
+
+      // Second click with shift to select range
+      act(() => {
         result.current.handleEmailClick('3', 2, shiftEvent, mockEmails);
       });
 
@@ -120,8 +125,13 @@ describe('useEmailSelection', () => {
       const regularEvent = { shiftKey: false, ctrlKey: false, metaKey: false } as React.MouseEvent;
       const shiftEvent = { shiftKey: true, ctrlKey: false, metaKey: false } as React.MouseEvent;
 
+      // First click to set lastSelectedIndex
       act(() => {
         result.current.handleEmailClick('3', 2, regularEvent, mockEmails);
+      });
+
+      // Second click with shift to select range backwards
+      act(() => {
         result.current.handleEmailClick('1', 0, shiftEvent, mockEmails);
       });
 

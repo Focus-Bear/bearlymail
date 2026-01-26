@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from 'contexts/AuthContext';
 import axios from 'axios';
 import { ADMIN_TAB_WAITLIST, AdminTab } from 'constants/adminTabs';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from 'config/api';
 
 const DEFAULT_EXTEND_DAYS = 7;
 

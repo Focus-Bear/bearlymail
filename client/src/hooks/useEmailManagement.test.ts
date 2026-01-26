@@ -1,9 +1,13 @@
 /* eslint-disable id-denylist -- 'data' is a standard property name for axios responses */
+import React from 'react';
 import { renderHook, waitFor } from '@testing-library/react';
+import { Provider } from 'react-redux';
+import { configureStore } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { useEmailManagement } from './useEmailManagement';
 import * as useEmailFetchingModule from './useEmailFetching';
 import * as useEmailActionsBaseModule from './useEmailActionsBase';
+import emailReducer from 'store/slices/emailSlice';
 
 jest.mock('axios');
 jest.mock('./useEmailFetching');
@@ -13,16 +17,47 @@ const mockedAxios = axios as jest.Mocked<typeof axios>;
 const mockedUseEmailFetching = useEmailFetchingModule as jest.Mocked<typeof useEmailFetchingModule>;
 const mockedUseEmailActionsBase = useEmailActionsBaseModule as jest.Mocked<typeof useEmailActionsBaseModule>;
 
+// Helper to create a test store
+const createTestStore = (preloadedState = {}) => {
+  return configureStore({
+    reducer: {
+      email: emailReducer,
+    },
+    preloadedState: {
+      email: {
+        emails: [],
+        optimisticallyArchived: [],
+        optimisticallySnoozed: [],
+        loading: true,
+        decrypting: false,
+        refreshing: false,
+        loadingModeSwitch: false,
+        fetchError: null,
+        ...preloadedState,
+      },
+    },
+  });
+};
+
+// Wrapper component for Redux Provider
+const createWrapper = (store: ReturnType<typeof createTestStore>) => {
+  return function Wrapper({ children }: { children: React.ReactNode }) {
+    return React.createElement(Provider, { store }, children);
+  };
+};
+
 describe('useEmailManagement', () => {
   const mockFetchEmails = jest.fn();
   const mockHandleSetStarCount = jest.fn();
   const mockHandleArchive = jest.fn();
   const mockHandleSnooze = jest.fn();
   const mockOnSuggestionRemove = jest.fn();
+  let testStore: ReturnType<typeof createTestStore>;
 
   beforeEach(() => {
     jest.clearAllMocks();
     console.error = jest.fn();
+    testStore = createTestStore();
 
     (mockedUseEmailFetching.useEmailFetching as jest.Mock) = jest.fn(() => ({
       fetchEmails: mockFetchEmails,
@@ -50,7 +85,8 @@ describe('useEmailManagement', () => {
   describe('initialization', () => {
     it('should initialize with empty state', () => {
       const { result } = renderHook(() =>
-        useEmailManagement({ mode: 'triage' })
+        useEmailManagement({ mode: 'triage' }),
+        { wrapper: createWrapper(testStore) }
       );
 
       expect(result.current.emails).toEqual([]);
@@ -62,7 +98,8 @@ describe('useEmailManagement', () => {
 
     it('should provide fetchEmails function', () => {
       const { result } = renderHook(() =>
-        useEmailManagement({ mode: 'triage' })
+        useEmailManagement({ mode: 'triage' }),
+        { wrapper: createWrapper(testStore) }
       );
 
       expect(result.current.fetchEmails).toBe(mockFetchEmails);
@@ -72,7 +109,8 @@ describe('useEmailManagement', () => {
   describe('handleMarkAsRead', () => {
     it('should mark email as read successfully', async () => {
       const { result } = renderHook(() =>
-        useEmailManagement({ mode: 'triage' })
+        useEmailManagement({ mode: 'triage' }),
+        { wrapper: createWrapper(testStore) }
       );
 
       // Set initial emails
@@ -104,7 +142,8 @@ describe('useEmailManagement', () => {
 
     it('should handle errors when marking as read', async () => {
       const { result } = renderHook(() =>
-        useEmailManagement({ mode: 'triage' })
+        useEmailManagement({ mode: 'triage' }),
+        { wrapper: createWrapper(testStore) }
       );
 
       result.current.setEmails([{ id: '1', isRead: false } as any]);
@@ -126,7 +165,8 @@ describe('useEmailManagement', () => {
   describe('handleMarkAsUnread', () => {
     it('should mark email as unread successfully', async () => {
       const { result } = renderHook(() =>
-        useEmailManagement({ mode: 'triage' })
+        useEmailManagement({ mode: 'triage' }),
+        { wrapper: createWrapper(testStore) }
       );
 
       result.current.setEmails([
@@ -157,7 +197,8 @@ describe('useEmailManagement', () => {
 
     it('should handle errors when marking as unread', async () => {
       const { result } = renderHook(() =>
-        useEmailManagement({ mode: 'triage' })
+        useEmailManagement({ mode: 'triage' }),
+        { wrapper: createWrapper(testStore) }
       );
 
       result.current.setEmails([{ id: '1', isRead: true } as any]);
@@ -182,7 +223,8 @@ describe('useEmailManagement', () => {
         useEmailManagement({
           mode: 'triage',
           onSuggestionRemove: mockOnSuggestionRemove,
-        })
+        }),
+        { wrapper: createWrapper(testStore) }
       );
 
       result.current.setEmails([
@@ -233,7 +275,8 @@ describe('useEmailManagement', () => {
 
     it('should not make API call for empty array', async () => {
       const { result } = renderHook(() =>
-        useEmailManagement({ mode: 'triage' })
+        useEmailManagement({ mode: 'triage' }),
+        { wrapper: createWrapper(testStore) }
       );
 
       await result.current.handleBulkMarkAsRead([]);
@@ -243,7 +286,8 @@ describe('useEmailManagement', () => {
 
     it('should refresh emails on error', async () => {
       const { result } = renderHook(() =>
-        useEmailManagement({ mode: 'triage' })
+        useEmailManagement({ mode: 'triage' }),
+        { wrapper: createWrapper(testStore) }
       );
 
       result.current.setEmails([{ id: '1', isRead: false } as any]);
@@ -265,7 +309,8 @@ describe('useEmailManagement', () => {
         useEmailManagement({
           mode: 'triage',
           onSuggestionRemove: mockOnSuggestionRemove,
-        })
+        }),
+        { wrapper: createWrapper(testStore) }
       );
 
       result.current.setEmails([
@@ -296,7 +341,8 @@ describe('useEmailManagement', () => {
 
     it('should not make API call for empty array', async () => {
       const { result } = renderHook(() =>
-        useEmailManagement({ mode: 'triage' })
+        useEmailManagement({ mode: 'triage' }),
+        { wrapper: createWrapper(testStore) }
       );
 
       await result.current.handleBulkMarkAsUnread([]);
@@ -308,7 +354,8 @@ describe('useEmailManagement', () => {
   describe('handleCheckUrgent', () => {
     it('should check for urgent emails successfully', async () => {
       const { result } = renderHook(() =>
-        useEmailManagement({ mode: 'triage' })
+        useEmailManagement({ mode: 'triage' }),
+        { wrapper: createWrapper(testStore) }
       );
 
       const mockResponse = {
@@ -336,7 +383,8 @@ describe('useEmailManagement', () => {
 
     it('should return default values on error', async () => {
       const { result } = renderHook(() =>
-        useEmailManagement({ mode: 'triage' })
+        useEmailManagement({ mode: 'triage' }),
+        { wrapper: createWrapper(testStore) }
       );
 
       mockedAxios.post.mockRejectedValue(new Error('Check failed'));
@@ -352,7 +400,8 @@ describe('useEmailManagement', () => {
 
     it('should set refreshing state during check', async () => {
       const { result } = renderHook(() =>
-        useEmailManagement({ mode: 'triage' })
+        useEmailManagement({ mode: 'triage' }),
+        { wrapper: createWrapper(testStore) }
       );
 
       const delayedResponse = new Promise((resolve) => {
@@ -374,7 +423,8 @@ describe('useEmailManagement', () => {
   describe('delegated functions', () => {
     it('should delegate handleSetStarCount to useEmailActionsBase', () => {
       const { result } = renderHook(() =>
-        useEmailManagement({ mode: 'triage' })
+        useEmailManagement({ mode: 'triage' }),
+        { wrapper: createWrapper(testStore) }
       );
 
       expect(result.current.handleSetStarCount).toBe(mockHandleSetStarCount);
@@ -382,7 +432,8 @@ describe('useEmailManagement', () => {
 
     it('should delegate handleArchive to useEmailActionsBase', () => {
       const { result } = renderHook(() =>
-        useEmailManagement({ mode: 'triage' })
+        useEmailManagement({ mode: 'triage' }),
+        { wrapper: createWrapper(testStore) }
       );
 
       expect(result.current.handleArchive).toBe(mockHandleArchive);
@@ -390,7 +441,8 @@ describe('useEmailManagement', () => {
 
     it('should delegate handleSnooze to useEmailActionsBase', () => {
       const { result } = renderHook(() =>
-        useEmailManagement({ mode: 'triage' })
+        useEmailManagement({ mode: 'triage' }),
+        { wrapper: createWrapper(testStore) }
       );
 
       expect(result.current.handleSnooze).toBe(mockHandleSnooze);

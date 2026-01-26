@@ -147,7 +147,9 @@ describe('useStarCountHandler', () => {
         })
       );
 
-      mockedGetEmailPriorityScore.mockReturnValue(60);
+      // Star count 3 maps to 87.5 priority. To have a small difference (< 20),
+      // we need original priority to be >= 67.5. Using 75 gives difference of 12.5.
+      mockedGetEmailPriorityScore.mockReturnValue(75);
       mockHandleSetStarCountBase.mockResolvedValue({
         discrepancy: 2,
         predictedStarCount: 0,

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { AutoResponderAnalytics as AnalyticsData } from './types';
 
@@ -11,6 +12,8 @@ export const AutoResponderAnalytics: React.FC<AutoResponderAnalyticsProps> = ({
   analytics,
   onRefresh,
 }) => {
+  const { t } = useTranslation();
+
   if (!analytics) {
     return (
       <div style={{
@@ -25,7 +28,7 @@ export const AutoResponderAnalytics: React.FC<AutoResponderAnalyticsProps> = ({
           color: theme.colors.text.secondary,
           marginBottom: theme.spacing.md,
         }}>
-          No analytics data available yet.
+          {t('settings.autoResponder.analytics.noData')}
         </p>
         <button
           onClick={onRefresh}
@@ -39,7 +42,7 @@ export const AutoResponderAnalytics: React.FC<AutoResponderAnalyticsProps> = ({
             ...theme.typography.body.large,
           }}
         >
-          Load Analytics
+          {t('settings.autoResponder.analytics.loadAnalytics')}
         </button>
       </div>
     );
@@ -60,27 +63,28 @@ export const AutoResponderAnalytics: React.FC<AutoResponderAnalyticsProps> = ({
         alignItems: 'center',
         marginBottom: theme.spacing.md,
       }}>
-        <h3 style={{
-          ...theme.typography.heading.h6,
-          color: theme.colors.text.primary,
-          margin: 0,
-        }}>
-          📊 Analytics
-        </h3>
-        <button
-          onClick={onRefresh}
-          style={{
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            backgroundColor: 'transparent',
-            color: theme.colors.primary.main,
-            border: `1px solid ${theme.colors.primary.main}`,
-            borderRadius: theme.borderRadius.sm,
-            cursor: 'pointer',
-            ...theme.typography.body.medium,
-          }}
-        >
-          Refresh
-        </button>
+          <h3 style={{
+            ...theme.typography.heading.h6,
+            color: theme.colors.text.primary,
+            margin: 0,
+          }}>
+            {/* eslint-disable-next-line i18next/no-literal-string */}
+            📊 {t('settings.autoResponder.analytics.title')}
+          </h3>
+          <button
+            onClick={onRefresh}
+            style={{
+              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+              backgroundColor: 'transparent',
+              color: theme.colors.primary.main,
+              border: `1px solid ${theme.colors.primary.main}`,
+              borderRadius: theme.borderRadius.sm,
+              cursor: 'pointer',
+              ...theme.typography.body.medium,
+            }}
+          >
+            {t('settings.autoResponder.analytics.refresh')}
+          </button>
       </div>
 
       {/* Summary Cards */}
@@ -124,7 +128,7 @@ export const AutoResponderAnalytics: React.FC<AutoResponderAnalyticsProps> = ({
           marginTop: 0,
           marginBottom: theme.spacing.md,
         }}>
-          Responses by Priority
+          {t('settings.autoResponder.analytics.responsesByPriority')}
         </h4>
         <div style={{ display: 'flex', gap: theme.spacing.lg }}>
           <PriorityBar label="High" count={byPriority.high} total={totalSent} color="#EF4444" />
@@ -148,7 +152,7 @@ export const AutoResponderAnalytics: React.FC<AutoResponderAnalyticsProps> = ({
             marginTop: 0,
             marginBottom: theme.spacing.md,
           }}>
-            Template Usage
+            {t('settings.autoResponder.analytics.templateUsage')}
           </h4>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: theme.spacing.sm }}>
             {Object.entries(templateBreakdown).map(([template, count]) => (

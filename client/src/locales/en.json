@@ -193,8 +193,10 @@
       "archive": "Archive"
     }
   },
-  "emailDetail": {
-    "privateNotes": "Private Notes",
+      "emailDetail": {
+        "attachments": "Attachments ({{count}})",
+        "attachFiles": "Attach files",
+        "privateNotes": "Private Notes",
     "privateNotesPlaceholder": "Add thoughts, context, or reminders about this thread... (Only visible to you)",
     "saveNote": "Save Note",
     "actionItems": "Action Items",
@@ -413,6 +415,32 @@
         "generating": "Generating preview...",
         "templateUsed": "Using {{template}} template",
         "hint": "Select an email above to see the exact auto-response that would be sent"
+      },
+      "exclusion": {
+        "title": "Don't Send To",
+        "noRules": "No exclusion rules added yet",
+        "addRule": "Add exclusion rule",
+        "aiInterpretNote": "AI will interpret these rules to determine which emails should not receive auto-responses."
+      },
+      "analytics": {
+        "title": "Analytics",
+        "noData": "No analytics data available yet.",
+        "loadAnalytics": "Load Analytics",
+        "refresh": "Refresh",
+        "responsesByPriority": "Responses by Priority",
+        "templateUsage": "Template Usage"
+      },
+      "qa": {
+        "title": "AI-Powered Answers",
+        "description": "When enabled, the auto-responder will try to answer common questions based on the Q&A in your context.",
+        "includeAiAnswers": "Include AI-generated answers in responses",
+        "confidenceThreshold": "Minimum Confidence Threshold",
+        "moreAnswers": "More answers (less accurate)",
+        "fewerAnswers": "Fewer answers (more accurate)",
+        "confidenceNote": "Only answers with confidence above this threshold will be included. All AI answers include a disclaimer that the user will confirm."
+      },
+      "priority": {
+        "title": "Send Auto-Responses For"
       }
     },
     "accountDeletion": {
@@ -992,6 +1020,7 @@
       "failed": "Analysis failed",
       "complete": "Analysis complete",
       "summary": "Summary",
+      "whatWereLearning": "What we're learning:",
       "stats": {
         "threadsAnalyzed_one": "{{count}} thread analyzed",
         "threadsAnalyzed_other": "{{count}} threads analyzed",

@@ -133,7 +133,7 @@ export const AnalysisProgressModal: React.FC<AnalysisProgressModalProps> = ({
                         fontSize: theme.typography.fontSize.xs,
                         color: theme.colors.text.primary,
                       }}>
-                        What we're learning:
+                        {t('settings.analysis.whatWereLearning')}
                       </div>
                       <div style={{ 
                         display: 'flex', 

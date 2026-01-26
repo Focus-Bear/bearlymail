@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 interface AutoResponderExclusionSettingsProps {
@@ -10,6 +11,7 @@ export const AutoResponderExclusionSettings: React.FC<AutoResponderExclusionSett
   customExclusionRules,
   onChange,
 }) => {
+  const { t } = useTranslation();
   const [isAdding, setIsAdding] = useState(false);
   const [newRule, setNewRule] = useState('');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -61,7 +63,7 @@ export const AutoResponderExclusionSettings: React.FC<AutoResponderExclusionSett
         marginTop: 0,
         marginBottom: theme.spacing.md,
       }}>
-        Don't Send To
+        {t('settings.autoResponder.exclusion.title')}
       </h3>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
@@ -106,7 +108,7 @@ export const AutoResponderExclusionSettings: React.FC<AutoResponderExclusionSett
                       background: 'none',
                     }}
                   >
-                    Save
+                    {t('common.save')}
                   </button>
                   <button
                     onClick={handleCancelEdit}
@@ -117,7 +119,7 @@ export const AutoResponderExclusionSettings: React.FC<AutoResponderExclusionSett
                       background: 'none',
                     }}
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                 </div>
               ) : (
@@ -139,7 +141,7 @@ export const AutoResponderExclusionSettings: React.FC<AutoResponderExclusionSett
                         fontSize: theme.typography.fontSize.sm,
                       }}
                     >
-                      Edit
+                      {t('common.edit')}
                     </button>
                     <button
                       onClick={() => handleDeleteRule(index)}
@@ -151,7 +153,7 @@ export const AutoResponderExclusionSettings: React.FC<AutoResponderExclusionSett
                         fontSize: theme.typography.fontSize.sm,
                       }}
                     >
-                      Delete
+                      {t('common.delete')}
                     </button>
                   </div>
                 </>
@@ -164,7 +166,7 @@ export const AutoResponderExclusionSettings: React.FC<AutoResponderExclusionSett
             fontSize: theme.typography.fontSize.sm,
             fontStyle: 'italic',
           }}>
-            No exclusion rules added yet
+            {t('settings.autoResponder.exclusion.noRules')}
           </div>
         )}
 
@@ -203,7 +205,7 @@ export const AutoResponderExclusionSettings: React.FC<AutoResponderExclusionSett
                 opacity: newRule.trim() ? 1 : 0.5,
               }}
             >
-              Add
+              {t('common.add')}
             </button>
             <button
               onClick={() => {
@@ -218,7 +220,7 @@ export const AutoResponderExclusionSettings: React.FC<AutoResponderExclusionSett
                 cursor: 'pointer',
               }}
             >
-              Cancel
+              {t('common.cancel')}
             </button>
           </div>
         ) : (
@@ -239,7 +241,8 @@ export const AutoResponderExclusionSettings: React.FC<AutoResponderExclusionSett
               gap: theme.spacing.xs,
             }}
           >
-            <span>+</span> Add exclusion rule
+            {/* eslint-disable-next-line i18next/no-literal-string */}
+            <span>+</span> {t('settings.autoResponder.exclusion.addRule')}
           </button>
         )}
       </div>
@@ -251,7 +254,7 @@ export const AutoResponderExclusionSettings: React.FC<AutoResponderExclusionSett
         marginBottom: 0,
         fontStyle: 'italic',
       }}>
-        AI will interpret these rules to determine which emails should not receive auto-responses.
+        {t('settings.autoResponder.exclusion.aiInterpretNote')}
       </p>
     </div>
   );

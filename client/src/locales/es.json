@@ -271,6 +271,8 @@
     "toggleStar": "Alternar estrella"
   },
   "emailDetail": {
+    "attachments": "Archivos adjuntos ({{count}})",
+    "attachFiles": "Adjuntar archivos",
     "actionItems": "Elementos de acción",
     "addTaskPlaceholder": "Añadir una tarea...",
     "aiBadge": "AI",
@@ -850,6 +852,7 @@
     "addRulePlaceholder": "Agregar una nueva regla (por ejemplo, \"Sea profesional\")",
     "addSummarizationRule": "Agregar nueva regla",
     "analysis": {
+      "whatWereLearning": "Lo que estamos aprendiendo:",
       "complete": "Análisis completo",
       "failed": "El análisis falló",
       "progress": {

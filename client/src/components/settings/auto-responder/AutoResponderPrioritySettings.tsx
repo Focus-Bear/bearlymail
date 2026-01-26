@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 interface AutoResponderPrioritySettingsProps {
@@ -14,6 +15,8 @@ export const AutoResponderPrioritySettings: React.FC<AutoResponderPrioritySettin
   sendFor,
   onChange,
 }) => {
+  const { t } = useTranslation();
+
   const priorities = [
     {
       key: 'highPriority' as const,
@@ -47,7 +50,7 @@ export const AutoResponderPrioritySettings: React.FC<AutoResponderPrioritySettin
         marginTop: 0,
         marginBottom: theme.spacing.md,
       }}>
-        Send Auto-Responses For
+        {t('settings.autoResponder.priority.title')}
       </h3>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>

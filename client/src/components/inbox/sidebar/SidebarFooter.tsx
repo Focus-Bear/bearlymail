@@ -37,6 +37,7 @@ export const SidebarFooter: React.FC<SidebarFooterProps> = ({ userEmail, onLogou
           </div>
         )}
         {isCollapsed && onToggleCollapse ? (
+          /* eslint-disable i18next/no-literal-string */
           <button
             onClick={() => {
               captureEvent('sidebar_expand_clicked');
@@ -69,6 +70,7 @@ export const SidebarFooter: React.FC<SidebarFooterProps> = ({ userEmail, onLogou
           >
             ☰
           </button>
+          /* eslint-enable i18next/no-literal-string */
         ) : (
           <button
             onClick={() => {

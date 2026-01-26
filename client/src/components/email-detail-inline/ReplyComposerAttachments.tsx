@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 interface FileWithPreview extends File {
@@ -29,6 +30,7 @@ export const ReplyComposerAttachments: React.FC<ReplyComposerAttachmentsProps> =
   files,
   onFilesChange,
 }) => {
+  const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -77,8 +79,9 @@ export const ReplyComposerAttachments: React.FC<ReplyComposerAttachmentsProps> =
           gap: theme.spacing.xs,
         }}
       >
+        {/* eslint-disable-next-line i18next/no-literal-string */}
         <span>📎</span>
-        <span>Attach files</span>
+        <span>{t('emailDetail.attachFiles')}</span>
       </button>
 
       {files.length > 0 && (
@@ -97,6 +100,7 @@ export const ReplyComposerAttachments: React.FC<ReplyComposerAttachmentsProps> =
                 fontSize: theme.typography.fontSize.sm,
               }}
             >
+              {/* eslint-disable-next-line i18next/no-literal-string */}
               <span>📎</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div
@@ -119,6 +123,7 @@ export const ReplyComposerAttachments: React.FC<ReplyComposerAttachmentsProps> =
                   {formatFileSize(file.size)}
                 </div>
               </div>
+              {/* eslint-disable i18next/no-literal-string */}
               <button
                 type="button"
                 onClick={() => handleRemoveFile(index)}
@@ -140,6 +145,7 @@ export const ReplyComposerAttachments: React.FC<ReplyComposerAttachmentsProps> =
               >
                 ✕
               </button>
+              {/* eslint-enable i18next/no-literal-string */}
             </div>
           ))}
         </div>

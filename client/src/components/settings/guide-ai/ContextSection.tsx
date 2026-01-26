@@ -333,6 +333,7 @@ const ContextItemContent: React.FC<ContextItemContentProps> = ({ context }) => {
               style={{ color: theme.colors.primary.main, textDecoration: 'none' }}
               title={`View source email thread (${context.sourceThreadIds.length} source${context.sourceThreadIds.length > 1 ? 's' : ''})`}
             >
+              {/* eslint-disable-next-line i18next/no-literal-string */}
               📧 {context.sourceThreadIds.length} source{context.sourceThreadIds.length > 1 ? 's' : ''}
             </a>
           </span>

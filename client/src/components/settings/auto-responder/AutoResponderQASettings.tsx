@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 interface AutoResponderQASettingsProps {
@@ -12,6 +13,8 @@ export const AutoResponderQASettings: React.FC<AutoResponderQASettingsProps> = (
   qaMinConfidence,
   onChange,
 }) => {
+  const { t } = useTranslation();
+
   return (
     <div style={{
       marginTop: theme.spacing.lg,
@@ -25,7 +28,8 @@ export const AutoResponderQASettings: React.FC<AutoResponderQASettingsProps> = (
         marginTop: 0,
         marginBottom: theme.spacing.sm,
       }}>
-        🧠 AI-Powered Answers
+        {/* eslint-disable-next-line i18next/no-literal-string */}
+        🧠 {t('settings.autoResponder.qa.title')}
       </h3>
 
       <p style={{
@@ -34,7 +38,7 @@ export const AutoResponderQASettings: React.FC<AutoResponderQASettingsProps> = (
         marginTop: 0,
         marginBottom: theme.spacing.md,
       }}>
-        When enabled, the auto-responder will try to answer common questions based on the Q&A in your context.
+        {t('settings.autoResponder.qa.description')}
       </p>
 
       <label
@@ -62,7 +66,7 @@ export const AutoResponderQASettings: React.FC<AutoResponderQASettingsProps> = (
           fontWeight: theme.typography.fontWeight.medium,
           color: theme.colors.text.primary,
         }}>
-          Include AI-generated answers in responses
+          {t('settings.autoResponder.qa.includeAiAnswers')}
         </span>
       </label>
 
@@ -83,7 +87,7 @@ export const AutoResponderQASettings: React.FC<AutoResponderQASettingsProps> = (
               ...theme.typography.body.large,
               color: theme.colors.text.primary,
             }}>
-              Minimum Confidence Threshold
+              {t('settings.autoResponder.qa.confidenceThreshold')}
             </span>
             <span style={{
               ...theme.typography.body.large,
@@ -116,13 +120,13 @@ export const AutoResponderQASettings: React.FC<AutoResponderQASettingsProps> = (
               ...theme.typography.body.small,
               color: theme.colors.text.tertiary,
             }}>
-              More answers (less accurate)
+              {t('settings.autoResponder.qa.moreAnswers')}
             </span>
             <span style={{
               ...theme.typography.body.small,
               color: theme.colors.text.tertiary,
             }}>
-              Fewer answers (more accurate)
+              {t('settings.autoResponder.qa.fewerAnswers')}
             </span>
           </div>
 
@@ -132,8 +136,7 @@ export const AutoResponderQASettings: React.FC<AutoResponderQASettingsProps> = (
             marginTop: theme.spacing.md,
             marginBottom: 0,
           }}>
-            Only answers with confidence above this threshold will be included.
-            All AI answers include a disclaimer that the user will confirm.
+            {t('settings.autoResponder.qa.confidenceNote')}
           </p>
         </div>
       )}

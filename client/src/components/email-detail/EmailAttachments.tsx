@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { API_URL } from 'config/api';
 import axios from 'axios';
@@ -78,6 +79,8 @@ const downloadAttachment = async (emailId: string, attachmentId: string, filenam
  * Displays list of attachments with download functionality
  */
 export const EmailAttachments: React.FC<EmailAttachmentsProps> = ({ emailId, attachments }) => {
+  const { t } = useTranslation();
+
   if (!attachments || attachments.length === 0) {
     return null;
   }
@@ -100,7 +103,7 @@ export const EmailAttachments: React.FC<EmailAttachmentsProps> = ({ emailId, att
           marginBottom: theme.spacing.sm,
         }}
       >
-        Attachments ({attachments.length})
+        {t('emailDetail.attachments', { count: attachments.length })}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}>
         {attachments.map((attachment) => (
@@ -155,6 +158,7 @@ export const EmailAttachments: React.FC<EmailAttachmentsProps> = ({ emailId, att
                 {formatFileSize(attachment.size)} • {attachment.mimeType}
               </div>
             </div>
+            {/* eslint-disable-next-line i18next/no-literal-string */}
             <span style={{ fontSize: theme.fontSizes.sm, color: theme.colors.primary.main }}>
               ⬇️
             </span>

@@ -1,8 +1,4 @@
 import React, { useState, useCallback } from 'react';
-
-// ULTRA-VISIBLE: This confirms the Inbox.tsx module is loaded with the updated code
-console.log('%c[INBOX MODULE] Inbox.tsx module loaded!', 'background: magenta; color: white; font-size: 24px;');
-
 import { ERROR_CODE_GMAIL_REQUIRED } from 'constants/strings';
 import axios from 'axios';
 import { theme } from 'theme/theme';

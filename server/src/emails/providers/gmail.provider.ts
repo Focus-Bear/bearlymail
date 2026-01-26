@@ -492,7 +492,11 @@ export class GmailProvider implements EmailProvider {
       const baseQuery = "-label:SnoozedBearlyMail -label:VA-to-action";
       const afterQuery = `after:${syncWindowTimestamp}`;
 
-      const [inboxThreadsResponse, starredThreadsResponse] = await Promise.all([
+      const [
+        inboxThreadsResponse,
+        starredThreadsResponse,
+        sentThreadsResponse,
+      ] = await Promise.all([
         // Fetch unread threads from inbox updated since last sync
         gmail.users.threads.list({
           userId: "me",
@@ -505,19 +509,28 @@ export class GmailProvider implements EmailProvider {
           maxResults: 500,
           q: `is:starred in:inbox ${baseQuery}`,
         }),
+        // Fetch threads where user has sent emails recently (to capture replies)
+        // This ensures sent replies are synced back to the thread
+        gmail.users.threads.list({
+          userId: "me",
+          maxResults: 100,
+          q: `in:sent ${baseQuery} ${afterQuery}`,
+        }),
       ]);
 
       const inboxThreads = inboxThreadsResponse.data.threads || [];
       const starredThreads = starredThreadsResponse.data.threads || [];
+      const sentThreads = sentThreadsResponse.data.threads || [];
 
       // Combine and deduplicate thread IDs
       const allThreadIds = new Set([
         ...inboxThreads.map((t) => t.id!),
         ...starredThreads.map((t) => t.id!),
+        ...sentThreads.map((t) => t.id!),
       ]);
 
       this.logger.debug(
-        `Found ${inboxThreads.length} inbox threads and ${starredThreads.length} starred threads (${allThreadIds.size} unique) updated since ${syncWindowStart.toISOString()}`,
+        `Found ${inboxThreads.length} inbox threads, ${starredThreads.length} starred threads, and ${sentThreads.length} sent threads (${allThreadIds.size} unique) updated since ${syncWindowStart.toISOString()}`,
       );
 
       // Get existing threads from DB to check their current status

@@ -12,6 +12,10 @@ import { PriorityService } from "./priority.service";
 import { EmailsService } from "../emails/emails.service";
 import { calculateScoreFromBreakdown } from "../utils/priority.utils";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import {
+  TRIAGE_THRESHOLDS,
+  STAR_COUNTS,
+} from "../constants/priority-constants";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -309,22 +313,19 @@ export class TriageSuggestionsService {
           where: { id: email.emailThreadId },
         });
       }
-      
+
       const priorityScore =
-        // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-        calculateScoreFromBreakdown(thread?.priorityExplanation) || 50;
+        calculateScoreFromBreakdown(thread?.priorityExplanation) ||
+        TRIAGE_THRESHOLDS.DEFAULT_PRIORITY;
       let suggestedStarCountFromPriority: number;
-      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-      if (priorityScore >= 80) {
-        suggestedStarCountFromPriority = 3;
-        // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-      } else if (priorityScore >= 60) {
-        suggestedStarCountFromPriority = 2;
-        // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-      } else if (priorityScore >= 40) {
-        suggestedStarCountFromPriority = 1;
+      if (priorityScore >= TRIAGE_THRESHOLDS.PRIORITY_HIGH) {
+        suggestedStarCountFromPriority = STAR_COUNTS.HIGH;
+      } else if (priorityScore >= TRIAGE_THRESHOLDS.PRIORITY_MEDIUM) {
+        suggestedStarCountFromPriority = STAR_COUNTS.MEDIUM;
+      } else if (priorityScore >= TRIAGE_THRESHOLDS.PRIORITY_LOW) {
+        suggestedStarCountFromPriority = STAR_COUNTS.LOW;
       } else {
-        suggestedStarCountFromPriority = 0;
+        suggestedStarCountFromPriority = STAR_COUNTS.NONE;
       }
 
       // Check if sender is VIP
@@ -342,9 +343,12 @@ export class TriageSuggestionsService {
       if (isVip) {
         return {
           emailId: email.id,
-          suggestedStarCount: Math.max(2, suggestedStarCountFromPriority),
+          suggestedStarCount: Math.max(
+            STAR_COUNTS.MEDIUM,
+            suggestedStarCountFromPriority,
+          ),
           suggestedArchive: false,
-          confidence: 90,
+          confidence: TRIAGE_THRESHOLDS.VIP_CONFIDENCE,
           reasoning: `VIP contact - always prioritize`,
         };
       }
@@ -352,25 +356,29 @@ export class TriageSuggestionsService {
       // Check historical patterns
       const senderPattern = senderPatterns.get(email.from.toLowerCase());
 
-      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-      if (senderPattern && senderPattern.avgStarCount >= 2.5) {
+      if (
+        senderPattern &&
+        senderPattern.avgStarCount >= TRIAGE_THRESHOLDS.HIGH_STAR_AVG
+      ) {
         return {
           emailId: email.id,
           suggestedStarCount: Math.round(senderPattern.avgStarCount),
-          // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-          suggestedArchive: senderPattern.archiveRate > 0.7,
-          confidence: 75,
+          suggestedArchive:
+            senderPattern.archiveRate > TRIAGE_THRESHOLDS.HIGH_ARCHIVE_RATE,
+          confidence: TRIAGE_THRESHOLDS.PATTERN_CONFIDENCE,
           reasoning: `You typically star emails from this sender`,
         };
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-      if (senderPattern && senderPattern.archiveRate > 0.7) {
+      if (
+        senderPattern &&
+        senderPattern.archiveRate > TRIAGE_THRESHOLDS.HIGH_ARCHIVE_RATE
+      ) {
         return {
           emailId: email.id,
-          suggestedStarCount: 0,
+          suggestedStarCount: STAR_COUNTS.NONE,
           suggestedArchive: true,
-          confidence: 70,
+          confidence: TRIAGE_THRESHOLDS.ARCHIVE_CONFIDENCE,
           reasoning: `You typically archive emails from this sender`,
         };
       }
@@ -382,17 +390,14 @@ export class TriageSuggestionsService {
         emailId: email.id,
         suggestedStarCount: suggestedStarCountFromPriority,
         suggestedArchive: false,
-        confidence: 65,
+        confidence: TRIAGE_THRESHOLDS.DEFAULT_CONFIDENCE,
         reasoning: (() => {
           let priorityLevel: string;
-          // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-          if (priorityScore >= 80) {
+          if (priorityScore >= TRIAGE_THRESHOLDS.PRIORITY_HIGH) {
             priorityLevel = "High priority";
-            // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-          } else if (priorityScore >= 60) {
+          } else if (priorityScore >= TRIAGE_THRESHOLDS.PRIORITY_MEDIUM) {
             priorityLevel = "Medium priority";
-            // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-          } else if (priorityScore >= 40) {
+          } else if (priorityScore >= TRIAGE_THRESHOLDS.PRIORITY_LOW) {
             priorityLevel = "Low priority";
           } else {
             priorityLevel = "Very low priority";
@@ -433,17 +438,14 @@ export class TriageSuggestionsService {
       : "";
 
     let priorityBasedStars: number;
-    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-    if (priorityScore >= 80) {
-      priorityBasedStars = 3;
-      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-    } else if (priorityScore >= 60) {
-      priorityBasedStars = 2;
-      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-    } else if (priorityScore >= 40) {
-      priorityBasedStars = 1;
+    if (priorityScore >= TRIAGE_THRESHOLDS.PRIORITY_HIGH) {
+      priorityBasedStars = STAR_COUNTS.HIGH;
+    } else if (priorityScore >= TRIAGE_THRESHOLDS.PRIORITY_MEDIUM) {
+      priorityBasedStars = STAR_COUNTS.MEDIUM;
+    } else if (priorityScore >= TRIAGE_THRESHOLDS.PRIORITY_LOW) {
+      priorityBasedStars = STAR_COUNTS.LOW;
     } else {
-      priorityBasedStars = 0;
+      priorityBasedStars = STAR_COUNTS.NONE;
     }
 
     const prompt = `Analyze this email and suggest a triage action based on priority and importance.
@@ -495,8 +497,13 @@ Respond with ONLY a JSON object:
             Math.min(3, parsed.suggestedStarCount || 0),
           ),
           suggestedArchive: parsed.suggestedArchive || false,
-          // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-          confidence: Math.max(0, Math.min(100, parsed.confidence || 50)),
+          confidence: Math.max(
+            0,
+            Math.min(
+              100,
+              parsed.confidence || TRIAGE_THRESHOLDS.FALLBACK_CONFIDENCE,
+            ),
+          ),
           reasoning: parsed.reasoning || "AI-generated suggestion",
         };
       }
@@ -509,9 +516,9 @@ Respond with ONLY a JSON object:
 
     return {
       emailId: email.id,
-      suggestedStarCount: 0,
+      suggestedStarCount: STAR_COUNTS.NONE,
       suggestedArchive: false,
-      confidence: 50,
+      confidence: TRIAGE_THRESHOLDS.FALLBACK_CONFIDENCE,
       reasoning: "Unable to analyze email",
     };
   }
@@ -551,7 +558,7 @@ Respond with ONLY a JSON object:
       { avgStarCount: number; archiveRate: number }
     >();
     for (const [sender, pattern] of patterns.entries()) {
-      if (pattern.total >= 2) {
+      if (pattern.total >= TRIAGE_THRESHOLDS.MIN_PATTERN_EMAILS) {
         result.set(sender, {
           avgStarCount:
             pattern.starCounts.length > 0

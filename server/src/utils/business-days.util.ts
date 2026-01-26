@@ -1,4 +1,4 @@
-import { DAYS } from "../constants/time-constants";
+import { DAYS, MONTHS, EASTER_ALGORITHM } from "../constants/time-constants";
 
 /**
  * Business days utility for calculating working days excluding weekends and holidays
@@ -8,63 +8,81 @@ import { DAYS } from "../constants/time-constants";
 // Australia holidays (fixed and calculated dates)
 const AUSTRALIA_HOLIDAYS = {
   // Fixed dates
-  // January 1
-  NEW_YEARS_DAY: { month: 0, day: 1 },
-  // January 26
-  AUSTRALIA_DAY: { month: 0, day: 26 },
-  // April 25
-  ANZAC_DAY: { month: 3, day: 25 },
-  // December 25
-  CHRISTMAS: { month: 11, day: 25 },
-  // December 26
-  BOXING_DAY: { month: 11, day: 26 },
+  NEW_YEARS_DAY: { month: MONTHS.JANUARY, day: 1 },
+  AUSTRALIA_DAY: { month: MONTHS.JANUARY, day: 26 },
+  ANZAC_DAY: { month: MONTHS.APRIL, day: 25 },
+  CHRISTMAS: { month: MONTHS.DECEMBER, day: 25 },
+  BOXING_DAY: { month: MONTHS.DECEMBER, day: 26 },
 };
 
 // US holidays (fixed and calculated dates)
 const US_HOLIDAYS = {
   // Fixed dates
-  // January 1
-  NEW_YEARS_DAY: { month: 0, day: 1 },
-  // July 4
-  INDEPENDENCE_DAY: { month: 6, day: 4 },
-  // November 11
-  VETERANS_DAY: { month: 10, day: 11 },
-  // December 25
-  CHRISTMAS: { month: 11, day: 25 },
+  NEW_YEARS_DAY: { month: MONTHS.JANUARY, day: 1 },
+  INDEPENDENCE_DAY: { month: MONTHS.JULY, day: 4 },
+  VETERANS_DAY: { month: MONTHS.NOVEMBER, day: 11 },
+  CHRISTMAS: { month: MONTHS.DECEMBER, day: 25 },
 };
 
 /**
  * Calculate Easter Sunday for a given year (using anonymous Gregorian algorithm)
+ * Variable names follow the standard Computus algorithm notation
  */
 function calculateEaster(year: number): Date {
-  // eslint-disable-next-line id-length, @typescript-eslint/no-magic-numbers
-  const a = year % 19;
   // eslint-disable-next-line id-length
-  const b = Math.floor(year / 100);
+  const a = year % EASTER_ALGORITHM.METONIC_CYCLE;
   // eslint-disable-next-line id-length
-  const c = year % 100;
+  const b = Math.floor(year / EASTER_ALGORITHM.CENTURY_DIVISOR);
+  // eslint-disable-next-line id-length
+  const c = year % EASTER_ALGORITHM.CENTURY_DIVISOR;
   // eslint-disable-next-line id-length
   const d = Math.floor(b / 4);
   // eslint-disable-next-line id-length
   const e = b % 4;
-  // eslint-disable-next-line id-length, @typescript-eslint/no-magic-numbers
-  const f = Math.floor((b + 8) / 25);
-  // eslint-disable-next-line id-length, @typescript-eslint/no-magic-numbers
-  const g = Math.floor((b - f + 1) / 3);
-  // eslint-disable-next-line id-length, @typescript-eslint/no-magic-numbers
-  const h = (19 * a + b - d - g + 15) % 30;
+  // eslint-disable-next-line id-length
+  const f = Math.floor(
+    (b + EASTER_ALGORITHM.LUNAR_CORRECTION_OFFSET) /
+      EASTER_ALGORITHM.LUNAR_CORRECTION_DIVISOR,
+  );
+  // eslint-disable-next-line id-length
+  const g = Math.floor((b - f + 1) / EASTER_ALGORITHM.SOLAR_CORRECTION_DIVISOR);
+  // eslint-disable-next-line id-length
+  const h =
+    (EASTER_ALGORITHM.METONIC_CYCLE * a +
+      b -
+      d -
+      g +
+      EASTER_ALGORITHM.PASCHAL_FULL_MOON_OFFSET) %
+    EASTER_ALGORITHM.PASCHAL_FULL_MOON_MOD;
   // eslint-disable-next-line id-length
   const i = Math.floor(c / 4);
   // eslint-disable-next-line id-length
   const k = c % 4;
-  // eslint-disable-next-line id-length, @typescript-eslint/no-magic-numbers
-  const l = (32 + 2 * e + 2 * i - h - k) % 7;
-  // eslint-disable-next-line id-length, @typescript-eslint/no-magic-numbers
-  const m = Math.floor((a + 11 * h + 22 * l) / 451);
-  // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-  const month = Math.floor((h + l - 7 * m + 114) / 31);
-  // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  // eslint-disable-next-line id-length
+  const l =
+    (EASTER_ALGORITHM.DOMINICAL_OFFSET + 2 * e + 2 * i - h - k) %
+    EASTER_ALGORITHM.DOMINICAL_MOD;
+  // eslint-disable-next-line id-length
+  const m = Math.floor(
+    (a +
+      EASTER_ALGORITHM.EPACT_MULTIPLIER_A * h +
+      EASTER_ALGORITHM.EPACT_MULTIPLIER_L * l) /
+      EASTER_ALGORITHM.EPACT_DIVISOR,
+  );
+  const month = Math.floor(
+    (h +
+      l -
+      EASTER_ALGORITHM.DOMINICAL_MOD * m +
+      EASTER_ALGORITHM.MONTH_CALCULATION_OFFSET) /
+      EASTER_ALGORITHM.MONTH_DIVISOR,
+  );
+  const day =
+    ((h +
+      l -
+      EASTER_ALGORITHM.DOMINICAL_MOD * m +
+      EASTER_ALGORITHM.MONTH_CALCULATION_OFFSET) %
+      EASTER_ALGORITHM.MONTH_DIVISOR) +
+    1;
   return new Date(year, month - 1, day);
 }
 
@@ -80,10 +98,8 @@ function getNthWeekday(
   const firstDay = new Date(year, month, 1);
   const firstWeekday = firstDay.getDay();
   let offset = weekday - firstWeekday;
-  // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-  if (offset < 0) offset += 7;
-  // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-  const date = new Date(year, month, 1 + offset + (n - 1) * 7);
+  if (offset < 0) offset += DAYS.WEEK;
+  const date = new Date(year, month, 1 + offset + (n - 1) * DAYS.WEEK);
   return date;
 }
 
@@ -94,14 +110,12 @@ function getLastMonday(year: number, month: number): Date {
   const lastDay = new Date(year, month + 1, 0);
   const lastWeekday = lastDay.getDay();
   let offset: number;
-  if (lastWeekday === 1) {
+  if (lastWeekday === DAYS.MONDAY) {
     offset = 0;
-  } else if (lastWeekday === 0) {
-    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-    offset = 6;
+  } else if (lastWeekday === DAYS.SUNDAY) {
+    offset = DAYS.SATURDAY;
   } else {
-    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-    offset = 7 - lastWeekday;
+    offset = DAYS.WEEK - lastWeekday;
   }
   return new Date(year, month, lastDay.getDate() - offset);
 }
@@ -110,8 +124,9 @@ function getLastMonday(year: number, month: number): Date {
  * Get the 4th Thursday of November (Thanksgiving)
  */
 function getThanksgiving(year: number): Date {
-  // November (10), Thursday (4), 4th occurrence
-  return getNthWeekday(year, 10, 4, 4);
+  const THURSDAY = 4;
+  const FOURTH_OCCURRENCE = 4;
+  return getNthWeekday(year, MONTHS.NOVEMBER, THURSDAY, FOURTH_OCCURRENCE);
 }
 
 /**
@@ -168,13 +183,16 @@ function getHolidaysForYear(year: number): Date[] {
   holidays.push(easterMonday);
 
   // Queen's Birthday (2nd Monday in June in most states)
-  // June (5), Monday (1), 2nd occurrence
-  holidays.push(getNthWeekday(year, 5, 1, 2));
+  const SECOND_OCCURRENCE = 2;
+  holidays.push(
+    getNthWeekday(year, MONTHS.JUNE, DAYS.MONDAY, SECOND_OCCURRENCE),
+  );
 
   // Labour Day (1st Monday in October in most states)
-  // October (9), Monday (1), 1st occurrence
-  // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-  holidays.push(getNthWeekday(year, 9, 1, 1));
+  const FIRST_OCCURRENCE = 1;
+  holidays.push(
+    getNthWeekday(year, MONTHS.OCTOBER, DAYS.MONDAY, FIRST_OCCURRENCE),
+  );
 
   // US holidays
   holidays.push(
@@ -203,26 +221,28 @@ function getHolidaysForYear(year: number): Date[] {
   );
 
   // MLK Day (3rd Monday in January)
-  // January (0), Monday (1), 3rd occurrence
-  holidays.push(getNthWeekday(year, 0, 1, 3));
+  const THIRD_OCCURRENCE = 3;
+  holidays.push(
+    getNthWeekday(year, MONTHS.JANUARY, DAYS.MONDAY, THIRD_OCCURRENCE),
+  );
 
   // Presidents Day (3rd Monday in February)
-  // February (1), Monday (1), 3rd occurrence
-  holidays.push(getNthWeekday(year, 1, 1, 3));
+  holidays.push(
+    getNthWeekday(year, MONTHS.FEBRUARY, DAYS.MONDAY, THIRD_OCCURRENCE),
+  );
 
   // Memorial Day (last Monday in May)
-  // May (4)
-  holidays.push(getLastMonday(year, 4));
+  holidays.push(getLastMonday(year, MONTHS.MAY));
 
   // Labor Day (1st Monday in September)
-  // September (8), Monday (1), 1st occurrence
-  // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-  holidays.push(getNthWeekday(year, 8, 1, 1));
+  holidays.push(
+    getNthWeekday(year, MONTHS.SEPTEMBER, DAYS.MONDAY, FIRST_OCCURRENCE),
+  );
 
   // Columbus Day (2nd Monday in October)
-  // October (9), Monday (1), 2nd occurrence
-  // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-  holidays.push(getNthWeekday(year, 9, 1, 2));
+  holidays.push(
+    getNthWeekday(year, MONTHS.OCTOBER, DAYS.MONDAY, SECOND_OCCURRENCE),
+  );
 
   // Thanksgiving (4th Thursday in November)
   holidays.push(getThanksgiving(year));

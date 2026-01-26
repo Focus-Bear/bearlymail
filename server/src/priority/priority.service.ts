@@ -14,6 +14,16 @@ import {
 import { LLMService } from "../llm/llm.service";
 import * as natural from "natural";
 import { calculateScoreFromBreakdown } from "../utils/priority.utils";
+import {
+  PRIORITY_SCORES,
+  PRIORITY_BOOSTS,
+  PRIORITY_WEIGHTS,
+  SENTIMENT_THRESHOLDS,
+  JOB_TITLE_SCORES,
+  PRIORITY_FACTOR_TYPES,
+  PRIORITY_FACTOR_DISPLAY_NAMES,
+  SENTIMENT_TYPES,
+} from "../constants/priority-constants";
 
 /**
  * Priority explanation structure
@@ -70,7 +80,7 @@ export class PriorityService {
       contribution: number;
     }> = [];
 
-    // VIP Contact boost (+25)
+    // VIP Contact boost
     const vipContacts = contexts.filter(
       (c) => c.contextKey === ContextKey.VIP_CONTACT,
     );
@@ -80,13 +90,11 @@ export class PriorityService {
         email.fromName?.toLowerCase().includes(vip.contextValue.toLowerCase()),
     );
     if (matchingVip) {
-      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-      baseScore += 25;
+      baseScore += PRIORITY_BOOSTS.VIP_CONTACT;
       factors.push({
-        type: "VIP_CONTACT",
+        type: PRIORITY_FACTOR_TYPES.VIP_CONTACT,
         description: `From VIP contact: ${matchingVip.contextValue}`,
-        // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-        contribution: 25,
+        contribution: PRIORITY_BOOSTS.VIP_CONTACT,
       });
     }
 
@@ -119,13 +127,14 @@ export class PriorityService {
           : 0;
     }
 
-    // Apply 40% weight to goal alignment
-    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-    const goalAlignmentContribution = Math.round(goalAlignmentScore * 0.4);
+    // Apply weight to goal alignment
+    const goalAlignmentContribution = Math.round(
+      goalAlignmentScore * PRIORITY_WEIGHTS.GOAL_ALIGNMENT,
+    );
     if (goalAlignmentContribution > 0) {
       baseScore += goalAlignmentContribution;
       factors.push({
-        type: "GOAL_ALIGNMENT",
+        type: PRIORITY_FACTOR_TYPES.GOAL_ALIGNMENT,
         description:
           matchingGoals.length > 0
             ? `Aligned with goals: ${matchingGoals.join(", ")}`
@@ -134,7 +143,7 @@ export class PriorityService {
       });
     }
 
-    // Working on / Current projects boost (+15 max, weighted by priority)
+    // Working on / Current projects boost (weighted by priority)
     const workingOn = contexts.filter(
       (c) => c.contextKey === ContextKey.WORKING_ON,
     );
@@ -148,18 +157,15 @@ export class PriorityService {
         // Priority 1 = +15, Priority 2 = +10, Priority 3 = +5
         let priorityBoost: number;
         if (project.priority === 1) {
-          // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-          priorityBoost = 15;
+          priorityBoost = PRIORITY_BOOSTS.PROJECT_PRIORITY_1;
         } else if (project.priority === 2) {
-          // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-          priorityBoost = 10;
+          priorityBoost = PRIORITY_BOOSTS.PROJECT_PRIORITY_2;
         } else {
-          // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-          priorityBoost = 5;
+          priorityBoost = PRIORITY_BOOSTS.PROJECT_PRIORITY_3;
         }
         baseScore += priorityBoost;
         factors.push({
-          type: "CURRENT_PROJECT",
+          type: PRIORITY_FACTOR_TYPES.CURRENT_PROJECT,
           description: `Related to current work: ${project.contextValue}`,
           contribution: priorityBoost,
         });
@@ -168,7 +174,7 @@ export class PriorityService {
       }
     }
 
-    // Don't care penalty (-20)
+    // Don't care penalty
     const dontCare = contexts.filter(
       (c) => c.contextKey === ContextKey.DONT_CARE,
     );
@@ -179,13 +185,11 @@ export class PriorityService {
         .map((k) => k.trim())
         .filter(Boolean);
       if (keywords.some((keyword) => emailText.includes(keyword))) {
-        // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-        baseScore -= 20;
+        baseScore += PRIORITY_BOOSTS.DONT_CARE_PENALTY;
         factors.push({
-          type: "NOT_IMPORTANT",
+          type: PRIORITY_FACTOR_TYPES.NOT_IMPORTANT,
           description: `Not important: ${item.contextValue}`,
-          // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-          contribution: -20,
+          contribution: PRIORITY_BOOSTS.DONT_CARE_PENALTY,
         });
         break;
       }
@@ -203,30 +207,31 @@ export class PriorityService {
     // Negative sentiment = high priority (higher score), positive = lower priority
     // Map: -1 (very negative) -> 100, 0 (neutral) -> 50, 1 (very positive) -> 0
     const sentimentScoreNormalized = Math.max(
-      0,
-      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-      Math.min(100, 50 - sentimentScore * 50), // eslint-disable-line @typescript-eslint/no-magic-numbers
+      PRIORITY_SCORES.MIN,
+      Math.min(
+        PRIORITY_SCORES.MAX,
+        PRIORITY_SCORES.NEUTRAL - sentimentScore * PRIORITY_SCORES.NEUTRAL,
+      ),
     );
 
-    // Apply 30% weight to sentiment
-    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-    const sentimentContribution = Math.round(sentimentScoreNormalized * 0.3);
-    // Neutral sentiment (50) contributes 15, so adjust to make neutral = 0 contribution
-    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-    const sentimentAdjustment = sentimentContribution - 15;
+    // Apply weight to sentiment
+    const sentimentContribution = Math.round(
+      sentimentScoreNormalized * PRIORITY_WEIGHTS.SENTIMENT,
+    );
+    // Neutral sentiment contributes 15, so adjust to make neutral = 0 contribution
+    const sentimentAdjustment =
+      sentimentContribution - SENTIMENT_THRESHOLDS.NEUTRAL_CONTRIBUTION;
     if (Math.abs(sentimentAdjustment) > 1) {
       // Only show if significantly different from neutral
       baseScore += sentimentAdjustment;
       factors.push({
-        type: "SENTIMENT",
+        type: PRIORITY_FACTOR_TYPES.SENTIMENT,
         description: (() => {
-          // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-          if (sentimentScore < -0.3) {
+          if (sentimentScore < SENTIMENT_THRESHOLDS.NEGATIVE) {
             return `Negative/urgent sentiment (${sentimentScore.toFixed(2)})`;
           } else if (sentimentScore < 0) {
             return `Slightly negative sentiment (${sentimentScore.toFixed(2)})`;
-            // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-          } else if (sentimentScore > 0.3) {
+          } else if (sentimentScore > SENTIMENT_THRESHOLDS.POSITIVE) {
             return `Positive sentiment (${sentimentScore.toFixed(2)})`;
           } else {
             return "Neutral sentiment";
@@ -241,11 +246,10 @@ export class PriorityService {
       email.senderJobTitle || "",
     );
     if (jobTitleScore > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-      const jobBoost = jobTitleScore * 10;
+      const jobBoost = jobTitleScore * PRIORITY_BOOSTS.JOB_TITLE_MULTIPLIER;
       baseScore += jobBoost;
       factors.push({
-        type: "SENDER_ROLE",
+        type: PRIORITY_FACTOR_TYPES.SENDER_ROLE,
         description: `From ${email.senderJobTitle || "important role"}`,
         contribution: Math.round(jobBoost),
       });
@@ -253,14 +257,16 @@ export class PriorityService {
 
     // Days since last email - exponential increase in priority
     if (daysSinceLastEmail !== undefined && daysSinceLastEmail > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-      const daysBoost = Math.min(30, 2 * Math.pow(daysSinceLastEmail, 1.5));
+      const daysBoost = Math.min(
+        PRIORITY_BOOSTS.MAX_DAYS_BOOST,
+        PRIORITY_WEIGHTS.DAYS_MULTIPLIER *
+          Math.pow(daysSinceLastEmail, PRIORITY_WEIGHTS.DAYS_EXPONENT),
+      );
       baseScore += daysBoost;
-      if (daysBoost > 5) {
+      if (daysBoost > PRIORITY_BOOSTS.PROJECT_PRIORITY_3) {
         factors.push({
-          type: "RECENCY",
+          type: PRIORITY_FACTOR_TYPES.RECENCY,
           description: `${Math.round(daysSinceLastEmail)} days since last email`,
-          // eslint-disable-next-line @typescript-eslint/no-magic-numbers
           contribution: Math.round(daysBoost),
         });
       }
@@ -280,7 +286,7 @@ export class PriorityService {
       // This allows the system to learn while respecting user's explicit choice
       finalScore = email.userPriorityOverride;
       factors.push({
-        type: "USER_OVERRIDE",
+        type: PRIORITY_FACTOR_TYPES.USER_OVERRIDE,
         description: "User manually set priority",
         contribution: email.userPriorityOverride - baseScore,
       });
@@ -295,24 +301,19 @@ export class PriorityService {
     // Get sentiment score and type for dimensions
     const emailSentimentScore = email.sentimentScore ?? 0;
     let sentimentType: "negative" | "positive" | "neutral";
-    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-    if (emailSentimentScore < -0.3) {
-      sentimentType = "negative";
-      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-    } else if (emailSentimentScore > 0.3) {
-      sentimentType = "positive";
+    if (emailSentimentScore < SENTIMENT_THRESHOLDS.NEGATIVE) {
+      sentimentType = SENTIMENT_TYPES.NEGATIVE;
+    } else if (emailSentimentScore > SENTIMENT_THRESHOLDS.POSITIVE) {
+      sentimentType = SENTIMENT_TYPES.POSITIVE;
     } else {
-      sentimentType = "neutral";
+      sentimentType = SENTIMENT_TYPES.NEUTRAL;
     }
     // -1 becomes 0, 0 becomes 50, 1 becomes 100
     // Default to neutral if no sentiment
     const dimensionSentimentScore =
       emailSentimentScore !== null && emailSentimentScore !== undefined
-        ? // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-          (emailSentimentScore + 1) * 50
-        : // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-          50;
+        ? (emailSentimentScore + 1) * PRIORITY_SCORES.NEUTRAL
+        : PRIORITY_SCORES.NEUTRAL;
 
     const dimensions = {
       urgency: { score: 0, reasons: [] as string[] },
@@ -337,20 +338,20 @@ export class PriorityService {
       // Note: Urgency is now determined by LLM and stored on EmailThread (urgencyScore)
       // URGENT_KEYWORDS factors are no longer created - urgency comes from thread.urgencyScore
       // Dimensions store points (not percentages) for consistency
-      if (factor.type === "SENTIMENT") {
+      if (factor.type === PRIORITY_FACTOR_TYPES.SENTIMENT) {
         // Sentiment is now its own dimension
         dimensions.sentiment.reasons.push(factor.description);
       } else if (
-        factor.type === "GOAL_ALIGNMENT" ||
-        factor.type === "CURRENT_PROJECT"
+        factor.type === PRIORITY_FACTOR_TYPES.GOAL_ALIGNMENT ||
+        factor.type === PRIORITY_FACTOR_TYPES.CURRENT_PROJECT
       ) {
         // eslint-disable-next-line @typescript-eslint/no-magic-numbers
         dimensions.goalAlignment.score += factor.contribution;
         // Points, not percentage
         dimensions.goalAlignment.reasons.push(factor.description);
       } else if (
-        factor.type === "VIP_CONTACT" ||
-        factor.type === "SENDER_ROLE"
+        factor.type === PRIORITY_FACTOR_TYPES.VIP_CONTACT ||
+        factor.type === PRIORITY_FACTOR_TYPES.SENDER_ROLE
       ) {
         // eslint-disable-next-line @typescript-eslint/no-magic-numbers
         dimensions.vipContact.score += factor.contribution;
@@ -370,18 +371,7 @@ export class PriorityService {
   }
 
   private getFactorDisplayName(type: string): string {
-    const displayNames: Record<string, string> = {
-      VIP_CONTACT: "⭐ VIP Contact",
-      GOAL_ALIGNMENT: "🎯 Goal Alignment",
-      CURRENT_PROJECT: "📋 Current Project",
-      NOT_IMPORTANT: "❌ Not Important",
-      SENTIMENT: "😊 Sentiment",
-      SENDER_ROLE: "👔 Sender Role",
-      RECENCY: "⏰ Recency",
-      URGENT_KEYWORDS: "🚨 Urgent Keywords",
-      USER_OVERRIDE: "✏️ User Override",
-    };
-    return displayNames[type] || type;
+    return PRIORITY_FACTOR_DISPLAY_NAMES[type] || type;
   }
 
   /**
@@ -462,18 +452,19 @@ export class PriorityService {
 
     let score = 0;
     tokens.forEach((token) => {
-      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-      if (urgencyWords.some((w) => token.includes(w))) score += 1;
-      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+      if (urgencyWords.some((w) => token.includes(w)))
+        score += SENTIMENT_THRESHOLDS.URGENCY_BOOST;
       // Upset emails get higher boost
-      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-      if (upsetWords.some((w) => token.includes(w))) score += 1.5;
-      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-      if (lowPriorityWords.some((w) => token.includes(w))) score -= 1;
+      if (upsetWords.some((w) => token.includes(w)))
+        score += SENTIMENT_THRESHOLDS.UPSET_BOOST;
+      if (lowPriorityWords.some((w) => token.includes(w)))
+        score += SENTIMENT_THRESHOLDS.LOW_PRIORITY_PENALTY;
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-    return Math.max(-1, Math.min(1, score / 10));
+    return Math.max(
+      -1,
+      Math.min(1, score / SENTIMENT_THRESHOLDS.NORMALIZATION_DIVISOR),
+    );
   }
 
   calculateJobTitleScore(jobTitle: string): number {
@@ -490,11 +481,10 @@ export class PriorityService {
     const titleLower = jobTitle.toLowerCase();
 
     for (const title of highPriorityTitles) {
-      if (titleLower.includes(title)) return 1;
+      if (titleLower.includes(title)) return JOB_TITLE_SCORES.HIGH_PRIORITY;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-    return 0.5;
+    return JOB_TITLE_SCORES.DEFAULT;
   }
 
   /**

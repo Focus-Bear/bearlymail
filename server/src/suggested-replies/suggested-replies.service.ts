@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import PgBoss = require("pg-boss");
 import { SuggestedReply } from "../database/entities/suggested-reply.entity";
+import { Email } from "../database/entities/email.entity";
 import { getJobPriority } from "../queue/job-priorities";
 
 @Injectable()
@@ -12,6 +13,8 @@ export class SuggestedRepliesService {
   constructor(
     @InjectRepository(SuggestedReply)
     private suggestedReplyRepository: Repository<SuggestedReply>,
+    @InjectRepository(Email)
+    private emailRepository: Repository<Email>,
     @Inject("PG_BOSS") private readonly boss: PgBoss,
   ) {}
 
@@ -125,5 +128,39 @@ export class SuggestedRepliesService {
     }
 
     return false;
+  }
+
+  async ensureSuggestedReplies(
+    userId: string,
+    threadId: string,
+  ): Promise<{ queued: boolean; isGenerating: boolean; hasOptions: boolean }> {
+    const latestEmail = await this.emailRepository.findOne({
+      where: { emailThreadId: threadId, userId },
+      order: { receivedAt: "DESC" },
+    });
+
+    if (!latestEmail) {
+      this.logger.warn(
+        `No emails found in thread ${threadId} for user ${userId}`,
+      );
+      return { queued: false, isGenerating: false, hasOptions: false };
+    }
+
+    const existing = await this.getSuggestedReplies(userId, threadId);
+
+    if (existing?.isGenerating) {
+      return { queued: false, isGenerating: true, hasOptions: false };
+    }
+
+    if (
+      existing?.options &&
+      existing.options.length > 0 &&
+      existing.lastEmailId === latestEmail.id
+    ) {
+      return { queued: false, isGenerating: false, hasOptions: true };
+    }
+
+    await this.queueSuggestedReplyGeneration(userId, threadId, latestEmail.id);
+    return { queued: true, isGenerating: true, hasOptions: false };
   }
 }

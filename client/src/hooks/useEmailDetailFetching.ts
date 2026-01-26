@@ -7,6 +7,7 @@ import { emailMentionsGitHub } from 'utils/githubUtils';
 interface Email {
   id: string;
   threadId: string;
+  emailThreadId?: string;
   from: string;
   fromName?: string;
   subject: string;
@@ -53,6 +54,12 @@ export function useEmailDetailFetching(emailId: string) {
       axios.post(`${API_URL}/emails/${emailId}/accelerate`).catch(err => 
         console.debug('Job acceleration not available:', err.message)
       );
+      
+      if (emailData.emailThreadId) {
+        axios.post(`${API_URL}/suggested-replies/${emailData.emailThreadId}/ensure`).catch(err =>
+          console.debug('Suggested reply generation not triggered:', err.message)
+        );
+      }
     } catch (error) {
       console.error('Error fetching email:', error);
     } finally {

@@ -60,4 +60,15 @@ export class SuggestedRepliesController {
 
     return { queued: true };
   }
+
+  @Post(":threadId/ensure")
+  async ensureSuggestedReplies(
+    @Request() req,
+    @Param("threadId") threadId: string,
+  ) {
+    return this.suggestedRepliesService.ensureSuggestedReplies(
+      req.user.userId,
+      threadId,
+    );
+  }
 }

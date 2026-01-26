@@ -64,12 +64,7 @@ export class UsersService {
   async findOneForAuth(id: string): Promise<User | null> {
     return this.userRepository
       .createQueryBuilder("user")
-      .select([
-        "user.id",
-        "user.email",
-        "user.isAdmin",
-        "user.isApproved",
-      ])
+      .select(["user.id", "user.email", "user.isAdmin", "user.isApproved"])
       .where("user.id = :id", { id })
       .getOne();
   }
@@ -231,5 +226,159 @@ export class UsersService {
       currentTermsVersion,
       currentPrivacyVersion,
     };
+  }
+
+  async deleteAccount(userId: string): Promise<void> {
+    const user = await this.findOne(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const logMsg = `[UsersService.deleteAccount] Deleting account for user ${userId}`;
+    // eslint-disable-next-line no-console
+    console.log(logMsg);
+    writeDebugLog(logMsg);
+
+    // Delete all related data in the correct order (respecting foreign key constraints)
+    // Using raw queries since we only have access to the User repository
+
+    // Delete action items
+    await this.userRepository.query(
+      `DELETE FROM action_items WHERE "userId" = $1`,
+      [userId],
+    );
+
+    // Delete suggested replies
+    await this.userRepository.query(
+      `DELETE FROM suggested_replies WHERE "userId" = $1`,
+      [userId],
+    );
+
+    // Delete reply drafts
+    await this.userRepository.query(
+      `DELETE FROM reply_drafts WHERE "userId" = $1`,
+      [userId],
+    );
+
+    // Delete private notes
+    await this.userRepository.query(
+      `DELETE FROM private_notes WHERE "userId" = $1`,
+      [userId],
+    );
+
+    // Delete auto response logs
+    await this.userRepository.query(
+      `DELETE FROM auto_response_logs WHERE "userId" = $1`,
+      [userId],
+    );
+
+    // Delete auto response suppressions
+    await this.userRepository.query(
+      `DELETE FROM auto_response_suppressions WHERE "userId" = $1`,
+      [userId],
+    );
+
+    // Delete follow-ups
+    await this.userRepository.query(
+      `DELETE FROM follow_ups WHERE "userId" = $1`,
+      [userId],
+    );
+
+    // Delete emails
+    await this.userRepository.query(`DELETE FROM emails WHERE "userId" = $1`, [
+      userId,
+    ]);
+
+    // Delete email threads
+    await this.userRepository.query(
+      `DELETE FROM email_threads WHERE "userId" = $1`,
+      [userId],
+    );
+
+    // Delete scan emails
+    await this.userRepository.query(
+      `DELETE FROM scan_emails WHERE "userId" = $1`,
+      [userId],
+    );
+
+    // Delete contacts
+    await this.userRepository.query(
+      `DELETE FROM contacts WHERE "userId" = $1`,
+      [userId],
+    );
+
+    // Delete blocked senders
+    await this.userRepository.query(
+      `DELETE FROM blocked_senders WHERE "userId" = $1`,
+      [userId],
+    );
+
+    // Delete blocked keywords
+    await this.userRepository.query(
+      `DELETE FROM blocked_keywords WHERE "userId" = $1`,
+      [userId],
+    );
+
+    // Delete batch schedules
+    await this.userRepository.query(
+      `DELETE FROM batch_schedules WHERE "userId" = $1`,
+      [userId],
+    );
+
+    // Delete user contexts
+    await this.userRepository.query(
+      `DELETE FROM user_contexts WHERE "userId" = $1`,
+      [userId],
+    );
+
+    // Delete context analyses
+    await this.userRepository.query(
+      `DELETE FROM context_analyses WHERE "userId" = $1`,
+      [userId],
+    );
+
+    // Delete summarization rules
+    await this.userRepository.query(
+      `DELETE FROM summarization_rules WHERE "userId" = $1`,
+      [userId],
+    );
+
+    // Delete priority overrides
+    await this.userRepository.query(
+      `DELETE FROM priority_overrides WHERE "userId" = $1`,
+      [userId],
+    );
+
+    // Delete token usage (nullable userId, so use IS NOT DISTINCT FROM)
+    await this.userRepository.query(
+      `DELETE FROM token_usage WHERE "userId" = $1`,
+      [userId],
+    );
+
+    // Delete Google accounts
+    await this.userRepository.query(
+      `DELETE FROM google_accounts WHERE "userId" = $1`,
+      [userId],
+    );
+
+    // Delete Office365 accounts
+    await this.userRepository.query(
+      `DELETE FROM office365_accounts WHERE "userId" = $1`,
+      [userId],
+    );
+
+    // Delete Zoho accounts
+    await this.userRepository.query(
+      `DELETE FROM zoho_accounts WHERE "userId" = $1`,
+      [userId],
+    );
+
+    // Finally, delete the user
+    await this.userRepository.delete(userId);
+
+    const completedMsg = `[UsersService.deleteAccount] Successfully deleted account for user ${userId}`;
+    // eslint-disable-next-line no-console
+    console.log(completedMsg);
+    writeDebugLog(completedMsg);
   }
 }

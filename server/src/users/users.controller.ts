@@ -3,9 +3,11 @@ import {
   Get,
   Put,
   Post,
+  Delete,
   UseGuards,
   Request,
   Body,
+  BadRequestException,
   Logger,
 } from "@nestjs/common";
 import { UsersService } from "./users.service";
@@ -110,5 +112,21 @@ export class UsersController {
   @Put("tour-complete")
   async markTourComplete(@Request() req) {
     return this.usersService.update(req.user.userId, { hasSeenTour: true });
+  }
+
+  @Delete("me")
+  async deleteAccount(
+    @Request() req,
+    @Body() body: { confirmationText: string },
+  ) {
+    const expectedConfirmation = "delete all my data";
+    if (body.confirmationText !== expectedConfirmation) {
+      throw new BadRequestException(
+        `Please type "${expectedConfirmation}" to confirm account deletion`,
+      );
+    }
+
+    await this.usersService.deleteAccount(req.user.userId);
+    return { success: true, message: "Account deleted successfully" };
   }
 }

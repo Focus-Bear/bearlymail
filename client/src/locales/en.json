@@ -414,6 +414,18 @@
         "templateUsed": "Using {{template}} template",
         "hint": "Select an email above to see the exact auto-response that would be sent"
       }
+    },
+    "accountDeletion": {
+      "title": "Delete Account",
+      "description": "Permanently delete your account and all associated data. This action cannot be undone.",
+      "deleteButton": "Delete My Account",
+      "warningTitle": "Are you absolutely sure?",
+      "warningDescription": "This will permanently delete your account and all your data, including emails, contacts, settings, and any other information associated with your account. This action cannot be undone.",
+      "confirmationPrompt": "To confirm, please type \"{{text}}\" below:",
+      "confirmationMismatch": "The confirmation text does not match. Please type exactly \"delete all my data\".",
+      "confirmDelete": "Permanently Delete Account",
+      "deleting": "Deleting...",
+      "deletionError": "Failed to delete account. Please try again or contact support."
     }
   },
   "priority": {

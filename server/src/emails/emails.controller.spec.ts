@@ -9,6 +9,8 @@ import { BlockedSendersService } from "../blocked-senders/blocked-senders.servic
 import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
+import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
+import { UsersService } from "../users/users.service";
 
 describe("EmailsController", () => {
   let controller: EmailsController;
@@ -43,6 +45,7 @@ describe("EmailsController", () => {
     getSchedule: jest.fn(),
     getDefaultSchedule: jest.fn(),
     getNextBatchReleaseTime: jest.fn(),
+    getNextScheduledDeliveryTime: jest.fn(),
   };
 
   const mockEmailThreadRepository = {
@@ -51,6 +54,16 @@ describe("EmailsController", () => {
 
   const mockBoss = {
     send: jest.fn(),
+  };
+
+  const mockGoogleAccountsService = {
+    hasConnectedGmail: jest.fn().mockResolvedValue(true),
+  };
+
+  const mockUsersService = {
+    findOneWithTokens: jest
+      .fn()
+      .mockResolvedValue({ googleCalendarAccessToken: "token" }),
   };
 
   beforeEach(async () => {
@@ -84,6 +97,14 @@ describe("EmailsController", () => {
         {
           provide: "PG_BOSS",
           useValue: mockBoss,
+        },
+        {
+          provide: GoogleAccountsService,
+          useValue: mockGoogleAccountsService,
+        },
+        {
+          provide: UsersService,
+          useValue: mockUsersService,
         },
       ],
     }).compile();
@@ -185,7 +206,16 @@ describe("EmailsController", () => {
       const mockThread = {
         id: threadId,
         userId,
-        githubMetadata: { issueNumber: 123 },
+        githubMetadata: {
+          links: [
+            {
+              url: "https://github.com/test/repo/issues/123",
+              owner: "test",
+              repo: "repo",
+              number: 123,
+            },
+          ],
+        },
       };
 
       mockEmailsService.getEmailById.mockResolvedValue(mockEmail);
@@ -195,7 +225,16 @@ describe("EmailsController", () => {
 
       expect(result).toEqual({
         ...mockEmail,
-        githubMetadata: { issueNumber: 123 },
+        githubMetadata: {
+          links: [
+            {
+              url: "https://github.com/test/repo/issues/123",
+              owner: "test",
+              repo: "repo",
+              number: 123,
+            },
+          ],
+        },
       });
       expect(emailThreadRepository.findOne).toHaveBeenCalledWith({
         where: { id: threadId, userId },
@@ -280,17 +319,23 @@ describe("EmailsController", () => {
   });
 
   describe("archiveEmail", () => {
-    it("should archive email", async () => {
+    it("should queue archive email job", async () => {
       const userId = "user-123";
       const emailId = "email-123";
       const mockRequest = { user: { userId } };
 
-      mockEmailsService.archiveEmail.mockResolvedValue(undefined);
+      mockBoss.send.mockResolvedValue(undefined);
 
       const result = await controller.archiveEmail(mockRequest, emailId);
 
-      expect(emailsService.archiveEmail).toHaveBeenCalledWith(userId, emailId);
-      expect(result).toEqual({ message: "Email archived" });
+      expect(mockBoss.send).toHaveBeenCalledWith(
+        "archive-email",
+        { userId, emailId },
+        expect.objectContaining({
+          singletonKey: `archive-email-${userId}-${emailId}`,
+        }),
+      );
+      expect(result).toEqual({ message: "Email archive queued" });
     });
   });
 
@@ -476,7 +521,7 @@ describe("EmailsController", () => {
       const nextTime = new Date();
 
       mockBatchScheduleService.getSchedule.mockResolvedValue(mockSchedule);
-      mockBatchScheduleService.getNextBatchReleaseTime.mockReturnValue(
+      mockBatchScheduleService.getNextScheduledDeliveryTime.mockReturnValue(
         nextTime,
       );
 
@@ -496,7 +541,7 @@ describe("EmailsController", () => {
       mockBatchScheduleService.getDefaultSchedule.mockReturnValue(
         defaultSchedule,
       );
-      mockBatchScheduleService.getNextBatchReleaseTime.mockReturnValue(
+      mockBatchScheduleService.getNextScheduledDeliveryTime.mockReturnValue(
         nextTime,
       );
 

@@ -165,11 +165,17 @@ describe("FollowUpsService", () => {
     });
 
     it("should handle missing email thread", async () => {
+      const followUpWithoutThread = {
+        ...mockFollowUp,
+        emailThreadId: undefined,
+      };
       emailThreadRepository.findOne.mockResolvedValue(null);
       emailRepository.find.mockResolvedValue([mockEmail]);
       usersService.findOne.mockResolvedValue(mockUser as any);
-      followUpRepository.create.mockReturnValue(mockFollowUp as FollowUp);
-      followUpRepository.save.mockResolvedValue(mockFollowUp);
+      followUpRepository.create.mockReturnValue(
+        followUpWithoutThread as FollowUp,
+      );
+      followUpRepository.save.mockResolvedValue(followUpWithoutThread);
 
       const result = await service.createFollowUp("user-1", "thread-1", 7);
 
@@ -534,11 +540,16 @@ describe("FollowUpsService", () => {
 
   describe("generateDraftsForThreads", () => {
     it("should create follow-up and queue draft generation job", async () => {
+      const newFollowUp = {
+        ...mockFollowUp,
+        draftFollowUp: undefined,
+        generationStatus: "pending" as const,
+      };
       emailRepository.find.mockResolvedValue([mockEmail]);
       emailThreadRepository.findOne.mockResolvedValue(mockEmailThread);
       followUpRepository.findOne.mockResolvedValue(null);
-      followUpRepository.create.mockReturnValue(mockFollowUp as FollowUp);
-      followUpRepository.save.mockResolvedValue(mockFollowUp);
+      followUpRepository.create.mockReturnValue(newFollowUp as FollowUp);
+      followUpRepository.save.mockResolvedValue(newFollowUp as FollowUp);
 
       await service.generateDraftsForThreads("user-1", ["thread-1"]);
 
@@ -548,7 +559,7 @@ describe("FollowUpsService", () => {
         expect.objectContaining({
           userId: "user-1",
           threadId: "thread-1",
-          followUpId: mockFollowUp.id,
+          followUpId: newFollowUp.id,
         }),
         expect.any(Object),
       );
@@ -581,11 +592,16 @@ describe("FollowUpsService", () => {
     });
 
     it("should handle multiple threads", async () => {
+      const newFollowUp = {
+        ...mockFollowUp,
+        draftFollowUp: undefined,
+        generationStatus: "pending" as const,
+      };
       emailRepository.find.mockResolvedValue([mockEmail]);
       emailThreadRepository.findOne.mockResolvedValue(mockEmailThread);
       followUpRepository.findOne.mockResolvedValue(null);
-      followUpRepository.create.mockReturnValue(mockFollowUp as FollowUp);
-      followUpRepository.save.mockResolvedValue(mockFollowUp);
+      followUpRepository.create.mockReturnValue(newFollowUp as FollowUp);
+      followUpRepository.save.mockResolvedValue(newFollowUp as FollowUp);
 
       await service.generateDraftsForThreads("user-1", [
         "thread-1",

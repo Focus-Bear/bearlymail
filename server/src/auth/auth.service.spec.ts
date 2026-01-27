@@ -5,6 +5,7 @@ import * as bcrypt from "bcrypt";
 import PgBoss = require("pg-boss");
 import { AuthService } from "./auth.service";
 import { UsersService } from "../users/users.service";
+import { WaitlistService } from "../waitlist/waitlist.service";
 import { User } from "../database/entities/user.entity";
 
 jest.mock("bcrypt");
@@ -20,6 +21,7 @@ describe("AuthService", () => {
   let usersService: jest.Mocked<UsersService>;
   let jwtService: jest.Mocked<JwtService>;
   let boss: jest.Mocked<PgBoss>;
+  let waitlistService: jest.Mocked<WaitlistService>;
 
   const mockUser: User = {
     id: "user-1",
@@ -61,6 +63,10 @@ describe("AuthService", () => {
       send: jest.fn().mockResolvedValue(undefined),
     };
 
+    const mockWaitlistService = {
+      findByEmail: jest.fn().mockResolvedValue(null),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -76,6 +82,10 @@ describe("AuthService", () => {
           provide: "PG_BOSS",
           useValue: mockBoss,
         },
+        {
+          provide: WaitlistService,
+          useValue: mockWaitlistService,
+        },
       ],
     }).compile();
 
@@ -83,6 +93,7 @@ describe("AuthService", () => {
     usersService = module.get(UsersService);
     jwtService = module.get(JwtService);
     boss = module.get("PG_BOSS");
+    waitlistService = module.get(WaitlistService);
 
     // Mock bcrypt.compare
     (bcrypt.compare as jest.Mock).mockResolvedValue(true);
@@ -287,6 +298,11 @@ describe("AuthService", () => {
       usersService.findByEmail.mockResolvedValue(unapprovedUser);
       usersService.update.mockResolvedValue(unapprovedUser);
       usersService.findOne.mockResolvedValue(unapprovedUser);
+      // User is on waitlist but not approved
+      waitlistService.findByEmail.mockResolvedValue({
+        email: "test@example.com",
+        approved: false,
+      } as any);
 
       await expect(
         service.validateGoogleUser(
@@ -309,16 +325,19 @@ describe("AuthService", () => {
         "refresh-token",
       );
 
-      // Fast-forward time to trigger setTimeout
-      jest.advanceTimersByTime(2000);
-
       await validatePromise;
 
+      // Fast-forward time to trigger setTimeout after the promise resolves
+      jest.advanceTimersByTime(2000);
+
+      // Allow any pending promises to resolve
+      await Promise.resolve();
+
       expect(boss.send).toHaveBeenCalledWith(
-        "sync-emails",
+        "fetch-user-emails",
         { userId: mockUser.id },
         expect.objectContaining({
-          singletonKey: `sync-emails-${mockUser.id}`,
+          singletonKey: `fetch-user-emails-${mockUser.id}`,
         }),
       );
     });

@@ -1,19 +1,27 @@
 import { Test, TestingModule } from "@nestjs/testing";
+import { getRepositoryToken } from "@nestjs/typeorm";
 import { RepliesService } from "./replies.service";
 import { EmailsService } from "../emails/emails.service";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { ContextService } from "../context/context.service";
 import { LLMService } from "../llm/llm.service";
+import { UsersService } from "../users/users.service";
+import { WritingStyleLearningService } from "../context/writing-style-learning.service";
+import { SnoozeService } from "../snooze/snooze.service";
+import { FollowUpsService } from "../follow-ups/follow-ups.service";
+import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
 
 describe("RepliesService", () => {
   let service: RepliesService;
+  let module: TestingModule;
   let emailsService: jest.Mocked<EmailsService>;
   let emailProviderManager: jest.Mocked<EmailProviderManager>;
   let contextService: jest.Mocked<ContextService>;
   let llmService: jest.Mocked<LLMService>;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
+    module = await Test.createTestingModule({
       providers: [
         RepliesService,
         {
@@ -38,6 +46,43 @@ describe("RepliesService", () => {
           provide: LLMService,
           useValue: {
             generateReplyDraft: jest.fn(),
+          },
+        },
+        {
+          provide: UsersService,
+          useValue: {
+            findOne: jest.fn(),
+          },
+        },
+        {
+          provide: WritingStyleLearningService,
+          useValue: {
+            learnFromSentEmailBodies: jest.fn(),
+          },
+        },
+        {
+          provide: SnoozeService,
+          useValue: {
+            snoozeEmail: jest.fn(),
+          },
+        },
+        {
+          provide: FollowUpsService,
+          useValue: {
+            createFollowUp: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(Email),
+          useValue: {
+            create: jest.fn(),
+            save: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(EmailThread),
+          useValue: {
+            findOne: jest.fn(),
           },
         },
       ],
@@ -401,9 +446,29 @@ describe("RepliesService", () => {
       from: "sender@example.com",
       threadId: "thread1",
     };
+    let usersService: jest.Mocked<UsersService>;
+    let emailRepository: any;
+    let emailThreadRepository: any;
+    let writingStyleLearningService: any;
 
     beforeEach(() => {
       emailsService.getEmailById.mockResolvedValue(email as any);
+      usersService = module.get(UsersService);
+      emailRepository = module.get(getRepositoryToken(Email));
+      emailThreadRepository = module.get(getRepositoryToken(EmailThread));
+      writingStyleLearningService = module.get(WritingStyleLearningService);
+      // Mock user for sendReply tests
+      usersService.findOne.mockResolvedValue({
+        id: userId,
+        email: "encrypted_user@example.com",
+        name: "Test User",
+      } as any);
+      emailRepository.create.mockReturnValue({});
+      emailRepository.save.mockResolvedValue({});
+      emailThreadRepository.findOne.mockResolvedValue({ id: "thread-uuid" });
+      writingStyleLearningService.learnFromSentEmailBodies.mockResolvedValue(
+        undefined,
+      );
     });
 
     it("should throw error when email not found", async () => {
@@ -424,7 +489,7 @@ describe("RepliesService", () => {
 
     it("should add Re: prefix to subject if not present", async () => {
       const mockProvider = {
-        sendReply: jest.fn().mockResolvedValue(undefined),
+        sendReply: jest.fn().mockResolvedValue({ messageId: "sent-msg-1" }),
       };
       emailProviderManager.getPrimaryProvider.mockResolvedValue(
         mockProvider as any,
@@ -438,6 +503,7 @@ describe("RepliesService", () => {
         email.from,
         "Re: Test Subject",
         "Reply body",
+        undefined,
       );
     });
 
@@ -449,7 +515,7 @@ describe("RepliesService", () => {
       emailsService.getEmailById.mockResolvedValue(emailWithRe as any);
 
       const mockProvider = {
-        sendReply: jest.fn().mockResolvedValue(undefined),
+        sendReply: jest.fn().mockResolvedValue({ messageId: "sent-msg-1" }),
       };
       emailProviderManager.getPrimaryProvider.mockResolvedValue(
         mockProvider as any,
@@ -463,6 +529,7 @@ describe("RepliesService", () => {
         email.from,
         "Re: Test Subject", // Should not double add Re:
         "Reply body",
+        undefined,
       );
     });
   });

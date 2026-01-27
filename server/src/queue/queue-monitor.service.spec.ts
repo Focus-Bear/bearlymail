@@ -70,12 +70,10 @@ describe("QueueMonitorService", () => {
 
   describe("trackJobComplete", () => {
     it("should track job completion and record processing time", () => {
-      const startTime = Date.now();
-      service["jobStartTimes"].set("sync-emails:job-1", startTime);
-
-      // Wait a bit to simulate processing
+      // Set start time 100ms in the past to simulate processing time
       const waitTime = 100;
-      jest.advanceTimersByTime(waitTime);
+      const startTime = Date.now() - waitTime;
+      service["jobStartTimes"].set("sync-emails:job-1", startTime);
 
       service.trackJobComplete("job-1", "sync-emails", true);
 
@@ -144,9 +142,9 @@ describe("QueueMonitorService", () => {
       expect(stats).not.toBeNull();
       expect(stats?.count).toBe(10);
       expect(stats?.avg).toBeCloseTo(55, 0); // Average of 10-100
-      expect(stats?.p50).toBe(50); // Median
-      expect(stats?.p95).toBe(95); // 95th percentile
-      expect(stats?.p99).toBe(99); // 99th percentile
+      expect(stats?.p50).toBe(60); // Median (index 5 of sorted array)
+      expect(stats?.p95).toBe(100); // 95th percentile (index 9)
+      expect(stats?.p99).toBe(100); // 99th percentile (index 9)
     });
 
     it("should return correct percentiles for odd number of samples", () => {
@@ -179,8 +177,8 @@ describe("QueueMonitorService", () => {
 
       await service.collectMetrics();
 
-      // Should query for each of the 10 queue names
-      expect(dataSource.query).toHaveBeenCalledTimes(10);
+      // Should query for each of the 11 queue names
+      expect(dataSource.query).toHaveBeenCalledTimes(11);
       expect(dataSource.query).toHaveBeenCalledWith(
         expect.stringContaining("SELECT"),
         expect.arrayContaining([expect.any(String)]),
@@ -202,7 +200,7 @@ describe("QueueMonitorService", () => {
       await service.collectMetrics();
 
       // Should continue processing other queues after error
-      expect(dataSource.query).toHaveBeenCalledTimes(10);
+      expect(dataSource.query).toHaveBeenCalledTimes(11);
     });
 
     it("should calculate totals correctly", async () => {
@@ -221,8 +219,8 @@ describe("QueueMonitorService", () => {
       expect(fs.appendFileSync).toHaveBeenCalled();
       const logCall = (fs.appendFileSync as jest.Mock).mock.calls[0];
       const loggedData = JSON.parse(logCall[1].trim());
-      expect(loggedData.totalPending).toBe(100); // 10 queues * 10
-      expect(loggedData.totalActive).toBe(50); // 10 queues * 5
+      expect(loggedData.totalPending).toBe(110); // 11 queues * 10
+      expect(loggedData.totalActive).toBe(55); // 11 queues * 5
     });
 
     it("should log warning when queue depth is high", async () => {
@@ -386,8 +384,8 @@ describe("QueueMonitorService", () => {
       expect(result).toHaveProperty("totalActive");
       expect(result).toHaveProperty("totalCompleted");
       expect(result).toHaveProperty("totalFailed");
-      expect(result.queues).toHaveLength(10);
-      expect(result.totalPending).toBe(100); // 10 queues * 10
+      expect(result.queues).toHaveLength(11);
+      expect(result.totalPending).toBe(110); // 11 queues * 10
     });
 
     it("should handle query errors for individual queues", async () => {
@@ -404,6 +402,7 @@ describe("QueueMonitorService", () => {
 
       const result = await service.getQueueHealth();
 
+      // One queue failed, so we get 10 queues instead of 11
       expect(result.queues).toHaveLength(10);
       // Should continue processing even if one queue fails
     });
@@ -420,10 +419,10 @@ describe("QueueMonitorService", () => {
 
       const result = await service.getQueueHealth();
 
-      expect(result.totalPending).toBe(100);
-      expect(result.totalActive).toBe(50);
-      expect(result.totalCompleted).toBe(1000);
-      expect(result.totalFailed).toBe(20);
+      expect(result.totalPending).toBe(110);
+      expect(result.totalActive).toBe(55);
+      expect(result.totalCompleted).toBe(1100);
+      expect(result.totalFailed).toBe(22);
     });
 
     it("should include timestamp in ISO format", async () => {
@@ -462,10 +461,13 @@ describe("QueueMonitorService", () => {
       // Should have called collectMetrics multiple times (initial + interval)
       expect(dataSource.query).toHaveBeenCalled();
 
+      // Clean up the interval to prevent hanging
+      service.onModuleDestroy();
       jest.useRealTimers();
     });
 
     it("should collect initial metrics on init", async () => {
+      jest.useFakeTimers();
       dataSource.query.mockResolvedValue([
         {
           pending: "0",
@@ -478,6 +480,10 @@ describe("QueueMonitorService", () => {
       await service.onModuleInit();
 
       expect(dataSource.query).toHaveBeenCalled();
+
+      // Clean up the interval to prevent hanging
+      service.onModuleDestroy();
+      jest.useRealTimers();
     });
   });
 

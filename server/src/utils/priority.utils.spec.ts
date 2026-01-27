@@ -111,7 +111,7 @@ describe("priority.utils", () => {
         breakdown: [{ value: 0.1 }, { value: 0.2 }],
       };
       const result = calculateScoreFromBreakdown(input);
-      expect(result).toBe(0.3);
+      expect(result).toBeCloseTo(0.3);
     });
 
     it("should handle values that sum to exactly 100", () => {

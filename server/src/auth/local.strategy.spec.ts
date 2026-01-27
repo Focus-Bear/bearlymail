@@ -135,14 +135,14 @@ describe("LocalStrategy", () => {
     it("should return user without password field", async () => {
       const email = "test@example.com";
       const password = "password123";
-      const mockUser = {
+      // AuthService.validateUser already strips the password before returning
+      const mockUserWithoutPassword = {
         id: "user-123",
         email: "test@example.com",
         name: "Test User",
-        password: "hashed-password", // Should be omitted in return
       };
 
-      mockAuthService.validateUser.mockResolvedValue(mockUser);
+      mockAuthService.validateUser.mockResolvedValue(mockUserWithoutPassword);
 
       const result = await strategy.validate(email, password);
 

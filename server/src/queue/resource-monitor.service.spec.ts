@@ -4,11 +4,37 @@ import { ResourceMonitorService } from "./resource-monitor.service";
 import { RESOURCE_MONITOR_CONSTANTS } from "../constants/resource-monitor-constants";
 import * as fs from "fs";
 import * as path from "path";
-import * as os from "os";
 
-// Mock fs and path modules
+// Mock fs, path, and os modules
 jest.mock("fs");
 jest.mock("path");
+
+const mockCpuData = [
+  {
+    model: "Intel",
+    speed: 2400,
+    times: { user: 1000, nice: 0, sys: 500, idle: 5000, irq: 0 },
+  },
+  {
+    model: "Intel",
+    speed: 2400,
+    times: { user: 2000, nice: 0, sys: 1000, idle: 10000, irq: 0 },
+  },
+];
+
+jest.mock("os", () => ({
+  cpus: jest.fn(() => mockCpuData),
+  loadavg: jest.fn(() => [1.5, 2.0, 1.8]),
+  totalmem: jest.fn(() => 8 * 1024 * 1024 * 1024),
+  freemem: jest.fn(() => 4 * 1024 * 1024 * 1024),
+}));
+
+import * as os from "os";
+
+const mockCpus = os.cpus as jest.Mock;
+const mockLoadavg = os.loadavg as jest.Mock;
+const mockTotalmem = os.totalmem as jest.Mock;
+const mockFreemem = os.freemem as jest.Mock;
 
 describe("ResourceMonitorService", () => {
   let service: ResourceMonitorService;
@@ -23,7 +49,7 @@ describe("ResourceMonitorService", () => {
     (fs.appendFileSync as jest.Mock).mockReturnValue(undefined);
 
     // Mock os functions
-    jest.spyOn(os, "cpus").mockReturnValue([
+    mockCpus.mockReturnValue([
       {
         model: "Intel",
         speed: 2400,
@@ -46,11 +72,11 @@ describe("ResourceMonitorService", () => {
           irq: 0,
         },
       },
-    ] as any);
+    ]);
 
-    jest.spyOn(os, "loadavg").mockReturnValue([1.5, 2.0, 1.8]);
-    jest.spyOn(os, "totalmem").mockReturnValue(8 * 1024 * 1024 * 1024); // 8GB
-    jest.spyOn(os, "freemem").mockReturnValue(4 * 1024 * 1024 * 1024); // 4GB
+    mockLoadavg.mockReturnValue([1.5, 2.0, 1.8]);
+    mockTotalmem.mockReturnValue(8 * 1024 * 1024 * 1024); // 8GB
+    mockFreemem.mockReturnValue(4 * 1024 * 1024 * 1024); // 4GB
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -85,7 +111,7 @@ describe("ResourceMonitorService", () => {
       (service as any).calculateCpuUsage();
 
       // Mock second CPU reading (higher usage)
-      jest.spyOn(os, "cpus").mockReturnValue([
+      mockCpus.mockReturnValue([
         {
           model: "Intel",
           speed: 2400,
@@ -108,7 +134,7 @@ describe("ResourceMonitorService", () => {
             irq: 0,
           },
         },
-      ] as any);
+      ]);
 
       // Advance time
       jest.spyOn(Date, "now").mockReturnValue(1000);
@@ -124,7 +150,7 @@ describe("ResourceMonitorService", () => {
       (service as any).calculateCpuUsage();
 
       // Mock extreme values
-      jest.spyOn(os, "cpus").mockReturnValue([
+      mockCpus.mockReturnValue([
         {
           model: "Intel",
           speed: 2400,
@@ -136,7 +162,7 @@ describe("ResourceMonitorService", () => {
             irq: 0,
           },
         },
-      ] as any);
+      ]);
 
       jest.spyOn(Date, "now").mockReturnValue(1000);
 
@@ -277,8 +303,8 @@ describe("ResourceMonitorService", () => {
       ]);
 
       // Mock high memory usage (90% used)
-      jest.spyOn(os, "totalmem").mockReturnValue(100 * 1024 * 1024); // 100MB
-      jest.spyOn(os, "freemem").mockReturnValue(10 * 1024 * 1024); // 10MB (90% used)
+      mockTotalmem.mockReturnValue(100 * 1024 * 1024); // 100MB
+      mockFreemem.mockReturnValue(10 * 1024 * 1024); // 10MB (90% used)
 
       (service as any).calculateCpuUsage();
 
@@ -344,7 +370,7 @@ describe("ResourceMonitorService", () => {
     });
 
     it("should handle collection errors gracefully", async () => {
-      jest.spyOn(os, "totalmem").mockImplementation(() => {
+      mockTotalmem.mockImplementation(() => {
         throw new Error("OS error");
       });
 
@@ -393,8 +419,8 @@ describe("ResourceMonitorService", () => {
       ]);
 
       // 8GB total, 4GB free = 4GB used = 50% usage
-      jest.spyOn(os, "totalmem").mockReturnValue(8 * 1024 * 1024 * 1024);
-      jest.spyOn(os, "freemem").mockReturnValue(4 * 1024 * 1024 * 1024);
+      mockTotalmem.mockReturnValue(8 * 1024 * 1024 * 1024);
+      mockFreemem.mockReturnValue(4 * 1024 * 1024 * 1024);
 
       (service as any).calculateCpuUsage();
 

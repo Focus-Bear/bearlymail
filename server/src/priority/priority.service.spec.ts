@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { PriorityService } from "./priority.service";
 import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
 import {
   UserContext,
   ContextKey,
@@ -14,6 +15,10 @@ describe("PriorityService", () => {
   let service: PriorityService;
 
   const mockEmailRepository = {
+    findOne: jest.fn(),
+  };
+
+  const mockEmailThreadRepository = {
     findOne: jest.fn(),
   };
 
@@ -34,6 +39,10 @@ describe("PriorityService", () => {
         {
           provide: getRepositoryToken(Email),
           useValue: mockEmailRepository,
+        },
+        {
+          provide: getRepositoryToken(EmailThread),
+          useValue: mockEmailThreadRepository,
         },
         {
           provide: getRepositoryToken(UserContext),

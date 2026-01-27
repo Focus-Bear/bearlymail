@@ -7,7 +7,9 @@ import { LLMService } from "../llm/llm.service";
 import { GitHubService } from "../github/github.service";
 import { GitHubApiService } from "../github/github-api.service";
 import { CalendarService } from "../calendar/calendar.service";
+import { ActionItemsService } from "../action-items/action-items.service";
 import { Email } from "../database/entities/email.entity";
+import { ActionItem } from "../database/entities/action-item.entity";
 
 describe("SuggestedActionsService", () => {
   let service: SuggestedActionsService;
@@ -37,7 +39,17 @@ describe("SuggestedActionsService", () => {
 
   const mockCalendarService = {};
 
+  const mockActionItemsService = {
+    findByEmailId: jest.fn(),
+    createFromEmail: jest.fn(),
+  };
+
   const mockEmailRepository = {};
+
+  const mockActionItemRepository = {
+    find: jest.fn(),
+    save: jest.fn(),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -68,8 +80,16 @@ describe("SuggestedActionsService", () => {
           useValue: mockCalendarService,
         },
         {
+          provide: ActionItemsService,
+          useValue: mockActionItemsService,
+        },
+        {
           provide: getRepositoryToken(Email),
           useValue: mockEmailRepository,
+        },
+        {
+          provide: getRepositoryToken(ActionItem),
+          useValue: mockActionItemRepository,
         },
       ],
     }).compile();
@@ -122,15 +142,15 @@ describe("SuggestedActionsService", () => {
       expect(llmService.detectSuggestedActions).toHaveBeenCalled();
     });
 
-    it("should throw error when email not found", async () => {
+    it("should return empty array when email not found", async () => {
       const userId = "user-123";
       const emailId = "email-123";
 
       mockEmailsService.getEmailById.mockResolvedValue(null);
 
-      await expect(service.detectActions(emailId, userId)).rejects.toThrow(
-        "Email not found",
-      );
+      const result = await service.detectActions(emailId, userId);
+
+      expect(result).toEqual([]);
     });
 
     it("should enhance GitHub actions with metadata", async () => {

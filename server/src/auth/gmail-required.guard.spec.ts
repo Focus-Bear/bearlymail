@@ -16,6 +16,7 @@ describe("GmailRequiredGuard", () => {
 
   const mockUsersService = {
     findOne: jest.fn(),
+    findOneWithTokens: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -62,7 +63,7 @@ describe("GmailRequiredGuard", () => {
       ).mockReturnValue(mockRequest);
 
       mockGoogleAccountsService.hasConnectedGmail.mockResolvedValue(true);
-      mockUsersService.findOne.mockResolvedValue({
+      mockUsersService.findOneWithTokens.mockResolvedValue({
         id: userId,
         googleCalendarAccessToken: null, // No legacy token
       });
@@ -86,7 +87,7 @@ describe("GmailRequiredGuard", () => {
       ).mockReturnValue(mockRequest);
 
       mockGoogleAccountsService.hasConnectedGmail.mockResolvedValue(false);
-      mockUsersService.findOne.mockResolvedValue({
+      mockUsersService.findOneWithTokens.mockResolvedValue({
         id: userId,
         googleCalendarAccessToken: "legacy-token",
       });
@@ -97,7 +98,7 @@ describe("GmailRequiredGuard", () => {
       expect(googleAccountsService.hasConnectedGmail).toHaveBeenCalledWith(
         userId,
       );
-      expect(usersService.findOne).toHaveBeenCalledWith(userId);
+      expect(usersService.findOneWithTokens).toHaveBeenCalledWith(userId);
     });
 
     it("should return true when user has both new and legacy Gmail", async () => {
@@ -111,7 +112,7 @@ describe("GmailRequiredGuard", () => {
       ).mockReturnValue(mockRequest);
 
       mockGoogleAccountsService.hasConnectedGmail.mockResolvedValue(true);
-      mockUsersService.findOne.mockResolvedValue({
+      mockUsersService.findOneWithTokens.mockResolvedValue({
         id: userId,
         googleCalendarAccessToken: "legacy-token",
       });
@@ -182,7 +183,7 @@ describe("GmailRequiredGuard", () => {
       ).mockReturnValue(mockRequest);
 
       mockGoogleAccountsService.hasConnectedGmail.mockResolvedValue(true);
-      mockUsersService.findOne.mockResolvedValue({
+      mockUsersService.findOneWithTokens.mockResolvedValue({
         id: userId,
       });
 
@@ -205,7 +206,7 @@ describe("GmailRequiredGuard", () => {
       ).mockReturnValue(mockRequest);
 
       mockGoogleAccountsService.hasConnectedGmail.mockResolvedValue(false);
-      mockUsersService.findOne.mockResolvedValue({
+      mockUsersService.findOneWithTokens.mockResolvedValue({
         id: userId,
         googleCalendarAccessToken: null, // No legacy token
       });
@@ -219,7 +220,7 @@ describe("GmailRequiredGuard", () => {
       expect(googleAccountsService.hasConnectedGmail).toHaveBeenCalledWith(
         userId,
       );
-      expect(usersService.findOne).toHaveBeenCalledWith(userId);
+      expect(usersService.findOneWithTokens).toHaveBeenCalledWith(userId);
     });
 
     it("should throw UnauthorizedException when user is not found in database", async () => {
@@ -233,7 +234,7 @@ describe("GmailRequiredGuard", () => {
       ).mockReturnValue(mockRequest);
 
       mockGoogleAccountsService.hasConnectedGmail.mockResolvedValue(false);
-      mockUsersService.findOne.mockResolvedValue(null);
+      mockUsersService.findOneWithTokens.mockResolvedValue(null);
 
       await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
         UnauthorizedException,
@@ -273,7 +274,9 @@ describe("GmailRequiredGuard", () => {
       ).mockReturnValue(mockRequest);
 
       mockGoogleAccountsService.hasConnectedGmail.mockResolvedValue(false);
-      mockUsersService.findOne.mockRejectedValue(new Error("Database error"));
+      mockUsersService.findOneWithTokens.mockRejectedValue(
+        new Error("Database error"),
+      );
 
       await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
         "Database error",

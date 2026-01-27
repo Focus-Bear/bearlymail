@@ -179,20 +179,20 @@ describe("QueueAutoscalingService", () => {
 
   describe("checkAndPublishMetrics", () => {
     it("should calculate desired workers and publish metrics", async () => {
-      // Mock queue depth: 150 pending jobs, 50 per worker = 3 workers
-      dataSource.query.mockResolvedValue([{ pending: "50" }]); // 3 queues with 50 each = 150
+      // Mock queue depth: 550 pending jobs (11 queues * 50 each), 50 per worker = 11 workers, capped at max 10
+      dataSource.query.mockResolvedValue([{ pending: "50" }]); // 11 queues with 50 each = 550
 
       await (service as any).checkAndPublishMetrics();
 
       expect(cloudWatchService.putMetrics).toHaveBeenCalledWith([
         {
           name: "QueueDepth",
-          value: 150, // 10 queues * 50 pending each
+          value: 550, // 11 queues * 50 pending each
           unit: StandardUnit.Count,
         },
         {
           name: "DesiredWorkers",
-          value: 3, // Math.ceil(150 / 50) = 3
+          value: 10, // Math.ceil(550 / 50) = 11, capped at maxWorkers = 10
           unit: StandardUnit.Count,
         },
       ]);
@@ -270,9 +270,9 @@ describe("QueueAutoscalingService", () => {
 
       const depth = await (service as any).getTotalQueueDepth();
 
-      // 10 queues * 10 pending = 100
-      expect(depth).toBe(100);
-      expect(dataSource.query).toHaveBeenCalledTimes(10); // One per queue
+      // 11 queues * 10 pending = 110
+      expect(depth).toBe(110);
+      expect(dataSource.query).toHaveBeenCalledTimes(11); // One per queue
     });
 
     it("should handle missing pending count", async () => {

@@ -1,7 +1,9 @@
 import { Test, TestingModule } from "@nestjs/testing";
+import { getRepositoryToken } from "@nestjs/typeorm";
 import { ContextController } from "./context.controller";
 import { ContextService } from "./context.service";
 import { UsersService } from "../users/users.service";
+import { ContextAnalysis } from "../database/entities/context-analysis.entity";
 
 describe("ContextController", () => {
   let controller: ContextController;
@@ -13,6 +15,7 @@ describe("ContextController", () => {
     createContext: jest.fn(),
     updateContext: jest.fn(),
     deleteContext: jest.fn(),
+    checkAndSyncJobs: jest.fn(),
   };
 
   const mockUsersService = {
@@ -21,6 +24,14 @@ describe("ContextController", () => {
 
   const mockBoss = {
     send: jest.fn(),
+  };
+
+  const mockContextAnalysisRepository = {
+    find: jest.fn(),
+    findOne: jest.fn(),
+    save: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -38,6 +49,10 @@ describe("ContextController", () => {
         {
           provide: "PG_BOSS",
           useValue: mockBoss,
+        },
+        {
+          provide: getRepositoryToken(ContextAnalysis),
+          useValue: mockContextAnalysisRepository,
         },
       ],
     }).compile();
@@ -79,7 +94,7 @@ describe("ContextController", () => {
       expect(result).toEqual({ progress: null, error: null });
     });
 
-    it("should return error when scanProgress is -1", async () => {
+    it("should return error when analysis failed", async () => {
       const userId = "user-123";
       const mockRequest = { user: { userId } };
       const mockUser = {
@@ -87,8 +102,15 @@ describe("ContextController", () => {
         scanProgress: -1,
         scanTotal: 100,
       };
+      const mockProgressInfo = {
+        status: "failed",
+        errorMessage: "Analysis failed. Please try again.",
+      };
 
       mockUsersService.findOne.mockResolvedValue(mockUser);
+      mockContextService.getAnalysisProgress.mockResolvedValue(
+        mockProgressInfo,
+      );
 
       const result = await controller.getAnalyzeProgress(mockRequest);
 
@@ -107,8 +129,11 @@ describe("ContextController", () => {
         scanTotal: 100,
       };
       const mockProgressInfo = {
+        status: "running",
         threadCount: 200,
         analyzedCount: 50,
+        completedBatches: 5,
+        totalBatches: 10,
         stats: {},
       };
 
@@ -116,12 +141,13 @@ describe("ContextController", () => {
       mockContextService.getAnalysisProgress.mockResolvedValue(
         mockProgressInfo,
       );
+      mockContextService.checkAndSyncJobs.mockResolvedValue(undefined);
 
       const result = await controller.getAnalyzeProgress(mockRequest);
 
       expect(result).toHaveProperty("progress");
-      expect(result.progress).toBeGreaterThan(0);
-      expect(result.progress).toBeLessThanOrEqual(100);
+      expect(result.progress.current).toBeGreaterThan(0);
+      expect(result.progress.current).toBeLessThanOrEqual(100);
     });
 
     it("should return 100% when analysis is complete", async () => {
@@ -133,8 +159,11 @@ describe("ContextController", () => {
         scanTotal: 100,
       };
       const mockProgressInfo = {
+        status: "completed",
         threadCount: 200,
         analyzedCount: 200,
+        completedBatches: 10,
+        totalBatches: 10,
         stats: {},
       };
 
@@ -145,7 +174,7 @@ describe("ContextController", () => {
 
       const result = await controller.getAnalyzeProgress(mockRequest);
 
-      expect(result.progress).toBe(100);
+      expect(result.progress.current).toBe(100);
     });
   });
 });

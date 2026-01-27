@@ -1,6 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { SubscriptionsController } from "./subscriptions.controller";
 import { SubscriptionsService } from "./subscriptions.service";
+import { UsersService } from "../users/users.service";
 
 describe("SubscriptionsController", () => {
   let controller: SubscriptionsController;
@@ -15,6 +16,10 @@ describe("SubscriptionsController", () => {
     getAllUsersWithSubscriptions: jest.fn(),
   };
 
+  const mockUsersService = {
+    findOne: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [SubscriptionsController],
@@ -22,6 +27,10 @@ describe("SubscriptionsController", () => {
         {
           provide: SubscriptionsService,
           useValue: mockSubscriptionsService,
+        },
+        {
+          provide: UsersService,
+          useValue: mockUsersService,
         },
       ],
     }).compile();

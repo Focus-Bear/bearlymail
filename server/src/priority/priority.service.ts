@@ -284,7 +284,8 @@ export class PriorityService {
     ) {
       // If user has overridden, use their override but still show the calculated factors
       // This allows the system to learn while respecting user's explicit choice
-      finalScore = email.userPriorityOverride;
+      // Clamp the override to 0-100 range for safety
+      finalScore = Math.max(0, Math.min(100, email.userPriorityOverride));
       factors.push({
         type: PRIORITY_FACTOR_TYPES.USER_OVERRIDE,
         description: "User manually set priority",

@@ -1,16 +1,30 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { EmailProviderManager } from "./email-provider-manager.service";
 import { GmailProvider } from "./providers/gmail.provider";
+import { Office365Provider } from "./providers/office365.provider";
+import { ZohoProvider } from "./providers/zoho.provider";
 
 describe("EmailProviderManager", () => {
   let service: EmailProviderManager;
   let gmailProvider: jest.Mocked<GmailProvider>;
+  let office365Provider: jest.Mocked<Office365Provider>;
+  let zohoProvider: jest.Mocked<ZohoProvider>;
 
   beforeEach(async () => {
     gmailProvider = {
       isConnected: jest.fn(),
       syncEmails: jest.fn(),
       convertLabelIdsToNames: jest.fn(),
+    } as any;
+
+    office365Provider = {
+      isConnected: jest.fn().mockResolvedValue(false),
+      syncEmails: jest.fn(),
+    } as any;
+
+    zohoProvider = {
+      isConnected: jest.fn().mockResolvedValue(false),
+      syncEmails: jest.fn(),
     } as any;
 
     const module: TestingModule = await Test.createTestingModule({
@@ -20,11 +34,16 @@ describe("EmailProviderManager", () => {
           provide: GmailProvider,
           useValue: gmailProvider,
         },
+        {
+          provide: Office365Provider,
+          useValue: office365Provider,
+        },
+        {
+          provide: ZohoProvider,
+          useValue: zohoProvider,
+        },
       ],
-    })
-      .overrideProvider(GmailProvider)
-      .useValue(gmailProvider)
-      .compile();
+    }).compile();
 
     service = module.get<EmailProviderManager>(EmailProviderManager);
     jest.clearAllMocks();
@@ -101,7 +120,10 @@ describe("EmailProviderManager", () => {
       await service.syncAllProviders("user-1");
 
       expect(gmailProvider.isConnected).toHaveBeenCalledWith("user-1");
-      expect(gmailProvider.syncEmails).toHaveBeenCalledWith("user-1");
+      expect(gmailProvider.syncEmails).toHaveBeenCalledWith(
+        "user-1",
+        undefined,
+      );
     });
 
     it("should skip providers that are not connected", async () => {

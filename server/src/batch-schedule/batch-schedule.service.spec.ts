@@ -24,9 +24,6 @@ describe("BatchScheduleService", () => {
     }).compile();
 
     service = module.get<BatchScheduleService>(BatchScheduleService);
-    repository = module.get<Repository<BatchSchedule>>(
-      getRepositoryToken(BatchSchedule),
-    );
   });
 
   afterEach(() => {

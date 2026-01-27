@@ -387,9 +387,9 @@ describe("PriorityController", () => {
       const mockEmail = { id: emailId, subject: "Test" };
 
       mockEmailsService.getEmailById.mockResolvedValue(mockEmail);
-      mockPriorityLearningService.learnFromPriorityFeedback.mockResolvedValue(
-        undefined,
-      );
+      mockPriorityLearningService.learnFromPriorityFeedback.mockResolvedValue({
+        updated: [],
+      });
 
       const result = await controller.providePriorityFeedback(
         mockRequest,
@@ -399,6 +399,9 @@ describe("PriorityController", () => {
 
       expect(result).toEqual({
         message: "Feedback received and will be used to improve prioritization",
+        contextUpdated: false,
+        contextUpdates: [],
+        summary: "No context updates were needed based on your feedback",
       });
       expect(
         priorityLearningService.learnFromPriorityFeedback,

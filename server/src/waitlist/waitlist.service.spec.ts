@@ -3,7 +3,6 @@ import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { ConfigService } from "@nestjs/config";
 import axios from "axios";
-import * as crypto from "crypto";
 import { WaitlistService } from "./waitlist.service";
 import { Waitlist } from "../database/entities/waitlist.entity";
 import { UsersService } from "../users/users.service";
@@ -11,6 +10,10 @@ import { EmailService } from "../email/email.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 
 jest.mock("axios");
+jest.mock("crypto", () => ({
+  ...jest.requireActual("crypto"),
+  randomBytes: jest.fn(() => Buffer.alloc(32, "a")),
+}));
 jest.mock("../encryption/encryption.helper", () => ({
   EncryptionHelper: {
     hashEmail: jest.fn((email: string) => `hash_${email.toLowerCase()}`),
@@ -269,17 +272,6 @@ describe("WaitlistService", () => {
   });
 
   describe("approve", () => {
-    beforeEach(() => {
-      // Mock randomBytes to return a 32-byte buffer
-      jest
-        .spyOn(crypto, "randomBytes")
-        .mockReturnValue(Buffer.alloc(32, "a") as any);
-    });
-
-    afterEach(() => {
-      jest.restoreAllMocks();
-    });
-
     it("should throw error if entry not found", async () => {
       repository.findOne.mockResolvedValue(null);
 

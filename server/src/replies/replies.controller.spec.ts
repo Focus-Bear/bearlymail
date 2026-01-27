@@ -209,6 +209,8 @@ describe("RepliesController", () => {
         userId,
         emailId,
         body.reply,
+        undefined,
+        undefined,
       );
     });
   });

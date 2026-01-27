@@ -3,6 +3,8 @@ import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { SnoozeService } from "./snooze.service";
 import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
+import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import * as chrono from "chrono-node";
 
 jest.mock("chrono-node", () => ({
@@ -32,6 +34,19 @@ describe("SnoozeService", () => {
           useValue: {
             findOne: jest.fn(),
             save: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(EmailThread),
+          useValue: {
+            findOne: jest.fn(),
+            save: jest.fn(),
+          },
+        },
+        {
+          provide: EmailProviderManager,
+          useValue: {
+            getPrimaryProvider: jest.fn(),
           },
         },
       ],

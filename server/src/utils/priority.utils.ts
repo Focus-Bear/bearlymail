@@ -23,7 +23,6 @@ export function calculateScoreFromBreakdown(
     0,
   );
 
-  // Don't clamp - allow negative scores as breakdown can legitimately be negative
-  // (e.g., low urgency = -12, low goal alignment = -5, etc.)
-  return total;
+  // Clamp to 0-100 range for display purposes
+  return Math.max(0, Math.min(100, total));
 }

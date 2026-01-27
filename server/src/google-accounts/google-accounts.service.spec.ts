@@ -7,6 +7,7 @@ import { UsersService } from "../users/users.service";
 
 describe("GoogleAccountsService", () => {
   let service: GoogleAccountsService;
+  let repository: any;
 
   const mockGoogleAccount: GoogleAccount = {
     id: "account-1",
@@ -35,6 +36,7 @@ describe("GoogleAccountsService", () => {
             find: jest.fn(),
             findOne: jest.fn(),
             update: jest.fn(),
+            count: jest.fn(),
           },
         },
         {
@@ -45,6 +47,7 @@ describe("GoogleAccountsService", () => {
     }).compile();
 
     service = module.get<GoogleAccountsService>(GoogleAccountsService);
+    repository = module.get(getRepositoryToken(GoogleAccount));
     jest.clearAllMocks();
   });
 
@@ -267,16 +270,20 @@ describe("GoogleAccountsService", () => {
     });
 
     it("should not update refresh token when not provided", async () => {
-      repository.findOne.mockResolvedValue(mockGoogleAccount);
-      const updatedAccount = {
+      const freshAccount = {
         ...mockGoogleAccount,
+        refreshToken: "original-refresh-token",
+      };
+      repository.findOne.mockResolvedValue(freshAccount);
+      const updatedAccount = {
+        ...freshAccount,
         accessToken: "new-access-token",
       };
       repository.save.mockResolvedValue(updatedAccount);
 
       await service.updateTokens("account-1", "user-1", "new-access-token");
 
-      expect(mockGoogleAccount.refreshToken).toBe("refresh-token-1"); // Original value
+      expect(freshAccount.refreshToken).toBe("original-refresh-token"); // Original value
     });
 
     it("should throw NotFoundException when account not found", async () => {

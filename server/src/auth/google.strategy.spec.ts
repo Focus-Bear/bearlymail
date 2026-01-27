@@ -66,13 +66,10 @@ describe("GoogleStrategy", () => {
 
       mockAuthService.validateGoogleUser.mockResolvedValue(mockUser);
 
-      const done = jest.fn();
-
-      await strategy.validate(
+      const result = await strategy.validate(
         mockAccessToken,
         mockRefreshToken,
         mockProfile,
-        done,
       );
 
       expect(authService.validateGoogleUser).toHaveBeenCalledWith(
@@ -80,7 +77,7 @@ describe("GoogleStrategy", () => {
         mockAccessToken,
         mockRefreshToken,
       );
-      expect(done).toHaveBeenCalledWith(null, {
+      expect(result).toEqual({
         ...mockUser,
         googleProfile: mockProfile,
         googleAccessToken: mockAccessToken,
@@ -89,20 +86,13 @@ describe("GoogleStrategy", () => {
       });
     });
 
-    it("should call done with error when validation fails", async () => {
+    it("should throw error when validation fails", async () => {
       const error = new Error("Validation failed");
       mockAuthService.validateGoogleUser.mockRejectedValue(error);
 
-      const done = jest.fn();
-
-      await strategy.validate(
-        mockAccessToken,
-        mockRefreshToken,
-        mockProfile,
-        done,
-      );
-
-      expect(done).toHaveBeenCalledWith(error, false);
+      await expect(
+        strategy.validate(mockAccessToken, mockRefreshToken, mockProfile),
+      ).rejects.toThrow("Validation failed");
     });
 
     it("should attach Google profile data to user", async () => {
@@ -113,16 +103,12 @@ describe("GoogleStrategy", () => {
 
       mockAuthService.validateGoogleUser.mockResolvedValue(mockUser);
 
-      const done = jest.fn();
-
-      await strategy.validate(
+      const result = await strategy.validate(
         mockAccessToken,
         mockRefreshToken,
         mockProfile,
-        done,
       );
 
-      const result = done.mock.calls[0][1];
       expect(result.googleProfile).toEqual(mockProfile);
       expect(result.googleAccessToken).toBe(mockAccessToken);
       expect(result.googleRefreshToken).toBe(mockRefreshToken);
@@ -142,16 +128,14 @@ describe("GoogleStrategy", () => {
 
       mockAuthService.validateGoogleUser.mockResolvedValue(mockUser);
 
-      const done = jest.fn();
-
-      await strategy.validate(
+      const result = await strategy.validate(
         mockAccessToken,
         mockRefreshToken,
         profileWithoutName,
-        done,
       );
 
-      expect(done).toHaveBeenCalledWith(null, expect.any(Object));
+      expect(result).toBeDefined();
+      expect(result.googleProfile).toEqual(profileWithoutName);
     });
 
     it("should handle missing refresh token", async () => {
@@ -162,11 +146,8 @@ describe("GoogleStrategy", () => {
 
       mockAuthService.validateGoogleUser.mockResolvedValue(mockUser);
 
-      const done = jest.fn();
+      const result = await strategy.validate(mockAccessToken, "", mockProfile);
 
-      await strategy.validate(mockAccessToken, "", mockProfile, done);
-
-      const result = done.mock.calls[0][1];
       expect(result.googleRefreshToken).toBe("");
     });
 
@@ -178,11 +159,8 @@ describe("GoogleStrategy", () => {
 
       mockAuthService.validateGoogleUser.mockResolvedValue(mockUser);
 
-      const done = jest.fn();
+      const result = await strategy.validate("", mockRefreshToken, mockProfile);
 
-      await strategy.validate("", mockRefreshToken, mockProfile, done);
-
-      const result = done.mock.calls[0][1];
       expect(result.googleAccessToken).toBe("");
     });
 
@@ -190,16 +168,9 @@ describe("GoogleStrategy", () => {
       const error = new Error("Database connection failed");
       mockAuthService.validateGoogleUser.mockRejectedValue(error);
 
-      const done = jest.fn();
-
-      await strategy.validate(
-        mockAccessToken,
-        mockRefreshToken,
-        mockProfile,
-        done,
-      );
-
-      expect(done).toHaveBeenCalledWith(error, false);
+      await expect(
+        strategy.validate(mockAccessToken, mockRefreshToken, mockProfile),
+      ).rejects.toThrow("Database connection failed");
     });
   });
 

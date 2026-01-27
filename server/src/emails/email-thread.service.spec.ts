@@ -40,19 +40,19 @@ describe("EmailThreadService", () => {
   });
 
   describe("getThreadEmails", () => {
-    it("should return emails in thread sorted by receivedAt DESC", async () => {
+    it("should return emails in thread sorted by receivedAt ASC", async () => {
       const userId = "user-123";
       const threadId = "thread-123";
       const mockEmails = [
         {
-          id: "email-1",
-          threadId,
-          receivedAt: new Date("2024-01-02"),
-        },
-        {
           id: "email-2",
           threadId,
           receivedAt: new Date("2024-01-01"),
+        },
+        {
+          id: "email-1",
+          threadId,
+          receivedAt: new Date("2024-01-02"),
         },
       ];
       const queryBuilder = {
@@ -78,7 +78,7 @@ describe("EmailThreadService", () => {
       );
       expect(queryBuilder.orderBy).toHaveBeenCalledWith(
         "email.receivedAt",
-        "DESC",
+        "ASC",
       );
     });
 

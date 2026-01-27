@@ -473,6 +473,39 @@
         "description": "Configure la entrega de correo electrónico, las preferencias de IA y las integraciones para personalizar su experiencia BearlyMail.",
         "title": "Ajustes"
       },
+      "autoresponder": {
+        "title": "Auto-Responder",
+        "description": "Aprenda a configurar respuestas automáticas a correos electrónicos entrantes con estado de cola y respuestas impulsadas por IA.",
+        "content": {
+          "section0": {
+            "title": "¿Qué es el Auto-Responder?",
+            "content": "El Auto-Responder envía automáticamente respuestas a los correos electrónicos entrantes, informando a los remitentes que su mensaje ha sido recibido y proporcionando información útil sobre cuándo pueden esperar una respuesta. También puede responder preguntas comunes usando IA basada en el contexto de preguntas y respuestas que haya configurado."
+          },
+          "section1": {
+            "title": "Habilitando el Auto-Responder",
+            "content": "Para habilitar el Auto-Responder, vaya a Configuración y desplácese hasta la sección Auto-Responder. Active el interruptor para habilitar las respuestas automáticas. Una vez habilitado, verá opciones de configuración adicionales."
+          },
+          "section2": {
+            "title": "Personalizando Plantillas de Respuesta",
+            "content": "Puede personalizar las plantillas de mensajes que se envían para diferentes niveles de prioridad. Use etiquetas de combinación como {{userName}} y {{queuePosition}} para personalizar las respuestas con información dinámica. El editor de plantillas muestra una vista previa en vivo de cómo aparecerá su mensaje."
+          },
+          "section3": {
+            "title": "Reglas de Exclusión",
+            "content": "No todos los correos electrónicos deben recibir una respuesta automática. Use reglas de exclusión para evitar que se envíen respuestas automáticas a ciertos remitentes o tipos de correos electrónicos. Por ejemplo, es posible que desee excluir boletines, notificaciones automatizadas o correos electrónicos de dominios específicos."
+          },
+          "section4": {
+            "title": "Respuestas Impulsadas por IA",
+            "content": "Cuando está habilitado, el Auto-Responder puede intentar responder preguntas comunes basándose en los pares de preguntas y respuestas en su configuración de contexto. Puede establecer un umbral de confianza mínimo para controlar qué tan segura debe estar la IA antes de incluir una respuesta. Todas las respuestas generadas por IA incluyen un descargo de responsabilidad de que usted confirmará la información."
+          },
+          "section5": {
+            "title": "Mejores Prácticas",
+            "item0": "Mantenga sus plantillas de respuesta profesionales y concisas",
+            "item1": "Configure reglas de exclusión para boletines y correos electrónicos automatizados",
+            "item2": "Revise y actualice regularmente su contexto de preguntas y respuestas para obtener respuestas de IA precisas",
+            "item3": "Use la función de vista previa de correo electrónico para probar cómo se verán las respuestas antes de habilitarlas"
+          }
+        }
+      },
       "triage": {
         "description": "Comprenda cómo clasificar rápidamente los nuevos correos electrónicos en la pestaña Triage.",
         "title": "Pestaña de clasificación"
@@ -1080,6 +1113,7 @@
         "autoResponder": {
           "title": "Respuesta automática",
           "description": "Responda automáticamente a nuevos correos electrónicos con el estado de la cola e información útil. El respondedor automático incluso puede responder preguntas comunes basándose en las preguntas y respuestas de su contexto. Las respuestas se envían como respuestas al correo electrónico original, manteniendo intacto el hilo de conversación.",
+          "learnMore": "Más información",
           "preview": {
             "title": "Vista previa de respuestas automáticas",
             "description": "Vea cómo se verán sus mensajes de respuesta automática",

@@ -54,6 +54,12 @@ const Help: React.FC = () => {
       descriptionKey: 'help.articles.settings.description',
       path: '/help/settings',
     },
+    {
+      id: 'autoresponder',
+      titleKey: 'help.articles.autoresponder.title',
+      descriptionKey: 'help.articles.autoresponder.description',
+      path: '/help/autoresponder',
+    },
   ];
 
   return (

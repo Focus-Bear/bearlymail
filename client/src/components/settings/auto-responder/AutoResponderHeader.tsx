@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
@@ -23,7 +24,16 @@ export const AutoResponderHeader: React.FC = () => {
         marginTop: theme.spacing.sm,
         marginBottom: 0,
       }}>
-        {t('settings.autoResponder.description')}
+        {t('settings.autoResponder.description')}{' '}
+        <Link
+          to="/help/autoresponder"
+          style={{
+            color: theme.colors.primary.main,
+            textDecoration: 'underline',
+          }}
+        >
+          {t('settings.autoResponder.learnMore')}
+        </Link>
       </p>
     </div>
   );

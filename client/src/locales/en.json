@@ -425,6 +425,7 @@
     "autoResponder": {
       "title": "Auto-Responder",
       "description": "Automatically respond to new emails with queue status and helpful information. The auto-responder can even answer common questions based on the Q&A in your context. Responses are sent as replies to the original email, keeping the conversation thread intact.",
+      "learnMore": "Learn more",
       "preview": {
         "title": "Preview Auto-Responses",
         "description": "See what your auto-response messages will look like",
@@ -735,6 +736,39 @@
       "settings": {
         "title": "Settings",
         "description": "Configure email delivery, AI preferences, and integrations to customize your BearlyMail experience."
+      },
+      "autoresponder": {
+        "title": "Auto-Responder",
+        "description": "Learn how to set up automatic responses to incoming emails with queue status and AI-powered answers.",
+        "content": {
+          "section0": {
+            "title": "What is the Auto-Responder?",
+            "content": "The Auto-Responder automatically sends replies to incoming emails, letting senders know their message has been received and providing helpful information about when they can expect a response. It can also answer common questions using AI based on the Q&A context you've configured."
+          },
+          "section1": {
+            "title": "Enabling the Auto-Responder",
+            "content": "To enable the Auto-Responder, go to Settings and scroll to the Auto-Responder section. Toggle the switch to enable automatic responses. Once enabled, you'll see additional configuration options."
+          },
+          "section2": {
+            "title": "Customizing Response Templates",
+            "content": "You can customize the message templates that are sent for different priority levels. Use merge tags like {{userName}} and {{queuePosition}} to personalize responses with dynamic information. The template editor shows a live preview of how your message will appear."
+          },
+          "section3": {
+            "title": "Exclusion Rules",
+            "content": "Not every email should receive an auto-response. Use exclusion rules to prevent auto-responses from being sent to certain senders or types of emails. For example, you might want to exclude newsletters, automated notifications, or emails from specific domains."
+          },
+          "section4": {
+            "title": "AI-Powered Answers",
+            "content": "When enabled, the Auto-Responder can attempt to answer common questions based on the Q&A pairs in your context settings. You can set a minimum confidence threshold to control how certain the AI must be before including an answer. All AI-generated answers include a disclaimer that you will confirm the information."
+          },
+          "section5": {
+            "title": "Best Practices",
+            "item0": "Keep your response templates professional and concise",
+            "item1": "Set up exclusion rules for newsletters and automated emails",
+            "item2": "Regularly review and update your Q&A context for accurate AI answers",
+            "item3": "Use the email preview feature to test how responses will look before enabling"
+          }
+        }
       }
     }
   },
@@ -1028,6 +1062,7 @@
     "autoResponder": {
       "title": "Auto-Responder",
       "description": "Automatically respond to new emails with queue status and helpful information. The auto-responder can even answer common questions based on the Q&A in your context. Responses are sent as replies to the original email, keeping the conversation thread intact.",
+      "learnMore": "Learn more",
       "preview": {
         "title": "Preview Auto-Responses",
         "description": "See what your auto-response messages will look like",

@@ -71,11 +71,13 @@ Example context item format:
     * Be High Level but Specific: "System alerts" or "Critical infrastructure issues" not "Sentry alert about app hanging", but also not "communications from key contributors" (too vague).
     * Example: If you see "From: System Alerts, ReplyTime: 3m (QUICK)" and "From: System Alerts, ReplyTime: 5m (QUICK)", you MUST extract: "System alerts are urgent - user replies within 3-8 minutes consistently"
   - key="NOT_IMPORTANT": Things the user doesn't consider important based on STRONG behavioral evidence. CRITICAL REQUIREMENTS before marking as NOT_IMPORTANT:
-    * For a reliable assessment, ideally check 10+ emails from that source/category. However, if you see a CLEAR pattern with 3+ emails where ALL emails from that source are unread AND archived without reading AND have no replies (ReplyTime: NoReply, Behavior: ArchivedWithoutReading), you can mark it as NOT_IMPORTANT.
+    * REQUIRED: If you see a CLEAR pattern with 3+ emails where ALL emails from that source are unread AND archived without reading AND have no replies (ReplyTime: NoReply, Behavior: ArchivedWithoutReading), you MUST extract a NOT_IMPORTANT context item. This is in ADDITION to any EMAIL_CATEGORY items - extract both.
+    * For a reliable assessment, ideally check 10+ emails from that source/category. However, if you see a CLEAR pattern with 3+ emails meeting the above criteria, you MUST mark it as NOT_IMPORTANT.
     * At least 80% of emails from that source must be unread AND not replied to (isRead=false AND timeToReply is null/NoReply). For smaller samples (3-9 emails), ALL emails must meet this criteria.
     * If ANY emails from that source were read, replied to, or starred, DO NOT mark it as NOT_IMPORTANT - the user clearly engages with some of these emails
     * Be ABSTRACT and HIGH-LEVEL: "Automated system notifications" not "Sentry alert about app hanging"
     * Examples of valid NOT_IMPORTANT: "Newsletter emails are consistently unread and archived" (if 3+ emails, all unread, all archived without reading, no replies)
+    * Example: If you see "From: Newsletter Team, Behavior: ArchivedWithoutReading, ReplyTime: NoReply" for 3+ emails, you MUST extract: { "key": "NOT_IMPORTANT", "value": "Newsletter emails are consistently unread and archived", "source": "email_analysis" }
     * If you see mixed behavior (some read, some unread), DO NOT mark as NOT_IMPORTANT - the user clearly prioritizes some of these emails
     * When in doubt, DO NOT mark as NOT_IMPORTANT - it's better to miss a deprioritization than to incorrectly deprioritize something the user cares about
   - key="EMAIL_CATEGORY": Categories of emails the user receives. Analyze the types of emails in the received emails and identify distinct categories.

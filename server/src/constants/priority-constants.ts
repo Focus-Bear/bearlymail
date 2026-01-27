@@ -33,6 +33,7 @@ export const PRIORITY_BOOSTS = {
   URGENT_KEYWORD: 25,
   LOW_INTEREST_PENALTY: -20,
   DONT_CARE_PENALTY: -20,
+  READ_NOT_STARRED_PENALTY: -15,
   RECENCY_TODAY: 30,
   RECENCY_24H: 25,
   RECENCY_7D: 20,
@@ -92,6 +93,7 @@ export const PRIORITY_FACTOR_TYPES = {
   RECENCY: "RECENCY",
   URGENT_KEYWORDS: "URGENT_KEYWORDS",
   USER_OVERRIDE: "USER_OVERRIDE",
+  READ_STATUS: "READ_STATUS",
 } as const;
 
 // Display names for priority factors (with emojis for UI)
@@ -105,6 +107,7 @@ export const PRIORITY_FACTOR_DISPLAY_NAMES: Record<string, string> = {
   [PRIORITY_FACTOR_TYPES.RECENCY]: "⏰ Recency",
   [PRIORITY_FACTOR_TYPES.URGENT_KEYWORDS]: "🚨 Urgent Keywords",
   [PRIORITY_FACTOR_TYPES.USER_OVERRIDE]: "✏️ User Override",
+  [PRIORITY_FACTOR_TYPES.READ_STATUS]: "📖 Read Status",
 };
 
 // Sentiment types

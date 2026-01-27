@@ -497,11 +497,11 @@ export class GmailProvider implements EmailProvider {
         starredThreadsResponse,
         sentThreadsResponse,
       ] = await Promise.all([
-        // Fetch unread threads from inbox updated since last sync
+        // Fetch threads from inbox updated since last sync (includes both read and unread)
         gmail.users.threads.list({
           userId: "me",
           maxResults: 500,
-          q: `is:unread in:inbox ${baseQuery} ${afterQuery}`,
+          q: `in:inbox ${baseQuery} ${afterQuery}`,
         }),
         // Fetch ALL starred threads in inbox (no time filter to ensure old starred emails are synced)
         gmail.users.threads.list({

@@ -498,6 +498,17 @@ export class LLMProcessor implements OnModuleInit {
             }
           }
 
+          // Read status penalty: lower priority by 15 for emails that are read and not starred
+          // This helps prioritize unread emails in triage
+          if (email.isRead && thread && thread.starCount === 0) {
+            const readPenalty = -15; // PRIORITY_BOOSTS.READ_NOT_STARRED_PENALTY
+            breakdown.push({
+              factor: "📖 Read Status",
+              value: readPenalty,
+              description: "Already read and not starred",
+            });
+          }
+
           // Calculate final score from breakdown
           // Don't clamp to 0-100 - allow negative scores as breakdown can legitimately be negative
           // The breakdown items can have negative values (e.g., low urgency = -12)

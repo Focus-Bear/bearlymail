@@ -1708,7 +1708,7 @@ export class ContextService {
       // Step 2: Fetch threads progressively in batches of 30, start analysis jobs as batches are ready
       // This avoids waiting for all 400 threads to be fetched before starting analysis
       const FETCH_BATCH_SIZE = 30; // Fetch 30 threads at a time
-      // ANALYSIS_BATCH_SIZE is already declared above
+      const ANALYSIS_BATCH_SIZE = 10; // Process 10 threads per analysis batch
 
       this.logger.log(
         `[CONTEXT-ANALYSIS] Fetching threads progressively (${FETCH_BATCH_SIZE} at a time) and starting analysis jobs as ready...`,
@@ -3124,7 +3124,6 @@ export class ContextService {
 
             if (jobAgeMinutes > 15) {
               // Job is older than 15 minutes (expireInMinutes limit) and has no result
-              expiredJobs++;
 
               // Attempt to retry the expired job if we have the batch payload stored
               const batchPayloadsForRetry =
@@ -3248,8 +3247,6 @@ export class ContextService {
               `[BATCH-CHECK] Error checking job status for ${jobId}: ${getErrorMessage(error)}`,
             );
           }
-        } else {
-          completedJobs++;
         }
       }
     }

@@ -241,7 +241,7 @@ describe("UsersService", () => {
 
       expect(repository.query).toHaveBeenCalledWith(
         expect.stringContaining("UPDATE users"),
-        ["user-1"],
+        ["user-1", 1],
       );
       expect(result.scanProgress).toBe(50);
       expect(result.scanTotal).toBe(100);

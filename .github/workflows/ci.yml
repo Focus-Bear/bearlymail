@@ -52,7 +52,7 @@ jobs:
           JWT_SECRET: test-jwt-secret
           ENCRYPTION_KEY: test-encryption-key-32chars!!
           NODE_OPTIONS: --max-old-space-size=4096
-        run: npm test
+        run: npm test -- --forceExit
 
   client-tests:
     name: Client Tests

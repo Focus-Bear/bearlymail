@@ -6,12 +6,14 @@ import { UsersService } from "../users/users.service";
 
 describe("JwtStrategy", () => {
   let strategy: JwtStrategy;
-  let usersService: UsersService;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let _usersService: UsersService;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let _configService: ConfigService;
 
   const mockUsersService = {
     findOne: jest.fn(),
+    findOneForAuth: jest.fn(),
   };
 
   const mockConfigService = {
@@ -34,7 +36,7 @@ describe("JwtStrategy", () => {
     }).compile();
 
     strategy = module.get<JwtStrategy>(JwtStrategy);
-    usersService = module.get<UsersService>(UsersService);
+    _usersService = module.get<UsersService>(UsersService);
     _configService = module.get<ConfigService>(ConfigService);
   });
 
@@ -51,7 +53,7 @@ describe("JwtStrategy", () => {
         name: "Test User",
       };
 
-      mockUsersService.findOne.mockResolvedValue(mockUser);
+      mockUsersService.findOneForAuth.mockResolvedValue(mockUser);
 
       const result = await strategy.validate(payload);
 
@@ -59,18 +61,18 @@ describe("JwtStrategy", () => {
         userId: "user-123",
         email: "test@example.com",
       });
-      expect(usersService.findOne).toHaveBeenCalledWith("user-123");
+      expect(mockUsersService.findOneForAuth).toHaveBeenCalledWith("user-123");
     });
 
     it("should throw UnauthorizedException when user is not found", async () => {
       const payload = { sub: "user-123", email: "test@example.com" };
 
-      mockUsersService.findOne.mockResolvedValue(null);
+      mockUsersService.findOneForAuth.mockResolvedValue(null);
 
       await expect(strategy.validate(payload)).rejects.toThrow(
         UnauthorizedException,
       );
-      expect(usersService.findOne).toHaveBeenCalledWith("user-123");
+      expect(mockUsersService.findOneForAuth).toHaveBeenCalledWith("user-123");
     });
 
     it("should handle payload without email field", async () => {
@@ -81,7 +83,7 @@ describe("JwtStrategy", () => {
         name: "Test User",
       };
 
-      mockUsersService.findOne.mockResolvedValue(mockUser);
+      mockUsersService.findOneForAuth.mockResolvedValue(mockUser);
 
       const result = await strategy.validate(payload);
 
@@ -94,7 +96,9 @@ describe("JwtStrategy", () => {
     it("should handle errors from usersService", async () => {
       const payload = { sub: "user-123" };
 
-      mockUsersService.findOne.mockRejectedValue(new Error("Database error"));
+      mockUsersService.findOneForAuth.mockRejectedValue(
+        new Error("Database error"),
+      );
 
       await expect(strategy.validate(payload)).rejects.toThrow(
         "Database error",
@@ -115,7 +119,7 @@ describe("JwtStrategy", () => {
         isAdmin: true,
       };
 
-      mockUsersService.findOne.mockResolvedValue(mockUser);
+      mockUsersService.findOneForAuth.mockResolvedValue(mockUser);
 
       const result = await strategy.validate(payload);
 

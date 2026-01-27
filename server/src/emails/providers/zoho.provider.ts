@@ -1079,7 +1079,7 @@ export class ZohoProvider implements EmailProvider {
       throw new Error("Zoho Mail account not connected. Cannot send email.");
     }
 
-    const { accessToken } = primaryAccount;
+    let { accessToken } = primaryAccount;
     const zohoClient = this.client.createZohoClient(accessToken);
 
     try {

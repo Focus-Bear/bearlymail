@@ -1072,7 +1072,7 @@ export class Office365Provider implements EmailProvider {
       throw new Error("Office 365 account not connected. Cannot send email.");
     }
 
-    const { accessToken } = primaryAccount;
+    let { accessToken } = primaryAccount;
     const graphClient = this.client.createGraphClient(accessToken);
 
     try {

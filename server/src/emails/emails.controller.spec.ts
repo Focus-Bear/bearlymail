@@ -1,5 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
 import { EmailsController } from "./emails.controller";
 import { EmailsService } from "./emails.service";
 import { EmailProviderManager } from "./email-provider-manager.service";
@@ -12,7 +13,7 @@ import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 describe("EmailsController", () => {
   let controller: EmailsController;
   let emailsService: EmailsService;
-  let emailThreadRepository: EmailThread;
+  let emailThreadRepository: Repository<EmailThread>;
 
   const mockEmailsService = {
     getInbox: jest.fn(),

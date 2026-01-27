@@ -228,7 +228,6 @@ export class ContextFinalizationProcessor implements OnModuleInit {
             sentEmailsData,
             analysisStats,
             trueVipContacts,
-            userEmail,
           );
 
           this.logger.log(

@@ -14,6 +14,7 @@ import { GMAIL_LABELS } from "../constants/email-labels";
 import { UsersService } from "../users/users.service";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
+import { PERCENTAGES } from "../constants/percentages";
 
 interface BatchAnalysisJob {
   userId: string;

@@ -3,6 +3,8 @@
  * Only logs to console on localhost (with [DEV] prefix)
  */
 
+import { API_URL } from 'config/api';
+
 // Immediate log when module loads - this should ALWAYS show
 console.log('[dev-logger] ===== MODULE LOADED =====');
 console.log('[dev-logger] Logger utility is being imported');
@@ -16,9 +18,6 @@ function isLocalhost(): boolean {
   }
   
   const hostname = window.location.hostname;
-  // Dynamically import to avoid import.meta.env issues in Jest
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { API_URL } = require('config/api');
   
   return (
     hostname === 'localhost' ||

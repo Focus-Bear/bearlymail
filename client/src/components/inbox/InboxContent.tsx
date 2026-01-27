@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { Email, InboxMode, getEmailPriorityScore } from 'types/email';
@@ -12,6 +12,7 @@ import { FollowUpActions } from 'components/inbox/FollowUpActions';
 import { DebugView } from 'components/inbox/DebugView';
 import { BatchInfoBar } from 'components/inbox/BatchInfoBar';
 import { useSplitView } from 'hooks/useSplitView';
+import { CategoryAccordion, groupEmailsByCategory } from 'components/inbox/CategoryAccordion';
 
 interface InboxContentProps {
   mode: InboxMode;
@@ -45,6 +46,8 @@ interface InboxContentProps {
   emailListRef: React.RefObject<HTMLDivElement | null>;
   emailDetailRef: React.RefObject<HTMLDivElement | null>;
   onSplitViewArchive?: (emailId: string) => void;
+  onBulkArchive?: (emailIds: string[]) => Promise<void>;
+  onBulkSelect?: (emailIds: string[]) => void;
 }
 
 // eslint-disable-next-line max-lines-per-function -- Inbox content component requires handling multiple inbox modes, emails, and UI states
@@ -80,8 +83,45 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   emailListRef,
   emailDetailRef,
   onSplitViewArchive,
+  onBulkArchive,
+  onBulkSelect,
 }) => {
   const splitViewContainerRef = useRef<HTMLDivElement>(null);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+
+  const filteredEmails = useMemo(() => 
+    emails.filter(email => !email.isArchived),
+    [emails]
+  );
+
+  const categoryGroups = useMemo(() => 
+    groupEmailsByCategory(filteredEmails),
+    [filteredEmails]
+  );
+
+  const toggleCategory = (category: string) => {
+    setExpandedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(category)) {
+        next.delete(category);
+      } else {
+        next.add(category);
+      }
+      return next;
+    });
+  };
+
+  const handleCategorySelectAll = (emailIds: string[]) => {
+    if (onBulkSelect) {
+      onBulkSelect(emailIds);
+    }
+  };
+
+  const handleCategoryArchiveAll = async (emailIds: string[]) => {
+    if (onBulkArchive) {
+      await onBulkArchive(emailIds);
+    }
+  };
 
   const handleSendFollowUp = async (followUpId: string, draft: string, recipientName?: string) => {
     try {
@@ -158,44 +198,67 @@ export const InboxContent: React.FC<InboxContentProps> = ({
             mode={mode}
             onRetry={onRetry}
           />
-          {!loading && hasInitiallyLoaded && !loadingModeSwitch && !fetchError && emails.length > 0 && (
-            emails.filter(email => !email.isArchived).map((email, index) => {
-              const suggestion = mode === MODE_TRIAGE ? (triageSuggestions.get(email.id) || null) : null;
-              const isSelected = selectedEmailIds.has(email.id) || selectedEmailIndex === index;
-              const followUpData = mode === MODE_FOLLOW_UP ? followUpDataMap.get(email.threadId) : null;
+          {!loading && hasInitiallyLoaded && !loadingModeSwitch && !fetchError && filteredEmails.length > 0 && (
+            categoryGroups.map((group) => {
+              const isExpanded = expandedCategories.has(group.category);
+              let globalIndex = 0;
+              for (const g of categoryGroups) {
+                if (g.category === group.category) break;
+                globalIndex += g.emails.length;
+              }
+              
               return (
-                <EmailListItem
-                  key={email.id}
-                  email={email}
-                  index={index}
-                  mode={mode}
-                  isSelected={isSelected}
-                  suggestion={suggestion}
-                  priorityTooltip={priorityTooltip}
-                  keyboardHint={keyboardHint}
-                  snoozeInput={snoozeInput}
-                  onEmailClick={onEmailClick}
-                  onEmailSelect={onEmailSelect}
-                  onSetStarCount={emailActions.handleSetStarCount}
-                  onArchive={emailActions.handleArchive}
-                  onBlockSender={emailActions.handleBlockSender}
-                  onSnooze={emailActions.handleSnooze}
-                  onOverrideUrgency={() => {
-                    if (email.emailThreadId && email.urgencyScore !== undefined) {
-                      modals.showUrgencyOverride(email.emailThreadId, email.urgencyScore);
-                    }
-                  }}
-                  onProvideFeedback={() => {
-                    priorityTooltip.hidePriorityTooltip();
-                    modals.showPriorityFeedback(email.id, getEmailPriorityScore(email));
-                  }}
-                  followUpData={followUpData}
-                  onUpdateDraft={updateDraft}
-                  onSendFollowUp={(followUpId: string, draft: string) => 
-                    handleSendFollowUp(followUpId, draft, (email as any).otherPersonName)
-                  }
-                  recipientName={(email as any).otherPersonName}
-                />
+                <CategoryAccordion
+                  key={group.category}
+                  category={group.category}
+                  emails={group.emails}
+                  isExpanded={isExpanded}
+                  onToggle={() => toggleCategory(group.category)}
+                  onSelectAll={handleCategorySelectAll}
+                  onArchiveAll={handleCategoryArchiveAll}
+                  selectedEmailIds={selectedEmailIds}
+                >
+                  {group.emails.map((email, indexInCategory) => {
+                    const emailIndex = globalIndex + indexInCategory;
+                    const suggestion = mode === MODE_TRIAGE ? (triageSuggestions.get(email.id) || null) : null;
+                    const isSelected = selectedEmailIds.has(email.id) || selectedEmailIndex === emailIndex;
+                    const followUpData = mode === MODE_FOLLOW_UP ? followUpDataMap.get(email.threadId) : null;
+                    return (
+                      <EmailListItem
+                        key={email.id}
+                        email={email}
+                        index={emailIndex}
+                        mode={mode}
+                        isSelected={isSelected}
+                        suggestion={suggestion}
+                        priorityTooltip={priorityTooltip}
+                        keyboardHint={keyboardHint}
+                        snoozeInput={snoozeInput}
+                        onEmailClick={onEmailClick}
+                        onEmailSelect={onEmailSelect}
+                        onSetStarCount={emailActions.handleSetStarCount}
+                        onArchive={emailActions.handleArchive}
+                        onBlockSender={emailActions.handleBlockSender}
+                        onSnooze={emailActions.handleSnooze}
+                        onOverrideUrgency={() => {
+                          if (email.emailThreadId && email.urgencyScore !== undefined) {
+                            modals.showUrgencyOverride(email.emailThreadId, email.urgencyScore);
+                          }
+                        }}
+                        onProvideFeedback={() => {
+                          priorityTooltip.hidePriorityTooltip();
+                          modals.showPriorityFeedback(email.id, getEmailPriorityScore(email));
+                        }}
+                        followUpData={followUpData}
+                        onUpdateDraft={updateDraft}
+                        onSendFollowUp={(followUpId: string, draft: string) => 
+                          handleSendFollowUp(followUpId, draft, (email as any).otherPersonName)
+                        }
+                        recipientName={(email as any).otherPersonName}
+                      />
+                    );
+                  })}
+                </CategoryAccordion>
               );
             })
           )}

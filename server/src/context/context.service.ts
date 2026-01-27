@@ -3865,6 +3865,18 @@ export class ContextService {
             `[CONTEXT-ANALYSIS] Mapped key "${keyStr}" to DONT_CARE`,
           );
         }
+        // EMAIL_CATEGORY patterns
+        else if (
+          keyUpper === "EMAIL_CATEGORY" ||
+          keyUpper === "CATEGORY" ||
+          keyLower.includes("email category") ||
+          keyLower.includes("email type")
+        ) {
+          key = ContextKey.EMAIL_CATEGORY;
+          this.logger.debug(
+            `[CONTEXT-ANALYSIS] Mapped key "${keyStr}" to EMAIL_CATEGORY`,
+          );
+        }
 
         // Content-based key inference if still OTHER after mapping
         if (key === ContextKey.OTHER) {

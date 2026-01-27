@@ -29,6 +29,8 @@ export enum ContextKey {
   NOT_IMPORTANT = "NOT_IMPORTANT",
   // Common questions and answers from user replies
   Q_AND_A = "Q_AND_A",
+  // Email categories for grouping (e.g., Newsletters, Customer Support)
+  EMAIL_CATEGORY = "EMAIL_CATEGORY",
 
   // Legacy/other
   // Kept for backward compatibility

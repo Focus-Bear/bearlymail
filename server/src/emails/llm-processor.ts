@@ -309,6 +309,18 @@ export class LLMProcessor implements OnModuleInit {
             dontCare: contexts
               .filter((c) => c.contextKey === ContextKey.DONT_CARE)
               .map((c) => ({ value: c.contextValue })),
+            emailCategories: contexts
+              .filter((c) => c.contextKey === ContextKey.EMAIL_CATEGORY)
+              .map((c) => {
+                const parts = c.contextValue.split(" - ");
+                return {
+                  name: parts[0].trim(),
+                  description:
+                    parts.length > 1
+                      ? parts.slice(1).join(" - ").trim()
+                      : undefined,
+                };
+              }),
           };
 
           this.logger.log(
@@ -596,6 +608,7 @@ export class LLMProcessor implements OnModuleInit {
                     newUrgencyExplanation || thread.urgencyExplanation,
                   priorityExplanation, // Store priority explanation on thread
                   priorityScore, // Store denormalized score for efficient sorting
+                  category: llmResult.category || thread.category || null, // Store email category
                   isProcessingPriority: false,
                 },
               );

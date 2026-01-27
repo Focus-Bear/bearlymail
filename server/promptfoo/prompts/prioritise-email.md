@@ -16,7 +16,18 @@ Provide:
    - 61-89: High alignment, directly related to user's goals or current work
    - 90-100: Perfect alignment, critical to user's goals or current work
 5. goalAlignmentExplanation: Brief explanation of the goal alignment score
-6. reasoning: Brief explanation of your analysis
+6. category: Classify the email into ONE of these categories:
+{% if emailCategories %}
+{{emailCategories}}
+{% else %}
+   - "Newsletters": Marketing emails, digests, promotional content, automated updates
+   - "Sales": Sales discussions, potential customer inquiries, pricing requests, demos
+   - "Partnerships": Partnership proposals, collaboration requests, business development
+   - "Customer Support": Support requests, bug reports, customer issues, help requests
+   - "HR Admin": HR communications, admin tasks, internal company matters, policies
+{% endif %}
+   - "Other": Emails that don't fit the above categories (always available as fallback)
+7. reasoning: Brief explanation of your analysis
 
 Consider:
 - Email content urgency and sentiment (upset/angry emails should have higher urgency scores)
@@ -47,7 +58,7 @@ IMPORTANT RULES:
 5. For goal alignment, consider the user's goals and current work contextually - don't just match keywords, understand the relationship between the email content and the user's objectives
 6. If the user should reply and it's been several days since the last reply, factor this into urgency
 
-Return a JSON object with: { "urgencyScore": number (0-100), "urgencyExplanation": string, "sentimentScore": number (-1 to 1), "goalAlignmentScore": number (0-100), "goalAlignmentExplanation": string, "reasoning": string }
+Return a JSON object with: { "urgencyScore": number (0-100), "urgencyExplanation": string, "sentimentScore": number (-1 to 1), "goalAlignmentScore": number (0-100), "goalAlignmentExplanation": string, "category": string (one of: "Newsletters", "Sales", "Partnerships", "Customer Support", "HR Admin", "Other"), "reasoning": string }
 
 Email to analyze:
 

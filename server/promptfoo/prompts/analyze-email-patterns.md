@@ -78,6 +78,23 @@ Example context item format:
     * Examples of valid NOT_IMPORTANT: "Newsletter emails are consistently unread and archived" (if 3+ emails, all unread, all archived without reading, no replies)
     * If you see mixed behavior (some read, some unread), DO NOT mark as NOT_IMPORTANT - the user clearly prioritizes some of these emails
     * When in doubt, DO NOT mark as NOT_IMPORTANT - it's better to miss a deprioritization than to incorrectly deprioritize something the user cares about
+  - key="EMAIL_CATEGORY": Categories of emails the user receives. Analyze the types of emails in the received emails and identify distinct categories.
+    * REQUIRED: You MUST extract at least 3-6 email categories based on the types of emails you see.
+    * Default categories to consider (use these as a starting point, but adapt based on what you actually see):
+      - "Newsletters" - Marketing emails, digests, subscriptions
+      - "Sales" - Sales discussions, potential customers, business development
+      - "Partnerships" - Partnership proposals, collaboration requests
+      - "Customer Support" - Support tickets, customer inquiries, help requests
+      - "HR Admin" - HR communications, administrative tasks, internal announcements
+    * Add custom categories based on the user's actual email patterns. Examples:
+      - "GitHub Notifications" - If you see many GitHub-related emails
+      - "Calendar Invites" - If you see many meeting invitations
+      - "Team Updates" - If you see internal team communications
+      - "Client Communications" - If you see client-related emails
+    * Each category should have a clear, descriptive name (2-4 words max)
+    * Include a brief description of what types of emails belong in this category
+    * Format: { "key": "EMAIL_CATEGORY", "value": "Category Name - brief description", "source": "email_analysis" }
+    * Example: { "key": "EMAIL_CATEGORY", "value": "Newsletters - Marketing emails, digests, and subscription content", "source": "email_analysis" }
   - key="OTHER": Only include truly meaningful insights about the user's work patterns, priorities, or professional context that would help prioritize emails or understand their work better. 
     * CRITICAL: DO NOT put anything in OTHER that describes what the user considers urgent or not important - those MUST go in URGENT or NOT_IMPORTANT keys respectively.
     * Examples of what should NOT be in OTHER (should be in URGENT instead):

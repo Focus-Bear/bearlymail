@@ -64,6 +64,8 @@ export interface Email {
     mimeType: string;
     size: number;
   }>;
+  // Email category for grouping (e.g., Newsletters, Sales, Customer Support)
+  category?: string | null;
 }
 
 export interface TriageSuggestion {

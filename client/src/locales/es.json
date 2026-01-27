@@ -490,6 +490,19 @@
       "selected": "{{count}} correo seleccionado",
       "selected_plural": "{{count}} correos seleccionados"
     },
+    "category": {
+      "newsletters": "Boletines",
+      "sales": "Ventas",
+      "partnerships": "Asociaciones",
+      "customerSupport": "Soporte al cliente",
+      "hrAdmin": "Recursos humanos",
+      "other": "Otros",
+      "selectAll": "Seleccionar todo",
+      "deselectAll": "Deseleccionar todo",
+      "archiveAll": "Archivar todo",
+      "archiveAllTooltip": "Archivar todos los correos en esta categoría",
+      "editCategories": "Editar categorías de correo"
+    },
     "checkUrgent": "Verificar urgentes",
     "checkingUrgent": "Verificando...",
     "clickToSetStars": "Haz clic para establecer {{count}} estrellas (o presiona {{count}})",

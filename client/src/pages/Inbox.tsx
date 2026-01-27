@@ -204,6 +204,19 @@ const Inbox: React.FC = () => {
           fetchThreadsWithDrafts={fetchThreadsWithDrafts}
           emailListRef={emailListRef}
           emailDetailRef={emailDetailRef}
+          onBulkArchive={emailActions.handleBulkArchive}
+          onBulkSelect={(emailIds: string[]) => {
+            setSelectedEmailIds(prev => {
+              const next = new Set(prev);
+              const allSelected = emailIds.every(id => next.has(id));
+              if (allSelected) {
+                emailIds.forEach(id => next.delete(id));
+              } else {
+                emailIds.forEach(id => next.add(id));
+              }
+              return next;
+            });
+          }}
           onSplitViewArchive={(archivedEmailId) => {
             console.log('%c[SPLIT VIEW ARCHIVE] onSplitViewArchive callback triggered!', 'background: cyan; color: black; font-size: 20px;');
             console.log('[SplitViewArchive] Archived email ID:', archivedEmailId);

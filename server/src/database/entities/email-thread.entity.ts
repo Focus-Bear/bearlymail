@@ -146,6 +146,15 @@ export class EmailThread {
   @Column({ type: "timestamp", nullable: true })
   snoozeUntil: Date | null;
 
+  @Column({
+    type: "varchar",
+    length: 100,
+    nullable: true,
+    comment:
+      "Email category for grouping (e.g., Newsletters, Customer Support)",
+  })
+  category: string | null;
+
   @ManyToOne(() => User)
   @JoinColumn({ name: "userId" })
   user: User;

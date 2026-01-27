@@ -246,14 +246,15 @@ export class EmailsService {
     // Filter out batched emails that haven't been released yet (isBatched = true AND batchReleaseAt > NOW())
     const rawEmails = await this.emailRepository.query(
       `SELECT
-        thread."starCount",
-        thread."isArchived",
-        thread."urgencyScore",
-        thread."priorityExplanation",
-        thread."priorityScore",
-        thread."isProcessingPriority",
-        thread."githubMetadata",
-        thread."updatedAt" as "threadUpdatedAt",
+            thread."starCount",
+            thread."isArchived",
+            thread."urgencyScore",
+            thread."priorityExplanation",
+            thread."priorityScore",
+            thread."isProcessingPriority",
+            thread."githubMetadata",
+            thread."category",
+            thread."updatedAt" as "threadUpdatedAt",
         e.id,
         e."userId",
         e."threadId",
@@ -428,6 +429,7 @@ export class EmailsService {
         urgencyScore: row.urgencyScore,
         githubMetadata: row.githubMetadata || null,
         threadUpdatedAt: row.threadUpdatedAt,
+        category: row.category || null,
       } as unknown as Email;
     });
 

@@ -35,6 +35,7 @@ export class PriorityAnalysisService {
       goals?: Array<{ value: string; priority?: number }>;
       workingOn?: Array<{ value: string; priority?: number }>;
       dontCare?: Array<{ value: string }>;
+      emailCategories?: Array<{ name: string; description?: string }>;
     },
     threadInfo?: {
       daysSinceLastReply?: number;
@@ -54,6 +55,7 @@ export class PriorityAnalysisService {
     sentimentScore: number;
     goalAlignmentScore: number;
     goalAlignmentExplanation: string;
+    category: string;
     reasoning: string;
   }> {
     // Defensive cleaning in case body wasn't pre-cleaned by caller
@@ -103,6 +105,7 @@ export class PriorityAnalysisService {
             goalAlignmentExplanation:
               parsed.goalAlignmentExplanation ||
               "No goal alignment explanation provided",
+            category: parsed.category || "Other",
             reasoning: parsed.reasoning || "No reasoning provided",
           };
         }
@@ -119,6 +122,7 @@ export class PriorityAnalysisService {
         sentimentScore: 0,
         goalAlignmentScore: 0,
         goalAlignmentExplanation: "No goal alignment detected",
+        category: "Other",
         reasoning: response.substring(0, QUERY_LIMITS.LLM_REASONING_MAX_LENGTH),
       };
     }
@@ -174,6 +178,16 @@ export class PriorityAnalysisService {
         ? userContext.dontCare.map((item) => `- ${item.value}`).join("\n")
         : "";
 
+    const emailCategoriesText =
+      userContext?.emailCategories && userContext.emailCategories.length > 0
+        ? userContext.emailCategories
+            .map(
+              (cat) =>
+                `   - "${cat.name}"${cat.description ? `: ${cat.description}` : ""}`,
+            )
+            .join("\n")
+        : "";
+
     // Format thread info for prompt
     const threadInfoText = threadInfo
       ? `\nThread Information:\n${threadInfo.daysSinceLastReply !== undefined ? `- Days since last reply: ${threadInfo.daysSinceLastReply}` : ""}${threadInfo.userShouldReply !== undefined ? `\n- User should reply: ${threadInfo.userShouldReply ? "Yes" : "No"}` : ""}${threadInfo.lastReplyFrom ? `\n- Last reply from: ${threadInfo.lastReplyFrom}` : ""}`
@@ -222,6 +236,7 @@ export class PriorityAnalysisService {
       goalsContext: goalsContextText,
       workingOnContext: workingOnContextText,
       dontCareContext: dontCareContextText,
+      emailCategories: emailCategoriesText,
       threadInfo: threadInfoText,
       threadContext: threadContextText,
     });
@@ -260,6 +275,7 @@ export class PriorityAnalysisService {
           goalAlignmentExplanation:
             parsed.goalAlignmentExplanation ||
             "No goal alignment explanation provided",
+          category: parsed.category || "Other",
           reasoning: parsed.reasoning || "No reasoning provided",
         };
       }
@@ -279,9 +295,9 @@ export class PriorityAnalysisService {
       urgencyScore,
       urgencyExplanation,
       sentimentScore: 0,
-      // Neutral as fallback
       goalAlignmentScore: 0,
       goalAlignmentExplanation: "No goal alignment detected",
+      category: "Other",
       reasoning: response.substring(0, QUERY_LIMITS.LLM_REASONING_MAX_LENGTH),
     };
   }

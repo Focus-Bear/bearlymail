@@ -191,6 +191,19 @@
       "markAsRead": "Mark as read",
       "markAsUnread": "Mark as unread",
       "archive": "Archive"
+    },
+    "category": {
+      "newsletters": "Newsletters",
+      "sales": "Sales",
+      "partnerships": "Partnerships",
+      "customerSupport": "Customer Support",
+      "hrAdmin": "HR Admin",
+      "other": "Other",
+      "selectAll": "Select All",
+      "deselectAll": "Deselect All",
+      "archiveAll": "Archive All",
+      "archiveAllTooltip": "Archive all emails in this category",
+      "editCategories": "Edit email categories"
     }
   },
       "emailDetail": {

@@ -181,3 +181,130 @@ export function getErrorMessage(error: unknown): string {
   }
   return "Unknown error";
 }
+
+/**
+ * Gaxios error structure (Google API client errors)
+ */
+export interface GaxiosErrorDetails {
+  status?: number;
+  statusText?: string;
+  message?: string;
+  errorMessage?: string;
+  errorReason?: string;
+  errorDomain?: string;
+  responseData?: unknown;
+  requestUrl?: string;
+  requestMethod?: string;
+}
+
+/**
+ * Type guard to check if error is a Gaxios error (Google API client error)
+ */
+export function isGaxiosError(error: unknown): error is {
+  response?: { status?: number; statusText?: string; data?: unknown };
+  config?: { url?: string; method?: string };
+  message?: string;
+} {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "response" in error &&
+    typeof (error as { response?: unknown }).response === "object"
+  );
+}
+
+/**
+ * Extract detailed error information from Gaxios/Google API errors
+ * This is useful for debugging Gmail API errors which often have empty messages
+ * but contain useful info in response.data
+ */
+export function getGaxiosErrorDetails(error: unknown): GaxiosErrorDetails {
+  const details: GaxiosErrorDetails = {};
+
+  if (!isGaxiosError(error)) {
+    // Not a Gaxios error, return basic info
+    if (isError(error)) {
+      details.message = error.message;
+    } else if (typeof error === "string") {
+      details.message = error;
+    }
+    return details;
+  }
+
+  // Extract response info
+  if (error.response) {
+    details.status = error.response.status;
+    details.statusText = error.response.statusText;
+    details.responseData = error.response.data;
+
+    // Try to extract error message from response data
+    const data = error.response.data as {
+      error?: {
+        message?: string;
+        code?: number;
+        errors?: Array<{ message?: string; reason?: string; domain?: string }>;
+      };
+    };
+    if (data?.error) {
+      details.errorMessage = data.error.message;
+      if (data.error.errors && data.error.errors.length > 0) {
+        details.errorReason = data.error.errors[0].reason;
+        details.errorDomain = data.error.errors[0].domain;
+      }
+    }
+  }
+
+  // Extract request info
+  if (error.config) {
+    details.requestUrl = error.config.url;
+    details.requestMethod = error.config.method;
+  }
+
+  // Include the error message if present
+  if (error.message) {
+    details.message = error.message;
+  }
+
+  return details;
+}
+
+/**
+ * Format Gaxios error details into a human-readable string for logging
+ */
+export function formatGaxiosError(error: unknown): string {
+  const details = getGaxiosErrorDetails(error);
+
+  const parts: string[] = [];
+
+  if (details.status) {
+    parts.push(`HTTP ${details.status}`);
+    if (details.statusText) {
+      parts.push(`(${details.statusText})`);
+    }
+  }
+
+  if (details.errorMessage) {
+    parts.push(`- ${details.errorMessage}`);
+  } else if (details.message) {
+    parts.push(`- ${details.message}`);
+  }
+
+  if (details.errorReason) {
+    parts.push(`[reason: ${details.errorReason}]`);
+  }
+
+  if (details.requestUrl) {
+    parts.push(`| URL: ${details.requestUrl}`);
+  }
+
+  if (parts.length === 0) {
+    // Fallback: stringify the whole error
+    try {
+      return JSON.stringify(error, Object.getOwnPropertyNames(error));
+    } catch {
+      return "Unknown error (could not stringify)";
+    }
+  }
+
+  return parts.join(" ");
+}

@@ -7,7 +7,11 @@ import {
 } from "../emails/interfaces/email-provider.interface";
 import { GmailProvider } from "../emails/providers/gmail.provider";
 import { GMAIL_LABELS } from "../constants/email-labels";
-import { getErrorMessage } from "../types/common";
+import {
+  getErrorMessage,
+  formatGaxiosError,
+  getGaxiosErrorDetails,
+} from "../types/common";
 import { google, gmail_v1 } from "googleapis";
 
 export interface ThreadEmail {
@@ -357,27 +361,43 @@ export class ContextEmailDataService {
     let pageCount = 0;
     const maxPages = 10;
 
-    do {
-      const response = await gmail.users.threads.list({
-        userId: "me",
-        maxResults: 400,
-        q: gmailQuery,
-        pageToken: nextPageToken,
-      });
+    try {
+      do {
+        const response = await gmail.users.threads.list({
+          userId: "me",
+          maxResults: 400,
+          q: gmailQuery,
+          pageToken: nextPageToken,
+        });
 
-      const threads = response.data.threads || [];
-      allThreadIds.push(...threads.map((thread: { id: string }) => thread.id));
-      const { nextPageToken: newNextPageToken } = response.data;
-      nextPageToken = newNextPageToken || undefined;
-      pageCount++;
-
-      if (pageCount >= maxPages) {
-        this.logger.log(
-          `[CONTEXT-ANALYSIS] Reached max pages (${maxPages}), stopping pagination`,
+        const threads = response.data.threads || [];
+        allThreadIds.push(
+          ...threads.map((thread: { id: string }) => thread.id),
         );
-        break;
-      }
-    } while (nextPageToken && allThreadIds.length < limit);
+        const { nextPageToken: newNextPageToken } = response.data;
+        nextPageToken = newNextPageToken || undefined;
+        pageCount++;
+
+        if (pageCount >= maxPages) {
+          this.logger.log(
+            `[CONTEXT-ANALYSIS] Reached max pages (${maxPages}), stopping pagination`,
+          );
+          break;
+        }
+      } while (nextPageToken && allThreadIds.length < limit);
+    } catch (error) {
+      // Log detailed error info for Gmail API errors
+      const errorDetails = getGaxiosErrorDetails(error);
+      const formattedError = formatGaxiosError(error);
+      this.logger.error(
+        `[CONTEXT-ANALYSIS] Gmail API error in getThreadIdsFromGmail: ${formattedError}`,
+      );
+      this.logger.error(
+        `[CONTEXT-ANALYSIS] Gmail API error details: ${JSON.stringify(errorDetails)}`,
+      );
+      // Re-throw with more context
+      throw new Error(`Gmail API error fetching thread IDs: ${formattedError}`);
+    }
 
     // Limit to requested number of threads
     allThreadIds = allThreadIds.slice(0, limit);
@@ -437,29 +457,45 @@ export class ContextEmailDataService {
       let sentPageCount = 0;
       const maxPages = 10;
 
-      do {
-        const sentResponse = await gmail.users.threads.list({
-          userId: "me",
-          maxResults: 100,
-          q: sentGmailQuery,
-          pageToken: sentNextPageToken,
-        });
+      try {
+        do {
+          const sentResponse = await gmail.users.threads.list({
+            userId: "me",
+            maxResults: 100,
+            q: sentGmailQuery,
+            pageToken: sentNextPageToken,
+          });
 
-        const threads = sentResponse.data.threads || [];
-        allSentThreadIds.push(
-          ...threads.map((thread: { id: string }) => thread.id),
+          const threads = sentResponse.data.threads || [];
+          allSentThreadIds.push(
+            ...threads.map((thread: { id: string }) => thread.id),
+          );
+          sentNextPageToken = sentResponse.data.nextPageToken;
+          sentPageCount++;
+
+          this.logger.log(
+            `[CONTEXT-ANALYSIS] Gmail sent threads page ${sentPageCount}: found ${threads.length} threads (total so far: ${allSentThreadIds.length})`,
+          );
+
+          // Stop when we have enough threads
+          if (allSentThreadIds.length >= limit) break;
+          if (sentPageCount >= maxPages) break; // Max 10 pages
+        } while (sentNextPageToken && allSentThreadIds.length < limit);
+      } catch (error) {
+        // Log detailed error info for Gmail API errors
+        const errorDetails = getGaxiosErrorDetails(error);
+        const formattedError = formatGaxiosError(error);
+        this.logger.error(
+          `[CONTEXT-ANALYSIS] Gmail API error in getSentThreadIds: ${formattedError}`,
         );
-        sentNextPageToken = sentResponse.data.nextPageToken;
-        sentPageCount++;
-
-        this.logger.log(
-          `[CONTEXT-ANALYSIS] Gmail sent threads page ${sentPageCount}: found ${threads.length} threads (total so far: ${allSentThreadIds.length})`,
+        this.logger.error(
+          `[CONTEXT-ANALYSIS] Gmail API error details: ${JSON.stringify(errorDetails)}`,
         );
-
-        // Stop when we have enough threads
-        if (allSentThreadIds.length >= limit) break;
-        if (sentPageCount >= maxPages) break; // Max 10 pages
-      } while (sentNextPageToken && allSentThreadIds.length < limit);
+        // Re-throw with more context
+        throw new Error(
+          `Gmail API error fetching sent thread IDs: ${formattedError}`,
+        );
+      }
 
       // Limit to requested number of sent threads
       allSentThreadIds = allSentThreadIds.slice(0, limit);

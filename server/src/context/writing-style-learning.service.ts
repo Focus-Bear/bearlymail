@@ -13,6 +13,18 @@ const MAX_EXAMPLES_PER_SYNC = 3;
 const MIN_EMAIL_LENGTH = 50;
 // Max email length for examples
 const MAX_EMAIL_LENGTH = 500;
+/**
+ * Check if a rule is an email example.
+ * Email examples are rules that don't start with known prefixes like "Tone:", "Style:", or "Common phrase:".
+ * This includes both rules with "Example:" prefix and legacy rules without any prefix.
+ */
+function isEmailExample(rule: string): boolean {
+  return (
+    !rule.startsWith("Tone:") &&
+    !rule.startsWith("Style:") &&
+    !rule.startsWith("Common phrase:")
+  );
+}
 
 @Injectable()
 export class WritingStyleLearningService {
@@ -46,9 +58,10 @@ export class WritingStyleLearningService {
 
       const existingRules = user.toneSettings?.rules || [];
 
-      // Count existing email examples (rules starting with "Example:")
+      // Count existing email examples (rules that are not Tone/Style/Common phrase)
+      // This includes both "Example:" prefixed rules and legacy rules without prefix
       const existingExamples = existingRules.filter((rule: string) =>
-        rule.startsWith("Example:"),
+        isEmailExample(rule),
       );
 
       // If we already have enough examples, skip
@@ -254,9 +267,10 @@ export class WritingStyleLearningService {
       }
 
       const existingRules = user.toneSettings?.rules || [];
-      // Count existing email examples (rules starting with "Example:")
+      // Count existing email examples (rules that are not Tone/Style/Common phrase)
+      // This includes both "Example:" prefixed rules and legacy rules without prefix
       const existingExamples = existingRules.filter((rule: string) =>
-        rule.startsWith("Example:"),
+        isEmailExample(rule),
       );
 
       if (existingExamples.length >= TARGET_EXAMPLE_COUNT) {
@@ -350,9 +364,10 @@ export class WritingStyleLearningService {
       return 0;
     }
 
-    // Count rules starting with "Example:"
+    // Count email examples (rules that are not Tone/Style/Common phrase)
+    // This includes both "Example:" prefixed rules and legacy rules without prefix
     return user.toneSettings.rules.filter((rule: string) =>
-      rule.startsWith("Example:"),
+      isEmailExample(rule),
     ).length;
   }
 }

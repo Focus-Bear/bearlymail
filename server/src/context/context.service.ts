@@ -4058,12 +4058,38 @@ export class ContextService {
         // Merge with existing user rules (don't overwrite manual additions)
         const user = await this.usersService.findOne(userId);
         const existingRules = user?.toneSettings?.rules || [];
-        // Add new rules, avoiding duplicates, limit to 20 total
+
+        // Helper to check if a rule is an email example (not Tone/Style/Common phrase)
+        const isEmailExample = (rule: string) =>
+          !rule.startsWith("Tone:") &&
+          !rule.startsWith("Style:") &&
+          !rule.startsWith("Common phrase:");
+
+        // Count existing email examples (includes both "Example:" prefixed and legacy rules without prefix)
+        const existingExampleCount = existingRules.filter((rule: string) =>
+          isEmailExample(rule),
+        ).length;
+
+        // Add new rules, avoiding duplicates
         const newRules = writingStyleRules.filter(
           (rule) =>
             !existingRules.some((existing: string) => existing === rule),
         );
-        const mergedRules = [...existingRules, ...newRules].slice(0, 20);
+
+        // Separate new rules into examples and non-examples
+        const newExamples = newRules.filter((rule) => isEmailExample(rule));
+        const newNonExamples = newRules.filter((rule) => !isEmailExample(rule));
+
+        // Limit new examples to not exceed 20 total email examples
+        const maxNewExamples = Math.max(0, 20 - existingExampleCount);
+        const limitedNewExamples = newExamples.slice(0, maxNewExamples);
+
+        // Merge: existing rules + non-example rules + limited examples
+        const mergedRules = [
+          ...existingRules,
+          ...newNonExamples,
+          ...limitedNewExamples,
+        ];
 
         await this.usersService.update(userId, {
           toneSettings: { rules: mergedRules },

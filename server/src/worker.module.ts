@@ -44,6 +44,7 @@ import { ContextFinalizationProcessor } from "./context/context-finalization.pro
 import { WritingStyleLearningProcessor } from "./context/writing-style-learning.processor";
 import { WritingStyleLearningService } from "./context/writing-style-learning.service";
 import { ArchiveEmailProcessor } from "./emails/archive-email.processor";
+import { SnoozeProcessor } from "./snooze/snooze.processor";
 
 // Services needed by processors
 import { EmailsService } from "./emails/emails.service";
@@ -190,6 +191,7 @@ import { BlockedKeywordsService } from "./blocked-keywords/blocked-keywords.serv
     WritingStyleLearningService,
     WritingStyleLearningProcessor,
     ArchiveEmailProcessor,
+    SnoozeProcessor,
   ],
 })
 export class WorkerModule {}

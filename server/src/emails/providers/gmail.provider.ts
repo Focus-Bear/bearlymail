@@ -2584,7 +2584,8 @@ export class GmailProvider implements EmailProvider {
   }
 
   /**
-   * Snooze a thread by adding the SnoozedBearlyMail label to all messages
+   * Snooze a thread by adding the SnoozedBearlyMail label and removing INBOX label from all messages
+   * This hides the thread from the inbox in Gmail until it's unsnoozed
    */
   async snoozeThread(
     userId: string,
@@ -2638,7 +2639,7 @@ export class GmailProvider implements EmailProvider {
         `[Gmail Snooze] Snooze label ID: ${snoozeLabelId} for userId=${userId}`,
       );
 
-      // Add the snooze label to all messages in the thread
+      // Add the snooze label and remove INBOX label from all messages in the thread
       // Gmail requires modifying individual messages, not threads
       let labeledCount = 0;
       for (const message of messages) {
@@ -2646,14 +2647,27 @@ export class GmailProvider implements EmailProvider {
 
         const messageLabelIds = message.labelIds || [];
         const isCurrentlySnoozed = messageLabelIds.includes(snoozeLabelId);
+        const hasInboxLabel = messageLabelIds.includes("INBOX");
 
-        // Only add label if it's not already present
+        // Build the modification request
+        const addLabelIds: string[] = [];
+        const removeLabelIds: string[] = [];
+
         if (!isCurrentlySnoozed) {
+          addLabelIds.push(snoozeLabelId);
+        }
+        if (hasInboxLabel) {
+          removeLabelIds.push("INBOX");
+        }
+
+        // Only make API call if there are changes to make
+        if (addLabelIds.length > 0 || removeLabelIds.length > 0) {
           await gmail.users.messages.modify({
             userId: "me",
             id: message.id,
             requestBody: {
-              addLabelIds: [snoozeLabelId],
+              ...(addLabelIds.length > 0 && { addLabelIds }),
+              ...(removeLabelIds.length > 0 && { removeLabelIds }),
             },
           });
           labeledCount++;
@@ -2661,7 +2675,7 @@ export class GmailProvider implements EmailProvider {
       }
 
       this.logger.log(
-        `[Gmail Snooze] Thread snoozed successfully: userId=${userId}, threadId=${threadId}, labeledCount=${labeledCount}`,
+        `[Gmail Snooze] Thread snoozed successfully: userId=${userId}, threadId=${threadId}, labeledCount=${labeledCount}, removedInboxLabel=true`,
       );
     } catch (error: unknown) {
       this.logger.error(
@@ -2678,7 +2692,8 @@ export class GmailProvider implements EmailProvider {
   }
 
   /**
-   * Unsnooze a thread by removing the SnoozedBearlyMail label from all messages
+   * Unsnooze a thread by removing the SnoozedBearlyMail label and adding INBOX label back to all messages
+   * This restores the thread to the inbox in Gmail
    */
   async unsnoozeThread(userId: string, threadId: string): Promise<void> {
     this.logger.log(
@@ -2732,29 +2747,35 @@ export class GmailProvider implements EmailProvider {
         }
       }
 
-      if (!snoozeLabelId) {
-        this.logger.log(
-          `[Gmail Unsnooze] Snooze label not found, thread may not be snoozed: userId=${userId}, threadId=${threadId}`,
-        );
-        // Label doesn't exist, so thread is already unsnoozed - this is fine
-        return;
-      }
-
-      // Remove the snooze label from all messages in the thread
+      // Remove the snooze label and add INBOX label back to all messages in the thread
       let unlabeledCount = 0;
       for (const message of messages) {
         if (!message.id) continue;
 
         const messageLabelIds = message.labelIds || [];
-        const isCurrentlySnoozed = messageLabelIds.includes(snoozeLabelId);
+        const isCurrentlySnoozed =
+          snoozeLabelId && messageLabelIds.includes(snoozeLabelId);
+        const hasInboxLabel = messageLabelIds.includes("INBOX");
 
-        // Only remove label if it's present
+        // Build the modification request
+        const addLabelIds: string[] = [];
+        const removeLabelIds: string[] = [];
+
         if (isCurrentlySnoozed) {
+          removeLabelIds.push(snoozeLabelId);
+        }
+        if (!hasInboxLabel) {
+          addLabelIds.push("INBOX");
+        }
+
+        // Only make API call if there are changes to make
+        if (addLabelIds.length > 0 || removeLabelIds.length > 0) {
           await gmail.users.messages.modify({
             userId: "me",
             id: message.id,
             requestBody: {
-              removeLabelIds: [snoozeLabelId],
+              ...(addLabelIds.length > 0 && { addLabelIds }),
+              ...(removeLabelIds.length > 0 && { removeLabelIds }),
             },
           });
           unlabeledCount++;
@@ -2762,7 +2783,7 @@ export class GmailProvider implements EmailProvider {
       }
 
       this.logger.log(
-        `[Gmail Unsnooze] Thread unsnoozed successfully: userId=${userId}, threadId=${threadId}, unlabeledCount=${unlabeledCount}`,
+        `[Gmail Unsnooze] Thread unsnoozed successfully: userId=${userId}, threadId=${threadId}, unlabeledCount=${unlabeledCount}, restoredInboxLabel=true`,
       );
     } catch (error: unknown) {
       this.logger.error(

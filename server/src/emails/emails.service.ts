@@ -1253,6 +1253,9 @@ export class EmailsService {
       // Cancel snooze for any snoozed emails in this thread when a new email arrives
       // This ensures users see replies immediately instead of waiting for snooze to expire
       try {
+        // Check if thread is snoozed (thread-level snooze takes precedence)
+        const isThreadSnoozed = thread.isSnoozed;
+
         const snoozedEmailsInThread = await this.emailRepository.find({
           where: {
             emailThreadId: thread.id,
@@ -1261,21 +1264,35 @@ export class EmailsService {
           },
         });
 
-        if (snoozedEmailsInThread.length > 0) {
-          await this.emailRepository.update(
-            {
-              emailThreadId: thread.id,
-              userId,
-              isSnoozed: true,
-            },
-            {
-              isSnoozed: false,
-              snoozeUntil: null,
-            },
-          );
-          this.logger.log(
-            `Cancelled snooze for ${snoozedEmailsInThread.length} email(s) in thread ${thread.id} due to new reply`,
-          );
+        if (isThreadSnoozed || snoozedEmailsInThread.length > 0) {
+          // Update thread-level snooze status
+          if (isThreadSnoozed) {
+            await this.emailThreadRepository.update(
+              { id: thread.id },
+              { isSnoozed: false, snoozeUntil: null },
+            );
+            this.logger.log(
+              `Cancelled thread-level snooze for thread ${thread.id} due to new reply`,
+            );
+          }
+
+          // Update email-level snooze status for backward compatibility
+          if (snoozedEmailsInThread.length > 0) {
+            await this.emailRepository.update(
+              {
+                emailThreadId: thread.id,
+                userId,
+                isSnoozed: true,
+              },
+              {
+                isSnoozed: false,
+                snoozeUntil: null,
+              },
+            );
+            this.logger.log(
+              `Cancelled snooze for ${snoozedEmailsInThread.length} email(s) in thread ${thread.id} due to new reply`,
+            );
+          }
 
           // Also sync the unsnooze to the email provider (Gmail, Office365, etc.)
           // Use the first snoozed email's threadId for the provider sync

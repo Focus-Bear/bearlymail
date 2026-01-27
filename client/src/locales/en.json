@@ -715,27 +715,222 @@
     "articles": {
       "context": {
         "title": "Context About Me",
-        "description": "Learn how to provide context to help BearlyMail understand your priorities and preferences."
+        "description": "Learn how to provide context to help BearlyMail understand your priorities and preferences.",
+        "content": {
+          "section0": {
+            "title": "Why Context Matters",
+            "content": "BearlyMail uses AI to prioritize your emails and help you focus on what matters most. By providing context about yourself, your work, and your preferences, you help the AI make better decisions about which emails need your immediate attention and which can wait."
+          },
+          "section1": {
+            "title": "VIP Contacts",
+            "content": "Add people whose emails should always be treated as high priority. This could include your manager, key clients, family members, or anyone whose messages you never want to miss. Emails from VIP contacts will be prioritized higher in your inbox."
+          },
+          "section2": {
+            "title": "Info About Me",
+            "content": "Share information about your role, responsibilities, and work context. For example, if you're a product manager working on a mobile app launch, the AI will better understand which emails relate to your core responsibilities."
+          },
+          "section3": {
+            "title": "Current Projects & Topics",
+            "content": "List the projects, topics, or initiatives you're currently focused on. Emails related to these topics will be prioritized accordingly. Update this list as your priorities change."
+          },
+          "section4": {
+            "title": "What I Consider Urgent",
+            "content": "Define what urgency means to you. This could include specific keywords, types of requests, or situations that require immediate attention. The AI uses this to identify truly urgent emails that should break through batching."
+          },
+          "section5": {
+            "title": "What I Don't Consider Important",
+            "content": "Specify types of emails that are low priority for you. This might include newsletters, marketing emails, or certain types of notifications. These emails will be deprioritized in your inbox."
+          },
+          "section6": {
+            "title": "Tips for Better Context",
+            "item0": "Be specific - instead of 'work emails', say 'emails about the Q1 product launch'",
+            "item1": "Update your context regularly as your priorities change",
+            "item2": "Use the 'Analyze Emails' feature to let BearlyMail learn from your email history",
+            "item3": "Review and adjust VIP contacts based on who you actually respond to quickly"
+          }
+        }
       },
       "triage": {
         "title": "Triage Tab",
-        "description": "Understand how to quickly sort through new emails in the Triage tab."
+        "description": "Understand how to quickly sort through new emails in the Triage tab.",
+        "content": {
+          "section0": {
+            "title": "What is the Triage Tab?",
+            "content": "The Triage tab is where new emails arrive for quick decision-making. Instead of letting emails pile up in a traditional inbox, BearlyMail delivers them in batches so you can efficiently decide what to do with each one without constant interruptions."
+          },
+          "section1": {
+            "title": "How Email Batching Works",
+            "content": "New emails are collected and delivered at scheduled times throughout the day based on your settings. This prevents the constant distraction of incoming emails and lets you focus on deep work. Truly urgent emails can still break through batching when needed."
+          },
+          "section2": {
+            "title": "Priority Scoring",
+            "content": "Each email in Triage is assigned a priority score from 0-100 based on the sender, subject, content, and your context settings. Higher scores indicate more important emails. You can click on the priority score to see why it was assigned and provide feedback to improve future scoring."
+          },
+          "section3": {
+            "title": "Quick Actions",
+            "content": "For each email in Triage, you can quickly star it (to move it to Process for later action), archive it, snooze it for later, or open it to read and reply. Use keyboard shortcuts for even faster processing."
+          },
+          "section4": {
+            "title": "Starring Emails",
+            "content": "When you star an email, it moves to the Process tab where you can give it your full attention. Use stars for emails that need a thoughtful response or action. You can use 1-5 stars to indicate different priority levels."
+          },
+          "section5": {
+            "title": "Tips for Efficient Triage",
+            "item0": "Process emails in batches rather than one at a time throughout the day",
+            "item1": "Use keyboard shortcuts: Delete to archive, 1-5 for stars",
+            "item2": "Don't overthink - make quick decisions and move on",
+            "item3": "Star anything that needs more than 2 minutes of attention"
+          }
+        }
       },
       "process": {
         "title": "Process Tab",
-        "description": "Learn how to work through starred emails that need action in the Process tab."
+        "description": "Learn how to work through starred emails that need action in the Process tab.",
+        "content": {
+          "section0": {
+            "title": "What is the Process Tab?",
+            "content": "The Process tab is your focused workspace for emails that need thoughtful attention. When you star an email in Triage, it moves here so you can deal with it properly without the distraction of other incoming emails."
+          },
+          "section1": {
+            "title": "Working Through Starred Emails",
+            "content": "Emails in the Process tab are sorted by their star rating and priority score. Work through them one at a time, giving each email the attention it deserves. Once you've replied or taken action, archive the email to remove it from your list."
+          },
+          "section2": {
+            "title": "AI-Powered Summaries",
+            "content": "For each email, BearlyMail can generate AI summaries to help you quickly understand the content. Choose from TL;DR, bullet points, action items, or sender request summaries. You can also create custom summarization rules for specific types of emails."
+          },
+          "section3": {
+            "title": "Drafting Replies",
+            "content": "Use the reply composer to draft your response. BearlyMail includes a tone checker that reviews your draft against your writing preferences and suggests improvements. You can also get AI-suggested replies to help you get started."
+          },
+          "section4": {
+            "title": "Action Items",
+            "content": "The AI can extract action items from emails, helping you identify what needs to be done. You can add your own tasks, mark items as complete, and keep track of what you've committed to."
+          },
+          "section5": {
+            "title": "Tips for Effective Processing",
+            "item0": "Set aside dedicated time blocks for processing emails",
+            "item1": "Use AI summaries to quickly understand long email threads",
+            "item2": "Archive emails immediately after taking action",
+            "item3": "Use the tone checker before sending important replies"
+          }
+        }
       },
       "followUp": {
         "title": "Follow Up Tab",
-        "description": "Discover how to manage and send follow-up emails to conversations waiting for responses."
+        "description": "Discover how to manage and send follow-up emails to conversations waiting for responses.",
+        "content": {
+          "section0": {
+            "title": "What is the Follow Up Tab?",
+            "content": "The Follow Up tab helps you track conversations where you're waiting for a response. When you send an email and expect a reply, BearlyMail monitors the thread and reminds you to follow up if you haven't heard back."
+          },
+          "section1": {
+            "title": "Setting Follow-Up Expectations",
+            "content": "When sending a reply, you can specify when you expect to hear back. Options include hours, days, or a custom timeframe. If no response arrives by that time, the conversation appears in your Follow Up tab."
+          },
+          "section2": {
+            "title": "Managing Pending Follow-Ups",
+            "content": "The Follow Up tab shows all conversations awaiting responses, sorted by how long you've been waiting. You can see who you're waiting on, when you last sent a message, and how many days have passed since their last response."
+          },
+          "section3": {
+            "title": "Generating Follow-Up Messages",
+            "content": "BearlyMail can generate follow-up messages for you using AI. Click 'Generate Follow-ups' to create draft messages for all pending conversations, or generate them individually. Review and customize each draft before sending."
+          },
+          "section4": {
+            "title": "Bulk Follow-Up Actions",
+            "content": "For efficiency, you can send multiple follow-up emails at once. Select the conversations you want to follow up on, review the generated drafts, and send them in bulk. This is especially useful for sales or outreach workflows."
+          },
+          "section5": {
+            "title": "Tips for Effective Follow-Ups",
+            "item0": "Set realistic follow-up expectations based on the urgency of your request",
+            "item1": "Review AI-generated follow-ups before sending to ensure they're appropriate",
+            "item2": "Don't follow up too aggressively - space out your reminders",
+            "item3": "Remove conversations from follow-up if they're no longer relevant"
+          }
+        }
       },
       "search": {
         "title": "Search",
-        "description": "Master the search functionality to quickly find emails using natural language or Gmail syntax."
+        "description": "Master the search functionality to quickly find emails using natural language or Gmail syntax.",
+        "content": {
+          "section0": {
+            "title": "Searching Your Emails",
+            "content": "BearlyMail's search feature lets you quickly find any email using natural language questions or traditional Gmail search syntax. The AI understands what you're looking for and returns the most relevant results."
+          },
+          "section1": {
+            "title": "Natural Language Search",
+            "content": "Simply type what you're looking for in plain English. For example, 'emails from John about the budget' or 'meeting invites from last week'. The AI interprets your query and finds matching emails."
+          },
+          "section2": {
+            "title": "Gmail Search Syntax",
+            "content": "You can also use Gmail's powerful search operators for precise queries. Common operators include from:, to:, subject:, has:attachment, before:, after:, and more. Combine multiple operators for complex searches."
+          },
+          "section3": {
+            "title": "Search Operators Reference",
+            "item0": "from:name - Emails from a specific sender",
+            "item1": "to:name - Emails sent to a specific recipient",
+            "item2": "subject:text - Emails with specific words in the subject",
+            "item3": "has:attachment - Emails with attachments",
+            "item4": "before:date / after:date - Emails before or after a date",
+            "item5": "is:starred - Starred emails only"
+          },
+          "section4": {
+            "title": "Search Results",
+            "content": "Search results are ranked by relevance, with a score showing how well each email matches your query. Recent emails get a slight boost in ranking. Click on any result to view the full email."
+          },
+          "section5": {
+            "title": "Tips for Better Searches",
+            "item0": "Start with natural language - it's often faster than building complex queries",
+            "item1": "Use quotes for exact phrase matching: \"project proposal\"",
+            "item2": "Combine operators: from:john subject:budget after:2024/01/01",
+            "item3": "Use the search help button for a quick reference of available operators"
+          }
+        }
       },
       "settings": {
         "title": "Settings",
-        "description": "Configure email delivery, AI preferences, and integrations to customize your BearlyMail experience."
+        "description": "Configure email delivery, AI preferences, and integrations to customize your BearlyMail experience.",
+        "content": {
+          "section0": {
+            "title": "Settings Overview",
+            "content": "The Settings page lets you customize every aspect of your BearlyMail experience. From email delivery schedules to AI behavior, you have full control over how BearlyMail works for you."
+          },
+          "section1": {
+            "title": "Email Delivery & Batching",
+            "content": "Control when and how often emails are delivered to your inbox. Set batch delivery times, configure quiet hours when no emails should be delivered, and choose how many times per day you want to receive email batches."
+          },
+          "section2": {
+            "title": "Google Accounts",
+            "content": "Connect and manage your Gmail accounts. You can link multiple accounts and BearlyMail will sync emails from all of them. If sync issues occur, you can reconnect your account from here."
+          },
+          "section3": {
+            "title": "Blocked Senders",
+            "content": "Manage your list of blocked senders. Emails from blocked addresses are automatically archived and won't appear in your Triage. You can also unsubscribe from mailing lists directly."
+          },
+          "section4": {
+            "title": "Guide Our AI",
+            "content": "This is where you provide context about yourself to help the AI prioritize your emails. Add VIP contacts, describe your current projects, define what's urgent to you, and specify what's not important."
+          },
+          "section5": {
+            "title": "Tone Settings",
+            "content": "Configure rules for the tone checker that reviews your email drafts. Add rules like 'Be professional' or 'Avoid passive-aggressive language'. The AI learns from your sent emails to understand your writing style."
+          },
+          "section6": {
+            "title": "Summarization Rules",
+            "content": "Create custom rules for how emails should be summarized. For example, you might want meeting requests summarized as bullet points, or emails from your manager to highlight action items only."
+          },
+          "section7": {
+            "title": "Integrations",
+            "content": "Connect BearlyMail with other services. Add your own OpenAI API key for AI features, connect GitHub to see PR and issue status directly in emails, and more integrations coming soon."
+          },
+          "section8": {
+            "title": "Tips for Optimal Settings",
+            "item0": "Start with 2-3 email batches per day and adjust based on your needs",
+            "item1": "Set quiet hours to match your focus time or after-work hours",
+            "item2": "Regularly update your context as your priorities change",
+            "item3": "Use the tone checker to maintain consistent professional communication"
+          }
+        }
       },
       "autoresponder": {
         "title": "Auto-Responder",

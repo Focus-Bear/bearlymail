@@ -1033,6 +1033,21 @@
       "notImportant": "Add Not Important Item",
       "placeholder": "Enter value..."
     },
+    "contextTypes": {
+      "tooltip": {
+        "vip": "Contacts whose emails should always be prioritized highly",
+        "userInfo": "Information about yourself that helps the AI understand your context",
+        "projects": "Current projects and topics you're working on",
+        "urgent": "Keywords or patterns that indicate an email is urgent to you",
+        "notImportant": "Keywords or patterns that indicate an email is not important to you",
+        "emailCategories": "Custom categories to organize your emails. Learn more: https://docs.focusbear.io/bearlymail/email-categories",
+        "qanda": "Common questions and answers that the auto-responder can use"
+      }
+    },
+    "emailCategories": {
+      "recategorize": "Recategorise emails in Triage",
+      "recategorizing": "Recategorising..."
+    },
     "contextExplanations": {
       "vipContactStarredExplanation": "You've starred {{count}} email{{plural}} from this contact"
     },

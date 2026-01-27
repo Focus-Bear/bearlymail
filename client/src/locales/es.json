@@ -1017,6 +1017,21 @@
       "vip": "Contactos VIP",
       "emailCategories": "Categorías de Correo"
     },
+    "contextTypes": {
+      "tooltip": {
+        "vip": "Contactos cuyos correos electrónicos siempre deben tener alta prioridad",
+        "userInfo": "Información sobre ti que ayuda a la IA a entender tu contexto",
+        "projects": "Proyectos y temas actuales en los que estás trabajando",
+        "urgent": "Palabras clave o patrones que indican que un correo es urgente para ti",
+        "notImportant": "Palabras clave o patrones que indican que un correo no es importante para ti",
+        "emailCategories": "Categorías personalizadas para organizar tus correos. Más información: https://docs.focusbear.io/bearlymail/email-categories",
+        "qanda": "Preguntas y respuestas comunes que el respondedor automático puede usar"
+      }
+    },
+    "emailCategories": {
+      "recategorize": "Recategorizar correos en Triaje",
+      "recategorizing": "Recategorizando..."
+    },
     "created": "Creado {{date}}",
     "delivery": {
       "days": {

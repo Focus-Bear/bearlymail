@@ -179,22 +179,24 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
           >
             {getSelectButtonText()}
           </button>
-          <button
-            onClick={handleArchiveAllClick}
-            style={{
-              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-              borderRadius: theme.borderRadius.sm,
-              border: `1px solid ${theme.colors.border.medium}`,
-              backgroundColor: 'transparent',
-              color: theme.colors.text.secondary,
-              fontSize: theme.typography.fontSize.sm,
-              cursor: 'pointer',
-              transition: theme.transitions.fast,
-            }}
-            title={t('inbox.category.archiveAllTooltip')}
-          >
-            {t('inbox.category.archiveAll')}
-          </button>
+          {allSelected && (
+            <button
+              onClick={handleArchiveAllClick}
+              style={{
+                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                borderRadius: theme.borderRadius.sm,
+                border: `1px solid ${theme.colors.border.medium}`,
+                backgroundColor: 'transparent',
+                color: theme.colors.text.secondary,
+                fontSize: theme.typography.fontSize.sm,
+                cursor: 'pointer',
+                transition: theme.transitions.fast,
+              }}
+              title={t('inbox.category.archiveAllTooltip')}
+            >
+              {t('inbox.category.archiveAll')}
+            </button>
+          )}
         </div>
       </div>
 

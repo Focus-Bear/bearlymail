@@ -1,6 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import axios from 'axios';
 import { ContextSection } from 'components/settings/guide-ai/ContextSection';
+import { theme } from 'theme/theme';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
 interface UserContext {
   contextId: string;
@@ -61,6 +65,18 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
   onEditContextValueChange,
 }) => {
   const { t } = useTranslation();
+  const [isRecategorizing, setIsRecategorizing] = useState(false);
+
+  const handleRecategorize = async () => {
+    setIsRecategorizing(true);
+    try {
+      await axios.post(`${API_URL}/emails/recategorize-triage`);
+    } catch (error) {
+      console.error('Failed to recategorize emails:', error);
+    } finally {
+      setIsRecategorizing(false);
+    }
+  };
 
   const commonProps = {
     contexts,
@@ -77,6 +93,25 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
     onEditContextValueChange,
   };
 
+  const recategorizeButton = (
+    <button
+      onClick={handleRecategorize}
+      disabled={isRecategorizing}
+      style={{
+        marginLeft: 'auto',
+        background: 'transparent',
+        border: 'none',
+        color: theme.colors.accent.warning,
+        cursor: isRecategorizing ? 'not-allowed' : 'pointer',
+        fontSize: theme.typography.fontSize.sm,
+        fontWeight: theme.typography.fontWeight.medium,
+        opacity: isRecategorizing ? 0.6 : 1,
+      }}
+    >
+      {isRecategorizing ? t('settings.emailCategories.recategorizing') : t('settings.emailCategories.recategorize')}
+    </button>
+  );
+
   return (
     <>
       {CONTEXT_SECTIONS.map((config) => {
@@ -84,6 +119,7 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
           ? config.contextKey.join('-') 
           : config.contextKey;
         const key = `context-section-${contextKeyStr}`;
+        const isEmailCategory = contextKeyStr === 'EMAIL_CATEGORY';
         const sectionElement = (
           <ContextSection
             key={key}
@@ -91,6 +127,7 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
             contextKey={config.contextKey}
             addLabel={config.addLabel || (config.addLabelKey ? t(config.addLabelKey) : '')}
             tooltipContent={t(config.tooltipKey)}
+            actionButton={isEmailCategory ? recategorizeButton : undefined}
             {...commonProps}
           />
         );

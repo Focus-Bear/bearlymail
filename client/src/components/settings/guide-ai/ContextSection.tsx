@@ -24,6 +24,7 @@ interface ContextSectionProps {
   contexts: UserContext[];
   addLabel: string;
   tooltipContent?: string;
+  actionButton?: React.ReactNode;
   addingContextType: string | null;
   editingContextId: string | null;
   editContextValue: string;
@@ -43,6 +44,7 @@ export const ContextSection: React.FC<ContextSectionProps> = ({
   contexts,
   addLabel,
   tooltipContent,
+  actionButton,
   addingContextType,
   editingContextId,
   editContextValue,
@@ -74,6 +76,7 @@ export const ContextSection: React.FC<ContextSectionProps> = ({
       }}>
         {title}
         {tooltipContent && <InfoTooltip content={tooltipContent} />}
+        {actionButton}
       </h3>
       
       <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>

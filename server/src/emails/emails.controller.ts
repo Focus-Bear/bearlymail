@@ -643,6 +643,47 @@ export class EmailsController {
     };
   }
 
+  @Post("recategorize-triage")
+  async recategorizeTriageEmails(@Request() req) {
+    const { userId } = req.user;
+    this.logger.log(
+      `[Recategorize] Recategorize triage emails request for userId: ${userId}`,
+    );
+
+    const triageEmails = await this.emailsService.getInbox(
+      userId,
+      false,
+      "triage",
+    );
+
+    if (triageEmails.length === 0) {
+      return { message: "No triage emails to recategorize", queued: 0 };
+    }
+
+    let queued = 0;
+    for (const email of triageEmails) {
+      await this.boss.send(
+        "refine-priority",
+        { userId, emailId: email.id },
+        {
+          priority: getJobPriority("refine-priority", true),
+          singletonKey: `recategorize-${email.id}`,
+          singletonMinutes: 1,
+        },
+      );
+      queued++;
+    }
+
+    this.logger.log(
+      `[Recategorize] Queued ${queued} recategorization jobs for userId: ${userId}`,
+    );
+
+    return {
+      message: `Queued ${queued} emails for recategorization`,
+      queued,
+    };
+  }
+
   @Get("admin/job-stats")
   @UseGuards(JwtAuthGuard, AdminGuard)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

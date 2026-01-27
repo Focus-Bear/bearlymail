@@ -91,14 +91,17 @@ module.exports = (output, context) => {
   // Check if should NOT contain a specific value (can be string or array of strings)
   // Only check VIP_CONTACT items unless specified otherwise
   const shouldNotContainValue = config.shouldNotContainValue;
-  const shouldNotContainInKey = config.shouldNotContainInKey; // Optional: specify which key to check
+  const shouldNotContainInKey = config.shouldNotContainInKey; // Optional: specify which key(s) to check (string or array)
   if (shouldNotContainValue) {
     const forbiddenValues = Array.isArray(shouldNotContainValue) ? shouldNotContainValue : [shouldNotContainValue];
     for (const forbiddenValue of forbiddenValues) {
       // By default, only check VIP_CONTACT unless specified otherwise
-      const itemsToCheck = shouldNotContainInKey 
-        ? parsed.context.filter(item => item.key === shouldNotContainInKey)
-        : parsed.context.filter(item => item.key === 'VIP_CONTACT');
+      // Support both single key (string) and multiple keys (array)
+      const keysToCheck = shouldNotContainInKey 
+        ? (Array.isArray(shouldNotContainInKey) ? shouldNotContainInKey : [shouldNotContainInKey])
+        : ['VIP_CONTACT'];
+      
+      const itemsToCheck = parsed.context.filter(item => keysToCheck.includes(item.key));
       
       // If no specific key was requested and we're checking VIP_CONTACT, check all if no VIP_CONTACT items exist
       const contextToSearch = (shouldNotContainInKey || itemsToCheck.length > 0) 
@@ -111,7 +114,7 @@ module.exports = (output, context) => {
       );
       if (found) {
         const allValues = contextToSearch.map(c => c.value).join(', ');
-        const keyName = shouldNotContainInKey || 'VIP_CONTACT';
+        const keyName = Array.isArray(shouldNotContainInKey) ? shouldNotContainInKey.join(' or ') : (shouldNotContainInKey || 'VIP_CONTACT');
         throw new Error(`Should NOT contain value with "${forbiddenValue}" in ${keyName}, but found one. Found values: ${allValues}`);
       }
     }

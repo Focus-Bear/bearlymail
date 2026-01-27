@@ -138,6 +138,7 @@ tests:
         config:
           shouldHaveContextKey: ["WORKING_ON", "CURRENT_TOPIC"]
           shouldNotContainValue: "Fireflies"
+          shouldNotContainInKey: ["WORKING_ON", "CURRENT_TOPIC", "VIP_CONTACT"]
           minContextItems: 1
 
   # Test 7: User themselves should NOT be identified as VIP (even if they send themselves emails)

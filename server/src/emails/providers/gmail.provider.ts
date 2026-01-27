@@ -18,7 +18,12 @@ import PgBoss = require("pg-boss");
 import { getJobPriority } from "../../queue/job-priorities";
 import { QUERY_LIMITS } from "../../constants/query-limits";
 import { MINUTES, DAYS, MILLISECONDS } from "../../constants/time-constants";
-import { isApiError, isError } from "../../types/common";
+import {
+  isApiError,
+  isError,
+  formatGaxiosError,
+  getGaxiosErrorDetails,
+} from "../../types/common";
 import { logErrorToFile } from "../../utils/error-logger";
 
 // BearlyMail custom labels
@@ -950,12 +955,23 @@ export class GmailProvider implements EmailProvider {
       });
       this.logger.debug(`Updated lastEmailSyncAt for user ${userId}`);
     } catch (error: unknown) {
+      // Log detailed Gaxios error info for Gmail API errors
+      const gaxiosErrorDetails = getGaxiosErrorDetails(error);
+      const formattedGaxiosError = formatGaxiosError(error);
+      this.logger.error(
+        `[GmailProvider] Gmail API error in syncEmails for user ${userId}: ${formattedGaxiosError}`,
+      );
+      this.logger.error(
+        `[GmailProvider] Gmail API error details: ${JSON.stringify(gaxiosErrorDetails)}`,
+      );
+
       // Check for authentication errors - these indicate the refresh token is invalid/expired
       const apiError = isApiError(error) ? error : null;
       const errorMsg = isError(error) ? error.message : apiError?.message || "";
       const isAuthError =
         apiError?.code === 401 ||
         (apiError?.response && (apiError.response as any).status === 401) ||
+        gaxiosErrorDetails.status === 401 ||
         apiError?.code === "invalid_grant" ||
         (apiError?.response?.data as any)?.error === "invalid_grant" ||
         (errorMsg &&
@@ -964,7 +980,7 @@ export class GmailProvider implements EmailProvider {
             errorMsg.includes("Token refresh failed")));
 
       logErrorToFile(
-        `Error in syncEmails (userId: ${userId})`,
+        `Error in syncEmails (userId: ${userId}) - ${formattedGaxiosError}`,
         error,
         "GmailProvider",
       );

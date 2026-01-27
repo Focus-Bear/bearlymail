@@ -7,7 +7,7 @@ import { EmailDetailBody, EmailThreadList } from 'components/email-detail';
 import { EmailAttachments } from 'components/email-detail/EmailAttachments';
 import { PrivateNotesSection } from 'components/email-detail-inline/PrivateNotesSection';
 import { ActionItemsSection } from 'components/email-detail-inline/ActionItemsSection';
-import { EMOJI_ARCHIVE, EMOJI_REPLY, EMOJI_BLOCK, EMOJI_LINK, EMOJI_STAR } from 'constants/emojis';
+import { EMOJI_ARCHIVE, EMOJI_REPLY, EMOJI_FORWARD, EMOJI_BLOCK, EMOJI_LINK, EMOJI_STAR } from 'constants/emojis';
 import { extractUnsubscribeLink } from 'utils/unsubscribeUtils';
 import { API_URL } from 'config/api';
 import { captureEvent } from 'utils/posthog';
@@ -50,7 +50,7 @@ interface EmailDetailContentProps {
   onToggleThreadItem: (emailId: string) => void;
   onArchive?: (emailId: string, e: React.MouseEvent) => void;
   onSetStarCount?: (emailId: string, starCount: number, e?: React.MouseEvent) => void;
-  onOpenReplyComposer?: (mode: 'reply' | 'replyAll') => void;
+  onOpenReplyComposer?: (mode: 'reply' | 'replyAll' | 'forward') => void;
   onBlockSender?: (emailId: string) => void;
 }
 
@@ -271,6 +271,32 @@ export const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
                     {/* eslint-disable-next-line i18next/no-literal-string */}
                     <span>{EMOJI_REPLY}</span>
                     {t('emailDetail.reply')}
+                  </button>
+                )}
+
+                {onOpenReplyComposer && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenReplyComposer('forward');
+                    }}
+                    style={{
+                      padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                      backgroundColor: 'transparent',
+                      color: theme.colors.text.secondary,
+                      border: `1px solid ${theme.colors.border.medium}`,
+                      borderRadius: theme.borderRadius.md,
+                      fontWeight: theme.typography.fontWeight.medium,
+                      cursor: 'pointer',
+                      fontSize: theme.typography.fontSize.sm,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: theme.spacing.xs,
+                    }}
+                  >
+                    {/* eslint-disable-next-line i18next/no-literal-string */}
+                    <span>{EMOJI_FORWARD}</span>
+                    {t('emailDetail.forward')}
                   </button>
                 )}
 

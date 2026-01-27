@@ -5,7 +5,14 @@ import { API_URL } from 'config/api';
 import { useEmailDetailToneCheck } from 'hooks/useEmailDetailToneCheck';
 import { useReplyDraftGeneration } from 'hooks/useReplyDraftGeneration';
 import { useNotifications } from 'contexts/NotificationContext';
-import { REPLY_MODE_REPLY_ALL } from 'constants/strings';
+import { REPLY_MODE_REPLY_ALL, REPLY_MODE_FORWARD } from 'constants/strings';
+
+interface EmailAttachment {
+  attachmentId: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+}
 
 interface Email {
   id: string;
@@ -13,6 +20,7 @@ interface Email {
   fromName?: string;
   subject: string;
   body: string;
+  attachments?: EmailAttachment[];
 }
 
 interface UseEmailDetailRepliesOptions {
@@ -28,13 +36,14 @@ export function useEmailDetailReplies(
   const { t } = useTranslation();
   const { showSuccess, showError } = useNotifications();
   const [showReplyComposer, setShowReplyComposer] = useState(false);
-  const [replyMode, setReplyMode] = useState<'reply' | 'replyAll'>('reply');
+  const [replyMode, setReplyMode] = useState<'reply' | 'replyAll' | 'forward'>('reply');
   const [replyRecipients, setReplyRecipients] = useState<string>('');
   const [replyCc, setReplyCc] = useState<string>('');
   const [replyBcc, setReplyBcc] = useState<string>('');
   const [showCc, setShowCc] = useState(false);
   const [showBcc, setShowBcc] = useState(false);
   const [sending, setSending] = useState(false);
+  const [initialAttachments, setInitialAttachments] = useState<EmailAttachment[]>([]);
   
   const {
     checkingTone,
@@ -58,7 +67,7 @@ export function useEmailDetailReplies(
     handleGenerateDraft,
   } = useReplyDraftGeneration(emailId, email, { autoGenerate: autoGenerateReplies });
 
-  const handleOpenReplyComposer = useCallback((mode: 'reply' | 'replyAll') => {
+  const handleOpenReplyComposer = useCallback((mode: 'reply' | 'replyAll' | 'forward') => {
     setReplyMode(mode);
     setShowReplyComposer(true);
     setDraft('');
@@ -68,11 +77,16 @@ export function useEmailDetailReplies(
     setShowCc(false);
     setShowBcc(false);
     if (email) {
-      if (mode === REPLY_MODE_REPLY_ALL) {
+      if (mode === REPLY_MODE_FORWARD) {
+        setReplyRecipients('');
+        setInitialAttachments(email.attachments || []);
+      } else if (mode === REPLY_MODE_REPLY_ALL) {
         const recipients = [email.from];
         setReplyRecipients(recipients.join(', '));
+        setInitialAttachments([]);
       } else {
         setReplyRecipients(email.from);
+        setInitialAttachments([]);
       }
     }
     handleGenerateDraft();
@@ -129,6 +143,7 @@ export function useEmailDetailReplies(
     toneCheckResult,
     disputing,
     disputeResult,
+    initialAttachments,
     setReplyRecipients,
     setReplyCc,
     setReplyBcc,

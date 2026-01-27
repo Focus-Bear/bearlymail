@@ -10,6 +10,7 @@ export type InboxModeType = typeof MODE_TRIAGE | typeof MODE_ACTION | typeof MOD
 // Reply modes
 export const REPLY_MODE_REPLY = 'reply' as const;
 export const REPLY_MODE_REPLY_ALL = 'replyAll' as const;
+export const REPLY_MODE_FORWARD = 'forward' as const;
 
 // Action item sources
 export const ACTION_ITEM_SOURCE_MANUAL = 'manual' as const;

@@ -4,9 +4,9 @@ import { theme } from 'theme/theme';
 import { Email } from 'types/email';
 import { QuickActionsSection } from 'components/email-detail/QuickActionsSection';
 import { CalendarInviteActions } from 'components/email-detail/CalendarInviteActions';
-import { EMOJI_REPLY, EMOJI_ARCHIVE, EMOJI_BLOCK, EMOJI_LINK, EMOJI_DELETE, EMOJI_STAR } from 'constants/emojis';
+import { EMOJI_REPLY, EMOJI_FORWARD, EMOJI_ARCHIVE, EMOJI_BLOCK, EMOJI_LINK, EMOJI_DELETE, EMOJI_STAR } from 'constants/emojis';
 import { OPACITY_DISABLED } from 'constants/numbers';
-import { REPLY_MODE_REPLY } from 'constants/strings';
+import { REPLY_MODE_REPLY, REPLY_MODE_FORWARD } from 'constants/strings';
 import { extractUnsubscribeLink } from 'utils/unsubscribeUtils';
 import { captureEvent } from 'utils/posthog';
 import { isCalendarInvitation } from 'utils/calendarUtils';
@@ -21,7 +21,7 @@ interface EmailDetailActionsProps {
   onSelectAction: (action: any) => void;
   onCloseAction: () => void;
   onActionSuccess: () => void;
-  onOpenReplyComposer: (mode: 'reply' | 'replyAll') => void;
+  onOpenReplyComposer: (mode: 'reply' | 'replyAll' | 'forward') => void;
   onArchive: () => void;
   onDelete: () => void;
   onSetStarCount: (emailId: string, starCount: number) => Promise<void>;
@@ -180,6 +180,27 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
             {/* eslint-disable-next-line i18next/no-literal-string */}
             <span>{EMOJI_REPLY}</span>
             {t('emailDetail.reply')}
+          </button>
+
+          <button
+            onClick={() => onOpenReplyComposer(REPLY_MODE_FORWARD)}
+            style={{
+              padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+              backgroundColor: 'transparent',
+              color: theme.colors.text.secondary,
+              border: `1px solid ${theme.colors.border.medium}`,
+              borderRadius: theme.borderRadius.md,
+              fontWeight: theme.typography.fontWeight.medium,
+              cursor: 'pointer',
+              fontSize: theme.typography.fontSize.sm,
+              display: 'flex',
+              alignItems: 'center',
+              gap: theme.spacing.xs,
+            }}
+          >
+            {/* eslint-disable-next-line i18next/no-literal-string */}
+            <span>{EMOJI_FORWARD}</span>
+            {t('emailDetail.forward')}
           </button>
 
           <button

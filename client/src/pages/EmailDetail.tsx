@@ -498,6 +498,77 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
         />
       </div>
 
+      {/* Attachment Debug Section - visible in split view (compactMode) for admins */}
+      {compactMode && user?.isAdmin && email && (() => {
+        const emailData = email as any;
+        return (
+          /* eslint-disable i18next/no-literal-string */
+          <div style={{
+            marginTop: theme.spacing.md,
+            padding: theme.spacing.md,
+            backgroundColor: theme.colors.background.subtle,
+            borderRadius: theme.borderRadius.md,
+            border: `1px solid ${theme.colors.border.light}`,
+          }}>
+            <h4 style={{
+              marginTop: 0,
+              marginBottom: theme.spacing.sm,
+              fontSize: theme.typography.fontSize.xs,
+              fontWeight: 600,
+              color: theme.colors.text.primary,
+            }}>
+              Attachment Debug (Admin Only)
+            </h4>
+            <div style={{
+              fontFamily: 'monospace',
+              fontSize: theme.typography.fontSize.xs,
+              color: theme.colors.text.secondary,
+              lineHeight: 1.5,
+            }}>
+              <div><strong>Email ID:</strong> {emailData.id}</div>
+              <div><strong>Has attachments prop:</strong> {emailData.attachments !== undefined ? 'true' : 'false'}</div>
+              <div><strong>Attachments count:</strong> {emailData.attachments?.length ?? 0}</div>
+              <div><strong>Raw attachments:</strong> {emailData.attachments ? JSON.stringify(emailData.attachments) : 'null/undefined'}</div>
+              {emailData.attachments && emailData.attachments.length > 0 && (
+                <div style={{ marginTop: theme.spacing.xs }}>
+                  <strong>Details:</strong>
+                  {emailData.attachments.map((att: any, idx: number) => (
+                    <div key={att.attachmentId || idx} style={{ marginLeft: theme.spacing.sm, marginTop: theme.spacing.xxs }}>
+                      [{idx}] ID: {att.attachmentId || 'N/A'} | File: {att.filename || 'N/A'} | MIME: {att.mimeType || 'N/A'} | Size: {att.size ?? 'N/A'}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {(!emailData.attachments || emailData.attachments.length === 0) && (
+                <div style={{ 
+                  marginTop: theme.spacing.xs,
+                  padding: theme.spacing.xs,
+                  backgroundColor: '#ffebee',
+                  borderRadius: theme.borderRadius.sm,
+                  color: '#d32f2f',
+                }}>
+                  No attachments on email object. Check Gmail API fetch and DB storage.
+                </div>
+              )}
+              {threadEmails && threadEmails.length > 0 && (
+                <div style={{ marginTop: theme.spacing.sm, paddingTop: theme.spacing.sm, borderTop: `1px solid ${theme.colors.border.light}` }}>
+                  <strong>Thread emails attachments ({threadEmails.length} emails):</strong>
+                  {threadEmails.map((te, idx) => {
+                    const teData = te as any;
+                    return (
+                      <div key={te.id} style={{ marginLeft: theme.spacing.sm, marginTop: theme.spacing.xxs }}>
+                        [{idx}] {teData.attachments?.length ?? 0} attachments {teData.attachments?.length > 0 ? `(${teData.attachments.map((a: any) => a.filename).join(', ')})` : ''}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+          /* eslint-enable i18next/no-literal-string */
+        );
+      })()}
+
       {!compactMode && user?.isAdmin && email && (
           /* eslint-disable i18next/no-literal-string */
           (() => {

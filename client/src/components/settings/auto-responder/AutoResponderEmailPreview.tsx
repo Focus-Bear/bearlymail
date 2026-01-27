@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { useAuth } from 'contexts/AuthContext';
 import { API_URL } from 'config/api';
 
 interface RecentEmail {
@@ -77,7 +76,6 @@ const getPriorityLabel = (priorityLevel: string): { label: string; emoji: string
 
 export const AutoResponderEmailPreview: React.FC = () => {
   const { t } = useTranslation();
-  const { token } = useAuth();
   const [isExpanded, setIsExpanded] = useState(false);
   const [recentEmails, setRecentEmails] = useState<RecentEmail[]>([]);
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
@@ -87,6 +85,7 @@ export const AutoResponderEmailPreview: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchRecentEmails = useCallback(async () => {
+    const token = localStorage.getItem('token');
     if (!token) return;
     
     setIsLoadingEmails(true);
@@ -110,9 +109,10 @@ export const AutoResponderEmailPreview: React.FC = () => {
     } finally {
       setIsLoadingEmails(false);
     }
-  }, [token]);
+  }, []);
 
   const fetchPreviewForEmail = useCallback(async (emailId: string) => {
+    const token = localStorage.getItem('token');
     if (!token) return;
     
     setIsLoadingPreview(true);
@@ -140,7 +140,7 @@ export const AutoResponderEmailPreview: React.FC = () => {
     } finally {
       setIsLoadingPreview(false);
     }
-  }, [token]);
+  }, []);
 
   useEffect(() => {
     if (isExpanded && recentEmails.length === 0) {

@@ -117,12 +117,6 @@ export const InboxContent: React.FC<InboxContentProps> = ({
     }
   };
 
-  const handleCategoryArchiveAll = async (emailIds: string[]) => {
-    if (onBulkArchive) {
-      await onBulkArchive(emailIds);
-    }
-  };
-
   const handleSendFollowUp = async (followUpId: string, draft: string, recipientName?: string) => {
     try {
       const response = await axios.post(
@@ -215,7 +209,6 @@ export const InboxContent: React.FC<InboxContentProps> = ({
                   isExpanded={isExpanded}
                   onToggle={() => toggleCategory(group.category)}
                   onSelectAll={handleCategorySelectAll}
-                  onArchiveAll={handleCategoryArchiveAll}
                   selectedEmailIds={selectedEmailIds}
                 >
                   {group.emails.map((email, indexInCategory) => {

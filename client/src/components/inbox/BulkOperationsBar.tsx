@@ -30,7 +30,7 @@ export const BulkOperationsBar: React.FC<BulkOperationsBarProps> = ({
       position: 'sticky',
       top: 0,
       zIndex: 100,
-      backgroundColor: theme.colors.primary.main,
+      backgroundColor: theme.colors.secondary.dark,
       color: 'white',
       padding: theme.spacing.md,
       borderRadius: theme.borderRadius.md,

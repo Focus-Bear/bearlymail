@@ -10,21 +10,25 @@ interface CategoryAccordionProps {
   isExpanded: boolean;
   onToggle: () => void;
   onSelectAll: (emailIds: string[]) => void;
-  onArchiveAll: (emailIds: string[]) => void;
   selectedEmailIds: Set<string>;
   children: React.ReactNode;
 }
 
-const getCategoryTranslationKey = (category: string): string => {
-  const keyMap: Record<string, string> = {
-    'Newsletters': 'inbox.category.newsletters',
-    'Sales': 'inbox.category.sales',
-    'Partnerships': 'inbox.category.partnerships',
-    'Customer Support': 'inbox.category.customerSupport',
-    'HR Admin': 'inbox.category.hrAdmin',
-    'Other': 'inbox.category.other',
-  };
-  return keyMap[category] || 'inbox.category.other';
+const DEFAULT_CATEGORY_TRANSLATIONS: Record<string, string> = {
+  'Newsletters': 'inbox.category.newsletters',
+  'Sales': 'inbox.category.sales',
+  'Partnerships': 'inbox.category.partnerships',
+  'Customer Support': 'inbox.category.customerSupport',
+  'HR Admin': 'inbox.category.hrAdmin',
+  'Other': 'inbox.category.other',
+};
+
+const isDefaultCategory = (category: string): boolean => {
+  return category in DEFAULT_CATEGORY_TRANSLATIONS;
+};
+
+const getCategoryTranslationKey = (category: string): string | null => {
+  return DEFAULT_CATEGORY_TRANSLATIONS[category] || null;
 };
 
 const getCategoryIcon = (category: string): string => {
@@ -47,7 +51,6 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
   isExpanded,
   onToggle,
   onSelectAll,
-  onArchiveAll,
   selectedEmailIds,
   children,
 }) => {
@@ -67,11 +70,6 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
   const handleSelectAllClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onSelectAll(emailIds);
-  };
-
-  const handleArchiveAllClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onArchiveAll(emailIds);
   };
 
   const getSelectButtonText = (): string => {
@@ -125,7 +123,7 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
               color: theme.colors.text.primary,
             }}
           >
-            {t(getCategoryTranslationKey(category))}
+            {isDefaultCategory(category) ? t(getCategoryTranslationKey(category) as string) : category}
           </span>
           <span
             style={{
@@ -179,24 +177,6 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
           >
             {getSelectButtonText()}
           </button>
-          {allSelected && (
-            <button
-              onClick={handleArchiveAllClick}
-              style={{
-                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                borderRadius: theme.borderRadius.sm,
-                border: `1px solid ${theme.colors.border.medium}`,
-                backgroundColor: 'transparent',
-                color: theme.colors.text.secondary,
-                fontSize: theme.typography.fontSize.sm,
-                cursor: 'pointer',
-                transition: theme.transitions.fast,
-              }}
-              title={t('inbox.category.archiveAllTooltip')}
-            >
-              {t('inbox.category.archiveAll')}
-            </button>
-          )}
         </div>
       </div>
 

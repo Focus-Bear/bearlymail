@@ -25,33 +25,53 @@
     "deselectAll": "Deselect all",
     "saved": "✓ Saved"
   },
-  "auth": {
-    "loginTitle": "Welcome Back",
-    "registerTitle": "Create Account",
-    "continueWithGoogle": "Continue with Google",
-    "or": "OR",
-    "email": "Email",
-    "password": "Password",
-    "name": "Name",
-    "signIn": "Sign In",
-    "signUp": "Sign Up",
-    "haveAccount": "Already have an account? Sign in",
-    "noAccount": "Don't have an account? Sign up",
-    "reloginRequired": "Action Required: Please log in again to restore email synchronization.",
-    "logout": "Log Out",
-    "reloginLink": "log in again",
-    "authenticationFailed": "Authentication failed",
-    "setupAccountTitle": "Set Up Your Account",
-    "setupAccountDescription": "Welcome! Please create a password to complete your account setup.",
-    "invalidSetupLink": "Invalid setup link. Please check your email for the correct link.",
-    "passwordTooShort": "Password must be at least 8 characters long.",
-    "passwordsDoNotMatch": "Passwords do not match.",
-    "passwordMinLength": "Must be at least 8 characters long",
-    "confirmPassword": "Confirm Password",
-    "settingUp": "Setting up...",
-    "setUpAccount": "Set Up Account",
-    "setupPasswordError": "Failed to set up password. The link may have expired."
-  },
+    "auth": {
+      "loginTitle": "Welcome Back",
+      "registerTitle": "Create Account",
+      "continueWithGoogle": "Continue with Google",
+      "or": "OR",
+      "email": "Email",
+      "password": "Password",
+      "name": "Name",
+      "signIn": "Sign In",
+      "signUp": "Sign Up",
+      "haveAccount": "Already have an account? Sign in",
+      "noAccount": "Don't have an account? Sign up",
+      "reloginRequired": "Action Required: Please log in again to restore email synchronization.",
+      "logout": "Log Out",
+      "reloginLink": "log in again",
+      "authenticationFailed": "Authentication failed",
+      "setupAccountTitle": "Set Up Your Account",
+      "setupAccountDescription": "Welcome! Please create a password to complete your account setup.",
+      "invalidSetupLink": "Invalid setup link. Please check your email for the correct link.",
+      "passwordTooShort": "Password must be at least 8 characters long.",
+      "passwordsDoNotMatch": "Passwords do not match.",
+      "passwordMinLength": "Must be at least 8 characters long",
+      "confirmPassword": "Confirm Password",
+      "settingUp": "Setting up...",
+      "setUpAccount": "Set Up Account",
+      "setupPasswordError": "Failed to set up password. The link may have expired.",
+      "joinWaitlist": "Join Waitlist",
+      "backToLogin": "Back to Login",
+      "goToHomepage": "Go to Homepage",
+      "errors": {
+        "waitlistSubmitted": {
+          "title": "You're on the waitlist!",
+          "description": "We've received your request. You'll receive an email when your account is approved."
+        },
+        "pendingApproval": {
+          "title": "Account Pending Approval",
+          "description": "Your account is on the waitlist and pending approval. We'll notify you by email once your account is approved."
+        },
+        "notOnWaitlist": {
+          "title": "Join the Waitlist",
+          "description": "You need to join our waitlist first before you can sign in. Sign up below to get early access to BearlyMail."
+        },
+        "generic": {
+          "title": "Authentication Error"
+        }
+      }
+    },
   "email": {
     "waitlistApproval": {
       "subject": "Welcome to BearlyMail - Set Up Your Account",
@@ -138,6 +158,7 @@
     "showSplitView": "Show split view",
     "expandToFullWidth": "Expand to full width",
     "closePanel": "Close panel",
+    "openInNewTab": "Open in new tab",
     "noActionEmails": "No emails to process!",
     "noFollowUpEmails": "No follow-ups needed!",
     "actionCaughtUp": "All starred emails have been processed.",
@@ -155,15 +176,15 @@
     "confirmBulkSend": "Send {{count}} follow-up emails?",
     "sending": "Sending...",
     "sent": "Sent",
-    "followUp": {
-      "with": "With",
-      "daysSinceResponse": "Days since their last response",
-      "day": "day",
-      "day_plural": "days",
-      "status": "Status",
-      "noReplyReceived": "No reply received",
-      "youSentLast": "You sent the last"
-    },
+        "followUpDetails": {
+          "with": "With",
+          "daysSinceResponse": "Days since their last response",
+          "day": "day",
+          "day_plural": "days",
+          "status": "Status",
+          "noReplyReceived": "No reply received",
+          "youSentLast": "You sent the last"
+        },
     "sendResults": "Send Results",
     "andMore": "and {{count}} more",
     "error": "Error",
@@ -648,32 +669,33 @@
       "progress": "{{current}} of {{total}} emails processed"
     }
   },
-  "github": {
-    "status": "GitHub Status",
-    "refresh": "Refresh",
-    "refreshing": "Refreshing...",
-    "assignedTo": "Assigned to",
-    "statusNotAvailable": "Status not available",
-    "statusNoLinks": "No GitHub links found in this email",
-    "approved": "Approved",
-    "changesRequested": "Changes Requested",
-    "comments": "{{count}} comment",
-    "comments_plural": "{{count}} comments",
-    "readyToMerge": "Ready to Merge",
-    "saveToken": "Save Token",
-    "removeToken": "Remove Token",
-    "howToCreateToken": "How to create a GitHub token",
-    "pr": "PR",
-    "issue": "Issue",
-    "repositoryOwner": "Repository Owner",
-    "repositoryOwnerPlaceholder": "e.g., facebook",
-    "repositoryName": "Repository Name",
-    "repositoryNamePlaceholder": "e.g., react",
-    "issueTitle": "Issue Title",
-    "issueDescription": "Issue Description",
-    "labels": "Labels",
-    "labelsPlaceholder": "e.g., bug, enhancement (comma-separated)",
-    "project": "Project"
+    "github": {
+      "status": "GitHub Status",
+      "refresh": "Refresh",
+      "refreshing": "Refreshing...",
+      "assignedTo": "Assigned to",
+      "statusNotAvailable": "Status not available",
+      "statusNoLinks": "No GitHub links found in this email",
+      "approved": "Approved",
+      "changesRequested": "Changes Requested",
+      "comments": "{{count}} comment",
+      "comments_plural": "{{count}} comments",
+      "readyToMerge": "Ready to Merge",
+      "saveToken": "Save Token",
+      "removeToken": "Remove Token",
+      "howToCreateToken": "How to create a GitHub token",
+      "pr": "PR",
+      "issue": "Issue",
+      "repositoryOwner": "Repository Owner",
+      "repositoryOwnerPlaceholder": "e.g., facebook",
+      "repositoryName": "Repository Name",
+      "repositoryNamePlaceholder": "e.g., react",
+      "issueTitle": "Issue Title",
+      "issueDescription": "Issue Description",
+      "labels": "Labels",
+      "labelsPlaceholder": "e.g., bug, enhancement (comma-separated)",
+      "project": "Project",
+      "more": "+{{count}} more"
   },
   "gmail": {
     "connectTitle": "Connect Your Gmail Account",
@@ -1018,18 +1040,59 @@
         "noTemplate": "No template configured. Click 'Edit Template' to create one.",
         "livePreview": "Live Preview"
       },
-      "emailPreview": {
-        "title": "Preview with Real Email",
-        "description": "See exactly what auto-response would be sent for a recent email",
-        "selectEmail": "Select a recent email to preview:",
-        "selectPlaceholder": "Choose an email...",
-        "noEmails": "No recent emails found",
-        "generating": "Generating preview...",
-        "templateUsed": "Using {{template}} template",
-        "hint": "Select an email above to see the exact auto-response that would be sent"
-      }
-    },
-    "analysis": {
+          "emailPreview": {
+            "title": "Preview with Real Email",
+            "description": "See exactly what auto-response would be sent for a recent email",
+            "selectEmail": "Select a recent email to preview:",
+            "selectPlaceholder": "Choose an email...",
+            "noEmails": "No recent emails found",
+            "generating": "Generating preview...",
+            "templateUsed": "Using {{template}} template",
+            "hint": "Select an email above to see the exact auto-response that would be sent"
+          },
+          "exclusion": {
+            "title": "Don't Send To",
+            "noRules": "No exclusion rules added yet",
+            "addRule": "Add exclusion rule",
+            "aiInterpretNote": "AI will interpret these rules to determine which emails should not receive auto-responses."
+          },
+          "analytics": {
+            "title": "Analytics",
+            "noData": "No analytics data available yet.",
+            "loadAnalytics": "Load Analytics",
+            "refresh": "Refresh",
+            "responsesByPriority": "Responses by Priority",
+            "templateUsage": "Template Usage"
+          },
+          "qa": {
+            "title": "AI-Powered Answers",
+            "description": "When enabled, the auto-responder will try to answer common questions based on the Q&A in your context.",
+            "includeAiAnswers": "Include AI-generated answers in responses",
+            "confidenceThreshold": "Minimum Confidence Threshold",
+            "moreAnswers": "More answers (less accurate)",
+            "fewerAnswers": "Fewer answers (more accurate)",
+            "confidenceNote": "Only answers with confidence above this threshold will be included. All AI answers include a disclaimer that the user will confirm."
+          },
+          "priority": {
+            "title": "Send Auto-Responses For"
+          }
+        },
+        "accountDeletion": {
+          "title": "Delete Account",
+          "description": "Permanently delete your account and all associated data. This action cannot be undone.",
+          "deleteButton": "Delete My Account",
+          "warningTitle": "Are you absolutely sure?",
+          "warningDescription": "This will permanently delete your account and all your data, including emails, contacts, settings, and any other information associated with your account. This action cannot be undone.",
+          "confirmationPrompt": "To confirm, please type \"{{text}}\" below:",
+          "confirmationMismatch": "The confirmation text does not match. Please type exactly \"delete all my data\".",
+          "confirmDelete": "Permanently Delete Account",
+          "deleting": "Deleting...",
+          "deletionError": "Failed to delete account. Please try again or contact support."
+        },
+        "confirmRemoveGithubToken": "Are you sure you want to disconnect your GitHub account?",
+        "githubTokenRemoved": "GitHub disconnected successfully",
+        "githubTokenRemoveError": "Failed to disconnect GitHub",
+        "analysis": {
       "failed": "Analysis failed",
       "complete": "Analysis complete",
       "summary": "Summary",
@@ -1340,9 +1403,9 @@
         "description": "We'll send you an email when your spot is ready. In the meantime, check out our blog for updates.",
         "goToLogin": "Go to Login"
       }
-    },
-    "sidebar": {
-      "expand": "Expand sidebar"
     }
+  },
+  "sidebar": {
+    "expand": "Expand sidebar"
   }
 }

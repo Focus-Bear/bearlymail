@@ -65,33 +65,53 @@
       "totalTokens": "Fichas totales"
     }
   },
-  "auth": {
-    "authenticationFailed": "Error de autenticación",
-    "confirmPassword": "Confirmar contraseña",
-    "continueWithGoogle": "Continuar con Google",
-    "email": "Correo electrónico",
-    "haveAccount": "¿Ya tienes una cuenta? Inicia sesión",
-    "invalidSetupLink": "Enlace de configuración inválido. Por favor, verifica tu correo electrónico para el enlace correcto.",
-    "loginTitle": "Bienvenido de nuevo",
-    "logout": "Cerrar sesión",
-    "name": "Nombre",
-    "noAccount": "¿No tienes una cuenta? Regístrate",
-    "or": "O",
-    "password": "Contraseña",
-    "passwordMinLength": "Debe tener al menos 8 caracteres",
-    "passwordTooShort": "La contraseña debe tener al menos 8 caracteres.",
-    "passwordsDoNotMatch": "Las contraseñas no coinciden.",
-    "registerTitle": "Crear cuenta",
-    "reloginLink": "inicia sesión nuevamente",
-    "reloginRequired": "Acción requerida: Por favor, inicia sesión nuevamente para restaurar la sincronización de correo electrónico.",
-    "setUpAccount": "Configurar cuenta",
-    "settingUp": "Configurando...",
-    "setupAccountDescription": "¡Bienvenido! Por favor, crea una contraseña para completar la configuración de tu cuenta.",
-    "setupAccountTitle": "Configurar tu cuenta",
-    "setupPasswordError": "Error al configurar la contraseña. El enlace puede haber expirado.",
-    "signIn": "Iniciar sesión",
-    "signUp": "Registrarse"
-  },
+    "auth": {
+      "authenticationFailed": "Error de autenticación",
+      "confirmPassword": "Confirmar contraseña",
+      "continueWithGoogle": "Continuar con Google",
+      "email": "Correo electrónico",
+      "haveAccount": "¿Ya tienes una cuenta? Inicia sesión",
+      "invalidSetupLink": "Enlace de configuración inválido. Por favor, verifica tu correo electrónico para el enlace correcto.",
+      "loginTitle": "Bienvenido de nuevo",
+      "logout": "Cerrar sesión",
+      "name": "Nombre",
+      "noAccount": "¿No tienes una cuenta? Regístrate",
+      "or": "O",
+      "password": "Contraseña",
+      "passwordMinLength": "Debe tener al menos 8 caracteres",
+      "passwordTooShort": "La contraseña debe tener al menos 8 caracteres.",
+      "passwordsDoNotMatch": "Las contraseñas no coinciden.",
+      "registerTitle": "Crear cuenta",
+      "reloginLink": "inicia sesión nuevamente",
+      "reloginRequired": "Acción requerida: Por favor, inicia sesión nuevamente para restaurar la sincronización de correo electrónico.",
+      "setUpAccount": "Configurar cuenta",
+      "settingUp": "Configurando...",
+      "setupAccountDescription": "¡Bienvenido! Por favor, crea una contraseña para completar la configuración de tu cuenta.",
+      "setupAccountTitle": "Configurar tu cuenta",
+      "setupPasswordError": "Error al configurar la contraseña. El enlace puede haber expirado.",
+      "signIn": "Iniciar sesión",
+      "signUp": "Registrarse",
+      "joinWaitlist": "Unirse a la lista de espera",
+      "backToLogin": "Volver al inicio de sesión",
+      "goToHomepage": "Ir a la página principal",
+      "errors": {
+        "waitlistSubmitted": {
+          "title": "¡Estás en la lista de espera!",
+          "description": "Hemos recibido tu solicitud. Recibirás un correo electrónico cuando tu cuenta sea aprobada."
+        },
+        "pendingApproval": {
+          "title": "Cuenta pendiente de aprobación",
+          "description": "Tu cuenta está en la lista de espera y pendiente de aprobación. Te notificaremos por correo electrónico una vez que tu cuenta sea aprobada."
+        },
+        "notOnWaitlist": {
+          "title": "Unirse a la lista de espera",
+          "description": "Necesitas unirte a nuestra lista de espera primero antes de poder iniciar sesión. Regístrate a continuación para obtener acceso anticipado a BearlyMail."
+        },
+        "generic": {
+          "title": "Error de autenticación"
+        }
+      }
+    },
   "booking": {
     "availableTimes": "Horarios disponibles",
     "booking": "Reserva...",
@@ -396,33 +416,34 @@
     "madeBy": "Hecho por",
     "copyright": "© {{year}} Focus Bear"
   },
-  "github": {
-    "approved": "Aprobado",
-    "assignedTo": "Asignado a",
-    "changesRequested": "Cambios solicitados",
-    "comments": "{{count}} comentario",
-    "comments_plural": "{{count}} comentarios",
-    "howToCreateToken": "Cómo crear un token de GitHub",
-    "issue": "Problema",
-    "issueDescription": "Descripción del problema",
-    "issueTitle": "Título del problema",
-    "labels": "Etiquetas",
-    "labelsPlaceholder": "ej., bug, mejora (separadas por comas)",
-    "pr": "PR",
-    "project": "Proyecto",
-    "readyToMerge": "Listo para fusionar",
-    "refresh": "Actualizar",
-    "refreshing": "Actualizando...",
-    "removeToken": "Eliminar token",
-    "repositoryName": "Nombre del repositorio",
-    "repositoryNamePlaceholder": "ej., react",
-    "repositoryOwner": "Propietario del repositorio",
-    "repositoryOwnerPlaceholder": "ej., facebook",
-    "saveToken": "Guardar token",
-    "status": "Estado de GitHub",
-    "statusNoLinks": "No se encontraron enlaces de GitHub en este correo",
-    "statusNotAvailable": "Estado no disponible"
-  },
+    "github": {
+      "approved": "Aprobado",
+      "assignedTo": "Asignado a",
+      "changesRequested": "Cambios solicitados",
+      "comments": "{{count}} comentario",
+      "comments_plural": "{{count}} comentarios",
+      "howToCreateToken": "Cómo crear un token de GitHub",
+      "issue": "Problema",
+      "issueDescription": "Descripción del problema",
+      "issueTitle": "Título del problema",
+      "labels": "Etiquetas",
+      "labelsPlaceholder": "ej., bug, mejora (separadas por comas)",
+      "more": "+{{count}} más",
+      "pr": "PR",
+      "project": "Proyecto",
+      "readyToMerge": "Listo para fusionar",
+      "refresh": "Actualizar",
+      "refreshing": "Actualizando...",
+      "removeToken": "Eliminar token",
+      "repositoryName": "Nombre del repositorio",
+      "repositoryNamePlaceholder": "ej., react",
+      "repositoryOwner": "Propietario del repositorio",
+      "repositoryOwnerPlaceholder": "ej., facebook",
+      "saveToken": "Guardar token",
+      "status": "Estado de GitHub",
+      "statusNoLinks": "No se encontraron enlaces de GitHub en este correo",
+      "statusNotAvailable": "Estado no disponible"
+    },
   "gmail": {
     "connectButton": "Conectar Gmail",
     "connectDescription": "Para comenzar con BearlyMail, conecte su cuenta de Gmail. Sincronizaremos sus correos electrónicos de forma segura y lo ayudaremos a administrarlos de manera más efectiva.",
@@ -515,17 +536,19 @@
     "emergencyDeliveryTooltip": "Este correo fue entregado fuera del horario de lote regular porque fue identificado como de alta prioridad",
     "error": "Error",
     "errorLoadingEmails": "Error al cargar correos electrónicos",
-    "expandToFullWidth": "Expandir a ancho completo",
-    "failedToGenerateDraft": "Error al generar borrador",
-    "followUp": {
-      "day": "día",
-      "day_plural": "días",
-      "daysSinceResponse": "Días desde su última respuesta",
-      "noReplyReceived": "No se recibió respuesta",
-      "status": "Estado",
-      "with": "Con",
-      "youSentLast": "Tú enviaste el último"
-    },
+        "expandToFullWidth": "Expandir a ancho completo",
+        "failedToGenerateDraft": "Error al generar borrador",
+        "followUp": "Seguimiento",
+        "openInNewTab": "Abrir en nueva pestaña",
+        "followUpDetails": {
+          "day": "día",
+          "day_plural": "días",
+          "daysSinceResponse": "Días desde su última respuesta",
+          "noReplyReceived": "No se recibió respuesta",
+          "status": "Estado",
+          "with": "Con",
+          "youSentLast": "Tú enviaste el último"
+        },
     "followUpCaughtUp": "Todos tus correos enviados han sido respondidos.",
     "followUpTab": "Seguimiento",
     "followUps": "seguimientos",
@@ -1051,38 +1074,79 @@
       "toneSettings": "Configuración de tono",
       "autoResponder": "Respuesta automática"
     },
-    "autoResponder": {
-      "title": "Respuesta automática",
-      "description": "Responda automáticamente a nuevos correos electrónicos con el estado de la cola e información útil. El respondedor automático incluso puede responder preguntas comunes basándose en las preguntas y respuestas de su contexto. Las respuestas se envían como respuestas al correo electrónico original, manteniendo intacto el hilo de conversación.",
-      "preview": {
-        "title": "Vista previa de respuestas automáticas",
-        "description": "Vea cómo se verán sus mensajes de respuesta automática",
-        "subject": "Asunto:",
-        "subjectPlaceholder": "Re: [Asunto del correo original]",
-        "subjectNote": "El respondedor automático responde al correo electrónico original, manteniendo la línea de asunto sin cambios.",
-        "note": "Nota: La respuesta real utilizará las estadísticas reales de su cola y puede incluir respuestas generadas por IA si están habilitadas y son relevantes."
-      },
-      "templates": {
-        "title": "Editar plantillas de respuesta automática",
-        "description": "Personalice los mensajes enviados para cada nivel de prioridad",
-        "edit": "Editar plantilla",
-        "mergeTags": "Insertar variable",
-        "mergeTagsHelp": "Haga clic en una variable para insertarla en la posición del cursor:",
-        "placeholder": "Ingrese su plantilla aquí. Use etiquetas de combinación como {{userName}} para personalizar el mensaje.",
-        "noTemplate": "No hay plantilla configurada. Haga clic en 'Editar plantilla' para crear una.",
-        "livePreview": "Vista previa en vivo"
-      },
-      "emailPreview": {
-        "title": "Vista previa con correo real",
-        "description": "Vea exactamente qué respuesta automática se enviaría para un correo reciente",
-        "selectEmail": "Seleccione un correo reciente para previsualizar:",
-        "selectPlaceholder": "Elija un correo...",
-        "noEmails": "No se encontraron correos recientes",
-        "generating": "Generando vista previa...",
-        "templateUsed": "Usando plantilla {{template}}",
-        "hint": "Seleccione un correo arriba para ver la respuesta automática exacta que se enviaría"
-      }
-    },
+        "autoResponder": {
+          "title": "Respuesta automática",
+          "description": "Responda automáticamente a nuevos correos electrónicos con el estado de la cola e información útil. El respondedor automático incluso puede responder preguntas comunes basándose en las preguntas y respuestas de su contexto. Las respuestas se envían como respuestas al correo electrónico original, manteniendo intacto el hilo de conversación.",
+          "preview": {
+            "title": "Vista previa de respuestas automáticas",
+            "description": "Vea cómo se verán sus mensajes de respuesta automática",
+            "subject": "Asunto:",
+            "subjectPlaceholder": "Re: [Asunto del correo original]",
+            "subjectNote": "El respondedor automático responde al correo electrónico original, manteniendo la línea de asunto sin cambios.",
+            "note": "Nota: La respuesta real utilizará las estadísticas reales de su cola y puede incluir respuestas generadas por IA si están habilitadas y son relevantes."
+          },
+          "templates": {
+            "title": "Editar plantillas de respuesta automática",
+            "description": "Personalice los mensajes enviados para cada nivel de prioridad",
+            "edit": "Editar plantilla",
+            "mergeTags": "Insertar variable",
+            "mergeTagsHelp": "Haga clic en una variable para insertarla en la posición del cursor:",
+            "placeholder": "Ingrese su plantilla aquí. Use etiquetas de combinación como {{userName}} para personalizar el mensaje.",
+            "noTemplate": "No hay plantilla configurada. Haga clic en 'Editar plantilla' para crear una.",
+            "livePreview": "Vista previa en vivo"
+          },
+          "emailPreview": {
+            "title": "Vista previa con correo real",
+            "description": "Vea exactamente qué respuesta automática se enviaría para un correo reciente",
+            "selectEmail": "Seleccione un correo reciente para previsualizar:",
+            "selectPlaceholder": "Elija un correo...",
+            "noEmails": "No se encontraron correos recientes",
+            "generating": "Generando vista previa...",
+            "templateUsed": "Usando plantilla {{template}}",
+            "hint": "Seleccione un correo arriba para ver la respuesta automática exacta que se enviaría"
+          },
+          "exclusion": {
+            "title": "No enviar a",
+            "noRules": "Aún no se han agregado reglas de exclusión",
+            "addRule": "Agregar regla de exclusión",
+            "aiInterpretNote": "La IA interpretará estas reglas para determinar qué correos electrónicos no deben recibir respuestas automáticas."
+          },
+          "analytics": {
+            "title": "Analíticas",
+            "noData": "Aún no hay datos de analíticas disponibles.",
+            "loadAnalytics": "Cargar analíticas",
+            "refresh": "Actualizar",
+            "responsesByPriority": "Respuestas por prioridad",
+            "templateUsage": "Uso de plantillas"
+          },
+          "qa": {
+            "title": "Respuestas impulsadas por IA",
+            "description": "Cuando está habilitado, el respondedor automático intentará responder preguntas comunes basándose en el contexto de preguntas y respuestas que haya proporcionado.",
+            "includeAiAnswers": "Incluir respuestas generadas por IA en las respuestas",
+            "confidenceThreshold": "Umbral mínimo de confianza",
+            "moreAnswers": "Más respuestas (menos precisas)",
+            "fewerAnswers": "Menos respuestas (más precisas)",
+            "confidenceNote": "Solo las respuestas con confianza por encima de este umbral se incluirán en las respuestas automáticas."
+          },
+          "priority": {
+            "title": "Enviar respuestas automáticas para"
+          }
+        },
+        "accountDeletion": {
+          "title": "Eliminar cuenta",
+          "description": "Eliminar permanentemente tu cuenta y todos los datos asociados.",
+          "deleteButton": "Eliminar mi cuenta",
+          "warningTitle": "¿Estás absolutamente seguro?",
+          "warningDescription": "Esto eliminará permanentemente tu cuenta y todos los datos asociados. Esta acción no se puede deshacer.",
+          "confirmationPrompt": "Para confirmar, escribe \"{{text}}\" a continuación:",
+          "confirmationMismatch": "El texto de confirmación no coincide. Por favor escribe exactamente lo que se indica.",
+          "confirmDelete": "Eliminar cuenta permanentemente",
+          "deleting": "Eliminando...",
+          "deletionError": "No se pudo eliminar la cuenta. Por favor intenta de nuevo o contacta soporte."
+        },
+        "confirmRemoveGithubToken": "¿Estás seguro de que deseas desconectar tu cuenta de GitHub? Esto eliminará el acceso a la integración de GitHub.",
+        "githubTokenRemoved": "GitHub desconectado exitosamente",
+        "githubTokenRemoveError": "No se pudo desconectar GitHub. Por favor intenta de nuevo.",
     "noContext":"Aún no se ha aprendido ningún contexto.Haga clic en \"Analizar correos electrónicos\" para conocer su historial de correo electrónico.",
     "noSummarizationRules": "Aún no hay reglas de resumen. Agregue reglas para personalizar cómo se resumen los correos electrónicos.",
     "office365": {
@@ -1118,5 +1182,8 @@
       "connectAnother": "Conecte otra cuenta de Zoho",
       "noAccounts": "No hay cuentas de Zoho conectadas"
     }
+  },
+  "sidebar": {
+    "expand": "Expandir barra lateral"
   }
 }

@@ -32,7 +32,7 @@ export const ThreadMetadata: React.FC<ThreadMetadataProps> = ({ thread }) => {
         color: theme.colors.text.secondary,
         marginBottom: theme.spacing.xs,
       }}>
-        <strong>{t('inbox.followUp.with')}:</strong> {otherPersonName}
+        <strong>{t('inbox.followUpDetails.with')}:</strong> {otherPersonName}
       </p>
       {daysSinceLastResponse !== null ? (
         <p style={{
@@ -41,7 +41,7 @@ export const ThreadMetadata: React.FC<ThreadMetadataProps> = ({ thread }) => {
           color: theme.colors.text.secondary,
           marginBottom: theme.spacing.xs,
         }}>
-          <strong>{t('inbox.followUp.daysSinceResponse')}:</strong> {daysSinceLastResponse} {t('inbox.followUp.day', { count: daysSinceLastResponse })}
+          <strong>{t('inbox.followUpDetails.daysSinceResponse')}:</strong> {daysSinceLastResponse} {t('inbox.followUpDetails.day', { count: daysSinceLastResponse })}
         </p>
       ) : (
         <p style={{
@@ -50,7 +50,7 @@ export const ThreadMetadata: React.FC<ThreadMetadataProps> = ({ thread }) => {
           color: theme.colors.text.secondary,
           marginBottom: theme.spacing.xs,
         }}>
-          <strong>{t('inbox.followUp.status')}:</strong> {t('inbox.followUp.noReplyReceived')}
+          <strong>{t('inbox.followUpDetails.status')}:</strong> {t('inbox.followUpDetails.noReplyReceived')}
         </p>
       )}
       {lastMyReplyAt && (
@@ -59,7 +59,7 @@ export const ThreadMetadata: React.FC<ThreadMetadataProps> = ({ thread }) => {
           fontSize: theme.typography.fontSize.sm,
           color: theme.colors.text.secondary,
         }}>
-          <strong>{t('inbox.followUp.youSentLast')}:</strong> {new Date(lastMyReplyAt).toLocaleDateString()}
+          <strong>{t('inbox.followUpDetails.youSentLast')}:</strong> {new Date(lastMyReplyAt).toLocaleDateString()}
         </p>
       )}
     </div>

@@ -33,21 +33,21 @@ export const FollowUpMetadata: React.FC<FollowUpMetadataProps> = ({ email }) => 
     }}>
       {email.otherPersonName && (
         <div style={{ marginBottom: theme.spacing.xs }}>
-          <strong>{t('inbox.followUp.with')}:</strong> {email.otherPersonName}
+          <strong>{t('inbox.followUpDetails.with')}:</strong> {email.otherPersonName}
         </div>
       )}
       {daysSinceTheirReply !== null ? (
         <div style={{ marginBottom: theme.spacing.xs }}>
-          <strong>{t('inbox.followUp.daysSinceResponse')}:</strong> {daysSinceTheirReply} {t('inbox.followUp.day', { count: daysSinceTheirReply })}
+          <strong>{t('inbox.followUpDetails.daysSinceResponse')}:</strong> {daysSinceTheirReply} {t('inbox.followUpDetails.day', { count: daysSinceTheirReply })}
         </div>
       ) : (
         <div style={{ marginBottom: theme.spacing.xs }}>
-          <strong>{t('inbox.followUp.status')}:</strong> {t('inbox.followUp.noReplyReceived')}
+          <strong>{t('inbox.followUpDetails.status')}:</strong> {t('inbox.followUpDetails.noReplyReceived')}
         </div>
       )}
       {email.lastMyReplyAt && (
         <div>
-          <strong>{t('inbox.followUp.youSentLast')}:</strong> {new Date(email.lastMyReplyAt).toLocaleDateString()}
+          <strong>{t('inbox.followUpDetails.youSentLast')}:</strong> {new Date(email.lastMyReplyAt).toLocaleDateString()}
         </div>
       )}
     </div>

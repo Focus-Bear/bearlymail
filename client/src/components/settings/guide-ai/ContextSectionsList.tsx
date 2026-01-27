@@ -33,6 +33,7 @@ interface ContextSectionConfig {
   addLabelKey?: string;
   addLabel?: string;
   tooltipKey: string;
+  anchorId?: string;
 }
 
 const CONTEXT_SECTIONS: ContextSectionConfig[] = [
@@ -41,8 +42,8 @@ const CONTEXT_SECTIONS: ContextSectionConfig[] = [
   { titleKey: 'settings.contextSections.projects', contextKey: ['CURRENT_TOPIC', 'PROJECT_NAME', 'WORKING_ON'], addLabelKey: 'settings.addContext.projects', tooltipKey: 'settings.contextTypes.tooltip.projects' },
   { titleKey: 'settings.contextSections.urgent', contextKey: 'URGENT', addLabelKey: 'settings.addContext.urgent', tooltipKey: 'settings.contextTypes.tooltip.urgent' },
   { titleKey: 'settings.contextSections.notImportant', contextKey: 'NOT_IMPORTANT', addLabelKey: 'settings.addContext.notImportant', tooltipKey: 'settings.contextTypes.tooltip.notImportant' },
+  { titleKey: 'settings.contextSections.emailCategories', contextKey: 'EMAIL_CATEGORY', addLabelKey: 'settings.addContext.emailCategories', tooltipKey: 'settings.contextTypes.tooltip.emailCategories', anchorId: 'email-categories' },
   { title: 'Q&A', contextKey: 'Q_AND_A', addLabel: 'Add common Q&A', tooltipKey: 'settings.contextTypes.tooltip.qanda' },
-  // Removed "Other Context" section - it was showing garbage data
 ];
 
 export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
@@ -83,7 +84,7 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
           ? config.contextKey.join('-') 
           : config.contextKey;
         const key = `context-section-${contextKeyStr}`;
-        return (
+        const sectionElement = (
           <ContextSection
             key={key}
             title={config.title || (config.titleKey ? t(config.titleKey) : '')}
@@ -93,6 +94,14 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
             {...commonProps}
           />
         );
+        if (config.anchorId) {
+          return (
+            <div key={key} id={config.anchorId}>
+              {sectionElement}
+            </div>
+          );
+        }
+        return sectionElement;
       })}
     </>
   );

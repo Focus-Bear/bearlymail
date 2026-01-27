@@ -882,7 +882,8 @@
       "projects": "Agregar tema/proyecto",
       "urgent": "Agregar artículo urgente",
       "userInfo": "Agregar información personal",
-      "vip": "Agregar contacto VIP"
+      "vip": "Agregar contacto VIP",
+      "emailCategories": "Agregar Categoría de Correo"
     },
     "addRule": "Agregar regla",
     "addRulePlaceholder": "Agregar una nueva regla (por ejemplo, \"Sea profesional\")",
@@ -980,7 +981,8 @@
       "projects": "Proyectos y temas actuales",
       "urgent": "Lo que considero urgente",
       "userInfo": "Información sobre mí",
-      "vip": "Contactos VIP"
+      "vip": "Contactos VIP",
+      "emailCategories": "Categorías de Correo"
     },
     "created": "Creado {{date}}",
     "delivery": {
@@ -1065,6 +1067,7 @@
       "blockedSenders": "Remitentes bloqueados",
       "emailBatching": "Agrupación de correos electrónicos",
       "emailDelivery": "Entrega de correo electrónico",
+      "emailCategories": "Categorías de Correo",
       "githubIntegration": "Integración de GitHub",
       "googleAccounts": "Cuentas de Google",
       "guideOurAI": "Guía nuestra IA",

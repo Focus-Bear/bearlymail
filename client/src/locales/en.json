@@ -381,11 +381,13 @@
       "projects": "Current Projects & Topics",
       "urgent": "What I Consider Urgent",
       "notImportant": "What I Don't Consider Important",
+      "emailCategories": "Email Categories",
       "other": "Other Context"
     },
     "addContext": {
       "vip": "Add VIP Contact",
       "userInfo": "Add Personal Info",
+      "emailCategories": "Add Email Category",
       "projects": "Add Topic/Project",
       "urgent": "Add Urgent Item",
       "notImportant": "Add Not Important Item",
@@ -412,6 +414,7 @@
       "emailBatching": "Email Batching",
       "blockedSenders": "Blocked Senders",
       "guideOurAI": "Guide Our AI",
+      "emailCategories": "Email Categories",
       "toneSettings": "Tone Settings",
       "summarization": "Summarization",
       "autoResponder": "Auto-Responder",
@@ -984,11 +987,13 @@
       "projects": "Current Projects & Topics",
       "urgent": "What I Consider Urgent",
       "notImportant": "What I Don't Consider Important",
+      "emailCategories": "Email Categories",
       "other": "Other Context"
     },
     "addContext": {
       "vip": "Add VIP Contact",
       "userInfo": "Add Personal Info",
+      "emailCategories": "Add Email Category",
       "projects": "Add Topic/Project",
       "urgent": "Add Urgent Item",
       "notImportant": "Add Not Important Item",
@@ -1012,6 +1017,7 @@
       "emailBatching": "Email Batching",
       "blockedSenders": "Blocked Senders",
       "guideOurAI": "Guide Our AI",
+      "emailCategories": "Email Categories",
       "toneSettings": "Tone Settings",
       "summarization": "Summarization",
       "autoResponder": "Auto-Responder",

@@ -3,8 +3,7 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { ContextSection } from 'components/settings/guide-ai/ContextSection';
 import { theme } from 'theme/theme';
-
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+import { API_URL } from 'config/api';
 
 interface UserContext {
   contextId: string;

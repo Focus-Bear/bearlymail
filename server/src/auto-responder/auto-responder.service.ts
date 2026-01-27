@@ -942,6 +942,7 @@ export class AutoResponderService {
 
   /**
    * Get recent emails for preview selection
+   * Only returns incoming emails (not sent by the user) that would be eligible for auto-response
    */
   async getRecentEmailsForPreview(
     userId: string,
@@ -956,10 +957,23 @@ export class AutoResponderService {
       priorityScore: number | null;
     }>
   > {
+    // Get user's email to filter out sent emails
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      select: ["email"],
+    });
+
+    if (!user) {
+      return [];
+    }
+
+    const userEmail = user.email?.toLowerCase();
+
+    // Fetch more emails than needed since we'll filter out sent emails
     const emails = await this.emailRepository.find({
       where: { userId },
       order: { receivedAt: "DESC" },
-      take: limit,
+      take: limit * 3,
       select: [
         "id",
         "from",
@@ -970,9 +984,15 @@ export class AutoResponderService {
       ],
     });
 
-    // Get thread priority scores
+    // Filter out emails sent by the user (only show incoming emails)
+    const incomingEmails = emails.filter((email) => {
+      const fromEmail = email.from?.toLowerCase();
+      return fromEmail && fromEmail !== userEmail;
+    });
+
+    // Get thread priority scores for incoming emails only
     const emailsWithPriority = await Promise.all(
-      emails.map(async (email) => {
+      incomingEmails.slice(0, limit).map(async (email) => {
         let priorityScore: number | null = null;
         if (email.emailThreadId) {
           const thread = await this.emailThreadRepository.findOne({

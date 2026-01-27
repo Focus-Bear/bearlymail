@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { captureEvent } from 'utils/posthog';
 
 interface PrivateNotesSectionProps {
   noteContent: string;
@@ -29,8 +30,11 @@ export const PrivateNotesSection: React.FC<PrivateNotesSectionProps> = ({
       border: `1px solid ${theme.colors.border.light}`,
     }}>
       <div 
-        onClick={onToggleCollapsed}
-        style={{ 
+        onClick={() => {
+          captureEvent('private_notes_toggled', { collapsed: !notesCollapsed });
+          onToggleCollapsed();
+        }}
+        style={{
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center',
@@ -74,7 +78,10 @@ export const PrivateNotesSection: React.FC<PrivateNotesSectionProps> = ({
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <button
               data-save-note-button
-              onClick={onSaveNote}
+              onClick={() => {
+                captureEvent('private_note_saved');
+                onSaveNote();
+              }}
               style={{
                 padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
                 backgroundColor: theme.colors.primary.main,

@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { KEY_ENTER } from 'constants/strings';
+import { captureEvent } from 'utils/posthog';
 
 interface ActionItemInputProps {
   newActionItem: string;
@@ -33,7 +34,10 @@ export const ActionItemInput: React.FC<ActionItemInputProps> = ({
         }}
       />
       <button
-        onClick={onAddActionItem}
+        onClick={() => {
+          captureEvent('action_item_added');
+          onAddActionItem();
+        }}
         disabled={!newActionItem.trim()}
         style={{
           padding: `${theme.spacing.sm} ${theme.spacing.lg}`,

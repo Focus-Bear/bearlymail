@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { ToneRuleItem } from 'components/settings/guide-ai/ToneRuleItem';
 import { KEY_ENTER } from 'constants/strings';
+import { captureEvent } from 'utils/posthog';
 
 interface ToneSettingsSectionProps {
   toneRules: string[];
@@ -74,7 +75,10 @@ export const ToneSettingsSection: React.FC<ToneSettingsSectionProps> = ({
             }}
           />
           <button
-            onClick={onAddToneRule}
+            onClick={() => {
+              captureEvent('tone_rule_added');
+              onAddToneRule();
+            }}
             disabled={!newToneRule.trim()}
             style={{
               padding: `${theme.spacing.sm} ${theme.spacing.lg}`,

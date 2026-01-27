@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { captureEvent } from 'utils/posthog';
 
 interface OpenAIApiKeyActionsProps {
   openAiApiKey: string;
@@ -20,7 +21,10 @@ export const OpenAIApiKeyActions: React.FC<OpenAIApiKeyActionsProps> = ({
   return (
     <div style={{ display: 'flex', gap: theme.spacing.md }}>
       <button
-        onClick={onSaveApiKey}
+        onClick={() => {
+          captureEvent('openai_api_key_saved');
+          onSaveApiKey();
+        }}
         disabled={!openAiApiKey.trim()}
         style={{
           padding: `${theme.spacing.sm} ${theme.spacing.md}`,
@@ -34,7 +38,10 @@ export const OpenAIApiKeyActions: React.FC<OpenAIApiKeyActionsProps> = ({
         {apiKeySaved ? t('settings.saved') : t('settings.saveApiKey')}
       </button>
       <button
-        onClick={onRemoveApiKey}
+        onClick={() => {
+          captureEvent('openai_api_key_removed');
+          onRemoveApiKey();
+        }}
         style={{
           padding: `${theme.spacing.sm} ${theme.spacing.md}`,
           backgroundColor: theme.colors.accent.error,

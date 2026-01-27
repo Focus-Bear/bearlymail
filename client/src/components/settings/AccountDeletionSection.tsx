@@ -4,6 +4,7 @@ import axios from 'axios';
 import { theme } from 'theme/theme';
 import { useAuth } from 'contexts/AuthContext';
 import { API_URL } from 'config/api';
+import { captureEvent } from 'utils/posthog';
 
 const CONFIRMATION_TEXT = 'delete all my data';
 
@@ -16,12 +17,14 @@ export const AccountDeletionSection: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const handleDeleteClick = () => {
+    captureEvent('account_deletion_initiated');
     setShowConfirmation(true);
     setConfirmationInput('');
     setError(null);
   };
 
   const handleCancel = () => {
+    captureEvent('account_deletion_cancelled');
     setShowConfirmation(false);
     setConfirmationInput('');
     setError(null);
@@ -33,6 +36,7 @@ export const AccountDeletionSection: React.FC = () => {
       return;
     }
 
+    captureEvent('account_deletion_confirmed');
     setIsDeleting(true);
     setError(null);
 

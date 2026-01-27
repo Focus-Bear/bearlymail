@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { EMOJI_CLOSE } from 'constants/emojis';
+import { captureEvent } from 'utils/posthog';
 
 const ACTION_ITEM_SOURCE_LLM = 'llm';
 
@@ -32,7 +33,12 @@ export const ActionItemList: React.FC<ActionItemListProps> = ({
           <input
             type="checkbox"
             checked={item.isCompleted}
-            onChange={(e) => item.id && onToggleActionItem(item.id, e.target.checked)}
+            onChange={(e) => {
+              if (item.id) {
+                captureEvent('action_item_toggled', { completed: e.target.checked });
+                onToggleActionItem(item.id, e.target.checked);
+              }
+            }}
             style={{ marginTop: '4px', cursor: 'pointer' }}
           />
           <span style={{ 
@@ -54,7 +60,10 @@ export const ActionItemList: React.FC<ActionItemListProps> = ({
           </span>
           {item.id && (
             <button
-              onClick={() => onDeleteActionItem(item.id!)}
+              onClick={() => {
+                captureEvent('action_item_deleted');
+                onDeleteActionItem(item.id!);
+              }}
               style={{
                 background: 'transparent',
                 border: 'none',

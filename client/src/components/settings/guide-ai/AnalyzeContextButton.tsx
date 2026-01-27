@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { captureEvent } from 'utils/posthog';
 
 interface AnalyzeContextButtonProps {
   analyzing: boolean;
@@ -16,7 +17,10 @@ export const AnalyzeContextButton: React.FC<AnalyzeContextButtonProps> = ({
   return (
     <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: theme.spacing.sm }}>
       <button
-        onClick={onAnalyzeContext}
+        onClick={() => {
+          captureEvent('analyze_context_clicked');
+          onAnalyzeContext();
+        }}
         disabled={analyzing}
         style={{
           padding: `${theme.spacing.sm} ${theme.spacing.md}`,

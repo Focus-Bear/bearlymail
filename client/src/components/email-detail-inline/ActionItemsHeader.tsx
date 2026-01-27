@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
+import { captureEvent } from 'utils/posthog';
 
 const ACTION_ITEM_SOURCE_LLM = 'llm';
 
@@ -43,7 +44,10 @@ export const ActionItemsHeader: React.FC<ActionItemsHeaderProps> = ({
       <div style={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center' }}>
         {actionItems.some(item => item.source === ACTION_ITEM_SOURCE_LLM) && onRegenerateActionItems && (
           <button
-            onClick={onRegenerateActionItems}
+            onClick={() => {
+              captureEvent('action_items_regenerate_clicked');
+              onRegenerateActionItems();
+            }}
             disabled={isGeneratingSummary}
             style={{
               background: 'transparent',
@@ -60,7 +64,10 @@ export const ActionItemsHeader: React.FC<ActionItemsHeaderProps> = ({
           </button>
         )}
         <button
-          onClick={onExtractActions}
+          onClick={() => {
+            captureEvent('action_items_suggest_clicked');
+            onExtractActions();
+          }}
           disabled={isGeneratingSummary}
           style={{
             background: 'transparent',

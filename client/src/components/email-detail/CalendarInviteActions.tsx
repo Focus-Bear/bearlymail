@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
 import { EMOJI_CALENDAR } from 'constants/emojis';
+import { captureEvent } from 'utils/posthog';
 
 interface CalendarInviteActionsProps {
   email: Email;
@@ -24,6 +25,7 @@ export const CalendarInviteActions: React.FC<CalendarInviteActionsProps> = ({
   const handleAccept = async () => {
     setResponding(true);
     setResponseStatus(null);
+    captureEvent('calendar_invite_accept_clicked', { email_id: email.id });
     try {
       await onAccept();
       setResponseStatus('accepted');
@@ -38,6 +40,7 @@ export const CalendarInviteActions: React.FC<CalendarInviteActionsProps> = ({
   const handleDecline = async () => {
     setResponding(true);
     setResponseStatus(null);
+    captureEvent('calendar_invite_decline_clicked', { email_id: email.id });
     try {
       await onDecline();
       setResponseStatus('declined');

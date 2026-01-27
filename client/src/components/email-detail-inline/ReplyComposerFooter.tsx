@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { captureEvent } from 'utils/posthog';
 
 const DEFAULT_EXPECTED_REPLY_HOURS = 48;
 
@@ -43,6 +44,7 @@ export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = ({
   };
 
   const handleSend = () => {
+    captureEvent('reply_sent', { expected_reply_hours: expectedReplyHours > 0 ? expectedReplyHours : null });
     onSend(expectedReplyHours > 0 ? expectedReplyHours : undefined);
   };
 

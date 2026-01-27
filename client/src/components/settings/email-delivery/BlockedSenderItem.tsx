@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { captureEvent } from 'utils/posthog';
 
 interface BlockedSender {
   id: string;
@@ -67,7 +68,10 @@ export const BlockedSenderItem: React.FC<BlockedSenderItemProps> = ({
         </div>
       </div>
       <button
-        onClick={() => onUnblock(sender.id)}
+        onClick={() => {
+          captureEvent('sender_unblocked');
+          onUnblock(sender.id);
+        }}
         style={{
           padding: `${theme.spacing.xs} ${theme.spacing.md}`,
           backgroundColor: 'transparent',

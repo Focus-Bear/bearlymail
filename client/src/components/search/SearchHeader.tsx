@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
+
 export const SearchHeader: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -51,7 +52,10 @@ export const SearchHeader: React.FC = () => {
           </Link>
         </div>
         <button
-          onClick={() => navigate('/inbox')}
+          onClick={() => {
+            captureEvent('search_back_to_inbox_clicked');
+            navigate('/inbox');
+          }}
           style={{
             padding: `${theme.spacing.sm} ${theme.spacing.md}`,
             backgroundColor: 'transparent',

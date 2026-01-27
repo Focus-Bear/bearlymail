@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { captureEvent } from 'utils/posthog';
 
 interface BlockedKeyword {
   id: string;
@@ -20,7 +21,7 @@ export const BlockedKeywordItem: React.FC<BlockedKeywordItemProps> = ({
   onUnblock,
 }) => {
   const { t } = useTranslation();
-  
+
   return (
     <div
       key={keyword.id}
@@ -73,7 +74,10 @@ export const BlockedKeywordItem: React.FC<BlockedKeywordItemProps> = ({
         </div>
       </div>
       <button
-        onClick={() => onUnblock(keyword.id)}
+        onClick={() => {
+          captureEvent('keyword_unblocked');
+          onUnblock(keyword.id);
+        }}
         style={{
           padding: `${theme.spacing.xs} ${theme.spacing.md}`,
           backgroundColor: 'transparent',

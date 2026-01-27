@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 import { INPUT_WIDTH_PX } from 'constants/numbers';
 import { BlockedKeywordItem } from 'components/settings/email-delivery/BlockedKeywordItem';
 import { EMOJI_BLOCK } from 'constants/emojis';
+import { captureEvent } from 'utils/posthog';
 
 interface BlockedKeyword {
   id: string;
@@ -32,6 +33,7 @@ export const BlockedKeywordsSection: React.FC<BlockedKeywordsSectionProps> = ({
   const handleAddKeyword = async () => {
     if (!newKeyword.trim()) return;
     
+    captureEvent('blocked_keyword_added', { exact_match: exactMatch });
     setIsAdding(true);
     try {
       await onAddKeyword(newKeyword.trim(), exactMatch);

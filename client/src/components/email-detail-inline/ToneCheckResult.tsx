@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { EMOJI_CHECK, EMOJI_WARNING } from 'constants/emojis';
+import { captureEvent } from 'utils/posthog';
 
 interface DisputeResult {
   accepted: boolean;
@@ -62,6 +63,7 @@ export const ToneCheckResult: React.FC<ToneCheckResultProps> = ({
 
   const handleDisputeSubmit = async () => {
     if (!onDispute || !emailText || !disputeArgument.trim()) return;
+    captureEvent('tone_check_dispute_submitted');
     await onDispute(emailText, toneCheckResult.suggestions, disputeArgument);
     setDisputeArgument('');
     setShowDisputeForm(false);
@@ -98,7 +100,10 @@ export const ToneCheckResult: React.FC<ToneCheckResultProps> = ({
             {toneCheckResult.revisedText}
           </div>
           <button
-            onClick={() => onUseRevisedText(toneCheckResult.revisedText!)}
+            onClick={() => {
+              captureEvent('tone_check_revised_text_used');
+              onUseRevisedText(toneCheckResult.revisedText!);
+            }}
             style={{
               marginTop: theme.spacing.sm,
               padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
@@ -148,7 +153,10 @@ export const ToneCheckResult: React.FC<ToneCheckResultProps> = ({
 
           {!showDisputeForm && !disputeResult?.accepted && (
             <button
-              onClick={() => setShowDisputeForm(true)}
+              onClick={() => {
+                captureEvent('tone_check_dispute_form_opened');
+                setShowDisputeForm(true);
+              }}
               style={{
                 padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
                 backgroundColor: 'transparent',

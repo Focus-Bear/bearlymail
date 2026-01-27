@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { INPUT_WIDTH_PX } from 'constants/numbers';
 import { EMOJI_CHECK } from 'constants/emojis';
+import { captureEvent } from 'utils/posthog';
 
 interface GitHubIntegrationSectionProps {
   hasGithubToken: boolean;
@@ -66,7 +67,10 @@ export const GitHubIntegrationSection: React.FC<GitHubIntegrationSectionProps> =
         <div style={{ display: 'flex', gap: theme.spacing.md, alignItems: 'center' }}>
           {!hasGithubToken ? (
             <button
-              onClick={onConnectGitHub}
+              onClick={() => {
+                captureEvent('github_connect_clicked');
+                onConnectGitHub();
+              }}
               style={{
                 padding: `${theme.spacing.md} ${theme.spacing.lg}`,
                 backgroundColor: theme.colors.primary.main,
@@ -82,7 +86,10 @@ export const GitHubIntegrationSection: React.FC<GitHubIntegrationSectionProps> =
             </button>
           ) : (
             <button
-              onClick={onDisconnectGitHub}
+              onClick={() => {
+                captureEvent('github_disconnect_clicked');
+                onDisconnectGitHub();
+              }}
               style={{
                 padding: `${theme.spacing.md} ${theme.spacing.lg}`,
                 backgroundColor: theme.colors.accent.error,

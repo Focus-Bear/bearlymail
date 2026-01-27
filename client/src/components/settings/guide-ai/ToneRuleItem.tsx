@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { KEY_ENTER, KEY_ESCAPE } from 'constants/strings';
+import { captureEvent } from 'utils/posthog';
 
 interface ToneRuleItemProps {
   rule: string;
@@ -21,6 +22,7 @@ export const ToneRuleItem: React.FC<ToneRuleItemProps> = ({ rule, index, onRemov
 
   const handleSaveEdit = () => {
     if (editValue.trim() && editValue !== rule && onEdit) {
+      captureEvent('tone_rule_edited');
       onEdit(index, editValue.trim());
     }
     setIsEditing(false);
@@ -133,7 +135,10 @@ export const ToneRuleItem: React.FC<ToneRuleItemProps> = ({ rule, index, onRemov
           </button>
         )}
         <button
-          onClick={onRemove}
+          onClick={() => {
+            captureEvent('tone_rule_removed');
+            onRemove();
+          }}
           style={{
             background: 'transparent',
             border: 'none',

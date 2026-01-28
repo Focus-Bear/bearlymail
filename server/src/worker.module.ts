@@ -13,6 +13,7 @@ import { LLMModule } from "./llm/llm.module";
 import { BatchScheduleModule } from "./batch-schedule/batch-schedule.module";
 import { AutoResponderModule } from "./auto-responder/auto-responder.module";
 import { FollowUpsModule } from "./follow-ups/follow-ups.module";
+import { SuggestedRepliesModule } from "./suggested-replies/suggested-replies.module";
 
 // Database entities
 import { User } from "./database/entities/user.entity";
@@ -32,6 +33,7 @@ import { BlockedSender } from "./database/entities/blocked-sender.entity";
 import { BlockedKeyword } from "./database/entities/blocked-keyword.entity";
 import { PriorityOverride } from "./database/entities/priority-override.entity";
 import { TokenUsage } from "./database/entities/token-usage.entity";
+import { SuggestedReply } from "./database/entities/suggested-reply.entity";
 
 // Worker processors
 import { EmailSyncProcessor } from "./emails/email-sync.processor";
@@ -115,6 +117,7 @@ import { BlockedKeywordsService } from "./blocked-keywords/blocked-keywords.serv
             BlockedKeyword,
             PriorityOverride,
             TokenUsage,
+            SuggestedReply,
           ],
           synchronize: false,
           ssl: useSsl,
@@ -138,6 +141,7 @@ import { BlockedKeywordsService } from "./blocked-keywords/blocked-keywords.serv
       BlockedSender,
       BlockedKeyword,
       PriorityOverride,
+      SuggestedReply,
     ]),
     QueueModule,
     GitHubModule,
@@ -149,6 +153,7 @@ import { BlockedKeywordsService } from "./blocked-keywords/blocked-keywords.serv
     BatchScheduleModule,
     AutoResponderModule,
     FollowUpsModule,
+    SuggestedRepliesModule,
   ],
   providers: [
     // Core services

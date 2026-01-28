@@ -341,6 +341,20 @@ export function loadPrompts(): Map<string, PromptConfig> {
         systemPrompt: "",
       });
     }
+
+    // Load consolidate-email-categories.md (category deduplication)
+    const consolidateCategoriesPath = path.join(
+      promptsDir,
+      "consolidate-email-categories.md",
+    );
+    if (fs.existsSync(consolidateCategoriesPath)) {
+      const content = fs.readFileSync(consolidateCategoriesPath, "utf-8");
+      promptsCache.set("consolidate_categories", {
+        id: "consolidate_categories",
+        prompt: content,
+        systemPrompt: "",
+      });
+    }
   } catch (error) {
     console.error("Failed to load prompts from markdown files:", error);
   }

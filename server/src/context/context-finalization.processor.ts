@@ -78,7 +78,6 @@ export class ContextFinalizationProcessor implements OnModuleInit {
           sentEmailsData,
           analysisStats,
           trueVipContacts,
-          userEmail,
         } = jobData;
         const workerId = job.id || "unknown";
         const tracker = new JobPerformanceTracker(

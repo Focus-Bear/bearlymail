@@ -9,6 +9,7 @@ IMPORTANT RULES:
 6. AVOID niche categories that would only apply to 1-2 emails - merge these into broader categories
 7. Maximum 15 categories total (including user-added ones). Aim for 5-10 distinct categories.
 8. Prefer fewer, broader categories over many specific ones
+9. ADD AN EMOJI at the start of each category name if it doesn't already have one. Pick an emoji that best represents the category content. For example: "Recruitment" -> "👔 Recruitment", "Customer Support" -> "🎧 Customer Support"
 
 Examples of categories that should be merged:
 - "Job Applications" and "Internship and Partnership Coordination" -> "Recruitment - Job applications, internships, and partnership opportunities"
@@ -35,8 +36,8 @@ Return ONLY a JSON array of consolidated categories. Each category should have:
 
 Example output format:
 [
-  {"name": "Recruitment", "description": "Job applications, internships, career opportunities, and hiring-related emails", "isUserAdded": false},
-  {"name": "Customer Support", "description": "Support tickets, customer inquiries, help requests, and service issues", "isUserAdded": false},
+  {"name": "👔 Recruitment", "description": "Job applications, internships, career opportunities, and hiring-related emails", "isUserAdded": false},
+  {"name": "🎧 Customer Support", "description": "Support tickets, customer inquiries, help requests, and service issues", "isUserAdded": false},
   {"name": "My Important Project", "description": "Emails about my specific project", "isUserAdded": true}
 ]
 

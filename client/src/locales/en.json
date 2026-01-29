@@ -553,11 +553,12 @@
       "expires": "Expires",
       "joined": "Joined",
       "extendTrial": "Extend Trial",
-      "approve": "Approve",
-      "pendingApproval": "Pending Approval",
-      "approved": "Approved",
-      "noPendingRequests": "No pending requests",
-      "noApprovedEntries": "No approved entries"
+            "approve": "Approve",
+            "pendingApproval": "Pending Approval",
+            "approved": "Approved",
+            "noPendingRequests": "No pending requests",
+            "noApprovedEntries": "No approved entries",
+            "emailSystem": "Email System"
     },
     "jobs": {
       "title": "Job Queue Statistics",
@@ -1677,16 +1678,23 @@
         "paragraph3": "No spam, no commitment. Just your email address to reserve your spot."
       }
     },
-    "waitlist": {
-      "heading": "Join the Waitlist",
-      "description": "Get early access to BearlyMail and help shape the future of email.",
-      "success": {
-        "heading": "You're on the list!",
-        "description": "We'll send you an email when your spot is ready. In the meantime, check out our blog for updates.",
-        "goToLogin": "Go to Login"
+      "waitlist": {
+        "heading": "Join the Waitlist",
+        "description": "Get early access to BearlyMail and help shape the future of email.",
+        "success": {
+          "heading": "You're on the list!",
+          "description": "We'll send you an email when your spot is ready. In the meantime, check out our blog for updates.",
+          "goToLogin": "Go to Login"
+        },
+        "emailSystemLabel": "Which email system do you use?",
+        "emailSystemPlaceholder": "Select your email system",
+        "emailSystemGmail": "Gmail/Google Workspace",
+        "emailSystemOutlook": "Outlook/Office365",
+        "emailSystemZoho": "Zoho Mail",
+        "emailSystemOther": "Other",
+        "emailSystemOtherLabel": "Please specify your email system"
       }
-    }
-  },
+    },
   "sidebar": {
     "expand": "Expand sidebar"
   }

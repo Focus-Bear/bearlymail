@@ -31,6 +31,12 @@ export class Waitlist {
   @Column("text", { transformer: encryptedColumnTransformer })
   reason: string;
 
+  @Column({ nullable: true, transformer: encryptedColumnTransformer })
+  emailSystem: string;
+
+  @Column({ nullable: true, transformer: encryptedColumnTransformer })
+  emailSystemOther: string;
+
   @Column({ default: false })
   approved: boolean;
 

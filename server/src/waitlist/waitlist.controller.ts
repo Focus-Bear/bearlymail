@@ -18,9 +18,22 @@ export class WaitlistController {
 
   @Post()
   async submit(
-    @Body() body: { email: string; firstName: string; reason: string },
+    @Body()
+    body: {
+      email: string;
+      firstName: string;
+      reason: string;
+      emailSystem?: string;
+      emailSystemOther?: string;
+    },
   ) {
-    return this.waitlistService.create(body.email, body.firstName, body.reason);
+    return this.waitlistService.create(
+      body.email,
+      body.firstName,
+      body.reason,
+      body.emailSystem,
+      body.emailSystemOther,
+    );
   }
 
   @Get()

@@ -21,10 +21,11 @@
       "pendingApproval": "Pendiente de aprobación",
       "status": "Estado",
       "subscriptions": "Suscripciones",
-      "title": "Panel de administración",
-      "tokenUsage": "Uso de tokens",
-      "waitlist": "Lista de espera"
-    },
+          "title": "Panel de administración",
+          "tokenUsage": "Uso de tokens",
+          "waitlist": "Lista de espera",
+          "emailSystem": "Sistema de correo"
+        },
     "jobs": {
       "active": "Activo",
       "avgCompletionTime": "Tiempo promedio de finalización",
@@ -957,15 +958,22 @@
       "description": "El correo electrónico fue diseñado para la comunicación asincrónica, pero se ha convertido en una interrupción constante. BearlyMail recupera la promesa original: revise su correo electrónico cuando funcione para usted, no cuando funcione para los demás.",
       "heading": "Por qué existe BearlyMail"
     },
-    "waitlist": {
-      "description": "Obtenga acceso temprano a BearlyMail y ayude a dar forma al futuro del correo electrónico.",
-      "heading": "Únase a la lista de espera",
-      "success": {
-        "description": "Te enviaremos un correo electrónico cuando tu lugar esté listo. Mientras tanto, consulte nuestro blog para obtener actualizaciones.",
-        "goToLogin": "Ir a Iniciar sesión",
-        "heading": "¡Estás en la lista!"
-      }
-    },
+        "waitlist": {
+          "description": "Obtenga acceso temprano a BearlyMail y ayude a dar forma al futuro del correo electrónico.",
+          "heading": "Únase a la lista de espera",
+          "success": {
+            "description": "Te enviaremos un correo electrónico cuando tu lugar esté listo. Mientras tanto, consulte nuestro blog para obtener actualizaciones.",
+            "goToLogin": "Ir a Iniciar sesión",
+            "heading": "¡Estás en la lista!"
+          },
+          "emailSystemLabel": "¿Qué sistema de correo electrónico usas?",
+          "emailSystemPlaceholder": "Selecciona tu sistema de correo",
+          "emailSystemGmail": "Gmail/Google Workspace",
+          "emailSystemOutlook": "Outlook/Office365",
+          "emailSystemZoho": "Zoho Mail",
+          "emailSystemOther": "Otro",
+          "emailSystemOtherLabel": "Por favor especifica tu sistema de correo"
+        },
     "sidebar": {
       "expand": "Expandir barra lateral"
     }

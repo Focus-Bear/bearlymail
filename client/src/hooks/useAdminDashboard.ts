@@ -12,6 +12,8 @@ export interface WaitlistEntry {
   email: string;
   firstName: string;
   reason: string;
+  emailSystem?: string;
+  emailSystemOther?: string;
   approved: boolean;
   createdAt: string;
 }

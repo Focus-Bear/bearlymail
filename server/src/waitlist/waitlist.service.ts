@@ -26,6 +26,8 @@ export class WaitlistService {
     email: string,
     firstName: string,
     reason: string,
+    emailSystem?: string,
+    emailSystemOther?: string,
   ): Promise<Waitlist> {
     // Auto-approve jeremy@focusbear.io
     const approved = email.toLowerCase() === "jeremy@focusbear.io";
@@ -35,6 +37,8 @@ export class WaitlistService {
       emailHash: EncryptionHelper.hashEmail(email),
       firstName,
       reason,
+      emailSystem,
+      emailSystemOther,
       approved,
     });
 
@@ -62,7 +66,14 @@ export class WaitlistService {
     }
 
     // Send Cliq notification
-    await this.sendCliqNotification(email, firstName, reason, approved);
+    await this.sendCliqNotification(
+      email,
+      firstName,
+      reason,
+      approved,
+      emailSystem,
+      emailSystemOther,
+    );
 
     return saved;
   }
@@ -72,6 +83,8 @@ export class WaitlistService {
     firstName: string,
     reason: string,
     approved: boolean,
+    emailSystem?: string,
+    emailSystemOther?: string,
   ): Promise<void> {
     try {
       const cliqWebhookUrl = this.configService.get<string>(
@@ -93,6 +106,8 @@ export class WaitlistService {
         email,
         firstName,
         reason,
+        emailSystem,
+        emailSystemOther,
         approved,
         timestamp: new Date().toISOString(),
       };

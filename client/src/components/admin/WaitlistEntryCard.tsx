@@ -38,13 +38,31 @@ export const WaitlistEntryCard: React.FC<WaitlistEntryCardProps> = ({
         }}>
           {entry.firstName} ({entry.email}) {isApproved ? '✓' : ''}
         </div>
-        <div style={{
-          color: theme.colors.text.secondary,
-          fontSize: theme.typography.fontSize.sm,
-          marginBottom: isApproved ? 0 : theme.spacing.sm,
-        }}>
-          {entry.reason}
-        </div>
+                <div style={{
+                  color: theme.colors.text.secondary,
+                  fontSize: theme.typography.fontSize.sm,
+                  marginBottom: theme.spacing.sm,
+                }}>
+                  {entry.reason}
+                </div>
+                {entry.emailSystem && (
+                  <div style={{
+                    color: theme.colors.text.secondary,
+                    fontSize: theme.typography.fontSize.sm,
+                    marginBottom: isApproved ? 0 : theme.spacing.sm,
+                  }}>
+                    <strong>{t('admin.dashboard.emailSystem')}:</strong>{' '}
+                    {entry.emailSystem === 'other' && entry.emailSystemOther
+                      ? entry.emailSystemOther
+                      : entry.emailSystem === 'gmail'
+                        ? 'Gmail/Google Workspace'
+                        : entry.emailSystem === 'outlook'
+                          ? 'Outlook/Office365'
+                          : entry.emailSystem === 'zoho'
+                            ? 'Zoho Mail'
+                            : entry.emailSystem}
+                  </div>
+                )}
         {!isApproved && (
           <div style={{
             color: theme.colors.text.tertiary,

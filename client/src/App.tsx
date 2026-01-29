@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from 'contexts/AuthContext';
 import { NotificationProvider } from 'contexts/NotificationContext';
 import { store } from 'store/store';
 import { ConsentModal } from 'components/ConsentModal';
+import { SetupWizard } from 'components/setup-wizard';
 import Landing from 'pages/Landing';
 import Login from 'pages/Login';
 import Inbox from 'pages/Inbox';
@@ -29,37 +30,38 @@ import { theme } from 'theme/theme';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
+interface OnboardingStatus {
+  hasCompletedOnboarding: boolean;
+  needsTermsAcceptance: boolean;
+  needsPrivacyAcceptance: boolean;
+}
+
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading, refreshUser } = useAuth();
-  const [consentStatus, setConsentStatus] = useState<{
-    needsTermsAcceptance: boolean;
-    needsPrivacyAcceptance: boolean;
-  } | null>(null);
-  const [checkingConsent, setCheckingConsent] = useState(true);
-  const hasCheckedConsentRef = React.useRef(false);
+  const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus | null>(null);
+  const [checkingStatus, setCheckingStatus] = useState(true);
+  const hasCheckedStatusRef = React.useRef(false);
 
   useEffect(() => {
-    // Only check once when user is loaded
-    if (!loading && user && !hasCheckedConsentRef.current) {
-      hasCheckedConsentRef.current = true;
-      // Check consent status
-      axios.get(`${API_URL}/users/consent-status`)
+    if (!loading && user && !hasCheckedStatusRef.current) {
+      hasCheckedStatusRef.current = true;
+      axios.get(`${API_URL}/onboarding/status`)
         .then((response) => {
-          setConsentStatus(response.data);
+          setOnboardingStatus(response.data);
         })
         .catch((error) => {
-          console.error('Failed to check consent status:', error);
+          console.error('Failed to check onboarding status:', error);
         })
         .finally(() => {
-          setCheckingConsent(false);
+          setCheckingStatus(false);
         });
     } else if (!loading && !user) {
-      hasCheckedConsentRef.current = false; // Reset when user logs out
-      setCheckingConsent(false);
+      hasCheckedStatusRef.current = false;
+      setCheckingStatus(false);
     }
   }, [loading, user]);
 
-  if (loading || checkingConsent) {
+  if (loading || checkingStatus) {
     return <div style={{ 
       display: 'flex', 
       justifyContent: 'center', 
@@ -73,22 +75,32 @@ const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     return <Navigate to="/login" />;
   }
 
-  // Check if consent is needed
-  const needsConsent = consentStatus && 
-    (consentStatus.needsTermsAcceptance || consentStatus.needsPrivacyAcceptance);
+  if (onboardingStatus && !onboardingStatus.hasCompletedOnboarding) {
+    return (
+      <SetupWizard
+        onComplete={async () => {
+          const response = await axios.get(`${API_URL}/onboarding/status`);
+          setOnboardingStatus(response.data);
+        }}
+        refreshUser={refreshUser}
+      />
+    );
+  }
 
-  if (needsConsent && consentStatus) {
+  const needsConsent = onboardingStatus && 
+    (onboardingStatus.needsTermsAcceptance || onboardingStatus.needsPrivacyAcceptance);
+
+  if (needsConsent && onboardingStatus) {
     return (
       <>
         {children}
         <ConsentModal
-          needsTermsAcceptance={consentStatus.needsTermsAcceptance}
-          needsPrivacyAcceptance={consentStatus.needsPrivacyAcceptance}
+          needsTermsAcceptance={onboardingStatus.needsTermsAcceptance}
+          needsPrivacyAcceptance={onboardingStatus.needsPrivacyAcceptance}
           onAccept={async () => {
             await refreshUser();
-            // Re-check consent status
-            const response = await axios.get(`${API_URL}/users/consent-status`);
-            setConsentStatus(response.data);
+            const response = await axios.get(`${API_URL}/onboarding/status`);
+            setOnboardingStatus(response.data);
           }}
         />
       </>

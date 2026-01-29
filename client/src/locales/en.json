@@ -1515,6 +1515,37 @@
       "progress": "{{current}} of {{total}} emails processed"
     }
   },
+  "setupWizard": {
+    "welcome": {
+      "title": "Welcome to BearlyMail!",
+      "description": "BearlyMail uses AI to intelligently prioritize your emails, so you can focus on what matters most. Let's get you set up in just a few steps.",
+      "privacyTitle": "Your Privacy Matters",
+      "privacyMessage": "We take your privacy seriously. We don't train our AI models on your data, and we don't let OpenAI use your data for training. Your emails are processed securely and remain private.",
+      "openAiTitle": "Use Your Own OpenAI Key (Optional)",
+      "openAiDescription": "If you prefer, you can use your own OpenAI API key for AI features. This is completely optional - if not provided, we'll use our secure default key.",
+      "openAiPlaceholder": "sk-...",
+      "continue": "Continue"
+    },
+    "contextAnalysis": {
+      "title": "Learning About You",
+      "description": "To prioritize your emails effectively, we need to learn about your communication patterns. We'll analyze your recent emails to understand who's important to you and what topics matter most.",
+      "analyzing": "Analyzing your emails...",
+      "complete": "Analysis complete!",
+      "progressLabel": "complete",
+      "continue": "Continue"
+    },
+    "emailImport": {
+      "title": "Importing Your Emails",
+      "description": "We're importing your existing emails and analyzing their priority. This helps you start with a well-organized inbox.",
+      "readyDescription": "Your inbox is ready! We've imported and prioritized your emails. Any remaining emails will continue to be processed in the background.",
+      "importing": "Importing and prioritizing emails...",
+      "ready": "Your inbox is ready!",
+      "progressText": "{{count}} of {{target}} emails prioritized",
+      "enterInbox": "Enter My Inbox",
+      "backgroundNote": "This may take a few minutes. We'll continue importing in the background once you enter your inbox.",
+      "error": "Failed to check import progress. Please try again."
+    }
+  },
   "calendar": {
     "attendeeEmail": "Attendee Email",
     "attendeeName": "Attendee Name",

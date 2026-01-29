@@ -998,6 +998,37 @@
       "welcomeContent": "Hagamos un recorrido rápido para ayudarle a comenzar con su nueva experiencia de correo electrónico enfocada."
     }
   },
+  "setupWizard": {
+    "welcome": {
+      "title": "¡Bienvenido a BearlyMail!",
+      "description": "BearlyMail utiliza IA para priorizar inteligentemente tus correos electrónicos, para que puedas concentrarte en lo que más importa. Vamos a configurarte en unos pocos pasos.",
+      "privacyTitle": "Tu privacidad importa",
+      "privacyMessage": "Nos tomamos tu privacidad en serio. No entrenamos nuestros modelos de IA con tus datos, y no permitimos que OpenAI use tus datos para entrenamiento. Tus correos electrónicos se procesan de forma segura y permanecen privados.",
+      "openAiTitle": "Usa tu propia clave de OpenAI (Opcional)",
+      "openAiDescription": "Si lo prefieres, puedes usar tu propia clave API de OpenAI para las funciones de IA. Esto es completamente opcional - si no se proporciona, usaremos nuestra clave predeterminada segura.",
+      "openAiPlaceholder": "sk-...",
+      "continue": "Continuar"
+    },
+    "contextAnalysis": {
+      "title": "Aprendiendo sobre ti",
+      "description": "Para priorizar tus correos electrónicos de manera efectiva, necesitamos aprender sobre tus patrones de comunicación. Analizaremos tus correos recientes para entender quién es importante para ti y qué temas te importan más.",
+      "analyzing": "Analizando tus correos electrónicos...",
+      "complete": "¡Análisis completado!",
+      "progressLabel": "completado",
+      "continue": "Continuar"
+    },
+    "emailImport": {
+      "title": "Importando tus correos electrónicos",
+      "description": "Estamos importando tus correos electrónicos existentes y analizando su prioridad. Esto te ayuda a comenzar con una bandeja de entrada bien organizada.",
+      "readyDescription": "¡Tu bandeja de entrada está lista! Hemos importado y priorizado tus correos electrónicos. Los correos restantes continuarán procesándose en segundo plano.",
+      "importing": "Importando y priorizando correos electrónicos...",
+      "ready": "¡Tu bandeja de entrada está lista!",
+      "progressText": "{{count}} de {{target}} correos electrónicos priorizados",
+      "enterInbox": "Entrar a mi bandeja de entrada",
+      "backgroundNote": "Esto puede tardar unos minutos. Continuaremos importando en segundo plano una vez que entres a tu bandeja de entrada.",
+      "error": "Error al verificar el progreso de importación. Por favor, inténtalo de nuevo."
+    }
+  },
   "priority": {
     "feedback": {
       "currentScore": "Puntuación de prioridad actual: {{score}}",

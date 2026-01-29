@@ -16,4 +16,19 @@ export class OnboardingController {
   async getScanProgress(@Request() req) {
     return this.onboardingService.getScanProgress(req.user.userId);
   }
+
+  @Get("status")
+  async getOnboardingStatus(@Request() req) {
+    return this.onboardingService.getOnboardingStatus(req.user.userId);
+  }
+
+  @Post("complete")
+  async completeOnboarding(@Request() req) {
+    return this.onboardingService.completeOnboarding(req.user.userId);
+  }
+
+  @Get("email-import-progress")
+  async getEmailImportProgress(@Request() req) {
+    return this.onboardingService.getEmailImportProgress(req.user.userId);
+  }
 }

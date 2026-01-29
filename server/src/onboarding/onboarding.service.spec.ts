@@ -1,12 +1,15 @@
 import { Test, TestingModule } from "@nestjs/testing";
+import { getRepositoryToken } from "@nestjs/typeorm";
 import { OnboardingService } from "./onboarding.service";
 import { UsersService } from "../users/users.service";
+import { EmailThread } from "../database/entities/email-thread.entity";
 import PgBoss = require("pg-boss");
 
 describe("OnboardingService", () => {
   let service: OnboardingService;
   let boss: jest.Mocked<PgBoss>;
   let usersService: jest.Mocked<UsersService>;
+  let emailThreadRepository: { count: jest.Mock };
 
   const mockUser = {
     id: "user-1",
@@ -16,6 +19,10 @@ describe("OnboardingService", () => {
   };
 
   beforeEach(async () => {
+    emailThreadRepository = {
+      count: jest.fn().mockResolvedValue(0),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         OnboardingService,
@@ -29,7 +36,13 @@ describe("OnboardingService", () => {
           provide: UsersService,
           useValue: {
             findOne: jest.fn(),
+            getOnboardingStatus: jest.fn(),
+            completeOnboarding: jest.fn(),
           },
+        },
+        {
+          provide: getRepositoryToken(EmailThread),
+          useValue: emailThreadRepository,
         },
       ],
     }).compile();

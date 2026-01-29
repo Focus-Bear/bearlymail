@@ -1,7 +1,10 @@
 import { Injectable, Inject, Logger } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
 import PgBoss = require("pg-boss");
 import { UsersService } from "../users/users.service";
 import { getJobPriority } from "../queue/job-priorities";
+import { EmailThread } from "../database/entities/email-thread.entity";
 
 @Injectable()
 export class OnboardingService {
@@ -10,6 +13,8 @@ export class OnboardingService {
   constructor(
     @Inject("PG_BOSS") private readonly boss: PgBoss,
     private readonly usersService: UsersService,
+    @InjectRepository(EmailThread)
+    private readonly emailThreadRepository: Repository<EmailThread>,
   ) {}
 
   async startHistoricalScan(userId: string): Promise<{ message: string }> {
@@ -52,5 +57,34 @@ export class OnboardingService {
     }
 
     return { progress: null };
+  }
+
+  async getOnboardingStatus(userId: string): Promise<{
+    hasCompletedOnboarding: boolean;
+    needsTermsAcceptance: boolean;
+    needsPrivacyAcceptance: boolean;
+  }> {
+    return this.usersService.getOnboardingStatus(userId);
+  }
+
+  async completeOnboarding(userId: string): Promise<{ success: boolean }> {
+    await this.usersService.completeOnboarding(userId);
+    return { success: true };
+  }
+
+  async getEmailImportProgress(userId: string): Promise<{
+    prioritizedCount: number;
+    isReady: boolean;
+  }> {
+    const count = await this.emailThreadRepository.count({
+      where: {
+        userId,
+      },
+    });
+
+    return {
+      prioritizedCount: count,
+      isReady: count >= 100,
+    };
   }
 }

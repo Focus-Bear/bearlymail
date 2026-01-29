@@ -101,6 +101,12 @@ export class User {
   hasScannedHistory: boolean;
 
   @Column({
+    default: false,
+    comment: "Track if user has completed the onboarding wizard",
+  })
+  hasCompletedOnboarding: boolean;
+
+  @Column({
     nullable: true,
     comment: "Current scan progress (0-100)",
   })

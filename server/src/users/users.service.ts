@@ -228,6 +228,36 @@ export class UsersService {
     };
   }
 
+  async getOnboardingStatus(userId: string): Promise<{
+    hasCompletedOnboarding: boolean;
+    needsTermsAcceptance: boolean;
+    needsPrivacyAcceptance: boolean;
+  }> {
+    const user = await this.findOne(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const currentTermsVersion = process.env.TERMS_VERSION || "1.0.0";
+    const currentPrivacyVersion = process.env.PRIVACY_VERSION || "1.0.0";
+
+    const needsTermsAcceptance =
+      !user.termsAcceptedAt || user.termsVersion !== currentTermsVersion;
+    const needsPrivacyAcceptance =
+      !user.privacyAcceptedAt || user.privacyVersion !== currentPrivacyVersion;
+
+    return {
+      hasCompletedOnboarding: user.hasCompletedOnboarding,
+      needsTermsAcceptance,
+      needsPrivacyAcceptance,
+    };
+  }
+
+  async completeOnboarding(userId: string): Promise<User> {
+    await this.userRepository.update(userId, { hasCompletedOnboarding: true });
+    return this.findOne(userId);
+  }
+
   async deleteAccount(userId: string): Promise<void> {
     const user = await this.findOne(userId);
     if (!user) {

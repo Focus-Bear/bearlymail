@@ -7,6 +7,7 @@ import { EmailDeliverySection } from 'components/settings/EmailDeliverySection';
 import { GuideOurAISection } from 'components/settings/GuideOurAISection';
 import { IntegrationsSection } from 'components/settings/IntegrationsSection';
 import { AccountDeletionSection } from 'components/settings/AccountDeletionSection';
+import { DataExportSection } from 'components/settings/DataExportSection';
 import { SettingsHeader } from 'components/settings/SettingsHeader';
 import { AnalysisProgressModal } from 'components/settings/AnalysisProgressModal';
 import { AutoResponderSection } from 'components/settings/auto-responder';
@@ -175,6 +176,8 @@ const Settings: React.FC = () => {
           onConnectGitHub={settingsData.handleConnectGitHub}
           onDisconnectGitHub={settingsData.handleDisconnectGitHub}
         />
+
+        <DataExportSection />
 
         <AccountDeletionSection />
       </div>

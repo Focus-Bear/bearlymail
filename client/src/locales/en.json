@@ -492,6 +492,13 @@
       "confirmDelete": "Permanently Delete Account",
       "deleting": "Deleting...",
       "deletionError": "Failed to delete account. Please try again or contact support."
+    },
+    "dataExport": {
+      "title": "Export Data",
+      "description": "Download all your settings as a JSON file. This includes your batch schedule, blocked senders, blocked keywords, AI context, tone rules, summarization rules, and auto-responder settings. Emails are not included as they remain in your email provider.",
+      "exportButton": "Export Data",
+      "exporting": "Exporting...",
+      "exportError": "Failed to export data. Please try again."
     }
   },
   "priority": {
@@ -1341,7 +1348,14 @@
           "deleting": "Deleting...",
           "deletionError": "Failed to delete account. Please try again or contact support."
         },
-        "confirmRemoveGithubToken": "Are you sure you want to disconnect your GitHub account?",
+        "dataExport": {
+          "title": "Export Data",
+          "description": "Download all your settings as a JSON file. This includes your batch schedule, blocked senders, blocked keywords, AI context, tone rules, summarization rules, and auto-responder settings. Emails are not included as they remain in your email provider.",
+          "exportButton": "Export Data",
+          "exporting": "Exporting...",
+          "exportError": "Failed to export data. Please try again."
+        },
+        "confirmRemoveGithubToken":"Are you sure you want to disconnect your GitHub account?",
         "githubTokenRemoved": "GitHub disconnected successfully",
         "githubTokenRemoveError": "Failed to disconnect GitHub",
         "analysis": {

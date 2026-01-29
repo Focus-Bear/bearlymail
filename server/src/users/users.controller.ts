@@ -9,9 +9,13 @@ import {
   Body,
   BadRequestException,
   Logger,
+  Res,
+  Header,
 } from "@nestjs/common";
+import { Response } from "express";
 import { UsersService } from "./users.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { DataExportService } from "./data-export.service";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -67,7 +71,10 @@ class ConsentStatusPerformanceTracker {
 export class UsersController {
   private readonly logger = new Logger(UsersController.name);
 
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly dataExportService: DataExportService,
+  ) {}
 
   @Get("consent-status")
   async getConsentStatus(@Request() req) {
@@ -128,5 +135,18 @@ export class UsersController {
 
     await this.usersService.deleteAccount(req.user.userId);
     return { success: true, message: "Account deleted successfully" };
+  }
+
+  @Get("me/export")
+  @Header("Content-Type", "application/json")
+  @Header(
+    "Content-Disposition",
+    'attachment; filename="bearlymail-export.json"',
+  )
+  async exportData(@Request() req, @Res() res: Response) {
+    const exportData = await this.dataExportService.exportUserData(
+      req.user.userId,
+    );
+    res.send(JSON.stringify(exportData, null, 2));
   }
 }

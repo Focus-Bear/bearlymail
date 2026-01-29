@@ -1430,7 +1430,14 @@
           "deleting": "Eliminando...",
           "deletionError": "No se pudo eliminar la cuenta. Por favor intenta de nuevo o contacta soporte."
         },
-        "confirmRemoveGithubToken": "¿Estás seguro de que deseas desconectar tu cuenta de GitHub? Esto eliminará el acceso a la integración de GitHub.",
+        "dataExport": {
+          "title": "Exportar datos",
+          "description": "Descarga todas tus configuraciones como un archivo JSON. Esto incluye tu horario de lotes, remitentes bloqueados, palabras clave bloqueadas, contexto de IA, reglas de tono, reglas de resumen y configuración del respondedor automático. Los correos electrónicos no están incluidos ya que permanecen en tu proveedor de correo.",
+          "exportButton": "Exportar datos",
+          "exporting": "Exportando...",
+          "exportError": "No se pudieron exportar los datos. Por favor intenta de nuevo."
+        },
+        "confirmRemoveGithubToken":"¿Estás seguro de que deseas desconectar tu cuenta de GitHub? Esto eliminará el acceso a la integración de GitHub.",
         "githubTokenRemoved": "GitHub desconectado exitosamente",
         "githubTokenRemoveError": "No se pudo desconectar GitHub. Por favor intenta de nuevo.",
     "noContext":"Aún no se ha aprendido ningún contexto.Haga clic en \"Analizar correos electrónicos\" para conocer su historial de correo electrónico.",

@@ -12,6 +12,97 @@ import { DISPLAY_LIMITS } from "./auto-responder-constants";
 @Injectable()
 export class AutoResponderTemplateService {
   /**
+   * Convert markdown-style formatting to HTML
+   * Supports: **bold**, *italic*, _italic_, bullet lists (- item), links [text](url)
+   */
+  markdownToHtml(text: string): string {
+    let html = text;
+
+    // Escape HTML special characters first (except for our markdown)
+    html = html
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+
+    // Convert markdown links [text](url) to HTML links
+    html = html.replace(
+      /\[([^\]]+)\]\(([^)]+)\)/g,
+      '<a href="$2" style="color: #E07A5F;">$1</a>',
+    );
+
+    // Convert **bold** to <strong>
+    html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+
+    // Convert *italic* or _italic_ to <em>
+    html = html.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+    html = html.replace(/_([^_]+)_/g, "<em>$1</em>");
+
+    // Convert bullet lists (lines starting with "- ")
+    // First, identify consecutive bullet lines and wrap them in <ul>
+    const lines = html.split("\n");
+    const processedLines: string[] = [];
+    let inList = false;
+
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (trimmedLine.startsWith("- ")) {
+        if (!inList) {
+          processedLines.push("<ul>");
+          inList = true;
+        }
+        processedLines.push(`<li>${trimmedLine.substring(2)}</li>`);
+      } else {
+        if (inList) {
+          processedLines.push("</ul>");
+          inList = false;
+        }
+        processedLines.push(line);
+      }
+    }
+    if (inList) {
+      processedLines.push("</ul>");
+    }
+
+    html = processedLines.join("\n");
+
+    // Convert --- to horizontal rule
+    html = html.replace(/^---$/gm, "<hr>");
+
+    // Convert double newlines to paragraph breaks
+    html = html.replace(/\n\n/g, "</p><p>");
+
+    // Convert single newlines to <br> (within paragraphs)
+    html = html.replace(/\n/g, "<br>");
+
+    // Wrap in paragraph tags and basic HTML structure
+    html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+p { margin: 0 0 1em 0; }
+ul { margin: 0.5em 0; padding-left: 1.5em; }
+li { margin: 0.25em 0; }
+strong { font-weight: 600; }
+em { font-style: italic; }
+hr { border: none; border-top: 1px solid #ddd; margin: 1.5em 0; }
+a { color: #E07A5F; text-decoration: none; }
+a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<p>${html}</p>
+</body>
+</html>`;
+
+    // Clean up empty paragraphs
+    html = html.replace(/<p><\/p>/g, "");
+    html = html.replace(/<p><br><\/p>/g, "");
+
+    return html;
+  }
+  /**
    * Select the appropriate template based on priority and queue state
    */
   selectTemplate(

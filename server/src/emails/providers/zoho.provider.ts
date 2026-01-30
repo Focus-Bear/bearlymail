@@ -1005,6 +1005,7 @@ export class ZohoProvider implements EmailProvider {
     subject: string,
     body: string,
     attachments?: import("../interfaces/email-provider.interface").EmailAttachmentData[],
+    htmlBody?: string,
   ): Promise<{ messageId: string; threadId: string }> {
     const primaryAccount = await this.zohoAccountsService.findPrimary(userId);
     if (!primaryAccount) {
@@ -1023,7 +1024,7 @@ export class ZohoProvider implements EmailProvider {
           to: [{ address: to }],
           subject: subject.startsWith("Re:") ? subject : `Re: ${subject}`,
           content: {
-            html: body,
+            html: htmlBody || body,
           },
           inReplyTo: threadId,
         },

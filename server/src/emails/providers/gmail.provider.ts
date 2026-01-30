@@ -1525,6 +1525,7 @@ export class GmailProvider implements EmailProvider {
     subject: string,
     body: string,
     attachments?: EmailAttachmentData[],
+    htmlBody?: string,
   ): Promise<{ messageId: string; threadId: string }> {
     const user = await this.usersService.findOneWithTokens(userId);
     if (!user?.googleCalendarAccessToken) {
@@ -1547,6 +1548,7 @@ export class GmailProvider implements EmailProvider {
       to: [{ email: to }],
       subject,
       body,
+      htmlBody,
       attachments,
       headers: {
         "In-Reply-To": `<${threadId}@mail.gmail.com>`,
@@ -1685,12 +1687,13 @@ export class GmailProvider implements EmailProvider {
   }
 
   /**
-   * Build email content with support for attachments using multipart MIME
+   * Build email content with support for attachments and HTML using multipart MIME
    */
   private buildEmailContent(options: {
     to: EmailRecipient[];
     subject: string;
     body: string;
+    htmlBody?: string;
     cc?: EmailRecipient[];
     bcc?: EmailRecipient[];
     attachments?: EmailAttachmentData[];
@@ -1711,6 +1714,7 @@ export class GmailProvider implements EmailProvider {
 
     const hasAttachments =
       options.attachments && options.attachments.length > 0;
+    const hasHtmlBody = !!options.htmlBody;
 
     // Build email headers
     const headers: string[] = [
@@ -1737,22 +1741,50 @@ export class GmailProvider implements EmailProvider {
 
     if (hasAttachments) {
       // Use multipart/mixed when attachments are present
-      const boundary = `----=_Part_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
-      headers.push(`Content-Type: multipart/mixed; boundary="${boundary}"`);
+      const mixedBoundary = `----=_Part_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+      headers.push(
+        `Content-Type: multipart/mixed; boundary="${mixedBoundary}"`,
+      );
 
       // Build multipart body
       const parts: string[] = [];
 
-      // Text body part
-      parts.push(`--${boundary}`);
-      parts.push("Content-Type: text/plain; charset=UTF-8");
-      parts.push("Content-Transfer-Encoding: 7bit");
-      parts.push("");
-      parts.push(options.body);
+      if (hasHtmlBody) {
+        // Use multipart/alternative for text + HTML
+        const altBoundary = `----=_Alt_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+        parts.push(`--${mixedBoundary}`);
+        parts.push(
+          `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
+        );
+        parts.push("");
+
+        // Plain text part
+        parts.push(`--${altBoundary}`);
+        parts.push("Content-Type: text/plain; charset=UTF-8");
+        parts.push("Content-Transfer-Encoding: 7bit");
+        parts.push("");
+        parts.push(options.body);
+
+        // HTML part
+        parts.push(`--${altBoundary}`);
+        parts.push("Content-Type: text/html; charset=UTF-8");
+        parts.push("Content-Transfer-Encoding: 7bit");
+        parts.push("");
+        parts.push(options.htmlBody!);
+
+        parts.push(`--${altBoundary}--`);
+      } else {
+        // Text body part only
+        parts.push(`--${mixedBoundary}`);
+        parts.push("Content-Type: text/plain; charset=UTF-8");
+        parts.push("Content-Transfer-Encoding: 7bit");
+        parts.push("");
+        parts.push(options.body);
+      }
 
       // Attachment parts
       for (const attachment of options.attachments!) {
-        parts.push(`--${boundary}`);
+        parts.push(`--${mixedBoundary}`);
         parts.push(
           `Content-Type: ${attachment.mimeType}; name="${attachment.filename}"`,
         );
@@ -1768,7 +1800,32 @@ export class GmailProvider implements EmailProvider {
         parts.push(chunkedContent);
       }
 
-      parts.push(`--${boundary}--`);
+      parts.push(`--${mixedBoundary}--`);
+      bodyContent = parts.join("\r\n");
+    } else if (hasHtmlBody) {
+      // Use multipart/alternative for text + HTML (no attachments)
+      const altBoundary = `----=_Alt_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+      headers.push(
+        `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
+      );
+
+      const parts: string[] = [];
+
+      // Plain text part
+      parts.push(`--${altBoundary}`);
+      parts.push("Content-Type: text/plain; charset=UTF-8");
+      parts.push("Content-Transfer-Encoding: 7bit");
+      parts.push("");
+      parts.push(options.body);
+
+      // HTML part
+      parts.push(`--${altBoundary}`);
+      parts.push("Content-Type: text/html; charset=UTF-8");
+      parts.push("Content-Transfer-Encoding: 7bit");
+      parts.push("");
+      parts.push(options.htmlBody!);
+
+      parts.push(`--${altBoundary}--`);
       bodyContent = parts.join("\r\n");
     } else {
       // Simple text email

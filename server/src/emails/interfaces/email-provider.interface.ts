@@ -69,6 +69,7 @@ export interface EmailProvider {
 
   /**
    * Send a reply email (continues an existing thread)
+   * @param htmlBody - Optional HTML version of the body for rich formatting
    */
   sendReply(
     userId: string,
@@ -77,6 +78,7 @@ export interface EmailProvider {
     subject: string,
     body: string,
     attachments?: EmailAttachmentData[],
+    htmlBody?: string,
   ): Promise<{ messageId: string; threadId: string }>;
 
   /**

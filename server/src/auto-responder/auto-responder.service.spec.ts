@@ -130,6 +130,9 @@ describe("AutoResponderService", () => {
               result = result.replace(/\{\{urgentResponseTime\}\}/g, vars.urgentResponseTime || "");
               return result;
             }),
+            markdownToHtml: jest.fn().mockImplementation((text) => {
+              return `<html><body><p>${text}</p></body></html>`;
+            }),
           },
         },
         {

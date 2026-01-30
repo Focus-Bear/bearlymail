@@ -379,6 +379,9 @@ export class AutoResponderService {
     );
     const responseSubject = `Re: ${latestEmail.subject} - BearlyMail Auto-Response`;
 
+    // Convert markdown to HTML for proper email formatting
+    const responseHtmlBody = this.templateService.markdownToHtml(responseBody);
+
     // Log send attempt
     autoresponderLogger.logSendAttempt(
       logContext,
@@ -410,6 +413,8 @@ export class AutoResponderService {
         latestEmail.from,
         responseSubject,
         responseBody,
+        undefined,
+        responseHtmlBody,
       );
 
       // Log the auto-response

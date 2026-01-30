@@ -993,6 +993,7 @@ export class Office365Provider implements EmailProvider {
     subject: string,
     body: string,
     attachments?: import("../interfaces/email-provider.interface").EmailAttachmentData[],
+    htmlBody?: string,
   ): Promise<{ messageId: string; threadId: string }> {
     const primaryAccount =
       await this.office365AccountsService.findPrimary(userId);
@@ -1009,7 +1010,7 @@ export class Office365Provider implements EmailProvider {
           subject: subject.startsWith("Re:") ? subject : `Re: ${subject}`,
           body: {
             contentType: "HTML",
-            content: body,
+            content: htmlBody || body,
           },
           toRecipients: [
             {

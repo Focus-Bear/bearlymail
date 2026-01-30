@@ -7,13 +7,13 @@ import { BearlyMailNetworkingStack } from '../lib/bearlymail-networking-stack';
 const app = new cdk.App();
 
 const env = {
-  account: process.env.CDK_DEFAULT_ACCOUNT || '841162709871',
+  account: process.env.CDK_DEFAULT_ACCOUNT || '789877399450',
   region: 'ap-southeast-2', // Sydney
 };
 
 // Domain configuration
 const domainName = 'app.bearlymail.com';
-const hostedZoneId = 'Z08919233O73NFKRK9QHU';
+const hostedZoneId = 'Z04117591ORLVZWX6SSWO';
 
 // Create networking stack first (VPC, Route53, Certificate)
 const networkingStack = new BearlyMailNetworkingStack(app, 'BearlyMailNetworkingStack', {

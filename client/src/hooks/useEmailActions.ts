@@ -95,29 +95,11 @@ export function useEmailActions({
     
     await handleArchiveBase(emailId, e);
     
-    // Scroll to next email after archiving
-    if (emailListRef?.current && archivedIndex >= 0 && visibleEmails.length > 1) {
-      // After archiving, the email at archivedIndex is removed
-      // The email that was at archivedIndex + 1 is now at archivedIndex
-      // If we archived the last email, scroll to the previous one (now at archivedIndex - 1)
-      const nextIndex = archivedIndex < visibleEmails.length - 1 
-        ? archivedIndex  // Next email moved to this index
-        : Math.max(0, archivedIndex - 1);  // Previous email (if not first)
-      
-      setTimeout(() => {
-        const emailElement = emailListRef.current?.querySelector(
-          `[data-email-index="${nextIndex}"]`
-        ) as HTMLElement;
-        if (emailElement) {
-          emailElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-          // Update selected index to the next email
-          if (setSelectedEmailIndex !== undefined) {
-            setSelectedEmailIndex(nextIndex);
-          }
-        }
-      }, 100); // Small delay to ensure DOM has updated after optimistic removal
-    }
-  }, [handleArchiveBase, setSelectedEmailIds, emails, emailListRef, setSelectedEmailIndex]);
+    // Note: We intentionally do NOT scroll after archiving.
+    // The category accordion structure means email indices don't match the flat list order,
+    // so scrollIntoView would scroll to the wrong email and cause the user to lose their place.
+    // The browser's natural scroll anchoring keeps the user at roughly the same position.
+  }, [handleArchiveBase, setSelectedEmailIds, emails]);
 
   const handleBlockSender = useCallback((emailId: string, e: React.MouseEvent) => {
     e.stopPropagation();

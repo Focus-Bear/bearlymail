@@ -12,6 +12,8 @@ interface CategoryAccordionProps {
   onSelectAll: (emailIds: string[]) => void;
   selectedEmailIds: Set<string>;
   children: React.ReactNode;
+  onReanalyseOther?: () => void;
+  isReanalysingOther?: boolean;
 }
 
 const DEFAULT_CATEGORY_TRANSLATIONS: Record<string, string> = {
@@ -45,6 +47,8 @@ const getCategoryIcon = (category: string): string => {
 
 const EDIT_ICON = '✏️';
 
+const REANALYSE_ICON = '🔄';
+
 export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
   category,
   emails,
@@ -53,14 +57,18 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
   onSelectAll,
   selectedEmailIds,
   children,
+  onReanalyseOther,
+  isReanalysingOther,
 }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
   const [isPencilHovered, setIsPencilHovered] = useState(false);
+  const [isReanalyseHovered, setIsReanalyseHovered] = useState(false);
   const emailCount = emails.length;
   const emailIds = emails.map(e => e.id);
   const allSelected = emailIds.length > 0 && emailIds.every(id => selectedEmailIds.has(id));
+  const isOtherCategory = category === 'Other';
 
   const handleEditCategoryClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -70,6 +78,13 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
   const handleSelectAllClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onSelectAll(emailIds);
+  };
+
+  const handleReanalyseClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onReanalyseOther && !isReanalysingOther) {
+      onReanalyseOther();
+    }
   };
 
   const getSelectButtonText = (): string => {
@@ -161,6 +176,36 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
           >
             {EDIT_ICON}
           </button>
+          {isOtherCategory && onReanalyseOther && (
+            <button
+              onClick={handleReanalyseClick}
+              onMouseEnter={() => setIsReanalyseHovered(true)}
+              onMouseLeave={() => setIsReanalyseHovered(false)}
+              disabled={isReanalysingOther}
+              style={{
+                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                borderRadius: theme.borderRadius.sm,
+                border: `1px solid ${theme.colors.border.medium}`,
+                backgroundColor: isReanalyseHovered ? theme.colors.interactive.hover : 'transparent',
+                color: isReanalysingOther ? theme.colors.text.disabled : theme.colors.text.secondary,
+                fontSize: theme.typography.fontSize.sm,
+                cursor: isReanalysingOther ? 'not-allowed' : 'pointer',
+                transition: theme.transitions.fast,
+                display: 'flex',
+                alignItems: 'center',
+                gap: theme.spacing.xs,
+                opacity: isReanalysingOther ? 0.6 : 1,
+              }}
+              title={t('inbox.category.reanalyseCategories')}
+            >
+              <span style={{ 
+                animation: isReanalysingOther ? 'spin 1s linear infinite' : 'none',
+              }}>
+                {REANALYSE_ICON}
+              </span>
+              {t('inbox.category.reanalyseCategories')}
+            </button>
+          )}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>

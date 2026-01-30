@@ -224,7 +224,11 @@
       "deselectAll": "Deselect All",
       "archiveAll": "Archive All",
       "archiveAllTooltip": "Archive all emails in this category",
-      "editCategories": "Edit email categories"
+      "editCategories": "Edit email categories",
+      "reanalyseCategories": "Re-analyse categories",
+      "reanalysingCategories": "Re-analysing...",
+      "reanalyseSuccess": "Generated {{count}} new categories",
+      "reanalyseNoNewCategories": "No new categories could be generated from the emails in Other"
     }
   },
       "emailDetail": {

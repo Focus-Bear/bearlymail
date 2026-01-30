@@ -355,6 +355,20 @@ export function loadPrompts(): Map<string, PromptConfig> {
         systemPrompt: "",
       });
     }
+
+    // Load generate-categories-from-other.md (generate new categories from Other emails)
+    const generateCategoriesFromOtherPath = path.join(
+      promptsDir,
+      "generate-categories-from-other.md",
+    );
+    if (fs.existsSync(generateCategoriesFromOtherPath)) {
+      const content = fs.readFileSync(generateCategoriesFromOtherPath, "utf-8");
+      promptsCache.set("generate_categories_from_other", {
+        id: "generate_categories_from_other",
+        prompt: content,
+        systemPrompt: "",
+      });
+    }
   } catch (error) {
     console.error("Failed to load prompts from markdown files:", error);
   }

@@ -751,7 +751,11 @@
       "deselectAll": "Deseleccionar todo",
       "archiveAll": "Archivar todo",
       "archiveAllTooltip": "Archivar todos los correos en esta categoría",
-      "editCategories": "Editar categorías de correo"
+      "editCategories": "Editar categorías de correo",
+      "reanalyseCategories": "Re-analizar categorías",
+      "reanalysingCategories": "Re-analizando...",
+      "reanalyseSuccess": "Se generaron {{count}} nuevas categorías",
+      "reanalyseNoNewCategories": "No se pudieron generar nuevas categorías a partir de los correos en Otros"
     },
     "checkUrgent": "Verificar urgentes",
     "checkingUrgent": "Verificando...",

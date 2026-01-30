@@ -432,4 +432,23 @@ export class ContextController {
 
     return result;
   }
+
+  @Post("generate-categories-from-other")
+  async generateCategoriesFromOther(
+    @Request() req: { user: { userId: string } },
+  ) {
+    const { userId } = req.user;
+    this.logger.log(
+      `[CONTEXT-CONTROLLER] POST /context/generate-categories-from-other received for user ${userId}`,
+    );
+
+    const result =
+      await this.contextService.generateCategoriesFromOther(userId);
+
+    this.logger.log(
+      `[CONTEXT-CONTROLLER] Category generation complete for user ${userId}: ${result.newCategoriesCount} new categories added (total: ${result.totalCategoriesCount})`,
+    );
+
+    return result;
+  }
 }

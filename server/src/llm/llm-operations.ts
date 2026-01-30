@@ -63,6 +63,10 @@ export const LLM_OP_DISPUTE_TONE_CHECK = "dispute_tone_check";
 // Email category consolidation
 export const LLM_OP_CONSOLIDATE_CATEGORIES = "consolidate_categories";
 
+// Generate new categories from "Other" emails
+export const LLM_OP_GENERATE_CATEGORIES_FROM_OTHER =
+  "generate_categories_from_other";
+
 // Generic/unknown operation (fallback)
 export const LLM_OP_UNKNOWN = "unknown";
 
@@ -90,6 +94,7 @@ export type LLMOperation =
   | typeof LLM_OP_REDACT_NAMES
   | typeof LLM_OP_DISPUTE_TONE_CHECK
   | typeof LLM_OP_CONSOLIDATE_CATEGORIES
+  | typeof LLM_OP_GENERATE_CATEGORIES_FROM_OTHER
   | typeof LLM_OP_UNKNOWN;
 
 /**
@@ -116,5 +121,6 @@ export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
   [LLM_OP_REDACT_NAMES]: "Redact Names",
   [LLM_OP_DISPUTE_TONE_CHECK]: "Dispute Tone Check",
   [LLM_OP_CONSOLIDATE_CATEGORIES]: "Consolidate Categories",
+  [LLM_OP_GENERATE_CATEGORIES_FROM_OTHER]: "Generate Categories from Other",
   [LLM_OP_UNKNOWN]: "Unknown Operation",
 };

@@ -1,5 +1,6 @@
-import React, { useRef, useMemo, useEffect } from 'react';
+import React, { useRef, useMemo, useEffect, useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Email, InboxMode, getEmailPriorityScore } from 'types/email';
 import { API_URL } from 'config/api';
@@ -13,6 +14,7 @@ import { DebugView } from 'components/inbox/DebugView';
 import { BatchInfoBar } from 'components/inbox/BatchInfoBar';
 import { useSplitView } from 'hooks/useSplitView';
 import { CategoryAccordion, groupEmailsByCategory } from 'components/inbox/CategoryAccordion';
+import { useNotification } from 'contexts/NotificationContext';
 
 interface InboxContentProps {
   mode: InboxMode;
@@ -94,9 +96,40 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   onToggleCategory,
   onUpdateStableCategoryOrder,
 }) => {
+  const { t } = useTranslation();
+  const { showNotification } = useNotification();
   const splitViewContainerRef = useRef<HTMLDivElement>(null);
+  const [isReanalysingOther, setIsReanalysingOther] = useState(false);
 
-  const filteredEmails = useMemo(() => 
+  const handleReanalyseOther = async () => {
+    setIsReanalysingOther(true);
+    try {
+      const response = await axios.post(`${API_URL}/context/generate-categories-from-other`);
+      const { newCategoriesCount } = response.data;
+      
+      if (newCategoriesCount > 0) {
+        showNotification(
+          t('inbox.category.reanalyseSuccess', { count: newCategoriesCount }),
+          'success'
+        );
+      } else {
+        showNotification(
+          t('inbox.category.reanalyseNoNewCategories'),
+          'info'
+        );
+      }
+    } catch (error) {
+      console.error('Error re-analysing categories:', error);
+      showNotification(
+        'Failed to re-analyse categories. Please try again.',
+        'error'
+      );
+    } finally {
+      setIsReanalysingOther(false);
+    }
+  };
+
+  const filteredEmails = useMemo(() =>
     emails.filter(email => !email.isArchived),
     [emails]
   );
@@ -226,6 +259,8 @@ export const InboxContent: React.FC<InboxContentProps> = ({
                   onToggle={() => onToggleCategory(group.category)}
                   onSelectAll={handleCategorySelectAll}
                   selectedEmailIds={selectedEmailIds}
+                  onReanalyseOther={handleReanalyseOther}
+                  isReanalysingOther={isReanalysingOther}
                 >
                   {group.emails.map((email, indexInCategory) => {
                     const emailIndex = globalIndex + indexInCategory;

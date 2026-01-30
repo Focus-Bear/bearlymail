@@ -4667,7 +4667,7 @@ export class ContextService {
       try {
         await this.boss.send(
           "refine-priority",
-          { userId, emailId: email.id },
+          { userId, emailId: email.id, forceRecalculate: true },
           {
             priority: getJobPriority("refine-priority-background", false),
             singletonKey: `refine-priority-reclassify-${email.id}`,

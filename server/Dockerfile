@@ -6,8 +6,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install
+# Install dependencies using npm ci for faster, more reliable builds
+RUN npm ci
 
 # Copy source code
 COPY . .
@@ -25,12 +25,14 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install production dependencies only
-RUN npm install --production
-
-# Copy built application from builder
+# Copy built application and node_modules from builder
+# Note: We copy node_modules from builder to avoid parallel npm installs
+# which can cause network timeouts (ECONNRESET) during Docker builds
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
+
+# Prune devDependencies to reduce image size
+RUN npm prune --omit=dev
 
 # Expose port
 EXPOSE 3001

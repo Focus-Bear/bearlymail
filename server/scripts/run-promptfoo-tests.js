@@ -6,9 +6,10 @@
  * 2. Parses the output to determine actual pass/fail status
  * 3. Provides a summary at the end
  * 4. Returns appropriate exit code based on test results
+ * 5. Only shows errors/failures, not full output (quiet mode)
  */
 
-const { execSync, spawnSync } = require('child_process');
+const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
@@ -33,29 +34,39 @@ function findYamlFiles() {
   const files = fs.readdirSync(PROMPTFOO_DIR);
   return files
     .filter(f => f.endsWith('.yaml') && f !== 'promptfoo.yaml')
+    .sort()
     .map(f => path.join(PROMPTFOO_DIR, f));
 }
 
-function runEvaluation(configPath) {
+function runEvaluation(configPath, index, total) {
   const configName = path.basename(configPath);
-  log(`\n${'='.repeat(60)}`, colors.cyan);
-  log(`Running: ${configName}`, colors.bold);
-  log('='.repeat(60), colors.cyan);
+  
+  // Show progress inline
+  process.stdout.write(`[${index}/${total}] ${configName}... `);
 
   const result = spawnSync('npx', ['promptfoo', 'eval', '-c', configPath, '--no-progress-bar'], {
     encoding: 'utf-8',
     stdio: ['inherit', 'pipe', 'pipe'],
     env: { ...process.env },
-    maxBuffer: 50 * 1024 * 1024, // 50MB buffer
+    maxBuffer: 50 * 1024 * 1024,
   });
 
   const output = (result.stdout || '') + (result.stderr || '');
-  console.log(output);
-
+  
   // Parse the output to determine pass/fail
   const stats = parseEvaluationOutput(output, configName);
   stats.exitCode = result.status;
   stats.configName = configName;
+  stats.output = output;
+
+  // Show result inline
+  if (stats.failed > 0) {
+    console.log(`${colors.red}FAIL${colors.reset} (${stats.passed}/${stats.total} passed, ${stats.failed} failed)`);
+  } else if (stats.total > 0) {
+    console.log(`${colors.green}PASS${colors.reset} (${stats.passed}/${stats.total})`);
+  } else {
+    console.log(`${colors.yellow}NO TESTS${colors.reset}`);
+  }
 
   return stats;
 }
@@ -83,11 +94,18 @@ function parseEvaluationOutput(output, configName) {
   const failMatches = output.match(/\[FAIL\]/g);
   stats.failed = (errorMatches ? errorMatches.length : 0) + (failMatches ? failMatches.length : 0);
 
-  // Extract error messages
-  const errorLines = output.split('\n').filter(line => 
-    line.includes('[ERROR]') || line.includes('Error:')
-  );
-  stats.errors = errorLines.slice(0, 5); // Keep first 5 errors
+  // Extract error messages - look for lines with [ERROR] or [FAIL] and capture context
+  const lines = output.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.includes('[ERROR]') || line.includes('[FAIL]')) {
+      // Try to extract the error message
+      const errorMatch = line.match(/\[(?:ERROR|FAIL)\]\s*(.+)/);
+      if (errorMatch) {
+        stats.errors.push(errorMatch[1].trim().substring(0, 200));
+      }
+    }
+  }
 
   // If we couldn't parse pass/fail from output, use total - failed
   if (stats.passed === 0 && stats.total > 0 && stats.failed > 0) {
@@ -112,26 +130,25 @@ function printSummary(results) {
     totalPassed += result.passed;
     totalFailed += result.failed;
 
-    const status = result.failed > 0 ? `${colors.red}FAIL${colors.reset}` : `${colors.green}PASS${colors.reset}`;
-    const passRate = result.total > 0 ? ((result.passed / result.total) * 100).toFixed(0) : 0;
-    
-    log(`  ${result.configName}: ${status} (${result.passed}/${result.total} tests, ${passRate}%)`);
-
     if (result.failed > 0) {
       failedConfigs.push(result);
     }
   }
 
-  log('\n' + '-'.repeat(60));
-  log(`Total: ${totalTests} tests, ${totalPassed} passed, ${totalFailed} failed`, colors.bold);
+  log(`\nTotal: ${totalTests} tests across ${results.length} configurations`, colors.bold);
+  log(`  Passed: ${totalPassed}`, colors.green);
+  log(`  Failed: ${totalFailed}`, totalFailed > 0 ? colors.red : colors.green);
 
   if (failedConfigs.length > 0) {
-    log('\nFailed configurations:', colors.red);
+    log('\n' + '-'.repeat(60));
+    log('FAILED CONFIGURATIONS:', colors.red + colors.bold);
     for (const config of failedConfigs) {
-      log(`  - ${config.configName}`, colors.red);
+      log(`\n  ${config.configName}:`, colors.red);
+      log(`    ${config.passed}/${config.total} passed, ${config.failed} failed`);
       if (config.errors.length > 0) {
-        for (const error of config.errors.slice(0, 3)) {
-          log(`      ${error.trim().substring(0, 100)}`, colors.yellow);
+        log('    Errors:', colors.yellow);
+        for (const error of config.errors.slice(0, 5)) {
+          log(`      - ${error}`, colors.yellow);
         }
       }
     }
@@ -151,11 +168,10 @@ function printSummary(results) {
 
 async function main() {
   log('Promptfoo Test Runner', colors.bold + colors.blue);
-  log('Finding test configurations...', colors.cyan);
+  log('');
 
   const yamlFiles = findYamlFiles();
   log(`Found ${yamlFiles.length} test configuration(s)`, colors.cyan);
-  yamlFiles.forEach((f, i) => log(`  ${i + 1}. ${path.basename(f)}`));
   log('');
 
   if (yamlFiles.length === 0) {
@@ -167,13 +183,11 @@ async function main() {
 
   for (let i = 0; i < yamlFiles.length; i++) {
     const configPath = yamlFiles[i];
-    log(`\n[${i + 1}/${yamlFiles.length}] Starting evaluation...`, colors.cyan);
     try {
-      const result = runEvaluation(configPath);
+      const result = runEvaluation(configPath, i + 1, yamlFiles.length);
       results.push(result);
-      log(`[${i + 1}/${yamlFiles.length}] Completed: ${result.passed}/${result.total} passed`, colors.cyan);
     } catch (err) {
-      log(`[${i + 1}/${yamlFiles.length}] Error running ${path.basename(configPath)}: ${err.message}`, colors.red);
+      console.log(`${colors.red}ERROR${colors.reset} - ${err.message}`);
       results.push({
         configName: path.basename(configPath),
         total: 0,
@@ -181,14 +195,13 @@ async function main() {
         failed: 1,
         errors: [err.message],
         exitCode: 1,
+        output: '',
       });
     }
   }
 
-  log('\n\nAll evaluations completed. Generating summary...', colors.cyan);
   const allPassed = printSummary(results);
 
-  // Exit with appropriate code
   process.exit(allPassed ? 0 : 1);
 }
 

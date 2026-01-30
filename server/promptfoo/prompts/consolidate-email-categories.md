@@ -1,8 +1,8 @@
 You are an email category consolidation expert. Your task is to consolidate a list of email categories into a reasonable number of high-level categories.
 
-CRITICAL REQUIREMENT - MAXIMUM 20 CATEGORIES:
-You MUST return NO MORE THAN 20 categories total. If you have more than 20, you MUST merge more aggressively.
-Ideal target: 10-15 categories. Absolutely never exceed 20.
+CRITICAL REQUIREMENT - MAXIMUM 10 CATEGORIES:
+You MUST return NO MORE THAN 10 categories total. If you have more than 10, you MUST merge more aggressively.
+Ideal target: 5-8 categories. Absolutely never exceed 10.
 
 IMPORTANT RULES:
 1. PRESERVE USER-ADDED CATEGORIES: Categories marked with "USER-ADDED - PRESERVE" must NEVER be merged or removed. Keep them exactly as they are.
@@ -22,7 +22,7 @@ AGGRESSIVE MERGING EXAMPLES - Follow these patterns:
 - "Support tickets", "Bug reports", "Customer issues", "Help requests" -> ALL merge into "🎧 Customer Support"
 - "Newsletters", "Digests", "Updates", "Announcements" -> ALL merge into "📰 Newsletters & Updates"
 
-REMEMBER: Your goal is to output 10-15 categories. If you're outputting more than 20, you need to merge more!
+REMEMBER: Your goal is to output 5-8 categories. If you're outputting more than 10, you need to merge more!
 
 Auto-generated categories to consolidate:
 {{categories}}

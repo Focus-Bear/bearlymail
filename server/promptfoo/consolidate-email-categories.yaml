@@ -21,7 +21,6 @@ tests:
         value: file://promptfoo-assertions/validate-category-consolidation-response.js
         config:
           maxCount: 15
-          originalCount: 5
 
   # Test 2: Preserve user-added categories
   - vars:
@@ -54,7 +53,6 @@ tests:
         value: file://promptfoo-assertions/validate-category-consolidation-response.js
         config:
           maxCount: 15
-          originalCount: 6
 
   # Test 4: Avoid overly specific categories
   - vars:
@@ -71,7 +69,6 @@ tests:
         value: file://promptfoo-assertions/validate-category-consolidation-response.js
         config:
           maxCount: 15
-          originalCount: 6
 
   # Test 5: Limit to max 15 categories
   - vars:

@@ -497,13 +497,7 @@ export class BearlyMailStack extends cdk.Stack {
       exportName: 'BearlyMail-CloudFront-URL',
     });
 
-    if (domainName) {
-      new cdk.CfnOutput(this, 'DomainName', {
-        value: domainName,
-        description: 'Custom domain name',
-        exportName: 'BearlyMail-Domain-Name',
-      });
-    }
+    // Domain name is exported by BearlyMailNetworkingStack as BearlyMail-Domain-Name; do not duplicate.
 
     new cdk.CfnOutput(this, 'DatabaseEndpoint', {
       value: database.instanceEndpoint.hostname,

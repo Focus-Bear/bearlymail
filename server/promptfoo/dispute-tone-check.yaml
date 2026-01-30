@@ -6,6 +6,12 @@ providers:
 prompts:
   - file://prompts/dispute-tone-check.md
 
+defaultTest:
+  options:
+    provider:
+      config:
+        temperature: 0.1
+
 tests:
   - vars:
       rules:

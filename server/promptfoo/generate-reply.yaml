@@ -6,6 +6,12 @@ providers:
 prompts:
   - file://prompts/generate-reply.md
 
+defaultTest:
+  options:
+    provider:
+      config:
+        temperature: 0.3
+
 tests:
   - vars:
       fromName: "John Boss"

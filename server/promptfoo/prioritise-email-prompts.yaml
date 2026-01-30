@@ -12,6 +12,12 @@ providers:
 prompts:
   - file://prompts/prioritise-email.md
 
+defaultTest:
+  options:
+    provider:
+      config:
+        temperature: 0.1
+
 tests:    
   - vars:
       from: "sarah.chen@acmecorp.com"

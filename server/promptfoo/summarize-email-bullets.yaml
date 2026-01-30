@@ -8,6 +8,12 @@ providers:
 prompts:
   - file://prompts/summarize-email-bullets.md
 
+defaultTest:
+  options:
+    provider:
+      config:
+        temperature: 0.1
+
 tests:
   - vars:
       isThread: false

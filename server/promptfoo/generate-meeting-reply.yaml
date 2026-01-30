@@ -8,6 +8,12 @@ providers:
 prompts:
   - file://prompts/generate-meeting-reply.md
 
+defaultTest:
+  options:
+    provider:
+      config:
+        temperature: 0.3
+
 tests:
   - vars:
       hasAvailableSlots: true

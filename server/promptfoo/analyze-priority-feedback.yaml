@@ -8,6 +8,12 @@ providers:
 prompts:
   - file://prompts/analyze-priority-feedback.md
 
+defaultTest:
+  options:
+    provider:
+      config:
+        temperature: 0.1
+
 tests:
   - vars:
       fromName: "Sarah Chen"

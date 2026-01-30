@@ -65,6 +65,11 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
 }) => {
   const { t } = useTranslation();
   const [isRecategorizing, setIsRecategorizing] = useState(false);
+  const [isConsolidating, setIsConsolidating] = useState(false);
+  const [consolidationResult, setConsolidationResult] = useState<{
+    originalCount: number;
+    consolidatedCount: number;
+  } | null>(null);
 
   const handleRecategorize = async () => {
     setIsRecategorizing(true);
@@ -74,6 +79,25 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
       console.error('Failed to recategorize emails:', error);
     } finally {
       setIsRecategorizing(false);
+    }
+  };
+
+  const handleConsolidateCategories = async () => {
+    setIsConsolidating(true);
+    setConsolidationResult(null);
+    try {
+      const response = await axios.post(`${API_URL}/context/consolidate-categories`);
+      const result = response.data;
+      setConsolidationResult({
+        originalCount: result.originalCount,
+        consolidatedCount: result.consolidatedCount,
+      });
+      // Reload the page to show updated categories
+      window.location.reload();
+    } catch (error) {
+      console.error('Failed to consolidate categories:', error);
+    } finally {
+      setIsConsolidating(false);
     }
   };
 
@@ -92,23 +116,39 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
     onEditContextValueChange,
   };
 
-  const recategorizeButton = (
-    <button
-      onClick={handleRecategorize}
-      disabled={isRecategorizing}
-      style={{
-        marginLeft: 'auto',
-        background: 'transparent',
-        border: 'none',
-        color: theme.colors.accent.warning,
-        cursor: isRecategorizing ? 'not-allowed' : 'pointer',
-        fontSize: theme.typography.fontSize.sm,
-        fontWeight: theme.typography.fontWeight.medium,
-        opacity: isRecategorizing ? 0.6 : 1,
-      }}
-    >
-      {isRecategorizing ? t('settings.emailCategories.recategorizing') : t('settings.emailCategories.recategorize')}
-    </button>
+  const emailCategoryButtons = (
+    <div style={{ display: 'flex', gap: '12px', marginLeft: 'auto' }}>
+      <button
+        onClick={handleConsolidateCategories}
+        disabled={isConsolidating}
+        style={{
+          background: 'transparent',
+          border: 'none',
+          color: theme.colors.accent.primary,
+          cursor: isConsolidating ? 'not-allowed' : 'pointer',
+          fontSize: theme.typography.fontSize.sm,
+          fontWeight: theme.typography.fontWeight.medium,
+          opacity: isConsolidating ? 0.6 : 1,
+        }}
+      >
+        {isConsolidating ? t('settings.emailCategories.consolidating') : t('settings.emailCategories.consolidate')}
+      </button>
+      <button
+        onClick={handleRecategorize}
+        disabled={isRecategorizing}
+        style={{
+          background: 'transparent',
+          border: 'none',
+          color: theme.colors.accent.warning,
+          cursor: isRecategorizing ? 'not-allowed' : 'pointer',
+          fontSize: theme.typography.fontSize.sm,
+          fontWeight: theme.typography.fontWeight.medium,
+          opacity: isRecategorizing ? 0.6 : 1,
+        }}
+      >
+        {isRecategorizing ? t('settings.emailCategories.recategorizing') : t('settings.emailCategories.recategorize')}
+      </button>
+    </div>
   );
 
   return (
@@ -126,7 +166,7 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
             contextKey={config.contextKey}
             addLabel={config.addLabel || (config.addLabelKey ? t(config.addLabelKey) : '')}
             tooltipContent={t(config.tooltipKey)}
-            actionButton={isEmailCategory ? recategorizeButton : undefined}
+            actionButton={isEmailCategory ? emailCategoryButtons : undefined}
             {...commonProps}
           />
         );

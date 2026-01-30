@@ -1249,7 +1249,9 @@
     },
     "emailCategories": {
       "recategorize": "Recategorise emails in Triage",
-      "recategorizing": "Recategorising..."
+      "recategorizing": "Recategorising...",
+      "consolidate": "Consolidate Categories",
+      "consolidating": "Consolidating..."
     },
     "contextExplanations": {
       "vipContactStarredExplanation": "You've starred {{count}} email{{plural}} from this contact"

@@ -415,4 +415,21 @@ export class ContextController {
   async deleteContext(@Param("id") id: string, @Request() req) {
     return this.contextService.deleteContext(id, req.user.userId);
   }
+
+  @Post("consolidate-categories")
+  async consolidateCategories(@Request() req: { user: { userId: string } }) {
+    const { userId } = req.user;
+    this.logger.log(
+      `[CONTEXT-CONTROLLER] POST /context/consolidate-categories received for user ${userId}`,
+    );
+
+    const result =
+      await this.contextService.consolidateExistingCategories(userId);
+
+    this.logger.log(
+      `[CONTEXT-CONTROLLER] Consolidation complete for user ${userId}: ${result.originalCount} -> ${result.consolidatedCount} categories`,
+    );
+
+    return result;
+  }
 }

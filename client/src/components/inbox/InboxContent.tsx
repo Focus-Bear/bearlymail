@@ -14,7 +14,7 @@ import { DebugView } from 'components/inbox/DebugView';
 import { BatchInfoBar } from 'components/inbox/BatchInfoBar';
 import { useSplitView } from 'hooks/useSplitView';
 import { CategoryAccordion, groupEmailsByCategory } from 'components/inbox/CategoryAccordion';
-import { useNotification } from 'contexts/NotificationContext';
+import { useNotifications } from 'contexts/NotificationContext';
 
 interface InboxContentProps {
   mode: InboxMode;
@@ -97,7 +97,7 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   onUpdateStableCategoryOrder,
 }) => {
   const { t } = useTranslation();
-  const { showNotification } = useNotification();
+  const { showNotification } = useNotifications();
   const splitViewContainerRef = useRef<HTMLDivElement>(null);
   const [isReanalysingOther, setIsReanalysingOther] = useState(false);
 

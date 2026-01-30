@@ -1,7 +1,7 @@
 # Dependencies
 node_modules/
 npm-debug.log
-package-lock.json
+# package-lock.json is NOT ignored - required for npm ci in Dockerfile
 
 # Build artifacts
 dist/

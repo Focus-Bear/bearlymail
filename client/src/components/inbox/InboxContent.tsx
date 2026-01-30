@@ -1,4 +1,4 @@
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useRef, useState, useMemo, useEffect } from 'react';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { Email, InboxMode, getEmailPriorityScore } from 'types/email';
@@ -88,6 +88,7 @@ export const InboxContent: React.FC<InboxContentProps> = ({
 }) => {
   const splitViewContainerRef = useRef<HTMLDivElement>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [stableCategoryOrder, setStableCategoryOrder] = useState<string[]>([]);
 
   const filteredEmails = useMemo(() => 
     emails.filter(email => !email.isArchived),
@@ -98,6 +99,34 @@ export const InboxContent: React.FC<InboxContentProps> = ({
     groupEmailsByCategory(filteredEmails),
     [filteredEmails]
   );
+
+  const prevModeRef = useRef(mode);
+  useEffect(() => {
+    if (prevModeRef.current !== mode) {
+      setStableCategoryOrder([]);
+      prevModeRef.current = mode;
+    }
+  }, [mode]);
+
+  useEffect(() => {
+    if (categoryGroups.length > 0 && stableCategoryOrder.length === 0) {
+      setStableCategoryOrder(categoryGroups.map(g => g.category));
+    }
+  }, [categoryGroups, stableCategoryOrder.length]);
+
+  const sortedCategoryGroups = useMemo(() => {
+    if (stableCategoryOrder.length === 0) {
+      return categoryGroups;
+    }
+    
+    const orderMap = new Map(stableCategoryOrder.map((cat, idx) => [cat, idx]));
+    
+    return [...categoryGroups].sort((a, b) => {
+      const orderA = orderMap.get(a.category) ?? Number.MAX_SAFE_INTEGER;
+      const orderB = orderMap.get(b.category) ?? Number.MAX_SAFE_INTEGER;
+      return orderA - orderB;
+    });
+  }, [categoryGroups, stableCategoryOrder]);
 
   const toggleCategory = (category: string) => {
     setExpandedCategories(prev => {
@@ -193,10 +222,10 @@ export const InboxContent: React.FC<InboxContentProps> = ({
             onRetry={onRetry}
           />
           {!loading && hasInitiallyLoaded && !loadingModeSwitch && !fetchError && filteredEmails.length > 0 && (
-            categoryGroups.map((group) => {
+            sortedCategoryGroups.map((group) => {
               const isExpanded = expandedCategories.has(group.category);
               let globalIndex = 0;
-              for (const g of categoryGroups) {
+              for (const g of sortedCategoryGroups) {
                 if (g.category === group.category) break;
                 globalIndex += g.emails.length;
               }

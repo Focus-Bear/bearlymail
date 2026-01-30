@@ -21,10 +21,6 @@ export function getCertificateProviderFunction(
 import boto3
 import json
 import time
-import urllib3
-import cfnresponse
-
-http = urllib3.PoolManager()
 
 acm = boto3.client('acm', region_name='us-east-1')
 route53_client = boto3.client('route53')
@@ -40,95 +36,78 @@ def handler(event, context):
     
     physical_resource_id = event.get('PhysicalResourceId')
     
-    try:
-        if request_type == 'Create':
-            # Request certificate in us-east-1
-            request_params = {
-                'DomainName': domain_name,
-                'ValidationMethod': 'DNS',
-                'IdempotencyToken': f"{domain_name.replace('.', '-')}-{int(time.time())}"
-            }
-            if subject_alternative_names:
-                request_params['SubjectAlternativeNames'] = subject_alternative_names
-            
-            cert_response = acm.request_certificate(**request_params)
-            
-            certificate_arn = cert_response['CertificateArn']
-            print(f"Certificate ARN: {certificate_arn}")
-            
-            # Wait a bit for certificate to be available
-            time.sleep(5)
-            
-            # Get DNS validation records
-            cert_detail = acm.describe_certificate(CertificateArn=certificate_arn)
-            validation_options = cert_detail['Certificate']['DomainValidationOptions']
-            
-            # Create Route53 records for validation
-            changes = []
-            for option in validation_options:
-                if 'ResourceRecord' in option:
-                    record = option['ResourceRecord']
-                    changes.append({
-                        'Action': 'UPSERT',
-                        'ResourceRecordSet': {
-                            'Name': record['Name'],
-                            'Type': record['Type'],
-                            'TTL': 300,
-                            'ResourceRecords': [{'Value': record['Value']}]
-                        }
-                    })
-            
-            if changes:
-                route53_client.change_resource_record_sets(
-                    HostedZoneId=hosted_zone_id,
-                    ChangeBatch={'Changes': changes}
-                )
-                print(f"Created {len(changes)} DNS validation records")
-            
-            cfnresponse.send(event, context, cfnresponse.SUCCESS, {
+    if request_type == 'Create':
+        # Request certificate in us-east-1
+        request_params = {
+            'DomainName': domain_name,
+            'ValidationMethod': 'DNS',
+            'IdempotencyToken': f"cert{int(time.time())}"
+        }
+        if subject_alternative_names:
+            request_params['SubjectAlternativeNames'] = subject_alternative_names
+        
+        cert_response = acm.request_certificate(**request_params)
+        
+        certificate_arn = cert_response['CertificateArn']
+        print(f"Certificate ARN: {certificate_arn}")
+        
+        # Wait for certificate to be available
+        time.sleep(5)
+        
+        # Get DNS validation records
+        cert_detail = acm.describe_certificate(CertificateArn=certificate_arn)
+        validation_options = cert_detail['Certificate']['DomainValidationOptions']
+        
+        # Create Route53 records for validation
+        changes = []
+        for option in validation_options:
+            if 'ResourceRecord' in option:
+                record = option['ResourceRecord']
+                changes.append({
+                    'Action': 'UPSERT',
+                    'ResourceRecordSet': {
+                        'Name': record['Name'],
+                        'Type': record['Type'],
+                        'TTL': 300,
+                        'ResourceRecords': [{'Value': record['Value']}]
+                    }
+                })
+        
+        if changes:
+            route53_client.change_resource_record_sets(
+                HostedZoneId=hosted_zone_id,
+                ChangeBatch={'Changes': changes}
+            )
+            print(f"Created {len(changes)} DNS validation records")
+        
+        return {
+            'PhysicalResourceId': certificate_arn,
+            'Data': {
                 'CertificateArn': certificate_arn
-            }, certificate_arn)
-            
-        elif request_type == 'Update':
-            # For updates, check if domain changed - if so, create new certificate
-            # Otherwise, return existing ARN
-            if physical_resource_id:
-                cfnresponse.send(event, context, cfnresponse.SUCCESS, {
-                    'CertificateArn': physical_resource_id
-                }, physical_resource_id)
-            else:
-                # Create new certificate
-                request_params = {
-                    'DomainName': domain_name,
-                    'ValidationMethod': 'DNS',
-                    'IdempotencyToken': f"{domain_name.replace('.', '-')}-{int(time.time())}"
-                }
-                if subject_alternative_names:
-                    request_params['SubjectAlternativeNames'] = subject_alternative_names
-                
-                cert_response = acm.request_certificate(**request_params)
-                certificate_arn = cert_response['CertificateArn']
-                cfnresponse.send(event, context, cfnresponse.SUCCESS, {
-                    'CertificateArn': certificate_arn
-                }, certificate_arn)
-                
-        elif request_type == 'Delete':
-            # Delete certificate if it exists
-            if physical_resource_id:
-                try:
-                    acm.delete_certificate(CertificateArn=physical_resource_id)
-                    print(f"Deleted certificate: {physical_resource_id}")
-                except Exception as e:
-                    print(f"Error deleting certificate: {e}")
-            
-            cfnresponse.send(event, context, cfnresponse.SUCCESS, {}, physical_resource_id or '')
-            
-    except Exception as e:
-        print(f"Error: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        cfnresponse.send(event, context, cfnresponse.FAILED, {}, physical_resource_id or '')
-`),
+            }
+        }
+        
+    elif request_type == 'Update':
+        return {
+            'PhysicalResourceId': physical_resource_id,
+            'Data': {
+                'CertificateArn': physical_resource_id
+            }
+        }
+        
+    elif request_type == 'Delete':
+        if physical_resource_id and physical_resource_id.startswith('arn:aws:acm:'):
+            try:
+                acm.delete_certificate(CertificateArn=physical_resource_id)
+                print(f"Deleted certificate: {physical_resource_id}")
+            except Exception as e:
+                print(f"Error deleting certificate: {e}")
+        
+        return {
+            'PhysicalResourceId': physical_resource_id
+        }
+      
+    `),
   });
 
   // Grant permissions

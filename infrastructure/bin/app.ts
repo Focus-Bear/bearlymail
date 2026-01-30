@@ -17,7 +17,17 @@ class PermissionsBoundaryAspect implements cdk.IAspect {
   }
 
   visit(node: IConstruct): void {
-    if (node instanceof iam.CfnRole) {
+    // Catch L2 roles
+    if (node instanceof cdk.aws_iam.Role) {
+      const cfnRole = node.node.defaultChild as cdk.aws_iam.CfnRole;
+      cfnRole.addPropertyOverride('PermissionsBoundary', this.boundaryArn);
+    }
+    // Catch L1 CfnRole directly
+    if (node instanceof cdk.aws_iam.CfnRole) {
+      node.addPropertyOverride('PermissionsBoundary', this.boundaryArn);
+    }
+    // Catch ANY CloudFormation resource of type AWS::IAM::Role
+    if (node instanceof cdk.CfnResource && node.cfnResourceType === 'AWS::IAM::Role') {
       node.addPropertyOverride('PermissionsBoundary', this.boundaryArn);
     }
   }

@@ -1585,7 +1585,28 @@
     },
     "intro": {
       "heading": "Why BearlyMail Exists",
-      "description": "Email was designed for asynchronous communication, but it's become a constant interruption. BearlyMail brings back the original promise: check your email when it works for you, not when it works for everyone else."
+      "sections": {
+        "emailIsBroken": {
+          "heading": "Email Is Broken",
+          "subheading": "Email clients are built to distract you",
+          "paragraph": "Most email tools are designed to keep you checking. They interrupt your thinking. They treat your attention as something to capture, not protect."
+        },
+        "newestNotImportant": {
+          "heading": "The newest email is not the most important",
+          "paragraph1": "Email clients put the latest message at the top by default. Important emails don't stop being important just because they arrived yesterday. Critical messages get buried while noise floats up.",
+          "paragraph2": "So you're forced to decide, again and again, what actually matters. Every glance at your inbox becomes a prioritisation exercise."
+        },
+        "notTimeSensitive": {
+          "heading": "Not every email is time-sensitive",
+          "paragraph1": "A Black Friday sale can wait. A newsletter can wait.",
+          "paragraph2": "But your inbox shows them the moment the sender hits send. Everything arrives immediately."
+        },
+        "webelieve": {
+          "heading": "We believe this must change",
+          "paragraph1": "Email should work on your terms. Your inbox should understand what matters to you. Your attention should be protected by default.",
+          "paragraph2": "That belief is why BearlyMail exists."
+        }
+      }
     },
     "comparison": {
       "heading": "How BearlyMail Compares",
@@ -1664,22 +1685,27 @@
     },
     "founder": {
       "heading": "The Founder's Story",
-      "name": "James Nguyen",
+      "name": "Jeremy Nagel",
       "title": "Founder & CEO",
       "story": {
         "mobile": {
-          "paragraph1": "I built BearlyMail because email was destroying my ability to focus.",
-          "paragraph2": "As a software engineer, I need long blocks of uninterrupted time to write code. But email kept pulling me out of flow state. I'd check my inbox \"just to see\" and lose an hour responding to things that could wait.",
-          "paragraph3": "I tried everything: inbox zero, Gmail filters, Superhuman. Nothing solved the core problem: email arrives when senders want it to, not when I want to see it.",
-          "paragraph4": "So I built BearlyMail. Now, non-urgent emails arrive in scheduled batches. Urgent emails break through immediately. My inbox is a planned task, not a constant distraction."
+          "paragraph1": "I have ADHD, and email was quietly destroying my ability to focus.",
+          "paragraph2": "Every new email gave me a dopamine hit. It could be a new customer, an investor, something exciting - and that possibility kept pulling me back to my inbox.",
+          "paragraph3": "Most of the time, it wasn't exciting at all. It was emails that needed effort. Thoughtful replies. Decisions. Follow-ups. Those were harder to start, so they stacked up.",
+          "paragraph4": "So I built BearlyMail. Now, non-urgent emails arrive in scheduled batches, at times I've already decided to deal with email. Truly urgent messages still break through immediately. My inbox is no longer a slot machine. It's a planned task."
         },
         "desktop": {
-          "paragraph1": "I built BearlyMail because email was destroying my ability to focus.",
-          "paragraph2": "As a software engineer, I need long blocks of uninterrupted time to write code. But email kept pulling me out of flow state. I'd check my inbox \"just to see\" and lose an hour responding to things that could wait.",
-          "paragraph3": "I tried everything: inbox zero, Gmail filters, Superhuman. Nothing solved the core problem: email arrives when senders want it to, not when I want to see it.",
-          "paragraph4": "So I built BearlyMail. Now, non-urgent emails arrive in scheduled batches. Urgent emails break through immediately. My inbox is a planned task, not a constant distraction.",
-          "paragraph5": "The AI learns what's urgent to me by analyzing my email history—how quickly I reply, which senders I prioritize, what I immediately archive. High barrier for \"urgent\" means only what genuinely matters interrupts my flow.",
-          "paragraph6": "If you're like me—someone who needs focus time to do your best work—BearlyMail is for you"
+          "paragraph1": "I have ADHD, and email was quietly destroying my ability to focus.",
+          "paragraph2": "Every new email gave me a dopamine hit. It could be a new customer, an investor, something exciting - and that possibility kept pulling me back to my inbox.",
+          "paragraph3": "Most of the time, it wasn't exciting at all.",
+          "paragraph4": "It was emails that needed effort. Thoughtful replies. Decisions. Follow-ups. Those were harder to start, so they stacked up. Meanwhile, my inbox showed me the newest messages first, even though the important ones were buried somewhere in the middle.",
+          "paragraph5": "My brain couldn't tell what mattered at a glance. Everything felt urgent. Or overwhelming. Or both.",
+          "paragraph6": "So I checked again. And again.",
+          "paragraph7": "I tried all the usual advice. Inbox zero. Filters. Fancy email clients. They helped a bit, but they missed the real problem. Email arrives when other people want my attention, not when I'm ready to deal with it.",
+          "paragraph8": "So I built BearlyMail.",
+          "paragraph9": "Now, non-urgent emails arrive in scheduled batches, at times I've already decided to deal with email. Truly urgent messages still break through immediately. My inbox is no longer a slot machine. It's a planned task.",
+          "paragraph10": "The AI learns what's actually important to me by watching what I do. Who I reply to quickly. Which emails I act on. What I archive without thinking. There's a deliberately high bar for \"urgent\", so only things that genuinely matter interrupt my focus.",
+          "paragraph11": "BearlyMail helps anyone who wants fewer distractions and more clarity. And if you have ADHD, it can be especially powerful"
         }
       }
     },

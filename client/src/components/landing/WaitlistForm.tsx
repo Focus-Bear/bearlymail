@@ -113,6 +113,7 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
                   value={reason}
                   onChange={setReason}
                   required
+                  rows={2}
                 />
 
                 <div style={{ marginBottom: theme.spacing.md }}>

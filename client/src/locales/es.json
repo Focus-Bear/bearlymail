@@ -898,21 +898,26 @@
     },
     "founder": {
       "heading": "La historia del fundador",
-      "name": "James Nguyen",
+      "name": "Jeremy Nagel",
       "story": {
         "desktop": {
-          "paragraph1": "Creé BearlyMail porque el correo electrónico estaba destruyendo mi capacidad de concentración.",
-          "paragraph2": "Como ingeniero de software, necesito largos periodos de tiempo ininterrumpido para escribir código. Pero el correo electrónico seguía sacándome del estado de fluidez. Revisaba mi bandeja de entrada \"sólo para ver\" y perdía una hora respondiendo a cosas que podían esperar.",
-          "paragraph3": "Lo intenté todo: bandeja de entrada cero, filtros de Gmail, Superhuman. Nada resolvió el problema central: el correo electrónico llega cuando los remitentes quieren, no cuando yo quiero verlo.",
-          "paragraph4": "Entonces construí BearlyMail. Ahora, los correos electrónicos no urgentes llegan en lotes programados. Los correos electrónicos urgentes llegan de inmediato. Mi bandeja de entrada es una tarea planificada, no una distracción constante.",
-          "paragraph5": "La IA aprende qué es urgente para mí analizando mi historial de correo electrónico: qué tan rápido respondo, qué remitentes priorizo, qué archivo de inmediato. Una barrera alta para \"urgente\" significa que sólo lo que realmente importa interrumpe mi flujo.",
-          "paragraph6": "Si eres como yo, alguien que necesita tiempo de concentración para hacer tu mejor trabajo, BearlyMail es para ti."
+          "paragraph1": "Tengo TDAH, y el correo electrónico estaba destruyendo silenciosamente mi capacidad de concentración.",
+          "paragraph2": "Cada nuevo correo me daba un golpe de dopamina. Podía ser un nuevo cliente, un inversor, algo emocionante - y esa posibilidad me seguía atrayendo de vuelta a mi bandeja de entrada.",
+          "paragraph3": "La mayoría de las veces, no era nada emocionante.",
+          "paragraph4": "Eran correos que requerían esfuerzo. Respuestas reflexivas. Decisiones. Seguimientos. Esos eran más difíciles de empezar, así que se acumulaban. Mientras tanto, mi bandeja de entrada me mostraba los mensajes más nuevos primero, aunque los importantes estaban enterrados en algún lugar del medio.",
+          "paragraph5": "Mi cerebro no podía distinguir qué importaba de un vistazo. Todo se sentía urgente. O abrumador. O ambos.",
+          "paragraph6": "Así que revisaba de nuevo. Y otra vez.",
+          "paragraph7": "Probé todos los consejos habituales. Bandeja de entrada cero. Filtros. Clientes de correo elegantes. Ayudaron un poco, pero no resolvieron el problema real. El correo llega cuando otras personas quieren mi atención, no cuando estoy listo para manejarlo.",
+          "paragraph8": "Así que construí BearlyMail.",
+          "paragraph9": "Ahora, los correos no urgentes llegan en lotes programados, en momentos que ya he decidido para manejar el correo. Los mensajes verdaderamente urgentes aún llegan de inmediato. Mi bandeja de entrada ya no es una máquina tragamonedas. Es una tarea planificada.",
+          "paragraph10": "La IA aprende qué es realmente importante para mí observando lo que hago. A quién respondo rápido. Qué correos actúo. Qué archivo sin pensar. Hay una barrera deliberadamente alta para \"urgente\", así que solo las cosas que genuinamente importan interrumpen mi concentración.",
+          "paragraph11": "BearlyMail ayuda a cualquiera que quiera menos distracciones y más claridad. Y si tienes TDAH, puede ser especialmente poderoso"
         },
         "mobile": {
-          "paragraph1": "Creé BearlyMail porque el correo electrónico estaba destruyendo mi capacidad de concentración.",
-          "paragraph2": "Como ingeniero de software, necesito largos periodos de tiempo ininterrumpido para escribir código. Pero el correo electrónico seguía sacándome del estado de fluidez. Revisaba mi bandeja de entrada \"sólo para ver\" y perdía una hora respondiendo a cosas que podían esperar.",
-          "paragraph3": "Lo intenté todo: bandeja de entrada cero, filtros de Gmail, Superhuman. Nada resolvió el problema central: el correo electrónico llega cuando los remitentes quieren, no cuando yo quiero verlo.",
-          "paragraph4": "Entonces construí BearlyMail. Ahora, los correos electrónicos no urgentes llegan en lotes programados. Los correos electrónicos urgentes llegan de inmediato. Mi bandeja de entrada es una tarea planificada, no una distracción constante."
+          "paragraph1": "Tengo TDAH, y el correo electrónico estaba destruyendo silenciosamente mi capacidad de concentración.",
+          "paragraph2": "Cada nuevo correo me daba un golpe de dopamina. Podía ser un nuevo cliente, un inversor, algo emocionante - y esa posibilidad me seguía atrayendo de vuelta a mi bandeja de entrada.",
+          "paragraph3": "La mayoría de las veces, no era nada emocionante. Eran correos que requerían esfuerzo. Respuestas reflexivas. Decisiones. Seguimientos. Esos eran más difíciles de empezar, así que se acumulaban.",
+          "paragraph4": "Así que construí BearlyMail. Ahora, los correos no urgentes llegan en lotes programados, en momentos que ya he decidido para manejar el correo. Los mensajes verdaderamente urgentes aún llegan de inmediato. Mi bandeja de entrada ya no es una máquina tragamonedas. Es una tarea planificada."
         }
       },
       "title": "Fundador y director ejecutivo"
@@ -955,8 +960,29 @@
       "heading": "Cómo funciona"
     },
     "intro": {
-      "description": "El correo electrónico fue diseñado para la comunicación asincrónica, pero se ha convertido en una interrupción constante. BearlyMail recupera la promesa original: revise su correo electrónico cuando funcione para usted, no cuando funcione para los demás.",
-      "heading": "Por qué existe BearlyMail"
+      "heading": "Por qué existe BearlyMail",
+      "sections": {
+        "emailIsBroken": {
+          "heading": "El correo electrónico está roto",
+          "subheading": "Los clientes de correo están diseñados para distraerte",
+          "paragraph": "La mayoría de las herramientas de correo están diseñadas para mantenerte revisando. Interrumpen tu pensamiento. Tratan tu atención como algo para capturar, no para proteger."
+        },
+        "newestNotImportant": {
+          "heading": "El correo más nuevo no es el más importante",
+          "paragraph1": "Los clientes de correo ponen el mensaje más reciente arriba por defecto. Los correos importantes no dejan de ser importantes solo porque llegaron ayer. Los mensajes críticos quedan enterrados mientras el ruido flota hacia arriba.",
+          "paragraph2": "Así que te ves obligado a decidir, una y otra vez, qué realmente importa. Cada vistazo a tu bandeja de entrada se convierte en un ejercicio de priorización."
+        },
+        "notTimeSensitive": {
+          "heading": "No todos los correos son urgentes",
+          "paragraph1": "Una oferta de Black Friday puede esperar. Un boletín puede esperar.",
+          "paragraph2": "Pero tu bandeja de entrada los muestra en el momento en que el remitente presiona enviar. Todo llega inmediatamente."
+        },
+        "webelieve": {
+          "heading": "Creemos que esto debe cambiar",
+          "paragraph1": "El correo debería funcionar en tus términos. Tu bandeja de entrada debería entender qué te importa. Tu atención debería estar protegida por defecto.",
+          "paragraph2": "Esa creencia es por qué existe BearlyMail."
+        }
+      }
     },
         "waitlist": {
           "description": "Obtenga acceso temprano a BearlyMail y ayude a dar forma al futuro del correo electrónico.",

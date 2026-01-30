@@ -86,7 +86,6 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
         borderRadius: theme.borderRadius.lg,
         border: `1px solid ${theme.colors.border.light}`,
         backgroundColor: theme.colors.background.paper,
-        overflow: 'hidden',
       }}
     >
       <div
@@ -102,6 +101,10 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
           backgroundColor: isHovered ? theme.colors.interactive.hover : theme.colors.background.paper,
           transition: theme.transitions.fast,
           borderBottom: isExpanded ? `1px solid ${theme.colors.border.light}` : 'none',
+          position: 'sticky',
+          top: 0,
+          zIndex: 10,
+          borderRadius: isExpanded ? `${theme.borderRadius.lg} ${theme.borderRadius.lg} 0 0` : theme.borderRadius.lg,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>

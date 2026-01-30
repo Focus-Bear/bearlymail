@@ -105,11 +105,11 @@ export const InboxContent: React.FC<InboxContentProps> = ({
     setIsReanalysingOther(true);
     try {
       const response = await axios.post(`${API_URL}/context/generate-categories-from-other`);
-      const { newCategoriesCount } = response.data;
+      const { newCategoriesCount, reclassifyJobsQueued } = response.data;
       
       if (newCategoriesCount > 0) {
         showNotification(
-          t('inbox.category.reanalyseSuccess', { count: newCategoriesCount }),
+          t('inbox.category.reanalyseSuccess', { count: newCategoriesCount, reclassifyCount: reclassifyJobsQueued }),
           'success'
         );
       } else {

@@ -4556,6 +4556,7 @@ export class ContextService {
     newCategoriesCount: number;
     totalCategoriesCount: number;
     newCategories: Array<{ name: string; description: string }>;
+    reclassifyJobsQueued: number;
   }> {
     this.logger.log(
       `[GENERATE-CATEGORIES] Starting category generation from Other emails for user ${userId}`,
@@ -4590,6 +4591,7 @@ export class ContextService {
         newCategoriesCount: 0,
         totalCategoriesCount: 0,
         newCategories: [],
+        reclassifyJobsQueued: 0,
       };
     }
 
@@ -4634,6 +4636,7 @@ export class ContextService {
         newCategoriesCount: 0,
         totalCategoriesCount: existingCategories.length,
         newCategories: [],
+        reclassifyJobsQueued: 0,
       };
     }
 
@@ -4653,14 +4656,44 @@ export class ContextService {
       await this.contextRepository.save(newContext);
     }
 
+    // Queue refine-priority jobs for all emails in "Other" to reclassify them
+    // with the new categories available
+    this.logger.log(
+      `[GENERATE-CATEGORIES] Queueing reclassification jobs for ${otherEmails.length} emails in "Other"`,
+    );
+
+    let reclassifyJobsQueued = 0;
+    for (const email of otherEmails) {
+      try {
+        await this.boss.send(
+          "refine-priority",
+          { userId, emailId: email.id },
+          {
+            priority: getJobPriority("refine-priority-background", false),
+            singletonKey: `refine-priority-reclassify-${email.id}`,
+          },
+        );
+        reclassifyJobsQueued++;
+      } catch (error) {
+        this.logger.warn(
+          `[GENERATE-CATEGORIES] Failed to queue reclassification job for email ${email.id}: ${getErrorMessage(error)}`,
+        );
+      }
+    }
+
+    this.logger.log(
+      `[GENERATE-CATEGORIES] Queued ${reclassifyJobsQueued} reclassification jobs`,
+    );
+
     const result = {
       newCategoriesCount: newCategories.length,
       totalCategoriesCount: existingCategories.length + newCategories.length,
       newCategories,
+      reclassifyJobsQueued,
     };
 
     this.logger.log(
-      `[GENERATE-CATEGORIES] Category generation complete: ${result.newCategoriesCount} new categories added (total: ${result.totalCategoriesCount})`,
+      `[GENERATE-CATEGORIES] Category generation complete: ${result.newCategoriesCount} new categories added (total: ${result.totalCategoriesCount}), ${reclassifyJobsQueued} emails queued for reclassification`,
     );
 
     return result;

@@ -754,7 +754,7 @@
       "editCategories": "Editar categorías de correo",
       "reanalyseCategories": "Re-analizar categorías",
       "reanalysingCategories": "Re-analizando...",
-      "reanalyseSuccess": "Se generaron {{count}} nuevas categorías",
+      "reanalyseSuccess": "Se generaron {{count}} nuevas categorías. {{reclassifyCount}} correos en cola para reclasificación.",
       "reanalyseNoNewCategories": "No se pudieron generar nuevas categorías a partir de los correos en Otros"
     },
     "checkUrgent": "Verificar urgentes",

@@ -16,7 +16,7 @@ Provide:
    - 61-89: High alignment, directly related to user's goals or current work
    - 90-100: Perfect alignment, critical to user's goals or current work
 5. goalAlignmentExplanation: Brief explanation of the goal alignment score
-6. category: Classify the email into ONE of these categories:
+6. category: Classify the email into the BEST FITTING category from this list:
 {% if emailCategories %}
 {{emailCategories}}
 {% else %}
@@ -26,7 +26,13 @@ Provide:
    - "Customer Support": Support requests, bug reports, customer issues, help requests
    - "HR Admin": HR communications, admin tasks, internal company matters, policies
 {% endif %}
-   - "Other": Emails that don't fit the above categories (always available as fallback)
+   - "Other": ONLY use this if no other category is a good fit (last resort)
+   
+   IMPORTANT for category selection:
+   - Evaluate ALL categories before choosing - don't just pick the first one that seems to fit
+   - Choose the category that BEST matches the email's primary purpose and content
+   - Consider the email's main topic, sender type, and intent when selecting
+   - Only use "Other" when the email genuinely doesn't fit any of the defined categories
 7. reasoning: Brief explanation of your analysis
 
 Consider:

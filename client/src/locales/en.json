@@ -227,7 +227,7 @@
       "editCategories": "Edit email categories",
       "reanalyseCategories": "Re-analyse categories",
       "reanalysingCategories": "Re-analysing...",
-      "reanalyseSuccess": "Generated {{count}} new categories",
+      "reanalyseSuccess": "Generated {{count}} new categories. {{reclassifyCount}} emails queued for reclassification.",
       "reanalyseNoNewCategories": "No new categories could be generated from the emails in Other"
     }
   },

@@ -79,10 +79,10 @@ export const useContextManagement = () => {
     
     try {
       await axios.put(`${API_URL}/context/${editingContextId}`, {
-        contextValue: savedValue.trim(),
+        value: savedValue.trim(),
         priority: contextToUpdate?.contextKey === CONTEXT_KEY_WORKING_ON ? savedPriority : undefined,
       });
-    } catch (error) {
+    }catch (error) {
       console.error('Error updating context:', error);
       if (contextToUpdate) {
         setContexts(prev => prev.map(c =>

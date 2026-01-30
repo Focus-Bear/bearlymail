@@ -597,7 +597,36 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
                       lineHeight: 1.6,
                     }}>
                       <div><strong>Email ID:</strong> {emailData.id}</div>
-                      <div><strong>Thread ID:</strong> {emailData.threadId || 'N/A'}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <strong>Thread ID (Gmail):</strong>
+                        <code style={{
+                          backgroundColor: '#e3f2fd',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          fontFamily: 'monospace',
+                        }}>
+                          {emailData.threadId || 'N/A'}
+                        </code>
+                        {emailData.threadId && (
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(emailData.threadId);
+                              alert('Thread ID copied to clipboard!');
+                            }}
+                            style={{
+                              padding: '2px 8px',
+                              fontSize: '11px',
+                              backgroundColor: '#1976d2',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Copy
+                          </button>
+                        )}
+                      </div>
                       <div><strong>Email Thread ID:</strong> {emailData.emailThreadId || 'N/A'}</div>
                       <div><strong>Message ID:</strong> {emailData.messageId || 'N/A'}</div>
                       <div><strong>Labels:</strong> {emailData.labels ? JSON.stringify(emailData.labels) : '[]'}</div>

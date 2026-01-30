@@ -2,20 +2,23 @@
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
 import * as iam from 'aws-cdk-lib/aws-iam';
-import { Aspects, IAspect } from 'aws-cdk-lib';
+import { Aspects } from 'aws-cdk-lib';
 import { IConstruct } from 'constructs';
 import { BearlyMailStack } from '../lib/bearlymail-stack';
 import { BearlyMailNetworkingStack } from '../lib/bearlymail-networking-stack';
 
 const PERMISSIONS_BOUNDARY_ARN = 'arn:aws:iam::789877399450:policy/BearlyMail-PermissionBoundary';
 
-class PermissionsBoundaryAspect implements IAspect {
-  public visit(node: IConstruct): void {
-    if (node instanceof iam.Role || node instanceof iam.CfnRole) {
-      const cfnRole = node instanceof iam.Role ? node.node.defaultChild as iam.CfnRole : node;
-      if (cfnRole && !cfnRole.permissionsBoundary) {
-        cfnRole.permissionsBoundary = PERMISSIONS_BOUNDARY_ARN;
-      }
+class PermissionsBoundaryAspect implements cdk.IAspect {
+  private readonly boundaryArn: string;
+
+  constructor(boundaryArn: string) {
+    this.boundaryArn = boundaryArn;
+  }
+
+  visit(node: IConstruct): void {
+    if (node instanceof iam.CfnRole) {
+      node.addPropertyOverride('PermissionsBoundary', this.boundaryArn);
     }
   }
 }
@@ -54,5 +57,6 @@ appStack.addDependency(networkingStack);
 
 // Apply permissions boundary to all IAM roles created by any stack
 // This is required by the AWS account's SCP policy
-Aspects.of(app).add(new PermissionsBoundaryAspect());
+// Uses CfnRole directly to catch ALL roles including CDK internal custom resource provider roles
+Aspects.of(app).add(new PermissionsBoundaryAspect(PERMISSIONS_BOUNDARY_ARN));
 

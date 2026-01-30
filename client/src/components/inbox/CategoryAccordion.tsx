@@ -64,7 +64,7 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
 
   const handleEditCategoryClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate('/settings#guide-our-ai');
+    navigate('/settings#email-categories');
   };
 
   const handleSelectAllClick = (e: React.MouseEvent) => {

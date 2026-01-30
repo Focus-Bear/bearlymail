@@ -20,7 +20,7 @@ tests:
       - type: javascript
         value: file://promptfoo-assertions/validate-category-consolidation-response.js
         config:
-          maxCount: 15
+          maxCount: 10
 
   # Test 2: Preserve user-added categories
   - vars:
@@ -52,7 +52,7 @@ tests:
       - type: javascript
         value: file://promptfoo-assertions/validate-category-consolidation-response.js
         config:
-          maxCount: 15
+          maxCount: 10
 
   # Test 4: Avoid overly specific categories
   - vars:
@@ -68,9 +68,9 @@ tests:
       - type: javascript
         value: file://promptfoo-assertions/validate-category-consolidation-response.js
         config:
-          maxCount: 15
+          maxCount: 10
 
-  # Test 5: Limit to max 15 categories
+  # Test 5: Limit to max 10 categories
   - vars:
       categories: |
         - Category 1: Description 1
@@ -96,7 +96,7 @@ tests:
       - type: javascript
         value: file://promptfoo-assertions/validate-category-consolidation-response.js
         config:
-          maxCount: 15
+          maxCount: 10
 
   # Test 6: Mixed user and auto-generated categories
   - vars:
@@ -112,4 +112,4 @@ tests:
         value: file://promptfoo-assertions/validate-category-consolidation-response.js
         config:
           shouldPreserveUserCategories: ["Urgent Issues"]
-          maxCount: 15
+          maxCount: 10

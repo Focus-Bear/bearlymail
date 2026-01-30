@@ -63,6 +63,10 @@ const Inbox: React.FC = () => {
     handleEmailSelect,
     tourSteps,
     emails,
+    expandedCategories,
+    stableCategoryOrder,
+    toggleCategory,
+    updateStableCategoryOrder,
   } = useInboxState();
 
   const [sidebarManuallyExpanded, setSidebarManuallyExpanded] = useState(false);
@@ -217,6 +221,10 @@ const Inbox: React.FC = () => {
               return next;
             });
           }}
+          expandedCategories={expandedCategories}
+          stableCategoryOrder={stableCategoryOrder}
+          onToggleCategory={toggleCategory}
+          onUpdateStableCategoryOrder={updateStableCategoryOrder}
           onSplitViewArchive={(archivedEmailId) => {
             console.log('%c[SPLIT VIEW ARCHIVE] onSplitViewArchive callback triggered!', 'background: cyan; color: black; font-size: 20px;');
             console.log('[SplitViewArchive] Archived email ID:', archivedEmailId);

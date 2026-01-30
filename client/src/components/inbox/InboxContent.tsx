@@ -1,4 +1,4 @@
-import React, { useRef, useState, useMemo, useEffect } from 'react';
+import React, { useRef, useMemo, useEffect } from 'react';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { Email, InboxMode, getEmailPriorityScore } from 'types/email';
@@ -48,6 +48,10 @@ interface InboxContentProps {
   onSplitViewArchive?: (emailId: string) => void;
   onBulkArchive?: (emailIds: string[]) => Promise<void>;
   onBulkSelect?: (emailIds: string[]) => void;
+  expandedCategories: Set<string>;
+  stableCategoryOrder: string[];
+  onToggleCategory: (category: string) => void;
+  onUpdateStableCategoryOrder: (categories: string[]) => void;
 }
 
 // eslint-disable-next-line max-lines-per-function -- Inbox content component requires handling multiple inbox modes, emails, and UI states
@@ -85,10 +89,12 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   onSplitViewArchive,
   onBulkArchive,
   onBulkSelect,
+  expandedCategories,
+  stableCategoryOrder,
+  onToggleCategory,
+  onUpdateStableCategoryOrder,
 }) => {
   const splitViewContainerRef = useRef<HTMLDivElement>(null);
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
-  const [stableCategoryOrder, setStableCategoryOrder] = useState<string[]>([]);
 
   const filteredEmails = useMemo(() => 
     emails.filter(email => !email.isArchived),
@@ -100,19 +106,12 @@ export const InboxContent: React.FC<InboxContentProps> = ({
     [filteredEmails]
   );
 
-  const prevModeRef = useRef(mode);
-  useEffect(() => {
-    if (prevModeRef.current !== mode) {
-      setStableCategoryOrder([]);
-      prevModeRef.current = mode;
-    }
-  }, [mode]);
-
+  // Update stable category order when categories are first loaded
   useEffect(() => {
     if (categoryGroups.length > 0 && stableCategoryOrder.length === 0) {
-      setStableCategoryOrder(categoryGroups.map(g => g.category));
+      onUpdateStableCategoryOrder(categoryGroups.map(g => g.category));
     }
-  }, [categoryGroups, stableCategoryOrder.length]);
+  }, [categoryGroups, stableCategoryOrder.length, onUpdateStableCategoryOrder]);
 
   const sortedCategoryGroups = useMemo(() => {
     if (stableCategoryOrder.length === 0) {
@@ -127,18 +126,6 @@ export const InboxContent: React.FC<InboxContentProps> = ({
       return orderA - orderB;
     });
   }, [categoryGroups, stableCategoryOrder]);
-
-  const toggleCategory = (category: string) => {
-    setExpandedCategories(prev => {
-      const next = new Set(prev);
-      if (next.has(category)) {
-        next.delete(category);
-      } else {
-        next.add(category);
-      }
-      return next;
-    });
-  };
 
   const handleCategorySelectAll = (emailIds: string[]) => {
     if (onBulkSelect) {
@@ -236,7 +223,7 @@ export const InboxContent: React.FC<InboxContentProps> = ({
                   category={group.category}
                   emails={group.emails}
                   isExpanded={isExpanded}
-                  onToggle={() => toggleCategory(group.category)}
+                  onToggle={() => onToggleCategory(group.category)}
                   onSelectAll={handleCategorySelectAll}
                   selectedEmailIds={selectedEmailIds}
                 >

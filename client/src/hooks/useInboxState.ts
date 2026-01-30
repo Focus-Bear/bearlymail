@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from 'contexts/AuthContext';
@@ -113,6 +113,10 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
 
   // Store follow-up data mapped by threadId
   const [followUpDataMap, setFollowUpDataMap] = useState<Map<string, any>>(new Map());
+
+  // Category accordion state - stored here to persist across InboxContent remounts
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [stableCategoryOrder, setStableCategoryOrder] = useState<string[]>([]);
 
   // Fetch follow-up data when in follow-up mode
   useEffect(() => {
@@ -313,7 +317,29 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
 
   const setMode = useCallback((newMode: InboxMode) => {
     setModeState(newMode);
+    // Reset category order when mode changes so it gets recalculated for the new mode
+    setStableCategoryOrder([]);
   }, []);
+
+  // Toggle category expansion
+  const toggleCategory = useCallback((category: string) => {
+    setExpandedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(category)) {
+        next.delete(category);
+      } else {
+        next.add(category);
+      }
+      return next;
+    });
+  }, []);
+
+  // Update stable category order when categories are first loaded
+  const updateStableCategoryOrder = useCallback((categories: string[]) => {
+    if (stableCategoryOrder.length === 0 && categories.length > 0) {
+      setStableCategoryOrder(categories);
+    }
+  }, [stableCategoryOrder.length]);
 
   useEffect(() => {
     if (isInitialMount.current) {
@@ -427,6 +453,11 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     handleEmailSelect,
     // Tour
     tourSteps,
+    // Category accordion state
+    expandedCategories,
+    stableCategoryOrder,
+    toggleCategory,
+    updateStableCategoryOrder,
   };
 }
 

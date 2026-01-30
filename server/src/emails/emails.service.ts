@@ -254,6 +254,7 @@ export class EmailsService {
             thread."isProcessingPriority",
             thread."githubMetadata",
             thread."category",
+            thread."categoryExplanation",
             thread."updatedAt" as "threadUpdatedAt",
         e.id,
         e."userId",
@@ -430,6 +431,9 @@ export class EmailsService {
         githubMetadata: row.githubMetadata || null,
         threadUpdatedAt: row.threadUpdatedAt,
         category: row.category || null,
+        categoryExplanation: row.categoryExplanation
+          ? EncryptionHelper.decrypt(row.categoryExplanation as string)
+          : null,
       } as unknown as Email;
     });
 

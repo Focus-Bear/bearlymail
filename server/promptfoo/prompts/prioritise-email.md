@@ -33,7 +33,8 @@ Provide:
    - Choose the category that BEST matches the email's primary purpose and content
    - Consider the email's main topic, sender type, and intent when selecting
    - Only use "Other" when the email genuinely doesn't fit any of the defined categories
-7. reasoning: Brief explanation of your analysis
+7. categoryExplanation: Brief explanation of why you chose this category. If "Other" was selected, explain what type of email this is and why it doesn't fit any of the defined categories (e.g., "Personal correspondence - doesn't fit business categories", "Technical notification - no matching category for system alerts")
+8. reasoning: Brief explanation of your analysis
 
 Consider:
 - Email content urgency and sentiment (upset/angry emails should have higher urgency scores)
@@ -64,7 +65,7 @@ IMPORTANT RULES:
 5. For goal alignment, consider the user's goals and current work contextually - don't just match keywords, understand the relationship between the email content and the user's objectives
 6. If the user should reply and it's been several days since the last reply, factor this into urgency
 
-Return a JSON object with: { "urgencyScore": number (0-100), "urgencyExplanation": string, "sentimentScore": number (-1 to 1), "goalAlignmentScore": number (0-100), "goalAlignmentExplanation": string, "category": string (one of: "Newsletters", "Sales", "Partnerships", "Customer Support", "HR Admin", "Other"), "reasoning": string }
+Return a JSON object with: { "urgencyScore": number (0-100), "urgencyExplanation": string, "sentimentScore": number (-1 to 1), "goalAlignmentScore": number (0-100), "goalAlignmentExplanation": string, "category": string (one of: "Newsletters", "Sales", "Partnerships", "Customer Support", "HR Admin", "Other"), "categoryExplanation": string, "reasoning": string }
 
 Email to analyze:
 

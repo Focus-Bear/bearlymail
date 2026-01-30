@@ -84,13 +84,14 @@ export class LLMProcessor implements OnModuleInit {
       { teamSize: this.priorityConcurrency },
       // eslint-disable-next-line max-lines-per-function, max-statements, complexity
       async (job) => {
-        const { userId, emailId } = job.data as {
+        const { userId, emailId, forceRecalculate } = job.data as {
           userId: string;
           emailId: string;
+          forceRecalculate?: boolean;
         };
         const workerId = job.id || "unknown";
         const tracker = new JobPerformanceTracker("refine-priority", workerId);
-        tracker.setMetadata({ userId, emailId });
+        tracker.setMetadata({ userId, emailId, forceRecalculate });
 
         this.logger.log(
           `[Worker ${workerId}] Starting LLM priority refinement for email ${emailId}`,
@@ -178,6 +179,7 @@ export class LLMProcessor implements OnModuleInit {
           }
 
           if (
+            !forceRecalculate &&
             threadPriorityExplanation?.breakdown &&
             existingBreakdown.length > 0 &&
             hasValidBreakdown &&
@@ -194,6 +196,12 @@ export class LLMProcessor implements OnModuleInit {
               `[Worker ${workerId}] Skipping priority refinement for email ${emailId} (thread: ${email.threadId?.substring(0, LLM_PROCESSOR_CONSTANTS.SUBSTRING_PREVIEW_LENGTH)}...) - already has priority breakdown with score: ${existingScore}`,
             );
             return;
+          }
+
+          if (forceRecalculate) {
+            this.logger.log(
+              `[Worker ${workerId}] Force recalculating priority for email ${emailId} (forceRecalculate=true)`,
+            );
           }
 
           if (hasNewEmails) {
@@ -620,6 +628,10 @@ export class LLMProcessor implements OnModuleInit {
                   priorityExplanation, // Store priority explanation on thread
                   priorityScore, // Store denormalized score for efficient sorting
                   category: llmResult.category || thread.category || null, // Store email category
+                  categoryExplanation:
+                    llmResult.categoryExplanation ||
+                    thread.categoryExplanation ||
+                    null, // Store category explanation
                   isProcessingPriority: false,
                 },
               );

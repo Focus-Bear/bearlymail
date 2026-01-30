@@ -401,6 +401,7 @@ export class ContextController {
   ) {
     const updates: Partial<UserContext> = {
       contextValue: body.value,
+      source: Source.USER_EDITED, // Mark as user-edited when updated
     };
     if (body.priority !== undefined) {
       updates.priority = body.priority;

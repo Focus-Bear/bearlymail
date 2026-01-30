@@ -66,6 +66,8 @@ export interface Email {
   }>;
   // Email category for grouping (e.g., Newsletters, Sales, Customer Support)
   category?: string | null;
+  // Explanation of why this category was chosen (especially useful for "Other")
+  categoryExplanation?: string | null;
 }
 
 export interface TriageSuggestion {

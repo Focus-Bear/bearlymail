@@ -119,20 +119,39 @@ describe("AutoResponderService", () => {
         {
           provide: AutoResponderTemplateService,
           useValue: {
-            selectTemplate: jest.fn().mockReturnValue("Test template {{userName}}"),
+            selectTemplate: jest
+              .fn()
+              .mockReturnValue("Test template {{userName}}"),
             getTemplateType: jest.fn().mockReturnValue("standard"),
             renderTemplate: jest.fn().mockImplementation((template, vars) => {
               let result = template;
-              result = result.replace(/\{\{userName\}\}/g, vars.userName || "Test User");
-              result = result.replace(/\{\{actionCount\}\}/g, String(vars.actionCount || 0));
-              result = result.replace(/\{\{triageCount\}\}/g, String(vars.triageCount || 0));
-              result = result.replace(/\{\{avgResponseTime\}\}/g, vars.avgResponseTime || "");
-              result = result.replace(/\{\{urgentResponseTime\}\}/g, vars.urgentResponseTime || "");
+              result = result.replace(
+                /\{\{userName\}\}/g,
+                vars.userName || "Test User",
+              );
+              result = result.replace(
+                /\{\{actionCount\}\}/g,
+                String(vars.actionCount || 0),
+              );
+              result = result.replace(
+                /\{\{triageCount\}\}/g,
+                String(vars.triageCount || 0),
+              );
+              result = result.replace(
+                /\{\{avgResponseTime\}\}/g,
+                vars.avgResponseTime || "",
+              );
+              result = result.replace(
+                /\{\{urgentResponseTime\}\}/g,
+                vars.urgentResponseTime || "",
+              );
               return result;
             }),
-            markdownToHtml: jest.fn().mockImplementation((text) => {
-              return `<html><body><p>${text}</p></body></html>`;
-            }),
+            markdownToHtml: jest
+              .fn()
+              .mockImplementation(
+                (text) => `<html><body><p>${text}</p></body></html>`,
+              ),
           },
         },
         {

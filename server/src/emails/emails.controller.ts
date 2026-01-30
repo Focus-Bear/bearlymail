@@ -664,7 +664,7 @@ export class EmailsController {
     for (const email of triageEmails) {
       await this.boss.send(
         "refine-priority",
-        { userId, emailId: email.id },
+        { userId, emailId: email.id, forceRecalculate: true },
         {
           priority: getJobPriority("refine-priority", true),
           singletonKey: `recategorize-${email.id}`,

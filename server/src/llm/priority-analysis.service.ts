@@ -56,6 +56,7 @@ export class PriorityAnalysisService {
     goalAlignmentScore: number;
     goalAlignmentExplanation: string;
     category: string;
+    categoryExplanation: string;
     reasoning: string;
   }> {
     // Defensive cleaning in case body wasn't pre-cleaned by caller
@@ -106,6 +107,8 @@ export class PriorityAnalysisService {
               parsed.goalAlignmentExplanation ||
               "No goal alignment explanation provided",
             category: parsed.category || "Other",
+            categoryExplanation:
+              parsed.categoryExplanation || "No category explanation provided",
             reasoning: parsed.reasoning || "No reasoning provided",
           };
         }
@@ -123,6 +126,7 @@ export class PriorityAnalysisService {
         goalAlignmentScore: 0,
         goalAlignmentExplanation: "No goal alignment detected",
         category: "Other",
+        categoryExplanation: "Unable to categorize - fallback response",
         reasoning: response.substring(0, QUERY_LIMITS.LLM_REASONING_MAX_LENGTH),
       };
     }
@@ -276,6 +280,8 @@ export class PriorityAnalysisService {
             parsed.goalAlignmentExplanation ||
             "No goal alignment explanation provided",
           category: parsed.category || "Other",
+          categoryExplanation:
+            parsed.categoryExplanation || "No category explanation provided",
           reasoning: parsed.reasoning || "No reasoning provided",
         };
       }
@@ -298,6 +304,7 @@ export class PriorityAnalysisService {
       goalAlignmentScore: 0,
       goalAlignmentExplanation: "No goal alignment detected",
       category: "Other",
+      categoryExplanation: "Unable to categorize - fallback response",
       reasoning: response.substring(0, QUERY_LIMITS.LLM_REASONING_MAX_LENGTH),
     };
   }

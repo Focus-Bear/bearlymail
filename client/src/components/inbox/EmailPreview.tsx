@@ -10,22 +10,24 @@ interface EmailPreviewProps {
 
 export const EmailPreview: React.FC<EmailPreviewProps> = ({ email }) => {
   const { t } = useTranslation();
+  const isOtherCategory = email.category === 'Other';
+  const hasCategoryExplanation = isOtherCategory && email.categoryExplanation;
 
   return (
-    <div style={{
-      color: theme.colors.text.secondary,
-      fontSize: theme.typography.fontSize.sm,
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-      whiteSpace: 'nowrap',
-      maxWidth: '600px',
-      lineHeight: theme.typography.lineHeight.relaxed,
-      display: 'flex',
-      alignItems: 'center',
-      gap: theme.spacing.xs,
-      position: 'relative',
-      marginBottom: theme.spacing.sm,
-    }}>
+    <div style={{ marginBottom: theme.spacing.sm }}>
+      <div style={{
+        color: theme.colors.text.secondary,
+        fontSize: theme.typography.fontSize.sm,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        maxWidth: '600px',
+        lineHeight: theme.typography.lineHeight.relaxed,
+        display: 'flex',
+        alignItems: 'center',
+        gap: theme.spacing.xs,
+        position: 'relative',
+      }}>
       {(() => {
         if (email.isProcessingSummary) {
           return (
@@ -68,6 +70,21 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({ email }) => {
           </span>
         );
       })()}
+      </div>
+      {hasCategoryExplanation && (
+        <div style={{
+          color: theme.colors.text.tertiary,
+          fontSize: theme.typography.fontSize.xs,
+          marginTop: theme.spacing.xs,
+          fontStyle: 'italic',
+          display: 'flex',
+          alignItems: 'center',
+          gap: theme.spacing.xs,
+        }}>
+          <span>💡</span>
+          <span>{email.categoryExplanation}</span>
+        </div>
+      )}
     </div>
   );
 };

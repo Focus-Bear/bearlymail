@@ -155,6 +155,14 @@ export class EmailThread {
   })
   category: string | null;
 
+  @Column("text", {
+    nullable: true,
+    transformer: encryptedColumnTransformer,
+    comment:
+      "Explanation of why this category was chosen (especially useful for Other)",
+  })
+  categoryExplanation: string | null;
+
   @ManyToOne(() => User)
   @JoinColumn({ name: "userId" })
   user: User;

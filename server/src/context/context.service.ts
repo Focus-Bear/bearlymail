@@ -3742,6 +3742,19 @@ export class ContextService {
     const vipStartTime = Date.now();
     let vipCount = 0;
     let vipProcessed = 0;
+    let vipSkippedDuplicates = 0;
+
+    // Pre-fetch all existing VIP contacts for efficient duplicate checking
+    const existingVipContacts = await this.contextRepository.find({
+      where: { userId, contextKey: ContextKey.VIP_CONTACT },
+    });
+    this.logger.log(
+      `[CONTEXT-ANALYSIS] Found ${existingVipContacts.length} existing VIP contacts for duplicate checking`,
+    );
+
+    // Track VIP contacts we're adding in this batch to avoid duplicates within the same run
+    const addedVipContactsThisRun: string[] = [];
+
     for (const contact of effectiveVipContacts) {
       vipProcessed++;
       if (vipProcessed % 10 === 0) {
@@ -3752,22 +3765,73 @@ export class ContextService {
       }
       const displayName = contact.fromName || contact.from;
 
-      // Check if this email or similar already exists
-      const existingVip = await this.contextRepository
-        .createQueryBuilder("context")
-        .where("context.userId = :userId", { userId })
-        .andWhere("context.contextKey = :key", {
-          key: ContextKey.VIP_CONTACT,
-        })
-        .andWhere("LOWER(context.contextValue) = LOWER(:value)", {
-          value: displayName,
-        })
-        .getOne();
+      // Check 1: Exact match (case-insensitive) against existing VIP contacts
+      const exactMatch = existingVipContacts.find(
+        (existing) =>
+          existing.contextValue.toLowerCase() === displayName.toLowerCase(),
+      );
 
-      if (existingVip) {
+      if (exactMatch) {
         this.logger.log(
-          `[CONTEXT-ANALYSIS] Skipping duplicate VIP contact: ${displayName}`,
+          `[CONTEXT-ANALYSIS] Skipping duplicate VIP contact (exact match): ${displayName}`,
         );
+        vipSkippedDuplicates++;
+        continue;
+      }
+
+      // Check 2: Similarity check against existing VIP contacts
+      let isSimilarToExisting = false;
+      for (const existing of existingVipContacts) {
+        try {
+          if (
+            this.piiRedactionService.areContextValuesSimilar(
+              displayName,
+              existing.contextValue,
+            )
+          ) {
+            this.logger.log(
+              `[CONTEXT-ANALYSIS] Skipping duplicate VIP contact (similar to existing "${existing.contextValue}"): ${displayName}`,
+            );
+            isSimilarToExisting = true;
+            vipSkippedDuplicates++;
+            break;
+          }
+        } catch (similarityError) {
+          this.logger.warn(
+            `[CONTEXT-ANALYSIS] Error checking VIP similarity: ${getErrorMessage(similarityError)}`,
+          );
+        }
+      }
+
+      if (isSimilarToExisting) {
+        continue;
+      }
+
+      // Check 3: Similarity check against VIP contacts added in this run
+      let isSimilarToAddedThisRun = false;
+      for (const addedName of addedVipContactsThisRun) {
+        try {
+          if (
+            this.piiRedactionService.areContextValuesSimilar(
+              displayName,
+              addedName,
+            )
+          ) {
+            this.logger.log(
+              `[CONTEXT-ANALYSIS] Skipping duplicate VIP contact (similar to already added "${addedName}"): ${displayName}`,
+            );
+            isSimilarToAddedThisRun = true;
+            vipSkippedDuplicates++;
+            break;
+          }
+        } catch (similarityError) {
+          this.logger.warn(
+            `[CONTEXT-ANALYSIS] Error checking VIP similarity (this run): ${getErrorMessage(similarityError)}`,
+          );
+        }
+      }
+
+      if (isSimilarToAddedThisRun) {
         continue;
       }
 
@@ -3780,11 +3844,16 @@ export class ContextService {
         undefined,
         explanation,
       );
+      addedVipContactsThisRun.push(displayName);
       vipCount++;
       this.logger.log(
         `[CONTEXT-ANALYSIS] Added VIP contact ${vipCount}/${effectiveVipContacts.length}: ${displayName}`,
       );
     }
+
+    this.logger.log(
+      `[CONTEXT-ANALYSIS] VIP contacts summary: ${vipCount} added, ${vipSkippedDuplicates} skipped as duplicates`,
+    );
     const vipDuration = Date.now() - vipStartTime;
     writeAnalysisLog(
       `[FINALIZATION] ✅ Step 5/6: Saved ${vipCount} VIP contacts in ${Math.round(vipDuration / 1000)}s`,

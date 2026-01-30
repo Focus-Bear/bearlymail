@@ -15,6 +15,7 @@ Current Context (DO NOT duplicate these):
   * Review the existing context above carefully. Only extract NEW insights that are not already represented.
   * If a context item already exists (e.g., "VIP_CONTACT: Sarah Chen" is already listed), do NOT add it again.
   * Focus on finding NEW patterns, NEW contacts, NEW topics, or NEW insights that are missing from the current context.
+  * CRITICAL: Also avoid duplicates WITHIN your own output. Do not return the same person/contact/topic multiple times in your response.
 
 Input:
 1. Received Emails (with metadata like read time, reply time, stars, archive status)
@@ -52,6 +53,10 @@ Example context item format:
     3. If a name appears in BOTH places, it is DEFINITIVELY the user themselves - REMOVE it from VIP_CONTACT immediately
     4. Only return VIP_CONTACT items that pass this check
     IMPORTANT: Determine VIP contacts AFTER analyzing user goals and work patterns - VIPs should align with what the user actually prioritizes.
+    DEDUPLICATION: Before adding a VIP_CONTACT, check:
+      1. Is this person already in the "Current Context" section above? If yes, DO NOT add them again.
+      2. Have you already added this person in your current response? If yes, DO NOT add them again.
+      3. Is this person similar to someone already added (e.g., same person with different name format like "John Smith" vs "John")? If yes, only keep ONE entry.
   - key="USER_INFO": Facts about the user (e.g., "User is a Plumber", "User lives in NYC"). Inferred from their signatures or content.
   - key="CURRENT_TOPIC" or "WORKING_ON": Extract HIGH-LEVEL, ABSTRACT themes and domains the user ACTUALLY works on based on what they REPLY TO and READ. 
     * Base this ONLY on emails the user actively engages with:

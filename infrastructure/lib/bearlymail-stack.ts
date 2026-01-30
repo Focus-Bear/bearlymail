@@ -80,7 +80,7 @@ export class BearlyMailStack extends cdk.Stack {
     // RDS Database
     // ============================================
     const databaseInstanceType = props?.databaseInstanceType || ec2.InstanceType.of(
-      ec2.InstanceClass.T3,
+      ec2.InstanceClass.T4G,
       ec2.InstanceSize.MICRO
     );
 

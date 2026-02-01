@@ -88,6 +88,8 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
     selectedAction,
     animationClass,
     loading,
+    setLoading,
+    setEmail,
     setThreadEmails,
     setExpandedThreadItems,
     setNoteContent,
@@ -171,6 +173,8 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
     setActionItems,
     setExpandedThreadItems,
     setThreadEmails,
+    setLoading,
+    setEmail,
     threadEmails,
     actionItems,
   });

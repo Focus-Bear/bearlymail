@@ -22,6 +22,8 @@ interface UseEmailDetailInitializationProps {
   setActionItems: (items: any[]) => void;
   setExpandedThreadItems: (items: Set<string>) => void;
   setThreadEmails: (emails: any[]) => void;
+  setLoading: (loading: boolean) => void;
+  setEmail: (email: any) => void;
   threadEmails: any[];
   actionItems: any[];
 }
@@ -46,6 +48,8 @@ export const useEmailDetailInitialization = ({
   setActionItems,
   setExpandedThreadItems,
   setThreadEmails,
+  setLoading,
+  setEmail,
   threadEmails,
   actionItems,
 }: UseEmailDetailInitializationProps) => {
@@ -60,7 +64,9 @@ export const useEmailDetailInitialization = ({
   // Clear summary and reset state when email ID changes to prevent showing old data
   useEffect(() => {
     if (id && id !== previousEmailIdRef.current) {
-      // Email ID changed, clear all stale data
+      // Email ID changed, show loading state and clear all stale data
+      setLoading(true);
+      setEmail(null); // Clear email to show loading spinner
       setSummary(null);
       setSummaryType('tldr'); // Reset to default type
       setThreadEmails([]); // Clear thread emails to prevent showing stale content
@@ -72,7 +78,7 @@ export const useEmailDetailInitialization = ({
       fetchedThreadIdRef.current = null;
       previousEmailIdRef.current = id;
     }
-  }, [id, setSummary, setSummaryType, setThreadEmails, setExpandedThreadItems, setActionItems]);
+  }, [id, setSummary, setSummaryType, setThreadEmails, setExpandedThreadItems, setActionItems, setLoading, setEmail]);
   
   // Track manual summaryType changes
   useEffect(() => {

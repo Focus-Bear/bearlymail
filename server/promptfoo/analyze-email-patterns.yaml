@@ -130,13 +130,20 @@ tests:
   - vars:
       receivedEmails: |
         From: Team Lead, Subject: Sprint planning, Read: Read, InInbox, NotStarred, Behavior: ReadButKept, ReplyTime: 120m
+        From: Team Lead, Subject: Sprint retrospective, Read: Read, InInbox, NotStarred, Behavior: ReadButKept, ReplyTime: 90m
         From: Developer, Subject: Code review, Read: Read, InInbox, NotStarred, Behavior: ReadButKept, ReplyTime: 180m
+        From: Developer, Subject: PR feedback needed, Read: Read, InInbox, NotStarred, Behavior: ReadButKept, ReplyTime: 150m
         From: Designer, Subject: UI mockups, Read: Read, InInbox, NotStarred, Behavior: ReadButKept, ReplyTime: 200m
+        From: Designer, Subject: Design review, Read: Read, InInbox, NotStarred, Behavior: ReadButKept, ReplyTime: 160m
         From: Fireflies.ai, Subject: Meeting summary, Read: Read, InInbox, NotStarred, Behavior: ReadButKept, ReplyTime: NoReply
       sentEmails: |
         To: team@company.com, Subject: Sprint update
         Full Email Body:
         Here's the sprint update.
+        ---
+        To: developer@company.com, Subject: Re: Code review
+        Full Email Body:
+        Thanks for the review, I'll address the feedback.
         ---
     assert:
       - type: javascript

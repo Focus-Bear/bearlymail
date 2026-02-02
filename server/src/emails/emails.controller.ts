@@ -644,24 +644,49 @@ export class EmailsController {
   }
 
   @Post("recategorize-triage")
-  async recategorizeTriageEmails(@Request() req) {
+  async recategorizeTriageEmails(
+    @Request() req,
+    @Query("modes") modesParam?: string,
+  ) {
     const { userId } = req.user;
+
+    const validModes = ["triage", "action"] as const;
+    type ValidMode = (typeof validModes)[number];
+
+    let modes: ValidMode[] = ["triage", "action"];
+    if (modesParam) {
+      const requestedModes = modesParam.split(",").map((m) => m.trim());
+      modes = requestedModes.filter((m): m is ValidMode =>
+        validModes.includes(m as ValidMode),
+      );
+    }
+
     this.logger.log(
-      `[Recategorize] Recategorize triage emails request for userId: ${userId}`,
+      `[Recategorize] Recategorize emails request for userId: ${userId}, modes: ${modes.join(", ")}`,
     );
 
-    const triageEmails = await this.emailsService.getInbox(
-      userId,
-      false,
-      "triage",
-    );
+    const allEmails: Email[] = [];
+    const seenIds = new Set<string>();
 
-    if (triageEmails.length === 0) {
-      return { message: "No triage emails to recategorize", queued: 0 };
+    for (const mode of modes) {
+      const emails = await this.emailsService.getInbox(userId, false, mode);
+      for (const email of emails) {
+        if (!seenIds.has(email.id)) {
+          seenIds.add(email.id);
+          allEmails.push(email);
+        }
+      }
+    }
+
+    if (allEmails.length === 0) {
+      return {
+        message: `No emails to recategorize in ${modes.join(" or ")}`,
+        queued: 0,
+      };
     }
 
     let queued = 0;
-    for (const email of triageEmails) {
+    for (const email of allEmails) {
       await this.boss.send(
         "refine-priority",
         { userId, emailId: email.id, forceRecalculate: true },

@@ -1253,7 +1253,7 @@
       }
     },
     "emailCategories": {
-      "recategorize": "Recategorise emails in Triage",
+      "recategorize": "Recategorise emails in Inbox",
       "recategorizing": "Recategorising...",
       "consolidate": "Consolidate Categories",
       "consolidating": "Consolidating..."

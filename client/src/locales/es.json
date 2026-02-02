@@ -1294,7 +1294,7 @@
       }
     },
     "emailCategories": {
-      "recategorize": "Recategorizar correos en Triaje",
+      "recategorize": "Recategorizar correos en Bandeja",
       "recategorizing": "Recategorizando...",
       "consolidate": "Consolidar Categorias",
       "consolidating": "Consolidando..."

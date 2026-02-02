@@ -36,7 +36,7 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
   return (
     <header
       style={{
-        padding: `${theme.spacing.lg} ${theme.spacing['2xl']}`,
+        padding: `${theme.spacing.sm} ${theme.spacing['2xl']}`,
         backgroundColor: theme.colors.background.paper,
         borderBottom: `1px solid ${theme.colors.border.light}`,
         display: 'flex',
@@ -50,7 +50,7 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
             color: theme.colors.text.primary,
             fontSize: theme.typography.fontSize['2xl'],
             fontWeight: theme.typography.fontWeight.bold,
-            marginBottom: theme.spacing.xs,
+            marginBottom: 0,
           }}
         >
           {t('inbox.title')}
@@ -60,7 +60,7 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
             display: 'flex',
             gap: theme.spacing.md,
             alignItems: 'center',
-            marginTop: theme.spacing.sm,
+            marginTop: theme.spacing.xs,
           }}
         >
           <InboxHeaderTabs

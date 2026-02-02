@@ -102,6 +102,9 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
                 fontSize: theme.typography.fontSize.sm,
                 color: theme.colors.text.primary,
                 whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                maxWidth: '200px',
               }}>
                 {senderName}
               </span>

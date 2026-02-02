@@ -18,6 +18,7 @@ import { EmailDetailSidebar } from 'components/email-detail/EmailDetailSidebar';
 import { EmailDetailHeader } from 'components/email-detail/EmailDetailHeader';
 import { EmailDetailActions } from 'components/email-detail/EmailDetailActions';
 import { EmailThreadView } from 'components/email-detail/EmailThreadView';
+import { EmailAttachments } from 'components/email-detail/EmailAttachments';
 import { CustomRuleModal } from 'components/email-detail/CustomRuleModal';
 import { Email } from 'types/email';
 import { ACTION_TYPE_CUSTOM, SUMMARY_TYPE_CUSTOM, SUMMARY_TYPE_CUSTOM_PREFIX } from 'constants/strings';
@@ -505,6 +506,13 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
           extractCleanHtmlBody={extractCleanHtmlBody}
           sanitizeAndProcessHtml={sanitizeAndProcessHtml}
         />
+
+        {email.attachments && email.attachments.length > 0 && (
+          <EmailAttachments
+            emailId={email.id}
+            attachments={email.attachments}
+          />
+        )}
       </div>
 
       {/* Attachment Debug Section - visible in split view (compactMode) for admins */}

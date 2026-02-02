@@ -46,7 +46,8 @@ export function removeSignature(content: string, isHtml: boolean = false): strin
     
     // Also check plain text representation for additional patterns
     const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = content;
+    // Remove cid: images before parsing to prevent browser from trying to load them
+    tempDiv.innerHTML = removeCidImagesFromString(content);
     const text = tempDiv.textContent || tempDiv.innerText || '';
     
     const textSignaturePatterns = [
@@ -107,14 +108,26 @@ export function removeSignature(content: string, isHtml: boolean = false): strin
 }
 
 /**
+ * Remove cid: image URLs from HTML string before DOM parsing
+ * This prevents the browser from attempting to load embedded email images
+ */
+function removeCidImagesFromString(html: string): string {
+  if (!html) return '';
+  return html.replace(/<img[^>]*src=["']cid:[^"']*["'][^>]*>/gi, '');
+}
+
+/**
  * Helper function to clean HTML body by removing quoted/forwarded email content
  */
 export function extractCleanHtmlBody(htmlBody: string): string {
   if (!htmlBody) return '';
   
+  // Remove cid: images before parsing to prevent browser from trying to load them
+  const cleanedHtml = removeCidImagesFromString(htmlBody);
+  
   // Convert to text to find boundary markers
   const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = htmlBody;
+  tempDiv.innerHTML = cleanedHtml;
   const textContent = tempDiv.textContent || tempDiv.innerText || '';
   
   // Simple patterns that catch most email boundaries
@@ -229,8 +242,10 @@ export function sanitizeAndProcessHtml(html: string): string {
   });
   
   // Step 2: Remove problematic images
+  // First remove cid: images from string to prevent browser from trying to load them
+  const sanitizedWithoutCid = removeCidImagesFromString(sanitized);
   const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = sanitized;
+  tempDiv.innerHTML = sanitizedWithoutCid;
   
   // Remove all images with cid: URLs (embedded email images that can't be resolved)
   const cidImages = tempDiv.querySelectorAll('img[src^="cid:"]');
@@ -266,7 +281,8 @@ export function extractCleanBody(emailBody: string, htmlBody?: string): string {
   if (htmlBody && !emailBody) {
     // Convert HTML to text for cleaning
     const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = htmlBody;
+    // Remove cid: images before parsing to prevent browser from trying to load them
+    tempDiv.innerHTML = removeCidImagesFromString(htmlBody);
     content = tempDiv.textContent || tempDiv.innerText || '';
   }
   

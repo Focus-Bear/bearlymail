@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { theme } from 'theme/theme';
 import { ReplyOptionsSelector } from 'components/email-detail-inline/ReplyOptionsSelector';
 import { ToneCheckResult } from 'components/email-detail-inline/ToneCheckResult';
@@ -9,6 +9,7 @@ import { ReplyComposerFooter } from 'components/email-detail-inline/ReplyCompose
 import { ReplyComposerAttachments } from 'components/email-detail-inline/ReplyComposerAttachments';
 
 const REPLY_OPTION_LABEL_CUSTOM = 'Custom';
+const EMPTY_ATTACHMENTS: EmailAttachment[] = [];
 
 interface ReplyOption {
   label: string;
@@ -83,7 +84,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
   checkingTone,
   toneCheckResult,
   sending,
-  initialAttachments = [],
+  initialAttachments,
   onReplyRecipientsChange,
   onCcChange,
   onBccChange,
@@ -101,10 +102,17 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
 }) => {
   const [files, setFiles] = useState<File[]>([]);
   const [forwardAttachmentIds, setForwardAttachmentIds] = useState<string[]>([]);
+  const prevAttachmentsRef = useRef<string>('');
+
+  const attachments = initialAttachments ?? EMPTY_ATTACHMENTS;
 
   useEffect(() => {
-    setForwardAttachmentIds(initialAttachments.map(a => a.attachmentId));
-  }, [initialAttachments]);
+    const attachmentIdsString = attachments.map(a => a.attachmentId).join(',');
+    if (attachmentIdsString !== prevAttachmentsRef.current) {
+      prevAttachmentsRef.current = attachmentIdsString;
+      setForwardAttachmentIds(attachments.map(a => a.attachmentId));
+    }
+  }, [attachments]);
 
   if (!showReplyComposer) {
     return null;
@@ -136,7 +144,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
     onClose();
   };
 
-  const forwardAttachmentsToShow = initialAttachments.filter(
+  const forwardAttachmentsToShow = attachments.filter(
     a => forwardAttachmentIds.includes(a.attachmentId)
   );
 

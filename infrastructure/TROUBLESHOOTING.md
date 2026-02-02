@@ -79,6 +79,48 @@ npm install
 
 4. Verify database is accessible from ECS tasks
 
+### 6a. ResourceInitializationError: "invalid character '_' looking for beginning of value" (secrets)
+
+**Error**: `ResourceInitializationError: unable to pull secrets or registry auth: execution resource retrieval failed: unable to retrieve secret from asm: ... invalid character '_' looking for beginning of value`
+
+**Cause**: ECS reads secrets from AWS Secrets Manager and parses the value as **JSON** to extract keys (e.g. `ENCRYPTION_KEY`, `JWT_SECRET`). This error means the secret value is **not valid JSON** (e.g. plaintext, key=value, or edited in Console as "Plaintext" instead of JSON).
+
+**Fix**:
+
+1. Ensure **AppSecrets** (and any secret used with a key) is stored as valid JSON:
+   - **Double quotes** for all keys and string values (single quotes are invalid in JSON).
+   - No trailing commas, no unquoted keys or values.
+
+2. Get the AppSecrets ARN from stack outputs, then set the secret value with valid JSON:
+   ```bash
+   APP_SECRETS_ARN=$(aws cloudformation describe-stacks --stack-name BearlyMailStack \
+     --query 'Stacks[0].Outputs[?OutputKey==`AppSecretsArn`].OutputValue' --output text)
+
+   aws secretsmanager put-secret-value \
+     --secret-id "$APP_SECRETS_ARN" \
+     --secret-string '{
+       "ENCRYPTION_KEY": "your-32-char-encryption-key-here",
+       "JWT_SECRET": "your-jwt-secret",
+       "GOOGLE_CLIENT_ID": "your-google-client-id",
+       "GOOGLE_CLIENT_SECRET": "your-google-client-secret",
+       "GOOGLE_REDIRECT_URI": "https://your-domain/auth/google/callback",
+       "GEMINI_API_KEY": "optional",
+       "OPENAI_API_KEY": "optional",
+       "ZOHO_CLIQ_BACKEND_BOT_WEBHOOK": "optional",
+       "ZOHO_CLIQ_API_KEY": "optional",
+       "ZOHO_CLIQ_BEARLY_MAIL_SIGNUP_CHANNEL": "optional",
+       "AWS_REGION": "ap-southeast-2",
+       "SES_FROM_EMAIL": "noreply@your-domain.com"
+     }'
+   ```
+
+3. If you edit in the AWS Console, use **"Key/value"** (or equivalent) and ensure the result is JSON, **not** "Plaintext" with a single string.
+
+4. Validate JSON locally before updating:
+   ```bash
+   echo '{"ENCRYPTION_KEY":"x","JWT_SECRET":"y"}' | jq .   # should print the JSON
+   ```
+
 ### 7. RDS connection errors
 
 **Error**: `Connection refused` or `timeout`

@@ -1,5 +1,15 @@
 # Quick Setup Guide
 
+This guide will get you from zero to deployed in about 30 minutes.
+
+## Overview
+
+The infrastructure consists of 4 CDK stacks:
+1. **Networking**: VPC, Route53, SSL (~5-10 min)
+2. **Secrets**: Empty secrets placeholders (~1 min)
+3. **Database**: RDS PostgreSQL (~10-15 min)
+4. **Application**: ECS, S3, CloudFront (~5-8 min)
+
 ## Prerequisites
 
 1. **AWS Account** with appropriate permissions
@@ -23,184 +33,160 @@ cd infrastructure
 npm install
 ```
 
-## Step 3: Build Frontend
+## Step 3: Deploy Infrastructure
+
+Deploy all stacks:
 
 ```bash
-cd ../client
-npm install
-npm run build
+# Deploy all at once (recommended)
+cdk deploy --all
 ```
 
-## Step 4: Deploy Infrastructure
+Or deploy individually to see progress:
 
 ```bash
-cd ../infrastructure
-npm run deploy
+cdk deploy BearlyMailNetworkingStack  # VPC, certificate
+cdk deploy BearlyMailSecretsStack      # Empty secrets
+cdk deploy BearlyMailDatabaseStack     # RDS PostgreSQL
+cdk deploy BearlyMailStack             # ECS, CloudFront (will fail - that's OK!)
 ```
 
-This will:
-- Create VPC, subnets, security groups
-- Create RDS PostgreSQL database
-- Create ECS cluster and services
-- Create S3 bucket and CloudFront distribution
-- Create Secrets Manager secrets
-- Set up Application Load Balancer
+**Note**: The application stack will initially fail because secrets aren't configured yet. Continue to next step.
 
-**Note**: First deployment takes ~15-20 minutes.
+## Step 4: Configure Secrets
 
-## Step 5: Configure Secrets
-
-After deployment, get the secret ARNs from stack outputs:
+Get the AppSecrets ARN:
 
 ```bash
-aws cloudformation describe-stacks \
-  --stack-name BearlyMailStack \
+APP_SECRETS_ARN=$(aws cloudformation describe-stacks \
+  --stack-name BearlyMailSecretsStack \
   --query 'Stacks[0].Outputs[?OutputKey==`AppSecretsArn`].OutputValue' \
-  --output text
+  --output text)
 ```
 
-Then update the secrets:
+Generate secure keys:
 
 ```bash
-# Generate encryption key (32+ characters)
-ENCRYPTION_KEY=$(openssl rand -hex 32)
+ENCRYPTION_KEY=$(openssl rand -hex 16)  # 32 characters
+JWT_SECRET=$(openssl rand -base64 32)
+```
 
-# Generate JWT secret
-JWT_SECRET=$(openssl rand -hex 32)
+Update secrets (MUST be valid JSON with double quotes):
 
-# Update secrets
+```bash
 aws secretsmanager put-secret-value \
-  --secret-id <AppSecretsArn> \
+  --secret-id "$APP_SECRETS_ARN" \
   --secret-string "{
     \"ENCRYPTION_KEY\": \"${ENCRYPTION_KEY}\",
     \"JWT_SECRET\": \"${JWT_SECRET}\",
     \"GOOGLE_CLIENT_ID\": \"your-google-client-id\",
     \"GOOGLE_CLIENT_SECRET\": \"your-google-client-secret\",
-    \"GOOGLE_REDIRECT_URI\": \"https://your-cloudfront-url/auth/google/callback\",
-    \"GEMINI_API_KEY\": \"your-gemini-api-key\",
-    \"OPENAI_API_KEY\": \"your-openai-api-key\"
+    \"GOOGLE_REDIRECT_URI\": \"https://app.bearlymail.com/auth/google/callback\",
+    \"GEMINI_API_KEY\": \"\",
+    \"OPENAI_API_KEY\": \"\",
+    \"ZOHO_CLIQ_BACKEND_BOT_WEBHOOK\": \"\",
+    \"ZOHO_CLIQ_API_KEY\": \"\",
+    \"ZOHO_CLIQ_BEARLY_MAIL_SIGNUP_CHANNEL\": \"\",
+    \"AWS_REGION\": \"ap-southeast-2\",
+    \"SES_FROM_EMAIL\": \"noreply@bearlymail.com\"
   }"
 ```
 
-## Step 6: Update Frontend API URL
+**IMPORTANT**: If you get `ResourceInitializationError: invalid character '_'`, see [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) section 6a.
 
-Before deploying the frontend, update the API URL:
+## Step 5: Redeploy Application Stack
 
-1. Get the Load Balancer DNS from stack outputs:
-   ```bash
-   aws cloudformation describe-stacks \
-     --stack-name BearlyMailStack \
-     --query 'Stacks[0].Outputs[?OutputKey==`LoadBalancerDNS`].OutputValue' \
-     --output text
-   ```
-
-2. Update `client/.env.production`:
-   ```bash
-   REACT_APP_API_URL=http://<LoadBalancerDNS>
-   ```
-
-3. Rebuild frontend:
-   ```bash
-   cd client
-   npm run build
-   ```
-
-4. Redeploy frontend:
-   ```bash
-   cd ../infrastructure
-   npm run deploy
-   ```
-
-## Step 7: Run Database Migrations
-
-Create a temporary ECS task to run migrations:
+Now that secrets are configured, redeploy:
 
 ```bash
-# Get database endpoint and secret
+cdk deploy BearlyMailStack
+```
+
+This should now succeed (~5-8 minutes).
+
+## Step 6: Run Database Migrations
+
+Get database connection info:
+
+```bash
+# Get database endpoint
 DB_ENDPOINT=$(aws cloudformation describe-stacks \
-  --stack-name BearlyMailStack \
+  --stack-name BearlyMailDatabaseStack \
   --query 'Stacks[0].Outputs[?OutputKey==`DatabaseEndpoint`].OutputValue' \
   --output text)
 
+# Get database secret ARN (from Database stack)
 DB_SECRET_ARN=$(aws cloudformation describe-stacks \
-  --stack-name BearlyMailStack \
+  --stack-name BearlyMailDatabaseStack \
   --query 'Stacks[0].Outputs[?OutputKey==`DatabaseSecretArn`].OutputValue' \
   --output text)
 
 # Get credentials
 DB_CREDS=$(aws secretsmanager get-secret-value \
-  --secret-id $DB_SECRET_ARN \
+  --secret-id "$DB_SECRET_ARN" \
   --query SecretString \
   --output text)
 
 # Extract username and password
-DB_USERNAME=$(echo $DB_CREDS | jq -r '.username')
-DB_PASSWORD=$(echo $DB_CREDS | jq -r '.password')
-
-# Run migrations (you'll need to set up a way to run this)
-# Option 1: Use AWS Systems Manager Session Manager
-# Option 2: Create a temporary ECS task
-# Option 3: Use a bastion host
-# Option 4: Run locally with VPN/tunnel
+DB_USERNAME=$(echo "$DB_CREDS" | jq -r '.username')
+DB_PASSWORD=$(echo "$DB_CREDS" | jq -r '.password')
 ```
 
-## Step 8: Verify Deployment
+Run migrations:
 
-1. **Check ECS services**:
-   ```bash
-   aws ecs list-services --cluster BearlyMailCluster
-   ```
+```bash
+cd ../server
 
-2. **Check service health**:
-   ```bash
-   aws ecs describe-services \
-     --cluster BearlyMailCluster \
-     --services WebService WorkerService
-   ```
+export DB_HOST="$DB_ENDPOINT"
+export DB_USERNAME="$DB_USERNAME"
+export DB_PASSWORD="$DB_PASSWORD"
+export DB_NAME=bearlymail
+export DB_PORT=5432
+export DB_SSL=true
 
-3. **Check logs**:
-   ```bash
-   aws logs tail /ecs/bearlymail/web --follow
-   ```
+npm run migration:run
+```
 
-4. **Test API**:
-   ```bash
-   curl http://<LoadBalancerDNS>/health
-   ```
+## Step 7: Get Application URLs
 
-5. **Test frontend**:
-   Open CloudFront URL in browser (from stack outputs)
+```bash
+# Get CloudFront URL
+aws cloudformation describe-stacks \
+  --stack-name BearlyMailStack \
+  --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontURL`].OutputValue' \
+  --output text
+
+# Get API Load Balancer URL
+aws cloudformation describe-stacks \
+  --stack-name BearlyMailStack \
+  --query 'Stacks[0].Outputs[?OutputKey==`LoadBalancerDNS`].OutputValue' \
+  --output text
+```
+
+## What's Next?
+
+- **Deploy frontend**: Build and upload React app to S3
+- **Configure Google OAuth**: Set up OAuth credentials in Google Console
+- **Set up SES**: Verify email addresses in AWS SES
+- **Monitor logs**: Check CloudWatch logs at `/ecs/bearlymail/web`
+
+## Iterating During Development
+
+Once deployed, you can iterate quickly:
+
+```bash
+# Only redeploy application (not database/secrets)
+cdk deploy BearlyMailStack  # ~5-8 minutes
+
+# View what will change before deploying
+cdk diff BearlyMailStack
+```
 
 ## Troubleshooting
 
-### Services won't start
-- Check CloudWatch logs: `/ecs/bearlymail/web` and `/ecs/bearlymail/worker`
-- Verify secrets are configured correctly
-- Check security group rules allow traffic
-- Verify database is accessible from ECS tasks
+- **ECS task fails with "invalid character '_'"**: See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) section 6a - your secret is not valid JSON
+- **Certificate validation stuck**: DNS propagation can take 5-30 minutes
+- **Database connection timeout**: Check security groups allow ECS → RDS traffic
+- **CloudWatch logs**: `aws logs tail /ecs/bearlymail/web --follow`
 
-### Database connection errors
-- Verify RDS security group allows ECS security group
-- Check database credentials in Secrets Manager
-- Verify database is in same VPC as ECS
-
-### Frontend not loading
-- Check S3 bucket has files: `aws s3 ls s3://<bucket-name>`
-- Verify CloudFront distribution is deployed
-- Check CloudFront cache invalidation
-- Verify OAI is configured
-
-## Next Steps
-
-- Set up CI/CD pipeline for automated deployments
-- Configure custom domain for CloudFront
-- Set up SSL certificate for HTTPS
-- Enable Multi-AZ for production
-- Set up monitoring and alerts
-- Configure backup retention policies
-
-
-
-
-
-
+For more detailed troubleshooting, see [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).

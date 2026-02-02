@@ -4,12 +4,25 @@ AWS CDK infrastructure for deploying BearlyMail to AWS.
 
 ## Architecture
 
-- **ECS Fargate**: Backend services (web API, workers, cron jobs)
-- **RDS PostgreSQL**: Database
-- **S3 + CloudFront**: Frontend React app
-- **Secrets Manager**: Secure storage for secrets
-- **Application Load Balancer**: Routes traffic to ECS services
-- **EventBridge**: Scheduled cron jobs
+The infrastructure is split into **4 separate stacks** for faster, more modular deployments:
+
+1. **BearlyMailNetworkingStack**: VPC, Route53, SSL Certificate
+2. **BearlyMailSecretsStack**: Secrets Manager (database credentials, API keys)
+3. **BearlyMailDatabaseStack**: RDS PostgreSQL
+4. **BearlyMailStack**: ECS Fargate, S3, CloudFront, ALB
+
+### Why separate stacks?
+
+- **Faster deployments**: Database and secrets rarely change, so they can stay deployed while you iterate on the application stack
+- **Safer updates**: Reduces risk of accidentally modifying critical resources like the database
+- **Modularity**: Each stack can be deployed, updated, or destroyed independently (with dependency checks)
+
+### Stack Deployment Order
+
+1. **Networking** (slowest - creates VPC, certificate)
+2. **Secrets** (fast - just creates empty secrets)
+3. **Database** (slow - creates RDS instance)
+4. **Application** (medium - ECS, S3, CloudFront)
 
 ## Prerequisites
 
@@ -31,51 +44,84 @@ AWS CDK infrastructure for deploying BearlyMail to AWS.
    cdk bootstrap aws://ACCOUNT-ID/ap-southeast-2
    ```
 
-3. **Configure secrets** in AWS Secrets Manager:
-   
-   After deploying, you'll need to add secrets to the `AppSecrets` secret:
-   ```bash
-   # Get the secret ARN from stack outputs
-   aws secretsmanager get-secret-value --secret-id <AppSecretsArn>
-   
-   # Update the secret with your values
-   aws secretsmanager put-secret-value \
-     --secret-id <AppSecretsArn> \
-     --secret-string '{
-       "ENCRYPTION_KEY": "your-32-character-encryption-key",
-       "JWT_SECRET": "your-jwt-secret",
-       "GOOGLE_CLIENT_ID": "your-google-client-id",
-       "GOOGLE_CLIENT_SECRET": "your-google-client-secret",
-       "GOOGLE_REDIRECT_URI": "https://your-cloudfront-url/auth/google/callback",
-       "GEMINI_API_KEY": "your-gemini-api-key",
-       "OPENAI_API_KEY": "your-openai-api-key"
-     }'
-   ```
+3. **Configure secrets** in AWS Secrets Manager (see Deployment section above)
 
 ## Deployment
 
-1. **Build the frontend**:
-   ```bash
-   cd ../client
-   npm install
-   npm run build
-   ```
+### First Time Deployment
 
-2. **Deploy the stack**:
-   ```bash
-   cd ../infrastructure
-   npm run deploy
-   ```
+Deploy all stacks in order:
 
-   Or deploy a specific stack:
-   ```bash
-   npm run deploy:stack
-   ```
+```bash
+cd infrastructure
 
-3. **View differences** before deploying:
-   ```bash
-   npm run diff
-   ```
+# Deploy all stacks (they will deploy in dependency order)
+npm run deploy
+```
+
+Or deploy individually (useful for iterating):
+
+```bash
+# 1. Deploy networking (slowest - ~5-10 minutes)
+cdk deploy BearlyMailNetworkingStack
+
+# 2. Deploy secrets (fast - ~1 minute)
+cdk deploy BearlyMailSecretsStack
+
+# 3. Deploy database (slow - ~10-15 minutes)
+cdk deploy BearlyMailDatabaseStack
+
+# 4. Deploy application (medium - ~5-8 minutes)
+cdk deploy BearlyMailStack
+```
+
+### After Initial Deployment: Configure Secrets
+
+Get the secret ARN from the secrets stack outputs:
+
+```bash
+APP_SECRETS_ARN=$(aws cloudformation describe-stacks --stack-name BearlyMailSecretsStack \
+  --query 'Stacks[0].Outputs[?OutputKey==`AppSecretsArn`].OutputValue' --output text)
+
+# Update with your actual values (MUST be valid JSON with double quotes)
+aws secretsmanager put-secret-value \
+  --secret-id "$APP_SECRETS_ARN" \
+  --secret-string '{
+    "ENCRYPTION_KEY": "your-32-character-encryption-key",
+    "JWT_SECRET": "your-jwt-secret",
+    "GOOGLE_CLIENT_ID": "your-google-client-id",
+    "GOOGLE_CLIENT_SECRET": "your-google-client-secret",
+    "GOOGLE_REDIRECT_URI": "https://app.bearlymail.com/auth/google/callback",
+    "GEMINI_API_KEY": "",
+    "OPENAI_API_KEY": "",
+    "ZOHO_CLIQ_BACKEND_BOT_WEBHOOK": "",
+    "ZOHO_CLIQ_API_KEY": "",
+    "ZOHO_CLIQ_BEARLY_MAIL_SIGNUP_CHANNEL": "",
+    "AWS_REGION": "ap-southeast-2",
+    "SES_FROM_EMAIL": "noreply@bearlymail.com"
+  }'
+```
+
+**IMPORTANT**: The secret value must be valid JSON (double-quoted keys and values). See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) section 6a if you get `invalid character '_'` errors.
+
+### Iterating on the Application
+
+Once networking, secrets, and database are deployed, you can iterate quickly on just the application stack:
+
+```bash
+# Only redeploy the application (ECS, S3, CloudFront)
+cdk deploy BearlyMailStack
+```
+
+This is much faster (~5-8 minutes) than redeploying everything (~20-30 minutes).
+
+### View Differences Before Deploying
+
+```bash
+npm run diff
+# Or for a specific stack:
+cdk diff BearlyMailStack
+```
 
 ## Configuration
 
@@ -200,12 +246,27 @@ aws ecs update-service --cluster BearlyMailCluster --service WebService --desire
 
 ## Cleanup
 
-To destroy the stack:
+To destroy all stacks (in reverse dependency order):
+
 ```bash
-cdk destroy
+cdk destroy --all
 ```
 
-**Note**: The RDS database has `removalPolicy: RETAIN`, so it won't be deleted. Delete it manually if needed.
+Or destroy specific stacks:
+
+```bash
+# Destroy application first
+cdk destroy BearlyMailStack
+
+# Then database (if you want to delete it)
+cdk destroy BearlyMailDatabaseStack
+
+# Then secrets and networking
+cdk destroy BearlyMailSecretsStack
+cdk destroy BearlyMailNetworkingStack
+```
+
+**Note**: The RDS database has `removalPolicy: RETAIN`, so it won't be deleted even when destroying the database stack. Delete it manually if needed.
 
 
 

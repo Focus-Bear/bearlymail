@@ -21,7 +21,6 @@ import { Construct } from 'constructs';
 
 export interface BearlyMailStackProps extends cdk.StackProps {
   // Optional: allow overriding defaults
-  databaseInstanceType?: ec2.InstanceType;
   webTaskCpu?: number;
   webTaskMemory?: number;
   workerTaskCpu?: number;
@@ -31,86 +30,36 @@ export interface BearlyMailStackProps extends cdk.StackProps {
   certificateArn?: string; // ACM certificate ARN from us-east-1 for CloudFront
   hostedZone?: route53.IHostedZone;
   domainName?: string; // Domain name for CloudFront
+  // Database and Secrets (from other stacks)
+  database: rds.IDatabaseInstance;
+  dbSecret: secretsmanager.ISecret;
+  appSecrets: secretsmanager.ISecret;
 }
 
 export class BearlyMailStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: BearlyMailStackProps) {
+  constructor(scope: Construct, id: string, props: BearlyMailStackProps) {
     super(scope, id, props);
 
     // ============================================
-    // VPC Setup (imported from networking stack)
+    // Validate required props
     // ============================================
-    if (!props?.vpc) {
+    if (!props.vpc) {
       throw new Error('VPC must be provided from BearlyMailNetworkingStack');
     }
+    if (!props.database) {
+      throw new Error('Database must be provided from BearlyMailDatabaseStack');
+    }
+    if (!props.dbSecret) {
+      throw new Error('Database secret must be provided from BearlyMailSecretsStack');
+    }
+    if (!props.appSecrets) {
+      throw new Error('Application secrets must be provided from BearlyMailSecretsStack');
+    }
+
     const vpc = props.vpc;
-
-    // ============================================
-    // Secrets Manager
-    // ============================================
-    const dbSecret = new secretsmanager.Secret(this, 'DatabaseSecret', {
-      description: 'RDS PostgreSQL database credentials',
-      generateSecretString: {
-        secretStringTemplate: JSON.stringify({ username: 'bearlymail' }),
-        generateStringKey: 'password',
-        excludeCharacters: '"@/\\',
-        includeSpace: false,
-        passwordLength: 32,
-      },
-    });
-
-    const appSecrets = new secretsmanager.Secret(this, 'AppSecrets', {
-      description: 'Application secrets (JWT, encryption keys, API keys)'
-    });
-
-    // Note: You'll need to manually add these secrets to AppSecrets:
-    // - ENCRYPTION_KEY (32+ character string)
-    // - JWT_SECRET (random string)
-    // - GOOGLE_CLIENT_ID
-    // - GOOGLE_CLIENT_SECRET
-    // - GOOGLE_REDIRECT_URI
-    // - GEMINI_API_KEY (optional)
-    // - OPENAI_API_KEY (optional)
-    // - ZOHO_CLIQ_BACKEND_BOT_WEBHOOK (Cliq webhook URL)
-    // - ZOHO_CLIQ_API_KEY (Cliq API key)
-    // - ZOHO_CLIQ_BEARLY_MAIL_SIGNUP_CHANNEL (Cliq channel name)
-    // - AWS_REGION (AWS region for SES, e.g., 'us-east-1')
-    // - SES_FROM_EMAIL (Verified SES email address for sending emails)
-
-    // ============================================
-    // RDS Database
-    // ============================================
-    const databaseInstanceType = props?.databaseInstanceType || ec2.InstanceType.of(
-      ec2.InstanceClass.T4G,
-      ec2.InstanceSize.MICRO
-    );
-
-    const database = new rds.DatabaseInstance(this, 'Database', {
-      engine: rds.DatabaseInstanceEngine.postgres({
-        version: rds.PostgresEngineVersion.VER_17,
-      }),
-      instanceType: databaseInstanceType,
-      vpc,
-      vpcSubnets: {
-        subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
-      },
-      credentials: rds.Credentials.fromSecret(dbSecret),
-      databaseName: 'bearlymail',
-      allocatedStorage: 20,
-      maxAllocatedStorage: 100,
-      storageEncrypted: true,
-      backupRetention: cdk.Duration.days(7),
-      deleteAutomatedBackups: false,
-      removalPolicy: cdk.RemovalPolicy.RETAIN, // Don't delete DB on stack deletion
-      deletionProtection: false, // Set to true in production
-      multiAz: false, // Set to true for production HA
-      publiclyAccessible: false,
-      enablePerformanceInsights: true,
-      performanceInsightRetention: rds.PerformanceInsightRetention.DEFAULT,
-    });
-
-    // Allow ECS tasks to connect to RDS
-    database.connections.allowDefaultPortFromAnyIpv4();
+    const database = props.database;
+    const dbSecret = props.dbSecret;
+    const appSecrets = props.appSecrets;
 
     // ============================================
     // ECS Cluster
@@ -499,26 +448,6 @@ export class BearlyMailStack extends cdk.Stack {
       value: domainName ? `https://${domainName}` : `https://${distribution.distributionDomainName}`,
       description: 'CloudFront distribution URL',
       exportName: 'BearlyMail-CloudFront-URL',
-    });
-
-    // Domain name is exported by BearlyMailNetworkingStack as BearlyMail-Domain-Name; do not duplicate.
-
-    new cdk.CfnOutput(this, 'DatabaseEndpoint', {
-      value: database.instanceEndpoint.hostname,
-      description: 'RDS database endpoint',
-      exportName: 'BearlyMail-DB-Endpoint',
-    });
-
-    new cdk.CfnOutput(this, 'DatabaseSecretArn', {
-      value: dbSecret.secretArn,
-      description: 'Database secret ARN',
-      exportName: 'BearlyMail-DB-Secret-ARN',
-    });
-
-    new cdk.CfnOutput(this, 'AppSecretsArn', {
-      value: appSecrets.secretArn,
-      description: 'Application secrets ARN',
-      exportName: 'BearlyMail-App-Secrets-ARN',
     });
 
     new cdk.CfnOutput(this, 'FrontendBucketName', {

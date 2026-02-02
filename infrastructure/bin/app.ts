@@ -6,6 +6,8 @@ import { Aspects } from 'aws-cdk-lib';
 import { IConstruct } from 'constructs';
 import { BearlyMailStack } from '../lib/bearlymail-stack';
 import { BearlyMailNetworkingStack } from '../lib/bearlymail-networking-stack';
+import { BearlyMailSecretsStack } from '../lib/bearlymail-secrets-stack';
+import { BearlyMailDatabaseStack } from '../lib/bearlymail-database-stack';
 
 const PERMISSIONS_BOUNDARY_ARN = 'arn:aws:iam::789877399450:policy/BearlyMail-PermissionBoundary';
 
@@ -44,7 +46,9 @@ const env = {
 const domainName = 'app.bearlymail.com';
 const hostedZoneId = 'Z04117591ORLVZWX6SSWO';
 
-// Create networking stack first (VPC, Route53, Certificate)
+// ============================================
+// 1. Networking Stack (VPC, Route53, Certificate)
+// ============================================
 const networkingStack = new BearlyMailNetworkingStack(app, 'BearlyMailNetworkingStack', {
   env,
   description: 'BearlyMail - Networking infrastructure (VPC, Route53, Certificate)',
@@ -52,21 +56,49 @@ const networkingStack = new BearlyMailNetworkingStack(app, 'BearlyMailNetworking
   hostedZoneId,
 });
 
-// Create application stack (depends on networking stack)
+// ============================================
+// 2. Secrets Stack (Database & App Secrets)
+// ============================================
+const secretsStack = new BearlyMailSecretsStack(app, 'BearlyMailSecretsStack', {
+  env,
+  description: 'BearlyMail - Secrets (Database credentials, API keys)',
+});
+
+// ============================================
+// 3. Database Stack (RDS PostgreSQL + DB secret)
+// ============================================
+const databaseStack = new BearlyMailDatabaseStack(app, 'BearlyMailDatabaseStack', {
+  env,
+  description: 'BearlyMail - Database (RDS PostgreSQL)',
+  vpc: networkingStack.vpc,
+});
+
+// Database depends only on networking (DB secret is created inside this stack to avoid cycle)
+databaseStack.addDependency(networkingStack);
+
+// ============================================
+// 4. Application Stack (ECS, S3, CloudFront)
+// ============================================
 const appStack = new BearlyMailStack(app, 'BearlyMailStack', {
   env,
-  description: 'BearlyMail - Application infrastructure (ECS, RDS, S3, CloudFront)',
+  description: 'BearlyMail - Application (ECS services, S3, CloudFront)',
   vpc: networkingStack.vpc,
   certificateArn: networkingStack.certificateArn,
   hostedZone: networkingStack.hostedZone,
   domainName: networkingStack.domainName,
+  database: databaseStack.database,
+  dbSecret: databaseStack.dbSecret,
+  appSecrets: secretsStack.appSecrets,
 });
 
-// Ensure application stack depends on networking stack
+// Application depends on all other stacks
 appStack.addDependency(networkingStack);
+appStack.addDependency(secretsStack);
+appStack.addDependency(databaseStack);
 
 // Apply permissions boundary to all IAM roles created by any stack
 // This is required by the AWS account's SCP policy
 // Uses CfnRole directly to catch ALL roles including CDK internal custom resource provider roles
 Aspects.of(app).add(new PermissionsBoundaryAspect(PERMISSIONS_BOUNDARY_ARN));
+
 

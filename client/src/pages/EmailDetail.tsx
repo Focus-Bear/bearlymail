@@ -112,6 +112,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
     setShowPriorityExplanation,
     setShowQuickActionsMenu,
     setSelectedAction,
+    setReplyMode,
   } = state;
 
   const {
@@ -253,8 +254,12 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
 
   // Load existing draft when opening an email (but don't auto-open the composer)
   // The draft will be ready when user clicks reply
+  // Use a ref to track the last loaded threadId to prevent re-loading on every render
+  const lastLoadedThreadIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (email?.threadId) {
+    // Only load draft once per thread - prevents overwriting user's local changes
+    if (email?.threadId && lastLoadedThreadIdRef.current !== email.threadId) {
+      lastLoadedThreadIdRef.current = email.threadId;
       const loadDraft = async () => {
         const savedDraft = await fetchDraft();
         if (savedDraft && savedDraft.content) {
@@ -262,7 +267,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
           // Don't auto-open the reply composer - let user read the email first
           // The draft will be shown when user clicks reply
           if (savedDraft.replyMode) {
-            state.setReplyMode(savedDraft.replyMode);
+            setReplyMode(savedDraft.replyMode);
           }
           if (savedDraft.recipients) {
             setReplyRecipients(savedDraft.recipients);
@@ -271,7 +276,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
       };
       loadDraft();
     }
-  }, [email?.threadId, fetchDraft, setDraft, setReplyRecipients, state]);
+  }, [email?.threadId, fetchDraft, setDraft, setReplyRecipients, setReplyMode]);
 
   // Auto-save draft every 10 seconds while reply composer is open
   useEffect(() => {

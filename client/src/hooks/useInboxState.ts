@@ -65,13 +65,13 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
   } = useTriageSuggestions();
 
   // Tab counts hook - must be before useEmailManagement since it's passed to it
-  const { tabCounts, fetchTabCounts } = useTabCounts();
+  const { tabCounts, fetchTabCounts, updateTabCountsOptimistically } = useTabCounts();
 
   // Email management hook
   const emailManagement = useEmailManagement({ 
     mode, 
     onSuggestionRemove: removeSuggestion,
-    onTabCountsUpdate: fetchTabCounts,
+    onTabCountsUpdateOptimistically: updateTabCountsOptimistically,
   });
   const {
     emails,

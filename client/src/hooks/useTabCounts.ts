@@ -8,10 +8,17 @@ interface TabCounts {
   followUp: number;
 }
 
+interface TabCountChanges {
+  triage?: number;
+  action?: number;
+  followUp?: number;
+}
+
 interface UseTabCountsReturn {
   tabCounts: TabCounts | null;
   loading: boolean;
   fetchTabCounts: (force?: boolean) => Promise<void>;
+  updateTabCountsOptimistically: (changes: TabCountChanges) => void;
 }
 
 const TAB_COUNTS_CACHE_KEY = 'tabCountsCacheV2'; // Changed key to invalidate old cache
@@ -67,6 +74,28 @@ export function useTabCounts(): UseTabCountsReturn {
     }
   }, []);
 
+  // Optimistically update tab counts without fetching from server
+  // This is used after actions like archive/star/snooze where the server
+  // processes the action asynchronously (via job queue) and the counts
+  // would be stale if fetched immediately
+  const updateTabCountsOptimistically = useCallback((changes: TabCountChanges) => {
+    setTabCounts(prev => {
+      if (!prev) return prev;
+      const newCounts = {
+        triage: Math.max(0, prev.triage + (changes.triage || 0)),
+        action: Math.max(0, prev.action + (changes.action || 0)),
+        followUp: Math.max(0, prev.followUp + (changes.followUp || 0)),
+      };
+      // Also update the cache so it stays in sync
+      const cacheEntry: CacheEntry = {
+        counts: newCounts,
+        timestamp: Date.now(),
+      };
+      localStorage.setItem(TAB_COUNTS_CACHE_KEY, JSON.stringify(cacheEntry));
+      return newCounts;
+    });
+  }, []);
+
   // Fetch on mount
   useEffect(() => {
     fetchTabCounts();
@@ -76,5 +105,6 @@ export function useTabCounts(): UseTabCountsReturn {
     tabCounts,
     loading,
     fetchTabCounts,
+    updateTabCountsOptimistically,
   };
 }

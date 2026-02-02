@@ -94,9 +94,10 @@ export class EmailStarService {
         .catch((err) => this.logger.error("Failed to queue learning job", err));
 
       // If email is being flagged for action (starCount > 0), queue suggested reply generation
-      if (newStarCount > 0 && oldStarCount === 0) {
+      // Use thread.id (EmailThread UUID) not email.threadId (Gmail thread ID) to match processor expectations
+      if (newStarCount > 0 && oldStarCount === 0 && thread) {
         this.suggestedRepliesService
-          .queueSuggestedReplyGeneration(userId, email.threadId, emailId)
+          .queueSuggestedReplyGeneration(userId, thread.id, emailId)
           .catch((err) =>
             this.logger.error(
               "Failed to queue suggested reply generation",

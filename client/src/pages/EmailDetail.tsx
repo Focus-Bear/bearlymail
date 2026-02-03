@@ -385,6 +385,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
         <div style={{ marginBottom: compactMode ? theme.spacing.sm : theme.spacing.xl }}>
           <EmailDetailHeader
             email={email as any}
+            threadEmails={threadEmails as Email[]}
             priorityExplanation={priorityExplanation}
             showPriorityExplanation={showPriorityExplanation}
             onFetchPriorityExplanation={handleFetchPriorityExplanation}

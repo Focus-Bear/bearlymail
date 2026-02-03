@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
@@ -6,6 +6,7 @@ import { humanizeTimestamp } from 'utils/dateUtils';
 import { Email, getEmailPriorityScore } from 'types/email';
 import { EMOJI_EMAIL, EMOJI_USER, EMOJI_GOAL, EMOJI_SETTINGS, EMOJI_POSITIVE, EMOJI_NEGATIVE, EMOJI_NEUTRAL } from 'constants/emojis';
 import { PRIORITY_HIGH_THRESHOLD, PRIORITY_MEDIUM_THRESHOLD } from 'constants/numbers';
+import { useAuth } from 'contexts/AuthContext';
 
 interface PriorityExplanation {
   score: number;
@@ -19,6 +20,7 @@ interface PriorityExplanation {
 
 interface EmailDetailHeaderProps {
   email: Email;
+  threadEmails?: Email[];
   priorityExplanation: PriorityExplanation | null;
   showPriorityExplanation: boolean;
   onFetchPriorityExplanation: () => void;
@@ -28,6 +30,7 @@ interface EmailDetailHeaderProps {
 // eslint-disable-next-line max-lines-per-function -- Email detail header requires handling multiple email metadata and UI states
 export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
   email,
+  threadEmails = [],
   priorityExplanation,
   showPriorityExplanation,
   onFetchPriorityExplanation,
@@ -35,6 +38,36 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
 }) => {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { user } = useAuth();
+
+  const correspondent = useMemo(() => {
+    const userEmail = user?.email?.toLowerCase();
+    if (!userEmail) {
+      return { name: email.fromName || email.from, email: email.from, timestamp: email.receivedAt };
+    }
+
+    const isFromCurrentUser = email.from?.toLowerCase() === userEmail;
+
+    if (!isFromCurrentUser) {
+      return { name: email.fromName || email.from, email: email.from, timestamp: email.receivedAt };
+    }
+
+    if (threadEmails.length > 0) {
+      const emailFromOther = threadEmails.find(
+        (e) => e.from?.toLowerCase() !== userEmail
+      );
+      if (emailFromOther) {
+        return { name: emailFromOther.fromName || emailFromOther.from, email: emailFromOther.from, timestamp: emailFromOther.receivedAt };
+      }
+    }
+
+    const toRecipient = email.to;
+    if (toRecipient) {
+      return { name: toRecipient, email: toRecipient, timestamp: email.receivedAt };
+    }
+
+    return { name: email.fromName || email.from, email: email.from, timestamp: email.receivedAt };
+  }, [email, threadEmails, user?.email]);
 
   const getSentimentLabel = (value: number) => {
     if (value > 0) return `${EMOJI_NEGATIVE} ${t('emailDetail.sentiment.negative')}`;
@@ -70,12 +103,12 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
             fontWeight: theme.typography.fontWeight.bold,
             fontSize: theme.typography.fontSize.lg,
           }}>
-            {(email.fromName || email.from)[0].toUpperCase()}
+            {correspondent.name[0].toUpperCase()}
           </div>
           <div>
             <div style={{ fontWeight: theme.typography.fontWeight.semibold, color: theme.colors.text.primary }}>
               {/* eslint-disable-next-line i18next/no-literal-string */}
-              {EMOJI_USER} {email.fromName || email.from}
+              {EMOJI_USER} {correspondent.name}
             </div>
             <div 
               style={{ 
@@ -83,7 +116,7 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
                 color: theme.colors.text.primary,
                 opacity: 0.8,
               }}
-              title={new Date(email.receivedAt).toLocaleString(undefined, {
+              title={new Date(correspondent.timestamp).toLocaleString(undefined, {
                 weekday: 'long',
                 year: 'numeric',
                 month: 'long',
@@ -94,7 +127,7 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
                 timeZoneName: 'short',
               })}
             >
-              {humanizeTimestamp(email.receivedAt)}
+              {humanizeTimestamp(correspondent.timestamp)}
             </div>
           </div>
         </div>

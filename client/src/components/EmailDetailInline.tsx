@@ -120,6 +120,7 @@ export const EmailDetailInline: React.FC<EmailDetailInlineProps> = ({
     disputing,
     disputeResult,
     isGeneratingSummary,
+    replyGenerationDebugInfo,
     setNoteContent,
     setNewActionItem,
     setReplyRecipients,
@@ -216,6 +217,10 @@ export const EmailDetailInline: React.FC<EmailDetailInlineProps> = ({
         checkingTone={checkingTone}
         toneCheckResult={toneCheckResult}
         sending={sending}
+        debugInfo={replyGenerationDebugInfo}
+        currentEmailId={emailId}
+        currentEmailObjectId={email?.id}
+        currentEmailThreadId={(email as any)?.emailThreadId}
         onReplyRecipientsChange={setReplyRecipients}
         onCcChange={setReplyCc}
         onBccChange={setReplyBcc}

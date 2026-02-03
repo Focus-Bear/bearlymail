@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { API_URL } from 'config/api';
 import { useEmailDetailToneCheck } from 'hooks/useEmailDetailToneCheck';
-import { useReplyDraftGeneration } from 'hooks/useReplyDraftGeneration';
+import { useReplyDraftGeneration, ReplyGenerationDebugInfo } from 'hooks/useReplyDraftGeneration';
 import { useNotifications } from 'contexts/NotificationContext';
 import { REPLY_MODE_REPLY_ALL, REPLY_MODE_FORWARD } from 'constants/strings';
 
@@ -61,6 +61,7 @@ export function useEmailDetailReplies(
     selectedReplyOption,
     draft,
     loadingReplies,
+    debugInfo: replyGenerationDebugInfo,
     setReplyOptions,
     setDraft,
     setSelectedReplyOption,
@@ -144,6 +145,7 @@ export function useEmailDetailReplies(
     disputing,
     disputeResult,
     initialAttachments,
+    replyGenerationDebugInfo,
     setReplyRecipients,
     setReplyCc,
     setReplyBcc,

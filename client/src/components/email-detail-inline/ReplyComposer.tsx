@@ -7,6 +7,8 @@ import { ReplyRecipientsInput } from 'components/email-detail-inline/ReplyRecipi
 import { ReplyDraftTextarea } from 'components/email-detail-inline/ReplyDraftTextarea';
 import { ReplyComposerFooter } from 'components/email-detail-inline/ReplyComposerFooter';
 import { ReplyComposerAttachments } from 'components/email-detail-inline/ReplyComposerAttachments';
+import { ReplyGenerationDebugInfo } from 'hooks/useReplyDraftGeneration';
+import { useAuth } from 'contexts/AuthContext';
 
 const REPLY_OPTION_LABEL_CUSTOM = 'Custom';
 const EMPTY_ATTACHMENTS: EmailAttachment[] = [];
@@ -53,6 +55,10 @@ interface ReplyComposerProps {
   toneCheckResult: ToneCheckResultData | null;
   sending: boolean;
   initialAttachments?: EmailAttachment[];
+  debugInfo?: ReplyGenerationDebugInfo | null;
+  currentEmailId?: string;
+  currentEmailObjectId?: string;
+  currentEmailThreadId?: string;
   onReplyRecipientsChange: (recipients: string) => void;
   onCcChange: (cc: string) => void;
   onBccChange: (bcc: string) => void;
@@ -85,6 +91,10 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
   toneCheckResult,
   sending,
   initialAttachments,
+  debugInfo,
+  currentEmailId,
+  currentEmailObjectId,
+  currentEmailThreadId,
   onReplyRecipientsChange,
   onCcChange,
   onBccChange,
@@ -100,6 +110,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
   disputing,
   disputeResult,
 }) => {
+  const { user } = useAuth();
   const [files, setFiles] = useState<File[]>([]);
   const [forwardAttachmentIds, setForwardAttachmentIds] = useState<string[]>([]);
   const prevAttachmentsRef = useRef<string>('');
@@ -260,6 +271,70 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
         disputing={disputing}
         disputeResult={disputeResult}
       />
+      {/* eslint-disable i18next/no-literal-string, react/no-array-index-key, no-magic-numbers */}
+      {user?.isAdmin && (debugInfo || currentEmailId) && (
+        <div style={{
+          marginTop: theme.spacing.md,
+          padding: theme.spacing.md,
+          backgroundColor: '#fff3e0',
+          border: '1px solid #ffb74d',
+          borderRadius: theme.borderRadius.md,
+          fontSize: theme.typography.fontSize.xs,
+          fontFamily: 'monospace',
+        }}>
+          <div style={{ fontWeight: 'bold', marginBottom: theme.spacing.xs, color: '#e65100' }}>
+            Reply Generation Debug (Admin Only)
+          </div>
+          <div style={{ color: theme.colors.text.secondary, lineHeight: 1.6 }}>
+            <div><strong>Current State:</strong></div>
+            <div style={{ marginLeft: theme.spacing.md }}>
+              <div>Prop emailId: {currentEmailId || 'N/A'}</div>
+              <div>Email object ID: {currentEmailObjectId || 'N/A'}</div>
+              <div>Email threadId: {currentEmailThreadId || 'N/A'}</div>
+              <div style={{
+                backgroundColor: currentEmailId === currentEmailObjectId ? '#e8f5e9' : '#ffebee',
+                padding: '2px 4px',
+                borderRadius: '2px',
+                display: 'inline-block',
+              }}>
+                ID Match: {currentEmailId === currentEmailObjectId ? 'YES' : 'NO - MISMATCH!'}
+              </div>
+            </div>
+            {debugInfo && (
+              <>
+                <div style={{ marginTop: theme.spacing.sm }}><strong>Generation Debug Info:</strong></div>
+                <div style={{ marginLeft: theme.spacing.md }}>
+                  <div>Generated for emailId: {debugInfo.propEmailId}</div>
+                  <div>Email object ID at generation: {debugInfo.emailObjectId || 'N/A'}</div>
+                  <div>Thread ID used for fetch: {debugInfo.threadIdUsedForFetch || 'N/A'}</div>
+                  <div>Last generated for: {debugInfo.lastGeneratedForEmailId || 'N/A'}</div>
+                  <div>Timestamp: {debugInfo.timestamp}</div>
+                  <div style={{
+                    backgroundColor: debugInfo.propEmailId === currentEmailId ? '#e8f5e9' : '#ffebee',
+                    padding: '2px 4px',
+                    borderRadius: '2px',
+                    display: 'inline-block',
+                    marginTop: '4px',
+                  }}>
+                    Generated for current email: {debugInfo.propEmailId === currentEmailId ? 'YES' : 'NO - STALE DATA!'}
+                  </div>
+                </div>
+              </>
+            )}
+            {replyOptions && replyOptions.length > 0 && (
+              <>
+                <div style={{ marginTop: theme.spacing.sm }}><strong>Reply Options ({replyOptions.length}):</strong></div>
+                <div style={{ marginLeft: theme.spacing.md }}>
+                  {replyOptions.map((opt, idx) => (
+                    <div key={idx}>[{idx}] {opt.label}: {opt.text.substring(0, 50)}...</div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+      {/* eslint-enable i18next/no-literal-string, react/no-array-index-key, no-magic-numbers */}
       <ReplyComposerFooter
         sending={sending}
         checkingTone={checkingTone}

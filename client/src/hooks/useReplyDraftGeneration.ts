@@ -21,6 +21,15 @@ interface SuggestedReplyResponse {
   lastEmailId: string | null;
 }
 
+export interface ReplyGenerationDebugInfo {
+  propEmailId: string;
+  emailObjectId: string | null;
+  emailThreadId: string | null;
+  threadIdUsedForFetch: string | null;
+  lastGeneratedForEmailId: string | null;
+  timestamp: string;
+}
+
 export function useReplyDraftGeneration(
   emailId: string,
   email: Email | null,
@@ -32,10 +41,12 @@ export function useReplyDraftGeneration(
   const [draft, setDraft] = useState<string | null>(null);
   const [loadingReplies, setLoadingReplies] = useState(false);
   const [isGeneratingInBackground, setIsGeneratingInBackground] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<ReplyGenerationDebugInfo | null>(null);
   const lastGeneratedEmailId = useRef<string | null>(null);
   const currentGenerationEmailIdRef = useRef<string | null>(null);
   const previousEmailIdRef = useRef<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const threadIdUsedForFetchRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (previousEmailIdRef.current !== null && previousEmailIdRef.current !== emailId) {
@@ -43,11 +54,14 @@ export function useReplyDraftGeneration(
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
       }
+      currentGenerationEmailIdRef.current = null;
+      threadIdUsedForFetchRef.current = null;
       setReplyOptions(null);
       setDraft(null);
       setSelectedReplyOption(0);
       setLoadingReplies(false);
       setIsGeneratingInBackground(false);
+      setDebugInfo(null);
     }
     previousEmailIdRef.current = emailId;
   }, [emailId]);
@@ -92,6 +106,10 @@ export function useReplyDraftGeneration(
     // Ensure email data matches the current ID to prevent using stale data
     // This can happen when switching threads - emailId updates before email state
     if (email.id !== emailId) {
+      console.warn('[ReplyDraftGeneration] Skipping generation - email.id mismatch', {
+        propEmailId: emailId,
+        emailObjectId: email.id,
+      });
       return;
     }
     
@@ -104,6 +122,16 @@ export function useReplyDraftGeneration(
     
     const currentEmailId = emailId;
     currentGenerationEmailIdRef.current = currentEmailId;
+    threadIdUsedForFetchRef.current = email.emailThreadId || null;
+    
+    setDebugInfo({
+      propEmailId: emailId,
+      emailObjectId: email.id,
+      emailThreadId: email.emailThreadId || null,
+      threadIdUsedForFetch: email.emailThreadId || null,
+      lastGeneratedForEmailId: lastGeneratedEmailId.current,
+      timestamp: new Date().toISOString(),
+    });
     
     setLoadingReplies(true);
     
@@ -181,6 +209,7 @@ export function useReplyDraftGeneration(
     draft,
     loadingReplies,
     isGeneratingInBackground,
+    debugInfo,
     setReplyOptions,
     setDraft,
     setSelectedReplyOption,

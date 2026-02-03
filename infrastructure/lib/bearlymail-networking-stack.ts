@@ -17,6 +17,10 @@ export class BearlyMailNetworkingStack extends cdk.Stack {
   public readonly certificateArn: string;
   public readonly hostedZone: route53.IHostedZone;
   public readonly domainName?: string;
+  /** ACM certificate ARN for API domain (api.app.bearlymail.com) in this stack's region, for ALB HTTPS */
+  public readonly apiCertificateArn?: string;
+  /** API domain name (e.g. api.app.bearlymail.com) */
+  public readonly apiDomainName?: string;
 
   constructor(scope: Construct, id: string, props?: BearlyMailNetworkingStackProps) {
     super(scope, id, props);
@@ -134,6 +138,22 @@ export class BearlyMailNetworkingStack extends cdk.Stack {
         value: domainName,
         description: 'Domain name',
         exportName: 'BearlyMail-Domain-Name',
+      });
+    }
+
+    if (this.apiCertificateArn) {
+      new cdk.CfnOutput(this, 'ApiCertificateArn', {
+        value: this.apiCertificateArn,
+        description: 'ACM Certificate ARN for API domain (ALB HTTPS)',
+        exportName: 'BearlyMail-API-Certificate-ARN',
+      });
+    }
+
+    if (this.apiDomainName) {
+      new cdk.CfnOutput(this, 'ApiDomainName', {
+        value: this.apiDomainName,
+        description: 'API domain (e.g. api.app.bearlymail.com)',
+        exportName: 'BearlyMail-API-Domain-Name',
       });
     }
   }

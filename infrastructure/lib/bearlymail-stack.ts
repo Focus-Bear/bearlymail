@@ -30,6 +30,8 @@ export interface BearlyMailStackProps extends cdk.StackProps {
   certificateArn?: string; // ACM certificate ARN from us-east-1 for CloudFront
   hostedZone?: route53.IHostedZone;
   domainName?: string; // Domain name for CloudFront
+  apiDomainName?: string; // API domain (e.g. api.app.bearlymail.com) for ALB HTTPS + Route53
+  apiCertificateArn?: string; // ACM certificate ARN for API domain (from networking stack, same region as ALB)
   // Database and Secrets (from other stacks)
   database: rds.IDatabaseInstance;
   dbSecret: secretsmanager.ISecret;
@@ -189,6 +191,39 @@ export class BearlyMailStack extends cdk.Stack {
       healthyThresholdCount: 2,
       unhealthyThresholdCount: 3,
     });
+
+    // ============================================
+    // API custom domain (api.app.bearlymail.com) + HTTPS
+    // Certificate and DNS live in networking stack; app stack adds HTTPS listener + Route53 A record (record points to ALB).
+    // ============================================
+    const apiDomainName = props?.apiDomainName;
+    const apiCertificateArn = props?.apiCertificateArn;
+    const hostedZoneForApi = props?.hostedZone;
+    if (apiDomainName && apiCertificateArn && hostedZoneForApi) {
+      const apiCertificate = certificatemanager.Certificate.fromCertificateArn(
+        this,
+        'ApiCertificate',
+        apiCertificateArn
+      );
+
+      // HTTPS listener on the ALB
+      webService.loadBalancer.addListener('HttpsListener', {
+        port: 443,
+        certificates: [apiCertificate],
+        defaultTargetGroups: [webService.targetGroup],
+        protocol: elbv2.ApplicationProtocol.HTTPS,
+      });
+
+      // Route53 A record: api.app.bearlymail.com -> ALB (record in app stack because it references the ALB)
+      const apiRecordName = apiDomainName.replace(`.${hostedZoneForApi.zoneName}`, '');
+      new route53.ARecord(this, 'ApiARecord', {
+        zone: hostedZoneForApi,
+        recordName: apiRecordName,
+        target: route53.RecordTarget.fromAlias(
+          new route53Targets.LoadBalancerTarget(webService.loadBalancer, { evaluateTargetHealth: true })
+        ),
+      });
+    }
 
     // ============================================
     // Worker Service (Background Jobs)
@@ -443,6 +478,14 @@ export class BearlyMailStack extends cdk.Stack {
       description: 'Application Load Balancer DNS name',
       exportName: 'BearlyMail-ALB-DNS',
     });
+
+    if (apiDomainName) {
+      new cdk.CfnOutput(this, 'ApiURL', {
+        value: `https://${apiDomainName}`,
+        description: 'API base URL (for GOOGLE_REDIRECT_URI and VITE_API_URL)',
+        exportName: 'BearlyMail-API-URL',
+      });
+    }
 
     new cdk.CfnOutput(this, 'CloudFrontURL', {
       value: domainName ? `https://${domainName}` : `https://${distribution.distributionDomainName}`,

@@ -61,6 +61,14 @@ interface EmailDetailState {
   setReplyMode: (mode: 'reply' | 'replyAll') => void;
   replyRecipients: string;
   setReplyRecipients: (recipients: string) => void;
+  replyCc: string;
+  setReplyCc: (cc: string) => void;
+  replyBcc: string;
+  setReplyBcc: (bcc: string) => void;
+  showCc: boolean;
+  setShowCc: (show: boolean) => void;
+  showBcc: boolean;
+  setShowBcc: (show: boolean) => void;
   loadingReplies: boolean;
   setLoadingReplies: (loading: boolean) => void;
   sending: boolean;
@@ -145,6 +153,12 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     setReplyMode,
     replyRecipients,
     setReplyRecipients,
+    replyCc,
+    setReplyCc,
+    replyBcc,
+    setReplyBcc,
+    setShowCc,
+    setShowBcc,
     setLoadingReplies,
     setSending,
     setToneCheckResult,
@@ -718,10 +732,19 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     setReplyMode(mode);
     setShowReplyComposer(true);
     setToneCheckResult(null);
+    setReplyCc('');
+    setReplyBcc('');
+    setShowCc(false);
+    setShowBcc(false);
     if (email) {
       if (mode === REPLY_MODE_REPLY_ALL) {
         const recipients = [email.from];
         setReplyRecipients(recipients.join(', '));
+        // Auto-populate CC with original CC recipients if available
+        if (email.cc) {
+          setReplyCc(email.cc);
+          setShowCc(true);
+        }
       } else {
         setReplyRecipients(email.from);
       }
@@ -735,7 +758,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
       // If we have suggestions but no draft selected, select the first one
       setDraft(replyOptions[0].text);
     }
-  }, [id, email, draft, replyOptions, setReplyMode, setShowReplyComposer, setDraft, setToneCheckResult, setReplyRecipients, handleGenerateDraft]);
+  }, [id, email, draft, replyOptions, setReplyMode, setShowReplyComposer, setDraft, setToneCheckResult, setReplyRecipients, setReplyCc, setReplyBcc, setShowCc, setShowBcc, handleGenerateDraft]);
 
   const handleSendReply = useCallback(async (files: File[] = []) => {
     if (!id || !draft) return;
@@ -772,6 +795,8 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
         formData.append('reply', draft);
         formData.append('recipients', replyRecipients);
         formData.append('replyAll', String(replyMode === REPLY_MODE_REPLY_ALL));
+        if (replyCc) formData.append('cc', replyCc);
+        if (replyBcc) formData.append('bcc', replyBcc);
         files.forEach((file) => {
           formData.append('files', file);
         });
@@ -785,6 +810,8 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
         await axios.post(`${API_URL}/replies/send/${id}`, {
           reply: draft,
           recipients: replyRecipients,
+          cc: replyCc || undefined,
+          bcc: replyBcc || undefined,
           replyAll: replyMode === REPLY_MODE_REPLY_ALL,
         });
       }
@@ -801,7 +828,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     } finally {
       setSending(false);
     }
-  }, [id, draft, replyMode, replyRecipients, disputeResult, triggerAnimation, t, navigate, setCheckingTone, setToneCheckResult, setSending, setDraft, setShowReplyComposer, showSuccess, showError, deleteDraft]);
+  }, [id, draft, replyMode, replyRecipients, replyCc, replyBcc, disputeResult, triggerAnimation, t, navigate, setCheckingTone, setToneCheckResult, setSending, setDraft, setShowReplyComposer, showSuccess, showError, deleteDraft]);
 
   const disputeToneCheck = useCallback(async (emailText: string, userArgument: string) => {
     setDisputing(true);

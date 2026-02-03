@@ -49,6 +49,10 @@ export function useEmailDetailState() {
   const [showReplyComposer, setShowReplyComposer] = useState(false);
   const [replyMode, setReplyMode] = useState<'reply' | 'replyAll'>('reply');
   const [replyRecipients, setReplyRecipients] = useState<string>('');
+  const [replyCc, setReplyCc] = useState<string>('');
+  const [replyBcc, setReplyBcc] = useState<string>('');
+  const [showCc, setShowCc] = useState(false);
+  const [showBcc, setShowBcc] = useState(false);
   const [loadingReplies, setLoadingReplies] = useState(false);
   const [sending, setSending] = useState(false);
   const [toneCheckResult, setToneCheckResult] = useState<{ isOk: boolean; suggestions: string[]; revisedText?: string } | null>(null);
@@ -144,6 +148,14 @@ export function useEmailDetailState() {
     setReplyMode,
     replyRecipients,
     setReplyRecipients,
+    replyCc,
+    setReplyCc,
+    replyBcc,
+    setReplyBcc,
+    showCc,
+    setShowCc,
+    showBcc,
+    setShowBcc,
     loadingReplies,
     setLoadingReplies,
     sending,

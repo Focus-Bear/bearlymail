@@ -72,6 +72,10 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
     showReplyComposer,
     replyMode,
     replyRecipients,
+    replyCc,
+    replyBcc,
+    showCc,
+    showBcc,
     loadingReplies,
     sending,
     toneCheckResult,
@@ -108,6 +112,10 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
     setSelectedReplyOption,
     setShowReplyComposer,
     setReplyRecipients,
+    setReplyCc,
+    setReplyBcc,
+    setShowCc,
+    setShowBcc,
     setToneCheckResult,
     setSnoozeInput,
     setShowSnoozeInput,
@@ -418,6 +426,10 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
               showReplyComposer={showReplyComposer}
               replyMode={replyMode}
               replyRecipients={replyRecipients}
+              replyCc={replyCc}
+              replyBcc={replyBcc}
+              showCc={showCc}
+              showBcc={showBcc}
               draft={draft}
               replyOptions={replyOptions}
               selectedReplyOption={selectedReplyOption}
@@ -427,6 +439,10 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
               sending={sending}
               textareaRef={replyTextareaRef}
               onReplyRecipientsChange={setReplyRecipients}
+              onCcChange={setReplyCc}
+              onBccChange={setReplyBcc}
+              onShowCc={() => setShowCc(true)}
+              onShowBcc={() => setShowBcc(true)}
               onDraftChange={(draft) => {
                 setDraft(draft);
                 setToneCheckResult(null);

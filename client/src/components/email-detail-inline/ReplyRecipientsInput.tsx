@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
@@ -22,6 +22,19 @@ interface ReplyRecipientsInputProps {
 
 type FieldType = 'to' | 'cc' | 'bcc';
 
+const parseEmailsToTags = (value: string): string[] => {
+  return value
+    .split(',')
+    .map(e => e.trim())
+    .filter(e => e.length > 0);
+};
+
+const isValidEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const extractedEmail = email.match(/<([^>]+)>/)?.[1] || email;
+  return emailRegex.test(extractedEmail.trim());
+};
+
 export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
   replyRecipients,
   replyCc,
@@ -38,8 +51,13 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
   const [activeField, setActiveField] = useState<FieldType | null>(null);
   const [searchResults, setSearchResults] = useState<Contact[]>([]);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+  const [inputValues, setInputValues] = useState<Record<FieldType, string>>({ to: '', cc: '', bcc: '' });
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const toTags = useMemo(() => parseEmailsToTags(replyRecipients), [replyRecipients]);
+  const ccTags = useMemo(() => parseEmailsToTags(replyCc), [replyCc]);
+  const bccTags = useMemo(() => parseEmailsToTags(replyBcc), [replyBcc]);
 
   const searchContacts = useCallback(async (query: string) => {
     if (!query || query.length < 2) {
@@ -57,46 +75,121 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
     }
   }, []);
 
+  const handleRemoveTag = useCallback((index: number, field: FieldType) => {
+    const getTags = () => {
+      if (field === 'to') return toTags;
+      if (field === 'cc') return ccTags;
+      return bccTags;
+    };
+
+    const tags = getTags();
+    const newTags = tags.filter((_, i) => i !== index);
+    const newValue = newTags.join(', ');
+
+    if (field === 'to') onRecipientsChange(newValue);
+    else if (field === 'cc') onCcChange(newValue);
+    else onBccChange(newValue);
+  }, [toTags, ccTags, bccTags, onRecipientsChange, onCcChange, onBccChange]);
+
   const handleInputChange = useCallback((value: string, field: FieldType) => {
-    if (field === 'to') onRecipientsChange(value);
-    else if (field === 'cc') onCcChange(value);
-    else onBccChange(value);
-    
+    setInputValues(prev => ({ ...prev, [field]: value }));
     setActiveField(field);
 
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
 
-    const lastEmail = value.split(',').pop()?.trim() || '';
+    if (value.includes(',')) {
+      const parts = value.split(',');
+      const newEmails = parts.slice(0, -1).map(e => e.trim()).filter(e => e.length > 0 && isValidEmail(e));
+      const remaining = parts[parts.length - 1];
+
+      if (newEmails.length > 0) {
+        const getTags = () => {
+          if (field === 'to') return toTags;
+          if (field === 'cc') return ccTags;
+          return bccTags;
+        };
+
+        const currentTags = getTags();
+        const allTags = [...currentTags, ...newEmails];
+        const newValue = allTags.join(', ');
+
+        if (field === 'to') onRecipientsChange(newValue);
+        else if (field === 'cc') onCcChange(newValue);
+        else onBccChange(newValue);
+
+        setInputValues(prev => ({ ...prev, [field]: remaining.trim() }));
+      }
+    }
+
+    const searchQuery = value.split(',').pop()?.trim() || value.trim();
     searchTimeoutRef.current = setTimeout(() => {
-      searchContacts(lastEmail);
+      searchContacts(searchQuery);
     }, DEBOUNCE_DELAY_200_MS);
-  }, [onRecipientsChange, onCcChange, onBccChange, searchContacts]);
+  }, [toTags, ccTags, bccTags, onRecipientsChange, onCcChange, onBccChange, searchContacts]);
 
   const handleSelectContact = useCallback((contact: Contact, field: FieldType) => {
-    const getValue = () => {
-      if (field === 'to') return replyRecipients;
-      if (field === 'cc') return replyCc;
-      return replyBcc;
+    const getTags = () => {
+      if (field === 'to') return toTags;
+      if (field === 'cc') return ccTags;
+      return bccTags;
     };
 
-    const currentValue = getValue();
-    const emails = currentValue.split(',').map(e => e.trim()).filter(e => e);
-    emails.pop();
+    const currentTags = getTags();
     const contactDisplay = contact.name ? `${contact.name} <${contact.email}>` : contact.email;
-    emails.push(contactDisplay);
-    const newValue = emails.join(', ') + ', ';
+    const newTags = [...currentTags, contactDisplay];
+    const newValue = newTags.join(', ');
 
     if (field === 'to') onRecipientsChange(newValue);
     else if (field === 'cc') onCcChange(newValue);
     else onBccChange(newValue);
 
+    setInputValues(prev => ({ ...prev, [field]: '' }));
     setSearchResults([]);
     setActiveField(null);
-  }, [replyRecipients, replyCc, replyBcc, onRecipientsChange, onCcChange, onBccChange]);
+  }, [toTags, ccTags, bccTags, onRecipientsChange, onCcChange, onBccChange]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent, field: FieldType) => {
+    const inputValue = inputValues[field];
+
+    if (e.key === 'Backspace' && inputValue === '') {
+      const getTags = () => {
+        if (field === 'to') return toTags;
+        if (field === 'cc') return ccTags;
+        return bccTags;
+      };
+      const tags = getTags();
+      if (tags.length > 0) {
+        handleRemoveTag(tags.length - 1, field);
+      }
+      return;
+    }
+
+    if (e.key === 'Enter' && inputValue.trim() && isValidEmail(inputValue.trim())) {
+      e.preventDefault();
+      if (selectedSuggestionIndex >= 0 && searchResults.length > 0) {
+        handleSelectContact(searchResults[selectedSuggestionIndex], field);
+      } else {
+        const getTags = () => {
+          if (field === 'to') return toTags;
+          if (field === 'cc') return ccTags;
+          return bccTags;
+        };
+        const currentTags = getTags();
+        const newTags = [...currentTags, inputValue.trim()];
+        const newValue = newTags.join(', ');
+
+        if (field === 'to') onRecipientsChange(newValue);
+        else if (field === 'cc') onCcChange(newValue);
+        else onBccChange(newValue);
+
+        setInputValues(prev => ({ ...prev, [field]: '' }));
+        setSearchResults([]);
+      }
+      return;
+    }
+
     if (searchResults.length === 0) return;
 
     if (e.key === 'ArrowDown') {
@@ -114,7 +207,7 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
       setSearchResults([]);
       setActiveField(null);
     }
-  }, [searchResults, selectedSuggestionIndex, handleSelectContact]);
+  }, [searchResults, selectedSuggestionIndex, handleSelectContact, inputValues, toTags, ccTags, bccTags, handleRemoveTag, onRecipientsChange, onCcChange, onBccChange]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -130,7 +223,7 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
 
   const renderField = (
     label: string,
-    value: string,
+    tags: string[],
     field: FieldType,
   ) => (
     <div style={{ marginBottom: theme.spacing.sm, position: 'relative' }}>
@@ -142,22 +235,80 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
       }}>
         {label}:
       </label>
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => handleInputChange(e.target.value, field)}
-        onFocus={() => setActiveField(field)}
-        onKeyDown={(e) => handleKeyDown(e, field)}
+      <div
         style={{
-          width: '100%',
-          padding: theme.spacing.sm,
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          gap: '4px',
+          padding: '4px 8px',
           border: `1px solid ${theme.colors.border.medium}`,
           borderRadius: theme.borderRadius.md,
-          fontSize: theme.typography.fontSize.sm,
-          outline: 'none',
+          minHeight: '38px',
+          cursor: 'text',
         }}
-        placeholder={t('compose.recipientPlaceholder')}
-      />
+        onClick={(e) => {
+          const input = e.currentTarget.querySelector('input');
+          if (input) input.focus();
+        }}
+      >
+        {tags.map((tag, index) => (
+          <span
+            key={`${tag}-${index}`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '2px 8px',
+              backgroundColor: theme.colors.primary.subtle,
+              color: theme.colors.primary.main,
+              borderRadius: theme.borderRadius.sm,
+              fontSize: theme.typography.fontSize.xs,
+              maxWidth: '200px',
+            }}
+          >
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {tag}
+            </span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleRemoveTag(index, field);
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+                color: theme.colors.primary.main,
+                fontSize: '14px',
+                lineHeight: 1,
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              &times;
+            </button>
+          </span>
+        ))}
+        <input
+          type="text"
+          value={inputValues[field]}
+          onChange={(e) => handleInputChange(e.target.value, field)}
+          onFocus={() => setActiveField(field)}
+          onKeyDown={(e) => handleKeyDown(e, field)}
+          style={{
+            flex: 1,
+            minWidth: '120px',
+            border: 'none',
+            outline: 'none',
+            fontSize: theme.typography.fontSize.sm,
+            padding: '4px 0',
+          }}
+          placeholder={tags.length === 0 ? t('compose.recipientPlaceholder') : ''}
+        />
+      </div>
       {activeField === field && searchResults.length > 0 && (
         <div
           ref={dropdownRef}
@@ -250,10 +401,10 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
 
   return (
     <div style={{ marginBottom: theme.spacing.md }}>
-      {renderField(t('compose.to'), replyRecipients, 'to')}
+      {renderField(t('compose.to'), toTags, 'to')}
       
-      {showCc && renderField(t('compose.cc'), replyCc, 'cc')}
-      {showBcc && renderField(t('compose.bcc'), replyBcc, 'bcc')}
+      {showCc && renderField(t('compose.cc'), ccTags, 'cc')}
+      {showBcc && renderField(t('compose.bcc'), bccTags, 'bcc')}
       
       <div style={{ display: 'flex', gap: theme.spacing.sm }}>
         {!showCc && (

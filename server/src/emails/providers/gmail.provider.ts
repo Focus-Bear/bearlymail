@@ -2908,12 +2908,25 @@ export class GmailProvider implements EmailProvider {
         `[Gmail Unsnooze] Thread unsnoozed successfully: userId=${userId}, threadId=${threadId}, unlabeledCount=${unlabeledCount}, restoredInboxLabel=true`,
       );
     } catch (error: unknown) {
+      const gaxiosErrorDetails = getGaxiosErrorDetails(error);
+      const formattedGaxiosError = formatGaxiosError(error);
+
+      // Handle 404 - thread not found (may have been deleted)
+      if (isApiError(error) && error.code === 404) {
+        this.logger.warn(
+          `[Gmail Unsnooze] Thread ${threadId} not found in Gmail (may have been deleted). Treating as successfully unsnoozed. userId=${userId}`,
+        );
+        return;
+      }
+
       this.logger.error(
-        `[Gmail Unsnooze] Error unsnoozing thread ${threadId} for user ${userId}:`,
-        error,
+        `[Gmail Unsnooze] Error unsnoozing thread ${threadId} for user ${userId}: ${formattedGaxiosError}`,
+      );
+      this.logger.error(
+        `[Gmail Unsnooze] Error details: status=${gaxiosErrorDetails.status}, reason=${gaxiosErrorDetails.errorReason}, message=${gaxiosErrorDetails.errorMessage || gaxiosErrorDetails.message}`,
       );
       logErrorToFile(
-        `Failed to unsnooze thread in Gmail (userId: ${userId}, threadId: ${threadId})`,
+        `Failed to unsnooze thread in Gmail (userId: ${userId}, threadId: ${threadId}) - ${formattedGaxiosError}`,
         error,
         "GmailProvider",
       );

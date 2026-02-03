@@ -97,7 +97,7 @@ export const EmailAttachments: React.FC<EmailAttachmentsProps> = ({ emailId, att
     >
       <div
         style={{
-          fontSize: theme.fontSizes.sm,
+          fontSize: theme.typography.fontSize.sm,
           fontWeight: 600,
           color: theme.colors.text.secondary,
           marginBottom: theme.spacing.sm,
@@ -132,13 +132,13 @@ export const EmailAttachments: React.FC<EmailAttachmentsProps> = ({ emailId, att
               e.currentTarget.style.borderColor = theme.colors.border.light;
             }}
           >
-            <span style={{ fontSize: theme.fontSizes.lg }}>
+            <span style={{ fontSize: theme.typography.fontSize.lg }}>
               {getFileIcon(attachment.mimeType)}
             </span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div
                 style={{
-                  fontSize: theme.fontSizes.sm,
+                  fontSize: theme.typography.fontSize.sm,
                   fontWeight: 500,
                   color: theme.colors.text.primary,
                   overflow: 'hidden',
@@ -150,16 +150,16 @@ export const EmailAttachments: React.FC<EmailAttachmentsProps> = ({ emailId, att
               </div>
               <div
                 style={{
-                  fontSize: theme.fontSizes.xs,
+                  fontSize: theme.typography.fontSize.xs,
                   color: theme.colors.text.secondary,
-                  marginTop: theme.spacing.xxs,
+                  marginTop: theme.spacing.xs,
                 }}
               >
                 {formatFileSize(attachment.size)} • {attachment.mimeType}
               </div>
             </div>
             {/* eslint-disable-next-line i18next/no-literal-string */}
-            <span style={{ fontSize: theme.fontSizes.sm, color: theme.colors.primary.main }}>
+            <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.primary.main }}>
               ⬇️
             </span>
           </button>

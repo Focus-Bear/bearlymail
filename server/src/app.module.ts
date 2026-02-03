@@ -60,6 +60,7 @@ import {
   AutoResponseLog,
   AutoResponseSuppression,
   ReplyDraft,
+  SuggestedReply,
 } from "./database/entities";
 
 @Module({
@@ -104,6 +105,7 @@ import {
           AutoResponseLog,
           AutoResponseSuppression,
           ReplyDraft,
+          SuggestedReply,
         ];
 
         // Ensure all entities are properly registered before TypeORM processes relationships

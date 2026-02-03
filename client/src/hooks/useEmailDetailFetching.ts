@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { API_URL } from 'config/api';
 import { useEmailDetailGithub } from 'hooks/useEmailDetailGithub';
@@ -25,6 +25,8 @@ export function useEmailDetailFetching(emailId: string) {
   const [expandedThreadItems, setExpandedThreadItems] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   
+  const abortControllerRef = useRef<AbortController | null>(null);
+  
   const {
     githubLinks,
     setGithubLinks,
@@ -34,17 +36,16 @@ export function useEmailDetailFetching(emailId: string) {
     refreshGithubInfo,
   } = useEmailDetailGithub(emailId);
 
-  const fetchEmail = useCallback(async () => {
+  const fetchEmail = useCallback(async (signal?: AbortSignal) => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_URL}/emails/${emailId}`);
+      const response = await axios.get(`${API_URL}/emails/${emailId}`, { signal });
       const emailData = response.data;
       setEmail(emailData);
       
       if (emailData.githubMetadata?.links) {
         setGithubLinks(emailData.githubMetadata.links);
       } else {
-        // Only fetch if email mentions GitHub - instant keyword check
         if (emailMentionsGitHub(emailData.subject, emailData.body, emailData.htmlBody)) {
           fetchGithubInfo();
         }
@@ -61,32 +62,53 @@ export function useEmailDetailFetching(emailId: string) {
         );
       }
     } catch (error) {
+      if (axios.isCancel(error)) {
+        return;
+      }
       console.error('Error fetching email:', error);
     } finally {
       setLoading(false);
     }
   }, [emailId, fetchGithubInfo, setGithubLinks]);
 
-  const fetchThreadEmails = useCallback(async () => {
+  const fetchThreadEmails = useCallback(async (signal?: AbortSignal) => {
     if (!emailId) return;
     try {
-      const response = await axios.get(`${API_URL}/emails/${emailId}/thread`);
+      const response = await axios.get(`${API_URL}/emails/${emailId}/thread`, { signal });
       setThreadEmails(response.data || []);
     } catch (error) {
+      if (axios.isCancel(error)) {
+        return;
+      }
       console.error('Error fetching thread emails:', error);
       setThreadEmails([]);
     }
   }, [emailId]);
 
-
   useEffect(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
     if (emailId) {
-      fetchEmail().then(() => {
-        fetchThreadEmails();
-        // Note: fetchGithubInfo is called inside fetchEmail when needed
-        // Don't call it here to avoid duplicate fetches
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+      
+      setEmail(null);
+      setThreadEmails([]);
+      
+      fetchEmail(controller.signal).then(() => {
+        if (!controller.signal.aborted) {
+          fetchThreadEmails(controller.signal);
+        }
       });
     }
+    
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [emailId, fetchEmail, fetchThreadEmails]);
 
   useEffect(() => {

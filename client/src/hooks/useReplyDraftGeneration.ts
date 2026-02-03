@@ -35,9 +35,14 @@ export function useReplyDraftGeneration(
   const lastGeneratedEmailId = useRef<string | null>(null);
   const currentGenerationEmailIdRef = useRef<string | null>(null);
   const previousEmailIdRef = useRef<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (previousEmailIdRef.current !== null && previousEmailIdRef.current !== emailId) {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
       setReplyOptions(null);
       setDraft(null);
       setSelectedReplyOption(0);
@@ -47,16 +52,19 @@ export function useReplyDraftGeneration(
     previousEmailIdRef.current = emailId;
   }, [emailId]);
 
-  const fetchPreGeneratedReplies = useCallback(async (threadId: string): Promise<SuggestedReplyResponse | null> => {
+  const fetchPreGeneratedReplies = useCallback(async (threadId: string, signal?: AbortSignal): Promise<SuggestedReplyResponse | null> => {
     try {
-      const response = await axios.get(`${API_URL}/suggested-replies/${threadId}`);
+      const response = await axios.get(`${API_URL}/suggested-replies/${threadId}`, { signal });
       return response.data;
-    } catch {
+    } catch (error) {
+      if (axios.isCancel(error)) {
+        return null;
+      }
       return null;
     }
   }, []);
 
-  const generateRepliesOnDemand = useCallback(async (currentEmail: Email): Promise<Array<{ label: string; text: string }> | null> => {
+  const generateRepliesOnDemand = useCallback(async (currentEmail: Email, signal?: AbortSignal): Promise<Array<{ label: string; text: string }> | null> => {
     try {
       const response = await axios.post(`${API_URL}/llm/suggest-replies`, {
         originalEmail: {
@@ -65,18 +73,34 @@ export function useReplyDraftGeneration(
           subject: currentEmail.subject,
           body: currentEmail.body,
         }
-      });
+      }, { signal });
       if (response.data && Array.isArray(response.data) && response.data.length > 0) {
         return response.data;
       }
       return null;
-    } catch {
+    } catch (error) {
+      if (axios.isCancel(error)) {
+        return null;
+      }
       return null;
     }
   }, []);
 
   const handleGenerateDraft = useCallback(async () => {
     if (!emailId || !email) return;
+    
+    // Ensure email data matches the current ID to prevent using stale data
+    // This can happen when switching threads - emailId updates before email state
+    if (email.id !== emailId) {
+      return;
+    }
+    
+    // Cancel any pending request before starting a new one
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     
     const currentEmailId = emailId;
     currentGenerationEmailIdRef.current = currentEmailId;
@@ -87,9 +111,9 @@ export function useReplyDraftGeneration(
       let generatedOptions: Array<{ label: string; text: string }> | null = null;
       
       if (email.emailThreadId) {
-        const preGenerated = await fetchPreGeneratedReplies(email.emailThreadId);
+        const preGenerated = await fetchPreGeneratedReplies(email.emailThreadId, controller.signal);
         
-        if (currentGenerationEmailIdRef.current !== currentEmailId) {
+        if (currentGenerationEmailIdRef.current !== currentEmailId || controller.signal.aborted) {
           return;
         }
         
@@ -105,10 +129,10 @@ export function useReplyDraftGeneration(
       }
       
       if (!generatedOptions) {
-        if (currentGenerationEmailIdRef.current !== currentEmailId) {
+        if (currentGenerationEmailIdRef.current !== currentEmailId || controller.signal.aborted) {
           return;
         }
-        generatedOptions = await generateRepliesOnDemand(email);
+        generatedOptions = await generateRepliesOnDemand(email, controller.signal);
       }
       
       if (currentGenerationEmailIdRef.current !== currentEmailId) {

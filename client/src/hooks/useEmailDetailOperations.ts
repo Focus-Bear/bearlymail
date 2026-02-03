@@ -169,7 +169,19 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     setLoading,
   } = state;
 
-  // Clear GitHub data immediately when email ID changes to prevent showing old data
+  const summaryAbortControllerRef = useRef<AbortController | null>(null);
+  const previousIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (previousIdRef.current !== null && previousIdRef.current !== id) {
+      if (summaryAbortControllerRef.current) {
+        summaryAbortControllerRef.current.abort();
+        summaryAbortControllerRef.current = null;
+      }
+    }
+    previousIdRef.current = id;
+  }, [id]);
+
   useEffect(() => {
     if (id) {
       setGithubLinks([]);
@@ -181,8 +193,8 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
   }, [id, setGithubLinks, setLoadingGithub]);
 
   const triggerAnimation = useCallback((type: 'send' | 'archive') => {
-    const animations = type === ANIMATION_TYPE_SEND 
-      ? ['animate-fly-out-right', 'animate-fly-out-up'] 
+    const animations = type === ANIMATION_TYPE_SEND
+      ? ['animate-fly-out-right', 'animate-fly-out-up']
       : ['animate-poof', 'animate-fly-out-right'];
     const randomAnimation = animations[Math.floor(Math.random() * animations.length)];
     setAnimationClass(randomAnimation);
@@ -205,21 +217,28 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
       console.error('Cannot use custom rule: email ID is missing');
       return;
     }
-    
-    // Validate rule data
+
     if (!rule || !rule.howToSummarize || !rule.whenToUse) {
       console.error('Cannot use custom rule: invalid rule data', rule);
       return;
     }
-    
+
+    if (summaryAbortControllerRef.current) {
+      summaryAbortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    summaryAbortControllerRef.current = controller;
+
     setIsGeneratingSummary(true);
     setSummaryType(rule.ruleId ? `custom-${rule.ruleId}` : 'custom');
     try {
       const response = await axios.post(`${API_URL}/summarize/${id}`, {
         type: 'custom',
         customPrompt: rule.howToSummarize,
-      });
-      
+      }, { signal: controller.signal });
+
+      if (controller.signal.aborted) return;
+
       if (response.data && response.data.summary) {
         setSummary(response.data.summary);
       } else {
@@ -227,29 +246,46 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
         setSummary(null);
       }
     } catch (error: any) {
+      if (axios.isCancel(error)) {
+        return;
+      }
       console.error('Error summarizing with custom rule:', error);
       if (error.response) {
         console.error('API error response:', error.response.data);
       }
       setSummary(null);
-      // Don't reset summaryType on error - keep the dropdown showing the selected rule
     } finally {
-      setIsGeneratingSummary(false);
+      if (!controller.signal.aborted) {
+        setIsGeneratingSummary(false);
+      }
     }
   }, [id, setIsGeneratingSummary, setSummaryType, setSummary]);
 
   const handleSummarize = useCallback(async (type: string) => {
     if (!id) return;
+
+    if (summaryAbortControllerRef.current) {
+      summaryAbortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    summaryAbortControllerRef.current = controller;
+
     setIsGeneratingSummary(true);
     setSummaryType(type);
     try {
-      const response = await axios.post(`${API_URL}/summarize/${id}`, { type });
+      const response = await axios.post(`${API_URL}/summarize/${id}`, { type }, { signal: controller.signal });
+      if (controller.signal.aborted) return;
       setSummary(response.data.summary);
     } catch (error) {
+      if (axios.isCancel(error)) {
+        return;
+      }
       console.error('Error summarizing:', error);
       setSummary(null);
     } finally {
-      setIsGeneratingSummary(false);
+      if (!controller.signal.aborted) {
+        setIsGeneratingSummary(false);
+      }
     }
   }, [id, setIsGeneratingSummary, setSummaryType, setSummary]);
 
@@ -259,7 +295,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
       const response = await axios.get(`${API_URL}/emails/${id}`);
       const emailData = response.data;
       setEmail(emailData);
-      
+
       if (emailData.summary && !summary) {
         setSummary(emailData.summary);
       }
@@ -284,12 +320,12 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
         setGithubLinks([]);
         setLoadingGithub(true);
       }
-      
+
       axios.put(`${API_URL}/emails/${id}/read`).catch(err => console.error('Error marking as read:', err));
-      axios.post(`${API_URL}/emails/${id}/accelerate`).catch(err => 
+      axios.post(`${API_URL}/emails/${id}/accelerate`).catch(err =>
         console.debug('Job acceleration not available:', err.message)
       );
-      
+
       return emailData;
     } catch (error) {
       console.error('Error fetching email:', error);
@@ -368,7 +404,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
 
   // Track which email IDs we've already fetched GitHub data for
   const githubFetchedRef = useRef<string | null>(null);
-  
+
   // Track current email ID for draft generation to prevent race conditions
   const draftGenerationEmailIdRef = useRef<string | null>(null);
 
@@ -377,12 +413,12 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     if (!id) {
       return;
     }
-    
+
     // Don't re-fetch if we already fetched for this email
     if (githubFetchedRef.current === id) {
       return;
     }
-    
+
     // Quick keyword check - if email doesn't mention GitHub, skip fetching entirely
     if (email && !emailMentionsGitHub(email.subject, email.body, email.htmlBody)) {
       setGithubLinks([]);
@@ -390,10 +426,10 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
       githubFetchedRef.current = id; // Mark as processed so we don't check again
       return;
     }
-    
+
     // Mark as fetched BEFORE starting the async operation
     githubFetchedRef.current = id;
-    
+
     // Async fetch - doesn't block render
     try {
       const response = await axios.get(`${API_URL}/github/emails/${id}`);
@@ -510,7 +546,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
         isCompleted: false,
         source: ACTION_ITEM_SOURCE_LLM,
       }));
-      await Promise.all(newItems.map((item: any) => 
+      await Promise.all(newItems.map((item: any) =>
         axios.post(`${API_URL}/action-items`, { ...item, emailId: email.id, emailThreadId: email.threadId })
       ));
       fetchActionItems();
@@ -561,10 +597,10 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     setIsGeneratingSummary(true);
     try {
       const llmItems = actionItems.filter(item => item.source === ACTION_ITEM_SOURCE_LLM);
-      await Promise.all(llmItems.map(item => 
+      await Promise.all(llmItems.map(item =>
         item.id ? axios.delete(`${API_URL}/action-items/${item.id}`) : Promise.resolve()
       ));
-      
+
       const response = await axios.post(`${API_URL}/llm/extract-actions`, {
         emailBody: email.body,
         senderInfo: {
@@ -577,7 +613,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
         isCompleted: false,
         source: ACTION_ITEM_SOURCE_LLM,
       }));
-      await Promise.all(newItems.map((item: any) => 
+      await Promise.all(newItems.map((item: any) =>
         axios.post(`${API_URL}/action-items`, { ...item, emailId: email.id, emailThreadId: email.threadId })
       ));
       fetchActionItems();
@@ -614,11 +650,17 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
 
   const handleGenerateDraft = useCallback(async () => {
     if (!id || !email) return;
-    
+
+    // Ensure email data matches the current ID to prevent using stale data
+    // This can happen when switching threads - id updates before email state
+    if (email.id !== id) {
+      return;
+    }
+
     // Track which email we're generating for to prevent race conditions
     const currentEmailId = id;
     draftGenerationEmailIdRef.current = currentEmailId;
-    
+
     setLoadingReplies(true);
     try {
       const response = await axios.post(`${API_URL}/llm/suggest-replies`, {
@@ -629,13 +671,13 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
           body: email.body,
         }
       });
-      
+
       // Only update state if we're still looking at the same email
       // This prevents showing suggestions from a previous email after switching
       if (draftGenerationEmailIdRef.current !== currentEmailId) {
         return;
       }
-      
+
       if (response.data && Array.isArray(response.data) && response.data.length > 0) {
         captureEvent('reply_draft_generated', {
           email_id: id,
@@ -697,14 +739,14 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
 
   const handleSendReply = useCallback(async (files: File[] = []) => {
     if (!id || !draft) return;
-    
+
     // Skip tone check if dispute was already accepted
     if (!disputeResult?.accepted) {
       setCheckingTone(true);
       try {
         const toneResponse = await axios.post(`${API_URL}/llm/check-tone`, { text: draft });
         setToneCheckResult(toneResponse.data);
-        
+
         if (!toneResponse.data.isOk) {
           setCheckingTone(false);
           return;
@@ -715,7 +757,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
         setCheckingTone(false);
       }
     }
-    
+
     setSending(true);
     try {
       captureEvent('reply_sent', {
@@ -723,7 +765,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
         reply_type: replyMode,
         draft_was_edited: false,
       });
-      
+
       // Create FormData if files are present, otherwise use JSON
       if (files.length > 0) {
         const formData = new FormData();
@@ -733,20 +775,20 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
         files.forEach((file) => {
           formData.append('files', file);
         });
-        
+
         await axios.post(`${API_URL}/replies/send/${id}`, formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
         });
       } else {
-        await axios.post(`${API_URL}/replies/send/${id}`, { 
+        await axios.post(`${API_URL}/replies/send/${id}`, {
           reply: draft,
           recipients: replyRecipients,
           replyAll: replyMode === REPLY_MODE_REPLY_ALL,
         });
       }
-      
+
       setDraft(null);
       setShowReplyComposer(false);
       deleteDraft();
@@ -781,11 +823,11 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     console.log('%c[ARCHIVE DEBUG] handleArchive called!', 'background: red; color: white; font-size: 20px;');
     console.log('%c[ARCHIVE DEBUG] Email ID:', 'background: blue; color: white; font-size: 16px;', id);
     console.log('%c[ARCHIVE DEBUG] Has onArchiveComplete:', 'background: green; color: white; font-size: 16px;', !!options.onArchiveComplete);
-    
+
     if (!id) return;
     console.log('[EmailDetailArchive] Starting archive for emailId:', id);
     captureEvent('email_archive_clicked', { email_id: id });
-    
+
     // Find the email in Redux store
     const emailToArchive = emails.find(e => e.id === id);
     console.log('[EmailDetailArchive] Email in Redux store:', emailToArchive ? { id: emailToArchive.id, subject: emailToArchive.subject } : 'NOT FOUND');
@@ -794,7 +836,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
       console.warn('[EmailDetailArchive] Email not found in Redux store:', id);
       // Still try to archive via API even if not in store
     }
-    
+
     // Optimistic update - remove from list immediately and add to optimistic archive set
     if (emailToArchive) {
       console.log('[EmailDetailArchive] Dispatching removeEmail and addOptimisticArchive for:', id);
@@ -802,7 +844,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
       dispatch(addOptimisticArchive(id));
       console.log('[EmailDetailArchive] Optimistic update dispatched');
     }
-    
+
     // If we have an onArchiveComplete callback (split view mode), use it instead of navigating
     if (options.onArchiveComplete) {
       console.log('[EmailDetailArchive] Split view mode - has onArchiveComplete callback');
@@ -848,17 +890,17 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
       email_id: id,
       snooze_input_length: duration.length,
     });
-    
+
     const emailToSnooze = emails.find(e => e.id === id);
-    
+
     if (emailToSnooze) {
       dispatch(removeEmail(id));
       dispatch(addOptimisticSnooze(id));
     }
-    
+
     setSnoozeInput('');
     setShowSnoozeInput(false);
-    
+
     if (options.onSnoozeComplete) {
       try {
         await axios.post(`${API_URL}/snooze/${id}`, { duration });

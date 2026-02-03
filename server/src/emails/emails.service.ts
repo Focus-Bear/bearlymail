@@ -244,6 +244,7 @@ export class EmailsService {
     // Uses LATERAL JOIN to find best email per thread, then fetches all needed fields
     // Priority explanation is now thread-level, so get it from thread table
     // Filter out batched emails that haven't been released yet (isBatched = true AND batchReleaseAt > NOW())
+    // Also includes correspondent info (first email from someone other than the user) for display
     const rawEmails = await this.emailRepository.query(
       `SELECT
             thread."starCount",
@@ -273,7 +274,9 @@ export class EmailsService {
         e.summary,
         e."isProcessingSummary",
         e."receivedAt",
-        e.labels
+        e.labels,
+        correspondent."from" as "correspondentEmail",
+        correspondent."fromName" as "correspondentName"
       FROM email_threads thread
       CROSS JOIN LATERAL (
         SELECT
@@ -300,6 +303,16 @@ export class EmailsService {
         ORDER BY em."receivedAt" DESC, em.id DESC
         LIMIT 1
       ) e
+      LEFT JOIN LATERAL (
+        SELECT cor."from", cor."fromName"
+        FROM emails cor
+        JOIN users u ON u.id = $1
+        WHERE cor."emailThreadId" = thread.id 
+          AND cor."userId" = $1
+          AND LOWER(cor."from") != LOWER(u.email)
+        ORDER BY cor."receivedAt" ASC
+        LIMIT 1
+      ) correspondent ON true
             WHERE thread."userId" = $1
               ${threadFilter}
               AND (e."isBatched" = false OR e."batchReleaseAt" IS NULL OR e."batchReleaseAt" <= NOW())
@@ -401,6 +414,13 @@ export class EmailsService {
         }
       }
 
+      const correspondentEmail = row.correspondentEmail
+        ? EncryptionHelper.decrypt(row.correspondentEmail as string)
+        : null;
+      const correspondentName = row.correspondentName
+        ? EncryptionHelper.decrypt(row.correspondentName as string)
+        : null;
+
       return {
         id: row.id,
         userId: row.userId,
@@ -434,6 +454,9 @@ export class EmailsService {
         categoryExplanation: row.categoryExplanation
           ? EncryptionHelper.decrypt(row.categoryExplanation as string)
           : null,
+        // Correspondent info for display (the other person in the conversation)
+        correspondentEmail,
+        correspondentName,
       } as unknown as Email;
     });
 

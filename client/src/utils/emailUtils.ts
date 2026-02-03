@@ -1,5 +1,68 @@
 import DOMPurify from 'dompurify';
 
+interface EmailWithSender {
+  from?: string;
+  fromName?: string;
+  to?: string;
+  receivedAt: string;
+}
+
+interface Correspondent {
+  name: string;
+  email: string;
+  timestamp: string;
+}
+
+export const getCorrespondent = (
+  email: EmailWithSender,
+  userEmail: string | undefined,
+  threadEmails: EmailWithSender[] = []
+): Correspondent => {
+  const normalizedUserEmail = userEmail?.toLowerCase();
+  
+  if (!normalizedUserEmail) {
+    return { 
+      name: email.fromName || email.from || '', 
+      email: email.from || '', 
+      timestamp: email.receivedAt 
+    };
+  }
+
+  const isFromCurrentUser = email.from?.toLowerCase() === normalizedUserEmail;
+
+  if (!isFromCurrentUser) {
+    return { 
+      name: email.fromName || email.from || '', 
+      email: email.from || '', 
+      timestamp: email.receivedAt 
+    };
+  }
+
+  if (threadEmails.length > 0) {
+    const emailFromOther = threadEmails.find(
+      (e) => e.from?.toLowerCase() !== normalizedUserEmail
+    );
+    if (emailFromOther) {
+      return { 
+        name: emailFromOther.fromName || emailFromOther.from || '', 
+        email: emailFromOther.from || '', 
+        timestamp: emailFromOther.receivedAt 
+      };
+    }
+  }
+
+  const toRecipient = email.to;
+  if (toRecipient) {
+    return { name: toRecipient, email: toRecipient, timestamp: email.receivedAt };
+  }
+
+  return { 
+    name: email.fromName || email.from || '', 
+    email: email.from || '', 
+    timestamp: email.receivedAt 
+  };
+};
+
 /**
  * Removes email signatures from text
  */

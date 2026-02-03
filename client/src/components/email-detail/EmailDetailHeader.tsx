@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { humanizeTimestamp } from 'utils/dateUtils';
+import { getCorrespondent } from 'utils/emailUtils';
 import { Email, getEmailPriorityScore } from 'types/email';
 import { EMOJI_EMAIL, EMOJI_USER, EMOJI_GOAL, EMOJI_SETTINGS, EMOJI_POSITIVE, EMOJI_NEGATIVE, EMOJI_NEUTRAL } from 'constants/emojis';
 import { PRIORITY_HIGH_THRESHOLD, PRIORITY_MEDIUM_THRESHOLD } from 'constants/numbers';
@@ -41,32 +42,7 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
   const { user } = useAuth();
 
   const correspondent = useMemo(() => {
-    const userEmail = user?.email?.toLowerCase();
-    if (!userEmail) {
-      return { name: email.fromName || email.from, email: email.from, timestamp: email.receivedAt };
-    }
-
-    const isFromCurrentUser = email.from?.toLowerCase() === userEmail;
-
-    if (!isFromCurrentUser) {
-      return { name: email.fromName || email.from, email: email.from, timestamp: email.receivedAt };
-    }
-
-    if (threadEmails.length > 0) {
-      const emailFromOther = threadEmails.find(
-        (e) => e.from?.toLowerCase() !== userEmail
-      );
-      if (emailFromOther) {
-        return { name: emailFromOther.fromName || emailFromOther.from, email: emailFromOther.from, timestamp: emailFromOther.receivedAt };
-      }
-    }
-
-    const toRecipient = email.to;
-    if (toRecipient) {
-      return { name: toRecipient, email: toRecipient, timestamp: email.receivedAt };
-    }
-
-    return { name: email.fromName || email.from, email: email.from, timestamp: email.receivedAt };
+    return getCorrespondent(email, user?.email, threadEmails);
   }, [email, threadEmails, user?.email]);
 
   const getSentimentLabel = (value: number) => {

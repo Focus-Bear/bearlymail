@@ -1,8 +1,9 @@
-import React, { useEffect, useImperativeHandle, forwardRef, useRef } from 'react';
+import React, { useEffect, useImperativeHandle, forwardRef, useRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
+import { getCorrespondent } from 'utils/emailUtils';
 import { useAuth } from 'contexts/AuthContext';
 import { devLog } from 'utils/dev-logger';
 import { GitHubStatusSection } from 'components/github/GitHubStatusSection';
@@ -29,6 +30,7 @@ interface EmailDetailProps {
   onArchiveComplete?: () => void; // Called after archive completes in split view mode
   onSnoozeComplete?: () => void; // Called after snooze completes in split view mode
   autoGenerateReplies?: boolean; // When true, automatically generates reply drafts when email loads
+  onCorrespondentChange?: (correspondent: { name: string; email: string }) => void; // Called when correspondent info is available
 }
 
 // Methods exposed via ref for external control (e.g., from SplitViewPanel header)
@@ -40,7 +42,7 @@ export interface EmailDetailRef {
 }
 
 // eslint-disable-next-line max-lines-per-function -- Email detail page requires handling multiple email operations and UI states
-const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: propEmailId, compactMode = false, onArchiveComplete, onSnoozeComplete, autoGenerateReplies = false }, ref) => {
+const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: propEmailId, compactMode = false, onArchiveComplete, onSnoozeComplete, autoGenerateReplies = false, onCorrespondentChange }, ref) => {
   const params = useParams<{ id: string }>();
   const id = propEmailId || params.id;
   const { t } = useTranslation();
@@ -218,6 +220,13 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
       captureEvent('email_detail_viewed', { email_id: id });
     }
   }, [id, email]);
+
+  useEffect(() => {
+    if (email && onCorrespondentChange) {
+      const correspondent = getCorrespondent(email, user?.email, threadEmails);
+      onCorrespondentChange({ name: correspondent.name, email: correspondent.email });
+    }
+  }, [email, threadEmails, user?.email, onCorrespondentChange]);
 
   // Track previous email ID for draft saving when switching emails
   const previousEmailIdRef = useRef<string | null>(null);

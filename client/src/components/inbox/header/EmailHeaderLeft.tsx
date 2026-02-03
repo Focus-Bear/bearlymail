@@ -33,7 +33,7 @@ export const EmailHeaderLeft: React.FC<EmailHeaderLeftProps> = ({
         fontSize: theme.typography.fontSize.base,
         fontWeight: theme.typography.fontWeight.semibold,
       }}>
-        {email.fromName || email.from}
+        {email.correspondentName || email.correspondentEmail || email.fromName || email.from}
       </strong>
       
       <PriorityBadge

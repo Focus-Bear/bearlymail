@@ -1,4 +1,4 @@
-import React, { RefObject, useRef, useState, useEffect } from 'react';
+import React, { RefObject, useRef, useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import EmailDetail, { EmailDetailRef } from 'pages/EmailDetail';
@@ -42,13 +42,19 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
   const { t } = useTranslation();
   const emailDetailComponentRef = useRef<EmailDetailRef>(null);
   const [starCount, setStarCount] = useState<number>((selectedEmail as any)?.starCount ?? 0);
+  const [correspondentName, setCorrespondentName] = useState<string>('');
   
-  const senderName = selectedEmail?.fromName || selectedEmail?.from || '';
+  const senderName = correspondentName || selectedEmail?.fromName || selectedEmail?.from || '';
   const subject = selectedEmail?.subject || t('inbox.emailDetails');
 
-  // Sync starCount when selectedEmail changes
+  const handleCorrespondentChange = useCallback((correspondent: { name: string; email: string }) => {
+    setCorrespondentName(correspondent.name);
+  }, []);
+
+  // Sync starCount and reset correspondent when selectedEmail changes
   useEffect(() => {
     setStarCount((selectedEmail as any)?.starCount ?? 0);
+    setCorrespondentName('');
   }, [selectedEmail]);
 
   const handleReplyClick = () => {
@@ -244,7 +250,7 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
       
       {/* EmailDetail component */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        <EmailDetail ref={emailDetailComponentRef} emailId={selectedEmailId} compactMode={true} onArchiveComplete={onArchiveComplete} onSnoozeComplete={onSnoozeComplete} autoGenerateReplies={mode === MODE_ACTION} />
+        <EmailDetail ref={emailDetailComponentRef} emailId={selectedEmailId} compactMode={true} onArchiveComplete={onArchiveComplete} onSnoozeComplete={onSnoozeComplete} autoGenerateReplies={mode === MODE_ACTION} onCorrespondentChange={handleCorrespondentChange} />
       </div>
     </div>
   );

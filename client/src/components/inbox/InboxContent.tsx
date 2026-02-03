@@ -139,12 +139,18 @@ export const InboxContent: React.FC<InboxContentProps> = ({
     [filteredEmails]
   );
 
-  // Update stable category order when categories are first loaded
+  // Update stable category order whenever the priority-based order changes
   useEffect(() => {
-    if (categoryGroups.length > 0 && stableCategoryOrder.length === 0) {
-      onUpdateStableCategoryOrder(categoryGroups.map(g => g.category));
+    if (categoryGroups.length > 0) {
+      const newOrder = categoryGroups.map(g => g.category);
+      const orderChanged = newOrder.length !== stableCategoryOrder.length ||
+        newOrder.some((cat, idx) => stableCategoryOrder[idx] !== cat);
+      
+      if (orderChanged) {
+        onUpdateStableCategoryOrder(newOrder);
+      }
     }
-  }, [categoryGroups, stableCategoryOrder.length, onUpdateStableCategoryOrder]);
+  }, [categoryGroups, stableCategoryOrder, onUpdateStableCategoryOrder]);
 
   const sortedCategoryGroups = useMemo(() => {
     if (stableCategoryOrder.length === 0) {

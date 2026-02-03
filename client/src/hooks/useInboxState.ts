@@ -334,12 +334,12 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     });
   }, []);
 
-  // Update stable category order when categories are first loaded
+  // Update stable category order when priority-based order changes
   const updateStableCategoryOrder = useCallback((categories: string[]) => {
-    if (stableCategoryOrder.length === 0 && categories.length > 0) {
+    if (categories.length > 0) {
       setStableCategoryOrder(categories);
     }
-  }, [stableCategoryOrder.length]);
+  }, []);
 
   useEffect(() => {
     if (isInitialMount.current) {

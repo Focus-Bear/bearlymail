@@ -2247,8 +2247,12 @@ export class GmailProvider implements EmailProvider {
 
       const thread = threadData.data;
       const messages = thread.messages || [];
+      // Log the current labels of the first message to understand the thread's state before archiving
+      const firstMessageLabels = messages[0]?.labelIds || [];
+      const hasInboxLabel = firstMessageLabels.includes("INBOX");
+      const hasUnreadLabel = firstMessageLabels.includes("UNREAD");
       this.logger.log(
-        `[Gmail Archive] Thread fetched: userId=${userId}, threadId=${threadId}, messageCount=${messages.length}`,
+        `[Gmail Archive] Thread fetched: userId=${userId}, threadId=${threadId}, messageCount=${messages.length}, currentLabels=${JSON.stringify(firstMessageLabels)}, hasInboxLabel=${hasInboxLabel}, hasUnreadLabel=${hasUnreadLabel}`,
       );
 
       // If any message is starred, remove STARRED label from each message individually
@@ -2285,9 +2289,51 @@ export class GmailProvider implements EmailProvider {
         );
       }
 
-      // Remove from inbox and mark as read (this archives the thread in Gmail)
-      // Note: Gmail doesn't allow adding custom labels via addLabelIds in threads.modify
-      // Removing INBOX label archives the thread, removing UNREAD label marks it as read
+      // Ensure the BearlyMail-archived label exists and get its ID
+      const archivedLabelId = await this.ensureLabelExists(
+        userId,
+        gmail,
+        "BearlyMail-archived",
+      );
+      this.logger.log(
+        `[Gmail Archive] BearlyMail-archived label ID: ${archivedLabelId} for userId=${userId}`,
+      );
+
+      // Add BearlyMail-archived label to all messages in the thread
+      // Gmail requires modifying individual messages for custom labels
+      let labeledCount = 0;
+      for (const message of messages) {
+        if (!message.id) continue;
+
+        const messageLabelIds = message.labelIds || [];
+        const hasArchivedLabel = messageLabelIds.includes(archivedLabelId);
+
+        if (!hasArchivedLabel) {
+          await gmail.users.messages.modify({
+            userId: "me",
+            id: message.id,
+            requestBody: {
+              addLabelIds: [archivedLabelId],
+              removeLabelIds: ["INBOX", "UNREAD"],
+            },
+          });
+          labeledCount++;
+        } else {
+          // Just remove INBOX and UNREAD if already has archived label
+          await gmail.users.messages.modify({
+            userId: "me",
+            id: message.id,
+            requestBody: {
+              removeLabelIds: ["INBOX", "UNREAD"],
+            },
+          });
+        }
+      }
+      this.logger.log(
+        `[Gmail Archive] Added BearlyMail-archived label to ${labeledCount} messages: userId=${userId}, threadId=${threadId}`,
+      );
+
+      // Also use threads.modify to ensure INBOX and UNREAD are removed at thread level
       this.logger.log(
         `[Gmail Archive] Archiving thread in Gmail (removing INBOX and UNREAD labels): userId=${userId}, threadId=${threadId}`,
       );
@@ -2579,20 +2625,19 @@ export class GmailProvider implements EmailProvider {
   }
 
   /**
-   * Ensure the SnoozedBearlyMail label exists in Gmail, creating it if necessary
+   * Ensure a BearlyMail custom label exists in Gmail, creating it if necessary
    * Returns the label ID for use in message modifications
    */
-  private async ensureSnoozeLabelExists(
+  private async ensureLabelExists(
     userId: string,
     gmail: gmail_v1.Gmail,
+    labelName: string,
   ): Promise<string> {
-    const cacheKey = `${userId}_SnoozedBearlyMail`;
+    const cacheKey = `${userId}_${labelName}`;
     const cachedLabelId = this.bearlyMailLabelCache.get(cacheKey);
     if (cachedLabelId) {
       return cachedLabelId;
     }
-
-    const labelName = "SnoozedBearlyMail";
 
     try {
       // First, try to find the label in existing labels
@@ -2605,7 +2650,7 @@ export class GmailProvider implements EmailProvider {
       }
 
       // Label doesn't exist, create it
-      this.logger.log(`Creating SnoozedBearlyMail label for user ${userId}`);
+      this.logger.log(`Creating ${labelName} label for user ${userId}`);
       const createResponse = await gmail.users.labels.create({
         userId: "me",
         requestBody: {
@@ -2644,11 +2689,11 @@ export class GmailProvider implements EmailProvider {
       }
 
       this.logger.error(
-        `Failed to ensure snooze label exists for user ${userId}:`,
+        `Failed to ensure ${labelName} label exists for user ${userId}:`,
         error,
       );
       logErrorToFile(
-        `Failed to ensure snooze label exists (userId: ${userId})`,
+        `Failed to ensure ${labelName} label exists (userId: ${userId})`,
         error,
         "GmailProvider",
       );
@@ -2707,7 +2752,11 @@ export class GmailProvider implements EmailProvider {
       );
 
       // Ensure the snooze label exists
-      const snoozeLabelId = await this.ensureSnoozeLabelExists(userId, gmail);
+      const snoozeLabelId = await this.ensureLabelExists(
+        userId,
+        gmail,
+        "SnoozedBearlyMail",
+      );
       this.logger.log(
         `[Gmail Snooze] Snooze label ID: ${snoozeLabelId} for userId=${userId}`,
       );

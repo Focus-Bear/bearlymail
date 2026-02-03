@@ -760,7 +760,53 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     }
   }, [id, email, draft, replyOptions, setReplyMode, setShowReplyComposer, setDraft, setToneCheckResult, setReplyRecipients, setReplyCc, setReplyBcc, setShowCc, setShowBcc, handleGenerateDraft]);
 
-  const handleSendReply = useCallback(async (files: File[] = []) => {
+  const performArchiveAfterReply = useCallback(async () => {
+    if (!id) return;
+    const emailToArchive = emails.find(e => e.id === id);
+    if (emailToArchive) {
+      dispatch(removeEmail(id));
+      dispatch(addOptimisticArchive(id));
+    }
+    try {
+      await axios.put(`${API_URL}/emails/${id}/archive`);
+    } catch (error) {
+      console.error('Error archiving email after reply:', error);
+      if (emailToArchive) {
+        dispatch(restoreEmail(emailToArchive));
+        dispatch(removeOptimisticArchive(id));
+      }
+    }
+    if (options.onArchiveComplete) {
+      options.onArchiveComplete();
+    } else {
+      navigate('/inbox');
+    }
+  }, [id, emails, dispatch, options, navigate]);
+
+  const performSnoozeAfterReply = useCallback(async (duration: string) => {
+    if (!id) return;
+    const emailToSnooze = emails.find(e => e.id === id);
+    if (emailToSnooze) {
+      dispatch(removeEmail(id));
+      dispatch(addOptimisticSnooze(id));
+    }
+    try {
+      await axios.post(`${API_URL}/snooze/${id}`, { duration });
+    } catch (error) {
+      console.error('Error snoozing email after reply:', error);
+      if (emailToSnooze) {
+        dispatch(restoreEmail(emailToSnooze));
+        dispatch(removeOptimisticSnooze(id));
+      }
+    }
+    if (options.onSnoozeComplete) {
+      options.onSnoozeComplete();
+    } else {
+      navigate('/inbox');
+    }
+  }, [id, emails, dispatch, options, navigate]);
+
+  const handleSendReply = useCallback(async (files: File[] = [], expectedReplyHours?: number) => {
     if (!id || !draft) return;
 
     // Skip tone check if dispute was already accepted
@@ -787,6 +833,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
         email_id: id,
         reply_type: replyMode,
         draft_was_edited: false,
+        expected_reply_hours: expectedReplyHours,
       });
 
       // Create FormData if files are present, otherwise use JSON
@@ -821,14 +868,27 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
       deleteDraft();
       await triggerAnimation(ANIMATION_TYPE_SEND);
       showSuccess(t('emailDetail.replySentSuccess'));
-      navigate('/inbox');
+
+      // Handle post-send actions based on expectedReplyHours
+      if (expectedReplyHours !== undefined) {
+        if (expectedReplyHours === 0) {
+          // No follow-up: Archive the email
+          await performArchiveAfterReply();
+        } else {
+          // Snooze the email for the specified duration
+          const duration = expectedReplyHours <= 48 ? `${expectedReplyHours}h` : `${Math.round(expectedReplyHours / 24)}d`;
+          await performSnoozeAfterReply(duration);
+        }
+      } else {
+        navigate('/inbox');
+      }
     } catch (error: any) {
       console.error('Error sending reply:', error);
       showError(error.response?.data?.message || t('emailDetail.replySentError'));
     } finally {
       setSending(false);
     }
-  }, [id, draft, replyMode, replyRecipients, replyCc, replyBcc, disputeResult, triggerAnimation, t, navigate, setCheckingTone, setToneCheckResult, setSending, setDraft, setShowReplyComposer, showSuccess, showError, deleteDraft]);
+  }, [id, draft, replyMode, replyRecipients, replyCc, replyBcc, disputeResult, triggerAnimation, t, navigate, setCheckingTone, setToneCheckResult, setSending, setDraft, setShowReplyComposer, showSuccess, showError, deleteDraft, performArchiveAfterReply, performSnoozeAfterReply]);
 
   const disputeToneCheck = useCallback(async (emailText: string, userArgument: string) => {
     setDisputing(true);
@@ -910,9 +970,9 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     }
   }, [id, triggerAnimation, navigate, options, dispatch, emails]);
 
-  const handleSnooze = useCallback(async () => {
-    if (!id || !snoozeInput.trim()) return;
-    const duration = snoozeInput.trim();
+  const handleSnooze = useCallback(async (durationOverride?: string) => {
+    const duration = durationOverride || snoozeInput.trim();
+    if (!id || !duration) return;
     captureEvent('email_snooze_confirmed', {
       email_id: id,
       snooze_input_length: duration.length,
@@ -925,8 +985,10 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
       dispatch(addOptimisticSnooze(id));
     }
 
-    setSnoozeInput('');
-    setShowSnoozeInput(false);
+    if (!durationOverride) {
+      setSnoozeInput('');
+      setShowSnoozeInput(false);
+    }
 
     if (options.onSnoozeComplete) {
       try {

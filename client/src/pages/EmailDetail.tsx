@@ -27,6 +27,7 @@ interface EmailDetailProps {
   emailId?: string;
   compactMode?: boolean; // When true, renders without sidebar, overlay, and full-page layout for use in split view
   onArchiveComplete?: () => void; // Called after archive completes in split view mode
+  onSnoozeComplete?: () => void; // Called after snooze completes in split view mode
   autoGenerateReplies?: boolean; // When true, automatically generates reply drafts when email loads
 }
 
@@ -39,7 +40,7 @@ export interface EmailDetailRef {
 }
 
 // eslint-disable-next-line max-lines-per-function -- Email detail page requires handling multiple email operations and UI states
-const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: propEmailId, compactMode = false, onArchiveComplete, autoGenerateReplies = false }, ref) => {
+const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: propEmailId, compactMode = false, onArchiveComplete, onSnoozeComplete, autoGenerateReplies = false }, ref) => {
   const params = useParams<{ id: string }>();
   const id = propEmailId || params.id;
   const { t } = useTranslation();
@@ -48,7 +49,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
   const replyComposerRef = useRef<HTMLDivElement>(null);
   
   const state = useEmailDetailState();
-  const operations = useEmailDetailOperations(id, state, { onArchiveComplete });
+  const operations = useEmailDetailOperations(id, state, { onArchiveComplete, onSnoozeComplete });
   
   const {
     email,

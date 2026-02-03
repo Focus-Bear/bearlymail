@@ -12,7 +12,7 @@ import { emailMentionsGitHub } from 'utils/githubUtils';
 import { ACTION_ITEM_SOURCE_LLM, REPLY_MODE_REPLY_ALL, ANIMATION_TYPE_SEND, ANIMATION_TYPE_ARCHIVE, GITHUB_ACTION_PREFIX } from 'constants/strings';
 import { TIMEOUT_800_MS } from 'constants/numbers';
 import { AppDispatch } from 'store/store';
-import { removeEmail, addOptimisticArchive, restoreEmail, removeOptimisticArchive } from 'store/slices/emailSlice';
+import { removeEmail, addOptimisticArchive, restoreEmail, removeOptimisticArchive, addOptimisticSnooze, removeOptimisticSnooze } from 'store/slices/emailSlice';
 import { selectEmails } from 'store/selectors/emailSelectors';
 import { API_URL } from 'config/api';
 
@@ -106,6 +106,7 @@ interface EmailDetailState {
 // eslint-disable-next-line max-lines-per-function -- Email detail operations hook requires handling multiple email operations, state management, and API calls
 interface EmailDetailOperationsOptions {
   onArchiveComplete?: () => void;
+  onSnoozeComplete?: () => void;
 }
 
 export function useEmailDetailOperations(id: string | undefined, state: EmailDetailState, options: EmailDetailOperationsOptions = {}) {
@@ -847,13 +848,40 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
       email_id: id,
       snooze_input_length: duration.length,
     });
+    
+    const emailToSnooze = emails.find(e => e.id === id);
+    
+    if (emailToSnooze) {
+      dispatch(removeEmail(id));
+      dispatch(addOptimisticSnooze(id));
+    }
+    
     setSnoozeInput('');
     setShowSnoozeInput(false);
-    navigate('/inbox');
-    axios.post(`${API_URL}/snooze/${id}`, { duration }).catch(error => {
-      console.error('Error snoozing email:', error);
-    });
-  }, [id, snoozeInput, setSnoozeInput, setShowSnoozeInput, navigate]);
+    
+    if (options.onSnoozeComplete) {
+      try {
+        await axios.post(`${API_URL}/snooze/${id}`, { duration });
+        options.onSnoozeComplete();
+      } catch (error) {
+        console.error('Error snoozing email:', error);
+        if (emailToSnooze) {
+          dispatch(restoreEmail(emailToSnooze));
+          dispatch(removeOptimisticSnooze(id));
+        }
+        options.onSnoozeComplete();
+      }
+    } else {
+      navigate('/inbox');
+      axios.post(`${API_URL}/snooze/${id}`, { duration }).catch(error => {
+        console.error('Error snoozing email:', error);
+        if (emailToSnooze) {
+          dispatch(restoreEmail(emailToSnooze));
+          dispatch(removeOptimisticSnooze(id));
+        }
+      });
+    }
+  }, [id, snoozeInput, setSnoozeInput, setShowSnoozeInput, navigate, options, dispatch, emails]);
 
   const handleDelete = useCallback(async () => {
     if (!id) return;

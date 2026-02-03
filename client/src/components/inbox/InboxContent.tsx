@@ -48,6 +48,7 @@ interface InboxContentProps {
   emailListRef: React.RefObject<HTMLDivElement | null>;
   emailDetailRef: React.RefObject<HTMLDivElement | null>;
   onSplitViewArchive?: (emailId: string) => void;
+  onSplitViewSnooze?: (emailId: string) => void;
   onBulkArchive?: (emailIds: string[]) => Promise<void>;
   onBulkSelect?: (emailIds: string[]) => void;
   expandedCategories: Set<string>;
@@ -89,6 +90,7 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   emailListRef,
   emailDetailRef,
   onSplitViewArchive,
+  onSplitViewSnooze,
   onBulkArchive,
   onBulkSelect,
   expandedCategories,
@@ -341,6 +343,11 @@ export const InboxContent: React.FC<InboxContentProps> = ({
           onArchiveComplete={() => {
             if (onSplitViewArchive && splitView.selectedEmailId) {
               onSplitViewArchive(splitView.selectedEmailId);
+            }
+          }}
+          onSnoozeComplete={() => {
+            if (onSplitViewSnooze && splitView.selectedEmailId) {
+              onSplitViewSnooze(splitView.selectedEmailId);
             }
           }}
           mode={mode}

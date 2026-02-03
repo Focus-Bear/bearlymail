@@ -22,6 +22,7 @@ interface SplitViewPanelProps {
   onTogglePanel: () => void;
   onClose: () => void;
   onArchiveComplete?: () => void;
+  onSnoozeComplete?: () => void;
   mode?: InboxMode;
 }
 
@@ -35,6 +36,7 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
   onTogglePanel,
   onClose,
   onArchiveComplete,
+  onSnoozeComplete,
   mode,
 }) => {
   const { t } = useTranslation();
@@ -242,7 +244,7 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
       
       {/* EmailDetail component */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        <EmailDetail ref={emailDetailComponentRef} emailId={selectedEmailId} compactMode={true} onArchiveComplete={onArchiveComplete} autoGenerateReplies={mode === MODE_ACTION} />
+        <EmailDetail ref={emailDetailComponentRef} emailId={selectedEmailId} compactMode={true} onArchiveComplete={onArchiveComplete} onSnoozeComplete={onSnoozeComplete} autoGenerateReplies={mode === MODE_ACTION} />
       </div>
     </div>
   );

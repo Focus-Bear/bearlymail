@@ -95,11 +95,37 @@ export function useEmailActions({
     
     await handleArchiveBase(emailId, e);
     
-    // Note: We intentionally do NOT scroll after archiving.
+    // Navigate to next email in split view after archiving
+    if (splitView?.selectedEmailId === emailId) {
+      // Filter out the just-archived email to get the remaining visible emails
+      const remainingEmails = visibleEmails.filter(e => e.id !== emailId);
+      
+      if (remainingEmails.length === 0) {
+        splitView.closeEmail();
+        return;
+      }
+      
+      // Use the current index as the next index (since we removed the current email)
+      const nextIndex = archivedIndex < remainingEmails.length 
+        ? archivedIndex 
+        : Math.max(0, remainingEmails.length - 1);
+      
+      const nextEmail = remainingEmails[nextIndex];
+      if (nextEmail) {
+        splitView.openEmail(nextEmail.id);
+        if (setSelectedEmailIndex !== undefined) {
+          setSelectedEmailIndex(nextIndex);
+        }
+      } else {
+        splitView.closeEmail();
+      }
+    }
+    
+    // Note: We intentionally do NOT scroll after archiving in list view.
     // The category accordion structure means email indices don't match the flat list order,
     // so scrollIntoView would scroll to the wrong email and cause the user to lose their place.
     // The browser's natural scroll anchoring keeps the user at roughly the same position.
-  }, [handleArchiveBase, setSelectedEmailIds, emails]);
+  }, [handleArchiveBase, setSelectedEmailIds, emails, splitView, setSelectedEmailIndex]);
 
   const handleBlockSender = useCallback((emailId: string, e: React.MouseEvent) => {
     e.stopPropagation();

@@ -261,6 +261,28 @@ const Inbox: React.FC = () => {
               splitView.closeEmail();
             }
           }}
+          onSplitViewSnooze={(snoozedEmailId) => {
+            const visibleEmails = emails.filter(e => !e.isArchived && e.id !== snoozedEmailId);
+            
+            if (visibleEmails.length === 0) {
+              splitView.closeEmail();
+              return;
+            }
+            
+            const currentIndex = selectedEmailIndex >= 0 ? selectedEmailIndex : 0;
+            const nextIndex = currentIndex < visibleEmails.length 
+              ? currentIndex 
+              : Math.max(0, visibleEmails.length - 1);
+            
+            const nextEmail = visibleEmails[nextIndex];
+            
+            if (nextEmail) {
+              splitView.openEmail(nextEmail.id);
+              setSelectedEmailIndex(nextIndex);
+            } else {
+              splitView.closeEmail();
+            }
+          }}
         />
       </div>
 

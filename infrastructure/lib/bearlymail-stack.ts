@@ -2,6 +2,7 @@ import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as ecsPatterns from 'aws-cdk-lib/aws-ecs-patterns';
+import * as ecrAssets from 'aws-cdk-lib/aws-ecr-assets';
 import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as rds from 'aws-cdk-lib/aws-rds';
 import * as s3 from 'aws-cdk-lib/aws-s3';
@@ -178,6 +179,7 @@ export class BearlyMailStack extends cdk.Stack {
     const webContainer = webTaskDefinition.addContainer('WebContainer', {
       image: ecs.ContainerImage.fromAsset('../server', {
         file: 'Dockerfile',
+        platform: ecrAssets.Platform.LINUX_AMD64,
       }),
       logging: ecs.LogDrivers.awsLogs({
         streamPrefix: 'web',
@@ -252,6 +254,7 @@ export class BearlyMailStack extends cdk.Stack {
     const workerContainer = workerTaskDefinition.addContainer('WorkerContainer', {
       image: ecs.ContainerImage.fromAsset('../server', {
         file: 'Dockerfile',
+        platform: ecrAssets.Platform.LINUX_AMD64,
       }),
       command: ['node', 'dist/worker.js'],
       logging: ecs.LogDrivers.awsLogs({
@@ -304,6 +307,7 @@ export class BearlyMailStack extends cdk.Stack {
     const cronContainer = cronTaskDefinition.addContainer('CronContainer', {
       image: ecs.ContainerImage.fromAsset('../server', {
         file: 'Dockerfile',
+        platform: ecrAssets.Platform.LINUX_AMD64,
       }),
       command: ['node', '-e', 'console.log("Cron job placeholder - implement your cron logic")'],
       logging: ecs.LogDrivers.awsLogs({

@@ -384,6 +384,7 @@
     "disputeAccepted": "¡Tu argumento fue aceptado!",
     "disputeRejected": "Tu argumento no fue aceptado",
     "rulesUpdated": "{{count}} regla(s) actualizada(s) en tus preferencias de escritura",
+    "rulesRemoved": "Las siguientes {{count}} regla(s) fueron eliminadas de tus preferencias:",
     "useRevision": "Utilice esta revisión",
     "expectedReply": {
       "label": "Esperar respuesta en",

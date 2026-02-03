@@ -144,8 +144,20 @@ export const ToneCheckResult: React.FC<ToneCheckResultProps> = ({
                 {disputeResult.explanation}
               </div>
               {disputeResult.accepted && disputeResult.rulesToRemove.length > 0 && (
-                <div style={{ marginTop: theme.spacing.xs, color: theme.colors.text.secondary }}>
-                  {t('emailDetail.rulesUpdated', { count: disputeResult.rulesToRemove.length })}
+                <div style={{ marginTop: theme.spacing.sm }}>
+                  <div style={{ color: theme.colors.text.secondary, marginBottom: theme.spacing.xs }}>
+                    {t('emailDetail.rulesRemoved', { count: disputeResult.rulesToRemove.length })}
+                  </div>
+                  <ul style={{ 
+                    margin: 0, 
+                    paddingLeft: theme.spacing.lg, 
+                    color: theme.colors.text.tertiary,
+                    fontSize: theme.typography.fontSize.xs,
+                  }}>
+                    {disputeResult.rulesToRemove.map((rule) => (
+                      <li key={rule} style={{ marginBottom: theme.spacing.xxs }}>{rule}</li>
+                    ))}
+                  </ul>
                 </div>
               )}
             </div>

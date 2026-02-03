@@ -296,6 +296,7 @@
     "disputeAccepted": "Your argument was accepted!",
     "disputeRejected": "Your argument was not accepted",
     "rulesUpdated": "{{count}} rule(s) updated in your writing preferences",
+    "rulesRemoved": "The following {{count}} rule(s) were removed from your preferences:",
     "delete": "Delete",
     "expectedReply": {
       "label": "Expect reply in",

@@ -468,6 +468,7 @@ describe("EmailsController", () => {
       expect(emailsService.getThreadEmails).toHaveBeenCalledWith(
         userId,
         threadId,
+        { order: "DESC" },
       );
     });
 

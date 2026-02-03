@@ -219,8 +219,10 @@ export class EmailsController {
     if (!email) {
       throw new Error("Email not found");
     }
-    // Return all emails in the thread
-    return this.emailsService.getThreadEmails(req.user.userId, email.threadId);
+    // Return all emails in the thread, sorted by most recent first
+    return this.emailsService.getThreadEmails(req.user.userId, email.threadId, {
+      order: "DESC",
+    });
   }
 
   @Get(":id")

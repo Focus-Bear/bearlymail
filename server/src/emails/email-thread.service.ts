@@ -59,7 +59,7 @@ export class EmailThreadService {
       .where("email.userId = :userId", { userId })
       .andWhere("email.threadId = :threadId", { threadId });
 
-    // Apply ordering (default to ASC for thread view, DESC for priority calculation)
+    // Apply ordering (default to ASC for chronological processing, DESC for thread view display)
     const order = options?.order || "ASC";
     queryBuilder.orderBy("email.receivedAt", order);
 

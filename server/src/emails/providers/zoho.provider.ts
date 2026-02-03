@@ -1425,6 +1425,12 @@ export class ZohoProvider implements EmailProvider {
     _messageId: string,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _attachmentId: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _attachmentMetadata?: {
+      filename: string;
+      mimeType: string;
+      size: number;
+    },
   ): Promise<{
     data: Buffer;
     filename: string;

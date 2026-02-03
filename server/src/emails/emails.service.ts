@@ -874,7 +874,13 @@ export class EmailsService {
       throw new Error("No email provider connected");
     }
 
-    return provider.getAttachment(userId, email.messageId, attachmentId);
+    // Pass attachment metadata to help find the attachment if the ID has changed
+    // (Gmail attachment IDs are ephemeral and can change between API calls)
+    return provider.getAttachment(userId, email.messageId, attachmentId, {
+      filename: attachment.filename,
+      mimeType: attachment.mimeType,
+      size: attachment.size,
+    });
   }
 
   async getThreadEmails(

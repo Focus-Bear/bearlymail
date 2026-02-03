@@ -155,11 +155,18 @@ export interface EmailProvider {
   /**
    * Get attachment data from an email
    * Returns the attachment file data and metadata
+   * @param attachmentMetadata - Optional metadata to help find the attachment if the ID has changed
+   *                             (Gmail attachment IDs are ephemeral and can change between API calls)
    */
   getAttachment(
     userId: string,
     messageId: string,
     attachmentId: string,
+    attachmentMetadata?: {
+      filename: string;
+      mimeType: string;
+      size: number;
+    },
   ): Promise<{
     data: Buffer;
     filename: string;

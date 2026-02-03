@@ -2096,6 +2096,11 @@ export class GmailProvider implements EmailProvider {
     userId: string,
     messageId: string,
     attachmentId: string,
+    attachmentMetadata?: {
+      filename: string;
+      mimeType: string;
+      size: number;
+    },
   ): Promise<{
     data: Buffer;
     filename: string;
@@ -2140,21 +2145,63 @@ export class GmailProvider implements EmailProvider {
       });
 
       // Find the attachment in the message parts
+      // Gmail attachment IDs are ephemeral and can change between API calls,
+      // so we first try to match by ID, then fall back to matching by filename
       let attachmentPart: gmail_v1.Schema$MessagePart | undefined;
-      const findAttachment = (part: gmail_v1.Schema$MessagePart): void => {
+
+      // Helper to find attachment by ID
+      const findAttachmentById = (part: gmail_v1.Schema$MessagePart): void => {
         if (part.body?.attachmentId === attachmentId) {
           attachmentPart = part;
           return;
         }
         if (part.parts) {
           for (const nestedPart of part.parts) {
-            findAttachment(nestedPart);
+            findAttachmentById(nestedPart);
           }
         }
       };
 
+      // Helper to find attachment by filename (fallback when ID doesn't match)
+      const findAttachmentByFilename = (
+        part: gmail_v1.Schema$MessagePart,
+      ): void => {
+        if (
+          attachmentMetadata &&
+          part.filename === attachmentMetadata.filename &&
+          part.body?.attachmentId
+        ) {
+          // Additional validation: check mimeType if available
+          if (!part.mimeType || part.mimeType === attachmentMetadata.mimeType) {
+            attachmentPart = part;
+            return;
+          }
+        }
+        if (part.parts) {
+          for (const nestedPart of part.parts) {
+            findAttachmentByFilename(nestedPart);
+          }
+        }
+      };
+
+      // First try to find by attachment ID
       if (message.data.payload) {
-        findAttachment(message.data.payload);
+        findAttachmentById(message.data.payload);
+      }
+
+      // If not found by ID and we have metadata, try to find by filename
+      if (!attachmentPart && attachmentMetadata) {
+        this.logger.debug(
+          `Attachment ID ${attachmentId} not found in message ${messageId}, trying to find by filename: ${attachmentMetadata.filename}`,
+        );
+        if (message.data.payload) {
+          findAttachmentByFilename(message.data.payload);
+        }
+        if (attachmentPart) {
+          this.logger.log(
+            `Found attachment by filename fallback: ${attachmentMetadata.filename} (new ID: ${attachmentPart.body?.attachmentId})`,
+          );
+        }
       }
 
       if (!attachmentPart) {
@@ -2163,15 +2210,25 @@ export class GmailProvider implements EmailProvider {
         );
       }
 
-      // Get the attachment data
+      // Use the current attachment ID from the part (may be different from the stored ID)
+      const currentAttachmentId = attachmentPart.body?.attachmentId;
+      if (!currentAttachmentId) {
+        throw new Error(
+          `No attachment ID found for attachment in message ${messageId}`,
+        );
+      }
+
+      // Get the attachment data using the current attachment ID
       const attachmentResponse = await gmail.users.messages.attachments.get({
         userId: "me",
         messageId,
-        id: attachmentId,
+        id: currentAttachmentId,
       });
 
       if (!attachmentResponse.data.data) {
-        throw new Error(`No data returned for attachment ${attachmentId}`);
+        throw new Error(
+          `No data returned for attachment ${currentAttachmentId}`,
+        );
       }
 
       // Decode base64 attachment data

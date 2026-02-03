@@ -17,6 +17,9 @@ COPY . .
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN npm run build
 
+# Prune devDependencies to reduce image size
+RUN npm prune --omit=dev
+
 # Production stage
 FROM node:lts
 
@@ -30,9 +33,6 @@ COPY package*.json ./
 # which can cause network timeouts (ECONNRESET) during Docker builds
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
-
-# Prune devDependencies to reduce image size
-RUN npm prune --omit=dev
 
 # Expose port
 EXPOSE 3001

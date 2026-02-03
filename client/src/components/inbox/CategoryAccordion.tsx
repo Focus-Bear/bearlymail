@@ -185,9 +185,9 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
               style={{
                 padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
                 borderRadius: theme.borderRadius.sm,
-                border: `1px solid ${theme.colors.border.medium}`,
+                border: 'none',
                 backgroundColor: isReanalyseHovered ? theme.colors.interactive.hover : 'transparent',
-                color: isReanalysingOther ? theme.colors.text.disabled : theme.colors.text.secondary,
+                color: isReanalysingOther ? theme.colors.text.disabled : theme.colors.text.tertiary,
                 fontSize: theme.typography.fontSize.sm,
                 cursor: isReanalysingOther ? 'not-allowed' : 'pointer',
                 transition: theme.transitions.fast,
@@ -214,9 +214,9 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
             style={{
               padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
               borderRadius: theme.borderRadius.sm,
-              border: `1px solid ${theme.colors.border.medium}`,
+              border: 'none',
               backgroundColor: allSelected ? theme.colors.primary.subtle : 'transparent',
-              color: theme.colors.text.secondary,
+              color: theme.colors.text.tertiary,
               fontSize: theme.typography.fontSize.sm,
               cursor: 'pointer',
               transition: theme.transitions.fast,

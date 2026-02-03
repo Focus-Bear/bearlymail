@@ -217,7 +217,7 @@ export const InboxContent: React.FC<InboxContentProps> = ({
             return 1;
           })(),
           overflowY: 'auto', 
-          padding: `${theme.spacing.md} ${theme.spacing['2xl']} ${theme.spacing['2xl']}`,
+          padding: `${theme.spacing.md} ${theme.spacing.lg} ${theme.spacing.lg}`,
           transition: splitView.isResizing ? 'none' : 'flex 0.3s ease',
           borderRight: splitView.selectedEmailId && !splitView.panelExpanded && !splitView.isMobile ? `1px solid ${theme.colors.border.light}` : 'none',
         }}

@@ -229,8 +229,8 @@ export class BearlyMailStack extends cdk.Stack {
     // Worker Service (Background Jobs)
     // ============================================
     const workerTaskDefinition = new ecs.FargateTaskDefinition(this, 'WorkerTaskDefinition', {
-      cpu: props?.workerTaskCpu || 256,
-      memoryLimitMiB: props?.workerTaskMemory || 512,
+      cpu: props?.workerTaskCpu || 512,
+      memoryLimitMiB: props?.workerTaskMemory || 1024,
       executionRole: taskExecutionRole,
       taskRole: taskRole,
     });
@@ -247,6 +247,7 @@ export class BearlyMailStack extends cdk.Stack {
       }),
       environment: {
         NODE_ENV: 'production',
+        WORKER_PROCESSES: '1', // Single process in container to avoid OOM (each worker loads full NestJS + TypeORM + providers)
         DB_HOST: database.instanceEndpoint.hostname,
         DB_PORT: '5432',
         DB_NAME: 'bearlymail',
@@ -347,22 +348,14 @@ export class BearlyMailStack extends cdk.Stack {
     // S3 bucket name must be globally unique and follow naming rules
     // Using account and region to ensure uniqueness
     const frontendBucket = new s3.Bucket(this, 'FrontendBucket', {
-      // Remove explicit bucketName to let CDK generate a unique name
-      // This avoids conflicts and naming issues
       websiteIndexDocument: 'index.html',
       websiteErrorDocument: 'index.html', // SPA: all routes go to index.html
-      publicReadAccess: false, // CloudFront will handle access
+      publicReadAccess: false,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      objectOwnership: s3.ObjectOwnership.BUCKET_OWNER_ENFORCED, // Required for CloudFront OAC
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
     });
-
-    // CloudFront Origin Access Identity
-    const originAccessIdentity = new cloudfront.OriginAccessIdentity(this, 'OAI', {
-      comment: 'OAI for BearlyMail frontend',
-    });
-
-    frontendBucket.grantRead(originAccessIdentity);
 
     // ============================================
     // CloudFront Distribution
@@ -386,10 +379,9 @@ export class BearlyMailStack extends cdk.Stack {
 
       // CloudFront Distribution with custom domain
       distribution = new cloudfront.Distribution(this, 'FrontendDistribution', {
+        defaultRootObject: 'index.html',
         defaultBehavior: {
-          origin: new cloudfrontOrigins.S3Origin(frontendBucket, {
-            originAccessIdentity,
-          }),
+          origin: cloudfrontOrigins.S3BucketOrigin.withOriginAccessControl(frontendBucket),
           viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
           allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
           cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD_OPTIONS,
@@ -400,8 +392,14 @@ export class BearlyMailStack extends cdk.Stack {
         certificate: certificate,
         priceClass: cloudfront.PriceClass.PRICE_CLASS_ALL, // Include all regions for custom domain
         comment: 'BearlyMail frontend distribution',
-        // SPA: redirect all 404s to index.html
+        // SPA: serve index.html for 403/404
         errorResponses: [
+          {
+            httpStatus: 403,
+            responseHttpStatus: 200,
+            responsePagePath: '/index.html',
+            ttl: cdk.Duration.seconds(0),
+          },
           {
             httpStatus: 404,
             responseHttpStatus: 200,
@@ -433,10 +431,9 @@ export class BearlyMailStack extends cdk.Stack {
     } else {
       // CloudFront Distribution without custom domain
       distribution = new cloudfront.Distribution(this, 'FrontendDistribution', {
+        defaultRootObject: 'index.html',
         defaultBehavior: {
-          origin: new cloudfrontOrigins.S3Origin(frontendBucket, {
-            originAccessIdentity,
-          }),
+          origin: cloudfrontOrigins.S3BucketOrigin.withOriginAccessControl(frontendBucket),
           viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
           allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
           cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD_OPTIONS,
@@ -445,8 +442,14 @@ export class BearlyMailStack extends cdk.Stack {
         },
         priceClass: cloudfront.PriceClass.PRICE_CLASS_100, // Use only North America and Europe
         comment: 'BearlyMail frontend distribution',
-        // SPA: redirect all 404s to index.html
+        // SPA: serve index.html for 403/404
         errorResponses: [
+          {
+            httpStatus: 403,
+            responseHttpStatus: 200,
+            responsePagePath: '/index.html',
+            ttl: cdk.Duration.seconds(0),
+          },
           {
             httpStatus: 404,
             responseHttpStatus: 200,
@@ -457,18 +460,15 @@ export class BearlyMailStack extends cdk.Stack {
       });
     }
 
-    // S3 Deployment (for CI/CD - you'll deploy the built React app here)
-    // Note: This will fail if ../client/build doesn't exist
+    // S3 Deployment: deploy the built React app to the frontend bucket
     // Build the frontend first: cd client && npm run build
-    // Or comment this out and deploy manually
-    // 
-    // Commented out to avoid path issues - deploy manually or via CI/CD
-    // new s3deploy.BucketDeployment(this, 'FrontendDeployment', {
-    //   sources: [s3deploy.Source.asset('../client/build')],
-    //   destinationBucket: frontendBucket,
-    //   distribution,
-    //   distributionPaths: ['/*'],
-    // });
+    // Then cdk deploy BearlyMailStack (or deploy manually: aws s3 sync client/build s3://<bucket> --delete)
+    new s3deploy.BucketDeployment(this, 'FrontendDeployment', {
+      sources: [s3deploy.Source.asset('../client/build')],
+      destinationBucket: frontendBucket,
+      distribution,
+      distributionPaths: ['/*'],
+    });
 
     // ============================================
     // Outputs

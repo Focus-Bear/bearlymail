@@ -94,6 +94,17 @@ export class BearlyMailNetworkingStack extends cdk.Stack {
 
       certificateArn = certificateCustomResource.getAttString('CertificateArn');
       this.certificateArn = certificateArn;
+
+      // API domain and certificate (same region as ALB, for ALB HTTPS)
+      // e.g. app.bearlymail.com -> api.app.bearlymail.com
+      const apiDomain = `api.${domainName}`;
+      this.apiDomainName = apiDomain;
+
+      const apiCertificate = new certificatemanager.Certificate(this, 'ApiCertificate', {
+        domainName: apiDomain,
+        validation: certificatemanager.CertificateValidation.fromDns(hostedZone),
+      });
+      this.apiCertificateArn = apiCertificate.certificateArn;
     }
 
     // ============================================

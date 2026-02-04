@@ -113,8 +113,8 @@ interface EmailDetailState {
 
 // eslint-disable-next-line max-lines-per-function -- Email detail operations hook requires handling multiple email operations, state management, and API calls
 interface EmailDetailOperationsOptions {
-  onArchiveComplete?: () => void;
-  onSnoozeComplete?: () => void;
+  onArchiveComplete?: (emailId: string) => void;
+  onSnoozeComplete?: (emailId: string) => void;
 }
 
 export function useEmailDetailOperations(id: string | undefined, state: EmailDetailState, options: EmailDetailOperationsOptions = {}) {
@@ -805,8 +805,8 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
         dispatch(removeOptimisticArchive(id));
       }
     }
-    if (options.onArchiveComplete) {
-      options.onArchiveComplete();
+    if (options.onArchiveComplete && id) {
+      options.onArchiveComplete(id);
     } else {
       navigate('/inbox');
     }
@@ -829,7 +829,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
       }
     }
     if (options.onSnoozeComplete) {
-      options.onSnoozeComplete();
+      options.onSnoozeComplete(id);
     } else {
       navigate('/inbox');
     }
@@ -935,54 +935,27 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
   }, [setDisputing, setDisputeResult]);
 
   const handleArchive = useCallback(async () => {
-    // ULTRA-VISIBLE DEBUG: This should ALWAYS show in console
-    console.log('%c[ARCHIVE DEBUG] handleArchive called!', 'background: red; color: white; font-size: 20px;');
-    console.log('%c[ARCHIVE DEBUG] Email ID:', 'background: blue; color: white; font-size: 16px;', id);
-    console.log('%c[ARCHIVE DEBUG] Has onArchiveComplete:', 'background: green; color: white; font-size: 16px;', !!options.onArchiveComplete);
-
     if (!id) return;
-    console.log('[EmailDetailArchive] Starting archive for emailId:', id);
     captureEvent('email_archive_clicked', { email_id: id });
 
-    // Find the email in Redux store
     const emailToArchive = emails.find(e => e.id === id);
-    console.log('[EmailDetailArchive] Email in Redux store:', emailToArchive ? { id: emailToArchive.id, subject: emailToArchive.subject } : 'NOT FOUND');
-    console.log('[EmailDetailArchive] Total emails in Redux:', emails.length);
-    if (!emailToArchive) {
-      console.warn('[EmailDetailArchive] Email not found in Redux store:', id);
-      // Still try to archive via API even if not in store
-    }
 
-    // Optimistic update - remove from list immediately and add to optimistic archive set
     if (emailToArchive) {
-      console.log('[EmailDetailArchive] Dispatching removeEmail and addOptimisticArchive for:', id);
       dispatch(removeEmail(id));
       dispatch(addOptimisticArchive(id));
-      console.log('[EmailDetailArchive] Optimistic update dispatched');
     }
 
-    // If we have an onArchiveComplete callback (split view mode), use it instead of navigating
     if (options.onArchiveComplete) {
-      console.log('[EmailDetailArchive] Split view mode - has onArchiveComplete callback');
       try {
-        // Await the archive API call before calling onArchiveComplete
-        // This ensures the email is archived before we try to open the next one
-        console.log('[EmailDetailArchive] Calling archive API...');
         await axios.put(`${API_URL}/emails/${id}/archive`);
-        console.log('[EmailDetailArchive] Archive API successful, calling onArchiveComplete');
-        options.onArchiveComplete();
-        console.log('[EmailDetailArchive] onArchiveComplete called');
+        options.onArchiveComplete(id);
       } catch (error) {
-        console.error('[EmailDetailArchive] Error archiving email:', error);
-        // Revert optimistic update on error
+        console.error('Error archiving email:', error);
         if (emailToArchive) {
-          console.log('[EmailDetailArchive] Reverting optimistic update due to error');
           dispatch(restoreEmail(emailToArchive));
           dispatch(removeOptimisticArchive(id));
         }
-        // Still call onArchiveComplete even if archive fails, to allow navigation
-        console.log('[EmailDetailArchive] Calling onArchiveComplete after error');
-        options.onArchiveComplete();
+        options.onArchiveComplete(id);
       }
     } else {
       await triggerAnimation(ANIMATION_TYPE_ARCHIVE);
@@ -990,7 +963,6 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
       axios.put(`${API_URL}/emails/${id}/archive`)
         .catch((error) => {
           console.error('Error archiving email:', error);
-          // Revert optimistic update on error
           if (emailToArchive) {
             dispatch(restoreEmail(emailToArchive));
             dispatch(removeOptimisticArchive(id));
@@ -1022,14 +994,14 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     if (options.onSnoozeComplete) {
       try {
         await axios.post(`${API_URL}/snooze/${id}`, { duration });
-        options.onSnoozeComplete();
+        options.onSnoozeComplete(id);
       } catch (error) {
         console.error('Error snoozing email:', error);
         if (emailToSnooze) {
           dispatch(restoreEmail(emailToSnooze));
           dispatch(removeOptimisticSnooze(id));
         }
-        options.onSnoozeComplete();
+        options.onSnoozeComplete(id);
       }
     } else {
       navigate('/inbox');

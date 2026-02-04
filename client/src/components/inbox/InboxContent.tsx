@@ -340,14 +340,14 @@ export const InboxContent: React.FC<InboxContentProps> = ({
           emailDetailRef={emailDetailRef}
           onTogglePanel={splitView.togglePanel}
           onClose={splitView.closeEmail}
-          onArchiveComplete={() => {
-            if (onSplitViewArchive && splitView.selectedEmailId) {
-              onSplitViewArchive(splitView.selectedEmailId);
+          onArchiveComplete={(emailId) => {
+            if (onSplitViewArchive && emailId) {
+              onSplitViewArchive(emailId);
             }
           }}
-          onSnoozeComplete={() => {
-            if (onSplitViewSnooze && splitView.selectedEmailId) {
-              onSplitViewSnooze(splitView.selectedEmailId);
+          onSnoozeComplete={(emailId) => {
+            if (onSplitViewSnooze && emailId) {
+              onSplitViewSnooze(emailId);
             }
           }}
           mode={mode}

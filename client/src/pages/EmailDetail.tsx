@@ -27,8 +27,8 @@ import { ACTION_TYPE_CUSTOM, SUMMARY_TYPE_CUSTOM, SUMMARY_TYPE_CUSTOM_PREFIX } f
 interface EmailDetailProps {
   emailId?: string;
   compactMode?: boolean; // When true, renders without sidebar, overlay, and full-page layout for use in split view
-  onArchiveComplete?: () => void; // Called after archive completes in split view mode
-  onSnoozeComplete?: () => void; // Called after snooze completes in split view mode
+  onArchiveComplete?: (emailId: string) => void; // Called after archive completes in split view mode
+  onSnoozeComplete?: (emailId: string) => void; // Called after snooze completes in split view mode
   autoGenerateReplies?: boolean; // When true, automatically generates reply drafts when email loads
   onCorrespondentChange?: (correspondent: { name: string; email: string }) => void; // Called when correspondent info is available
 }

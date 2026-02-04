@@ -21,8 +21,8 @@ interface SplitViewPanelProps {
   emailDetailRef: RefObject<HTMLDivElement | null>;
   onTogglePanel: () => void;
   onClose: () => void;
-  onArchiveComplete?: () => void;
-  onSnoozeComplete?: () => void;
+  onArchiveComplete?: (emailId: string) => void;
+  onSnoozeComplete?: (emailId: string) => void;
   mode?: InboxMode;
 }
 

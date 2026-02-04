@@ -185,6 +185,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
   } = state;
 
   const summaryAbortControllerRef = useRef<AbortController | null>(null);
+  const draftAbortControllerRef = useRef<AbortController | null>(null);
   const previousIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -192,6 +193,10 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
       if (summaryAbortControllerRef.current) {
         summaryAbortControllerRef.current.abort();
         summaryAbortControllerRef.current = null;
+      }
+      if (draftAbortControllerRef.current) {
+        draftAbortControllerRef.current.abort();
+        draftAbortControllerRef.current = null;
       }
     }
     previousIdRef.current = id;
@@ -669,8 +674,16 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     // Ensure email data matches the current ID to prevent using stale data
     // This can happen when switching threads - id updates before email state
     if (email.id !== id) {
+      console.warn('[handleGenerateDraft] Skipping - email.id mismatch', { emailId: email.id, propId: id });
       return;
     }
+
+    // Cancel any pending draft generation request
+    if (draftAbortControllerRef.current) {
+      draftAbortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    draftAbortControllerRef.current = controller;
 
     // Track which email we're generating for to prevent race conditions
     const currentEmailId = id;
@@ -685,11 +698,11 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
           subject: email.subject,
           body: email.body,
         }
-      });
+      }, { signal: controller.signal });
 
       // Only update state if we're still looking at the same email
       // This prevents showing suggestions from a previous email after switching
-      if (draftGenerationEmailIdRef.current !== currentEmailId) {
+      if (draftGenerationEmailIdRef.current !== currentEmailId || controller.signal.aborted) {
         return;
       }
 
@@ -711,6 +724,10 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
         setSelectedReplyOption(0);
       }
     } catch (error) {
+      // Ignore cancelled requests
+      if (axios.isCancel(error)) {
+        return;
+      }
       // Only update state if we're still looking at the same email
       if (draftGenerationEmailIdRef.current !== currentEmailId) {
         return;
@@ -721,7 +738,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
       setSelectedReplyOption(0);
     } finally {
       // Only update loading state if we're still looking at the same email
-      if (draftGenerationEmailIdRef.current === currentEmailId) {
+      if (draftGenerationEmailIdRef.current === currentEmailId && !controller.signal.aborted) {
         setLoadingReplies(false);
       }
     }

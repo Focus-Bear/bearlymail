@@ -479,6 +479,9 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
               onDispute={disputeToneCheck}
               disputing={disputing}
               disputeResult={disputeResult}
+              currentEmailId={id}
+              currentEmailObjectId={email?.id}
+              currentEmailThreadId={(email as any)?.emailThreadId}
             />
           </div>
         )}

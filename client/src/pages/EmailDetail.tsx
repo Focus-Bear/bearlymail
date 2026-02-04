@@ -425,6 +425,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
           onDelete={handleDelete}
           onSetStarCount={handleSetStarCount}
           onBlockSender={handleBlockSender}
+          onSnooze={handleSnooze}
           onRespondToInvitation={handleRespondToInvitation}
           hideActionButtons={compactMode}
         />

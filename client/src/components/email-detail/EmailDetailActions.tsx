@@ -1,10 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
 import { QuickActionsSection } from 'components/email-detail/QuickActionsSection';
 import { CalendarInviteActions } from 'components/email-detail/CalendarInviteActions';
-import { EMOJI_REPLY, EMOJI_FORWARD, EMOJI_ARCHIVE, EMOJI_BLOCK, EMOJI_LINK, EMOJI_DELETE, EMOJI_STAR } from 'constants/emojis';
+import { SnoozeInputForm } from 'components/inbox/actions/SnoozeInputForm';
+import { EMOJI_REPLY, EMOJI_FORWARD, EMOJI_ARCHIVE, EMOJI_BLOCK, EMOJI_LINK, EMOJI_DELETE, EMOJI_STAR, EMOJI_CLOCK } from 'constants/emojis';
 import { OPACITY_DISABLED } from 'constants/numbers';
 import { REPLY_MODE_REPLY, REPLY_MODE_FORWARD } from 'constants/strings';
 import { extractUnsubscribeLink } from 'utils/unsubscribeUtils';
@@ -26,6 +27,7 @@ interface EmailDetailActionsProps {
   onDelete: () => void;
   onSetStarCount: (emailId: string, starCount: number) => Promise<void>;
   onBlockSender: (emailId: string) => void;
+  onSnooze: (duration: string) => void;
   onRespondToInvitation?: (emailId: string, response: 'accepted' | 'declined' | 'tentative') => Promise<void>;
   hideActionButtons?: boolean; // Hide the action buttons bar (used in split view where actions are in header)
 }
@@ -45,10 +47,13 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
   onDelete,
   onSetStarCount,
   onBlockSender,
+  onSnooze,
   onRespondToInvitation,
   hideActionButtons = false,
 }) => {
   const { t } = useTranslation();
+  const [showSnoozeInput, setShowSnoozeInput] = useState(false);
+  const [snoozeValue, setSnoozeValue] = useState('');
   
   const emailWithStarCount = email as any;
   const starCount = emailWithStarCount?.starCount ?? 0;
@@ -228,6 +233,31 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
             {t('emailDetail.archive')}
           </button>
 
+          <button
+            onClick={() => {
+              captureEvent('email_snooze_clicked', { email_id: email.id });
+              setShowSnoozeInput(!showSnoozeInput);
+            }}
+            title={t('emailDetail.snooze')}
+            style={{
+              padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+              backgroundColor: showSnoozeInput ? theme.colors.primary.light : 'transparent',
+              color: theme.colors.text.secondary,
+              border: `1px solid ${showSnoozeInput ? theme.colors.primary.main : theme.colors.border.medium}`,
+              borderRadius: theme.borderRadius.md,
+              fontWeight: theme.typography.fontWeight.medium,
+              cursor: 'pointer',
+              fontSize: theme.typography.fontSize.sm,
+              display: 'flex',
+              alignItems: 'center',
+              gap: theme.spacing.xs,
+            }}
+          >
+            {/* eslint-disable-next-line i18next/no-literal-string */}
+            <span>{EMOJI_CLOCK}</span>
+            {t('emailDetail.snooze')}
+          </button>
+
           {unsubscribeLink ? (
             <button
               onClick={handleUnsubscribeClick}
@@ -277,6 +307,30 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
           )}
 
         </div>
+
+        {/* Snooze input row - shown below main actions when snooze is active */}
+        {showSnoozeInput && (
+          <div style={{
+            borderTop: `1px solid ${theme.colors.border.light}`,
+            paddingTop: theme.spacing.sm,
+            marginTop: theme.spacing.sm,
+          }}>
+            <SnoozeInputForm
+              email={email}
+              snoozeValue={snoozeValue}
+              onValueChange={setSnoozeValue}
+              onConfirm={() => {
+                onSnooze(snoozeValue);
+                setShowSnoozeInput(false);
+                setSnoozeValue('');
+              }}
+              onCancel={() => {
+                setShowSnoozeInput(false);
+                setSnoozeValue('');
+              }}
+            />
+          </div>
+        )}
       </div>
       )}
     </div>

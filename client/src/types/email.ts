@@ -28,6 +28,8 @@ export interface Email {
   threadId: string;
   from: string;
   fromName?: string;
+  to?: string;
+  cc?: string;
   subject: string;
   body?: string;
   htmlBody?: string; // HTML content of the email (may not be available in list view for performance)

@@ -711,6 +711,8 @@ export class GmailProvider implements EmailProvider {
                       subject: rawEmail.subject,
                       from: rawEmail.from,
                       fromName: rawEmail.fromName,
+                      to: rawEmail.to,
+                      cc: rawEmail.cc,
                       body: rawEmail.body,
                       htmlBody: rawEmail.htmlBody,
                       // Use thread-level star count
@@ -1849,6 +1851,12 @@ export class GmailProvider implements EmailProvider {
     const from =
       headers.find((h: { name?: string; value?: string }) => h.name === "From")
         ?.value || "";
+    const to =
+      headers.find((h: { name?: string; value?: string }) => h.name === "To")
+        ?.value || undefined;
+    const cc =
+      headers.find((h: { name?: string; value?: string }) => h.name === "Cc")
+        ?.value || undefined;
     const labelIds = messageData.labelIds || [];
     // Convert Gmail STARRED label to starCount
     // STARRED = 3 stars (high importance)
@@ -1871,6 +1879,8 @@ export class GmailProvider implements EmailProvider {
       subject,
       from: fromEmail,
       fromName,
+      to,
+      cc,
       body,
       htmlBody,
       starCount,

@@ -20,6 +20,8 @@ export interface RawEmailMessage {
   subject: string;
   from: string;
   fromName?: string;
+  to?: string;
+  cc?: string;
   senderJobTitle?: string;
   body: string;
   htmlBody?: string;

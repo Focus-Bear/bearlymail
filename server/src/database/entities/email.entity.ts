@@ -58,6 +58,12 @@ export class Email {
   @Column({ nullable: true, transformer: encryptedColumnTransformer })
   senderJobTitle: string;
 
+  @Column({ nullable: true, transformer: encryptedColumnTransformer })
+  to: string;
+
+  @Column({ nullable: true, transformer: encryptedColumnTransformer })
+  cc: string;
+
   @Column({ transformer: encryptedColumnTransformer })
   subject: string;
 

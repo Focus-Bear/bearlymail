@@ -726,39 +726,43 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     }
   }, [id, email, setLoadingReplies, setReplyOptions, setDraft, setSelectedReplyOption]);
 
-  // eslint-disable-next-line no-restricted-syntax -- Type parameter must remain literal type for TypeScript compatibility
-  const handleOpenReplyComposer = useCallback((mode: 'reply' | 'replyAll') => {
-    captureEvent('reply_button_clicked', { email_id: id, reply_type: mode });
-    setReplyMode(mode);
-    setShowReplyComposer(true);
-    setToneCheckResult(null);
-    setReplyCc('');
-    setReplyBcc('');
-    setShowCc(false);
-    setShowBcc(false);
-    if (email) {
-      if (mode === REPLY_MODE_REPLY_ALL) {
-        const recipients = [email.from];
-        setReplyRecipients(recipients.join(', '));
-        // Auto-populate CC with original CC recipients if available
-        if (email.cc) {
-          setReplyCc(email.cc);
-          setShowCc(true);
+    // eslint-disable-next-line no-restricted-syntax -- Type parameter must remain literal type for TypeScript compatibility
+    const handleOpenReplyComposer = useCallback((mode: 'reply' | 'replyAll') => {
+      captureEvent('reply_button_clicked', { email_id: id, reply_type: mode });
+      setReplyMode(mode);
+      setShowReplyComposer(true);
+      setToneCheckResult(null);
+      setReplyCc('');
+      setReplyBcc('');
+      setShowCc(false);
+      setShowBcc(false);
+      if (email) {
+        if (mode === REPLY_MODE_REPLY_ALL) {
+          const recipients: string[] = [email.from];
+          if (email.to) {
+            const toRecipients = email.to.split(',').map(r => r.trim()).filter(r => r);
+            recipients.push(...toRecipients);
+          }
+          const uniqueRecipients = [...new Set(recipients)];
+          setReplyRecipients(uniqueRecipients.join(', '));
+          if (email.cc) {
+            setReplyCc(email.cc);
+            setShowCc(true);
+          }
+        } else {
+          setReplyRecipients(email.from);
         }
-      } else {
-        setReplyRecipients(email.from);
       }
-    }
-    // Only generate suggestions if we don't already have them (they may have been pre-generated in background)
-    // Also don't clear draft if we have pre-generated suggestions
-    if (!replyOptions || replyOptions.length === 0) {
-      setDraft('');
-      handleGenerateDraft();
-    } else if (replyOptions.length > 0 && !draft) {
-      // If we have suggestions but no draft selected, select the first one
-      setDraft(replyOptions[0].text);
-    }
-  }, [id, email, draft, replyOptions, setReplyMode, setShowReplyComposer, setDraft, setToneCheckResult, setReplyRecipients, setReplyCc, setReplyBcc, setShowCc, setShowBcc, handleGenerateDraft]);
+      // Only generate suggestions if we don't already have them (they may have been pre-generated in background)
+      // Also don't clear draft if we have pre-generated suggestions
+      if (!replyOptions || replyOptions.length === 0) {
+        setDraft('');
+        handleGenerateDraft();
+      } else if (replyOptions.length > 0 && !draft) {
+        // If we have suggestions but no draft selected, select the first one
+        setDraft(replyOptions[0].text);
+      }
+    }, [id, email, draft, replyOptions, setReplyMode, setShowReplyComposer, setDraft, setToneCheckResult, setReplyRecipients, setReplyCc, setReplyBcc, setShowCc, setShowBcc, handleGenerateDraft]);
 
   const performArchiveAfterReply = useCallback(async () => {
     if (!id) return;

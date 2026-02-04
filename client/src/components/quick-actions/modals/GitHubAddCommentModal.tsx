@@ -9,7 +9,7 @@ import { ModalFormActions } from 'components/modal/ModalFormActions';
 import { IssueInfoDisplay } from 'components/quick-actions/modals/github/IssueInfoDisplay';
 import { CommentTextarea } from 'components/quick-actions/modals/github/CommentTextarea';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from 'config/api';
 
 interface GitHubAddCommentModalProps {
   issueInfo: {

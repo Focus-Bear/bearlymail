@@ -6,7 +6,7 @@ import { INPUT_WIDTH_PX } from 'constants/numbers';
 import { DeliveryDaysSelector } from 'components/settings/email-delivery/DeliveryDaysSelector';
 import { DeliveryTimesManager } from 'components/settings/email-delivery/DeliveryTimesManager';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from 'config/api';
 
 interface BatchSchedule {
   deliveryDays: number[];

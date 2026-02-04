@@ -7,7 +7,7 @@ import { ModalContent } from 'components/modal/ModalContent';
 import { CalendarModalHeader } from 'components/quick-actions/modals/CalendarModalHeader';
 import { CalendarEventsList } from 'components/quick-actions/modals/CalendarEventsList';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from 'config/api';
 
 interface CalendarFindEventsModalProps {
   attendeeEmail: string;

@@ -91,7 +91,6 @@ export const InboxModals: React.FC<InboxModalsProps> = ({
             if (modals.priorityOverrideModal?.context === 'archive') {
               try {
                 const axios = (await import('axios')).default;
-                const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
                 await axios.put(`${API_URL}/emails/${modals.priorityOverrideModal.emailId}/archive`);
               } catch (error) {
                 console.error('Error archiving email after override:', error);

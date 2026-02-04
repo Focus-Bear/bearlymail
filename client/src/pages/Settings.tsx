@@ -14,7 +14,7 @@ import { AutoResponderSection } from 'components/settings/auto-responder';
 import { useSettingsData } from 'hooks/useSettingsData';
 import { useAutoResponder } from 'hooks/useAutoResponder';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from 'config/api';
 
 const Settings: React.FC = () => {
   const { user, logout, refreshUser } = useAuth();

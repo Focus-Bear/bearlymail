@@ -4,7 +4,7 @@ import { theme } from 'theme/theme';
 import { GmailEmptyState } from 'components/settings/email-delivery/GmailEmptyState';
 import { GmailAccountItem } from 'components/settings/email-delivery/GmailAccountItem';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from 'config/api';
 
 interface GoogleAccount {
   id: string;

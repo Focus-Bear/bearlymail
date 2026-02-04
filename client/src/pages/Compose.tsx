@@ -15,7 +15,7 @@ import { FrequentContactsList } from 'components/compose/FrequentContactsList';
 import { ComposeActions } from 'components/compose/ComposeActions';
 import { ComposeMessages } from 'components/compose/ComposeMessages';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from 'config/api';
 
 // eslint-disable-next-line max-lines-per-function -- Compose page component requires handling multiple form fields, validation, and email composition logic
 const Compose: React.FC = () => {

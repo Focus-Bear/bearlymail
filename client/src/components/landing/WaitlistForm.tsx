@@ -7,8 +7,7 @@ import { WaitlistFormContainer } from 'components/landing/WaitlistFormContainer'
 import { WaitlistFormHeader } from 'components/landing/WaitlistFormHeader';
 import { WaitlistFormField } from 'components/landing/WaitlistFormField';
 import { captureEvent } from 'utils/posthog';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from 'config/api';
 
 interface WaitlistFormProps {
   /**

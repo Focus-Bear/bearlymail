@@ -39,6 +39,19 @@ Instead, it will copy all the configuration files and the transitive dependencie
 
 You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
 
+## Environment variables (Vite)
+
+- **`.env`** – Used for local dev. Example: `VITE_API_URL=http://localhost:3005`.
+- **`.env.production`** – Used when you run `npm run build` (production build). Create this file so production builds don’t bake in your local API URL:
+  ```bash
+  # In client/.env.production – leave empty so deployed app uses https://api.${hostname} at runtime
+  VITE_API_URL=
+  ```
+  Vite loads `.env.production` for production builds and it overrides `.env`, so your local `VITE_API_URL` in `.env` is not used in the built app.
+- **`.env.local`** – Local overrides (gitignored). Optional; use if you want dev-only values without changing `.env`.
+
+**Summary:** Use `.env` for local dev (e.g. `VITE_API_URL=http://localhost:3005`). Add `.env.production` with `VITE_API_URL=` so `npm run build` produces an app that uses the correct API URL in production (derived from the host, e.g. `https://api.app.focusbear.io`).
+
 ## Learn More
 
 You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).

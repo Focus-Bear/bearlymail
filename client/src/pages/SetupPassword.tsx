@@ -6,7 +6,7 @@ import { useAuth } from 'contexts/AuthContext';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from 'config/api';
 
 const SetupPassword: React.FC = () => {
   const { t } = useTranslation();

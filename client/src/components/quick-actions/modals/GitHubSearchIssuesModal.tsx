@@ -8,7 +8,7 @@ import { ErrorDisplay } from 'components/modal/ErrorDisplay';
 import { SearchIssuesForm } from 'components/quick-actions/modals/github/SearchIssuesForm';
 import { IssueResultsList } from 'components/quick-actions/modals/github/IssueResultsList';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from 'config/api';
 
 interface GitHubSearchIssuesModalProps {
   email: {

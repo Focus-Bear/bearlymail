@@ -6,7 +6,7 @@ import { ModalBackdrop, ModalContent, ModalHeader, ModalFooter } from 'component
 import { UrgencyScoreInput } from 'components/priority/override/UrgencyScoreInput';
 import { MAX_URGENCY_SCORE, MAX_PERCENTAGE } from 'constants/numbers';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from 'config/api';
 
 interface UrgencyOverrideModalProps {
   threadId: string;

@@ -9,7 +9,7 @@ import { CalendarModalHeader } from 'components/quick-actions/modals/CalendarMod
 import { CalendarInviteForm } from 'components/quick-actions/modals/CalendarInviteForm';
 import { CalendarInviteActions } from 'components/quick-actions/modals/CalendarInviteActions';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from 'config/api';
 
 interface CalendarCreateInviteModalProps {
   email: {

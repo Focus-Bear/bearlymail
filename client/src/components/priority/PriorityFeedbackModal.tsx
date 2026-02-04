@@ -7,7 +7,7 @@ import { ModalContent } from 'components/modal/ModalContent';
 import { PriorityFeedbackForm } from 'components/priority/feedback/PriorityFeedbackForm';
 import { PriorityFeedbackActions } from 'components/priority/feedback/PriorityFeedbackActions';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from 'config/api';
 
 interface PriorityFeedbackModalProps {
   emailId: string;

@@ -6,7 +6,7 @@ import { ModalBackdrop, ModalContent, ModalHeader, ModalFooter } from 'component
 import { ReasonTypeSelector } from 'components/priority/override/ReasonTypeSelector';
 import { OverrideReasonType } from 'components/priority/types';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from 'config/api';
 
 interface PriorityOverrideModalProps {
   emailId: string;

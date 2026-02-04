@@ -9,7 +9,7 @@ import { BookingSuccessState } from 'components/booking/BookingSuccessState';
 import { SlotSelection } from 'components/booking/SlotSelection';
 import { BookingForm } from 'components/booking/BookingForm';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from 'config/api';
 
 interface TimeSlot {
   start: string;

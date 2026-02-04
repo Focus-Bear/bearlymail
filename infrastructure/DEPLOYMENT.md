@@ -109,7 +109,50 @@ openssl rand -base64 32
 
 ## Run Database Migrations
 
-After secrets are configured and the application stack is deployed:
+After secrets are configured and the application stack is deployed, use the dedicated migration ECS task to run migrations. This task is pre-configured with all the necessary database credentials and runs in the same VPC as the database.
+
+### Option 1: Run Migration via ECS Task (Recommended for AWS)
+
+**Step 1: Get the network configuration**
+
+First, get the VPC subnet IDs and security group from the AWS Console or CLI:
+```bash
+# Get private subnet IDs (the migration task needs to run in private subnets)
+aws ec2 describe-subnets \
+  --filters "Name=tag:aws-cdk:subnet-type,Values=Private" \
+  --query 'Subnets[*].SubnetId' --output text
+
+# Get the security group ID (use the one associated with the ECS services)
+aws ec2 describe-security-groups \
+  --filters "Name=group-name,Values=*BearlyMail*" \
+  --query 'SecurityGroups[*].GroupId' --output text
+```
+
+**Step 2: Run the migration task**
+```bash
+aws ecs run-task \
+  --cluster BearlyMailCluster \
+  --task-definition BearlyMailMigrationTask \
+  --launch-type FARGATE \
+  --network-configuration "awsvpcConfiguration={subnets=[subnet-xxx,subnet-yyy],securityGroups=[sg-xxx],assignPublicIp=DISABLED}"
+```
+
+**Step 3: Monitor the migration**
+```bash
+# Watch the migration logs
+aws logs tail /ecs/bearlymail/migration --follow
+
+# Or check the task status
+aws ecs describe-tasks \
+  --cluster BearlyMailCluster \
+  --tasks <task-arn-from-run-task-output>
+```
+
+The migration task will automatically exit after completing (or failing). Check the logs to verify migrations ran successfully.
+
+### Option 2: Run Migration Locally (Alternative)
+
+If you have direct database access (e.g., via VPN or bastion host):
 
 ```bash
 # Get database credentials
@@ -179,7 +222,7 @@ aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths "/*"
 ### Updating Database Schema
 
 1. Create migration locally
-2. Deploy to RDS (via migrations or ECS task)
+2. Run migration via ECS task (see "Run Database Migrations" section above)
 3. No need to redeploy database stack unless changing instance type/config
 
 ## Updating the Application
@@ -252,6 +295,9 @@ aws logs tail /ecs/bearlymail/web --follow
 
 # Worker logs
 aws logs tail /ecs/bearlymail/worker --follow
+
+# Migration logs
+aws logs tail /ecs/bearlymail/migration --follow
 ```
 
 ### Check Service Health
@@ -318,9 +364,3 @@ Update the task definition in `lib/bearlymail-stack.ts` and redeploy.
 - Use CloudFront price class 100 (cheapest)
 - Consider Reserved Instances for RDS if long-term
 - Monitor and right-size instances
-
-
-
-
-
-

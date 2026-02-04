@@ -343,6 +343,57 @@ export class BearlyMailStack extends cdk.Stack {
     }));
 
     // ============================================
+    // Migration Task Definition (Run Manually)
+    // ============================================
+    // This task definition is used to run database migrations manually.
+    // It is NOT a long-running service - you run it as a one-off task when needed.
+    //
+    // To run migrations:
+    // aws ecs run-task \
+    //   --cluster BearlyMailCluster \
+    //   --task-definition BearlyMailMigrationTask \
+    //   --launch-type FARGATE \
+    //   --network-configuration "awsvpcConfiguration={subnets=[<private-subnet-ids>],securityGroups=[<security-group-id>],assignPublicIp=DISABLED}"
+    //
+    // You can find the subnet IDs and security group ID in the AWS Console under VPC.
+    const migrationTaskDefinition = new ecs.FargateTaskDefinition(this, 'MigrationTaskDefinition', {
+      family: 'BearlyMailMigrationTask',
+      cpu: 256,
+      memoryLimitMiB: 512,
+      executionRole: taskExecutionRole,
+      taskRole: taskRole,
+    });
+
+    const migrationLogGroup = new logs.LogGroup(this, 'MigrationLogGroup', {
+      logGroupName: '/ecs/bearlymail/migration',
+      retention: logs.RetentionDays.ONE_MONTH,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    migrationTaskDefinition.addContainer('MigrationContainer', {
+      image: ecs.ContainerImage.fromAsset('../server', {
+        file: 'Dockerfile',
+        platform: ecrAssets.Platform.LINUX_AMD64,
+      }),
+      command: ['npm', 'run', 'migration:run'],
+      logging: ecs.LogDrivers.awsLogs({
+        streamPrefix: 'migration',
+        logGroup: migrationLogGroup,
+      }),
+      environment: {
+        NODE_ENV: 'production',
+        DB_HOST: database.instanceEndpoint.hostname,
+        DB_PORT: '5432',
+        DB_NAME: 'bearlymail',
+        DB_SSL: 'true',
+      },
+      secrets: {
+        DB_USERNAME: ecs.Secret.fromSecretsManager(dbSecret, 'username'),
+        DB_PASSWORD: ecs.Secret.fromSecretsManager(dbSecret, 'password'),
+      },
+    });
+
+    // ============================================
     // Frontend: S3 + CloudFront
     // ============================================
     // S3 bucket name must be globally unique and follow naming rules
@@ -497,6 +548,18 @@ export class BearlyMailStack extends cdk.Stack {
       value: frontendBucket.bucketName,
       description: 'Frontend S3 bucket name',
       exportName: 'BearlyMail-Frontend-Bucket',
+    });
+
+    new cdk.CfnOutput(this, 'MigrationTaskDefinitionArn', {
+      value: migrationTaskDefinition.taskDefinitionArn,
+      description: 'Migration task definition ARN (run manually when migrations are needed)',
+      exportName: 'BearlyMail-Migration-Task-ARN',
+    });
+
+    new cdk.CfnOutput(this, 'EcsClusterName', {
+      value: cluster.clusterName,
+      description: 'ECS cluster name',
+      exportName: 'BearlyMail-ECS-Cluster',
     });
   }
 }

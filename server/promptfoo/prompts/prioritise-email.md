@@ -32,8 +32,13 @@ Provide:
    - Evaluate ALL categories before choosing - don't just pick the first one that seems to fit
    - Choose the category that BEST matches the email's primary purpose and content
    - Consider the email's main topic, sender type, and intent when selecting
+   - **Parse category names carefully**: Category names often contain important qualifiers and constraints. Read the FULL category name and understand ALL its criteria:
+     - Exclusion criteria (e.g., "not X", "excluding Y") mean emails matching X or Y should NOT be in this category
+     - Source qualifiers (e.g., "from humans", "from bots", "automated") indicate who the email should be from
+     - Topic qualifiers narrow down what content belongs in the category
+   - **Identify sender type from the sender name**: Determine if the sender is a human, bot, or automated system by examining the sender name. Common indicators of automated/bot senders include brackets like "[bot]", words like "bot", "automation", "integration", "noreply", "notifications", or service names
    - Only use "Other" when the email genuinely doesn't fit any of the defined categories
-7. categoryExplanation: Brief explanation of why you chose this category. If "Other" was selected, explain what type of email this is and why it doesn't fit any of the defined categories (e.g., "Personal correspondence - doesn't fit business categories", "Technical notification - no matching category for system alerts")
+7. categoryExplanation: Explain why you chose this category AND why the other top 2 closest categories were not chosen. Format: "Chose [category] because [reason]. Considered [alternative1] but [why not]. Considered [alternative2] but [why not]."
 8. reasoning: Brief explanation of your analysis
 
 Consider:
@@ -49,10 +54,11 @@ Consider:
 - **Thread information**: {% if threadInfo %}{{threadInfo}}{% else %}No thread information available.{% endif %}
 - **Thread context**: {% if threadContext %}{{threadContext}}
 
-IMPORTANT: If this email is part of a thread, consider ALL messages in the thread when analyzing priority. For example:
+IMPORTANT: If this email is part of a thread, consider ALL messages in the thread when analyzing, but give MORE WEIGHT to the most recent messages:
+- **For categorization**: The most recent email in the thread best represents the current state of the conversation. If a thread started as "customer feedback" but the latest messages show QA testing or resolution, categorize based on the current state, not the original topic.
 - If a critical issue was reported in an earlier message but then resolved in a follow-up reply, adjust the priority accordingly (lower urgency if resolved)
 - If the conversation has evolved (e.g., from urgent to resolved, or from question to answered), reflect this in your analysis
-- Consider the full conversation flow, not just the most recent email
+- Consider the full conversation flow, but prioritize recent context over older messages
 {% else %}This is a standalone email (not part of a thread).{% endif %}
 - **Current date and deadlines**: {% if currentDate %}Today is {{currentDate}}.{% else %}Consider deadlines relative to when the email was sent.{% endif %} If the email mentions deadlines, dates, or time-sensitive requests (e.g., "by Friday", "this side of Christmas", "before end of month"), calculate urgency based on how close the deadline is. Emails with deadlines that are very soon (within 1-2 days) should have high urgency scores (70-90+).
 - **Time since last reply**: If the user should reply and it's been a while since the last reply, increase urgency accordingly.

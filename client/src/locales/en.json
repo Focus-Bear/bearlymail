@@ -515,7 +515,10 @@
     "tooltip": {
       "correctPrioritization": "Correct prioritization",
       "adjustContext": "Adjust context",
-      "learnMore": "Learn more"
+      "learnMore": "Learn more",
+      "hoverToSeeDetails": "Hover to see details",
+      "category": "Category",
+      "showCategoryExplanation": "Show why this category was chosen"
     },
     "override": {
       "title": "Override Priority Score",

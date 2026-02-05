@@ -1126,7 +1126,9 @@
       "adjustContext": "Ajustar el contexto",
       "correctPrioritization": "Priorización correcta",
       "hoverToSeeDetails": "Pase el cursor para ver detalles",
-      "learnMore": "Más información"
+      "learnMore": "Más información",
+      "category": "Categoría",
+      "showCategoryExplanation": "Mostrar por qué se eligió esta categoría"
     },
     "veryLow": "Muy bajo"
   },

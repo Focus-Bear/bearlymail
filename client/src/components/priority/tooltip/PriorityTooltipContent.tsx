@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { PriorityTooltipHeader } from 'components/priority/tooltip/PriorityTooltipHeader';
 import { PriorityTooltipBreakdown } from 'components/priority/tooltip/PriorityTooltipBreakdown';
 import { PriorityTooltipActions } from 'components/priority/tooltip/PriorityTooltipActions';
+import { PriorityTooltipCategory } from 'components/priority/tooltip/PriorityTooltipCategory';
 
 interface PriorityExplanation {
   score: number;
@@ -13,6 +14,8 @@ interface PriorityExplanation {
 interface PriorityTooltipContentProps {
   loadingPriorityExplanation: boolean;
   priorityExplanation: PriorityExplanation | null;
+  category?: string | null;
+  categoryExplanation?: string | null;
   onClose: () => void;
   onProvideFeedback?: () => void;
   onExpedite?: () => void;
@@ -21,6 +24,8 @@ interface PriorityTooltipContentProps {
 export const PriorityTooltipContent: React.FC<PriorityTooltipContentProps> = ({
   loadingPriorityExplanation,
   priorityExplanation,
+  category,
+  categoryExplanation,
   onClose,
   onProvideFeedback,
   onExpedite,
@@ -44,6 +49,12 @@ export const PriorityTooltipContent: React.FC<PriorityTooltipContentProps> = ({
           onClose={onClose}
           onExpedite={onExpedite}
         />
+        {category && (
+          <PriorityTooltipCategory 
+            category={category} 
+            categoryExplanation={categoryExplanation} 
+          />
+        )}
         <PriorityTooltipBreakdown breakdown={priorityExplanation.breakdown || []} onExpedite={onExpedite} />
         <PriorityTooltipActions onProvideFeedback={onProvideFeedback} />
       </div>

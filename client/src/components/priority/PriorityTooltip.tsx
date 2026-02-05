@@ -21,6 +21,8 @@ interface PriorityTooltipProps {
   loadingPriorityExplanation: boolean;
   urgencyScore?: number;
   urgencyExplanation?: string | null;
+  category?: string | null;
+  categoryExplanation?: string | null;
   onClose: () => void;
   onOverrideUrgency?: () => void;
   onProvideFeedback?: () => void;
@@ -34,6 +36,8 @@ export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
   loadingPriorityExplanation,
   urgencyScore,
   urgencyExplanation,
+  category,
+  categoryExplanation,
   onClose,
   onOverrideUrgency,
   onProvideFeedback,
@@ -51,6 +55,8 @@ export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
       <PriorityTooltipContent
         loadingPriorityExplanation={loadingPriorityExplanation}
         priorityExplanation={priorityExplanation}
+        category={category}
+        categoryExplanation={categoryExplanation}
         onClose={onClose}
         onProvideFeedback={onProvideFeedback}
         onExpedite={onExpedite}

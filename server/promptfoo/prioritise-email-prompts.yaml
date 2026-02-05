@@ -95,3 +95,87 @@ tests:
           expectedSentiment: ['negative']
           maxSentimentScore: -0.01
 
+  # Categorization tests - Thread evolution (customer feedback -> QA passed)
+  - description: "Thread evolution: should categorize based on most recent email (QA passed, not customer feedback)"
+    vars:
+      from: "qa-team@company.com"
+      fromName: "QA Team"
+      subject: "Re: Bug report - Login button not working"
+      body: "QA passed! The fix has been verified and the login button is now working correctly in all browsers. Ready for production deployment."
+      emailCategories: |
+        - "Customer Feedback": Bug reports and feature requests from customers
+        - "QA Passed": Items that have passed QA testing and are ready for deployment
+        - "Development": Active development work and code changes
+      threadContext: |
+        [Message 1 from John Customer on Jan 15, 2026]:
+        Subject: Bug report - Login button not working
+        Body: Hi, I'm having trouble with the login button on your website. It doesn't respond when I click it in Chrome. This is very frustrating!
+        
+        ---
+        
+        [Message 2 from Dev Team on Jan 16, 2026]:
+        Subject: Re: Bug report - Login button not working
+        Body: Thanks for reporting this. We've identified the issue and are working on a fix. Will update you once it's resolved.
+        
+        ---
+        
+        [Message 3 from Dev Team on Jan 17, 2026]:
+        Subject: Re: Bug report - Login button not working
+        Body: Fix has been implemented and deployed to staging. Sending to QA for verification.
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          expectedCategory: "QA Passed"
+
+  # Bot detection - should NOT categorize bot emails as "from humans"
+  - description: "Bot detection: devin-ai-integration[bot] should NOT be in 'PRs from humans'"
+    vars:
+      from: "notifications@github.com"
+      fromName: "devin-ai-integration[bot]"
+      subject: "[Focus-Bear/BearlyMail] Pull request opened: Fix login button"
+      body: "devin-ai-integration[bot] opened a pull request in Focus-Bear/BearlyMail. This PR fixes the login button issue reported by customers."
+      emailCategories: |
+        - "PRs from humans (not Devin)": Pull requests created by human developers, excluding automated PRs from Devin
+        - "PRs from Devin": Automated pull requests from Devin AI
+        - "GitHub Notifications": Other GitHub notifications (issues, comments, etc.)
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          excludedCategories: "PRs from humans (not Devin)"
+
+  # Bot detection - GitHub Actions bot
+  - description: "Bot detection: github-actions[bot] should NOT be in human categories"
+    vars:
+      from: "notifications@github.com"
+      fromName: "github-actions[bot]"
+      subject: "[Focus-Bear/BearlyMail] CI Build completed"
+      body: "github-actions[bot] completed the CI build for PR #123. All checks passed."
+      emailCategories: |
+        - "PRs from humans": Pull requests created by human developers
+        - "CI Notifications": Automated CI/CD notifications
+        - "GitHub Notifications": Other GitHub notifications
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          excludedCategories: "PRs from humans"
+
+  # Category exclusion parsing - "excluding newsletters"
+  - description: "Category exclusion: marketing email should NOT be in 'Updates (excluding newsletters)'"
+    vars:
+      from: "marketing@company.com"
+      fromName: "Marketing Team"
+      subject: "Weekly Product Newsletter - New Features!"
+      body: "Check out our latest product updates in this week's newsletter! We've added exciting new features."
+      emailCategories: |
+        - "Updates (excluding newsletters)": Important product updates, but not marketing newsletters
+        - "Newsletters": Marketing newsletters and promotional content
+        - "Other": Anything else
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          expectedCategory: "Newsletters"
+

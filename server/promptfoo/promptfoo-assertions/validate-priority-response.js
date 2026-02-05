@@ -118,6 +118,32 @@ module.exports = (output, context) => {
         throw new Error(`Expected sentimentScore < ${context.config.maxSentimentScore} (more negative), got ${parsed.sentimentScore}`);
       }
     }
+    
+    // Category validation
+    if (context.config.expectedCategory !== undefined) {
+      if (!parsed.category || typeof parsed.category !== 'string') {
+        throw new Error(`Expected category to be a string, but it's missing or invalid`);
+      }
+      const expectedCategories = Array.isArray(context.config.expectedCategory) 
+        ? context.config.expectedCategory 
+        : [context.config.expectedCategory];
+      if (!expectedCategories.includes(parsed.category)) {
+        throw new Error(`Expected category to be one of [${expectedCategories.join(', ')}], got "${parsed.category}"`);
+      }
+    }
+    
+    // Category exclusion validation (ensure category is NOT one of these)
+    if (context.config.excludedCategories !== undefined) {
+      if (!parsed.category || typeof parsed.category !== 'string') {
+        throw new Error(`Expected category to be a string, but it's missing or invalid`);
+      }
+      const excludedCategories = Array.isArray(context.config.excludedCategories) 
+        ? context.config.excludedCategories 
+        : [context.config.excludedCategories];
+      if (excludedCategories.includes(parsed.category)) {
+        throw new Error(`Category should NOT be one of [${excludedCategories.join(', ')}], but got "${parsed.category}"`);
+      }
+    }
   }
   
   return true;

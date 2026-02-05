@@ -27,6 +27,6 @@ jobs:
         working-directory: client
         run: npm ci
 
-      - name: Check for missing translations in locale files
+      - name: Check for missing translations in locale files and code
         working-directory: client
-        run: npm run i18n:check
+        run: npm run check-translations

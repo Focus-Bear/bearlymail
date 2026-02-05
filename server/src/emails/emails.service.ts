@@ -7,6 +7,7 @@ import * as path from "path";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { ActionItem } from "../database/entities/action-item.entity";
+import { CategoryOverride } from "../database/entities/category-override.entity";
 import {
   UserContext,
   ContextKey,
@@ -169,6 +170,8 @@ export class EmailsService {
     private userContextRepository: Repository<UserContext>,
     @InjectRepository(ActionItem)
     private actionItemRepository: Repository<ActionItem>,
+    @InjectRepository(CategoryOverride)
+    private categoryOverrideRepository: Repository<CategoryOverride>,
     private priorityService: PriorityService,
     @Inject("PG_BOSS") private readonly boss: PgBoss,
     @Inject(forwardRef(() => EmailProviderManager))
@@ -2863,5 +2866,58 @@ export class EmailsService {
     Array<{ threadId: string; starCount: number; isArchived: boolean }>
   > {
     return this.emailThreadService.getExistingStarredThreads(userId);
+  }
+
+  /**
+   * Override the category for an email thread
+   */
+  async overrideCategory(
+    userId: string,
+    emailId: string,
+    newCategory: string,
+    reasonText?: string,
+  ): Promise<{ success: boolean; category: string }> {
+    const email = await this.emailRepository.findOne({
+      where: { id: emailId, userId },
+    });
+
+    if (!email || !email.emailThreadId) {
+      throw new Error("Email or thread not found");
+    }
+
+    const thread = await this.emailThreadRepository.findOne({
+      where: { id: email.emailThreadId, userId },
+    });
+
+    if (!thread) {
+      throw new Error("Thread not found");
+    }
+
+    const originalCategory = thread.category;
+
+    // Save the override to the database for AI learning
+    const categoryOverride = this.categoryOverrideRepository.create({
+      emailThreadId: thread.id,
+      userId,
+      originalCategory: originalCategory || null,
+      userCategory: newCategory,
+      reasonText: reasonText || null,
+    });
+    await this.categoryOverrideRepository.save(categoryOverride);
+
+    // Update the thread's category
+    await this.emailThreadRepository.update(
+      { id: thread.id },
+      {
+        category: newCategory,
+        categoryExplanation: `User override: ${reasonText || "No reason provided"}. Original category: ${originalCategory || "None"}`,
+      },
+    );
+
+    this.logger.log(
+      `Category override for thread ${thread.id}: ${originalCategory} -> ${newCategory}`,
+    );
+
+    return { success: true, category: newCategory };
   }
 }

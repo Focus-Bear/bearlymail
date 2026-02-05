@@ -1122,6 +1122,16 @@
       "submit": "Entregar",
       "submitting": "Sumisión..."
     },
+    "categoryOverride": {
+      "title": "Cambiar categoría",
+      "description": "Este correo está actualmente categorizado como \"{{category}}\". Ingrese una nueva categoría para ayudar a mejorar nuestra categorización.",
+      "newCategory": "Nueva categoría",
+      "categoryPlaceholder": "Ingrese el nombre de la nueva categoría...",
+      "reason": "Razón (opcional)",
+      "reasonPlaceholder": "¿Por qué debería este correo estar en una categoría diferente?",
+      "buttonTitle": "Cambiar categoría",
+      "submitError": "No se pudo actualizar la categoría. Por favor inténtalo de nuevo."
+    },
     "tooltip": {
       "adjustContext": "Ajustar el contexto",
       "correctPrioritization": "Priorización correcta",

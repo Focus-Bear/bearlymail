@@ -507,47 +507,6 @@
       "exportError": "Failed to export data. Please try again."
     }
   },
-  "priority": {
-    "high": "High Priority",
-    "medium": "Medium",
-    "low": "Low",
-    "veryLow": "Very Low",
-    "tooltip": {
-      "correctPrioritization": "Correct prioritization",
-      "adjustContext": "Adjust context",
-      "learnMore": "Learn more",
-      "hoverToSeeDetails": "Hover to see details",
-      "category": "Category",
-      "showCategoryExplanation": "Show why this category was chosen"
-    },
-    "override": {
-      "title": "Override Priority Score",
-      "description": "You're changing the priority from {{from}} to {{to}}. Help us learn by telling us why:",
-      "additionalDetails": "Additional details",
-      "placeholder": "Explain why this priority is incorrect...",
-      "submitError": "Failed to submit priority override. Please try again.",
-      "pleaseProvideReason": "Please provide a reason for the override",
-      "currentScore": "Current urgency score: {{score}}/{{max}}",
-      "critical": "(Critical)",
-      "reasonLabel": "Reason",
-      "reasonPlaceholder": "Explain why you're changing the urgency score...",
-      "newScoreLabel": "New urgency score",
-      "urgency": {
-        "critical": "Critical",
-        "high": "High",
-        "moderate": "Moderate",
-        "low": "Low"
-      },
-      "reason": {
-        "wrongSenderPriority": "Wrong sender priority",
-        "wrongUrgency": "Wrong urgency",
-        "topicMismatch": "Topic mismatch",
-        "other": "Other"
-      },
-      "archiveHighPriority": "You're archiving an email that the AI marked as {{priority}} priority (score: {{score}}). We want to improve our priority rules - can you tell us why this email should be archived instead?",
-      "archiveLowPriority": "You're archiving an email that the AI marked as {{priority}} priority (score: {{score}}). We want to improve our priority rules - can you tell us why this email should be archived instead?"
-    }
-  },
   "admin": {
     "title": "Admin",
     "dashboard": {
@@ -1105,7 +1064,9 @@
       "correctPrioritization": "Correct prioritization",
       "adjustContext": "Adjust context",
       "learnMore": "Learn more",
-      "hoverToSeeDetails": "Hover to see details"
+      "hoverToSeeDetails": "Hover to see details",
+      "category": "Category",
+      "showCategoryExplanation": "Show why this category was chosen"
     },
     "override": {
       "title": "Override Priority Score",
@@ -1155,6 +1116,16 @@
       "helpUsLearn": "Help us learn",
       "prediction": "Prediction: {{predicted}}, Actual: {{actual}}",
       "noStars": "No stars"
+    },
+    "categoryOverride": {
+      "title": "Change Category",
+      "description": "This email is currently categorized as \"{{category}}\". Enter a new category to help improve our categorization.",
+      "newCategory": "New Category",
+      "categoryPlaceholder": "Enter new category name...",
+      "reason": "Reason (optional)",
+      "reasonPlaceholder": "Why should this email be in a different category?",
+      "buttonTitle": "Change category",
+      "submitError": "Failed to update category. Please try again."
     }
   },
   "quickActions": {

@@ -414,6 +414,20 @@ export class EmailsController {
     };
   }
 
+  @Post(":id/category-override")
+  async overrideCategory(
+    @Request() req,
+    @Param("id") id: string,
+    @Body() body: { category: string; reason?: string },
+  ) {
+    return this.emailsService.overrideCategory(
+      req.user.userId,
+      id,
+      body.category,
+      body.reason,
+    );
+  }
+
   @Post("force-check")
   async forceCheck(@Request() req) {
     // Add sync job to queue with singletonKey to prevent duplicates

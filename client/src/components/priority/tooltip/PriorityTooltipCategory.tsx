@@ -1,18 +1,24 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { CategoryOverrideModal } from 'components/priority/CategoryOverrideModal';
 
 interface PriorityTooltipCategoryProps {
   category: string;
   categoryExplanation?: string | null;
+  emailId: string;
+  onCategoryOverride?: (newCategory: string) => void;
 }
 
 export const PriorityTooltipCategory: React.FC<PriorityTooltipCategoryProps> = ({
   category,
   categoryExplanation,
+  emailId,
+  onCategoryOverride,
 }) => {
   const { t } = useTranslation();
   const [showExplanation, setShowExplanation] = useState(false);
+  const [showOverrideModal, setShowOverrideModal] = useState(false);
 
   return (
     <div style={{ marginBottom: theme.spacing.sm }}>
@@ -59,6 +65,24 @@ export const PriorityTooltipCategory: React.FC<PriorityTooltipCategoryProps> = (
             {'ℹ️'}
           </button>
         )}
+        <button
+          onClick={() => setShowOverrideModal(true)}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '2px',
+            fontSize: theme.typography.fontSize.sm,
+            color: theme.colors.text.tertiary,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          title={t('priority.categoryOverride.buttonTitle')}
+        >
+          {/* eslint-disable-next-line i18next/no-literal-string */}
+          {'✏️'}
+        </button>
       </div>
       {showExplanation && categoryExplanation && (
         <div style={{
@@ -72,6 +96,14 @@ export const PriorityTooltipCategory: React.FC<PriorityTooltipCategoryProps> = (
         }}>
           {categoryExplanation}
         </div>
+      )}
+      {showOverrideModal && (
+        <CategoryOverrideModal
+          emailId={emailId}
+          currentCategory={category}
+          onClose={() => setShowOverrideModal(false)}
+          onSubmitted={onCategoryOverride}
+        />
       )}
     </div>
   );

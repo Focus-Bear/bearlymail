@@ -24,6 +24,7 @@ import { ScanEmail } from "../database/entities/scan-email.entity";
 import { UserContext } from "../database/entities/user-context.entity";
 import { ActionItem } from "../database/entities/action-item.entity";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
+import { CategoryOverride } from "../database/entities/category-override.entity";
 import { PriorityModule } from "../priority/priority.module";
 import { SummarizationModule } from "../summarization/summarization.module";
 import { UsersModule } from "../users/users.module";
@@ -49,6 +50,7 @@ import { SuggestedRepliesModule } from "../suggested-replies/suggested-replies.m
       UserContext,
       ActionItem,
       BatchSchedule,
+      CategoryOverride,
     ]),
     PriorityModule,
     forwardRef(() => SummarizationModule),

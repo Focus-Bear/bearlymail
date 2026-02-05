@@ -17,6 +17,7 @@ export { BlockedSender } from "./blocked-sender.entity";
 export { BlockedKeyword } from "./blocked-keyword.entity";
 export { Waitlist } from "./waitlist.entity";
 export { PriorityOverride } from "./priority-override.entity";
+export { CategoryOverride } from "./category-override.entity";
 export { ContextAnalysis } from "./context-analysis.entity";
 export { TokenUsage } from "./token-usage.entity";
 export { AutoResponseLog } from "./auto-response-log.entity";

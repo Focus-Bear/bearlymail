@@ -57,6 +57,7 @@ export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
         priorityExplanation={priorityExplanation}
         category={category}
         categoryExplanation={categoryExplanation}
+        emailId={emailId}
         onClose={onClose}
         onProvideFeedback={onProvideFeedback}
         onExpedite={onExpedite}

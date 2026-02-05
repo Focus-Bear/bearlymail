@@ -16,9 +16,11 @@ interface PriorityTooltipContentProps {
   priorityExplanation: PriorityExplanation | null;
   category?: string | null;
   categoryExplanation?: string | null;
+  emailId: string;
   onClose: () => void;
   onProvideFeedback?: () => void;
   onExpedite?: () => void;
+  onCategoryOverride?: (newCategory: string) => void;
 }
 
 export const PriorityTooltipContent: React.FC<PriorityTooltipContentProps> = ({
@@ -26,9 +28,11 @@ export const PriorityTooltipContent: React.FC<PriorityTooltipContentProps> = ({
   priorityExplanation,
   category,
   categoryExplanation,
+  emailId,
   onClose,
   onProvideFeedback,
   onExpedite,
+  onCategoryOverride,
 }) => {
   const { t } = useTranslation();
   
@@ -52,7 +56,9 @@ export const PriorityTooltipContent: React.FC<PriorityTooltipContentProps> = ({
         {category && (
           <PriorityTooltipCategory 
             category={category} 
-            categoryExplanation={categoryExplanation} 
+            categoryExplanation={categoryExplanation}
+            emailId={emailId}
+            onCategoryOverride={onCategoryOverride}
           />
         )}
         <PriorityTooltipBreakdown breakdown={priorityExplanation.breakdown || []} onExpedite={onExpedite} />

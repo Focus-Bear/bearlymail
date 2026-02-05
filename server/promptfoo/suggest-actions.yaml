@@ -25,7 +25,13 @@ tests:
       - type: javascript
         value: |
           const text = typeof output === 'string' ? output : JSON.stringify(output);
-          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          // Remove markdown code blocks if present
+          let cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          // Extract JSON object if wrapped in other text
+          const jsonMatch = cleaned.match(/\{[\s\S]*\}/); 
+          if (jsonMatch) {
+            cleaned = jsonMatch[0];
+          }
           try {
             const parsed = JSON.parse(cleaned);
             if (!parsed.actions || !Array.isArray(parsed.actions)) {
@@ -56,7 +62,13 @@ tests:
       - type: javascript
         value: |
           const text = typeof output === 'string' ? output : JSON.stringify(output);
-          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          // Remove markdown code blocks if present
+          let cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          // Extract JSON object if wrapped in other text
+          const jsonMatch = cleaned.match(/\{[\s\S]*\}/); 
+          if (jsonMatch) {
+            cleaned = jsonMatch[0];
+          }
           try {
             const parsed = JSON.parse(cleaned);
             if (!parsed.actions || !Array.isArray(parsed.actions)) {

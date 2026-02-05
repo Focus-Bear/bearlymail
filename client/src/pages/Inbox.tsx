@@ -226,42 +226,40 @@ const Inbox: React.FC = () => {
           onToggleCategory={toggleCategory}
           onUpdateStableCategoryOrder={updateStableCategoryOrder}
           onSplitViewArchive={(archivedEmailId) => {
-            console.log('%c[SPLIT VIEW ARCHIVE] onSplitViewArchive callback triggered!', 'background: cyan; color: black; font-size: 20px;');
-            console.log('[SplitViewArchive] Archived email ID:', archivedEmailId);
-            console.log('[SplitViewArchive] Current selectedEmailIndex:', selectedEmailIndex);
+            // Find the archived email to get its category
+            const archivedEmail = emails.find(e => e.id === archivedEmailId);
+            const archivedCategory = archivedEmail?.category || 'Other';
             
-            // IMPORTANT: Filter out BOTH archived emails AND the just-archived email by ID
-            // The Redux state update may not have propagated yet (stale closure issue)
+            // Filter out archived emails and the just-archived email
             const visibleEmails = emails.filter(e => !e.isArchived && e.id !== archivedEmailId);
-            console.log('[SplitViewArchive] Visible emails (excluding archived):', visibleEmails.length);
-            console.log('[SplitViewArchive] First 5 visible emails:', visibleEmails.slice(0, 5).map(e => ({ id: e.id, subject: e.subject?.substring(0, 50) })));
             
             if (visibleEmails.length === 0) {
-              console.log('[SplitViewArchive] No visible emails, closing split view');
               splitView.closeEmail();
               return;
             }
             
-            // Use the current index as the next index (since we removed the current email)
-            // If we were at the last email, go to the new last one
-            const currentIndex = selectedEmailIndex >= 0 ? selectedEmailIndex : 0;
-            const nextIndex = currentIndex < visibleEmails.length 
-              ? currentIndex 
-              : Math.max(0, visibleEmails.length - 1);
+            // First, try to find the next email in the same category
+            const sameCategoryEmails = visibleEmails.filter(e => (e.category || 'Other') === archivedCategory);
             
-            const nextEmail = visibleEmails[nextIndex];
-            console.log('[SplitViewArchive] Next email to open:', nextEmail ? { id: nextEmail.id, subject: nextEmail.subject?.substring(0, 50) } : 'NOT FOUND');
-            
-            if (nextEmail) {
+            if (sameCategoryEmails.length > 0) {
+              // Open the first email in the same category
+              const nextEmail = sameCategoryEmails[0];
+              const nextIndex = visibleEmails.findIndex(e => e.id === nextEmail.id);
               splitView.openEmail(nextEmail.id);
-              setSelectedEmailIndex(nextIndex);
-              console.log('[SplitViewArchive] Opened next email successfully');
+              setSelectedEmailIndex(nextIndex >= 0 ? nextIndex : 0);
             } else {
-              console.log('[SplitViewArchive] No next email found, closing split view');
-              splitView.closeEmail();
+              // No more emails in this category, open the first email from the next category
+              const nextEmail = visibleEmails[0];
+              splitView.openEmail(nextEmail.id);
+              setSelectedEmailIndex(0);
             }
           }}
           onSplitViewSnooze={(snoozedEmailId) => {
+            // Find the snoozed email to get its category
+            const snoozedEmail = emails.find(e => e.id === snoozedEmailId);
+            const snoozedCategory = snoozedEmail?.category || 'Other';
+            
+            // Filter out archived emails and the just-snoozed email
             const visibleEmails = emails.filter(e => !e.isArchived && e.id !== snoozedEmailId);
             
             if (visibleEmails.length === 0) {
@@ -269,18 +267,20 @@ const Inbox: React.FC = () => {
               return;
             }
             
-            const currentIndex = selectedEmailIndex >= 0 ? selectedEmailIndex : 0;
-            const nextIndex = currentIndex < visibleEmails.length 
-              ? currentIndex 
-              : Math.max(0, visibleEmails.length - 1);
+            // First, try to find the next email in the same category
+            const sameCategoryEmails = visibleEmails.filter(e => (e.category || 'Other') === snoozedCategory);
             
-            const nextEmail = visibleEmails[nextIndex];
-            
-            if (nextEmail) {
+            if (sameCategoryEmails.length > 0) {
+              // Open the first email in the same category
+              const nextEmail = sameCategoryEmails[0];
+              const nextIndex = visibleEmails.findIndex(e => e.id === nextEmail.id);
               splitView.openEmail(nextEmail.id);
-              setSelectedEmailIndex(nextIndex);
+              setSelectedEmailIndex(nextIndex >= 0 ? nextIndex : 0);
             } else {
-              splitView.closeEmail();
+              // No more emails in this category, open the first email from the next category
+              const nextEmail = visibleEmails[0];
+              splitView.openEmail(nextEmail.id);
+              setSelectedEmailIndex(0);
             }
           }}
         />

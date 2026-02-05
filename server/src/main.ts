@@ -21,9 +21,18 @@ async function bootstrap() {
 
     const app = await NestFactory.create(AppModule);
 
-    // Enable CORS for frontend
+    // Enable CORS for frontend (allow dev + production origins)
+    const allowedOrigins = [
+      process.env.FRONTEND_URL,
+      "http://localhost:3000",
+      "https://app.bearlymail.com",
+    ].filter((o): o is string => Boolean(o));
+    const uniqueOrigins = [...new Set(allowedOrigins)];
     app.enableCors({
-      origin: process.env.FRONTEND_URL || "http://localhost:3000",
+      origin:
+        uniqueOrigins.length > 0
+          ? uniqueOrigins
+          : "http://localhost:3000",
       credentials: true,
     });
 

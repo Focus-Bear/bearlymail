@@ -8,6 +8,7 @@ interface UseInboxInitializationProps {
   user: any;
   fetchEmails: () => Promise<void>;
   fetchBatchStatus: () => Promise<void>;
+  fetchTabCounts: (force?: boolean) => Promise<void>;
 }
 
 export function useInboxInitialization({
@@ -15,7 +16,8 @@ export function useInboxInitialization({
   user,
   fetchEmails,
   fetchBatchStatus,
-}: UseInboxInitializationProps) {
+  fetchTabCounts,
+}: UseInboxInitializationProps){
   const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
   const [hasRunAnalysis, setHasRunAnalysis] = useState<boolean | null>(null);
   const isInitializingRef = useRef(false);
@@ -37,6 +39,7 @@ export function useInboxInitialization({
         await Promise.all([
           fetchEmails().catch(err => console.error('Error fetching emails:', err)),
           fetchBatchStatus().catch(err => console.error('Error fetching batch status:', err)),
+          fetchTabCounts(true).catch(err => console.error('Error fetching tab counts:', err)),
           
           axios.get(`${API_URL}/context`)
             .then((contextResponse) => {

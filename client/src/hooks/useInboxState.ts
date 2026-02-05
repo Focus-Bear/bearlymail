@@ -158,6 +158,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     user,
     fetchEmails,
     fetchBatchStatus,
+    fetchTabCounts,
   });
 
   // Tour element refs

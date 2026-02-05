@@ -8,6 +8,7 @@ import { BearlyMailStack } from '../lib/bearlymail-stack';
 import { BearlyMailNetworkingStack } from '../lib/bearlymail-networking-stack';
 import { BearlyMailSecretsStack } from '../lib/bearlymail-secrets-stack';
 import { BearlyMailDatabaseStack } from '../lib/bearlymail-database-stack';
+import { BearlyMailGitHubActionsStack } from '../lib/bearlymail-github-actions-stack';
 
 const PERMISSIONS_BOUNDARY_ARN = 'arn:aws:iam::789877399450:policy/BearlyMail-PermissionBoundary';
 
@@ -97,6 +98,17 @@ const appStack = new BearlyMailStack(app, 'BearlyMailStack', {
 appStack.addDependency(networkingStack);
 appStack.addDependency(secretsStack);
 appStack.addDependency(databaseStack);
+
+// ============================================
+// 5. GitHub Actions Stack (OIDC Provider + Deployment Role)
+// ============================================
+const githubActionsStack = new BearlyMailGitHubActionsStack(app, 'BearlyMailGitHubActionsStack', {
+  env,
+  description: 'BearlyMail - GitHub Actions OIDC provider and deployment role',
+  githubOrg: 'Focus-Bear',
+  githubRepo: 'BearlyMail',
+  permissionsBoundaryArn: PERMISSIONS_BOUNDARY_ARN,
+});
 
 // Apply permissions boundary to all IAM roles created by any stack
 // This is required by the AWS account's SCP policy

@@ -37,6 +37,7 @@ interface EmailDetailProps {
 export interface EmailDetailRef {
   openReplyComposer: () => void;
   archive: () => void;
+  snooze: (duration: string) => void;
   setStarCount: (count: number) => void;
   getStarCount: () => number;
 }
@@ -205,6 +206,9 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
     archive: () => {
       handleArchive();
     },
+    snooze: (duration: string) => {
+      handleSnooze(duration);
+    },
     setStarCount: (count: number) => {
       if (email?.id) {
         handleSetStarCount(email.id, count);
@@ -213,7 +217,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
     getStarCount: () => {
       return (email as any)?.starCount ?? 0;
     },
-  }), [handleOpenReplyComposer, handleArchive, handleSetStarCount, email]);
+  }), [handleOpenReplyComposer, handleArchive, handleSnooze, handleSetStarCount, email]);
 
   useEffect(() => {
     if (id && email) {

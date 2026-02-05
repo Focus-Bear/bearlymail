@@ -2,9 +2,11 @@ import React, { RefObject, useRef, useState, useEffect, useCallback } from 'reac
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import EmailDetail, { EmailDetailRef } from 'pages/EmailDetail';
-import { EMOJI_CLOSE, EMOJI_EXPAND, EMOJI_REPLY, EMOJI_ARCHIVE, EMOJI_STAR } from 'constants/emojis';
-import { InboxMode } from 'types/email';
+import { SnoozeInputForm } from 'components/inbox/actions/SnoozeInputForm';
+import { EMOJI_CLOSE, EMOJI_EXPAND, EMOJI_REPLY, EMOJI_ARCHIVE, EMOJI_STAR, EMOJI_CLOCK } from 'constants/emojis';
+import { InboxMode, Email } from 'types/email';
 import { MODE_ACTION } from 'constants/strings';
+import { captureEvent } from 'utils/posthog';
 
 interface SelectedEmail {
   subject: string;
@@ -43,6 +45,8 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
   const emailDetailComponentRef = useRef<EmailDetailRef>(null);
   const [starCount, setStarCount] = useState<number>((selectedEmail as any)?.starCount ?? 0);
   const [correspondentName, setCorrespondentName] = useState<string>('');
+  const [showSnoozeInput, setShowSnoozeInput] = useState(false);
+  const [snoozeValue, setSnoozeValue] = useState('');
   
   const senderName = correspondentName || selectedEmail?.fromName || selectedEmail?.from || '';
   const subject = selectedEmail?.subject || t('inbox.emailDetails');
@@ -69,6 +73,24 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
     const newCount = starCount === count ? 0 : count;
     setStarCount(newCount);
     emailDetailComponentRef.current?.setStarCount(newCount);
+  };
+
+  const handleSnoozeClick = () => {
+    captureEvent('email_snooze_clicked', { email_id: selectedEmailId });
+    setShowSnoozeInput(!showSnoozeInput);
+  };
+
+  const handleSnoozeConfirm = () => {
+    if (snoozeValue.trim()) {
+      emailDetailComponentRef.current?.snooze(snoozeValue);
+      setShowSnoozeInput(false);
+      setSnoozeValue('');
+    }
+  };
+
+  const handleSnoozeCancel = () => {
+    setShowSnoozeInput(false);
+    setSnoozeValue('');
   };
   
   return (
@@ -209,6 +231,28 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
             <span>{EMOJI_ARCHIVE}</span>
             <span>{t('emailDetail.archive')}</span>
           </button>
+
+          {/* Snooze button */}
+          <button
+            onClick={handleSnoozeClick}
+            style={{
+              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+              backgroundColor: showSnoozeInput ? theme.colors.primary.light : 'transparent',
+              border: `1px solid ${showSnoozeInput ? theme.colors.primary.main : theme.colors.border.medium}`,
+              borderRadius: theme.borderRadius.sm,
+              cursor: 'pointer',
+              fontSize: theme.typography.fontSize.xs,
+              color: theme.colors.text.secondary,
+              display: 'flex',
+              alignItems: 'center',
+              gap: theme.spacing.xs,
+            }}
+            title={t('emailDetail.snooze')}
+          >
+            {/* eslint-disable-next-line i18next/no-literal-string */}
+            <span>{EMOJI_CLOCK}</span>
+            <span>{t('emailDetail.snooze')}</span>
+          </button>
         </div>
 
         {/* Expand/Close buttons */}
@@ -247,6 +291,23 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Snooze input row - shown below header when snooze is active */}
+      {showSnoozeInput && (
+        <div style={{
+          padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+          borderBottom: `1px solid ${theme.colors.border.light}`,
+          backgroundColor: theme.colors.background.paper,
+        }}>
+          <SnoozeInputForm
+            email={{ id: selectedEmailId } as Email}
+            snoozeValue={snoozeValue}
+            onValueChange={setSnoozeValue}
+            onConfirm={handleSnoozeConfirm}
+            onCancel={handleSnoozeCancel}
+          />
+        </div>
+      )}
       
       {/* EmailDetail component */}
       <div style={{ flex: 1, overflowY: 'auto' }}>

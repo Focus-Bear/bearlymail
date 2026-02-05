@@ -8,6 +8,8 @@ interface EmailThreadItemProps {
     id: string;
     from: string;
     fromName?: string;
+    to?: string;
+    cc?: string;
     body: string;
     htmlBody?: string;
     receivedAt: string;
@@ -35,14 +37,16 @@ export const EmailThreadItem: React.FC<EmailThreadItemProps> = ({
         overflow: 'hidden',
       }}
     >
-      <ThreadItemHeader
-        from={threadEmail.from}
-        fromName={threadEmail.fromName}
-        receivedAt={threadEmail.receivedAt}
-        isExpanded={isExpanded}
-        isCurrentEmail={isCurrentEmail}
-        onToggle={onToggle}
-      />
+            <ThreadItemHeader
+              from={threadEmail.from}
+              fromName={threadEmail.fromName}
+              to={threadEmail.to}
+              cc={threadEmail.cc}
+              receivedAt={threadEmail.receivedAt}
+              isExpanded={isExpanded}
+              isCurrentEmail={isCurrentEmail}
+              onToggle={onToggle}
+            />
       {isExpanded && (
         <ThreadItemBody
           body={threadEmail.body}

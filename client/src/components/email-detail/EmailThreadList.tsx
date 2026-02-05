@@ -7,6 +7,8 @@ interface Email {
   id: string;
   from: string;
   fromName?: string;
+  to?: string;
+  cc?: string;
   body: string;
   htmlBody?: string;
   receivedAt: string;

@@ -5,6 +5,8 @@ import { humanizeTimestamp } from 'utils/dateUtils';
 interface ThreadItemHeaderProps {
   from: string;
   fromName?: string;
+  to?: string;
+  cc?: string;
   receivedAt: string;
   isExpanded: boolean;
   isCurrentEmail: boolean;
@@ -14,6 +16,8 @@ interface ThreadItemHeaderProps {
 export const ThreadItemHeader: React.FC<ThreadItemHeaderProps> = ({
   from,
   fromName,
+  to,
+  cc,
   receivedAt,
   isExpanded,
   isCurrentEmail,
@@ -33,16 +37,38 @@ export const ThreadItemHeader: React.FC<ThreadItemHeaderProps> = ({
         cursor: 'pointer',
         display: 'flex',
         justifyContent: 'space-between',
-        alignItems: 'center',
+        alignItems: 'flex-start',
       }}
     >
-      <div>
-        <strong style={{ color: theme.colors.text.primary }}>
-          {fromName || from}
-        </strong>
-        <span style={{ color: theme.colors.text.secondary, marginLeft: theme.spacing.xs }}>
-          {humanizeTimestamp(new Date(receivedAt))}
-        </span>
+      <div style={{ flex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs }}>
+          <strong style={{ color: theme.colors.text.primary }}>
+            {fromName || from}
+          </strong>
+          <span style={{ color: theme.colors.text.secondary }}>
+            {humanizeTimestamp(new Date(receivedAt))}
+          </span>
+        </div>
+                {to && (
+                  <div style={{ 
+                    fontSize: theme.typography.fontSize.xs, 
+                    color: theme.colors.text.secondary,
+                    marginTop: theme.spacing.xs 
+                  }}>
+                    {/* eslint-disable-next-line i18next/no-literal-string */}
+                    <span style={{ fontWeight: theme.typography.fontWeight.medium }}>To:</span> {to}
+                  </div>
+                )}
+                {cc && (
+                  <div style={{ 
+                    fontSize: theme.typography.fontSize.xs, 
+                    color: theme.colors.text.secondary,
+                    marginTop: theme.spacing.xs 
+                  }}>
+                    {/* eslint-disable-next-line i18next/no-literal-string */}
+                    <span style={{ fontWeight: theme.typography.fontWeight.medium }}>CC:</span> {cc}
+                  </div>
+                )}
       </div>
       <span style={{ color: theme.colors.text.tertiary }}>
         {isExpanded ? '▼' : '▶'}

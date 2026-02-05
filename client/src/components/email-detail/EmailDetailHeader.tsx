@@ -81,31 +81,51 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
           }}>
             {correspondent.name[0].toUpperCase()}
           </div>
-          <div>
-            <div style={{ fontWeight: theme.typography.fontWeight.semibold, color: theme.colors.text.primary }}>
-              {/* eslint-disable-next-line i18next/no-literal-string */}
-              {EMOJI_USER} {correspondent.name}
-            </div>
-            <div 
-              style={{ 
-                fontSize: theme.typography.fontSize.sm, 
-                color: theme.colors.text.primary,
-                opacity: 0.8,
-              }}
-              title={new Date(correspondent.timestamp).toLocaleString(undefined, {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                timeZoneName: 'short',
-              })}
-            >
-              {humanizeTimestamp(correspondent.timestamp)}
-            </div>
-          </div>
+                    <div>
+                      <div style={{ fontWeight: theme.typography.fontWeight.semibold, color: theme.colors.text.primary }}>
+                        {/* eslint-disable-next-line i18next/no-literal-string */}
+                        {EMOJI_USER} {correspondent.name}
+                      </div>
+                      <div 
+                        style={{ 
+                          fontSize: theme.typography.fontSize.sm, 
+                          color: theme.colors.text.primary,
+                          opacity: 0.8,
+                        }}
+                        title={new Date(correspondent.timestamp).toLocaleString(undefined, {
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                          timeZoneName: 'short',
+                        })}
+                      >
+                        {humanizeTimestamp(correspondent.timestamp)}
+                      </div>
+                      {email.to && (
+                        <div style={{ 
+                          fontSize: theme.typography.fontSize.xs, 
+                          color: theme.colors.text.secondary,
+                          marginTop: theme.spacing.xs,
+                        }}>
+                          {/* eslint-disable-next-line i18next/no-literal-string */}
+                          <span style={{ fontWeight: theme.typography.fontWeight.medium }}>To:</span> {email.to}
+                        </div>
+                      )}
+                      {email.cc && (
+                        <div style={{ 
+                          fontSize: theme.typography.fontSize.xs, 
+                          color: theme.colors.text.secondary,
+                          marginTop: theme.spacing.xs,
+                        }}>
+                          {/* eslint-disable-next-line i18next/no-literal-string */}
+                          <span style={{ fontWeight: theme.typography.fontWeight.medium }}>CC:</span> {email.cc}
+                        </div>
+                      )}
+                    </div>
         </div>
         <div 
           onClick={onFetchPriorityExplanation}

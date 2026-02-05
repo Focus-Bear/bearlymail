@@ -19,6 +19,8 @@ interface Email {
   threadId: string;
   from: string;
   fromName?: string;
+  to?: string;
+  cc?: string;
   subject: string;
   body: string;
   htmlBody?: string;

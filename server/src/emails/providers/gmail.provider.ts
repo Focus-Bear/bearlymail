@@ -671,6 +671,8 @@ export class GmailProvider implements EmailProvider {
                     const updates: Partial<{
                       isRead: boolean;
                       attachments: typeof rawEmail.attachments;
+                      to: string;
+                      cc: string;
                     }> = {};
 
                     if (existing.isRead !== isReadInGmail) {
@@ -686,6 +688,20 @@ export class GmailProvider implements EmailProvider {
                       updates.attachments = rawEmail.attachments;
                       this.logger.debug(
                         `[GmailProvider] Backfilling ${rawEmail.attachments.length} attachments for email ${existing.id}`,
+                      );
+                    }
+
+                    // Backfill to/cc for existing emails that don't have them
+                    if (!existing.to && rawEmail.to) {
+                      updates.to = rawEmail.to;
+                      this.logger.debug(
+                        `[GmailProvider] Backfilling to field for email ${existing.id}`,
+                      );
+                    }
+                    if (!existing.cc && rawEmail.cc) {
+                      updates.cc = rawEmail.cc;
+                      this.logger.debug(
+                        `[GmailProvider] Backfilling cc field for email ${existing.id}`,
                       );
                     }
 

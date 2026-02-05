@@ -7,7 +7,7 @@ import { useEmailFetching } from 'hooks/useEmailFetching';
 import { useEmailActionsBase } from 'hooks/useEmailActionsBase';
 import { AppDispatch } from 'store/store';
 import { updateEmail, setRefreshing, setEmails as setEmailsAction, setLoadingModeSwitch as setLoadingModeSwitchAction } from 'store/slices/emailSlice';
-import { selectEmails, selectLoading, selectDecrypting, selectRefreshing, selectLoadingModeSwitch, selectFetchError } from 'store/selectors/emailSelectors';
+import { selectVisibleEmails, selectLoading, selectDecrypting, selectRefreshing, selectLoadingModeSwitch, selectFetchError } from 'store/selectors/emailSelectors';
 
 interface TabCountChanges {
   triage?: number;
@@ -43,7 +43,10 @@ interface UseEmailManagementReturn {
 
 export function useEmailManagement({ mode, onSuggestionRemove, onTabCountsUpdateOptimistically }: UseEmailManagementProps): UseEmailManagementReturn {
   const dispatch = useDispatch<AppDispatch>();
-  const emails = useSelector(selectEmails);
+  // Use selectVisibleEmails to automatically filter out optimistically archived/snoozed emails
+  // This ensures the filtering always uses the latest Redux state, fixing the issue where
+  // the previous ref-based approach could have stale values
+  const emails = useSelector(selectVisibleEmails);
   const loading = useSelector(selectLoading);
   const decrypting = useSelector(selectDecrypting);
   const refreshing = useSelector(selectRefreshing);

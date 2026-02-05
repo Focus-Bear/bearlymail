@@ -34,17 +34,42 @@ export class SnoozeService {
 
     const snoozeUntil = this.parseDuration(duration);
 
-    // Snooze at the thread level
-    const thread = await this.emailThreadRepository.findOne({
-      where: { userId, threadId: email.threadId },
-    });
+    // Snooze at the thread level - use emailThreadId (UUID FK) for reliable lookup
+    // This is more reliable than threadId (Gmail thread ID) because it uses the actual FK relationship
+    let thread: EmailThread | null = null;
+
+    // First try to find by emailThreadId (the UUID foreign key) - most reliable
+    if (email.emailThreadId) {
+      thread = await this.emailThreadRepository.findOne({
+        where: { id: email.emailThreadId, userId },
+      });
+    }
+
+    // Fallback to threadId (Gmail thread ID) if emailThreadId lookup failed
+    if (!thread && email.threadId) {
+      thread = await this.emailThreadRepository.findOne({
+        where: { userId, threadId: email.threadId },
+      });
+      if (thread) {
+        this.logger.warn(
+          `Thread found by Gmail threadId but not by emailThreadId for email ${emailId}. ` +
+            `emailThreadId=${email.emailThreadId}, threadId=${email.threadId}, thread.id=${thread.id}`,
+        );
+      }
+    }
 
     if (thread) {
       thread.isSnoozed = true;
       thread.snoozeUntil = snoozeUntil;
       await this.emailThreadRepository.save(thread);
       this.logger.log(
-        `Snoozed thread ${email.threadId} until ${snoozeUntil.toISOString()}`,
+        `Snoozed thread ${thread.id} (Gmail: ${email.threadId}) until ${snoozeUntil.toISOString()}`,
+      );
+    } else {
+      // Log error - this should not happen in normal operation
+      this.logger.error(
+        `Failed to find thread for email ${emailId}. emailThreadId=${email.emailThreadId}, threadId=${email.threadId}. ` +
+          `Snooze will only be applied to email, not thread. Email may still appear in inbox!`,
       );
     }
 
@@ -155,16 +180,41 @@ export class SnoozeService {
       throw new Error("Email not found");
     }
 
-    // Unsnooze at the thread level
-    const thread = await this.emailThreadRepository.findOne({
-      where: { userId, threadId: email.threadId },
-    });
+    // Unsnooze at the thread level - use emailThreadId (UUID FK) for reliable lookup
+    let thread: EmailThread | null = null;
+
+    // First try to find by emailThreadId (the UUID foreign key) - most reliable
+    if (email.emailThreadId) {
+      thread = await this.emailThreadRepository.findOne({
+        where: { id: email.emailThreadId, userId },
+      });
+    }
+
+    // Fallback to threadId (Gmail thread ID) if emailThreadId lookup failed
+    if (!thread && email.threadId) {
+      thread = await this.emailThreadRepository.findOne({
+        where: { userId, threadId: email.threadId },
+      });
+      if (thread) {
+        this.logger.warn(
+          `Thread found by Gmail threadId but not by emailThreadId for email ${emailId}. ` +
+            `emailThreadId=${email.emailThreadId}, threadId=${email.threadId}, thread.id=${thread.id}`,
+        );
+      }
+    }
 
     if (thread) {
       thread.isSnoozed = false;
       thread.snoozeUntil = null;
       await this.emailThreadRepository.save(thread);
-      this.logger.log(`Unsnoozed thread ${email.threadId}`);
+      this.logger.log(
+        `Unsnoozed thread ${thread.id} (Gmail: ${email.threadId})`,
+      );
+    } else {
+      this.logger.warn(
+        `Failed to find thread for email ${emailId} during unsnooze. ` +
+          `emailThreadId=${email.emailThreadId}, threadId=${email.threadId}`,
+      );
     }
 
     // Also update the email for backward compatibility

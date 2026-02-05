@@ -3,6 +3,18 @@
  * Use these instead of magic numbers for database and API query limits
  */
 
+/**
+ * Inbox mode constants
+ * Use these instead of magic strings for inbox mode comparisons
+ */
+export const INBOX_MODES = {
+  TRIAGE: "triage",
+  ACTION: "action",
+  FOLLOW_UP: "follow-up",
+} as const;
+
+export type InboxMode = (typeof INBOX_MODES)[keyof typeof INBOX_MODES];
+
 export const QUERY_LIMITS = {
   INBOX_TOTAL: 500,
   INBOX_PROCESS_TOTAL: 1000,

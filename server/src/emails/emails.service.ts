@@ -23,7 +23,7 @@ import { GitHubService } from "../github/github.service";
 import { GitHubApiService } from "../github/github-api.service";
 import { RATIOS } from "../constants/percentages";
 import { DAYS } from "../constants/time-constants";
-import { QUERY_LIMITS } from "../constants/query-limits";
+import { QUERY_LIMITS, INBOX_MODES } from "../constants/query-limits";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
 import { STAR_COUNTS } from "../constants/priority-constants";
 import {
@@ -307,7 +307,7 @@ export class EmailsService {
         SELECT cor."from", cor."fromName"
         FROM emails cor
         JOIN users u ON u.id = $1
-        WHERE cor."emailThreadId" = thread.id 
+        WHERE cor."emailThreadId" = thread.id
           AND cor."userId" = $1
           AND LOWER(cor."from") != LOWER(u.email)
         ORDER BY cor."receivedAt" ASC
@@ -502,7 +502,11 @@ export class EmailsService {
     const sortedEmails = threadRepresentatives;
 
     // Limit to top results (database already limited, but we apply a final limit after filtering)
-    const maxResults = 200;
+    // Use the same limits as the database query for consistency
+    const maxResults =
+      mode === INBOX_MODES.ACTION
+        ? QUERY_LIMITS.INBOX_PROCESS_TOTAL
+        : QUERY_LIMITS.INBOX_TOTAL;
 
     // STEP 7: Filter out blocked senders
     const endBlockedFilter = perf.startSpan(

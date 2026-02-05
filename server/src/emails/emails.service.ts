@@ -984,16 +984,19 @@ export class EmailsService {
   /**
    * Update archived status for a thread (updates EmailThread)
    * Delegates to EmailThreadService
+   * @param setLastUserOperation - If true, sets lastUserOperationAt to now (for user-initiated actions)
    */
   async updateThreadArchivedStatus(
     userId: string,
     threadId: string,
     isArchived: boolean,
+    setLastUserOperation: boolean = false,
   ): Promise<void> {
     return this.emailThreadService.updateThreadArchivedStatus(
       userId,
       threadId,
       isArchived,
+      setLastUserOperation,
     );
   }
 
@@ -1613,6 +1616,11 @@ export class EmailsService {
     };
   }
 
+  /**
+   * Archive email - updates database FIRST, then syncs to email provider.
+   * This ensures the UI reflects the change immediately on page reload.
+   * The Gmail sync is done after DB update so it doesn't block the response.
+   */
   async archiveEmail(userId: string, emailId: string): Promise<void> {
     this.logger.log(
       `[Archive] archiveEmail called: userId=${userId}, emailId=${emailId}`,
@@ -1648,26 +1656,8 @@ export class EmailsService {
       `[Archive] Thread info: threadId=${threadId}, isStarred=${isStarred}, currentIsArchived=${thread?.isArchived || false}`,
     );
 
-    // Archive the thread in email provider (this will also remove the star if present)
-    // Only update database if provider API call succeeds
-    const provider = await this.emailProviderManager.getPrimaryProvider(userId);
-    if (provider && "archiveThread" in provider) {
-      this.logger.log(
-        `[Archive] Calling provider.archiveThread: userId=${userId}, threadId=${threadId}`,
-      );
-      await provider.archiveThread(userId, threadId);
-      this.logger.log(
-        `[Archive] provider.archiveThread completed successfully: userId=${userId}, threadId=${threadId}`,
-      );
-    } else {
-      this.logger.error(
-        `[Archive] No email provider available: userId=${userId}`,
-      );
-      throw new Error("No email provider available to archive thread");
-    }
-
-    // Update database: remove star, mark as read, and mark as archived
-    // Only reached if provider API call succeeded
+    // STEP 1: Update database FIRST (immediate effect on page reload)
+    // This sets lastUserOperationAt to prevent sync from overriding the archive
     if (isStarred) {
       this.logger.log(
         `[Archive] Removing star from thread: userId=${userId}, threadId=${threadId}`,
@@ -1691,10 +1681,40 @@ export class EmailsService {
       );
     }
 
+    // Update thread archived status with lastUserOperationAt timestamp
     this.logger.log(
       `[Archive] Updating thread archived status to true: userId=${userId}, threadId=${threadId}`,
     );
-    await this.updateThreadArchivedStatus(userId, threadId, true);
+    await this.updateThreadArchivedStatus(userId, threadId, true, true);
+    this.logger.log(
+      `[Archive] Database update completed: userId=${userId}, emailId=${emailId}, threadId=${threadId}`,
+    );
+
+    // STEP 2: Sync to email provider (Gmail, Office365, etc.)
+    // This happens after DB update so the UI is already correct
+    const provider = await this.emailProviderManager.getPrimaryProvider(userId);
+    if (provider && "archiveThread" in provider) {
+      this.logger.log(
+        `[Archive] Calling provider.archiveThread: userId=${userId}, threadId=${threadId}`,
+      );
+      try {
+        await provider.archiveThread(userId, threadId);
+        this.logger.log(
+          `[Archive] provider.archiveThread completed successfully: userId=${userId}, threadId=${threadId}`,
+        );
+      } catch (error: unknown) {
+        // Log error but don't fail - database update already succeeded
+        this.logger.error(
+          `[Archive] Failed to sync archive to email provider for email ${emailId}:`,
+          error,
+        );
+      }
+    } else {
+      this.logger.warn(
+        `[Archive] No email provider available: userId=${userId}, skipping provider sync`,
+      );
+    }
+
     this.logger.log(
       `[Archive] archiveEmail completed successfully: userId=${userId}, emailId=${emailId}, threadId=${threadId}`,
     );

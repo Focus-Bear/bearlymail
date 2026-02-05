@@ -147,6 +147,15 @@ export class EmailThread {
   snoozeUntil: Date | null;
 
   @Column({
+    type: "timestamp",
+    nullable: true,
+    comment:
+      "Last time user performed an operation (archive, snooze, star) on this thread in BearlyMail. " +
+      "Used to prevent sync from overriding user actions - sync should only update status if new emails arrived after this timestamp.",
+  })
+  lastUserOperationAt: Date | null;
+
+  @Column({
     type: "varchar",
     length: 100,
     nullable: true,

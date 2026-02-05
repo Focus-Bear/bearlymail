@@ -319,23 +319,17 @@ describe("EmailsController", () => {
   });
 
   describe("archiveEmail", () => {
-    it("should queue archive email job", async () => {
+    it("should archive email directly via service", async () => {
       const userId = "user-123";
       const emailId = "email-123";
       const mockRequest = { user: { userId } };
 
-      mockBoss.send.mockResolvedValue(undefined);
+      mockEmailsService.archiveEmail.mockResolvedValue(undefined);
 
       const result = await controller.archiveEmail(mockRequest, emailId);
 
-      expect(mockBoss.send).toHaveBeenCalledWith(
-        "archive-email",
-        { userId, emailId },
-        expect.objectContaining({
-          singletonKey: `archive-email-${userId}-${emailId}`,
-        }),
-      );
-      expect(result).toEqual({ message: "Email archive queued" });
+      expect(emailsService.archiveEmail).toHaveBeenCalledWith(userId, emailId);
+      expect(result).toEqual({ message: "Email archived" });
     });
   });
 

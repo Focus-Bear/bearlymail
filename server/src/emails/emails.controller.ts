@@ -325,22 +325,16 @@ export class EmailsController {
       `[Archive] Archive request received for emailId: ${id}, userId: ${req.user.userId}`,
     );
     try {
-      // Queue archive operation as background job instead of executing synchronously
-      await this.boss.send(
-        "archive-email",
-        { userId: req.user.userId, emailId: id },
-        {
-          priority: getJobPriority("archive-email", true), // User-triggered = high priority
-          singletonKey: `archive-email-${req.user.userId}-${id}`, // Prevent duplicate jobs
-        },
-      );
+      // Archive email - DB update happens first for immediate UI effect,
+      // then Gmail sync happens (but doesn't block the response)
+      await this.emailsService.archiveEmail(req.user.userId, id);
       this.logger.log(
-        `[Archive] Archive job queued: emailId: ${id}, userId: ${req.user.userId}`,
+        `[Archive] Archive completed: emailId: ${id}, userId: ${req.user.userId}`,
       );
-      return { message: "Email archive queued" };
+      return { message: "Email archived" };
     } catch (error) {
       this.logger.error(
-        `[Archive] Failed to queue archive job: emailId: ${id}, userId: ${req.user.userId}`,
+        `[Archive] Failed to archive email: emailId: ${id}, userId: ${req.user.userId}`,
         error,
       );
       throw error;

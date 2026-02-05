@@ -61,9 +61,10 @@ export class SnoozeService {
     if (thread) {
       thread.isSnoozed = true;
       thread.snoozeUntil = snoozeUntil;
+      thread.lastUserOperationAt = new Date();
       await this.emailThreadRepository.save(thread);
       this.logger.log(
-        `Snoozed thread ${thread.id} (Gmail: ${email.threadId}) until ${snoozeUntil.toISOString()}`,
+        `Snoozed thread ${thread.id} (Gmail: ${email.threadId}) until ${snoozeUntil.toISOString()} (user operation)`,
       );
     } else {
       // Log error - this should not happen in normal operation

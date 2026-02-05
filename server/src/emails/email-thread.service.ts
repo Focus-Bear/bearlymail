@@ -162,11 +162,13 @@ export class EmailThreadService {
 
   /**
    * Update archived status for a single thread
+   * @param setLastUserOperation - If true, sets lastUserOperationAt to now (for user-initiated actions)
    */
   async updateThreadArchivedStatus(
     userId: string,
     threadId: string,
     isArchived: boolean,
+    setLastUserOperation: boolean = false,
   ): Promise<void> {
     const thread = await this.emailThreadRepository.findOne({
       where: { userId, threadId },
@@ -174,11 +176,16 @@ export class EmailThreadService {
 
     if (thread) {
       // Only update if status changed to avoid unnecessary DB writes
-      if (thread.isArchived !== isArchived) {
+      const needsUpdate =
+        thread.isArchived !== isArchived || setLastUserOperation;
+      if (needsUpdate) {
         thread.isArchived = isArchived;
+        if (setLastUserOperation) {
+          thread.lastUserOperationAt = new Date();
+        }
         await this.emailThreadRepository.save(thread);
         this.logger.debug(
-          `Updated thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... archived status to ${isArchived}`,
+          `Updated thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... archived status to ${isArchived}${setLastUserOperation ? " (user operation)" : ""}`,
         );
       }
     } else {
@@ -208,6 +215,9 @@ export class EmailThreadService {
 
   /**
    * Batch update thread archived statuses (more efficient than individual updates)
+   * IMPORTANT: This method respects lastUserOperationAt - it will NOT override
+   * a user's recent archive/unarchive action unless there's a new email in the thread.
+   * This is called by sync processes, not by user actions.
    */
   async batchUpdateThreadArchivedStatuses(
     userId: string,
@@ -216,32 +226,85 @@ export class EmailThreadService {
     if (updates.length === 0) return;
 
     const now = new Date();
+
+    // Get all threads that might be updated to check lastUserOperationAt
+    const threadIds = updates.map((u) => u.threadId);
+    const existingThreads = await this.emailThreadRepository.find({
+      where: { userId, threadId: In(threadIds) },
+      select: ["id", "threadId", "isArchived", "lastUserOperationAt"],
+    });
+    const existingThreadMap = new Map(
+      existingThreads.map((t) => [t.threadId, t]),
+    );
+
+    // Filter out updates that would override a recent user operation
+    // A user operation should be respected unless there's a new email (which would be handled separately)
+    const filteredUpdates = updates.filter((update) => {
+      const existingThread = existingThreadMap.get(update.threadId);
+      if (!existingThread) {
+        // New thread, allow update
+        return true;
+      }
+
+      // If user recently performed an operation, don't override their action
+      // The sync should only update if the status in Gmail matches what we expect
+      // If user archived in BearlyMail but Gmail shows unarchived, we should NOT unarchive
+      if (existingThread.lastUserOperationAt) {
+        // Skip this update - user's action takes precedence
+        this.logger.debug(
+          `Skipping sync update for thread ${update.threadId.substring(0, 8)}... - user operation at ${existingThread.lastUserOperationAt.toISOString()} takes precedence`,
+        );
+        return false;
+      }
+
+      return true;
+    });
+
+    if (filteredUpdates.length === 0) {
+      this.logger.debug(
+        `All ${updates.length} thread updates skipped due to recent user operations`,
+      );
+      return;
+    }
+
     // Group by status for more efficient updates
-    const archivedThreadIds = updates
+    const archivedThreadIds = filteredUpdates
       .filter((update) => update.isArchived)
       .map((update) => update.threadId);
-    const unarchivedThreadIds = updates
+    const unarchivedThreadIds = filteredUpdates
       .filter((update) => !update.isArchived)
       .map((update) => update.threadId);
 
-    // Batch update archived threads
+    // Batch update archived threads (only those without recent user operations)
     if (archivedThreadIds.length > 0) {
-      await this.emailThreadRepository.update(
-        { userId, threadId: In(archivedThreadIds) },
-        { isArchived: true, lastCheckedAt: now },
-      );
+      await this.emailThreadRepository
+        .createQueryBuilder()
+        .update()
+        .set({ isArchived: true, lastCheckedAt: now })
+        .where("userId = :userId", { userId })
+        .andWhere("threadId IN (:...threadIds)", {
+          threadIds: archivedThreadIds,
+        })
+        .andWhere("lastUserOperationAt IS NULL")
+        .execute();
     }
 
-    // Batch update unarchived threads
+    // Batch update unarchived threads (only those without recent user operations)
     if (unarchivedThreadIds.length > 0) {
-      await this.emailThreadRepository.update(
-        { userId, threadId: In(unarchivedThreadIds) },
-        { isArchived: false, lastCheckedAt: now },
-      );
+      await this.emailThreadRepository
+        .createQueryBuilder()
+        .update()
+        .set({ isArchived: false, lastCheckedAt: now })
+        .where("userId = :userId", { userId })
+        .andWhere("threadId IN (:...threadIds)", {
+          threadIds: unarchivedThreadIds,
+        })
+        .andWhere("lastUserOperationAt IS NULL")
+        .execute();
     }
 
     this.logger.debug(
-      `Batch updated ${updates.length} thread archived statuses`,
+      `Batch updated ${filteredUpdates.length} thread archived statuses (${updates.length - filteredUpdates.length} skipped due to user operations)`,
     );
   }
 
@@ -492,6 +555,8 @@ export class EmailThreadService {
   /**
    * Get or create EmailThread for a given userId and threadId
    * Handles race conditions by catching duplicate key errors
+   * IMPORTANT: When a new email arrives in an existing thread, this clears
+   * lastUserOperationAt so that sync can update the thread status again.
    */
   async getOrCreateEmailThread(
     userId: string,
@@ -503,6 +568,8 @@ export class EmailThreadService {
     let thread = await this.emailThreadRepository.findOne({
       where: { userId, threadId },
     });
+
+    const isExistingThread = !!thread;
 
     if (!thread) {
       // Thread doesn't exist, try to create it
@@ -549,11 +616,27 @@ export class EmailThreadService {
 
     // Update if values changed
     if (thread) {
+      // If this is an existing thread and a new email is being added,
+      // clear lastUserOperationAt so sync can update the thread status again.
+      // This ensures that if user archived a thread and a new email arrives,
+      // the sync process can unarchive it based on Gmail's current state.
+      const shouldClearUserOperation =
+        isExistingThread && thread.lastUserOperationAt !== null;
+
       const needsUpdate =
-        thread.starCount !== starCount || thread.isArchived !== isArchived;
+        thread.starCount !== starCount ||
+        thread.isArchived !== isArchived ||
+        shouldClearUserOperation;
+
       if (needsUpdate) {
         thread.starCount = starCount;
         thread.isArchived = isArchived;
+        if (shouldClearUserOperation) {
+          this.logger.debug(
+            `Clearing lastUserOperationAt for thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... - new email arrived`,
+          );
+          thread.lastUserOperationAt = null;
+        }
         thread = await this.emailThreadRepository.save(thread);
         this.logger.debug(
           `Updated EmailThread for thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... (starCount=${starCount}, isArchived=${isArchived})`,

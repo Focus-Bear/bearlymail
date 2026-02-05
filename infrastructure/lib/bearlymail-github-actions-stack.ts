@@ -48,8 +48,13 @@ export class BearlyMailGitHubActionsStack extends cdk.Stack {
             'token.actions.githubusercontent.com:aud': 'sts.amazonaws.com',
           },
           StringLike: {
-            // Only allow workflows from the main branch of this specific repo
-            'token.actions.githubusercontent.com:sub': `repo:${githubOrg}/${githubRepo}:ref:refs/heads/main`,
+            // Allow workflows from main branch OR using the Production environment
+            // When a job uses `environment: Production`, the subject claim changes
+            // from `repo:org/repo:ref:refs/heads/main` to `repo:org/repo:environment:Production`
+            'token.actions.githubusercontent.com:sub': [
+              `repo:${githubOrg}/${githubRepo}:ref:refs/heads/main`,
+              `repo:${githubOrg}/${githubRepo}:environment:Production`,
+            ],
           },
         }
       ),

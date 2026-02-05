@@ -796,20 +796,22 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
       dispatch(removeEmail(id));
       dispatch(addOptimisticArchive(id));
     }
-    try {
-      await axios.put(`${API_URL}/emails/${id}/archive`);
-    } catch (error) {
-      console.error('Error archiving email after reply:', error);
-      if (emailToArchive) {
-        dispatch(restoreEmail(emailToArchive));
-        dispatch(removeOptimisticArchive(id));
-      }
-    }
+    
+    // Navigate immediately after optimistic update for instant UI feedback
     if (options.onArchiveComplete && id) {
       options.onArchiveComplete(id);
     } else {
       navigate('/inbox');
     }
+    
+    // Make API call in background - revert optimistic update if it fails
+    axios.put(`${API_URL}/emails/${id}/archive`).catch((error) => {
+      console.error('Error archiving email after reply:', error);
+      if (emailToArchive) {
+        dispatch(restoreEmail(emailToArchive));
+        dispatch(removeOptimisticArchive(id));
+      }
+    });
   }, [id, emails, dispatch, options, navigate]);
 
   const performSnoozeAfterReply = useCallback(async (duration: string) => {
@@ -819,20 +821,22 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
       dispatch(removeEmail(id));
       dispatch(addOptimisticSnooze(id));
     }
-    try {
-      await axios.post(`${API_URL}/snooze/${id}`, { duration });
-    } catch (error) {
-      console.error('Error snoozing email after reply:', error);
-      if (emailToSnooze) {
-        dispatch(restoreEmail(emailToSnooze));
-        dispatch(removeOptimisticSnooze(id));
-      }
-    }
+    
+    // Navigate immediately after optimistic update for instant UI feedback
     if (options.onSnoozeComplete) {
       options.onSnoozeComplete(id);
     } else {
       navigate('/inbox');
     }
+    
+    // Make API call in background - revert optimistic update if it fails
+    axios.post(`${API_URL}/snooze/${id}`, { duration }).catch((error) => {
+      console.error('Error snoozing email after reply:', error);
+      if (emailToSnooze) {
+        dispatch(restoreEmail(emailToSnooze));
+        dispatch(removeOptimisticSnooze(id));
+      }
+    });
   }, [id, emails, dispatch, options, navigate]);
 
   const handleSendReply = useCallback(async (files: File[] = [], expectedReplyHours?: number) => {

@@ -1,12 +1,42 @@
+import React from 'react';
 import { renderHook, act, waitFor } from '@testing-library/react';
+import { Provider } from 'react-redux';
+import { configureStore } from '@reduxjs/toolkit';
 import { useBulkEmailActions } from './useBulkEmailActions';
 import { captureEvent } from 'utils/posthog';
+import emailReducer from 'store/slices/emailSlice';
+import axios from 'axios';
+import { Email } from 'types/email';
 
 jest.mock('utils/posthog', () => ({
   captureEvent: jest.fn(),
 }));
 
+jest.mock('axios');
+const mockedAxios = axios as jest.Mocked<typeof axios>;
+
 const mockedCaptureEvent = captureEvent as jest.MockedFunction<typeof captureEvent>;
+
+const createTestStore = (emails: Email[] = []) => {
+  return configureStore({
+    reducer: {
+      email: emailReducer,
+    },
+    preloadedState: {
+      email: {
+        emails,
+        optimisticallyArchived: [],
+        optimisticallySnoozed: [],
+      },
+    },
+  });
+};
+
+const createWrapper = (store: ReturnType<typeof createTestStore>) => {
+  return ({ children }: { children: React.ReactNode }) => (
+    <Provider store={store}>{children}</Provider>
+  );
+};
 
 describe('useBulkEmailActions', () => {
   const mockHandleArchive = jest.fn();
@@ -21,28 +51,37 @@ describe('useBulkEmailActions', () => {
     mockHandleSetStarCount.mockResolvedValue(undefined);
     mockHandleBulkMarkAsRead.mockResolvedValue(undefined);
     mockHandleBulkMarkAsUnread.mockResolvedValue(undefined);
+    mockedAxios.post.mockResolvedValue({ data: { message: 'Emails archived' } });
   });
 
   describe('handleBulkArchive', () => {
     it('should do nothing when no emails selected', async () => {
+      const store = createTestStore();
       const { result } = renderHook(() =>
         useBulkEmailActions({
           selectedEmailIds: new Set(),
           setSelectedEmailIds: mockSetSelectedEmailIds,
           handleArchive: mockHandleArchive,
           handleSetStarCount: mockHandleSetStarCount,
-        })
+        }),
+        { wrapper: createWrapper(store) }
       );
 
       await act(async () => {
         await result.current.handleBulkArchive();
       });
 
-      expect(mockHandleArchive).not.toHaveBeenCalled();
+      expect(mockedAxios.post).not.toHaveBeenCalled();
       expect(mockedCaptureEvent).not.toHaveBeenCalled();
     });
 
-    it('should archive all selected emails', async () => {
+    it('should archive all selected emails with single bulk API call', async () => {
+      const testEmails: Email[] = [
+        { id: '1', subject: 'Test 1' } as Email,
+        { id: '2', subject: 'Test 2' } as Email,
+        { id: '3', subject: 'Test 3' } as Email,
+      ];
+      const store = createTestStore(testEmails);
       const selectedIds = new Set(['1', '2', '3']);
       const { result } = renderHook(() =>
         useBulkEmailActions({
@@ -50,17 +89,20 @@ describe('useBulkEmailActions', () => {
           setSelectedEmailIds: mockSetSelectedEmailIds,
           handleArchive: mockHandleArchive,
           handleSetStarCount: mockHandleSetStarCount,
-        })
+        }),
+        { wrapper: createWrapper(store) }
       );
 
       await act(async () => {
         await result.current.handleBulkArchive();
       });
 
-      expect(mockHandleArchive).toHaveBeenCalledTimes(3);
-      expect(mockHandleArchive).toHaveBeenCalledWith('1', expect.any(Object));
-      expect(mockHandleArchive).toHaveBeenCalledWith('2', expect.any(Object));
-      expect(mockHandleArchive).toHaveBeenCalledWith('3', expect.any(Object));
+      // Should make a single bulk API call instead of 3 individual calls
+      expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        expect.stringContaining('/emails/bulk/archive'),
+        { emailIds: ['1', '2', '3'] }
+      );
       expect(mockedCaptureEvent).toHaveBeenCalledWith('bulk_archive_clicked', {
         selected_count: 3,
       });
@@ -68,6 +110,11 @@ describe('useBulkEmailActions', () => {
     });
 
     it('should clear selection after archiving', async () => {
+      const testEmails: Email[] = [
+        { id: '1', subject: 'Test 1' } as Email,
+        { id: '2', subject: 'Test 2' } as Email,
+      ];
+      const store = createTestStore(testEmails);
       const selectedIds = new Set(['1', '2']);
       const { result } = renderHook(() =>
         useBulkEmailActions({
@@ -75,7 +122,8 @@ describe('useBulkEmailActions', () => {
           setSelectedEmailIds: mockSetSelectedEmailIds,
           handleArchive: mockHandleArchive,
           handleSetStarCount: mockHandleSetStarCount,
-        })
+        }),
+        { wrapper: createWrapper(store) }
       );
 
       await act(async () => {
@@ -90,13 +138,15 @@ describe('useBulkEmailActions', () => {
 
   describe('handleBulkStar', () => {
     it('should do nothing when no emails selected', async () => {
+      const store = createTestStore();
       const { result } = renderHook(() =>
         useBulkEmailActions({
           selectedEmailIds: new Set(),
           setSelectedEmailIds: mockSetSelectedEmailIds,
           handleArchive: mockHandleArchive,
           handleSetStarCount: mockHandleSetStarCount,
-        })
+        }),
+        { wrapper: createWrapper(store) }
       );
 
       await act(async () => {
@@ -107,6 +157,7 @@ describe('useBulkEmailActions', () => {
     });
 
     it('should set star count for all selected emails', async () => {
+      const store = createTestStore();
       const selectedIds = new Set(['1', '2']);
       const { result } = renderHook(() =>
         useBulkEmailActions({
@@ -114,7 +165,8 @@ describe('useBulkEmailActions', () => {
           setSelectedEmailIds: mockSetSelectedEmailIds,
           handleArchive: mockHandleArchive,
           handleSetStarCount: mockHandleSetStarCount,
-        })
+        }),
+        { wrapper: createWrapper(store) }
       );
 
       await act(async () => {
@@ -132,6 +184,7 @@ describe('useBulkEmailActions', () => {
     });
 
     it('should handle star count 0', async () => {
+      const store = createTestStore();
       const selectedIds = new Set(['1']);
       const { result } = renderHook(() =>
         useBulkEmailActions({
@@ -139,7 +192,8 @@ describe('useBulkEmailActions', () => {
           setSelectedEmailIds: mockSetSelectedEmailIds,
           handleArchive: mockHandleArchive,
           handleSetStarCount: mockHandleSetStarCount,
-        })
+        }),
+        { wrapper: createWrapper(store) }
       );
 
       await act(async () => {
@@ -152,6 +206,7 @@ describe('useBulkEmailActions', () => {
 
   describe('handleBulkMarkAsRead', () => {
     it('should do nothing when no emails selected', async () => {
+      const store = createTestStore();
       const { result } = renderHook(() =>
         useBulkEmailActions({
           selectedEmailIds: new Set(),
@@ -159,7 +214,8 @@ describe('useBulkEmailActions', () => {
           handleArchive: mockHandleArchive,
           handleSetStarCount: mockHandleSetStarCount,
           handleBulkMarkAsRead: mockHandleBulkMarkAsRead,
-        })
+        }),
+        { wrapper: createWrapper(store) }
       );
 
       await act(async () => {
@@ -170,6 +226,7 @@ describe('useBulkEmailActions', () => {
     });
 
     it('should do nothing when handler not provided', async () => {
+      const store = createTestStore();
       const selectedIds = new Set(['1']);
       const { result } = renderHook(() =>
         useBulkEmailActions({
@@ -177,7 +234,8 @@ describe('useBulkEmailActions', () => {
           setSelectedEmailIds: mockSetSelectedEmailIds,
           handleArchive: mockHandleArchive,
           handleSetStarCount: mockHandleSetStarCount,
-        })
+        }),
+        { wrapper: createWrapper(store) }
       );
 
       await act(async () => {
@@ -188,6 +246,7 @@ describe('useBulkEmailActions', () => {
     });
 
     it('should mark all selected emails as read', async () => {
+      const store = createTestStore();
       const selectedIds = new Set(['1', '2', '3']);
       const { result } = renderHook(() =>
         useBulkEmailActions({
@@ -196,7 +255,8 @@ describe('useBulkEmailActions', () => {
           handleArchive: mockHandleArchive,
           handleSetStarCount: mockHandleSetStarCount,
           handleBulkMarkAsRead: mockHandleBulkMarkAsRead,
-        })
+        }),
+        { wrapper: createWrapper(store) }
       );
 
       await act(async () => {
@@ -213,6 +273,7 @@ describe('useBulkEmailActions', () => {
 
   describe('handleBulkMarkAsUnread', () => {
     it('should do nothing when no emails selected', async () => {
+      const store = createTestStore();
       const { result } = renderHook(() =>
         useBulkEmailActions({
           selectedEmailIds: new Set(),
@@ -220,7 +281,8 @@ describe('useBulkEmailActions', () => {
           handleArchive: mockHandleArchive,
           handleSetStarCount: mockHandleSetStarCount,
           handleBulkMarkAsUnread: mockHandleBulkMarkAsUnread,
-        })
+        }),
+        { wrapper: createWrapper(store) }
       );
 
       await act(async () => {
@@ -231,6 +293,7 @@ describe('useBulkEmailActions', () => {
     });
 
     it('should mark all selected emails as unread', async () => {
+      const store = createTestStore();
       const selectedIds = new Set(['1', '2']);
       const { result } = renderHook(() =>
         useBulkEmailActions({
@@ -239,7 +302,8 @@ describe('useBulkEmailActions', () => {
           handleArchive: mockHandleArchive,
           handleSetStarCount: mockHandleSetStarCount,
           handleBulkMarkAsUnread: mockHandleBulkMarkAsUnread,
-        })
+        }),
+        { wrapper: createWrapper(store) }
       );
 
       await act(async () => {

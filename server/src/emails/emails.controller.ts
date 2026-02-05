@@ -319,6 +319,29 @@ export class EmailsController {
     return { message: "Emails marked as unread" };
   }
 
+  @Post("bulk/archive")
+  async bulkArchive(@Request() req, @Body() body: { emailIds: string[] }) {
+    this.logger.log(
+      `[Archive] Bulk archive request received for ${body.emailIds.length} emails, userId: ${req.user.userId}`,
+    );
+    try {
+      await this.emailsService.bulkArchiveEmails(
+        req.user.userId,
+        body.emailIds,
+      );
+      this.logger.log(
+        `[Archive] Bulk archive completed: ${body.emailIds.length} emails, userId: ${req.user.userId}`,
+      );
+      return { message: "Emails archived" };
+    } catch (error) {
+      this.logger.error(
+        `[Archive] Failed to bulk archive emails: userId: ${req.user.userId}`,
+        error,
+      );
+      throw error;
+    }
+  }
+
   @Put(":id/archive")
   async archiveEmail(@Request() req, @Param("id") id: string) {
     this.logger.log(

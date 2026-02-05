@@ -36,6 +36,7 @@ interface UseEmailActionsProps {
     openEmail: (emailId: string) => void;
     closeEmail: () => void;
   };
+  onTabCountsUpdateOptimistically?: (changes: { triage?: number; action?: number; followUp?: number }) => void;
 }
 
 interface UseEmailActionsReturn {
@@ -51,6 +52,7 @@ interface UseEmailActionsReturn {
 }
 
 export function useEmailActions({
+  mode,
   emails,
   setEmails,
   selectedEmailIds,
@@ -72,6 +74,7 @@ export function useEmailActions({
   selectedEmailIndex,
   setSelectedEmailIndex,
   splitView,
+  onTabCountsUpdateOptimistically,
 }: UseEmailActionsProps): UseEmailActionsReturn {
   const { handleSetStarCount } = useStarCountHandler({
     emails,
@@ -142,6 +145,8 @@ export function useEmailActions({
     handleSetStarCount,
     handleBulkMarkAsRead,
     handleBulkMarkAsUnread,
+    onTabCountsUpdateOptimistically,
+    mode,
   });
 
   const { confirmBlockSender } = useBlockSender({

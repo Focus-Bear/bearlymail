@@ -217,6 +217,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     selectedEmailIndex,
     setSelectedEmailIndex,
     splitView,
+    onTabCountsUpdateOptimistically: updateTabCountsOptimistically,
   });
 
   // Poll for email updates when emails are actively processing

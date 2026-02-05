@@ -1,6 +1,6 @@
 import { Injectable, Inject, forwardRef, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, IsNull, Not } from "typeorm";
+import { Repository, IsNull, Not, In } from "typeorm";
 import PgBoss = require("pg-boss");
 import * as fs from "fs";
 import * as path from "path";
@@ -1717,6 +1717,124 @@ export class EmailsService {
 
     this.logger.log(
       `[Archive] archiveEmail completed successfully: userId=${userId}, emailId=${emailId}, threadId=${threadId}`,
+    );
+  }
+
+  /**
+   * Bulk archive multiple emails - updates database FIRST, then syncs to email provider.
+   * This is more efficient than calling archiveEmail multiple times as it:
+   * 1. Groups emails by thread to avoid duplicate thread operations
+   * 2. Batches database updates
+   * 3. Syncs to provider in parallel
+   */
+  async bulkArchiveEmails(userId: string, emailIds: string[]): Promise<void> {
+    if (emailIds.length === 0) {
+      return;
+    }
+
+    this.logger.log(
+      `[Archive] bulkArchiveEmails called: userId=${userId}, emailCount=${emailIds.length}`,
+    );
+
+    // Get all emails and group by threadId
+    const emails = await this.emailRepository.find({
+      where: { userId, id: In(emailIds) },
+      select: ["id", "threadId"],
+    });
+
+    if (emails.length === 0) {
+      this.logger.warn(
+        `[Archive] No emails found for bulk archive: userId=${userId}`,
+      );
+      return;
+    }
+
+    // Group emails by threadId
+    const threadIds = [
+      ...new Set(emails.map((e) => e.threadId).filter(Boolean)),
+    ];
+    this.logger.log(
+      `[Archive] Found ${emails.length} emails in ${threadIds.length} threads`,
+    );
+
+    // Get thread info for starred status
+    const threads = await this.emailThreadRepository.find({
+      where: { userId, threadId: In(threadIds) },
+    });
+
+    // STEP 1: Update database FIRST (immediate effect on page reload)
+    // Remove stars from any starred threads
+    const starredThreadIds = threads
+      .filter((t) => t.starCount > 0)
+      .map((t) => t.threadId);
+    if (starredThreadIds.length > 0) {
+      this.logger.log(
+        `[Archive] Removing stars from ${starredThreadIds.length} threads`,
+      );
+      await this.emailThreadRepository.update(
+        { userId, threadId: In(starredThreadIds) },
+        { starCount: 0 },
+      );
+    }
+
+    // Mark all emails in these threads as read
+    const unreadEmails = await this.emailRepository.find({
+      where: { userId, threadId: In(threadIds), isRead: false },
+      select: ["id"],
+    });
+    if (unreadEmails.length > 0) {
+      const unreadEmailIds = unreadEmails.map((e) => e.id);
+      await this.bulkMarkAsRead(userId, unreadEmailIds);
+      this.logger.log(
+        `[Archive] Marked ${unreadEmailIds.length} emails as read`,
+      );
+    }
+
+    // Update all threads to archived with lastUserOperationAt timestamp
+    const now = new Date();
+    await this.emailThreadRepository.update(
+      { userId, threadId: In(threadIds) },
+      { isArchived: true, lastUserOperationAt: now },
+    );
+    this.logger.log(
+      `[Archive] Updated ${threadIds.length} threads to archived in database`,
+    );
+
+    // STEP 2: Sync to email provider (Gmail, Office365, etc.)
+    const provider = await this.emailProviderManager.getPrimaryProvider(userId);
+    if (provider && "archiveThread" in provider) {
+      this.logger.log(
+        `[Archive] Syncing ${threadIds.length} threads to email provider`,
+      );
+      // Archive threads in parallel with concurrency limit
+      const CONCURRENCY_LIMIT = 5;
+      for (let i = 0; i < threadIds.length; i += CONCURRENCY_LIMIT) {
+        const batch = threadIds.slice(i, i + CONCURRENCY_LIMIT);
+        await Promise.all(
+          batch.map(async (threadId) => {
+            try {
+              await provider.archiveThread(userId, threadId);
+            } catch (error: unknown) {
+              // Log error but don't fail - database update already succeeded
+              this.logger.error(
+                `[Archive] Failed to sync archive to email provider for thread ${threadId}:`,
+                error,
+              );
+            }
+          }),
+        );
+      }
+      this.logger.log(
+        `[Archive] Provider sync completed for ${threadIds.length} threads`,
+      );
+    } else {
+      this.logger.warn(
+        `[Archive] No email provider available: userId=${userId}, skipping provider sync`,
+      );
+    }
+
+    this.logger.log(
+      `[Archive] bulkArchiveEmails completed: userId=${userId}, emailCount=${emailIds.length}, threadCount=${threadIds.length}`,
     );
   }
 

@@ -115,7 +115,7 @@ I've reviewed your email and categorized it as medium priority, which means it'l
 {{/unless}}
 
 ---
-*You're receiving this because {{userName}} uses [BearlyMail](https://bearlymail.com) to manage email overload. If you'd prefer not to receive auto-responses, just let me know in your reply.*`,
+*You're receiving this because {{userName}} uses [BearlyMail](https://app.bearlymail.com) to manage email overload. If you'd prefer not to receive auto-responses, just let me know in your reply.*`,
 
   highPriority: `Hi!
 
@@ -141,7 +141,7 @@ Here's what's happening:
 {{/unless}}
 
 ---
-*You're receiving this because {{userName}} uses [BearlyMail](https://bearlymail.com) to manage email overload. If you'd prefer not to receive auto-responses, just let me know in your reply.*`,
+*You're receiving this because {{userName}} uses [BearlyMail](https://app.bearlymail.com) to manage email overload. If you'd prefer not to receive auto-responses, just let me know in your reply.*`,
 
   lowPriority: `Hey there!
 
@@ -165,7 +165,7 @@ If this is actually urgent, just reply and let me know—I'll bump it up!
 {{/if}}
 
 ---
-*You're receiving this because {{userName}} uses [BearlyMail](https://bearlymail.com) to manage email overload. If you'd prefer not to receive auto-responses, just let me know in your reply.*`,
+*You're receiving this because {{userName}} uses [BearlyMail](https://app.bearlymail.com) to manage email overload. If you'd prefer not to receive auto-responses, just let me know in your reply.*`,
 
   noAnswer: `**I tried to help, but...** I looked through {{userName}}'s previous emails to see if I could answer your question preemptively, but this seems like something that needs {{userName}}'s direct attention. He'll get back to you as soon as he works through the queue!`,
 
@@ -186,7 +186,7 @@ Good news! {{userName}}'s inbox is looking pretty clear right now, so he should 
 {{/if}}
 
 ---
-*You're receiving this because {{userName}} uses [BearlyMail](https://bearlymail.com) to manage email overload. If you'd prefer not to receive auto-responses, just let me know in your reply.*`,
+*You're receiving this because {{userName}} uses [BearlyMail](https://app.bearlymail.com) to manage email overload. If you'd prefer not to receive auto-responses, just let me know in your reply.*`,
 };
 
 export const DEFAULT_AUTO_RESPONDER_CONFIG: AutoResponderConfig = {

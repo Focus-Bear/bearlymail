@@ -41,6 +41,11 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   const { t } = useTranslation();
 
   const hasNoResults = searchResults.length === 0 || (searchResults.length === 1 && searchResults[0].id === SEARCH_RESULT_NO_RESULTS);
+  
+  // Extract debug info from the no-results marker if available
+  const noResultsDebugInfo = hasNoResults && searchResults.length === 1 
+    ? (searchResults[0] as SearchEmail).debugInfo 
+    : null;
 
   if (hasNoResults) {
     return (
@@ -61,6 +66,46 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
         <p style={{ color: theme.colors.text.secondary, marginBottom: theme.spacing.lg }}>
           {t('search.noResultsHint')}
         </p>
+        {noResultsDebugInfo?.queriesTried && noResultsDebugInfo.queriesTried.length > 0 && (
+          <div style={{
+            marginTop: theme.spacing.md,
+            padding: theme.spacing.md,
+            backgroundColor: theme.colors.background.subtle,
+            borderRadius: theme.borderRadius.md,
+            textAlign: 'left',
+          }}>
+            <p style={{ 
+              color: theme.colors.text.secondary, 
+              fontSize: theme.typography.fontSize.sm,
+              marginBottom: theme.spacing.sm,
+              fontWeight: theme.typography.fontWeight.medium,
+            }}>
+              {t('search.queriesUsed')}:
+            </p>
+            <ul style={{ 
+              margin: 0, 
+              paddingLeft: theme.spacing.lg,
+              color: theme.colors.text.tertiary,
+              fontSize: theme.typography.fontSize.xs,
+            }}>
+              {noResultsDebugInfo.queriesTried.map((q: { query: string; resultCount: number }, idx: number) => (
+                <li key={idx} style={{ marginBottom: theme.spacing.xs }}>
+                  <code style={{ 
+                    backgroundColor: theme.colors.background.paper,
+                    padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                    borderRadius: theme.borderRadius.sm,
+                    fontFamily: 'monospace',
+                  }}>
+                    {q.query}
+                  </code>
+                  <span style={{ marginLeft: theme.spacing.sm, color: theme.colors.text.tertiary }}>
+                    ({q.resultCount} {t('search.results')})
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     );
   }

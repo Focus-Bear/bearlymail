@@ -1079,6 +1079,8 @@
     "searching": "Searching...",
     "noResults": "No emails found",
     "noResultsHint": "Try adjusting your search query or using different keywords.",
+    "queriesUsed": "Search queries used",
+    "results": "results",
     "found": "Found {{count}} email{{plural}}",
     "relevance": "Relevance: {{score}}%",
     "clickToSeeBreakdown": "Click to see score breakdown",

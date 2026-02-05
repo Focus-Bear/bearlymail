@@ -1165,6 +1165,8 @@
     "hint": "💡 Haz una pregunta en lenguaje natural o usa la sintaxis de búsqueda de Gmail: de:, para:, asunto:, tiene:adjunto, antes:, después:, etc.",
     "noResults": "No se encontraron correos electrónicos",
     "noResultsHint": "Intenta ajustar tu consulta de búsqueda o usar diferentes palabras clave.",
+    "queriesUsed": "Consultas de búsqueda utilizadas",
+    "results": "resultados",
     "placeholder": "Haz una pregunta o busca (ej., 'correos de Juan', 'confirmaciones de reunión', 'de:juan@ejemplo.com')",
     "recencyAdjustment": "Ajuste de actualidad",
     "recencyDescription": "Bonificación para correos recientes, penalización para correos antiguos",

@@ -184,7 +184,22 @@ export class EmailSearchService {
           0,
           Date.now() - searchStartTime,
         );
-        return [];
+        // Return a special "no-results" marker with debug info including queries tried
+        return [
+          {
+            id: "no-results",
+            subject: "",
+            from: "",
+            body: "",
+            receivedAt: new Date().toISOString(),
+            debugInfo: {
+              originalQuery,
+              queriesTried,
+              message: "No emails found matching your search",
+            },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any,
+        ];
       }
 
       // Step 3: Fetch full email data from our database
@@ -194,7 +209,22 @@ export class EmailSearchService {
         .filter((id): id is string => id !== null && id !== undefined);
 
       if (messageIds.length === 0) {
-        return [];
+        // Return a special "no-results" marker with debug info including queries tried
+        return [
+          {
+            id: "no-results",
+            subject: "",
+            from: "",
+            body: "",
+            receivedAt: new Date().toISOString(),
+            debugInfo: {
+              originalQuery,
+              queriesTried,
+              message: "Emails found in Gmail but not yet synced to BearlyMail",
+            },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any,
+        ];
       }
 
       // Fetch emails from our database
@@ -225,7 +255,22 @@ export class EmailSearchService {
           0,
           Date.now() - searchStartTime,
         );
-        return [];
+        // Return a special "no-results" marker with debug info including queries tried
+        return [
+          {
+            id: "no-results",
+            subject: "",
+            from: "",
+            body: "",
+            receivedAt: new Date().toISOString(),
+            debugInfo: {
+              originalQuery,
+              queriesTried,
+              message: "Emails found in Gmail but not yet synced to BearlyMail",
+            },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any,
+        ];
       }
 
       // Step 4: Calculate days since last email for each email (for recency scoring)

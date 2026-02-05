@@ -13,13 +13,12 @@ on:
 
 env:
   AWS_REGION: ap-southeast-2
-  ECS_CLUSTER: BearlyMailCluster
-  MIGRATION_TASK_DEFINITION: BearlyMailMigrationTask
 
 jobs:
   deploy-backend:
     name: Deploy Backend
     runs-on: ubuntu-latest
+    environment: Production
     permissions:
       id-token: write
       contents: read
@@ -47,6 +46,7 @@ jobs:
         working-directory: client
         env:
           REACT_APP_API_URL: https://api.app.bearlymail.com
+          VITE_POSTHOG_KEY: ${{ vars.VITE_POSTHOG_KEY }}
         run: npm run build
 
       - name: Install CDK dependencies
@@ -63,9 +63,23 @@ jobs:
             --require-approval never \
             --outputs-file cdk-outputs.json
 
-      - name: Get VPC Configuration for Migration Task
+      - name: Get VPC and ECS Configuration for Migration Task
         id: vpc-config
         run: |
+          # Get ECS cluster name from CloudFormation exports
+          ECS_CLUSTER=$(aws cloudformation list-exports \
+            --query "Exports[?Name=='BearlyMail-ECS-Cluster'].Value" \
+            --output text)
+          echo "ecs_cluster=$ECS_CLUSTER" >> $GITHUB_OUTPUT
+          echo "Found ECS cluster: $ECS_CLUSTER"
+          
+          # Get migration task definition ARN from CloudFormation exports
+          MIGRATION_TASK_ARN=$(aws cloudformation list-exports \
+            --query "Exports[?Name=='BearlyMail-Migration-Task-ARN'].Value" \
+            --output text)
+          echo "migration_task_arn=$MIGRATION_TASK_ARN" >> $GITHUB_OUTPUT
+          echo "Found migration task: $MIGRATION_TASK_ARN"
+          
           # Get private subnet IDs from the VPC
           SUBNET_IDS=$(aws ec2 describe-subnets \
             --filters "Name=tag:aws-cdk:subnet-type,Values=Private" \
@@ -88,9 +102,9 @@ jobs:
           
           # Run the migration task
           TASK_ARN=$(aws ecs run-task \
-            --cluster ${{ env.ECS_CLUSTER }} \
-            --task-definition ${{ env.MIGRATION_TASK_DEFINITION }} \
-            --launch-type FARGATE \
+            --cluster ${{ steps.vpc-config.outputs.ecs_cluster }} \
+            --task-definition ${{ steps.vpc-config.outputs.migration_task_arn }} \
+            --launch-type FARGATE\
             --network-configuration "awsvpcConfiguration={subnets=[${{ steps.vpc-config.outputs.subnet_ids }}],securityGroups=[${{ steps.vpc-config.outputs.security_group }}],assignPublicIp=DISABLED}" \
             --query 'tasks[0].taskArn' \
             --output text)
@@ -100,12 +114,12 @@ jobs:
           # Wait for the task to complete
           echo "Waiting for migration task to complete..."
           aws ecs wait tasks-stopped \
-            --cluster ${{ env.ECS_CLUSTER }} \
+            --cluster ${{ steps.vpc-config.outputs.ecs_cluster }} \
             --tasks $TASK_ARN
           
           # Check if the task succeeded
           EXIT_CODE=$(aws ecs describe-tasks \
-            --cluster ${{ env.ECS_CLUSTER }} \
+            --cluster ${{ steps.vpc-config.outputs.ecs_cluster }} \
             --tasks $TASK_ARN \
             --query 'tasks[0].containers[0].exitCode' \
             --output text)
@@ -122,6 +136,7 @@ jobs:
     name: Deploy Frontend
     runs-on: ubuntu-latest
     needs: deploy-backend
+    environment: Production
     permissions:
       id-token: write
       contents: read
@@ -151,6 +166,7 @@ jobs:
         working-directory: client
         env:
           REACT_APP_API_URL: https://api.app.bearlymail.com
+          VITE_POSTHOG_KEY: ${{ vars.VITE_POSTHOG_KEY }}
         run: npm run build
 
       - name: Get S3 Bucket and CloudFront Distribution

@@ -160,6 +160,8 @@ tests:
         From: Jeremy Nagel, Subject: Reminder, Read: Read, InInbox, Starred(1), Behavior: ReadButKept, ReplyTime: 2m (QUICK)
         From: Jeremy Nagel, Subject: Note to self, Read: Read, InInbox, NotStarred, Behavior: ReadButKept, ReplyTime: 1m (QUICK)
         From: Sarah Chen, Subject: Project update, Read: Read, InInbox, Starred(2), Behavior: ReadButKept, ReplyTime: 5m (QUICK)
+        From: Sarah Chen, Subject: Design review, Read: Read, InInbox, Starred(1), Behavior: ReadButKept, ReplyTime: 8m (QUICK)
+        From: Sarah Chen, Subject: Budget approval, Read: Read, InInbox, NotStarred, Behavior: ReadButKept, ReplyTime: 12m (QUICK)
       sentEmails: |
         To: jeremy@company.com, Subject: Re: Reminder
         Full Email Body:
@@ -168,6 +170,10 @@ tests:
         To: sarah.chen@company.com, Subject: Re: Project update
         Full Email Body:
         Thanks for the update.
+        ---
+        To: sarah.chen@company.com, Subject: Re: Design review
+        Full Email Body:
+        Looks great, thanks!
         ---
     assert:
       - type: javascript

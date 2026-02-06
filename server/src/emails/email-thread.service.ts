@@ -55,6 +55,7 @@ export class EmailThreadService {
         // For thread view, we can fetch them separately for expanded emails
         "email.body",
         "email.htmlBody",
+        "email.attachments",
       ])
       .where("email.userId = :userId", { userId })
       .andWhere("email.threadId = :threadId", { threadId });

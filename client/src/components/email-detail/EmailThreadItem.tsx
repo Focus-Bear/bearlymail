@@ -2,6 +2,7 @@ import React from 'react';
 import { theme } from 'theme/theme';
 import { ThreadItemHeader } from 'components/email-detail/ThreadItemHeader';
 import { ThreadItemBody } from 'components/email-detail/ThreadItemBody';
+import { EmailAttachments } from 'components/email-detail/EmailAttachments';
 
 interface EmailThreadItemProps {
   threadEmail: {
@@ -13,6 +14,12 @@ interface EmailThreadItemProps {
     body: string;
     htmlBody?: string;
     receivedAt: string;
+    attachments?: Array<{
+      attachmentId: string;
+      filename: string;
+      mimeType: string;
+      size: number;
+    }>;
   };
   isExpanded: boolean;
   isCurrentEmail: boolean;
@@ -48,10 +55,20 @@ export const EmailThreadItem: React.FC<EmailThreadItemProps> = ({
               onToggle={onToggle}
             />
       {isExpanded && (
-        <ThreadItemBody
-          body={threadEmail.body}
-          htmlBody={threadEmail.htmlBody}
-        />
+        <>
+          <ThreadItemBody
+            body={threadEmail.body}
+            htmlBody={threadEmail.htmlBody}
+          />
+          {threadEmail.attachments && threadEmail.attachments.length > 0 && (
+            <div style={{ padding: `0 ${theme.spacing.md} ${theme.spacing.md}` }}>
+              <EmailAttachments
+                emailId={threadEmail.id}
+                attachments={threadEmail.attachments}
+              />
+            </div>
+          )}
+        </>
       )}
     </div>
   );

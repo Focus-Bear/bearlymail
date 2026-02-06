@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 import { humanizeTimestamp } from 'utils/dateUtils';
 import { Email } from 'types/email';
 import { EmailBodyIframe } from './EmailBodyIframe';
+import { EmailAttachments } from './EmailAttachments';
 
 interface EmailThreadViewProps {
   email: Email;
@@ -127,6 +128,12 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = ({
                       {cleanBody || threadEmail.body}
                     </div>
                   )}
+                  {threadEmail.attachments && threadEmail.attachments.length > 0 && (
+                    <EmailAttachments
+                      emailId={threadEmail.id}
+                      attachments={threadEmail.attachments}
+                    />
+                  )}
                 </div>
               ) : (
                 <div 
@@ -170,6 +177,12 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = ({
         <div style={{ whiteSpace: 'pre-wrap' }}>
           {extractCleanBody(email.body || '') || email.body || ''}
         </div>
+      )}
+      {email.attachments && email.attachments.length > 0 && (
+        <EmailAttachments
+          emailId={email.id}
+          attachments={email.attachments}
+        />
       )}
     </div>
   );

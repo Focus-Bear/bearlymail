@@ -25,6 +25,12 @@ interface Email {
   body: string;
   htmlBody?: string;
   receivedAt: string;
+  attachments?: Array<{
+    attachmentId: string;
+    filename: string;
+    mimeType: string;
+    size: number;
+  }>;
 }
 
 interface EmailDetailContentProps {
@@ -423,14 +429,14 @@ export const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
         onToggleThreadItem={onToggleThreadItem}
       />
 
-      {(email as any).attachments && (email as any).attachments.length > 0 && (
+      <EmailDetailBody body={email.body} htmlBody={email.htmlBody || undefined} />
+
+      {email.attachments && email.attachments.length > 0 && (
         <EmailAttachments
           emailId={emailId}
-          attachments={(email as any).attachments}
+          attachments={email.attachments}
         />
       )}
-
-      <EmailDetailBody body={email.body} htmlBody={email.htmlBody || undefined} />
 
       {/* eslint-disable i18next/no-literal-string */}
       {user?.isAdmin && email && (() => {

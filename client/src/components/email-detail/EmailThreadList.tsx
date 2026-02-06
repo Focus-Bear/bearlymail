@@ -12,6 +12,12 @@ interface Email {
   body: string;
   htmlBody?: string;
   receivedAt: string;
+  attachments?: Array<{
+    attachmentId: string;
+    filename: string;
+    mimeType: string;
+    size: number;
+  }>;
 }
 
 interface EmailThreadListProps {

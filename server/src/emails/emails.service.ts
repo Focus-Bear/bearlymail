@@ -531,7 +531,44 @@ export class EmailsService {
       );
     }
 
-    // STEP 7.5: For follow-up mode, filter by user_sent_last AND no_reply_received AND not_snoozed
+    // STEP 7.5a: For action mode, exclude threads where the user sent the last email
+    // Those threads belong in "Follow Up" instead of "Action"
+    if (mode === "action") {
+      const endActionFilter = perf.startSpan(
+        "action_user_sent_last_filter",
+        QUERY_LIMITS.INBOX_PROCESS_TOTAL,
+      );
+      try {
+        const actionUser = await this.usersService.findOne(userId);
+        if (actionUser) {
+          const actionUserEmail = EncryptionHelper.decrypt(
+            actionUser.email,
+          )?.toLowerCase();
+          if (actionUserEmail) {
+            const beforeCount = filteredEmails.length;
+            filteredEmails = filteredEmails.filter((e) => {
+              const senderEmail = e.from?.toLowerCase() || "";
+              return senderEmail !== actionUserEmail;
+            });
+            const removedCount = beforeCount - filteredEmails.length;
+            if (removedCount > 0) {
+              this.logger.debug(
+                `Action mode: Filtered ${removedCount} threads where user sent the last email`,
+              );
+            }
+          }
+        }
+      } catch (error) {
+        this.logger.warn(
+          "Failed to filter action mode by user-sent-last:",
+          error,
+        );
+        // Continue without filtering - better to show extra threads than fail
+      }
+      endActionFilter();
+    }
+
+    // STEP 7.5b: For follow-up mode, filter by user_sent_last AND no_reply_received AND not_snoozed
     if (mode === "follow-up") {
       const endFollowUpFilter = perf.startSpan(
         "follow_up_filter",

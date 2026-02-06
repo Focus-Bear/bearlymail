@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
 import axios from 'axios';
 import { useNotifications } from 'contexts/NotificationContext';
+import { useAuth } from 'contexts/AuthContext';
 import { HTTP_UNAUTHORIZED, HTTP_FORBIDDEN } from 'constants/numbers';
 import { captureEvent } from 'utils/posthog';
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
@@ -123,6 +124,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
   const dispatch = useDispatch<AppDispatch>();
   const emails = useSelector(selectEmails);
   const { showSuccess, showError } = useNotifications();
+  const { user } = useAuth();
     const {
       email,
       setEmail,
@@ -762,20 +764,57 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
       : email;
 
     if (latestEmail) {
+      const normalizedUserEmail = user?.email?.toLowerCase();
+      const isLatestFromCurrentUser = normalizedUserEmail && latestEmail.from?.toLowerCase() === normalizedUserEmail;
+
       if (mode === REPLY_MODE_REPLY_ALL) {
-        const recipients: string[] = [latestEmail.from];
-        if (latestEmail.to) {
-          const toRecipients = latestEmail.to.split(',').map(r => r.trim()).filter(r => r);
-          recipients.push(...toRecipients);
+        const recipients: string[] = [];
+
+        if (isLatestFromCurrentUser) {
+          // User sent the last email - reply to the original recipients
+          if (latestEmail.to) {
+            const toRecipients = latestEmail.to.split(',').map((r: string) => r.trim()).filter((r: string) => r && r.toLowerCase() !== normalizedUserEmail);
+            recipients.push(...toRecipients);
+          }
+        } else {
+          // Someone else sent the last email - reply to them + other recipients
+          recipients.push(latestEmail.from);
+          if (latestEmail.to) {
+            const toRecipients = latestEmail.to.split(',').map((r: string) => r.trim()).filter((r: string) => r && r.toLowerCase() !== normalizedUserEmail);
+            recipients.push(...toRecipients);
+          }
         }
+
         const uniqueRecipients = [...new Set(recipients)];
         setReplyRecipients(uniqueRecipients.join(', '));
         if (latestEmail.cc) {
-          setReplyCc(latestEmail.cc);
-          setShowCc(true);
+          // Filter out current user from CC as well
+          const ccRecipients = latestEmail.cc.split(',').map((r: string) => r.trim()).filter((r: string) => r && r.toLowerCase() !== normalizedUserEmail);
+          if (ccRecipients.length > 0) {
+            setReplyCc(ccRecipients.join(', '));
+            setShowCc(true);
+          }
         }
       } else {
-        setReplyRecipients(latestEmail.from);
+        // Regular reply
+        if (isLatestFromCurrentUser) {
+          // User sent the last email - reply to the recipients of that email, not to yourself
+          // Try to find the correspondent from thread emails first
+          const otherPersonEmail = threadEmails.find(
+            (e: any) => e.from?.toLowerCase() !== normalizedUserEmail
+          );
+          if (otherPersonEmail) {
+            setReplyRecipients(otherPersonEmail.from);
+          } else if (latestEmail.to) {
+            // Fall back to the 'to' field of the latest email
+            const firstRecipient = latestEmail.to.split(',').map((r: string) => r.trim()).filter((r: string) => r && r.toLowerCase() !== normalizedUserEmail)[0];
+            setReplyRecipients(firstRecipient || latestEmail.to);
+          } else {
+            setReplyRecipients(latestEmail.from);
+          }
+        } else {
+          setReplyRecipients(latestEmail.from);
+        }
       }
     }
     // Only generate suggestions if we don't already have them (they may have been pre-generated in background)
@@ -787,7 +826,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
       // If we have suggestions but no draft selected, select the first one
       setDraft(replyOptions[0].text);
     }
-  }, [id, email, threadEmails, draft, replyOptions, setReplyMode, setShowReplyComposer, setDraft, setToneCheckResult, setReplyRecipients, setReplyCc, setReplyBcc, setShowCc, setShowBcc, handleGenerateDraft]);
+  }, [id, email, threadEmails, draft, replyOptions, user?.email, setReplyMode, setShowReplyComposer, setDraft, setToneCheckResult, setReplyRecipients, setReplyCc, setReplyBcc, setShowCc, setShowBcc, handleGenerateDraft]);
 
   const performArchiveAfterReply = useCallback(async () => {
     if (!id) return;

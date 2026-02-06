@@ -5,6 +5,7 @@ import { API_URL } from 'config/api';
 import { useEmailDetailToneCheck } from 'hooks/useEmailDetailToneCheck';
 import { useReplyDraftGeneration, ReplyGenerationDebugInfo } from 'hooks/useReplyDraftGeneration';
 import { useNotifications } from 'contexts/NotificationContext';
+import { useAuth } from 'contexts/AuthContext';
 import { REPLY_MODE_REPLY_ALL, REPLY_MODE_FORWARD } from 'constants/strings';
 
 interface EmailAttachment {
@@ -35,6 +36,7 @@ export function useEmailDetailReplies(
   const { autoGenerateReplies = false } = options;
   const { t } = useTranslation();
   const { showSuccess, showError } = useNotifications();
+  const { user } = useAuth();
   const [showReplyComposer, setShowReplyComposer] = useState(false);
   const [replyMode, setReplyMode] = useState<'reply' | 'replyAll' | 'forward'>('reply');
   const [replyRecipients, setReplyRecipients] = useState<string>('');
@@ -78,20 +80,47 @@ export function useEmailDetailReplies(
     setShowCc(false);
     setShowBcc(false);
     if (email) {
+      const normalizedUserEmail = user?.email?.toLowerCase();
+      const isFromCurrentUser = normalizedUserEmail && email.from?.toLowerCase() === normalizedUserEmail;
+
       if (mode === REPLY_MODE_FORWARD) {
         setReplyRecipients('');
         setInitialAttachments(email.attachments || []);
       } else if (mode === REPLY_MODE_REPLY_ALL) {
-        const recipients = [email.from];
-        setReplyRecipients(recipients.join(', '));
+        const recipients: string[] = [];
+        if (isFromCurrentUser) {
+          // User sent this email - reply to the original recipients, not to self
+          if ((email as any).to) {
+            const toRecipients = (email as any).to.split(',').map((r: string) => r.trim()).filter((r: string) => r && r.toLowerCase() !== normalizedUserEmail);
+            recipients.push(...toRecipients);
+          }
+        } else {
+          recipients.push(email.from);
+          if ((email as any).to) {
+            const toRecipients = (email as any).to.split(',').map((r: string) => r.trim()).filter((r: string) => r && r.toLowerCase() !== normalizedUserEmail);
+            recipients.push(...toRecipients);
+          }
+        }
+        setReplyRecipients([...new Set(recipients)].join(', '));
         setInitialAttachments([]);
       } else {
-        setReplyRecipients(email.from);
+        // Regular reply
+        if (isFromCurrentUser) {
+          // User sent this email - reply to the first recipient, not to self
+          if ((email as any).to) {
+            const firstRecipient = (email as any).to.split(',').map((r: string) => r.trim()).filter((r: string) => r && r.toLowerCase() !== normalizedUserEmail)[0];
+            setReplyRecipients(firstRecipient || email.from);
+          } else {
+            setReplyRecipients(email.from);
+          }
+        } else {
+          setReplyRecipients(email.from);
+        }
         setInitialAttachments([]);
       }
     }
     handleGenerateDraft();
-  }, [email, handleGenerateDraft, setDraft, setToneCheckResult]);
+  }, [email, user?.email, handleGenerateDraft, setDraft, setToneCheckResult]);
 
   const handleSendReply = useCallback(async (onClose?: () => void, expectedReplyHours?: number) => {
     if (!emailId || !draft) return;

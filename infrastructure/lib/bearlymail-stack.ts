@@ -2,7 +2,7 @@ import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as ecsPatterns from 'aws-cdk-lib/aws-ecs-patterns';
-import * as ecrAssets from 'aws-cdk-lib/aws-ecr-assets';
+import * as ecr from 'aws-cdk-lib/aws-ecr';
 import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as rds from 'aws-cdk-lib/aws-rds';
 import * as s3 from 'aws-cdk-lib/aws-s3';
@@ -118,6 +118,16 @@ export class BearlyMailStack extends cdk.Stack {
     });
 
     // ============================================
+    // ECR Repository for server images
+    // ============================================
+    // The ECR repository is created by the CI/CD pipeline (if it doesn't exist)
+    // and images are pushed with the 'latest' tag. Task definitions always
+    // reference 'latest', so CDK doesn't need to recreate them on every deploy.
+    // To deploy new code: push a new image to ECR, then restart ECS services.
+    const repository = ecr.Repository.fromRepositoryName(this, 'ServerRepository', 'bearlymail/server');
+    const serverImage = ecs.ContainerImage.fromEcrRepository(repository, 'latest');
+
+    // ============================================
     // Web Service (NestJS API)
     // ============================================
     const webTaskDefinition = new ecs.FargateTaskDefinition(this, 'WebTaskDefinition', {
@@ -128,10 +138,7 @@ export class BearlyMailStack extends cdk.Stack {
     });
 
     const webContainer = webTaskDefinition.addContainer('WebContainer', {
-      image: ecs.ContainerImage.fromAsset('../server', {
-        file: 'Dockerfile',
-        platform: ecrAssets.Platform.LINUX_AMD64,
-      }),
+      image: serverImage,
       logging: ecs.LogDrivers.awsLogs({
         streamPrefix: 'web',
         logGroup: webLogGroup,
@@ -236,10 +243,7 @@ export class BearlyMailStack extends cdk.Stack {
     });
 
     const workerContainer = workerTaskDefinition.addContainer('WorkerContainer', {
-      image: ecs.ContainerImage.fromAsset('../server', {
-        file: 'Dockerfile',
-        platform: ecrAssets.Platform.LINUX_AMD64,
-      }),
+      image: serverImage,
       command: ['node', 'dist/worker.js'],
       logging: ecs.LogDrivers.awsLogs({
         streamPrefix: 'worker',
@@ -290,10 +294,7 @@ export class BearlyMailStack extends cdk.Stack {
     });
 
     const cronContainer = cronTaskDefinition.addContainer('CronContainer', {
-      image: ecs.ContainerImage.fromAsset('../server', {
-        file: 'Dockerfile',
-        platform: ecrAssets.Platform.LINUX_AMD64,
-      }),
+      image: serverImage,
       command: ['node', '-e', 'console.log("Cron job placeholder - implement your cron logic")'],
       logging: ecs.LogDrivers.awsLogs({
         streamPrefix: 'cron',
@@ -371,10 +372,7 @@ export class BearlyMailStack extends cdk.Stack {
     });
 
     migrationTaskDefinition.addContainer('MigrationContainer', {
-      image: ecs.ContainerImage.fromAsset('../server', {
-        file: 'Dockerfile',
-        platform: ecrAssets.Platform.LINUX_AMD64,
-      }),
+      image: serverImage,
       command: ['npm', 'run', 'migration:run'],
       logging: ecs.LogDrivers.awsLogs({
         streamPrefix: 'migration',
@@ -560,6 +558,24 @@ export class BearlyMailStack extends cdk.Stack {
       value: cluster.clusterName,
       description: 'ECS cluster name',
       exportName: 'BearlyMail-ECS-Cluster',
+    });
+
+    new cdk.CfnOutput(this, 'WebServiceName', {
+      value: webService.service.serviceName,
+      description: 'Web ECS service name',
+      exportName: 'BearlyMail-Web-Service-Name',
+    });
+
+    new cdk.CfnOutput(this, 'WorkerServiceName', {
+      value: workerService.serviceName,
+      description: 'Worker ECS service name',
+      exportName: 'BearlyMail-Worker-Service-Name',
+    });
+
+    new cdk.CfnOutput(this, 'ECRRepositoryUri', {
+      value: repository.repositoryUri,
+      description: 'ECR repository URI for server images',
+      exportName: 'BearlyMail-ECR-Repository-URI',
     });
   }
 }

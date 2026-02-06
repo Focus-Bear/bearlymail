@@ -13,6 +13,7 @@ on:
 
 env:
   AWS_REGION: ap-southeast-2
+  ECR_REPOSITORY: bearlymail/server
 
 jobs:
   deploy-backend:
@@ -49,6 +50,31 @@ jobs:
           VITE_POSTHOG_KEY: ${{ vars.VITE_POSTHOG_KEY }}
         run: npm run build
 
+      # ============================================
+      # Build and push Docker image to ECR
+      # ============================================
+      - name: Ensure ECR repository exists
+        run: |
+          aws ecr describe-repositories --repository-names ${{ env.ECR_REPOSITORY }} 2>/dev/null || \
+          aws ecr create-repository \
+            --repository-name ${{ env.ECR_REPOSITORY }} \
+            --image-tag-mutability MUTABLE \
+            --image-scanning-configuration scanOnPush=true
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker image
+        working-directory: server
+        run: |
+          IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}"
+          docker build --platform linux/amd64 -t ${IMAGE_URI}:latest .
+          docker push ${IMAGE_URI}:latest
+
+      # ============================================
+      # CDK Deploy (infrastructure changes only)
+      # ============================================
       - name: Install CDK dependencies
         working-directory: infrastructure
         run: npm ci
@@ -63,16 +89,54 @@ jobs:
             --require-approval never \
             --outputs-file cdk-outputs.json
 
-      - name: Get VPC and ECS Configuration for Migration Task
-        id: vpc-config
+      # ============================================
+      # Force ECS services to pull the new image
+      # ============================================
+      - name: Force ECS Service Update
+        id: ecs-update
         run: |
-          # Get ECS cluster name from CloudFormation exports
           ECS_CLUSTER=$(aws cloudformation list-exports \
             --query "Exports[?Name=='BearlyMail-ECS-Cluster'].Value" \
             --output text)
+
+          WEB_SERVICE=$(aws cloudformation list-exports \
+            --query "Exports[?Name=='BearlyMail-Web-Service-Name'].Value" \
+            --output text)
+
+          WORKER_SERVICE=$(aws cloudformation list-exports \
+            --query "Exports[?Name=='BearlyMail-Worker-Service-Name'].Value" \
+            --output text)
+
           echo "ecs_cluster=$ECS_CLUSTER" >> $GITHUB_OUTPUT
-          echo "Found ECS cluster: $ECS_CLUSTER"
-          
+          echo "web_service=$WEB_SERVICE" >> $GITHUB_OUTPUT
+          echo "worker_service=$WORKER_SERVICE" >> $GITHUB_OUTPUT
+
+          echo "Forcing new deployment on web service..."
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER \
+            --service $WEB_SERVICE \
+            --force-new-deployment
+
+          echo "Forcing new deployment on worker service..."
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER \
+            --service $WORKER_SERVICE \
+            --force-new-deployment
+
+      - name: Wait for ECS services to stabilize
+        run: |
+          echo "Waiting for services to stabilize (this may take a few minutes)..."
+          aws ecs wait services-stable \
+            --cluster ${{ steps.ecs-update.outputs.ecs_cluster }} \
+            --services ${{ steps.ecs-update.outputs.web_service }} ${{ steps.ecs-update.outputs.worker_service }}
+          echo "All services are stable."
+
+      # ============================================
+      # Run database migrations
+      # ============================================
+      - name: Get VPC and ECS Configuration for Migration Task
+        id: vpc-config
+        run: |
           # Get migration task definition ARN from CloudFormation exports
           MIGRATION_TASK_ARN=$(aws cloudformation list-exports \
             --query "Exports[?Name=='BearlyMail-Migration-Task-ARN'].Value" \
@@ -102,7 +166,7 @@ jobs:
           
           # Run the migration task
           TASK_ARN=$(aws ecs run-task \
-            --cluster ${{ steps.vpc-config.outputs.ecs_cluster }} \
+            --cluster ${{ steps.ecs-update.outputs.ecs_cluster }} \
             --task-definition ${{ steps.vpc-config.outputs.migration_task_arn }} \
             --launch-type FARGATE\
             --network-configuration "awsvpcConfiguration={subnets=[${{ steps.vpc-config.outputs.subnet_ids }}],securityGroups=[${{ steps.vpc-config.outputs.security_group }}],assignPublicIp=DISABLED}" \
@@ -114,12 +178,12 @@ jobs:
           # Wait for the task to complete
           echo "Waiting for migration task to complete..."
           aws ecs wait tasks-stopped \
-            --cluster ${{ steps.vpc-config.outputs.ecs_cluster }} \
+            --cluster ${{ steps.ecs-update.outputs.ecs_cluster }} \
             --tasks $TASK_ARN
           
           # Check if the task succeeded
           EXIT_CODE=$(aws ecs describe-tasks \
-            --cluster ${{ steps.vpc-config.outputs.ecs_cluster }} \
+            --cluster ${{ steps.ecs-update.outputs.ecs_cluster }} \
             --tasks $TASK_ARN \
             --query 'tasks[0].containers[0].exitCode' \
             --output text)

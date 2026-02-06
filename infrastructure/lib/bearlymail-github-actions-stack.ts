@@ -88,6 +88,7 @@ export class BearlyMailGitHubActionsStack extends cdk.Stack {
         'cloudformation:DescribeChangeSet',
         'cloudformation:ExecuteChangeSet',
         'cloudformation:ListChangeSets',
+        'cloudformation:ListExports',
         'cloudformation:TagResource',
         'ssm:GetParameter',
         'ssm:GetParameters',

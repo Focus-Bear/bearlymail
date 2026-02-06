@@ -4,6 +4,7 @@ import { StarDiscrepancyModal } from 'components/priority/StarDiscrepancyModal';
 import { PriorityOverrideModal } from 'components/priority/PriorityOverrideModal';
 import { UrgencyOverrideModal } from 'components/inbox/UrgencyOverrideModal';
 import { PriorityFeedbackModal } from 'components/priority/PriorityFeedbackModal';
+import { API_URL } from 'config/api';
 
 interface ModalsState {
   blockConfirmEmail: { id: string; from: string; fromName?: string } | null;

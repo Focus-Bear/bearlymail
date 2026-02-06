@@ -6,6 +6,7 @@ import { useAuth } from 'contexts/AuthContext';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 import { devLog } from 'utils/dev-logger';
+import { API_URL } from 'config/api';
 
 const Login: React.FC = () => {
   const { t } = useTranslation();

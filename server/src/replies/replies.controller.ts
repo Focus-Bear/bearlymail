@@ -79,7 +79,12 @@ export class RepliesController {
   async sendReply(
     @Request() req,
     @Param("id") id: string,
-    @Body() body: { reply: string; expectedReplyHours?: number },
+    @Body()
+    body: {
+      reply: string;
+      expectedReplyHours?: number | string;
+      forwardAttachmentIds?: string | string[];
+    },
     @UploadedFiles() files?: Express.Multer.File[],
   ) {
     const attachments =
@@ -89,12 +94,33 @@ export class RepliesController {
         content: file.buffer,
       })) || undefined;
 
+    // Parse forwardAttachmentIds - it may come as JSON string from FormData
+    let forwardAttachmentIds: string[] | undefined;
+    if (body.forwardAttachmentIds) {
+      if (typeof body.forwardAttachmentIds === "string") {
+        try {
+          forwardAttachmentIds = JSON.parse(body.forwardAttachmentIds);
+        } catch {
+          forwardAttachmentIds = [body.forwardAttachmentIds];
+        }
+      } else {
+        forwardAttachmentIds = body.forwardAttachmentIds;
+      }
+    }
+
+    // Parse expectedReplyHours - it may come as string from FormData
+    const expectedReplyHours =
+      typeof body.expectedReplyHours === "string"
+        ? parseInt(body.expectedReplyHours, 10)
+        : body.expectedReplyHours;
+
     await this.repliesService.sendReply(
       req.user.userId,
       id,
       body.reply,
       attachments,
-      body.expectedReplyHours,
+      isNaN(expectedReplyHours as number) ? undefined : expectedReplyHours,
+      forwardAttachmentIds,
     );
     return { message: "Reply sent successfully" };
   }

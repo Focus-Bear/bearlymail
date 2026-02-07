@@ -122,7 +122,12 @@ export function useEmailDetailReplies(
     handleGenerateDraft();
   }, [email, user?.email, handleGenerateDraft, setDraft, setToneCheckResult]);
 
-  const handleSendReply = useCallback(async (onClose?: () => void, expectedReplyHours?: number) => {
+  const handleSendReply = useCallback(async (
+    files: File[] = [],
+    expectedReplyHours?: number,
+    forwardAttachmentIds?: string[],
+    onClose?: () => void,
+  ) => {
     if (!emailId || !draft) return;
     
     const toneOk = await checkTone(draft);
@@ -130,20 +135,47 @@ export function useEmailDetailReplies(
     
     setSending(true);
     try {
-      await axios.post(`${API_URL}/replies/send/${emailId}`, { 
-        reply: draft,
-        recipients: replyRecipients,
-        cc: replyCc || undefined,
-        bcc: replyBcc || undefined,
-        replyAll: replyMode === REPLY_MODE_REPLY_ALL,
-        expectedReplyHours: expectedReplyHours || undefined,
-      });
+      // Use FormData if we have files to send
+      if (files.length > 0) {
+        const formData = new FormData();
+        formData.append('reply', draft);
+        formData.append('recipients', replyRecipients);
+        formData.append('replyAll', String(replyMode === REPLY_MODE_REPLY_ALL));
+        if (replyCc) formData.append('cc', replyCc);
+        if (replyBcc) formData.append('bcc', replyBcc);
+        if (expectedReplyHours !== undefined) {
+          formData.append('expectedReplyHours', String(expectedReplyHours));
+        }
+        if (forwardAttachmentIds && forwardAttachmentIds.length > 0) {
+          formData.append('forwardAttachmentIds', JSON.stringify(forwardAttachmentIds));
+        }
+        files.forEach((file) => {
+          formData.append('files', file);
+        });
+
+        await axios.post(`${API_URL}/replies/send/${emailId}`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+      } else {
+        await axios.post(`${API_URL}/replies/send/${emailId}`, { 
+          reply: draft,
+          recipients: replyRecipients,
+          cc: replyCc || undefined,
+          bcc: replyBcc || undefined,
+          replyAll: replyMode === REPLY_MODE_REPLY_ALL,
+          expectedReplyHours: expectedReplyHours || undefined,
+          forwardAttachmentIds: forwardAttachmentIds && forwardAttachmentIds.length > 0 ? forwardAttachmentIds : undefined,
+        });
+      }
       setDraft(null);
       setShowReplyComposer(false);
       setReplyCc('');
       setReplyBcc('');
       setShowCc(false);
       setShowBcc(false);
+      setInitialAttachments([]);
       showSuccess(t('emailDetail.replySentSuccess'));
       if (onClose) {
         onClose();

@@ -211,6 +211,94 @@ describe("RepliesController", () => {
         body.reply,
         undefined,
         undefined,
+        undefined,
+      );
+    });
+
+    it("should send reply with attachments", async () => {
+      const userId = "user-123";
+      const emailId = "email-123";
+      const mockRequest = { user: { userId } };
+      const body = { reply: "Thank you for your email" };
+      const mockFiles = [
+        {
+          originalname: "test.pdf",
+          mimetype: "application/pdf",
+          buffer: Buffer.from("test content"),
+        },
+      ] as Express.Multer.File[];
+
+      mockRepliesService.sendReply.mockResolvedValue(undefined);
+
+      const result = await controller.sendReply(
+        mockRequest,
+        emailId,
+        body,
+        mockFiles,
+      );
+
+      expect(result).toEqual({ message: "Reply sent successfully" });
+      expect(repliesService.sendReply).toHaveBeenCalledWith(
+        userId,
+        emailId,
+        body.reply,
+        [
+          {
+            filename: "test.pdf",
+            mimeType: "application/pdf",
+            content: Buffer.from("test content"),
+          },
+        ],
+        undefined,
+        undefined,
+      );
+    });
+
+    it("should send reply with forward attachment IDs", async () => {
+      const userId = "user-123";
+      const emailId = "email-123";
+      const mockRequest = { user: { userId } };
+      const body = {
+        reply: "Thank you for your email",
+        forwardAttachmentIds: JSON.stringify(["attach-1", "attach-2"]),
+      };
+
+      mockRepliesService.sendReply.mockResolvedValue(undefined);
+
+      const result = await controller.sendReply(mockRequest, emailId, body);
+
+      expect(result).toEqual({ message: "Reply sent successfully" });
+      expect(repliesService.sendReply).toHaveBeenCalledWith(
+        userId,
+        emailId,
+        body.reply,
+        undefined,
+        undefined,
+        ["attach-1", "attach-2"],
+      );
+    });
+
+    it("should send reply with expected reply hours", async () => {
+      const userId = "user-123";
+      const emailId = "email-123";
+      const mockRequest = { user: { userId } };
+      const body = {
+        reply: "Thank you for your email",
+        expectedReplyHours: 24,
+      };
+
+      mockRepliesService.sendReply.mockResolvedValue(undefined);
+
+      const result = await controller.sendReply(mockRequest, emailId, body);
+
+      expect(result).toEqual({ message: "Reply sent successfully" });
+      expect(repliesService.sendReply).toHaveBeenCalledWith(
+        userId,
+        emailId,
+        body.reply,
+        undefined,
+        24,
+        undefined,
       );
     });
   });

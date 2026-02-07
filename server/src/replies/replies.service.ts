@@ -270,6 +270,7 @@ ${closing}`;
       content: Buffer;
     }>,
     expectedReplyHours?: number,
+    forwardAttachmentIds?: string[],
   ): Promise<void> {
     const email = await this.emailsService.getEmailById(userId, emailId);
     if (!email) {
@@ -297,13 +298,55 @@ ${closing}`;
       );
     }
 
+    // Fetch forward attachments if requested
+    let allAttachments = attachments ? [...attachments] : [];
+    if (forwardAttachmentIds && forwardAttachmentIds.length > 0 && email.attachments) {
+      const emailAttachments = email.attachments as Array<{
+        attachmentId: string;
+        filename: string;
+        mimeType: string;
+        size: number;
+      }>;
+
+      for (const attachmentId of forwardAttachmentIds) {
+        const attachmentMeta = emailAttachments.find(
+          (a) => a.attachmentId === attachmentId,
+        );
+        if (attachmentMeta) {
+          try {
+            const attachmentData = await provider.getAttachment(
+              userId,
+              email.messageId,
+              attachmentId,
+              {
+                filename: attachmentMeta.filename,
+                mimeType: attachmentMeta.mimeType,
+                size: attachmentMeta.size,
+              },
+            );
+            allAttachments.push({
+              filename: attachmentData.filename,
+              mimeType: attachmentData.mimeType,
+              content: attachmentData.data,
+            });
+          } catch (error) {
+            this.logger.error(
+              `Failed to fetch attachment ${attachmentId} for forwarding:`,
+              error,
+            );
+            // Continue with other attachments
+          }
+        }
+      }
+    }
+
     const sentMessage = await provider.sendReply(
       userId,
       email.threadId,
       email.from,
       replySubject,
       body,
-      attachments,
+      allAttachments.length > 0 ? allAttachments : undefined,
     );
 
     // Store the sent reply in the database so it appears in the thread view

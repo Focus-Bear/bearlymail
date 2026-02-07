@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { theme } from 'theme/theme';
 import { ReplyOptionsSelector } from 'components/email-detail-inline/ReplyOptionsSelector';
 import { ToneCheckResult } from 'components/email-detail-inline/ToneCheckResult';
@@ -12,6 +12,7 @@ import { useAuth } from 'contexts/AuthContext';
 
 const REPLY_OPTION_LABEL_CUSTOM = 'Custom';
 const EMPTY_ATTACHMENTS: EmailAttachment[] = [];
+const DRAG_OVERLAY_OPACITY = 0.95;
 
 interface ReplyOption {
   label: string;
@@ -113,7 +114,9 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
   const { user } = useAuth();
   const [files, setFiles] = useState<File[]>([]);
   const [forwardAttachmentIds, setForwardAttachmentIds] = useState<string[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
   const prevAttachmentsRef = useRef<string>('');
+  const dragCounterRef = useRef(0);
 
   const attachments = initialAttachments ?? EMPTY_ATTACHMENTS;
 
@@ -124,6 +127,48 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
       setForwardAttachmentIds(attachments.map(a => a.attachmentId));
     }
   }, [attachments]);
+
+  // Handle drag events
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+    if (e.dataTransfer?.items && e.dataTransfer.items.length > 0) {
+      setIsDragging(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    dragCounterRef.current = 0;
+
+    const droppedFiles = e.dataTransfer?.files;
+    if (droppedFiles && droppedFiles.length > 0) {
+      const newFiles = Array.from(droppedFiles);
+      setFiles(prev => [...prev, ...newFiles]);
+    }
+  }, []);
+
+  // Handle paste files from textarea
+  const handlePasteFiles = useCallback((pastedFiles: File[]) => {
+    setFiles(prev => [...prev, ...pastedFiles]);
+  }, []);
 
   if (!showReplyComposer) {
     return null;
@@ -160,14 +205,59 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
   );
 
   return (
-    <div className="animate-fade-in" style={{
-      marginBottom: theme.spacing.xl,
-      padding: theme.spacing.xl,
-      backgroundColor: theme.colors.background.paper,
-      borderRadius: theme.borderRadius.lg,
-      border: `1px solid ${theme.colors.primary.light}`,
-      boxShadow: theme.shadows.md,
-    }}>
+    <div
+      className="animate-fade-in"
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+      style={{
+        marginBottom: theme.spacing.xl,
+        padding: theme.spacing.xl,
+        backgroundColor: theme.colors.background.paper,
+        borderRadius: theme.borderRadius.lg,
+        border: `1px solid ${isDragging ? theme.colors.primary.main : theme.colors.primary.light}`,
+        boxShadow: theme.shadows.md,
+        position: 'relative',
+      }}
+    >
+      {/* Drag overlay */}
+      {isDragging && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: theme.colors.primary.light,
+            opacity: DRAG_OVERLAY_OPACITY,
+            borderRadius: theme.borderRadius.lg,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10,
+            pointerEvents: 'none',
+          }}
+        >
+          <div
+            style={{
+              padding: theme.spacing.xl,
+              backgroundColor: theme.colors.background.paper,
+              borderRadius: theme.borderRadius.md,
+              border: `2px dashed ${theme.colors.primary.main}`,
+              textAlign: 'center',
+            }}
+          >
+            {/* eslint-disable-next-line i18next/no-literal-string */}
+            <div style={{ fontSize: '2rem', marginBottom: theme.spacing.sm }}>📎</div>
+            {/* eslint-disable-next-line i18next/no-literal-string */}
+            <div style={{ fontSize: theme.typography.fontSize.lg, fontWeight: 600, color: theme.colors.primary.main }}>
+              Drop files to attach
+            </div>
+          </div>
+        </div>
+      )}
       <ReplyComposerHeader replyMode={replyMode} onClose={handleClose} />
       <ReplyRecipientsInput
         replyRecipients={replyRecipients}
@@ -193,6 +283,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
         hasToneError={!!(toneCheckResult && !toneCheckResult.isOk)}
         onDraftChange={handleDraftChange}
         textareaRef={textareaRef}
+        onPasteFiles={handlePasteFiles}
       />
       <ReplyComposerAttachments
         files={files}

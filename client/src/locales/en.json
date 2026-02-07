@@ -1119,8 +1119,10 @@
     },
     "categoryOverride": {
       "title": "Change Category",
-      "description": "This email is currently categorized as \"{{category}}\". Enter a new category to help improve our categorization.",
+      "description": "This email is currently categorized as \"{{category}}\". Select a different category to help improve our categorization.",
       "newCategory": "New Category",
+      "selectPlaceholder": "Select a category...",
+      "addNewCategory": "+ Add new category",
       "categoryPlaceholder": "Enter new category name...",
       "reason": "Reason (optional)",
       "reasonPlaceholder": "Why should this email be in a different category?",

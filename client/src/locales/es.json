@@ -1124,8 +1124,10 @@
     },
     "categoryOverride": {
       "title": "Cambiar categoría",
-      "description": "Este correo está actualmente categorizado como \"{{category}}\". Ingrese una nueva categoría para ayudar a mejorar nuestra categorización.",
+      "description": "Este correo está actualmente categorizado como \"{{category}}\". Seleccione una categoría diferente para ayudar a mejorar nuestra categorización.",
       "newCategory": "Nueva categoría",
+      "selectPlaceholder": "Seleccione una categoría...",
+      "addNewCategory": "+ Agregar nueva categoría",
       "categoryPlaceholder": "Ingrese el nombre de la nueva categoría...",
       "reason": "Razón (opcional)",
       "reasonPlaceholder": "¿Por qué debería este correo estar en una categoría diferente?",

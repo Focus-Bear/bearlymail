@@ -8,6 +8,12 @@ const RECIPIENT_FIELD_TO = 'to';
 const RECIPIENT_FIELD_CC = 'cc';
 const RECIPIENT_FIELD_BCC = 'bcc';
 
+const isValidEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const extractedEmail = email.match(/<([^>]+)>/)?.[1] || email;
+  return emailRegex.test(extractedEmail.trim());
+};
+
 interface Recipient {
   email: string;
   name?: string;
@@ -121,6 +127,24 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
             onSearchQueryChange(e.target.value);
           }}
           onFocus={() => onSetActiveField(field)}
+          onBlur={() => {
+            const value = searchQuery.trim();
+            if (value && isValidEmail(value)) {
+              onAddRecipient({ email: value }, field);
+              onSearchQueryChange('');
+            }
+            onSetActiveField(null);
+          }}
+          onKeyDown={(e) => {
+            if ((e.key === 'Enter' || e.key === ',') && searchQuery.trim()) {
+              e.preventDefault();
+              const value = searchQuery.trim().replace(/,$/, '');
+              if (isValidEmail(value)) {
+                onAddRecipient({ email: value }, field);
+                onSearchQueryChange('');
+              }
+            }
+          }}
           placeholder={t('compose.recipientPlaceholder')}
           style={{
             flex: 1,
@@ -153,6 +177,8 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
             {searchResults.map((contact) => (
               <div
                 key={contact.id || contact.email}
+                onMouseDown={(e) => e.preventDefault()}
+                onTouchStart={(e) => e.preventDefault()}
                 onClick={() => onSelectSearchResult(contact)}
                 style={{
                   padding: `8px ${FONT_SIZE_XS_PX}px`,

@@ -1680,35 +1680,29 @@ export class EmailsService {
       throw new Error("Email has no threadId");
     }
 
+    const { threadId } = email;
     this.logger.log(
-      `[Archive] Email found: emailId=${emailId}, threadId=${email.threadId}`,
+      `[Archive] Email found: emailId=${emailId}, threadId=${threadId}`,
     );
 
     // Check if the thread is starred
     const thread = await this.emailThreadRepository.findOne({
-      where: { userId, threadId: email.threadId },
+      where: { userId, threadId },
     });
 
     const isStarred = thread && thread.starCount > 0;
-    const { threadId } = email;
 
     this.logger.log(
       `[Archive] Thread info: threadId=${threadId}, isStarred=${isStarred}, currentIsArchived=${thread?.isArchived || false}`,
     );
 
-    // STEP 1: Update database FIRST (immediate effect on page reload)
+    // STEP 1: Update database (immediate effect for UI)
     // This sets lastUserOperationAt to prevent sync from overriding the archive
     if (isStarred) {
-      this.logger.log(
-        `[Archive] Removing star from thread: userId=${userId}, threadId=${threadId}`,
-      );
       await this.updateThreadStarCount(userId, threadId, 0);
     }
 
     // Mark all emails in the thread as read in the database
-    this.logger.log(
-      `[Archive] Marking all emails in thread as read: userId=${userId}, threadId=${threadId}`,
-    );
     const threadEmails = await this.emailRepository.find({
       where: { userId, threadId, isRead: false },
       select: ["id"],
@@ -1716,48 +1710,38 @@ export class EmailsService {
     if (threadEmails.length > 0) {
       const emailIds = threadEmails.map((e) => e.id);
       await this.bulkMarkAsRead(userId, emailIds);
-      this.logger.log(
-        `[Archive] Marked ${emailIds.length} emails as read: userId=${userId}, threadId=${threadId}`,
-      );
     }
 
     // Update thread archived status with lastUserOperationAt timestamp
-    this.logger.log(
-      `[Archive] Updating thread archived status to true: userId=${userId}, threadId=${threadId}`,
-    );
     await this.updateThreadArchivedStatus(userId, threadId, true, true);
     this.logger.log(
-      `[Archive] Database update completed: userId=${userId}, emailId=${emailId}, threadId=${threadId}`,
+      `[Archive] DB update completed: userId=${userId}, emailId=${emailId}, threadId=${threadId}`,
     );
 
-    // STEP 2: Sync to email provider (Gmail, Office365, etc.)
-    // This happens after DB update so the UI is already correct
-    const provider = await this.emailProviderManager.getPrimaryProvider(userId);
-    if (provider && "archiveThread" in provider) {
-      this.logger.log(
-        `[Archive] Calling provider.archiveThread: userId=${userId}, threadId=${threadId}`,
-      );
-      try {
-        await provider.archiveThread(userId, threadId);
-        this.logger.log(
-          `[Archive] provider.archiveThread completed successfully: userId=${userId}, threadId=${threadId}`,
-        );
-      } catch (error: unknown) {
-        // Log error but don't fail - database update already succeeded
+    // STEP 2: Queue background job for provider sync (Gmail, Office365, etc.)
+    this.boss
+      .send(
+        "archive-email-provider-sync",
+        { userId, threadId },
+        {
+          priority: getJobPriority("archive-email-provider-sync", true),
+          singletonKey: `archive-provider-sync-${threadId}`,
+          singletonMinutes: 5,
+        },
+      )
+      .then((jobId) => {
+        if (jobId) {
+          this.logger.log(
+            `[Archive] Queued provider sync job ${jobId}: userId=${userId}, threadId=${threadId}`,
+          );
+        }
+      })
+      .catch((err) => {
         this.logger.error(
-          `[Archive] Failed to sync archive to email provider for email ${emailId}:`,
-          error,
+          `[Archive] Failed to queue provider sync job: userId=${userId}, threadId=${threadId}`,
+          err,
         );
-      }
-    } else {
-      this.logger.warn(
-        `[Archive] No email provider available: userId=${userId}, skipping provider sync`,
-      );
-    }
-
-    this.logger.log(
-      `[Archive] archiveEmail completed successfully: userId=${userId}, emailId=${emailId}, threadId=${threadId}`,
-    );
+      });
   }
 
   /**
@@ -1802,15 +1786,12 @@ export class EmailsService {
       where: { userId, threadId: In(threadIds) },
     });
 
-    // STEP 1: Update database FIRST (immediate effect on page reload)
+    // STEP 1: Update database (immediate effect for UI)
     // Remove stars from any starred threads
     const starredThreadIds = threads
       .filter((t) => t.starCount > 0)
       .map((t) => t.threadId);
     if (starredThreadIds.length > 0) {
-      this.logger.log(
-        `[Archive] Removing stars from ${starredThreadIds.length} threads`,
-      );
       await this.emailThreadRepository.update(
         { userId, threadId: In(starredThreadIds) },
         { starCount: 0 },
@@ -1825,9 +1806,6 @@ export class EmailsService {
     if (unreadEmails.length > 0) {
       const unreadEmailIds = unreadEmails.map((e) => e.id);
       await this.bulkMarkAsRead(userId, unreadEmailIds);
-      this.logger.log(
-        `[Archive] Marked ${unreadEmailIds.length} emails as read`,
-      );
     }
 
     // Update all threads to archived with lastUserOperationAt timestamp
@@ -1837,44 +1815,31 @@ export class EmailsService {
       { isArchived: true, lastUserOperationAt: now },
     );
     this.logger.log(
-      `[Archive] Updated ${threadIds.length} threads to archived in database`,
+      `[Archive] DB update completed: userId=${userId}, ${threadIds.length} threads archived`,
     );
 
-    // STEP 2: Sync to email provider (Gmail, Office365, etc.)
-    const provider = await this.emailProviderManager.getPrimaryProvider(userId);
-    if (provider && "archiveThread" in provider) {
-      this.logger.log(
-        `[Archive] Syncing ${threadIds.length} threads to email provider`,
-      );
-      // Archive threads in parallel with concurrency limit
-      const CONCURRENCY_LIMIT = 5;
-      for (let i = 0; i < threadIds.length; i += CONCURRENCY_LIMIT) {
-        const batch = threadIds.slice(i, i + CONCURRENCY_LIMIT);
-        await Promise.all(
-          batch.map(async (threadId) => {
-            try {
-              await provider.archiveThread(userId, threadId);
-            } catch (error: unknown) {
-              // Log error but don't fail - database update already succeeded
-              this.logger.error(
-                `[Archive] Failed to sync archive to email provider for thread ${threadId}:`,
-                error,
-              );
-            }
-          }),
-        );
-      }
-      this.logger.log(
-        `[Archive] Provider sync completed for ${threadIds.length} threads`,
-      );
-    } else {
-      this.logger.warn(
-        `[Archive] No email provider available: userId=${userId}, skipping provider sync`,
-      );
+    // STEP 2: Queue background jobs for provider sync per thread
+    for (const threadId of threadIds) {
+      this.boss
+        .send(
+          "archive-email-provider-sync",
+          { userId, threadId },
+          {
+            priority: getJobPriority("archive-email-provider-sync", true),
+            singletonKey: `archive-provider-sync-${threadId}`,
+            singletonMinutes: 5,
+          },
+        )
+        .catch((err) => {
+          this.logger.error(
+            `[Archive] Failed to queue provider sync job for thread ${threadId}:`,
+            err,
+          );
+        });
     }
 
     this.logger.log(
-      `[Archive] bulkArchiveEmails completed: userId=${userId}, emailCount=${emailIds.length}, threadCount=${threadIds.length}`,
+      `[Archive] Queued ${threadIds.length} provider sync jobs: userId=${userId}`,
     );
   }
 

@@ -30,9 +30,7 @@ async function bootstrap() {
     const uniqueOrigins = [...new Set(allowedOrigins)];
     app.enableCors({
       origin:
-        uniqueOrigins.length > 0
-          ? uniqueOrigins
-          : "http://localhost:3000",
+        uniqueOrigins.length > 0 ? uniqueOrigins : "http://localhost:3000",
       credentials: true,
     });
 

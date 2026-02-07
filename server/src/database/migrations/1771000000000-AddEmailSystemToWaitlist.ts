@@ -18,8 +18,6 @@ export class AddEmailSystemToWaitlist1771000000000
     await queryRunner.query(
       `ALTER TABLE "waitlist" DROP COLUMN "emailSystemOther"`,
     );
-    await queryRunner.query(
-      `ALTER TABLE "waitlist" DROP COLUMN "emailSystem"`,
-    );
+    await queryRunner.query(`ALTER TABLE "waitlist" DROP COLUMN "emailSystem"`);
   }
 }

@@ -76,6 +76,9 @@ export const JobTypePriority = {
 
   // Background suggested reply generation
   "generate-suggested-replies": JobPriority.LOW,
+
+  // Archive provider sync (DB already updated, sync to Gmail/Office365/Zoho)
+  "archive-email-provider-sync": JobPriority.HIGH,
 } as const;
 
 /**

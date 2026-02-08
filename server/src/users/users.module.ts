@@ -3,6 +3,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { UsersService } from "./users.service";
 import { UsersController } from "./users.controller";
 import { DataExportService } from "./data-export.service";
+import { DataImportService } from "./data-import.service";
 import { User } from "../database/entities/user.entity";
 import { UserContext } from "../database/entities/user-context.entity";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
@@ -21,7 +22,7 @@ import { SummarizationRule } from "../database/entities/summarization-rule.entit
       SummarizationRule,
     ]),
   ],
-  providers: [UsersService, DataExportService],
+  providers: [UsersService, DataExportService, DataImportService],
   controllers: [UsersController],
   exports: [UsersService],
 })

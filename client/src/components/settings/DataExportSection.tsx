@@ -1,18 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { API_URL } from 'config/api';
 import { captureEvent } from 'utils/posthog';
 
+interface ImportResult {
+  success: boolean;
+  imported: {
+    profile: boolean;
+    batchSchedule: boolean;
+    blockedSenders: number;
+    blockedKeywords: number;
+    contexts: number;
+    toneRules: number;
+    summarizationRules: number;
+    autoResponderSettings: boolean;
+  };
+  skipped: {
+    blockedSenders: number;
+    blockedKeywords: number;
+    contexts: number;
+  };
+  errors: string[];
+}
+
 export const DataExportSection: React.FC = () => {
   const { t } = useTranslation();
   const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isExportHovered, setIsExportHovered] = useState(false);
+  const [isImportHovered, setIsImportHovered] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleExport = async () => {
     captureEvent('data_export_initiated');
     setIsExporting(true);
     setError(null);
+    setSuccessMessage(null);
 
     try {
       const response = await fetch(`${API_URL}/users/me/export`, {
@@ -43,6 +69,99 @@ export const DataExportSection: React.FC = () => {
       captureEvent('data_export_failed');
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const formatImportDetails = (result: ImportResult): string => {
+    const details: string[] = [];
+    
+    if (result.imported.profile) details.push('profile');
+    if (result.imported.batchSchedule) details.push('batch schedule');
+    if (result.imported.blockedSenders > 0) {
+      details.push(`${result.imported.blockedSenders} blocked sender(s)`);
+    }
+    if (result.imported.blockedKeywords > 0) {
+      details.push(`${result.imported.blockedKeywords} blocked keyword(s)`);
+    }
+    if (result.imported.contexts > 0) {
+      details.push(`${result.imported.contexts} context(s)`);
+    }
+    if (result.imported.toneRules > 0) {
+      details.push(`${result.imported.toneRules} tone rule(s)`);
+    }
+    if (result.imported.summarizationRules > 0) {
+      details.push(`${result.imported.summarizationRules} summarization rule(s)`);
+    }
+    if (result.imported.autoResponderSettings) details.push('auto-responder settings');
+    
+    return details.length > 0 ? details.join(', ') : 'no new data';
+  };
+
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Reset file input so the same file can be selected again
+    event.target.value = '';
+
+    captureEvent('data_import_initiated');
+    setIsImporting(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      // Read and parse the file
+      const text = await file.text();
+      let data: unknown;
+      
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error(t('settings.dataExport.invalidFile'));
+      }
+
+      // Validate it's a BearlyMail export
+      if (!data || typeof data !== 'object' || !('version' in data) || !('exportedAt' in data)) {
+        throw new Error(t('settings.dataExport.invalidFile'));
+      }
+
+      // Send to API
+      const response = await fetch(`${API_URL}/users/me/import`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ data }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || t('settings.dataExport.importError'));
+      }
+
+      const result: ImportResult = await response.json();
+
+      if (result.success) {
+        const details = formatImportDetails(result);
+        setSuccessMessage(
+          `${t('settings.dataExport.importSuccess')} ${t('settings.dataExport.importSuccessDetails', { details })}`
+        );
+        captureEvent('data_import_completed', { imported: result.imported });
+      } else {
+        throw new Error(result.errors[0] || t('settings.dataExport.importError'));
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t('settings.dataExport.importError');
+      setError(message);
+      captureEvent('data_import_failed', { error: message });
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -88,32 +207,75 @@ export const DataExportSection: React.FC = () => {
         </p>
       )}
 
-      <button
-        onClick={handleExport}
-        disabled={isExporting}
-        style={{
-          backgroundColor: theme.colors.primary.main,
-          color: 'white',
-          border: 'none',
-          borderRadius: theme.borderRadius.md,
-          padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-          cursor: isExporting ? 'not-allowed' : 'pointer',
-          fontSize: theme.typography.fontSize.base,
-          fontWeight: theme.typography.fontWeight.medium,
-          transition: theme.transitions.default,
-          opacity: isExporting ? 0.7 : 1,
-        }}
-        onMouseOver={(e) => {
-          if (!isExporting) {
-            e.currentTarget.style.backgroundColor = theme.colors.primary.dark;
-          }
-        }}
-        onMouseOut={(e) => {
-          e.currentTarget.style.backgroundColor = theme.colors.primary.main;
-        }}
-      >
-        {isExporting ? t('settings.dataExport.exporting') : t('settings.dataExport.exportButton')}
-      </button>
+      {successMessage && (
+        <p
+          style={{
+            color: theme.colors.success.main,
+            fontSize: theme.typography.fontSize.sm,
+            marginBottom: theme.spacing.md,
+          }}
+        >
+          {successMessage}
+        </p>
+      )}
+
+      <div style={{ display: 'flex', gap: theme.spacing.md, flexWrap: 'wrap' }}>
+        <button
+          onClick={handleExport}
+          disabled={isExporting || isImporting}
+          onMouseEnter={() => setIsExportHovered(true)}
+          onMouseLeave={() => setIsExportHovered(false)}
+          style={{
+            backgroundColor:
+              isExportHovered && !isExporting && !isImporting
+                ? theme.colors.primary.dark
+                : theme.colors.primary.main,
+            color: 'white',
+            border: 'none',
+            borderRadius: theme.borderRadius.md,
+            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+            cursor: isExporting || isImporting ? 'not-allowed' : 'pointer',
+            fontSize: theme.typography.fontSize.base,
+            fontWeight: theme.typography.fontWeight.medium,
+            transition: theme.transitions.default,
+            opacity: isExporting || isImporting ? 0.7 : 1,
+          }}
+        >
+          {isExporting ? t('settings.dataExport.exporting') : t('settings.dataExport.exportButton')}
+        </button>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json,application/json"
+          onChange={handleFileSelect}
+          style={{ display: 'none' }}
+        />
+
+        <button
+          onClick={handleImportClick}
+          disabled={isExporting || isImporting}
+          onMouseEnter={() => setIsImportHovered(true)}
+          onMouseLeave={() => setIsImportHovered(false)}
+          style={{
+            backgroundColor:
+              isImportHovered && !isExporting && !isImporting
+                ? theme.colors.background.hover || theme.colors.background.paper
+                : theme.colors.secondary?.main || theme.colors.background.elevated,
+            color: theme.colors.text.primary,
+            border: `1px solid ${theme.colors.border?.light || theme.colors.text.secondary}`,
+            borderRadius: theme.borderRadius.md,
+            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+            cursor: isExporting || isImporting ? 'not-allowed' : 'pointer',
+            fontSize: theme.typography.fontSize.base,
+            fontWeight: theme.typography.fontWeight.medium,
+            transition: theme.transitions.default,
+            opacity: isExporting || isImporting ? 0.7 : 1,
+          }}
+        >
+          {isImporting ? t('settings.dataExport.importing') : t('settings.dataExport.importButton')}
+        </button>
+      </div>
     </div>
   );
 };

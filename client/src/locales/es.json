@@ -1481,11 +1481,18 @@
           "deletionError": "No se pudo eliminar la cuenta. Por favor intenta de nuevo o contacta soporte."
         },
         "dataExport": {
-          "title": "Exportar datos",
-          "description": "Descarga todas tus configuraciones como un archivo JSON. Esto incluye tu horario de lotes, remitentes bloqueados, palabras clave bloqueadas, contexto de IA, reglas de tono, reglas de resumen y configuración del respondedor automático. Los correos electrónicos no están incluidos ya que permanecen en tu proveedor de correo.",
+          "title": "Exportar e Importar Datos",
+          "description": "Descarga todas tus configuraciones como un archivo JSON o importa configuraciones de otra cuenta. Esto incluye tu horario de lotes, remitentes bloqueados, palabras clave bloqueadas, contexto de IA, reglas de tono, reglas de resumen y configuración del respondedor automático. Los correos electrónicos no están incluidos ya que permanecen en tu proveedor de correo.",
           "exportButton": "Exportar datos",
           "exporting": "Exportando...",
-          "exportError": "No se pudieron exportar los datos. Por favor intenta de nuevo."
+          "exportError": "No se pudieron exportar los datos. Por favor intenta de nuevo.",
+          "importButton": "Importar datos",
+          "importing": "Importando...",
+          "importError": "No se pudieron importar los datos. Por favor verifica el formato del archivo e intenta de nuevo.",
+          "importSuccess": "¡Configuraciones importadas exitosamente!",
+          "importSuccessDetails": "Importado: {{details}}",
+          "selectFile": "Selecciona un archivo JSON exportado de BearlyMail",
+          "invalidFile": "Archivo inválido. Por favor selecciona un archivo JSON de exportación de BearlyMail válido."
         },
         "confirmRemoveGithubToken":"¿Estás seguro de que deseas desconectar tu cuenta de GitHub? Esto eliminará el acceso a la integración de GitHub.",
         "githubTokenRemoved": "GitHub desconectado exitosamente",

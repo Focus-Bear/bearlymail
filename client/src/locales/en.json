@@ -500,11 +500,18 @@
       "deletionError": "Failed to delete account. Please try again or contact support."
     },
     "dataExport": {
-      "title": "Export Data",
-      "description": "Download all your settings as a JSON file. This includes your batch schedule, blocked senders, blocked keywords, AI context, tone rules, summarization rules, and auto-responder settings. Emails are not included as they remain in your email provider.",
+      "title": "Export & Import Data",
+      "description": "Download all your settings as a JSON file or import settings from another account. This includes your batch schedule, blocked senders, blocked keywords, AI context, tone rules, summarization rules, and auto-responder settings. Emails are not included as they remain in your email provider.",
       "exportButton": "Export Data",
       "exporting": "Exporting...",
-      "exportError": "Failed to export data. Please try again."
+      "exportError": "Failed to export data. Please try again.",
+      "importButton": "Import Data",
+      "importing": "Importing...",
+      "importError": "Failed to import data. Please check the file format and try again.",
+      "importSuccess": "Successfully imported your settings!",
+      "importSuccessDetails": "Imported: {{details}}",
+      "selectFile": "Select a JSON file exported from BearlyMail",
+      "invalidFile": "Invalid file. Please select a valid BearlyMail export JSON file."
     }
   },
   "admin": {
@@ -1335,11 +1342,18 @@
           "deletionError": "Failed to delete account. Please try again or contact support."
         },
         "dataExport": {
-          "title": "Export Data",
-          "description": "Download all your settings as a JSON file. This includes your batch schedule, blocked senders, blocked keywords, AI context, tone rules, summarization rules, and auto-responder settings. Emails are not included as they remain in your email provider.",
+          "title": "Export & Import Data",
+          "description": "Download all your settings as a JSON file or import settings from another account. This includes your batch schedule, blocked senders, blocked keywords, AI context, tone rules, summarization rules, and auto-responder settings. Emails are not included as they remain in your email provider.",
           "exportButton": "Export Data",
           "exporting": "Exporting...",
-          "exportError": "Failed to export data. Please try again."
+          "exportError": "Failed to export data. Please try again.",
+          "importButton": "Import Data",
+          "importing": "Importing...",
+          "importError": "Failed to import data. Please check the file format and try again.",
+          "importSuccess": "Successfully imported your settings!",
+          "importSuccessDetails": "Imported: {{details}}",
+          "selectFile": "Select a JSON file exported from BearlyMail",
+          "invalidFile": "Invalid file. Please select a valid BearlyMail export JSON file."
         },
         "confirmRemoveGithubToken":"Are you sure you want to disconnect your GitHub account?",
         "githubTokenRemoved": "GitHub disconnected successfully",

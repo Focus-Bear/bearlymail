@@ -1,11 +1,14 @@
 import { Test, TestingModule } from "@nestjs/testing";
+import { BadRequestException } from "@nestjs/common";
 import { UsersController } from "./users.controller";
 import { UsersService } from "./users.service";
 import { DataExportService } from "./data-export.service";
+import { DataImportService } from "./data-import.service";
 
 describe("UsersController", () => {
   let controller: UsersController;
   let usersService: UsersService;
+  let dataImportService: DataImportService;
 
   const mockUsersService = {
     getConsentStatus: jest.fn(),
@@ -16,6 +19,10 @@ describe("UsersController", () => {
 
   const mockDataExportService = {
     exportUserData: jest.fn(),
+  };
+
+  const mockDataImportService = {
+    importUserData: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -30,11 +37,16 @@ describe("UsersController", () => {
           provide: DataExportService,
           useValue: mockDataExportService,
         },
+        {
+          provide: DataImportService,
+          useValue: mockDataImportService,
+        },
       ],
     }).compile();
 
     controller = module.get<UsersController>(UsersController);
     usersService = module.get<UsersService>(UsersService);
+    dataImportService = module.get<DataImportService>(DataImportService);
   });
 
   afterEach(() => {
@@ -145,6 +157,118 @@ describe("UsersController", () => {
       expect(usersService.update).toHaveBeenCalledWith(userId, {
         hasSeenTour: true,
       });
+    });
+  });
+
+  describe("importData", () => {
+    it("should import user data successfully", async () => {
+      const userId = "user-123";
+      const mockRequest = { user: { userId } };
+      const importData = {
+        version: "1.0",
+        exportedAt: "2024-01-01T00:00:00.000Z",
+        profile: { displayName: "Test User" },
+        batchSchedule: null,
+        blockedSenders: [],
+        blockedKeywords: [],
+        contexts: [],
+        toneRules: [],
+        summarizationRules: [],
+        autoResponderSettings: null,
+        integrations: { hasOpenAiApiKey: false, hasGithubToken: false },
+      };
+      const mockResult = {
+        success: true,
+        imported: {
+          profile: true,
+          batchSchedule: false,
+          blockedSenders: 0,
+          blockedKeywords: 0,
+          contexts: 0,
+          toneRules: 0,
+          summarizationRules: 0,
+          autoResponderSettings: false,
+        },
+        skipped: {
+          blockedSenders: 0,
+          blockedKeywords: 0,
+          contexts: 0,
+        },
+        errors: [],
+      };
+
+      mockDataImportService.importUserData.mockResolvedValue(mockResult);
+
+      const result = await controller.importData(mockRequest, {
+        data: importData,
+      });
+
+      expect(result).toEqual(mockResult);
+      expect(dataImportService.importUserData).toHaveBeenCalledWith(
+        userId,
+        importData,
+        undefined,
+      );
+    });
+
+    it("should import user data with options", async () => {
+      const userId = "user-123";
+      const mockRequest = { user: { userId } };
+      const importData = {
+        version: "1.0",
+        exportedAt: "2024-01-01T00:00:00.000Z",
+        blockedSenders: [
+          {
+            email: "spam@example.com",
+            blockedAt: "2024-01-01T00:00:00.000Z",
+          },
+        ],
+      };
+      const options = {
+        mergeMode: "replace" as const,
+        sections: { blockedSenders: true },
+      };
+      const mockResult = {
+        success: true,
+        imported: {
+          profile: false,
+          batchSchedule: false,
+          blockedSenders: 1,
+          blockedKeywords: 0,
+          contexts: 0,
+          toneRules: 0,
+          summarizationRules: 0,
+          autoResponderSettings: false,
+        },
+        skipped: {
+          blockedSenders: 0,
+          blockedKeywords: 0,
+          contexts: 0,
+        },
+        errors: [],
+      };
+
+      mockDataImportService.importUserData.mockResolvedValue(mockResult);
+
+      const result = await controller.importData(mockRequest, {
+        data: importData,
+        options,
+      });
+
+      expect(result).toEqual(mockResult);
+      expect(dataImportService.importUserData).toHaveBeenCalledWith(
+        userId,
+        importData,
+        options,
+      );
+    });
+
+    it("should throw BadRequestException when data is missing", async () => {
+      const mockRequest = { user: { userId: "user-123" } };
+
+      await expect(
+        controller.importData(mockRequest, { data: null }),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });

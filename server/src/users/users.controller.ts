@@ -16,6 +16,7 @@ import { Response } from "express";
 import { UsersService } from "./users.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { DataExportService } from "./data-export.service";
+import { DataImportService, ImportOptions } from "./data-import.service";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -74,6 +75,7 @@ export class UsersController {
   constructor(
     private readonly usersService: UsersService,
     private readonly dataExportService: DataExportService,
+    private readonly dataImportService: DataImportService,
   ) {}
 
   @Get("consent-status")
@@ -148,5 +150,23 @@ export class UsersController {
       req.user.userId,
     );
     res.send(JSON.stringify(exportData, null, 2));
+  }
+
+  @Post("me/import")
+  async importData(
+    @Request() req,
+    @Body() body: { data: unknown; options?: Partial<ImportOptions> },
+  ) {
+    if (!body.data) {
+      throw new BadRequestException("Missing import data");
+    }
+
+    const result = await this.dataImportService.importUserData(
+      req.user.userId,
+      body.data,
+      body.options,
+    );
+
+    return result;
   }
 }

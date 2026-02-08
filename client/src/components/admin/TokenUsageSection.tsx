@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import axios from 'axios';
@@ -12,6 +12,7 @@ interface UsageByOperation {
   totalCompletionTokens: number;
   totalTokens: number;
   avgDurationMs: number | null;
+  htmlCallCount: number;
 }
 
 interface UsageSummary {
@@ -20,6 +21,17 @@ interface UsageSummary {
   totalCompletionTokens: number;
   totalTokens: number;
   avgDurationMs: number | null;
+}
+
+interface PromptExample {
+  operation: string;
+  promptTokens: number;
+  promptText: string;
+  systemPromptText?: string;
+  containsHtml: boolean;
+  capturedAt: string;
+  provider: string;
+  model: string;
 }
 
 type DateRange = '24h' | '7d' | '30d' | 'all';
@@ -48,11 +60,15 @@ export const TokenUsageSection: React.FC = () => {
   const { t } = useTranslation();
   const [usage, setUsage] = useState<UsageByOperation[]>([]);
   const [summary, setSummary] = useState<UsageSummary | null>(null);
+  const [examples, setExamples] = useState<PromptExample[]>([]);
   const [loading, setLoading] = useState(true);
+  const [examplesLoading, setExamplesLoading] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>('7d');
+  const [expandedExample, setExpandedExample] = useState<string | null>(null);
 
-  const getDateRangeParams = (): { startDate?: string } => {
+  const getDateRangeParams = useCallback((): { startDate?: string } => {
     const now = new Date();
     switch (dateRange) {
       case '24h':
@@ -65,9 +81,37 @@ export const TokenUsageSection: React.FC = () => {
       default:
         return {};
     }
+  }, [dateRange]);
+
+  const fetchExamples = useCallback(async () => {
+    try {
+      setExamplesLoading(true);
+      const response = await axios.get(`${API_URL}/admin/token-usage/examples`);
+      setExamples(response.data.examples || []);
+    } catch (error) {
+      console.error('Error fetching prompt examples:', error);
+    } finally {
+      setExamplesLoading(false);
+    }
+  }, []);
+
+  const resetExamples = async () => {
+    if (!window.confirm(t('admin.tokenUsage.examples.confirmReset'))) {
+      return;
+    }
+    try {
+      setResetting(true);
+      await axios.post(`${API_URL}/admin/token-usage/examples/reset`);
+      setExamples([]);
+      setExpandedExample(null);
+    } catch (error) {
+      console.error('Error resetting prompt examples:', error);
+    } finally {
+      setResetting(false);
+    }
   };
 
-  const fetchUsageData = async () => {
+  const fetchUsageData = useCallback(async () => {
     try {
       const params = getDateRangeParams();
       const [usageResponse, summaryResponse] = await Promise.all([
@@ -82,17 +126,19 @@ export const TokenUsageSection: React.FC = () => {
       console.error('Error fetching token usage:', error);
       setLoading(false);
     }
-  };
+  }, [getDateRangeParams]);
 
   useEffect(() => {
     fetchUsageData();
+    fetchExamples();
 
     const interval = setInterval(() => {
       fetchUsageData();
+      fetchExamples();
     }, REFRESH_INTERVAL_MS);
 
     return () => clearInterval(interval);
-  }, [dateRange]);
+  }, [dateRange, fetchUsageData, fetchExamples]);
 
   const formatNumber = (num: number): string => {
     if (num >= 1000000) {
@@ -277,6 +323,15 @@ export const TokenUsageSection: React.FC = () => {
           textAlign: 'center',
           fontWeight: theme.typography.fontWeight.semibold,
           color: theme.colors.text.primary,
+          borderRight: `1px solid ${theme.colors.border.light}`,
+        }}>
+          {t('admin.tokenUsage.htmlCalls')}
+        </th>
+        <th style={{
+          padding: theme.spacing.md,
+          textAlign: 'center',
+          fontWeight: theme.typography.fontWeight.semibold,
+          color: theme.colors.text.primary,
         }}>
           {t('admin.tokenUsage.avgDuration')}
         </th>
@@ -289,7 +344,7 @@ export const TokenUsageSection: React.FC = () => {
       return (
         <tbody>
           <tr>
-            <td colSpan={6} style={{
+            <td colSpan={7} style={{
               padding: theme.spacing.xl,
               textAlign: 'center',
               color: theme.colors.text.secondary,
@@ -355,6 +410,21 @@ export const TokenUsageSection: React.FC = () => {
             <td style={{
               padding: theme.spacing.md,
               textAlign: 'center',
+              color: item.htmlCallCount > 0 ? theme.colors.status.warning : theme.colors.text.secondary,
+              fontWeight: item.htmlCallCount > 0 ? theme.typography.fontWeight.semibold : theme.typography.fontWeight.normal,
+              borderRight: `1px solid ${theme.colors.border.light}`,
+            }}>
+              {item.htmlCallCount > 0 ? (
+                <span title={`${((item.htmlCallCount / item.callCount) * 100).toFixed(1)}% of calls contain HTML`}>
+                  {formatNumber(item.htmlCallCount)} ({((item.htmlCallCount / item.callCount) * 100).toFixed(0)}%)
+                </span>
+              ) : (
+                '0'
+              )}
+            </td>
+            <td style={{
+              padding: theme.spacing.md,
+              textAlign: 'center',
               color: theme.colors.text.primary,
             }}>
               {formatDuration(item.avgDurationMs)}
@@ -362,6 +432,164 @@ export const TokenUsageSection: React.FC = () => {
           </tr>
         ))}
       </tbody>
+    );
+  };
+
+  const renderExamplesSection = () => {
+    if (examplesLoading && examples.length === 0) {
+      return (
+        <div style={{ textAlign: 'center', padding: theme.spacing.lg, color: theme.colors.text.secondary }}>
+          {t('admin.tokenUsage.examples.loadingExamples')}
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ marginTop: theme.spacing.xl }}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: theme.spacing.md,
+        }}>
+          <h3 style={{
+            margin: 0,
+            fontSize: theme.typography.fontSize.xl,
+            fontWeight: theme.typography.fontWeight.semibold,
+            color: theme.colors.text.primary,
+          }}>
+            {t('admin.tokenUsage.examples.title')}
+          </h3>
+          <button
+            onClick={resetExamples}
+            disabled={resetting || examples.length === 0}
+            style={{
+              padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+              backgroundColor: examples.length === 0 ? theme.colors.background.default : theme.colors.status.error,
+              color: examples.length === 0 ? theme.colors.text.disabled : '#fff',
+              border: 'none',
+              borderRadius: theme.borderRadius.sm,
+              cursor: examples.length === 0 ? 'not-allowed' : 'pointer',
+              fontSize: theme.typography.fontSize.sm,
+              fontWeight: theme.typography.fontWeight.medium,
+              opacity: resetting ? 0.7 : 1,
+            }}
+          >
+            {resetting ? t('admin.tokenUsage.examples.resetting') : t('admin.tokenUsage.examples.resetButton')}
+          </button>
+        </div>
+
+        {examples.length === 0 ? (
+          <div style={{
+            padding: theme.spacing.xl,
+            textAlign: 'center',
+            color: theme.colors.text.secondary,
+            backgroundColor: theme.colors.background.paper,
+            borderRadius: theme.borderRadius.md,
+            border: `1px solid ${theme.colors.border.light}`,
+          }}>
+            {t('admin.tokenUsage.examples.noExamples')}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
+            {examples.map((example) => (
+              <div
+                key={example.operation}
+                style={{
+                  backgroundColor: theme.colors.background.paper,
+                  borderRadius: theme.borderRadius.md,
+                  border: `1px solid ${example.containsHtml ? theme.colors.status.warning : theme.colors.border.light}`,
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  onClick={() => setExpandedExample(expandedExample === example.operation ? null : example.operation)}
+                  style={{
+                    padding: theme.spacing.md,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    backgroundColor: expandedExample === example.operation ? theme.colors.background.default : 'transparent',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
+                    <span style={{
+                      fontWeight: theme.typography.fontWeight.semibold,
+                      color: theme.colors.text.primary,
+                    }}>
+                      {getOperationLabel(example.operation)}
+                    </span>
+                    {example.containsHtml && (
+                      <span style={{
+                        padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                        backgroundColor: theme.colors.status.warning,
+                        color: '#fff',
+                        borderRadius: theme.borderRadius.sm,
+                        fontSize: theme.typography.fontSize.xs,
+                        fontWeight: theme.typography.fontWeight.bold,
+                      }}>
+                        {t('admin.tokenUsage.examples.containsHtml')}
+                      </span>
+                    )}
+                    <span style={{
+                      padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                      backgroundColor: theme.colors.primary.light,
+                      color: theme.colors.primary.dark,
+                      borderRadius: theme.borderRadius.sm,
+                      fontSize: theme.typography.fontSize.xs,
+                    }}>
+                      {formatNumber(example.promptTokens)} {t('admin.tokenUsage.examples.tokens')}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
+                    <span style={{
+                      fontSize: theme.typography.fontSize.sm,
+                      color: theme.colors.text.secondary,
+                    }}>
+                      {example.provider}/{example.model}
+                    </span>
+                    <span style={{
+                      fontSize: theme.typography.fontSize.sm,
+                      color: theme.colors.text.secondary,
+                    }}>
+                      {new Date(example.capturedAt).toLocaleString()}
+                    </span>
+                    <span style={{ color: theme.colors.text.secondary }}>
+                      {expandedExample === example.operation ? '▼' : '▶'}
+                    </span>
+                  </div>
+                </div>
+
+                {expandedExample === example.operation && (
+                  <div style={{
+                    padding: theme.spacing.md,
+                    borderTop: `1px solid ${theme.colors.border.light}`,
+                    backgroundColor: theme.colors.background.default,
+                  }}>
+                    <pre style={{
+                      margin: 0,
+                      padding: theme.spacing.md,
+                      backgroundColor: theme.colors.background.paper,
+                      borderRadius: theme.borderRadius.sm,
+                      overflow: 'auto',
+                      maxHeight: '400px',
+                      fontSize: theme.typography.fontSize.sm,
+                      lineHeight: 1.5,
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      color: theme.colors.text.primary,
+                      border: `1px solid ${theme.colors.border.light}`,
+                    }}>
+                      {example.promptText}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -416,6 +644,8 @@ export const TokenUsageSection: React.FC = () => {
           {renderTableBody()}
         </table>
       </div>
+
+      {renderExamplesSection()}
     </div>
   );
 };

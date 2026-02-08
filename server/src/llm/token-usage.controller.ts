@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Query, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { AdminGuard } from "../auth/admin.guard";
 import { TokenUsageService } from "./token-usage.service";
@@ -7,6 +7,24 @@ import { TokenUsageService } from "./token-usage.service";
 @UseGuards(JwtAuthGuard, AdminGuard)
 export class TokenUsageController {
   constructor(private tokenUsageService: TokenUsageService) {}
+
+  /**
+   * Get captured prompt examples (longest prompt per operation)
+   */
+  @Get("examples")
+  getPromptExamples() {
+    const examples = this.tokenUsageService.getPromptExamples();
+    return { examples, timestamp: new Date().toISOString() };
+  }
+
+  /**
+   * Reset all captured prompt examples
+   */
+  @Post("examples/reset")
+  resetPromptExamples() {
+    this.tokenUsageService.resetPromptExamples();
+    return { success: true, message: "Prompt examples reset", timestamp: new Date().toISOString() };
+  }
 
   /**
    * Get aggregated token usage by operation

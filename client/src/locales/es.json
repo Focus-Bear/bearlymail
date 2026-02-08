@@ -50,6 +50,7 @@
       "avgDuration": "Duración promedio",
       "calls": "llamadas",
       "completionTokens": "Fichas de finalización",
+      "htmlCalls": "Llamadas con HTML",
       "lastUpdated": "Última actualización",
       "noData": "Sin datos",
       "noUsage": "No se registró ningún uso de token",
@@ -63,7 +64,17 @@
       },
       "title": "Estadísticas de uso de tokens",
       "totalCalls": "Llamadas totales",
-      "totalTokens": "Fichas totales"
+      "totalTokens": "Fichas totales",
+      "examples": {
+        "title": "Ejemplos de los prompts más largos por operación",
+        "resetButton": "Reiniciar ejemplos",
+        "resetting": "Reiniciando...",
+        "noExamples": "Aún no se han capturado ejemplos de prompts. Los ejemplos se capturarán cuando se realicen llamadas LLM.",
+        "loadingExamples": "Cargando ejemplos...",
+        "containsHtml": "CONTIENE HTML",
+        "tokens": "tokens",
+        "confirmReset": "¿Está seguro de que desea reiniciar todos los ejemplos de prompts capturados?"
+      }
     }
   },
     "auth": {

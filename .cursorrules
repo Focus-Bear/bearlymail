@@ -35,6 +35,27 @@ After making code changes:
 - Write clear, maintainable code
 - Test your changes when possible
 
+## Internationalization (i18n) Rules - CRITICAL
+
+### All User-Facing Text Must Be Translated
+- **NEVER** use hardcoded strings for user-facing text in React components
+- **ALWAYS** use the `t()` function from `useTranslation()` hook for all text displayed to users
+- Add translation keys to both `client/src/locales/en.json` and `client/src/locales/es.json`
+- Use descriptive, hierarchical key names (e.g., `admin.tokenUsage.examples.title`)
+
+### What Needs Translation
+- All labels, titles, headings, and descriptions
+- Button text
+- Error messages and confirmation dialogs
+- Placeholder text
+- Tooltips and help text
+- Status messages (loading, success, error states)
+
+### What Does NOT Need Translation
+- Technical identifiers (API endpoints, log messages)
+- Developer-only debug information
+- Variable values (dates, numbers, names from data)
+
 ## Performance Rules - CRITICAL
 
 ### UI Must Load Fast (< 1 second)

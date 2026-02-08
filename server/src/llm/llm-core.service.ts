@@ -161,6 +161,9 @@ export class LLMCoreService {
           completionTokens: usageMetadata.candidatesTokenCount || 0,
           totalTokens: usageMetadata.totalTokenCount || 0,
           durationMs,
+          // Pass prompt text for example capture
+          promptText: request.prompt,
+          systemPromptText: request.systemPrompt,
         });
       }
 
@@ -234,6 +237,9 @@ export class LLMCoreService {
           completionTokens: completion.usage.completion_tokens || 0,
           totalTokens: completion.usage.total_tokens || 0,
           durationMs,
+          // Pass prompt text for example capture
+          promptText: request.prompt,
+          systemPromptText: request.systemPrompt,
         });
       }
 

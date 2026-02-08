@@ -56,6 +56,10 @@ export class TokenUsage {
   @Column({ type: "int", nullable: true })
   durationMs: number | null;
 
+  // Whether the input prompt contained HTML content
+  @Column({ type: "boolean", default: false })
+  containsHtml: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 

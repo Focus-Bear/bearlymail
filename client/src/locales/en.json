@@ -571,6 +571,7 @@
       "totalTokens": "Total Tokens",
       "totalCalls": "Total Calls",
       "avgDuration": "Avg Duration",
+      "htmlCalls": "HTML Calls",
       "noData": "No data",
       "noUsage": "No token usage recorded",
       "range": {
@@ -578,6 +579,16 @@
         "7d": "Last 7 Days",
         "30d": "Last 30 Days",
         "all": "All Time"
+      },
+      "examples": {
+        "title": "Longest Prompt Examples by Operation",
+        "resetButton": "Reset Examples",
+        "resetting": "Resetting...",
+        "noExamples": "No prompt examples captured yet. Examples will be captured as LLM calls are made.",
+        "loadingExamples": "Loading examples...",
+        "containsHtml": "CONTAINS HTML",
+        "tokens": "tokens",
+        "confirmReset": "Are you sure you want to reset all captured prompt examples?"
       }
     }
   },

@@ -36,6 +36,7 @@ export class PriorityAnalysisService {
       workingOn?: Array<{ value: string; priority?: number }>;
       dontCare?: Array<{ value: string }>;
       emailCategories?: Array<{ name: string; description?: string }>;
+      protoCategories?: Array<{ name: string; description?: string }>;
     },
     threadInfo?: {
       daysSinceLastReply?: number;
@@ -58,6 +59,10 @@ export class PriorityAnalysisService {
     category: string;
     categoryExplanation: string;
     reasoning: string;
+    protoCategorySuggestion?: {
+      name: string;
+      description: string;
+    };
   }> {
     // Defensive cleaning in case body wasn't pre-cleaned by caller
     const cleanedBody = cleanEmailContent(email.body, null, 1000);
@@ -91,6 +96,7 @@ export class PriorityAnalysisService {
         const jsonMatch = response.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0]);
+          const category = parsed.category || "Other";
           return {
             urgencyScore: Math.max(0, Math.min(100, parsed.urgencyScore || 0)),
             urgencyExplanation:
@@ -106,10 +112,18 @@ export class PriorityAnalysisService {
             goalAlignmentExplanation:
               parsed.goalAlignmentExplanation ||
               "No goal alignment explanation provided",
-            category: parsed.category || "Other",
+            category,
             categoryExplanation:
               parsed.categoryExplanation || "No category explanation provided",
             reasoning: parsed.reasoning || "No reasoning provided",
+            protoCategorySuggestion:
+              category === "Other" && parsed.protoCategorySuggestion
+                ? {
+                    name: parsed.protoCategorySuggestion.name || "",
+                    description:
+                      parsed.protoCategorySuggestion.description || "",
+                  }
+                : undefined,
           };
         }
       } catch (error) {
@@ -192,6 +206,17 @@ export class PriorityAnalysisService {
             .join("\n")
         : "";
 
+    // Format proto categories for prompt (shown separately to help LLM match)
+    const protoCategoriesText =
+      userContext?.protoCategories && userContext.protoCategories.length > 0
+        ? userContext.protoCategories
+            .map(
+              (cat) =>
+                `   - "${cat.name}"${cat.description ? `: ${cat.description}` : ""} (proposed category, not yet finalized)`,
+            )
+            .join("\n")
+        : "";
+
     // Format thread info for prompt
     const threadInfoText = threadInfo
       ? `\nThread Information:\n${threadInfo.daysSinceLastReply !== undefined ? `- Days since last reply: ${threadInfo.daysSinceLastReply}` : ""}${threadInfo.userShouldReply !== undefined ? `\n- User should reply: ${threadInfo.userShouldReply ? "Yes" : "No"}` : ""}${threadInfo.lastReplyFrom ? `\n- Last reply from: ${threadInfo.lastReplyFrom}` : ""}`
@@ -226,6 +251,12 @@ export class PriorityAnalysisService {
       threadContextText = `\n\nThread Context (${emailsToInclude.length} previous messages, chronological order):\n${threadMessages.join("\n\n---\n\n")}`;
     }
 
+    // Combine email categories and proto categories for prompt
+    const combinedCategoriesText =
+      emailCategoriesText +
+      (emailCategoriesText && protoCategoriesText ? "\n" : "") +
+      protoCategoriesText;
+
     // Render prompt template with variables
     const prompt = renderPrompt(promptConfig.prompt, {
       from: email.fromName || email.from,
@@ -240,7 +271,7 @@ export class PriorityAnalysisService {
       goalsContext: goalsContextText,
       workingOnContext: workingOnContextText,
       dontCareContext: dontCareContextText,
-      emailCategories: emailCategoriesText,
+      emailCategories: combinedCategoriesText,
       threadInfo: threadInfoText,
       threadContext: threadContextText,
     });
@@ -264,6 +295,7 @@ export class PriorityAnalysisService {
       const jsonMatch = response.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
+        const category = parsed.category || "Other";
         return {
           urgencyScore: Math.max(0, Math.min(100, parsed.urgencyScore || 0)),
           urgencyExplanation:
@@ -279,10 +311,17 @@ export class PriorityAnalysisService {
           goalAlignmentExplanation:
             parsed.goalAlignmentExplanation ||
             "No goal alignment explanation provided",
-          category: parsed.category || "Other",
+          category,
           categoryExplanation:
             parsed.categoryExplanation || "No category explanation provided",
           reasoning: parsed.reasoning || "No reasoning provided",
+          protoCategorySuggestion:
+            category === "Other" && parsed.protoCategorySuggestion
+              ? {
+                  name: parsed.protoCategorySuggestion.name || "",
+                  description: parsed.protoCategorySuggestion.description || "",
+                }
+              : undefined,
         };
       }
     } catch (error) {

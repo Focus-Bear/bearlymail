@@ -11,6 +11,7 @@ import {
 } from "typeorm";
 import { User } from "./user.entity";
 import { Email } from "./email.entity";
+import { ProtoCategory } from "./proto-category.entity";
 import {
   encryptedColumnTransformer,
   encryptedJsonTransformer,
@@ -171,6 +172,18 @@ export class EmailThread {
       "Explanation of why this category was chosen (especially useful for Other)",
   })
   categoryExplanation: string | null;
+
+  @Column({
+    type: "uuid",
+    nullable: true,
+    comment:
+      "Proto category ID for emails in Other that have a proto category suggestion",
+  })
+  protoCategoryId: string | null;
+
+  @ManyToOne(() => ProtoCategory, { nullable: true })
+  @JoinColumn({ name: "protoCategoryId" })
+  protoCategory: ProtoCategory | null;
 
   @ManyToOne(() => User)
   @JoinColumn({ name: "userId" })

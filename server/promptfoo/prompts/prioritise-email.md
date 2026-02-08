@@ -28,6 +28,8 @@ Provide:
 {% endif %}
    - "Other": ONLY use this if no other category is a good fit (last resort)
    
+   NOTE: Categories marked as "(proposed category, not yet finalized)" are proto-categories that the system is learning. If the email fits one of these, use that proto-category name exactly as shown - this helps the system learn and eventually promote it to a real category.
+   
    IMPORTANT for category selection:
    - Evaluate ALL categories before choosing - don't just pick the first one that seems to fit
    - Choose the category that BEST matches the email's primary purpose and content
@@ -39,7 +41,11 @@ Provide:
    - **Identify sender type from the sender name**: Determine if the sender is a human, bot, or automated system by examining the sender name. Common indicators of automated/bot senders include brackets like "[bot]", words like "bot", "automation", "integration", "noreply", "notifications", or service names
    - Only use "Other" when the email genuinely doesn't fit any of the defined categories
 7. categoryExplanation: Explain why you chose this category AND why the other top 2 closest categories were not chosen. Format: "Chose [category] because [reason]. Considered [alternative1] but [why not]. Considered [alternative2] but [why not]."
-8. reasoning: Brief explanation of your analysis
+8. protoCategorySuggestion (ONLY if category is "Other"): When you must use "Other", suggest a NEW category that would better describe this email. This helps the system learn new categories automatically. Provide:
+   - name: A concise category name with emoji prefix (2-4 words, e.g., "🔧 Technical Issues", "📊 Reports", "🎓 Learning Resources")
+   - description: A brief description of what emails belong in this category
+   If the email is truly miscellaneous with no clear pattern, you may omit this field.
+9. reasoning: Brief explanation of your analysis
 
 Consider:
 - Email content urgency and sentiment (upset/angry emails should have higher urgency scores)
@@ -71,7 +77,7 @@ IMPORTANT RULES:
 5. For goal alignment, consider the user's goals and current work contextually - don't just match keywords, understand the relationship between the email content and the user's objectives
 6. If the user should reply and it's been several days since the last reply, factor this into urgency
 
-Return a JSON object with: { "urgencyScore": number (0-100), "urgencyExplanation": string, "sentimentScore": number (-1 to 1), "goalAlignmentScore": number (0-100), "goalAlignmentExplanation": string, "category": string (one of: "Newsletters", "Sales", "Partnerships", "Customer Support", "HR Admin", "Other"), "categoryExplanation": string, "reasoning": string }
+Return a JSON object with: { "urgencyScore": number (0-100), "urgencyExplanation": string, "sentimentScore": number (-1 to 1), "goalAlignmentScore": number (0-100), "goalAlignmentExplanation": string, "category": string (one of: "Newsletters", "Sales", "Partnerships", "Customer Support", "HR Admin", "Other", or any custom category defined above), "categoryExplanation": string, "protoCategorySuggestion": { "name": string, "description": string } (ONLY include if category is "Other"), "reasoning": string }
 
 Email to analyze:
 

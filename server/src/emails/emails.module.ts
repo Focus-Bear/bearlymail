@@ -25,6 +25,7 @@ import { UserContext } from "../database/entities/user-context.entity";
 import { ActionItem } from "../database/entities/action-item.entity";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { CategoryOverride } from "../database/entities/category-override.entity";
+import { ProtoCategory } from "../database/entities/proto-category.entity";
 import { PriorityModule } from "../priority/priority.module";
 import { SummarizationModule } from "../summarization/summarization.module";
 import { UsersModule } from "../users/users.module";
@@ -40,6 +41,7 @@ import { Office365AccountsModule } from "../office365-accounts/office365-account
 import { ZohoAccountsModule } from "../zoho-accounts/zoho-accounts.module";
 import { GitHubModule } from "../github/github.module";
 import { SuggestedRepliesModule } from "../suggested-replies/suggested-replies.module";
+import { ProtoCategoriesModule } from "../proto-categories/proto-categories.module";
 
 @Module({
   imports: [
@@ -51,6 +53,7 @@ import { SuggestedRepliesModule } from "../suggested-replies/suggested-replies.m
       ActionItem,
       BatchSchedule,
       CategoryOverride,
+      ProtoCategory,
     ]),
     PriorityModule,
     forwardRef(() => SummarizationModule),
@@ -67,6 +70,7 @@ import { SuggestedRepliesModule } from "../suggested-replies/suggested-replies.m
     forwardRef(() => ZohoAccountsModule),
     forwardRef(() => GitHubModule),
     forwardRef(() => SuggestedRepliesModule),
+    ProtoCategoriesModule,
   ],
   controllers: [EmailsController],
   providers: [

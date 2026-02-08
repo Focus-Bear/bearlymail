@@ -1,11 +1,58 @@
 /**
+ * Calculate keyword overlap similarity between two strings
+ * Returns a score between 0 and 1
+ */
+function keywordSimilarity(text1, text2) {
+  const normalize = (str) => str.toLowerCase().replace(/[\p{Emoji}]/gu, '').trim();
+  const getWords = (str) => normalize(str).split(/\s+/).filter(w => w.length > 2);
+  
+  const words1 = new Set(getWords(text1));
+  const words2 = new Set(getWords(text2));
+  
+  if (words1.size === 0 || words2.size === 0) return 0;
+  
+  const intersection = [...words1].filter(w => words2.has(w)).length;
+  const union = new Set([...words1, ...words2]).size;
+  
+  return intersection / union; // Jaccard similarity
+}
+
+/**
+ * Check if proto category name is semantically relevant to expected topics
+ * Uses keyword matching with synonyms/related terms
+ */
+function isProtoCategoryRelevant(categoryName, expectedTopics) {
+  const topicSynonyms = {
+    'legal': ['legal', 'contract', 'agreement', 'nda', 'law', 'attorney', 'compliance', 'document', 'signature'],
+    'infrastructure': ['server', 'alert', 'monitor', 'system', 'infrastructure', 'devops', 'cpu', 'memory', 'technical', 'ops'],
+    'shipping': ['shipping', 'delivery', 'package', 'tracking', 'logistics', 'fedex', 'ups', 'mail', 'parcel'],
+    'billing': ['billing', 'invoice', 'payment', 'finance', 'accounting', 'receipt', 'transaction', 'money'],
+    'calendar': ['calendar', 'meeting', 'invite', 'event', 'schedule', 'appointment', 'standup', 'sync'],
+    'learning': ['learning', 'course', 'education', 'training', 'tutorial', 'lesson', 'study', 'class']
+  };
+  
+  const categoryLower = categoryName.toLowerCase();
+  
+  for (const topic of expectedTopics) {
+    const synonyms = topicSynonyms[topic.toLowerCase()] || [topic.toLowerCase()];
+    for (const synonym of synonyms) {
+      if (categoryLower.includes(synonym)) {
+        return { relevant: true, matchedTopic: topic, matchedSynonym: synonym };
+      }
+    }
+  }
+  
+  return { relevant: false };
+}
+
+/**
  * Validates a priority analysis response
  * @param {string|object} output - The LLM output
  * @param {object} context - Test context with expected values
- * @returns {boolean} - true if valid
+ * @returns {boolean|object} - true if valid, or { pass: boolean, score: number, reason: string }
  */
 module.exports = (output, context) => {
-  console.log('validate-priority-response', output, context);
+  // console.log('validate-priority-response', output, context);
   // Validate JSON first - handle markdown code blocks if present
   let parsed;
   try {
@@ -142,6 +189,98 @@ module.exports = (output, context) => {
         : [context.config.excludedCategories];
       if (excludedCategories.includes(parsed.category)) {
         throw new Error(`Category should NOT be one of [${excludedCategories.join(', ')}], but got "${parsed.category}"`);
+      }
+    }
+    
+    // Proto category suggestion validation
+    if (context.config.expectProtoCategorySuggestion !== undefined) {
+      if (context.config.expectProtoCategorySuggestion === true) {
+        // Expect a proto category suggestion when category is "Other"
+        if (parsed.category !== 'Other') {
+          throw new Error(`Expected category to be "Other" when expecting protoCategorySuggestion, got "${parsed.category}"`);
+        }
+        if (!parsed.protoCategorySuggestion || typeof parsed.protoCategorySuggestion !== 'object') {
+          throw new Error(`Expected protoCategorySuggestion object when category is "Other", but it's missing or invalid`);
+        }
+        if (!parsed.protoCategorySuggestion.name || typeof parsed.protoCategorySuggestion.name !== 'string') {
+          throw new Error(`Expected protoCategorySuggestion.name to be a non-empty string`);
+        }
+        if (!parsed.protoCategorySuggestion.description || typeof parsed.protoCategorySuggestion.description !== 'string') {
+          throw new Error(`Expected protoCategorySuggestion.description to be a non-empty string`);
+        }
+        // Validate emoji prefix in name
+        if (!/^[\p{Emoji}]/u.test(parsed.protoCategorySuggestion.name)) {
+          throw new Error(`Expected protoCategorySuggestion.name to start with an emoji, got "${parsed.protoCategorySuggestion.name}"`);
+        }
+      } else if (context.config.expectProtoCategorySuggestion === false) {
+        // Should NOT have a proto category suggestion (e.g., when a category is matched)
+        if (parsed.protoCategorySuggestion) {
+          throw new Error(`Expected no protoCategorySuggestion when a category matches, but got one: "${parsed.protoCategorySuggestion.name}"`);
+        }
+      }
+    }
+    
+    // Proto category name matching (for when we expect a specific proto category name pattern)
+    if (context.config.protoCategoryNameContains !== undefined) {
+      if (!parsed.protoCategorySuggestion || typeof parsed.protoCategorySuggestion !== 'object') {
+        throw new Error(`Expected protoCategorySuggestion object, but it's missing or invalid`);
+      }
+      const expectedSubstrings = Array.isArray(context.config.protoCategoryNameContains) 
+        ? context.config.protoCategoryNameContains 
+        : [context.config.protoCategoryNameContains];
+      const nameMatches = expectedSubstrings.some(substring => 
+        parsed.protoCategorySuggestion.name.toLowerCase().includes(substring.toLowerCase())
+      );
+      if (!nameMatches) {
+        throw new Error(`Expected protoCategorySuggestion.name to contain one of [${expectedSubstrings.join(', ')}], got "${parsed.protoCategorySuggestion.name}"`);
+      }
+    }
+    
+    // Validate that existing proto categories are matched when provided
+    if (context.config.shouldMatchProtoCategory !== undefined) {
+      const expectedProtoCategory = context.config.shouldMatchProtoCategory;
+      // The LLM should either:
+      // 1. Return the exact proto category name as the category
+      // 2. Return a category that contains key parts of the proto category name
+      // We normalize by removing emojis and comparing case-insensitively
+      const normalizeCategory = (cat) => cat.replace(/[\p{Emoji}]/gu, '').trim().toLowerCase();
+      const normalizedExpected = normalizeCategory(expectedProtoCategory);
+      const normalizedActual = normalizeCategory(parsed.category || '');
+      
+      // Check for match (either exact or partial overlap of main words)
+      const expectedWords = normalizedExpected.split(/\s+/).filter(w => w.length > 2);
+      const actualWords = normalizedActual.split(/\s+/).filter(w => w.length > 2);
+      const hasWordOverlap = expectedWords.some(word => actualWords.includes(word));
+      
+      if (normalizedActual !== normalizedExpected && !hasWordOverlap) {
+        throw new Error(`Expected to match existing proto category "${expectedProtoCategory}", got category "${parsed.category}". Neither exact match nor word overlap found.`);
+      }
+    }
+    
+    // Validate proto category relevance using keyword similarity
+    // This is more deterministic than LLM-rubric while still being flexible
+    if (context.config.protoCategoryRelevantTo !== undefined) {
+      if (!parsed.protoCategorySuggestion || !parsed.protoCategorySuggestion.name) {
+        throw new Error(`Expected protoCategorySuggestion with name, but it's missing`);
+      }
+      
+      const expectedTopics = Array.isArray(context.config.protoCategoryRelevantTo)
+        ? context.config.protoCategoryRelevantTo
+        : [context.config.protoCategoryRelevantTo];
+      
+      const relevanceCheck = isProtoCategoryRelevant(parsed.protoCategorySuggestion.name, expectedTopics);
+      
+      if (!relevanceCheck.relevant) {
+        // Calculate similarity score for better feedback
+        const combinedTopics = expectedTopics.join(' ');
+        const similarity = keywordSimilarity(parsed.protoCategorySuggestion.name, combinedTopics);
+        
+        // Return a graded result instead of throwing
+        return {
+          pass: false,
+          score: similarity,
+          reason: `Proto category "${parsed.protoCategorySuggestion.name}" is not relevant to expected topics [${expectedTopics.join(', ')}]. Similarity score: ${(similarity * 100).toFixed(1)}%`
+        };
       }
     }
   }

@@ -14,6 +14,7 @@ import { PriorityAnalysisService } from "../llm/priority-analysis.service";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { ContextKey } from "../database/entities/user-context.entity";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
+import { ProtoCategoriesService } from "../proto-categories/proto-categories.service";
 
 // Constants for LLM processing
 const LLM_PROCESSOR_CONSTANTS = {
@@ -49,6 +50,7 @@ export class LLMProcessor implements OnModuleInit {
     private summarizationService: SummarizationService,
     private priorityAnalysisService: PriorityAnalysisService,
     private configService: ConfigService,
+    private protoCategoriesService: ProtoCategoriesService,
   ) {
     // Get CPU cores for optimal concurrency
     const cpuCores = os.cpus().length;
@@ -232,19 +234,23 @@ export class LLMProcessor implements OnModuleInit {
           // OPTIMIZED: Use cache service and limit data fetching
           // Fetch user contexts and avgTimeToReply from cache (much faster)
           // Fetch last 15 thread emails for context (chronological order for LLM)
-          const [contexts, avgTimeToReply, threadEmails] = await Promise.all([
-            // Fetch user contexts from cache (TTL: 5 minutes)
-            this.priorityCacheService.getUserContexts(userId),
-            // Fetch avgTimeToReply from cache (TTL: 1 hour, uses last 10 emails)
-            this.priorityCacheService.getAvgTimeToReply(userId),
-            // Fetch last 15 thread emails (ASC order for chronological context in LLM)
-            email.threadId
-              ? this.emailsService.getThreadEmails(userId, email.threadId, {
-                  limit: LLM_PROCESSOR_CONSTANTS.THREAD_EMAILS_LIMIT,
-                  order: "ASC",
-                })
-              : Promise.resolve([]),
-          ]);
+          // Fetch proto categories for matching existing suggestions
+          const [contexts, avgTimeToReply, threadEmails, protoCategories] =
+            await Promise.all([
+              // Fetch user contexts from cache (TTL: 5 minutes)
+              this.priorityCacheService.getUserContexts(userId),
+              // Fetch avgTimeToReply from cache (TTL: 1 hour, uses last 10 emails)
+              this.priorityCacheService.getAvgTimeToReply(userId),
+              // Fetch last 15 thread emails (ASC order for chronological context in LLM)
+              email.threadId
+                ? this.emailsService.getThreadEmails(userId, email.threadId, {
+                    limit: LLM_PROCESSOR_CONSTANTS.THREAD_EMAILS_LIMIT,
+                    order: "ASC",
+                  })
+                : Promise.resolve([]),
+              // Fetch active proto categories for the user
+              this.protoCategoriesService.findActiveByUser(userId),
+            ]);
           tracker.endPhase("dataFetch");
           tracker.startPhase("processing");
 
@@ -329,6 +335,10 @@ export class LLMProcessor implements OnModuleInit {
                       : undefined,
                 };
               }),
+            protoCategories: protoCategories.map((pc) => ({
+              name: pc.name,
+              description: pc.description || undefined,
+            })),
           };
 
           this.logger.log(
@@ -619,6 +629,66 @@ export class LLMProcessor implements OnModuleInit {
                   )
                 : finalScore;
 
+              // Handle proto categories for "Other" category
+              let protoCategoryId: string | null = null;
+              let finalCategory = llmResult.category || thread.category || null;
+
+              if (
+                llmResult.category === "Other" &&
+                llmResult.protoCategorySuggestion?.name
+              ) {
+                try {
+                  // First, check if there's an existing proto category that matches
+                  const existingProtoCategory =
+                    await this.protoCategoriesService.findMatchingProtoCategory(
+                      userId,
+                      llmResult.protoCategorySuggestion.name,
+                    );
+
+                  if (existingProtoCategory) {
+                    // Assign to existing proto category
+                    const updatedProtoCategory =
+                      await this.protoCategoriesService.assignThreadToProtoCategory(
+                        existingProtoCategory.id,
+                        email.emailThreadId!,
+                      );
+
+                    // If promoted, update the category
+                    if (updatedProtoCategory.isPromoted) {
+                      finalCategory = updatedProtoCategory.name;
+                      this.logger.log(
+                        `[Worker ${workerId}] Proto category "${updatedProtoCategory.name}" was promoted to real category`,
+                      );
+                    } else {
+                      protoCategoryId = updatedProtoCategory.id;
+                      this.logger.log(
+                        `[Worker ${workerId}] Assigned thread to existing proto category "${updatedProtoCategory.name}" (count: ${updatedProtoCategory.emailCount})`,
+                      );
+                    }
+                  } else {
+                    // Create new proto category
+                    const newProtoCategory =
+                      await this.protoCategoriesService.createAndAssignToThread(
+                        userId,
+                        llmResult.protoCategorySuggestion.name,
+                        llmResult.protoCategorySuggestion.description || null,
+                        email.emailThreadId!,
+                      );
+
+                    protoCategoryId = newProtoCategory.id;
+                    this.logger.log(
+                      `[Worker ${workerId}] Created new proto category "${newProtoCategory.name}"`,
+                    );
+                  }
+                } catch (protoCategoryError) {
+                  this.logger.warn(
+                    `[Worker ${workerId}] Failed to process proto category for email ${emailId}:`,
+                    protoCategoryError,
+                  );
+                  // Continue with normal category assignment
+                }
+              }
+
               await this.emailThreadRepository.update(
                 { id: email.emailThreadId },
                 {
@@ -627,11 +697,12 @@ export class LLMProcessor implements OnModuleInit {
                     newUrgencyExplanation || thread.urgencyExplanation,
                   priorityExplanation, // Store priority explanation on thread
                   priorityScore, // Store denormalized score for efficient sorting
-                  category: llmResult.category || thread.category || null, // Store email category
+                  category: finalCategory, // Store email category (may be promoted from proto)
                   categoryExplanation:
                     llmResult.categoryExplanation ||
                     thread.categoryExplanation ||
                     null, // Store category explanation
+                  protoCategoryId, // Store proto category ID if applicable
                   isProcessingPriority: false,
                 },
               );

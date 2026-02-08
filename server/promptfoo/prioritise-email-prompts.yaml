@@ -179,3 +179,160 @@ tests:
         config:
           expectedCategory: "Newsletters"
 
+  # ============================================================
+  # PROTO CATEGORY TESTS
+  # These tests validate the proto category suggestion feature
+  # for emails that don't fit any existing category.
+  # 
+  # We use keyword similarity for semantic validation which is:
+  # - Faster than LLM-rubric (no API call needed)
+  # - More deterministic (based on keyword matching with synonyms)
+  # - Still flexible (accepts various phrasings)
+  # ============================================================
+
+  # Proto category test 1: Legal email should suggest relevant proto category
+  - description: "Proto category: legal email should get Other with relevant proto category"
+    vars:
+      from: "legal@lawfirm.com"
+      fromName: "Legal Department"
+      subject: "Contract Review - NDA Agreement"
+      body: "Please review the attached Non-Disclosure Agreement for the partnership with Acme Corp. We need your signature by Friday. Let me know if you have any questions about the terms."
+      emailCategories: |
+        - "Newsletters": Marketing emails and newsletters
+        - "Customer Support": Support tickets and issues
+        - "Sales": Sales inquiries and deals
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          expectedCategory: "Other"
+          expectProtoCategorySuggestion: true
+          # Keyword similarity check - proto category should relate to legal/contracts
+          protoCategoryRelevantTo: ["legal"]
+
+  # Proto category test 2: Server alert should suggest relevant proto category
+  - description: "Proto category: server alert should get Other with relevant proto category"
+    vars:
+      from: "alerts@monitoring.internal"
+      fromName: "Server Monitor"
+      subject: "CPU Alert - Production Server"
+      body: "Alert: CPU usage on prod-server-01 has exceeded 90% for the past 15 minutes. Current load average: 12.5. Memory usage: 78%. Please investigate."
+      emailCategories: |
+        - "Newsletters": Marketing emails and newsletters
+        - "Customer Support": Support tickets from customers
+        - "HR Admin": HR-related communications
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          expectedCategory: "Other"
+          expectProtoCategorySuggestion: true
+          # Keyword similarity check - proto category should relate to infrastructure/monitoring
+          protoCategoryRelevantTo: ["infrastructure"]
+
+  # Proto category test 3: Should match existing proto category (shipping)
+  - description: "Proto category: should match existing proto category for package delivery"
+    vars:
+      from: "tracking@ups.com"
+      fromName: "UPS Tracking"
+      subject: "Package Delivered"
+      body: "Your UPS package was delivered today at 2:30 PM. Left at front door. Tracking: 9876543210."
+      emailCategories: |
+        - "Newsletters": Marketing emails
+        - "Customer Support": Customer service issues
+        - "📦 Shipping & Delivery": Package tracking and delivery notifications (proposed category, not yet finalized)
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          shouldMatchProtoCategory: "📦 Shipping & Delivery"
+
+  # Proto category test 4: Should NOT suggest proto category when newsletter matches
+  - description: "Proto category: should NOT suggest proto category when newsletter matches"
+    vars:
+      from: "digest@techcrunch.com"
+      fromName: "TechCrunch"
+      subject: "Daily Tech Digest - Top Stories"
+      body: "Here are today's top tech stories: Apple announces new iPhone, Google releases AI update, Tesla shares surge."
+      emailCategories: |
+        - "Newsletters": Marketing emails, digests, and promotional content
+        - "Customer Support": Support tickets
+        - "Sales": Sales inquiries
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          expectedCategory: "Newsletters"
+          expectProtoCategorySuggestion: false
+
+  # Proto category test 5: Should match existing proto category (billing)
+  - description: "Proto category: should match existing proto category for invoice"
+    vars:
+      from: "invoices@quickbooks.com"
+      fromName: "QuickBooks"
+      subject: "Invoice Payment Received"
+      body: "Payment of $150.00 for Invoice #QB-789 has been received. Thank you for your prompt payment."
+      emailCategories: |
+        - "Newsletters": Marketing emails
+        - "Customer Support": Support tickets
+        - "💰 Billing & Invoices": Invoices, payment notifications, and financial documents (proposed category, not yet finalized)
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          shouldMatchProtoCategory: "💰 Billing & Invoices"
+
+  # Proto category test 6: Calendar invite should suggest relevant proto category
+  - description: "Proto category: calendar invite should get Other with relevant proto category"
+    vars:
+      from: "calendar@google.com"
+      fromName: "Google Calendar"
+      subject: "Invitation: Team Standup @ Weekly"
+      body: "You've been invited to a recurring event. Team Standup, Every Monday 9:00 AM - 9:30 AM. Location: Zoom. Click to accept or decline."
+      emailCategories: |
+        - "Newsletters": Marketing content
+        - "Sales": Sales discussions
+        - "Customer Support": Customer issues
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          expectedCategory: "Other"
+          expectProtoCategorySuggestion: true
+          # Keyword similarity check - proto category should relate to calendar/meetings
+          protoCategoryRelevantTo: ["calendar"]
+
+  # Proto category test 7: Match existing proto category for calendar
+  - description: "Proto category: should match existing calendar proto category"
+    vars:
+      from: "calendar@outlook.com"
+      fromName: "Microsoft Outlook"
+      subject: "Meeting Request: Project Review"
+      body: "You have a new meeting request. Project Review, Tomorrow at 3:00 PM. Duration: 1 hour. Organizer: John Smith."
+      emailCategories: |
+        - "Newsletters": Marketing content
+        - "Sales": Sales discussions
+        - "📅 Calendar & Meetings": Meeting invites, calendar events, and scheduling (proposed category, not yet finalized)
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          shouldMatchProtoCategory: "📅 Calendar & Meetings"
+
+  # Proto category test 8: Miscellaneous email should get Other
+  - description: "Proto category: miscellaneous personal email should get Other"
+    vars:
+      from: "friend@gmail.com"
+      fromName: "Random Friend"
+      subject: "Hey, random thought"
+      body: "Hey! I was just thinking about that thing we talked about last week. Anyway, hope you're doing well!"
+      emailCategories: |
+        - "Newsletters": Marketing emails
+        - "Customer Support": Support tickets
+        - "Sales": Sales inquiries
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          expectedCategory: "Other"
+

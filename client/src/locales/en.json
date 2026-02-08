@@ -1723,5 +1723,22 @@
     },
   "sidebar": {
     "expand": "Expand sidebar"
+  },
+  "stats": {
+    "title": "Stats",
+    "totalEmails": "Total Emails",
+    "avgPerDay": "Avg per Day",
+    "categories": "Categories",
+    "avgReplyTime": "Avg Reply Time",
+    "emailsPerDay": "Emails Per Day",
+    "byCategory": "Breakdown by Category",
+    "categoryHeader": "Category",
+    "emailsHeader": "Emails",
+    "avgReplyHeader": "Avg Reply",
+    "repliedHeader": "Replied",
+    "noData": "No email data available for this period.",
+    "noReplyData": "-",
+    "periodDays_one": "{{count}}d",
+    "periodDays_other": "{{count}}d"
   }
 }

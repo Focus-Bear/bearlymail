@@ -342,6 +342,13 @@ export class AutoResponderService {
 
     const queueStats = await this.queueStatsService.getQueueStats(userId);
 
+    // Get category-specific response time if available
+    const categoryResponseTime =
+      this.queueStatsService.getResponseTimeForCategory(
+        queueStats,
+        thread.category,
+      );
+
     // Generate Q&A answer if enabled
     let qaResult: QASearchResult | null = null;
     if (config.qaContextEnabled) {
@@ -354,6 +361,7 @@ export class AutoResponderService {
     }
 
     // Render the response
+    // Use category-specific response time when available for more accurate messaging
     const templateVars: AutoResponseTemplateVars = {
       userName: user.name || "the recipient",
       senderName: latestEmail.fromName || latestEmail.from.split("@")[0],
@@ -361,7 +369,7 @@ export class AutoResponderService {
       priorityLevel,
       actionCount: queueStats.actionCount,
       triageCount: queueStats.triageCount,
-      avgResponseTime: queueStats.avgResponseTime,
+      avgResponseTime: categoryResponseTime,
       urgentResponseTime: queueStats.urgentResponseTime,
       aiAnswer: qaResult?.answer || null,
       hasAiAnswer: !!qaResult && qaResult.confidence >= config.qaMinConfidence,

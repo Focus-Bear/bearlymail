@@ -19,6 +19,7 @@ import TermsOfUse from 'pages/TermsOfUse';
 import Search from 'pages/Search';
 import Compose from 'pages/Compose';
 import Contacts from 'pages/Contacts';
+import Stats from 'pages/Stats';
 import SetupPassword from 'pages/SetupPassword';
 import AuthError from 'pages/AuthError';
 import Help from 'pages/Help';
@@ -213,6 +214,14 @@ function App() {
                 element={
                   <PrivateRoute>
                     <Contacts />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/stats"
+                element={
+                  <PrivateRoute>
+                    <Stats />
                   </PrivateRoute>
                 }
               />

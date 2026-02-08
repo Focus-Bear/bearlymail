@@ -24,6 +24,7 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ label, path, icon, active, on
     if (path === '/inbox') captureEvent('sidebar_inbox_clicked');
     else if (path === '/search') captureEvent('sidebar_search_clicked');
     else if (path === '/contacts') captureEvent('sidebar_contacts_clicked');
+    else if (path === '/stats') captureEvent('sidebar_stats_clicked');
     else if (path === '/settings') captureEvent('sidebar_settings_clicked');
     else if (path === '/admin') captureEvent('sidebar_admin_clicked');
     if (onClick) {
@@ -233,6 +234,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, logout, isCollapsed = fa
           path="/contacts" 
           icon="👤"
           active={location.pathname === '/contacts'}
+          isCollapsed={isCollapsed}
+        />
+        <SidebarItem 
+          label={t('stats.title')} 
+          path="/stats" 
+          icon="📊"
+          active={location.pathname === '/stats'}
           isCollapsed={isCollapsed}
         />
         {!isCollapsed && (

@@ -114,6 +114,9 @@ describe("AutoResponderService", () => {
           provide: QueueStatsService,
           useValue: {
             getQueueStats: jest.fn(),
+            getResponseTimeForCategory: jest
+              .fn()
+              .mockImplementation((stats) => stats.avgResponseTime),
           },
         },
         {

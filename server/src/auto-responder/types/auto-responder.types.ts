@@ -45,11 +45,18 @@ export interface EmailClassification {
   reasons: string[];
 }
 
+export interface CategoryReplyTime {
+  category: string;
+  avgReplyTimeMinutes: number;
+  repliedCount: number;
+}
+
 export interface QueueStats {
   actionCount: number; // Emails marked for action
   triageCount: number; // Emails pending triage
   avgResponseTime: string; // Human-readable (e.g., "~4 days")
   urgentResponseTime: string; // For high-priority template
+  categoryReplyTimes?: CategoryReplyTime[]; // Category-specific reply times from actual data
 }
 
 export interface QASearchResult {

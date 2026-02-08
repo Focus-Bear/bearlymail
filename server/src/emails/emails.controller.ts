@@ -207,6 +207,64 @@ export class EmailsController {
     }
   }
 
+  @Get("stats")
+  async getEmailStats(@Request() req, @Query("days") daysParam?: string) {
+    const DEFAULT_DAYS = 30;
+    const MAX_DAYS = 90;
+    const days = Math.min(
+      daysParam ? parseInt(daysParam, 10) : DEFAULT_DAYS,
+      MAX_DAYS,
+    );
+    const { userId } = req.user;
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+
+    const emailsPerDay = await this.emailThreadRepository
+      .createQueryBuilder("thread")
+      .innerJoin("thread.emails", "email")
+      .select("DATE(email.receivedAt)", "date")
+      .addSelect("COUNT(DISTINCT email.id)", "count")
+      .addSelect("thread.category", "category")
+      .where("thread.userId = :userId", { userId })
+      .andWhere("email.receivedAt >= :since", { since })
+      .groupBy("DATE(email.receivedAt)")
+      .addGroupBy("thread.category")
+      .orderBy("DATE(email.receivedAt)", "ASC")
+      .getRawMany();
+
+    const replyTimesByCategory = await this.emailThreadRepository
+      .createQueryBuilder("thread")
+      .innerJoin("thread.emails", "email")
+      .select("thread.category", "category")
+      .addSelect("AVG(email.timeToReply)", "avgReplyTimeMinutes")
+      .addSelect("MIN(email.timeToReply)", "minReplyTimeMinutes")
+      .addSelect("MAX(email.timeToReply)", "maxReplyTimeMinutes")
+      .addSelect("COUNT(email.id)", "repliedCount")
+      .where("thread.userId = :userId", { userId })
+      .andWhere("email.timeToReply IS NOT NULL")
+      .andWhere("email.timeToReply > 0")
+      .andWhere("email.receivedAt >= :since", { since })
+      .groupBy("thread.category")
+      .getRawMany();
+
+    const totalByCategory = await this.emailThreadRepository
+      .createQueryBuilder("thread")
+      .innerJoin("thread.emails", "email")
+      .select("thread.category", "category")
+      .addSelect("COUNT(DISTINCT email.id)", "total")
+      .where("thread.userId = :userId", { userId })
+      .andWhere("email.receivedAt >= :since", { since })
+      .groupBy("thread.category")
+      .getRawMany();
+
+    return {
+      days,
+      emailsPerDay,
+      replyTimesByCategory,
+      totalByCategory,
+    };
+  }
+
   @Get(":id/priority-explanation")
   async getPriorityExplanation(@Request() req, @Param("id") id: string) {
     return this.emailsService.getPriorityExplanation(req.user.userId, id);

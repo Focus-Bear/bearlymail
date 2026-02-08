@@ -19,3 +19,4 @@ export { useInboxModeChanges } from 'hooks/useInboxModeChanges';
 export { useFollowUps } from 'hooks/useFollowUps';
 export { useInboxKeyboardNavigation } from 'hooks/useInboxKeyboardNavigation';
 export { useInboxState } from 'hooks/useInboxState';
+export { useEmailStats } from 'hooks/useEmailStats';

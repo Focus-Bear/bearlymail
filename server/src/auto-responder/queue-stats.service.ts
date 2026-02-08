@@ -4,8 +4,16 @@ import { Repository, MoreThan } from "typeorm";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { Email } from "../database/entities/email.entity";
 import { AutoResponseLog } from "../database/entities/auto-response-log.entity";
-import { QueueStats } from "./types/auto-responder.types";
+import { QueueStats, CategoryReplyTime } from "./types/auto-responder.types";
 import { DISPLAY_LIMITS, STATS_CONFIG } from "./auto-responder-constants";
+
+// Default response times when no data is available (calculated from typical patterns)
+const DEFAULT_RESPONSE_TIMES = {
+  // Default when no reply data exists at all
+  NO_DATA: "a few days",
+  // Default for urgent emails when no data
+  URGENT_NO_DATA: "12-24 hours",
+} as const;
 
 @Injectable()
 export class QueueStatsService {
@@ -47,19 +55,23 @@ export class QueueStatsService {
       const avgResponseTime = await this.calculateAverageResponseTime(userId);
       const urgentResponseTime = await this.calculateUrgentResponseTime(userId);
 
+      // Get category-specific reply times for more accurate auto-response messaging
+      const categoryReplyTimes = await this.calculateCategoryReplyTimes(userId);
+
       return {
         actionCount: this.formatCount(actionCount),
         triageCount: this.formatCount(triageCount),
         avgResponseTime,
         urgentResponseTime,
+        categoryReplyTimes,
       };
     } catch (error) {
       this.logger.error(`Failed to get queue stats for user ${userId}`, error);
       return {
         actionCount: 0,
         triageCount: 0,
-        avgResponseTime: "~3-5 days",
-        urgentResponseTime: "12-24 hours",
+        avgResponseTime: DEFAULT_RESPONSE_TIMES.NO_DATA,
+        urgentResponseTime: DEFAULT_RESPONSE_TIMES.URGENT_NO_DATA,
       };
     }
   }
@@ -97,10 +109,10 @@ export class QueueStatsService {
         return this.formatResponseTime(avgMinutes);
       }
 
-      return "~3-5 days"; // Default fallback
+      return DEFAULT_RESPONSE_TIMES.NO_DATA;
     } catch (error) {
       this.logger.warn("Failed to calculate average response time", error);
-      return "~3-5 days";
+      return DEFAULT_RESPONSE_TIMES.NO_DATA;
     }
   }
 
@@ -131,11 +143,72 @@ export class QueueStatsService {
         return this.formatResponseTime(avgMinutes);
       }
 
-      return "12-24 hours"; // Default for urgent
+      return DEFAULT_RESPONSE_TIMES.URGENT_NO_DATA;
     } catch (error) {
       this.logger.warn("Failed to calculate urgent response time", error);
-      return "12-24 hours";
+      return DEFAULT_RESPONSE_TIMES.URGENT_NO_DATA;
     }
+  }
+
+  /**
+   * Calculate reply times broken down by email category
+   * Used for more accurate auto-response messaging based on the email's category
+   */
+  private async calculateCategoryReplyTimes(
+    userId: string,
+  ): Promise<CategoryReplyTime[]> {
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(
+        thirtyDaysAgo.getDate() - STATS_CONFIG.LOOKBACK_DAYS,
+      );
+
+      const categoryStats = await this.emailRepository
+        .createQueryBuilder("email")
+        .innerJoin("email.thread", "thread")
+        .select("thread.category", "category")
+        .addSelect("AVG(email.timeToReply)", "avgReplyTimeMinutes")
+        .addSelect("COUNT(email.id)", "repliedCount")
+        .where("email.userId = :userId", { userId })
+        .andWhere("email.timeToReply IS NOT NULL")
+        .andWhere("email.timeToReply > 0")
+        .andWhere("email.receivedAt > :thirtyDaysAgo", { thirtyDaysAgo })
+        .groupBy("thread.category")
+        .getRawMany();
+
+      return categoryStats.map((stat) => ({
+        category: stat.category || "Other",
+        avgReplyTimeMinutes: parseFloat(stat.avgReplyTimeMinutes),
+        repliedCount: parseInt(stat.repliedCount, 10),
+      }));
+    } catch (error) {
+      this.logger.warn("Failed to calculate category reply times", error);
+      return [];
+    }
+  }
+
+  /**
+   * Get formatted response time for a specific category
+   * Falls back to overall average if category-specific data is not available
+   */
+  getResponseTimeForCategory(
+    stats: QueueStats,
+    category: string | null,
+  ): string {
+    if (!category || !stats.categoryReplyTimes?.length) {
+      return stats.avgResponseTime;
+    }
+
+    const categoryData = stats.categoryReplyTimes.find(
+      (c) => c.category.toLowerCase() === category.toLowerCase(),
+    );
+
+    if (categoryData && categoryData.repliedCount >= 3) {
+      // Only use category-specific time if we have at least 3 data points
+      return this.formatResponseTime(categoryData.avgReplyTimeMinutes);
+    }
+
+    return stats.avgResponseTime;
   }
 
   /**

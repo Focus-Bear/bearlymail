@@ -1528,5 +1528,22 @@
   },
   "sidebar": {
     "expand": "Expandir barra lateral"
+  },
+  "stats": {
+    "title": "Estadísticas",
+    "totalEmails": "Total de Correos",
+    "avgPerDay": "Promedio por Día",
+    "categories": "Categorías",
+    "avgReplyTime": "Tiempo de Respuesta Prom.",
+    "emailsPerDay": "Correos por Día",
+    "byCategory": "Desglose por Categoría",
+    "categoryHeader": "Categoría",
+    "emailsHeader": "Correos",
+    "avgReplyHeader": "Resp. Prom.",
+    "repliedHeader": "Respondidos",
+    "noData": "No hay datos de correos disponibles para este período.",
+    "noReplyData": "-",
+    "periodDays_one": "{{count}}d",
+    "periodDays_other": "{{count}}d"
   }
 }

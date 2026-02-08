@@ -514,26 +514,31 @@ export class EmailsController {
   }
 
   @Get("debug/sync-status")
+  @UseGuards(JwtAuthGuard, AdminGuard)
   async getSyncStatus(@Request() req) {
     return this.emailsService.getSyncStatus(req.user.userId);
   }
 
   @Get("debug/starred-threads")
+  @UseGuards(JwtAuthGuard, AdminGuard)
   async debugStarredThreads(@Request() req) {
     return this.emailsService.debugStarredThreads(req.user.userId);
   }
 
   @Get("debug/orphan-emails")
+  @UseGuards(JwtAuthGuard, AdminGuard)
   async debugOrphanEmails(@Request() req) {
     return this.emailsService.debugOrphanEmails(req.user.userId);
   }
 
   @Post("debug/fix-orphan-emails")
+  @UseGuards(JwtAuthGuard, AdminGuard)
   async fixOrphanEmails(@Request() req) {
     return this.emailsService.fixOrphanEmails(req.user.userId);
   }
 
   @Post("debug/reset-stuck-jobs")
+  @UseGuards(JwtAuthGuard, AdminGuard)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async resetStuckJobs(@Request() _req) {
     // Reset jobs that are stuck in retry state with future startafter times
@@ -572,11 +577,13 @@ export class EmailsController {
   }
 
   @Post("debug/fix-stuck-calculating")
+  @UseGuards(JwtAuthGuard, AdminGuard)
   async fixStuckCalculating(@Request() req) {
     return this.emailsService.fixStuckCalculatingThreads(req.user.userId);
   }
 
   @Get("debug/thread-lookup/:threadId")
+  @UseGuards(JwtAuthGuard, AdminGuard)
   async lookupThread(@Request() req, @Param("threadId") threadId: string) {
     return this.emailsService.lookupThread(req.user.userId, threadId);
   }

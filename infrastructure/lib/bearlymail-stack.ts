@@ -357,6 +357,17 @@ export class BearlyMailStack extends cdk.Stack {
     //   --network-configuration "awsvpcConfiguration={subnets=[<private-subnet-ids>],securityGroups=[<security-group-id>],assignPublicIp=DISABLED}"
     //
     // You can find the subnet IDs and security group ID in the AWS Console under VPC.
+
+    // Security group for migration tasks - allows outbound to AWS services (Secrets Manager, ECR, etc.)
+    const migrationSecurityGroup = new ec2.SecurityGroup(this, 'MigrationSecurityGroup', {
+      vpc,
+      description: 'Security group for migration tasks - allows outbound HTTPS for AWS services',
+      allowAllOutbound: true, // Allow outbound to NAT Gateway -> AWS services
+    });
+
+    // Allow migration task to connect to RDS
+    database.connections.allowFrom(migrationSecurityGroup, ec2.Port.tcp(5432), 'Allow migration tasks to connect to RDS');
+
     const migrationTaskDefinition = new ecs.FargateTaskDefinition(this, 'MigrationTaskDefinition', {
       family: 'BearlyMailMigrationTask',
       cpu: 256,
@@ -552,6 +563,12 @@ export class BearlyMailStack extends cdk.Stack {
       value: migrationTaskDefinition.taskDefinitionArn,
       description: 'Migration task definition ARN (run manually when migrations are needed)',
       exportName: 'BearlyMail-Migration-Task-ARN',
+    });
+
+    new cdk.CfnOutput(this, 'MigrationSecurityGroupId', {
+      value: migrationSecurityGroup.securityGroupId,
+      description: 'Security group ID for migration tasks',
+      exportName: 'BearlyMail-Migration-SG-ID',
     });
 
     new cdk.CfnOutput(this, 'EcsClusterName', {

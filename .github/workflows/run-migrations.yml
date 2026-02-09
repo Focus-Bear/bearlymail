@@ -61,10 +61,9 @@ jobs:
           echo "subnet_ids=$SUBNET_IDS" >> $GITHUB_OUTPUT
           echo "Subnet IDs: $SUBNET_IDS"
           
-          # Get security group ID for ECS tasks
-          SECURITY_GROUP=$(aws ec2 describe-security-groups \
-            --filters "Name=group-name,Values=*BearlyMailStack*" \
-            --query 'SecurityGroups[0].GroupId' \
+          # Get migration security group ID (exported from CDK stack)
+          SECURITY_GROUP=$(aws cloudformation list-exports \
+            --query "Exports[?Name=='BearlyMail-Migration-SG-ID'].Value" \
             --output text)
           echo "security_group=$SECURITY_GROUP" >> $GITHUB_OUTPUT
           echo "Security Group: $SECURITY_GROUP"

@@ -30,6 +30,12 @@ import {
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { MINUTES, MILLISECONDS } from "../constants/time-constants";
+import {
+  TIME_FORMATTING,
+  RECENCY_THRESHOLDS,
+  QA_EXTRACTION,
+  BODY_PREVIEW_LENGTHS,
+} from "../constants/llm-constants";
 
 export enum LLMProvider {
   GEMINI = "gemini",
@@ -1273,10 +1279,10 @@ export class LLMService {
 
     const peakHours = sortedHours
       .map(([hour, count]) => {
-        // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-        const period = hour < 12 ? "AM" : "PM";
-        // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-        const hour12 = hour % 12 || 12;
+        const period = hour < TIME_FORMATTING.NOON_HOUR ? "AM" : "PM";
+        const hour12 =
+          hour % TIME_FORMATTING.HOURS_IN_HALF_DAY ||
+          TIME_FORMATTING.HOURS_IN_HALF_DAY;
         return `${hour12}${period} (${count} emails)`;
       })
       .join(", ");
@@ -1342,9 +1348,8 @@ export class LLMService {
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
         return Array.isArray(parsed)
-          ? // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-            // Require 3+ occurrences
-            parsed.filter((qa) => qa.frequency >= 3)
+          ? // Require minimum occurrences
+            parsed.filter((qa) => qa.frequency >= QA_EXTRACTION.MIN_FREQUENCY)
           : [];
       }
     } catch (error) {
@@ -1381,8 +1386,7 @@ export class LLMService {
     const daysAgo = Math.floor(
       (now.getTime() - receivedDate.getTime()) / (1000 * 60 * 60 * 24),
     );
-    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-    const isRecent = daysAgo <= 7;
+    const isRecent = daysAgo <= RECENCY_THRESHOLDS.RECENT_DAYS;
     let receivedAtText: string;
     if (daysAgo === 0) {
       receivedAtText = "today";
@@ -1462,17 +1466,14 @@ export class LLMService {
       } else {
         receivedAtText = `${daysAgo} days ago`;
       }
-      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-      const isRecent = daysAgo <= 7;
+      const isRecent = daysAgo <= RECENCY_THRESHOLDS.RECENT_DAYS;
 
       return {
         index: email.index,
         from: email.from,
         subject: email.subject,
-        // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-        // Slightly shorter for batch (300 chars)
-        // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-        bodyPreview: email.body.substring(0, 300),
+        // Slightly shorter for batch
+        bodyPreview: email.body.substring(0, BODY_PREVIEW_LENGTHS.BATCH_PREVIEW),
         receivedAt: receivedAtText,
         isRecent: isRecent ? " (recent)" : "",
       };
@@ -1498,8 +1499,7 @@ export class LLMService {
       `Batch explanation: ${emails.length} emails, prompt length: ${fullPrompt.length}`,
     );
     this.logger.debug(
-      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-      `Rendered prompt preview (first 800 chars):\n${fullPrompt.substring(0, 800)}`,
+      `Rendered prompt preview (first ${BODY_PREVIEW_LENGTHS.DEBUG_LOG_PREVIEW} chars):\n${fullPrompt.substring(0, BODY_PREVIEW_LENGTHS.DEBUG_LOG_PREVIEW)}`,
     );
 
     // Verify the prompt contains the emails section

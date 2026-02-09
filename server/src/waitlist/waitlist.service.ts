@@ -9,6 +9,7 @@ import { UsersService } from "../users/users.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { EmailService } from "../email/email.service";
 import { isError, getErrorMessage } from "../types/common";
+import { TOKEN_CONSTANTS } from "../constants/service-constants";
 
 @Injectable()
 export class WaitlistService {
@@ -151,11 +152,13 @@ export class WaitlistService {
     const existingUser = await this.usersService.findByEmail(entry.email);
 
     // Generate password setup token (valid for 7 days)
-    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-    const setupToken = crypto.randomBytes(32).toString("hex");
+    const setupToken = crypto
+      .randomBytes(TOKEN_CONSTANTS.TOKEN_BYTES)
+      .toString("hex");
     const tokenExpiresAt = new Date();
-    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-    tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 7);
+    tokenExpiresAt.setDate(
+      tokenExpiresAt.getDate() + TOKEN_CONSTANTS.PASSWORD_SETUP_TOKEN_DAYS,
+    );
 
     if (!existingUser) {
       // Create user account with setup token (not approved yet - they need to set password first)

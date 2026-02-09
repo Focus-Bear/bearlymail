@@ -5,6 +5,7 @@ import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import * as chrono from "chrono-node";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
+import { SNOOZE_CONSTANTS } from "../constants/snooze-constants";
 
 @Injectable()
 export class SnoozeService {
@@ -132,8 +133,15 @@ export class SnoozeService {
         case "d":
           return new Date(now.getTime() + value * 24 * 60 * 60 * 1000);
         case "w":
-          // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-          return new Date(now.getTime() + value * 7 * 24 * 60 * 60 * 1000);
+          return new Date(
+            now.getTime() +
+              value *
+                SNOOZE_CONSTANTS.DAYS_IN_WEEK *
+                24 *
+                60 *
+                60 *
+                1000,
+          );
       }
     }
 
@@ -155,15 +163,13 @@ export class SnoozeService {
 
       if (daysUntil <= 0) {
         // Next week
-        // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-        daysUntil += 7;
+        daysUntil += SNOOZE_CONSTANTS.DAYS_IN_WEEK;
       }
 
       const nextDate = new Date(now);
       nextDate.setDate(now.getDate() + daysUntil);
       // Default to 9 AM
-      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-      nextDate.setHours(9, 0, 0, 0);
+      nextDate.setHours(SNOOZE_CONSTANTS.DEFAULT_SNOOZE_HOUR, 0, 0, 0);
 
       return nextDate;
     }

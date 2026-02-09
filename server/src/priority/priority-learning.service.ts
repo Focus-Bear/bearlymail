@@ -1,6 +1,8 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PRIORITY_LEARNING_CONSTANTS } from "../constants/priority-learning-constants";
 import { QUERY_LIMITS } from "../constants/query-limits";
+import { STAR_COUNTS } from "../constants/priority-constants";
+import { LEARNING_THRESHOLDS } from "../constants/service-constants";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Email } from "../database/entities/email.entity";
@@ -212,13 +214,15 @@ export class PriorityLearningService {
       ).length;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const threeStarCount = recentEmailsFromSender.filter(
-        // eslint-disable-next-line @typescript-eslint/no-magic-numbers
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (e) => (e as any).starCount === 3,
+        (e) => (e as any).starCount === STAR_COUNTS.HIGH,
       ).length;
 
       // If user consistently gives 3 stars to this sender, suggest adding as VIP
-      if (starCount === 3 && threeStarCount >= 2) {
+      if (
+        starCount === STAR_COUNTS.HIGH &&
+        threeStarCount >= LEARNING_THRESHOLDS.MIN_VIP_OCCURRENCES
+      ) {
         await this.suggestVipContact(userId, email);
       }
     } catch (error) {
@@ -477,7 +481,6 @@ export class PriorityLearningService {
       if (similarContext) {
         // Update existing context
         similarContext.contextValue = contextValue;
-        // eslint-disable-next-line @typescript-eslint/no-magic-numbers
         similarContext.explanation = `User override: ${reason}. Patterns: ${patterns.join(", ")}`;
         similarContext.source = Source.USER_EDITED;
         await this.userContextRepository.save(similarContext);

@@ -6,6 +6,7 @@ import { Email } from "../database/entities/email.entity";
 import { AutoResponseLog } from "../database/entities/auto-response-log.entity";
 import { QueueStats, CategoryReplyTime } from "./types/auto-responder.types";
 import { DISPLAY_LIMITS, STATS_CONFIG } from "./auto-responder-constants";
+import { LEARNING_THRESHOLDS } from "../constants/service-constants";
 
 // Default response times when no data is available (calculated from typical patterns)
 const DEFAULT_RESPONSE_TIMES = {
@@ -203,8 +204,11 @@ export class QueueStatsService {
       (c) => c.category.toLowerCase() === category.toLowerCase(),
     );
 
-    if (categoryData && categoryData.repliedCount >= 3) {
-      // Only use category-specific time if we have at least 3 data points
+    if (
+      categoryData &&
+      categoryData.repliedCount >= LEARNING_THRESHOLDS.MIN_CATEGORY_DATA_POINTS
+    ) {
+      // Only use category-specific time if we have at least MIN_CATEGORY_DATA_POINTS data points
       return this.formatResponseTime(categoryData.avgReplyTimeMinutes);
     }
 

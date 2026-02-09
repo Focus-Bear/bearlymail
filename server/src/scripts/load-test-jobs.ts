@@ -33,6 +33,24 @@ const DB_SSL = process.env.DB_SSL === "true";
 const isLocal = DB_HOST === "localhost" || DB_HOST === "127.0.0.1";
 const useSsl = !isLocal || DB_SSL ? { rejectUnauthorized: false } : false;
 
+// Load test configuration constants
+const LOAD_TEST_CONFIG = {
+  // Number of priority refinement jobs to queue
+  PRIORITY_JOBS_COUNT: 20,
+  // Number of summary generation jobs to queue
+  SUMMARY_JOBS_COUNT: 10,
+  // Offset for summary job email IDs
+  SUMMARY_EMAIL_OFFSET: 20,
+  // Number of learning jobs to queue
+  LEARNING_JOBS_COUNT: 10,
+  // Offset for learning job email IDs
+  LEARNING_EMAIL_OFFSET: 30,
+  // Number of context analysis jobs to queue
+  CONTEXT_ANALYSIS_JOBS_COUNT: 3,
+  // Wait time for jobs to start processing (ms)
+  JOB_PROCESSING_WAIT_MS: 10000,
+} as const;
+
 // Test user IDs (you'll need to replace these with actual test user IDs)
 const TEST_USER_IDS = [
   "test-user-1",
@@ -225,9 +243,8 @@ async function testMixedWorkload(boss: PgBoss): Promise<LoadTestResult> {
       );
     }
 
-    // Queue priority refinement for 20 emails
-    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-    for (let i = 0; i < 20; i++) {
+    // Queue priority refinement for PRIORITY_JOBS_COUNT emails
+    for (let i = 0; i < LOAD_TEST_CONFIG.PRIORITY_JOBS_COUNT; i++) {
       const emailId = TEST_EMAIL_IDS[i];
       jobs.push(
         boss
@@ -250,11 +267,9 @@ async function testMixedWorkload(boss: PgBoss): Promise<LoadTestResult> {
       );
     }
 
-    // Queue summary generation for 10 emails
-    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-    for (let i = 0; i < 10; i++) {
-      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-      const emailId = TEST_EMAIL_IDS[i + 20];
+    // Queue summary generation for SUMMARY_JOBS_COUNT emails
+    for (let i = 0; i < LOAD_TEST_CONFIG.SUMMARY_JOBS_COUNT; i++) {
+      const emailId = TEST_EMAIL_IDS[i + LOAD_TEST_CONFIG.SUMMARY_EMAIL_OFFSET];
       jobs.push(
         boss
           .send(
@@ -277,10 +292,8 @@ async function testMixedWorkload(boss: PgBoss): Promise<LoadTestResult> {
     }
 
     // Queue learning jobs
-    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-    for (let i = 0; i < 10; i++) {
-      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-      const emailId = TEST_EMAIL_IDS[i + 30];
+    for (let i = 0; i < LOAD_TEST_CONFIG.LEARNING_JOBS_COUNT; i++) {
+      const emailId = TEST_EMAIL_IDS[i + LOAD_TEST_CONFIG.LEARNING_EMAIL_OFFSET];
       jobs.push(
         boss
           .send(
@@ -402,10 +415,12 @@ async function main() {
 
     // Wait a bit for jobs to process
     // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
-    console.log("\nWaiting 10 seconds for jobs to start processing...");
-    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-    await new Promise((resolve) => setTimeout(resolve, 10000));
+    console.log(
+      `\nWaiting ${LOAD_TEST_CONFIG.JOB_PROCESSING_WAIT_MS / 1000} seconds for jobs to start processing...`,
+    );
+    await new Promise((resolve) =>
+      setTimeout(resolve, LOAD_TEST_CONFIG.JOB_PROCESSING_WAIT_MS),
+    );
 
     // Get final queue stats
     await getQueueStats(boss);

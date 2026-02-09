@@ -1,6 +1,7 @@
 import { Logger } from "@nestjs/common";
 import * as fs from "fs";
 import * as path from "path";
+import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
 
 // Performance budgets in milliseconds
 export const PERF_BUDGETS = {
@@ -64,9 +65,8 @@ export class PerformanceTracker {
     if (this.operation === "priority-explanation") {
       budget = PERF_BUDGETS.PRIORITY_EXPLANATION;
     } else if (this.operation === "search-relevance-explanations") {
-      // 3 seconds for all search explanations (3000ms)
-      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-      budget = 3000;
+      // 3 seconds for all search explanations
+      budget = PERFORMANCE_BUDGETS.SEARCH_RELEVANCE_EXPLANATIONS;
     } else {
       budget =
         mode === "action"

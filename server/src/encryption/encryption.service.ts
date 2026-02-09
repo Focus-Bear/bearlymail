@@ -17,8 +17,11 @@ export class EncryptionService {
       "default-key-change-in-production-32chars!!";
 
     // Ensure key is 32 bytes (256 bits) for AES-256
-    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-    this.key = crypto.scryptSync(keyString, "salt", 32);
+    this.key = crypto.scryptSync(
+      keyString,
+      "salt",
+      ENCRYPTION_CONSTANTS.KEY_LENGTH,
+    );
   }
 
   /**

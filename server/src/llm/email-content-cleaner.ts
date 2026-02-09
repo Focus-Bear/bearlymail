@@ -7,6 +7,8 @@
  * - Limits character count to avoid token waste
  */
 
+import { CONTENT_CLEANER } from "../constants/llm-constants";
+
 // Common signature markers
 const SIGNATURE_PATTERNS = [
   // Standard "--"
@@ -218,10 +220,12 @@ function removeSignature(text: string): string {
     const match = result.match(pattern);
     if (match) {
       const index = result.search(pattern);
-      // Only cut if there's meaningful content before (at least 50 chars)
+      // Only cut if there's meaningful content before (at least MIN_CONTENT_BEFORE_SIGNATURE chars)
       // and the signature isn't at the very beginning
-      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-      if (index > 50 && index < cutoffIndex) {
+      if (
+        index > CONTENT_CLEANER.MIN_CONTENT_BEFORE_SIGNATURE &&
+        index < cutoffIndex
+      ) {
         cutoffIndex = index;
       }
     }
@@ -276,8 +280,7 @@ function smartTruncate(text: string, maxLength: number): string {
   // Fallback: try to end at a word boundary
   const truncated = text.substring(0, maxLength);
   const lastSpace = truncated.lastIndexOf(" ");
-  // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-  if (lastSpace > maxLength - 50) {
+  if (lastSpace > maxLength - CONTENT_CLEANER.WORD_BOUNDARY_THRESHOLD) {
     return `${truncated.substring(0, lastSpace).trim()}...`;
   }
 
@@ -304,8 +307,11 @@ export function getEmailPreview(
   htmlBody?: string | null,
   maxLength: number = 150,
 ): string {
-  // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-  const cleaned = cleanEmailContent(body, htmlBody, maxLength + 50);
+  const cleaned = cleanEmailContent(
+    body,
+    htmlBody,
+    maxLength + CONTENT_CLEANER.PREVIEW_BUFFER,
+  );
   // For previews, also remove newlines
   return cleaned.replace(/\n+/g, " ").substring(0, maxLength).trim();
 }

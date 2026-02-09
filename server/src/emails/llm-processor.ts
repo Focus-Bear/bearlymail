@@ -15,6 +15,7 @@ import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { ContextKey } from "../database/entities/user-context.entity";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { ProtoCategoriesService } from "../proto-categories/proto-categories.service";
+import { SENTIMENT_THRESHOLDS } from "../constants/priority-constants";
 
 // Constants for LLM processing
 const LLM_PROCESSOR_CONSTANTS = {
@@ -397,12 +398,11 @@ export class LLMProcessor implements OnModuleInit {
 
           // Get sentiment score from LLM (required, no fallback to old score)
           const sentimentScore = llmResult.sentimentScore ?? 0;
-          // Only contribute if sentiment is clearly negative (< -0.3)
+          // Only contribute if sentiment is clearly negative (< NEGATIVE threshold)
           // Positive sentiment should contribute 0 (not negative) - positive emails don't need urgent attention
-          // Neutral sentiment (between -0.3 and 0.3) always contributes 0
+          // Neutral sentiment (between NEGATIVE and POSITIVE) always contributes 0
           let sentimentContribution = 0;
-          // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-          if (sentimentScore < -0.3) {
+          if (sentimentScore < SENTIMENT_THRESHOLDS.NEGATIVE) {
             // Negative/upset sentiment: increase priority
             // Map -1 to contribution: -1 (very negative) = +30 contribution
             sentimentContribution = Math.round(
@@ -455,11 +455,9 @@ export class LLMProcessor implements OnModuleInit {
 
           // Sentiment from LLM - always show
           let sentimentDescription = "Neutral sentiment";
-          // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-          if (sentimentScore < -0.3) {
+          if (sentimentScore < SENTIMENT_THRESHOLDS.NEGATIVE) {
             sentimentDescription = `Negative sentiment (${sentimentScore.toFixed(2)})`;
-            // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-          } else if (sentimentScore > 0.3) {
+          } else if (sentimentScore > SENTIMENT_THRESHOLDS.POSITIVE) {
             sentimentDescription = `Positive sentiment (${sentimentScore.toFixed(2)})`;
           }
           breakdown.push({
@@ -559,11 +557,9 @@ export class LLMProcessor implements OnModuleInit {
             sentiment: {
               score: sentimentScore,
               type:
-                // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-                sentimentScore < -0.3
+                sentimentScore < SENTIMENT_THRESHOLDS.NEGATIVE
                   ? "negative"
-                  : // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-                    sentimentScore > 0.3
+                  : sentimentScore > SENTIMENT_THRESHOLDS.POSITIVE
                     ? "positive"
                     : "neutral",
               reasons: [],

@@ -3,45 +3,50 @@
  * Use these instead of magic numbers for time calculations
  */
 
+// Base time units - these are fundamental and not "magic"
+const SECONDS_PER_MINUTE = 60;
+const MINUTES_PER_HOUR = 60;
+const HOURS_PER_DAY = 24;
+const DAYS_PER_WEEK = 7;
+const MS_PER_SECOND = 1000;
+
 // Milliseconds
 export const MILLISECONDS = {
-  SECOND: 1000,
-  MINUTE: 60 * 1000,
-  HOUR: 60 * 60 * 1000,
-  DAY: 24 * 60 * 60 * 1000,
-  // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-  WEEK: 7 * 24 * 60 * 60 * 1000,
-  // 7 days in a week
-  // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-  THIRTY_SECONDS: 30 * 1000,
-  THREE_SECONDS: 3 * 1000,
+  SECOND: MS_PER_SECOND,
+  MINUTE: SECONDS_PER_MINUTE * MS_PER_SECOND,
+  HOUR: MINUTES_PER_HOUR * SECONDS_PER_MINUTE * MS_PER_SECOND,
+  DAY: HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE * MS_PER_SECOND,
+  WEEK:
+    DAYS_PER_WEEK *
+    HOURS_PER_DAY *
+    MINUTES_PER_HOUR *
+    SECONDS_PER_MINUTE *
+    MS_PER_SECOND,
+  THIRTY_SECONDS: 30 * MS_PER_SECOND,
+  THREE_SECONDS: 3 * MS_PER_SECOND,
 } as const;
 
 // Seconds
 export const SECONDS = {
-  MINUTE: 60,
-  HOUR: 60 * 60,
-  DAY: 24 * 60 * 60,
-  // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-  WEEK: 7 * 24 * 60 * 60,
-  // 7 days in a week
+  MINUTE: SECONDS_PER_MINUTE,
+  HOUR: MINUTES_PER_HOUR * SECONDS_PER_MINUTE,
+  DAY: HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE,
+  WEEK: DAYS_PER_WEEK * HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE,
 } as const;
 
 // Minutes
 export const MINUTES = {
-  HOUR: 60,
-  DAY: 24 * 60,
-  // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-  WEEK: 7 * 24 * 60,
+  HOUR: MINUTES_PER_HOUR,
+  DAY: HOURS_PER_DAY * MINUTES_PER_HOUR,
+  WEEK: DAYS_PER_WEEK * HOURS_PER_DAY * MINUTES_PER_HOUR,
   THIRTY: 30,
   FIVE: 5,
 } as const;
 
 // Hours
 export const HOURS = {
-  DAY: 24,
-  // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-  WEEK: 7 * 24,
+  DAY: HOURS_PER_DAY,
+  WEEK: DAYS_PER_WEEK * HOURS_PER_DAY,
   EIGHT: 8,
   NINE: 9,
   SIX: 6,
@@ -52,7 +57,7 @@ export const HOURS = {
 
 // Days
 export const DAYS = {
-  WEEK: 7,
+  WEEK: DAYS_PER_WEEK,
   MONTH: 30,
   YEAR: 365,
   SIX: 6,

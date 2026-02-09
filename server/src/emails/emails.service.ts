@@ -30,6 +30,7 @@ import { STAR_COUNTS } from "../constants/priority-constants";
 import {
   PRIORITY_SCORES,
   PRIORITY_BOOSTS,
+  SENTIMENT_THRESHOLDS,
 } from "../constants/priority-constants";
 import { isError } from "../types/common";
 import { EmailThreadService } from "./email-thread.service";
@@ -2328,11 +2329,9 @@ export class EmailsService {
               sentiment: {
                 score: email.sentimentScore ?? 0,
                 type:
-                  // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-                  (email.sentimentScore ?? 0) < -0.3
+                  (email.sentimentScore ?? 0) < SENTIMENT_THRESHOLDS.NEGATIVE
                     ? "negative"
-                    : // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-                      (email.sentimentScore ?? 0) > 0.3
+                    : (email.sentimentScore ?? 0) > SENTIMENT_THRESHOLDS.POSITIVE
                       ? "positive"
                       : "neutral",
                 reasons: [],
@@ -2362,11 +2361,9 @@ export class EmailsService {
               sentiment: explanation.dimensions?.sentiment || {
                 score: email.sentimentScore ?? 0,
                 type:
-                  // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-                  (email.sentimentScore ?? 0) < -0.3
+                  (email.sentimentScore ?? 0) < SENTIMENT_THRESHOLDS.NEGATIVE
                     ? "negative"
-                    : // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-                      (email.sentimentScore ?? 0) > 0.3
+                    : (email.sentimentScore ?? 0) > SENTIMENT_THRESHOLDS.POSITIVE
                       ? "positive"
                       : "neutral",
                 reasons: [],
@@ -2396,11 +2393,9 @@ export class EmailsService {
               sentiment: {
                 score: email.sentimentScore ?? 0,
                 type:
-                  // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-                  (email.sentimentScore ?? 0) < -0.3
+                  (email.sentimentScore ?? 0) < SENTIMENT_THRESHOLDS.NEGATIVE
                     ? "negative"
-                    : // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-                      (email.sentimentScore ?? 0) > 0.3
+                    : (email.sentimentScore ?? 0) > SENTIMENT_THRESHOLDS.POSITIVE
                       ? "positive"
                       : "neutral",
                 reasons: [],
@@ -2427,11 +2422,9 @@ export class EmailsService {
               sentiment: explanation.dimensions?.sentiment || {
                 score: email.sentimentScore ?? 0,
                 type:
-                  // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-                  (email.sentimentScore ?? 0) < -0.3
+                  (email.sentimentScore ?? 0) < SENTIMENT_THRESHOLDS.NEGATIVE
                     ? "negative"
-                    : // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-                      (email.sentimentScore ?? 0) > 0.3
+                    : (email.sentimentScore ?? 0) > SENTIMENT_THRESHOLDS.POSITIVE
                       ? "positive"
                       : "neutral",
                 reasons: [],
@@ -2463,11 +2456,9 @@ export class EmailsService {
         sentiment: {
           score: email.sentimentScore ?? 0,
           type:
-            // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-            (email.sentimentScore ?? 0) < -0.3
+            (email.sentimentScore ?? 0) < SENTIMENT_THRESHOLDS.NEGATIVE
               ? "negative"
-              : // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-                (email.sentimentScore ?? 0) > 0.3
+              : (email.sentimentScore ?? 0) > SENTIMENT_THRESHOLDS.POSITIVE
                 ? "positive"
                 : "neutral",
           reasons: [] as string[],
@@ -2556,11 +2547,9 @@ export class EmailsService {
         factor: "😊 Sentiment",
         value: 0,
         description:
-          // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-          fallbackSentimentScore < -0.3
+          fallbackSentimentScore < SENTIMENT_THRESHOLDS.NEGATIVE
             ? "Negative sentiment"
-            : // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-              fallbackSentimentScore > 0.3
+            : fallbackSentimentScore > SENTIMENT_THRESHOLDS.POSITIVE
               ? "Positive sentiment"
               : "Neutral sentiment",
       });

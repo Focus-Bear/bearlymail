@@ -9,6 +9,7 @@ import { cleanEmailContent } from "./email-content-cleaner";
 import { getPrompt, renderPrompt } from "./prompts";
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
+import { PRIORITY_ANALYSIS_FALLBACK } from "../constants/llm-constants";
 
 @Injectable()
 export class PriorityAnalysisService {
@@ -333,8 +334,9 @@ export class PriorityAnalysisService {
 
     // Fallback: extract component scores from text if JSON parsing fails
     const urgencyKeywords = /urgent|asap|critical|emergency/i.test(response);
-    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-    const urgencyScore = urgencyKeywords ? 90 : 0;
+    const urgencyScore = urgencyKeywords
+      ? PRIORITY_ANALYSIS_FALLBACK.URGENCY_KEYWORDS_DETECTED
+      : PRIORITY_ANALYSIS_FALLBACK.URGENCY_NO_KEYWORDS;
     const urgencyExplanation = urgencyKeywords
       ? "Contains urgent keywords"
       : "No urgent indicators detected";

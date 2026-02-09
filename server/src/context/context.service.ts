@@ -14,6 +14,7 @@ import { RATIOS } from "../constants/percentages";
 import { DAYS } from "../constants/time-constants";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
+import { DISPLAY_CONSTANTS } from "../constants/service-constants";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
 import { LLMService } from "../llm/llm.service";
 import { UsersService } from "../users/users.service";
@@ -2654,7 +2655,7 @@ export class ContextService {
 
           if (isDuplicate) {
             this.logger.log(
-              `[CONTEXT-ANALYSIS] Skipping duplicate Q&A: ${qa.question.substring(0, 50)}...`, // eslint-disable-line @typescript-eslint/no-magic-numbers
+              `[CONTEXT-ANALYSIS] Skipping duplicate Q&A: ${qa.question.substring(0, DISPLAY_CONSTANTS.LOG_PREVIEW_LENGTH)}...`,
             );
             continue;
           }
@@ -2678,8 +2679,7 @@ export class ContextService {
           );
 
           this.logger.log(
-            // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-            `[CONTEXT-ANALYSIS] Added Q&A: ${qa.question.substring(0, 50)}...`,
+            `[CONTEXT-ANALYSIS] Added Q&A: ${qa.question.substring(0, DISPLAY_CONSTANTS.LOG_PREVIEW_LENGTH)}...`,
           );
         }
       }

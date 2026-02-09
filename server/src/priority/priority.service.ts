@@ -346,7 +346,6 @@ export class PriorityService {
         factor.type === PRIORITY_FACTOR_TYPES.GOAL_ALIGNMENT ||
         factor.type === PRIORITY_FACTOR_TYPES.CURRENT_PROJECT
       ) {
-        // eslint-disable-next-line @typescript-eslint/no-magic-numbers
         dimensions.goalAlignment.score += factor.contribution;
         // Points, not percentage
         dimensions.goalAlignment.reasons.push(factor.description);
@@ -354,7 +353,6 @@ export class PriorityService {
         factor.type === PRIORITY_FACTOR_TYPES.VIP_CONTACT ||
         factor.type === PRIORITY_FACTOR_TYPES.SENDER_ROLE
       ) {
-        // eslint-disable-next-line @typescript-eslint/no-magic-numbers
         dimensions.vipContact.score += factor.contribution;
         // Points (e.g., +25 for VIP)
         dimensions.vipContact.reasons.push(factor.description);

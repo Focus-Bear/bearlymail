@@ -12,6 +12,7 @@ import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
 import { SentEmailData } from "./context-gmail-data.service";
 import { writeAnalysisLog } from "./context-analysis-logger";
+import { DISPLAY_CONSTANTS } from "../constants/service-constants";
 
 /**
  * Service for extracting Q&A pairs from user's sent emails.
@@ -181,7 +182,7 @@ export class ContextQaExtractionService {
 
           if (isDuplicate) {
             this.logger.log(
-              `[CONTEXT-ANALYSIS] Skipping duplicate Q&A: ${qa.question.substring(0, 50)}...`, // eslint-disable-line @typescript-eslint/no-magic-numbers
+              `[CONTEXT-ANALYSIS] Skipping duplicate Q&A: ${qa.question.substring(0, DISPLAY_CONSTANTS.LOG_PREVIEW_LENGTH)}...`,
             );
             continue;
           }
@@ -219,8 +220,7 @@ export class ContextQaExtractionService {
           }
 
           this.logger.log(
-            // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-            `[CONTEXT-ANALYSIS] Added Q&A: ${qa.question.substring(0, 50)}...`,
+            `[CONTEXT-ANALYSIS] Added Q&A: ${qa.question.substring(0, DISPLAY_CONSTANTS.LOG_PREVIEW_LENGTH)}...`,
           );
         }
       }

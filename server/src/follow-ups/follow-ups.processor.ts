@@ -21,6 +21,8 @@ import { UsersService } from "../users/users.service";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { calculateBusinessDays } from "../utils/business-days.util";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import { THREAD_LIMITS } from "../constants/llm-constants";
+import { HTTP_STATUS } from "../constants/service-constants";
 
 @Injectable()
 export class FollowUpsProcessor implements OnModuleInit {
@@ -97,9 +99,8 @@ export class FollowUpsProcessor implements OnModuleInit {
           throw new Error("No emails found in thread");
         }
 
-        // Get last 5 messages (or all if less than 5)
-        // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-        const lastMessages = threadEmails.slice(-5);
+        // Get last N messages (or all if less than N)
+        const lastMessages = threadEmails.slice(-THREAD_LIMITS.LAST_MESSAGES);
 
         // Build thread messages with isFromUser flag
         const threadMessages = await Promise.all(
@@ -304,18 +305,15 @@ export class FollowUpsProcessor implements OnModuleInit {
             } catch (error: unknown) {
               lastError = error as Error;
 
-              // Check if it's a rate limit error (429)
-              // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-              // HTTP 429 Too Many Requests
+              // Check if it's a rate limit error (HTTP 429 Too Many Requests)
               const apiError = error as {
                 code?: number;
                 response?: { status?: number };
               };
               if (
-                // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-                apiError.code === 429 ||
-                // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-                (apiError.response && apiError.response.status === 429)
+                apiError.code === HTTP_STATUS.TOO_MANY_REQUESTS ||
+                (apiError.response &&
+                  apiError.response.status === HTTP_STATUS.TOO_MANY_REQUESTS)
               ) {
                 retries++;
                 if (retries < maxRetries) {

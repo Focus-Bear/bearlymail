@@ -17,6 +17,8 @@ export const PERFORMANCE_BUDGETS = {
   INBOX_PROCESS_TOTAL: 1000,
   THREAD_QUERY: 100,
   EMAIL_QUERY: 100,
+  // Search relevance explanations budget (3 seconds for all search explanations)
+  SEARCH_RELEVANCE_EXPLANATIONS: 3000,
   // Job performance budgets (in milliseconds)
   JOB_REFINE_PRIORITY: 10000, // 10 seconds (target from issue #34)
   JOB_REFINE_PRIORITY_BATCH: 15000, // 15 seconds for batch of 5 emails

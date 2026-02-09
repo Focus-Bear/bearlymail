@@ -4,6 +4,7 @@ import * as os from "os";
 import * as fs from "fs";
 import * as path from "path";
 import { RESOURCE_MONITOR_CONSTANTS } from "../constants/resource-monitor-constants";
+import { BYTE_CONVERSIONS } from "../constants/service-constants";
 
 interface ResourceMetrics {
   timestamp: string;
@@ -190,11 +191,8 @@ export class ResourceMonitorService implements OnModuleInit {
         this.logger.warn(`⚠️ High CPU usage: ${cpuUsage.toFixed(1)}%`);
       }
       if (memoryUsagePercent > RESOURCE_MONITOR_CONSTANTS.MEMORY_CRITICAL) {
-        // eslint-disable-next-line @typescript-eslint/no-magic-numbers
         this.logger.warn(
-          // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-          // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-          `⚠️ High memory usage: ${memoryUsagePercent.toFixed(1)}% (${(usedMemory / 1024 / 1024 / 1024).toFixed(2)}GB used)`,
+          `⚠️ High memory usage: ${memoryUsagePercent.toFixed(1)}% (${(usedMemory / BYTE_CONVERSIONS.GB).toFixed(2)}GB used)`,
         );
       }
       if (

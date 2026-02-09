@@ -4,6 +4,7 @@ import { Repository } from "typeorm";
 import { User } from "../database/entities/user.entity";
 import { ConfigService } from "@nestjs/config";
 import axios from "axios";
+import { TOKEN_CONSTANTS } from "../constants/service-constants";
 
 @Injectable()
 export class SubscriptionsService {
@@ -86,8 +87,9 @@ export class SubscriptionsService {
     // Start 7-day trial
     const trialStartDate = new Date();
     const trialEndDate = new Date();
-    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-    trialEndDate.setDate(trialEndDate.getDate() + 7);
+    trialEndDate.setDate(
+      trialEndDate.getDate() + TOKEN_CONSTANTS.TRIAL_PERIOD_DAYS,
+    );
 
     await this.userRepository.update(userId, {
       subscriptionStatus: "trial",

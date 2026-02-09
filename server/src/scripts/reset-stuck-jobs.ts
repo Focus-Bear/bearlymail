@@ -8,6 +8,12 @@ import * as dotenv from "dotenv";
 
 dotenv.config();
 
+// Script configuration constants
+const SCRIPT_CONFIG = {
+  // Maximum number of reset jobs to display
+  MAX_DISPLAY_ITEMS: 10,
+} as const;
+
 async function resetStuckJobs() {
   const dbHost = process.env.DB_HOST;
   const isLocal = dbHost === "localhost" || dbHost === "127.0.0.1";
@@ -69,15 +75,17 @@ async function resetStuckJobs() {
     if (resetResult.rowCount && resetResult.rowCount > 0) {
       // eslint-disable-next-line no-console
       console.log("Reset jobs:");
-      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-      resetResult.rows.slice(0, 10).forEach((row) => {
+      resetResult.rows
+        .slice(0, SCRIPT_CONFIG.MAX_DISPLAY_ITEMS)
+        .forEach((row) => {
+          // eslint-disable-next-line no-console
+          console.log(`  - ${row.name} (${row.id})`);
+        });
+      if (resetResult.rowCount > SCRIPT_CONFIG.MAX_DISPLAY_ITEMS) {
         // eslint-disable-next-line no-console
-        console.log(`  - ${row.name} (${row.id})`);
-      });
-      // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-      if (resetResult.rowCount > 10) {
-        // eslint-disable-next-line no-console, @typescript-eslint/no-magic-numbers
-        console.log(`  ... and ${resetResult.rowCount - 10} more`);
+        console.log(
+          `  ... and ${resetResult.rowCount - SCRIPT_CONFIG.MAX_DISPLAY_ITEMS} more`,
+        );
       }
     }
 

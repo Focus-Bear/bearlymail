@@ -261,7 +261,11 @@ module.exports = (output, context) => {
     // This is more deterministic than LLM-rubric while still being flexible
     if (context.config.protoCategoryRelevantTo !== undefined) {
       if (!parsed.protoCategorySuggestion || !parsed.protoCategorySuggestion.name) {
-        throw new Error(`Expected protoCategorySuggestion with name, but it's missing`);
+        return {
+          pass: false,
+          score: 0,
+          reason: `Expected protoCategorySuggestion with name for category "Other", but it's missing. The LLM should suggest a new category when classifying as "Other".`
+        };
       }
       
       const expectedTopics = Array.isArray(context.config.protoCategoryRelevantTo)

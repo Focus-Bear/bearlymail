@@ -1,18 +1,14 @@
 description: "Action items extraction prompts for BearlyMail"
 
 providers:
-  - openai:gpt-4.1-mini
+  - id: openai:gpt-4.1-mini
+    config:
+      temperature: 0.1
   # Uncomment below if you have Gemini API key
   # - google:gemini-pro
 
 prompts:
   - file://prompts/extract-action-items.md
-
-defaultTest:
-  options:
-    provider:
-      config:
-        temperature: 0.1
 
 tests:
   # Test 1: Email where sender mentions their own actions (should NOT extract those)

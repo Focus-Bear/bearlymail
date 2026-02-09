@@ -6,14 +6,10 @@ prompts:
   - file://prompts/classify-email-type.md
 
 providers:
-  - openai:gpt-4o-mini
-
-defaultTest:
-  options:
-    provider:
-      config:
-        temperature: 0.3
-        max_tokens: 500
+  - id: openai:gpt-4o-mini
+    config:
+      temperature: 0.3
+      max_tokens: 500
 
 tests:
   - description: "Should classify automated email correctly"

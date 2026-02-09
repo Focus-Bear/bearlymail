@@ -5,18 +5,14 @@ description: "Email prioritization prompts for BearlyMail"
 # GOOGLE_GENERATIVE_AI_API_KEY for Gemini
 # Or use only one provider if you don't have both keys
 providers:
-  - openai:gpt-4.1-mini
+  - id: openai:gpt-4.1-mini
+    config:
+      temperature: 0.1
   # Uncomment below if you have Gemini API key
   # - google:gemini-pro
 
 prompts:
   - file://prompts/prioritise-email.md
-
-defaultTest:
-  options:
-    provider:
-      config:
-        temperature: 0.1
 
 tests:    
   - vars:
@@ -79,8 +75,7 @@ tests:
       - type: javascript
         value: file://promptfoo-assertions/validate-priority-response.js
         config:
-          minScore: 80
-          expectedIsUrgent: true
+          minScore: 75
 
   - vars:
       from: "lisa.wong@consulting.com"

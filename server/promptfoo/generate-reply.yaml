@@ -1,16 +1,12 @@
 providers:
-  - openai:gpt-4.1-mini
+  - id: openai:gpt-4.1-mini
+    config:
+      temperature: 0.3
   # Uncomment below if you have Gemini API key
   # - google:gemini-pro
 
 prompts:
   - file://prompts/generate-reply.md
-
-defaultTest:
-  options:
-    provider:
-      config:
-        temperature: 0.3
 
 tests:
   - vars:

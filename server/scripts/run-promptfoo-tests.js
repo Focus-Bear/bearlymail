@@ -151,6 +151,16 @@ function printSummary(results) {
           log(`      - ${error}`, colors.yellow);
         }
       }
+      // Show raw output lines containing FAIL or ERROR for debugging
+      if (config.output) {
+        const failLines = config.output.split('\n').filter(l => l.includes('[FAIL]') || l.includes('[ERROR]'));
+        if (failLines.length > 0) {
+          log('    Raw failure lines:', colors.yellow);
+          for (const line of failLines.slice(0, 10)) {
+            log(`      ${line.substring(0, 500)}`, colors.yellow);
+          }
+        }
+      }
     }
   }
 

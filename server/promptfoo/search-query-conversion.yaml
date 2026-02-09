@@ -1,15 +1,11 @@
 providers:
-  - openai:gpt-4o-mini
+  - id: openai:gpt-4o-mini
+    config:
+      temperature: 0.1
   # - google:gemini-pro
 
 prompts:
   - file://prompts/search-query-conversion.md
-
-defaultTest:
-  options:
-    provider:
-      config:
-        temperature: 0.1
 
 tests:
   - vars:

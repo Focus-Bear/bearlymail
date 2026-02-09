@@ -41,6 +41,9 @@ export const JobTypePriority = {
   // Background priority refinement (for new emails)
   "refine-priority-background": JobPriority.MEDIUM,
 
+  // Batch priority refinement (multiple emails in single LLM call)
+  "refine-priority-batch": JobPriority.MEDIUM_HIGH,
+
   // User-triggered summary generation
   "generate-summary": JobPriority.HIGH,
 

@@ -18,7 +18,8 @@ export const PERFORMANCE_BUDGETS = {
   THREAD_QUERY: 100,
   EMAIL_QUERY: 100,
   // Job performance budgets (in milliseconds)
-  JOB_REFINE_PRIORITY: 5000, // 5 seconds
+  JOB_REFINE_PRIORITY: 10000, // 10 seconds (target from issue #34)
+  JOB_REFINE_PRIORITY_BATCH: 15000, // 15 seconds for batch of 5 emails
   JOB_GENERATE_SUMMARY: 5000, // 5 seconds
   JOB_SYNC_EMAILS: 5000, // 5 seconds
   JOB_QUEUE_USER_SYNCS: 10000, // 10 seconds (queues multiple jobs)

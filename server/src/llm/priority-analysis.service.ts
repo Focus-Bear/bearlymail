@@ -1,7 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { LLMCoreService } from "./llm-core.service";
 import { LLMProvider } from "./llm.types";
-import { LLM_OP_ANALYZE_PRIORITY } from "./llm-operations";
+import {
+  LLM_OP_ANALYZE_PRIORITY,
+  LLM_OP_ANALYZE_PRIORITY_BATCH,
+} from "./llm-operations";
 import { cleanEmailContent } from "./email-content-cleaner";
 import { getPrompt, renderPrompt } from "./prompts";
 import { RATIOS } from "../constants/percentages";
@@ -346,5 +349,208 @@ export class PriorityAnalysisService {
       categoryExplanation: "Unable to categorize - fallback response",
       reasoning: response.substring(0, QUERY_LIMITS.LLM_REASONING_MAX_LENGTH),
     };
+  }
+
+  /**
+   * Analyze priority for a batch of emails in a single LLM call.
+   * Returns results keyed by the email identifier passed in.
+   */
+  // eslint-disable-next-line max-lines-per-function
+  async analyzePriorityBatch(
+    emails: Array<{
+      emailKey: string;
+      from: string;
+      fromName?: string;
+      senderJobTitle?: string;
+      subject: string;
+      body: string;
+    }>,
+    userContext?: {
+      urgentItems?: Array<{ value: string; explanation?: string }>;
+      notUrgentItems?: Array<{ value: string; explanation?: string }>;
+      goals?: Array<{ value: string; priority?: number }>;
+      workingOn?: Array<{ value: string; priority?: number }>;
+      dontCare?: Array<{ value: string }>;
+      emailCategories?: Array<{ name: string; description?: string }>;
+    },
+    provider?: LLMProvider,
+    userId?: string,
+  ): Promise<
+    Map<
+      string,
+      {
+        urgencyScore: number;
+        urgencyExplanation: string;
+        sentimentScore: number;
+        goalAlignmentScore: number;
+        goalAlignmentExplanation: string;
+        category: string;
+        categoryExplanation: string;
+        reasoning: string;
+      }
+    >
+  > {
+    const results = new Map<
+      string,
+      {
+        urgencyScore: number;
+        urgencyExplanation: string;
+        sentimentScore: number;
+        goalAlignmentScore: number;
+        goalAlignmentExplanation: string;
+        category: string;
+        categoryExplanation: string;
+        reasoning: string;
+      }
+    >();
+
+    if (emails.length === 0) return results;
+
+    // Build compact email list for the batch prompt
+    const emailDescriptions = emails.map((email, index) => {
+      const cleanedBody = cleanEmailContent(email.body, null, 500);
+      return `--- EMAIL ${index + 1} (key: "${email.emailKey}") ---
+From: ${email.fromName || email.from}${email.senderJobTitle ? ` (${email.senderJobTitle})` : ""}
+Subject: ${email.subject}
+Body: ${cleanedBody}`;
+    });
+
+    // Format user context compactly
+    const contextParts: string[] = [];
+    if (userContext?.urgentItems?.length) {
+      contextParts.push(
+        `Urgent items: ${userContext.urgentItems.map((i) => i.value).join(", ")}`,
+      );
+    }
+    if (userContext?.notUrgentItems?.length) {
+      contextParts.push(
+        `Not urgent: ${userContext.notUrgentItems.map((i) => i.value).join(", ")}`,
+      );
+    }
+    if (userContext?.goals?.length) {
+      contextParts.push(
+        `Goals: ${userContext.goals.map((g) => g.value).join(", ")}`,
+      );
+    }
+    if (userContext?.workingOn?.length) {
+      contextParts.push(
+        `Working on: ${userContext.workingOn.map((w) => w.value).join(", ")}`,
+      );
+    }
+    if (userContext?.dontCare?.length) {
+      contextParts.push(
+        `Don't care: ${userContext.dontCare.map((d) => d.value).join(", ")}`,
+      );
+    }
+
+    const emailCategoriesText =
+      userContext?.emailCategories?.length
+        ? userContext.emailCategories
+            .map(
+              (cat) =>
+                `"${cat.name}"${cat.description ? `: ${cat.description}` : ""}`,
+            )
+            .join(", ")
+        : '"Newsletters", "Sales", "Partnerships", "Customer Support", "HR Admin"';
+
+    const currentDateStr = new Date().toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    const batchPrompt = `You are an email prioritization assistant. Analyze each email below and return a JSON array of results.
+
+For EACH email, provide:
+- urgencyScore (0-100): How urgently it requires attention
+- urgencyExplanation: Brief explanation
+- sentimentScore (-1 to 1): Email sentiment
+- goalAlignmentScore (0-100): Alignment with user's goals
+- goalAlignmentExplanation: Brief explanation
+- category: Best fitting from: ${emailCategoriesText}, "Other"
+- categoryExplanation: Brief explanation
+- reasoning: Brief analysis
+
+User context:
+${contextParts.length > 0 ? contextParts.join("\n") : "No specific user context."}
+
+Today's date: ${currentDateStr}
+
+${emailDescriptions.join("\n\n")}
+
+Return a JSON array with one object per email, in the same order as the emails above. Each object must include the email's "key" field matching the emailKey.
+Example: [{"key": "email-1", "urgencyScore": 30, "urgencyExplanation": "...", "sentimentScore": 0, "goalAlignmentScore": 50, "goalAlignmentExplanation": "...", "category": "Newsletters", "categoryExplanation": "...", "reasoning": "..."}]
+
+IMPORTANT: Return ONLY the JSON array, no other text.`;
+
+    try {
+      const response = await this.llmCoreService.generateText(
+        {
+          prompt: batchPrompt,
+          temperature: RATIOS.THIRTY_PERCENT,
+          maxTokens: emails.length * 200,
+          userId,
+          operation: LLM_OP_ANALYZE_PRIORITY_BATCH,
+        },
+        provider,
+        userId,
+      );
+
+      // Parse the JSON array response
+      const jsonMatch = response.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (Array.isArray(parsed)) {
+          for (const item of parsed) {
+            const key = item.key || item.emailKey;
+            if (key) {
+              results.set(key, {
+                urgencyScore: Math.max(
+                  0,
+                  Math.min(100, item.urgencyScore || 0),
+                ),
+                urgencyExplanation:
+                  item.urgencyExplanation || "No explanation",
+                sentimentScore:
+                  item.sentimentScore !== undefined
+                    ? Math.max(-1, Math.min(1, item.sentimentScore))
+                    : 0,
+                goalAlignmentScore: Math.max(
+                  0,
+                  Math.min(100, item.goalAlignmentScore || 0),
+                ),
+                goalAlignmentExplanation:
+                  item.goalAlignmentExplanation || "No explanation",
+                category: item.category || "Other",
+                categoryExplanation:
+                  item.categoryExplanation || "No explanation",
+                reasoning: item.reasoning || "No reasoning",
+              });
+            }
+          }
+        }
+      }
+    } catch (error) {
+      this.logger.error("Failed to parse batch priority response", error);
+    }
+
+    // Fill in defaults for any emails that didn't get a result
+    for (const email of emails) {
+      if (!results.has(email.emailKey)) {
+        results.set(email.emailKey, {
+          urgencyScore: 0,
+          urgencyExplanation: "Batch analysis failed for this email",
+          sentimentScore: 0,
+          goalAlignmentScore: 0,
+          goalAlignmentExplanation: "Batch analysis failed for this email",
+          category: "Other",
+          categoryExplanation: "Batch analysis failed",
+          reasoning: "Batch analysis did not return results for this email",
+        });
+      }
+    }
+
+    return results;
   }
 }

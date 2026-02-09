@@ -45,6 +45,9 @@ export const LLM_OP_SEARCH_RELEVANCE_BATCH = "search_relevance_batch";
 // Priority calculation/analysis
 export const LLM_OP_ANALYZE_PRIORITY = "analyze_priority";
 
+// Priority calculation/analysis (batch)
+export const LLM_OP_ANALYZE_PRIORITY_BATCH = "analyze_priority_batch";
+
 // Auto-responder: email classification
 export const LLM_OP_CLASSIFY_EMAIL = "classify_email_type";
 
@@ -88,6 +91,7 @@ export type LLMOperation =
   | typeof LLM_OP_SEARCH_RELEVANCE
   | typeof LLM_OP_SEARCH_RELEVANCE_BATCH
   | typeof LLM_OP_ANALYZE_PRIORITY
+  | typeof LLM_OP_ANALYZE_PRIORITY_BATCH
   | typeof LLM_OP_CLASSIFY_EMAIL
   | typeof LLM_OP_GENERATE_QA_ANSWER
   | typeof LLM_OP_DETECT_OPT_OUT
@@ -115,6 +119,7 @@ export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
   [LLM_OP_SEARCH_RELEVANCE]: "Search Relevance",
   [LLM_OP_SEARCH_RELEVANCE_BATCH]: "Search Relevance (Batch)",
   [LLM_OP_ANALYZE_PRIORITY]: "Analyze Priority",
+  [LLM_OP_ANALYZE_PRIORITY_BATCH]: "Analyze Priority (Batch)",
   [LLM_OP_CLASSIFY_EMAIL]: "Classify Email Type",
   [LLM_OP_GENERATE_QA_ANSWER]: "Generate Q&A Answer",
   [LLM_OP_DETECT_OPT_OUT]: "Detect Opt-Out",

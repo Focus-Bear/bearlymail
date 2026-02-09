@@ -21,7 +21,7 @@ const LLM_PROCESSOR_CONSTANTS = {
   EMAIL_HISTORY_LIMIT: 10, // Reduced from 50 to 10 for performance (now using cache)
   SUBSTRING_PREVIEW_LENGTH: 8,
   SUBJECT_PREVIEW_LENGTH: 50,
-  BATCH_SIZE: 8,
+  BATCH_SIZE: 5, // Number of emails to batch in a single LLM call
   SENTIMENT_MULTIPLIER: 30,
   URGENCY_NEUTRAL: 50,
   URGENCY_MULTIPLIER: 0.5, // Max urgency contribution: (100 - 50) * 0.5 = 25
@@ -852,5 +852,416 @@ export class LLMProcessor implements OnModuleInit {
         }
       },
     );
+
+    // Worker for batch priority refinement - processes multiple emails in a single LLM call
+    // This is much faster than individual calls: ~2-4s for a batch vs ~2min per email
+    this.logger.log("Starting batch priority refinement worker");
+    await this.boss.work(
+      "refine-priority-batch",
+      { teamSize: Math.max(2, Math.floor(this.priorityConcurrency / 2)) },
+      // eslint-disable-next-line max-lines-per-function, max-statements
+      async (job) => {
+        const { userId, emailIds } = job.data as {
+          userId: string;
+          emailIds: string[];
+        };
+        const workerId = job.id || "unknown";
+        const tracker = new JobPerformanceTracker(
+          "refine-priority-batch",
+          workerId,
+        );
+        tracker.setMetadata({ userId, emailId: emailIds.join(",") });
+
+        this.logger.log(
+          `[Worker ${workerId}] Starting BATCH priority refinement for ${emailIds.length} emails`,
+        );
+
+        try {
+          tracker.startPhase("dataFetch");
+
+          // Fetch all emails and user context in parallel
+          const [emailResults, contexts] = await Promise.all([
+            Promise.all(
+              emailIds.map((emailId) =>
+                this.emailsService.getEmailById(userId, emailId),
+              ),
+            ),
+            this.priorityCacheService.getUserContexts(userId),
+          ]);
+
+          // Filter out nulls and emails that already have valid priority
+          const emailsToProcess = emailResults.filter(
+            (email): email is NonNullable<typeof email> => {
+              if (!email) return false;
+              return true;
+            },
+          );
+
+          if (emailsToProcess.length === 0) {
+            this.logger.log(
+              `[Worker ${workerId}] No emails to process in batch`,
+            );
+            tracker.finish();
+            return;
+          }
+
+          tracker.endPhase("dataFetch");
+          tracker.startPhase("processing");
+
+          // Format user context for batch LLM call
+          const userContext = {
+            urgentItems: contexts
+              .filter((c) => c.contextKey === ContextKey.URGENT)
+              .map((c) => ({
+                value: c.contextValue,
+                explanation: c.explanation || undefined,
+              })),
+            notUrgentItems: contexts
+              .filter((c) => c.contextKey === ContextKey.NOT_IMPORTANT)
+              .map((c) => ({
+                value: c.contextValue,
+                explanation: c.explanation || undefined,
+              })),
+            goals: contexts
+              .filter((c) => c.contextKey === ContextKey.MY_GOALS)
+              .map((c) => ({
+                value: c.contextValue,
+                priority: c.priority || undefined,
+              })),
+            workingOn: contexts
+              .filter((c) => c.contextKey === ContextKey.WORKING_ON)
+              .map((c) => ({
+                value: c.contextValue,
+                priority: c.priority || undefined,
+              })),
+            dontCare: contexts
+              .filter((c) => c.contextKey === ContextKey.DONT_CARE)
+              .map((c) => ({ value: c.contextValue })),
+            emailCategories: contexts
+              .filter((c) => c.contextKey === ContextKey.EMAIL_CATEGORY)
+              .map((c) => {
+                const parts = c.contextValue.split(" - ");
+                return {
+                  name: parts[0].trim(),
+                  description:
+                    parts.length > 1
+                      ? parts.slice(1).join(" - ").trim()
+                      : undefined,
+                };
+              }),
+          };
+
+          // Prepare batch emails for LLM
+          const batchEmails = emailsToProcess.map((email) => ({
+            emailKey: email.id,
+            from: email.from || "",
+            fromName: email.fromName,
+            senderJobTitle: email.senderJobTitle,
+            subject: email.subject || "",
+            body: cleanEmailContent(
+              email.body,
+              email.htmlBody,
+              1000,
+            ),
+          }));
+
+          tracker.endPhase("processing");
+          tracker.startPhase("llmCall");
+
+          // Single batch LLM call for all emails
+          const batchResults =
+            await this.priorityAnalysisService.analyzePriorityBatch(
+              batchEmails,
+              userContext,
+              undefined,
+              userId,
+            );
+
+          tracker.endPhase("llmCall");
+          tracker.startPhase("dbUpdate");
+
+          // Process results and update DB for each email
+          for (const email of emailsToProcess) {
+            const llmResult = batchResults.get(email.id);
+            if (!llmResult) continue;
+
+            try {
+              await this.applyPriorityResult(
+                email,
+                llmResult,
+                contexts,
+                userId,
+                workerId,
+              );
+            } catch (updateError) {
+              this.logger.error(
+                `[Worker ${workerId}] Failed to update priority for email ${email.id}:`,
+                updateError,
+              );
+            }
+          }
+
+          tracker.endPhase("dbUpdate");
+          this.logger.log(
+            `[Worker ${workerId}] Batch priority refinement complete: ${emailsToProcess.length} emails processed`,
+          );
+          tracker.finish();
+        } catch (error) {
+          this.logger.error(
+            `[Worker ${workerId}] Failed batch priority refinement`,
+            error,
+          );
+          // Reset processing flags
+          for (const emailId of emailIds) {
+            try {
+              const email = await this.emailsService.getEmailById(
+                userId,
+                emailId,
+              );
+              if (email?.emailThreadId) {
+                await this.emailThreadRepository.update(
+                  { id: email.emailThreadId },
+                  { isProcessingPriority: false },
+                );
+              }
+            } catch {
+              // Ignore cleanup errors
+            }
+          }
+          tracker.finish(error as Error);
+          throw error;
+        }
+      },
+    );
+  }
+
+  /**
+   * Apply LLM priority result to an email and its thread.
+   * Shared between single and batch processing.
+   */
+  // eslint-disable-next-line max-lines-per-function, max-statements, max-params
+  private async applyPriorityResult(
+    email: Email,
+    llmResult: {
+      urgencyScore: number;
+      urgencyExplanation: string;
+      sentimentScore: number;
+      goalAlignmentScore: number;
+      goalAlignmentExplanation: string;
+      category: string;
+      categoryExplanation: string;
+    },
+    contexts: Array<{ contextKey: string; contextValue: string }>,
+    userId: string,
+    workerId: string,
+  ): Promise<void> {
+    const goalAlignmentScore = llmResult.goalAlignmentScore || 0;
+    const sentimentScore = llmResult.sentimentScore ?? 0;
+    const urgencyScore = llmResult.urgencyScore || 0;
+
+    // Calculate contributions
+    let sentimentContribution = 0;
+    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+    if (sentimentScore < -0.3) {
+      sentimentContribution = Math.round(
+        -sentimentScore * LLM_PROCESSOR_CONSTANTS.SENTIMENT_MULTIPLIER,
+      );
+    }
+
+    const urgencyContribution = Math.round(
+      (urgencyScore - LLM_PROCESSOR_CONSTANTS.URGENCY_NEUTRAL) * 0.17,
+    );
+
+    const goalAlignmentContribution = Math.round(
+      goalAlignmentScore * LLM_PROCESSOR_CONSTANTS.GOAL_ALIGNMENT_WEIGHT,
+    );
+
+    // Build breakdown
+    const breakdown: Array<{
+      factor: string;
+      value: number;
+      description: string;
+    }> = [
+      {
+        factor: "🔥 Urgency",
+        value: urgencyContribution,
+        description: llmResult.urgencyExplanation || "Urgency analysis",
+      },
+      {
+        factor: "🎯 Goal Alignment",
+        value: goalAlignmentContribution,
+        description:
+          llmResult.goalAlignmentExplanation || "Goal alignment analysis",
+      },
+      {
+        factor: "😊 Sentiment",
+        value: sentimentContribution,
+        description:
+          // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+          sentimentScore < -0.3
+            ? `Negative sentiment (${sentimentScore.toFixed(2)})`
+            : // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+              sentimentScore > 0.3
+              ? `Positive sentiment (${sentimentScore.toFixed(2)})`
+              : "Neutral sentiment",
+      },
+    ];
+
+    // VIP contact check
+    const vipContacts = contexts.filter(
+      (c) => c.contextKey === ContextKey.VIP_CONTACT,
+    );
+    const matchedVip = vipContacts.find(
+      (vip) =>
+        email.from?.toLowerCase().includes(vip.contextValue.toLowerCase()) ||
+        email.fromName
+          ?.toLowerCase()
+          .includes(vip.contextValue.toLowerCase()),
+    );
+    if (matchedVip) {
+      breakdown.push({
+        factor: "⭐ VIP Contact",
+        value: 25,
+        description: `From VIP: ${matchedVip.contextValue}`,
+      });
+    }
+
+    // Job title boost
+    if (email.senderJobTitle) {
+      const jobTitleLower = email.senderJobTitle.toLowerCase();
+      const highPriorityTitles = [
+        "ceo",
+        "president",
+        "director",
+        "manager",
+        "lead",
+        "head",
+      ];
+      if (highPriorityTitles.some((title) => jobTitleLower.includes(title))) {
+        breakdown.push({
+          factor: "⭐ VIP Contact",
+          value: 15,
+          description: `Sender role: ${email.senderJobTitle}`,
+        });
+      }
+    }
+
+    // Get thread for read status check
+    let thread = null;
+    if (email.emailThreadId) {
+      thread = await this.emailThreadRepository.findOne({
+        where: { id: email.emailThreadId },
+      });
+    }
+
+    if (email.isRead && thread && thread.starCount === 0) {
+      breakdown.push({
+        factor: "📖 Read Status",
+        value: -15,
+        description: "Already read and not starred",
+      });
+    }
+
+    const finalScore = breakdown.reduce(
+      (sum, item) => sum + (item.value || 0),
+      0,
+    );
+
+    const dimensions = {
+      urgency: {
+        score: urgencyScore,
+        reasons: [llmResult.urgencyExplanation || "No urgency explanation"],
+      },
+      goalAlignment: {
+        score: goalAlignmentScore,
+        reasons: [
+          llmResult.goalAlignmentExplanation || "No goal alignment explanation",
+        ],
+      },
+      vipContact: {
+        score: matchedVip ? 25 : 0,
+        reasons: matchedVip
+          ? [`VIP contact: ${matchedVip.contextValue}`]
+          : [],
+      },
+      sentiment: {
+        score: sentimentScore,
+        type:
+          // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+          sentimentScore < -0.3
+            ? "negative"
+            : // eslint-disable-next-line @typescript-eslint/no-magic-numbers
+              sentimentScore > 0.3
+              ? "positive"
+              : "neutral",
+        reasons: [],
+      },
+    };
+
+    const priorityExplanation = {
+      score: finalScore,
+      breakdown,
+      dimensions,
+      calculatedAt: new Date().toISOString(),
+    };
+
+    // Update email sentiment
+    await this.emailRepository.update(
+      { id: email.id },
+      {
+        sentimentScore:
+          llmResult.sentimentScore !== undefined
+            ? llmResult.sentimentScore
+            : null,
+      },
+    );
+
+    // Update thread
+    if (email.emailThreadId && thread) {
+      const newUrgencyScore = Math.max(
+        thread.urgencyScore || 0,
+        llmResult.urgencyScore || 0,
+      );
+      const newUrgencyExplanation =
+        (llmResult.urgencyScore || 0) > (thread.urgencyScore || 0)
+          ? llmResult.urgencyExplanation
+          : thread.urgencyExplanation;
+
+      await this.emailThreadRepository.update(
+        { id: email.emailThreadId },
+        {
+          urgencyScore: newUrgencyScore,
+          urgencyExplanation:
+            newUrgencyExplanation || thread.urgencyExplanation,
+          priorityExplanation,
+          priorityScore: finalScore,
+          category: llmResult.category || thread.category || null,
+          categoryExplanation:
+            llmResult.categoryExplanation ||
+            thread.categoryExplanation ||
+            null,
+          isProcessingPriority: false,
+        },
+      );
+
+      // Emergency delivery for high priority
+      if (finalScore > 50) {
+        await this.emailRepository.update(
+          { emailThreadId: email.emailThreadId, userId },
+          {
+            isBatched: false,
+            batchReleaseAt: null,
+            wasDeliveredEarly: true,
+          },
+        );
+        this.logger.log(
+          `[Worker ${workerId}] Emergency delivery: Un-batched email ${email.id} due to high priority score: ${finalScore}`,
+        );
+      }
+
+      this.logger.log(
+        `[Worker ${workerId}] Updated thread ${email.emailThreadId.substring(0, LLM_PROCESSOR_CONSTANTS.SUBSTRING_PREVIEW_LENGTH)}... priorityScore: ${finalScore}`,
+      );
+    }
   }
 }

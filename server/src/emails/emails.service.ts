@@ -197,6 +197,110 @@ export class EmailsService {
     private suggestedRepliesService?: SuggestedRepliesService,
   ) {}
 
+  // Buffer for collecting email IDs per user for batch priority refinement
+  private readonly priorityBatchBuffer = new Map<
+    string,
+    { emailIds: string[]; timer: ReturnType<typeof setTimeout> | null }
+  >();
+  private readonly BATCH_FLUSH_DELAY_MS = 2000; // Wait 2s to collect more emails before flushing
+  private readonly BATCH_MAX_SIZE = 5; // Max emails per batch LLM call
+
+  /**
+   * Queue an email for batch priority refinement.
+   * Collects emails for the same user and flushes them as a batch after a short delay.
+   */
+  async queueBatchPriorityRefinement(
+    userId: string,
+    emailId: string,
+  ): Promise<void> {
+    let buffer = this.priorityBatchBuffer.get(userId);
+    if (!buffer) {
+      buffer = { emailIds: [], timer: null };
+      this.priorityBatchBuffer.set(userId, buffer);
+    }
+
+    buffer.emailIds.push(emailId);
+
+    // If batch is full, flush immediately
+    if (buffer.emailIds.length >= this.BATCH_MAX_SIZE) {
+      await this.flushPriorityBatch(userId);
+      return;
+    }
+
+    // Otherwise, set/reset a timer to flush after delay
+    if (buffer.timer) {
+      clearTimeout(buffer.timer);
+    }
+    buffer.timer = setTimeout(() => {
+      this.flushPriorityBatch(userId).catch((err) => {
+        this.logger.error(
+          `Failed to flush priority batch for user ${userId}:`,
+          err,
+        );
+      });
+    }, this.BATCH_FLUSH_DELAY_MS);
+  }
+
+  /**
+   * Flush the priority batch buffer for a user, enqueueing a batch job.
+   */
+  private async flushPriorityBatch(userId: string): Promise<void> {
+    const buffer = this.priorityBatchBuffer.get(userId);
+    if (!buffer || buffer.emailIds.length === 0) return;
+
+    const emailIds = [...buffer.emailIds];
+    buffer.emailIds = [];
+    if (buffer.timer) {
+      clearTimeout(buffer.timer);
+      buffer.timer = null;
+    }
+
+    // If only 1 email, use the standard single job (it handles skip logic)
+    if (emailIds.length === 1) {
+      await this.boss
+        .send(
+          "refine-priority",
+          { userId, emailId: emailIds[0] },
+          {
+            priority: getJobPriority("refine-priority-background", false),
+            singletonKey: `refine-priority-${emailIds[0]}`,
+            singletonMinutes: 1,
+          },
+        )
+        .catch((err) => {
+          this.logger.error(
+            `Failed to queue single priority refinement for email ${emailIds[0]}:`,
+            err,
+          );
+        });
+      return;
+    }
+
+    // Queue batch job
+    const batchJobId = await this.boss
+      .send(
+        "refine-priority-batch",
+        { userId, emailIds },
+        {
+          priority: getJobPriority("refine-priority-batch", false),
+          singletonKey: `refine-priority-batch-${userId}-${Date.now()}`,
+        },
+      )
+      .catch((err) => {
+        this.logger.error(
+          `Failed to queue batch priority refinement for ${emailIds.length} emails:`,
+          err,
+        );
+        return null;
+      });
+
+    if (batchJobId) {
+      this.logger.log(
+        `Queued batch priority refinement job ${batchJobId} for ${emailIds.length} emails (user: ${userId})`,
+      );
+    }
+  }
+
   // eslint-disable-next-line max-lines-per-function, max-statements
   async getInbox(
     userId: string,
@@ -1438,25 +1542,11 @@ export class EmailsService {
       );
     }
 
-    // IMPORTANT: Always queue jobs immediately when isProcessingPriority/Summary is set
-    // This ensures "Calculating..." status in UI has an actual job behind it
-    // Use singleton key with thread ID to allow recalculation when new emails arrive in thread
-    // This ensures only one job runs per thread at a time, but new emails will queue a new job
-    const singletonKey = thread
-      ? `refine-priority-thread-${thread.id}`
-      : `refine-priority-${savedEmail.id}`;
-    const priorityJobId = await this.boss
-      .send(
-        "refine-priority",
-        { userId, emailId: savedEmail.id },
-        {
-          priority: getJobPriority("refine-priority-background", false),
-          singletonKey,
-          // Prevent duplicate jobs within 1 minute (reduced from 5 to allow faster recalculation)
-          singletonMinutes: 1,
-        },
-      )
-      .catch(async (err) => {
+    // IMPORTANT: Queue priority refinement for this email
+    // Use batch queue to collect multiple emails and process them in a single LLM call
+    // This reduces LLM API calls by up to 5x compared to individual jobs
+    await this.queueBatchPriorityRefinement(userId, savedEmail.id).catch(
+      async (err) => {
         this.logger.error(
           `Failed to queue priority refinement for email ${savedEmail.id}:`,
           err,
@@ -1466,14 +1556,8 @@ export class EmailsService {
           thread.isProcessingPriority = false;
           await this.emailThreadRepository.save(thread);
         }
-        return null;
-      });
-
-    if (priorityJobId) {
-      this.logger.debug(
-        `Queued priority refinement job ${priorityJobId} for email ${savedEmail.id}`,
-      );
-    }
+      },
+    );
 
     // Queue summary generation job
     const summaryJobId = await this.boss

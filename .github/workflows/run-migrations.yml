@@ -95,14 +95,15 @@ jobs:
       - name: Determine Migration Command
         id: command
         run: |
+          # Use :prod commands since Docker container only has compiled JS (no ts-node)
           if [ "${{ github.event.inputs.show_only }}" = "true" ]; then
-            echo "command=[\"npm\", \"run\", \"migration:show\"]" >> $GITHUB_OUTPUT
+            echo "command=[\"npm\", \"run\", \"migration:show:prod\"]" >> $GITHUB_OUTPUT
             echo "description=Showing migration status..." >> $GITHUB_OUTPUT
           elif [ "${{ github.event.inputs.revert }}" = "true" ]; then
-            echo "command=[\"npm\", \"run\", \"migration:revert\"]" >> $GITHUB_OUTPUT
+            echo "command=[\"npm\", \"run\", \"migration:revert:prod\"]" >> $GITHUB_OUTPUT
             echo "description=Reverting last migration..." >> $GITHUB_OUTPUT
           else
-            echo "command=[\"npm\", \"run\", \"migration:run\"]" >> $GITHUB_OUTPUT
+            echo "command=[\"npm\", \"run\", \"migration:run:prod\"]" >> $GITHUB_OUTPUT
             echo "description=Running pending migrations..." >> $GITHUB_OUTPUT
           fi
 

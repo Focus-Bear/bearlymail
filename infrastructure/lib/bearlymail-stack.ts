@@ -382,7 +382,7 @@ export class BearlyMailStack extends cdk.Stack {
 
     migrationTaskDefinition.addContainer('MigrationContainer', {
       image: serverImage,
-      command: ['npm', 'run', 'migration:run'],
+      command: ['npm', 'run', 'migration:run:prod'],
       logging: ecs.LogDrivers.awsLogs({
         streamPrefix: 'migration',
         logGroup: migrationLogGroup,

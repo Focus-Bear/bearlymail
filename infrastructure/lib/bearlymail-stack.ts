@@ -137,6 +137,9 @@ export class BearlyMailStack extends cdk.Stack {
       taskRole: taskRole,
     });
 
+    // Derive FRONTEND_URL from the domainName prop (e.g. app.bearlymail.com -> https://app.bearlymail.com)
+    const frontendUrl = props?.domainName ? `https://${props.domainName}` : 'http://localhost:3000';
+
     const webContainer = webTaskDefinition.addContainer('WebContainer', {
       image: serverImage,
       logging: ecs.LogDrivers.awsLogs({
@@ -146,6 +149,7 @@ export class BearlyMailStack extends cdk.Stack {
       environment: {
         NODE_ENV: 'production',
         PORT: '3001',
+        FRONTEND_URL: frontendUrl,
         DB_HOST: database.instanceEndpoint.hostname,
         DB_PORT: '5432',
         DB_NAME: 'bearlymail',
@@ -252,6 +256,7 @@ export class BearlyMailStack extends cdk.Stack {
       environment: {
         NODE_ENV: 'production',
         WORKER_PROCESSES: '1', // Single process in container to avoid OOM (each worker loads full NestJS + TypeORM + providers)
+        FRONTEND_URL: frontendUrl,
         DB_HOST: database.instanceEndpoint.hostname,
         DB_PORT: '5432',
         DB_NAME: 'bearlymail',
@@ -302,6 +307,7 @@ export class BearlyMailStack extends cdk.Stack {
       }),
       environment: {
         NODE_ENV: 'production',
+        FRONTEND_URL: frontendUrl,
         DB_HOST: database.instanceEndpoint.hostname,
         DB_PORT: '5432',
         DB_NAME: 'bearlymail',

@@ -1,0 +1,200 @@
+name: Run Database Migrations
+
+on:
+  workflow_dispatch:
+    inputs:
+      revert:
+        description: 'Revert last migration instead of running'
+        required: false
+        default: 'false'
+        type: boolean
+      show_only:
+        description: 'Only show migration status (dry run)'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  AWS_REGION: ap-southeast-2
+
+jobs:
+  run-migrations:
+    name: Run Database Migrations
+    runs-on: ubuntu-latest
+    environment: Production
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::789877399450:role/BearlyMail-GitHubActions-DeploymentRole
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get ECS Cluster and VPC Configuration
+        id: config
+        run: |
+          # Get ECS cluster name
+          ECS_CLUSTER=$(aws cloudformation list-exports \
+            --query "Exports[?Name=='BearlyMail-ECS-Cluster'].Value" \
+            --output text)
+          echo "ecs_cluster=$ECS_CLUSTER" >> $GITHUB_OUTPUT
+          echo "ECS Cluster: $ECS_CLUSTER"
+          
+          # Get migration task definition ARN
+          MIGRATION_TASK_ARN=$(aws cloudformation list-exports \
+            --query "Exports[?Name=='BearlyMail-Migration-Task-ARN'].Value" \
+            --output text)
+          echo "migration_task_arn=$MIGRATION_TASK_ARN" >> $GITHUB_OUTPUT
+          echo "Migration Task ARN: $MIGRATION_TASK_ARN"
+          
+          # Get private subnet IDs from the VPC
+          SUBNET_IDS=$(aws ec2 describe-subnets \
+            --filters "Name=tag:aws-cdk:subnet-type,Values=Private" \
+            --query 'Subnets[*].SubnetId' \
+            --output text | tr '\t' ',')
+          echo "subnet_ids=$SUBNET_IDS" >> $GITHUB_OUTPUT
+          echo "Subnet IDs: $SUBNET_IDS"
+          
+          # Get security group ID for ECS tasks
+          SECURITY_GROUP=$(aws ec2 describe-security-groups \
+            --filters "Name=group-name,Values=*BearlyMailStack*" \
+            --query 'SecurityGroups[0].GroupId' \
+            --output text)
+          echo "security_group=$SECURITY_GROUP" >> $GITHUB_OUTPUT
+          echo "Security Group: $SECURITY_GROUP"
+
+      - name: Validate Configuration
+        run: |
+          if [ -z "${{ steps.config.outputs.ecs_cluster }}" ] || [ "${{ steps.config.outputs.ecs_cluster }}" = "None" ]; then
+            echo "Error: Could not find ECS cluster. Make sure BearlyMailStack is deployed."
+            exit 1
+          fi
+          
+          if [ -z "${{ steps.config.outputs.migration_task_arn }}" ] || [ "${{ steps.config.outputs.migration_task_arn }}" = "None" ]; then
+            echo "Error: Could not find migration task definition. Make sure BearlyMailStack is deployed."
+            exit 1
+          fi
+          
+          if [ -z "${{ steps.config.outputs.subnet_ids }}" ] || [ "${{ steps.config.outputs.subnet_ids }}" = "None" ]; then
+            echo "Error: Could not find private subnets. Make sure VPC is configured correctly."
+            exit 1
+          fi
+          
+          if [ -z "${{ steps.config.outputs.security_group }}" ] || [ "${{ steps.config.outputs.security_group }}" = "None" ]; then
+            echo "Error: Could not find security group. Make sure BearlyMailStack is deployed."
+            exit 1
+          fi
+          
+          echo "All configuration validated successfully!"
+
+      - name: Determine Migration Command
+        id: command
+        run: |
+          if [ "${{ github.event.inputs.show_only }}" = "true" ]; then
+            echo "command=[\"npm\", \"run\", \"migration:show\"]" >> $GITHUB_OUTPUT
+            echo "description=Showing migration status..." >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.inputs.revert }}" = "true" ]; then
+            echo "command=[\"npm\", \"run\", \"migration:revert\"]" >> $GITHUB_OUTPUT
+            echo "description=Reverting last migration..." >> $GITHUB_OUTPUT
+          else
+            echo "command=[\"npm\", \"run\", \"migration:run\"]" >> $GITHUB_OUTPUT
+            echo "description=Running pending migrations..." >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run Migration Task
+        id: migration
+        run: |
+          echo "${{ steps.command.outputs.description }}"
+          
+          # Run the migration task with optional command override
+          if [ "${{ github.event.inputs.show_only }}" = "true" ] || [ "${{ github.event.inputs.revert }}" = "true" ]; then
+            TASK_ARN=$(aws ecs run-task \
+              --cluster ${{ steps.config.outputs.ecs_cluster }} \
+              --task-definition ${{ steps.config.outputs.migration_task_arn }} \
+              --launch-type FARGATE \
+              --network-configuration "awsvpcConfiguration={subnets=[${{ steps.config.outputs.subnet_ids }}],securityGroups=[${{ steps.config.outputs.security_group }}],assignPublicIp=DISABLED}" \
+              --overrides '{
+                "containerOverrides": [{
+                  "name": "MigrationContainer",
+                  "command": ${{ steps.command.outputs.command }}
+                }]
+              }' \
+              --query 'tasks[0].taskArn' \
+              --output text)
+          else
+            TASK_ARN=$(aws ecs run-task \
+              --cluster ${{ steps.config.outputs.ecs_cluster }} \
+              --task-definition ${{ steps.config.outputs.migration_task_arn }} \
+              --launch-type FARGATE \
+              --network-configuration "awsvpcConfiguration={subnets=[${{ steps.config.outputs.subnet_ids }}],securityGroups=[${{ steps.config.outputs.security_group }}],assignPublicIp=DISABLED}" \
+              --query 'tasks[0].taskArn' \
+              --output text)
+          fi
+          
+          echo "task_arn=$TASK_ARN" >> $GITHUB_OUTPUT
+          echo "Migration task started: $TASK_ARN"
+
+      - name: Wait for Migration Task to Complete
+        run: |
+          echo "Waiting for migration task to complete..."
+          aws ecs wait tasks-stopped \
+            --cluster ${{ steps.config.outputs.ecs_cluster }} \
+            --tasks ${{ steps.migration.outputs.task_arn }}
+          echo "Migration task has stopped."
+
+      - name: Check Migration Result
+        run: |
+          # Get task details
+          TASK_DETAILS=$(aws ecs describe-tasks \
+            --cluster ${{ steps.config.outputs.ecs_cluster }} \
+            --tasks ${{ steps.migration.outputs.task_arn }})
+          
+          EXIT_CODE=$(echo "$TASK_DETAILS" | jq -r '.tasks[0].containers[0].exitCode')
+          STOPPED_REASON=$(echo "$TASK_DETAILS" | jq -r '.tasks[0].stoppedReason // "N/A"')
+          CONTAINER_REASON=$(echo "$TASK_DETAILS" | jq -r '.tasks[0].containers[0].reason // "N/A"')
+          
+          echo "Exit Code: $EXIT_CODE"
+          echo "Stopped Reason: $STOPPED_REASON"
+          echo "Container Reason: $CONTAINER_REASON"
+          
+          # Extract task ID for log link
+          TASK_ID=$(echo "${{ steps.migration.outputs.task_arn }}" | rev | cut -d'/' -f1 | rev)
+          
+          echo ""
+          echo "============================================"
+          echo "View logs in CloudWatch:"
+          echo "Log Group: /ecs/bearlymail/migration"
+          echo "Log Stream: migration/$TASK_ID"
+          echo "Console URL: https://${{ env.AWS_REGION }}.console.aws.amazon.com/cloudwatch/home?region=${{ env.AWS_REGION }}#logsV2:log-groups/log-group/$252Fecs$252Fbearlymail$252Fmigration"
+          echo "============================================"
+          
+          if [ "$EXIT_CODE" != "0" ]; then
+            echo ""
+            echo "ERROR: Migration task failed with exit code: $EXIT_CODE"
+            echo "Check the CloudWatch logs for more details."
+            exit 1
+          fi
+          
+          echo ""
+          echo "Migration completed successfully!"
+
+      - name: Migration Summary
+        run: |
+          echo "## Migration Complete!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event.inputs.show_only }}" = "true" ]; then
+            echo "- **Action**: Show migration status" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ github.event.inputs.revert }}" = "true" ]; then
+            echo "- **Action**: Revert last migration" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Action**: Run pending migrations" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "- **Task ARN**: \`${{ steps.migration.outputs.task_arn }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Cluster**: \`${{ steps.config.outputs.ecs_cluster }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Logs**: [CloudWatch Logs](https://${{ env.AWS_REGION }}.console.aws.amazon.com/cloudwatch/home?region=${{ env.AWS_REGION }}#logsV2:log-groups/log-group/$252Fecs$252Fbearlymail$252Fmigration)" >> $GITHUB_STEP_SUMMARY

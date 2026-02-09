@@ -74,6 +74,9 @@ import { ContextService } from "./context/context.service";
 import { ContextPiiRedactionService } from "./context/context-pii-redaction.service";
 import { ContextGmailDataService } from "./context/context-gmail-data.service";
 import { ContextQaExtractionService } from "./context/context-qa-extraction.service";
+import { ContextCrudService } from "./context/context-crud.service";
+import { ContextCategoryService } from "./context/context-category.service";
+import { ContextAnalysisProgressService } from "./context/context-analysis-progress.service";
 import { EncryptionService } from "./encryption/encryption.service";
 import { BlockedSendersService } from "./blocked-senders/blocked-senders.service";
 import { BlockedKeywordsService } from "./blocked-keywords/blocked-keywords.service";
@@ -185,6 +188,9 @@ import { BlockedKeywordsService } from "./blocked-keywords/blocked-keywords.serv
     ContextPiiRedactionService,
     ContextGmailDataService,
     ContextQaExtractionService,
+    ContextCrudService,
+    ContextCategoryService,
+    ContextAnalysisProgressService,
     BlockedSendersService,
     BlockedKeywordsService,
 

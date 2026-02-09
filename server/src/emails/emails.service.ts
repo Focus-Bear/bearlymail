@@ -1484,14 +1484,16 @@ export class EmailsService {
     );
 
     // Queue summary generation job
+    // Use threadId for singletonKey to prevent duplicate summarization of the same thread
+    // When multiple emails arrive in a thread, only one summary job should run
     const summaryJobId = await this.boss
       .send(
         "generate-summary",
-        { userId, emailId: savedEmail.id },
+        { userId, emailId: savedEmail.id, threadId: savedEmail.emailThreadId },
         {
           priority: getJobPriority("generate-summary-background", false),
-          singletonKey: `generate-summary-${savedEmail.id}`,
-          singletonMinutes: 5,
+          singletonKey: `generate-summary-thread-${savedEmail.emailThreadId || savedEmail.id}`,
+          singletonMinutes: 5, // Dedupe for 5 minutes per thread
         },
       )
       .catch((err) => {

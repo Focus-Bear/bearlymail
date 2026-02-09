@@ -10,6 +10,7 @@ import {
   LLMOperation,
   LLM_OP_ANALYZE_EMAIL_PATTERNS,
   LLM_OP_SUMMARIZE_EMAIL,
+  LLM_OP_SUMMARIZE_EMAIL_BATCH,
   LLM_OP_CHECK_TONE,
   LLM_OP_EXTRACT_ACTION_ITEMS,
   LLM_OP_SUGGEST_ACTIONS,
@@ -49,6 +50,10 @@ export interface LLMRequest {
   maxTokens?: number;
   // Optional userId to use user's API key
   userId?: string;
+  // Optional metadata for tracking (e.g., email IDs for summarization)
+  metadata?: {
+    emailIds?: string[];
+  };
 }
 
 @Injectable()
@@ -233,6 +238,8 @@ export class LLMService {
           // Pass prompt text for example capture
           promptText: request.prompt,
           systemPromptText: request.systemPrompt,
+          // Pass email IDs for tracking duplicate summarizations
+          emailIds: request.metadata?.emailIds,
         });
       }
 
@@ -310,6 +317,8 @@ export class LLMService {
           // Pass prompt text for example capture
           promptText: request.prompt,
           systemPromptText: request.systemPrompt,
+          // Pass email IDs for tracking duplicate summarizations
+          emailIds: request.metadata?.emailIds,
         });
       }
 
@@ -624,6 +633,198 @@ export class LLMService {
       userId,
       LLM_OP_SUMMARIZE_EMAIL,
     );
+  }
+
+  /**
+   * Summarize multiple threads with parallel LLM calls.
+   * Each thread gets its own LLM call, but calls are fired concurrently for efficiency.
+   * @param threads Array of thread content to summarize (body contains combined thread messages)
+   * @param provider Optional LLM provider override
+   * @param userId Optional user ID for API key
+   * @param customInstructions Optional custom summarization instructions from user-defined rules
+   * @param emailIds Optional array of email IDs for tracking duplicate summarizations
+   * @returns Map of thread index to summary string
+   */
+  async summarizeThreads(
+    threads: Array<{
+      index: number;
+      subject: string;
+      body: string; // Combined thread content (first + last 3 messages)
+      isThread: boolean;
+      messageCount?: number;
+    }>,
+    provider?: LLMProvider,
+    userId?: string,
+    customInstructions?: string,
+    emailIds?: string[],
+  ): Promise<Map<number, string>> {
+    if (threads.length === 0) {
+      return new Map();
+    }
+
+    // If only one thread, use the regular method (more efficient prompt)
+    if (threads.length === 1) {
+      const thread = threads[0];
+      try {
+        let summary: string;
+        if (customInstructions) {
+          // Use custom instructions as a direct prompt
+          const prompt = `Thread Subject: ${thread.subject}\n\nThread Content:\n${thread.body}\n\n${customInstructions}`;
+          summary = await this.generateText(
+            {
+              prompt,
+              systemPrompt:
+                "You are a helpful assistant that summarizes email threads according to user instructions.",
+              temperature: RATIOS.HALF,
+              maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_SMALL,
+              userId,
+            },
+            provider,
+            userId,
+            LLM_OP_SUMMARIZE_EMAIL,
+          );
+        } else {
+          summary = await this.summarizeEmail(
+            thread.body,
+            thread.subject,
+            "tldr",
+            provider,
+            userId,
+          );
+        }
+        const result = new Map<number, string>();
+        result.set(thread.index, summary);
+        return result;
+      } catch (error) {
+        this.logger.error(
+          `Failed to summarize single thread: ${error}`,
+        );
+        return new Map();
+      }
+    }
+
+    const promptConfig = getPrompt("summarize_email_batch");
+    if (!promptConfig) {
+      this.logger.error(
+        "summarize_email_batch prompt not found - falling back to individual calls",
+      );
+      // Fallback: summarize each thread individually
+      const result = new Map<number, string>();
+      for (const thread of threads) {
+        try {
+          const summary = await this.summarizeEmail(
+            thread.body,
+            thread.subject,
+            "tldr",
+            provider,
+            userId,
+          );
+          result.set(thread.index, summary);
+        } catch (error) {
+          this.logger.warn(`Failed to summarize thread ${thread.index}: ${error}`);
+        }
+      }
+      return result;
+    }
+
+    // Prepare thread data for the prompt (limit body length to save tokens)
+    const threadsForPrompt = threads.map((thread) => ({
+      index: thread.index,
+      subject: thread.subject,
+      body: thread.body.substring(0, 1500), // Limit body length per thread
+      isThread: thread.isThread,
+      messageCount: thread.messageCount || 1,
+    }));
+
+    const prompt = renderPrompt(promptConfig.prompt || "", {
+      emails: threadsForPrompt, // Note: prompt template uses 'emails' variable name
+      customInstructions: customInstructions || null,
+    });
+
+    try {
+      const response = await this.generateText(
+        {
+          prompt,
+          systemPrompt: promptConfig.systemPrompt || "",
+          temperature: RATIOS.HALF,
+          // Increase tokens for batch response: ~150 tokens per summary
+          maxTokens: Math.min(4000, threads.length * 150 + 200),
+          userId,
+          // Track email IDs for duplicate summarization detection
+          metadata: emailIds?.length ? { emailIds } : undefined,
+        },
+        provider,
+        userId,
+        LLM_OP_SUMMARIZE_EMAIL_BATCH,
+      );
+
+      // Parse JSON response
+      let jsonStr: string | null = null;
+
+      // Try 1: Direct JSON object
+      const directMatch = response.match(/\{[\s\S]*\}/);
+      if (directMatch) {
+        jsonStr = directMatch[0];
+      }
+
+      // Try 2: JSON in markdown code block
+      if (!jsonStr) {
+        const codeBlockMatch = response.match(
+          /```(?:json)?\s*(\{[\s\S]*?\})\s*```/,
+        );
+        if (codeBlockMatch && codeBlockMatch[1]) {
+          jsonStr = codeBlockMatch[1];
+        }
+      }
+
+      if (jsonStr) {
+        try {
+          const summaries = JSON.parse(jsonStr);
+
+          if (typeof summaries !== "object" || Array.isArray(summaries)) {
+            throw new Error("Response is not a JSON object");
+          }
+
+          const result = new Map<number, string>();
+
+          // Map summaries by index
+          threadsForPrompt.forEach((thread) => {
+            const summary =
+              summaries[thread.index] ||
+              summaries[String(thread.index)] ||
+              summaries[thread.index.toString()];
+
+            if (summary && typeof summary === "string" && summary.trim().length > 0) {
+              result.set(thread.index, summary.trim());
+            } else {
+              this.logger.warn(
+                `Missing summary for thread index ${thread.index} in batch response`,
+              );
+            }
+          });
+
+          this.logger.log(
+            `Thread summarization complete: ${result.size}/${threads.length} summaries generated`,
+          );
+
+          return result;
+        } catch (parseError) {
+          this.logger.error(
+            `Failed to parse JSON from batch summarization response:`,
+            parseError,
+          );
+        }
+      } else {
+        this.logger.error(
+          `Failed to find JSON in batch summarization response`,
+        );
+      }
+    } catch (error) {
+      this.logger.error("Batch summarization failed", error);
+    }
+
+    // Fallback: return empty map (will trigger individual calls if needed)
+    return new Map();
   }
 
   async checkTone(

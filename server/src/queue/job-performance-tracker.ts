@@ -48,6 +48,7 @@ export class JobPerformanceTracker {
     threadId?: string;
     syncWindowHours?: number;
     forceRecalculate?: boolean;
+    batchSize?: number;
     isContinuation?: boolean;
     threadCount?: number;
   } = {};
@@ -83,6 +84,7 @@ export class JobPerformanceTracker {
     threadId?: string;
     syncWindowHours?: number;
     forceRecalculate?: boolean;
+    batchSize?: number;
     isContinuation?: boolean;
     threadCount?: number;
   }): void {

@@ -92,4 +92,25 @@ export class TokenUsageController {
     const daily = await this.tokenUsageService.getDailyUsage(options);
     return { daily, timestamp: new Date().toISOString() };
   }
+
+  /**
+   * Get duplicate summarization report.
+   * Identifies emails that have been summarized multiple times.
+   */
+  @Get("duplicate-summarizations")
+  async getDuplicateSummarizationReport(
+    @Query("startDate") startDate?: string,
+    @Query("endDate") endDate?: string,
+    @Query("userId") userId?: string,
+  ) {
+    const options = {
+      startDate: startDate ? new Date(startDate) : undefined,
+      endDate: endDate ? new Date(endDate) : undefined,
+      userId,
+    };
+
+    const report =
+      await this.tokenUsageService.getDuplicateSummarizationReport(options);
+    return { ...report, timestamp: new Date().toISOString() };
+  }
 }

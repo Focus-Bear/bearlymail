@@ -60,6 +60,11 @@ export class TokenUsage {
   @Column({ type: "boolean", default: false })
   containsHtml: boolean;
 
+  // Email IDs processed in this LLM call (for tracking duplicate summarizations)
+  // Stored as JSON array of email IDs
+  @Column({ type: "jsonb", nullable: true })
+  emailIds: string[] | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

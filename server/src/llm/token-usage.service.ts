@@ -18,6 +18,8 @@ export interface TokenUsageLogData {
   systemPromptText?: string;
   // Whether the input prompt contained HTML (auto-detected if promptText provided)
   containsHtml?: boolean;
+  // Email IDs processed in this LLM call (for tracking duplicate summarizations)
+  emailIds?: string[];
 }
 
 /**
@@ -203,6 +205,7 @@ export class TokenUsageService {
         totalTokens: data.totalTokens || 0,
         durationMs: data.durationMs || null,
         containsHtml,
+        emailIds: data.emailIds?.length ? data.emailIds : null,
       });
 
       const saved = await this.tokenUsageRepository.save(usage);
@@ -347,5 +350,103 @@ export class TokenUsageService {
     }
 
     return queryBuilder.getRawMany();
+  }
+
+  /**
+   * Report on duplicate email summarizations.
+   * Returns emails that have been processed multiple times for summarization.
+   */
+  async getDuplicateSummarizationReport(
+    options: UsageQueryOptions = {},
+  ): Promise<{
+    duplicateEmails: Array<{
+      emailId: string;
+      processCount: number;
+      totalTokensUsed: number;
+      firstProcessed: Date;
+      lastProcessed: Date;
+    }>;
+    summary: {
+      totalDuplicateEmails: number;
+      totalWastedCalls: number;
+      totalWastedTokens: number;
+    };
+  }> {
+    // Query to find emails that appear multiple times in emailIds
+    // We need to unnest the JSON array and count occurrences
+    const queryBuilder = this.tokenUsageRepository
+      .createQueryBuilder("tu")
+      .select("email_id.value", "emailId")
+      .addSelect("COUNT(*)::int", "processCount")
+      .addSelect("SUM(tu.totalTokens)::int", "totalTokensUsed")
+      .addSelect("MIN(tu.createdAt)", "firstProcessed")
+      .addSelect("MAX(tu.createdAt)", "lastProcessed")
+      .innerJoin(
+        "jsonb_array_elements_text(tu.emailIds)",
+        "email_id",
+        "true",
+      )
+      .where("tu.operation = :operation", { operation: "summarize_email_batch" })
+      .orWhere("tu.operation = :singleOp", { singleOp: "summarize_email" })
+      .groupBy("email_id.value")
+      .having("COUNT(*) > 1")
+      .orderBy("COUNT(*)", "DESC");
+
+    if (options.startDate && options.endDate) {
+      queryBuilder.andWhere("tu.createdAt BETWEEN :startDate AND :endDate", {
+        startDate: options.startDate,
+        endDate: options.endDate,
+      });
+    } else if (options.startDate) {
+      queryBuilder.andWhere("tu.createdAt >= :startDate", {
+        startDate: options.startDate,
+      });
+    }
+
+    if (options.userId) {
+      queryBuilder.andWhere("tu.userId = :userId", { userId: options.userId });
+    }
+
+    try {
+      const duplicates = await queryBuilder.getRawMany();
+
+      // Calculate summary
+      const totalDuplicateEmails = duplicates.length;
+      const totalWastedCalls = duplicates.reduce(
+        (sum, d) => sum + (d.processCount - 1),
+        0,
+      );
+      // Estimate wasted tokens (approximate - divide tokens by process count for each email)
+      const totalWastedTokens = duplicates.reduce((sum, d) => {
+        const tokensPerCall = d.totalTokensUsed / d.processCount;
+        const wastedCalls = d.processCount - 1;
+        return sum + Math.round(tokensPerCall * wastedCalls);
+      }, 0);
+
+      return {
+        duplicateEmails: duplicates.map((d) => ({
+          emailId: d.emailId,
+          processCount: parseInt(d.processCount, 10),
+          totalTokensUsed: parseInt(d.totalTokensUsed, 10),
+          firstProcessed: d.firstProcessed,
+          lastProcessed: d.lastProcessed,
+        })),
+        summary: {
+          totalDuplicateEmails,
+          totalWastedCalls,
+          totalWastedTokens,
+        },
+      };
+    } catch (error) {
+      this.logger.error("Failed to get duplicate summarization report", error);
+      return {
+        duplicateEmails: [],
+        summary: {
+          totalDuplicateEmails: 0,
+          totalWastedCalls: 0,
+          totalWastedTokens: 0,
+        },
+      };
+    }
   }
 }

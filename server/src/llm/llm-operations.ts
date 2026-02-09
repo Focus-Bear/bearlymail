@@ -9,6 +9,9 @@ export const LLM_OP_ANALYZE_EMAIL_PATTERNS = "analyze_email_patterns";
 // Email summarization
 export const LLM_OP_SUMMARIZE_EMAIL = "summarize_email";
 
+// Email summarization (batch)
+export const LLM_OP_SUMMARIZE_EMAIL_BATCH = "summarize_email_batch";
+
 // Tone checking for replies
 export const LLM_OP_CHECK_TONE = "check_tone";
 
@@ -79,6 +82,7 @@ export const LLM_OP_UNKNOWN = "unknown";
 export type LLMOperation =
   | typeof LLM_OP_ANALYZE_EMAIL_PATTERNS
   | typeof LLM_OP_SUMMARIZE_EMAIL
+  | typeof LLM_OP_SUMMARIZE_EMAIL_BATCH
   | typeof LLM_OP_CHECK_TONE
   | typeof LLM_OP_EXTRACT_ACTION_ITEMS
   | typeof LLM_OP_SUGGEST_ACTIONS
@@ -107,6 +111,7 @@ export type LLMOperation =
 export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
   [LLM_OP_ANALYZE_EMAIL_PATTERNS]: "Analyze Email Patterns",
   [LLM_OP_SUMMARIZE_EMAIL]: "Summarize Email",
+  [LLM_OP_SUMMARIZE_EMAIL_BATCH]: "Summarize Email (Batch)",
   [LLM_OP_CHECK_TONE]: "Check Tone",
   [LLM_OP_EXTRACT_ACTION_ITEMS]: "Extract Action Items",
   [LLM_OP_SUGGEST_ACTIONS]: "Suggest Actions",

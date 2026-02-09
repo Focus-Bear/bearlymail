@@ -42,25 +42,37 @@ export class SummarizationService {
     userId: string,
     emailId: string,
     rule: SummarizationRule,
+    prefetchedEmail?: Awaited<ReturnType<EmailsService["getEmailById"]>>,
   ): Promise<string> {
-    const email = await this.emailsService.getEmailById(userId, emailId);
+    const email =
+      prefetchedEmail ||
+      (await this.emailsService.getEmailById(userId, emailId));
     if (!email) {
       throw new Error("Email not found");
     }
 
-    // For thread summaries, get the last 3 messages in the thread (need body for summarization)
-    // Limit to 10 emails (we only need last 3, but fetch a few more for safety)
-    const threadEmails = await this.emailsService.getThreadEmails(
+    // For thread summaries, get the first email (for context) + last 3 messages (current state)
+    // Fetch all emails in ASC order to get first email, then determine which to include
+    const allThreadEmails = await this.emailsService.getThreadEmails(
       userId,
       email.threadId,
-      { limit: 10, order: "DESC" }, // DESC to get most recent first
+      { limit: 20, order: "ASC" }, // ASC to get oldest first
     );
-    // threadEmails are already in DESC order (most recent first), so just take first 3
-    // Then reverse to get chronological order (oldest to newest) for the summary
-    const last3Messages = threadEmails.slice(0, 3).reverse();
 
-    // Combine the last 3 messages for thread context (clean each message)
-    const threadText = last3Messages
+    // Build the messages to summarize: first email + last 3
+    // If thread has 4 or fewer emails, just use all of them
+    let messagesToSummarize: typeof allThreadEmails;
+    if (allThreadEmails.length <= 4) {
+      messagesToSummarize = allThreadEmails;
+    } else {
+      // First email + last 3 (skip middle ones)
+      const firstEmail = allThreadEmails[0];
+      const last3Emails = allThreadEmails.slice(-3);
+      messagesToSummarize = [firstEmail, ...last3Emails];
+    }
+
+    // Combine messages for thread context (clean each message)
+    const threadText = messagesToSummarize
       .map((e, idx) => {
         // Cast to EmailWithHtmlBody to access htmlBody which exists on the entity
         const emailWithHtml = e as EmailWithHtmlBody;
@@ -68,7 +80,12 @@ export class SummarizationService {
         const date = new Date(e.receivedAt).toLocaleString();
         // Clean each message: strip HTML, remove signatures, limit to 800 chars per message
         const cleanedBody = cleanEmailForThread(e.body, emailWithHtml.htmlBody);
-        return `[Message ${idx + 1} from ${sender} on ${date}]:\n${cleanedBody}`;
+        // Indicate if this is the original email vs recent messages
+        const messageLabel =
+          idx === 0 && allThreadEmails.length > 4
+            ? "Original"
+            : `Message ${idx + 1}`;
+        return `[${messageLabel} from ${sender} on ${date}]:\n${cleanedBody}`;
       })
       .join("\n\n---\n\n");
 
@@ -94,8 +111,8 @@ export class SummarizationService {
           emailWithHtml.htmlBody,
         );
         const prompt =
-          last3Messages.length > 1
-            ? `Email Thread Subject: ${subject}\n\nThis thread contains ${last3Messages.length} messages. Here are the last ${Math.min(3, last3Messages.length)} messages:\n\n${threadText}\n\n${rule.customPrompt}`
+          messagesToSummarize.length > 1
+            ? `Email Thread Subject: ${subject}\n\nThis thread contains ${allThreadEmails.length} messages. Here are the key messages (first + last 3):\n\n${threadText}\n\n${rule.customPrompt}`
             : `Email Subject: ${subject}\n\nEmail Body:\n${cleanedBody}\n\n${rule.customPrompt}`;
 
         return await this.llmService.generateText(
@@ -113,7 +130,7 @@ export class SummarizationService {
       }
 
       // Use LLM for standard summarization types
-      if (last3Messages.length > 1) {
+      if (messagesToSummarize.length > 1) {
         // Thread summary - use specialized prompt (already cleaned above)
         return await this.llmService.summarizeEmail(
           threadText,
@@ -143,6 +160,184 @@ export class SummarizationService {
     }
   }
 
+  /**
+   * Batch summarize multiple threads in parallel.
+   * Each thread gets its own LLM call, but calls are fired concurrently for efficiency.
+   * Note: This method is called with emailIds but summarizes at the THREAD level -
+   * each email's thread is summarized, and the summary is applied to all emails in that thread.
+   * @param userId User ID
+   * @param emailIds Array of email IDs (one per thread to summarize)
+   * @returns Map of email ID to thread summary string
+   */
+  async summarizeThreadBatch(
+    userId: string,
+    emailIds: string[],
+  ): Promise<Map<string, string>> {
+    if (emailIds.length === 0) {
+      return new Map();
+    }
+
+    // Fetch all emails to get their thread information
+    const emailPromises = emailIds.map((emailId) =>
+      this.emailsService.getEmailById(userId, emailId),
+    );
+    const emails = await Promise.all(emailPromises);
+
+    // Get user's summarization rules once (shared across all threads)
+    const userRules = await this.getSummarizationRules(userId);
+
+    // Prepare thread data for summarization
+    interface ThreadData {
+      emailId: string; // The email ID that triggered this thread summarization
+      email: NonNullable<(typeof emails)[0]>;
+      threadText: string; // Combined text of all messages in thread
+      isThread: boolean; // Whether this has multiple messages
+      messageCount: number; // Number of messages included in summary
+      matchedRule: SummarizationRuleEntity | null;
+    }
+    const threadsToSummarize: ThreadData[] = [];
+
+    // Fetch all messages in each thread and match summarization rules
+    const threadPromises = emails.map(async (email, idx) => {
+      if (!email) return null;
+
+      // Get first email + last 3 messages in the thread (same logic as single summarization)
+      const allThreadEmails = await this.emailsService.getThreadEmails(
+        userId,
+        email.threadId,
+        { limit: 20, order: "ASC" },
+      );
+
+      // Build the messages to summarize: first email + last 3
+      let messagesToSummarize: typeof allThreadEmails;
+      if (allThreadEmails.length <= 4) {
+        messagesToSummarize = allThreadEmails;
+      } else {
+        const firstEmail = allThreadEmails[0];
+        const last3Emails = allThreadEmails.slice(-3);
+        messagesToSummarize = [firstEmail, ...last3Emails];
+      }
+
+      // Build thread text
+      const threadText = messagesToSummarize
+        .map((e, msgIdx) => {
+          const sender = e.fromName || e.from;
+          const date = new Date(e.receivedAt).toLocaleString();
+          const cleanedBody = cleanEmailForThread(
+            e.body,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (e as any).htmlBody,
+          );
+          const messageLabel =
+            msgIdx === 0 && allThreadEmails.length > 4
+              ? "Original"
+              : `Message ${msgIdx + 1}`;
+          return `[${messageLabel} from ${sender} on ${date}]:\n${cleanedBody}`;
+        })
+        .join("\n\n---\n\n");
+
+      // Match summarization rule for this email using fast domain/keyword matching
+      const matchedRule = this.matchRuleFast(
+        { from: email.from, subject: email.subject },
+        userRules,
+      );
+
+      return {
+        emailId: emailIds[idx],
+        email,
+        threadText:
+          threadText ||
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          cleanEmailContent(email.body, (email as any).htmlBody),
+        isThread: messagesToSummarize.length > 1,
+        messageCount: messagesToSummarize.length,
+        matchedRule,
+      };
+    });
+
+    const threadResults = await Promise.all(threadPromises);
+    for (const result of threadResults) {
+      if (result) {
+        threadsToSummarize.push(result);
+      }
+    }
+
+    if (threadsToSummarize.length === 0) {
+      return new Map();
+    }
+
+    // Group threads by their matched summarization rule (or null for default)
+    const threadsByRule = new Map<string | null, ThreadData[]>();
+    for (const threadData of threadsToSummarize) {
+      const ruleKey = threadData.matchedRule?.ruleId || null;
+      if (!threadsByRule.has(ruleKey)) {
+        threadsByRule.set(ruleKey, []);
+      }
+      threadsByRule.get(ruleKey)!.push(threadData);
+    }
+
+    const result = new Map<string, string>();
+
+    // Process each rule group separately
+    for (const [ruleKey, threads] of threadsByRule) {
+      const rule = threads[0].matchedRule;
+
+      // Prepare thread data for LLM
+      const batchData = threads.map((item, idx) => ({
+        index: idx,
+        subject: item.email.subject || "",
+        body: item.threadText, // Full thread content (first + last 3 messages)
+        isThread: item.isThread,
+        messageCount: item.messageCount,
+      }));
+
+      try {
+        // Extract email IDs for tracking
+        const threadEmailIds = threads.map((item) => item.emailId);
+
+        // Call thread summarization with the rule's instructions
+        const summaryMap = await this.llmService.summarizeThreads(
+          batchData,
+          undefined,
+          userId,
+          rule?.howToSummarize, // Pass custom summarization instructions if available
+          threadEmailIds, // Pass email IDs for tracking
+        );
+
+        // Map summaries back to email IDs
+        threads.forEach((item, idx) => {
+          const summary = summaryMap.get(idx);
+          if (summary) {
+            result.set(item.emailId, summary);
+          }
+        });
+      } catch (error) {
+        console.error(
+          `Thread summarization failed for rule ${ruleKey || "default"}, falling back to individual calls`,
+          error,
+        );
+
+        // Fallback: summarize each thread individually
+        for (const item of threads) {
+          try {
+            const summary = await this.summarizeEmail(userId, item.emailId, {
+              type: rule ? "custom" : "tldr",
+              customPrompt: rule?.howToSummarize,
+            });
+            result.set(item.emailId, summary);
+          } catch (summaryError) {
+            console.error(
+              `Failed to summarize thread for email ${item.emailId}:`,
+              summaryError,
+            );
+          }
+        }
+      }
+    }
+
+    return result;
+  }
+
   async getSummarizationRules(
     userId: string,
   ): Promise<SummarizationRuleEntity[]> {
@@ -150,6 +345,101 @@ export class SummarizationService {
       where: { userId },
       order: { createdAt: "DESC" },
     });
+  }
+
+  /**
+   * Fast rule matching using domain and keyword matching (no LLM call).
+   * Used for automated summarization to avoid extra LLM overhead.
+   * @param email The email to match rules against
+   * @param rules Array of user's summarization rules
+   * @returns Matched rule or null if no match
+   */
+  matchRuleFast(
+    email: { from?: string; subject?: string },
+    rules: SummarizationRuleEntity[],
+  ): SummarizationRuleEntity | null {
+    if (rules.length === 0) {
+      return null;
+    }
+
+    const fromLower = (email.from || "").toLowerCase();
+    const subjectLower = (email.subject || "").toLowerCase();
+
+    for (const rule of rules) {
+      const whenToUseLower = rule.whenToUse.toLowerCase();
+
+      // Check for domain match (e.g., "emails from @company.com")
+      const domainMatch = whenToUseLower.match(/@([a-z0-9.-]+)/i);
+      if (domainMatch) {
+        const domain = domainMatch[1].toLowerCase();
+        const emailDomain = fromLower
+          .match(/@([a-z0-9.-]+)/i)?.[1]
+          ?.toLowerCase();
+        if (emailDomain === domain) {
+          return rule;
+        }
+      }
+
+      // Check for keyword matches in the rule (simple fast matching)
+      const keywords = whenToUseLower
+        .split(/\s+/)
+        .filter((w) => w.length > 3);
+      for (const keyword of keywords) {
+        if (subjectLower.includes(keyword) || fromLower.includes(keyword)) {
+          return rule;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Summarize an email with automatic rule matching.
+   * Uses fast domain/keyword matching to find appropriate summarization rules.
+   * This is the recommended method for automated job processing.
+   * @param userId User ID
+   * @param emailId Email ID
+   * @param prefetchedEmail Optional pre-fetched email to avoid redundant DB query
+   * @param prefetchedRules Optional pre-fetched rules to avoid redundant DB query
+   * @returns Summary string
+   */
+  async summarizeEmailWithAutoRule(
+    userId: string,
+    emailId: string,
+    prefetchedEmail?: Awaited<ReturnType<EmailsService["getEmailById"]>>,
+    prefetchedRules?: SummarizationRuleEntity[],
+  ): Promise<string> {
+    const email =
+      prefetchedEmail ||
+      (await this.emailsService.getEmailById(userId, emailId));
+    if (!email) {
+      throw new Error("Email not found");
+    }
+
+    // Fetch user's summarization rules (or use prefetched)
+    const userRules =
+      prefetchedRules || (await this.getSummarizationRules(userId));
+
+    // Fast match using domain/keyword (no LLM call)
+    const matchedRule = this.matchRuleFast(
+      { from: email.from, subject: email.subject },
+      userRules,
+    );
+
+    // Build the SummarizationRule based on matched rule
+    let rule: SummarizationRule;
+    if (matchedRule) {
+      rule = {
+        type: "custom",
+        customPrompt: matchedRule.howToSummarize,
+      };
+    } else {
+      rule = { type: "tldr" };
+    }
+
+    // Pass prefetched email to avoid re-fetching
+    return this.summarizeEmail(userId, emailId, rule, email);
   }
 
   async createSummarizationRule(

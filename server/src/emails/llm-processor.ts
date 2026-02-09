@@ -1,7 +1,7 @@
 import { Injectable, OnModuleInit, Logger, Inject } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, In } from "typeorm";
+import { Repository, In, Not, IsNull } from "typeorm";
 import * as os from "os";
 import PgBoss = require("pg-boss");
 import { Email } from "../database/entities/email.entity";
@@ -756,103 +756,254 @@ export class LLMProcessor implements OnModuleInit {
       },
     );
 
-    // Worker for summary generation - process multiple jobs in parallel
+    // Worker for summary generation - process multiple threads with parallel LLM calls
+    // Uses batchSize to fetch multiple jobs, then fires parallel LLM calls (not blocking)
+    // This is more efficient than teamSize because we don't have workers sitting idle
+    const parallelCalls = parseInt(
+      this.configService.get<string>("LLM_SUMMARY_PARALLEL_CALLS") || "5",
+      10,
+    );
     this.logger.log(
-      `Starting summary generation worker with concurrency: ${this.summaryConcurrency}`,
+      `Starting summary generation worker with ${parallelCalls} parallel LLM calls per batch`,
     );
     await this.boss.work(
       "generate-summary",
-      { teamSize: this.summaryConcurrency },
-      async (job) => {
-        const { userId, emailId } = job.data as {
-          userId: string;
-          emailId: string;
-        };
-        const workerId = job.id || "unknown";
+      {
+        batchSize: parallelCalls, // Fetch multiple jobs at once for parallel LLM calls
+      },
+      async (jobs) => {
+        const jobArray = Array.isArray(jobs) ? jobs : [jobs];
+        const batchId = `batch-${Date.now()}`;
         const tracker = new JobPerformanceTracker(
           "generate-summary",
-          workerId,
+          batchId,
           this.cloudWatchService,
         );
-        tracker.setMetadata({ userId, emailId });
+        tracker.setMetadata({ batchSize: jobArray.length });
 
         this.logger.log(
-          `[Worker ${workerId}] Starting summary generation for email ${emailId}`,
+          `[Worker ${batchId}] Processing ${jobArray.length} threads with parallel LLM calls`,
         );
 
         try {
           tracker.startPhase("dataFetch");
-          const email = await this.emailsService.getEmailById(userId, emailId);
-          if (!email) {
-            this.logger.warn(
-              `Email ${emailId} not found for summary generation`,
-            );
-            return;
-          }
 
-          // Skip if summary already exists
-          if (
-            email.summary &&
-            email.summary.trim() !== "" &&
-            !email.isProcessingSummary
-          ) {
-            this.logger.log(
-              `[Worker ${workerId}] Skipping summary generation for email ${emailId} (thread: ${email.threadId?.substring(0, LLM_PROCESSOR_CONSTANTS.SUBSTRING_PREVIEW_LENGTH)}...) - already has summary`,
-            );
-            return;
-          }
+          // Fetch all emails and filter out ones that don't need summarization
+          const jobsToProcess: Array<{
+            job: (typeof jobArray)[0];
+            userId: string;
+            emailId: string;
+            email: Email;
+          }> = [];
 
-          this.logger.log(
-            `[Worker ${workerId}] Generating thread summary for email ${emailId} (thread: ${email.threadId?.substring(0, LLM_PROCESSOR_CONSTANTS.SUBSTRING_PREVIEW_LENGTH)}..., subject: ${email.subject?.substring(0, LLM_PROCESSOR_CONSTANTS.SUBJECT_PREVIEW_LENGTH)}...)`,
-          );
+          const skipCount = { alreadyHasSummary: 0, notFound: 0 };
+
+          for (const job of jobArray) {
+            const { userId, emailId } = job.data as {
+              userId: string;
+              emailId: string;
+            };
+
+            const email = await this.emailsService.getEmailById(
+              userId,
+              emailId,
+            );
+
+            if (!email) {
+              this.logger.warn(
+                `Email ${emailId} not found for summary generation`,
+              );
+              skipCount.notFound++;
+              continue;
+            }
+
+            // Check if thread already has a summary
+            if (email.emailThreadId) {
+              const emailWithSummary = await this.emailRepository.findOne({
+                where: {
+                  emailThreadId: email.emailThreadId,
+                  summary: Not(IsNull()),
+                },
+                select: ["id", "summary"],
+              });
+              if (
+                emailWithSummary?.summary &&
+                emailWithSummary.summary.trim() !== ""
+              ) {
+                // Apply existing summary to this email
+                if (!email.summary || email.summary.trim() === "") {
+                  await this.emailRepository.update(
+                    { id: emailId },
+                    {
+                      summary: emailWithSummary.summary,
+                      isProcessingSummary: false,
+                    },
+                  );
+                }
+                skipCount.alreadyHasSummary++;
+                continue;
+              }
+            }
+
+            // Skip if this specific email already has a summary
+            if (
+              email.summary &&
+              email.summary.trim() !== "" &&
+              !email.isProcessingSummary
+            ) {
+              skipCount.alreadyHasSummary++;
+              continue;
+            }
+
+            jobsToProcess.push({ job, userId, emailId, email });
+          }
 
           tracker.endPhase("dataFetch");
+
+          if (jobsToProcess.length === 0) {
+            this.logger.log(
+              `[Worker ${batchId}] No threads need summarization (skipped: ${skipCount.alreadyHasSummary} already have summaries, ${skipCount.notFound} not found)`,
+            );
+            tracker.finish();
+            return;
+          }
+
+          // Pre-fetch summarization rules for all unique users in this batch
+          // This avoids redundant rule fetching for each email
+          const uniqueUserIds = [
+            ...new Set(jobsToProcess.map((j) => j.userId)),
+          ];
+          const rulesMap = new Map<
+            string,
+            Awaited<
+              ReturnType<typeof this.summarizationService.getSummarizationRules>
+            >
+          >();
+          await Promise.all(
+            uniqueUserIds.map(async (uid) => {
+              const rules =
+                await this.summarizationService.getSummarizationRules(uid);
+              rulesMap.set(uid, rules);
+            }),
+          );
+
+          this.logger.log(
+            `[Worker ${batchId}] Firing ${jobsToProcess.length} parallel LLM calls (skipped ${skipCount.alreadyHasSummary + skipCount.notFound})`,
+          );
+
           tracker.startPhase("llmCall");
 
-          // Generate thread summary (uses last 3 messages)
-          const summary = await this.summarizationService.summarizeEmail(
-            userId,
-            emailId,
-            { type: "tldr" },
+          // Fire ALL LLM calls in parallel - don't wait for each one sequentially
+          // This is the key optimization: we're not blocking on each call
+          // Uses summarizeEmailWithAutoRule to apply user's custom summarization rules
+          // Pre-fetched email and rules are passed to avoid redundant database queries
+          const summaryPromises = jobsToProcess.map(
+            async ({ userId, emailId, email }) => {
+              try {
+                const userRules = rulesMap.get(userId) || [];
+                const summary =
+                  await this.summarizationService.summarizeEmailWithAutoRule(
+                    userId,
+                    emailId,
+                    email,
+                    userRules,
+                  );
+                return { emailId, email, summary, error: null };
+              } catch (error) {
+                this.logger.error(
+                  `[Worker ${batchId}] LLM call failed for email ${emailId}`,
+                  error,
+                );
+                return { emailId, email, summary: null, error };
+              }
+            },
           );
+
+          // Wait for ALL parallel calls to complete
+          const results = await Promise.all(summaryPromises);
 
           tracker.endPhase("llmCall");
           tracker.startPhase("dbUpdate");
 
-          // Update all emails in the thread with the same summary (thread-level summary)
-          // Limit to 50 emails per thread to avoid fetching too many for very long threads
-          const threadEmails = await this.emailsService.getThreadEmails(
-            userId,
-            email.threadId,
-            { limit: 50 }, // Reasonable limit for thread updates
-          );
-          const emailIds = threadEmails.map((e) => e.id);
+          // Process results and update DB
+          let successCount = 0;
+          let failCount = 0;
 
-          await this.emailRepository.update(
-            { id: In(emailIds) },
-            // Update all emails in thread
-            {
-              summary,
-              isProcessingSummary: false,
-            },
-          );
+          for (const { emailId, email, summary, error } of results) {
+            if (summary && !error) {
+              try {
+                // Find the job to get userId
+                const jobData = jobsToProcess.find(
+                  (j) => j.emailId === emailId,
+                );
+                if (!jobData) continue;
+
+                // Update all emails in the thread with the same summary
+                const threadEmails = await this.emailsService.getThreadEmails(
+                  jobData.userId,
+                  email.threadId,
+                  { limit: 50 },
+                );
+                const threadEmailIds = threadEmails.map((e) => e.id);
+
+                await this.emailRepository.update(
+                  { id: In(threadEmailIds) },
+                  {
+                    summary,
+                    isProcessingSummary: false,
+                  },
+                );
+
+                this.logger.debug(
+                  `[Worker ${batchId}] Updated thread ${email.threadId?.substring(0, LLM_PROCESSOR_CONSTANTS.SUBSTRING_PREVIEW_LENGTH)}... (${threadEmailIds.length} emails)`,
+                );
+                successCount++;
+              } catch (dbError) {
+                this.logger.error(
+                  `[Worker ${batchId}] Failed to update summary for email ${emailId}`,
+                  dbError,
+                );
+                await this.emailRepository.update(
+                  { id: emailId },
+                  { isProcessingSummary: false },
+                );
+                failCount++;
+              }
+            } else {
+              // LLM call failed - mark as not processing
+              await this.emailRepository.update(
+                { id: emailId },
+                { isProcessingSummary: false },
+              );
+              failCount++;
+            }
+          }
 
           tracker.endPhase("dbUpdate");
 
           this.logger.log(
-            `[Worker ${workerId}] Generated thread summary for thread ${email.threadId?.substring(0, LLM_PROCESSOR_CONSTANTS.SUBSTRING_PREVIEW_LENGTH)}... (${threadEmails.length} emails updated)`,
+            `[Worker ${batchId}] Completed: ${successCount} succeeded, ${failCount} failed, ${skipCount.alreadyHasSummary + skipCount.notFound} skipped`,
           );
           tracker.finish();
         } catch (error) {
           this.logger.error(
-            `[Worker ${workerId}] Failed to generate summary for email ${emailId}`,
+            `[Worker ${batchId}] Batch processing failed`,
             error,
           );
-          // Mark as not processing
-          await this.emailRepository.update(
-            { id: emailId },
-            { isProcessingSummary: false },
-          );
+
+          // Mark all emails as not processing on error
+          for (const job of jobArray) {
+            const { emailId } = job.data as { emailId: string };
+            try {
+              await this.emailRepository.update(
+                { id: emailId },
+                { isProcessingSummary: false },
+              );
+            } catch (updateError) {
+              // Ignore
+            }
+          }
+
           tracker.finish(error as Error);
           throw error;
         }

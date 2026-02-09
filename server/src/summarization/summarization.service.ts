@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { EmailsService } from "../emails/emails.service";
-import { LLMService } from "../llm/llm.service";
+import { LLMService, LLMProvider } from "../llm/llm.service";
 import { SummarizationRule as SummarizationRuleEntity } from "../database/entities/summarization-rule.entity";
 import {
   cleanEmailContent,
@@ -13,6 +13,20 @@ export interface SummarizationRule {
   type: "bullet-points" | "action-items" | "sender-request" | "tldr" | "custom";
   customPrompt?: string;
   provider?: "gemini" | "openai";
+}
+
+/**
+ * Email with optional htmlBody for summarization
+ * (The Email entity has htmlBody but it may not be in the return type)
+ */
+interface EmailWithHtmlBody {
+  body: string;
+  htmlBody?: string;
+  subject?: string;
+  from?: string;
+  fromName?: string;
+  threadId?: string;
+  receivedAt?: Date | string;
 }
 
 @Injectable()
@@ -48,33 +62,36 @@ export class SummarizationService {
     // Combine the last 3 messages for thread context (clean each message)
     const threadText = last3Messages
       .map((e, idx) => {
+        // Cast to EmailWithHtmlBody to access htmlBody which exists on the entity
+        const emailWithHtml = e as EmailWithHtmlBody;
         const sender = e.fromName || e.from;
         const date = new Date(e.receivedAt).toLocaleString();
         // Clean each message: strip HTML, remove signatures, limit to 800 chars per message
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const cleanedBody = cleanEmailForThread(e.body, (e as any).htmlBody);
+        const cleanedBody = cleanEmailForThread(e.body, emailWithHtml.htmlBody);
         return `[Message ${idx + 1} from ${sender} on ${date}]:\n${cleanedBody}`;
       })
       .join("\n\n---\n\n");
 
+    // Cast to EmailWithHtmlBody to access htmlBody which exists on the entity
+    const emailWithHtml = email as EmailWithHtmlBody;
     const subject = email.subject || "";
     const text =
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      threadText || cleanEmailContent(email.body, (email as any).htmlBody);
+      threadText || cleanEmailContent(email.body, emailWithHtml.htmlBody);
 
     // Use LLM for all summarization types
     try {
-      let provider: "gemini" | "openai" | undefined;
+      // Convert string provider to LLMProvider enum
+      let llmProvider: LLMProvider | undefined;
       if (rule.provider) {
-        provider = rule.provider === "gemini" ? "gemini" : "openai";
+        llmProvider =
+          rule.provider === "gemini" ? LLMProvider.GEMINI : LLMProvider.OPENAI;
       }
 
       if (rule.type === "custom" && rule.customPrompt) {
         // Custom prompt using LLM - use cleaned content
         const cleanedBody = cleanEmailContent(
           email.body,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (email as any).htmlBody,
+          emailWithHtml.htmlBody,
         );
         const prompt =
           last3Messages.length > 1
@@ -90,8 +107,7 @@ export class SummarizationService {
             maxTokens: 500,
             userId,
           },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          provider as any,
+          llmProvider,
           userId,
         );
       }
@@ -103,23 +119,20 @@ export class SummarizationService {
           threadText,
           subject,
           rule.type,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          provider as any,
+          llmProvider,
           userId,
         );
       } else {
         // Single email summary - clean the content
         const cleanedBody = cleanEmailContent(
           email.body,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (email as any).htmlBody,
+          emailWithHtml.htmlBody,
         );
         return await this.llmService.summarizeEmail(
           cleanedBody,
           subject,
           rule.type,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          provider as any,
+          llmProvider,
           userId,
         );
       }
@@ -180,11 +193,9 @@ export class SummarizationService {
     }
 
     // Clean email content for matching
-    const cleanedBody = cleanEmailContent(
-      email.body,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (email as any).htmlBody,
-    );
+    // Cast to EmailWithHtmlBody to access htmlBody which exists on the entity
+    const emailWithHtml = email as EmailWithHtmlBody;
+    const cleanedBody = cleanEmailContent(email.body, emailWithHtml.htmlBody);
 
     // Fast path: Check for exact domain matches (e.g., "emails from @company.com")
     // This is a simple optimization for obvious cases, but we still use LLM for semantic matching

@@ -9,7 +9,10 @@ import {
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { TriageSuggestionsService } from "./triage-suggestions.service";
+import {
+  TriageSuggestionsService,
+  TriageSuggestion,
+} from "./triage-suggestions.service";
 import { PriorityService } from "./priority.service";
 import { PriorityLearningService } from "./priority-learning.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -47,8 +50,7 @@ export class PriorityController {
     @Body()
     body: {
       emailId: string;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      suggestion: any;
+      suggestion: TriageSuggestion;
       userAction: { starCount: number; archived: boolean };
     },
   ) {

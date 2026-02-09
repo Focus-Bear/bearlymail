@@ -113,18 +113,23 @@ export class QueueModule implements OnApplicationBootstrap, OnModuleDestroy {
 
   async onModuleDestroy() {
     try {
-      // Stop monitoring services
-      if (this.queueMonitorService) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (this.queueMonitorService as any).onModuleDestroy?.();
+      // Stop monitoring services if they implement OnModuleDestroy
+      // These services may optionally implement the lifecycle hook
+      const destroyable = (service: unknown): service is OnModuleDestroy =>
+        service !== null &&
+        typeof service === "object" &&
+        "onModuleDestroy" in service &&
+        typeof (service as { onModuleDestroy: unknown }).onModuleDestroy ===
+          "function";
+
+      if (destroyable(this.queueMonitorService)) {
+        await this.queueMonitorService.onModuleDestroy();
       }
-      if (this.resourceMonitorService) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (this.resourceMonitorService as any).onModuleDestroy?.();
+      if (destroyable(this.resourceMonitorService)) {
+        await this.resourceMonitorService.onModuleDestroy();
       }
-      if (this.queueAutoscalingService) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (this.queueAutoscalingService as any).onModuleDestroy?.();
+      if (destroyable(this.queueAutoscalingService)) {
+        await this.queueAutoscalingService.onModuleDestroy();
       }
       await this.boss.stop();
     } catch (error) {

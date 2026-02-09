@@ -16,8 +16,8 @@ export interface SuggestedAction {
   type: string;
   confidence: number;
   reason: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  metadata?: any;
+  /** Additional action-specific metadata (varies by action type) */
+  metadata?: Record<string, unknown>;
 }
 
 @Injectable()

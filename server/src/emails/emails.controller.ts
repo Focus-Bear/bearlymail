@@ -25,6 +25,21 @@ import { BlockedSendersService } from "../blocked-senders/blocked-senders.servic
 import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
 import PgBoss = require("pg-boss");
 import { Email } from "../database/entities/email.entity";
+
+/**
+ * Extended pg-boss interface to access internal methods not exposed in types.
+ * These are used for advanced job queue operations (resetting stuck jobs, etc.).
+ * pg-boss's TypeScript types don't expose these internal APIs.
+ */
+interface PgBossWithInternals extends PgBoss {
+  getQueueSize(name: string): Promise<number>;
+  db: {
+    executeSql(
+      sql: string,
+      params?: unknown[],
+    ): Promise<{ rowCount?: number; rows?: unknown[] }>;
+  };
+}
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { GmailRequiredGuard } from "../auth/gmail-required.guard";
 import { AdminGuard } from "../auth/admin.guard";
@@ -546,18 +561,14 @@ export class EmailsController {
     const now = new Date();
 
     // Get all jobs that are scheduled for the future (stuck in backoff)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const stuckJobs = await (this.boss as any).getQueueSize("refine-priority");
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const stuckSummary = await (this.boss as any).getQueueSize(
-      "generate-summary",
-    );
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const stuckSync = await (this.boss as any).getQueueSize("sync-emails");
+    // Cast to extended interface to access internal pg-boss methods
+    const bossInternal = this.boss as unknown as PgBossWithInternals;
+    const stuckJobs = await bossInternal.getQueueSize("refine-priority");
+    const stuckSummary = await bossInternal.getQueueSize("generate-summary");
+    const stuckSync = await bossInternal.getQueueSize("sync-emails");
 
     // Use raw SQL to reset startafter for stuck jobs
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await (this.boss as any).db.executeSql(`
+    const result = await bossInternal.db.executeSql(`
       UPDATE pgboss.job 
       SET startafter = NOW(), retrycount = 0 
       WHERE state = 'retry' 
@@ -661,8 +672,8 @@ export class EmailsController {
 
     // Cancel existing jobs for this email before requeuing
     // Use raw SQL to find and cancel jobs matching the emailId
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { db } = this.boss as any;
+    // Cast to extended interface to access internal pg-boss db methods
+    const { db } = this.boss as unknown as PgBossWithInternals;
 
     // Cancel existing refine-priority jobs for this email
     const priorityCancelResult = await db.executeSql(
@@ -816,8 +827,8 @@ export class EmailsController {
   ) {
     // Get job queue statistics for admin dashboard
     // Dynamically fetch all job types from the database instead of hardcoding
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { db } = this.boss as any;
+    // Cast to extended interface to access internal pg-boss db methods
+    const { db } = this.boss as unknown as PgBossWithInternals;
 
     // Calculate date filter based on range
     let dateFilter = "";

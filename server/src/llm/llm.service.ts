@@ -210,8 +210,16 @@ export class LLMService {
       const { response } = result;
 
       // Log token usage from Gemini response
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { usageMetadata } = response as any;
+      // usageMetadata may be present on the response but not in the type definition
+      interface GeminiUsageMetadata {
+        promptTokenCount?: number;
+        candidatesTokenCount?: number;
+        totalTokenCount?: number;
+      }
+      const responseWithUsage = response as typeof response & {
+        usageMetadata?: GeminiUsageMetadata;
+      };
+      const { usageMetadata } = responseWithUsage;
       if (usageMetadata) {
         await this.tokenUsageService.logUsage({
           userId: userId || null,

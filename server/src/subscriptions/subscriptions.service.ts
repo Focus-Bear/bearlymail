@@ -6,6 +6,29 @@ import { ConfigService } from "@nestjs/config";
 import axios from "axios";
 import { TOKEN_CONSTANTS } from "../constants/service-constants";
 
+/**
+ * RevenueCat webhook event payload structure
+ * See: https://www.revenuecat.com/docs/webhooks
+ */
+export interface RevenueCatWebhookPayload {
+  event: {
+    app_user_id: string;
+    product_id?: string;
+    type?: string;
+    // Additional event properties that vary by event type
+    [key: string]: unknown;
+  };
+  // Additional webhook properties
+  [key: string]: unknown;
+}
+
+/**
+ * Generic request data for RevenueCat API calls
+ */
+interface RevenueCatRequestData {
+  [key: string]: unknown;
+}
+
 @Injectable()
 export class SubscriptionsService {
   private readonly logger = new Logger(SubscriptionsService.name);
@@ -31,8 +54,7 @@ export class SubscriptionsService {
   private async makeRevenueCatRequest(
     endpoint: string,
     method: "GET" | "POST" = "GET",
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    requestData?: any,
+    requestData?: RevenueCatRequestData,
   ) {
     if (!this.apiKey) {
       throw new Error("RevenueCat API key not configured");
@@ -190,8 +212,7 @@ export class SubscriptionsService {
   /**
    * Handle webhook from RevenueCat
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async handleWebhook(payload: any): Promise<void> {
+  async handleWebhook(payload: RevenueCatWebhookPayload): Promise<void> {
     if (!this.apiKey) {
       this.logger.warn("RevenueCat not initialized, ignoring webhook");
       return;

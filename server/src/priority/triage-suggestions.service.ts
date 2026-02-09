@@ -29,6 +29,43 @@ export interface TriageSuggestion {
   reasoning: string;
 }
 
+/**
+ * Raw result from email query with thread join
+ * Used for SQL queries that select email and thread columns
+ */
+interface EmailQueryRow {
+  id: string;
+  userId: string;
+  threadId: string;
+  emailThreadId: string;
+  from: string;
+  fromName: string | null;
+  subject: string;
+  priorityExplanation?: string;
+  receivedAt: Date;
+  starCount: number | null;
+  isArchived: boolean | null;
+}
+
+/**
+ * Email-like object with thread properties attached
+ * Used when mapping raw SQL results to Email-like objects
+ * Contains properties needed for triage suggestions
+ */
+interface EmailWithThreadProps {
+  id: string;
+  userId: string;
+  threadId: string;
+  emailThreadId?: string;
+  from: string;
+  fromName: string | null;
+  subject: string;
+  priorityExplanation?: unknown;
+  receivedAt: Date;
+  starCount: number;
+  isArchived: boolean;
+}
+
 // Performance budgets in milliseconds
 const TRIAGE_PERF_BUDGETS = {
   // 1 second total
@@ -156,6 +193,7 @@ export class TriageSuggestionsService {
         email.id,
         email."userId",
         email."threadId",
+        email."emailThreadId",
         email."from",
         email."fromName",
         email.subject,
@@ -171,41 +209,42 @@ export class TriageSuggestionsService {
     endEmailQuery();
 
     // Map raw results to Email-like objects (Partial<Email> with thread properties)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const emails = rawResult.map((row: any) => {
-      // Parse priorityExplanation (stored as encrypted JSON)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let priorityExplanation: any = null;
-      if (row.priorityExplanation) {
-        try {
-          const decryptedExplanation = EncryptionHelper.decrypt(
-            row.priorityExplanation,
-          );
-          if (decryptedExplanation) {
-            priorityExplanation = JSON.parse(decryptedExplanation);
+    const emails: EmailWithThreadProps[] = (rawResult as EmailQueryRow[]).map(
+      (row) => {
+        // Parse priorityExplanation (stored as encrypted JSON)
+        let priorityExplanation: unknown = null;
+        if (row.priorityExplanation) {
+          try {
+            const decryptedExplanation = EncryptionHelper.decrypt(
+              row.priorityExplanation,
+            );
+            if (decryptedExplanation) {
+              priorityExplanation = JSON.parse(decryptedExplanation);
+            }
+          } catch (error) {
+            this.logger.warn(
+              `Failed to decrypt/parse priorityExplanation for thread (email ${row.id}):`,
+              error,
+            );
+            priorityExplanation = null;
           }
-        } catch (error) {
-          this.logger.warn(
-            `Failed to decrypt/parse priorityExplanation for thread (email ${row.id}):`,
-            error,
-          );
-          priorityExplanation = null;
         }
-      }
 
-      return {
-        id: row.id,
-        userId: row.userId,
-        threadId: row.threadId,
-        from: EncryptionHelper.decrypt(row.from),
-        fromName: EncryptionHelper.decrypt(row.fromName),
-        subject: EncryptionHelper.decrypt(row.subject),
-        priorityExplanation,
-        receivedAt: row.receivedAt,
-        starCount: row.starCount ?? 0,
-        isArchived: row.isArchived ?? false,
-      } as unknown as Email;
-    });
+        return {
+          id: row.id,
+          userId: row.userId,
+          threadId: row.threadId,
+          emailThreadId: row.emailThreadId,
+          from: EncryptionHelper.decrypt(row.from) ?? "",
+          fromName: EncryptionHelper.decrypt(row.fromName ?? "") ?? null,
+          subject: EncryptionHelper.decrypt(row.subject) ?? "",
+          priorityExplanation,
+          receivedAt: row.receivedAt,
+          starCount: row.starCount ?? 0,
+          isArchived: row.isArchived ?? false,
+        };
+      },
+    );
 
     if (emails.length === 0) {
       perf.finish();
@@ -249,21 +288,19 @@ export class TriageSuggestionsService {
     );
     endHistoryQuery();
 
-    const recentEmails = historyRaw.map(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (row: any) =>
-        ({
-          id: row.id,
-          userId: row.userId,
-          threadId: row.threadId,
-          from: row.from,
-          fromName: row.fromName,
-          subject: row.subject,
-          receivedAt: row.receivedAt,
-          starCount: row.starCount ?? 0,
-          isArchived: row.isArchived ?? false,
-        }) as unknown as Email,
-    );
+    const recentEmails: EmailWithThreadProps[] = (
+      historyRaw as EmailQueryRow[]
+    ).map((row) => ({
+      id: row.id,
+      userId: row.userId,
+      threadId: row.threadId,
+      from: row.from,
+      fromName: row.fromName,
+      subject: row.subject,
+      receivedAt: row.receivedAt,
+      starCount: row.starCount ?? 0,
+      isArchived: row.isArchived ?? false,
+    }));
 
     // Analyze patterns from recent behavior
     const endPatternAnalysis = perf.startSpan(
@@ -301,7 +338,7 @@ export class TriageSuggestionsService {
    */
   private async suggestForEmail(
     userId: string,
-    email: Email,
+    email: EmailWithThreadProps,
     contexts: UserContext[],
     senderPatterns: Map<string, { avgStarCount: number; archiveRate: number }>,
   ): Promise<TriageSuggestion> {
@@ -525,9 +562,10 @@ Respond with ONLY a JSON object:
 
   /**
    * Analyze sender patterns from recent emails
+   * Uses EmailWithThreadProps since we need starCount and isArchived from the join
    */
   private analyzeSenderPatterns(
-    emails: Email[],
+    emails: EmailWithThreadProps[],
   ): Map<string, { avgStarCount: number; archiveRate: number }> {
     const patterns = new Map<
       string,
@@ -542,13 +580,11 @@ Respond with ONLY a JSON object:
 
       const pattern = patterns.get(sender)!;
       pattern.total++;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const starCount = (email as any).starCount ?? 0;
+      const starCount = email.starCount ?? 0;
       if (starCount > 0) {
         pattern.starCounts.push(starCount);
       }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if ((email as any).isArchived) {
+      if (email.isArchived) {
         pattern.archived++;
       }
     }

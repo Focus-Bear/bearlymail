@@ -3,6 +3,53 @@ import { Octokit } from "@octokit/rest";
 import { ParsedGitHubLink } from "./github.service";
 import { isApiError, getErrorMessage } from "../types/common";
 
+/**
+ * GraphQL response for project items query
+ * This is a complex nested structure from GitHub's GraphQL API
+ */
+interface ProjectItemsGraphQLResponse {
+  repository?: {
+    issue?: {
+      projectItems?: {
+        nodes?: Array<{
+          project?: { title?: string };
+          fieldValues?: {
+            nodes?: Array<{
+              field?: { name?: string };
+              name?: string;
+            } | null>;
+          };
+        } | null>;
+      };
+    };
+  };
+}
+
+/**
+ * GraphQL error with optional response data
+ * GitHub's GraphQL can return partial data even with errors
+ */
+interface GraphQLErrorWithData {
+  responseData?: ProjectItemsGraphQLResponse;
+  data?: ProjectItemsGraphQLResponse;
+  response?: { data?: ProjectItemsGraphQLResponse };
+}
+
+/**
+ * Search result item from Octokit REST API
+ */
+interface SearchResultItem {
+  number: number;
+  title: string;
+  state: string;
+  html_url: string;
+  repository_url: string;
+  body?: string | null;
+  labels: Array<{ name?: string; color?: string }>;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface GitHubIssueStatus {
   state: "open" | "closed";
   title: string;
@@ -111,23 +158,23 @@ export class GitHubApiService {
         }
       `;
 
-      let response: any;
+      let response: ProjectItemsGraphQLResponse | undefined;
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        response = await octokit.graphql<any>(query, {
+        response = await octokit.graphql<ProjectItemsGraphQLResponse>(query, {
           owner,
           repo,
           issueNumber,
         });
-      } catch (error: any) {
+      } catch (error: unknown) {
         // GraphQL can return errors but still have data in the response
         // Check multiple possible locations for the data
-        if (error?.responseData) {
-          response = error.responseData;
-        } else if (error?.data) {
-          response = error.data;
-        } else if (error?.response?.data) {
-          response = error.response.data;
+        const graphqlError = error as GraphQLErrorWithData;
+        if (graphqlError?.responseData) {
+          response = graphqlError.responseData;
+        } else if (graphqlError?.data) {
+          response = graphqlError.data;
+        } else if (graphqlError?.response?.data) {
+          response = graphqlError.response.data;
         } else {
           // No data in error - return empty (don't throw to avoid breaking the flow)
           return [];
@@ -142,7 +189,7 @@ export class GitHubApiService {
 
       // Check if we have null items (indicates permission issue with read:project scope)
       const nullItemCount = response.repository.issue.projectItems.nodes.filter(
-        (item: any) => item === null,
+        (item) => item === null,
       ).length;
       if (
         nullItemCount > 0 &&
@@ -647,8 +694,7 @@ export class GitHubApiService {
       const response = await octokit.rest.search.issuesAndPullRequests({
         q: query,
       });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return response.data.items.map((item: any) => ({
+      return response.data.items.map((item: SearchResultItem) => ({
         number: item.number,
         title: item.title,
         state: item.state,
@@ -658,8 +704,7 @@ export class GitHubApiService {
           "",
         ),
         body: item.body,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        labels: item.labels.map((label: any) => ({
+        labels: item.labels.map((label) => ({
           name: label.name,
           color: label.color,
         })),

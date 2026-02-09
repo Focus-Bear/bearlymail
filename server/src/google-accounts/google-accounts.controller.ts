@@ -5,16 +5,14 @@ import {
   Delete,
   Param,
   UseGuards,
-  Request,
+  Req,
   Res,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  Query,
 } from "@nestjs/common";
+import { Response } from "express";
 import { GoogleAccountsService } from "./google-accounts.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { GoogleAuthGuard } from "../auth/google-auth.guard";
 import { AuthService } from "../auth/auth.service";
+import { AuthenticatedRequest } from "../types/common";
 
 @Controller("google-accounts")
 export class GoogleAccountsController {
@@ -25,12 +23,13 @@ export class GoogleAccountsController {
 
   @Get("connect")
   @UseGuards(JwtAuthGuard)
-  async connectGoogleAccount(@Request() req, @Res() res) {
+  async connectGoogleAccount(
+    @Req() req: AuthenticatedRequest,
+    @Res() res: Response,
+  ) {
     // Create state parameter with user ID and action
     // JWT strategy returns { userId, email }, not { id }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const userId = (req.user as any).userId || (req.user as any).id;
+    const { userId } = req.user;
     const state = Buffer.from(
       JSON.stringify({
         userId,
@@ -46,10 +45,9 @@ export class GoogleAccountsController {
 
   @Get("connect-url")
   @UseGuards(JwtAuthGuard)
-  async getConnectUrl(@Request() req) {
+  async getConnectUrl(@Req() req: AuthenticatedRequest) {
     // Create state parameter with user ID and action
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const userId = (req.user as any).userId || (req.user as any).id;
+    const { userId } = req.user;
     const state = Buffer.from(
       JSON.stringify({
         userId,
@@ -64,25 +62,25 @@ export class GoogleAccountsController {
 
   @Get()
   @UseGuards(JwtAuthGuard)
-  async getAccounts(@Request() req) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const userId = (req.user as any).userId || (req.user as any).id;
+  async getAccounts(@Req() req: AuthenticatedRequest) {
+    const { userId } = req.user;
     return this.googleAccountsService.findAllByUser(userId);
   }
 
   @Post(":id/set-primary")
   @UseGuards(JwtAuthGuard)
-  async setPrimary(@Param("id") id: string, @Request() req) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const userId = (req.user as any).userId || (req.user as any).id;
+  async setPrimary(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
+    const { userId } = req.user;
     return this.googleAccountsService.setPrimary(id, userId);
   }
 
   @Delete(":id")
   @UseGuards(JwtAuthGuard)
-  async disconnectAccount(@Param("id") id: string, @Request() req) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const userId = (req.user as any).userId || (req.user as any).id;
+  async disconnectAccount(
+    @Param("id") id: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const { userId } = req.user;
     await this.googleAccountsService.deactivate(id, userId);
     return { success: true };
   }

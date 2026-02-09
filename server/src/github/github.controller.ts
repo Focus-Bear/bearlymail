@@ -13,7 +13,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Response } from "express";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
-import { GitHubService } from "./github.service";
+import { GitHubService, ParsedGitHubLink } from "./github.service";
 import { GitHubApiService } from "./github-api.service";
 import { GitHubAppService } from "./github-app.service";
 import { UsersService } from "../users/users.service";
@@ -73,8 +73,7 @@ export class GitHubController {
     });
 
     // Parse GitHub links from all emails in thread
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const allLinks = new Map<string, any>();
+    const allLinks = new Map<string, ParsedGitHubLink>();
     // Use Map to deduplicate by URL
     for (const threadEmail of threadEmails) {
       const links = this.githubService.parseGitHubLinks(
@@ -211,8 +210,7 @@ export class GitHubController {
     });
 
     // Parse GitHub links from all emails in thread
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const allLinks = new Map<string, any>();
+    const allLinks = new Map<string, ParsedGitHubLink>();
     // Use Map to deduplicate by URL
     for (const threadEmail of threadEmails) {
       const links = this.githubService.parseGitHubLinks(

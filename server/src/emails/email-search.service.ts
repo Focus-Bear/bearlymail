@@ -20,6 +20,13 @@ export type EmailWithMetadata = Email & {
   debugInfo?: Record<string, unknown>;
 };
 
+/**
+ * Note: Search returns a "no-results" marker object when no results are found.
+ * The marker has shape: { id: "no-results", subject: "", from: "", body: "",
+ * receivedAt: string, debugInfo: { originalQuery, queriesTried, message } }
+ * Cast through `unknown` to EmailWithMetadata for type compatibility.
+ */
+
 @Injectable()
 export class EmailSearchService {
   private readonly logger = new Logger(EmailSearchService.name);
@@ -84,8 +91,7 @@ export class EmailSearchService {
               queriesTried: [],
               message: "No email provider connected",
             },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any,
+          } as unknown as EmailWithMetadata,
         ];
       }
 
@@ -197,8 +203,7 @@ export class EmailSearchService {
               queriesTried,
               message: "No emails found matching your search",
             },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any,
+          } as unknown as EmailWithMetadata,
         ];
       }
 
@@ -222,8 +227,7 @@ export class EmailSearchService {
               queriesTried,
               message: "Emails found in Gmail but not yet synced to BearlyMail",
             },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any,
+          } as unknown as EmailWithMetadata,
         ];
       }
 
@@ -268,8 +272,7 @@ export class EmailSearchService {
               queriesTried,
               message: "Emails found in Gmail but not yet synced to BearlyMail",
             },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any,
+          } as unknown as EmailWithMetadata,
         ];
       }
 

@@ -870,21 +870,15 @@ export class ContextEmailDataService {
         const starCount = labelIds.includes(GMAIL_LABELS.STARRED) ? 3 : 0;
         const updatedAt = new Date(parseInt(lastMessage.internalDate || "0"));
 
-        // Parse emails from thread
+        // Parse emails from thread using Gmail API message type
         const threadEmails: ThreadEmail[] = messages.map(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (message: any) => {
+          (message: gmail_v1.Schema$Message) => {
             const headers = message.payload?.headers || [];
             const fromHeader =
-              headers.find(
-                (header: { name: string; value?: string }) =>
-                  header.name === "From",
-              )?.value || "";
+              headers.find((header) => header.name === "From")?.value || "";
             const subject =
-              headers.find(
-                (header: { name: string; value?: string }) =>
-                  header.name === "Subject",
-              )?.value || "(No Subject)";
+              headers.find((header) => header.name === "Subject")?.value ||
+              "(No Subject)";
             const fromMatch = fromHeader.match(/(.*)<(.+)>/) || [
               null,
               fromHeader,

@@ -5,12 +5,14 @@ import {
   Delete,
   Param,
   UseGuards,
-  Request,
+  Req,
   Res,
 } from "@nestjs/common";
+import { Response } from "express";
 import { ZohoAccountsService } from "./zoho-accounts.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { AuthService } from "../auth/auth.service";
+import { AuthenticatedRequest } from "../types/common";
 
 @Controller("zoho-accounts")
 export class ZohoAccountsController {
@@ -21,10 +23,12 @@ export class ZohoAccountsController {
 
   @Get("connect")
   @UseGuards(JwtAuthGuard)
-  async connectZohoAccount(@Request() req, @Res() res) {
+  async connectZohoAccount(
+    @Req() req: AuthenticatedRequest,
+    @Res() res: Response,
+  ) {
     // Create state parameter with user ID and action
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const userId = (req.user as any).userId || (req.user as any).id;
+    const { userId } = req.user;
     const state = Buffer.from(
       JSON.stringify({
         userId,
@@ -39,10 +43,9 @@ export class ZohoAccountsController {
 
   @Get("connect-url")
   @UseGuards(JwtAuthGuard)
-  async getConnectUrl(@Request() req) {
+  async getConnectUrl(@Req() req: AuthenticatedRequest) {
     // Create state parameter with user ID and action
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const userId = (req.user as any).userId || (req.user as any).id;
+    const { userId } = req.user;
     const state = Buffer.from(
       JSON.stringify({
         userId,
@@ -57,25 +60,25 @@ export class ZohoAccountsController {
 
   @Get()
   @UseGuards(JwtAuthGuard)
-  async getAccounts(@Request() req) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const userId = (req.user as any).userId || (req.user as any).id;
+  async getAccounts(@Req() req: AuthenticatedRequest) {
+    const { userId } = req.user;
     return this.zohoAccountsService.findAllByUser(userId);
   }
 
   @Post(":id/set-primary")
   @UseGuards(JwtAuthGuard)
-  async setPrimary(@Param("id") id: string, @Request() req) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const userId = (req.user as any).userId || (req.user as any).id;
+  async setPrimary(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
+    const { userId } = req.user;
     return this.zohoAccountsService.setPrimary(id, userId);
   }
 
   @Delete(":id")
   @UseGuards(JwtAuthGuard)
-  async disconnectAccount(@Param("id") id: string, @Request() req) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const userId = (req.user as any).userId || (req.user as any).id;
+  async disconnectAccount(
+    @Param("id") id: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const { userId } = req.user;
     await this.zohoAccountsService.deactivate(id, userId);
     return { success: true };
   }

@@ -6,7 +6,7 @@ import { ScanEmail } from "../database/entities/scan-email.entity";
 import { ScanEmailService } from "../emails/scan-email.service";
 import { ContextService } from "../context/context.service";
 import { ContextKey, Source } from "../database/entities/user-context.entity";
-import { google } from "googleapis";
+import { google, gmail_v1 } from "googleapis";
 import { UsersService } from "../users/users.service";
 
 @Injectable()
@@ -116,16 +116,14 @@ export class ScanAnalysisService {
         // First email in thread
 
         // Check if user replied (has a SENT label in thread)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const userReplied = messages.some((msg: any) => {
+        const userReplied = messages.some((msg: gmail_v1.Schema$Message) => {
           const labelIds = msg.labelIds || [];
           return labelIds.includes("SENT");
         });
 
         if (userReplied) {
           // Find user's first reply (message with SENT label)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const replyMessage = messages.find((msg: any) => {
+          const replyMessage = messages.find((msg: gmail_v1.Schema$Message) => {
             const labelIds = msg.labelIds || [];
             return labelIds.includes("SENT");
           });

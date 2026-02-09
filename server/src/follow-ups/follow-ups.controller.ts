@@ -15,6 +15,17 @@ import { FollowUpsService } from "./follow-ups.service";
 import { Inject } from "@nestjs/common";
 import PgBoss = require("pg-boss");
 import { QUERY_LIMITS } from "../constants/query-limits";
+import { Email } from "../database/entities/email.entity";
+
+/**
+ * Email with follow-up tracking properties added by the inbox query
+ */
+interface EmailWithFollowUpMetadata extends Email {
+  lastTheirReplyAt?: Date;
+  lastMyReplyAt?: Date;
+  otherPersonName?: string;
+  otherPersonEmail?: string;
+}
 
 @Controller("follow-ups")
 @UseGuards(JwtAuthGuard)
@@ -185,19 +196,17 @@ export class FollowUpsController {
     const followUpMap = new Map(followUps.map((fu) => [fu.threadId, fu]));
 
     // Combine threads with follow-up data
+    // Cast to interface with optional follow-up metadata properties
     return threads.map((thread) => {
+      const threadWithMeta = thread as EmailWithFollowUpMetadata;
       const followUp = followUpMap.get(thread.threadId);
       return {
         ...thread,
-        // Include follow-up metadata from email object
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        lastTheirReplyAt: (thread as any).lastTheirReplyAt,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        lastMyReplyAt: (thread as any).lastMyReplyAt,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        otherPersonName: (thread as any).otherPersonName,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        otherPersonEmail: (thread as any).otherPersonEmail,
+        // Include follow-up metadata from email object (added by inbox query)
+        lastTheirReplyAt: threadWithMeta.lastTheirReplyAt,
+        lastMyReplyAt: threadWithMeta.lastMyReplyAt,
+        otherPersonName: threadWithMeta.otherPersonName,
+        otherPersonEmail: threadWithMeta.otherPersonEmail,
         followUp: followUp
           ? {
               id: followUp.id,

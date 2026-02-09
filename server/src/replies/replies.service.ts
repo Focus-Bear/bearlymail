@@ -4,7 +4,7 @@ import { Repository } from "typeorm";
 import { EmailsService } from "../emails/emails.service";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { ContextService } from "../context/context.service";
-import { LLMService } from "../llm/llm.service";
+import { LLMService, LLMProvider } from "../llm/llm.service";
 import { UsersService } from "../users/users.service";
 import { WritingStyleLearningService } from "../context/writing-style-learning.service";
 import { ContextKey } from "../database/entities/user-context.entity";
@@ -108,6 +108,13 @@ export class RepliesService {
 
     // Use LLM to generate reply
     try {
+      // Convert string provider to LLMProvider enum
+      const llmProvider: LLMProvider | undefined = provider
+        ? provider === "gemini"
+          ? LLMProvider.GEMINI
+          : LLMProvider.OPENAI
+        : undefined;
+
       return await this.llmService.generateReplyDraft(
         {
           from: email.from,
@@ -121,8 +128,7 @@ export class RepliesService {
           writingStyle,
           emailExamples,
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        provider as any,
+        llmProvider,
         userId,
       );
     } catch (error) {

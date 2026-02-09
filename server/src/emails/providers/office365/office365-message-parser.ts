@@ -43,8 +43,7 @@ export function parseOffice365Message(
 
   const from = messageData.from?.emailAddress?.address || "";
   const fromName = messageData.from?.emailAddress?.name || "";
-  const replyTo =
-    messageData.replyTo?.[0]?.emailAddress?.address || undefined;
+  const replyTo = messageData.replyTo?.[0]?.emailAddress?.address || undefined;
   const subject = messageData.subject || "(No Subject)";
   const threadId = messageData.conversationId || messageData.id;
   const importance = messageData.importance || "normal";

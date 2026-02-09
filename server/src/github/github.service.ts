@@ -28,8 +28,7 @@ export class GitHubService {
 
     // Parse from plain text body
     if (emailBody) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let match: any;
+      let match: RegExpExecArray | null;
       while ((match = githubUrlPattern.exec(emailBody)) !== null) {
         // Remove fragments and query params
         const url = match[0].split("#")[0].split("?")[0];
@@ -53,8 +52,7 @@ export class GitHubService {
 
       // Extract text content from HTML (for plain text links in HTML)
       const textContent = htmlBody.replace(/<[^>]*>/g, " ");
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let match: any;
+      let match: RegExpExecArray | null;
       while ((match = githubUrlPattern.exec(textContent)) !== null) {
         const url = match[0].split("#")[0].split("?")[0];
         if (!seen.has(url)) {
@@ -71,8 +69,7 @@ export class GitHubService {
 
       // Extract href attributes from <a> tags
       const hrefPattern = /href=["'](https?:\/\/github\.com\/[^"']+)["']/gi;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let hrefMatch: any;
+      let hrefMatch: RegExpExecArray | null;
       while ((hrefMatch = hrefPattern.exec(htmlBody)) !== null) {
         const fullUrl = hrefMatch[1].split("#")[0].split("?")[0];
         const linkMatch = fullUrl.match(

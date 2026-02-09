@@ -386,11 +386,12 @@ export function getPrompt(id: string): PromptConfig | null {
 
 /**
  * Render a prompt template with variables (Nunjucks syntax)
+ * @param template - The template string with Nunjucks-style placeholders
+ * @param vars - Variables to substitute into the template (can be strings, numbers, arrays, objects)
  */
 export function renderPrompt(
   template: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  vars: Record<string, any>,
+  vars: Record<string, unknown>,
 ): string {
   let result = template;
 

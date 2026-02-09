@@ -119,7 +119,13 @@ describe("PriorityController", () => {
       const mockRequest = { user: { userId } };
       const body = {
         emailId: "email-1",
-        suggestion: { suggestedStarCount: 2 },
+        suggestion: {
+          emailId: "email-1",
+          suggestedStarCount: 2,
+          suggestedArchive: false,
+          confidence: 80,
+          reasoning: "Test suggestion",
+        },
         userAction: { starCount: 3, archived: false },
       };
 

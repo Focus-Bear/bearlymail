@@ -15,6 +15,7 @@ import {
 import { Response } from "express";
 import { UsersService } from "./users.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { User } from "../database/entities/user.entity";
 import { DataExportService } from "./data-export.service";
 import { DataImportService, ImportOptions } from "./data-import.service";
 import * as fs from "fs";
@@ -101,8 +102,7 @@ export class UsersController {
   }
 
   @Put("me")
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async updateProfile(@Request() req, @Body() updates: any) {
+  async updateProfile(@Request() req, @Body() updates: Partial<User>) {
     return this.usersService.update(req.user.userId, updates);
   }
 

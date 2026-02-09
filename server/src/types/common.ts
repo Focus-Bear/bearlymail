@@ -1,3 +1,5 @@
+import { Request } from "express";
+
 /**
  * Common type definitions to replace `any` types throughout the codebase
  */
@@ -7,6 +9,55 @@
  * Use instead of: catch (error: unknown)
  */
 export type StandardError = Error | unknown;
+
+/**
+ * JWT payload returned by JwtStrategy.validate()
+ * This is what gets attached to req.user after JWT authentication
+ */
+export interface JwtUserPayload {
+  userId: string;
+  email: string;
+}
+
+/**
+ * Request with authenticated user from JWT
+ * Use this instead of `@Request() req` with `(req.user as any).userId`
+ */
+export interface AuthenticatedRequest extends Request {
+  user: JwtUserPayload;
+}
+
+/**
+ * Error with optional code property (common in Node.js errors)
+ */
+export interface ErrorWithCode extends Error {
+  code?: string | number;
+}
+
+/**
+ * Type guard to check if an error has a code property
+ */
+export function isErrorWithCode(error: unknown): error is ErrorWithCode {
+  return error instanceof Error && "code" in error;
+}
+
+/**
+ * Email entity with optional htmlBody (used in summarization)
+ */
+export interface EmailWithHtmlBody {
+  body: string;
+  htmlBody?: string;
+  subject?: string;
+  from?: string;
+  fromName?: string;
+  threadId?: string;
+  receivedAt?: Date | string;
+}
+
+/**
+ * LLM provider type
+ */
+export type LLMProvider = "gemini" | "openai" | undefined;
 
 /**
  * Google API response types

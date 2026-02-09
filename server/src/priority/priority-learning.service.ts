@@ -196,26 +196,33 @@ export class PriorityLearningService {
         .take(QUERY_LIMITS.PRIORITY_LEARNING_MAX_SAMPLES)
         .getRawAndEntities();
 
-      const recentEmailsFromSender = result.entities.map((e, index) => {
-        const raw = result.raw[index];
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (e as any).starCount = raw.thread_starCount ?? 0;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (e as any).isArchived = raw.thread_isArchived ?? false;
-        return e;
-      });
+      // Define type for email with joined thread properties
+      interface EmailWithThreadProps extends Email {
+        starCount: number;
+        isArchived: boolean;
+      }
+
+      const recentEmailsFromSender: EmailWithThreadProps[] =
+        result.entities.map((e, index) => {
+          const raw = result.raw[index] as {
+            thread_starCount?: number;
+            thread_isArchived?: boolean;
+          };
+          // Extend email with thread properties from the raw join result
+          return Object.assign(e, {
+            starCount: raw.thread_starCount ?? 0,
+            isArchived: raw.thread_isArchived ?? false,
+          });
+        });
 
       // Count how many times user starred emails from this sender
       // Count how many times user starred emails from this sender (unused but kept for future use)
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const _starredCount = recentEmailsFromSender.filter(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (e) => (e as any).starCount > 0,
+        (e) => e.starCount > 0,
       ).length;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const threeStarCount = recentEmailsFromSender.filter(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (e) => (e as any).starCount === STAR_COUNTS.HIGH,
+        (e) => e.starCount === STAR_COUNTS.HIGH,
       ).length;
 
       // If user consistently gives 3 stars to this sender, suggest adding as VIP

@@ -90,13 +90,13 @@ export class SearchLogger {
 
   /**
    * Log Gmail query error
+   * @param error - The error object (can be any type since errors can come from various sources)
    */
   logGmailQueryError(
     userId: string,
     originalQuery: string,
     gmailQuery: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    error: any,
+    error: unknown,
   ) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     const message = `[SEARCH] User: ${userId} | Query: "${originalQuery}" | Gmail query "${gmailQuery}" failed: ${errorMsg}`;
@@ -192,9 +192,9 @@ export class SearchLogger {
 
   /**
    * Log AI scoring error
+   * @param error - The error object (can be any type since errors can come from various sources)
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  logAIScoringError(userId: string, originalQuery: string, error: any) {
+  logAIScoringError(userId: string, originalQuery: string, error: unknown) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     const message = `[SEARCH] User: ${userId} | Query: "${originalQuery}" | AI scoring failed: ${errorMsg}`;
     this.logger.error(message);
@@ -217,9 +217,9 @@ export class SearchLogger {
 
   /**
    * Log search error
+   * @param error - The error object (can be any type since errors can come from various sources)
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  logSearchError(userId: string, originalQuery: string, error: any) {
+  logSearchError(userId: string, originalQuery: string, error: unknown) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     const stack = error instanceof Error ? error.stack : undefined;
     const message = `[SEARCH] User: ${userId} | Query: "${originalQuery}" | Search error: ${errorMsg}${stack ? `\nStack: ${stack}` : ""}`;

@@ -6,7 +6,10 @@ import {
   UseGuards,
   Request,
 } from "@nestjs/common";
-import { SubscriptionsService } from "./subscriptions.service";
+import {
+  SubscriptionsService,
+  RevenueCatWebhookPayload,
+} from "./subscriptions.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { AdminGuard } from "../auth/admin.guard";
 
@@ -29,8 +32,7 @@ export class SubscriptionsController {
   @Post("webhook")
   // No auth required - RevenueCat sends webhooks directly
   // In production, verify webhook signature for security
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async handleWebhook(@Body() payload: any) {
+  async handleWebhook(@Body() payload: RevenueCatWebhookPayload) {
     await this.subscriptionsService.handleWebhook(payload);
     return { received: true };
   }

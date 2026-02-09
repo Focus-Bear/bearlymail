@@ -120,15 +120,17 @@ export const emailTransformer = {
     EncryptionHelper.decrypt(value),
 };
 
+/**
+ * TypeORM transformer for encrypted JSON fields.
+ * Encrypts arbitrary JSON data on write, decrypts on read.
+ */
 export const encryptedJsonTransformer = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  to: (value: any): string | null => {
+  to: (value: unknown): string | null => {
     if (value === null || value === undefined) return null;
     const stringified = JSON.stringify(value);
     return EncryptionHelper.encrypt(stringified);
   },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  from: (value: string | null | undefined): any => {
+  from: (value: string | null | undefined): unknown => {
     const decrypted = EncryptionHelper.decrypt(value);
     if (!decrypted) return null;
     try {

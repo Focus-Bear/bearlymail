@@ -27,9 +27,15 @@ let originalConsoleError: typeof console.error;
 
 /**
  * Writes error message directly to file (without console output)
+ * @param message - The error message to write
+ * @param error - The error object (can be any type since errors can come from various sources)
+ * @param source - Optional source identifier for the error
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function writeErrorToFile(message: string, error?: any, source?: string): void {
+function writeErrorToFile(
+  message: string,
+  error?: unknown,
+  source?: string,
+): void {
   if (!isDevelopment) {
     return;
   }
@@ -40,18 +46,20 @@ function writeErrorToFile(message: string, error?: any, source?: string): void {
   if (error) {
     try {
       if (error instanceof Error) {
+        // Extract code property if it exists (common in Node.js errors)
+        const errorCode =
+          "code" in error ? (error as { code?: unknown }).code : undefined;
         errorDetails = `\n${JSON.stringify(
           {
             message: error.message,
             stack: error.stack,
             name: error.name,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            code: (error as any).code,
+            code: errorCode,
           },
           null,
           2,
         )}`;
-      } else if (typeof error === "object") {
+      } else if (typeof error === "object" && error !== null) {
         errorDetails = `\n${JSON.stringify(error, null, 2)}`;
       } else {
         errorDetails = `\n${String(error)}`;
@@ -77,11 +85,13 @@ function writeErrorToFile(message: string, error?: any, source?: string): void {
 /**
  * Logs errors to file during local development.
  * Also logs to console for visibility.
+ * @param message - The error message to log
+ * @param error - The error object (can be any type since errors can come from various sources)
+ * @param source - Optional source identifier for the error
  */
 export function logErrorToFile(
   message: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  error?: any,
+  error?: unknown,
   source?: string,
 ): void {
   const timestamp = new Date().toISOString();
@@ -90,18 +100,20 @@ export function logErrorToFile(
   if (error) {
     try {
       if (error instanceof Error) {
+        // Extract code property if it exists (common in Node.js errors)
+        const errorCode =
+          "code" in error ? (error as { code?: unknown }).code : undefined;
         errorDetails = `\n${JSON.stringify(
           {
             message: error.message,
             stack: error.stack,
             name: error.name,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            code: (error as any).code,
+            code: errorCode,
           },
           null,
           2,
         )}`;
-      } else if (typeof error === "object") {
+      } else if (typeof error === "object" && error !== null) {
         errorDetails = `\n${JSON.stringify(error, null, 2)}`;
       } else {
         errorDetails = `\n${String(error)}`;
@@ -137,8 +149,8 @@ export function setupGlobalErrorHandlers(source?: string): void {
   }
 
   // Intercept console.error to also log to file
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  console.error = (...args: any[]) => {
+  // Using unknown[] since console.error can receive any type of argument
+  console.error = (...args: unknown[]) => {
     // Call original console.error first
     originalConsoleError.apply(console, args);
 
@@ -149,7 +161,7 @@ export function setupGlobalErrorHandlers(source?: string): void {
         const messages = args.map((arg) => {
           if (arg instanceof Error) {
             return arg.message;
-          } else if (typeof arg === "object") {
+          } else if (typeof arg === "object" && arg !== null) {
             try {
               return JSON.stringify(arg);
             } catch {
@@ -174,25 +186,31 @@ export function setupGlobalErrorHandlers(source?: string): void {
   };
 
   // Handle unhandled promise rejections
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  process.on("unhandledRejection", (reason: any, promise: Promise<any>) => {
-    logErrorToFile(
-      "Unhandled Rejection",
-      { promise: String(promise), reason },
-      source,
-    );
-    // Log but don't crash - let the app handle reconnections
-    if (
-      reason &&
-      reason.message &&
-      reason.message.includes("Connection terminated")
-    ) {
-      console.warn(
-        "Database connection error detected, will retry automatically",
+  // Using unknown for reason since it can be any type (errors, strings, objects, etc.)
+  process.on(
+    "unhandledRejection",
+    (reason: unknown, promise: Promise<unknown>) => {
+      logErrorToFile(
+        "Unhandled Rejection",
+        { promise: String(promise), reason },
+        source,
       );
-      return;
-    }
-  });
+      // Log but don't crash - let the app handle reconnections
+      // Check if reason is an Error with a message property
+      const reasonMessage =
+        reason instanceof Error
+          ? reason.message
+          : typeof reason === "object" && reason !== null && "message" in reason
+            ? String((reason as { message: unknown }).message)
+            : null;
+      if (reasonMessage && reasonMessage.includes("Connection terminated")) {
+        console.warn(
+          "Database connection error detected, will retry automatically",
+        );
+        return;
+      }
+    },
+  );
 
   // Handle uncaught exceptions
   process.on("uncaughtException", (error: Error) => {

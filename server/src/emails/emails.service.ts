@@ -55,6 +55,15 @@ interface RawEmailRow {
   [key: string]: unknown;
 }
 
+/**
+ * Email data that may include legacy thread-level properties
+ * (starCount and isArchived are now on EmailThread, but may come from external sources)
+ */
+export interface EmailDataWithOptionalThreadProps extends Partial<Email> {
+  starCount?: number;
+  isArchived?: boolean;
+}
+
 // RankedResult interface used by email search service
 
 interface EmailWithMetadata extends Email {
@@ -1234,7 +1243,7 @@ export class EmailsService {
   // eslint-disable-next-line max-lines-per-function, max-statements
   async createEmail(
     userId: string,
-    emailData: Partial<Email>,
+    emailData: EmailDataWithOptionalThreadProps,
     options?: { skipBatching?: boolean },
   ): Promise<Email> {
     this.logger.debug(
@@ -1259,15 +1268,17 @@ export class EmailsService {
     // Email is blocked if sender is blocked OR subject contains blocked keyword
     const isBlocked = isSenderBlocked || hasBlockedKeyword;
 
+    // Cast to interface that includes optional thread properties
+    // (starCount and isArchived may come from legacy data or external sources)
+    const emailDataWithThreadProps =
+      emailData as EmailDataWithOptionalThreadProps;
+
     // Extract thread-level properties (these should come from EmailThread, not Email)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const starCount = (emailData as any).starCount || 0;
+    const starCount = emailDataWithThreadProps.starCount ?? 0;
     // If blocked, always archive
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const isArchived = isBlocked
       ? true
-      : // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (emailData as any).isArchived || false;
+      : (emailDataWithThreadProps.isArchived ?? false);
 
     // Get or create EmailThread
     const thread = await this.getOrCreateEmailThread(
@@ -1282,8 +1293,7 @@ export class EmailsService {
       starCount: _starCount,
       isArchived: _isArchived,
       ...emailDataWithoutThreadProps
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } = emailData as any;
+    } = emailDataWithThreadProps;
     // Suppress unused variable warnings for destructured properties we're intentionally ignoring
     void _starCount;
     void _isArchived;

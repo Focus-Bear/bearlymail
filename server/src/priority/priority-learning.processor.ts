@@ -45,8 +45,8 @@ export class PriorityLearningProcessor implements OnModuleInit {
     );
     await this.boss.work(
       "learn-from-star",
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { teamSize: this.learnConcurrency } as any,
+      // teamSize is a valid pg-boss work option for parallel job processing
+      { teamSize: this.learnConcurrency } as PgBoss.WorkOptions,
       async (job) => {
         const { userId, emailId, starCount } = job.data as {
           userId: string;

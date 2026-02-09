@@ -6,14 +6,27 @@ import { AuthService } from "./auth.service";
 import { writeDebugLog } from "./auth-logger";
 import { User } from "../database/entities/user.entity";
 
-interface GoogleProfile {
+/**
+ * Google OAuth profile from passport-google-oauth20
+ * Note: emails is optional in the OAuth response but required by validateGoogleUser
+ */
+interface GoogleOAuthProfile {
   id: string;
   emails?: Array<{ value: string }>;
   displayName?: string;
 }
 
+/**
+ * Profile type expected by AuthService.validateGoogleUser
+ */
+interface GoogleProfileForValidation {
+  id: string;
+  emails: Array<{ value: string }>;
+  displayName?: string;
+}
+
 interface UserWithGoogleData extends Omit<User, "password" | "googleId"> {
-  googleProfile?: GoogleProfile;
+  googleProfile?: GoogleOAuthProfile;
   googleAccessToken?: string;
   googleRefreshToken?: string;
   googleId?: string;
@@ -63,15 +76,11 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
 
     // Override authorizationParams to ensure refresh token is requested
     // This is the correct way to pass access_type and prompt to Google's OAuth endpoint
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (
-      this as {
-        authorizationParams?: (options: unknown) => Record<string, string>;
-      }
-    ).authorizationParams = (
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      _options: unknown,
-    ) => ({
+    // The Strategy class has this method but it's not in the TypeScript definition
+    type StrategyWithAuthParams = typeof this & {
+      authorizationParams?: (options: unknown) => Record<string, string>;
+    };
+    (this as StrategyWithAuthParams).authorizationParams = () => ({
       access_type: "offline",
       prompt: "consent",
     });
@@ -80,7 +89,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
   async validate(
     accessToken: string,
     refreshToken: string,
-    profile: GoogleProfile,
+    profile: GoogleOAuthProfile,
   ): Promise<UserWithGoogleData> {
     // NestJS Passport pattern: return user on success, throw error on failure
     // Do NOT call done() directly - NestJS Passport wrapper handles that
@@ -96,8 +105,18 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
     );
 
     try {
+      // Validate that profile has required emails before calling validateGoogleUser
+      if (!profile.emails || profile.emails.length === 0) {
+        throw new Error("Google profile missing email address");
+      }
+      // Now we can safely cast to the type expected by validateGoogleUser
+      const profileForValidation: GoogleProfileForValidation = {
+        id: profile.id,
+        emails: profile.emails,
+        displayName: profile.displayName,
+      };
       const user = await this.authService.validateGoogleUser(
-        profile as any,
+        profileForValidation,
         accessToken,
         refreshToken,
       );

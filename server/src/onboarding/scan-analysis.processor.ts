@@ -37,8 +37,8 @@ export class ScanAnalysisProcessor implements OnModuleInit {
     );
     await this.boss.work(
       "analyze-scan-results",
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { teamSize: this.analysisConcurrency } as any,
+      // teamSize is a valid pg-boss work option for parallel job processing
+      { teamSize: this.analysisConcurrency } as PgBoss.WorkOptions,
       async (job) => {
         const { userId } = job.data as { userId: string };
         const workerId = job.id || "unknown";

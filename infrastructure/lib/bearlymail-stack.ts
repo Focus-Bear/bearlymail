@@ -359,14 +359,12 @@ export class BearlyMailStack extends cdk.Stack {
     // You can find the subnet IDs and security group ID in the AWS Console under VPC.
 
     // Security group for migration tasks - allows outbound to AWS services (Secrets Manager, ECR, etc.)
+    // Note: RDS already allows connections from any IPv4 on port 5432 (configured in database stack)
     const migrationSecurityGroup = new ec2.SecurityGroup(this, 'MigrationSecurityGroup', {
       vpc,
       description: 'Security group for migration tasks - allows outbound HTTPS for AWS services',
       allowAllOutbound: true, // Allow outbound to NAT Gateway -> AWS services
     });
-
-    // Allow migration task to connect to RDS
-    database.connections.allowFrom(migrationSecurityGroup, ec2.Port.tcp(5432), 'Allow migration tasks to connect to RDS');
 
     const migrationTaskDefinition = new ecs.FargateTaskDefinition(this, 'MigrationTaskDefinition', {
       family: 'BearlyMailMigrationTask',

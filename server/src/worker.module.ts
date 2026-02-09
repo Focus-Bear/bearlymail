@@ -32,6 +32,7 @@ import { Waitlist } from "./database/entities/waitlist.entity";
 import { BlockedSender } from "./database/entities/blocked-sender.entity";
 import { BlockedKeyword } from "./database/entities/blocked-keyword.entity";
 import { PriorityOverride } from "./database/entities/priority-override.entity";
+import { CategoryOverride } from "./database/entities/category-override.entity";
 import { TokenUsage } from "./database/entities/token-usage.entity";
 import { SuggestedReply } from "./database/entities/suggested-reply.entity";
 
@@ -116,6 +117,7 @@ import { BlockedKeywordsService } from "./blocked-keywords/blocked-keywords.serv
             BlockedSender,
             BlockedKeyword,
             PriorityOverride,
+            CategoryOverride,
             TokenUsage,
             SuggestedReply,
           ],
@@ -141,6 +143,7 @@ import { BlockedKeywordsService } from "./blocked-keywords/blocked-keywords.serv
       BlockedSender,
       BlockedKeyword,
       PriorityOverride,
+      CategoryOverride,
       SuggestedReply,
     ]),
     QueueModule,

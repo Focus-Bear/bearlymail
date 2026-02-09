@@ -304,7 +304,25 @@ export class GmailProvider implements EmailProvider {
   }
 
   // eslint-disable-next-line max-lines-per-function, complexity, max-statements
-  async syncEmails(userId: string, syncWindowHours?: number): Promise<void> {
+  async syncEmails(
+    userId: string,
+    syncWindowHoursOrOptions?:
+      | number
+      | import("../interfaces/email-provider.interface").SyncEmailsOptions,
+  ): Promise<void> {
+    // Parse the options - support both old (number) and new (object) format
+    let syncWindowHours: number | undefined;
+    let providedThreadIds: string[] | undefined;
+    let isContinuation = false;
+
+    if (typeof syncWindowHoursOrOptions === "number") {
+      syncWindowHours = syncWindowHoursOrOptions;
+    } else if (syncWindowHoursOrOptions) {
+      syncWindowHours = syncWindowHoursOrOptions.syncWindowHours;
+      providedThreadIds = syncWindowHoursOrOptions.threadIds;
+      isContinuation = syncWindowHoursOrOptions.isContinuation || false;
+    }
+
     const user = await this.usersService.findOneWithTokens(userId);
     if (!user?.googleCalendarAccessToken) {
       this.logger.log(
@@ -489,54 +507,67 @@ export class GmailProvider implements EmailProvider {
       const syncWindowTimestamp = Math.floor(syncWindowStart.getTime() / 1000);
 
       this.logger.log(
-        `[GmailProvider] Syncing emails for user ${userId}. Last sync: ${lastSyncAt?.toISOString() || "never"}, sync window starts: ${syncWindowStart.toISOString()}`,
+        `[GmailProvider] Syncing emails for user ${userId}. Last sync: ${lastSyncAt?.toISOString() || "never"}, sync window starts: ${syncWindowStart.toISOString()}${isContinuation ? " (continuation job)" : ""}`,
       );
 
-      // Use thread-level queries like GmailApp.search() - more reliable than message-level queries
-      // Fetch threads (not messages) from inbox and starred threads
-      const baseQuery = "-label:SnoozedBearlyMail -label:VA-to-action";
-      const afterQuery = `after:${syncWindowTimestamp}`;
+      // If this is a continuation job with provided thread IDs, use those directly
+      // Otherwise, fetch thread lists from Gmail
+      let allThreadIds: Set<string>;
 
-      const [
-        inboxThreadsResponse,
-        starredThreadsResponse,
-        sentThreadsResponse,
-      ] = await Promise.all([
-        // Fetch threads from inbox updated since last sync (includes both read and unread)
-        gmail.users.threads.list({
-          userId: "me",
-          maxResults: 500,
-          q: `in:inbox ${baseQuery} ${afterQuery}`,
-        }),
-        // Fetch ALL starred threads in inbox (no time filter to ensure old starred emails are synced)
-        gmail.users.threads.list({
-          userId: "me",
-          maxResults: 500,
-          q: `is:starred in:inbox ${baseQuery}`,
-        }),
-        // Fetch threads where user has sent emails recently (to capture replies)
-        // This ensures sent replies are synced back to the thread
-        gmail.users.threads.list({
-          userId: "me",
-          maxResults: 100,
-          q: `in:sent ${baseQuery} ${afterQuery}`,
-        }),
-      ]);
+      if (providedThreadIds && providedThreadIds.length > 0) {
+        // Continuation job - use provided thread IDs directly
+        allThreadIds = new Set(providedThreadIds);
+        this.logger.debug(
+          `[GmailProvider] Continuation job: processing ${allThreadIds.size} provided thread IDs`,
+        );
+      } else {
+        // Normal sync - fetch thread lists from Gmail
+        // Use thread-level queries like GmailApp.search() - more reliable than message-level queries
+        // Fetch threads (not messages) from inbox and starred threads
+        const baseQuery = "-label:SnoozedBearlyMail -label:VA-to-action";
+        const afterQuery = `after:${syncWindowTimestamp}`;
 
-      const inboxThreads = inboxThreadsResponse.data.threads || [];
-      const starredThreads = starredThreadsResponse.data.threads || [];
-      const sentThreads = sentThreadsResponse.data.threads || [];
+        const [
+          inboxThreadsResponse,
+          starredThreadsResponse,
+          sentThreadsResponse,
+        ] = await Promise.all([
+          // Fetch threads from inbox updated since last sync (includes both read and unread)
+          gmail.users.threads.list({
+            userId: "me",
+            maxResults: 500,
+            q: `in:inbox ${baseQuery} ${afterQuery}`,
+          }),
+          // Fetch ALL starred threads in inbox (no time filter to ensure old starred emails are synced)
+          gmail.users.threads.list({
+            userId: "me",
+            maxResults: 500,
+            q: `is:starred in:inbox ${baseQuery}`,
+          }),
+          // Fetch threads where user has sent emails recently (to capture replies)
+          // This ensures sent replies are synced back to the thread
+          gmail.users.threads.list({
+            userId: "me",
+            maxResults: 100,
+            q: `in:sent ${baseQuery} ${afterQuery}`,
+          }),
+        ]);
 
-      // Combine and deduplicate thread IDs
-      const allThreadIds = new Set([
-        ...inboxThreads.map((t) => t.id!),
-        ...starredThreads.map((t) => t.id!),
-        ...sentThreads.map((t) => t.id!),
-      ]);
+        const inboxThreads = inboxThreadsResponse.data.threads || [];
+        const starredThreads = starredThreadsResponse.data.threads || [];
+        const sentThreads = sentThreadsResponse.data.threads || [];
 
-      this.logger.debug(
-        `Found ${inboxThreads.length} inbox threads, ${starredThreads.length} starred threads, and ${sentThreads.length} sent threads (${allThreadIds.size} unique) updated since ${syncWindowStart.toISOString()}`,
-      );
+        // Combine and deduplicate thread IDs
+        allThreadIds = new Set([
+          ...inboxThreads.map((t) => t.id!),
+          ...starredThreads.map((t) => t.id!),
+          ...sentThreads.map((t) => t.id!),
+        ]);
+
+        this.logger.debug(
+          `Found ${inboxThreads.length} inbox threads, ${starredThreads.length} starred threads, and ${sentThreads.length} sent threads (${allThreadIds.size} unique) updated since ${syncWindowStart.toISOString()}`,
+        );
+      }
 
       // Get existing threads from DB to check their current status
       // We'll compare with Gmail status to detect changes (star, archive)
@@ -578,16 +609,18 @@ export class GmailProvider implements EmailProvider {
       }[] = [];
 
       // Process batches sequentially, but threads within batch in parallel
-      // Add limits to prevent jobs from running too long (max 100 threads per sync)
-      const MAX_THREADS_TO_PROCESS = 100;
+      // Limit to 15 threads per job for fast completion (target: <10s per job)
+      // Continuation jobs will be queued for remaining threads
+      const MAX_THREADS_TO_PROCESS = 15;
       const threadsToProcessLimited = threadsToProcess.slice(
         0,
         MAX_THREADS_TO_PROCESS,
       );
+      const remainingThreads = threadsToProcess.slice(MAX_THREADS_TO_PROCESS);
 
-      if (threadsToProcess.length > MAX_THREADS_TO_PROCESS) {
-        this.logger.warn(
-          `Limiting thread processing to ${MAX_THREADS_TO_PROCESS} threads (out of ${threadsToProcess.length} total) to prevent job timeout`,
+      if (remainingThreads.length > 0) {
+        this.logger.log(
+          `[GmailProvider] Processing ${MAX_THREADS_TO_PROCESS} threads now, ${remainingThreads.length} remaining will be queued as continuation job`,
         );
       }
 
@@ -967,11 +1000,37 @@ export class GmailProvider implements EmailProvider {
         }
       }
 
+      // Queue continuation job if there are remaining threads to process
+      if (remainingThreads.length > 0) {
+        this.logger.log(
+          `[GmailProvider] Queueing continuation job for ${remainingThreads.length} remaining threads for user ${userId}`,
+        );
+        await this.boss.send(
+          "fetch-user-emails",
+          {
+            userId,
+            threadIds: remainingThreads,
+            isContinuation: true,
+            syncWindowHours,
+          },
+          {
+            priority: getJobPriority("fetch-user-emails", false),
+            // Use a unique key for continuation jobs to allow multiple continuation jobs to be queued
+            // But prevent duplicates for the same batch of threads
+            singletonKey: `fetch-user-emails-continuation-${userId}-${remainingThreads[0]}`,
+            singletonMinutes: 1, // Short window to allow quick follow-up
+          },
+        );
+      }
+
       // Update lastEmailSyncAt after successful sync
-      await this.usersService.update(userId, {
-        lastEmailSyncAt: new Date(),
-      });
-      this.logger.debug(`Updated lastEmailSyncAt for user ${userId}`);
+      // Only update if this is not a continuation (continuation jobs are part of the same sync)
+      if (!isContinuation) {
+        await this.usersService.update(userId, {
+          lastEmailSyncAt: new Date(),
+        });
+        this.logger.debug(`Updated lastEmailSyncAt for user ${userId}`);
+      }
     } catch (error: unknown) {
       // Log detailed Gaxios error info for Gmail API errors
       const gaxiosErrorDetails = getGaxiosErrorDetails(error);

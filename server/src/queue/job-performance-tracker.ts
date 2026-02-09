@@ -18,6 +18,8 @@ interface JobLogEntry {
   threadId?: string;
   syncWindowHours?: number;
   forceRecalculate?: boolean;
+  isContinuation?: boolean;
+  threadCount?: number;
   duration: number;
   budget: number;
   exceeded: boolean;
@@ -44,6 +46,8 @@ export class JobPerformanceTracker {
     threadId?: string;
     syncWindowHours?: number;
     forceRecalculate?: boolean;
+    isContinuation?: boolean;
+    threadCount?: number;
   } = {};
 
   constructor(jobName: string, jobId: string) {
@@ -72,6 +76,8 @@ export class JobPerformanceTracker {
     threadId?: string;
     syncWindowHours?: number;
     forceRecalculate?: boolean;
+    isContinuation?: boolean;
+    threadCount?: number;
   }): void {
     this.metadata = { ...this.metadata, ...metadata };
   }
@@ -112,6 +118,8 @@ export class JobPerformanceTracker {
       threadId: this.metadata.threadId,
       syncWindowHours: this.metadata.syncWindowHours,
       forceRecalculate: this.metadata.forceRecalculate,
+      isContinuation: this.metadata.isContinuation,
+      threadCount: this.metadata.threadCount,
       duration,
       budget: this.budget,
       exceeded,

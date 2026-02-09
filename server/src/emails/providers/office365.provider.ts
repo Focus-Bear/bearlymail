@@ -154,7 +154,14 @@ export class Office365Provider implements EmailProvider {
   }
 
   // eslint-disable-next-line max-lines-per-function, complexity, max-statements
-  async syncEmails(userId: string): Promise<void> {
+  async syncEmails(
+    userId: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    syncWindowHoursOrOptions?:
+      | number
+      | import("../interfaces/email-provider.interface").SyncEmailsOptions,
+  ): Promise<void> {
+    // Note: Office365 doesn't support continuation jobs yet - syncWindowHoursOrOptions is ignored
     const primaryAccount =
       await this.office365AccountsService.findPrimary(userId);
     if (!primaryAccount) {

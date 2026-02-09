@@ -51,6 +51,28 @@ export interface EmailAttachmentData {
 }
 
 /**
+ * Options for email sync operations
+ * Used to support continuation/pagination for large mailboxes
+ */
+export interface SyncEmailsOptions {
+  /**
+   * Custom sync window in hours (overrides default calculation)
+   */
+  syncWindowHours?: number;
+
+  /**
+   * Specific thread IDs to process (for continuation jobs)
+   * When provided, skips the thread list fetch and processes only these threads
+   */
+  threadIds?: string[];
+
+  /**
+   * Whether this is a continuation job (affects logging and behavior)
+   */
+  isContinuation?: boolean;
+}
+
+/**
  * Interface for email provider implementations
  * This abstraction allows supporting multiple email providers (Gmail, Outlook, MS Teams, etc.)
  */
@@ -59,9 +81,12 @@ export interface EmailProvider {
    * Sync emails from the provider's inbox
    * Should fetch new emails and create/update them in the database
    * @param userId - The user ID to sync emails for
-   * @param syncWindowHours - Optional custom sync window in hours (overrides default calculation)
+   * @param syncWindowHoursOrOptions - Optional sync window in hours OR SyncEmailsOptions object
    */
-  syncEmails(userId: string, syncWindowHours?: number): Promise<void>;
+  syncEmails(
+    userId: string,
+    syncWindowHoursOrOptions?: number | SyncEmailsOptions,
+  ): Promise<void>;
 
   /**
    * Scan historical emails for analysis

@@ -132,32 +132,58 @@ export class EmailSyncProcessor implements OnModuleInit {
     // Worker for fetching emails for individual user (generic, works with any provider)
     // Use CPU-based concurrency for parallel fetches
     // Add retry on failure - jobs will be retried automatically
+    // Supports continuation jobs with threadIds for processing large mailboxes in chunks
     await this.boss.work(
       "fetch-user-emails",
       {
         teamSize: this.syncConcurrency,
       } as { teamSize: number },
       async (job) => {
-        const { userId } = job.data as { userId: string };
+        const { userId, threadIds, isContinuation, syncWindowHours } =
+          job.data as {
+            userId: string;
+            threadIds?: string[];
+            isContinuation?: boolean;
+            syncWindowHours?: number;
+          };
         const workerId = job.id || "unknown";
         const tracker = new JobPerformanceTracker(
           "fetch-user-emails",
           workerId,
         );
-        tracker.setMetadata({ userId });
+        tracker.setMetadata({
+          userId,
+          isContinuation: isContinuation || false,
+          threadCount: threadIds?.length,
+        });
 
+        const continuationLabel = isContinuation ? " (continuation)" : "";
         this.logger.log(
-          `[Worker ${workerId}] Starting email fetch for user ${userId}`,
+          `[Worker ${workerId}] Starting email fetch${continuationLabel} for user ${userId}${threadIds ? ` (${threadIds.length} threads)` : ""}`,
         );
         try {
-          await this.emailProviderManager.syncAllProviders(userId);
+          // If this is a continuation job with specific thread IDs, pass them to the provider
+          if (threadIds && threadIds.length > 0) {
+            // For continuation jobs, call Gmail provider directly with thread IDs
+            await this.gmailProvider.syncEmails(userId, {
+              threadIds,
+              isContinuation: true,
+              syncWindowHours,
+            });
+          } else {
+            // Normal sync - use provider manager for all connected providers
+            await this.emailProviderManager.syncAllProviders(
+              userId,
+              syncWindowHours,
+            );
+          }
           this.logger.log(
-            `[Worker ${workerId}] Completed email fetch for user ${userId}`,
+            `[Worker ${workerId}] Completed email fetch${continuationLabel} for user ${userId}`,
           );
           tracker.finish();
         } catch (error) {
           this.logger.error(
-            `[Worker ${workerId}] Failed to sync emails for user ${userId}`,
+            `[Worker ${workerId}] Failed to sync emails${continuationLabel} for user ${userId}`,
             error,
           );
           // Check if it's a connection error - don't retry those, pg-boss will handle reconnection

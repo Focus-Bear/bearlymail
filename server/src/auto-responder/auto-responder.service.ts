@@ -1,43 +1,27 @@
 import { Injectable, Logger, Inject, forwardRef } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, MoreThan } from "typeorm";
-import * as crypto from "crypto";
+import { Repository } from "typeorm";
 import { User } from "../database/entities/user.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { Email } from "../database/entities/email.entity";
-import {
-  UserContext,
-  ContextKey,
-} from "../database/entities/user-context.entity";
-import { AutoResponseLog } from "../database/entities/auto-response-log.entity";
-import { AutoResponseSuppression } from "../database/entities/auto-response-suppression.entity";
 import { EmailClassifierService } from "./email-classifier.service";
 import { QueueStatsService } from "./queue-stats.service";
 import { AutoResponderTemplateService } from "./auto-responder-template.service";
-import { LLMService } from "../llm/llm.service";
+import { AutoResponderSuppressionService } from "./auto-responder-suppression.service";
+import { AutoResponderQaService } from "./auto-responder-qa.service";
+import { AutoResponderAnalyticsService } from "./auto-responder-analytics.service";
+import { AutoResponderPreviewService } from "./auto-responder-preview.service";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
-import { getPrompt, renderPrompt } from "../llm/prompts";
 import {
   AutoResponderConfig,
   DEFAULT_AUTO_RESPONDER_CONFIG,
-  EmailClassification,
-  QASearchResult,
   AutoResponseTemplateVars,
-  AutoResponseLogPriority,
-  SuppressionReason,
 } from "./types/auto-responder.types";
-import { RATIOS } from "../constants/percentages";
 import {
   autoresponderLogger,
   AutoresponderDecisionContext,
 } from "./autoresponder-logger";
-import {
-  PRIORITY_THRESHOLDS,
-  LLM_CONFIG,
-  PREVIEW_DEFAULTS,
-} from "./auto-responder-constants";
-
-const LLM_OP_GENERATE_QA_ANSWER = "generate_qa_answer";
+import { PRIORITY_THRESHOLDS } from "./auto-responder-constants";
 
 @Injectable()
 export class AutoResponderService {
@@ -50,17 +34,13 @@ export class AutoResponderService {
     private emailThreadRepository: Repository<EmailThread>,
     @InjectRepository(Email)
     private emailRepository: Repository<Email>,
-    @InjectRepository(UserContext)
-    private userContextRepository: Repository<UserContext>,
-    @InjectRepository(AutoResponseLog)
-    private autoResponseLogRepository: Repository<AutoResponseLog>,
-    @InjectRepository(AutoResponseSuppression)
-    private autoResponseSuppressionRepository: Repository<AutoResponseSuppression>,
     private emailClassifierService: EmailClassifierService,
     private queueStatsService: QueueStatsService,
     private templateService: AutoResponderTemplateService,
-    @Inject(forwardRef(() => LLMService))
-    private llmService: LLMService,
+    private suppressionService: AutoResponderSuppressionService,
+    private qaService: AutoResponderQaService,
+    private analyticsService: AutoResponderAnalyticsService,
+    private previewService: AutoResponderPreviewService,
     @Inject(forwardRef(() => EmailProviderManager))
     private emailProviderManager: EmailProviderManager,
   ) {}
@@ -174,9 +154,10 @@ export class AutoResponderService {
     }
 
     // Check if we've already sent an auto-response to this thread
-    const existingResponse = await this.autoResponseLogRepository.findOne({
-      where: { userId, emailThreadId },
-    });
+    const existingResponse = await this.analyticsService.hasExistingResponse(
+      userId,
+      emailThreadId,
+    );
     if (existingResponse) {
       const reason = "Auto-response already sent to this thread";
       autoresponderLogger.logDecision(logContext, {
@@ -188,8 +169,11 @@ export class AutoResponderService {
     }
 
     // Check sender suppression (opt-out or cooldown)
-    const senderEmailHash = this.hashEmail(latestEmail.from);
-    const suppression = await this.checkSuppression(userId, senderEmailHash);
+    const senderEmailHash = this.suppressionService.hashEmail(latestEmail.from);
+    const suppression = await this.suppressionService.checkSuppression(
+      userId,
+      senderEmailHash,
+    );
 
     autoresponderLogger.logSuppressionCheck(
       logContext,
@@ -350,9 +334,9 @@ export class AutoResponderService {
       );
 
     // Generate Q&A answer if enabled
-    let qaResult: QASearchResult | null = null;
+    let qaResult = null;
     if (config.qaContextEnabled) {
-      qaResult = await this.generateQAAnswer(
+      qaResult = await this.qaService.generateQAAnswer(
         userId,
         latestEmail.subject,
         latestEmail.body,
@@ -361,7 +345,6 @@ export class AutoResponderService {
     }
 
     // Render the response
-    // Use category-specific response time when available for more accurate messaging
     const templateVars: AutoResponseTemplateVars = {
       userName: user.name || "the recipient",
       senderName: latestEmail.fromName || latestEmail.from.split("@")[0],
@@ -429,7 +412,7 @@ export class AutoResponderService {
       );
 
       // Log the auto-response
-      await this.logAutoResponse(
+      await this.analyticsService.logAutoResponse(
         userId,
         emailThreadId,
         senderEmailHash,
@@ -442,7 +425,7 @@ export class AutoResponderService {
       );
 
       // Add cooldown suppression for this sender
-      await this.addCooldownSuppression(
+      await this.suppressionService.addCooldownSuppression(
         userId,
         senderEmailHash,
         config.cooldownPeriodDays,
@@ -492,8 +475,6 @@ export class AutoResponderService {
     userId: string,
     thread: EmailThread,
   ): Promise<boolean> {
-    // Check if any email in the thread was sent by the user
-    // This would be indicated by being in the SENT label or by checking the from address
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) return false;
 
@@ -504,237 +485,30 @@ export class AutoResponderService {
   }
 
   /**
-   * Hash an email address for storage/lookup
-   */
-  private hashEmail(email: string): string {
-    return crypto
-      .createHash("sha256")
-      .update(email.toLowerCase().trim())
-      .digest("hex");
-  }
-
-  /**
-   * Check if sender is suppressed
-   */
-  private async checkSuppression(
-    userId: string,
-    senderEmailHash: string,
-  ): Promise<AutoResponseSuppression | null> {
-    const now = new Date();
-
-    // Check for permanent suppression (opt-out)
-    const permanentSuppression =
-      await this.autoResponseSuppressionRepository.findOne({
-        where: {
-          userId,
-          senderEmailHash,
-          reason: SuppressionReason.OPT_OUT,
-        },
-      });
-    if (permanentSuppression) {
-      return permanentSuppression;
-    }
-
-    // Check for active cooldown
-    const cooldownSuppression =
-      await this.autoResponseSuppressionRepository.findOne({
-        where: {
-          userId,
-          senderEmailHash,
-          reason: SuppressionReason.COOLDOWN,
-          suppressUntil: MoreThan(now),
-        },
-      });
-
-    return cooldownSuppression;
-  }
-
-  /**
-   * Add cooldown suppression for a sender
-   */
-  private async addCooldownSuppression(
-    userId: string,
-    senderEmailHash: string,
-    cooldownDays: number,
-  ): Promise<void> {
-    const suppressUntil = new Date();
-    suppressUntil.setDate(suppressUntil.getDate() + cooldownDays);
-
-    // Remove existing cooldown for this sender
-    await this.autoResponseSuppressionRepository.delete({
-      userId,
-      senderEmailHash,
-      reason: SuppressionReason.COOLDOWN,
-    });
-
-    // Add new cooldown
-    await this.autoResponseSuppressionRepository.save({
-      userId,
-      senderEmailHash,
-      reason: SuppressionReason.COOLDOWN,
-      suppressUntil,
-      notes: `Auto-response cooldown for ${cooldownDays} days`,
-    });
-  }
-
-  /**
    * Determine priority level from thread's star count and urgency
    */
   private determinePriorityLevel(
     thread: EmailThread | null,
   ): "low" | "medium" | "high" {
-    // If no thread, default to medium priority
     if (!thread) {
       return "medium";
     }
-    // High priority: 3 stars or high urgency score
     if (
       thread.starCount >= PRIORITY_THRESHOLDS.HIGH_PRIORITY_STARS ||
       thread.urgencyScore >= PRIORITY_THRESHOLDS.HIGH_URGENCY
     ) {
       return "high";
     }
-    // Low priority: 1 star or low urgency
     if (
       thread.starCount === PRIORITY_THRESHOLDS.LOW_PRIORITY_STARS ||
       thread.urgencyScore < PRIORITY_THRESHOLDS.LOW_URGENCY
     ) {
       return "low";
     }
-    // Medium priority: default
     return "medium";
   }
 
-  /**
-   * Generate Q&A answer from user's context
-   */
-  private async generateQAAnswer(
-    userId: string,
-    subject: string,
-    body: string,
-    minConfidence: number,
-  ): Promise<QASearchResult | null> {
-    try {
-      // Get Q&A context entries
-      const qaContexts = await this.userContextRepository.find({
-        where: {
-          userId,
-          contextKey: ContextKey.Q_AND_A,
-        },
-      });
-
-      if (qaContexts.length === 0) {
-        return null;
-      }
-
-      // Parse Q&A pairs from context
-      const qaPairs: Array<{ question: string; answer: string }> = [];
-      for (const ctx of qaContexts) {
-        try {
-          const parsed = JSON.parse(ctx.contextValue);
-          if (parsed.question && parsed.answer) {
-            qaPairs.push(parsed);
-          }
-        } catch {
-          // If not JSON, try to parse as "Q: ... A: ..." format
-          const match = ctx.contextValue.match(/Q:\s*(.*?)\s*A:\s*(.*)/is);
-          if (match) {
-            qaPairs.push({
-              question: match[1].trim(),
-              answer: match[2].trim(),
-            });
-          }
-        }
-      }
-
-      if (qaPairs.length === 0) {
-        return null;
-      }
-
-      // Use LLM to find relevant answer
-      const promptConfig = getPrompt("generate_qa_answer");
-      if (!promptConfig) {
-        this.logger.warn("generate_qa_answer prompt not found");
-        return null;
-      }
-
-      const prompt = renderPrompt(promptConfig.prompt || "", {
-        subject,
-        body: body.substring(0, LLM_CONFIG.MAX_BODY_LENGTH_FOR_QA),
-        qaPairs: qaPairs
-          .map((qa, i) => `${i + 1}. Q: ${qa.question}\n   A: ${qa.answer}`)
-          .join("\n\n"),
-      });
-
-      const response = await this.llmService.generateText(
-        {
-          prompt,
-          systemPrompt: promptConfig.systemPrompt || "",
-          temperature: RATIOS.THIRTY_PERCENT,
-          maxTokens: LLM_CONFIG.QA_MAX_TOKENS,
-        },
-        undefined,
-        userId,
-        LLM_OP_GENERATE_QA_ANSWER as any,
-      );
-
-      // Parse response
-      try {
-        const jsonMatch = response.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          if (parsed.confidence >= minConfidence && parsed.answer) {
-            return {
-              answer: parsed.answer,
-              confidence: parsed.confidence,
-              sources: parsed.sources || [],
-            };
-          }
-        }
-      } catch (parseError) {
-        this.logger.warn("Failed to parse Q&A response", parseError);
-      }
-
-      return null;
-    } catch (error) {
-      this.logger.error("Failed to generate Q&A answer", error);
-      return null;
-    }
-  }
-
-  /**
-   * Log an auto-response
-   */
-  private async logAutoResponse(
-    userId: string,
-    emailThreadId: string,
-    senderEmailHash: string,
-    priorityLevel: "low" | "medium" | "high",
-    qaResult: QASearchResult | null,
-    templateUsed: string,
-    responseSubject: string,
-    responseBody: string,
-    classification: EmailClassification,
-  ): Promise<void> {
-    await this.autoResponseLogRepository.save({
-      userId,
-      emailThreadId,
-      senderEmailHash,
-      priorityLevel: priorityLevel as AutoResponseLogPriority,
-      qaAnswerProvided: !!qaResult,
-      confidenceScore: qaResult?.confidence || null,
-      templateUsed,
-      responseSubject,
-      responseBody,
-      classificationDetails: {
-        isAutomated: classification.isAutomated,
-        isNewsletter: classification.isNewsletter,
-        isColdOutreach: classification.isColdOutreach,
-        personalizationScore: classification.personalizationScore,
-        reasons: classification.reasons,
-      },
-    });
-  }
+  // === Delegated methods to extracted services ===
 
   /**
    * Add opt-out suppression for a sender
@@ -744,22 +518,11 @@ export class AutoResponderService {
     senderEmail: string,
     notes?: string,
   ): Promise<void> {
-    const senderEmailHash = this.hashEmail(senderEmail);
-
-    // Remove any existing suppressions for this sender
-    await this.autoResponseSuppressionRepository.delete({
+    return this.suppressionService.addOptOutSuppression(
       userId,
-      senderEmailHash,
-    });
-
-    // Add permanent opt-out
-    await this.autoResponseSuppressionRepository.save({
-      userId,
-      senderEmailHash,
-      reason: SuppressionReason.OPT_OUT,
-      suppressUntil: null, // Permanent
-      notes: notes || "User requested opt-out",
-    });
+      senderEmail,
+      notes,
+    );
   }
 
   /**
@@ -769,12 +532,7 @@ export class AutoResponderService {
     userId: string,
     senderEmail: string,
   ): Promise<void> {
-    const senderEmailHash = this.hashEmail(senderEmail);
-    await this.autoResponseSuppressionRepository.delete({
-      userId,
-      senderEmailHash,
-      reason: SuppressionReason.OPT_OUT,
-    });
+    return this.suppressionService.removeOptOutSuppression(userId, senderEmail);
   }
 
   /**
@@ -790,44 +548,7 @@ export class AutoResponderService {
     escalationRate: number;
     templateBreakdown: Record<string, number>;
   }> {
-    const queryBuilder = this.autoResponseLogRepository
-      .createQueryBuilder("log")
-      .where("log.userId = :userId", { userId });
-
-    if (dateRange) {
-      queryBuilder
-        .andWhere("log.sentAt >= :start", { start: dateRange.start })
-        .andWhere("log.sentAt <= :end", { end: dateRange.end });
-    }
-
-    const logs = await queryBuilder.getMany();
-
-    const totalSent = logs.length;
-    const byPriority = {
-      low: logs.filter((l) => l.priorityLevel === AutoResponseLogPriority.LOW)
-        .length,
-      medium: logs.filter(
-        (l) => l.priorityLevel === AutoResponseLogPriority.MEDIUM,
-      ).length,
-      high: logs.filter((l) => l.priorityLevel === AutoResponseLogPriority.HIGH)
-        .length,
-    };
-    const qaAnswerCount = logs.filter((l) => l.qaAnswerProvided).length;
-    const escalationCount = logs.filter((l) => l.escalationRequested).length;
-
-    const templateBreakdown: Record<string, number> = {};
-    for (const log of logs) {
-      templateBreakdown[log.templateUsed] =
-        (templateBreakdown[log.templateUsed] || 0) + 1;
-    }
-
-    return {
-      totalSent,
-      byPriority,
-      qaAnswerRate: totalSent > 0 ? qaAnswerCount / totalSent : 0,
-      escalationRate: totalSent > 0 ? escalationCount / totalSent : 0,
-      templateBreakdown,
-    };
+    return this.analyticsService.getAnalytics(userId, dateRange);
   }
 
   /**
@@ -838,41 +559,15 @@ export class AutoResponderService {
     templateType: "standard" | "highPriority" | "lowPriority" | "zeroBacklog",
   ): Promise<{ subject: string; body: string }> {
     const config = await this.getConfig(userId);
-    const user = await this.userRepository.findOne({ where: { id: userId } });
-    const queueStats = await this.queueStatsService.getQueueStats(userId);
-
-    const sampleVars: AutoResponseTemplateVars = {
-      userName: user?.name || "Your Name",
-      senderName: "John Smith",
-      originalSubject: "Question about your project",
-      priorityLevel:
-        templateType === "highPriority"
-          ? "high"
-          : templateType === "lowPriority"
-            ? "low"
-            : "medium",
-      actionCount:
-        queueStats.actionCount || PREVIEW_DEFAULTS.SAMPLE_ACTION_COUNT,
-      triageCount:
-        queueStats.triageCount || PREVIEW_DEFAULTS.SAMPLE_TRIAGE_COUNT,
-      avgResponseTime: queueStats.avgResponseTime || "~4 days",
-      urgentResponseTime: queueStats.urgentResponseTime || "12-24 hours",
-      aiAnswer:
-        "Based on previous conversations, the project timeline is approximately 3-4 weeks from kickoff to delivery.",
-      hasAiAnswer: true,
-    };
-
-    const template = config.templates[templateType];
-    const body = this.templateService.renderTemplate(template, sampleVars);
-
-    return {
-      subject: `Re: ${sampleVars.originalSubject} - BearlyMail Auto-Response`,
-      body,
-    };
+    return this.previewService.previewAutoResponse(
+      userId,
+      templateType,
+      config,
+    );
   }
 
   /**
-   * Preview auto-response for a specific email (shows what would actually be sent)
+   * Preview auto-response for a specific email
    */
   async previewAutoResponseForEmail(
     userId: string,
@@ -886,79 +581,15 @@ export class AutoResponderService {
     originalSubject: string;
   }> {
     const config = await this.getConfig(userId);
-    const user = await this.userRepository.findOne({ where: { id: userId } });
-    const queueStats = await this.queueStatsService.getQueueStats(userId);
-
-    // Get the email
-    const email = await this.emailRepository.findOne({
-      where: { id: emailId, userId },
-    });
-
-    if (!email) {
-      throw new Error("Email not found");
-    }
-
-    // Get the thread to determine priority
-    const thread = email.emailThreadId
-      ? await this.emailThreadRepository.findOne({
-          where: { id: email.emailThreadId, userId },
-        })
-      : null;
-
-    // Determine priority level from thread's star count and urgency
-    const priorityLevel = this.determinePriorityLevel(thread);
-
-    // Build template variables with real data
-    const templateVars: AutoResponseTemplateVars = {
-      userName: user?.name || "the recipient",
-      senderName: email.fromName || email.from.split("@")[0],
-      originalSubject: email.subject,
-      priorityLevel,
-      actionCount: queueStats.actionCount,
-      triageCount: queueStats.triageCount,
-      avgResponseTime: queueStats.avgResponseTime,
-      urgentResponseTime: queueStats.urgentResponseTime,
-      aiAnswer: null,
-      hasAiAnswer: false,
-    };
-
-    // Generate Q&A answer if enabled
-    if (config.qaContextEnabled) {
-      const qaResult = await this.generateQAAnswer(
-        userId,
-        email.subject,
-        email.body,
-        config.qaMinConfidence,
-      );
-      if (qaResult && qaResult.confidence >= config.qaMinConfidence) {
-        templateVars.aiAnswer = qaResult.answer;
-        templateVars.hasAiAnswer = true;
-      }
-    }
-
-    // Select the appropriate template
-    const template = this.templateService.selectTemplate(
+    return this.previewService.previewAutoResponseForEmail(
+      userId,
+      emailId,
       config,
-      priorityLevel,
-      queueStats,
     );
-    const templateUsed = this.templateService.getTemplateType(config, template);
-
-    const body = this.templateService.renderTemplate(template, templateVars);
-
-    return {
-      subject: `Re: ${email.subject} - BearlyMail Auto-Response`,
-      body,
-      templateUsed,
-      priorityLevel,
-      senderName: templateVars.senderName,
-      originalSubject: email.subject,
-    };
   }
 
   /**
    * Get recent emails for preview selection
-   * Only returns incoming emails (not sent by the user) that would be eligible for auto-response
    */
   async getRecentEmailsForPreview(
     userId: string,
@@ -973,61 +604,6 @@ export class AutoResponderService {
       priorityScore: number | null;
     }>
   > {
-    // Get user's email to filter out sent emails
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-      select: ["email"],
-    });
-
-    if (!user) {
-      return [];
-    }
-
-    const userEmail = user.email?.toLowerCase();
-
-    // Fetch more emails than needed since we'll filter out sent emails
-    const emails = await this.emailRepository.find({
-      where: { userId },
-      order: { receivedAt: "DESC" },
-      take: limit * 3,
-      select: [
-        "id",
-        "from",
-        "fromName",
-        "subject",
-        "receivedAt",
-        "emailThreadId",
-      ],
-    });
-
-    // Filter out emails sent by the user (only show incoming emails)
-    const incomingEmails = emails.filter((email) => {
-      const fromEmail = email.from?.toLowerCase();
-      return fromEmail && fromEmail !== userEmail;
-    });
-
-    // Get thread priority scores for incoming emails only
-    const emailsWithPriority = await Promise.all(
-      incomingEmails.slice(0, limit).map(async (email) => {
-        let priorityScore: number | null = null;
-        if (email.emailThreadId) {
-          const thread = await this.emailThreadRepository.findOne({
-            where: { id: email.emailThreadId, userId },
-            select: ["priorityScore"],
-          });
-          priorityScore = thread?.priorityScore || null;
-        }
-        return {
-          id: email.id,
-          from: email.from,
-          fromName: email.fromName,
-          subject: email.subject,
-          receivedAt: email.receivedAt,
-          priorityScore,
-        };
-      }),
-    );
-
-    return emailsWithPriority;
+    return this.previewService.getRecentEmailsForPreview(userId, limit);
   }
 }

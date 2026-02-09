@@ -135,12 +135,7 @@ export class SnoozeService {
         case "w":
           return new Date(
             now.getTime() +
-              value *
-                SNOOZE_CONSTANTS.DAYS_IN_WEEK *
-                24 *
-                60 *
-                60 *
-                1000,
+              value * SNOOZE_CONSTANTS.DAYS_IN_WEEK * 24 * 60 * 60 * 1000,
           );
       }
     }

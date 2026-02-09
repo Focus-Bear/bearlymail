@@ -1473,7 +1473,10 @@ export class LLMService {
         from: email.from,
         subject: email.subject,
         // Slightly shorter for batch
-        bodyPreview: email.body.substring(0, BODY_PREVIEW_LENGTHS.BATCH_PREVIEW),
+        bodyPreview: email.body.substring(
+          0,
+          BODY_PREVIEW_LENGTHS.BATCH_PREVIEW,
+        ),
         receivedAt: receivedAtText,
         isRecent: isRecent ? " (recent)" : "",
       };

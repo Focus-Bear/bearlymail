@@ -111,7 +111,14 @@ export class TokenUsageService {
    * Capture a prompt example if it's longer than the current stored example
    */
   private captureExample(data: TokenUsageLogData): void {
-    const { operation, promptTokens, promptText, systemPromptText, provider, model } = data;
+    const {
+      operation,
+      promptTokens,
+      promptText,
+      systemPromptText,
+      provider,
+      model,
+    } = data;
 
     if (!promptText) return;
 
@@ -123,9 +130,13 @@ export class TokenUsageService {
         ? `[System Prompt]\n${systemPromptText}\n\n[User Prompt]\n${promptText}`
         : promptText;
 
-      const truncatedPrompt = fullPromptText.length > this.MAX_PROMPT_LENGTH
-        ? fullPromptText.substring(0, this.MAX_PROMPT_LENGTH) + "\n... [TRUNCATED]"
-        : fullPromptText;
+      const truncatedPrompt =
+        fullPromptText.length > this.MAX_PROMPT_LENGTH
+          ? `${fullPromptText.substring(
+              0,
+              this.MAX_PROMPT_LENGTH,
+            )}\n... [TRUNCATED]`
+          : fullPromptText;
 
       const example: PromptExample = {
         operation,
@@ -220,7 +231,10 @@ export class TokenUsageService {
       .addSelect("SUM(tu.completionTokens)::int", "totalCompletionTokens")
       .addSelect("SUM(tu.totalTokens)::int", "totalTokens")
       .addSelect("AVG(tu.durationMs)::int", "avgDurationMs")
-      .addSelect("SUM(CASE WHEN tu.containsHtml = true THEN 1 ELSE 0 END)::int", "htmlCallCount")
+      .addSelect(
+        "SUM(CASE WHEN tu.containsHtml = true THEN 1 ELSE 0 END)::int",
+        "htmlCallCount",
+      )
       .groupBy("tu.operation")
       .orderBy("SUM(tu.totalTokens)", "DESC");
 

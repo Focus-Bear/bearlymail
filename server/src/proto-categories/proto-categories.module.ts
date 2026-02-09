@@ -6,7 +6,9 @@ import { UserContext } from "../database/entities/user-context.entity";
 import { ProtoCategoriesService } from "./proto-categories.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ProtoCategory, EmailThread, UserContext])],
+  imports: [
+    TypeOrmModule.forFeature([ProtoCategory, EmailThread, UserContext]),
+  ],
   providers: [ProtoCategoriesService],
   exports: [ProtoCategoriesService],
 })

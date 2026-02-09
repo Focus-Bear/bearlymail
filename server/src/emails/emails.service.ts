@@ -2331,7 +2331,8 @@ export class EmailsService {
                 type:
                   (email.sentimentScore ?? 0) < SENTIMENT_THRESHOLDS.NEGATIVE
                     ? "negative"
-                    : (email.sentimentScore ?? 0) > SENTIMENT_THRESHOLDS.POSITIVE
+                    : (email.sentimentScore ?? 0) >
+                        SENTIMENT_THRESHOLDS.POSITIVE
                       ? "positive"
                       : "neutral",
                 reasons: [],
@@ -2363,7 +2364,8 @@ export class EmailsService {
                 type:
                   (email.sentimentScore ?? 0) < SENTIMENT_THRESHOLDS.NEGATIVE
                     ? "negative"
-                    : (email.sentimentScore ?? 0) > SENTIMENT_THRESHOLDS.POSITIVE
+                    : (email.sentimentScore ?? 0) >
+                        SENTIMENT_THRESHOLDS.POSITIVE
                       ? "positive"
                       : "neutral",
                 reasons: [],
@@ -2395,7 +2397,8 @@ export class EmailsService {
                 type:
                   (email.sentimentScore ?? 0) < SENTIMENT_THRESHOLDS.NEGATIVE
                     ? "negative"
-                    : (email.sentimentScore ?? 0) > SENTIMENT_THRESHOLDS.POSITIVE
+                    : (email.sentimentScore ?? 0) >
+                        SENTIMENT_THRESHOLDS.POSITIVE
                       ? "positive"
                       : "neutral",
                 reasons: [],
@@ -2424,7 +2427,8 @@ export class EmailsService {
                 type:
                   (email.sentimentScore ?? 0) < SENTIMENT_THRESHOLDS.NEGATIVE
                     ? "negative"
-                    : (email.sentimentScore ?? 0) > SENTIMENT_THRESHOLDS.POSITIVE
+                    : (email.sentimentScore ?? 0) >
+                        SENTIMENT_THRESHOLDS.POSITIVE
                       ? "positive"
                       : "neutral",
                 reasons: [],

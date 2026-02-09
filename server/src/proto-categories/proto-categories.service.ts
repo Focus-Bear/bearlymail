@@ -131,7 +131,9 @@ export class ProtoCategoriesService {
   /**
    * Promote a proto category to a real category (UserContext with EMAIL_CATEGORY key)
    */
-  async promoteToCategory(protoCategory: ProtoCategory): Promise<ProtoCategory> {
+  async promoteToCategory(
+    protoCategory: ProtoCategory,
+  ): Promise<ProtoCategory> {
     if (protoCategory.isPromoted) {
       this.logger.warn(
         `Proto category "${protoCategory.name}" is already promoted`,
@@ -214,7 +216,9 @@ export class ProtoCategoriesService {
       const suggestionWithoutEmoji = normalizedSuggestion
         .replace(/[\p{Emoji}]/gu, "")
         .trim();
-      const nameWithoutEmoji = normalizedName.replace(/[\p{Emoji}]/gu, "").trim();
+      const nameWithoutEmoji = normalizedName
+        .replace(/[\p{Emoji}]/gu, "")
+        .trim();
 
       if (
         suggestionWithoutEmoji === nameWithoutEmoji ||

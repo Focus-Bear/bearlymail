@@ -293,7 +293,8 @@ async function testMixedWorkload(boss: PgBoss): Promise<LoadTestResult> {
 
     // Queue learning jobs
     for (let i = 0; i < LOAD_TEST_CONFIG.LEARNING_JOBS_COUNT; i++) {
-      const emailId = TEST_EMAIL_IDS[i + LOAD_TEST_CONFIG.LEARNING_EMAIL_OFFSET];
+      const emailId =
+        TEST_EMAIL_IDS[i + LOAD_TEST_CONFIG.LEARNING_EMAIL_OFFSET];
       jobs.push(
         boss
           .send(

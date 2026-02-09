@@ -10,7 +10,6 @@ import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { getErrorMessage } from "../types/common";
 import { GMAIL_LABELS } from "../constants/email-labels";
-import { RATIOS } from "../constants/percentages";
 import { DAYS } from "../constants/time-constants";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
@@ -22,6 +21,9 @@ import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { ContextPiiRedactionService } from "./context-pii-redaction.service";
 import { ContextGmailDataService } from "./context-gmail-data.service";
 import { ContextQaExtractionService } from "./context-qa-extraction.service";
+import { ContextCrudService } from "./context-crud.service";
+import { ContextCategoryService } from "./context-category.service";
+import { ContextAnalysisProgressService } from "./context-analysis-progress.service";
 import { writeAnalysisLog } from "./context-analysis-logger";
 import { classifyContextAnalysisError } from "./context-error-handler";
 import { Inject } from "@nestjs/common";
@@ -49,808 +51,14 @@ export class ContextService {
     private piiRedactionService: ContextPiiRedactionService,
     private gmailDataService: ContextGmailDataService,
     private qaExtractionService: ContextQaExtractionService,
+    private crudService: ContextCrudService,
+    private categoryService: ContextCategoryService,
+    private progressService: ContextAnalysisProgressService,
     @Inject("PG_BOSS") private boss: PgBoss,
   ) {}
 
-  /**
-   * @deprecated Use ContextPiiRedactionService.redactPII instead
-   * This method has been moved to ContextPiiRedactionService
-   */
-  private _deprecated_redactPII(text: string, userEmail?: string): string {
-    // Common name patterns (capitalized words that might be names)
-    // Replace with [Name] placeholder
-    let redacted = text;
-
-    // Remove email addresses (keep domain structure but redact user part)
-    if (userEmail) {
-      const emailRegex = new RegExp(
-        userEmail.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
-        "gi",
-      );
-      redacted = redacted.replace(emailRegex, "[Your Email]");
-    }
-
-    // Pattern: Capitalized words that look like names (2+ capital letters, or single capital followed by lowercase)
-    // This is a simple heuristic - in production you might want a more sophisticated approach
-    // Match patterns like "Hi John," "Thanks Sarah", "Jeremy said", etc.
-    const namePattern = /\b([A-Z][a-z]+)\b/g;
-    const potentialNames = new Set<string>();
-    let match;
-
-    while ((match = namePattern.exec(text)) !== null) {
-      const word = match[1];
-      // Skip common words that aren't names
-      const commonWords = [
-        "Hi",
-        "Hello",
-        "Thanks",
-        "Thank",
-        "Best",
-        "Regards",
-        "Sincerely",
-        "Dear",
-        "Hello",
-        "Hey",
-        "The",
-        "This",
-        "That",
-        "There",
-        "These",
-        "Those",
-        "I",
-        "You",
-        "We",
-        "They",
-        "He",
-        "She",
-        "It",
-        "A",
-        "An",
-        "And",
-        "Or",
-        "But",
-        "If",
-        "When",
-        "Where",
-        "What",
-        "Who",
-        "How",
-        "Why",
-        "Can",
-        "Could",
-        "Should",
-        "Would",
-        "Will",
-        "May",
-        "Might",
-        "Must",
-        "Have",
-        "Has",
-        "Had",
-        "Do",
-        "Does",
-        "Did",
-        "Is",
-        "Are",
-        "Was",
-        "Were",
-        "Be",
-        "Been",
-        "Being",
-        "Get",
-        "Got",
-        "Giving",
-        "Given",
-        "Make",
-        "Made",
-        "Making",
-        "Take",
-        "Took",
-        "Taking",
-        "Taken",
-        "See",
-        "Saw",
-        "Seeing",
-        "Seen",
-        "Know",
-        "Knew",
-        "Knowing",
-        "Known",
-        "Think",
-        "Thought",
-        "Thinking",
-        "Say",
-        "Said",
-        "Saying",
-        "Tell",
-        "Told",
-        "Telling",
-        "Come",
-        "Came",
-        "Coming",
-        "Go",
-        "Went",
-        "Going",
-        "Gone",
-        "Look",
-        "Looked",
-        "Looking",
-        "Use",
-        "Used",
-        "Using",
-        "Find",
-        "Found",
-        "Finding",
-        "Give",
-        "Gave",
-        "Giving",
-        "Given",
-        "Work",
-        "Worked",
-        "Working",
-        "Call",
-        "Called",
-        "Calling",
-        "Try",
-        "Tried",
-        "Trying",
-        "Ask",
-        "Asked",
-        "Asking",
-        "Need",
-        "Needed",
-        "Needing",
-        "Want",
-        "Wanted",
-        "Wanting",
-        "Seem",
-        "Seemed",
-        "Seeming",
-        "Help",
-        "Helped",
-        "Helping",
-        "Show",
-        "Showed",
-        "Showing",
-        "Shown",
-        "Play",
-        "Played",
-        "Playing",
-        "Move",
-        "Moved",
-        "Moving",
-        "Live",
-        "Lived",
-        "Living",
-        "Believe",
-        "Believed",
-        "Believing",
-        "Bring",
-        "Brought",
-        "Bringing",
-        "Happen",
-        "Happened",
-        "Happening",
-        "Write",
-        "Wrote",
-        "Writing",
-        "Written",
-        "Sit",
-        "Sat",
-        "Sitting",
-        "Stand",
-        "Stood",
-        "Standing",
-        "Lose",
-        "Lost",
-        "Losing",
-        "Pay",
-        "Paid",
-        "Paying",
-        "Meet",
-        "Met",
-        "Meeting",
-        "Include",
-        "Included",
-        "Including",
-        "Continue",
-        "Continued",
-        "Continuing",
-        "Set",
-        "Setting",
-        "Learn",
-        "Learned",
-        "Learning",
-        "Change",
-        "Changed",
-        "Changing",
-        "Lead",
-        "Led",
-        "Leading",
-        "Understand",
-        "Understood",
-        "Understanding",
-        "Watch",
-        "Watched",
-        "Watching",
-        "Follow",
-        "Followed",
-        "Following",
-        "Stop",
-        "Stopped",
-        "Stopping",
-        "Create",
-        "Created",
-        "Creating",
-        "Speak",
-        "Spoke",
-        "Speaking",
-        "Spoken",
-        "Read",
-        "Reading",
-        "Allow",
-        "Allowed",
-        "Allowing",
-        "Add",
-        "Added",
-        "Adding",
-        "Spend",
-        "Spent",
-        "Spending",
-        "Grow",
-        "Grew",
-        "Growing",
-        "Grown",
-        "Open",
-        "Opened",
-        "Opening",
-        "Walk",
-        "Walked",
-        "Walking",
-        "Win",
-        "Won",
-        "Winning",
-        "Offer",
-        "Offered",
-        "Offering",
-        "Remember",
-        "Remembered",
-        "Remembering",
-        "Love",
-        "Loved",
-        "Loving",
-        "Consider",
-        "Considered",
-        "Considering",
-        "Appear",
-        "Appeared",
-        "Appearing",
-        "Buy",
-        "Bought",
-        "Buying",
-        "Wait",
-        "Waited",
-        "Waiting",
-        "Serve",
-        "Served",
-        "Serving",
-        "Die",
-        "Died",
-        "Dying",
-        "Send",
-        "Sent",
-        "Sending",
-        "Build",
-        "Built",
-        "Building",
-        "Stay",
-        "Stayed",
-        "Staying",
-        "Fall",
-        "Fell",
-        "Falling",
-        "Fallen",
-        "Cut",
-        "Cutting",
-        "Reach",
-        "Reached",
-        "Reaching",
-        "Kill",
-        "Killed",
-        "Killing",
-        "Raise",
-        "Raised",
-        "Raising",
-        "Pass",
-        "Passed",
-        "Passing",
-        "Sell",
-        "Sold",
-        "Selling",
-        "Decide",
-        "Decided",
-        "Deciding",
-        "Return",
-        "Returned",
-        "Returning",
-        "Join",
-        "Joined",
-        "Joining",
-        "Agree",
-        "Agreed",
-        "Agreeing",
-        "Support",
-        "Supported",
-        "Supporting",
-        "Hit",
-        "Hitting",
-        "Produce",
-        "Produced",
-        "Producing",
-        "Eat",
-        "Ate",
-        "Eating",
-        "Eaten",
-        "Cover",
-        "Covered",
-        "Covering",
-        "Catch",
-        "Caught",
-        "Catching",
-        "Draw",
-        "Drew",
-        "Drawing",
-        "Drawn",
-        "Choose",
-        "Chose",
-        "Choosing",
-        "Chosen",
-        "Succeed",
-        "Succeeded",
-        "Succeeding",
-        "Fail",
-        "Failed",
-        "Failing",
-        "Enjoy",
-        "Enjoyed",
-        "Enjoying",
-        "Prevent",
-        "Prevented",
-        "Preventing",
-        "Discover",
-        "Discovered",
-        "Discovering",
-        "Prepare",
-        "Prepared",
-        "Preparing",
-        "Manage",
-        "Managed",
-        "Managing",
-        "Involve",
-        "Involved",
-        "Involving",
-        "Report",
-        "Reported",
-        "Reporting",
-        "Deal",
-        "Dealt",
-        "Dealing",
-        "Face",
-        "Faced",
-        "Facing",
-        "Accept",
-        "Accepted",
-        "Accepting",
-        "Improve",
-        "Improved",
-        "Improving",
-        "Raise",
-        "Raised",
-        "Raising",
-        "Reduce",
-        "Reduced",
-        "Reducing",
-        "Establish",
-        "Established",
-        "Establishing",
-        "Receive",
-        "Received",
-        "Receiving",
-        "Require",
-        "Required",
-        "Requiring",
-        "Indicate",
-        "Indicated",
-        "Indicating",
-        "Remember",
-        "Remembered",
-        "Remembering",
-        "Forget",
-        "Forgot",
-        "Forgetting",
-        "Forgotten",
-        "Complete",
-        "Completed",
-        "Completing",
-        "Concern",
-        "Concerned",
-        "Concerning",
-        "Wonder",
-        "Wondered",
-        "Wondering",
-        "Notice",
-        "Noticed",
-        "Noticing",
-        "Depend",
-        "Depended",
-        "Depending",
-        "Suggest",
-        "Suggested",
-        "Suggesting",
-        "Realize",
-        "Realized",
-        "Realizing",
-        "Recognize",
-        "Recognized",
-        "Recognizing",
-        "Relate",
-        "Related",
-        "Relating",
-        "Remain",
-        "Remained",
-        "Remaining",
-        "Represent",
-        "Represented",
-        "Representing",
-        "Respond",
-        "Responded",
-        "Responding",
-        "Result",
-        "Resulted",
-        "Resulting",
-        "Return",
-        "Returned",
-        "Returning",
-        "Reveal",
-        "Revealed",
-        "Revealing",
-        "Rise",
-        "Rose",
-        "Rising",
-        "Risen",
-        "Save",
-        "Saved",
-        "Saving",
-        "Seek",
-        "Sought",
-        "Seeking",
-        "Separate",
-        "Separated",
-        "Separating",
-        "Serve",
-        "Served",
-        "Serving",
-        "Share",
-        "Shared",
-        "Sharing",
-        "Shoot",
-        "Shot",
-        "Shooting",
-        "Shut",
-        "Shutting",
-        "Sing",
-        "Sang",
-        "Singing",
-        "Sung",
-        "Sink",
-        "Sank",
-        "Sinking",
-        "Sunk",
-        "Sleep",
-        "Slept",
-        "Sleeping",
-        "Smile",
-        "Smiled",
-        "Smiling",
-        "Solve",
-        "Solved",
-        "Solving",
-        "Sound",
-        "Sounded",
-        "Sounding",
-        "Spend",
-        "Spent",
-        "Spending",
-        "Split",
-        "Splitting",
-        "Spread",
-        "Spreading",
-        "Spring",
-        "Sprang",
-        "Springing",
-        "Sprung",
-        "Stand",
-        "Stood",
-        "Standing",
-        "Start",
-        "Started",
-        "Starting",
-        "State",
-        "Stated",
-        "Stating",
-        "Stay",
-        "Stayed",
-        "Staying",
-        "Step",
-        "Stepped",
-        "Stepping",
-        "Stick",
-        "Stuck",
-        "Sticking",
-        "Strike",
-        "Struck",
-        "Striking",
-        "Struck",
-        "Study",
-        "Studied",
-        "Studying",
-        "Supply",
-        "Supplied",
-        "Supplying",
-        "Suppose",
-        "Supposed",
-        "Supposing",
-        "Survive",
-        "Survived",
-        "Surviving",
-        "Tackle",
-        "Tackled",
-        "Tackling",
-        "Take",
-        "Took",
-        "Taking",
-        "Taken",
-        "Talk",
-        "Talked",
-        "Talking",
-        "Taste",
-        "Tasted",
-        "Tasting",
-        "Teach",
-        "Taught",
-        "Teaching",
-        "Tell",
-        "Told",
-        "Telling",
-        "Tend",
-        "Tended",
-        "Tending",
-        "Test",
-        "Tested",
-        "Testing",
-        "Thank",
-        "Thanked",
-        "Thanking",
-        "Think",
-        "Thought",
-        "Thinking",
-        "Throw",
-        "Threw",
-        "Throwing",
-        "Thrown",
-        "Touch",
-        "Touched",
-        "Touching",
-        "Train",
-        "Trained",
-        "Training",
-        "Travel",
-        "Travelled",
-        "Travelling",
-        "Treat",
-        "Treated",
-        "Treating",
-        "Trust",
-        "Trusted",
-        "Trusting",
-        "Try",
-        "Tried",
-        "Trying",
-        "Turn",
-        "Turned",
-        "Turning",
-        "Understand",
-        "Understood",
-        "Understanding",
-        "Unite",
-        "United",
-        "Uniting",
-        "Value",
-        "Valued",
-        "Valuing",
-        "Visit",
-        "Visited",
-        "Visiting",
-        "Voice",
-        "Voiced",
-        "Voicing",
-        "Wait",
-        "Waited",
-        "Waiting",
-        "Wake",
-        "Woke",
-        "Waking",
-        "Woken",
-        "Walk",
-        "Walked",
-        "Walking",
-        "Want",
-        "Wanted",
-        "Wanting",
-        "Warn",
-        "Warned",
-        "Warning",
-        "Wash",
-        "Washed",
-        "Washing",
-        "Waste",
-        "Wasted",
-        "Wasting",
-        "Watch",
-        "Watched",
-        "Watching",
-        "Wave",
-        "Waved",
-        "Waving",
-        "Wear",
-        "Wore",
-        "Wearing",
-        "Worn",
-        "Weigh",
-        "Weighed",
-        "Weighing",
-        "Welcome",
-        "Welcomed",
-        "Welcoming",
-        "Win",
-        "Won",
-        "Winning",
-        "Wish",
-        "Wished",
-        "Wishing",
-        "Wonder",
-        "Wondered",
-        "Wondering",
-        "Work",
-        "Worked",
-        "Working",
-        "Worry",
-        "Worried",
-        "Worrying",
-        "Would",
-        "Write",
-        "Wrote",
-        "Writing",
-        "Written",
-        "Wrong",
-      ];
-      if (!commonWords.includes(word)) {
-        potentialNames.add(word);
-      }
-    }
-
-    // Replace potential names with [Name] placeholder
-    for (const name of potentialNames) {
-      const nameRegex = new RegExp(`\\b${name}\\b`, "g");
-      redacted = redacted.replace(nameRegex, "[Name]");
-    }
-
-    // Collapse multiple consecutive [Name] placeholders into a single [Name] or [Names]
-    // Handle patterns like "[Name], [Name]" or "[Name] [Name]" -> "[Name]" or "[Names]"
-    // First, handle comma-separated: "[Name], [Name]" -> "[Name]"
-    redacted = redacted.replace(/\[Name\](?:\s*,\s*\[Name\])+/g, "[Name]");
-    // Then handle space-separated: "[Name] [Name]" -> "[Name]" (if not part of a larger phrase)
-    redacted = redacted.replace(/\[Name\]\s+\[Name\]/g, "[Name]");
-    // Handle "and [Name]" patterns: "[Name] and [Name]" -> "[Name]"
-    redacted = redacted.replace(/\[Name\]\s+and\s+\[Name\]/gi, "[Name]");
-
-    return redacted;
-  }
-
-  /**
-   * Check if two context values are similar/overlapping
-   * Uses word overlap and key phrase matching to detect duplicates
-   */
-  private areContextValuesSimilar(value1: string, value2: string): boolean {
-    const normalize = (inputString: string): string =>
-      inputString
-        .toLowerCase()
-        .trim()
-        // Remove punctuation
-        .replace(/[^\w\s]/g, " ")
-        // Normalize whitespace
-        .replace(/\s+/g, " ");
-
-    const v1 = normalize(value1);
-    const v2 = normalize(value2);
-
-    // Exact match after normalization
-    if (v1 === v2) return true;
-
-    // Check for significant word overlap (at least 60% of words match)
-    // Ignore short words
-    const words1 = new Set(v1.split(" ").filter((word) => word.length > 3));
-    const words2 = new Set(v2.split(" ").filter((word) => word.length > 3));
-
-    if (words1.size === 0 || words2.size === 0) return false;
-
-    const intersection = new Set(
-      [...words1].filter((word) => words2.has(word)),
-    );
-    const union = new Set([...words1, ...words2]);
-    const similarity = intersection.size / union.size;
-
-    // If 60%+ word overlap, consider them similar
-    if (similarity >= RATIOS.SIXTY_PERCENT) return true;
-
-    // Check for key phrase overlap (e.g., "PostHog", "document collaboration", "SOP review")
-    // Extract key phrases (2-3 word sequences) and check for overlap
-    const getKeyPhrases = (text: string): Set<string> => {
-      // Lower threshold to catch "SOP"
-      const words = text.split(" ").filter((word) => word.length > 2);
-      const phrases = new Set<string>();
-      // Add 2-word phrases
-      for (let i = 0; i < words.length - 1; i++) {
-        phrases.add(`${words[i]} ${words[i + 1]}`);
-      }
-      // Add 3-word phrases for important terms
-      for (let i = 0; i < words.length - 2; i++) {
-        phrases.add(`${words[i]} ${words[i + 1]} ${words[i + 2]}`);
-      }
-      return phrases;
-    };
-
-    const phrases1 = getKeyPhrases(v1);
-    const phrases2 = getKeyPhrases(v2);
-
-    // If they share key phrases (especially product names, project names), consider similar
-    let sharedPhrases = 0;
-    for (const phrase of phrases1) {
-      if (phrases2.has(phrase)) {
-        sharedPhrases++;
-      }
-    }
-
-    // Also check for single important words (product names, project names) that appear in both
-    const importantWords = [
-      "posthog",
-      "document",
-      "collaboration",
-      "sop",
-      "review",
-      "analytics",
-      "integration",
-    ];
-    const v1Words = v1.split(" ");
-    const v2Words = v2.split(" ");
-    let sharedImportantWords = 0;
-    for (const word of importantWords) {
-      if (v1Words.includes(word) && v2Words.includes(word)) {
-        sharedImportantWords++;
-      }
-    }
-
-    // If they share 2+ key phrases OR 2+ important words, they're similar
-    if (sharedPhrases >= 2 || sharedImportantWords >= 2) return true;
-
-    return false;
-  }
-
   async getUserContext(userId: string): Promise<UserContext[]> {
-    return this.contextRepository.find({
-      where: { userId },
-      order: { lastModified: "DESC" },
-    });
+    return this.crudService.getUserContext(userId);
   }
 
   /**
@@ -2385,147 +1593,34 @@ export class ContextService {
     explanation?: string,
     sourceThreadIds?: string[],
   ): Promise<UserContext> {
-    const existing = await this.contextRepository.findOne({
-      where: { userId, contextKey, contextValue },
-    });
-
-    // Validate context value is not blank
-    const trimmedValue = (contextValue || "").trim();
-    if (!trimmedValue || trimmedValue === "") {
-      this.logger.warn(
-        `[CONTEXT-ANALYSIS] Skipping blank context item: key=${contextKey}, value="${contextValue}"`,
-      );
-      throw new Error(`Context value cannot be blank for key ${contextKey}`);
-    }
-
-    // Apply PII redaction to protect user privacy
-    const redactedValue = this.piiRedactionService.redactPII(trimmedValue);
-
-    if (existing) {
-      existing.lastModified = new Date();
-      existing.contextValue = redactedValue; // Update with redacted value
-      if (source === Source.USER_EDITED) {
-        existing.source = Source.USER_EDITED;
-      }
-      if (priority !== undefined) {
-        existing.priority = priority;
-      }
-      if (explanation !== undefined) {
-        existing.explanation = explanation;
-      }
-      // Merge source thread IDs (don't replace, add new ones)
-      if (sourceThreadIds && sourceThreadIds.length > 0) {
-        const existingIds = existing.sourceThreadIds || [];
-        const mergedIds = [...new Set([...existingIds, ...sourceThreadIds])];
-        existing.sourceThreadIds = mergedIds;
-      }
-      return await this.contextRepository.save(existing);
-    }
-
-    const newContext = this.contextRepository.create({
+    return this.crudService.createOrUpdateContext(
       userId,
       contextKey,
-      contextValue: redactedValue, // Use PII-redacted value
+      contextValue,
       source,
       priority,
       explanation,
-      sourceThreadIds: sourceThreadIds || [],
-    });
-    return await this.contextRepository.save(newContext);
+      sourceThreadIds,
+    );
   }
 
   async updateContext(
     contextId: string,
     userId: string,
     updates: Partial<UserContext>,
-  ): Promise<UserContext> {
-    updates.source = Source.USER_EDITED;
-    await this.contextRepository.update({ contextId, userId }, updates);
-    return this.contextRepository.findOne({ where: { contextId, userId } });
+  ): Promise<UserContext | null> {
+    return this.crudService.updateContext(contextId, userId, updates);
   }
 
   async deleteContext(contextId: string, userId: string): Promise<void> {
-    await this.contextRepository.delete({ contextId, userId });
+    return this.crudService.deleteContext(contextId, userId);
   }
 
   /**
    * Deduplicate existing autogenerated context by consolidating similar entries
    */
   private async deduplicateExistingContext(userId: string): Promise<void> {
-    try {
-      const existingContext = await this.contextRepository.find({
-        where: { userId, source: Source.AUTOGENERATED },
-        order: { lastModified: "DESC" },
-      });
-
-      if (existingContext.length <= 1) {
-        this.logger.log(
-          `[CONTEXT-ANALYSIS] No duplicates to consolidate (${existingContext.length} autogenerated items)`,
-        );
-        return;
-      }
-
-      // Group by contextKey and deduplicate within each group
-      const grouped = new Map<ContextKey, UserContext[]>();
-      for (const ctx of existingContext) {
-        if (!grouped.has(ctx.contextKey)) {
-          grouped.set(ctx.contextKey, []);
-        }
-        grouped.get(ctx.contextKey)!.push(ctx);
-      }
-
-      let duplicatesRemoved = 0;
-      const toDelete: string[] = [];
-
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      for (const [key, contexts] of grouped.entries()) {
-        if (contexts.length <= 1) continue;
-
-        // Sort by lastModified (keep newest)
-        contexts.sort(
-          (a, b) => b.lastModified.getTime() - a.lastModified.getTime(),
-        );
-
-        // Keep the first (newest) and check others for similarity
-        const keep = contexts[0];
-        for (let i = 1; i < contexts.length; i++) {
-          const current = contexts[i];
-          try {
-            if (
-              this.piiRedactionService.areContextValuesSimilar(
-                keep.contextValue,
-                current.contextValue,
-              )
-            ) {
-              this.logger.log(
-                `[CONTEXT-ANALYSIS] Consolidating duplicate: "${current.contextValue.substring(0, QUERY_LIMITS.SUBSTRING_PREVIEW_LENGTH)}..." (keeping newer: "${keep.contextValue.substring(0, QUERY_LIMITS.SUBSTRING_PREVIEW_LENGTH)}...")`,
-              );
-              toDelete.push(current.contextId);
-              duplicatesRemoved++;
-            }
-          } catch (similarityError) {
-            this.logger.warn(
-              `[CONTEXT-ANALYSIS] Error checking similarity during deduplication: ${getErrorMessage(similarityError)}`,
-            );
-            // Continue without marking as duplicate if similarity check fails
-          }
-        }
-      }
-
-      if (toDelete.length > 0) {
-        await this.contextRepository.delete(toDelete);
-        this.logger.log(
-          `[CONTEXT-ANALYSIS] Removed ${duplicatesRemoved} duplicate context items`,
-        );
-      } else {
-        this.logger.log(
-          `[CONTEXT-ANALYSIS] No duplicates found in existing context`,
-        );
-      }
-    } catch (error) {
-      this.logger.error("Error deduplicating existing context:", error);
-      // Don't fail the entire analysis if deduplication fails
-    }
+    return this.crudService.deduplicateExistingContext(userId);
   }
 
   /**
@@ -2618,7 +1713,12 @@ export class ContextService {
           // Check for similar questions (using word overlap) in current batch
           let isDuplicate = false;
           for (const seenQ of seenQuestions) {
-            if (this.areContextValuesSimilar(normalizedQuestion, seenQ)) {
+            if (
+              this.piiRedactionService.areContextValuesSimilar(
+                normalizedQuestion,
+                seenQ,
+              )
+            ) {
               isDuplicate = true;
               break;
             }
@@ -2627,7 +1727,12 @@ export class ContextService {
           // Check for similar answers in current batch
           if (!isDuplicate) {
             for (const seenA of seenAnswers) {
-              if (this.areContextValuesSimilar(normalizedAnswer, seenA)) {
+              if (
+                this.piiRedactionService.areContextValuesSimilar(
+                  normalizedAnswer,
+                  seenA,
+                )
+              ) {
                 isDuplicate = true;
                 break;
               }
@@ -2637,7 +1742,12 @@ export class ContextService {
           // Check against existing database Q&A using similarity matching
           if (!isDuplicate) {
             for (const existingQ of existingQuestions) {
-              if (this.areContextValuesSimilar(normalizedQuestion, existingQ)) {
+              if (
+                this.piiRedactionService.areContextValuesSimilar(
+                  normalizedQuestion,
+                  existingQ,
+                )
+              ) {
                 isDuplicate = true;
                 break;
               }
@@ -2646,7 +1756,12 @@ export class ContextService {
 
           if (!isDuplicate) {
             for (const existingA of existingAnswers) {
-              if (this.areContextValuesSimilar(normalizedAnswer, existingA)) {
+              if (
+                this.piiRedactionService.areContextValuesSimilar(
+                  normalizedAnswer,
+                  existingA,
+                )
+              ) {
                 isDuplicate = true;
                 break;
               }
@@ -2695,26 +1810,14 @@ export class ContextService {
   async getAnalysisRecordById(
     analysisRecordId: string,
   ): Promise<ContextAnalysis | null> {
-    return await this.contextAnalysisRepository.findOne({
-      where: { id: analysisRecordId },
-    });
+    return this.progressService.getAnalysisRecordById(analysisRecordId);
   }
 
   /**
    * Check if all batches are complete for an analysis
    */
   async getCompletedBatchCount(analysisRecordId: string): Promise<number> {
-    const analysisRecord = await this.contextAnalysisRepository.findOne({
-      where: { id: analysisRecordId },
-    });
-
-    if (!analysisRecord || !analysisRecord.stats) {
-      return 0;
-    }
-
-    const { stats } = analysisRecord;
-    const batchResults = (stats.batchResults as Record<string, unknown>) || {};
-    return Object.keys(batchResults).length;
+    return this.progressService.getCompletedBatchCount(analysisRecordId);
   }
 
   /**
@@ -4421,7 +3524,7 @@ export class ContextService {
 
   /**
    * Consolidate existing email categories in the database using LLM.
-   * This is called manually via the "Consolidate Categories" button.
+   * Delegates to ContextCategoryService.
    */
   async consolidateExistingCategories(userId: string): Promise<{
     originalCount: number;
@@ -4433,124 +3536,12 @@ export class ContextService {
       isUserAdded: boolean;
     }>;
   }> {
-    this.logger.log(
-      `[CATEGORY-CONSOLIDATION] Starting manual consolidation for user ${userId}`,
-    );
-
-    // Fetch all existing EMAIL_CATEGORY context items
-    const existingCategories = await this.contextRepository.find({
-      where: {
-        userId,
-        contextKey: ContextKey.EMAIL_CATEGORY,
-      },
-    });
-
-    this.logger.log(
-      `[CATEGORY-CONSOLIDATION] Found ${existingCategories.length} existing categories`,
-    );
-
-    if (existingCategories.length === 0) {
-      return {
-        originalCount: 0,
-        consolidatedCount: 0,
-        userAddedCount: 0,
-        categories: [],
-      };
-    }
-
-    // Separate user-added and auto-generated categories
-    const userAddedContexts = existingCategories.filter(
-      (ctx) => ctx.source === Source.USER_EDITED,
-    );
-    const autoGeneratedContexts = existingCategories.filter(
-      (ctx) => ctx.source !== Source.USER_EDITED,
-    );
-
-    this.logger.log(
-      `[CATEGORY-CONSOLIDATION] ${autoGeneratedContexts.length} auto-generated, ${userAddedContexts.length} user-added`,
-    );
-
-    // Parse categories into name/description format
-    const autoGeneratedCategories = autoGeneratedContexts.map((ctx) => {
-      const parts = ctx.contextValue.split(" - ");
-      return {
-        name: parts[0].trim(),
-        description: parts.length > 1 ? parts.slice(1).join(" - ").trim() : "",
-      };
-    });
-
-    const userAddedCategories = userAddedContexts.map((ctx) => {
-      const parts = ctx.contextValue.split(" - ");
-      return {
-        name: parts[0].trim(),
-        description: parts.length > 1 ? parts.slice(1).join(" - ").trim() : "",
-      };
-    });
-
-    // Call LLM to consolidate
-    this.logger.log(
-      `[CATEGORY-CONSOLIDATION] Calling LLM to consolidate ${autoGeneratedCategories.length} auto-generated categories...`,
-    );
-
-    const consolidatedCategories =
-      await this.llmService.consolidateEmailCategories(
-        autoGeneratedCategories,
-        userAddedCategories,
-        undefined,
-        userId,
-      );
-
-    this.logger.log(
-      `[CATEGORY-CONSOLIDATION] LLM returned ${consolidatedCategories.length} consolidated categories`,
-    );
-
-    // Delete all existing auto-generated categories
-    const autoGeneratedIds = autoGeneratedContexts.map((ctx) => ctx.contextId);
-    if (autoGeneratedIds.length > 0) {
-      this.logger.log(
-        `[CATEGORY-CONSOLIDATION] Deleting ${autoGeneratedIds.length} old auto-generated categories`,
-      );
-      await this.contextRepository.delete(autoGeneratedIds);
-    }
-
-    // Save the new consolidated categories (only auto-generated ones, user-added are preserved)
-    const newAutoGeneratedCategories = consolidatedCategories.filter(
-      (cat) => !cat.isUserAdded,
-    );
-
-    this.logger.log(
-      `[CATEGORY-CONSOLIDATION] Saving ${newAutoGeneratedCategories.length} new consolidated categories`,
-    );
-
-    for (const cat of newAutoGeneratedCategories) {
-      const contextValue = `${cat.name} - ${cat.description}`;
-      const newContext = this.contextRepository.create({
-        userId,
-        contextKey: ContextKey.EMAIL_CATEGORY,
-        contextValue,
-        source: Source.AUTOGENERATED,
-      });
-      await this.contextRepository.save(newContext);
-    }
-
-    const result = {
-      originalCount: existingCategories.length,
-      consolidatedCount:
-        newAutoGeneratedCategories.length + userAddedContexts.length,
-      userAddedCount: userAddedContexts.length,
-      categories: consolidatedCategories,
-    };
-
-    this.logger.log(
-      `[CATEGORY-CONSOLIDATION] Consolidation complete: ${result.originalCount} -> ${result.consolidatedCount} categories (${result.userAddedCount} user-added preserved)`,
-    );
-
-    return result;
+    return this.categoryService.consolidateExistingCategories(userId);
   }
 
   /**
    * Generate new categories from emails currently in "Other" category.
-   * This analyzes the emails and suggests more specific categories that would better organize them.
+   * Delegates to ContextCategoryService.
    */
   async generateCategoriesFromOther(userId: string): Promise<{
     newCategoriesCount: number;
@@ -4558,144 +3549,6 @@ export class ContextService {
     newCategories: Array<{ name: string; description: string }>;
     reclassifyJobsQueued: number;
   }> {
-    this.logger.log(
-      `[GENERATE-CATEGORIES] Starting category generation from Other emails for user ${userId}`,
-    );
-
-    // Fetch emails in "Other" category from triage
-    const otherEmails = await this.emailRepository
-      .createQueryBuilder("email")
-      .innerJoin("email.thread", "thread")
-      .where("email.userId = :userId", { userId })
-      .andWhere("thread.isArchived = :isArchived", { isArchived: false })
-      .andWhere("(thread.category = :other OR thread.category IS NULL)", {
-        other: "Other",
-      })
-      .select([
-        "email.id",
-        "email.from",
-        "email.fromName",
-        "email.subject",
-        "email.body",
-      ])
-      .orderBy("email.receivedAt", "DESC")
-      .limit(50)
-      .getMany();
-
-    this.logger.log(
-      `[GENERATE-CATEGORIES] Found ${otherEmails.length} emails in "Other" category`,
-    );
-
-    if (otherEmails.length === 0) {
-      return {
-        newCategoriesCount: 0,
-        totalCategoriesCount: 0,
-        newCategories: [],
-        reclassifyJobsQueued: 0,
-      };
-    }
-
-    // Fetch existing categories
-    const existingCategoryContexts = await this.contextRepository.find({
-      where: {
-        userId,
-        contextKey: ContextKey.EMAIL_CATEGORY,
-      },
-    });
-
-    const existingCategories = existingCategoryContexts.map((ctx) => {
-      const parts = ctx.contextValue.split(" - ");
-      return {
-        name: parts[0].trim(),
-        description: parts.length > 1 ? parts.slice(1).join(" - ").trim() : "",
-      };
-    });
-
-    this.logger.log(
-      `[GENERATE-CATEGORIES] Found ${existingCategories.length} existing categories`,
-    );
-
-    // Call LLM to generate new categories
-    const newCategories = await this.llmService.generateCategoriesFromOther(
-      otherEmails.map((e) => ({
-        from: e.from || "",
-        fromName: e.fromName,
-        subject: e.subject || "",
-        body: cleanEmailContent(e.body, null, 300),
-      })),
-      existingCategories,
-      undefined,
-      userId,
-    );
-
-    if (newCategories.length === 0) {
-      this.logger.log(
-        `[GENERATE-CATEGORIES] No new categories generated from Other emails`,
-      );
-      return {
-        newCategoriesCount: 0,
-        totalCategoriesCount: existingCategories.length,
-        newCategories: [],
-        reclassifyJobsQueued: 0,
-      };
-    }
-
-    // Save the new categories
-    this.logger.log(
-      `[GENERATE-CATEGORIES] Saving ${newCategories.length} new categories`,
-    );
-
-    for (const cat of newCategories) {
-      const contextValue = `${cat.name} - ${cat.description}`;
-      const newContext = this.contextRepository.create({
-        userId,
-        contextKey: ContextKey.EMAIL_CATEGORY,
-        contextValue,
-        source: Source.AUTOGENERATED,
-      });
-      await this.contextRepository.save(newContext);
-    }
-
-    // Queue refine-priority jobs for all emails in "Other" to reclassify them
-    // with the new categories available
-    this.logger.log(
-      `[GENERATE-CATEGORIES] Queueing reclassification jobs for ${otherEmails.length} emails in "Other"`,
-    );
-
-    let reclassifyJobsQueued = 0;
-    for (const email of otherEmails) {
-      try {
-        await this.boss.send(
-          "refine-priority",
-          { userId, emailId: email.id, forceRecalculate: true },
-          {
-            priority: getJobPriority("refine-priority-background", false),
-            singletonKey: `refine-priority-reclassify-${email.id}`,
-          },
-        );
-        reclassifyJobsQueued++;
-      } catch (error) {
-        this.logger.warn(
-          `[GENERATE-CATEGORIES] Failed to queue reclassification job for email ${email.id}: ${getErrorMessage(error)}`,
-        );
-      }
-    }
-
-    this.logger.log(
-      `[GENERATE-CATEGORIES] Queued ${reclassifyJobsQueued} reclassification jobs`,
-    );
-
-    const result = {
-      newCategoriesCount: newCategories.length,
-      totalCategoriesCount: existingCategories.length + newCategories.length,
-      newCategories,
-      reclassifyJobsQueued,
-    };
-
-    this.logger.log(
-      `[GENERATE-CATEGORIES] Category generation complete: ${result.newCategoriesCount} new categories added (total: ${result.totalCategoriesCount}), ${reclassifyJobsQueued} emails queued for reclassification`,
-    );
-
-    return result;
+    return this.categoryService.generateCategoriesFromOther(userId);
   }
 }

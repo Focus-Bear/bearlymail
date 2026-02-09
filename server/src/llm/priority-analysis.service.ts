@@ -445,15 +445,14 @@ Body: ${cleanedBody}`;
       );
     }
 
-    const emailCategoriesText =
-      userContext?.emailCategories?.length
-        ? userContext.emailCategories
-            .map(
-              (cat) =>
-                `"${cat.name}"${cat.description ? `: ${cat.description}` : ""}`,
-            )
-            .join(", ")
-        : '"Newsletters", "Sales", "Partnerships", "Customer Support", "HR Admin"';
+    const emailCategoriesText = userContext?.emailCategories?.length
+      ? userContext.emailCategories
+          .map(
+            (cat) =>
+              `"${cat.name}"${cat.description ? `: ${cat.description}` : ""}`,
+          )
+          .join(", ")
+      : '"Newsletters", "Sales", "Partnerships", "Customer Support", "HR Admin"';
 
     const currentDateStr = new Date().toLocaleDateString("en-US", {
       weekday: "long",
@@ -512,8 +511,7 @@ IMPORTANT: Return ONLY the JSON array, no other text.`;
                   0,
                   Math.min(100, item.urgencyScore || 0),
                 ),
-                urgencyExplanation:
-                  item.urgencyExplanation || "No explanation",
+                urgencyExplanation: item.urgencyExplanation || "No explanation",
                 sentimentScore:
                   item.sentimentScore !== undefined
                     ? Math.max(-1, Math.min(1, item.sentimentScore))

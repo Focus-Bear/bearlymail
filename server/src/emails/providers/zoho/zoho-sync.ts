@@ -1,0 +1,147 @@
+import { Logger } from "@nestjs/common";
+import { AxiosInstance } from "axios";
+import { QUERY_LIMITS } from "../../../constants/query-limits";
+import { isApiError, isError } from "../../../types/common";
+
+const logger = new Logger("ZohoSync");
+
+/**
+ * Verify thread statuses in Zoho API in batches with concurrency limits
+ * Returns array of updates: { threadId, starCount, isArchived }[]
+ */
+export async function verifyThreadStatusesInZoho(
+  userId: string,
+  threadIds: string[],
+  zohoClient: AxiosInstance,
+  zohoAccountId: string,
+): Promise<
+  Array<{ threadId: string; starCount: number; isArchived: boolean }>
+> {
+  const updates: Array<{
+    threadId: string;
+    starCount: number;
+    isArchived: boolean;
+  }> = [];
+
+  const BATCH_SIZE = 50;
+  const CONCURRENCY_LIMIT = 10;
+
+  for (let i = 0; i < threadIds.length; i += BATCH_SIZE) {
+    const batch = threadIds.slice(i, i + BATCH_SIZE);
+    logger.debug(
+      `Processing batch ${Math.floor(i / BATCH_SIZE) + 1} of ${Math.ceil(threadIds.length / BATCH_SIZE)} (${batch.length} threads)`,
+    );
+
+    const batchPromises: Promise<void>[] = [];
+    for (let j = 0; j < batch.length; j += CONCURRENCY_LIMIT) {
+      const concurrentBatch = batch.slice(j, j + CONCURRENCY_LIMIT);
+      const concurrentPromises = concurrentBatch.map(async (threadId) => {
+        if (!threadId) return;
+
+        try {
+          const threadResponse = await zohoClient.get(
+            `/accounts/${zohoAccountId}/messages`,
+            { params: { threadId, limit: 1 } },
+          );
+
+          const threadMessages = threadResponse.data.data || [];
+          if (threadMessages.length === 0) {
+            updates.push({ threadId, starCount: 0, isArchived: true });
+            return;
+          }
+
+          const latestMessage = threadMessages[0];
+          const isImportant = latestMessage.importance === "high";
+          const isInInbox = latestMessage.folderId === "inbox";
+
+          updates.push({
+            threadId,
+            starCount: isImportant ? 3 : 0,
+            isArchived: !isInInbox,
+          });
+        } catch (threadError: unknown) {
+          if (isApiError(threadError) && threadError.code === 404) {
+            logger.debug(
+              `Thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... not found in Zoho`,
+            );
+            updates.push({ threadId, starCount: 0, isArchived: true });
+          } else {
+            const errorMsg = isError(threadError)
+              ? threadError.message
+              : isApiError(threadError)
+                ? threadError.message
+                : "Unknown error";
+            logger.warn(
+              `Error checking thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}...:`,
+              errorMsg,
+            );
+          }
+        }
+      });
+
+      batchPromises.push(...concurrentPromises);
+      await Promise.all(concurrentPromises);
+    }
+
+    await Promise.all(batchPromises);
+  }
+
+  return updates;
+}
+
+/**
+ * Get thread status updates for existing starred threads
+ */
+export async function getExistingThreadUpdates(
+  userId: string,
+  threadsToCheck: Array<{ threadId: string }>,
+  threadMapKeys: Set<string>,
+  zohoClient: AxiosInstance,
+  zohoAccountId: string,
+): Promise<
+  Array<{ threadId: string; starCount: number; isArchived: boolean }>
+> {
+  const updates: Array<{
+    threadId: string;
+    starCount: number;
+    isArchived: boolean;
+  }> = [];
+
+  for (const dbThread of threadsToCheck) {
+    if (threadMapKeys.has(dbThread.threadId)) continue;
+
+    try {
+      const threadResponse = await zohoClient.get(
+        `/accounts/${zohoAccountId}/messages`,
+        { params: { threadId: dbThread.threadId, limit: 1 } },
+      );
+
+      const threadMessages = threadResponse.data.data || [];
+      if (threadMessages.length === 0) {
+        updates.push({
+          threadId: dbThread.threadId,
+          starCount: 0,
+          isArchived: true,
+        });
+        continue;
+      }
+
+      const latestMessage = threadMessages[0];
+      updates.push({
+        threadId: dbThread.threadId,
+        starCount: latestMessage.importance === "high" ? 3 : 0,
+        isArchived: latestMessage.folderId !== "inbox",
+      });
+    } catch (threadError: unknown) {
+      if (isApiError(threadError) && threadError.code === 404) {
+        updates.push({
+          threadId: dbThread.threadId,
+          starCount: 0,
+          isArchived: true,
+        });
+      }
+    }
+  }
+
+  return updates;
+}

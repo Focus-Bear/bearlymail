@@ -954,11 +954,7 @@ export class LLMProcessor implements OnModuleInit {
             fromName: email.fromName,
             senderJobTitle: email.senderJobTitle,
             subject: email.subject || "",
-            body: cleanEmailContent(
-              email.body,
-              email.htmlBody,
-              1000,
-            ),
+            body: cleanEmailContent(email.body, email.htmlBody, 1000),
           }));
 
           tracker.endPhase("processing");
@@ -1110,9 +1106,7 @@ export class LLMProcessor implements OnModuleInit {
     const matchedVip = vipContacts.find(
       (vip) =>
         email.from?.toLowerCase().includes(vip.contextValue.toLowerCase()) ||
-        email.fromName
-          ?.toLowerCase()
-          .includes(vip.contextValue.toLowerCase()),
+        email.fromName?.toLowerCase().includes(vip.contextValue.toLowerCase()),
     );
     if (matchedVip) {
       breakdown.push({
@@ -1176,9 +1170,7 @@ export class LLMProcessor implements OnModuleInit {
       },
       vipContact: {
         score: matchedVip ? 25 : 0,
-        reasons: matchedVip
-          ? [`VIP contact: ${matchedVip.contextValue}`]
-          : [],
+        reasons: matchedVip ? [`VIP contact: ${matchedVip.contextValue}`] : [],
       },
       sentiment: {
         score: sentimentScore,
@@ -1233,9 +1225,7 @@ export class LLMProcessor implements OnModuleInit {
           priorityScore: finalScore,
           category: llmResult.category || thread.category || null,
           categoryExplanation:
-            llmResult.categoryExplanation ||
-            thread.categoryExplanation ||
-            null,
+            llmResult.categoryExplanation || thread.categoryExplanation || null,
           isProcessingPriority: false,
         },
       );

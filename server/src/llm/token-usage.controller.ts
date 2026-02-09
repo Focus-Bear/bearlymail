@@ -23,7 +23,11 @@ export class TokenUsageController {
   @Post("examples/reset")
   resetPromptExamples() {
     this.tokenUsageService.resetPromptExamples();
-    return { success: true, message: "Prompt examples reset", timestamp: new Date().toISOString() };
+    return {
+      success: true,
+      message: "Prompt examples reset",
+      timestamp: new Date().toISOString(),
+    };
   }
 
   /**

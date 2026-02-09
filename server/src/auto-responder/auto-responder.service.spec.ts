@@ -4,6 +4,10 @@ import { Repository } from "typeorm";
 import { EmailClassifierService } from "./email-classifier.service";
 import { QueueStatsService } from "./queue-stats.service";
 import { AutoResponderTemplateService } from "./auto-responder-template.service";
+import { AutoResponderSuppressionService } from "./auto-responder-suppression.service";
+import { AutoResponderQaService } from "./auto-responder-qa.service";
+import { AutoResponderAnalyticsService } from "./auto-responder-analytics.service";
+import { AutoResponderPreviewService } from "./auto-responder-preview.service";
 import { LLMService } from "../llm/llm.service";
 import { User } from "../database/entities/user.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -25,6 +29,7 @@ import { AutoResponderService } from "./auto-responder.service";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 
 describe("AutoResponderService", () => {
+  let module: TestingModule;
   let service: AutoResponderService;
   let userRepository: jest.Mocked<Repository<User>>;
   let emailThreadRepository: jest.Mocked<Repository<EmailThread>>;
@@ -63,7 +68,7 @@ describe("AutoResponderService", () => {
   };
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
+    module = await Test.createTestingModule({
       providers: [
         AutoResponderService,
         {
@@ -167,6 +172,50 @@ describe("AutoResponderService", () => {
           provide: EmailProviderManager,
           useValue: {
             getPrimaryProvider: jest.fn(),
+          },
+        },
+        {
+          provide: AutoResponderSuppressionService,
+          useValue: {
+            hashEmail: jest.fn().mockImplementation((email) => `hash_${email}`),
+            checkSuppression: jest.fn().mockResolvedValue(null),
+            addCooldownSuppression: jest.fn().mockResolvedValue(undefined),
+            addOptOutSuppression: jest.fn().mockResolvedValue(undefined),
+            removeOptOutSuppression: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: AutoResponderQaService,
+          useValue: {
+            generateQAAnswer: jest.fn().mockResolvedValue(null),
+          },
+        },
+        {
+          provide: AutoResponderAnalyticsService,
+          useValue: {
+            logAutoResponse: jest.fn().mockResolvedValue(undefined),
+            hasExistingResponse: jest.fn().mockResolvedValue(false),
+            getAnalytics: jest.fn().mockResolvedValue({
+              totalResponses: 0,
+              responsesByPriority: { low: 0, medium: 0, high: 0 },
+              responsesByDay: [],
+              avgQAConfidence: 0,
+            }),
+          },
+        },
+        {
+          provide: AutoResponderPreviewService,
+          useValue: {
+            determinePriorityLevel: jest.fn().mockReturnValue("medium"),
+            previewAutoResponse: jest.fn().mockResolvedValue({
+              subject: "Auto-Response: Acknowledgment of Your Email",
+              body: "Hi there,\n\nThank you for reaching out. I'm currently managing 37 action items and 21 new messages. Test User will get back to you shortly.",
+            }),
+            previewAutoResponseForEmail: jest.fn().mockResolvedValue({
+              subject: "Re: Test",
+              body: "Preview body",
+            }),
+            getRecentEmailsForPreview: jest.fn().mockResolvedValue([]),
           },
         },
       ],
@@ -314,15 +363,18 @@ describe("AutoResponderService", () => {
     });
 
     it("should not send when thread already has auto-response", async () => {
+      const analyticsService = module.get(AutoResponderAnalyticsService);
+      jest.spyOn(analyticsService, "hasExistingResponse").mockResolvedValue({
+        id: "log-1",
+        userId: "user-1",
+        emailThreadId: "thread-1",
+      } as any);
       userRepository.findOne.mockResolvedValue({
         ...mockUser,
         autoResponderSettings: {
           ...DEFAULT_AUTO_RESPONDER_CONFIG,
           enabled: true,
         },
-      } as any);
-      autoResponseLogRepository.findOne.mockResolvedValue({
-        id: "log-1",
       } as any);
 
       const result = await service.processEmailForAutoResponse(
@@ -335,16 +387,17 @@ describe("AutoResponderService", () => {
     });
 
     it("should not send to suppressed senders", async () => {
+      const suppressionService = module.get(AutoResponderSuppressionService);
+      jest.spyOn(suppressionService, "checkSuppression").mockResolvedValue({
+        id: "suppression-1",
+        reason: "opt_out",
+      } as any);
       userRepository.findOne.mockResolvedValue({
         ...mockUser,
         autoResponderSettings: {
           ...DEFAULT_AUTO_RESPONDER_CONFIG,
           enabled: true,
         },
-      } as any);
-      autoResponseSuppressionRepository.findOne.mockResolvedValue({
-        id: "suppression-1",
-        reason: "opt_out",
       } as any);
 
       const result = await service.processEmailForAutoResponse(
@@ -360,6 +413,7 @@ describe("AutoResponderService", () => {
       const mockProvider = {
         sendReply: jest.fn().mockResolvedValue(undefined),
       };
+      const analyticsService = module.get(AutoResponderAnalyticsService);
       userRepository.findOne.mockResolvedValue({
         ...mockUser,
         autoResponderSettings: {
@@ -370,8 +424,6 @@ describe("AutoResponderService", () => {
       emailProviderManager.getPrimaryProvider.mockResolvedValue(
         mockProvider as any,
       );
-      autoResponseLogRepository.save.mockResolvedValue({} as any);
-      autoResponseSuppressionRepository.save.mockResolvedValue({} as any);
 
       const result = await service.processEmailForAutoResponse(
         "user-1",
@@ -380,14 +432,13 @@ describe("AutoResponderService", () => {
 
       expect(result.sent).toBe(true);
       expect(mockProvider.sendReply).toHaveBeenCalled();
-      expect(autoResponseLogRepository.save).toHaveBeenCalled();
+      expect(analyticsService.logAutoResponse).toHaveBeenCalled();
     });
   });
 
   describe("addOptOutSuppression", () => {
-    it("should add opt-out suppression", async () => {
-      autoResponseSuppressionRepository.delete.mockResolvedValue({} as any);
-      autoResponseSuppressionRepository.save.mockResolvedValue({} as any);
+    it("should add opt-out suppression via suppression service", async () => {
+      const suppressionService = module.get(AutoResponderSuppressionService);
 
       await service.addOptOutSuppression(
         "user-1",
@@ -395,13 +446,10 @@ describe("AutoResponderService", () => {
         "User requested",
       );
 
-      expect(autoResponseSuppressionRepository.delete).toHaveBeenCalled();
-      expect(autoResponseSuppressionRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({
-          userId: "user-1",
-          reason: "opt_out",
-          suppressUntil: null,
-        }),
+      expect(suppressionService.addOptOutSuppression).toHaveBeenCalledWith(
+        "user-1",
+        "sender@example.com",
+        "User requested",
       );
     });
   });

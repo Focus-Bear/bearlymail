@@ -2,6 +2,9 @@ import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { ContextController } from "./context.controller";
 import { ContextService } from "./context.service";
+import { ContextCrudService } from "./context-crud.service";
+import { ContextCategoryService } from "./context-category.service";
+import { ContextAnalysisProgressService } from "./context-analysis-progress.service";
 import { ContextPiiRedactionService } from "./context-pii-redaction.service";
 import { ContextGmailDataService } from "./context-gmail-data.service";
 import { ContextQaExtractionService } from "./context-qa-extraction.service";
@@ -36,6 +39,9 @@ import { EmailsModule } from "../emails/emails.module";
   controllers: [ContextController],
   providers: [
     ContextService,
+    ContextCrudService,
+    ContextCategoryService,
+    ContextAnalysisProgressService,
     ContextPiiRedactionService,
     ContextGmailDataService,
     ContextQaExtractionService,
@@ -45,6 +51,12 @@ import { EmailsModule } from "../emails/emails.module";
     WritingStyleLearningService,
     WritingStyleLearningProcessor,
   ],
-  exports: [ContextService, WritingStyleLearningService],
+  exports: [
+    ContextService,
+    ContextCrudService,
+    ContextCategoryService,
+    ContextAnalysisProgressService,
+    WritingStyleLearningService,
+  ],
 })
 export class ContextModule {}

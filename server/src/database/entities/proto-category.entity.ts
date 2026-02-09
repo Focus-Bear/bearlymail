@@ -54,8 +54,7 @@ export class ProtoCategory {
 
   @Column({
     default: false,
-    comment:
-      "Whether this proto category has been promoted to a real category",
+    comment: "Whether this proto category has been promoted to a real category",
   })
   isPromoted: boolean;
 

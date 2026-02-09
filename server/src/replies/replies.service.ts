@@ -302,8 +302,12 @@ ${closing}`;
     const replyToAddress = email.replyTo || email.from;
 
     // Fetch forward attachments if requested
-    let allAttachments = attachments ? [...attachments] : [];
-    if (forwardAttachmentIds && forwardAttachmentIds.length > 0 && email.attachments) {
+    const allAttachments = attachments ? [...attachments] : [];
+    if (
+      forwardAttachmentIds &&
+      forwardAttachmentIds.length > 0 &&
+      email.attachments
+    ) {
       const emailAttachments = email.attachments as Array<{
         attachmentId: string;
         filename: string;

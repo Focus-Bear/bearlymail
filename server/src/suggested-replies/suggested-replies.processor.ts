@@ -8,6 +8,7 @@ import { LLMService } from "../llm/llm.service";
 import { UsersService } from "../users/users.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import { CloudWatchService } from "../aws/cloudwatch.service";
 
 @Injectable()
 export class SuggestedRepliesProcessor implements OnModuleInit {
@@ -20,6 +21,7 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
     private suggestedRepliesService: SuggestedRepliesService,
     private llmService: LLMService,
     private usersService: UsersService,
+    private cloudWatchService: CloudWatchService,
   ) {}
 
   async onModuleInit() {
@@ -38,6 +40,7 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
         const tracker = new JobPerformanceTracker(
           "generate-suggested-replies",
           workerId,
+          this.cloudWatchService,
         );
         tracker.setMetadata({ userId, threadId, emailId });
 

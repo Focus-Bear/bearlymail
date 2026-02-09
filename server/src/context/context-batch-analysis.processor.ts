@@ -15,6 +15,7 @@ import { UsersService } from "../users/users.service";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { PERCENTAGES } from "../constants/percentages";
+import { CloudWatchService } from "../aws/cloudwatch.service";
 
 interface BatchAnalysisJob {
   userId: string;
@@ -79,6 +80,7 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
   private readonly logger = new Logger(ContextBatchAnalysisProcessor.name);
   private readonly batchConcurrency: number;
 
+  // eslint-disable-next-line max-params
   constructor(
     @Inject("PG_BOSS") private boss: PgBoss,
     private llmService: LLMService,
@@ -87,6 +89,7 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
     private configService: ConfigService,
     private gmailDataService: ContextGmailDataService,
     private usersService: UsersService,
+    private cloudWatchService: CloudWatchService,
   ) {
     // Get CPU cores for optimal concurrency
     const cpuCores = os.cpus().length;
@@ -138,6 +141,7 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
         const tracker = new JobPerformanceTracker(
           "analyze-context-batch",
           workerId,
+          this.cloudWatchService,
         );
         tracker.setMetadata({ userId, threadId: analysisRecordId });
 
@@ -240,9 +244,29 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
                 threadIds,
               );
               fetchDuration = Date.now() - fetchStartTime;
+              const fetchExceeded =
+                fetchDuration > PERFORMANCE_BUDGETS.BATCH_FETCH_THREADS;
+
+              // Emit CloudWatch metric for batch fetch threads
+              this.cloudWatchService
+                .putPerformanceBudgetMetric({
+                  budgetName: "BATCH_FETCH_THREADS",
+                  budgetType: "batch",
+                  durationMs: fetchDuration,
+                  budgetMs: PERFORMANCE_BUDGETS.BATCH_FETCH_THREADS,
+                  exceeded: fetchExceeded,
+                  metadata: {
+                    WorkerId: workerId,
+                    UserId: userId,
+                    ThreadCount: String(threads.length),
+                  },
+                })
+                .catch((err) => {
+                  this.logger.error("Failed to emit CloudWatch metric:", err);
+                });
 
               this.logger.log(
-                `[Worker ${workerId}] ✅ Fetched ${threads.length} threads in ${Math.round(fetchDuration / 1000)}s (budget: ${PERFORMANCE_BUDGETS.BATCH_FETCH_THREADS / 1000}s)${fetchDuration > PERFORMANCE_BUDGETS.BATCH_FETCH_THREADS ? " ⚠️ OVER BUDGET" : ""}`,
+                `[Worker ${workerId}] ✅ Fetched ${threads.length} threads in ${Math.round(fetchDuration / 1000)}s (budget: ${PERFORMANCE_BUDGETS.BATCH_FETCH_THREADS / 1000}s)${fetchExceeded ? " ⚠️ OVER BUDGET" : ""}`,
               );
               writeAnalysisLog(
                 `[Worker ${workerId}] ✅ Fetched ${threads.length} threads in ${Math.round(fetchDuration / 1000)}s`,
@@ -338,9 +362,29 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
                 receivedHour?: number;
               }>;
               processDuration = Date.now() - processStartTime;
+              const processExceeded =
+                processDuration > PERFORMANCE_BUDGETS.BATCH_PROCESS_THREADS;
+
+              // Emit CloudWatch metric for batch process threads
+              this.cloudWatchService
+                .putPerformanceBudgetMetric({
+                  budgetName: "BATCH_PROCESS_THREADS",
+                  budgetType: "batch",
+                  durationMs: processDuration,
+                  budgetMs: PERFORMANCE_BUDGETS.BATCH_PROCESS_THREADS,
+                  exceeded: processExceeded,
+                  metadata: {
+                    WorkerId: workerId,
+                    UserId: userId,
+                    BatchSize: String(batch.length),
+                  },
+                })
+                .catch((err) => {
+                  this.logger.error("Failed to emit CloudWatch metric:", err);
+                });
 
               this.logger.log(
-                `[Worker ${workerId}] ✅ Processed ${batch.length} threads into payloads in ${Math.round(processDuration / 1000)}s (budget: ${PERFORMANCE_BUDGETS.BATCH_PROCESS_THREADS / 1000}s)${processDuration > PERFORMANCE_BUDGETS.BATCH_PROCESS_THREADS ? " ⚠️ OVER BUDGET" : ""}`,
+                `[Worker ${workerId}] ✅ Processed ${batch.length} threads into payloads in ${Math.round(processDuration / 1000)}s (budget: ${PERFORMANCE_BUDGETS.BATCH_PROCESS_THREADS / 1000}s)${processExceeded ? " ⚠️ OVER BUDGET" : ""}`,
               );
               writeAnalysisLog(
                 `[Worker ${workerId}] ✅ Processed ${batch.length} threads into payloads in ${Math.round(processDuration / 1000)}s`,
@@ -381,9 +425,28 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
               currentContextForPrompt,
             );
             const llmDuration = Date.now() - llmStartTime;
+            const llmExceeded =
+              llmDuration > PERFORMANCE_BUDGETS.BATCH_LLM_ANALYSIS;
+
+            // Emit CloudWatch metric for batch LLM analysis
+            this.cloudWatchService
+              .putPerformanceBudgetMetric({
+                budgetName: "BATCH_LLM_ANALYSIS",
+                budgetType: "batch",
+                durationMs: llmDuration,
+                budgetMs: PERFORMANCE_BUDGETS.BATCH_LLM_ANALYSIS,
+                exceeded: llmExceeded,
+                metadata: {
+                  WorkerId: workerId,
+                  UserId: userId,
+                },
+              })
+              .catch((err) => {
+                this.logger.error("Failed to emit CloudWatch metric:", err);
+              });
 
             this.logger.log(
-              `[Worker ${workerId}] ✅ LLM analysis completed in ${Math.round(llmDuration / 1000)}s (budget: ${PERFORMANCE_BUDGETS.BATCH_LLM_ANALYSIS / 1000}s)${llmDuration > PERFORMANCE_BUDGETS.BATCH_LLM_ANALYSIS ? " ⚠️ OVER BUDGET" : ""}`,
+              `[Worker ${workerId}] ✅ LLM analysis completed in ${Math.round(llmDuration / 1000)}s (budget: ${PERFORMANCE_BUDGETS.BATCH_LLM_ANALYSIS / 1000}s)${llmExceeded ? " ⚠️ OVER BUDGET" : ""}`,
             );
             writeAnalysisLog(
               `[Worker ${workerId}] ✅ LLM analysis completed in ${Math.round(llmDuration / 1000)}s`,
@@ -481,9 +544,28 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
             await this.contextAnalysisRepository.save(analysisRecord);
             const saveDbDuration = Date.now() - saveDbStartTime;
             const saveDuration = Date.now() - saveStartTime;
+            const saveExceeded =
+              saveDuration > PERFORMANCE_BUDGETS.BATCH_SAVE_RESULTS;
+
+            // Emit CloudWatch metric for batch save results
+            this.cloudWatchService
+              .putPerformanceBudgetMetric({
+                budgetName: "BATCH_SAVE_RESULTS",
+                budgetType: "batch",
+                durationMs: saveDuration,
+                budgetMs: PERFORMANCE_BUDGETS.BATCH_SAVE_RESULTS,
+                exceeded: saveExceeded,
+                metadata: {
+                  WorkerId: workerId,
+                  UserId: userId,
+                },
+              })
+              .catch((err) => {
+                this.logger.error("Failed to emit CloudWatch metric:", err);
+              });
 
             this.logger.log(
-              `[Worker ${workerId}] ✅ Saved batch results in ${Math.round(saveDuration / 1000)}s (find: ${Math.round(findRecordDuration / 1000)}s, save: ${Math.round(saveDbDuration / 1000)}s, budget: ${PERFORMANCE_BUDGETS.BATCH_SAVE_RESULTS / 1000}s)${saveDuration > PERFORMANCE_BUDGETS.BATCH_SAVE_RESULTS ? " ⚠️ OVER BUDGET" : ""}`,
+              `[Worker ${workerId}] ✅ Saved batch results in ${Math.round(saveDuration / 1000)}s (find: ${Math.round(findRecordDuration / 1000)}s, save: ${Math.round(saveDbDuration / 1000)}s, budget: ${PERFORMANCE_BUDGETS.BATCH_SAVE_RESULTS / 1000}s)${saveExceeded ? " ⚠️ OVER BUDGET" : ""}`,
             );
             writeAnalysisLog(
               `[Worker ${workerId}] ✅ Saved batch results in ${Math.round(saveDuration / 1000)}s`,
@@ -494,7 +576,30 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
             const totalTimeSoFar =
               saveDuration + llmDuration + processDuration + fetchDuration;
 
-            if (totalTimeSoFar > PERFORMANCE_BUDGETS.BATCH_TOTAL) {
+            const totalExceeded = totalTimeSoFar > PERFORMANCE_BUDGETS.BATCH_TOTAL;
+
+            // Emit CloudWatch metric for batch total
+            this.cloudWatchService
+              .putPerformanceBudgetMetric({
+                budgetName: "BATCH_TOTAL",
+                budgetType: "batch",
+                durationMs: totalTimeSoFar,
+                budgetMs: PERFORMANCE_BUDGETS.BATCH_TOTAL,
+                exceeded: totalExceeded,
+                metadata: {
+                  WorkerId: workerId,
+                  UserId: userId,
+                  FetchDuration: String(fetchDuration),
+                  ProcessDuration: String(processDuration),
+                  LlmDuration: String(llmDuration),
+                  SaveDuration: String(saveDuration),
+                },
+              })
+              .catch((err) => {
+                this.logger.error("Failed to emit CloudWatch metric:", err);
+              });
+
+            if (totalExceeded) {
               this.logger.warn(
                 `[Worker ${workerId}] ⚠️ BATCH OVER TOTAL BUDGET: ${Math.round(totalTimeSoFar / 1000)}s (budget: ${PERFORMANCE_BUDGETS.BATCH_TOTAL / 1000}s). Breakdown: fetch=${Math.round(fetchDuration / 1000)}s, process=${Math.round(processDuration / 1000)}s, llm=${Math.round(llmDuration / 1000)}s, save=${Math.round(saveDuration / 1000)}s`,
               );

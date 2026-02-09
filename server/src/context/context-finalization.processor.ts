@@ -6,6 +6,7 @@ import { ContextService } from "./context.service";
 import { getJobPriority } from "../queue/job-priorities";
 import { writeAnalysisLog } from "./context-analysis-logger";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
+import { CloudWatchService } from "../aws/cloudwatch.service";
 
 interface FinalizationJob {
   userId: string;
@@ -38,6 +39,7 @@ export class ContextFinalizationProcessor implements OnModuleInit {
     @Inject("PG_BOSS") private boss: PgBoss,
     private contextService: ContextService,
     private configService: ConfigService,
+    private cloudWatchService: CloudWatchService,
   ) {
     // Get CPU cores for optimal concurrency
     const cpuCores = os.cpus().length;
@@ -83,6 +85,7 @@ export class ContextFinalizationProcessor implements OnModuleInit {
         const tracker = new JobPerformanceTracker(
           "finalize-context-analysis",
           workerId,
+          this.cloudWatchService,
         );
         tracker.setMetadata({ userId, threadId: analysisRecordId });
 

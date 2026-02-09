@@ -7,6 +7,7 @@ import { Email } from "../database/entities/email.entity";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { getJobPriority } from "../queue/job-priorities";
+import { CloudWatchService } from "../aws/cloudwatch.service";
 
 @Injectable()
 export class SnoozeProcessor implements OnModuleInit {
@@ -19,6 +20,7 @@ export class SnoozeProcessor implements OnModuleInit {
     @InjectRepository(Email)
     private emailRepository: Repository<Email>,
     private emailProviderManager: EmailProviderManager,
+    private cloudWatchService: CloudWatchService,
   ) {}
 
   async onModuleInit() {
@@ -31,6 +33,7 @@ export class SnoozeProcessor implements OnModuleInit {
       const tracker = new JobPerformanceTracker(
         "check-expired-snoozes",
         workerId,
+        this.cloudWatchService,
       );
 
       this.logger.log("[Snooze] Starting expired snooze check");
@@ -95,7 +98,11 @@ export class SnoozeProcessor implements OnModuleInit {
         threadId: string;
       };
       const workerId = job.id || "unknown";
-      const tracker = new JobPerformanceTracker("unsnooze-thread", workerId);
+      const tracker = new JobPerformanceTracker(
+        "unsnooze-thread",
+        workerId,
+        this.cloudWatchService,
+      );
       tracker.setMetadata({ userId, threadId });
 
       this.logger.log(

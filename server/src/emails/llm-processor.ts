@@ -15,6 +15,7 @@ import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { ContextKey } from "../database/entities/user-context.entity";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { ProtoCategoriesService } from "../proto-categories/proto-categories.service";
+import { CloudWatchService } from "../aws/cloudwatch.service";
 import { SENTIMENT_THRESHOLDS } from "../constants/priority-constants";
 
 // Constants for LLM processing
@@ -52,6 +53,7 @@ export class LLMProcessor implements OnModuleInit {
     private priorityAnalysisService: PriorityAnalysisService,
     private configService: ConfigService,
     private protoCategoriesService: ProtoCategoriesService,
+    private cloudWatchService: CloudWatchService,
   ) {
     // Get CPU cores for optimal concurrency
     const cpuCores = os.cpus().length;
@@ -93,7 +95,11 @@ export class LLMProcessor implements OnModuleInit {
           forceRecalculate?: boolean;
         };
         const workerId = job.id || "unknown";
-        const tracker = new JobPerformanceTracker("refine-priority", workerId);
+        const tracker = new JobPerformanceTracker(
+          "refine-priority",
+          workerId,
+          this.cloudWatchService,
+        );
         tracker.setMetadata({ userId, emailId, forceRecalculate });
 
         this.logger.log(
@@ -763,7 +769,11 @@ export class LLMProcessor implements OnModuleInit {
           emailId: string;
         };
         const workerId = job.id || "unknown";
-        const tracker = new JobPerformanceTracker("generate-summary", workerId);
+        const tracker = new JobPerformanceTracker(
+          "generate-summary",
+          workerId,
+          this.cloudWatchService,
+        );
         tracker.setMetadata({ userId, emailId });
 
         this.logger.log(
@@ -865,6 +875,7 @@ export class LLMProcessor implements OnModuleInit {
         const tracker = new JobPerformanceTracker(
           "refine-priority-batch",
           workerId,
+          this.cloudWatchService,
         );
         tracker.setMetadata({ userId, emailId: emailIds.join(",") });
 

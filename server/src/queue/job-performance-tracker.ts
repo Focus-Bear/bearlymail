@@ -2,6 +2,7 @@ import { Logger } from "@nestjs/common";
 import * as fs from "fs";
 import * as path from "path";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
+import { CloudWatchService } from "../aws/cloudwatch.service";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface Phase {
@@ -40,6 +41,7 @@ export class JobPerformanceTracker {
   private readonly budget: number;
   private phases: Map<string, number> = new Map();
   private phaseStartTimes: Map<string, number> = new Map();
+  private cloudWatchService?: CloudWatchService;
   private metadata: {
     userId?: string;
     emailId?: string;
@@ -50,10 +52,15 @@ export class JobPerformanceTracker {
     threadCount?: number;
   } = {};
 
-  constructor(jobName: string, jobId: string) {
+  constructor(
+    jobName: string,
+    jobId: string,
+    cloudWatchService?: CloudWatchService,
+  ) {
     this.jobName = jobName;
     this.jobId = jobId;
     this.startTime = Date.now();
+    this.cloudWatchService = cloudWatchService;
 
     // Get budget for this job type
     const budgetKey =
@@ -134,6 +141,26 @@ export class JobPerformanceTracker {
       fs.appendFileSync(this.logFile, logLine, "utf8");
     } catch (err) {
       this.logger.error("Failed to write to performance log file:", err);
+    }
+
+    // Emit CloudWatch metrics for performance budget tracking
+    if (this.cloudWatchService) {
+      this.cloudWatchService
+        .putPerformanceBudgetMetric({
+          budgetName: this.jobName,
+          budgetType: "job",
+          durationMs: duration,
+          budgetMs: this.budget,
+          exceeded,
+          metadata: {
+            JobId: this.jobId,
+            ...(this.metadata.userId && { UserId: this.metadata.userId }),
+            ...(error && { HasError: "true" }),
+          },
+        })
+        .catch((err) => {
+          this.logger.error("Failed to emit CloudWatch metric:", err);
+        });
     }
 
     // Log to console if budget exceeded or error

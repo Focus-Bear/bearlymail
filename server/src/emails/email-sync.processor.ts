@@ -8,6 +8,7 @@ import { GmailProvider } from "./providers/gmail.provider";
 import { getJobPriority } from "../queue/job-priorities";
 import { DAYS } from "../constants/time-constants";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
+import { CloudWatchService } from "../aws/cloudwatch.service";
 
 @Injectable()
 export class EmailSyncProcessor implements OnModuleInit {
@@ -21,6 +22,7 @@ export class EmailSyncProcessor implements OnModuleInit {
     private readonly usersService: UsersService,
     private readonly gmailProvider: GmailProvider,
     private configService: ConfigService,
+    private cloudWatchService: CloudWatchService,
   ) {
     // Get CPU cores for optimal concurrency
     const cpuCores = os.cpus().length;
@@ -63,6 +65,7 @@ export class EmailSyncProcessor implements OnModuleInit {
       const tracker = new JobPerformanceTracker(
         "schedule-email-fetch-jobs",
         workerId,
+        this.cloudWatchService,
       );
 
       this.logger.log("Starting email fetch job scheduling (5-minute check)");
@@ -150,6 +153,7 @@ export class EmailSyncProcessor implements OnModuleInit {
         const tracker = new JobPerformanceTracker(
           "fetch-user-emails",
           workerId,
+          this.cloudWatchService,
         );
         tracker.setMetadata({
           userId,
@@ -209,6 +213,7 @@ export class EmailSyncProcessor implements OnModuleInit {
       const tracker = new JobPerformanceTracker(
         "schedule-extended-email-fetch-jobs",
         workerId,
+        this.cloudWatchService,
       );
 
       this.logger.log(
@@ -279,6 +284,7 @@ export class EmailSyncProcessor implements OnModuleInit {
         const tracker = new JobPerformanceTracker(
           "fetch-user-emails-extended",
           workerId,
+          this.cloudWatchService,
         );
         tracker.setMetadata({ userId, syncWindowHours });
 
@@ -356,7 +362,11 @@ export class EmailSyncProcessor implements OnModuleInit {
       async (job) => {
         const { userId } = job.data as { userId: string };
         const workerId = job.id || "unknown";
-        const tracker = new JobPerformanceTracker("scan-history", workerId);
+        const tracker = new JobPerformanceTracker(
+          "scan-history",
+          workerId,
+          this.cloudWatchService,
+        );
         tracker.setMetadata({ userId });
 
         this.logger.log(
@@ -403,6 +413,7 @@ export class EmailSyncProcessor implements OnModuleInit {
         const tracker = new JobPerformanceTracker(
           "scan-history-email",
           workerId,
+          this.cloudWatchService,
         );
         tracker.setMetadata({ userId });
 

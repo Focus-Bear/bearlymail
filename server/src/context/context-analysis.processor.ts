@@ -6,6 +6,7 @@ import { ContextService } from "./context.service";
 import { UsersService } from "../users/users.service";
 import { writeAnalysisLog } from "./context-analysis-logger";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
+import { CloudWatchService } from "../aws/cloudwatch.service";
 
 @Injectable()
 export class ContextAnalysisProcessor implements OnModuleInit {
@@ -17,6 +18,7 @@ export class ContextAnalysisProcessor implements OnModuleInit {
     private contextService: ContextService,
     private usersService: UsersService,
     private configService: ConfigService,
+    private cloudWatchService: CloudWatchService,
   ) {
     // Get CPU cores for optimal concurrency
     const cpuCores = os.cpus().length;
@@ -56,7 +58,11 @@ export class ContextAnalysisProcessor implements OnModuleInit {
           analysisId?: string;
         };
         const workerId = job.id || "unknown";
-        const tracker = new JobPerformanceTracker("analyze-context", workerId);
+        const tracker = new JobPerformanceTracker(
+          "analyze-context",
+          workerId,
+          this.cloudWatchService,
+        );
         tracker.setMetadata({ userId });
 
         this.logger.log(

@@ -113,4 +113,87 @@ export class CloudWatchService {
       // Don't throw - autoscaling should continue even if metrics fail
     }
   }
+
+  /**
+   * Publish a performance budget exceeded metric with dimensions to identify which budget was exceeded
+   */
+  async putPerformanceBudgetMetric(params: {
+    budgetName: string;
+    budgetType: "job" | "operation" | "batch";
+    durationMs: number;
+    budgetMs: number;
+    exceeded: boolean;
+    metadata?: Record<string, string>;
+  }): Promise<void> {
+    if (!this.enabled || !this.client) {
+      return;
+    }
+
+    const { budgetName, budgetType, durationMs, budgetMs, exceeded, metadata } =
+      params;
+
+    try {
+      const dimensions = [
+        { Name: "BudgetName", Value: budgetName },
+        { Name: "BudgetType", Value: budgetType },
+      ];
+
+      // Add any additional metadata as dimensions (limited to 30 dimensions per metric)
+      if (metadata) {
+        Object.entries(metadata)
+          .slice(0, 8) // Leave room for the required dimensions
+          .forEach(([key, value]) => {
+            if (value) {
+              dimensions.push({ Name: key, Value: value });
+            }
+          });
+      }
+
+      const metricData = [
+        // Count of budget exceeded occurrences (1 if exceeded, 0 if not)
+        {
+          MetricName: "PerformanceBudgetExceeded",
+          Value: exceeded ? 1 : 0,
+          Unit: StandardUnit.Count,
+          Timestamp: new Date(),
+          Dimensions: dimensions,
+        },
+        // Duration of the operation in milliseconds
+        {
+          MetricName: "PerformanceBudgetDuration",
+          Value: durationMs,
+          Unit: StandardUnit.Milliseconds,
+          Timestamp: new Date(),
+          Dimensions: dimensions,
+        },
+        // How much over/under budget (positive = over, negative = under)
+        {
+          MetricName: "PerformanceBudgetOverage",
+          Value: durationMs - budgetMs,
+          Unit: StandardUnit.Milliseconds,
+          Timestamp: new Date(),
+          Dimensions: dimensions,
+        },
+      ];
+
+      const command = new PutMetricDataCommand({
+        Namespace: this.namespace,
+        MetricData: metricData,
+      });
+
+      await this.client.send(command);
+
+      if (exceeded) {
+        this.logger.debug(
+          `Published performance budget exceeded: ${budgetName} (${budgetType}) ${durationMs}ms > ${budgetMs}ms`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to publish performance budget metric for ${budgetName}:`,
+        error,
+      );
+      // Don't throw - metrics should not impact main functionality
+    }
+  }
 }

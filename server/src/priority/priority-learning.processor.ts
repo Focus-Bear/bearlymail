@@ -11,6 +11,7 @@ import * as os from "os";
 import PgBoss = require("pg-boss");
 import { PriorityLearningService } from "./priority-learning.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
+import { CloudWatchService } from "../aws/cloudwatch.service";
 
 @Injectable()
 export class PriorityLearningProcessor implements OnModuleInit {
@@ -21,6 +22,7 @@ export class PriorityLearningProcessor implements OnModuleInit {
     @Inject("PG_BOSS") private boss: PgBoss,
     private priorityLearningService: PriorityLearningService,
     private configService: ConfigService,
+    private cloudWatchService: CloudWatchService,
   ) {
     // Get CPU cores for optimal concurrency
     const cpuCores = os.cpus().length;
@@ -54,7 +56,11 @@ export class PriorityLearningProcessor implements OnModuleInit {
           starCount: number;
         };
         const workerId = job.id || "unknown";
-        const tracker = new JobPerformanceTracker("learn-from-star", workerId);
+        const tracker = new JobPerformanceTracker(
+          "learn-from-star",
+          workerId,
+          this.cloudWatchService,
+        );
         tracker.setMetadata({ userId, emailId });
 
         this.logger.log(

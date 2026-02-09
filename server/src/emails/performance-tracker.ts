@@ -1,6 +1,7 @@
 import { Logger } from "@nestjs/common";
 import * as fs from "fs";
 import * as path from "path";
+import { CloudWatchService } from "../aws/cloudwatch.service";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
 
 // Performance budgets in milliseconds
@@ -39,9 +40,14 @@ export class PerformanceTracker {
   private logger = new Logger("PerformanceTracker");
   private static logsDir = path.join(process.cwd(), "logs");
   private logFile = path.join(PerformanceTracker.logsDir, "performance.log");
+  private cloudWatchService?: CloudWatchService;
 
-  constructor(private operation: string) {
+  constructor(
+    private operation: string,
+    cloudWatchService?: CloudWatchService,
+  ) {
     this.startTime = Date.now();
+    this.cloudWatchService = cloudWatchService;
     // Ensure logs directory exists
     if (!fs.existsSync(PerformanceTracker.logsDir)) {
       fs.mkdirSync(PerformanceTracker.logsDir, { recursive: true });
@@ -74,6 +80,24 @@ export class PerformanceTracker {
           : PERF_BUDGETS.INBOX_TOTAL;
     }
     const totalExceeded = totalDuration > budget;
+
+    // Emit CloudWatch metrics for performance budget tracking
+    if (this.cloudWatchService) {
+      this.cloudWatchService
+        .putPerformanceBudgetMetric({
+          budgetName: this.operation,
+          budgetType: "operation",
+          durationMs: totalDuration,
+          budgetMs: budget,
+          exceeded: totalExceeded,
+          metadata: {
+            ...(mode && { Mode: mode }),
+          },
+        })
+        .catch((err) => {
+          this.logger.error("Failed to emit CloudWatch metric:", err);
+        });
+    }
 
     // Only log if the TOTAL budget was exceeded (not just individual spans)
     if (totalExceeded) {

@@ -6,6 +6,7 @@ import { WritingStyleLearningService } from "./writing-style-learning.service";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { ContextEmailDataService } from "./context-gmail-data.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
+import { CloudWatchService } from "../aws/cloudwatch.service";
 
 // Check for learning opportunities every 30 minutes
 const LEARNING_CHECK_CRON = "*/30 * * * *";
@@ -21,6 +22,7 @@ export class WritingStyleLearningProcessor implements OnModuleInit {
     private emailProviderManager: EmailProviderManager,
     private contextEmailDataService: ContextEmailDataService,
     private configService: ConfigService,
+    private cloudWatchService: CloudWatchService,
   ) {}
 
   async onModuleInit() {
@@ -36,6 +38,7 @@ export class WritingStyleLearningProcessor implements OnModuleInit {
       const tracker = new JobPerformanceTracker(
         "check-writing-style-learning",
         workerId,
+        this.cloudWatchService,
       );
 
       this.logger.log(

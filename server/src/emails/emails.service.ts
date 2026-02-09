@@ -2,8 +2,6 @@ import { Injectable, Inject, forwardRef, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, IsNull, Not, In } from "typeorm";
 import PgBoss = require("pg-boss");
-import * as fs from "fs";
-import * as path from "path";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { ActionItem } from "../database/entities/action-item.entity";
@@ -44,6 +42,8 @@ import { EmailStatusService } from "./email-status.service";
 import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { SuggestedRepliesService } from "../suggested-replies/suggested-replies.service";
+import { PerformanceTracker } from "./performance-tracker";
+import { CloudWatchService } from "../aws/cloudwatch.service";
 
 // Performance budgets in milliseconds
 // Use PERFORMANCE_BUDGETS and QUERY_LIMITS constants directly instead of local PERF_BUDGETS
@@ -73,97 +73,6 @@ interface EmailWithMetadata extends Email {
   lastTheirReplyAt?: string;
   lastMyReplyAt?: string;
   _needsThreadUpdate?: { threadId: string; isArchived: boolean };
-}
-
-interface PerfSpan {
-  name: string;
-  start: number;
-  end?: number;
-  duration?: number;
-  budget: number;
-  exceeded?: boolean;
-}
-
-class PerformanceTracker {
-  private spans: PerfSpan[] = [];
-  private startTime: number;
-  private logger = new Logger("PerformanceTracker");
-  private static logsDir = path.join(process.cwd(), "logs");
-  private logFile = path.join(PerformanceTracker.logsDir, "performance.log");
-
-  constructor(private operation: string) {
-    this.startTime = Date.now();
-    // Ensure logs directory exists
-    if (!fs.existsSync(PerformanceTracker.logsDir)) {
-      fs.mkdirSync(PerformanceTracker.logsDir, { recursive: true });
-    }
-  }
-
-  startSpan(name: string, budget: number): () => void {
-    const span: PerfSpan = { name, start: Date.now(), budget };
-    this.spans.push(span);
-    return () => {
-      span.end = Date.now();
-      span.duration = span.end - span.start;
-      span.exceeded = span.duration > budget;
-    };
-  }
-
-  finish(mode?: "triage" | "action" | "follow-up"): void {
-    const totalDuration = Date.now() - this.startTime;
-    const exceededSpans = this.spans.filter((span) => span.exceeded);
-    let budget: number;
-    if (this.operation === "priority-explanation") {
-      budget = PERFORMANCE_BUDGETS.PRIORITY_EXPLANATION;
-    } else {
-      budget =
-        mode === "action"
-          ? PERFORMANCE_BUDGETS.INBOX_PROCESS_TOTAL
-          : PERFORMANCE_BUDGETS.INBOX_TOTAL;
-    }
-    const totalExceeded = totalDuration > budget;
-
-    // Only log if the TOTAL budget was exceeded (not just individual spans)
-    if (totalExceeded) {
-      const logEntry = {
-        timestamp: new Date().toISOString(),
-        operation: this.operation,
-        totalDuration,
-        totalBudget: budget,
-        totalExceeded,
-        mode: mode || "triage",
-        spans: this.spans.map((span) => ({
-          name: span.name,
-          duration: span.duration,
-          budget: span.budget,
-          exceeded: span.exceeded,
-        })),
-        exceededSpans: exceededSpans.map(
-          (span) =>
-            `${span.name}: ${span.duration}ms (budget: ${span.budget}ms)`,
-        ),
-      };
-
-      const logLine = `${JSON.stringify(logEntry)}\n`;
-
-      // Log to console - only if total exceeded budget
-      this.logger.warn(
-        `⚠️ PERF ISSUE: ${this.operation} (mode: ${mode || "triage"}) took ${totalDuration}ms (budget: ${budget}ms)`,
-      );
-      exceededSpans.forEach((span) => {
-        this.logger.warn(
-          `   - ${span.name}: ${span.duration}ms exceeded budget of ${span.budget}ms`,
-        );
-      });
-
-      // Append to log file
-      try {
-        fs.appendFileSync(this.logFile, logLine);
-      } catch (err) {
-        this.logger.error("Failed to write to performance log file:", err);
-      }
-    }
-  }
 }
 
 @Injectable()
@@ -205,6 +114,7 @@ export class EmailsService {
     private githubApiService?: GitHubApiService,
     @Inject(forwardRef(() => SuggestedRepliesService))
     private suggestedRepliesService?: SuggestedRepliesService,
+    private cloudWatchService?: CloudWatchService,
   ) {}
 
   // Buffer for collecting email IDs per user for batch priority refinement
@@ -318,7 +228,10 @@ export class EmailsService {
     _includeBatched: boolean = false,
     mode: "triage" | "action" | "follow-up" = "triage",
   ): Promise<Email[]> {
-    const perf = new PerformanceTracker(`getInbox(${mode})`);
+    const perf = new PerformanceTracker(
+      `getInbox(${mode})`,
+      this.cloudWatchService,
+    );
 
     // Pre-warm blocked senders cache to avoid DB query during filtering
     await this.blockedSendersService.getBlockedEmailHashes(userId);
@@ -2231,7 +2144,10 @@ export class EmailsService {
     };
     breakdown: Array<{ factor: string; value: number; description: string }>;
   }> {
-    const perf = new PerformanceTracker("priority-explanation");
+    const perf = new PerformanceTracker(
+      "priority-explanation",
+      this.cloudWatchService,
+    );
     const endTotal = perf.startSpan(
       "total",
       PERFORMANCE_BUDGETS.PRIORITY_EXPLANATION,

@@ -22,6 +22,7 @@ import { UsersModule } from "../users/users.module";
 import { QueueModule } from "../queue/queue.module";
 import { forwardRef } from "@nestjs/common";
 import { EmailsModule } from "../emails/emails.module";
+import { AwsModule } from "../aws/aws.module";
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { EmailsModule } from "../emails/emails.module";
     UsersModule,
     QueueModule,
     forwardRef(() => EmailsModule),
+    AwsModule,
   ],
   controllers: [ContextController],
   providers: [

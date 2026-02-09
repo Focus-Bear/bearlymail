@@ -42,6 +42,7 @@ import { ZohoAccountsModule } from "../zoho-accounts/zoho-accounts.module";
 import { GitHubModule } from "../github/github.module";
 import { SuggestedRepliesModule } from "../suggested-replies/suggested-replies.module";
 import { ProtoCategoriesModule } from "../proto-categories/proto-categories.module";
+import { AwsModule } from "../aws/aws.module";
 
 @Module({
   imports: [
@@ -71,6 +72,7 @@ import { ProtoCategoriesModule } from "../proto-categories/proto-categories.modu
     forwardRef(() => GitHubModule),
     forwardRef(() => SuggestedRepliesModule),
     ProtoCategoriesModule,
+    AwsModule,
   ],
   controllers: [EmailsController],
   providers: [

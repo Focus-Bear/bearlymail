@@ -14,6 +14,7 @@ import { LLMModule } from "../llm/llm.module";
 import { UsersModule } from "../users/users.module";
 import { QueueModule } from "../queue/queue.module";
 import { EmailsModule } from "../emails/emails.module";
+import { AwsModule } from "../aws/aws.module";
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { EmailsModule } from "../emails/emails.module";
     QueueModule,
     forwardRef(() => UsersModule),
     forwardRef(() => EmailsModule),
+    AwsModule,
   ],
   controllers: [PriorityController],
   providers: [

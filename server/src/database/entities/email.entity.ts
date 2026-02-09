@@ -64,6 +64,14 @@ export class Email {
   @Column({ nullable: true, transformer: encryptedColumnTransformer })
   cc: string;
 
+  @Column({
+    nullable: true,
+    transformer: encryptedColumnTransformer,
+    comment:
+      "Reply-To header value - when present, replies should be sent to this address instead of From",
+  })
+  replyTo: string;
+
   @Column({ transformer: encryptedColumnTransformer })
   subject: string;
 

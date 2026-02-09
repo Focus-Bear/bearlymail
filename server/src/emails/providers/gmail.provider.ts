@@ -1932,6 +1932,14 @@ export class GmailProvider implements EmailProvider {
     const cc =
       headers.find((h: { name?: string; value?: string }) => h.name === "Cc")
         ?.value || undefined;
+    const replyToHeader =
+      headers.find(
+        (h: { name?: string; value?: string }) => h.name === "Reply-To",
+      )?.value || undefined;
+    // Extract email address from Reply-To header (may contain "Name <email>" format)
+    const replyTo = replyToHeader
+      ? (replyToHeader.match(/<(.+)>/)?.[1] || replyToHeader).trim()
+      : undefined;
     const labelIds = messageData.labelIds || [];
     // Convert Gmail STARRED label to starCount
     // STARRED = 3 stars (high importance)
@@ -1956,6 +1964,7 @@ export class GmailProvider implements EmailProvider {
       fromName,
       to,
       cc,
+      replyTo,
       body,
       htmlBody,
       starCount,

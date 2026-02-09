@@ -415,10 +415,13 @@ export class AutoResponderService {
         return { sent: false, reason };
       }
 
+      // Use Reply-To address if available, otherwise fall back to From address
+      const replyToAddress = latestEmail.replyTo || latestEmail.from;
+
       await provider.sendReply(
         userId,
         thread.threadId,
-        latestEmail.from,
+        replyToAddress,
         responseSubject,
         responseBody,
         undefined,

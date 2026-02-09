@@ -22,6 +22,7 @@ export interface RawEmailMessage {
   fromName?: string;
   to?: string;
   cc?: string;
+  replyTo?: string;
   senderJobTitle?: string;
   body: string;
   htmlBody?: string;

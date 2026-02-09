@@ -19,6 +19,7 @@ interface Email {
   id: string;
   from: string;
   fromName?: string;
+  replyTo?: string;
   subject: string;
   body: string;
   attachments?: EmailAttachment[];
@@ -83,6 +84,9 @@ export function useEmailDetailReplies(
       const normalizedUserEmail = user?.email?.toLowerCase();
       const isFromCurrentUser = normalizedUserEmail && email.from?.toLowerCase() === normalizedUserEmail;
 
+      // Use Reply-To address if available, otherwise fall back to From address
+      const replyToAddress = email.replyTo || email.from;
+
       if (mode === REPLY_MODE_FORWARD) {
         setReplyRecipients('');
         setInitialAttachments(email.attachments || []);
@@ -95,7 +99,7 @@ export function useEmailDetailReplies(
             recipients.push(...toRecipients);
           }
         } else {
-          recipients.push(email.from);
+          recipients.push(replyToAddress);
           if ((email as any).to) {
             const toRecipients = (email as any).to.split(',').map((r: string) => r.trim()).filter((r: string) => r && r.toLowerCase() !== normalizedUserEmail);
             recipients.push(...toRecipients);
@@ -109,12 +113,12 @@ export function useEmailDetailReplies(
           // User sent this email - reply to the first recipient, not to self
           if ((email as any).to) {
             const firstRecipient = (email as any).to.split(',').map((r: string) => r.trim()).filter((r: string) => r && r.toLowerCase() !== normalizedUserEmail)[0];
-            setReplyRecipients(firstRecipient || email.from);
+            setReplyRecipients(firstRecipient || replyToAddress);
           } else {
-            setReplyRecipients(email.from);
+            setReplyRecipients(replyToAddress);
           }
         } else {
-          setReplyRecipients(email.from);
+          setReplyRecipients(replyToAddress);
         }
         setInitialAttachments([]);
       }

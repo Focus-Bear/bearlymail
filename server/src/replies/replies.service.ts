@@ -298,6 +298,9 @@ ${closing}`;
       );
     }
 
+    // Use Reply-To address if available, otherwise fall back to From address
+    const replyToAddress = email.replyTo || email.from;
+
     // Fetch forward attachments if requested
     let allAttachments = attachments ? [...attachments] : [];
     if (forwardAttachmentIds && forwardAttachmentIds.length > 0 && email.attachments) {
@@ -343,7 +346,7 @@ ${closing}`;
     const sentMessage = await provider.sendReply(
       userId,
       email.threadId,
-      email.from,
+      replyToAddress,
       replySubject,
       body,
       allAttachments.length > 0 ? allAttachments : undefined,

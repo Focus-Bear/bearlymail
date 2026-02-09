@@ -11,6 +11,10 @@ export interface ZohoMailMessage {
     address?: string;
     personal?: string;
   };
+  replyTo?: {
+    address?: string;
+    personal?: string;
+  };
   receivedTime?: number;
   isRead?: boolean;
   content?: {
@@ -35,6 +39,7 @@ export function parseZohoMessage(
 
   const from = messageData.from?.address || "";
   const fromName = messageData.from?.personal || "";
+  const replyTo = messageData.replyTo?.address || undefined;
   const subject = messageData.subject || "(No Subject)";
   const { threadId } = messageData;
   const importance = messageData.importance || "normal";
@@ -54,6 +59,7 @@ export function parseZohoMessage(
     subject,
     from,
     fromName,
+    replyTo,
     body,
     htmlBody: htmlBody || undefined,
     starCount,

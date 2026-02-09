@@ -382,7 +382,7 @@ export class Office365Provider implements EmailProvider {
               {
                 params: {
                   $select:
-                    "id,subject,from,receivedDateTime,isRead,body,bodyPreview,conversationId,importance,parentFolderId",
+                    "id,subject,from,replyTo,receivedDateTime,isRead,body,bodyPreview,conversationId,importance,parentFolderId",
                 },
               },
             );
@@ -762,7 +762,7 @@ export class Office365Provider implements EmailProvider {
       const fullMsg = await graphClient.get(`/me/messages/${messageId}`, {
         params: {
           $select:
-            "id,subject,from,receivedDateTime,isRead,body,bodyPreview,conversationId,importance,parentFolderId",
+            "id,subject,from,replyTo,receivedDateTime,isRead,body,bodyPreview,conversationId,importance,parentFolderId",
         },
       });
 
@@ -1012,21 +1012,33 @@ export class Office365Provider implements EmailProvider {
     const graphClient = this.client.createGraphClient(accessToken);
 
     try {
-      const response = await graphClient.post("/me/sendMail", {
-        message: {
-          subject: subject.startsWith("Re:") ? subject : `Re: ${subject}`,
-          body: {
-            contentType: "HTML",
-            content: htmlBody || body,
-          },
-          toRecipients: [
-            {
-              emailAddress: {
-                address: to,
-              },
-            },
-          ],
+      const message: any = {
+        subject: subject.startsWith("Re:") ? subject : `Re: ${subject}`,
+        body: {
+          contentType: "HTML",
+          content: htmlBody || body,
         },
+        toRecipients: [
+          {
+            emailAddress: {
+              address: to,
+            },
+          },
+        ],
+      };
+
+      // Add attachments if provided (inline base64 for files < 3MB)
+      if (attachments && attachments.length > 0) {
+        message.attachments = attachments.map((att) => ({
+          "@odata.type": "#microsoft.graph.fileAttachment",
+          name: att.filename,
+          contentType: att.mimeType,
+          contentBytes: att.content.toString("base64"),
+        }));
+      }
+
+      const response = await graphClient.post("/me/sendMail", {
+        message,
       });
 
       this.logger.log(`Reply sent successfully for user ${userId} to ${to}`);
@@ -1053,6 +1065,7 @@ export class Office365Provider implements EmailProvider {
             subject,
             body,
             attachments,
+            htmlBody,
           );
         } catch (refreshError) {
           this.logger.error("Failed to refresh token:", refreshError);
@@ -1071,8 +1084,7 @@ export class Office365Provider implements EmailProvider {
     body: string,
     cc?: EmailRecipient[],
     bcc?: EmailRecipient[],
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _attachments?: EmailAttachmentData[],
+    attachments?: EmailAttachmentData[],
   ): Promise<{ messageId: string; threadId: string }> {
     const primaryAccount =
       await this.office365AccountsService.findPrimary(userId);
@@ -1116,6 +1128,16 @@ export class Office365Provider implements EmailProvider {
         }));
       }
 
+      // Add attachments if provided (inline base64 for files < 3MB)
+      if (attachments && attachments.length > 0) {
+        message.attachments = attachments.map((att) => ({
+          "@odata.type": "#microsoft.graph.fileAttachment",
+          name: att.filename,
+          contentType: att.mimeType,
+          contentBytes: att.content.toString("base64"),
+        }));
+      }
+
       await graphClient.post("/me/sendMail", {
         message,
       });
@@ -1138,7 +1160,15 @@ export class Office365Provider implements EmailProvider {
             primaryAccount.id,
           );
           // Retry with new token
-          return await this.sendEmail(userId, to, subject, body, cc, bcc);
+          return await this.sendEmail(
+            userId,
+            to,
+            subject,
+            body,
+            cc,
+            bcc,
+            attachments,
+          );
         } catch (refreshError) {
           this.logger.error("Failed to refresh token:", refreshError);
           throw new Error("Token refresh failed - please reconnect");
@@ -1175,7 +1205,7 @@ export class Office365Provider implements EmailProvider {
           $search: searchQuery,
           $top: maxResults,
           $select:
-            "id,subject,from,receivedDateTime,isRead,body,bodyPreview,conversationId,importance",
+            "id,subject,from,replyTo,receivedDateTime,isRead,body,bodyPreview,conversationId,importance",
         },
       });
 

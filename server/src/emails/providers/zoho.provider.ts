@@ -1005,13 +1005,61 @@ export class ZohoProvider implements EmailProvider {
     }
   }
 
+  /**
+   * Upload attachments to Zoho Mail and return their store names
+   */
+  private async uploadAttachments(
+    zohoClient: any,
+    zohoAccountId: string,
+    attachments: EmailAttachmentData[],
+  ): Promise<Array<{ storeName: string }>> {
+    const uploaded: Array<{ storeName: string }> = [];
+
+    for (const attachment of attachments) {
+      try {
+        // Zoho Mail API expects multipart form data for attachment uploads
+        const FormData = (await import("form-data")).default;
+        const form = new FormData();
+        form.append("attach", attachment.content, {
+          filename: attachment.filename,
+          contentType: attachment.mimeType,
+        });
+
+        const response = await zohoClient.post(
+          `/accounts/${zohoAccountId}/messages/attachments`,
+          form,
+          {
+            headers: form.getHeaders(),
+            params: {
+              uploadType: "attachment",
+            },
+          },
+        );
+
+        const storeName =
+          response?.data?.data?.storeName ||
+          response?.data?.data?.attachmentId;
+        if (storeName) {
+          uploaded.push({ storeName });
+        }
+      } catch (uploadError) {
+        this.logger.error(
+          `Failed to upload attachment ${attachment.filename}:`,
+          uploadError,
+        );
+      }
+    }
+
+    return uploaded;
+  }
+
   async sendReply(
     userId: string,
     threadId: string,
     to: string,
     subject: string,
     body: string,
-    attachments?: import("../interfaces/email-provider.interface").EmailAttachmentData[],
+    attachments?: EmailAttachmentData[],
     htmlBody?: string,
   ): Promise<{ messageId: string; threadId: string }> {
     const primaryAccount = await this.zohoAccountsService.findPrimary(userId);
@@ -1025,16 +1073,30 @@ export class ZohoProvider implements EmailProvider {
     try {
       const zohoAccountId = await this.client.getAccountId(userId, accessToken);
 
+      const message: any = {
+        to: [{ address: to }],
+        subject: subject.startsWith("Re:") ? subject : `Re: ${subject}`,
+        content: {
+          html: htmlBody || body,
+        },
+        inReplyTo: threadId,
+      };
+
+      // Upload and attach files if provided
+      if (attachments && attachments.length > 0) {
+        const uploadedAttachments = await this.uploadAttachments(
+          zohoClient,
+          zohoAccountId,
+          attachments,
+        );
+        if (uploadedAttachments.length > 0) {
+          message.attachments = uploadedAttachments;
+        }
+      }
+
       const response = await zohoClient.post(
         `/accounts/${zohoAccountId}/messages`,
-        {
-          to: [{ address: to }],
-          subject: subject.startsWith("Re:") ? subject : `Re: ${subject}`,
-          content: {
-            html: htmlBody || body,
-          },
-          inReplyTo: threadId,
-        },
+        message,
       );
 
       this.logger.log(`Reply sent successfully for user ${userId} to ${to}`);
@@ -1061,6 +1123,7 @@ export class ZohoProvider implements EmailProvider {
             subject,
             body,
             attachments,
+            htmlBody,
           );
         } catch (refreshError) {
           this.logger.error("Failed to refresh token:", refreshError);
@@ -1079,8 +1142,7 @@ export class ZohoProvider implements EmailProvider {
     body: string,
     cc?: EmailRecipient[],
     bcc?: EmailRecipient[],
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _attachments?: EmailAttachmentData[],
+    attachments?: EmailAttachmentData[],
   ): Promise<{ messageId: string; threadId: string }> {
     const primaryAccount = await this.zohoAccountsService.findPrimary(userId);
     if (!primaryAccount) {
@@ -1118,6 +1180,18 @@ export class ZohoProvider implements EmailProvider {
         }));
       }
 
+      // Upload and attach files if provided
+      if (attachments && attachments.length > 0) {
+        const uploadedAttachments = await this.uploadAttachments(
+          zohoClient,
+          zohoAccountId,
+          attachments,
+        );
+        if (uploadedAttachments.length > 0) {
+          message.attachments = uploadedAttachments;
+        }
+      }
+
       const response = await zohoClient.post(
         `/accounts/${zohoAccountId}/messages`,
         message,
@@ -1140,7 +1214,15 @@ export class ZohoProvider implements EmailProvider {
             primaryAccount.id,
           );
           // Retry with new token
-          return await this.sendEmail(userId, to, subject, body, cc, bcc);
+          return await this.sendEmail(
+            userId,
+            to,
+            subject,
+            body,
+            cc,
+            bcc,
+            attachments,
+          );
         } catch (refreshError) {
           this.logger.error("Failed to refresh token:", refreshError);
           throw new Error("Token refresh failed - please reconnect");

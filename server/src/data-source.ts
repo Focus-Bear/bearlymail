@@ -20,7 +20,8 @@ export default new DataSource({
   password: configService.get<string>("DB_PASSWORD") || "postgres",
   database: configService.get<string>("DB_NAME") || "adhd_email_client",
   entities: [`${__dirname}/**/*.entity{.ts,.js}`],
-  migrations: [`${__dirname}/database/migrations/**/*{.ts,.js}`],
+  // Only include migrations in the root migrations folder, not archived subfolder
+  migrations: [`${__dirname}/database/migrations/*{.ts,.js}`],
   // NEVER use synchronize in production - always use migrations
   synchronize: false,
   ssl: !isLocal || sslEnabled ? { rejectUnauthorized: false } : false,

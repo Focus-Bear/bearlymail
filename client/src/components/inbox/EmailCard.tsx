@@ -1,13 +1,15 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { Email } from 'types/email';
+import { Email, InboxMode } from 'types/email';
+import { MODE_TRIAGE } from 'constants/strings';
 
 interface EmailCardProps {
   email: Email;
   isSelected: boolean;
   onCardClick: (e: React.MouseEvent) => void;
   children: React.ReactNode;
+  mode?: InboxMode;
 }
 
 const getBorderColor = (isSelected: boolean, isRead: boolean, wasDeliveredEarly: boolean): string => {
@@ -22,9 +24,11 @@ export const EmailCard: React.FC<EmailCardProps> = ({
   isSelected,
   onCardClick,
   children,
+  mode,
 }) => {
   const { t } = useTranslation();
   const wasDeliveredEarly = email.wasDeliveredEarly ?? false;
+  const showEmergencyRibbon = wasDeliveredEarly && mode === MODE_TRIAGE;
 
   return (
     <div
@@ -34,9 +38,9 @@ export const EmailCard: React.FC<EmailCardProps> = ({
         backgroundColor: isSelected ? theme.colors.primary.subtle : theme.colors.background.paper,
         borderRadius: theme.borderRadius.lg,
         padding: theme.spacing.lg,
-        paddingTop: wasDeliveredEarly ? theme.spacing.xl : theme.spacing.lg,
-        border: `2px solid ${getBorderColor(isSelected, email.isRead, wasDeliveredEarly)}`,
-        borderLeft: email.isRead ? `1px solid ${theme.colors.border.light}` : `4px solid ${wasDeliveredEarly ? theme.colors.warning.main : theme.colors.primary.main}`,
+        paddingTop: showEmergencyRibbon ? theme.spacing.xl : theme.spacing.lg,
+        border: `2px solid ${getBorderColor(isSelected, email.isRead, showEmergencyRibbon)}`,
+        borderLeft: email.isRead ? `1px solid ${theme.colors.border.light}` : `4px solid ${showEmergencyRibbon ? theme.colors.warning.main : theme.colors.primary.main}`,
         boxShadow: theme.shadows.sm,
         cursor: 'pointer',
         transition: theme.transitions.default,
@@ -53,7 +57,7 @@ export const EmailCard: React.FC<EmailCardProps> = ({
       }}
     >
       {/* Emergency delivery label */}
-      {wasDeliveredEarly && (
+      {showEmergencyRibbon && (
         <div
           title={t('inbox.emergencyDeliveryTooltip')}
           style={{

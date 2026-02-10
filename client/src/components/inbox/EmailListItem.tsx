@@ -98,7 +98,7 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
       data-email-id={email.id}
       style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}
     >
-      <EmailCard email={email} isSelected={isSelected} onCardClick={handleCardClick}>
+      <EmailCard email={email} isSelected={isSelected} onCardClick={handleCardClick} mode={mode}>
         <EmailCardHeader 
           email={email} 
           priorityTooltip={priorityTooltip}

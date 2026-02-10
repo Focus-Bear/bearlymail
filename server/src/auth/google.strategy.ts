@@ -45,9 +45,9 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
     const callbackURL = configService.get<string>("GOOGLE_REDIRECT_URI");
 
     super({
-      clientID,
-      clientSecret,
-      callbackURL,
+      clientID: clientID || "placeholder-client-id",
+      clientSecret: clientSecret || "placeholder-client-secret",
+      callbackURL: callbackURL || "http://localhost:3001/auth/google/callback",
       scope: [
         "email",
         "profile",
@@ -62,6 +62,12 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
       ],
       // These need to be in authorizationParams, not here
     });
+
+    if (!clientID || !clientSecret || !callbackURL) {
+      this.logger.warn(
+        "Google OAuth credentials not configured. Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI environment variables.",
+      );
+    }
 
     // Log OAuth configuration status at startup
     this.logger.log(`[GoogleStrategy] Initialized with:`);

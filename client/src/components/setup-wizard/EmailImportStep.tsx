@@ -187,9 +187,8 @@ export const EmailImportStep: React.FC<EmailImportStepProps> = ({ onComplete, is
                 textAlign: 'center',
               }}
             >
-              {t('setupWizard.emailImport.progressText', {
+              {t('setupWizard.emailImport.progressCount', {
                 count: progress.prioritizedCount,
-                target: TARGET_EMAILS,
               })}
             </p>
           </>

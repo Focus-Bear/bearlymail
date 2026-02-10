@@ -254,7 +254,11 @@ export class UsersService {
   }
 
   async completeOnboarding(userId: string): Promise<User> {
-    await this.userRepository.update(userId, { hasCompletedOnboarding: true });
+    await this.userRepository.update(userId, {
+      hasCompletedOnboarding: true,
+      hasSeenTour: true,
+      hasScannedHistory: true,
+    });
     return this.findOne(userId);
   }
 

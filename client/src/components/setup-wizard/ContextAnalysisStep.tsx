@@ -71,21 +71,38 @@ export const ContextAnalysisStep: React.FC<ContextAnalysisStepProps> = ({ onComp
             >
               {analyzeProgress.error}
             </p>
-            <button
-              onClick={startAnalysis}
-              style={{
-                padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-                backgroundColor: theme.colors.primary.main,
-                color: 'white',
-                border: 'none',
-                borderRadius: theme.borderRadius.md,
-                fontSize: theme.typography.fontSize.sm,
-                fontWeight: theme.typography.fontWeight.semibold,
-                cursor: 'pointer',
-              }}
-            >
-              {t('common.retry')}
-            </button>
+            <div style={{ display: 'flex', gap: theme.spacing.md, justifyContent: 'center' }}>
+              <button
+                onClick={startAnalysis}
+                style={{
+                  padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
+                  backgroundColor: theme.colors.primary.main,
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: theme.borderRadius.md,
+                  fontSize: theme.typography.fontSize.sm,
+                  fontWeight: theme.typography.fontWeight.semibold,
+                  cursor: 'pointer',
+                }}
+              >
+                {t('common.retry')}
+              </button>
+              <button
+                onClick={onComplete}
+                style={{
+                  padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
+                  backgroundColor: 'transparent',
+                  color: theme.colors.text.secondary,
+                  border: `1px solid ${theme.colors.border.medium}`,
+                  borderRadius: theme.borderRadius.md,
+                  fontSize: theme.typography.fontSize.sm,
+                  fontWeight: theme.typography.fontWeight.semibold,
+                  cursor: 'pointer',
+                }}
+              >
+                {t('setupWizard.contextAnalysis.skip')}
+              </button>
+            </div>
           </div>
         ) : (
           <>

@@ -1066,7 +1066,8 @@
       "analyzing": "Analizando tus correos electrónicos...",
       "complete": "¡Análisis completado!",
       "progressLabel": "completado",
-      "continue": "Continuar"
+      "continue": "Continuar",
+      "skip": "Omitir por ahora"
     },
     "emailImport": {
       "title": "Importando tus correos electrónicos",
@@ -1075,6 +1076,7 @@
       "importing": "Importando y priorizando correos electrónicos...",
       "ready": "¡Tu bandeja de entrada está lista!",
       "progressText": "{{count}} de {{target}} correos electrónicos priorizados",
+      "progressCount": "{{count}} correos electrónicos priorizados",
       "enterInbox": "Entrar a mi bandeja de entrada",
       "backgroundNote": "Esto puede tardar unos minutos. Continuaremos importando en segundo plano una vez que entres a tu bandeja de entrada.",
       "error": "Error al verificar el progreso de importación. Por favor, inténtalo de nuevo."

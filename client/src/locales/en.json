@@ -1558,7 +1558,8 @@
       "analyzing": "Analyzing your emails...",
       "complete": "Analysis complete!",
       "progressLabel": "complete",
-      "continue": "Continue"
+      "continue": "Continue",
+      "skip": "Skip for Now"
     },
     "emailImport": {
       "title": "Importing Your Emails",
@@ -1567,6 +1568,7 @@
       "importing": "Importing and prioritizing emails...",
       "ready": "Your inbox is ready!",
       "progressText": "{{count}} of {{target}} emails prioritized",
+      "progressCount": "Prioritised {{count}} emails",
       "enterInbox": "Enter My Inbox",
       "backgroundNote": "This may take a few minutes. We'll continue importing in the background once you enter your inbox.",
       "error": "Failed to check import progress. Please try again."

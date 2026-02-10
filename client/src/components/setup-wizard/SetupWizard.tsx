@@ -77,6 +77,8 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete, refreshUse
           padding: theme.spacing['2xl'],
           maxWidth: '600px',
           width: '100%',
+          maxHeight: '90vh',
+          overflowY: 'auto',
           boxShadow: theme.shadows.xl,
         }}
       >

@@ -227,19 +227,21 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
     const handleNoProgressResponse = async (timeoutId: NodeJS.Timeout | null) => {
       retryCount++;
       devDebug(`No progress response - retry count: ${retryCount}`);
-      if (retryCount < 5) {
+      if (retryCount < 30) {
         return;
       }
-      devLog('No progress after 5 retries - stopping analysis');
+      devLog('No progress after 30 retries - stopping analysis');
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
       setAnalyzing(false);
-      setAnalysisId(null); // Clear analysis ID when stopping
-      if (onComplete) {
-        await onComplete();
-      }
-      setAnalyzeProgress({ show: false, progress: null, error: null, isComplete: false });
+      setAnalysisId(null);
+      setAnalyzeProgress({
+        show: true,
+        progress: null,
+        error: 'Analysis timed out. You can re-run it from Settings.',
+        isComplete: false,
+      });
     };
 
     const handleFetchError = (error: any, timeoutId: NodeJS.Timeout | null) => {

@@ -156,10 +156,9 @@ export class EmailThread {
   })
   lastUserOperationAt: Date | null;
 
-  @Column({
-    type: "varchar",
-    length: 100,
+  @Column("text", {
     nullable: true,
+    transformer: encryptedColumnTransformer,
     comment:
       "Email category for grouping (e.g., Newsletters, Customer Support)",
   })

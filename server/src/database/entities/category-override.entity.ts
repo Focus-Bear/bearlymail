@@ -9,6 +9,7 @@ import {
 } from "typeorm";
 import { User } from "./user.entity";
 import { EmailThread } from "./email-thread.entity";
+import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
 
 @Entity("category_overrides")
 @Index(["userId", "emailThreadId"])
@@ -24,10 +25,10 @@ export class CategoryOverride {
   @Column()
   userId: string;
 
-  @Column({ type: "varchar", length: 100, nullable: true })
+  @Column("text", { nullable: true, transformer: encryptedColumnTransformer })
   originalCategory: string | null;
 
-  @Column({ type: "varchar", length: 100 })
+  @Column("text", { transformer: encryptedColumnTransformer })
   userCategory: string;
 
   @Column("text", {

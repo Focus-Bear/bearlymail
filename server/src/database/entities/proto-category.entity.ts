@@ -30,9 +30,7 @@ export class ProtoCategory {
   @Column({ type: "uuid" })
   userId: string;
 
-  @Column({
-    type: "varchar",
-    length: 100,
+  @Column("text", {
     transformer: encryptedColumnTransformer,
     comment: "Proto category name (e.g., '🔧 Technical Issues')",
   })

@@ -191,7 +191,7 @@ tests:
       from: "legal@lawfirm.com"
       fromName: "Legal Department"
       subject: "Contract Review - NDA Agreement"
-      body: "Please review the attached Non-Disclosure Agreement for the partnership with Acme Corp. We need your signature by Friday. Let me know if you have any questions about the terms."
+      body: "Please review the attached Non-Disclosure Agreement. Our legal team has flagged several clauses in Section 4 regarding liability limitations and indemnification that need your attention. We need your signature by Friday to comply with regulatory deadlines. Let me know if you have any questions about the terms."
       emailCategories: |
         - "Newsletters": Marketing emails and newsletters
         - "Customer Support": Support tickets and issues

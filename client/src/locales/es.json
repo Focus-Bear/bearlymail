@@ -800,6 +800,7 @@
     "debugEmergencyDelivery": "Entrega de emergencia",
     "debugYes": "Sí",
     "debugNo": "No",
+    "debugReason": "Razón",
     "error": "Error",
     "errorLoadingEmails": "Error al cargar correos electrónicos",
         "expandToFullWidth": "Expandir a ancho completo",

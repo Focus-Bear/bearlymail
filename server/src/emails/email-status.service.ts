@@ -44,13 +44,12 @@ export class EmailStatusService {
       mode: "triage" | "action" | "follow-up",
     ) => Promise<Email[]>,
   ): Promise<Email[]> {
-    // Unbatch ALL pending batched emails for the user, effectively "delivering" them now
     await this.emailRepository.update(
       {
         userId,
         isBatched: true,
       },
-      { isBatched: false },
+      { isBatched: false, batchDecisionReason: "Force-checked by user" },
     );
 
     // Return Triage inbox by default after force check

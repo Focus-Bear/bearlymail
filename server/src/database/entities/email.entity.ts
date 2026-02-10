@@ -173,6 +173,14 @@ export class Email {
   })
   wasDeliveredEarly: boolean;
 
+  @Column({
+    type: "varchar",
+    nullable: true,
+    comment:
+      "Human-readable reason for the batching decision (e.g. 'Batched until 15:00', 'Schedule disabled', 'Emergency delivery')",
+  })
+  batchDecisionReason: string | null;
+
   @CreateDateColumn()
   receivedAt: Date;
 

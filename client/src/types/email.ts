@@ -62,6 +62,7 @@ export interface Email {
   // Batching info for debug
   isBatched?: boolean;
   batchReleaseAt?: string | null;
+  batchDecisionReason?: string | null;
   // Email attachments
   attachments?: Array<{
     attachmentId: string;

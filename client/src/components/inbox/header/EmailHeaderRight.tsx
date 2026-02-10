@@ -76,6 +76,11 @@ export const EmailHeaderRight: React.FC<EmailHeaderRightProps> = ({ email }) => 
                 {yesNo(wasDeliveredEarly)}
               </strong>
             </div>
+            {email.batchDecisionReason && (
+              <div>
+                {t('inbox.debugReason')}: <strong>{email.batchDecisionReason}</strong>
+              </div>
+            )}
           </div>
         </div>
       )}

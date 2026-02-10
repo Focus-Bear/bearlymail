@@ -303,6 +303,8 @@ export class EmailsService {
         e."snoozeUntil",
         e."isBatched",
         e."batchReleaseAt",
+        e."wasDeliveredEarly",
+        e."batchDecisionReason",
         e."isRead",
         e.summary,
         e."isProcessingSummary",
@@ -326,6 +328,8 @@ export class EmailsService {
           em."snoozeUntil",
           em."isBatched",
           em."batchReleaseAt",
+          em."wasDeliveredEarly",
+          em."batchDecisionReason",
           em."isRead",
           em.summary,
           em."isProcessingSummary",
@@ -472,6 +476,8 @@ export class EmailsService {
         snoozeUntil: row.snoozeUntil,
         isBatched: row.isBatched,
         batchReleaseAt: row.batchReleaseAt,
+        wasDeliveredEarly: row.wasDeliveredEarly,
+        batchDecisionReason: row.batchDecisionReason,
         isRead: row.isRead,
         summary: EncryptionHelper.decrypt(row.summary as string | null),
         isProcessingPriority: row.isProcessingPriority, // From thread
@@ -1335,14 +1341,11 @@ export class EmailsService {
     // Apply batching if not starred (starCount = 0) and not skipping batching
     // Skip batching for initial sync (new users) so their triage isn't blank
     if (starCount === 0 && !options?.skipBatching) {
-      // Get user's batch schedule
       let schedule = await this.batchScheduleService.getSchedule(userId);
 
-      // If no schedule exists, use default schedule
       if (!schedule) {
         const defaultScheduleData =
           this.batchScheduleService.getDefaultSchedule();
-        // Create a temporary schedule object with default values for calculation
         schedule = {
           ...defaultScheduleData,
           userId,
@@ -1352,18 +1355,29 @@ export class EmailsService {
         } as BatchSchedule;
       }
 
-      // Calculate next batch release time based on schedule and priority score
       const nextReleaseTime = this.batchScheduleService.getNextBatchReleaseTime(
         schedule,
         priorityScore,
       );
 
-      // If getNextBatchReleaseTime returns null, don't batch (immediate delivery)
-      // Otherwise, set the batch release time
       if (nextReleaseTime !== null) {
         email.isBatched = true;
         email.batchReleaseAt = nextReleaseTime;
+        email.batchDecisionReason = `Batched until ${nextReleaseTime.toISOString()}`;
+      } else if (!schedule.isEnabled) {
+        email.batchDecisionReason = "Schedule disabled";
+      } else if (
+        priorityScore >= PRIORITY_SCORES.HIGH_THRESHOLD &&
+        schedule.urgentBypassSchedule
+      ) {
+        email.batchDecisionReason = `High priority (${priorityScore}) bypassed schedule`;
+      } else {
+        email.batchDecisionReason = "No upcoming delivery window";
       }
+    } else if (options?.skipBatching) {
+      email.batchDecisionReason = "Initial sync";
+    } else if (starCount > 0) {
+      email.batchDecisionReason = "Starred email";
     }
 
     const savedEmail = await this.emailRepository.save(email);

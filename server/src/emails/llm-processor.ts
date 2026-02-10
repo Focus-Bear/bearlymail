@@ -721,6 +721,7 @@ export class LLMProcessor implements OnModuleInit {
                     isBatched: false,
                     batchReleaseAt: null,
                     wasDeliveredEarly: true,
+                    batchDecisionReason: `Emergency delivery (score ${finalScore})`,
                   },
                 );
                 this.logger.log(
@@ -1403,6 +1404,7 @@ export class LLMProcessor implements OnModuleInit {
             isBatched: false,
             batchReleaseAt: null,
             wasDeliveredEarly: true,
+            batchDecisionReason: `Emergency delivery (score ${finalScore})`,
           },
         );
         this.logger.log(

@@ -207,6 +207,7 @@
     "debugEmergencyDelivery": "Emergency Delivery",
     "debugYes": "Yes",
     "debugNo": "No",
+    "debugReason": "Reason",
     "moreUrgentEmails": "+{{count}} more urgent email",
     "moreUrgentEmails_plural": "+{{count}} more urgent emails",
     "urgentEmailsWaiting": "You have urgent emails waiting. They will be delivered at the next batch time.",

@@ -51,3 +51,9 @@ export const STATS_CONFIG = {
   // Number of days to look back for response time statistics
   LOOKBACK_DAYS: 30,
 } as const;
+
+// BearlyMail branding
+export const BRANDING = {
+  // URL for the BearlyMail marketing/landing page
+  WEBSITE_URL: "https://bearlymail.com",
+} as const;

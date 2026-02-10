@@ -4,7 +4,7 @@ import {
   QueueStats,
   AutoResponseTemplateVars,
 } from "./types/auto-responder.types";
-import { DISPLAY_LIMITS } from "./auto-responder-constants";
+import { DISPLAY_LIMITS, BRANDING } from "./auto-responder-constants";
 
 /**
  * Service for handling auto-responder template selection and rendering
@@ -190,6 +190,16 @@ a:hover { text-decoration: underline; }
     result = result.replace(
       /\{\{#unless hasAiAnswer\}\}([\s\S]*?)\{\{\/unless\}\}/g,
       vars.hasAiAnswer ? "" : "$1",
+    );
+
+    // Ensure "BearlyMail" is always a clickable link.
+    // First normalize any existing markdown links for BearlyMail to plain text,
+    // then re-link all occurrences with the correct URL.
+    // This handles both custom templates (plain text) and default templates (already linked).
+    result = result.replace(/\[BearlyMail\]\([^)]*\)/g, "BearlyMail");
+    result = result.replace(
+      /BearlyMail/g,
+      `[BearlyMail](${BRANDING.WEBSITE_URL})`,
     );
 
     return result.trim();

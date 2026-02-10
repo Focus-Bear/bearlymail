@@ -7,6 +7,7 @@ import {
   Source,
 } from "../database/entities/user-context.entity";
 import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
 import { getErrorMessage } from "../types/common";
 import { LLMService } from "../llm/llm.service";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
@@ -26,6 +27,8 @@ export class ContextCategoryService {
     private contextRepository: Repository<UserContext>,
     @InjectRepository(Email)
     private emailRepository: Repository<Email>,
+    @InjectRepository(EmailThread)
+    private emailThreadRepository: Repository<EmailThread>,
     private llmService: LLMService,
     @Inject("PG_BOSS") private boss: PgBoss,
   ) {}
@@ -173,14 +176,29 @@ export class ContextCategoryService {
       `[GENERATE-CATEGORIES] Starting category generation from Other emails for user ${userId}`,
     );
 
-    // Fetch emails in "Other" category from triage
+    // Fetch thread IDs in "Other" category (category is encrypted, so filter in code)
+    const threads = await this.emailThreadRepository.find({
+      where: { userId, isArchived: false },
+      select: ["id", "category"],
+    });
+    const otherThreadIds = threads
+      .filter((t) => t.category === "Other" || !t.category)
+      .map((t) => t.id);
+
+    if (otherThreadIds.length === 0) {
+      return {
+        newCategoriesCount: 0,
+        totalCategoriesCount: 0,
+        newCategories: [],
+        reclassifyJobsQueued: 0,
+      };
+    }
+
     const otherEmails = await this.emailRepository
       .createQueryBuilder("email")
-      .innerJoin("email.thread", "thread")
       .where("email.userId = :userId", { userId })
-      .andWhere("thread.isArchived = :isArchived", { isArchived: false })
-      .andWhere("(thread.category = :other OR thread.category IS NULL)", {
-        other: "Other",
+      .andWhere("email.emailThreadId IN (:...threadIds)", {
+        threadIds: otherThreadIds,
       })
       .select([
         "email.id",

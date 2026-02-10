@@ -29,9 +29,10 @@ export class ProtoCategoriesService {
     userId: string,
     name: string,
   ): Promise<ProtoCategory | null> {
-    return this.protoCategoryRepository.findOne({
-      where: { userId, name, isPromoted: false },
+    const candidates = await this.protoCategoryRepository.find({
+      where: { userId, isPromoted: false },
     });
+    return candidates.find((c) => c.name === name) || null;
   }
 
   /**

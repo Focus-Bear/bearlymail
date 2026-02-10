@@ -131,18 +131,22 @@ export function useEmailDetailReplies(
     expectedReplyHours?: number,
     forwardAttachmentIds?: string[],
     onClose?: () => void,
+    draftOverride?: string,
   ) => {
-    if (!emailId || !draft) return;
+    const draftToSend = draftOverride || draft;
+    if (!emailId || !draftToSend) return;
     
-    const toneOk = await checkTone(draft);
-    if (!toneOk) return;
+    if (!draftOverride) {
+      const toneOk = await checkTone(draftToSend);
+      if (!toneOk) return;
+    }
     
     setSending(true);
     try {
       // Use FormData if we have files to send
       if (files.length > 0) {
         const formData = new FormData();
-        formData.append('reply', draft);
+        formData.append('reply', draftToSend);
         formData.append('recipients', replyRecipients);
         formData.append('replyAll', String(replyMode === REPLY_MODE_REPLY_ALL));
         if (replyCc) formData.append('cc', replyCc);
@@ -164,7 +168,7 @@ export function useEmailDetailReplies(
         });
       } else {
         await axios.post(`${API_URL}/replies/send/${emailId}`, { 
-          reply: draft,
+          reply: draftToSend,
           recipients: replyRecipients,
           cc: replyCc || undefined,
           bcc: replyBcc || undefined,

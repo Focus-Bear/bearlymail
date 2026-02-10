@@ -33,9 +33,9 @@ const useEmailDetailInlineHandlers = (
   const { showSuccess } = useNotifications();
   const hookData = useEmailDetailInline(emailId, { autoGenerateReplies });
 
-  const handleSendReplyWithClose = async (files: File[], expectedReplyHours?: number, forwardAttachmentIds?: string[]) => {
+  const handleSendReplyWithClose = async (files: File[], expectedReplyHours?: number, forwardAttachmentIds?: string[], draftOverride?: string) => {
     try {
-      await hookData.handleSendReply(files, expectedReplyHours, forwardAttachmentIds, undefined);
+      await hookData.handleSendReply(files, expectedReplyHours, forwardAttachmentIds, undefined, draftOverride);
       // Refresh thread emails to show the sent reply
       await hookData.fetchThreadEmails();
       if (onClose) {

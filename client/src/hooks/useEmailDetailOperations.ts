@@ -878,14 +878,15 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     });
   }, [id, emails, dispatch, options, navigate]);
 
-  const handleSendReply = useCallback(async (files: File[] = [], expectedReplyHours?: number) => {
-    if (!id || !draft) return;
+  const handleSendReply = useCallback(async (files: File[] = [], expectedReplyHours?: number, draftOverride?: string) => {
+    const draftToSend = draftOverride || draft;
+    if (!id || !draftToSend) return;
 
-    // Skip tone check if dispute was already accepted
-    if (!disputeResult?.accepted) {
+    // Skip tone check if using revised text from tone check or dispute was already accepted
+    if (!draftOverride && !disputeResult?.accepted) {
       setCheckingTone(true);
       try {
-        const toneResponse = await axios.post(`${API_URL}/llm/check-tone`, { text: draft });
+        const toneResponse = await axios.post(`${API_URL}/llm/check-tone`, { text: draftToSend });
         setToneCheckResult(toneResponse.data);
 
         if (!toneResponse.data.isOk) {
@@ -911,7 +912,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
       // Create FormData if files are present, otherwise use JSON
       if (files.length > 0) {
         const formData = new FormData();
-        formData.append('reply', draft);
+        formData.append('reply', draftToSend);
         formData.append('recipients', replyRecipients);
         formData.append('replyAll', String(replyMode === REPLY_MODE_REPLY_ALL));
         if (replyCc) formData.append('cc', replyCc);
@@ -927,7 +928,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
         });
       } else {
         await axios.post(`${API_URL}/replies/send/${id}`, {
-          reply: draft,
+          reply: draftToSend,
           recipients: replyRecipients,
           cc: replyCc || undefined,
           bcc: replyBcc || undefined,

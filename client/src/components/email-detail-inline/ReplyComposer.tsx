@@ -68,7 +68,7 @@ interface ReplyComposerProps {
   onDraftChange: (draft: string) => void;
   onReplyOptionSelect: (index: number, text: string) => void;
   onClose: () => void;
-  onSend: (files: File[], expectedReplyHours?: number, forwardAttachmentIds?: string[]) => void;
+  onSend: (files: File[], expectedReplyHours?: number, forwardAttachmentIds?: string[], draftOverride?: string) => void;
   onUseRevisedText: (text: string) => void;
   textareaRef?: React.RefObject<HTMLTextAreaElement>;
   onDispute?: (emailText: string, suggestions: string[], argument: string) => Promise<DisputeResult | null>;
@@ -188,8 +188,8 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
     }
   };
 
-  const handleSend = (expectedReplyHours?: number) => {
-    onSend(files, expectedReplyHours, forwardAttachmentIds.length > 0 ? forwardAttachmentIds : undefined);
+  const handleSend = (expectedReplyHours?: number, draftOverride?: string) => {
+    onSend(files, expectedReplyHours, forwardAttachmentIds.length > 0 ? forwardAttachmentIds : undefined, draftOverride);
     setFiles([]);
     setForwardAttachmentIds([]);
   };
@@ -356,7 +356,10 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
       {/* eslint-enable i18next/no-literal-string */}
       <ToneCheckResult
         toneCheckResult={toneCheckResult}
-        onUseRevisedText={onUseRevisedText}
+        onUseRevisedText={(text) => {
+          onUseRevisedText(text);
+          handleSend(undefined, text);
+        }}
         emailText={draft || ''}
         onDispute={onDispute}
         disputing={disputing}

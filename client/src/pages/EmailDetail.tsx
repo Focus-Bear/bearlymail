@@ -474,7 +474,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
                 setReplyOptions(null);
                 setToneCheckResult(null);
               }}
-              onSend={handleSendReply}
+              onSend={(files, expectedReplyHours, _forwardAttachmentIds, draftOverride) => handleSendReply(files, expectedReplyHours, draftOverride)}
               onUseRevisedText={(text) => {
                 setDraft(text);
                 setToneCheckResult(null);

@@ -258,12 +258,16 @@ export const DataExportSection: React.FC = () => {
           onMouseEnter={() => setIsImportHovered(true)}
           onMouseLeave={() => setIsImportHovered(false)}
           style={{
-            backgroundColor:
+            backgroundColor: theme.colors.button.secondary.default,
+            color:
               isImportHovered && !isExporting && !isImporting
-                ? theme.colors.background.hover || theme.colors.background.paper
-                : theme.colors.secondary?.main || theme.colors.background.elevated,
-            color: theme.colors.text.primary,
-            border: `1px solid ${theme.colors.border?.light || theme.colors.text.secondary}`,
+                ? theme.colors.button.secondary.hoverText
+                : theme.colors.button.secondary.text,
+            border: `1px solid ${
+              isImportHovered && !isExporting && !isImporting
+                ? theme.colors.button.secondary.hoverBorder
+                : theme.colors.button.secondary.border
+            }`,
             borderRadius: theme.borderRadius.md,
             padding: `${theme.spacing.sm} ${theme.spacing.md}`,
             cursor: isExporting || isImporting ? 'not-allowed' : 'pointer',

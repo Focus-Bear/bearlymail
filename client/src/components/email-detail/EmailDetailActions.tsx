@@ -4,10 +4,11 @@ import { theme } from 'theme/theme';
 import { Email } from 'types/email';
 import { QuickActionsSection } from 'components/email-detail/QuickActionsSection';
 import { CalendarInviteActions } from 'components/email-detail/CalendarInviteActions';
+import { SchedulingRequestCard } from 'components/email-detail/SchedulingRequestCard';
 import { SnoozeInputForm } from 'components/inbox/actions/SnoozeInputForm';
 import { EMOJI_REPLY, EMOJI_FORWARD, EMOJI_ARCHIVE, EMOJI_BLOCK, EMOJI_LINK, EMOJI_DELETE, EMOJI_STAR, EMOJI_CLOCK } from 'constants/emojis';
 import { OPACITY_DISABLED } from 'constants/numbers';
-import { REPLY_MODE_REPLY, REPLY_MODE_FORWARD } from 'constants/strings';
+import { REPLY_MODE_REPLY, REPLY_MODE_FORWARD, ACTION_TYPE_SCHEDULING_REQUEST } from 'constants/strings';
 import { extractUnsubscribeLink } from 'utils/unsubscribeUtils';
 import { captureEvent } from 'utils/posthog';
 import { isCalendarInvitation } from 'utils/calendarUtils';
@@ -29,6 +30,7 @@ interface EmailDetailActionsProps {
   onBlockSender: (emailId: string) => void;
   onSnooze: (duration: string) => void;
   onRespondToInvitation?: (emailId: string, response: 'accepted' | 'declined' | 'tentative') => Promise<void>;
+  onDraftReply?: (draft: string) => void;
   hideActionButtons?: boolean; // Hide the action buttons bar (used in split view where actions are in header)
 }
 
@@ -49,6 +51,7 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
   onBlockSender,
   onSnooze,
   onRespondToInvitation,
+  onDraftReply,
   hideActionButtons = false,
 }) => {
   const { t } = useTranslation();
@@ -60,6 +63,12 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
 
   // Check if email is a calendar invitation
   const isInvitation = useMemo(() => isCalendarInvitation(email), [email]);
+
+  // Check if any suggested action is a scheduling request
+  const hasSchedulingRequest = useMemo(
+    () => suggestedActions.some((a) => a.type === ACTION_TYPE_SCHEDULING_REQUEST),
+    [suggestedActions],
+  );
 
   // Extract unsubscribe link from email
   const unsubscribeLink = useMemo(() => {
@@ -88,6 +97,14 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
           email={email}
           onAccept={() => onRespondToInvitation(email.id, 'accepted')}
           onDecline={() => onRespondToInvitation(email.id, 'declined')}
+        />
+      )}
+
+      {/* Scheduling Request Card - shown when AI detects a scheduling request */}
+      {hasSchedulingRequest && !isInvitation && (
+        <SchedulingRequestCard
+          email={email}
+          onDraftReply={onDraftReply}
         />
       )}
 

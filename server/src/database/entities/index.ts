@@ -25,3 +25,4 @@ export { AutoResponseSuppression } from "./auto-response-suppression.entity";
 export { ReplyDraft } from "./reply-draft.entity";
 export { SuggestedReply } from "./suggested-reply.entity";
 export { ProtoCategory } from "./proto-category.entity";
+export { SchedulingPreference } from "./scheduling-preference.entity";

@@ -342,6 +342,18 @@
       "declined": "Declined",
       "acceptError": "Failed to accept invitation. Please try again.",
       "declineError": "Failed to decline invitation. Please try again."
+    },
+    "schedulingRequest": {
+      "title": "Scheduling Request Detected",
+      "description": "This email appears to be requesting a meeting. Share your availability or draft a reply with available times.",
+      "copyLink": "Copy Scheduling Link",
+      "linkCopied": "Link copied!",
+      "draftReply": "Draft Meeting Reply",
+      "drafting": "Drafting...",
+      "noCalendar": "Connect Google Calendar in settings to use scheduling features.",
+      "viewSlots": "View Available Slots",
+      "availableSlots": "Available Times",
+      "noSlots": "No available slots found in the next 7 days."
     }
   },
   "settings": {
@@ -422,20 +434,6 @@
         "confirmRemoveGithubToken":"Are you sure you want to disconnect your GitHub account?",
     "githubTokenRemoved": "GitHub disconnected successfully",
     "githubTokenRemoveError": "Failed to disconnect GitHub",
-    "nav": {
-      "emailDelivery": "Email Delivery",
-      "googleAccounts": "Google Accounts",
-      "emailBatching": "Email Batching",
-      "blockedSenders": "Blocked Senders",
-      "guideOurAI": "Guide Our AI",
-      "emailCategories": "Email Categories",
-      "toneSettings": "Tone Settings",
-      "summarization": "Summarization",
-      "autoResponder": "Auto-Responder",
-      "integrations": "Integrations",
-      "openAiApiKey": "OpenAI API Key",
-      "githubIntegration": "GitHub Integration"
-    },
     "autoResponder": {
       "title": "Auto-Responder",
       "description": "Automatically respond to new emails with queue status and helpful information. The auto-responder can even answer common questions based on the Q&A in your context. Responses are sent as replies to the original email, keeping the conversation thread intact.",
@@ -1288,7 +1286,33 @@
       "autoResponder": "Auto-Responder",
       "integrations": "Integrations",
       "openAiApiKey": "OpenAI API Key",
-      "githubIntegration": "GitHub Integration"
+      "githubIntegration": "GitHub Integration",
+      "schedulingPreferences": "Scheduling"
+    },
+    "schedulingPreferences": {
+      "title": "Scheduling Preferences",
+      "description": "Configure your availability for meeting scheduling. These settings control the time slots shown in your scheduling link.",
+      "availabilityHours": "Availability Hours",
+      "startHour": "Start",
+      "endHour": "End",
+      "availabilityDays": "Available Days",
+      "meetingGap": "Gap Between Meetings",
+      "meetingGapMinutes": "{{count}} minutes",
+      "deepWork": "Preserve Deep Work",
+      "deepWorkHours": "{{count}} hours per day with no meetings",
+      "slotDuration": "Meeting Slot Duration",
+      "slotDurationMinutes": "{{count}} minutes",
+      "saved": "Preferences saved",
+      "saveError": "Failed to save preferences",
+      "days": {
+        "sun": "Sun",
+        "mon": "Mon",
+        "tue": "Tue",
+        "wed": "Wed",
+        "thu": "Thu",
+        "fri": "Fri",
+        "sat": "Sat"
+      }
     },
     "autoResponder": {
       "title": "Auto-Responder",

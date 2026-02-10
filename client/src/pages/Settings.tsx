@@ -11,6 +11,7 @@ import { DataExportSection } from 'components/settings/DataExportSection';
 import { SettingsHeader } from 'components/settings/SettingsHeader';
 import { AnalysisProgressModal } from 'components/settings/AnalysisProgressModal';
 import { AutoResponderSection } from 'components/settings/auto-responder';
+import { SchedulingPreferencesSection } from 'components/settings/SchedulingPreferencesSection';
 import { useSettingsData } from 'hooks/useSettingsData';
 import { useAutoResponder } from 'hooks/useAutoResponder';
 
@@ -163,6 +164,8 @@ const Settings: React.FC = () => {
           onEditContextPriorityChange={settingsData.setEditContextPriority}
           onUpdateProfile={settingsData.updateProfile}
         />
+
+        <SchedulingPreferencesSection />
 
         <IntegrationsSection
           openAiApiKey={settingsData.openAiApiKey}

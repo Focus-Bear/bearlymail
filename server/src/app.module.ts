@@ -36,6 +36,7 @@ import { GitHubModule } from "./github/github.module";
 import { SuggestedActionsModule } from "./suggested-actions/suggested-actions.module";
 import { AutoResponderModule } from "./auto-responder/auto-responder.module";
 import { DraftsModule } from "./drafts/drafts.module";
+import { SchedulingPreferencesModule } from "./scheduling-preferences/scheduling-preferences.module";
 
 @Module({
   imports: [
@@ -88,6 +89,7 @@ import { DraftsModule } from "./drafts/drafts.module";
     SuggestedActionsModule,
     AutoResponderModule,
     DraftsModule,
+    SchedulingPreferencesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -50,6 +50,7 @@ export const ACTION_TYPE_GITHUB_ADD_COMMENT = 'github_add_comment' as const;
 export const ACTION_TYPE_GITHUB_SEARCH_ISSUES = 'github_search_issues' as const;
 export const ACTION_TYPE_CALENDAR_CREATE_INVITE = 'calendar_create_invite' as const;
 export const ACTION_TYPE_CALENDAR_FIND_EVENTS = 'calendar_find_events' as const;
+export const ACTION_TYPE_SCHEDULING_REQUEST = 'scheduling_request' as const;
 
 // Action type prefixes
 export const GITHUB_ACTION_PREFIX = 'github_' as const;

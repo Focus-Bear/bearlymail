@@ -7,6 +7,10 @@ import { LLMProvider } from "../llm/llm.types";
 import { EmailsService } from "../emails/emails.service";
 import { HOURS } from "../constants/time-constants";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import {
+  SchedulingPreferencesService,
+  SchedulingPreferenceData,
+} from "../scheduling-preferences/scheduling-preferences.service";
 
 export interface TimeSlot {
   start: string;
@@ -27,6 +31,7 @@ export class CalendarService {
     private usersService: UsersService,
     private llmService: LLMService,
     private emailsService: EmailsService,
+    private schedulingPreferencesService: SchedulingPreferencesService,
   ) {
     this.oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
@@ -39,6 +44,7 @@ export class CalendarService {
   async getAvailableTimeSlots(
     userId: string,
     daysAhead: number = 7,
+    prefsOverride?: SchedulingPreferenceData,
   ): Promise<TimeSlot[]> {
     const user = await this.usersService.findOne(userId);
     if (!user?.googleCalendarAccessToken) {
@@ -71,7 +77,10 @@ export class CalendarService {
         (period): period is BusyPeriod =>
           period.start !== undefined && period.end !== undefined,
       ) as BusyPeriod[];
-      const freeSlots = this.calculateFreeSlots(now, endDate, busy);
+      const prefs =
+        prefsOverride ||
+        (await this.schedulingPreferencesService.getPreferences(userId));
+      const freeSlots = this.calculateFreeSlots(now, endDate, busy, prefs);
 
       return freeSlots;
     } catch (error) {
@@ -80,18 +89,54 @@ export class CalendarService {
     }
   }
 
+  private toTzDate(date: Date, tz: string): Date {
+    const str = date.toLocaleString("en-US", { timeZone: tz });
+    return new Date(str);
+  }
+
+  private toDayKey(date: Date, tz: string): string {
+    const d = this.toTzDate(date, tz);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
+
   private calculateFreeSlots(
     start: Date,
     end: Date,
     busy: BusyPeriod[],
+    prefs?: SchedulingPreferenceData,
   ): TimeSlot[] {
     const slots: TimeSlot[] = [];
-    // 30 minutes
-    const slotDuration = 30;
+    const slotDuration = prefs?.slotDurationMinutes || 30;
+    const startHour = prefs?.availabilityStartHour ?? HOURS.NINE;
+    const endHour = prefs?.availabilityEndHour ?? HOURS.SEVENTEEN;
+    const availDays = prefs?.availabilityDays ?? [1, 2, 3, 4, 5];
+    const gapMinutes = prefs?.meetingGapMinutes ?? 30;
+    const deepWorkHours = prefs?.deepWorkHoursPerDay ?? 2;
+    const tz = prefs?.timezone || "UTC";
     let current = new Date(start);
+
+    const meetingMinutesPerDay = new Map<string, number>();
 
     while (current < end) {
       const slotEnd = new Date(current.getTime() + slotDuration * 60 * 1000);
+      const tzDate = this.toTzDate(current, tz);
+      const dayKey = this.toDayKey(current, tz);
+      const dayOfWeek = tzDate.getDay();
+      const hourInTz = tzDate.getHours();
+
+      if (!availDays.includes(dayOfWeek)) {
+        current = new Date(current.getTime() + slotDuration * 60 * 1000);
+        continue;
+      }
+
+      if (hourInTz < startHour || hourInTz >= endHour) {
+        current = new Date(current.getTime() + slotDuration * 60 * 1000);
+        continue;
+      }
+
       const isBusy = busy.some((b) => {
         const busyStart = new Date(b.start);
         const busyEnd = new Date(b.end);
@@ -102,23 +147,79 @@ export class CalendarService {
         );
       });
 
+      const isTooCloseToMeeting = busy.some((b) => {
+        const busyEnd = new Date(b.end);
+        const busyStart = new Date(b.start);
+        const gapMs = gapMinutes * 60 * 1000;
+        const tooCloseAfter =
+          current.getTime() >= busyEnd.getTime() &&
+          current.getTime() < busyEnd.getTime() + gapMs;
+        const tooCloseBefore =
+          slotEnd.getTime() <= busyStart.getTime() &&
+          slotEnd.getTime() > busyStart.getTime() - gapMs;
+        return tooCloseAfter || tooCloseBefore;
+      });
+
+      const totalAvailMinutes = (endHour - startHour) * 60;
+      const existingMeetingMinutes = this.getMeetingMinutesForDay(
+        dayKey,
+        busy,
+        startHour,
+        endHour,
+        tz,
+      );
+      const bookedSlotMinutes = meetingMinutesPerDay.get(dayKey) || 0;
+      const totalBooked = existingMeetingMinutes + bookedSlotMinutes;
+      const deepWorkMinutes = deepWorkHours * 60;
+      const maxBookableMinutes = totalAvailMinutes - deepWorkMinutes;
+
       if (
         !isBusy &&
-        current.getHours() >= HOURS.NINE &&
-        current.getHours() < HOURS.SEVENTEEN
+        !isTooCloseToMeeting &&
+        totalBooked + slotDuration <= maxBookableMinutes
       ) {
         slots.push({
           start: current.toISOString(),
           end: slotEnd.toISOString(),
           duration: slotDuration,
         });
+        meetingMinutesPerDay.set(dayKey, bookedSlotMinutes + slotDuration);
       }
 
       current = new Date(current.getTime() + slotDuration * 60 * 1000);
     }
 
-    // Return top 10 slots
     return slots.slice(0, 10);
+  }
+
+  private getMeetingMinutesForDay(
+    dayKey: string,
+    busy: BusyPeriod[],
+    startHour: number,
+    endHour: number,
+    tz: string,
+  ): number {
+    let total = 0;
+    for (const b of busy) {
+      const busyStart = new Date(b.start);
+      const busyEnd = new Date(b.end);
+      if (this.toDayKey(busyStart, tz) !== dayKey) continue;
+      const tzStart = this.toTzDate(busyStart, tz);
+      const dayStart = new Date(tzStart);
+      dayStart.setHours(startHour, 0, 0, 0);
+      const dayEnd = new Date(tzStart);
+      dayEnd.setHours(endHour, 0, 0, 0);
+      const effectiveStart = tzStart < dayStart ? dayStart : tzStart;
+      const effectiveEnd =
+        this.toTzDate(busyEnd, tz) > dayEnd
+          ? dayEnd
+          : this.toTzDate(busyEnd, tz);
+      if (effectiveEnd > effectiveStart) {
+        total +=
+          (effectiveEnd.getTime() - effectiveStart.getTime()) / (60 * 1000);
+      }
+    }
+    return total;
   }
 
   // eslint-disable-next-line max-params

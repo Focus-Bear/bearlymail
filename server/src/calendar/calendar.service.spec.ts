@@ -3,6 +3,7 @@ import { CalendarService } from "./calendar.service";
 import { UsersService } from "../users/users.service";
 import { LLMService } from "../llm/llm.service";
 import { EmailsService } from "../emails/emails.service";
+import { SchedulingPreferencesService } from "../scheduling-preferences/scheduling-preferences.service";
 import { google } from "googleapis";
 
 // Mock googleapis
@@ -79,6 +80,20 @@ describe("CalendarService", () => {
           provide: EmailsService,
           useValue: {
             getEmailById: jest.fn(),
+          },
+        },
+        {
+          provide: SchedulingPreferencesService,
+          useValue: {
+            getPreferences: jest.fn().mockResolvedValue({
+              availabilityStartHour: 9,
+              availabilityEndHour: 17,
+              availabilityDays: [1, 2, 3, 4, 5],
+              meetingGapMinutes: 30,
+              deepWorkHoursPerDay: 2,
+              slotDurationMinutes: 30,
+              timezone: "UTC",
+            }),
           },
         },
       ],

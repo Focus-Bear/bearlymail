@@ -323,6 +323,18 @@
       "declining": "Declinante...",
       "title": "Invitación del calendario"
     },
+    "schedulingRequest": {
+      "title": "Solicitud de programación detectada",
+      "description": "Este correo parece solicitar una reunión. Comparta su disponibilidad o redacte una respuesta con horarios disponibles.",
+      "copyLink": "Copiar enlace de programación",
+      "linkCopied": "¡Enlace copiado!",
+      "draftReply": "Redactar respuesta de reunión",
+      "drafting": "Redactando...",
+      "noCalendar": "Conecte Google Calendar en configuración para usar las funciones de programación.",
+      "viewSlots": "Ver horarios disponibles",
+      "availableSlots": "Horarios disponibles",
+      "noSlots": "No se encontraron horarios disponibles en los próximos 7 días."
+    },
     "checkTone": "Comprobar tono",
     "checking": "De cheques...",
     "checkingTone": "Verificando tono...",
@@ -1429,7 +1441,33 @@
       "openAiApiKey": "Clave API de OpenAI",
       "summarization": "Resumen",
       "toneSettings": "Configuración de tono",
-      "autoResponder": "Respuesta automática"
+      "autoResponder": "Respuesta automática",
+      "schedulingPreferences": "Programación"
+    },
+    "schedulingPreferences": {
+      "title": "Preferencias de programación",
+      "description": "Configure su disponibilidad para la programación de reuniones. Estas configuraciones controlan los horarios mostrados en su enlace de programación.",
+      "availabilityHours": "Horario de disponibilidad",
+      "startHour": "Inicio",
+      "endHour": "Fin",
+      "availabilityDays": "Días disponibles",
+      "meetingGap": "Espacio entre reuniones",
+      "meetingGapMinutes": "{{count}} minutos",
+      "deepWork": "Preservar trabajo profundo",
+      "deepWorkHours": "{{count}} horas por día sin reuniones",
+      "slotDuration": "Duración del espacio de reunión",
+      "slotDurationMinutes": "{{count}} minutos",
+      "saved": "Preferencias guardadas",
+      "saveError": "No se pudieron guardar las preferencias",
+      "days": {
+        "sun": "Dom",
+        "mon": "Lun",
+        "tue": "Mar",
+        "wed": "Mié",
+        "thu": "Jue",
+        "fri": "Vie",
+        "sat": "Sáb"
+      }
     },
         "autoResponder": {
           "title": "Respuesta automática",

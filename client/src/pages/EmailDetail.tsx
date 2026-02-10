@@ -428,6 +428,10 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
           onBlockSender={handleBlockSender}
           onSnooze={handleSnooze}
           onRespondToInvitation={handleRespondToInvitation}
+          onDraftReply={(replyDraft) => {
+            setDraft(replyDraft);
+            setShowReplyComposer(true);
+          }}
           hideActionButtons={compactMode}
         />
 

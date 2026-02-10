@@ -10,6 +10,7 @@ Possible action types:
 - github_search_issues: When the email mentions a problem that might have similar existing issues
 - calendar_create_invite: When the email contains a meeting request or scheduling discussion
 - calendar_find_events: When you want to check for existing meetings with the sender
+- scheduling_request: When the email is asking to schedule a meeting, find available times, or coordinate a time to meet (e.g., "let me know what times work", "can we schedule a call", "when are you free")
 
 Return a JSON object with:
 {

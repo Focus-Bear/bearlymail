@@ -13,6 +13,31 @@ const MAX_EXAMPLES_PER_SYNC = 3;
 const MIN_EMAIL_LENGTH = 50;
 // Max email length for examples
 const MAX_EMAIL_LENGTH = 500;
+const AUTO_RESPONDER_PATTERNS = [
+  /\bbearlymail\b/i,
+  /\bai\s+email\s+assist/i,
+  /\bautomated\s+response\b/i,
+  /\bauto[- ]?reply\b/i,
+  /\bthis\s+is\s+an?\s+automated\b/i,
+  /\bdo\s+not\s+reply\b/i,
+  /\bnoreply@/i,
+  /\bno-reply@/i,
+  /\bout[- ]of[- ]office\b/i,
+];
+
+const CALENDAR_EVENT_PATTERNS = [
+  /\bthis\s+event\s+has\s+been\s+(updated|cancelled|canceled)\b/i,
+  /\binvitation:\s/i,
+  /\bevent\s+notification\b/i,
+  /\bcalendar\s+notification\b/i,
+  /\bwhen:\s.*\d{1,2}:\d{2}\b/i,
+  /\bwhere:\s/i,
+  /\brsvp\b/i,
+  /\baccept\s*\|\s*decline\b/i,
+  /\bmeet\s+video\s+conference\b/i,
+  /^[^\n]{0,200}@\s+\w+.*\d{1,2}\s+\w+\s+\d{4}\s+·\s+\d{1,2}:\d{2}/i,
+];
+
 /**
  * Check if a rule is an email example.
  * Email examples are rules that don't start with known prefixes like "Tone:", "Style:", or "Common phrase:".
@@ -136,16 +161,26 @@ export class WritingStyleLearningService {
           snippet = `${snippet}...`;
         }
 
-        // Use LLM to redact names
-        const redacted = await this.llmService.redactNamesWithLLM(snippet);
+        if (this.isObviouslyNotUserWritten(snippet)) {
+          this.logger.debug(
+            `Skipping non-user-written email for user ${userId} (pre-filter)`,
+          );
+          continue;
+        }
 
-        // Check for duplicates (similar content)
+        const validated = await this.llmService.validateWritingExample(snippet);
+
+        if (!validated) {
+          this.logger.debug(`LLM rejected email example for user ${userId}`);
+          continue;
+        }
+
         const isDuplicate = existingExamples.some((existing: string) =>
-          this.areSimilar(existing.toLowerCase(), redacted.toLowerCase()),
+          this.areSimilar(existing.toLowerCase(), validated.toLowerCase()),
         );
 
         if (!isDuplicate) {
-          newExamples.push(`Example: ${redacted}`);
+          newExamples.push(`Example: ${validated}`);
         }
       }
 
@@ -189,15 +224,25 @@ export class WritingStyleLearningService {
     let cleaned = body;
 
     // Remove "On [date], [name] wrote:" patterns and everything after
-    // Matches: "On Mon, Jan 1, 2024 at 10:00 AM John Doe <john@example.com> wrote:"
-    const onWrotePattern = /\n\s*On\s+.{10,100}\s+wrote:\s*\n/i;
+    // Matches both with and without leading newline:
+    // "On Mon, Jan 1, 2024 at 10:00 AM John Doe <john@example.com> wrote:"
+    const onWrotePattern = /(?:^|\n)\s*On\s+.{10,150}\s+wrote:\s*$/im;
     const onWroteMatch = cleaned.match(onWrotePattern);
     if (onWroteMatch && onWroteMatch.index !== undefined) {
       cleaned = cleaned.substring(0, onWroteMatch.index);
     }
 
+    // Also handle inline "On ... wrote:" mid-sentence (e.g. text ending with "On Wed, 4 Feb 2026 at 17:50, Name wrote:")
+    const inlineOnWrotePattern =
+      /\.\s+On\s+(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun|\d).{10,150}\s+wrote:\s*$/im;
+    const inlineMatch = cleaned.match(inlineOnWrotePattern);
+    if (inlineMatch && inlineMatch.index !== undefined) {
+      cleaned = cleaned.substring(0, inlineMatch.index + 1);
+    }
+
     // Remove "-----Original Message-----" and everything after
-    const originalMessagePattern = /\n\s*-{3,}\s*Original Message\s*-{3,}/i;
+    const originalMessagePattern =
+      /(?:^|\n)\s*-{3,}\s*Original Message\s*-{3,}/i;
     const originalMatch = cleaned.match(originalMessagePattern);
     if (originalMatch && originalMatch.index !== undefined) {
       cleaned = cleaned.substring(0, originalMatch.index);
@@ -205,17 +250,24 @@ export class WritingStyleLearningService {
 
     // Remove "From: [email]" header blocks (forwarded emails)
     const fromHeaderPattern =
-      /\n\s*From:\s*[^\n]+\n\s*(?:Sent|Date|To|Subject):/i;
+      /(?:^|\n)\s*From:\s*[^\n]+\n\s*(?:Sent|Date|To|Subject):/i;
     const fromMatch = cleaned.match(fromHeaderPattern);
     if (fromMatch && fromMatch.index !== undefined) {
       cleaned = cleaned.substring(0, fromMatch.index);
     }
 
     // Remove Gmail-style "---------- Forwarded message ---------"
-    const forwardedPattern = /\n\s*-{5,}\s*Forwarded message\s*-{5,}/i;
+    const forwardedPattern = /(?:^|\n)\s*-{5,}\s*Forwarded message\s*-{5,}/i;
     const forwardedMatch = cleaned.match(forwardedPattern);
     if (forwardedMatch && forwardedMatch.index !== undefined) {
       cleaned = cleaned.substring(0, forwardedMatch.index);
+    }
+
+    // Remove Outlook-style "________________________________" separator and everything after
+    const outlookSeparatorPattern = /(?:^|\n)\s*_{10,}/;
+    const outlookMatch = cleaned.match(outlookSeparatorPattern);
+    if (outlookMatch && outlookMatch.index !== undefined) {
+      cleaned = cleaned.substring(0, outlookMatch.index);
     }
 
     // Remove lines starting with ">" (quoted text)
@@ -320,14 +372,26 @@ export class WritingStyleLearningService {
           snippet = `${snippet}...`;
         }
 
-        const redacted = await this.llmService.redactNamesWithLLM(snippet);
+        if (this.isObviouslyNotUserWritten(snippet)) {
+          this.logger.debug(
+            `Skipping non-user-written email for user ${userId} (pre-filter)`,
+          );
+          continue;
+        }
+
+        const validated = await this.llmService.validateWritingExample(snippet);
+
+        if (!validated) {
+          this.logger.debug(`LLM rejected email example for user ${userId}`);
+          continue;
+        }
 
         const isDuplicate = existingExamples.some((existing: string) =>
-          this.areSimilar(existing.toLowerCase(), redacted.toLowerCase()),
+          this.areSimilar(existing.toLowerCase(), validated.toLowerCase()),
         );
 
         if (!isDuplicate) {
-          newExamples.push(`Example: ${redacted}`);
+          newExamples.push(`Example: ${validated}`);
         }
       }
 
@@ -353,6 +417,20 @@ export class WritingStyleLearningService {
         error,
       );
     }
+  }
+
+  private isObviouslyNotUserWritten(text: string): boolean {
+    for (const pattern of AUTO_RESPONDER_PATTERNS) {
+      if (pattern.test(text)) {
+        return true;
+      }
+    }
+    for (const pattern of CALENDAR_EVENT_PATTERNS) {
+      if (pattern.test(text)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**

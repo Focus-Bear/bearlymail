@@ -331,6 +331,20 @@ export function loadPrompts(): Map<string, PromptConfig> {
       });
     }
 
+    // Load validate-writing-example.md (validate and clean writing style examples)
+    const validateWritingExamplePath = path.join(
+      promptsDir,
+      "validate-writing-example.md",
+    );
+    if (fs.existsSync(validateWritingExamplePath)) {
+      const content = fs.readFileSync(validateWritingExamplePath, "utf-8");
+      promptsCache.set("validate_writing_example", {
+        id: "validate_writing_example",
+        prompt: content,
+        systemPrompt: "",
+      });
+    }
+
     // Load dispute-tone-check.md (tone check dispute feature)
     const disputeToneCheckPath = path.join(promptsDir, "dispute-tone-check.md");
     if (fs.existsSync(disputeToneCheckPath)) {

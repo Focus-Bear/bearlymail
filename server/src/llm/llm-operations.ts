@@ -63,6 +63,9 @@ export const LLM_OP_DETECT_OPT_OUT = "detect_opt_out";
 // Name redaction for privacy
 export const LLM_OP_REDACT_NAMES = "redact_names";
 
+// Validate and clean writing style examples
+export const LLM_OP_VALIDATE_WRITING_EXAMPLE = "validate_writing_example";
+
 // Tone check dispute evaluation
 export const LLM_OP_DISPUTE_TONE_CHECK = "dispute_tone_check";
 
@@ -100,6 +103,7 @@ export type LLMOperation =
   | typeof LLM_OP_GENERATE_QA_ANSWER
   | typeof LLM_OP_DETECT_OPT_OUT
   | typeof LLM_OP_REDACT_NAMES
+  | typeof LLM_OP_VALIDATE_WRITING_EXAMPLE
   | typeof LLM_OP_DISPUTE_TONE_CHECK
   | typeof LLM_OP_CONSOLIDATE_CATEGORIES
   | typeof LLM_OP_GENERATE_CATEGORIES_FROM_OTHER
@@ -129,6 +133,7 @@ export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
   [LLM_OP_GENERATE_QA_ANSWER]: "Generate Q&A Answer",
   [LLM_OP_DETECT_OPT_OUT]: "Detect Opt-Out",
   [LLM_OP_REDACT_NAMES]: "Redact Names",
+  [LLM_OP_VALIDATE_WRITING_EXAMPLE]: "Validate Writing Example",
   [LLM_OP_DISPUTE_TONE_CHECK]: "Dispute Tone Check",
   [LLM_OP_CONSOLIDATE_CATEGORIES]: "Consolidate Categories",
   [LLM_OP_GENERATE_CATEGORIES_FROM_OTHER]: "Generate Categories from Other",

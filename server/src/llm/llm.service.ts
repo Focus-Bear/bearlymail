@@ -23,6 +23,7 @@ import {
   LLM_OP_SEARCH_RELEVANCE,
   LLM_OP_SEARCH_RELEVANCE_BATCH,
   LLM_OP_REDACT_NAMES,
+  LLM_OP_VALIDATE_WRITING_EXAMPLE,
   LLM_OP_DISPUTE_TONE_CHECK,
   LLM_OP_CONSOLIDATE_CATEGORIES,
   LLM_OP_GENERATE_CATEGORIES_FROM_OTHER,
@@ -696,9 +697,7 @@ export class LLMService {
         result.set(thread.index, summary);
         return result;
       } catch (error) {
-        this.logger.error(
-          `Failed to summarize single thread: ${error}`,
-        );
+        this.logger.error(`Failed to summarize single thread: ${error}`);
         return new Map();
       }
     }
@@ -721,7 +720,9 @@ export class LLMService {
           );
           result.set(thread.index, summary);
         } catch (error) {
-          this.logger.warn(`Failed to summarize thread ${thread.index}: ${error}`);
+          this.logger.warn(
+            `Failed to summarize thread ${thread.index}: ${error}`,
+          );
         }
       }
       return result;
@@ -794,7 +795,11 @@ export class LLMService {
               summaries[String(thread.index)] ||
               summaries[thread.index.toString()];
 
-            if (summary && typeof summary === "string" && summary.trim().length > 0) {
+            if (
+              summary &&
+              typeof summary === "string" &&
+              summary.trim().length > 0
+            ) {
               result.set(thread.index, summary.trim());
             } else {
               this.logger.warn(
@@ -1895,6 +1900,74 @@ export class LLMService {
     } catch (error) {
       this.logger.error("Failed to redact names with LLM:", error);
       return text;
+    }
+  }
+
+  async validateWritingExample(text: string): Promise<string | null> {
+    if (!text || text.trim().length === 0) {
+      return null;
+    }
+
+    const promptConfig = getPrompt("validate_writing_example");
+    if (!promptConfig) {
+      this.logger.warn(
+        "validate_writing_example prompt not found - falling back to redactNamesWithLLM",
+      );
+      return this.redactNamesWithLLM(text);
+    }
+
+    const prompt = renderPrompt(promptConfig.prompt || "", {
+      text,
+    });
+
+    try {
+      const result = await this.generateText(
+        {
+          prompt,
+          systemPrompt: promptConfig.systemPrompt || "",
+          temperature: 0.1,
+          maxTokens: text.length + 200,
+        },
+        undefined,
+        undefined,
+        LLM_OP_VALIDATE_WRITING_EXAMPLE,
+      );
+
+      const trimmed = result?.trim();
+      if (!trimmed) {
+        return null;
+      }
+
+      const cleaned = trimmed
+        .replace(/^```json\s*/i, "")
+        .replace(/^```\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim();
+
+      try {
+        const parsed = JSON.parse(cleaned);
+        if (parsed.status === "rejected") {
+          this.logger.debug(
+            `Writing example rejected: ${parsed.reason || "no reason given"}`,
+          );
+          return null;
+        }
+        if (parsed.status === "valid" && parsed.cleanedText) {
+          return parsed.cleanedText;
+        }
+        this.logger.warn(
+          `Unexpected JSON structure from validateWritingExample: ${cleaned.substring(0, 100)}`,
+        );
+        return null;
+      } catch (parseError) {
+        this.logger.warn(
+          `Failed to parse validateWritingExample JSON response: ${cleaned.substring(0, 100)}`,
+        );
+        return null;
+      }
+    } catch (error) {
+      this.logger.error("Failed to validate writing example with LLM:", error);
+      return null;
     }
   }
 

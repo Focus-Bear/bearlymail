@@ -27,6 +27,7 @@ import { Office365AccountsModule } from "./office365-accounts/office365-accounts
 import { ZohoAccountsModule } from "./zoho-accounts/zoho-accounts.module";
 import { BlockedSendersModule } from "./blocked-senders/blocked-senders.module";
 import { BlockedKeywordsModule } from "./blocked-keywords/blocked-keywords.module";
+import { NotesModule } from "./notes/notes.module";
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { BlockedKeywordsModule } from "./blocked-keywords/blocked-keywords.modul
     ZohoAccountsModule,
     BlockedSendersModule,
     BlockedKeywordsModule,
+    NotesModule,
   ],
 })
 export class WorkerModule {}

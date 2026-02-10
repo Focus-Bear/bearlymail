@@ -66,9 +66,10 @@ export class BatchScheduleService {
       return null;
     }
 
-    // If priority score > 50 and urgentBypassSchedule is enabled, release immediately
+    // If priority score >= 75 (HIGH_THRESHOLD) and urgentBypassSchedule is enabled, release immediately
+    // Only truly high-priority emails should bypass batching to avoid false positives
     if (
-      priorityScore > PRIORITY_SCORES.MEDIUM_THRESHOLD &&
+      priorityScore >= PRIORITY_SCORES.HIGH_THRESHOLD &&
       schedule.urgentBypassSchedule
     ) {
       return null;

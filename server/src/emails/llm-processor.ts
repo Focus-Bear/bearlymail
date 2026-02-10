@@ -16,7 +16,10 @@ import { ContextKey } from "../database/entities/user-context.entity";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { ProtoCategoriesService } from "../proto-categories/proto-categories.service";
 import { CloudWatchService } from "../aws/cloudwatch.service";
-import { SENTIMENT_THRESHOLDS } from "../constants/priority-constants";
+import {
+  SENTIMENT_THRESHOLDS,
+  PRIORITY_SCORES,
+} from "../constants/priority-constants";
 
 // Constants for LLM processing
 const LLM_PROCESSOR_CONSTANTS = {
@@ -709,9 +712,9 @@ export class LLMProcessor implements OnModuleInit {
                 },
               );
 
-              // If priority score > 50, un-batch the email (high priority emails shouldn't be batched)
-              // Priority score > 50 indicates important emails that should be shown immediately
-              if (finalScore > 50) {
+              // If priority score >= 75 (HIGH_THRESHOLD), un-batch the email (high priority emails shouldn't be batched)
+              // Only truly high-priority emails should bypass batching to avoid false positives
+              if (finalScore >= PRIORITY_SCORES.HIGH_THRESHOLD) {
                 await this.emailRepository.update(
                   { emailThreadId: email.emailThreadId, userId },
                   {
@@ -1393,7 +1396,7 @@ export class LLMProcessor implements OnModuleInit {
       );
 
       // Emergency delivery for high priority
-      if (finalScore > 50) {
+      if (finalScore >= PRIORITY_SCORES.HIGH_THRESHOLD) {
         await this.emailRepository.update(
           { emailThreadId: email.emailThreadId, userId },
           {

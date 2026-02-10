@@ -345,7 +345,7 @@ export class GmailProvider implements EmailProvider {
     const starUpdates: any[] = [];
     const archivedUpdates: any[] = [];
     const BATCH_SIZE = 5;
-    const MAX_THREADS = 100;
+    const MAX_THREADS = 500;
 
     for (
       let i = 0;

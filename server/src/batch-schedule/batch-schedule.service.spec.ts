@@ -144,7 +144,7 @@ describe("BatchScheduleService", () => {
       expect(result).toBeNull();
     });
 
-    it("should return null when priorityScore > 50 and urgentBypassSchedule is enabled", () => {
+    it("should return null when priorityScore >= 75 and urgentBypassSchedule is enabled", () => {
       const schedule = {
         isEnabled: true,
         deliveryDays: [1, 2, 3],
@@ -153,13 +153,13 @@ describe("BatchScheduleService", () => {
         urgentBypassSchedule: true,
       } as BatchSchedule;
 
-      // Priority score 51 (> 50) should bypass
-      const result = service.getNextBatchReleaseTime(schedule, 51);
+      // Priority score 75 (>= 75) should bypass
+      const result = service.getNextBatchReleaseTime(schedule, 75);
 
       expect(result).toBeNull();
     });
 
-    it("should NOT bypass when priorityScore <= 50 even with urgentBypassSchedule enabled", () => {
+    it("should NOT bypass when priorityScore < 75 even with urgentBypassSchedule enabled", () => {
       jest.useFakeTimers();
       jest.setSystemTime(new Date("2024-01-08T08:00:00Z")); // Monday 8am UTC
 
@@ -171,8 +171,8 @@ describe("BatchScheduleService", () => {
         urgentBypassSchedule: true,
       } as BatchSchedule;
 
-      // Priority score 50 (not > 50) should NOT bypass
-      const result = service.getNextBatchReleaseTime(schedule, 50);
+      // Priority score 74 (not >= 75) should NOT bypass
+      const result = service.getNextBatchReleaseTime(schedule, 74);
 
       // Should return next scheduled time, not null
       expect(result).not.toBeNull();

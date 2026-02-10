@@ -470,19 +470,47 @@ Return ONLY a JSON array of objects.`;
         filteredEmails = matchedEmails.slice(0, maxResults);
       }
 
+      // Generate search relevance explanations in a single batch LLM call
+      onProgress?.("explaining", "Generating explanations...");
+      let explanationsMap = new Map<number, string>();
+      if (filteredEmails.length > 0) {
+        try {
+          const emailsForExplanation = filteredEmails.map((email, idx) => ({
+            index: idx,
+            from: email.fromName || email.from || "",
+            subject: email.subject || "",
+            body: email.body || "",
+            receivedAt: email.receivedAt
+              ? email.receivedAt.toISOString()
+              : new Date().toISOString(),
+          }));
+          explanationsMap =
+            await this.llmService.generateSearchRelevanceExplanationsBatch(
+              originalQuery,
+              emailsForExplanation,
+              userId,
+            );
+        } catch (error) {
+          this.logger.warn(
+            "Batch explanation generation failed, using fallback:",
+            error,
+          );
+        }
+      }
+
       // Add search explanation and relevance scores to emails
       const emailsWithMetadata: EmailWithMetadata[] = filteredEmails.map(
-        (email) => {
+        (email, idx) => {
           const emailIndex = matchedEmails.indexOf(email);
           const relevanceScore = allScores.get(emailIndex) ?? undefined;
 
-          // Create EmailWithMetadata by spreading email and adding metadata
-          // Email already has getPriorityScore method, so we just add the metadata
           const emailWithMeta = {
             ...email,
-            searchExplanation: successfulQuery
-              ? `Found using query: "${successfulQuery}"`
-              : "Search completed",
+            searchExplanation:
+              explanationsMap.get(idx) ||
+              (successfulQuery
+                ? `Found using query: "${successfulQuery}"`
+                : "Search completed"),
             relevanceScore,
           } as EmailWithMetadata;
 

@@ -4,7 +4,6 @@ import { Email } from 'types/email';
 import { PriorityBadge } from 'components/inbox/header/PriorityBadge';
 import { UrgencyIndicator } from 'components/inbox/header/UrgencyIndicator';
 import { EmailLabels } from 'components/inbox/header/EmailLabels';
-import { GitHubStatusBadges } from 'components/github/GitHubStatusBadges';
 
 interface EmailHeaderLeftProps {
   email: Email;
@@ -49,8 +48,6 @@ export const EmailHeaderLeft: React.FC<EmailHeaderLeftProps> = ({
       />
       
       <EmailLabels labels={email.labels || []} />
-
-      <GitHubStatusBadges links={email.githubMetadata?.links || []} />
     </div>
   );
 };

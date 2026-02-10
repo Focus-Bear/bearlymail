@@ -3,12 +3,24 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@emoji-mart/data": "^1.2.1",
+    "@emoji-mart/react": "^1.1.1",
     "@reduxjs/toolkit": "^2.2.1",
     "@revenuecat/purchases-js": "^1.18.3",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^13.5.0",
+    "@tiptap/extension-color": "^3.19.0",
+    "@tiptap/extension-image": "^3.19.0",
+    "@tiptap/extension-link": "^3.19.0",
+    "@tiptap/extension-placeholder": "^3.19.0",
+    "@tiptap/extension-text-align": "^3.19.0",
+    "@tiptap/extension-text-style": "^3.19.0",
+    "@tiptap/extension-underline": "^3.19.0",
+    "@tiptap/pm": "^3.19.0",
+    "@tiptap/react": "^3.19.0",
+    "@tiptap/starter-kit": "^3.19.0",
     "@types/dompurify": "^3.0.5",
     "@types/jest": "^27.5.2",
     "@types/react": "^19.2.6",
@@ -36,11 +48,11 @@
     "eject": "react-scripts eject",
     "lint": "eslint src/ --ext .ts,.tsx,.js,.jsx",
     "lint:fix": "eslint src/ --ext .ts,.tsx,.js,.jsx --fix",
-        "i18n:check-missing": "node scripts/check-missing-translations.js",
-        "i18n:validate": "node scripts/validate-locales.js",
-        "i18n:fix": "node scripts/fix-missing-translations.js",
-        "i18n:check": "node scripts/fix-missing-translations.js --check",
-        "check-translations": "node scripts/check-translations.js"
+    "i18n:check-missing": "node scripts/check-missing-translations.js",
+    "i18n:validate": "node scripts/validate-locales.js",
+    "i18n:fix": "node scripts/fix-missing-translations.js",
+    "i18n:check": "node scripts/fix-missing-translations.js --check",
+    "check-translations": "node scripts/check-translations.js"
   },
   "browserslist": {
     "production": [
@@ -62,12 +74,12 @@
     "vite": "^7.3.0",
     "vite-tsconfig-paths": "^6.0.3"
   },
-    "jest": {
-      "transformIgnorePatterns": [
-        "node_modules/(?!(axios)/)"
-      ],
-      "moduleNameMapper": {
-        "^(\\.\\./)*config/api$": "<rootDir>/src/__mocks__/config/api.ts"
-      }
+  "jest": {
+    "transformIgnorePatterns": [
+      "node_modules/(?!(axios)/)"
+    ],
+    "moduleNameMapper": {
+      "^(\\.\\./)*config/api$": "<rootDir>/src/__mocks__/config/api.ts"
     }
+  }
 }

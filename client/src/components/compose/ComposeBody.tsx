@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { RichTextEditor } from 'components/rich-text/RichTextEditor';
 
 interface ComposeBodyProps {
   subject: string;
@@ -55,22 +56,11 @@ export const ComposeBody: React.FC<ComposeBodyProps> = ({
           }}
         />
       </div>
-      <textarea
-        value={body}
-        onChange={(e) => onBodyChange(e.target.value)}
+      <RichTextEditor
+        content={body}
+        onChange={onBodyChange}
         placeholder={t('compose.bodyPlaceholder')}
-        style={{
-          width: '100%',
-          minHeight: '300px',
-          border: 'none',
-          outline: 'none',
-          resize: 'vertical',
-          fontSize: theme.typography.fontSize.base,
-          fontFamily: theme.typography.fontFamily,
-          lineHeight: theme.typography.lineHeight.relaxed,
-          padding: '8px 0',
-          backgroundColor: 'transparent',
-        }}
+        minHeight="300px"
       />
     </>
   );

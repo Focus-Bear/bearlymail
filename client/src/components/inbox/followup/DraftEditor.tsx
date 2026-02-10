@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { RichTextEditor } from 'components/rich-text/RichTextEditor';
 
 interface DraftEditorProps {
   editedDraft: string;
@@ -20,23 +21,14 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
   const { t } = useTranslation();
   
   return (
-    <div>
-      <textarea
-        value={editedDraft}
-        onChange={(e) => onDraftChange(e.target.value)}
-        style={{
-          width: '100%',
-          minHeight: '100px',
-          padding: theme.spacing.sm,
-          border: `1px solid ${theme.colors.border.light}`,
-          borderRadius: theme.borderRadius.sm,
-          fontSize: theme.typography.fontSize.sm,
-          fontFamily: 'inherit',
-          resize: 'vertical',
-          marginBottom: theme.spacing.sm,
-        }}
-        onClick={(e) => e.stopPropagation()}
-      />
+    <div onClick={(e) => e.stopPropagation()}>
+      <div style={{ marginBottom: theme.spacing.sm }}>
+        <RichTextEditor
+          content={editedDraft}
+          onChange={onDraftChange}
+          minHeight="100px"
+        />
+      </div>
       <div style={{ display: 'flex', gap: theme.spacing.sm }}>
         <button
           onClick={(e) => {

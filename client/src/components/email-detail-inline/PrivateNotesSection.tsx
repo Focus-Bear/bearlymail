@@ -1,7 +1,20 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
+
+const DEBOUNCE_MS = 1000;
+const SAVED_STATUS_UPDATE_INTERVAL_MS = 10000;
+
+function humanizeDuration(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 5) return 'just now';
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours}h ago`;
+}
 
 interface PrivateNotesSectionProps {
   noteContent: string;
@@ -19,6 +32,49 @@ export const PrivateNotesSection: React.FC<PrivateNotesSectionProps> = ({
   onSaveNote,
 }) => {
   const { t } = useTranslation();
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isInitialLoadRef = useRef(true);
+  const previousContentRef = useRef(noteContent);
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+  const [, forceUpdate] = useState(0);
+
+  useEffect(() => {
+    isInitialLoadRef.current = true;
+    previousContentRef.current = noteContent;
+  }, []);
+
+  useEffect(() => {
+    if (isInitialLoadRef.current) {
+      isInitialLoadRef.current = false;
+      previousContentRef.current = noteContent;
+      return;
+    }
+    if (noteContent === previousContentRef.current) return;
+    previousContentRef.current = noteContent;
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = setTimeout(() => {
+      captureEvent('private_note_auto_saved');
+      onSaveNote();
+      setLastSavedAt(Date.now());
+    }, DEBOUNCE_MS);
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [noteContent, onSaveNote]);
+
+  useEffect(() => {
+    if (!lastSavedAt) return;
+    const interval = setInterval(() => {
+      forceUpdate(n => n + 1);
+    }, SAVED_STATUS_UPDATE_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [lastSavedAt]);
 
   return (
     <div style={{
@@ -71,31 +127,21 @@ export const PrivateNotesSection: React.FC<PrivateNotesSectionProps> = ({
               borderRadius: theme.borderRadius.md,
               fontSize: theme.typography.fontSize.base,
               fontFamily: theme.typography.fontFamily,
-              marginBottom: theme.spacing.md,
+              marginBottom: theme.spacing.sm,
               resize: 'vertical',
             }}
           />
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button
-              data-save-note-button
-              onClick={() => {
-                captureEvent('private_note_saved');
-                onSaveNote();
-              }}
-              style={{
-                padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-                backgroundColor: theme.colors.primary.main,
-                color: 'white',
-                border: 'none',
-                borderRadius: theme.borderRadius.md,
-                cursor: 'pointer',
-                fontSize: theme.typography.fontSize.sm,
-                fontWeight: theme.typography.fontWeight.medium,
-              }}
-            >
-              {t('emailDetail.saveNote')}
-            </button>
-          </div>
+          {/* eslint-disable i18next/no-literal-string */}
+          {lastSavedAt && (
+            <div style={{
+              fontSize: theme.typography.fontSize.xs,
+              color: theme.colors.text.tertiary,
+              textAlign: 'right',
+            }}>
+              Automatically saved {humanizeDuration(Date.now() - lastSavedAt)}
+            </div>
+          )}
+          {/* eslint-enable i18next/no-literal-string */}
         </div>
       )}
     </div>

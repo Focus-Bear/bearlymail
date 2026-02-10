@@ -370,29 +370,27 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
   // Shared content that appears in both full and compact mode
   const emailContent = (
     <>
-      {!compactMode && (
-        <div style={{ marginBottom: theme.spacing.xl }}>
-          <PrivateNotesSection
-            noteContent={noteContent}
-            notesCollapsed={notesCollapsed}
-            onNoteContentChange={setNoteContent}
-            onToggleCollapsed={() => setNotesCollapsed(!notesCollapsed)}
-            onSaveNote={handleSaveNote}
-          />
+      <div style={{ marginBottom: theme.spacing.xl }}>
+        <PrivateNotesSection
+          noteContent={noteContent}
+          notesCollapsed={notesCollapsed}
+          onNoteContentChange={setNoteContent}
+          onToggleCollapsed={() => setNotesCollapsed(!notesCollapsed)}
+          onSaveNote={handleSaveNote}
+        />
 
-          <ActionItemsSection
-            actionItems={actionItems}
-            newActionItem={newActionItem}
-            isGeneratingSummary={isGeneratingSummary}
-            onNewActionItemChange={setNewActionItem}
-            onAddActionItem={handleAddActionItem}
-            onToggleActionItem={handleToggleActionItem}
-            onDeleteActionItem={handleDeleteActionItem}
-            onExtractActions={handleExtractActions}
-            onRegenerateActionItems={handleRegenerateActionItems}
-          />
-        </div>
-      )}
+        <ActionItemsSection
+          actionItems={actionItems}
+          newActionItem={newActionItem}
+          isGeneratingSummary={isGeneratingSummary}
+          onNewActionItemChange={setNewActionItem}
+          onAddActionItem={handleAddActionItem}
+          onToggleActionItem={handleToggleActionItem}
+          onDeleteActionItem={handleDeleteActionItem}
+          onExtractActions={handleExtractActions}
+          onRegenerateActionItems={handleRegenerateActionItems}
+        />
+      </div>
       
       <div style={{
         backgroundColor: theme.colors.background.paper,

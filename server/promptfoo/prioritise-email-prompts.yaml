@@ -157,6 +157,74 @@ tests:
         config:
           excludedCategories: "PRs from humans"
 
+  # Bot detection - dependabot[bot] should go to bot/automated category, not human PRs
+  - description: "Bot detection: dependabot[bot] should NOT be in 'PRs from humans'"
+    vars:
+      from: "notifications@github.com"
+      fromName: "dependabot[bot]"
+      subject: "[MyOrg/MyRepo] Bump axios from 1.6.0 to 1.7.2"
+      body: "dependabot[bot] opened a pull request to bump axios from 1.6.0 to 1.7.2. This update addresses a security vulnerability."
+      emailCategories: |
+        - "PRs from humans": Pull requests created by human developers
+        - "Automated PRs": Pull requests from bots and automated systems
+        - "GitHub Notifications": Other GitHub notifications
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          excludedCategories: "PRs from humans"
+
+  # Bot detection - noreply sender should not be categorized as human correspondence
+  - description: "Bot detection: noreply sender should not be in 'Personal correspondence'"
+    vars:
+      from: "noreply@example.com"
+      fromName: "noreply"
+      subject: "Your account statement is ready"
+      body: "Your monthly account statement for January 2026 is now available. Log in to view your statement."
+      emailCategories: |
+        - "Personal correspondence": Emails from real people requiring a personal response
+        - "Automated notifications": System-generated notifications and alerts
+        - "Newsletters": Marketing emails and newsletters
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          excludedCategories: "Personal correspondence"
+
+  # Human PR should still be correctly categorized as human
+  - description: "Human sender: real developer PR should be in 'PRs from humans'"
+    vars:
+      from: "notifications@github.com"
+      fromName: "Jane Smith"
+      subject: "[MyOrg/MyRepo] Pull request opened: Refactor auth module"
+      body: "Jane Smith opened a pull request in MyOrg/MyRepo. This PR refactors the authentication module to improve security and code readability."
+      emailCategories: |
+        - "PRs from humans": Pull requests created by human developers
+        - "Automated PRs": Pull requests from bots and automated systems
+        - "GitHub Notifications": Other GitHub notifications
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          expectedCategory: "PRs from humans"
+
+  # Bot with [app] suffix should be detected as automated
+  - description: "Bot detection: sender with [app] suffix should not be in human categories"
+    vars:
+      from: "notifications@github.com"
+      fromName: "renovate[app]"
+      subject: "[MyOrg/MyRepo] Update dependency react to v19"
+      body: "renovate[app] opened a pull request to update react from v18.2.0 to v19.0.0."
+      emailCategories: |
+        - "PRs from humans": Pull requests created by human developers
+        - "Automated dependency updates": Automated dependency update PRs
+        - "GitHub Notifications": Other GitHub notifications
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          excludedCategories: "PRs from humans"
+
   # Category exclusion parsing - "excluding newsletters"
   - description: "Category exclusion: marketing email should NOT be in 'Updates (excluding newsletters)'"
     vars:

@@ -30,15 +30,21 @@ Provide:
    
    NOTE: Categories marked as "(proposed category, not yet finalized)" are proto-categories that the system is learning. If the email fits one of these, use that proto-category name exactly as shown - this helps the system learn and eventually promote it to a real category.
    
-   IMPORTANT for category selection:
-   - Evaluate ALL categories before choosing - don't just pick the first one that seems to fit
-   - Choose the category that BEST matches the email's primary purpose and content
-   - Consider the email's main topic, sender type, and intent when selecting
-   - **Parse category names carefully**: Category names often contain important qualifiers and constraints. Read the FULL category name and understand ALL its criteria:
-     - Exclusion criteria (e.g., "not X", "excluding Y") mean emails matching X or Y should NOT be in this category
-     - Source qualifiers (e.g., "from humans", "from bots", "automated") indicate who the email should be from
+   IMPORTANT for category selection — follow these steps IN ORDER:
+   
+   **Step 1: Identify sender type BEFORE selecting a category.** Determine if the sender is a human, bot, or automated system by examining the sender name. Common indicators of automated/bot senders include:
+     - Brackets in the name (e.g., "someapp[bot]", "service[app]")
+     - Words like "bot", "automation", "integration", "noreply", "notifications"
+     - Service or platform names without a recognizable human name
+   
+   **Step 2: Parse category names carefully and eliminate incompatible categories.** Category names often contain important qualifiers and constraints. Read the FULL category name and understand ALL its criteria:
+     - Exclusion criteria (e.g., "not X", "excluding Y") mean emails matching X or Y MUST NOT be placed in this category
+     - Source qualifiers (e.g., "from humans", "by human developers", "from bots", "automated") restrict who the email must be from — if the sender type identified in Step 1 does not match, that category is NOT eligible
      - Topic qualifiers narrow down what content belongs in the category
-   - **Identify sender type from the sender name**: Determine if the sender is a human, bot, or automated system by examining the sender name. Common indicators of automated/bot senders include brackets like "[bot]", words like "bot", "automation", "integration", "noreply", "notifications", or service names
+   For example, if a sender is identified as a bot in Step 1, they cannot be placed in any category that specifies "from humans" or "by human developers", even if the email topic matches.
+   
+   **Step 3: Select the best fitting category** from the remaining eligible categories, considering the email's primary purpose, content, and sender intent.
+   - Evaluate ALL eligible categories before choosing — don't just pick the first one that seems to fit
    - Only use "Other" when the email genuinely doesn't fit any of the defined categories
 7. categoryExplanation: Explain why you chose this category AND why the other top 2 closest categories were not chosen. Format: "Chose [category] because [reason]. Considered [alternative1] but [why not]. Considered [alternative2] but [why not]."
 8. protoCategorySuggestion (ONLY if category is "Other"): When you must use "Other", suggest a NEW category that would better describe this email. This helps the system learn new categories automatically. Provide:

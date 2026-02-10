@@ -208,6 +208,8 @@
     "debugYes": "Yes",
     "debugNo": "No",
     "debugReason": "Reason",
+    "debugDeliveredInBatch": "Delivered in batch",
+    "debugSchedule": "Batch schedule",
     "moreUrgentEmails": "+{{count}} more urgent email",
     "moreUrgentEmails_plural": "+{{count}} more urgent emails",
     "urgentEmailsWaiting": "You have urgent emails waiting. They will be delivered at the next batch time.",

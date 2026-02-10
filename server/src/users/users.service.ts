@@ -81,6 +81,7 @@ export class UsersService {
         "user.email",
         "user.googleCalendarAccessToken",
         "user.googleCalendarRefreshToken",
+        "user.lastEmailSyncAt",
         "user.updatedAt",
       ])
       .where("user.id = :id", { id })

@@ -802,6 +802,8 @@
     "debugYes": "Sí",
     "debugNo": "No",
     "debugReason": "Razón",
+    "debugDeliveredInBatch": "Entregado en lote",
+    "debugSchedule": "Horario de lotes",
     "error": "Error",
     "errorLoadingEmails": "Error al cargar correos electrónicos",
         "expandToFullWidth": "Expandir a ancho completo",

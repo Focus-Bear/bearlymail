@@ -181,6 +181,9 @@ export class GmailProvider implements EmailProvider {
         providedThreadIds,
         isContinuation,
       );
+      await this.usersService.update(userId, {
+        lastEmailSyncAt: new Date(),
+      });
     } catch (error) {
       await this.handleSyncError(userId, user, error);
     }

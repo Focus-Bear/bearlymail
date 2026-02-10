@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Email, getEmailPriorityScore } from 'types/email';
@@ -10,6 +10,18 @@ interface EmailHeaderRightProps {
 export const EmailHeaderRight: React.FC<EmailHeaderRightProps> = ({ email }) => {
   const { t } = useTranslation();
   const [showDebug, setShowDebug] = useState(false);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showDebug) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setShowDebug(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showDebug]);
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -22,6 +34,7 @@ export const EmailHeaderRight: React.FC<EmailHeaderRightProps> = ({ email }) => 
 
   return (
     <span
+      ref={popoverRef}
       style={{
         fontSize: theme.typography.fontSize.xs,
         color: theme.colors.text.tertiary,
@@ -63,14 +76,14 @@ export const EmailHeaderRight: React.FC<EmailHeaderRightProps> = ({ email }) => 
           <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}>
             <div>{t('inbox.debugPriorityScore')}: <strong>{priorityScore.toFixed(0)}</strong></div>
             <div>{t('inbox.debugReceived')}: <strong>{new Date(email.receivedAt).toLocaleString()}</strong></div>
+            {email.batchReleaseAt && (
+              <div>
+                {t('inbox.debugDeliveredInBatch')}: <strong>{new Date(email.batchReleaseAt).toLocaleString()}</strong>
+              </div>
+            )}
             <div>
               {t('inbox.debugBatched')}: <strong>{yesNo(!!email.isBatched)}</strong>
             </div>
-            {email.batchReleaseAt && (
-              <div>
-                {t('inbox.debugBatchRelease')}: <strong>{new Date(email.batchReleaseAt).toLocaleString()}</strong>
-              </div>
-            )}
             <div>
               {t('inbox.debugEmergencyDelivery')}: <strong style={{ color: wasDeliveredEarly ? theme.colors.warning.main : 'inherit' }}>
                 {yesNo(wasDeliveredEarly)}

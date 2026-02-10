@@ -101,6 +101,9 @@ export class ZohoProvider implements EmailProvider {
 
     try {
       await this.performSync(userId, zohoClient, zohoAccountId!, isInitialSync);
+      await this.usersService.update(userId, {
+        lastEmailSyncAt: new Date(),
+      });
     } catch (error: unknown) {
       await this.handleSyncError(userId, user, primaryAccount, error);
     }

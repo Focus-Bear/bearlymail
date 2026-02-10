@@ -49,7 +49,9 @@ export const PriorityTooltipCategory: React.FC<PriorityTooltipCategoryProps> = (
           color: theme.colors.text.primary,
           fontWeight: theme.typography.fontWeight.medium,
         }}>
-          {category}
+          {isOtherCategory && protoCategoryName
+            ? `${category} (${protoCategoryName})`
+            : category}
         </span>
         {categoryExplanation && (
           <button

@@ -141,15 +141,23 @@ export const InboxContent: React.FC<InboxContentProps> = ({
     [filteredEmails]
   );
 
-  // Update stable category order whenever the priority-based order changes
+  // Update stable category order - only set on initial load, then only append new categories.
+  // This ensures the category display order is fixed once set and doesn't re-sort when
+  // emails are archived/starred (which would change maxPriority and cause layout shifts).
   useEffect(() => {
     if (categoryGroups.length > 0) {
-      const newOrder = categoryGroups.map(g => g.category);
-      const orderChanged = newOrder.length !== stableCategoryOrder.length ||
-        newOrder.some((cat, idx) => stableCategoryOrder[idx] !== cat);
-      
-      if (orderChanged) {
-        onUpdateStableCategoryOrder(newOrder);
+      if (stableCategoryOrder.length === 0) {
+        // Initial load - set the order based on priority sorting
+        onUpdateStableCategoryOrder(categoryGroups.map(g => g.category));
+      } else {
+        // Only add new categories that aren't already in the stable order
+        const newCategories = categoryGroups
+          .filter(g => !stableCategoryOrder.includes(g.category))
+          .map(g => g.category);
+        
+        if (newCategories.length > 0) {
+          onUpdateStableCategoryOrder([...stableCategoryOrder, ...newCategories]);
+        }
       }
     }
   }, [categoryGroups, stableCategoryOrder, onUpdateStableCategoryOrder]);

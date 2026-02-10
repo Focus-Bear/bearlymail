@@ -113,6 +113,7 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
           <GitHubProjectBadges 
             emailId={email.id} 
             initialLinks={email.githubMetadata.links}
+            skipFetch
           />
         )}
         {mode === 'follow-up' && (

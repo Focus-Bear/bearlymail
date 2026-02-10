@@ -25,6 +25,7 @@ import { useEmailProcessingPolling } from 'hooks/useEmailProcessingPolling';
 import { useInboxInitialization } from 'hooks/useInboxInitialization';
 import { useInboxModeChanges } from 'hooks/useInboxModeChanges';
 import { useInboxKeyboardNavigation } from 'hooks/useInboxKeyboardNavigation';
+import { useGitHubBatchFetch } from 'hooks/useGitHubBatchFetch';
 
 const VALID_MODES: InboxMode[] = [MODE_TRIAGE, MODE_ACTION, MODE_FOLLOW_UP];
 
@@ -219,6 +220,9 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     splitView,
     onTabCountsUpdateOptimistically: updateTabCountsOptimistically,
   });
+
+  // Fetch GitHub metadata in batch after inbox loads
+  useGitHubBatchFetch(emails, loading);
 
   // Poll for email updates when emails are actively processing
   useEmailProcessingPolling({

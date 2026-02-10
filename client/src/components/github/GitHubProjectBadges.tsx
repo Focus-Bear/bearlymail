@@ -9,6 +9,7 @@ import { API_URL } from 'config/api';
 interface GitHubProjectBadgesProps {
   emailId: string;
   initialLinks?: GitHubLink[];
+  skipFetch?: boolean;
 }
 
 // State colors for GitHub issues/PRs
@@ -21,6 +22,7 @@ const stateColors: Record<string, { bg: string; text: string; border: string }> 
 export const GitHubProjectBadges: React.FC<GitHubProjectBadgesProps> = ({
   emailId,
   initialLinks,
+  skipFetch = false,
 }) => {
   const { t } = useTranslation();
   const [links, setLinks] = useState<GitHubLink[]>(initialLinks || []);
@@ -33,19 +35,17 @@ export const GitHubProjectBadges: React.FC<GitHubProjectBadgesProps> = ({
   }, [initialLinks]);
 
   useEffect(() => {
-    // Only fetch if we have an email ID
     if (!emailId) return;
 
-    // If we already fetched for this email, don't fetch again
     if (fetchedRef.current === emailId) return;
 
-    // If we have cached links with status, use them
     if (hasCachedStatus && initialLinks) {
       setLinks(initialLinks);
       return;
     }
 
-    // Fetch GitHub data from API (for emails without cached metadata)
+    if (skipFetch) return;
+
     fetchedRef.current = emailId;
     
     const fetchStatus = async () => {
@@ -61,7 +61,7 @@ export const GitHubProjectBadges: React.FC<GitHubProjectBadgesProps> = ({
     };
 
     fetchStatus();
-  }, [emailId, hasCachedStatus, initialLinks]);
+  }, [emailId, hasCachedStatus, initialLinks, skipFetch]);
 
   // Don't render anything if no links
   if (links.length === 0 && !loading) {

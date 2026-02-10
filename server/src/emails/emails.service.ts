@@ -482,7 +482,18 @@ export class EmailsService {
         starCount: row.starCount,
         isArchived: row.isArchived,
         urgencyScore: row.urgencyScore,
-        githubMetadata: row.githubMetadata || null,
+        githubMetadata: row.githubMetadata
+          ? (() => {
+              try {
+                const decrypted = EncryptionHelper.decrypt(
+                  row.githubMetadata as string,
+                );
+                return decrypted ? JSON.parse(decrypted) : null;
+              } catch {
+                return null;
+              }
+            })()
+          : null,
         threadUpdatedAt: row.threadUpdatedAt,
         category: row.category || null,
         categoryExplanation: row.categoryExplanation

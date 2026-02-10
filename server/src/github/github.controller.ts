@@ -2,16 +2,20 @@ import {
   Controller,
   Get,
   Post,
+  Body,
   Param,
   UseGuards,
   Request,
   Logger,
   Res,
   Query,
+  Inject,
 } from "@nestjs/common";
+import { In } from "typeorm";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Response } from "express";
+import PgBoss = require("pg-boss");
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { GitHubService, ParsedGitHubLink } from "./github.service";
 import { GitHubApiService } from "./github-api.service";
@@ -38,6 +42,7 @@ export class GitHubController {
     private readonly emailThreadRepository: Repository<EmailThread>,
     @InjectRepository(Email)
     private readonly emailRepository: Repository<Email>,
+    @Inject("PG_BOSS") private readonly boss: PgBoss,
   ) {}
 
   @Get("emails/:id")
@@ -268,6 +273,86 @@ export class GitHubController {
       this.logger.error(`Error refreshing GitHub statuses: ${errorMessage}`);
       throw error;
     }
+  }
+
+  @Post("batch-status")
+  async batchGetGitHubStatus(
+    @Request() req,
+    @Body() body: { emailIds: string[] },
+  ) {
+    const { userId } = req.user;
+    const { emailIds } = body;
+
+    if (!emailIds || emailIds.length === 0) {
+      return {};
+    }
+
+    const emails = await this.emailRepository.find({
+      where: { id: In(emailIds), userId },
+      select: ["id", "emailThreadId"],
+    });
+
+    if (emails.length === 0) {
+      return {};
+    }
+
+    const threadIds = [
+      ...new Set(
+        emails.map((e) => e.emailThreadId).filter((id): id is string => !!id),
+      ),
+    ];
+
+    const threads = await this.emailThreadRepository.find({
+      where: { id: In(threadIds), userId },
+    });
+
+    const threadMap = new Map(threads.map((t) => [t.id, t]));
+
+    const result: Record<
+      string,
+      { links: Array<Record<string, unknown>>; pending?: boolean } | null
+    > = {};
+
+    for (const email of emails) {
+      if (!email.emailThreadId) {
+        result[email.id] = null;
+        continue;
+      }
+
+      const thread = threadMap.get(email.emailThreadId);
+      if (!thread) {
+        result[email.id] = null;
+        continue;
+      }
+
+      if (
+        thread.githubMetadata &&
+        thread.githubMetadata.links &&
+        thread.githubMetadata.links.length > 0 &&
+        thread.githubMetadata.links.some((link) => link.status)
+      ) {
+        result[email.id] = { links: thread.githubMetadata.links };
+      } else {
+        result[email.id] = { links: [], pending: true };
+        this.boss
+          .send(
+            "fetch-github-metadata",
+            { userId, emailId: email.id, threadId: email.emailThreadId },
+            {
+              singletonKey: `github-metadata-${email.emailThreadId}`,
+              singletonMinutes: 60,
+            },
+          )
+          .catch((err: unknown) => {
+            const errMsg = isError(err) ? err.message : "Unknown error";
+            this.logger.error(
+              `Failed to queue GitHub metadata job for email ${email.id}: ${errMsg}`,
+            );
+          });
+      }
+    }
+
+    return result;
   }
 
   @Get("connect")

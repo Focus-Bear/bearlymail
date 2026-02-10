@@ -59,6 +59,9 @@ export interface Email {
   hasPrivateNote?: boolean;
   // Emergency delivery flag - true if email was delivered early due to high priority
   wasDeliveredEarly?: boolean;
+  // Batching info for debug
+  isBatched?: boolean;
+  batchReleaseAt?: string | null;
   // Email attachments
   attachments?: Array<{
     attachmentId: string;

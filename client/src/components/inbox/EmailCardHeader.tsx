@@ -32,7 +32,7 @@ export const EmailCardHeader: React.FC<EmailCardHeaderProps> = ({
         onOverrideUrgency={onOverrideUrgency}
         onProvideFeedback={onProvideFeedback}
       />
-      <EmailHeaderRight receivedAt={email.receivedAt} />
+      <EmailHeaderRight email={email} />
     </div>
   );
 };

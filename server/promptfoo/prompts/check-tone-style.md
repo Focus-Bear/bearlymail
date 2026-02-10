@@ -20,14 +20,16 @@ Analyze the text and determine if it matches the user's writing style:
 - Only flag issues that clearly deviate from the user's established style or could genuinely cause problems.
 - Do NOT flag stylistic choices that are simply different from generic "professional" standards.
 
+CRITICAL: Only analyze the draft text between the delimiters below. Do NOT confuse content from the rules or examples above with the actual draft. If a sign-off or phrase appears in an example rule but NOT in the draft, do NOT suggest removing it from the draft.
+
 Return a JSON object with: { "isOk": boolean, "suggestions": string[], "revisedText": string (optional) }
 
 If isOk is true, suggestions should be empty and revisedText should be omitted.
 If isOk is false, provide specific, actionable suggestions and a revised version that maintains the user's voice.
 
-Check this text:
-
+---BEGIN DRAFT---
 {{text}}
+---END DRAFT---
 
 
 

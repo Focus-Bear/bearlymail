@@ -26,7 +26,7 @@ IMPORTANT FORMATTING RULES:
 - Include proper line breaks between paragraphs (greeting, body paragraphs, sign-off)
 - Start with a greeting on its own line (e.g., "Hi [Name],\n\n")
 - Separate distinct thoughts into different paragraphs with blank lines between them
-- End with a sign-off on its own line (e.g., "\n\nBest regards,\n{{userName}}")
+- End with a sign-off on its own line that matches the user's style from the examples above (e.g., "\n\ncheers,\n{{userName}}")
 - Do NOT run sentences together without line breaks
 
 IMPORTANT: Sign off using the user's name "{{userName}}" (not any other name). Match the user's writing style from the examples if provided.

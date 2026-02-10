@@ -70,6 +70,10 @@ export interface Email {
   category?: string | null;
   // Explanation of why this category was chosen (especially useful for "Other")
   categoryExplanation?: string | null;
+  // Proto category name for emails in "Other" category
+  protoCategoryName?: string | null;
+  // Proto category description for emails in "Other" category
+  protoCategoryDescription?: string | null;
   // Correspondent info for display (the other person in the conversation)
   correspondentEmail?: string | null;
   correspondentName?: string | null;

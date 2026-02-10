@@ -156,3 +156,6 @@ export const ANIMATION_TYPE_ARCHIVE = 'archive' as const;
 export const LINK_TYPE_ISSUE = 'issue' as const;
 export const LINK_TYPE_PR = 'pr' as const;
 
+// Email categories
+export const CATEGORY_OTHER = 'Other' as const;
+

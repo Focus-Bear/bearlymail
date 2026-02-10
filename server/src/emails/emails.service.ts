@@ -286,7 +286,10 @@ export class EmailsService {
             thread."githubMetadata",
             thread."category",
             thread."categoryExplanation",
+            thread."protoCategoryId",
             thread."updatedAt" as "threadUpdatedAt",
+            pc."name" as "protoCategoryName",
+            pc."description" as "protoCategoryDescription",
         e.id,
         e."userId",
         e."threadId",
@@ -343,6 +346,7 @@ export class EmailsService {
         ORDER BY cor."receivedAt" ASC
         LIMIT 1
       ) correspondent ON true
+      LEFT JOIN proto_categories pc ON pc.id = thread."protoCategoryId"
             WHERE thread."userId" = $1
               ${threadFilter}
               AND (e."isBatched" = false OR e."batchReleaseAt" IS NULL OR e."batchReleaseAt" <= NOW())
@@ -483,6 +487,12 @@ export class EmailsService {
         category: row.category || null,
         categoryExplanation: row.categoryExplanation
           ? EncryptionHelper.decrypt(row.categoryExplanation as string)
+          : null,
+        protoCategoryName: row.protoCategoryName
+          ? EncryptionHelper.decrypt(row.protoCategoryName as string)
+          : null,
+        protoCategoryDescription: row.protoCategoryDescription
+          ? EncryptionHelper.decrypt(row.protoCategoryDescription as string)
           : null,
         // Correspondent info for display (the other person in the conversation)
         correspondentEmail,

@@ -1153,7 +1153,8 @@
       "hoverToSeeDetails": "Pase el cursor para ver detalles",
       "learnMore": "Más información",
       "category": "Categoría",
-      "showCategoryExplanation": "Mostrar por qué se eligió esta categoría"
+      "showCategoryExplanation": "Mostrar por qué se eligió esta categoría",
+      "suggestedCategory": "Categoría sugerida"
     },
     "veryLow": "Muy bajo"
   },

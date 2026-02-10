@@ -1084,7 +1084,8 @@
       "learnMore": "Learn more",
       "hoverToSeeDetails": "Hover to see details",
       "category": "Category",
-      "showCategoryExplanation": "Show why this category was chosen"
+      "showCategoryExplanation": "Show why this category was chosen",
+      "suggestedCategory": "Suggested Category"
     },
     "override": {
       "title": "Override Priority Score",

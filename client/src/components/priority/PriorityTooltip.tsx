@@ -23,6 +23,8 @@ interface PriorityTooltipProps {
   urgencyExplanation?: string | null;
   category?: string | null;
   categoryExplanation?: string | null;
+  protoCategoryName?: string | null;
+  protoCategoryDescription?: string | null;
   onClose: () => void;
   onOverrideUrgency?: () => void;
   onProvideFeedback?: () => void;
@@ -38,6 +40,8 @@ export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
   urgencyExplanation,
   category,
   categoryExplanation,
+  protoCategoryName,
+  protoCategoryDescription,
   onClose,
   onOverrideUrgency,
   onProvideFeedback,
@@ -57,6 +61,8 @@ export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
         priorityExplanation={priorityExplanation}
         category={category}
         categoryExplanation={categoryExplanation}
+        protoCategoryName={protoCategoryName}
+        protoCategoryDescription={protoCategoryDescription}
         emailId={emailId}
         onClose={onClose}
         onProvideFeedback={onProvideFeedback}

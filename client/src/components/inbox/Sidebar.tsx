@@ -107,6 +107,7 @@ const SettingsSubNav: React.FC<{ hash?: string }> = ({ hash }) => {
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     'email-delivery': true,
     'guide-our-ai': true,
+    'scheduling': true,
     'integrations': true,
   });
 
@@ -138,6 +139,15 @@ const SettingsSubNav: React.FC<{ hash?: string }> = ({ hash }) => {
         { id: 'tone-settings', label: t('settings.nav.toneSettings'), anchor: 'tone-settings' },
         { id: 'summarization', label: t('settings.nav.summarization'), anchor: 'summarization' },
         { id: 'auto-responder', label: t('settings.nav.autoResponder'), anchor: 'auto-responder' },
+      ],
+    },
+    {
+      label: t('settings.nav.schedulingPreferences'),
+      items: [
+        { id: 'scheduling-availability', label: t('settings.nav.schedulingAvailability'), anchor: 'scheduling-availability' },
+        { id: 'scheduling-meeting-gap', label: t('settings.nav.schedulingMeetingGap'), anchor: 'scheduling-meeting-gap' },
+        { id: 'scheduling-deep-work', label: t('settings.nav.schedulingDeepWork'), anchor: 'scheduling-deep-work' },
+        { id: 'scheduling-slot-duration', label: t('settings.nav.schedulingSlotDuration'), anchor: 'scheduling-slot-duration' },
       ],
     },
     {

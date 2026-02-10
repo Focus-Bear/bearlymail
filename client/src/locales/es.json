@@ -1446,7 +1446,11 @@
       "summarization": "Resumen",
       "toneSettings": "Configuración de tono",
       "autoResponder": "Respuesta automática",
-      "schedulingPreferences": "Programación"
+      "schedulingPreferences": "Programación",
+      "schedulingAvailability": "Disponibilidad",
+      "schedulingMeetingGap": "Intervalo entre reuniones",
+      "schedulingDeepWork": "Trabajo profundo",
+      "schedulingSlotDuration": "Duración del turno"
     },
     "schedulingPreferences": {
       "title": "Preferencias de programación",

@@ -29,6 +29,7 @@ const SLOT_DURATION_OPTIONS = [15, 30, 45, 60];
 
 export const SchedulingPreferencesSection: React.FC = () => {
   const { t } = useTranslation();
+  const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const [prefs, setPrefs] = useState<SchedulingPreferences>({
     availabilityStartHour: 9,
     availabilityEndHour: 17,
@@ -36,7 +37,7 @@ export const SchedulingPreferencesSection: React.FC = () => {
     meetingGapMinutes: 30,
     deepWorkHoursPerDay: 2,
     slotDurationMinutes: 30,
-    timezone: 'UTC',
+    timezone: browserTimezone,
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -46,11 +47,24 @@ export const SchedulingPreferencesSection: React.FC = () => {
   useEffect(() => {
     axios.get(`${API_URL}/scheduling-preferences`)
       .then((res) => {
-        setPrefs(res.data);
-        latestPrefs.current = res.data;
+        const data = res.data;
+        if (data.timezone === 'UTC' && browserTimezone !== 'UTC') {
+          const updated = { ...data, timezone: browserTimezone };
+          setPrefs(updated);
+          latestPrefs.current = updated;
+          axios.put(`${API_URL}/scheduling-preferences`, updated)
+            .then((r) => {
+              setPrefs(r.data);
+              latestPrefs.current = r.data;
+            })
+            .catch(() => {});
+        } else {
+          setPrefs(data);
+          latestPrefs.current = data;
+        }
       })
       .catch(() => {});
-  }, []);
+  }, [browserTimezone]);
 
   useEffect(() => {
     return () => {
@@ -159,7 +173,7 @@ export const SchedulingPreferencesSection: React.FC = () => {
       </p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.lg }}>
-        <div>
+        <div id="scheduling-availability">
           <div style={labelStyle}>{t('settings.schedulingPreferences.availabilityHours')}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
             <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.tertiary }}>
@@ -214,7 +228,7 @@ export const SchedulingPreferencesSection: React.FC = () => {
           </div>
         </div>
 
-        <div>
+        <div id="scheduling-meeting-gap">
           <div style={labelStyle}>{t('settings.schedulingPreferences.meetingGap')}</div>
           <select
             value={prefs.meetingGapMinutes}
@@ -229,7 +243,7 @@ export const SchedulingPreferencesSection: React.FC = () => {
           </select>
         </div>
 
-        <div>
+        <div id="scheduling-deep-work">
           <div style={labelStyle}>{t('settings.schedulingPreferences.deepWork')}</div>
           <select
             value={prefs.deepWorkHoursPerDay}
@@ -244,7 +258,7 @@ export const SchedulingPreferencesSection: React.FC = () => {
           </select>
         </div>
 
-        <div>
+        <div id="scheduling-slot-duration">
           <div style={labelStyle}>{t('settings.schedulingPreferences.slotDuration')}</div>
           <select
             value={prefs.slotDurationMinutes}

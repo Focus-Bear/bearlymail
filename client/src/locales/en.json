@@ -1291,7 +1291,11 @@
       "integrations": "Integrations",
       "openAiApiKey": "OpenAI API Key",
       "githubIntegration": "GitHub Integration",
-      "schedulingPreferences": "Scheduling"
+      "schedulingPreferences": "Scheduling",
+      "schedulingAvailability": "Availability",
+      "schedulingMeetingGap": "Meeting Gap",
+      "schedulingDeepWork": "Deep Work",
+      "schedulingSlotDuration": "Slot Duration"
     },
     "schedulingPreferences": {
       "title": "Scheduling Preferences",

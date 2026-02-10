@@ -547,7 +547,8 @@
             "approved": "Approved",
             "noPendingRequests": "No pending requests",
             "noApprovedEntries": "No approved entries",
-            "emailSystem": "Email System"
+            "emailSystem": "Email System",
+            "decline": "Decline"
     },
     "jobs": {
       "title": "Job Queue Statistics",

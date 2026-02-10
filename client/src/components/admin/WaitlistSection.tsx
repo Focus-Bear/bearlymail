@@ -9,9 +9,10 @@ interface WaitlistSectionProps {
   pending: WaitlistEntry[];
   approved: WaitlistEntry[];
   onApprove: (id: string) => void;
+  onDecline: (id: string) => void;
 }
 
-export const WaitlistSection: React.FC<WaitlistSectionProps> = ({ pending, approved, onApprove }) => {
+export const WaitlistSection: React.FC<WaitlistSectionProps> = ({ pending, approved, onApprove, onDecline }) => {
   const { t } = useTranslation();
   
   return (
@@ -34,6 +35,7 @@ export const WaitlistSection: React.FC<WaitlistSectionProps> = ({ pending, appro
                 key={entry.id}
                 entry={entry}
                 onApprove={onApprove}
+                onDecline={onDecline}
               />
             ))}
           </div>

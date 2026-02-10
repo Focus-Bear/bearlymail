@@ -1,5 +1,6 @@
 import {
   Controller,
+  Delete,
   Get,
   Post,
   Put,
@@ -47,5 +48,11 @@ export class WaitlistController {
   @UseGuards(JwtAuthGuard, AdminGuard)
   async approve(@Param("id") id: string) {
     return this.waitlistService.approve(id);
+  }
+
+  @Delete(":id")
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async decline(@Param("id") id: string) {
+    return this.waitlistService.decline(id);
   }
 }

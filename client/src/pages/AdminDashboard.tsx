@@ -26,6 +26,7 @@ const AdminDashboard: React.FC = () => {
     setExtendDays,
     handleExtendTrial,
     handleApprove,
+    handleDecline,
     pending,
     approved,
     users,
@@ -45,6 +46,7 @@ const AdminDashboard: React.FC = () => {
           pending={pending}
           approved={approved}
           onApprove={handleApprove}
+          onDecline={handleDecline}
         />
       );
     }

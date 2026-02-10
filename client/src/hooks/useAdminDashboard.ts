@@ -92,6 +92,15 @@ export function useAdminDashboard() {
     }
   }, [fetchWaitlist]);
 
+  const handleDecline = useCallback(async (id: string) => {
+    try {
+      await axios.delete(`${API_URL}/waitlist/${id}`);
+      await fetchWaitlist();
+    } catch (error) {
+      console.error('Error declining:', error);
+    }
+  }, [fetchWaitlist]);
+
   const pending = waitlist.filter(w => !w.approved);
   const approved = waitlist.filter(w => w.approved);
 
@@ -107,6 +116,7 @@ export function useAdminDashboard() {
     setExtendDays,
     handleExtendTrial,
     handleApprove,
+    handleDecline,
     pending,
     approved,
   };

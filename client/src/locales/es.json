@@ -24,7 +24,8 @@
           "title": "Panel de administración",
           "tokenUsage": "Uso de tokens",
           "waitlist": "Lista de espera",
-          "emailSystem": "Sistema de correo"
+          "emailSystem": "Sistema de correo",
+          "decline": "Rechazar"
         },
     "jobs": {
       "active": "Activo",

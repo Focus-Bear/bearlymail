@@ -3,17 +3,20 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { WaitlistEntry } from 'hooks/useAdminDashboard';
 import { OPACITY_DISABLED_ALT, OPACITY_FULL } from 'constants/numbers';
+import { humanizeTimestamp } from 'utils/dateUtils';
 
 interface WaitlistEntryCardProps {
   entry: WaitlistEntry;
   isApproved?: boolean;
   onApprove?: (id: string) => void;
+  onDecline?: (id: string) => void;
 }
 
 export const WaitlistEntryCard: React.FC<WaitlistEntryCardProps> = ({
   entry,
   isApproved = false,
   onApprove,
+  onDecline,
 }) => {
   const { t } = useTranslation();
 
@@ -68,25 +71,45 @@ export const WaitlistEntryCard: React.FC<WaitlistEntryCardProps> = ({
             color: theme.colors.text.tertiary,
             fontSize: theme.typography.fontSize.xs,
           }}>
-            {new Date(entry.createdAt).toLocaleDateString()}
+            {humanizeTimestamp(entry.createdAt)}
           </div>
         )}
       </div>
-      {!isApproved && onApprove && (
-        <button
-          onClick={() => onApprove(entry.id)}
-          style={{
-            padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-            backgroundColor: theme.colors.secondary.main,
-            color: 'white',
-            border: 'none',
-            borderRadius: theme.borderRadius.md,
-            cursor: 'pointer',
-            fontWeight: theme.typography.fontWeight.medium,
-          }}
-        >
-          {t('admin.dashboard.approve')}
-        </button>
+      {!isApproved && (
+        <div style={{ display: 'flex', gap: theme.spacing.sm }}>
+          {onDecline && (
+            <button
+              onClick={() => onDecline(entry.id)}
+              style={{
+                padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
+                backgroundColor: 'transparent',
+                color: theme.colors.error.main,
+                border: `1px solid ${theme.colors.error.main}`,
+                borderRadius: theme.borderRadius.md,
+                cursor: 'pointer',
+                fontWeight: theme.typography.fontWeight.medium,
+              }}
+            >
+              {t('admin.dashboard.decline')}
+            </button>
+          )}
+          {onApprove && (
+            <button
+              onClick={() => onApprove(entry.id)}
+              style={{
+                padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
+                backgroundColor: theme.colors.secondary.main,
+                color: 'white',
+                border: 'none',
+                borderRadius: theme.borderRadius.md,
+                cursor: 'pointer',
+                fontWeight: theme.typography.fontWeight.medium,
+              }}
+            >
+              {t('admin.dashboard.approve')}
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

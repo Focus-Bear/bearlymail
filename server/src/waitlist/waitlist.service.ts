@@ -142,6 +142,13 @@ export class WaitlistService {
     return this.waitlistRepository.findOne({ where: { emailHash } });
   }
 
+  async decline(id: string): Promise<void> {
+    const entry = await this.findOne(id);
+    if (!entry) throw new Error("Waitlist entry not found");
+
+    await this.waitlistRepository.delete(id);
+  }
+
   async approve(id: string): Promise<Waitlist> {
     const entry = await this.findOne(id);
     if (!entry) throw new Error("Waitlist entry not found");

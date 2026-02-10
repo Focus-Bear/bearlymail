@@ -36,6 +36,11 @@ export function useEmailDetailFetching(emailId: string) {
     refreshGithubInfo,
   } = useEmailDetailGithub(emailId);
 
+  const fetchGithubInfoRef = useRef(fetchGithubInfo);
+  const setGithubLinksRef = useRef(setGithubLinks);
+  fetchGithubInfoRef.current = fetchGithubInfo;
+  setGithubLinksRef.current = setGithubLinks;
+
   const fetchEmail = useCallback(async (signal?: AbortSignal) => {
     try {
       setLoading(true);
@@ -44,10 +49,10 @@ export function useEmailDetailFetching(emailId: string) {
       setEmail(emailData);
       
       if (emailData.githubMetadata?.links) {
-        setGithubLinks(emailData.githubMetadata.links);
+        setGithubLinksRef.current(emailData.githubMetadata.links);
       } else {
         if (emailMentionsGitHub(emailData.subject, emailData.body, emailData.htmlBody)) {
-          fetchGithubInfo();
+          fetchGithubInfoRef.current();
         }
       }
       
@@ -69,7 +74,7 @@ export function useEmailDetailFetching(emailId: string) {
     } finally {
       setLoading(false);
     }
-  }, [emailId, fetchGithubInfo, setGithubLinks]);
+  }, [emailId]);
 
   const fetchThreadEmails = useCallback(async (signal?: AbortSignal) => {
     if (!emailId) return;
@@ -109,13 +114,20 @@ export function useEmailDetailFetching(emailId: string) {
         abortControllerRef.current.abort();
       }
     };
-  }, [emailId, fetchEmail, fetchThreadEmails]);
+    // Only re-run when emailId changes - fetchEmail and fetchThreadEmails
+    // are stable for a given emailId since they only depend on emailId
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [emailId]);
 
+  const expandedItemsSetRef = useRef<string | null>(null);
   useEffect(() => {
     if (email?.id && threadEmails.length > 0) {
       const mostRecentId = threadEmails[0]?.id;
       const emailToExpand = email.id || mostRecentId;
-      setExpandedThreadItems(new Set(emailToExpand ? [emailToExpand] : []));
+      if (emailToExpand && expandedItemsSetRef.current !== emailToExpand) {
+        expandedItemsSetRef.current = emailToExpand;
+        setExpandedThreadItems(new Set([emailToExpand]));
+      }
     }
   }, [email?.id, threadEmails]);
 

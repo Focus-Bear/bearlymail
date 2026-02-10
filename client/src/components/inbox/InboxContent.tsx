@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useEffect, useState } from 'react';
+import React, { useRef, useMemo, useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
@@ -182,6 +182,23 @@ export const InboxContent: React.FC<InboxContentProps> = ({
     }
   };
 
+  const selectedEmailForPanel = useMemo(() => 
+    splitView.selectedEmailId ? emails.find(e => e.id === splitView.selectedEmailId) : undefined,
+    [emails, splitView.selectedEmailId]
+  );
+
+  const handleSplitViewArchive = useCallback((emailId: string) => {
+    if (onSplitViewArchive && emailId) {
+      onSplitViewArchive(emailId);
+    }
+  }, [onSplitViewArchive]);
+
+  const handleSplitViewSnooze = useCallback((emailId: string) => {
+    if (onSplitViewSnooze && emailId) {
+      onSplitViewSnooze(emailId);
+    }
+  }, [onSplitViewSnooze]);
+
   const handleSendFollowUp = async (followUpId: string, draft: string, recipientName?: string) => {
     try {
       const response = await axios.post(
@@ -341,23 +358,15 @@ export const InboxContent: React.FC<InboxContentProps> = ({
       {!splitView.isMobile && splitView.selectedEmailId && (
         <SplitViewPanel
           selectedEmailId={splitView.selectedEmailId}
-          selectedEmail={emails.find(e => e.id === splitView.selectedEmailId)}
+          selectedEmail={selectedEmailForPanel}
           panelExpanded={splitView.panelExpanded}
           splitPosition={splitView.splitPosition}
           isResizing={splitView.isResizing}
           emailDetailRef={emailDetailRef}
           onTogglePanel={splitView.togglePanel}
           onClose={splitView.closeEmail}
-          onArchiveComplete={(emailId) => {
-            if (onSplitViewArchive && emailId) {
-              onSplitViewArchive(emailId);
-            }
-          }}
-          onSnoozeComplete={(emailId) => {
-            if (onSplitViewSnooze && emailId) {
-              onSplitViewSnooze(emailId);
-            }
-          }}
+          onArchiveComplete={handleSplitViewArchive}
+          onSnoozeComplete={handleSplitViewSnooze}
           mode={mode}
         />
       )}

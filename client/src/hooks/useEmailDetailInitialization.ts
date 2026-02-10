@@ -60,6 +60,10 @@ export const useEmailDetailInitialization = ({
   const fetchedEmailIdRef = useRef<string | null>(null);
   // Track which thread we've fetched data for
   const fetchedThreadIdRef = useRef<string | null>(null);
+  // Track which thread we've set expanded items for
+  const expandedItemsSetRef = useRef<string | null>(null);
+  // Track which email we've auto-extracted actions for
+  const autoExtractedRef = useRef<string | null>(null);
   
   // Clear summary and reset state when email ID changes to prevent showing old data
   useEffect(() => {
@@ -76,6 +80,8 @@ export const useEmailDetailInitialization = ({
       initializedEmailIdRef.current = null;
       fetchedEmailIdRef.current = null;
       fetchedThreadIdRef.current = null;
+      expandedItemsSetRef.current = null;
+      autoExtractedRef.current = null;
       previousEmailIdRef.current = id;
     }
   }, [id, setSummary, setSummaryType, setThreadEmails, setExpandedThreadItems, setActionItems, setLoading, setEmail]);
@@ -207,16 +213,19 @@ export const useEmailDetailInitialization = ({
   useEffect(() => {
     if (threadEmails.length > 0) {
       const mostRecentId = threadEmails[0]?.id;
-      if (mostRecentId) {
+      if (mostRecentId && expandedItemsSetRef.current !== mostRecentId) {
+        expandedItemsSetRef.current = mostRecentId;
         setExpandedThreadItems(new Set([mostRecentId]));
       }
       
       // Check if we should auto-extract action items
       // Only if: no action items exist AND this email is the latest in thread
+      // AND we haven't already attempted extraction for this email
       const latestEmailInThread = threadEmails[0];
       const isLatestEmail = latestEmailInThread && latestEmailInThread.id === email?.id;
       
-      if (isLatestEmail && email?.body && actionItems.length === 0) {
+      if (isLatestEmail && email?.body && actionItems.length === 0 && autoExtractedRef.current !== email.id) {
+        autoExtractedRef.current = email.id;
         const autoExtract = async () => {
           try {
             const extractResponse = await axios.post(`${API_URL}/llm/extract-actions`, {

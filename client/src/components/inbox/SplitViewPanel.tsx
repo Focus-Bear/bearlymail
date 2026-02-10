@@ -55,11 +55,11 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
     setCorrespondentName(correspondent.name);
   }, []);
 
-  // Sync starCount and reset correspondent when selectedEmail changes
+  // Sync starCount and reset correspondent when selectedEmailId changes
   useEffect(() => {
     setStarCount((selectedEmail as any)?.starCount ?? 0);
     setCorrespondentName('');
-  }, [selectedEmail]);
+  }, [selectedEmailId]);
 
   const handleReplyClick = () => {
     emailDetailComponentRef.current?.openReplyComposer();

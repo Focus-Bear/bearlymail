@@ -189,6 +189,11 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
   const summaryAbortControllerRef = useRef<AbortController | null>(null);
   const draftAbortControllerRef = useRef<AbortController | null>(null);
   const previousIdRef = useRef<string | null>(null);
+  const summaryRef = useRef<string | null>(summary);
+  const emailRef = useRef<any>(email);
+
+  summaryRef.current = summary;
+  emailRef.current = email;
 
   useEffect(() => {
     if (previousIdRef.current !== null && previousIdRef.current !== id) {
@@ -318,7 +323,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
       const emailData = response.data;
       setEmail(emailData);
 
-      if (emailData.summary && !summary) {
+      if (emailData.summary && !summaryRef.current) {
         setSummary(emailData.summary);
       }
 
@@ -354,7 +359,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     } finally {
       setLoading(false);
     }
-  }, [id, summary, setEmail, setSummary, setGithubLinks, setLoadingGithub, setLoading]);
+  }, [id, setEmail, setSummary, setGithubLinks, setLoadingGithub, setLoading]);
 
   const fetchThreadEmails = useCallback(async () => {
     if (!id) return;
@@ -442,7 +447,8 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     }
 
     // Quick keyword check - if email doesn't mention GitHub, skip fetching entirely
-    if (email && !emailMentionsGitHub(email.subject, email.body, email.htmlBody)) {
+    const currentEmail = emailRef.current;
+    if (currentEmail && !emailMentionsGitHub(currentEmail.subject, currentEmail.body, currentEmail.htmlBody)) {
       setGithubLinks([]);
       setLoadingGithub(false);
       githubFetchedRef.current = id; // Mark as processed so we don't check again
@@ -477,7 +483,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
         setLoadingGithub(false);
       }
     }
-  }, [id, email, setLoadingGithub, setGithubLinks, setHasGithubToken]);
+  }, [id, setLoadingGithub, setGithubLinks, setHasGithubToken]);
 
   const refreshGithubInfo = useCallback(async () => {
     if (!id) return;

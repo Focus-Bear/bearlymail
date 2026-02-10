@@ -57,6 +57,19 @@ jobs:
         run: npm run build
 
       # ============================================
+      # Run database migrations against test DB
+      # ============================================
+      - name: Run database migrations
+        working-directory: server
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USERNAME: test
+          DB_PASSWORD: test
+          DB_NAME: test
+        run: npx typeorm migration:run -d dist/data-source.js
+
+      # ============================================
       # Server smoke tests
       # ============================================
       - name: Start server and run smoke tests

@@ -253,6 +253,19 @@ tests:
   # - Still flexible (accepts various phrasings)
   # ============================================================
 
+  # Subject line urgency test - "Urgent" in subject should result in high urgency
+  - description: "Subject urgency: email with 'Urgent' in subject should have high urgency score"
+    vars:
+      from: "designer@agency.com"
+      fromName: "Emily Parker"
+      subject: "Urgent Request for Snowies Logos"
+      body: "Hi there, I hope this email finds you well. We need the Snowies logo files for the upcoming campaign materials. Could you please send over the latest versions in SVG and PNG format? We're working on the winter promotion and need these to finalize the designs. Thanks so much!"
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          minScore: 70
+
   # Proto category test 1: Legal email should suggest relevant proto category
   - description: "Proto category: legal email should get Other with relevant proto category"
     vars:

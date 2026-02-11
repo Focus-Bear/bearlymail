@@ -116,3 +116,12 @@ export const SENTIMENT_TYPES = {
   POSITIVE: "positive",
   NEUTRAL: "neutral",
 } as const;
+
+// Newsletter/mass-email category discount
+// Newsletters should have their urgency and goal alignment scores heavily reduced
+// because they are informational background reading, not actionable personal emails
+export const NEWSLETTER_DISCOUNT = {
+  URGENCY_MULTIPLIER: 0.25,
+  GOAL_ALIGNMENT_MULTIPLIER: 0.25,
+  CATEGORY_PATTERNS: ["newsletter", "digest", "marketing", "promotional"],
+} as const;

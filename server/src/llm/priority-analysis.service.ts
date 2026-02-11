@@ -496,6 +496,8 @@ For EACH email, provide:
 - protoCategorySuggestion (ONLY if category is "Other"): { "name": "emoji + 2-4 word category name", "description": "brief description" }. Always provide this when using "Other".
 - reasoning: Brief analysis
 
+IMPORTANT: Newsletters, digests, mailing list emails, and promotional content should ALWAYS receive an urgency score of 0 and LOW goal alignment scores (0-20). Even if a newsletter's topic overlaps with the user's goals, it is informational background reading and does not require action or a reply. Only score higher if the newsletter contains a specific, time-bound call to action directly relevant to the user. This does NOT apply to calendar invitations, meeting requests, account alerts, or transactional emails — those are automated but actionable and should be scored normally.
+
 User context:
 ${contextParts.length > 0 ? contextParts.join("\n") : "No specific user context."}
 

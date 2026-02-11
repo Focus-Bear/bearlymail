@@ -19,6 +19,7 @@ import { CloudWatchService } from "../aws/cloudwatch.service";
 import {
   SENTIMENT_THRESHOLDS,
   PRIORITY_SCORES,
+  NEWSLETTER_DISCOUNT,
 } from "../constants/priority-constants";
 import {
   EMAIL_CLASSIFICATION,
@@ -406,6 +407,12 @@ export class LLMProcessor implements OnModuleInit {
             threadEmailsForLLM.length > 0 ? threadEmailsForLLM : undefined,
           );
 
+          // Check if the email is categorized as a newsletter/mass-email
+          const isNewsletterCategory =
+            NEWSLETTER_DISCOUNT.CATEGORY_PATTERNS.some((pattern) =>
+              (llmResult.category || "").toLowerCase().includes(pattern),
+            );
+
           // Get goal alignment score from LLM (replaces keyword matching)
           const goalAlignmentScore = llmResult.goalAlignmentScore || 0;
 
@@ -431,7 +438,7 @@ export class LLMProcessor implements OnModuleInit {
           // Use a less harsh formula for low urgency: meetings a few days away should be -5, not -15
           // Formula: (urgencyScore - 50) * 0.17 gives -5 for urgency 20 (a few days away)
           // This makes low urgency less negative while keeping high urgency impactful
-          const urgencyContribution = Math.round(
+          let urgencyContribution = Math.round(
             (urgencyScore - LLM_PROCESSOR_CONSTANTS.URGENCY_NEUTRAL) *
               EMAIL_CLASSIFICATION.COST_PER_TOKEN,
           );
@@ -441,9 +448,20 @@ export class LLMProcessor implements OnModuleInit {
           // - Sentiment: direct contribution (neutral = 0)
           // - Other factors (VIP, job title, etc.): 30% weight
           // - Urgency: additional contribution on top (from LLM)
-          const goalAlignmentContribution = Math.round(
+          let goalAlignmentContribution = Math.round(
             goalAlignmentScore * LLM_PROCESSOR_CONSTANTS.GOAL_ALIGNMENT_WEIGHT,
           );
+
+          // Apply newsletter discount: newsletters are informational, not actionable
+          if (isNewsletterCategory) {
+            urgencyContribution = Math.round(
+              urgencyContribution * NEWSLETTER_DISCOUNT.URGENCY_MULTIPLIER,
+            );
+            goalAlignmentContribution = Math.round(
+              goalAlignmentContribution *
+                NEWSLETTER_DISCOUNT.GOAL_ALIGNMENT_MULTIPLIER,
+            );
+          }
 
           // Build breakdown from LLM results and other factors
           const breakdown: Array<{
@@ -1234,6 +1252,10 @@ export class LLMProcessor implements OnModuleInit {
     const sentimentScore = llmResult.sentimentScore ?? 0;
     const urgencyScore = llmResult.urgencyScore || 0;
 
+    const isNewsletterCategory = NEWSLETTER_DISCOUNT.CATEGORY_PATTERNS.some(
+      (pattern) => (llmResult.category || "").toLowerCase().includes(pattern),
+    );
+
     // Calculate contributions
     let sentimentContribution = 0;
     // eslint-disable-next-line @typescript-eslint/no-magic-numbers
@@ -1243,14 +1265,24 @@ export class LLMProcessor implements OnModuleInit {
       );
     }
 
-    const urgencyContribution = Math.round(
+    let urgencyContribution = Math.round(
       (urgencyScore - LLM_PROCESSOR_CONSTANTS.URGENCY_NEUTRAL) *
         EMAIL_CLASSIFICATION.COST_PER_TOKEN,
     );
 
-    const goalAlignmentContribution = Math.round(
+    let goalAlignmentContribution = Math.round(
       goalAlignmentScore * LLM_PROCESSOR_CONSTANTS.GOAL_ALIGNMENT_WEIGHT,
     );
+
+    if (isNewsletterCategory) {
+      urgencyContribution = Math.round(
+        urgencyContribution * NEWSLETTER_DISCOUNT.URGENCY_MULTIPLIER,
+      );
+      goalAlignmentContribution = Math.round(
+        goalAlignmentContribution *
+          NEWSLETTER_DISCOUNT.GOAL_ALIGNMENT_MULTIPLIER,
+      );
+    }
 
     // Build breakdown
     const breakdown: Array<{

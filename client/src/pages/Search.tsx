@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { PERCENTAGE_80 } from 'constants/numbers';
+import { PERCENTAGE_80, PRIORITY_HIGH_THRESHOLD, PRIORITY_MEDIUM_THRESHOLD } from 'constants/numbers';
 import { captureEvent } from 'utils/posthog';
 import { Email } from 'types/email';
 import { useSearch } from 'hooks/useSearch';

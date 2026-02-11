@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { theme } from 'theme/theme';
 import { BUTTON_VARIANT_PRIMARY, BUTTON_VARIANT_SECONDARY } from 'constants/strings';
+import { captureEvent } from 'utils/posthog';
 
 interface CTAButtonProps {
   /**
@@ -108,9 +109,14 @@ export const CTAButton: React.FC<CTAButtonProps> = ({
     }
   };
 
+  const handleClick = () => {
+    captureEvent('wait-list-button-clicked');
+    onClick();
+  };
+
   return (
     <button
-      onClick={onClick}
+      onClick={handleClick}
       disabled={disabled}
       onMouseEnter={() => !disabled && setIsHovered(true)}
       onMouseLeave={() => {

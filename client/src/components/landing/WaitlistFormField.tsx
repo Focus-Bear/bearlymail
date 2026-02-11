@@ -8,6 +8,7 @@ interface WaitlistFormFieldProps {
   type?: 'text' | 'email' | 'textarea';
   value: string;
   onChange: (value: string) => void;
+  onBlur?: () => void;
   required?: boolean;
   rows?: number;
 }
@@ -20,6 +21,7 @@ export const WaitlistFormField: React.FC<WaitlistFormFieldProps> = ({
   type = 'text',
   value,
   onChange,
+  onBlur,
   required = false,
   rows,
 }) => {
@@ -56,6 +58,7 @@ export const WaitlistFormField: React.FC<WaitlistFormFieldProps> = ({
         <textarea
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
           required={required}
           rows={rows || (isMobile ? 3 : 4)}
           style={{
@@ -69,6 +72,7 @@ export const WaitlistFormField: React.FC<WaitlistFormFieldProps> = ({
           type={type}
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
           required={required}
           style={inputStyle}
         />

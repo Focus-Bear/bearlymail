@@ -52,7 +52,7 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
         emailSystem,
         emailSystemOther: emailSystem === 'other' ? emailSystemOther : undefined,
       });
-      captureEvent('waitlist_submitted');
+      captureEvent('wait-list-submitted');
       onSuccess();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to submit. Please try again.');
@@ -97,6 +97,7 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
           type="text"
           value={firstName}
           onChange={setFirstName}
+          onBlur={() => firstName && captureEvent('wait-list-name-entered')}
           required
         />
         <WaitlistFormField
@@ -104,6 +105,7 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
           type="email"
           value={email}
           onChange={setEmail}
+          onBlur={() => email && captureEvent('wait-list-email-entered')}
           required
         />
                 <WaitlistFormField
@@ -111,6 +113,7 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
                   type="textarea"
                   value={reason}
                   onChange={setReason}
+                  onBlur={() => reason && captureEvent('wait-list-reason-entered')}
                   required
                   rows={2}
                 />
@@ -129,7 +132,12 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
                                     </label>
                                     <select
                                       value={emailSystem}
-                                      onChange={(e) => setEmailSystem(e.target.value)}
+                                      onChange={(e) => {
+                                        setEmailSystem(e.target.value);
+                                        if (e.target.value) {
+                                          captureEvent('wait-list-email-platform-selected');
+                                        }
+                                      }}
                                       required
                                       style={{
                                         width: '100%',

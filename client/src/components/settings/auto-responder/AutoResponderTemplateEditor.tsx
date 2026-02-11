@@ -387,7 +387,7 @@ export const AutoResponderTemplateEditor: React.FC<AutoResponderTemplateEditorPr
                     title={item.description}
                     style={{
                       padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                      backgroundColor: theme.colors.greyscale[200],
+                      backgroundColor: theme.colors.greyscale[300],
                       color: theme.colors.text.primary,
                       border: 'none',
                       borderRadius: theme.borderRadius.sm,

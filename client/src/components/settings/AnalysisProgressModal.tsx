@@ -149,7 +149,7 @@ export const AnalysisProgressModal: React.FC<AnalysisProgressModalProps> = ({
                               color: theme.colors.text.secondary,
                               lineHeight: 1.4,
                               padding: `${theme.spacing.xs} 0`,
-                              borderBottom: index < analyzeProgress.progress.insights!.slice(-ANALYSIS_RECENT_INSIGHTS_COUNT).reverse().length - 1 
+                              borderBottom: index < (analyzeProgress.progress?.insights?.slice(-ANALYSIS_RECENT_INSIGHTS_COUNT).reverse().length ?? 0) - 1 
                                 ? `1px solid ${theme.colors.border.light}` 
                                 : 'none',
                             }}

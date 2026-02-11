@@ -23,8 +23,8 @@ export const GitHubLinksList: React.FC<GitHubLinksListProps> = ({ links }) => {
         linkMap.set(key, link);
       } else {
         // Keep the one with more status info (e.g., has reviewDecision or comments)
-        const existingHasReview = !!existing.status?.reviewDecision;
-        const newHasReview = !!link.status?.reviewDecision;
+        const existingHasReview = !!existing.status?.reviewStatus;
+        const newHasReview = !!link.status?.reviewStatus;
         if (newHasReview && !existingHasReview) {
           linkMap.set(key, link);
         }

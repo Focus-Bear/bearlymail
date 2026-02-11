@@ -255,7 +255,7 @@ export const TokenUsageSection: React.FC = () => {
           style={{
             padding: `${theme.spacing.sm} ${theme.spacing.md}`,
             backgroundColor: dateRange === range ? theme.colors.primary.main : theme.colors.background.paper,
-            color: dateRange === range ? theme.colors.primary.contrastText : theme.colors.text.primary,
+            color: dateRange === range ? 'white' : theme.colors.text.primary,
             border: `1px solid ${dateRange === range ? theme.colors.primary.main : theme.colors.border.light}`,
             borderRadius: theme.borderRadius.sm,
             cursor: 'pointer',

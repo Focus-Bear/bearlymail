@@ -125,7 +125,7 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
         style={{
           background: 'transparent',
           border: 'none',
-          color: theme.colors.accent.primary,
+          color: theme.colors.primary.main,
           cursor: isConsolidating ? 'not-allowed' : 'pointer',
           fontSize: theme.typography.fontSize.sm,
           fontWeight: theme.typography.fontWeight.medium,

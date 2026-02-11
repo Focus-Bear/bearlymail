@@ -104,7 +104,7 @@ export const GitHubProjectBadges: React.FC<GitHubProjectBadgesProps> = ({
         {links.slice(0, 2).map((link, index) => {
           const state = link.status?.state || 'open';
           const stateColor = stateColors[state] || stateColors.open;
-          const isPR = link.type === 'pull';
+          const isPR = link.type === 'pr';
           
           return (
             <a
@@ -194,7 +194,7 @@ export const GitHubProjectBadges: React.FC<GitHubProjectBadgesProps> = ({
                   <span style={{
                     padding: `1px ${theme.spacing.xs}`,
                     backgroundColor: theme.colors.primary.subtle,
-                    borderRadius: theme.borderRadius.xs,
+                    borderRadius: theme.borderRadius.sm,
                     color: theme.colors.primary.main,
                   }}>
                     {project.status}

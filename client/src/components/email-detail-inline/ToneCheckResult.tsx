@@ -156,7 +156,7 @@ export const ToneCheckResult: React.FC<ToneCheckResultProps> = ({
                     fontSize: theme.typography.fontSize.xs,
                   }}>
                     {disputeResult.rulesToRemove.map((rule) => (
-                      <li key={rule} style={{ marginBottom: theme.spacing.xxs }}>{rule}</li>
+                      <li key={rule} style={{ marginBottom: theme.spacing.xs }}>{rule}</li>
                     ))}
                   </ul>
                 </div>

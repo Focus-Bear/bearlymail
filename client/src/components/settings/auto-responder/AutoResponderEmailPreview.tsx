@@ -309,7 +309,7 @@ export const AutoResponderEmailPreview: React.FC = () => {
                   {priorityInfo && (
                     <div style={{
                       padding: theme.spacing.sm,
-                      backgroundColor: theme.colors.greyscale[200],
+                      backgroundColor: theme.colors.greyscale[300],
                       borderBottom: `1px solid ${theme.colors.border.light}`,
                       display: 'flex',
                       alignItems: 'center',

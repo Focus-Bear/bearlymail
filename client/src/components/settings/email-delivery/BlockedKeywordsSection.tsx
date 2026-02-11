@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { INPUT_WIDTH_PX } from 'constants/numbers';
+import { INPUT_WIDTH_PX, OPACITY_HALF } from 'constants/numbers';
 import { BlockedKeywordItem } from 'components/settings/email-delivery/BlockedKeywordItem';
 import { EMOJI_BLOCK } from 'constants/emojis';
 import { captureEvent } from 'utils/posthog';
@@ -122,8 +122,8 @@ export const BlockedKeywordsSection: React.FC<BlockedKeywordsSectionProps> = ({
           disabled={!newKeyword.trim() || isAdding}
           style={{
             padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-            backgroundColor: theme.colors.accent.primary,
-            color: theme.colors.text.inverse,
+            backgroundColor: theme.colors.primary.main,
+            color: 'white',
             border: 'none',
             borderRadius: theme.borderRadius.md,
             cursor: newKeyword.trim() && !isAdding ? 'pointer' : 'not-allowed',

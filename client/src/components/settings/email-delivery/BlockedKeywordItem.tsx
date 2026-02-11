@@ -47,8 +47,8 @@ export const BlockedKeywordItem: React.FC<BlockedKeywordItemProps> = ({
           {keyword.exactMatch && (
             <span style={{
               fontSize: theme.typography.fontSize.xs,
-              backgroundColor: theme.colors.accent.primary,
-              color: theme.colors.text.inverse,
+              backgroundColor: theme.colors.primary.main,
+              color: 'white',
               padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
               borderRadius: theme.borderRadius.sm,
             }}>

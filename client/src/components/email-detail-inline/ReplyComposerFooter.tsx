@@ -87,7 +87,7 @@ export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = ({
                 fontSize: theme.typography.fontSize.xs,
                 fontWeight: expectedReplyHours === option.value 
                   ? theme.typography.fontWeight.medium 
-                  : theme.typography.fontWeight.regular,
+                  : theme.typography.fontWeight.normal,
                 transition: 'all 0.15s ease',
               }}
             >

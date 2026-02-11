@@ -78,7 +78,7 @@ export const GitHubIntegrationSection: React.FC<GitHubIntegrationSectionProps> =
                 border: 'none',
                 borderRadius: theme.borderRadius.md,
                 cursor: 'pointer',
-                fontSize: theme.typography.fontSize.md,
+                fontSize: theme.typography.fontSize.base,
                 fontWeight: 500,
               }}
             >
@@ -97,7 +97,7 @@ export const GitHubIntegrationSection: React.FC<GitHubIntegrationSectionProps> =
                 border: 'none',
                 borderRadius: theme.borderRadius.md,
                 cursor: 'pointer',
-                fontSize: theme.typography.fontSize.md,
+                fontSize: theme.typography.fontSize.base,
                 fontWeight: 500,
               }}
             >

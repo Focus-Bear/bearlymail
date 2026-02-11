@@ -580,7 +580,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
                 <div style={{ marginTop: theme.spacing.xs }}>
                   <strong>Details:</strong>
                   {emailData.attachments.map((att: any, idx: number) => (
-                    <div key={att.attachmentId || idx} style={{ marginLeft: theme.spacing.sm, marginTop: theme.spacing.xxs }}>
+                    <div key={att.attachmentId || idx} style={{ marginLeft: theme.spacing.sm, marginTop: theme.spacing.xs }}>
                       [{idx}] ID: {att.attachmentId || 'N/A'} | File: {att.filename || 'N/A'} | MIME: {att.mimeType || 'N/A'} | Size: {att.size ?? 'N/A'}
                     </div>
                   ))}
@@ -603,7 +603,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
                   {threadEmails.map((te, idx) => {
                     const teData = te as any;
                     return (
-                      <div key={te.id} style={{ marginLeft: theme.spacing.sm, marginTop: theme.spacing.xxs }}>
+                      <div key={te.id} style={{ marginLeft: theme.spacing.sm, marginTop: theme.spacing.xs }}>
                         [{idx}] {teData.attachments?.length ?? 0} attachments {teData.attachments?.length > 0 ? `(${teData.attachments.map((a: any) => a.filename).join(', ')})` : ''}
                       </div>
                     );

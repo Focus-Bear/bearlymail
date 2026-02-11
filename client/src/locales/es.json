@@ -1601,6 +1601,14 @@
       "noAccounts": "No hay cuentas de Zoho conectadas"
     }
   },
+  "keyboard": {
+    "archiveConfirmSingle": "¿Archivar este correo?",
+    "archiveConfirmMultiple": "¿Archivar {{count}} correos?",
+    "yes": "Sí",
+    "no": "Cancelar",
+    "keyY": "Y",
+    "keyEsc": "Esc"
+  },
   "sidebar": {
     "expand": "Expandir barra lateral"
   },

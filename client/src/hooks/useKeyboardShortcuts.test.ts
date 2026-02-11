@@ -1,6 +1,6 @@
-import { renderHook } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
-import { KEY_ARROW_DOWN, KEY_ARROW_UP, KEY_J, KEY_K, KEY_DELETE, KEY_BACKSPACE, KEY_E } from 'constants/strings';
+import { KEY_ARROW_DOWN, KEY_ARROW_UP, KEY_J, KEY_K, KEY_DELETE, KEY_BACKSPACE, KEY_E, KEY_Y, KEY_ESCAPE, KEY_N, EVENT_KEYDOWN } from 'constants/strings';
 
 describe('useKeyboardShortcuts', () => {
   const mockEmails = [
@@ -22,11 +22,12 @@ describe('useKeyboardShortcuts', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useFakeTimers();
     capturedKeydownHandler = null;
 
     // Mock window.addEventListener to capture the handler
     window.addEventListener = jest.fn((event: string, handler: EventListenerOrEventListenerObject) => {
-      if (event === 'keydown' && typeof handler === 'function') {
+      if (event === EVENT_KEYDOWN && typeof handler === 'function') {
         capturedKeydownHandler = handler as (event: KeyboardEvent) => void;
       }
     });
@@ -37,6 +38,7 @@ describe('useKeyboardShortcuts', () => {
     // Restore original functions
     window.addEventListener = originalAddEventListener;
     window.removeEventListener = originalRemoveEventListener;
+    jest.useRealTimers();
   });
 
   // Helper function to simulate a keydown event
@@ -185,56 +187,180 @@ describe('useKeyboardShortcuts', () => {
     });
   });
 
-  describe('archive shortcuts', () => {
-    it('should archive with Delete key', () => {
+  describe('archive shortcuts with confirmation', () => {
+    it('should set pending archive with Delete key and archive on y confirmation', () => {
       const selectedIds = new Set(['1', '2']);
-      renderHook(() => useKeyboardShortcuts({
+      const { result } = renderHook(() => useKeyboardShortcuts({
         ...defaultProps,
         selectedEmailIds: selectedIds,
       }));
 
-      simulateKeydown(KEY_DELETE);
+      // Press Delete - should set pending archive
+      act(() => {
+        simulateKeydown(KEY_DELETE);
+      });
+
+      expect(result.current.pendingArchive).not.toBeNull();
+      expect(result.current.pendingArchive?.emailIds).toEqual(['1', '2']);
+      expect(mockOnArchive).not.toHaveBeenCalled();
+
+      // Press y to confirm
+      act(() => {
+        simulateKeydown(KEY_Y);
+      });
 
       expect(mockOnArchive).toHaveBeenCalledTimes(2);
+      expect(result.current.pendingArchive).toBeNull();
     });
 
-    it('should archive with Backspace key', () => {
+    it('should set pending archive with Backspace key', () => {
       const selectedIds = new Set(['1']);
-      renderHook(() => useKeyboardShortcuts({
+      const { result } = renderHook(() => useKeyboardShortcuts({
         ...defaultProps,
         selectedEmailIds: selectedIds,
       }));
 
-      simulateKeydown(KEY_BACKSPACE);
+      act(() => {
+        simulateKeydown(KEY_BACKSPACE);
+      });
+
+      expect(result.current.pendingArchive).not.toBeNull();
+      expect(result.current.pendingArchive?.emailIds).toEqual(['1']);
+
+      // Confirm with y
+      act(() => {
+        simulateKeydown(KEY_Y);
+      });
 
       expect(mockOnArchive).toHaveBeenCalled();
     });
 
-    it('should archive with e key', () => {
+    it('should set pending archive with e key', () => {
       const selectedIds = new Set(['1']);
-      renderHook(() => useKeyboardShortcuts({
+      const { result } = renderHook(() => useKeyboardShortcuts({
         ...defaultProps,
         selectedEmailIds: selectedIds,
       }));
 
-      simulateKeydown(KEY_E);
+      act(() => {
+        simulateKeydown(KEY_E);
+      });
+
+      expect(result.current.pendingArchive).not.toBeNull();
+
+      // Confirm with y
+      act(() => {
+        simulateKeydown(KEY_Y);
+      });
 
       expect(mockOnArchive).toHaveBeenCalled();
     });
 
-    it('should archive highlighted email when no emails checked', () => {
-      // When no emails are checked (selectedEmailIds is empty), the implementation
-      // archives the highlighted email (at selectedEmailIndex)
-      renderHook(() => useKeyboardShortcuts({
+    it('should cancel pending archive with Escape key', () => {
+      const selectedIds = new Set(['1']);
+      const { result } = renderHook(() => useKeyboardShortcuts({
+        ...defaultProps,
+        selectedEmailIds: selectedIds,
+      }));
+
+      act(() => {
+        simulateKeydown(KEY_DELETE);
+      });
+
+      expect(result.current.pendingArchive).not.toBeNull();
+
+      act(() => {
+        simulateKeydown(KEY_ESCAPE);
+      });
+
+      expect(result.current.pendingArchive).toBeNull();
+      expect(mockOnArchive).not.toHaveBeenCalled();
+    });
+
+    it('should cancel pending archive with n key', () => {
+      const selectedIds = new Set(['1']);
+      const { result } = renderHook(() => useKeyboardShortcuts({
+        ...defaultProps,
+        selectedEmailIds: selectedIds,
+      }));
+
+      act(() => {
+        simulateKeydown(KEY_DELETE);
+      });
+
+      expect(result.current.pendingArchive).not.toBeNull();
+
+      act(() => {
+        simulateKeydown(KEY_N);
+      });
+
+      expect(result.current.pendingArchive).toBeNull();
+      expect(mockOnArchive).not.toHaveBeenCalled();
+    });
+
+    it('should cancel pending archive after timeout', () => {
+      const selectedIds = new Set(['1']);
+      const { result } = renderHook(() => useKeyboardShortcuts({
+        ...defaultProps,
+        selectedEmailIds: selectedIds,
+      }));
+
+      act(() => {
+        simulateKeydown(KEY_DELETE);
+      });
+
+      expect(result.current.pendingArchive).not.toBeNull();
+
+      // Fast-forward past the timeout (3 seconds)
+      act(() => {
+        jest.advanceTimersByTime(3500);
+      });
+
+      expect(result.current.pendingArchive).toBeNull();
+      expect(mockOnArchive).not.toHaveBeenCalled();
+    });
+
+    it('should set pending archive for highlighted email when no emails checked', () => {
+      const { result } = renderHook(() => useKeyboardShortcuts({
         ...defaultProps,
         selectedEmailIds: new Set(),
         selectedEmailIndex: 0,
       }));
 
-      simulateKeydown(KEY_DELETE);
+      act(() => {
+        simulateKeydown(KEY_DELETE);
+      });
 
-      // Should archive the highlighted email at index 0
+      expect(result.current.pendingArchive).not.toBeNull();
+      expect(result.current.pendingArchive?.emailIds).toEqual(['1']);
+
+      // Confirm with y
+      act(() => {
+        simulateKeydown(KEY_Y);
+      });
+
       expect(mockOnArchive).toHaveBeenCalled();
+    });
+
+    it('should cancel pending archive with cancelPendingArchive function', () => {
+      const selectedIds = new Set(['1']);
+      const { result } = renderHook(() => useKeyboardShortcuts({
+        ...defaultProps,
+        selectedEmailIds: selectedIds,
+      }));
+
+      act(() => {
+        simulateKeydown(KEY_DELETE);
+      });
+
+      expect(result.current.pendingArchive).not.toBeNull();
+
+      act(() => {
+        result.current.cancelPendingArchive();
+      });
+
+      expect(result.current.pendingArchive).toBeNull();
+      expect(mockOnArchive).not.toHaveBeenCalled();
     });
   });
 
@@ -264,6 +390,46 @@ describe('useKeyboardShortcuts', () => {
 
       document.body.removeChild(textarea);
     });
+
+    it('should ignore keys when typing in contenteditable element', () => {
+      const div = document.createElement('div');
+      div.setAttribute('contenteditable', 'true');
+      document.body.appendChild(div);
+
+      const { result } = renderHook(() => useKeyboardShortcuts({
+        ...defaultProps,
+        selectedEmailIds: new Set(['1']),
+      }));
+
+      simulateKeydown(KEY_DELETE, div);
+
+      // Should not trigger pending archive when typing in contenteditable
+      expect(result.current.pendingArchive).toBeNull();
+      expect(mockOnArchive).not.toHaveBeenCalled();
+
+      document.body.removeChild(div);
+    });
+
+    it('should ignore keys when typing in child of contenteditable element', () => {
+      const parent = document.createElement('div');
+      parent.setAttribute('contenteditable', 'true');
+      const child = document.createElement('span');
+      parent.appendChild(child);
+      document.body.appendChild(parent);
+
+      const { result } = renderHook(() => useKeyboardShortcuts({
+        ...defaultProps,
+        selectedEmailIds: new Set(['1']),
+      }));
+
+      simulateKeydown(KEY_BACKSPACE, child);
+
+      // Should not trigger pending archive when typing in child of contenteditable
+      expect(result.current.pendingArchive).toBeNull();
+      expect(mockOnArchive).not.toHaveBeenCalled();
+
+      document.body.removeChild(parent);
+    });
   });
 
   describe('enabled/disabled', () => {
@@ -289,6 +455,3 @@ describe('useKeyboardShortcuts', () => {
     });
   });
 });
-
-
-

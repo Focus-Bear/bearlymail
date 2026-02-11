@@ -6,6 +6,7 @@ import { InboxLoadingState } from 'components/inbox/InboxLoadingState';
 import { GmailConnectionScreen } from 'components/inbox/GmailConnectionScreen';
 import { InboxContent } from 'components/inbox/InboxContent';
 import { InboxModals } from 'components/inbox/InboxModals';
+import { ArchiveConfirmationToast } from 'components/inbox/ArchiveConfirmationToast';
 import { useInboxState } from 'hooks/useInboxState';
 
 const FocusedInbox: React.FC = () => {
@@ -31,6 +32,7 @@ const FocusedInbox: React.FC = () => {
     keyboardHint,
     splitView,
     emailActions,
+    keyboardShortcuts,
     hasInitiallyLoaded,
     loadingModeSwitch,
     decrypting,
@@ -63,6 +65,18 @@ const FocusedInbox: React.FC = () => {
       overflow: 'hidden',
     }}>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+        {/* Archive Confirmation Toast */}
+        {keyboardShortcuts.pendingArchive && (
+          <ArchiveConfirmationToast
+            emailCount={keyboardShortcuts.pendingArchive.emailIds.length}
+            onConfirm={() => {
+              const event = new KeyboardEvent('keydown', { key: 'y' });
+              window.dispatchEvent(event);
+            }}
+            onCancel={keyboardShortcuts.cancelPendingArchive}
+          />
+        )}
+
         <InboxContent
           mode={mode}
           emails={emails}

@@ -83,6 +83,11 @@ export const KEY_K = 'k' as const;
 export const KEY_DELETE = 'Delete' as const;
 export const KEY_BACKSPACE = 'Backspace' as const;
 export const KEY_E = 'e' as const;
+export const KEY_Y = 'y' as const;
+export const KEY_N = 'n' as const;
+
+// Event types
+export const EVENT_KEYDOWN = 'keydown' as const;
 
 // Error messages
 export const ERROR_NETWORK = 'Network Error' as const;

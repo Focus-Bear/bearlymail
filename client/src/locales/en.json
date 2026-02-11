@@ -1789,6 +1789,14 @@
         "emailSystemOtherLabel": "Please specify your email system"
       }
     },
+  "keyboard": {
+    "archiveConfirmSingle": "Archive this email?",
+    "archiveConfirmMultiple": "Archive {{count}} emails?",
+    "yes": "Yes",
+    "no": "Cancel",
+    "keyY": "Y",
+    "keyEsc": "Esc"
+  },
   "sidebar": {
     "expand": "Expand sidebar"
   },

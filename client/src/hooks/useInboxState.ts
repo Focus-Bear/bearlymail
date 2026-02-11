@@ -269,7 +269,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
   }, [emails, selectedEmailIndex, handleArchiveBase, splitView, setSelectedEmailIndex]);
 
   // Use keyboard shortcuts hook
-  useKeyboardShortcuts({
+  const keyboardShortcuts = useKeyboardShortcuts({
     emails,
     selectedEmailIndex,
     selectedEmailIds,
@@ -439,6 +439,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     keyboardHint,
     splitView,
     emailActions,
+    keyboardShortcuts,
     // Initialization
     hasInitiallyLoaded,
     hasRunAnalysis,

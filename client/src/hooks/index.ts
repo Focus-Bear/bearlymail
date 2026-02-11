@@ -4,6 +4,7 @@ export { useEmailSelection } from 'hooks/useEmailSelection';
 export { useOnboarding } from 'hooks/useOnboarding';
 export { useBatchSchedule } from 'hooks/useBatchSchedule';
 export { useKeyboardShortcuts } from 'hooks/useKeyboardShortcuts';
+export type { UseKeyboardShortcutsResult } from 'hooks/useKeyboardShortcuts';
 export { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 export { useDebugPanel } from 'hooks/useDebugPanel';
 export { useModals } from 'hooks/useModals';

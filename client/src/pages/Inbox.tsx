@@ -8,6 +8,7 @@ import { InboxHeader } from 'components/inbox/InboxHeader';
 import { BulkOperationsBar } from 'components/inbox/BulkOperationsBar';
 import { Sidebar } from 'components/inbox/Sidebar';
 import { KeyboardHintTooltip } from 'components/inbox/KeyboardHintTooltip';
+import { ArchiveConfirmationToast } from 'components/inbox/ArchiveConfirmationToast';
 import { InboxLoadingState } from 'components/inbox/InboxLoadingState';
 import { GmailConnectionScreen } from 'components/inbox/GmailConnectionScreen';
 import { InboxContent } from 'components/inbox/InboxContent';
@@ -46,6 +47,7 @@ const Inbox: React.FC = () => {
     keyboardHint,
     splitView,
     emailActions,
+    keyboardShortcuts,
     hasInitiallyLoaded,
     loadingModeSwitch,
     decrypting,
@@ -172,6 +174,20 @@ const Inbox: React.FC = () => {
         {/* Keyboard Hint Tooltip */}
         {keyboardHint.showKeyboardHint && (
           <KeyboardHintTooltip action={keyboardHint.showKeyboardHint.action} />
+        )}
+
+        {/* Archive Confirmation Toast */}
+        {keyboardShortcuts.pendingArchive && (
+          <ArchiveConfirmationToast
+            emailCount={keyboardShortcuts.pendingArchive.emailIds.length}
+            onConfirm={() => {
+              // The confirmation is handled by pressing 'y' in the keyboard handler
+              // This button is a fallback for clicking
+              const event = new KeyboardEvent('keydown', { key: 'y' });
+              window.dispatchEvent(event);
+            }}
+            onCancel={keyboardShortcuts.cancelPendingArchive}
+          />
         )}
 
         <InboxContent

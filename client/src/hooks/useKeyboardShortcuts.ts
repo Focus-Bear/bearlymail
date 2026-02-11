@@ -1,6 +1,9 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState, useRef } from 'react';
 import { Email } from 'types/email';
-import { KEY_ARROW_DOWN, KEY_ARROW_UP, KEY_J, KEY_K, KEY_DELETE, KEY_BACKSPACE, KEY_E } from 'constants/strings';
+import { KEY_ARROW_DOWN, KEY_ARROW_UP, KEY_J, KEY_K, KEY_DELETE, KEY_BACKSPACE, KEY_E, KEY_Y, KEY_N, KEY_ESCAPE } from 'constants/strings';
+
+// Time in ms before archive confirmation is cancelled
+const ARCHIVE_CONFIRM_TIMEOUT = 3000;
 
 interface UseKeyboardShortcutsProps {
   emails: Email[];
@@ -16,6 +19,27 @@ interface UseKeyboardShortcutsProps {
   onSplitViewArchive?: (emailId: string) => void;
 }
 
+interface PendingArchiveState {
+  emailIds: string[];
+  isSplitView: boolean;
+}
+
+export interface UseKeyboardShortcutsResult {
+  pendingArchive: PendingArchiveState | null;
+  cancelPendingArchive: () => void;
+}
+
+/**
+ * Check if an element or its ancestors have contenteditable attribute.
+ * The isContentEditable property already handles ancestor checking.
+ */
+function isContentEditableElement(element: EventTarget | null): boolean {
+  if (!(element instanceof HTMLElement)) {
+    return false;
+  }
+  return element.isContentEditable;
+}
+
 export function useKeyboardShortcuts({
   emails,
   selectedEmailIndex,
@@ -28,11 +52,77 @@ export function useKeyboardShortcuts({
   emailDetailRef,
   splitViewSelectedEmailId,
   onSplitViewArchive,
-}: UseKeyboardShortcutsProps): void {
+}: UseKeyboardShortcutsProps): UseKeyboardShortcutsResult {
+  // Track pending archive confirmation state
+  const [pendingArchive, setPendingArchive] = useState<PendingArchiveState | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cancel pending archive
+  const cancelPendingArchive = useCallback(() => {
+    setPendingArchive(null);
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }, []);
+
+  // Execute the archive action
+  const executeArchive = useCallback((archiveState: PendingArchiveState) => {
+    const fakeEvent = { stopPropagation: () => {} } as React.MouseEvent;
+    
+    if (archiveState.isSplitView && archiveState.emailIds.length === 1) {
+      if (onSplitViewArchive) {
+        onSplitViewArchive(archiveState.emailIds[0]);
+      } else {
+        onArchive(archiveState.emailIds[0], fakeEvent);
+      }
+    } else {
+      archiveState.emailIds.forEach(emailId => {
+        onArchive(emailId, fakeEvent);
+      });
+      
+      // Adjust selected index after archiving for non-split view
+      if (!archiveState.isSplitView && selectedEmailIds.size === 0) {
+        // Only adjust index when archiving a highlighted email (not checked ones)
+        const visibleEmails = emails.filter(email => !email.isArchived);
+        if (selectedEmailIndex > 0) {
+          setSelectedEmailIndex(selectedEmailIndex - 1);
+        } else if (visibleEmails.length > 1) {
+          setSelectedEmailIndex(0);
+        } else {
+          setSelectedEmailIndex(-1);
+        }
+      }
+    }
+    
+    cancelPendingArchive();
+  }, [emails, selectedEmailIndex, selectedEmailIds.size, setSelectedEmailIndex, onArchive, onSplitViewArchive, cancelPendingArchive]);
+
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    // Ignore if typing in an input
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+    // Ignore if typing in an input or contenteditable element (like Tiptap rich text editor)
+    if (
+      e.target instanceof HTMLInputElement || 
+      e.target instanceof HTMLTextAreaElement ||
+      isContentEditableElement(e.target)
+    ) {
       return;
+    }
+
+    // Handle pending archive confirmation
+    if (pendingArchive) {
+      if (e.key === KEY_Y) {
+        e.preventDefault();
+        executeArchive(pendingArchive);
+        return;
+      } else if (e.key === KEY_ESCAPE || e.key === KEY_N) {
+        e.preventDefault();
+        cancelPendingArchive();
+        return;
+      } else {
+        // Any other key cancels the pending archive
+        cancelPendingArchive();
+        // Don't return - let the key be processed normally
+      }
     }
 
     // Filter out archived emails to match visible list
@@ -80,49 +170,46 @@ export function useKeyboardShortcuts({
       });
     }
 
-    // Archive (Delete, Backspace, or 'e')
+    // Archive (Delete, Backspace, or 'e') - now requires confirmation
     if (e.key === KEY_DELETE || e.key === KEY_BACKSPACE || e.key === KEY_E) {
-      // If split view is open with an email, use the split view archive handler
-      // which will archive and navigate to the next email
+      // Build the pending archive state based on context
+      let emailIdsToArchive: string[] = [];
+      let isSplitView = false;
+
       if (splitViewSelectedEmailId) {
-        e.preventDefault();
-        if (onSplitViewArchive) {
-          // Use the split view archive handler that handles next email navigation
-          onSplitViewArchive(splitViewSelectedEmailId);
-        } else {
-          // Fallback to basic archive if no split view handler provided
-          const fakeEvent = { stopPropagation: () => {} } as React.MouseEvent;
-          onArchive(splitViewSelectedEmailId, fakeEvent);
-        }
-        return;
-      }
-      
-      // If there are checked emails, archive all of them
-      if (selectedEmailIds.size > 0) {
-        e.preventDefault();
-        const fakeEvent = { stopPropagation: () => {} } as React.MouseEvent;
-        selectedEmailIds.forEach(emailId => {
-          onArchive(emailId, fakeEvent);
-        });
-      } 
-      // Otherwise, if there's a highlighted email, archive that one
-      else if (selectedEmailIndex >= 0 && selectedEmailIndex < visibleEmails.length) {
-        e.preventDefault();
-        const fakeEvent = { stopPropagation: () => {} } as React.MouseEvent;
+        // Split view: archive the currently viewed email
+        emailIdsToArchive = [splitViewSelectedEmailId];
+        isSplitView = true;
+      } else if (selectedEmailIds.size > 0) {
+        // Checked emails: archive all of them
+        emailIdsToArchive = Array.from(selectedEmailIds);
+      } else if (selectedEmailIndex >= 0 && selectedEmailIndex < visibleEmails.length) {
+        // Highlighted email: archive that one
         const emailToArchive = visibleEmails[selectedEmailIndex];
         if (emailToArchive) {
-          onArchive(emailToArchive.id, fakeEvent);
-          // Adjust selected index after archiving (move to previous email or stay at current position)
-          if (selectedEmailIndex > 0) {
-            setSelectedEmailIndex(selectedEmailIndex - 1);
-          } else if (visibleEmails.length > 1) {
-            // If we archived the first email, stay at index 0 (which will now be the next email)
-            setSelectedEmailIndex(0);
-          } else {
-            // No more emails, reset index
-            setSelectedEmailIndex(-1);
-          }
+          emailIdsToArchive = [emailToArchive.id];
         }
+      }
+
+      if (emailIdsToArchive.length > 0) {
+        e.preventDefault();
+        
+        // Set pending archive and start timeout
+        const archiveState: PendingArchiveState = {
+          emailIds: emailIdsToArchive,
+          isSplitView,
+        };
+        setPendingArchive(archiveState);
+        
+        // Clear any existing timeout
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
+        
+        // Set timeout to cancel pending archive
+        timeoutRef.current = setTimeout(() => {
+          setPendingArchive(null);
+        }, ARCHIVE_CONFIRM_TIMEOUT);
       }
     }
 
@@ -133,7 +220,7 @@ export function useKeyboardShortcuts({
         onSetStarCount(emailId, 0);
       });
     }
-  }, [emails, selectedEmailIndex, selectedEmailIds, setSelectedEmailIndex, onArchive, onSetStarCount, emailListRef, emailDetailRef, splitViewSelectedEmailId, onSplitViewArchive]);
+  }, [emails, selectedEmailIndex, selectedEmailIds, setSelectedEmailIndex, onArchive, onSetStarCount, emailListRef, emailDetailRef, splitViewSelectedEmailId, onSplitViewArchive, pendingArchive, executeArchive, cancelPendingArchive]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -141,4 +228,18 @@ export function useKeyboardShortcuts({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown, enabled]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  return {
+    pendingArchive,
+    cancelPendingArchive,
+  };
 }

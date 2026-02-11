@@ -163,17 +163,10 @@ export function extractCleanHtmlBody(htmlBody: string): string {
     const searchText = textBeforeBoundary.slice(-HTML_CUT_POINT_OFFSET_50);
     const htmlPos = htmlBody.indexOf(searchText);
     if (htmlPos > 0) {
-      // Find the end of the current content (before the quoted part)
-      // Look backwards from the boundary to find a good cut point
       let cutPoint = htmlPos + searchText.length;
-      // Try to cut at a tag boundary or whitespace
-      const beforeCut = htmlBody.substring(0, cutPoint);
-      const lastTagEnd = beforeCut.lastIndexOf('>');
-      const lastNewline = beforeCut.lastIndexOf('\n');
-      if (lastTagEnd > cutPoint - HTML_CUT_POINT_OFFSET_100) {
-        cutPoint = lastTagEnd + 1;
-      } else if (lastNewline > cutPoint - HTML_CUT_POINT_OFFSET_50) {
-        cutPoint = lastNewline;
+      const nextTagStart = htmlBody.indexOf('<', cutPoint);
+      if (nextTagStart >= 0 && nextTagStart - cutPoint < HTML_CUT_POINT_OFFSET_100) {
+        cutPoint = nextTagStart;
       }
       return htmlBody.substring(0, cutPoint).trim();
     }

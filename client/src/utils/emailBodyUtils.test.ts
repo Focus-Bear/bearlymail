@@ -136,6 +136,26 @@ describe('emailBodyUtils', () => {
       const result = extractCleanHtmlBody(html);
       expect(result).toBe(html);
     });
+
+    it('should preserve reply text when Gmail-style quoted content follows short reply', () => {
+      const html = '<div dir="ltr"><div>Certainly, my date of birth is 09 July 1998!</div></div><div class="gmail_quote"><div class="gmail_attr">On Mon, 9 Feb 2026 at 5:53 pm, Jeremy Nagel &lt;jeremy@example.com&gt; wrote:</div><blockquote>Could I get your date of birth?</blockquote></div>';
+      const result = extractCleanHtmlBody(html);
+      expect(result).toContain('Certainly, my date of birth is 09 July 1998!');
+      expect(result).not.toContain('jeremy@example.com');
+    });
+
+    it('should preserve reply text when nested divs wrap short content before boundary', () => {
+      const html = '<div dir="ltr"><div dir="ltr"><div>Thanks for the update!</div></div><br><div class="gmail_quote"><div dir="ltr" class="gmail_attr">On Wed, 5 Feb 2026 at 10:00 AM, Someone &lt;someone@example.com&gt; wrote:</div><blockquote class="gmail_quote">Original message here</blockquote></div></div>';
+      const result = extractCleanHtmlBody(html);
+      expect(result).toContain('Thanks for the update!');
+      expect(result).not.toContain('someone@example.com');
+    });
+
+    it('should preserve content when cutting at boundary with tag immediately after text', () => {
+      const html = '<div>Also could I get your date of birth to add you to Xero?</div><div class="gmail_quote"><div>On Fri, 7 Feb 2026 at 2:00 PM, Sid &lt;sid@example.com&gt; wrote:</div><blockquote>Previous message</blockquote></div>';
+      const result = extractCleanHtmlBody(html);
+      expect(result).toContain('Also could I get your date of birth');
+    });
   });
 
   describe('sanitizeAndProcessHtml', () => {

@@ -377,6 +377,7 @@ export class PriorityAnalysisService {
       workingOn?: Array<{ value: string; priority?: number }>;
       dontCare?: Array<{ value: string }>;
       emailCategories?: Array<{ name: string; description?: string }>;
+      protoCategories?: Array<{ name: string; description?: string }>;
     },
     provider?: LLMProvider,
     userId?: string,
@@ -392,6 +393,10 @@ export class PriorityAnalysisService {
         category: string;
         categoryExplanation: string;
         reasoning: string;
+        protoCategorySuggestion?: {
+          name: string;
+          description: string;
+        };
       }
     >
   > {
@@ -406,6 +411,10 @@ export class PriorityAnalysisService {
         category: string;
         categoryExplanation: string;
         reasoning: string;
+        protoCategorySuggestion?: {
+          name: string;
+          description: string;
+        };
       }
     >();
 
@@ -457,6 +466,16 @@ Body: ${cleanedBody}`;
           .join(", ")
       : '"Newsletters", "Sales", "Partnerships", "Customer Support", "HR Admin"';
 
+    const protoCategoriesText =
+      userContext?.protoCategories && userContext.protoCategories.length > 0
+        ? userContext.protoCategories
+            .map(
+              (cat) =>
+                `"${cat.name}"${cat.description ? `: ${cat.description}` : ""} (proposed)`,
+            )
+            .join(", ")
+        : "";
+
     const currentDateStr = new Date().toLocaleDateString("en-US", {
       weekday: "long",
       year: "numeric",
@@ -472,8 +491,9 @@ For EACH email, provide:
 - sentimentScore (-1 to 1): Email sentiment
 - goalAlignmentScore (0-100): Alignment with user's goals
 - goalAlignmentExplanation: Brief explanation
-- category: Best fitting from: ${emailCategoriesText}, "Other"
+- category: Best fitting from: ${emailCategoriesText}${protoCategoriesText ? `, ${protoCategoriesText}` : ""}, "Other"
 - categoryExplanation: Brief explanation
+- protoCategorySuggestion (ONLY if category is "Other"): { "name": "emoji + 2-4 word category name", "description": "brief description" }. Always provide this when using "Other".
 - reasoning: Brief analysis
 
 User context:
@@ -509,6 +529,7 @@ IMPORTANT: Return ONLY the JSON array, no other text.`;
           for (const item of parsed) {
             const key = item.key || item.emailKey;
             if (key) {
+              const category = item.category || "Other";
               results.set(key, {
                 urgencyScore: Math.max(
                   0,
@@ -525,10 +546,18 @@ IMPORTANT: Return ONLY the JSON array, no other text.`;
                 ),
                 goalAlignmentExplanation:
                   item.goalAlignmentExplanation || "No explanation",
-                category: item.category || "Other",
+                category,
                 categoryExplanation:
                   item.categoryExplanation || "No explanation",
                 reasoning: item.reasoning || "No reasoning",
+                protoCategorySuggestion:
+                  category === "Other" && item.protoCategorySuggestion
+                    ? {
+                        name: item.protoCategorySuggestion.name || "",
+                        description:
+                          item.protoCategorySuggestion.description || "",
+                      }
+                    : undefined,
               });
             }
           }

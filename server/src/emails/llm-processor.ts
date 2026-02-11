@@ -1049,14 +1049,15 @@ export class LLMProcessor implements OnModuleInit {
         try {
           tracker.startPhase("dataFetch");
 
-          // Fetch all emails and user context in parallel
-          const [emailResults, contexts] = await Promise.all([
+          // Fetch all emails, user context, and proto categories in parallel
+          const [emailResults, contexts, protoCategories] = await Promise.all([
             Promise.all(
               emailIds.map((emailId) =>
                 this.emailsService.getEmailById(userId, emailId),
               ),
             ),
             this.priorityCacheService.getUserContexts(userId),
+            this.protoCategoriesService.findActiveByUser(userId),
           ]);
 
           // Filter out nulls and emails that already have valid priority
@@ -1119,6 +1120,10 @@ export class LLMProcessor implements OnModuleInit {
                       : undefined,
                 };
               }),
+            protoCategories: protoCategories.map((pc) => ({
+              name: pc.name,
+              description: pc.description || undefined,
+            })),
           };
 
           // Prepare batch emails for LLM
@@ -1216,6 +1221,10 @@ export class LLMProcessor implements OnModuleInit {
       goalAlignmentExplanation: string;
       category: string;
       categoryExplanation: string;
+      protoCategorySuggestion?: {
+        name: string;
+        description: string;
+      };
     },
     contexts: Array<{ contextKey: string; contextValue: string }>,
     userId: string,
@@ -1390,6 +1399,61 @@ export class LLMProcessor implements OnModuleInit {
           ? llmResult.urgencyExplanation
           : thread.urgencyExplanation;
 
+      let finalCategory = llmResult.category || thread.category || null;
+      let protoCategoryId: string | null =
+        finalCategory === "Other" ? (thread.protoCategoryId ?? null) : null;
+
+      if (
+        llmResult.category === "Other" &&
+        llmResult.protoCategorySuggestion?.name
+      ) {
+        try {
+          const existingProtoCategory =
+            await this.protoCategoriesService.findMatchingProtoCategory(
+              userId,
+              llmResult.protoCategorySuggestion.name,
+            );
+
+          if (existingProtoCategory) {
+            const updatedProtoCategory =
+              await this.protoCategoriesService.assignThreadToProtoCategory(
+                existingProtoCategory.id,
+                email.emailThreadId,
+              );
+
+            if (updatedProtoCategory.isPromoted) {
+              finalCategory = updatedProtoCategory.name;
+              this.logger.log(
+                `[Worker ${workerId}] Proto category "${updatedProtoCategory.name}" was promoted to real category`,
+              );
+            } else {
+              protoCategoryId = updatedProtoCategory.id;
+              this.logger.log(
+                `[Worker ${workerId}] Assigned thread to existing proto category "${updatedProtoCategory.name}" (count: ${updatedProtoCategory.emailCount})`,
+              );
+            }
+          } else {
+            const newProtoCategory =
+              await this.protoCategoriesService.createAndAssignToThread(
+                userId,
+                llmResult.protoCategorySuggestion.name,
+                llmResult.protoCategorySuggestion.description || null,
+                email.emailThreadId,
+              );
+
+            protoCategoryId = newProtoCategory.id;
+            this.logger.log(
+              `[Worker ${workerId}] Created new proto category "${newProtoCategory.name}"`,
+            );
+          }
+        } catch (protoCategoryError) {
+          this.logger.warn(
+            `[Worker ${workerId}] Failed to process proto category for email ${email.id}:`,
+            protoCategoryError,
+          );
+        }
+      }
+
       await this.emailThreadRepository.update(
         { id: email.emailThreadId },
         {
@@ -1398,9 +1462,10 @@ export class LLMProcessor implements OnModuleInit {
             newUrgencyExplanation || thread.urgencyExplanation,
           priorityExplanation,
           priorityScore: finalScore,
-          category: llmResult.category || thread.category || null,
+          category: finalCategory,
           categoryExplanation:
             llmResult.categoryExplanation || thread.categoryExplanation || null,
+          protoCategoryId,
           isProcessingPriority: false,
         },
       );

@@ -22,19 +22,26 @@ export const DISPLAY_CONSTANTS = {
 } as const;
 
 // Resource monitor constants for byte conversions
+const BYTES_PER_KB = 1024;
 export const BYTE_CONVERSIONS = {
   // Bytes per kilobyte
-  KB: 1024,
+  KB: BYTES_PER_KB,
   // Bytes per megabyte
-  MB: 1024 * 1024,
+  MB: BYTES_PER_KB * BYTES_PER_KB,
   // Bytes per gigabyte
-  GB: 1024 * 1024 * 1024,
+  GB: BYTES_PER_KB * BYTES_PER_KB * BYTES_PER_KB,
 } as const;
 
 // HTTP status codes
 export const HTTP_STATUS = {
   // Rate limit exceeded
   TOO_MANY_REQUESTS: 429,
+} as const;
+
+// Retry/polling constants
+export const RETRY_CONSTANTS = {
+  // Delay in seconds before retrying a failed finalization job
+  FINALIZATION_RETRY_DELAY_SECONDS: 10,
 } as const;
 
 // Priority learning thresholds

@@ -11,7 +11,7 @@ import { EMOJI_ARCHIVE, EMOJI_REPLY, EMOJI_FORWARD, EMOJI_BLOCK, EMOJI_LINK, EMO
 import { extractUnsubscribeLink } from 'utils/unsubscribeUtils';
 import { API_URL } from 'config/api';
 import { captureEvent } from 'utils/posthog';
-import { OPACITY_DISABLED } from 'constants/numbers';
+import { OPACITY_DISABLED, MESSAGE_ID_PREVIEW_LENGTH } from 'constants/numbers';
 import { useAuth } from 'contexts/AuthContext';
 
 interface Email {
@@ -557,7 +557,7 @@ export const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
                             <div style={{ marginTop: theme.spacing.xs }}>
                               {gmailStarStatus.gmailStarStatus.messageStarStatuses.map((msg: any, idx: number) => (
                                 <div key={idx} style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs, fontSize: theme.typography.fontSize.xs }}>
-                                  [{msg.messageIndex}] Message ID: {msg.messageId.substring(0, 20)}... | Starred: {msg.isStarred ? '✓' : '✗'} | Labels: {JSON.stringify(msg.labelIds)}
+                                  [{msg.messageIndex}] Message ID: {msg.messageId.substring(0, MESSAGE_ID_PREVIEW_LENGTH)}... | Starred: {msg.isStarred ? '✓' : '✗'} | Labels: {JSON.stringify(msg.labelIds)}
                                 </div>
                               ))}
                             </div>

@@ -17,8 +17,7 @@ export function createTypeOrmConfig(
   const dbHost = configService.get<string>("DB_HOST");
   const isLocal = dbHost === "localhost" || dbHost === "127.0.0.1";
   const sslEnabled = configService.get<string>("DB_SSL") === "true";
-  const useSsl =
-    !isLocal || sslEnabled ? { rejectUnauthorized: false } : false;
+  const useSsl = !isLocal || sslEnabled ? { rejectUnauthorized: false } : false;
 
   return {
     type: "postgres",

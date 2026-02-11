@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { TokenUsage } from "../database/entities/token-usage.entity";
 import { LLMOperation, LLM_OP_UNKNOWN } from "./llm-operations";
+import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
 
 export interface TokenUsageLogData {
   userId?: string | null;
@@ -326,7 +327,7 @@ export class TokenUsageService {
       .addSelect("SUM(tu.totalTokens)::int", "totalTokens")
       .groupBy("DATE(tu.createdAt)")
       .orderBy("DATE(tu.createdAt)", "DESC")
-      .limit(30); // Last 30 days
+      .limit(CONTEXT_ANALYSIS.TOKEN_USAGE_DAYS); // Last 30 days
 
     if (options.startDate && options.endDate) {
       queryBuilder.where("tu.createdAt BETWEEN :startDate AND :endDate", {
@@ -381,12 +382,10 @@ export class TokenUsageService {
       .addSelect("SUM(tu.totalTokens)::int", "totalTokensUsed")
       .addSelect("MIN(tu.createdAt)", "firstProcessed")
       .addSelect("MAX(tu.createdAt)", "lastProcessed")
-      .innerJoin(
-        "jsonb_array_elements_text(tu.emailIds)",
-        "email_id",
-        "true",
-      )
-      .where("tu.operation = :operation", { operation: "summarize_email_batch" })
+      .innerJoin("jsonb_array_elements_text(tu.emailIds)", "email_id", "true")
+      .where("tu.operation = :operation", {
+        operation: "summarize_email_batch",
+      })
       .orWhere("tu.operation = :singleOp", { singleOp: "summarize_email" })
       .groupBy("email_id.value")
       .having("COUNT(*) > 1")

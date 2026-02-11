@@ -1,4 +1,5 @@
 import { isApiError, ApiError } from "../types/common";
+import { HTTP_STATUS } from "../constants/http-status";
 
 /**
  * Classifies errors and generates user-friendly error messages
@@ -20,15 +21,15 @@ export function classifyContextAnalysisError(error: unknown): string {
     }
 
     // Rate limit errors (429)
-    if (status === 429 || status === "429") {
+    if (status === HTTP_STATUS.TOO_MANY_REQUESTS || status === "429") {
       return "Too many requests. Please try again in a few minutes.";
     }
 
     // Server errors (502, 503, 504) - Gmail API temporarily unavailable
     if (
-      status === 502 ||
-      status === 503 ||
-      status === 504 ||
+      status === HTTP_STATUS.BAD_GATEWAY ||
+      status === HTTP_STATUS.SERVICE_UNAVAILABLE ||
+      status === HTTP_STATUS.GATEWAY_TIMEOUT ||
       status === "502" ||
       status === "503" ||
       status === "504"

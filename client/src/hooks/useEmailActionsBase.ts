@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { DEFAULT_PRIORITY_SCORE } from 'constants/numbers';
+import { DEFAULT_PRIORITY_SCORE, PRIORITY_MEDIUM_THRESHOLD } from 'constants/numbers';
 import axios from 'axios';
 import { Email, getEmailPriorityScore } from 'types/email';
 import { API_URL } from 'config/api';
@@ -115,7 +115,7 @@ export function useEmailActionsBase({
 
     // Check if email is unread and has priority > 20 - if so, show priority override modal
     const priorityScore = getEmailPriorityScore(emailToArchive);
-    if (!emailToArchive.isRead && priorityScore > 20 && onShowPriorityOverride) {
+    if (!emailToArchive.isRead && priorityScore > PRIORITY_MEDIUM_THRESHOLD && onShowPriorityOverride) {
       // Show priority override modal with archive context - user will archive after submitting
       onShowPriorityOverride(emailId, priorityScore, 0, 'archive'); // 0 = low priority (archiving)
       return;

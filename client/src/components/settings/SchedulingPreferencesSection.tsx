@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
+import { SCHEDULING_GAP_15_MIN, SCHEDULING_GAP_45_MIN, SAVE_CONFIRMATION_DURATION_MS, HOURS_12_HOUR_FORMAT, DAYS_IN_MONTH_30 } from 'constants/numbers';
 import { API_URL } from 'config/api';
 import { EMOJI_CALENDAR } from 'constants/emojis';
 
@@ -21,11 +22,11 @@ const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => i);
 
-const GAP_OPTIONS = [0, 15, 30, 45, 60];
+const GAP_OPTIONS = [0, SCHEDULING_GAP_15_MIN, DAYS_IN_MONTH_30, SCHEDULING_GAP_45_MIN, 60];
 
 const DEEP_WORK_OPTIONS = [0, 1, 2, 3, 4];
 
-const SLOT_DURATION_OPTIONS = [15, 30, 45, 60];
+const SLOT_DURATION_OPTIONS = [SCHEDULING_GAP_15_MIN, DAYS_IN_MONTH_30, SCHEDULING_GAP_45_MIN, 60];
 
 const TIMEZONE_OPTIONS: string[] = (() => {
   try {
@@ -100,7 +101,7 @@ export const SchedulingPreferencesSection: React.FC = () => {
         setPrefs(res.data);
         latestPrefs.current = res.data;
         setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
+        setTimeout(() => setSaved(false), SAVE_CONFIRMATION_DURATION_MS);
       } catch {
         console.error('Failed to save scheduling preferences');
       } finally {
@@ -118,9 +119,9 @@ export const SchedulingPreferencesSection: React.FC = () => {
 
   const formatHour = (hour: number): string => {
     if (hour === 0) return '12 AM';
-    if (hour < 12) return `${hour} AM`;
-    if (hour === 12) return '12 PM';
-    return `${hour - 12} PM`;
+    if (hour < HOURS_12_HOUR_FORMAT) return `${hour} AM`;
+    if (hour === HOURS_12_HOUR_FORMAT) return '12 PM';
+    return `${hour - HOURS_12_HOUR_FORMAT} PM`;
   };
 
   const labelStyle: React.CSSProperties = {

@@ -6,7 +6,7 @@ import { humanizeTimestamp } from 'utils/dateUtils';
 import { getCorrespondent } from 'utils/emailUtils';
 import { Email, getEmailPriorityScore } from 'types/email';
 import { EMOJI_EMAIL, EMOJI_USER, EMOJI_GOAL, EMOJI_SETTINGS, EMOJI_POSITIVE, EMOJI_NEGATIVE, EMOJI_NEUTRAL } from 'constants/emojis';
-import { PRIORITY_HIGH_THRESHOLD, PRIORITY_MEDIUM_THRESHOLD } from 'constants/numbers';
+import { PRIORITY_HIGH_THRESHOLD, PRIORITY_MEDIUM_THRESHOLD, SAVE_CONFIRMATION_DURATION_MS } from 'constants/numbers';
 import { useAuth } from 'contexts/AuthContext';
 
 interface PriorityExplanation {
@@ -50,7 +50,7 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
     try {
       await navigator.clipboard.writeText(correspondent.email);
       setEmailCopied(true);
-      setTimeout(() => setEmailCopied(false), 2000);
+      setTimeout(() => setEmailCopied(false), SAVE_CONFIRMATION_DURATION_MS);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('Failed to copy email:', err);
@@ -260,8 +260,8 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
                   <strong style={{ color: theme.colors.text.primary }}>
                     {(() => {
                       // New calibration: < 0 = very low, 0-20 = low, 20-40 = medium, > 40 = high
-                      if (priorityExplanation.score > 40) return t('priority.high');
-                      if (priorityExplanation.score >= 20) return t('priority.medium');
+                      if (priorityExplanation.score > PRIORITY_HIGH_THRESHOLD) return t('priority.high');
+                      if (priorityExplanation.score >= PRIORITY_MEDIUM_THRESHOLD) return t('priority.medium');
                       if (priorityExplanation.score >= 0) return t('priority.low');
                       return t('priority.veryLow');
                     })()} {t('emailDetail.priorityBecause')}:

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { theme } from 'theme/theme';
+import { EXIT_ANIMATION_DURATION_MS } from 'constants/numbers';
 import { Notification } from 'contexts/NotificationContext';
 
 interface NotificationToastProps {
@@ -22,7 +23,7 @@ export const NotificationToast: React.FC<NotificationToastProps> = ({
     if (notification.duration && notification.duration > 0) {
       const timer = setTimeout(() => {
         setIsExiting(true);
-        setTimeout(onClose, 300); // Wait for exit animation
+        setTimeout(onClose, EXIT_ANIMATION_DURATION_MS); // Wait for exit animation
       }, notification.duration);
 
       return () => clearTimeout(timer);
@@ -31,7 +32,7 @@ export const NotificationToast: React.FC<NotificationToastProps> = ({
 
   const handleClose = () => {
     setIsExiting(true);
-    setTimeout(onClose, 300);
+    setTimeout(onClose, EXIT_ANIMATION_DURATION_MS);
   };
 
   const getBackgroundColor = (): string => {

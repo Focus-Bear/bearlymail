@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { ANALYSIS_RECENT_INSIGHTS_COUNT } from 'constants/numbers';
 import { AnalyzeProgress } from 'hooks/useSettingsData';
 import { EMOJI_WARNING } from 'constants/emojis';
 
@@ -140,7 +141,7 @@ export const AnalysisProgressModal: React.FC<AnalysisProgressModalProps> = ({
                         flexDirection: 'column', 
                         gap: theme.spacing.xs,
                       }}>
-                        {analyzeProgress.progress.insights.slice(-7).reverse().map((insight, index) => (
+                        {analyzeProgress.progress.insights.slice(-ANALYSIS_RECENT_INSIGHTS_COUNT).reverse().map((insight, index) => (
                           <div 
                             key={index}
                             style={{
@@ -148,7 +149,7 @@ export const AnalysisProgressModal: React.FC<AnalysisProgressModalProps> = ({
                               color: theme.colors.text.secondary,
                               lineHeight: 1.4,
                               padding: `${theme.spacing.xs} 0`,
-                              borderBottom: index < analyzeProgress.progress.insights!.slice(-7).reverse().length - 1 
+                              borderBottom: index < analyzeProgress.progress.insights!.slice(-ANALYSIS_RECENT_INSIGHTS_COUNT).reverse().length - 1 
                                 ? `1px solid ${theme.colors.border.light}` 
                                 : 'none',
                             }}

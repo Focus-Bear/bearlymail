@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { OPACITY_DISABLED_ALT } from 'constants/numbers';
 import { AutoResponderConfig, QueueStats } from './types';
 
 interface AutoResponderTemplateEditorProps {
@@ -315,7 +316,7 @@ export const AutoResponderTemplateEditor: React.FC<AutoResponderTemplateEditorPr
                       border: 'none',
                       borderRadius: theme.borderRadius.sm,
                       cursor: isSaving ? 'not-allowed' : 'pointer',
-                      opacity: isSaving ? 0.7 : 1,
+                      opacity: isSaving ? OPACITY_DISABLED_ALT : 1,
                       ...theme.typography.body.medium,
                       fontWeight: theme.typography.fontWeight.medium,
                     }}

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
+import { OPACITY_DISABLED } from 'constants/numbers';
 import { Email, getEmailPriorityScore } from 'types/email';
 
 interface CategoryAccordionProps {
@@ -194,7 +195,7 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 gap: theme.spacing.xs,
-                opacity: isReanalysingOther ? 0.6 : 1,
+                opacity: isReanalysingOther ? OPACITY_DISABLED : 1,
               }}
               title={t('inbox.category.reanalyseCategories')}
             >

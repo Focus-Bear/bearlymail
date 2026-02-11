@@ -1,6 +1,7 @@
 import { Logger } from "@nestjs/common";
 import { AxiosInstance } from "axios";
 import { isApiError } from "../../../types/common";
+import { QUERY_LIMITS } from "../../../constants/query-limits";
 
 const logger = new Logger("Office365Operations");
 
@@ -187,7 +188,7 @@ export async function sendEmailViaOffice365(
   });
 
   // Microsoft Graph doesn't return messageId directly, so we'll use a generated one
-  const messageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const messageId = `msg-${Date.now()}-${Math.random().toString(QUERY_LIMITS.RANDOM_BASE_36).substr(QUERY_LIMITS.RANDOM_STRING_START, QUERY_LIMITS.RANDOM_STRING_LENGTH)}`;
   const threadId = messageId; // Microsoft uses conversationId, but we'll use messageId as fallback
 
   return { messageId, threadId };

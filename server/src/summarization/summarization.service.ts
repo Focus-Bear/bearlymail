@@ -8,6 +8,7 @@ import {
   cleanEmailContent,
   cleanEmailForThread,
 } from "../llm/email-content-cleaner";
+import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
 
 export interface SummarizationRule {
   type: "bullet-points" | "action-items" | "sender-request" | "tldr" | "custom";
@@ -67,7 +68,9 @@ export class SummarizationService {
     } else {
       // First email + last 3 (skip middle ones)
       const firstEmail = allThreadEmails[0];
-      const last3Emails = allThreadEmails.slice(-3);
+      const last3Emails = allThreadEmails.slice(
+        CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE,
+      );
       messagesToSummarize = [firstEmail, ...last3Emails];
     }
 
@@ -214,7 +217,9 @@ export class SummarizationService {
         messagesToSummarize = allThreadEmails;
       } else {
         const firstEmail = allThreadEmails[0];
-        const last3Emails = allThreadEmails.slice(-3);
+        const last3Emails = allThreadEmails.slice(
+          CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE,
+        );
         messagesToSummarize = [firstEmail, ...last3Emails];
       }
 
@@ -381,9 +386,7 @@ export class SummarizationService {
       }
 
       // Check for keyword matches in the rule (simple fast matching)
-      const keywords = whenToUseLower
-        .split(/\s+/)
-        .filter((w) => w.length > 3);
+      const keywords = whenToUseLower.split(/\s+/).filter((w) => w.length > 3);
       for (const keyword of keywords) {
         if (subjectLower.includes(keyword) || fromLower.includes(keyword)) {
           return rule;

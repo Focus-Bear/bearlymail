@@ -5,6 +5,7 @@ import {
   PutMetricDataCommand,
   StandardUnit,
 } from "@aws-sdk/client-cloudwatch";
+import { QUERY_LIMITS } from "../constants/query-limits";
 
 @Injectable()
 export class CloudWatchService {
@@ -141,7 +142,7 @@ export class CloudWatchService {
       // Add any additional metadata as dimensions (limited to 30 dimensions per metric)
       if (metadata) {
         Object.entries(metadata)
-          .slice(0, 8) // Leave room for the required dimensions
+          .slice(0, QUERY_LIMITS.CLOUDWATCH_MAX_DIMENSIONS) // Leave room for the required dimensions
           .forEach(([key, value]) => {
             if (value) {
               dimensions.push({ Name: key, Value: value });

@@ -11,6 +11,8 @@ import { EmailThread } from "../database/entities/email-thread.entity";
 import { getErrorMessage } from "../types/common";
 import { LLMService } from "../llm/llm.service";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
+import { QUERY_LIMITS } from "../constants/query-limits";
+import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
 import { getJobPriority } from "../queue/job-priorities";
 import PgBoss = require("pg-boss");
 
@@ -208,7 +210,7 @@ export class ContextCategoryService {
         "email.body",
       ])
       .orderBy("email.receivedAt", "DESC")
-      .limit(50)
+      .limit(QUERY_LIMITS.PROVIDER_BATCH_SIZE)
       .getMany();
 
     this.logger.log(
@@ -250,7 +252,11 @@ export class ContextCategoryService {
         from: e.from || "",
         fromName: e.fromName,
         subject: e.subject || "",
-        body: cleanEmailContent(e.body, null, 300),
+        body: cleanEmailContent(
+          e.body,
+          null,
+          BODY_PREVIEW_LENGTHS.BATCH_PREVIEW,
+        ),
       })),
       existingCategories,
       undefined,

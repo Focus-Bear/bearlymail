@@ -128,7 +128,7 @@ export const BlockedKeywordsSection: React.FC<BlockedKeywordsSectionProps> = ({
             borderRadius: theme.borderRadius.md,
             cursor: newKeyword.trim() && !isAdding ? 'pointer' : 'not-allowed',
             fontSize: theme.typography.fontSize.sm,
-            opacity: newKeyword.trim() && !isAdding ? 1 : 0.5,
+            opacity: newKeyword.trim() && !isAdding ? 1 : OPACITY_HALF,
           }}
         >
           {isAdding ? t('common.saving') : t('settings.blockedKeywords.addKeyword')}

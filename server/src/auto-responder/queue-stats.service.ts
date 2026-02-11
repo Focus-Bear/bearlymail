@@ -7,6 +7,8 @@ import { AutoResponseLog } from "../database/entities/auto-response-log.entity";
 import { QueueStats, CategoryReplyTime } from "./types/auto-responder.types";
 import { DISPLAY_LIMITS, STATS_CONFIG } from "./auto-responder-constants";
 import { LEARNING_THRESHOLDS } from "../constants/service-constants";
+import { RATIOS } from "../constants/percentages";
+import { DAYS } from "../constants/time-constants";
 
 // Default response times when no data is available (calculated from typical patterns)
 const DEFAULT_RESPONSE_TIMES = {
@@ -232,15 +234,15 @@ export class QueueStatsService {
     }
 
     const days = hours / 24;
-    if (days < 1.5) {
+    if (days < RATIOS.ONE_POINT_FIVE) {
       return "~1 day";
     }
-    if (days < 7) {
+    if (days < DAYS.WEEK) {
       return `~${Math.round(days)} days`;
     }
 
-    const weeks = days / 7;
-    if (weeks < 1.5) {
+    const weeks = days / DAYS.WEEK;
+    if (weeks < RATIOS.ONE_POINT_FIVE) {
       return "~1 week";
     }
     return `~${Math.round(weeks)} weeks`;

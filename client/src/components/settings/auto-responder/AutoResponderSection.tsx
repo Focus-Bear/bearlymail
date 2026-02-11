@@ -1,5 +1,6 @@
 import React from 'react';
 import { theme } from 'theme/theme';
+import { OPACITY_DISABLED_ALT } from 'constants/numbers';
 import { AutoResponderHeader } from './AutoResponderHeader';
 import { AutoResponderToggle } from './AutoResponderToggle';
 import { AutoResponderExclusionSettings } from './AutoResponderExclusionSettings';
@@ -48,7 +49,7 @@ export const AutoResponderSection: React.FC<AutoResponderSectionProps> = ({
         padding: theme.spacing.xl,
         marginBottom: theme.spacing.lg,
         boxShadow: theme.shadows.md,
-        opacity: loading ? 0.7 : 1,
+        opacity: loading ? OPACITY_DISABLED_ALT : 1,
         pointerEvents: loading ? 'none' : 'auto',
       }}
     >

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
+import { PRIORITY_MEDIUM_THRESHOLD } from 'constants/numbers';
 import { ModalBackdrop, ModalContent, ModalHeader, ModalFooter } from 'components/modal';
 import { ReasonTypeSelector } from 'components/priority/override/ReasonTypeSelector';
 import { OverrideReasonType } from 'components/priority/types';
@@ -30,7 +31,7 @@ export const PriorityOverrideModal: React.FC<PriorityOverrideModalProps> = ({
   const [reasonText, setReasonText] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const isHighPriority = originalPriorityScore > 20;
+  const isHighPriority = originalPriorityScore > PRIORITY_MEDIUM_THRESHOLD;
   const priorityLabel = isHighPriority 
     ? t('priority.high') 
     : originalPriorityScore >= 0 

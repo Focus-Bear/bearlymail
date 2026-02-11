@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Editor } from '@tiptap/react';
 import { theme } from 'theme/theme';
+import { FONT_WEIGHT_BOLD_INLINE, FONT_WEIGHT_NORMAL_INLINE, OPACITY_HALF } from 'constants/numbers';
 import { EmojiPicker } from 'components/rich-text/EmojiPicker';
 
 interface RichTextToolbarProps {
@@ -53,9 +54,9 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({
         color: isActive ? theme.colors.primary.main : theme.colors.text.secondary,
         cursor: disabled ? 'not-allowed' : 'pointer',
         fontSize: '14px',
-        fontWeight: isActive ? 700 : 400,
+        fontWeight: isActive ? FONT_WEIGHT_BOLD_INLINE : FONT_WEIGHT_NORMAL_INLINE,
         transition: theme.transitions.fast,
-        opacity: disabled ? 0.5 : 1,
+        opacity: disabled ? OPACITY_HALF : 1,
       }}
     >
       {children}

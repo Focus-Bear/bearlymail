@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 import axios from 'axios';
 
 import { API_URL } from 'config/api';
+import { NUMBER_FORMAT_MILLION, OPACITY_DISABLED_ALT, REFRESH_INTERVAL_30_SEC_MS, DAYS_IN_MONTH_30 } from 'constants/numbers';
 
 interface UsageByOperation {
   operation: string;
@@ -36,7 +37,7 @@ interface PromptExample {
 
 type DateRange = '24h' | '7d' | '30d' | 'all';
 
-const REFRESH_INTERVAL_MS = 30000;
+const REFRESH_INTERVAL_MS = REFRESH_INTERVAL_30_SEC_MS;
 
 const OPERATION_LABELS: Record<string, string> = {
   analyze_email_patterns: 'Analyze Email Patterns',
@@ -76,7 +77,7 @@ export const TokenUsageSection: React.FC = () => {
       case '7d':
         return { startDate: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString() };
       case '30d':
-        return { startDate: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString() };
+        return { startDate: new Date(now.getTime() - DAYS_IN_MONTH_30 * 24 * 60 * 60 * 1000).toISOString() };
       case 'all':
       default:
         return {};
@@ -141,8 +142,8 @@ export const TokenUsageSection: React.FC = () => {
   }, [dateRange, fetchUsageData, fetchExamples]);
 
   const formatNumber = (num: number): string => {
-    if (num >= 1000000) {
-      return `${(num / 1000000).toFixed(2)}M`;
+    if (num >= NUMBER_FORMAT_MILLION) {
+      return `${(num / NUMBER_FORMAT_MILLION).toFixed(2)}M`;
     }
     if (num >= 1000) {
       return `${(num / 1000).toFixed(1)}K`;
@@ -472,7 +473,7 @@ export const TokenUsageSection: React.FC = () => {
               cursor: examples.length === 0 ? 'not-allowed' : 'pointer',
               fontSize: theme.typography.fontSize.sm,
               fontWeight: theme.typography.fontWeight.medium,
-              opacity: resetting ? 0.7 : 1,
+              opacity: resetting ? OPACITY_DISABLED_ALT : 1,
             }}
           >
             {resetting ? t('admin.tokenUsage.examples.resetting') : t('admin.tokenUsage.examples.resetButton')}

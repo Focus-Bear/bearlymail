@@ -22,6 +22,7 @@ import { EmailThreadView } from 'components/email-detail/EmailThreadView';
 import { CustomRuleModal } from 'components/email-detail/CustomRuleModal';
 import { Email } from 'types/email';
 import { ACTION_TYPE_CUSTOM, SUMMARY_TYPE_CUSTOM, SUMMARY_TYPE_CUSTOM_PREFIX } from 'constants/strings';
+import { AUTO_SAVE_INTERVAL_MS } from 'constants/numbers';
 
 interface EmailDetailProps {
   emailId?: string;
@@ -310,7 +311,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
       if (draft && draft.trim()) {
         saveDraft(draft, replyMode, replyRecipients);
       }
-    }, 10000);
+    }, AUTO_SAVE_INTERVAL_MS);
 
     return () => {
       clearInterval(autoSaveInterval);

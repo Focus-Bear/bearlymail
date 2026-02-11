@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
+import { OPACITY_HALF, OPACITY_DISABLED_ALT } from 'constants/numbers';
 import { useAuth } from 'contexts/AuthContext';
 import { API_URL } from 'config/api';
 import { captureEvent } from 'utils/posthog';
@@ -183,7 +184,7 @@ export const AccountDeletionSection: React.FC = () => {
                 cursor: isDeleting ? 'not-allowed' : 'pointer',
                 fontSize: theme.typography.fontSize.base,
                 fontWeight: theme.typography.fontWeight.medium,
-                opacity: isDeleting ? 0.5 : 1,
+                opacity: isDeleting ? OPACITY_HALF : 1,
               }}
             >
               {t('common.cancel')}
@@ -200,7 +201,7 @@ export const AccountDeletionSection: React.FC = () => {
                 cursor: isConfirmationValid && !isDeleting ? 'pointer' : 'not-allowed',
                 fontSize: theme.typography.fontSize.base,
                 fontWeight: theme.typography.fontWeight.medium,
-                opacity: isDeleting ? 0.7 : 1,
+                opacity: isDeleting ? OPACITY_DISABLED_ALT : 1,
               }}
             >
               {isDeleting

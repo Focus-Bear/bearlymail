@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { OPACITY_HALF } from 'constants/numbers';
 
 interface AutoResponderExclusionSettingsProps {
   customExclusionRules: string[];
@@ -202,7 +203,7 @@ export const AutoResponderExclusionSettings: React.FC<AutoResponderExclusionSett
                 border: 'none',
                 borderRadius: theme.borderRadius.md,
                 cursor: newRule.trim() ? 'pointer' : 'not-allowed',
-                opacity: newRule.trim() ? 1 : 0.5,
+                opacity: newRule.trim() ? 1 : OPACITY_HALF,
               }}
             >
               {t('common.add')}

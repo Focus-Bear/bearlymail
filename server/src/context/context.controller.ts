@@ -12,6 +12,7 @@ import {
   Logger,
   Query,
 } from "@nestjs/common";
+import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
 import { ContextService } from "./context.service";
 import {
   UserContext,
@@ -123,7 +124,10 @@ export class ContextController {
         if (fetchedGeneral !== undefined || fetchedSent !== undefined) {
           // Show progress based on what's been fetched (target: 300 general + 150 sent = 450 threads)
           const totalFetched = (fetchedGeneral || 0) + (fetchedSent || 0);
-          const fetchPercent = Math.min((totalFetched / 450) * 10, 10); // 0-10% range
+          const fetchPercent = Math.min(
+            (totalFetched / CONTEXT_ANALYSIS.CONTEXT_TIMEOUT_SECONDS) * 10,
+            10,
+          ); // 0-10% range
           percent = Math.max(1, Math.floor(fetchPercent)); // Minimum 1% to show progress, never 0%
         } else {
           percent = 1; // Minimum 1% while starting (not 0% or 5%)
@@ -136,7 +140,7 @@ export class ContextController {
         completedBatches > 0
       ) {
         // All batches complete but analysis not finished - summarizing stage (70-99%)
-        percent = 85; // Show 85% while finalizing
+        percent = CONTEXT_ANALYSIS.PROGRESS_THRESHOLD; // Show 85% while finalizing
         stage = "summarizing";
       } else {
         // Batches are processing - analyzing stage (10-70%)

@@ -20,6 +20,10 @@ import {
   SENTIMENT_THRESHOLDS,
   PRIORITY_SCORES,
 } from "../constants/priority-constants";
+import {
+  EMAIL_CLASSIFICATION,
+  SUGGESTED_REPLIES,
+} from "../constants/llm-constants";
 
 // Constants for LLM processing
 const LLM_PROCESSOR_CONSTANTS = {
@@ -428,7 +432,8 @@ export class LLMProcessor implements OnModuleInit {
           // Formula: (urgencyScore - 50) * 0.17 gives -5 for urgency 20 (a few days away)
           // This makes low urgency less negative while keeping high urgency impactful
           const urgencyContribution = Math.round(
-            (urgencyScore - LLM_PROCESSOR_CONSTANTS.URGENCY_NEUTRAL) * 0.17,
+            (urgencyScore - LLM_PROCESSOR_CONSTANTS.URGENCY_NEUTRAL) *
+              EMAIL_CLASSIFICATION.COST_PER_TOKEN,
           );
 
           // Calculate total score from components:
@@ -558,7 +563,7 @@ export class LLMProcessor implements OnModuleInit {
               ],
             },
             vipContact: {
-              score: matchedVip ? 25 : 0,
+              score: matchedVip ? SUGGESTED_REPLIES.REPLY_MAX_TOKENS : 0,
               reasons: matchedVip
                 ? [`VIP contact: ${matchedVip.contextValue}`]
                 : [],
@@ -1230,7 +1235,8 @@ export class LLMProcessor implements OnModuleInit {
     }
 
     const urgencyContribution = Math.round(
-      (urgencyScore - LLM_PROCESSOR_CONSTANTS.URGENCY_NEUTRAL) * 0.17,
+      (urgencyScore - LLM_PROCESSOR_CONSTANTS.URGENCY_NEUTRAL) *
+        EMAIL_CLASSIFICATION.COST_PER_TOKEN,
     );
 
     const goalAlignmentContribution = Math.round(
@@ -1338,7 +1344,7 @@ export class LLMProcessor implements OnModuleInit {
         ],
       },
       vipContact: {
-        score: matchedVip ? 25 : 0,
+        score: matchedVip ? SUGGESTED_REPLIES.REPLY_MAX_TOKENS : 0,
         reasons: matchedVip ? [`VIP contact: ${matchedVip.contextValue}`] : [],
       },
       sentiment: {

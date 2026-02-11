@@ -333,10 +333,12 @@ export class EmailSearchService {
           const recency30D = PRIORITY_BOOSTS.RECENCY_30D;
           // Stronger penalties for old emails in time-sensitive queries
           const recency30DPenalty = isTimeSensitive
-            ? PRIORITY_BOOSTS.RECENCY_30D_PENALTY * 1.5 // 50% stronger penalty
+            ? PRIORITY_BOOSTS.RECENCY_30D_PENALTY *
+              QUERY_LIMITS.SEARCH_RELEVANCE_MULTIPLIER // 50% stronger penalty
             : PRIORITY_BOOSTS.RECENCY_30D_PENALTY;
           const recency60DPenalty = isTimeSensitive
-            ? PRIORITY_BOOSTS.RECENCY_60D_PENALTY * 1.5 // 50% stronger penalty
+            ? PRIORITY_BOOSTS.RECENCY_60D_PENALTY *
+              QUERY_LIMITS.SEARCH_RELEVANCE_MULTIPLIER // 50% stronger penalty
             : PRIORITY_BOOSTS.RECENCY_60D_PENALTY;
 
           const timeSensitivityNote = isTimeSensitive

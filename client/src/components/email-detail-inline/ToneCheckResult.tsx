@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { EMOJI_CHECK, EMOJI_WARNING } from 'constants/emojis';
+import { OPACITY_DISABLED } from 'constants/numbers';
 import { captureEvent } from 'utils/posthog';
 
 interface DisputeResult {
@@ -219,7 +220,7 @@ export const ToneCheckResult: React.FC<ToneCheckResultProps> = ({
                     borderRadius: theme.borderRadius.sm,
                     cursor: disputeArgument.trim() && !disputing ? 'pointer' : 'not-allowed',
                     fontSize: theme.typography.fontSize.sm,
-                    opacity: !disputeArgument.trim() || disputing ? 0.6 : 1,
+                    opacity: !disputeArgument.trim() || disputing ? OPACITY_DISABLED : 1,
                   }}
                 >
                   {disputing ? t('emailDetail.disputeSubmitting') : t('emailDetail.disputeSubmit')}

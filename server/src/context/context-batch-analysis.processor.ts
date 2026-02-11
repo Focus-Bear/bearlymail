@@ -576,7 +576,8 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
             const totalTimeSoFar =
               saveDuration + llmDuration + processDuration + fetchDuration;
 
-            const totalExceeded = totalTimeSoFar > PERFORMANCE_BUDGETS.BATCH_TOTAL;
+            const totalExceeded =
+              totalTimeSoFar > PERFORMANCE_BUDGETS.BATCH_TOTAL;
 
             // Emit CloudWatch metric for batch total
             this.cloudWatchService

@@ -501,7 +501,8 @@ export class EmailsService {
             })()
           : null,
         threadUpdatedAt: row.threadUpdatedAt,
-        category: EncryptionHelper.decrypt(row.category as string | null) || null,
+        category:
+          EncryptionHelper.decrypt(row.category as string | null) || null,
         categoryExplanation: row.categoryExplanation
           ? EncryptionHelper.decrypt(row.categoryExplanation as string)
           : null,

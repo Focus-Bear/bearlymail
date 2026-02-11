@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
+import { SHORT_TIMEOUT_MS } from 'constants/numbers';
 import { Email } from 'types/email';
 import { EMOJI_CALENDAR } from 'constants/emojis';
 import { API_URL } from 'config/api';
@@ -28,7 +29,7 @@ export const SchedulingRequestCard: React.FC<SchedulingRequestCardProps> = ({
       await navigator.clipboard.writeText(schedulingUrl);
       setLinkCopied(true);
       captureEvent('scheduling_link_copied', { email_id: email.id });
-      setTimeout(() => setLinkCopied(false), 2000);
+      setTimeout(() => setLinkCopied(false), SHORT_TIMEOUT_MS);
     } catch (err) {
       console.error('Failed to copy link:', err);
     }

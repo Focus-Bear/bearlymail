@@ -11,6 +11,7 @@ import {
 import PgBoss = require("pg-boss");
 import { getJobPriority } from "../../queue/job-priorities";
 import { QUERY_LIMITS } from "../../constants/query-limits";
+import { BODY_PREVIEW_LENGTHS } from "../../constants/llm-constants";
 import { DAYS } from "../../constants/time-constants";
 import { isApiError, isError } from "../../types/common";
 import { ZohoAccountsService } from "../../zoho-accounts/zoho-accounts.service";
@@ -396,7 +397,10 @@ export class ZohoProvider implements EmailProvider {
     zohoAccountId: string,
   ): Promise<void> {
     const threadsNeedingCheck =
-      await this.emailsService.getNonArchivedThreadsNeedingCheck(userId, 50);
+      await this.emailsService.getNonArchivedThreadsNeedingCheck(
+        userId,
+        QUERY_LIMITS.PROVIDER_BATCH_SIZE,
+      );
     const threadsToCheck = threadsNeedingCheck.filter(
       (id) => !threadMap.has(id),
     );
@@ -566,7 +570,10 @@ export class ZohoProvider implements EmailProvider {
       const filteredMessages = messages.filter(
         (msg: any) => msg.receivedTime >= sevenDaysAgoTimestamp,
       );
-      const total = Math.min(filteredMessages.length, 300);
+      const total = Math.min(
+        filteredMessages.length,
+        BODY_PREVIEW_LENGTHS.BATCH_PREVIEW,
+      );
 
       await this.usersService.update(userId, {
         scanTotal: total,

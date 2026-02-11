@@ -253,7 +253,7 @@ export class EmailThreadService {
       if (existingThread.lastUserOperationAt) {
         // Skip this update - user's action takes precedence
         this.logger.debug(
-          `Skipping sync update for thread ${update.threadId.substring(0, 8)}... - user operation at ${existingThread.lastUserOperationAt.toISOString()} takes precedence`,
+          `Skipping sync update for thread ${update.threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... - user operation at ${existingThread.lastUserOperationAt.toISOString()} takes precedence`,
         );
         return false;
       }

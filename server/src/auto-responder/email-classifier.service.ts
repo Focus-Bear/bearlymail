@@ -5,6 +5,7 @@ import { EmailClassification } from "./types/auto-responder.types";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { RATIOS } from "../constants/percentages";
 import { LLM_CONFIG } from "./auto-responder-constants";
+import { EMAIL_CLASSIFICATION } from "../constants/llm-constants";
 
 // LLM operation for email classification
 const LLM_OP_CLASSIFY_EMAIL = "classify_email_type";
@@ -185,7 +186,7 @@ export class EmailClassifierService {
 
     // Check for obvious cold outreach patterns in content
     const coldOutreachScore = this.detectColdOutreachPatterns(email.body);
-    if (coldOutreachScore > 0.7) {
+    if (coldOutreachScore > EMAIL_CLASSIFICATION.COLD_OUTREACH_HIGH) {
       reasons.push("Cold outreach patterns detected in content");
       return {
         isAutomated: false,
@@ -216,7 +217,8 @@ export class EmailClassifierService {
       return {
         isAutomated: false,
         isNewsletter: false,
-        isColdOutreach: coldOutreachScore > 0.5,
+        isColdOutreach:
+          coldOutreachScore > EMAIL_CLASSIFICATION.COLD_OUTREACH_MEDIUM,
         isReply: threadHasReplies || false,
         isOutOfOffice: false,
         isBounce: false,
@@ -329,7 +331,7 @@ export class EmailClassifierService {
     // Check for generic greetings
     for (const pattern of this.coldOutreachPatterns.greetings) {
       if (pattern.test(body)) {
-        score += 1.5;
+        score += EMAIL_CLASSIFICATION.GENERIC_GREETING_SCORE;
         indicators.push("generic greeting");
         break;
       }
@@ -352,10 +354,10 @@ export class EmailClassifierService {
       }
     }
     if (phraseMatches >= 2) {
-      score += 1.5;
+      score += EMAIL_CLASSIFICATION.GENERIC_GREETING_SCORE;
       indicators.push(`${phraseMatches} cold outreach phrases`);
     } else if (phraseMatches === 1) {
-      score += 0.5;
+      score += EMAIL_CLASSIFICATION.SINGLE_PHRASE_SCORE;
     }
 
     this.logger.debug(
@@ -453,7 +455,9 @@ export class EmailClassifierService {
           isReply: false,
           isOutOfOffice: parsed.isOutOfOffice || false,
           isBounce: false,
-          personalizationScore: parsed.personalizationScore || 0.5,
+          personalizationScore:
+            parsed.personalizationScore ||
+            EMAIL_CLASSIFICATION.DEFAULT_PERSONALIZATION,
           urgencyLevel: parsed.urgencyLevel || "medium",
           reasons: parsed.reasons || [],
         };

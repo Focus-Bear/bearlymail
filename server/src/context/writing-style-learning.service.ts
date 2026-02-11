@@ -4,6 +4,7 @@ import { Repository } from "typeorm";
 import { Email } from "../database/entities/email.entity";
 import { UsersService } from "../users/users.service";
 import { LLMService } from "../llm/llm.service";
+import { RATIOS } from "../constants/percentages";
 
 // Target number of email examples to collect
 const TARGET_EXAMPLE_COUNT = 20;
@@ -298,7 +299,7 @@ export class WritingStyleLearningService {
     const union = new Set([...words1, ...words2]);
 
     // If 60%+ word overlap, consider them similar
-    return intersection.length / union.size > 0.6;
+    return intersection.length / union.size > RATIOS.SIXTY_PERCENT;
   }
 
   /**

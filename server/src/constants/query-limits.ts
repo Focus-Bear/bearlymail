@@ -60,4 +60,23 @@ export const QUERY_LIMITS = {
   LLM_BATCH_EXPLANATION_BASE: 2000,
   LLM_BATCH_EXPLANATION_PER_EMAIL: 200,
   SUBJECT_WORDS_TOP_COUNT: 10,
+  // Gmail/provider API batch sizes
+  GMAIL_BATCH_SIZE: 50,
+  PROVIDER_BATCH_SIZE: 50,
+  // Email fetch limits for context analysis
+  CONTEXT_RECENT_EMAILS: 300,
+  CONTEXT_SENT_EMAILS: 150,
+  // Writing style sample size
+  WRITING_STYLE_SAMPLE: 20,
+  // Email address preview length for message IDs
+  MESSAGE_ID_LENGTH: 36,
+  MESSAGE_ID_SUFFIX: 15,
+  // Search relevance boost
+  SEARCH_RELEVANCE_MULTIPLIER: 1.5,
+  // CloudWatch dimensions limit
+  CLOUDWATCH_MAX_DIMENSIONS: 8,
+  // Random string generation
+  RANDOM_BASE_36: 36,
+  RANDOM_STRING_START: 2,
+  RANDOM_STRING_LENGTH: 9,
 } as const;

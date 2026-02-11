@@ -7,6 +7,8 @@ import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { ContextEmailDataService } from "./context-gmail-data.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { CloudWatchService } from "../aws/cloudwatch.service";
+import { QUERY_LIMITS } from "../constants/query-limits";
+import { DAYS } from "../constants/time-constants";
 
 // Check for learning opportunities every 30 minutes
 const LEARNING_CHECK_CRON = "*/30 * * * *";
@@ -59,7 +61,7 @@ export class WritingStyleLearningProcessor implements OnModuleInit {
             const exampleCount =
               await this.writingStyleLearningService.getExampleCount(user.id);
 
-            if (exampleCount >= 20) {
+            if (exampleCount >= QUERY_LIMITS.WRITING_STYLE_SAMPLE) {
               usersSkipped++;
               continue;
             }
@@ -75,7 +77,7 @@ export class WritingStyleLearningProcessor implements OnModuleInit {
 
             // Find recent sent emails (last 7 days) using the email provider
             const sevenDaysAgo = new Date();
-            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - DAYS.WEEK);
             const now = new Date();
 
             try {

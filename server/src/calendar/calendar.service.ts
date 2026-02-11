@@ -5,12 +5,24 @@ import { UsersService } from "../users/users.service";
 import { LLMService } from "../llm/llm.service";
 import { LLMProvider } from "../llm/llm.types";
 import { EmailsService } from "../emails/emails.service";
-import { HOURS } from "../constants/time-constants";
+import { MINUTES, HOURS } from "../constants/time-constants";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import {
   SchedulingPreferencesService,
   SchedulingPreferenceData,
 } from "../scheduling-preferences/scheduling-preferences.service";
+
+const ICAL_DATE_MIN_LENGTH = 8;
+const ICAL_YEAR_END = 4;
+const ICAL_MONTH_START = 4;
+const ICAL_MONTH_END = 6;
+const ICAL_DAY_START = 6;
+const ICAL_DAY_END = 8;
+const ICAL_HOUR_START = 9;
+const ICAL_HOUR_END = 11;
+const ICAL_MINUTE_START = 11;
+const ICAL_MINUTE_END = 13;
+const ICAL_DATE_WITH_HOURS_LENGTH = 10;
 
 export interface TimeSlot {
   start: string;
@@ -140,11 +152,11 @@ export class CalendarService {
     prefs?: SchedulingPreferenceData,
   ): TimeSlot[] {
     const slots: TimeSlot[] = [];
-    const slotDuration = prefs?.slotDurationMinutes || 30;
+    const slotDuration = prefs?.slotDurationMinutes || MINUTES.THIRTY;
     const startHour = prefs?.availabilityStartHour ?? HOURS.NINE;
     const endHour = prefs?.availabilityEndHour ?? HOURS.SEVENTEEN;
     const availDays = prefs?.availabilityDays ?? [1, 2, 3, 4, 5];
-    const gapMinutes = prefs?.meetingGapMinutes ?? 30;
+    const gapMinutes = prefs?.meetingGapMinutes ?? MINUTES.THIRTY;
     const deepWorkHours = prefs?.deepWorkHoursPerDay ?? 2;
     const tz = prefs?.timezone || "UTC";
     let current = this.alignToSlotBoundary(start, slotDuration);
@@ -496,13 +508,18 @@ export class CalendarService {
         try {
           // Parse iCal date format (YYYYMMDDTHHMMSS or YYYYMMDD)
           const dateStr = dtstartMatch[1].trim();
-          if (dateStr.length >= 8) {
-            const year = dateStr.substring(0, 4);
-            const month = dateStr.substring(4, 6);
-            const day = dateStr.substring(6, 8);
-            const hour = dateStr.length > 8 ? dateStr.substring(9, 11) : "00";
+          if (dateStr.length >= ICAL_DATE_MIN_LENGTH) {
+            const year = dateStr.substring(0, ICAL_YEAR_END);
+            const month = dateStr.substring(ICAL_MONTH_START, ICAL_MONTH_END);
+            const day = dateStr.substring(ICAL_DAY_START, ICAL_DAY_END);
+            const hour =
+              dateStr.length > ICAL_DATE_MIN_LENGTH
+                ? dateStr.substring(ICAL_HOUR_START, ICAL_HOUR_END)
+                : "00";
             const minute =
-              dateStr.length > 10 ? dateStr.substring(11, 13) : "00";
+              dateStr.length > ICAL_DATE_WITH_HOURS_LENGTH
+                ? dateStr.substring(ICAL_MINUTE_START, ICAL_MINUTE_END)
+                : "00";
             eventStart = new Date(
               `${year}-${month}-${day}T${hour}:${minute}:00`,
             );

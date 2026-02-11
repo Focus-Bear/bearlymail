@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { OPACITY_DISABLED_ALT } from 'constants/numbers';
 import { API_URL } from 'config/api';
 import { captureEvent } from 'utils/posthog';
 
@@ -238,7 +239,7 @@ export const DataExportSection: React.FC = () => {
             fontSize: theme.typography.fontSize.base,
             fontWeight: theme.typography.fontWeight.medium,
             transition: theme.transitions.default,
-            opacity: isExporting || isImporting ? 0.7 : 1,
+            opacity: isExporting || isImporting ? OPACITY_DISABLED_ALT : 1,
           }}
         >
           {isExporting ? t('settings.dataExport.exporting') : t('settings.dataExport.exportButton')}
@@ -274,7 +275,7 @@ export const DataExportSection: React.FC = () => {
             fontSize: theme.typography.fontSize.base,
             fontWeight: theme.typography.fontWeight.medium,
             transition: theme.transitions.default,
-            opacity: isExporting || isImporting ? 0.7 : 1,
+            opacity: isExporting || isImporting ? OPACITY_DISABLED_ALT : 1,
           }}
         >
           {isImporting ? t('settings.dataExport.importing') : t('settings.dataExport.importButton')}

@@ -9,6 +9,7 @@ import { UsersService } from "../users/users.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { CloudWatchService } from "../aws/cloudwatch.service";
+import { QUERY_LIMITS } from "../constants/query-limits";
 
 @Injectable()
 export class SuggestedRepliesProcessor implements OnModuleInit {
@@ -45,7 +46,7 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
         tracker.setMetadata({ userId, threadId, emailId });
 
         this.logger.log(
-          `[Worker ${workerId}] Starting suggested reply generation for thread ${threadId.substring(0, 8)}...`,
+          `[Worker ${workerId}] Starting suggested reply generation for thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}...`,
         );
 
         try {
@@ -98,7 +99,7 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
 
           if (userSentLast) {
             this.logger.log(
-              `[Worker ${workerId}] User sent last email - generating follow-up suggestion for thread ${threadId.substring(0, 8)}...`,
+              `[Worker ${workerId}] User sent last email - generating follow-up suggestion for thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}...`,
             );
 
             const threadEmails = await this.emailRepository.find({
@@ -168,7 +169,7 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
           tracker.finish();
 
           this.logger.log(
-            `[Worker ${workerId}] Generated ${options.length} suggested replies for thread ${threadId.substring(0, 8)}...`,
+            `[Worker ${workerId}] Generated ${options.length} suggested replies for thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}...`,
           );
         } catch (error) {
           this.logger.error(

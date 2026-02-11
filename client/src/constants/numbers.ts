@@ -46,6 +46,7 @@ export const URGENCY_LOW = 30;
 
 // Text truncation
 export const TEXT_TRUNCATE_LENGTH = 150;
+export const MESSAGE_ID_PREVIEW_LENGTH = 20;
 
 // Z-index values
 export const Z_INDEX_MODAL_OVERLAY = 10000;
@@ -140,6 +141,36 @@ export const SEARCH_RESULT_WIDTH_80_PX = 80;
 export const ISO_DATETIME_STRING_LENGTH = 16; // ISO datetime format length (YYYY-MM-DDTHH:mm)
 export const HOURS_12_HOUR_FORMAT = 12; // Used for 12-hour time format conversion
 export const PADDING_START_2 = 2; // Padding length for time formatting
+
+// Number formatting thresholds
+export const NUMBER_FORMAT_MILLION = 1000000;
+
+// Animation/transition durations
+export const EXIT_ANIMATION_DURATION_MS = 300;
+export const ERROR_NOTIFICATION_DURATION_MS = 6000;
+export const AUTO_SAVE_INTERVAL_MS = 10000;
+export const SAVE_CONFIRMATION_DURATION_MS = 2000;
+export const POLLING_DELAY_MS = 500;
+
+// Scheduling options
+export const SCHEDULING_GAP_15_MIN = 15;
+export const SCHEDULING_GAP_45_MIN = 45;
+
+// Font weight values for inline styles
+export const FONT_WEIGHT_BOLD_INLINE = 700;
+export const FONT_WEIGHT_NORMAL_INLINE = 400;
+
+// Date/time constants
+export const ANALYSIS_RECENT_INSIGHTS_COUNT = 7;
+export const CONTEXT_ANALYSIS_RECENT_COUNT = 5;
+export const MAX_RETRIES_POLLING = 30;
+export const HOURS_IN_TWO_DAYS = 48;
+export const DAYS_IN_MONTH_MAX = 31;
+export const STATS_PERIOD_14_DAYS = 14;
+export const CHART_BAR_MAX_WIDTH = 600;
+export const CHART_BAR_HEIGHT_OFFSET = 20;
+export const SUBJECT_PREVIEW_LENGTH = 50;
+export const REFRESH_INTERVAL_30_SEC_MS = 30000;
 
 // Email body processing
 export const SIGNATURE_MIN_CONTENT_CHARS = 200; // Minimum content length before signature detection

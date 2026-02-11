@@ -74,3 +74,59 @@ export const THREAD_LIMITS = {
   // Maximum number of messages to include from thread
   LAST_MESSAGES: 5,
 } as const;
+
+// Email classification score thresholds
+export const EMAIL_CLASSIFICATION = {
+  // Cold outreach confidence threshold
+  COLD_OUTREACH_HIGH: 0.7,
+  // Cold outreach detection threshold
+  COLD_OUTREACH_MEDIUM: 0.5,
+  // Default personalization score
+  DEFAULT_PERSONALIZATION: 0.5,
+  // Generic greeting score
+  GENERIC_GREETING_SCORE: 1.5,
+  // Single phrase match score
+  SINGLE_PHRASE_SCORE: 0.5,
+  // Writing style confidence
+  WRITING_STYLE_CONFIDENCE: 0.6,
+  // Cost per token (approximate)
+  COST_PER_TOKEN: 0.17,
+} as const;
+
+// Context analysis constants
+export const CONTEXT_ANALYSIS = {
+  // Days lookback for recent context
+  LOOKBACK_DAYS: -10,
+  // Slice index to get last N thread emails for summarization (negative = from end)
+  LAST_THREAD_EMAILS_SLICE: -3,
+  // Max emails to analyze for category generation
+  MAX_EMAILS_FOR_CATEGORY_ANALYSIS: 30,
+  // Summarization lookback days (kept for backward compatibility)
+  SUMMARIZATION_LOOKBACK_DAYS: -3,
+  // Batch explanation timeout in ms
+  BATCH_TIMEOUT_MS: 60000,
+  // Context progress score threshold
+  PROGRESS_THRESHOLD: 85,
+  // Context timeout seconds
+  CONTEXT_TIMEOUT_SECONDS: 450,
+  // High score threshold for context
+  HIGH_SCORE: 10000,
+  // Days threshold for analysis
+  ANALYSIS_DAYS: 90,
+  // Max items to analyze per batch
+  BATCH_ITEMS: 20,
+  // Learning sample min
+  LEARNING_MIN_SAMPLE: 15,
+  // Hour in ms
+  HOUR_MS: 3600000,
+  // Token usage reporting days
+  TOKEN_USAGE_DAYS: 30,
+} as const;
+
+// Suggested replies constants
+export const SUGGESTED_REPLIES = {
+  // Thread messages to include
+  THREAD_MESSAGES: 8,
+  // Reply draft max tokens
+  REPLY_MAX_TOKENS: 25,
+} as const;

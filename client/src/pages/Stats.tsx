@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { STATS_PERIOD_14_DAYS, DAYS_IN_MONTH_30, MONTHS_IN_YEAR, CHART_BAR_MAX_WIDTH, CHART_BAR_HEIGHT_OFFSET, DAYS_IN_MONTH_MAX, CALENDAR_DAYS_AHEAD } from 'constants/numbers';
 import { useAuth } from 'contexts/AuthContext';
 import { Sidebar } from 'components/inbox/Sidebar';
 import { useEmailStats, CategoryStats } from 'hooks/useEmailStats';
 
-const PERIOD_OPTIONS = [7, 14, 30, 60, 90] as const;
+const PERIOD_OPTIONS = [7, STATS_PERIOD_14_DAYS, DAYS_IN_MONTH_30, 60, CALENDAR_DAYS_AHEAD] as const;
 
 function formatReplyTime(minutes: number | null): string {
   if (minutes === null) {
@@ -145,7 +146,7 @@ const DailyChart: React.FC<{
   const CHART_HEIGHT = 160;
   const BAR_GAP = 2;
   const barWidth = dailyCounts.length > 0
-    ? Math.max(2, Math.min(12, Math.floor(600 / dailyCounts.length) - BAR_GAP))
+    ? Math.max(2, Math.min(MONTHS_IN_YEAR, Math.floor(CHART_BAR_MAX_WIDTH / dailyCounts.length) - BAR_GAP))
     : 8;
 
   return (
@@ -158,7 +159,7 @@ const DailyChart: React.FC<{
       paddingBottom: theme.spacing.md,
     }}>
       {dailyCounts.map(day => {
-        const barHeight = Math.max(2, (day.total / maxCount) * (CHART_HEIGHT - 20));
+        const barHeight = Math.max(2, (day.total / maxCount) * (CHART_HEIGHT - CHART_BAR_HEIGHT_OFFSET));
         const dateObj = new Date(day.date);
         const label = `${dateObj.getMonth() + 1}/${dateObj.getDate()}`;
 
@@ -180,7 +181,7 @@ const DailyChart: React.FC<{
               borderRadius: `${theme.borderRadius.sm} ${theme.borderRadius.sm} 0 0`,
               transition: theme.transitions.default,
             }} />
-            {dailyCounts.length <= 31 && (
+            {dailyCounts.length <= DAYS_IN_MONTH_MAX && (
               <span style={{
                 ...theme.typography.body.small,
                 color: theme.colors.text.tertiary,
@@ -200,7 +201,7 @@ const DailyChart: React.FC<{
 const Stats: React.FC = () => {
   const { t } = useTranslation();
   const { user, logout } = useAuth();
-  const [days, setDays] = useState<number>(30);
+  const [days, setDays] = useState<number>(DAYS_IN_MONTH_30);
   const { stats, loading, error, refetch } = useEmailStats(days);
 
   const maxEmails = stats

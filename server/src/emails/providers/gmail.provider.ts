@@ -13,6 +13,7 @@ import PgBoss = require("pg-boss");
 import { getJobPriority } from "../../queue/job-priorities";
 // QUERY_LIMITS used in helper modules
 import { MINUTES, DAYS, MILLISECONDS } from "../../constants/time-constants";
+import { QUERY_LIMITS } from "../../constants/query-limits";
 import { isApiError, formatGaxiosError } from "../../types/common";
 import { logErrorToFile } from "../../utils/error-logger";
 import { parseGmailMessage } from "./gmail/gmail-message-parser";
@@ -588,10 +589,14 @@ export class GmailProvider implements EmailProvider {
       this.progressUpdateCounters.delete(userId);
 
       const messageIds = messages.filter((msg) => msg.id).map((msg) => msg.id!);
-      for (let i = 0; i < messageIds.length; i += 50) {
+      for (
+        let i = 0;
+        i < messageIds.length;
+        i += QUERY_LIMITS.GMAIL_BATCH_SIZE
+      ) {
         await Promise.all(
           messageIds
-            .slice(i, i + 50)
+            .slice(i, i + QUERY_LIMITS.GMAIL_BATCH_SIZE)
             .map((messageId) =>
               this.boss.send(
                 "scan-history-email",
@@ -765,7 +770,7 @@ export class GmailProvider implements EmailProvider {
       const messages = response.data.messages || [];
       const results: RawEmailMessage[] = [];
 
-      for (const msg of messages.slice(0, 20)) {
+      for (const msg of messages.slice(0, QUERY_LIMITS.MAX_RESULTS_DEFAULT)) {
         if (!msg.id) continue;
         const fullMsg = await gmail.users.messages.get({
           userId: "me",

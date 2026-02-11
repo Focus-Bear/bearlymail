@@ -89,7 +89,7 @@ module.exports = {
     // Disallow magic numbers (use named constants instead)
     // Configured to allow common UI values while flagging business logic numbers
     'no-magic-numbers': [
-      'warn',
+      'error',
       {
         ignore: [
           0, 1, -1, // Common zero/one values

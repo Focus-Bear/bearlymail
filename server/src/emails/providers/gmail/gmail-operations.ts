@@ -2,6 +2,7 @@ import { Logger } from "@nestjs/common";
 import { gmail_v1 } from "googleapis";
 import { isApiError, isError } from "../../../types/common";
 import { logErrorToFile } from "../../../utils/error-logger";
+import { HTTP_STATUS } from "../../../constants/http-status";
 
 const logger = new Logger("GmailOperations");
 
@@ -355,7 +356,7 @@ export async function ensureLabelExists(
 
     throw new Error("Failed to create label: no ID returned");
   } catch (error: unknown) {
-    if (isApiError(error) && error.code === 409) {
+    if (isApiError(error) && error.code === HTTP_STATUS.CONFLICT) {
       // Label already exists
       const response = await gmail.users.labels.list({ userId: "me" });
       const labels = response.data.labels || [];

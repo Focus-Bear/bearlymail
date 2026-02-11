@@ -2,6 +2,7 @@ import {
   EmailRecipient,
   EmailAttachmentData,
 } from "../../interfaces/email-provider.interface";
+import { QUERY_LIMITS } from "../../../constants/query-limits";
 
 /**
  * Build email content with support for attachments and HTML using multipart MIME
@@ -76,7 +77,7 @@ function buildMultipartMixedBody(
   },
   headerLines: string[],
 ): string {
-  const mixedBoundary = `----=_Part_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+  const mixedBoundary = `----=_Part_${Date.now()}_${Math.random().toString(QUERY_LIMITS.RANDOM_BASE_36).substring(QUERY_LIMITS.RANDOM_STRING_START, QUERY_LIMITS.MESSAGE_ID_SUFFIX)}`;
   headerLines.push(
     `Content-Type: multipart/mixed; boundary="${mixedBoundary}"`,
   );
@@ -85,7 +86,7 @@ function buildMultipartMixedBody(
 
   if (options.htmlBody) {
     // Use multipart/alternative for text + HTML
-    const altBoundary = `----=_Alt_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+    const altBoundary = `----=_Alt_${Date.now()}_${Math.random().toString(QUERY_LIMITS.RANDOM_BASE_36).substring(QUERY_LIMITS.RANDOM_STRING_START, QUERY_LIMITS.MESSAGE_ID_SUFFIX)}`;
     parts.push(`--${mixedBoundary}`);
     parts.push(
       `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
@@ -147,7 +148,7 @@ function buildMultipartAlternativeBody(
   },
   headerLines: string[],
 ): string {
-  const altBoundary = `----=_Alt_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+  const altBoundary = `----=_Alt_${Date.now()}_${Math.random().toString(QUERY_LIMITS.RANDOM_BASE_36).substring(QUERY_LIMITS.RANDOM_STRING_START, QUERY_LIMITS.MESSAGE_ID_SUFFIX)}`;
   headerLines.push(
     `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
   );

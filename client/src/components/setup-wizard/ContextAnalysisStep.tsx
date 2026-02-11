@@ -1,6 +1,7 @@
 import React, { useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { CONTEXT_ANALYSIS_RECENT_COUNT } from 'constants/numbers';
 import { useAnalysisProgress } from 'hooks/settings/useAnalysisProgress';
 
 interface ContextAnalysisStepProps {
@@ -187,7 +188,7 @@ export const ContextAnalysisStep: React.FC<ContextAnalysisStepProps> = ({ onComp
                   {t('settings.analysis.whatWereLearning')}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}>
-                  {analyzeProgress.progress.insights.slice(-5).reverse().map((insight, index) => (
+                  {analyzeProgress.progress.insights.slice(-CONTEXT_ANALYSIS_RECENT_COUNT).reverse().map((insight, index) => (
                     <div
                       key={index}
                       style={{

@@ -5,6 +5,7 @@ import {
   LLM_OP_ANALYZE_PRIORITY,
   LLM_OP_ANALYZE_PRIORITY_BATCH,
 } from "./llm-operations";
+import { DISPLAY_CONSTANTS } from "../constants/service-constants";
 import { cleanEmailContent } from "./email-content-cleaner";
 import { getPrompt, renderPrompt } from "./prompts";
 import { RATIOS } from "../constants/percentages";
@@ -235,7 +236,9 @@ export class PriorityAnalysisService {
       );
 
       // Limit to last 10 emails to avoid token limits
-      const emailsToInclude = sortedThreadEmails.slice(-10);
+      const emailsToInclude = sortedThreadEmails.slice(
+        -DISPLAY_CONSTANTS.MAX_DISPLAY_ITEMS,
+      );
 
       const threadMessages = emailsToInclude.map((threadEmail, index) => {
         const cleanedThreadBody = cleanEmailContent(

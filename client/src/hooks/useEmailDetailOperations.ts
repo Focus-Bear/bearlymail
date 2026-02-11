@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import axios from 'axios';
 import { useNotifications } from 'contexts/NotificationContext';
 import { useAuth } from 'contexts/AuthContext';
-import { HTTP_UNAUTHORIZED, HTTP_FORBIDDEN } from 'constants/numbers';
+import { HTTP_UNAUTHORIZED, HTTP_FORBIDDEN, HOURS_IN_TWO_DAYS } from 'constants/numbers';
 import { captureEvent } from 'utils/posthog';
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 import { extractCleanBody, removeSignature, extractCleanHtmlBody, sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
@@ -955,7 +955,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
           await performArchiveAfterReply();
         } else {
           // Snooze the email for the specified duration
-          const duration = expectedReplyHours <= 48 ? `${expectedReplyHours}h` : `${Math.round(expectedReplyHours / 24)}d`;
+          const duration = expectedReplyHours <= HOURS_IN_TWO_DAYS ? `${expectedReplyHours}h` : `${Math.round(expectedReplyHours / 24)}d`;
           await performSnoozeAfterReply(duration);
         }
       } else {

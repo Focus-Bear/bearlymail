@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { SUBJECT_PREVIEW_LENGTH } from 'constants/numbers';
 import { API_URL } from 'config/api';
 
 interface RecentEmail {
@@ -263,7 +264,7 @@ export const AutoResponderEmailPreview: React.FC = () => {
                 <option value="">{t('settings.autoResponder.emailPreview.selectPlaceholder')}</option>
                 {recentEmails.map((email) => (
                   <option key={email.id} value={email.id}>
-                    {email.fromName || email.from} - {email.subject.slice(0, 50)}{email.subject.length > 50 ? '...' : ''} ({formatDate(email.receivedAt)})
+                    {email.fromName || email.from} - {email.subject.slice(0, SUBJECT_PREVIEW_LENGTH)}{email.subject.length > SUBJECT_PREVIEW_LENGTH ? '...' : ''} ({formatDate(email.receivedAt)})
                   </option>
                 ))}
               </select>

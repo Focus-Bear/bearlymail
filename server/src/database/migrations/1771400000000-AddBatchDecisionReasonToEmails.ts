@@ -6,8 +6,7 @@ export class AddBatchDecisionReasonToEmails1771400000000
   public async up(queryRunner: QueryRunner): Promise<void> {
     const emailsTable = await queryRunner.getTable("emails");
     if (emailsTable) {
-      const hasColumn =
-        emailsTable.findColumnByName("batchDecisionReason");
+      const hasColumn = emailsTable.findColumnByName("batchDecisionReason");
       if (!hasColumn) {
         await queryRunner.addColumn(
           "emails",
@@ -24,8 +23,7 @@ export class AddBatchDecisionReasonToEmails1771400000000
   public async down(queryRunner: QueryRunner): Promise<void> {
     const emailsTable = await queryRunner.getTable("emails");
     if (emailsTable) {
-      const hasColumn =
-        emailsTable.findColumnByName("batchDecisionReason");
+      const hasColumn = emailsTable.findColumnByName("batchDecisionReason");
       if (hasColumn) {
         await queryRunner.dropColumn("emails", "batchDecisionReason");
       }

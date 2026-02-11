@@ -124,7 +124,7 @@ module.exports = {
     // Note: This rule can be noisy, so we configure it carefully
     // Using TypeScript-specific version from @typescript-eslint
     '@typescript-eslint/no-magic-numbers': [
-      'warn',
+      'error',
       {
         ignore: [0, 1, -1, 2, 3, 4, 5, 10, 24, 60, 100, 200, 404, 401, 403, 500, 1000, 2000, 5000],
         ignoreArrayIndexes: true,
@@ -206,6 +206,7 @@ module.exports = {
         'max-lines-per-function': 'off',
         'max-lines': 'off',
         '@typescript-eslint/no-explicit-any': 'off',
+        '@typescript-eslint/no-magic-numbers': 'off',
       },
     },
     {

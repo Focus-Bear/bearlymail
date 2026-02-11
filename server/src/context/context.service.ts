@@ -14,6 +14,7 @@ import { DAYS } from "../constants/time-constants";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
 import { DISPLAY_CONSTANTS } from "../constants/service-constants";
+import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
 import { LLMService } from "../llm/llm.service";
 import { UsersService } from "../users/users.service";
@@ -300,8 +301,12 @@ export class ContextService {
             totalBatches,
             status: "completed",
             insights:
-              uniqueCompletedInsights.slice(-10).reverse().length > 0
-                ? uniqueCompletedInsights.slice(-10).reverse()
+              uniqueCompletedInsights
+                .slice(-DISPLAY_CONSTANTS.MAX_DISPLAY_ITEMS)
+                .reverse().length > 0
+                ? uniqueCompletedInsights
+                    .slice(-DISPLAY_CONSTANTS.MAX_DISPLAY_ITEMS)
+                    .reverse()
                 : undefined,
           };
         }
@@ -518,7 +523,9 @@ export class ContextService {
     });
 
     // Return most recent unique insights (limit to 10, most recent first)
-    const recentInsights = uniqueInsights.slice(-10).reverse();
+    const recentInsights = uniqueInsights
+      .slice(-DISPLAY_CONSTANTS.MAX_DISPLAY_ITEMS)
+      .reverse();
 
     // Read fetching status from separate columns (not stats) to avoid race condition issues
     const fetchingStatus = analysis.fetchingStatus ?? undefined;
@@ -708,7 +715,7 @@ export class ContextService {
           userId,
           twelveDaysAgo,
           fiveDaysAgo,
-          300, // Limit to 300 threads
+          QUERY_LIMITS.CONTEXT_RECENT_EMAILS, // Limit to 300 threads
         );
 
       // Update progress with general threads count (use separate columns)
@@ -730,7 +737,7 @@ export class ContextService {
       try {
         sentThreadIds = await this.gmailDataService.getSentThreadIds(
           userId,
-          150, // Fetch 150 to ensure ~100 unique after dedup with general threads
+          QUERY_LIMITS.CONTEXT_SENT_EMAILS, // Fetch 150 to ensure ~100 unique after dedup with general threads
         );
 
         // Update progress with sent threads count
@@ -854,7 +861,7 @@ export class ContextService {
       // This uses SENT label only (no From header matching or fallback to messages[0])
       // Use a wider date range (90 days) to capture more sent emails for writing style analysis
       const ninetyDaysAgo = new Date();
-      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - DAYS.NINETY);
       const today = new Date();
 
       this.logger.log(
@@ -1363,7 +1370,7 @@ export class ContextService {
           }
         }
         this.logger.error(
-          `[CONTEXT-ANALYSIS] Missing job IDs for batches: ${missingBatchIndices.slice(0, 20).join(", ")}${missingBatchIndices.length > 20 ? ` ... (${missingBatchIndices.length - 20} more)` : ""}`,
+          `[CONTEXT-ANALYSIS] Missing job IDs for batches: ${missingBatchIndices.slice(0, CONTEXT_ANALYSIS.BATCH_ITEMS).join(", ")}${missingBatchIndices.length > CONTEXT_ANALYSIS.BATCH_ITEMS ? ` ... (${missingBatchIndices.length - CONTEXT_ANALYSIS.BATCH_ITEMS} more)` : ""}`,
         );
       }
 
@@ -1502,7 +1509,9 @@ export class ContextService {
             priority: getJobPriority("finalize-context-analysis", false),
             singletonKey: `finalize-context-analysis-${analysisRecord.id}`,
             singletonMinutes: 60,
-            startAfter: new Date(Date.now() + 60000), // Start after 60 seconds to give batches time to process
+            startAfter: new Date(
+              Date.now() + CONTEXT_ANALYSIS.BATCH_TIMEOUT_MS,
+            ), // Start after 60 seconds to give batches time to process
           },
         );
 
@@ -2163,10 +2172,10 @@ export class ContextService {
 
     if (missingBatchIndices.length > 0) {
       this.logger.warn(
-        `[BATCH-CHECK] ⚠️ Missing batches: ${missingBatchIndices.slice(0, 20).join(", ")}${missingBatchIndices.length > 20 ? ` ... (${missingBatchIndices.length - 20} more)` : ""} (out of ${totalExpectedBatches} total). Completed: ${completedBatchIndices.slice(0, 10).join(", ") || "none"}${completedBatchIndices.length > 10 ? "..." : ""}. Failed: ${failedBatches.slice(0, 10).join(", ") || "none"}${failedBatches.length > 10 ? "..." : ""}`,
+        `[BATCH-CHECK] ⚠️ Missing batches: ${missingBatchIndices.slice(0, CONTEXT_ANALYSIS.BATCH_ITEMS).join(", ")}${missingBatchIndices.length > CONTEXT_ANALYSIS.BATCH_ITEMS ? ` ... (${missingBatchIndices.length - CONTEXT_ANALYSIS.BATCH_ITEMS} more)` : ""} (out of ${totalExpectedBatches} total). Completed: ${completedBatchIndices.slice(0, 10).join(", ") || "none"}${completedBatchIndices.length > 10 ? "..." : ""}. Failed: ${failedBatches.slice(0, 10).join(", ") || "none"}${failedBatches.length > 10 ? "..." : ""}`,
       );
       writeAnalysisLog(
-        `[BATCH-CHECK] ⚠️ Missing batches: ${missingBatchIndices.length} missing (indices: ${missingBatchIndices.slice(0, 20).join(", ")})`,
+        `[BATCH-CHECK] ⚠️ Missing batches: ${missingBatchIndices.length} missing (indices: ${missingBatchIndices.slice(0, CONTEXT_ANALYSIS.BATCH_ITEMS).join(", ")})`,
         "warn",
       );
 
@@ -2225,7 +2234,7 @@ export class ContextService {
             const now = Date.now();
             const jobAgeMinutes = (now - jobCreatedTime) / (1000 * 60);
 
-            if (jobAgeMinutes > 15) {
+            if (jobAgeMinutes > CONTEXT_ANALYSIS.LEARNING_MIN_SAMPLE) {
               // Job is older than 15 minutes (expireInMinutes limit) and has no result
 
               // Attempt to retry the expired job if we have the batch payload stored
@@ -2486,7 +2495,7 @@ export class ContextService {
         const isQuickReply =
           thread.timeToReply !== null &&
           thread.timeToReply !== undefined &&
-          thread.timeToReply < 3600000;
+          thread.timeToReply < CONTEXT_ANALYSIS.HOUR_MS;
 
         if (isStarred || isQuickReply) {
           const existing = vipContactsFromPayloads.get(emailKey);
@@ -2973,7 +2982,7 @@ export class ContextService {
       const contextStartTime = Date.now();
       for (const item of analysis.context) {
         contextProcessed++;
-        if (contextProcessed % 20 === 0) {
+        if (contextProcessed % CONTEXT_ANALYSIS.BATCH_ITEMS === 0) {
           writeAnalysisLog(
             `[FINALIZATION] Step 6/6: Processed ${contextProcessed}/${analysis.context.length} context items...`,
             "log",
@@ -3350,7 +3359,10 @@ export class ContextService {
         const newNonExamples = newRules.filter((rule) => !isEmailExample(rule));
 
         // Limit new examples to not exceed 20 total email examples
-        const maxNewExamples = Math.max(0, 20 - existingExampleCount);
+        const maxNewExamples = Math.max(
+          0,
+          CONTEXT_ANALYSIS.BATCH_ITEMS - existingExampleCount,
+        );
         const limitedNewExamples = newExamples.slice(0, maxNewExamples);
 
         // Merge: existing rules + non-example rules + limited examples

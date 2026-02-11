@@ -5,6 +5,8 @@ import {
   EmailProvider,
   RawEmailMessage,
 } from "../emails/interfaces/email-provider.interface";
+import { QUERY_LIMITS } from "../constants/query-limits";
+import { DAYS } from "../constants/time-constants";
 import { GmailProvider } from "../emails/providers/gmail.provider";
 import { GMAIL_LABELS } from "../constants/email-labels";
 import {
@@ -948,7 +950,7 @@ export class ContextEmailDataService {
                 ? `${firstEmail.fromName}`
                 : firstEmail.from.split("@")[0];
               interestingSubjects.push(
-                `📧 ${senderDisplay}: "${firstEmail.subject.substring(0, 50)}${firstEmail.subject.length > 50 ? "..." : ""}"`,
+                `📧 ${senderDisplay}: "${firstEmail.subject.substring(0, QUERY_LIMITS.SUBSTRING_PREVIEW_LENGTH)}${firstEmail.subject.length > QUERY_LIMITS.SUBSTRING_PREVIEW_LENGTH ? "..." : ""}"`,
               );
             }
           }
@@ -995,7 +997,8 @@ export class ContextEmailDataService {
       // Update progress during fetching (3-10%)
       if (onProgress) {
         const fetchProgress =
-          3 + Math.floor((threadsInRange.length / allThreadIds.length) * 7);
+          3 +
+          Math.floor((threadsInRange.length / allThreadIds.length) * DAYS.WEEK);
         const currentFindings = [
           `Fetched ${threadsInRange.length}/${allThreadIds.length} threads...`,
           ...interestingSubjects.slice(0, 3), // Show up to 3 interesting subjects

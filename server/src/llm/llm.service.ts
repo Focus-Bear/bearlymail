@@ -37,6 +37,7 @@ import {
   RECENCY_THRESHOLDS,
   QA_EXTRACTION,
   BODY_PREVIEW_LENGTHS,
+  CONTEXT_ANALYSIS,
 } from "../constants/llm-constants";
 
 export enum LLMProvider {
@@ -732,7 +733,7 @@ export class LLMService {
     const threadsForPrompt = threads.map((thread) => ({
       index: thread.index,
       subject: thread.subject,
-      body: thread.body.substring(0, 1500), // Limit body length per thread
+      body: thread.body.substring(0, QUERY_LIMITS.LLM_MAX_TOKENS_LARGE), // Limit body length per thread
       isThread: thread.isThread,
       messageCount: thread.messageCount || 1,
     }));
@@ -749,7 +750,10 @@ export class LLMService {
           systemPrompt: promptConfig.systemPrompt || "",
           temperature: RATIOS.HALF,
           // Increase tokens for batch response: ~150 tokens per summary
-          maxTokens: Math.min(4000, threads.length * 150 + 200),
+          maxTokens: Math.min(
+            QUERY_LIMITS.LLM_BODY_PREVIEW_LENGTH * 2,
+            threads.length * QUERY_LIMITS.LLM_MAX_TOKENS_VERY_SMALL + 200,
+          ),
           userId,
           // Track email IDs for duplicate summarization detection
           metadata: emailIds?.length ? { emailIds } : undefined,
@@ -2370,7 +2374,10 @@ export class LLMService {
         : "None";
 
     // Format emails for the prompt (limit to first 30 for token efficiency)
-    const emailsToAnalyze = otherEmails.slice(0, 30);
+    const emailsToAnalyze = otherEmails.slice(
+      0,
+      CONTEXT_ANALYSIS.MAX_EMAILS_FOR_CATEGORY_ANALYSIS,
+    );
     const otherEmailsText = emailsToAnalyze
       .map(
         (e, i) =>

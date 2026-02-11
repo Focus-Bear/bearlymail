@@ -5,6 +5,7 @@ import PgBoss = require("pg-boss");
 import { SuggestedReply } from "../database/entities/suggested-reply.entity";
 import { Email } from "../database/entities/email.entity";
 import { getJobPriority } from "../queue/job-priorities";
+import { QUERY_LIMITS } from "../constants/query-limits";
 
 @Injectable()
 export class SuggestedRepliesService {
@@ -94,7 +95,7 @@ export class SuggestedRepliesService {
     emailId: string,
   ): Promise<void> {
     this.logger.log(
-      `Queueing suggested reply generation for thread ${threadId.substring(0, 8)}...`,
+      `Queueing suggested reply generation for thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}...`,
     );
 
     await this.boss.send(

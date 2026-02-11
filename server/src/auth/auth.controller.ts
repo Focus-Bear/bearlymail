@@ -21,6 +21,7 @@ import { GoogleAccountsService } from "../google-accounts/google-accounts.servic
 import { Office365AccountsService } from "../office365-accounts/office365-accounts.service";
 import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
 import { WaitlistService } from "../waitlist/waitlist.service";
+import { AUTH_CONSTANTS } from "../constants/auth-constants";
 
 @Controller("auth")
 export class AuthController {
@@ -68,7 +69,7 @@ export class AuthController {
       throw new BadRequestException("Passwords do not match");
     }
 
-    if (body.password.length < 8) {
+    if (body.password.length < AUTH_CONSTANTS.MIN_PASSWORD_LENGTH) {
       throw new BadRequestException(
         "Password must be at least 8 characters long",
       );
@@ -81,9 +82,7 @@ export class AuthController {
       );
       return { success: true, message: "Password set successfully" };
     } catch (error) {
-      throw new BadRequestException(
-        error.message || "Failed to set password",
-      );
+      throw new BadRequestException(error.message || "Failed to set password");
     }
   }
 

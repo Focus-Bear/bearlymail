@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { humanizeTimestamp } from 'utils/dateUtils';
+import { SAVE_CONFIRMATION_DURATION_MS } from 'constants/numbers';
 
 interface ThreadItemHeaderProps {
   from: string;
@@ -30,7 +31,7 @@ export const ThreadItemHeader: React.FC<ThreadItemHeaderProps> = ({
     try {
       await navigator.clipboard.writeText(from);
       setEmailCopied(true);
-      setTimeout(() => setEmailCopied(false), 2000);
+      setTimeout(() => setEmailCopied(false), SAVE_CONFIRMATION_DURATION_MS);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('Failed to copy email:', err);

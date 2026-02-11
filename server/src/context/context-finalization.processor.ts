@@ -7,6 +7,8 @@ import { getJobPriority } from "../queue/job-priorities";
 import { writeAnalysisLog } from "./context-analysis-logger";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { CloudWatchService } from "../aws/cloudwatch.service";
+import { MILLISECONDS } from "../constants/time-constants";
+import { RETRY_CONSTANTS } from "../constants/service-constants";
 
 interface FinalizationJob {
   userId: string;
@@ -197,7 +199,11 @@ export class ContextFinalizationProcessor implements OnModuleInit {
                 priority: getJobPriority("finalize-context-analysis", false),
                 singletonKey: `finalize-context-analysis-${analysisRecordId}-retry-${Date.now()}`,
                 singletonMinutes: 1, // Short duration for retry jobs
-                startAfter: new Date(Date.now() + 10000), // Retry in 10 seconds (faster retry)
+                startAfter: new Date(
+                  Date.now() +
+                    RETRY_CONSTANTS.FINALIZATION_RETRY_DELAY_SECONDS *
+                      MILLISECONDS.SECOND,
+                ), // Retry in 10 seconds (faster retry)
               },
             );
             this.logger.log(

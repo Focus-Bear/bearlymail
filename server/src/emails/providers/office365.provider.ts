@@ -11,6 +11,7 @@ import {
 import PgBoss = require("pg-boss");
 import { getJobPriority } from "../../queue/job-priorities";
 import { QUERY_LIMITS } from "../../constants/query-limits";
+import { BODY_PREVIEW_LENGTHS } from "../../constants/llm-constants";
 import { DAYS } from "../../constants/time-constants";
 import { isApiError, isError } from "../../types/common";
 import { Office365AccountsService } from "../../office365-accounts/office365-accounts.service";
@@ -431,7 +432,10 @@ export class Office365Provider implements EmailProvider {
     graphClient: any,
   ): Promise<void> {
     const threadsNeedingCheck =
-      await this.emailsService.getNonArchivedThreadsNeedingCheck(userId, 50);
+      await this.emailsService.getNonArchivedThreadsNeedingCheck(
+        userId,
+        QUERY_LIMITS.PROVIDER_BATCH_SIZE,
+      );
     const threadsToCheck = threadsNeedingCheck.filter(
       (threadId) => !conversationMap.has(threadId),
     );
@@ -605,7 +609,10 @@ export class Office365Provider implements EmailProvider {
       });
 
       const messages = response.data.value || [];
-      const total = Math.min(messages.length, 300);
+      const total = Math.min(
+        messages.length,
+        BODY_PREVIEW_LENGTHS.BATCH_PREVIEW,
+      );
 
       await this.usersService.update(userId, {
         scanTotal: total,

@@ -1,3 +1,4 @@
+import { ERROR_NOTIFICATION_DURATION_MS } from 'constants/numbers';
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { NotificationToast } from 'components/notifications/NotificationToast';
 import { theme } from 'theme/theme';
@@ -56,7 +57,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
 
   const showError = useCallback(
     (message: string, duration?: number) => {
-      showNotification(message, 'error', duration || 6000); // Errors stay longer
+      showNotification(message, 'error', duration || ERROR_NOTIFICATION_DURATION_MS); // Errors stay longer
     },
     [showNotification],
   );

@@ -38,21 +38,21 @@ const Search: React.FC = () => {
   const getPriorityBadge = (score?: number) => {
     if (!score) return { label: 'N/A', color: theme.colors.text.tertiary, bg: theme.colors.background.subtle };
     // New calibration: < 0 = very low, 0-20 = low, 20-40 = medium, > 40 = high
-    if (score > 40) return { label: 'High', color: theme.colors.accent.error, bg: theme.colors.sunray.light4 };
-    if (score >= 20) return { label: 'Medium', color: theme.colors.accent.warning, bg: theme.colors.sunray.light3 };
+    if (score > PRIORITY_HIGH_THRESHOLD) return { label: 'High', color: theme.colors.accent.error, bg: theme.colors.sunray.light4 };
+    if (score >= PRIORITY_MEDIUM_THRESHOLD) return { label: 'Medium', color: theme.colors.accent.warning, bg: theme.colors.sunray.light3 };
     if (score >= 0) return { label: 'Low', color: theme.colors.text.tertiary, bg: theme.colors.background.subtle };
     return { label: 'Very Low', color: theme.colors.text.secondary, bg: theme.colors.background.subtle };
   };
 
   const getScoreBackgroundColor = (score: number) => {
-    if (score > 40) return theme.colors.sunray.light4;
-    if (score >= 20) return theme.colors.sunray.light3;
+    if (score > PRIORITY_HIGH_THRESHOLD) return theme.colors.sunray.light4;
+    if (score >= PRIORITY_MEDIUM_THRESHOLD) return theme.colors.sunray.light3;
     return theme.colors.background.subtle;
   };
 
   const getScoreColor = (score: number) => {
-    if (score > 40) return theme.colors.accent.success;
-    if (score >= 20) return theme.colors.accent.warning;
+    if (score > PRIORITY_HIGH_THRESHOLD) return theme.colors.accent.success;
+    if (score >= PRIORITY_MEDIUM_THRESHOLD) return theme.colors.accent.warning;
     return theme.colors.text.tertiary;
   };
 

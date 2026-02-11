@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
 import { EMOJI_CALENDAR } from 'constants/emojis';
+import { OPACITY_HALF } from 'constants/numbers';
 import { captureEvent } from 'utils/posthog';
 
 interface CalendarInviteActionsProps {
@@ -109,7 +110,7 @@ export const CalendarInviteActions: React.FC<CalendarInviteActionsProps> = ({
             alignItems: 'center',
             justifyContent: 'center',
             gap: theme.spacing.xs,
-            opacity: responseStatus === 'declined' ? 0.5 : 1,
+            opacity: responseStatus === 'declined' ? OPACITY_HALF : 1,
           }}
         >
           {responding && responseStatus !== 'accepted' ? (
@@ -143,7 +144,7 @@ export const CalendarInviteActions: React.FC<CalendarInviteActionsProps> = ({
             alignItems: 'center',
             justifyContent: 'center',
             gap: theme.spacing.xs,
-            opacity: responseStatus === 'accepted' ? 0.5 : 1,
+            opacity: responseStatus === 'accepted' ? OPACITY_HALF : 1,
           }}
         >
           {responding && responseStatus !== 'declined' ? (

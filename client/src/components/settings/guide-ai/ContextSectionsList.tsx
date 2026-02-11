@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { ContextSection } from 'components/settings/guide-ai/ContextSection';
 import { theme } from 'theme/theme';
+import { OPACITY_DISABLED } from 'constants/numbers';
 import { API_URL } from 'config/api';
 
 interface UserContext {
@@ -128,7 +129,7 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
           cursor: isConsolidating ? 'not-allowed' : 'pointer',
           fontSize: theme.typography.fontSize.sm,
           fontWeight: theme.typography.fontWeight.medium,
-          opacity: isConsolidating ? 0.6 : 1,
+          opacity: isConsolidating ? OPACITY_DISABLED : 1,
         }}
       >
         {isConsolidating ? t('settings.emailCategories.consolidating') : t('settings.emailCategories.consolidate')}
@@ -143,7 +144,7 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
           cursor: isRecategorizing ? 'not-allowed' : 'pointer',
           fontSize: theme.typography.fontSize.sm,
           fontWeight: theme.typography.fontWeight.medium,
-          opacity: isRecategorizing ? 0.6 : 1,
+          opacity: isRecategorizing ? OPACITY_DISABLED : 1,
         }}
       >
         {isRecategorizing ? t('settings.emailCategories.recategorizing') : t('settings.emailCategories.recategorize')}

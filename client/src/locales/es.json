@@ -1565,6 +1565,23 @@
         "confirmRemoveGithubToken":"¿Estás seguro de que deseas desconectar tu cuenta de GitHub? Esto eliminará el acceso a la integración de GitHub.",
         "githubTokenRemoved": "GitHub desconectado exitosamente",
         "githubTokenRemoveError": "No se pudo desconectar GitHub. Por favor intenta de nuevo.",
+        "setPassword": {
+          "title": "Inicio de sesión con contraseña",
+          "description": "Establece una contraseña para habilitar el inicio de sesión con correo electrónico y contraseña además de SSO. Esto es útil si viajas a regiones donde tu proveedor SSO puede estar bloqueado.",
+          "descriptionHasPassword": "Tienes una contraseña establecida. Puedes actualizarla a continuación si es necesario.",
+          "passwordLabel": "Contraseña",
+          "newPasswordLabel": "Nueva contraseña",
+          "passwordPlaceholder": "Ingresa la contraseña",
+          "confirmPasswordLabel": "Confirmar contraseña",
+          "confirmPasswordPlaceholder": "Confirma la contraseña",
+          "passwordHint": "Debe tener al menos 8 caracteres",
+          "passwordTooShort": "La contraseña debe tener al menos 8 caracteres",
+          "passwordsDoNotMatch": "Las contraseñas no coinciden",
+          "setButton": "Establecer contraseña",
+          "updateButton": "Actualizar contraseña",
+          "success": "¡Contraseña establecida correctamente! Ahora puedes iniciar sesión con tu correo electrónico y contraseña.",
+          "error": "Error al establecer la contraseña. Por favor intenta de nuevo."
+        },
     "noContext":"Aún no se ha aprendido ningún contexto.Haga clic en \"Analizar correos electrónicos\" para conocer su historial de correo electrónico.",
     "noSummarizationRules": "Aún no hay reglas de resumen. Agregue reglas para personalizar cómo se resumen los correos electrónicos.",
     "office365": {

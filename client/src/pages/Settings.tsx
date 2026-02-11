@@ -12,6 +12,7 @@ import { SettingsHeader } from 'components/settings/SettingsHeader';
 import { AnalysisProgressModal } from 'components/settings/AnalysisProgressModal';
 import { AutoResponderSection } from 'components/settings/auto-responder';
 import { SchedulingPreferencesSection } from 'components/settings/SchedulingPreferencesSection';
+import { SetPasswordSection } from 'components/settings/SetPasswordSection';
 import { useSettingsData } from 'hooks/useSettingsData';
 import { useAutoResponder } from 'hooks/useAutoResponder';
 
@@ -179,6 +180,8 @@ const Settings: React.FC = () => {
           onConnectGitHub={settingsData.handleConnectGitHub}
           onDisconnectGitHub={settingsData.handleDisconnectGitHub}
         />
+
+        <SetPasswordSection />
 
         <DataExportSection />
 

@@ -13,6 +13,7 @@ import * as bcrypt from "bcrypt";
 import { writeDebugLog, AuthLogger } from "./auth-logger";
 import { getJobPriority } from "../queue/job-priorities";
 import { User } from "../database/entities/user.entity";
+import { AUTH_CONSTANTS } from "../constants/auth-constants";
 
 interface GoogleProfile {
   id: string;
@@ -520,7 +521,10 @@ export class AuthService {
     }
 
     // Hash the password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(
+      password,
+      AUTH_CONSTANTS.BCRYPT_SALT_ROUNDS,
+    );
 
     // Update user with password and approve them
     await this.usersService.update(user.id, {
@@ -538,5 +542,53 @@ export class AuthService {
 
     // Log them in
     return this.login(updatedUser);
+  }
+
+  /**
+   * Set password for an authenticated SSO user.
+   * This allows users who logged in via Google/Microsoft/Zoho to also have a password
+   * so they can login with either method.
+   */
+  async setPasswordForSsoUser(userId: string, password: string): Promise<void> {
+    const user = await this.usersService.findOne(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Validate password length
+    if (password.length < AUTH_CONSTANTS.MIN_PASSWORD_LENGTH) {
+      throw new Error(
+        `Password must be at least ${AUTH_CONSTANTS.MIN_PASSWORD_LENGTH} characters long`,
+      );
+    }
+
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(
+      password,
+      AUTH_CONSTANTS.BCRYPT_SALT_ROUNDS,
+    );
+
+    // Update user with password
+    await this.usersService.update(userId, {
+      password: hashedPassword,
+    });
+
+    this.logger.log(
+      `[SET_PASSWORD] User ${userId} successfully set a password for their account`,
+    );
+    writeDebugLog(
+      `[SET_PASSWORD] User ${userId} successfully set a password for their account`,
+    );
+  }
+
+  /**
+   * Check if the authenticated user has a password set.
+   */
+  async hasPassword(userId: string): Promise<boolean> {
+    const user = await this.usersService.findOne(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+    return !!user.password && user.password.length > 0;
   }
 }

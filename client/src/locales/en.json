@@ -1410,6 +1410,23 @@
         "confirmRemoveGithubToken":"Are you sure you want to disconnect your GitHub account?",
         "githubTokenRemoved": "GitHub disconnected successfully",
         "githubTokenRemoveError": "Failed to disconnect GitHub",
+        "setPassword": {
+          "title": "Password Login",
+          "description": "Set a password to enable login with email and password in addition to SSO. This is useful if you travel to regions where your SSO provider may be blocked.",
+          "descriptionHasPassword": "You have a password set. You can update it below if needed.",
+          "passwordLabel": "Password",
+          "newPasswordLabel": "New Password",
+          "passwordPlaceholder": "Enter password",
+          "confirmPasswordLabel": "Confirm Password",
+          "confirmPasswordPlaceholder": "Confirm password",
+          "passwordHint": "Must be at least 8 characters long",
+          "passwordTooShort": "Password must be at least 8 characters long",
+          "passwordsDoNotMatch": "Passwords do not match",
+          "setButton": "Set Password",
+          "updateButton": "Update Password",
+          "success": "Password set successfully! You can now log in with your email and password.",
+          "error": "Failed to set password. Please try again."
+        },
         "analysis": {
       "failed": "Analysis failed",
       "complete": "Analysis complete",

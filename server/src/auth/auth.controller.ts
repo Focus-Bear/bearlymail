@@ -9,7 +9,9 @@ import {
   BadRequestException,
   Query,
   Logger,
+  Put,
 } from "@nestjs/common";
+import { JwtAuthGuard } from "./jwt-auth.guard";
 import { AuthService } from "./auth.service";
 import { LocalAuthGuard } from "./local-auth.guard";
 import { GoogleAuthGuard } from "./google-auth.guard";
@@ -46,6 +48,53 @@ export class AuthController {
   @Post("setup-password")
   async setupPassword(@Body() body: { token: string; password: string }) {
     return this.authService.setupPassword(body.token, body.password);
+  }
+
+  /**
+   * Set password for an authenticated SSO user.
+   * This allows users who logged in via Google/Microsoft/Zoho to also have a password.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Put("set-password")
+  async setPassword(
+    @Request() req,
+    @Body() body: { password: string; confirmPassword: string },
+  ) {
+    if (!body.password || !body.confirmPassword) {
+      throw new BadRequestException("Password and confirmation are required");
+    }
+
+    if (body.password !== body.confirmPassword) {
+      throw new BadRequestException("Passwords do not match");
+    }
+
+    if (body.password.length < 8) {
+      throw new BadRequestException(
+        "Password must be at least 8 characters long",
+      );
+    }
+
+    try {
+      await this.authService.setPasswordForSsoUser(
+        req.user.userId,
+        body.password,
+      );
+      return { success: true, message: "Password set successfully" };
+    } catch (error) {
+      throw new BadRequestException(
+        error.message || "Failed to set password",
+      );
+    }
+  }
+
+  /**
+   * Check if the authenticated user has a password set.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get("has-password")
+  async hasPassword(@Request() req) {
+    const hasPassword = await this.authService.hasPassword(req.user.userId);
+    return { hasPassword };
   }
 
   @UseGuards(LocalAuthGuard)

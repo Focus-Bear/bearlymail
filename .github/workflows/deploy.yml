@@ -57,6 +57,13 @@ jobs:
         run: npm run build
 
       # ============================================
+      # Initialize PgBoss schema (required before migrations)
+      # ============================================
+      - name: Initialize PgBoss schema
+        working-directory: server
+        run: node -e "const PgBoss = require('pg-boss'); const boss = new PgBoss('postgres://test:test@localhost:5432/test'); boss.start().then(() => boss.stop()).then(() => { console.log('PgBoss schema initialized'); process.exit(0); }).catch(err => { console.error('Failed to initialize PgBoss:', err); process.exit(1); })"
+
+      # ============================================
       # Run database migrations against test DB
       # ============================================
       - name: Run database migrations

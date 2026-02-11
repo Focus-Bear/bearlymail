@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
@@ -17,6 +17,9 @@ const Contacts: React.FC = () => {
   const [syncing, setSyncing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [searchResults, setSearchResults] = useState<Contact[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchContacts = useCallback(async () => {
     try {
@@ -51,14 +54,39 @@ const Contacts: React.FC = () => {
     }
   };
 
-  const filteredContacts = contacts.filter(contact => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      contact.email.toLowerCase().includes(query) ||
-      (contact.name && contact.name.toLowerCase().includes(query))
-    );
-  });
+  useEffect(() => {
+    if (!searchQuery || searchQuery.length < 2) {
+      setSearchResults(null);
+      return;
+    }
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    searchTimeoutRef.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const response = await axios.get(
+          `${API_URL}/contacts/search?q=${encodeURIComponent(searchQuery)}&limit=20`
+        );
+        setSearchResults(response.data);
+      } catch (err) {
+        console.error('Contact search failed:', err);
+        setSearchResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchQuery]);
+
+  const filteredContacts = searchResults !== null ? searchResults : contacts;
 
   return (
     <div style={{
@@ -156,7 +184,7 @@ const Contacts: React.FC = () => {
           </div>
         )}
 
-        {loading ? (
+        {loading || searching ? (
           <div style={{
             textAlign: 'center',
             padding: theme.spacing.xl,

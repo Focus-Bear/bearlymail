@@ -168,16 +168,15 @@ export class GmailContactsProvider implements ContactProvider {
     });
 
     const people = google.people({ version: "v1", auth: oauth2Client });
+    const resultsMap = new Map<string, RawContact>();
+    const pageSize = Math.min(maxResults, QUERY_LIMITS.MAX_ISSUES_SEARCH);
 
     try {
-      // Use searchContacts for real-time search
       const response = await people.people.searchContacts({
         query,
-        pageSize: Math.min(maxResults, QUERY_LIMITS.MAX_ISSUES_SEARCH),
+        pageSize,
         readMask: "names,emailAddresses,phoneNumbers,organizations,photos",
       });
-
-      const results: RawContact[] = [];
 
       for (const result of response.data.results || []) {
         const { person } = result;
@@ -186,13 +185,16 @@ export class GmailContactsProvider implements ContactProvider {
         const email = person.emailAddresses?.[0]?.value;
         if (!email) continue;
 
+        const emailKey = email.toLowerCase().trim();
+        if (resultsMap.has(emailKey)) continue;
+
         const name = person.names?.[0];
         const org = person.organizations?.[0];
         const photo = person.photos?.[0];
 
-        results.push({
+        resultsMap.set(emailKey, {
           providerId: person.resourceName || "",
-          email: email.toLowerCase().trim(),
+          email: emailKey,
           name: name?.displayName,
           firstName: name?.givenName,
           lastName: name?.familyName,
@@ -202,12 +204,54 @@ export class GmailContactsProvider implements ContactProvider {
           photoUrl: photo?.url,
         });
       }
-
-      return results;
     } catch (error: unknown) {
-      console.error(`Error searching contacts for user ${userId}:`, error);
-      return [];
+      this.logger.error(
+        `Error searching main contacts for user ${userId}:`,
+        error,
+      );
     }
+
+    try {
+      const otherResponse = await people.otherContacts.search({
+        query,
+        pageSize,
+        readMask: "names,emailAddresses,phoneNumbers",
+      });
+
+      for (const result of otherResponse.data.results || []) {
+        const { person } = result;
+        if (!person) continue;
+
+        const email = person.emailAddresses?.[0]?.value;
+        if (!email) continue;
+
+        const emailKey = email.toLowerCase().trim();
+        if (resultsMap.has(emailKey)) continue;
+
+        const name = person.names?.[0];
+        const org = person.organizations?.[0];
+        const photo = person.photos?.[0];
+
+        resultsMap.set(emailKey, {
+          providerId: person.resourceName || "",
+          email: emailKey,
+          name: name?.displayName,
+          firstName: name?.givenName,
+          lastName: name?.familyName,
+          phone: person.phoneNumbers?.[0]?.value,
+          company: org?.name,
+          jobTitle: org?.title,
+          photoUrl: photo?.url,
+        });
+      }
+    } catch (error: unknown) {
+      this.logger.warn(
+        `Error searching other contacts for user ${userId} (may be expected if scope not granted):`,
+        error,
+      );
+    }
+
+    return Array.from(resultsMap.values()).slice(0, maxResults);
   }
 
   async getContact(
@@ -404,7 +448,7 @@ export class GmailContactsProvider implements ContactProvider {
       do {
         const response = await people.otherContacts.list({
           pageSize: 1000,
-          readMask: "names,emailAddresses,phoneNumbers,organizations,photos",
+          readMask: "names,emailAddresses,phoneNumbers,photos",
           pageToken: nextPageToken,
         });
 

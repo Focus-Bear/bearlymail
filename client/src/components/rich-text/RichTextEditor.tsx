@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useEditor, EditorContent, Extension } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import BulletList from '@tiptap/extension-bullet-list';
+import OrderedList from '@tiptap/extension-ordered-list';
+import ListItem from '@tiptap/extension-list-item';
 import Underline from '@tiptap/extension-underline';
 import Link from '@tiptap/extension-link';
 import TextAlign from '@tiptap/extension-text-align';
@@ -54,7 +57,21 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         heading: {
           levels: [1, 2, 3],
         },
+        bulletList: false,
+        orderedList: false,
+        listItem: false,
       }),
+      BulletList.extend({
+        addInputRules() {
+          return [];
+        },
+      }),
+      OrderedList.extend({
+        addInputRules() {
+          return [];
+        },
+      }),
+      ListItem,
       Underline,
       Link.configure({
         openOnClick: false,
@@ -167,7 +184,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       style={{
         border: `1px solid ${hasToneError ? theme.colors.accent.error : theme.colors.border.medium}`,
         borderRadius: theme.borderRadius.md,
-        overflow: 'hidden',
+        overflow: 'visible',
         opacity: disabled ? OPACITY_DISABLED : 1,
         backgroundColor: theme.colors.background.subtle,
       }}

@@ -353,7 +353,7 @@ export const RichTextToolbar: React.FC<RichTextToolbarProps> = ({
             style={{
               position: 'absolute',
               top: '100%',
-              left: 0,
+              right: 0,
               zIndex: 1000,
               marginTop: theme.spacing.xs,
             }}

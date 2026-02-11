@@ -3,15 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
-import { DEBOUNCE_DELAY_MS, OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
+import { DEBOUNCE_DELAY_MS, MILLISECONDS_PER_MINUTE, OPACITY_DISABLED, OPACITY_FULL, TOAST_DURATION_MS } from 'constants/numbers';
 import { captureEvent } from 'utils/posthog';
 import { Contact } from 'types/contact';
+import { useAuth } from 'contexts/AuthContext';
+import { getPusherInstance } from 'config/pusher';
 
 import { API_URL } from 'config/api';
 
 const Contacts: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -45,14 +48,61 @@ const Contacts: React.FC = () => {
     setSyncing(true);
     try {
       await axios.post(`${API_URL}/contacts/sync`);
-      await fetchContacts();
+      const pusher = getPusherInstance();
+      if (!pusher) {
+        const pollInterval = setInterval(async () => {
+          try {
+            const res = await axios.get(`${API_URL}/contacts`);
+            if (res.data.length > 0) {
+              clearInterval(pollInterval);
+              setContacts(res.data);
+              setSyncing(false);
+            }
+          } catch {
+            clearInterval(pollInterval);
+            setSyncing(false);
+          }
+        }, TOAST_DURATION_MS);
+        setTimeout(() => {
+          clearInterval(pollInterval);
+          setSyncing(false);
+          fetchContacts();
+        }, MILLISECONDS_PER_MINUTE);
+      }
     } catch (err) {
       console.error('Failed to sync contacts:', err);
       setError(t('contacts.errorSyncing'));
-    } finally {
       setSyncing(false);
     }
   };
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const pusher = getPusherInstance();
+    if (!pusher) return;
+
+    const channel = pusher.subscribe(`user-${user.id}`);
+
+    channel.bind('contacts-sync-started', () => {
+      setSyncing(true);
+    });
+
+    channel.bind('contacts-sync-complete', () => {
+      setSyncing(false);
+      fetchContacts();
+    });
+
+    channel.bind('contacts-sync-failed', (data: { error: string }) => {
+      setSyncing(false);
+      setError(data.error);
+    });
+
+    return () => {
+      channel.unbind_all();
+      pusher.unsubscribe(`user-${user.id}`);
+    };
+  }, [user?.id, fetchContacts]);
 
   useEffect(() => {
     if (!searchQuery || searchQuery.length < 2) {

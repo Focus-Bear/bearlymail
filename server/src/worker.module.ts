@@ -28,6 +28,8 @@ import { ZohoAccountsModule } from "./zoho-accounts/zoho-accounts.module";
 import { BlockedSendersModule } from "./blocked-senders/blocked-senders.module";
 import { BlockedKeywordsModule } from "./blocked-keywords/blocked-keywords.module";
 import { NotesModule } from "./notes/notes.module";
+import { PusherModule } from "./pusher/pusher.module";
+import { ContactsModule } from "./contacts/contacts.module";
 
 @Module({
   imports: [
@@ -66,6 +68,8 @@ import { NotesModule } from "./notes/notes.module";
     BlockedSendersModule,
     BlockedKeywordsModule,
     NotesModule,
+    PusherModule,
+    ContactsModule,
   ],
 })
 export class WorkerModule {}

@@ -301,6 +301,17 @@ export class AuthService {
           },
         )
         .catch((err) => console.error("Failed to add sync job", err));
+
+      this.boss
+        .send(
+          "sync-contacts",
+          { userId: user.id },
+          {
+            singletonKey: `sync-contacts-${user.id}`,
+            singletonMinutes: 60,
+          },
+        )
+        .catch((err) => console.error("Failed to add contact sync job", err));
     }, 2000);
 
     return result;

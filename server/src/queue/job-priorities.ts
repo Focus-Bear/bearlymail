@@ -82,6 +82,12 @@ export const JobTypePriority = {
 
   // Archive provider sync (DB already updated, sync to Gmail/Office365/Zoho)
   "archive-email-provider-sync": JobPriority.HIGH,
+
+  // Contact sync (background sync from Google Contacts)
+  "sync-contacts": JobPriority.LOW,
+
+  // Daily contact sync scheduler
+  "schedule-contact-sync-jobs": JobPriority.LOW,
 } as const;
 
 /**

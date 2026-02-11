@@ -7,9 +7,11 @@ import {
   Body,
   Param,
   Query,
+  Inject,
   UseGuards,
   Request,
 } from "@nestjs/common";
+import PgBoss = require("pg-boss");
 import { ContactsService, ContactSearchResult } from "./contacts.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { QUERY_LIMITS } from "../constants/query-limits";
@@ -17,7 +19,10 @@ import { QUERY_LIMITS } from "../constants/query-limits";
 @Controller("contacts")
 @UseGuards(JwtAuthGuard)
 export class ContactsController {
-  constructor(private readonly contactsService: ContactsService) {}
+  constructor(
+    private readonly contactsService: ContactsService,
+    @Inject("PG_BOSS") private readonly boss: PgBoss,
+  ) {}
 
   /**
    * Search contacts with autocomplete support
@@ -65,14 +70,16 @@ export class ContactsController {
    * Sync contacts from all connected providers
    */
   @Post("sync")
-  async syncContacts(
-    @Request() req,
-    @Query("full") fullSync?: string,
-  ): Promise<{ synced: number; provider: string }[]> {
-    return this.contactsService.syncContacts(
-      req.user.userId,
-      fullSync === "true",
+  async syncContacts(@Request() req): Promise<{ message: string }> {
+    await this.boss.send(
+      "sync-contacts",
+      { userId: req.user.userId },
+      {
+        singletonKey: `sync-contacts-${req.user.userId}`,
+        singletonMinutes: 1,
+      },
     );
+    return { message: "Contact sync started in the background." };
   }
 
   /**

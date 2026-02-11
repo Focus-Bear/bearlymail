@@ -37,6 +37,7 @@ import { SuggestedActionsModule } from "./suggested-actions/suggested-actions.mo
 import { AutoResponderModule } from "./auto-responder/auto-responder.module";
 import { DraftsModule } from "./drafts/drafts.module";
 import { SchedulingPreferencesModule } from "./scheduling-preferences/scheduling-preferences.module";
+import { PusherModule } from "./pusher/pusher.module";
 
 @Module({
   imports: [
@@ -90,6 +91,7 @@ import { SchedulingPreferencesModule } from "./scheduling-preferences/scheduling
     AutoResponderModule,
     DraftsModule,
     SchedulingPreferencesModule,
+    PusherModule,
   ],
   controllers: [AppController],
   providers: [AppService],

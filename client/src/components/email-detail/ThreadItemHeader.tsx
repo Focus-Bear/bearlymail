@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { humanizeTimestamp } from 'utils/dateUtils';
 
@@ -23,6 +24,19 @@ export const ThreadItemHeader: React.FC<ThreadItemHeaderProps> = ({
   isCurrentEmail,
   onToggle,
 }) => {
+  const { t } = useTranslation();
+  const [emailCopied, setEmailCopied] = useState(false);
+  const handleCopyEmail = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(from);
+      setEmailCopied(true);
+      setTimeout(() => setEmailCopied(false), 2000);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to copy email:', err);
+    }
+  }, [from]);
+
   const getBackgroundColor = (): string => {
     if (isCurrentEmail) return theme.colors.primary.subtle;
     return theme.colors.background.subtle;
@@ -45,6 +59,20 @@ export const ThreadItemHeader: React.FC<ThreadItemHeaderProps> = ({
           <strong style={{ color: theme.colors.text.primary }}>
             {fromName || from}
           </strong>
+          {from && fromName && (
+            <span
+              onClick={(e) => { e.stopPropagation(); handleCopyEmail(); }}
+              title={emailCopied ? t('emailDetail.emailCopied') : t('emailDetail.clickToCopyEmail')}
+              style={{
+                fontSize: theme.typography.fontSize.xs,
+                color: emailCopied ? theme.colors.accent.success : theme.colors.text.secondary,
+                cursor: 'pointer',
+              }}
+            >
+              {/* eslint-disable-next-line i18next/no-literal-string */}
+              &lt;{from}&gt;
+            </span>
+          )}
           <span style={{ color: theme.colors.text.secondary }}>
             {humanizeTimestamp(new Date(receivedAt))}
           </span>

@@ -295,6 +295,8 @@
     "replySentSuccess": "Reply sent successfully!",
     "replySentError": "Failed to send reply. Please try again.",
     "backToInbox": "Back to Inbox",
+    "clickToCopyEmail": "Click to copy email address",
+    "emailCopied": "Copied!",
     "clickToSeeScore": "Click to see why this score was assigned",
     "checkingTone": "Checking tone...",
     "send": "Send",

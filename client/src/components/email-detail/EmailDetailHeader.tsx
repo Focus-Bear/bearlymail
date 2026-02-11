@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
@@ -45,6 +45,18 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
     return getCorrespondent(email, user?.email, threadEmails);
   }, [email, threadEmails, user?.email]);
 
+  const [emailCopied, setEmailCopied] = useState(false);
+  const handleCopyEmail = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(correspondent.email);
+      setEmailCopied(true);
+      setTimeout(() => setEmailCopied(false), 2000);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to copy email:', err);
+    }
+  }, [correspondent.email]);
+
   const getSentimentLabel = (value: number) => {
     if (value > 0) return `${EMOJI_NEGATIVE} ${t('emailDetail.sentiment.negative')}`;
     if (value < 0) return `${EMOJI_POSITIVE} ${t('emailDetail.sentiment.positive')}`;
@@ -82,9 +94,24 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
             {correspondent.name[0].toUpperCase()}
           </div>
                     <div>
-                      <div style={{ fontWeight: theme.typography.fontWeight.semibold, color: theme.colors.text.primary }}>
+                      <div style={{ fontWeight: theme.typography.fontWeight.semibold, color: theme.colors.text.primary, display: 'flex', alignItems: 'center', gap: theme.spacing.xs }}>
                         {/* eslint-disable-next-line i18next/no-literal-string */}
                         {EMOJI_USER} {correspondent.name}
+                        {correspondent.email && (
+                          <span
+                            onClick={handleCopyEmail}
+                            title={emailCopied ? t('emailDetail.emailCopied') : t('emailDetail.clickToCopyEmail')}
+                            style={{
+                              fontSize: theme.typography.fontSize.xs,
+                              color: emailCopied ? theme.colors.accent.success : theme.colors.text.secondary,
+                              fontWeight: theme.typography.fontWeight.normal,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {/* eslint-disable-next-line i18next/no-literal-string */}
+                            &lt;{correspondent.email}&gt;
+                          </span>
+                        )}
                       </div>
                       <div 
                         style={{ 

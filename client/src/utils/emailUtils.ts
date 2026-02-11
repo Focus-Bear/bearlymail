@@ -94,6 +94,17 @@ export const removeSignature = (text: string): string => {
 /**
  * Sanitizes and processes HTML for safe rendering
  */
+export const plainTextToHtml = (text: string): string => {
+  if (!text) return '';
+  if (text.startsWith('<') && (text.includes('<p>') || text.includes('<br') || text.includes('<div'))) {
+    return text;
+  }
+  const paragraphs = text.split(/\n\n+/);
+  return paragraphs
+    .map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`)
+    .join('');
+};
+
 const PLAIN_URL_REGEX = /https?:\/\/[^\s<>"'`,;!?\])}]+(?:[/?#][^\s<>"'`,;!?\])}]*)?/g;
 
 function isInsideAnchor(node: Node): boolean {
@@ -152,7 +163,6 @@ function linkifyPlainUrls(root: HTMLElement): void {
     }
   }
 }
-
 export const sanitizeAndProcessHtml = (html: string): string => {
   if (!html) return '';
   

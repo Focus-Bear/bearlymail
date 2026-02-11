@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { API_URL } from 'config/api';
+import { plainTextToHtml } from 'utils/emailUtils';
 
 interface Email {
   id: string;
@@ -168,12 +169,16 @@ export function useReplyDraftGeneration(
       }
       
       if (generatedOptions && generatedOptions.length > 0) {
+        const htmlOptions = generatedOptions.map(opt => ({
+          ...opt,
+          text: plainTextToHtml(opt.text),
+        }));
         const optionsWithCustom = [
-          ...generatedOptions,
+          ...htmlOptions,
           { label: 'Custom', text: '' }
         ];
         setReplyOptions(optionsWithCustom);
-        setDraft(generatedOptions[0].text);
+        setDraft(htmlOptions[0].text);
         setSelectedReplyOption(0);
       } else {
         setReplyOptions([{ label: 'Custom', text: '' }]);

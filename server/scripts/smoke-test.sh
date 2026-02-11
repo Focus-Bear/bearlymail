@@ -72,7 +72,7 @@ check_endpoint "GET" "/users/me" "401" "User profile requires authentication"
 
 check_endpoint "GET" "/batch-schedule" "401" "Batch schedule requires authentication"
 
-check_endpoint "GET" "/context/status" "401" "Context status requires authentication"
+check_endpoint "GET" "/context" "401" "Context requires authentication"
 
 echo ""
 echo "--- Results ---"

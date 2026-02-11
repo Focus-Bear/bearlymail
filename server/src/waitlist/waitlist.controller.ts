@@ -12,22 +12,14 @@ import {
 import { WaitlistService } from "./waitlist.service";
 import { AdminGuard } from "../auth/admin.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { CreateWaitlistDto } from "./create-waitlist.dto";
 
 @Controller("waitlist")
 export class WaitlistController {
   constructor(private readonly waitlistService: WaitlistService) {}
 
   @Post()
-  async submit(
-    @Body()
-    body: {
-      email: string;
-      firstName: string;
-      reason: string;
-      emailSystem?: string;
-      emailSystemOther?: string;
-    },
-  ) {
+  async submit(@Body() body: CreateWaitlistDto) {
     return this.waitlistService.create(
       body.email,
       body.firstName,

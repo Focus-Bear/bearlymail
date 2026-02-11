@@ -1281,9 +1281,9 @@ export class EmailsService {
         ? "[Blocked sender]"
         : "[Blocked keyword]";
 
-      // Add blocked-by-bearlymail label
+      // Add BearlyMail-Blocked label
       const existingLabels = email.labels || [];
-      email.labels = [...existingLabels, "blocked-by-bearlymail"];
+      email.labels = [...existingLabels, "BearlyMail-Blocked"];
 
       const savedEmail = await this.emailRepository.save(email);
 
@@ -1292,7 +1292,7 @@ export class EmailsService {
       this.boss
         .send(
           "archive-email",
-          { userId, emailId: savedEmail.id },
+          { userId, emailId: savedEmail.id, isBlocked: true },
           {
             priority: getJobPriority("archive-email", false),
             singletonKey: `archive-blocked-${savedEmail.threadId}`,

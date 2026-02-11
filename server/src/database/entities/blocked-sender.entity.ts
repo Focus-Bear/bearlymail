@@ -12,7 +12,7 @@ import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
 
 /**
  * Blocked senders - emails from these addresses are automatically archived
- * and labeled "blocked-by-bearlymail", and excluded from summaries.
+ * and labeled "BearlyMail-Blocked", and excluded from summaries.
  */
 @Entity("blocked_senders")
 // One block per email per user

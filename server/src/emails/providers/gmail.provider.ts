@@ -787,6 +787,32 @@ export class GmailProvider implements EmailProvider {
     }
   }
 
+  async addLabelToThread(
+    userId: string,
+    threadId: string,
+    labelName: string,
+  ): Promise<void> {
+    const gmail = await this.createGmailClient(userId);
+    if (!gmail) throw new Error("User not connected to Gmail");
+    const labelId = await ensureLabelExists(
+      gmail,
+      labelName,
+      this.labelCache,
+      this.bearlyMailLabelCache,
+      userId,
+    );
+    await gmail.users.threads.modify({
+      userId: "me",
+      id: threadId,
+      requestBody: {
+        addLabelIds: [labelId],
+      },
+    });
+    this.logger.log(
+      `[Gmail Label] Added label "${labelName}" to thread ${threadId}`,
+    );
+  }
+
   async archiveThread(userId: string, threadId: string): Promise<void> {
     const gmail = await this.createGmailClient(userId);
     if (!gmail) throw new Error("User not connected to Gmail");

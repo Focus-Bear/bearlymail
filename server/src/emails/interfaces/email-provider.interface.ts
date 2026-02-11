@@ -181,6 +181,19 @@ export interface EmailProvider {
   unsnoozeThread(userId: string, threadId: string): Promise<void>;
 
   /**
+   * Add a label to a thread in the email provider
+   * Used for applying labels like "BearlyMail-Blocked" to blocked emails
+   * @param userId - The user ID
+   * @param threadId - The thread ID to label
+   * @param labelName - The label name to apply
+   */
+  addLabelToThread(
+    userId: string,
+    threadId: string,
+    labelName: string,
+  ): Promise<void>;
+
+  /**
    * Get attachment data from an email
    * Returns the attachment file data and metadata
    * @param attachmentMetadata - Optional metadata to help find the attachment if the ID has changed

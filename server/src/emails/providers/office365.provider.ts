@@ -864,6 +864,16 @@ export class Office365Provider implements EmailProvider {
     throw new Error("Attachment download not yet implemented for Office365");
   }
 
+  async addLabelToThread(
+    _userId: string, // eslint-disable-line @typescript-eslint/no-unused-vars
+    threadId: string,
+    labelName: string,
+  ): Promise<void> {
+    this.logger.debug(
+      `addLabelToThread called for Office365 (not implemented): ${threadId}, label=${labelName}`,
+    );
+  }
+
   async trashThread(userId: string, threadId: string): Promise<void> {
     this.logger.debug(
       `trashThread called for Office365 (using archive instead)`,

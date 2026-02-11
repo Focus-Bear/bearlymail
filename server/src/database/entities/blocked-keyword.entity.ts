@@ -12,7 +12,7 @@ import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
 
 /**
  * Blocked keywords - emails with these keywords in subject lines are automatically archived
- * and labeled "blocked-by-bearlymail", and excluded from summaries.
+ * and labeled "BearlyMail-Blocked", and excluded from summaries.
  */
 @Entity("blocked_keywords")
 // One keyword per user (unique constraint)

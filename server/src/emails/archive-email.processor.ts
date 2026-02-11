@@ -17,13 +17,14 @@ export class ArchiveEmailProcessor implements OnModuleInit {
   async onModuleInit() {
     // Register worker for archive-email jobs (legacy: does DB + provider sync)
     await this.boss.work("archive-email", async (job) => {
-      const { userId, emailId } = job.data as {
+      const { userId, emailId, isBlocked } = job.data as {
         userId: string;
         emailId: string;
+        isBlocked?: boolean;
       };
 
       this.logger.log(
-        `[Archive Job] Processing archive job: userId=${userId}, emailId=${emailId}`,
+        `[Archive Job] Processing archive job: userId=${userId}, emailId=${emailId}, isBlocked=${!!isBlocked}`,
       );
 
       try {
@@ -31,6 +32,34 @@ export class ArchiveEmailProcessor implements OnModuleInit {
         this.logger.log(
           `[Archive Job] Successfully archived email: userId=${userId}, emailId=${emailId}`,
         );
+
+        if (isBlocked) {
+          try {
+            const email = await this.emailsService.getEmailById(
+              userId,
+              emailId,
+            );
+            if (email?.threadId) {
+              const provider =
+                await this.emailProviderManager.getPrimaryProvider(userId);
+              if (provider && "addLabelToThread" in provider) {
+                await provider.addLabelToThread(
+                  userId,
+                  email.threadId,
+                  "BearlyMail-Blocked",
+                );
+                this.logger.log(
+                  `[Archive Job] Added BearlyMail-Blocked label: userId=${userId}, threadId=${email.threadId}`,
+                );
+              }
+            }
+          } catch (labelError: unknown) {
+            this.logger.error(
+              `[Archive Job] Failed to add BearlyMail-Blocked label: userId=${userId}, emailId=${emailId}`,
+              labelError,
+            );
+          }
+        }
       } catch (error: unknown) {
         this.logger.error(
           `[Archive Job] Failed to archive email: userId=${userId}, emailId=${emailId}`,

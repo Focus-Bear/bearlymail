@@ -51,20 +51,24 @@ export function cleanEmailContent(
   htmlBody?: string | null,
   maxLength: number = 1000,
 ): string {
-  // Prefer plain text body, fallback to stripped HTML
-  let content = body?.trim() || "";
+  let content = "";
 
-  // If body is empty or looks like HTML, try to extract from htmlBody
+  if (htmlBody && htmlBody.trim()) {
+    content = stripHtml(htmlBody);
+  }
+
+  if (!content.trim()) {
+    content = body?.trim() || "";
+  }
+
   if (
-    !content ||
     content.startsWith("<") ||
     content.includes("<html") ||
     content.includes("<body")
   ) {
-    content = stripHtml(htmlBody || body || "");
+    content = stripHtml(content);
   }
 
-  // If still looks like it has HTML tags, strip them
   if (content.includes("<") && content.includes(">")) {
     content = stripHtml(content);
   }

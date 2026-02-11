@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
-import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
+import { DEBOUNCE_DELAY_MS, OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 import { captureEvent } from 'utils/posthog';
 import { Contact } from 'types/contact';
 
@@ -77,7 +77,7 @@ const Contacts: React.FC = () => {
       } finally {
         setSearching(false);
       }
-    }, 300);
+    }, DEBOUNCE_DELAY_MS);
 
     return () => {
       if (searchTimeoutRef.current) {

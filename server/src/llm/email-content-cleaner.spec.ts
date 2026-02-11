@@ -128,11 +128,11 @@ describe("EmailContentCleaner", () => {
       expect(result.length).toBeLessThanOrEqual(1000 + 3); // +3 for "..."
     });
 
-    it("should prefer plain text body over htmlBody", () => {
+    it("should prefer htmlBody with proper stripping over plain text body", () => {
       const plainText = "Plain text content";
       const htmlBody = "<p>HTML content</p>";
       const result = cleanEmailContent(plainText, htmlBody);
-      expect(result).toBe("Plain text content");
+      expect(result).toBe("HTML content");
     });
 
     it("should use htmlBody when body is empty", () => {

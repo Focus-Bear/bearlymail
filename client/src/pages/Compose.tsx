@@ -9,11 +9,13 @@ import { captureEvent } from 'utils/posthog';
 import { Contact } from 'types/contact';
 import { useComposeForm } from 'hooks/useComposeForm';
 import { useContactSearch } from 'hooks/useContactSearch';
+import { useEmailDetailToneCheck } from 'hooks/useEmailDetailToneCheck';
 import { RecipientFields } from 'components/compose/RecipientFields';
 import { ComposeBody } from 'components/compose/ComposeBody';
 import { FrequentContactsList } from 'components/compose/FrequentContactsList';
 import { ComposeActions } from 'components/compose/ComposeActions';
 import { ComposeMessages } from 'components/compose/ComposeMessages';
+import { ToneCheckResult } from 'components/email-detail-inline/ToneCheckResult';
 
 import { API_URL } from 'config/api';
 
@@ -24,6 +26,15 @@ const Compose: React.FC = () => {
   
   const form = useComposeForm();
   const search = useContactSearch();
+  const {
+    checkingTone,
+    toneCheckResult,
+    setToneCheckResult,
+    checkTone,
+    disputing,
+    disputeResult,
+    disputeToneCheck,
+  } = useEmailDetailToneCheck();
   
   const [sending, setSending] = useState(false);
   const [sendSuccess, setSendSuccess] = useState(false);
@@ -96,8 +107,12 @@ const Compose: React.FC = () => {
       return;
     }
 
-    setSending(true);
     setError(null);
+
+    const toneOk = await checkTone(form.body.trim());
+    if (!toneOk) return;
+
+    setSending(true);
 
     try {
       captureEvent('compose_sent', {
@@ -258,6 +273,18 @@ const Compose: React.FC = () => {
             onAddRecipient={handleAddRecipient}
           />
 
+          <ToneCheckResult
+            toneCheckResult={toneCheckResult}
+            onUseRevisedText={(text) => {
+              form.setBody(text);
+              setToneCheckResult({ isOk: true, suggestions: [] });
+            }}
+            emailText={form.body}
+            onDispute={disputeToneCheck}
+            disputing={disputing}
+            disputeResult={disputeResult}
+          />
+
           <ComposeMessages
             error={error}
             sendSuccess={sendSuccess}
@@ -267,6 +294,7 @@ const Compose: React.FC = () => {
         <ComposeActions
           sending={sending}
           sendSuccess={sendSuccess}
+          checkingTone={checkingTone}
           onDiscard={() => navigate('/inbox')}
           onSend={handleSend}
         />

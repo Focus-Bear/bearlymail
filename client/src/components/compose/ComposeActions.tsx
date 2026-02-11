@@ -5,6 +5,7 @@ import { theme } from 'theme/theme';
 interface ComposeActionsProps {
   sending: boolean;
   sendSuccess: boolean;
+  checkingTone?: boolean;
   onDiscard: () => void;
   onSend: () => void;
 }
@@ -12,6 +13,7 @@ interface ComposeActionsProps {
 export const ComposeActions: React.FC<ComposeActionsProps> = ({
   sending,
   sendSuccess,
+  checkingTone = false,
   onDiscard,
   onSend,
 }) => {
@@ -46,13 +48,13 @@ export const ComposeActions: React.FC<ComposeActionsProps> = ({
       </button>
       <button
         onClick={onSend}
-        disabled={sending || sendSuccess}
+        disabled={sending || sendSuccess || checkingTone}
         style={{
           padding: '10px 24px',
-          backgroundColor: sending || sendSuccess ? theme.colors.primary.light : theme.colors.primary.main,
+          backgroundColor: sending || sendSuccess || checkingTone ? theme.colors.primary.light : theme.colors.primary.main,
           border: 'none',
           borderRadius: theme.borderRadius.md,
-          cursor: sending || sendSuccess ? 'not-allowed' : 'pointer',
+          cursor: sending || sendSuccess || checkingTone ? 'not-allowed' : 'pointer',
           fontSize: theme.typography.fontSize.sm,
           fontWeight: theme.typography.fontWeight.semibold,
           color: 'white',
@@ -63,6 +65,22 @@ export const ComposeActions: React.FC<ComposeActionsProps> = ({
         }}
       >
         {(() => {
+          if (checkingTone) {
+            return (
+              <>
+                <span style={{ 
+                  display: 'inline-block',
+                  width: '14px',
+                  height: '14px',
+                  border: '2px solid rgba(255,255,255,0.3)',
+                  borderTopColor: 'white',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite',
+                }} />
+                {t('emailDetail.checkingTone')}
+              </>
+            );
+          }
           if (sending) {
             return (
               <>

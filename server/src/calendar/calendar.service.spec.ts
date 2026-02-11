@@ -508,5 +508,106 @@ describe("CalendarService", () => {
 
       expect(result.length).toBeLessThanOrEqual(10);
     });
+
+    it("should align start time to clean slot boundaries", () => {
+      const start = new Date("2024-01-15T09:22:15Z");
+      const end = new Date("2024-01-15T17:00:00Z");
+      const busy: Array<{ start: string; end: string }> = [];
+
+      const result = (service as any).calculateFreeSlots(start, end, busy);
+
+      expect(result.length).toBeGreaterThan(0);
+      result.forEach((slot: { start: string }) => {
+        const slotDate = new Date(slot.start);
+        const minutes = slotDate.getMinutes();
+        expect(minutes % 30).toBe(0);
+      });
+    });
+  });
+
+  describe("alignToSlotBoundary", () => {
+    it("should round up to next 30-minute boundary", () => {
+      const date = new Date("2024-01-15T09:22:15Z");
+      const result = (service as any).alignToSlotBoundary(date, 30);
+      expect(result.getMinutes()).toBe(30);
+      expect(result.getSeconds()).toBe(0);
+      expect(result.getMilliseconds()).toBe(0);
+    });
+
+    it("should keep already-aligned times unchanged", () => {
+      const date = new Date("2024-01-15T09:00:00Z");
+      const result = (service as any).alignToSlotBoundary(date, 30);
+      expect(result.getMinutes()).toBe(0);
+      expect(result.getSeconds()).toBe(0);
+    });
+
+    it("should handle 15-minute slot durations", () => {
+      const date = new Date("2024-01-15T09:07:30Z");
+      const result = (service as any).alignToSlotBoundary(date, 15);
+      expect(result.getMinutes()).toBe(15);
+      expect(result.getSeconds()).toBe(0);
+    });
+
+    it("should handle 60-minute slot durations", () => {
+      const date = new Date("2024-01-15T09:45:00Z");
+      const result = (service as any).alignToSlotBoundary(date, 60);
+      expect(result.getHours()).toBe(10);
+      expect(result.getMinutes()).toBe(0);
+      expect(result.getSeconds()).toBe(0);
+    });
+
+    it("should handle time at exact boundary for 15-minute slots", () => {
+      const date = new Date("2024-01-15T09:15:00Z");
+      const result = (service as any).alignToSlotBoundary(date, 15);
+      expect(result.getMinutes()).toBe(15);
+      expect(result.getSeconds()).toBe(0);
+    });
+
+    it("should zero out seconds and milliseconds", () => {
+      const date = new Date("2024-01-15T09:30:45.123Z");
+      const result = (service as any).alignToSlotBoundary(date, 30);
+      expect(result.getMinutes()).toBe(30);
+      expect(result.getSeconds()).toBe(0);
+      expect(result.getMilliseconds()).toBe(0);
+    });
+  });
+
+  describe("getAvailableSlotsWithTimezone", () => {
+    it("should return slots and timezone", async () => {
+      usersService.findOne.mockResolvedValue(mockUser as any);
+      mockCalendar.freebusy.query.mockResolvedValue({
+        data: {
+          calendars: {
+            primary: {
+              busy: [],
+            },
+          },
+        },
+      });
+
+      const result = await service.getAvailableSlotsWithTimezone("user-1");
+
+      expect(result).toHaveProperty("slots");
+      expect(result).toHaveProperty("timezone");
+      expect(Array.isArray(result.slots)).toBe(true);
+      expect(typeof result.timezone).toBe("string");
+    });
+
+    it("should use UTC as default timezone", async () => {
+      usersService.findOne.mockResolvedValue(mockUser as any);
+      mockCalendar.freebusy.query.mockResolvedValue({
+        data: {
+          calendars: {
+            primary: {
+              busy: [],
+            },
+          },
+        },
+      });
+
+      const result = await service.getAvailableSlotsWithTimezone("user-1");
+
+      expect(result.timezone).toBe("UTC");
+    });
   });
 });

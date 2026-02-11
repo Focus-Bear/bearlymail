@@ -21,6 +21,7 @@ const BookingPage: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
   const { t } = useTranslation();
   const [slots, setSlots] = useState<TimeSlot[]>([]);
+  const [timezone, setTimezone] = useState<string>('');
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [guestEmail, setGuestEmail] = useState('');
   const [guestName, setGuestName] = useState('');
@@ -32,7 +33,8 @@ const BookingPage: React.FC = () => {
     const fetchSlots = async () => {
       try {
         const response = await axios.get(`${API_URL}/public/calendar/${userId}/slots`);
-        setSlots(response.data);
+        setSlots(response.data.slots);
+        setTimezone(response.data.timezone);
       } catch (error) {
         console.error('Error fetching slots:', error);
         setError(t('booking.failedToLoad'));
@@ -116,6 +118,7 @@ const BookingPage: React.FC = () => {
               slots={slots}
               selectedSlot={selectedSlot}
               onSelectSlot={setSelectedSlot}
+              timezone={timezone}
             />
             <BookingForm
               selectedSlot={selectedSlot}

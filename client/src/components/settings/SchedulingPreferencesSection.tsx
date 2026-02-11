@@ -27,6 +27,20 @@ const DEEP_WORK_OPTIONS = [0, 1, 2, 3, 4];
 
 const SLOT_DURATION_OPTIONS = [15, 30, 45, 60];
 
+const TIMEZONE_OPTIONS: string[] = (() => {
+  try {
+    return Intl.supportedValuesOf('timeZone');
+  } catch {
+    return [
+      'UTC',
+      'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
+      'Europe/London', 'Europe/Paris', 'Europe/Berlin',
+      'Asia/Tokyo', 'Asia/Shanghai', 'Asia/Kolkata',
+      'Australia/Sydney', 'Australia/Melbourne', 'Pacific/Auckland',
+    ];
+  }
+})();
+
 export const SchedulingPreferencesSection: React.FC = () => {
   const { t } = useTranslation();
   const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -268,6 +282,21 @@ export const SchedulingPreferencesSection: React.FC = () => {
             {SLOT_DURATION_OPTIONS.map((m) => (
               <option key={m} value={m}>
                 {t('settings.schedulingPreferences.slotDurationMinutes', { count: m })}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div id="scheduling-timezone">
+          <div style={labelStyle}>{t('settings.schedulingPreferences.timezone')}</div>
+          <select
+            value={prefs.timezone}
+            onChange={(e) => savePrefs({ timezone: e.target.value })}
+            style={selectStyle}
+          >
+            {TIMEZONE_OPTIONS.map((tz) => (
+              <option key={tz} value={tz}>
+                {tz.replace(/_/g, ' ')}
               </option>
             ))}
           </select>

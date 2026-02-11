@@ -18,6 +18,11 @@ export interface TimeSlot {
   duration: number;
 }
 
+export interface TimeSlotsWithTimezone {
+  slots: TimeSlot[];
+  timezone: string;
+}
+
 interface BusyPeriod {
   start: string;
   end: string;
@@ -89,6 +94,19 @@ export class CalendarService {
     }
   }
 
+  async getAvailableSlotsWithTimezone(
+    userId: string,
+    daysAhead: number = 7,
+  ): Promise<TimeSlotsWithTimezone> {
+    const prefs =
+      await this.schedulingPreferencesService.getPreferences(userId);
+    const slots = await this.getAvailableTimeSlots(userId, daysAhead, prefs);
+    return {
+      slots,
+      timezone: prefs.timezone || "UTC",
+    };
+  }
+
   private toTzDate(date: Date, tz: string): Date {
     const str = date.toLocaleString("en-US", { timeZone: tz });
     return new Date(str);
@@ -100,6 +118,19 @@ export class CalendarService {
     const m = String(d.getMonth() + 1).padStart(2, "0");
     const day = String(d.getDate()).padStart(2, "0");
     return `${y}-${m}-${day}`;
+  }
+
+  private alignToSlotBoundary(date: Date, slotDurationMinutes: number): Date {
+    const aligned = new Date(date);
+    const minutes = aligned.getMinutes();
+    const remainder = minutes % slotDurationMinutes;
+    if (remainder !== 0) {
+      aligned.setMinutes(minutes + (slotDurationMinutes - remainder));
+      aligned.setSeconds(0, 0);
+    } else {
+      aligned.setSeconds(0, 0);
+    }
+    return aligned;
   }
 
   private calculateFreeSlots(
@@ -116,7 +147,7 @@ export class CalendarService {
     const gapMinutes = prefs?.meetingGapMinutes ?? 30;
     const deepWorkHours = prefs?.deepWorkHoursPerDay ?? 2;
     const tz = prefs?.timezone || "UTC";
-    let current = new Date(start);
+    let current = this.alignToSlotBoundary(start, slotDuration);
 
     const meetingMinutesPerDay = new Map<string, number>();
 

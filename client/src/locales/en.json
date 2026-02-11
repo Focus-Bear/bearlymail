@@ -985,7 +985,8 @@
     "booking": "Booking...",
     "selectSlotFirst": "Please select a time slot first",
     "confirmed": "Booking Confirmed!",
-    "invitationSent": "A calendar invitation has been sent to {{email}}"
+    "invitationSent": "A calendar invitation has been sent to {{email}}",
+    "timezoneNote": "Times are shown in {{timezone}}"
   },
   "consent": {
     "welcome": "Welcome to BearlyMail",
@@ -1310,6 +1311,7 @@
       "deepWorkHours": "{{count}} hours per day with no meetings",
       "slotDuration": "Meeting Slot Duration",
       "slotDurationMinutes": "{{count}} minutes",
+      "timezone": "Timezone",
       "saved": "Preferences saved",
       "saveError": "Failed to save preferences",
       "days": {

@@ -134,6 +134,7 @@
     "failedToBook": "No se pudo reservar el horario seleccionado. Por favor inténtalo de nuevo.",
     "failedToLoad": "No se pudieron cargar los horarios disponibles. Inténtelo de nuevo más tarde.",
     "invitationSent": "Se envió una invitación de calendario a {{email}}",
+    "timezoneNote": "Los horarios se muestran en {{timezone}}",
     "loading": "Cargando horarios disponibles...",
     "noSlotsAvailable": "No hay franjas horarias disponibles por el momento.",
     "selectSlotFirst": "Por favor seleccione primero un horario",
@@ -1465,6 +1466,7 @@
       "deepWorkHours": "{{count}} horas por día sin reuniones",
       "slotDuration": "Duración del espacio de reunión",
       "slotDurationMinutes": "{{count}} minutos",
+      "timezone": "Zona horaria",
       "saved": "Preferencias guardadas",
       "saveError": "No se pudieron guardar las preferencias",
       "days": {

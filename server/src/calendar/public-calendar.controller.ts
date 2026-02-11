@@ -15,7 +15,7 @@ export class PublicCalendarController {
 
   @Get(":userId/slots")
   async getPublicSlots(@Param("userId") userId: string) {
-    return this.calendarService.getAvailableTimeSlots(userId);
+    return this.calendarService.getAvailableSlotsWithTimezone(userId);
   }
 
   @Post(":userId/book")

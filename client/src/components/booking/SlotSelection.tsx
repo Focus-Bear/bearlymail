@@ -13,9 +13,10 @@ interface SlotSelectionProps {
   slots: TimeSlot[];
   selectedSlot: TimeSlot | null;
   onSelectSlot: (slot: TimeSlot) => void;
+  timezone: string;
 }
 
-export const SlotSelection: React.FC<SlotSelectionProps> = ({ slots, selectedSlot, onSelectSlot }) => {
+export const SlotSelection: React.FC<SlotSelectionProps> = ({ slots, selectedSlot, onSelectSlot, timezone }) => {
   const { t } = useTranslation();
   
   return (
@@ -23,8 +24,16 @@ export const SlotSelection: React.FC<SlotSelectionProps> = ({ slots, selectedSlo
       <h2 style={{ 
         fontSize: theme.typography.fontSize.lg, 
         color: theme.colors.text.primary,
-        marginBottom: theme.spacing.md 
+        marginBottom: theme.spacing.xs 
       }}>{t('booking.availableTimes')}</h2>
+      {timezone && (
+        <p style={{
+          color: theme.colors.text.secondary,
+          fontSize: theme.typography.fontSize.sm,
+          marginTop: 0,
+          marginBottom: theme.spacing.md,
+        }}>{t('booking.timezoneNote', { timezone })}</p>
+      )}
       
       {slots.length === 0 ? (
         <p style={{ color: theme.colors.text.secondary }}>{t('booking.noSlotsAvailable')}</p>
@@ -55,7 +64,7 @@ export const SlotSelection: React.FC<SlotSelectionProps> = ({ slots, selectedSlo
                     {start.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
                   </div>
                   <div style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>
-                    {start.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })} ({t('booking.durationMinutes', { minutes: slot.duration })})
+                    {start.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', timeZone: timezone || undefined })} ({t('booking.durationMinutes', { minutes: slot.duration })})
                   </div>
                 </div>
                 {isSelected && (

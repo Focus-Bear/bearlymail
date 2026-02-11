@@ -635,8 +635,11 @@ export class LLMProcessor implements OnModuleInit {
                 : finalScore;
 
               // Handle proto categories for "Other" category
-              let protoCategoryId: string | null = null;
               let finalCategory = llmResult.category || thread.category || null;
+              // Preserve existing protoCategoryId if category stays "Other" and no new suggestion
+              // Clear it if category changes from "Other" to something else
+              let protoCategoryId: string | null =
+                finalCategory === "Other" ? thread.protoCategoryId : null;
 
               if (
                 llmResult.category === "Other" &&

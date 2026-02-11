@@ -209,6 +209,68 @@ describe('emailBodyUtils', () => {
     });
   });
 
+  describe('auto-linkify plain URLs', () => {
+    it('should convert a plain https URL into a clickable link', () => {
+      const html = '<p>Check this: https://www.example.com/page</p>';
+      (DOMPurify.sanitize as jest.Mock).mockReturnValue(html);
+      const result = sanitizeAndProcessHtml(html);
+      expect(result).toContain('<a');
+      expect(result).toContain('href="https://www.example.com/page"');
+      expect(result).toContain('target="_blank"');
+      expect(result).toContain('rel="noopener noreferrer"');
+    });
+
+    it('should convert a plain http URL into a clickable link', () => {
+      const html = '<p>Visit http://example.com for details</p>';
+      (DOMPurify.sanitize as jest.Mock).mockReturnValue(html);
+      const result = sanitizeAndProcessHtml(html);
+      expect(result).toContain('<a');
+      expect(result).toContain('href="http://example.com"');
+      expect(result).toContain('target="_blank"');
+    });
+
+    it('should not double-wrap URLs already inside an anchor tag', () => {
+      const html = '<p><a href="https://example.com">https://example.com</a></p>';
+      (DOMPurify.sanitize as jest.Mock).mockReturnValue(html);
+      const result = sanitizeAndProcessHtml(html);
+      const anchorCount = (result.match(/<a /g) || []).length;
+      expect(anchorCount).toBe(1);
+    });
+
+    it('should linkify a complex URL with query params and fragments', () => {
+      const url = 'https://www.figma.com/design/HbjMGxCPXX7dOFq2xEVDnd/Focus-bear-animation?node-id=0-1&t=7AQd5fv70p6bCnzK-1';
+      const html = `<p>Check the Figma file: ${url}</p>`;
+      (DOMPurify.sanitize as jest.Mock).mockReturnValue(html);
+      const result = sanitizeAndProcessHtml(html);
+      expect(result).toContain('href="https://www.figma.com/design/HbjMGxCPXX7dOFq2xEVDnd/Focus-bear-animation?node-id=0-1&amp;t=7AQd5fv70p6bCnzK-1"');
+      expect(result).toContain('target="_blank"');
+    });
+
+    it('should linkify multiple URLs in the same text node', () => {
+      const html = '<p>See https://a.com and https://b.com for info</p>';
+      (DOMPurify.sanitize as jest.Mock).mockReturnValue(html);
+      const result = sanitizeAndProcessHtml(html);
+      expect(result).toContain('href="https://a.com"');
+      expect(result).toContain('href="https://b.com"');
+    });
+
+    it('should preserve surrounding text when linkifying', () => {
+      const html = '<p>Before https://example.com after</p>';
+      (DOMPurify.sanitize as jest.Mock).mockReturnValue(html);
+      const result = sanitizeAndProcessHtml(html);
+      expect(result).toContain('Before ');
+      expect(result).toContain(' after');
+      expect(result).toContain('href="https://example.com"');
+    });
+
+    it('should not linkify text without URLs', () => {
+      const html = '<p>No links here at all</p>';
+      (DOMPurify.sanitize as jest.Mock).mockReturnValue(html);
+      const result = sanitizeAndProcessHtml(html);
+      expect(result).not.toContain('<a');
+    });
+  });
+
   describe('extractCleanBody', () => {
     it('should return empty string when both inputs are empty', () => {
       expect(extractCleanBody('', '')).toBe('');

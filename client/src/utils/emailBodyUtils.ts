@@ -9,6 +9,7 @@ import {
   SIGNATURE_MIN_CONTENT_PLAINTEXT,
   MIN_CONTENT_BEFORE_BOUNDARY_LESS_AGGRESSIVE,
 } from 'constants/numbers';
+import { NODE_NAME_ANCHOR } from 'constants/strings';
 
 /**
  * Remove email signature from text (works for both plain text and HTML)
@@ -187,6 +188,60 @@ export function extractCleanHtmlBody(htmlBody: string): string {
   return htmlBody;
 }
 
+const URL_REGEX = /https?:\/\/[^\s<>"'`,;!?\])}]+(?:[/?#][^\s<>"'`,;!?\])}]*)?/g;
+
+function isInsideAnchor(node: Node): boolean {
+  let parent = node.parentNode;
+  while (parent) {
+    if (parent.nodeName === NODE_NAME_ANCHOR) return true;
+    parent = parent.parentNode;
+  }
+  return false;
+}
+
+function linkifyTextNodes(root: HTMLElement): void {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+  const textNodes: Text[] = [];
+  let current = walker.nextNode();
+  while (current) {
+    textNodes.push(current as Text);
+    current = walker.nextNode();
+  }
+
+  for (const textNode of textNodes) {
+    if (isInsideAnchor(textNode)) continue;
+    const text = textNode.nodeValue || '';
+    if (!URL_REGEX.test(text)) continue;
+    URL_REGEX.lastIndex = 0;
+
+    const fragment = document.createDocumentFragment();
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = URL_REGEX.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+      }
+      const url = match[0];
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.textContent = url;
+      anchor.target = '_blank';
+      anchor.rel = 'noopener noreferrer';
+      fragment.appendChild(anchor);
+      lastIndex = match.index + url.length;
+    }
+
+    if (lastIndex < text.length) {
+      fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
+    }
+
+    if (lastIndex > 0) {
+      textNode.parentNode?.replaceChild(fragment, textNode);
+    }
+  }
+}
+
 // Email-compatible allowed tags- comprehensive list for proper email rendering
 const EMAIL_ALLOWED_TAGS = [
   // Text formatting
@@ -255,11 +310,13 @@ export function sanitizeAndProcessHtml(html: string): string {
   const avatarImages = tempDiv.querySelectorAll('img[src*="avatars.githubusercontent.com"]');
   avatarImages.forEach((img) => img.remove());
   
-  // Step 3: Process links to add target="_blank" and rel="noopener noreferrer"
+  // Step 3: Auto-linkify plain URLs in text nodes that aren't already inside <a> tags
+  linkifyTextNodes(tempDiv);
+  
+  // Step 4: Process links to add target="_blank" and rel="noopener noreferrer"
   const links = tempDiv.querySelectorAll('a[href]');
   links.forEach((link) => {
     const href = link.getAttribute('href');
-    // Only add target="_blank" for http/https links (not mailto:, tel:, etc.)
     if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
       link.setAttribute('target', '_blank');
       link.setAttribute('rel', 'noopener noreferrer');

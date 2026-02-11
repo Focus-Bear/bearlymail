@@ -1,4 +1,5 @@
 import DOMPurify from 'dompurify';
+import { NODE_NAME_ANCHOR } from 'constants/strings';
 
 interface EmailWithSender {
   from?: string;
@@ -93,6 +94,65 @@ export const removeSignature = (text: string): string => {
 /**
  * Sanitizes and processes HTML for safe rendering
  */
+const PLAIN_URL_REGEX = /https?:\/\/[^\s<>"'`,;!?\])}]+(?:[/?#][^\s<>"'`,;!?\])}]*)?/g;
+
+function isInsideAnchor(node: Node): boolean {
+  let parent = node.parentNode;
+  while (parent) {
+    if (parent.nodeName === NODE_NAME_ANCHOR) return true;
+    parent = parent.parentNode;
+  }
+  return false;
+}
+
+function buildLinkFragment(text: string): { fragment: DocumentFragment; replaced: boolean } {
+  const fragment = document.createDocumentFragment();
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = PLAIN_URL_REGEX.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+    }
+    const url = match[0];
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.textContent = url;
+    anchor.target = '_blank';
+    anchor.rel = 'noopener noreferrer';
+    fragment.appendChild(anchor);
+    lastIndex = match.index + url.length;
+  }
+
+  if (lastIndex < text.length) {
+    fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
+  }
+
+  return { fragment, replaced: lastIndex > 0 };
+}
+
+function linkifyPlainUrls(root: HTMLElement): void {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+  const textNodes: Text[] = [];
+  let current = walker.nextNode();
+  while (current) {
+    textNodes.push(current as Text);
+    current = walker.nextNode();
+  }
+
+  for (const textNode of textNodes) {
+    if (isInsideAnchor(textNode)) continue;
+    const text = textNode.nodeValue || '';
+    if (!PLAIN_URL_REGEX.test(text)) continue;
+    PLAIN_URL_REGEX.lastIndex = 0;
+
+    const { fragment, replaced } = buildLinkFragment(text);
+    if (replaced) {
+      textNode.parentNode?.replaceChild(fragment, textNode);
+    }
+  }
+}
+
 export const sanitizeAndProcessHtml = (html: string): string => {
   if (!html) return '';
   
@@ -105,10 +165,12 @@ export const sanitizeAndProcessHtml = (html: string): string => {
     FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur'],
   });
   
-  // Step 2: Process links to add target="_blank" and rel="noopener noreferrer"
+  // Step 2: Auto-linkify plain URLs in text nodes that aren't already inside <a> tags
   const tempDiv = document.createElement('div');
   tempDiv.innerHTML = sanitized;
+  linkifyPlainUrls(tempDiv);
   
+  // Step 3: Process links to add target="_blank" and rel="noopener noreferrer"
   const links = tempDiv.querySelectorAll('a[href]');
   links.forEach((link) => {
     const href = link.getAttribute('href');

@@ -220,6 +220,61 @@ describe('emailUtils', () => {
       // eslint-disable-next-line no-script-url -- Test assertion checking that javascript: URLs are sanitized
       expect(result).not.toContain('javascript:');
     });
+
+    describe('auto-linkify plain URLs', () => {
+      it('should convert a plain https URL into a clickable link', () => {
+        const html = '<p>Check this: https://www.example.com/page</p>';
+        const result = sanitizeAndProcessHtml(html);
+        expect(result).toContain('<a');
+        expect(result).toContain('href="https://www.example.com/page"');
+        expect(result).toContain('target="_blank"');
+        expect(result).toContain('rel="noopener noreferrer"');
+      });
+
+      it('should convert a plain http URL into a clickable link', () => {
+        const html = '<p>Visit http://example.com for details</p>';
+        const result = sanitizeAndProcessHtml(html);
+        expect(result).toContain('<a');
+        expect(result).toContain('href="http://example.com"');
+        expect(result).toContain('target="_blank"');
+      });
+
+      it('should not double-wrap URLs already inside an anchor tag', () => {
+        const html = '<p><a href="https://example.com">https://example.com</a></p>';
+        const result = sanitizeAndProcessHtml(html);
+        const anchorCount = (result.match(/<a /g) || []).length;
+        expect(anchorCount).toBe(1);
+      });
+
+      it('should linkify a complex URL with query params', () => {
+        const url = 'https://www.figma.com/design/HbjMGxCPXX7dOFq2xEVDnd/Focus-bear-animation?node-id=0-1&t=7AQd5fv70p6bCnzK-1';
+        const html = `<p>Check the Figma file: ${url}</p>`;
+        const result = sanitizeAndProcessHtml(html);
+        expect(result).toContain('href="https://www.figma.com/design/HbjMGxCPXX7dOFq2xEVDnd/Focus-bear-animation?node-id=0-1&amp;t=7AQd5fv70p6bCnzK-1"');
+        expect(result).toContain('target="_blank"');
+      });
+
+      it('should linkify multiple URLs in the same text node', () => {
+        const html = '<p>See https://a.com and https://b.com for info</p>';
+        const result = sanitizeAndProcessHtml(html);
+        expect(result).toContain('href="https://a.com"');
+        expect(result).toContain('href="https://b.com"');
+      });
+
+      it('should preserve surrounding text when linkifying', () => {
+        const html = '<p>Before https://example.com after</p>';
+        const result = sanitizeAndProcessHtml(html);
+        expect(result).toContain('Before ');
+        expect(result).toContain(' after');
+        expect(result).toContain('href="https://example.com"');
+      });
+
+      it('should not linkify text without URLs', () => {
+        const html = '<p>No links here at all</p>';
+        const result = sanitizeAndProcessHtml(html);
+        expect(result).not.toContain('<a');
+      });
+    });
   });
 });
 

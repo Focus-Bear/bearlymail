@@ -411,7 +411,7 @@ export const TokenUsageSection: React.FC = () => {
             <td style={{
               padding: theme.spacing.md,
               textAlign: 'center',
-              color: item.htmlCallCount > 0 ? theme.colors.status.warning : theme.colors.text.secondary,
+              color: item.htmlCallCount > 0 ? theme.colors.accent.warning : theme.colors.text.secondary,
               fontWeight: item.htmlCallCount > 0 ? theme.typography.fontWeight.semibold : theme.typography.fontWeight.normal,
               borderRight: `1px solid ${theme.colors.border.light}`,
             }}>
@@ -466,7 +466,7 @@ export const TokenUsageSection: React.FC = () => {
             disabled={resetting || examples.length === 0}
             style={{
               padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-              backgroundColor: examples.length === 0 ? theme.colors.background.default : theme.colors.status.error,
+              backgroundColor: examples.length === 0 ? theme.colors.background.default : theme.colors.accent.error,
               color: examples.length === 0 ? theme.colors.text.disabled : '#fff',
               border: 'none',
               borderRadius: theme.borderRadius.sm,
@@ -499,7 +499,7 @@ export const TokenUsageSection: React.FC = () => {
                 style={{
                   backgroundColor: theme.colors.background.paper,
                   borderRadius: theme.borderRadius.md,
-                  border: `1px solid ${example.containsHtml ? theme.colors.status.warning : theme.colors.border.light}`,
+                  border: `1px solid ${example.containsHtml ? theme.colors.accent.warning : theme.colors.border.light}`,
                   overflow: 'hidden',
                 }}
               >
@@ -524,7 +524,7 @@ export const TokenUsageSection: React.FC = () => {
                     {example.containsHtml && (
                       <span style={{
                         padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                        backgroundColor: theme.colors.status.warning,
+                        backgroundColor: theme.colors.accent.warning,
                         color: '#fff',
                         borderRadius: theme.borderRadius.sm,
                         fontSize: theme.typography.fontSize.xs,

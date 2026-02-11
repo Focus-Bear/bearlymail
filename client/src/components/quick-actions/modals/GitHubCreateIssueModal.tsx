@@ -17,17 +17,22 @@ interface GitHubCreateIssueModalProps {
     from: string;
     fromName?: string;
   };
+  defaultRepo?: {
+    owner: string;
+    repo: string;
+  };
   onClose: () => void;
   onSuccess: () => void;
 }
 
 export const GitHubCreateIssueModal: React.FC<GitHubCreateIssueModalProps> = ({
   email,
+  defaultRepo,
   onClose,
   onSuccess,
 }) => {
-  const [owner, setOwner] = useState('');
-  const [repo, setRepo] = useState('');
+  const [owner, setOwner] = useState(defaultRepo?.owner || '');
+  const [repo, setRepo] = useState(defaultRepo?.repo || '');
   const [title, setTitle] = useState(email.subject || '');
   const [description, setDescription] = useState(email.body?.substring(0, MAX_DESCRIPTION_LENGTH) || '');
   const [labels, setLabels] = useState('');

@@ -6,6 +6,7 @@ import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { GitHubService } from "./github.service";
 import { GitHubApiService } from "./github-api.service";
+import { GitHubRepoMappingService } from "./github-repo-mapping.service";
 import { UsersService } from "../users/users.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 
@@ -27,6 +28,7 @@ export class GitHubMetadataProcessor implements OnModuleInit {
     private emailThreadRepository: Repository<EmailThread>,
     private readonly githubService: GitHubService,
     private readonly githubApiService: GitHubApiService,
+    private readonly repoMappingService: GitHubRepoMappingService,
     private readonly usersService: UsersService,
   ) {}
 
@@ -145,5 +147,34 @@ export class GitHubMetadataProcessor implements OnModuleInit {
     this.logger.debug(
       `Updated GitHub metadata for thread ${threadId} with ${metadataLinks.length} links`,
     );
+
+    const threadCategory = thread.category || undefined;
+    await this.autoDiscoverReposFromLinks(userId, links, threadCategory);
+  }
+
+  private async autoDiscoverReposFromLinks(
+    userId: string,
+    links: Array<{ owner: string; repo: string }>,
+    emailCategory?: string,
+  ): Promise<void> {
+    const seen = new Set<string>();
+    for (const link of links) {
+      const key = `${link.owner}/${link.repo}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      try {
+        await this.repoMappingService.autoDiscoverRepo(
+          userId,
+          link.owner,
+          link.repo,
+          emailCategory,
+        );
+      } catch (error) {
+        this.logger.warn(
+          `Failed to auto-discover repo ${key} for user ${userId}: ${error}`,
+        );
+      }
+    }
   }
 }

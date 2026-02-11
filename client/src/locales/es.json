@@ -1411,7 +1411,21 @@
       "oauthDescription": "Haga clic en 'Conectar GitHub' para autorizar la aplicación a través de GitHub OAuth. No se requiere configuración manual del token.",
       "orgProjectNote": "Nota: Para acceder a proyectos a nivel de organización (ProjectV2), un administrador de la organización debe instalar la aplicación GitHub en su organización. La instalación personal sólo accede a sus repositorios de usuarios.",
       "title": "Integración de GitHub",
-      "tokenConfigured": "Token de GitHub configurado"
+      "tokenConfigured": "Token de GitHub configurado",
+      "repoMappings": {
+        "title": "Mapeo de repositorios de GitHub",
+        "description": "Mapee repositorios de GitHub a categorías de correo electrónico para que los problemas se creen en el repositorio correcto. Los repositorios se descubren automáticamente a partir de los correos electrónicos de notificación de GitHub.",
+        "noMappings": "Aún no hay mapeos de repositorios. Se descubrirán automáticamente a partir de sus correos electrónicos de notificación de GitHub, o puede agregarlos manualmente.",
+        "addRepo": "Agregar repositorio",
+        "emailCategories": "Categorías de correo electrónico",
+        "categoriesPlaceholder": "p. ej., Ingeniería, Informes de errores (separados por comas)",
+        "contextLabel": "Contexto",
+        "contextPlaceholder": "p. ej., Usar para informes de errores del frontend",
+        "default": "Predeterminado",
+        "autoDiscovered": "Descubierto automáticamente",
+        "setDefault": "Establecer como predeterminado",
+        "confirmDelete": "¿Está seguro de que desea eliminar este mapeo de repositorio?"
+      }
     },
     "gmail": {
       "accounts": "Cuentas de Gmail",

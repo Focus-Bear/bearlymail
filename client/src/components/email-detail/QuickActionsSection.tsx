@@ -85,6 +85,7 @@ export const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
                 from: email.from,
                 fromName: email.fromName,
               }}
+              defaultRepo={selectedAction.metadata?.defaultRepo as { owner: string; repo: string } | undefined}
               onClose={onCloseAction}
               onSuccess={onActionSuccess}
             />

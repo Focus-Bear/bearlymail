@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Post,
+  Put,
+  Delete,
   Body,
   Param,
   UseGuards,
@@ -10,6 +12,7 @@ import {
   Res,
   Query,
   Inject,
+  NotFoundException,
 } from "@nestjs/common";
 import { In } from "typeorm";
 import { InjectRepository } from "@nestjs/typeorm";
@@ -26,6 +29,7 @@ import { EmailsService } from "../emails/emails.service";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { Email } from "../database/entities/email.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import { GitHubRepoMappingService } from "./github-repo-mapping.service";
 
 @Controller("github")
 @UseGuards(JwtAuthGuard)
@@ -43,6 +47,7 @@ export class GitHubController {
     @InjectRepository(Email)
     private readonly emailRepository: Repository<Email>,
     @Inject("PG_BOSS") private readonly boss: PgBoss,
+    private readonly repoMappingService: GitHubRepoMappingService,
   ) {}
 
   @Get("emails/:id")
@@ -353,6 +358,63 @@ export class GitHubController {
     }
 
     return result;
+  }
+
+  @Get("repo-mappings")
+  async getRepoMappings(@Request() req) {
+    const { userId } = req.user;
+    return this.repoMappingService.findAllForUser(userId);
+  }
+
+  @Post("repo-mappings")
+  async createRepoMapping(
+    @Request() req,
+    @Body()
+    body: {
+      owner: string;
+      repo: string;
+      emailCategories?: string;
+      context?: string;
+      isDefault?: boolean;
+    },
+  ) {
+    const { userId } = req.user;
+    return this.repoMappingService.create(userId, body);
+  }
+
+  @Put("repo-mappings/:id")
+  async updateRepoMapping(
+    @Request() req,
+    @Param("id") id: string,
+    @Body()
+    body: {
+      emailCategories?: string;
+      context?: string;
+      isDefault?: boolean;
+    },
+  ) {
+    const { userId } = req.user;
+    const mapping = await this.repoMappingService.update(userId, id, body);
+    if (!mapping) {
+      throw new NotFoundException("Repo mapping not found");
+    }
+    return mapping;
+  }
+
+  @Delete("repo-mappings/:id")
+  async deleteRepoMapping(@Request() req, @Param("id") id: string) {
+    const { userId } = req.user;
+    const deleted = await this.repoMappingService.remove(userId, id);
+    if (!deleted) {
+      throw new NotFoundException("Repo mapping not found");
+    }
+    return { success: true };
+  }
+
+  @Get("repo-mappings/default")
+  async getDefaultRepoMapping(@Request() req) {
+    const { userId } = req.user;
+    return this.repoMappingService.getDefaultForUser(userId);
   }
 
   @Get("connect")

@@ -8,7 +8,9 @@ import { GitHubService } from "../github/github.service";
 import { GitHubApiService } from "../github/github-api.service";
 import { CalendarService } from "../calendar/calendar.service";
 import { ActionItem } from "../database/entities/action-item.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
 import { ActionItemsService } from "../action-items/action-items.service";
+import { GitHubRepoMappingService } from "../github/github-repo-mapping.service";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { EncryptionHelper } from "../encryption/encryption.helper";
 
@@ -33,8 +35,11 @@ export class SuggestedActionsService {
     private readonly githubApiService: GitHubApiService,
     private readonly calendarService: CalendarService,
     private readonly actionItemsService: ActionItemsService,
+    private readonly repoMappingService: GitHubRepoMappingService,
     @InjectRepository(ActionItem)
     private readonly actionItemRepository: Repository<ActionItem>,
+    @InjectRepository(EmailThread)
+    private readonly emailThreadRepository: Repository<EmailThread>,
   ) {}
 
   private mapActionItemToSuggestedAction(
@@ -131,6 +136,19 @@ export class SuggestedActionsService {
         userId,
       );
 
+      // Get thread category for repo mapping lookup
+      const thread = threadId
+        ? await this.emailThreadRepository.findOne({
+            where: { id: threadId, userId },
+          })
+        : null;
+      const emailCategory = thread?.category || undefined;
+
+      // Get default repo for github_create_issue pre-fill
+      const defaultRepo = hasGithubToken
+        ? await this.repoMappingService.getRepoForEmail(userId, emailCategory)
+        : null;
+
       // Enhance actions with metadata (e.g., issue info from GitHub links)
       const enhancedActions = actions.map((action) => {
         if (
@@ -153,6 +171,18 @@ export class SuggestedActionsService {
               };
             }
           }
+        }
+        if (action.type === "github_create_issue" && defaultRepo) {
+          return {
+            ...action,
+            metadata: {
+              ...action.metadata,
+              defaultRepo: {
+                owner: defaultRepo.owner,
+                repo: defaultRepo.repo,
+              },
+            },
+          };
         }
         return action;
       });

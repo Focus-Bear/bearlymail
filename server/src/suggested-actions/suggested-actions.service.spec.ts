@@ -8,7 +8,9 @@ import { GitHubService } from "../github/github.service";
 import { GitHubApiService } from "../github/github-api.service";
 import { CalendarService } from "../calendar/calendar.service";
 import { ActionItemsService } from "../action-items/action-items.service";
+import { GitHubRepoMappingService } from "../github/github-repo-mapping.service";
 import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
 import { ActionItem } from "../database/entities/action-item.entity";
 
 describe("SuggestedActionsService", () => {
@@ -46,9 +48,19 @@ describe("SuggestedActionsService", () => {
 
   const mockEmailRepository = {};
 
+  const mockRepoMappingService = {
+    getRepoForEmail: jest.fn(),
+    findAllForUser: jest.fn(),
+    autoDiscoverRepo: jest.fn(),
+  };
+
   const mockActionItemRepository = {
     find: jest.fn(),
     save: jest.fn(),
+  };
+
+  const mockEmailThreadRepository = {
+    findOne: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -84,12 +96,20 @@ describe("SuggestedActionsService", () => {
           useValue: mockActionItemsService,
         },
         {
+          provide: GitHubRepoMappingService,
+          useValue: mockRepoMappingService,
+        },
+        {
           provide: getRepositoryToken(Email),
           useValue: mockEmailRepository,
         },
         {
           provide: getRepositoryToken(ActionItem),
           useValue: mockActionItemRepository,
+        },
+        {
+          provide: getRepositoryToken(EmailThread),
+          useValue: mockEmailThreadRepository,
         },
       ],
     }).compile();

@@ -10,10 +10,12 @@ import { UsersModule } from "../users/users.module";
 import { EmailsModule } from "../emails/emails.module";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { Email } from "../database/entities/email.entity";
+import { GitHubRepoMapping } from "../database/entities/github-repo-mapping.entity";
+import { GitHubRepoMappingService } from "./github-repo-mapping.service";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([EmailThread, Email]),
+    TypeOrmModule.forFeature([EmailThread, Email, GitHubRepoMapping]),
     ConfigModule,
     UsersModule,
     forwardRef(() => EmailsModule),
@@ -24,7 +26,13 @@ import { Email } from "../database/entities/email.entity";
     GitHubApiService,
     GitHubAppService,
     GitHubMetadataProcessor,
+    GitHubRepoMappingService,
   ],
-  exports: [GitHubService, GitHubApiService, GitHubAppService],
+  exports: [
+    GitHubService,
+    GitHubApiService,
+    GitHubAppService,
+    GitHubRepoMappingService,
+  ],
 })
 export class GitHubModule {}

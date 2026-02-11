@@ -9,10 +9,11 @@ import { GitHubModule } from "../github/github.module";
 import { CalendarModule } from "../calendar/calendar.module";
 import { ActionItemsModule } from "../action-items/action-items.module";
 import { ActionItem } from "../database/entities/action-item.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([ActionItem]),
+    TypeOrmModule.forFeature([ActionItem, EmailThread]),
     UsersModule,
     forwardRef(() => EmailsModule),
     LLMModule,

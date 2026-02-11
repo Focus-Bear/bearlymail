@@ -1572,7 +1572,21 @@
       "connect": "Connect GitHub",
       "disconnect": "Disconnect GitHub",
       "connected": "GitHub connected",
-      "tokenConfigured": "GitHub token configured"
+      "tokenConfigured": "GitHub token configured",
+      "repoMappings": {
+        "title": "GitHub Repository Mappings",
+        "description": "Map GitHub repositories to email categories so issues are created in the right repo. Repositories are auto-discovered from GitHub notification emails.",
+        "noMappings": "No repository mappings yet. They will be auto-discovered from your GitHub notification emails, or you can add them manually.",
+        "addRepo": "Add Repository",
+        "emailCategories": "Email Categories",
+        "categoriesPlaceholder": "e.g., Engineering, Bug Reports (comma-separated)",
+        "contextLabel": "Context",
+        "contextPlaceholder": "e.g., Use for frontend bug reports",
+        "default": "Default",
+        "autoDiscovered": "Auto-discovered",
+        "setDefault": "Set as Default",
+        "confirmDelete": "Are you sure you want to remove this repository mapping?"
+      }
     }
   },
   "onboarding": {

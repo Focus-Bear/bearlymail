@@ -137,20 +137,41 @@ export class BatchScheduleService {
 
   /**
    * Create a date object for a specific time in a timezone
+   * The result is in UTC (for storage) but represents the local time in the given timezone
    */
   private createDateInTimezone(
     baseDate: Date,
     time: string,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     timezone: string,
   ): Date {
     const [hours, minutes] = time.split(":").map(Number);
-    const result = new Date(baseDate);
-    result.setHours(hours, minutes, 0, 0);
 
-    // Convert back to UTC for storage
-    // This is a simplified approach - in production you'd use a proper timezone library
-    return result;
+    // Create a date string in the user's timezone
+    const year = baseDate.getFullYear();
+    const month = String(baseDate.getMonth() + 1).padStart(2, "0");
+    const day = String(baseDate.getDate()).padStart(2, "0");
+    const hoursStr = String(hours).padStart(2, "0");
+    const minutesStr = String(minutes).padStart(2, "0");
+
+    // Format: "YYYY-MM-DD HH:MM:SS" in user's timezone
+    const dateString = `${year}-${month}-${day} ${hoursStr}:${minutesStr}:00`;
+
+    // Parse this as a date in the user's timezone, then convert to UTC
+    // We use toLocaleString to get the UTC offset, then manually adjust
+    const localDate = new Date(dateString);
+
+    // Get the offset between the user's timezone and UTC at this specific time
+    // (accounts for DST changes)
+    const utcDate = new Date(
+      localDate.toLocaleString("en-US", { timeZone: "UTC" }),
+    );
+    const tzDate = new Date(
+      localDate.toLocaleString("en-US", { timeZone: timezone }),
+    );
+    const offset = utcDate.getTime() - tzDate.getTime();
+
+    // Apply the offset to get the correct UTC time
+    return new Date(localDate.getTime() + offset);
   }
 
   /**

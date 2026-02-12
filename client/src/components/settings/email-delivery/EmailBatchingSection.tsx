@@ -8,6 +8,20 @@ import { DeliveryTimesManager } from 'components/settings/email-delivery/Deliver
 
 import { API_URL } from 'config/api';
 
+const TIMEZONE_OPTIONS: string[] = (() => {
+  try {
+    return Intl.supportedValuesOf('timeZone');
+  } catch {
+    return [
+      'UTC',
+      'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
+      'Europe/London', 'Europe/Paris', 'Europe/Berlin',
+      'Asia/Tokyo', 'Asia/Shanghai', 'Asia/Kolkata',
+      'Australia/Sydney', 'Australia/Melbourne', 'Pacific/Auckland',
+    ];
+  }
+})();
+
 interface BatchSchedule {
   deliveryDays: number[];
   deliveryTimes: string[];
@@ -104,12 +118,33 @@ export const EmailBatchingSection: React.FC<EmailBatchingSectionProps> = ({
       />
 
       <div style={{ marginBottom: theme.spacing.lg }}>
-        <label style={{ 
-          color: theme.colors.text.secondary, 
+        <label style={{
+          display: 'block',
+          color: theme.colors.text.secondary,
           fontSize: theme.typography.fontSize.sm,
+          marginBottom: theme.spacing.xs,
         }}>
-          {t('settings.delivery.timezone')}: {batchSchedule.timezone}
+          {t('settings.delivery.timezone')}
         </label>
+        <select
+          value={batchSchedule.timezone}
+          onChange={(e) => onBatchScheduleChange({ ...batchSchedule, timezone: e.target.value })}
+          style={{
+            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+            borderRadius: theme.borderRadius.sm,
+            border: `1px solid ${theme.colors.border.medium}`,
+            fontSize: theme.typography.fontSize.sm,
+            backgroundColor: theme.colors.background.paper,
+            color: theme.colors.text.primary,
+            minWidth: '250px',
+          }}
+        >
+          {TIMEZONE_OPTIONS.map((tz) => (
+            <option key={tz} value={tz}>
+              {tz.replace(/_/g, ' ')}
+            </option>
+          ))}
+        </select>
       </div>
 
       <button

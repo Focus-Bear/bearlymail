@@ -214,6 +214,13 @@ export class User {
   })
   autoResponderSettings: AutoResponderConfig | null;
 
+  @Column({
+    nullable: true,
+    default: "UTC",
+    comment: "User's timezone (e.g., 'America/New_York', 'Europe/London')",
+  })
+  timezone: string;
+
   @CreateDateColumn()
   createdAt: Date;
 

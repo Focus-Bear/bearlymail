@@ -7,6 +7,7 @@ import {
 } from "../database/entities/user-context.entity";
 import { LLMService } from "../llm/llm.service";
 import { getPrompt, renderPrompt } from "../llm/prompts";
+import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { QASearchResult } from "./types/auto-responder.types";
 import { RATIOS } from "../constants/percentages";
 import { LLM_CONFIG } from "./auto-responder-constants";
@@ -80,9 +81,15 @@ export class AutoResponderQaService {
         return null;
       }
 
+      const cleanedBody = cleanEmailContent(
+        body,
+        null,
+        LLM_CONFIG.MAX_BODY_LENGTH_FOR_QA,
+      );
+
       const prompt = renderPrompt(promptConfig.prompt || "", {
         subject,
-        body: body.substring(0, LLM_CONFIG.MAX_BODY_LENGTH_FOR_QA),
+        body: cleanedBody,
         qaPairs: qaPairs
           .map((qa, i) => `${i + 1}. Q: ${qa.question}\n   A: ${qa.answer}`)
           .join("\n\n"),

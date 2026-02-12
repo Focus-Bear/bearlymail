@@ -8,13 +8,14 @@ import { PriorityAnalysisService } from "./priority-analysis.service";
 import { TokenUsageService } from "./token-usage.service";
 import { TokenUsageController } from "./token-usage.controller";
 import { TokenUsage } from "../database/entities/token-usage.entity";
+import { PromptExampleEntity } from "../database/entities/prompt-example.entity";
 import { UsersModule } from "../users/users.module";
 import { AuthModule } from "../auth/auth.module";
 
 @Module({
   imports: [
     ConfigModule,
-    TypeOrmModule.forFeature([TokenUsage]),
+    TypeOrmModule.forFeature([TokenUsage, PromptExampleEntity]),
     forwardRef(() => UsersModule),
     forwardRef(() => AuthModule),
   ],

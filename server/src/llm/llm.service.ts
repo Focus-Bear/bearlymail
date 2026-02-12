@@ -436,8 +436,11 @@ export class LLMService {
     const sentData = sentEmails
       .slice(0, QUERY_LIMITS.LLM_SENT_EMAILS_LIMIT)
       .map((e) => {
-        // Use full body, but clean it up for readability
-        const cleanBody = e.body.replace(/\n{3,}/g, "\n\n").trim();
+        const cleanBody = cleanEmailContent(
+          e.body,
+          null,
+          QUERY_LIMITS.LLM_BODY_PREVIEW_LENGTH,
+        );
         return `To: ${e.to}, Subject: ${e.subject}\nFull Email Body:\n${cleanBody}\n---`;
       })
       .join("\n\n");
@@ -616,11 +619,17 @@ export class LLMService {
       );
     }
 
+    const cleanedBody = cleanEmailContent(
+      emailBody,
+      null,
+      QUERY_LIMITS.LLM_BODY_PREVIEW_LENGTH,
+    );
+
     const prompt = renderPrompt(promptConfig.prompt || "", {
       isThread,
       subject: emailSubject,
       contextNote: contextNote || "",
-      body: emailBody,
+      body: cleanedBody,
     });
 
     return await this.generateText(
@@ -671,7 +680,12 @@ export class LLMService {
         let summary: string;
         if (customInstructions) {
           // Use custom instructions as a direct prompt
-          const prompt = `Thread Subject: ${thread.subject}\n\nThread Content:\n${thread.body}\n\n${customInstructions}`;
+          const cleanedThreadBody = cleanEmailContent(
+            thread.body,
+            null,
+            QUERY_LIMITS.LLM_BODY_PREVIEW_LENGTH,
+          );
+          const prompt = `Thread Subject: ${thread.subject}\n\nThread Content:\n${cleanedThreadBody}\n\n${customInstructions}`;
           summary = await this.generateText(
             {
               prompt,
@@ -733,7 +747,11 @@ export class LLMService {
     const threadsForPrompt = threads.map((thread) => ({
       index: thread.index,
       subject: thread.subject,
-      body: thread.body.substring(0, QUERY_LIMITS.LLM_MAX_TOKENS_LARGE), // Limit body length per thread
+      body: cleanEmailContent(
+        thread.body,
+        null,
+        QUERY_LIMITS.LLM_MAX_TOKENS_LARGE,
+      ),
       isThread: thread.isThread,
       messageCount: thread.messageCount || 1,
     }));
@@ -1527,19 +1545,8 @@ export class LLMService {
 
     // Remove quoted/replied content from user's emails to focus on their actual responses
     const cleanReplies = userReplies.map((e) => {
-      let { body } = e;
-      // Remove quoted content
-      body = body
-        .split("\n")
-        .filter((line) => {
-          const trimmed = line.trim();
-          if (trimmed.startsWith(">")) return false;
-          if (/^On .+ wrote:/i.test(trimmed)) return false;
-          if (/^From:/i.test(trimmed)) return false;
-          return true;
-        })
-        .join("\n");
-      return `Subject: ${e.subject}\nBody: ${body.substring(0, 1000)}`;
+      const body = cleanEmailContent(e.body, null, 1000);
+      return `Subject: ${e.subject}\nBody: ${body}`;
     });
 
     const repliesText = cleanReplies.join("\n\n---\n\n");
@@ -1619,8 +1626,7 @@ export class LLMService {
       query,
       from: email.from,
       subject: email.subject,
-      bodyPreview: email.body.substring(0, 500),
-      // Increased to 500 for better context
+      bodyPreview: cleanEmailContent(email.body, null, 500),
       receivedAt: receivedAtText,
       isRecent: isRecent ? " (recent)" : "",
     });
@@ -1690,9 +1696,9 @@ export class LLMService {
         index: email.index,
         from: email.from,
         subject: email.subject,
-        // Slightly shorter for batch
-        bodyPreview: email.body.substring(
-          0,
+        bodyPreview: cleanEmailContent(
+          email.body,
+          null,
           BODY_PREVIEW_LENGTHS.BATCH_PREVIEW,
         ),
         receivedAt: receivedAtText,
@@ -2381,7 +2387,7 @@ export class LLMService {
     const otherEmailsText = emailsToAnalyze
       .map(
         (e, i) =>
-          `[Email ${i + 1}]\nFrom: ${e.fromName || e.from}\nSubject: ${e.subject}\nBody preview: ${(e.body || "").substring(0, 200)}...`,
+          `[Email ${i + 1}]\nFrom: ${e.fromName || e.from}\nSubject: ${e.subject}\nBody preview: ${cleanEmailContent(e.body || "", null, 200)}`,
       )
       .join("\n\n");
 

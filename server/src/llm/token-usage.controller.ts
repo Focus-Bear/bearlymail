@@ -21,8 +21,8 @@ export class TokenUsageController {
    * Reset all captured prompt examples
    */
   @Post("examples/reset")
-  resetPromptExamples() {
-    this.tokenUsageService.resetPromptExamples();
+  async resetPromptExamples() {
+    await this.tokenUsageService.resetPromptExamples();
     return {
       success: true,
       message: "Prompt examples reset",

@@ -27,3 +27,4 @@ export { SuggestedReply } from "./suggested-reply.entity";
 export { ProtoCategory } from "./proto-category.entity";
 export { SchedulingPreference } from "./scheduling-preference.entity";
 export { GitHubRepoMapping } from "./github-repo-mapping.entity";
+export { PromptExampleEntity } from "./prompt-example.entity";

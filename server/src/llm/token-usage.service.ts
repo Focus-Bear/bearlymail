@@ -1,7 +1,8 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { TokenUsage } from "../database/entities/token-usage.entity";
+import { PromptExampleEntity } from "../database/entities/prompt-example.entity";
 import { LLMOperation, LLM_OP_UNKNOWN } from "./llm-operations";
 import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
 
@@ -69,19 +70,46 @@ export interface UsageQueryOptions {
 }
 
 @Injectable()
-export class TokenUsageService {
+export class TokenUsageService implements OnModuleInit {
   private readonly logger = new Logger(TokenUsageService.name);
 
-  // In-memory storage for prompt examples (longest prompt per operation)
   private promptExamples: Map<string, PromptExample> = new Map();
 
-  // Maximum length of prompt text to store (to prevent memory issues)
   private readonly MAX_PROMPT_LENGTH = 50000;
 
   constructor(
     @InjectRepository(TokenUsage)
     private tokenUsageRepository: Repository<TokenUsage>,
+    @InjectRepository(PromptExampleEntity)
+    private promptExampleRepository: Repository<PromptExampleEntity>,
   ) {}
+
+  async onModuleInit(): Promise<void> {
+    await this.loadExamplesFromDb();
+  }
+
+  private async loadExamplesFromDb(): Promise<void> {
+    try {
+      const dbExamples = await this.promptExampleRepository.find();
+      for (const row of dbExamples) {
+        this.promptExamples.set(row.operation, {
+          operation: row.operation,
+          promptTokens: row.promptTokens,
+          promptText: row.promptText,
+          systemPromptText: row.systemPromptText || undefined,
+          containsHtml: row.containsHtml,
+          capturedAt: row.capturedAt,
+          provider: row.provider,
+          model: row.model,
+        });
+      }
+      this.logger.log(
+        `Loaded ${dbExamples.length} prompt examples from database`,
+      );
+    } catch (error) {
+      this.logger.warn("Failed to load prompt examples from database", error);
+    }
+  }
 
   /**
    * Detect if text contains HTML content
@@ -156,7 +184,26 @@ export class TokenUsageService {
       this.logger.debug(
         `Captured new longest prompt example for ${operation}: ${promptTokens} tokens, containsHtml: ${example.containsHtml}`,
       );
+
+      this.persistExample(example).catch((err) =>
+        this.logger.warn(
+          `Failed to persist prompt example for ${operation}`,
+          err,
+        ),
+      );
     }
+  }
+
+  private async persistExample(example: PromptExample): Promise<void> {
+    await this.promptExampleRepository.save({
+      operation: example.operation,
+      promptTokens: example.promptTokens,
+      promptText: example.promptText,
+      systemPromptText: example.systemPromptText || null,
+      containsHtml: example.containsHtml,
+      provider: example.provider,
+      model: example.model,
+    });
   }
 
   /**
@@ -171,9 +218,14 @@ export class TokenUsageService {
   /**
    * Reset all captured prompt examples
    */
-  resetPromptExamples(): void {
+  async resetPromptExamples(): Promise<void> {
     const count = this.promptExamples.size;
     this.promptExamples.clear();
+    try {
+      await this.promptExampleRepository.clear();
+    } catch (error) {
+      this.logger.warn("Failed to clear prompt examples from database", error);
+    }
     this.logger.log(`Reset ${count} prompt examples`);
   }
 

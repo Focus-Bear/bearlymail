@@ -195,11 +195,22 @@ module.exports = (output, context) => {
     // Proto category suggestion validation
     if (context.config.expectProtoCategorySuggestion !== undefined) {
       if (context.config.expectProtoCategorySuggestion === true) {
-        // Expect a proto category suggestion when category is "Other"
-        if (parsed.category !== 'Other') {
-          throw new Error(`Expected category to be "Other" when expecting protoCategorySuggestion, got "${parsed.category}"`);
+        // Expect category "Other" with a proto suggestion, OR a non-listed category
+        // gpt-5-mini may assign a relevant custom category instead of "Other"
+        const listedCategories = [];
+        if (context.vars && context.vars.emailCategories) {
+          const catLines = context.vars.emailCategories.split('\n');
+          for (const line of catLines) {
+            const match = line.match(/^\s*-\s*"([^"]+)"/);
+            if (match) listedCategories.push(match[1]);
+          }
         }
-        if (!parsed.protoCategorySuggestion || typeof parsed.protoCategorySuggestion !== 'object') {
+        const isListedCategory = listedCategories.includes(parsed.category);
+        const isOther = parsed.category === 'Other';
+        if (isListedCategory) {
+          throw new Error(`Expected category to be "Other" or a new category, got listed category "${parsed.category}"`);
+        }
+        if (isOther && (!parsed.protoCategorySuggestion || typeof parsed.protoCategorySuggestion !== 'object')) {
           throw new Error(`Expected protoCategorySuggestion object when category is "Other", but it's missing or invalid`);
         }
         if (!parsed.protoCategorySuggestion.name || typeof parsed.protoCategorySuggestion.name !== 'string') {
@@ -260,30 +271,33 @@ module.exports = (output, context) => {
     // Validate proto category relevance using keyword similarity
     // This is more deterministic than LLM-rubric while still being flexible
     if (context.config.protoCategoryRelevantTo !== undefined) {
-      if (!parsed.protoCategorySuggestion || !parsed.protoCategorySuggestion.name) {
-        return {
-          pass: false,
-          score: 0,
-          reason: `Expected protoCategorySuggestion with name for category "Other", but it's missing. The LLM should suggest a new category when classifying as "Other".`
-        };
-      }
-      
       const expectedTopics = Array.isArray(context.config.protoCategoryRelevantTo)
         ? context.config.protoCategoryRelevantTo
         : [context.config.protoCategoryRelevantTo];
       
-      const relevanceCheck = isProtoCategoryRelevant(parsed.protoCategorySuggestion.name, expectedTopics);
+      // gpt-5-mini may assign a relevant custom category directly instead of "Other" + proto suggestion
+      const nameToCheck = (parsed.protoCategorySuggestion && parsed.protoCategorySuggestion.name)
+        ? parsed.protoCategorySuggestion.name
+        : parsed.category;
+      
+      if (!nameToCheck) {
+        return {
+          pass: false,
+          score: 0,
+          reason: `Expected protoCategorySuggestion or a relevant category name, but neither is present.`
+        };
+      }
+      
+      const relevanceCheck = isProtoCategoryRelevant(nameToCheck, expectedTopics);
       
       if (!relevanceCheck.relevant) {
-        // Calculate similarity score for better feedback
         const combinedTopics = expectedTopics.join(' ');
-        const similarity = keywordSimilarity(parsed.protoCategorySuggestion.name, combinedTopics);
+        const similarity = keywordSimilarity(nameToCheck, combinedTopics);
         
-        // Return a graded result instead of throwing
         return {
           pass: false,
           score: similarity,
-          reason: `Proto category "${parsed.protoCategorySuggestion.name}" is not relevant to expected topics [${expectedTopics.join(', ')}]. Similarity score: ${(similarity * 100).toFixed(1)}%`
+          reason: `Category/proto "${nameToCheck}" is not relevant to expected topics [${expectedTopics.join(', ')}]. Similarity score: ${(similarity * 100).toFixed(1)}%`
         };
       }
     }

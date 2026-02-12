@@ -201,7 +201,9 @@ export class LLMCoreService {
     }
 
     const model =
-      this.configService.get<string>("OPENAI_MODEL") || "gpt-3.5-turbo";
+      this.configService.get<string>("OPENAI_MODEL") || "gpt-5-mini";
+    const reasoningEffort =
+      this.configService.get<string>("OPENAI_REASONING_EFFORT") || "low";
 
     return this.retryOperation(async () => {
       const startTime = Date.now();
@@ -221,8 +223,10 @@ export class LLMCoreService {
         model,
         messages: messages as any,
         temperature: request.temperature || RATIOS.SEVENTY_PERCENT,
-        max_tokens: request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
-      });
+        max_completion_tokens:
+          request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
+        reasoning_effort: reasoningEffort as "low" | "medium" | "high",
+      } as any);
 
       const durationMs = Date.now() - startTime;
 

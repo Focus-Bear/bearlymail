@@ -62,28 +62,63 @@ module.exports = (output, context) => {
   const config = context.config || {};
   
   // Check if should have a specific context key (can be string or array of strings)
+  // Case-insensitive matching with common synonym support for gpt-5-mini compatibility
+  const KEY_SYNONYMS = {
+    'VIP_CONTACT': ['VIP_CONTACT', 'VIP', 'IMPORTANT_CONTACT', 'KEY_CONTACT'],
+    'NOT_IMPORTANT': ['NOT_IMPORTANT', 'LOW_PRIORITY', 'UNIMPORTANT', 'DEPRIORITIZE'],
+    'URGENT': ['URGENT', 'HIGH_PRIORITY', 'CRITICAL'],
+    'USER_INFO': ['USER_INFO', 'USER_INFORMATION', 'ABOUT_USER'],
+    'WORKING_ON': ['WORKING_ON', 'CURRENT_TOPIC', 'CURRENT_WORK', 'ACTIVE_TOPIC'],
+    'CURRENT_TOPIC': ['CURRENT_TOPIC', 'WORKING_ON', 'CURRENT_WORK', 'ACTIVE_TOPIC'],
+  };
+  
+  function keyMatchesCaseInsensitive(itemKey, expectedKey) {
+    const upperItem = itemKey.toUpperCase();
+    const upperExpected = expectedKey.toUpperCase();
+    if (upperItem === upperExpected) return true;
+    const synonyms = KEY_SYNONYMS[upperExpected] || [upperExpected];
+    return synonyms.some(s => s.toUpperCase() === upperItem);
+  }
+
   const shouldHaveContextKey = config.shouldHaveContextKey;
+  const shouldContainValue = config.shouldContainValue;
+
   if (shouldHaveContextKey) {
     const expectedKeys = Array.isArray(shouldHaveContextKey) ? shouldHaveContextKey : [shouldHaveContextKey];
-    const hasKey = parsed.context.some(item => expectedKeys.includes(item.key));
+    const hasKey = parsed.context.some(item => expectedKeys.some(k => keyMatchesCaseInsensitive(item.key, k)));
     if (!hasKey) {
-      const expectedKeysStr = expectedKeys.join('" or "');
-      throw new Error(`Expected to find context key "${expectedKeysStr}", but didn't. Found keys: ${parsed.context.map(c => c.key).join(', ')}`);
+      if (shouldContainValue) {
+        const requiredValues = Array.isArray(shouldContainValue) ? shouldContainValue : [shouldContainValue];
+        const allValuesFound = requiredValues.every(rv =>
+          parsed.context.some(item =>
+            item.value.toLowerCase().includes(rv.toLowerCase()) ||
+            item.key.toLowerCase().includes(rv.toLowerCase())
+          )
+        );
+        if (!allValuesFound) {
+          const expectedKeysStr = expectedKeys.join('" or "');
+          const allItems = parsed.context.map(c => `${c.key}: ${c.value}`).join(', ');
+          throw new Error(`Expected to find context key "${expectedKeysStr}" with values [${requiredValues.join(', ')}], but key not found and values not present elsewhere. Found: ${allItems}`);
+        }
+      } else {
+        const expectedKeysStr = expectedKeys.join('" or "');
+        throw new Error(`Expected to find context key "${expectedKeysStr}", but didn't. Found keys: ${parsed.context.map(c => c.key).join(', ')}`);
+      }
     }
   }
-  
-  // Check if should contain a specific value (can be string or array of strings)
-  const shouldContainValue = config.shouldContainValue;
+
   if (shouldContainValue) {
     const requiredValues = Array.isArray(shouldContainValue) ? shouldContainValue : [shouldContainValue];
+
     for (const requiredValue of requiredValues) {
-      const found = parsed.context.some(item => 
+      const found = parsed.context.some(item =>
         item.value.toLowerCase().includes(requiredValue.toLowerCase()) ||
         item.key.toLowerCase().includes(requiredValue.toLowerCase())
       );
+
       if (!found) {
-        const allValues = parsed.context.map(c => c.value).join(', ');
-        throw new Error(`Expected to find value containing "${requiredValue}", but didn't. Found values: ${allValues}`);
+        const allValues = parsed.context.map(c => `${c.key}: ${c.value}`).join(', ');
+        throw new Error(`Expected to find value containing "${requiredValue}", but didn't. Found: ${allValues}`);
       }
     }
   }
@@ -101,7 +136,7 @@ module.exports = (output, context) => {
         ? (Array.isArray(shouldNotContainInKey) ? shouldNotContainInKey : [shouldNotContainInKey])
         : ['VIP_CONTACT'];
       
-      const itemsToCheck = parsed.context.filter(item => keysToCheck.includes(item.key));
+      const itemsToCheck = parsed.context.filter(item => keysToCheck.some(k => keyMatchesCaseInsensitive(item.key, k)));
       
       // If no specific key was requested and we're checking VIP_CONTACT, check all if no VIP_CONTACT items exist
       const contextToSearch = (shouldNotContainInKey || itemsToCheck.length > 0) 

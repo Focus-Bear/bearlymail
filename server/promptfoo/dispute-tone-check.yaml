@@ -1,9 +1,10 @@
 description: "Tone check dispute prompts for BearlyMail"
 
 providers:
-  - id: openai:gpt-4.1-mini
+  - id: openai:gpt-5-mini
     config:
-      temperature: 0.1
+      reasoning_effort: low
+      temperature: 0
 
 prompts:
   - file://prompts/dispute-tone-check.md

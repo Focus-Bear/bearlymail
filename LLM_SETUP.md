@@ -33,7 +33,8 @@ LLM_PROVIDER=gemini  # or 'openai'
 GEMINI_API_KEY=your-gemini-api-key-here
 GEMINI_MODEL=gemini-pro  # or 'gemini-pro-vision' for multimodal
 OPENAI_API_KEY=your-openai-api-key-here
-OPENAI_MODEL=gpt-3.5-turbo  # or 'gpt-4' for better quality
+OPENAI_MODEL=gpt-5-mini
+OPENAI_REASONING_EFFORT=low  # 'low', 'medium', or 'high'
 ```
 
 ## Usage
@@ -155,7 +156,7 @@ Response:
 
 ### Poor quality results
 - Try switching providers (Gemini vs OpenAI)
-- Adjust model selection (e.g., `gpt-4` instead of `gpt-3.5-turbo`)
+- Adjust model selection (e.g., `gpt-5-mini`)
 - Review prompts in the LLM service for customization
 
 ## Advanced Configuration
@@ -166,7 +167,8 @@ You can use different models by updating `.env`:
 
 ```env
 GEMINI_MODEL=gemini-pro-vision  # For multimodal support
-OPENAI_MODEL=gpt-4  # For better quality (higher cost)
+OPENAI_MODEL=gpt-5-mini
+OPENAI_REASONING_EFFORT=medium  # Increase reasoning effort for better quality (higher cost)
 ```
 
 ### Temperature Settings

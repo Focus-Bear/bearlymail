@@ -9,7 +9,7 @@
  * 5. Only shows errors/failures, not full output (quiet mode)
  */
 
-const { spawnSync } = require('child_process');
+const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
@@ -40,35 +40,48 @@ function findYamlFiles() {
 
 function runEvaluation(configPath, index, total) {
   const configName = path.basename(configPath);
-  
-  // Show progress inline
-  process.stdout.write(`[${index}/${total}] ${configName}... `);
 
-  const result = spawnSync('npx', ['promptfoo', 'eval', '-c', configPath, '--no-progress-bar'], {
-    encoding: 'utf-8',
-    stdio: ['inherit', 'pipe', 'pipe'],
-    env: { ...process.env },
-    maxBuffer: 50 * 1024 * 1024,
+  return new Promise((resolve) => {
+    const chunks = [];
+    const child = spawn('npx', ['promptfoo', 'eval', '-c', configPath, '--no-progress-bar'], {
+      env: { ...process.env },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    child.stdout.on('data', (data) => chunks.push(data));
+    child.stderr.on('data', (data) => chunks.push(data));
+
+    child.on('close', (code) => {
+      const output = Buffer.concat(chunks).toString('utf-8');
+      const stats = parseEvaluationOutput(output, configName);
+      stats.exitCode = code;
+      stats.configName = configName;
+      stats.output = output;
+
+      if (stats.failed > 0) {
+        log(`[${index}/${total}] ${configName}... ${colors.red}FAIL${colors.reset} (${stats.passed}/${stats.total} passed, ${stats.failed} failed)`);
+      } else if (stats.total > 0) {
+        log(`[${index}/${total}] ${configName}... ${colors.green}PASS${colors.reset} (${stats.passed}/${stats.total})`);
+      } else {
+        log(`[${index}/${total}] ${configName}... ${colors.yellow}NO TESTS${colors.reset}`);
+      }
+
+      resolve(stats);
+    });
+
+    child.on('error', (err) => {
+      log(`[${index}/${total}] ${configName}... ${colors.red}ERROR${colors.reset} - ${err.message}`);
+      resolve({
+        configName,
+        total: 0,
+        passed: 0,
+        failed: 1,
+        errors: [err.message],
+        exitCode: 1,
+        output: '',
+      });
+    });
   });
-
-  const output = (result.stdout || '') + (result.stderr || '');
-  
-  // Parse the output to determine pass/fail
-  const stats = parseEvaluationOutput(output, configName);
-  stats.exitCode = result.status;
-  stats.configName = configName;
-  stats.output = output;
-
-  // Show result inline
-  if (stats.failed > 0) {
-    console.log(`${colors.red}FAIL${colors.reset} (${stats.passed}/${stats.total} passed, ${stats.failed} failed)`);
-  } else if (stats.total > 0) {
-    console.log(`${colors.green}PASS${colors.reset} (${stats.passed}/${stats.total})`);
-  } else {
-    console.log(`${colors.yellow}NO TESTS${colors.reset}`);
-  }
-
-  return stats;
 }
 
 function parseEvaluationOutput(output, configName) {
@@ -164,16 +177,35 @@ function printSummary(results) {
     }
   }
 
-  const overallStatus = totalFailed === 0;
   log('\n' + '='.repeat(60));
-  if (overallStatus) {
+  if (totalFailed === 0) {
     log('RESULT: ALL TESTS PASSED', colors.green + colors.bold);
   } else {
     log(`RESULT: ${totalFailed} TEST(S) FAILED`, colors.red + colors.bold);
   }
   log('='.repeat(60) + '\n');
 
-  return overallStatus;
+  return totalFailed === 0;
+}
+
+async function runTestsInParallel(yamlFiles, concurrency = 5) {
+  const results = new Array(yamlFiles.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < yamlFiles.length) {
+      const i = nextIndex++;
+      results[i] = await runEvaluation(yamlFiles[i], i + 1, yamlFiles.length);
+    }
+  }
+
+  const workers = [];
+  for (let w = 0; w < Math.min(concurrency, yamlFiles.length); w++) {
+    workers.push(worker());
+  }
+  await Promise.all(workers);
+
+  return results;
 }
 
 async function main() {
@@ -182,6 +214,7 @@ async function main() {
 
   const yamlFiles = findYamlFiles();
   log(`Found ${yamlFiles.length} test configuration(s)`, colors.cyan);
+  log(`Running with concurrency: 5 tests at a time`, colors.cyan);
   log('');
 
   if (yamlFiles.length === 0) {
@@ -189,26 +222,8 @@ async function main() {
     process.exit(1);
   }
 
-  const results = [];
-
-  for (let i = 0; i < yamlFiles.length; i++) {
-    const configPath = yamlFiles[i];
-    try {
-      const result = runEvaluation(configPath, i + 1, yamlFiles.length);
-      results.push(result);
-    } catch (err) {
-      console.log(`${colors.red}ERROR${colors.reset} - ${err.message}`);
-      results.push({
-        configName: path.basename(configPath),
-        total: 0,
-        passed: 0,
-        failed: 1,
-        errors: [err.message],
-        exitCode: 1,
-        output: '',
-      });
-    }
-  }
+  // Run tests in parallel
+  const results = await runTestsInParallel(yamlFiles, 5);
 
   const allPassed = printSummary(results);
 

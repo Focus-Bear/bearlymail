@@ -114,7 +114,8 @@ LLM_PROVIDER=gemini
 GEMINI_API_KEY=your-gemini-api-key
 GEMINI_MODEL=gemini-pro
 OPENAI_API_KEY=your-openai-api-key
-OPENAI_MODEL=gpt-3.5-turbo
+OPENAI_MODEL=gpt-5-mini
+OPENAI_REASONING_EFFORT=low
 
 # Encryption Key (REQUIRED)
 # Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"

@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { EmailsService } from "../emails/emails.service";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
+import { EmailThreadService } from "../emails/email-thread.service";
 import { ContextService } from "../context/context.service";
 import { LLMService, LLMProvider } from "../llm/llm.service";
 import { UsersService } from "../users/users.service";
@@ -13,6 +14,7 @@ import { EmailThread } from "../database/entities/email-thread.entity";
 import { SnoozeService } from "../snooze/snooze.service";
 import { FollowUpsService } from "../follow-ups/follow-ups.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import { STAR_COUNTS } from "../constants/priority-constants";
 
 export interface ReplyRule {
   ruleId?: string;
@@ -31,6 +33,7 @@ export class RepliesService {
   constructor(
     private emailsService: EmailsService,
     private emailProviderManager: EmailProviderManager,
+    private emailThreadService: EmailThreadService,
     private contextService: ContextService,
     private llmService: LLMService,
     private usersService: UsersService,
@@ -421,6 +424,14 @@ ${closing}`;
           email.threadId,
           followUpDays,
           emailId,
+        );
+
+        // Set star count to ensure the thread appears in Follow-Up mode
+        // Follow-up mode requires starCount > 0, so set it to LOW (1)
+        await this.emailThreadService.updateThreadStarCount(
+          userId,
+          email.threadId,
+          STAR_COUNTS.LOW,
         );
 
         this.logger.log(

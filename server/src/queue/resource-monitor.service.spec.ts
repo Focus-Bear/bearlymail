@@ -96,6 +96,10 @@ describe("ResourceMonitorService", () => {
   });
 
   afterEach(() => {
+    // Clean up any running intervals to prevent open handles
+    if (service && service['monitoringInterval']) {
+      service.onModuleDestroy();
+    }
     jest.restoreAllMocks();
   });
 
@@ -448,6 +452,8 @@ describe("ResourceMonitorService", () => {
       // Should have called collectMetrics multiple times
       expect(fs.appendFileSync).toHaveBeenCalled();
 
+      // Clean up interval before restoring timers
+      service.onModuleDestroy();
       jest.useRealTimers();
     });
 
@@ -461,6 +467,9 @@ describe("ResourceMonitorService", () => {
       await service.onModuleInit();
 
       expect(fs.appendFileSync).toHaveBeenCalled();
+
+      // Clean up interval
+      service.onModuleDestroy();
     });
   });
 

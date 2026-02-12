@@ -53,6 +53,13 @@ describe("QueueAutoscalingService", () => {
     jest.clearAllMocks();
   });
 
+  afterEach(() => {
+    // Clean up any running intervals to prevent open handles
+    if (service && service['monitoringInterval']) {
+      service.onModuleDestroy();
+    }
+  });
+
   describe("onModuleInit", () => {
     it("should start monitoring when enabled and not in worker mode", async () => {
       jest.useFakeTimers();
@@ -65,6 +72,8 @@ describe("QueueAutoscalingService", () => {
 
       expect(cloudWatchService.putMetrics).toHaveBeenCalled();
 
+      // Clean up interval before restoring timers
+      service.onModuleDestroy();
       jest.useRealTimers();
     });
 

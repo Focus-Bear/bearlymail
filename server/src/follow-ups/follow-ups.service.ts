@@ -15,6 +15,7 @@ import { EmailsService } from "../emails/emails.service";
 import { calculateBusinessDays } from "../utils/business-days.util";
 import PgBoss = require("pg-boss");
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import { LLM_OP_FOLLOW_UP_DRAFT_REVIEW } from "../llm/llm-operations";
 
 @Injectable()
 export class FollowUpsService {
@@ -357,6 +358,7 @@ Clean up the draft to match the user's tone and writing style. Keep it concise (
         },
         undefined,
         userId,
+        LLM_OP_FOLLOW_UP_DRAFT_REVIEW,
       );
 
       return reviewedDraft.trim();

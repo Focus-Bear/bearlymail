@@ -11,6 +11,10 @@ import {
   PRIORITY_SCORES,
 } from "../constants/priority-constants";
 import { DAYS } from "../constants/time-constants";
+import {
+  LLM_OP_SEARCH_RANKING,
+  LLM_OP_SEARCH_QUERY_CONVERSION,
+} from "../llm/llm-operations";
 
 // Type for emails with search metadata
 // Note: We use a type intersection instead of extends to avoid getPriorityScore requirement issues
@@ -409,6 +413,7 @@ Return ONLY a JSON array of objects.`;
             },
             undefined,
             userId,
+            LLM_OP_SEARCH_RANKING,
           );
 
           searchLogger.logAIScoringComplete(
@@ -686,6 +691,7 @@ Return ONLY the Gmail search query, nothing else.`;
         },
         undefined,
         userId,
+        LLM_OP_SEARCH_QUERY_CONVERSION,
       );
 
       // Extract the query (remove any markdown formatting or extra text)

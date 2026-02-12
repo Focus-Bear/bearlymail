@@ -9,6 +9,10 @@ import {
   cleanEmailForThread,
 } from "../llm/email-content-cleaner";
 import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
+import {
+  LLM_OP_SUMMARIZE_EMAIL_CUSTOM,
+  LLM_OP_SUMMARIZATION_RULE_MATCHING,
+} from "../llm/llm-operations";
 
 export interface SummarizationRule {
   type: "bullet-points" | "action-items" | "sender-request" | "tldr" | "custom";
@@ -129,6 +133,7 @@ export class SummarizationService {
           },
           llmProvider,
           userId,
+          LLM_OP_SUMMARIZE_EMAIL_CUSTOM,
         );
       }
 
@@ -553,6 +558,7 @@ Respond with ONLY the rule number (1-${rules.length}) or "0" if no match. Do not
         },
         undefined,
         userId,
+        LLM_OP_SUMMARIZATION_RULE_MATCHING,
       );
 
       // Parse response - handle various formats the LLM might return

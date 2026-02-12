@@ -18,6 +18,7 @@ import {
 } from "../constants/priority-constants";
 import * as fs from "fs";
 import * as path from "path";
+import { LLM_OP_TRIAGE_SUGGESTIONS } from "../llm/llm-operations";
 
 export interface TriageSuggestion {
   emailId: string;
@@ -522,6 +523,7 @@ Respond with ONLY a JSON object:
         },
         undefined,
         userId,
+        LLM_OP_TRIAGE_SUGGESTIONS,
       );
 
       const jsonMatch = response.match(/\{[\s\S]*\}/);

@@ -6,9 +6,10 @@ import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { RATIOS } from "../constants/percentages";
 import { LLM_CONFIG } from "./auto-responder-constants";
 import { EMAIL_CLASSIFICATION } from "../constants/llm-constants";
-
-// LLM operation for email classification
-const LLM_OP_CLASSIFY_EMAIL = "classify_email_type";
+import {
+  LLM_OP_CLASSIFY_EMAIL,
+  LLM_OP_CHECK_CUSTOM_EXCLUSION_RULES,
+} from "../llm/llm-operations";
 
 /**
  * Service for classifying emails to determine if auto-response should be sent
@@ -433,7 +434,7 @@ export class EmailClassifierService {
       },
       LLMProvider.OPENAI,
       undefined,
-      LLM_OP_CLASSIFY_EMAIL as any,
+      LLM_OP_CLASSIFY_EMAIL,
     );
 
     try {
@@ -564,7 +565,7 @@ Respond with a JSON object in this exact format:
         },
         LLMProvider.OPENAI,
         undefined,
-        "check_custom_exclusion_rules" as any,
+        LLM_OP_CHECK_CUSTOM_EXCLUSION_RULES,
       );
 
       // Parse JSON response

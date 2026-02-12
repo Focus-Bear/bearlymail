@@ -3,6 +3,7 @@ import { theme } from 'theme/theme';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import {
   LandingHeader,
+  LandingFooter,
   HeroSection,
   IntroSection,
   HowItWorksSection,
@@ -107,6 +108,7 @@ const Landing: React.FC = () => {
           <WaitlistForm onSuccess={() => setSubmitted(true)} />
         </div>
       </main>
+      <LandingFooter />
     </div>
   );
 };

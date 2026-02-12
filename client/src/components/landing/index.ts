@@ -10,6 +10,7 @@
 
 export { CTAButton } from 'components/landing/CTAButton';
 export { LandingHeader } from 'components/landing/LandingHeader';
+export { LandingFooter } from 'components/landing/LandingFooter';
 export { HeroSection } from 'components/landing/HeroSection';
 export { IntroSection } from 'components/landing/IntroSection';
 export { FeatureCard } from 'components/landing/FeatureCard';

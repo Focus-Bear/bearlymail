@@ -24,7 +24,8 @@
     "selected": "selected",
     "selectAll": "Select all",
     "deselectAll": "Deselect all",
-    "saved": "✓ Saved"
+    "saved": "✓ Saved",
+    "submitting": "Submitting..."
   },
     "auth": {
       "loginTitle": "Welcome Back",
@@ -1821,7 +1822,12 @@
         "emailSystemOutlook": "Outlook/Office365",
         "emailSystemZoho": "Zoho Mail",
         "emailSystemOther": "Other",
-        "emailSystemOtherLabel": "Please specify your email system"
+        "emailSystemOtherLabel": "Please specify your email system",
+        "firstNameLabel": "First Name",
+        "emailLabel": "Email",
+        "reasonLabel": "Why do you want to use BearlyMail?",
+        "joinButton": "Join Waitlist",
+        "submitError": "Failed to submit. Please try again."
       }
     },
   "keyboard": {

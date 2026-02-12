@@ -181,7 +181,8 @@
     "selected": "seleccionado",
     "send": "Enviar",
     "showLess": "Mostrar menos",
-    "showMore": "Mostrar más"
+    "showMore": "Mostrar más",
+    "submitting": "Enviando..."
   },
   "compose": {
     "addBcc": "Agregar CCO",
@@ -1042,7 +1043,12 @@
           "emailSystemOutlook": "Outlook/Office365",
           "emailSystemZoho": "Zoho Mail",
           "emailSystemOther": "Otro",
-          "emailSystemOtherLabel": "Por favor especifica tu sistema de correo"
+          "emailSystemOtherLabel": "Por favor especifica tu sistema de correo",
+          "firstNameLabel": "Nombre",
+          "emailLabel": "Correo electrónico",
+          "reasonLabel": "¿Por qué quieres usar BearlyMail?",
+          "joinButton": "Unirse a la lista de espera",
+          "submitError": "Error al enviar. Por favor, inténtelo de nuevo."
         },
     "sidebar": {
       "expand": "Expandir barra lateral"

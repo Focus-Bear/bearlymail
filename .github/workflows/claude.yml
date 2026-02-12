@@ -34,12 +34,22 @@ jobs:
         id: claude
         uses: anthropics/claude-code-action@v1
         with:
+          model: claude-opus-4-6
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-
+          allowed_tools: "Bash(git commit:*),Bash(git push:*),Bash(git checkout:*),Bash(git branch:*),Bash(gh pr create:*)"
           # This is an optional setting that allows Claude to read CI results on PRs
           additional_permissions: |
             actions: read
           allowed_bots: '*'
+
+          prompt: |
+            Follow the instructions in issue #${{ github.event.issue.number }}.
+            
+            Rules:
+            - NEVER commit or push directly to main.
+            - Create a new branch named claude/issue-${{ github.event.issue.number }}-<short-description>
+            - Complete the work described in the issue.
+            - Open a PR targeting main that references the issue (Closes #${{ github.event.issue.number }}).
 
           # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
           # prompt: 'Update the pull request description to include a summary of changes.'

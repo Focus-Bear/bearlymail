@@ -146,6 +146,130 @@ jobs:
         working-directory: client
         run: npm run build
 
+  server-smoke-test:
+    name: Server Smoke Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install server dependencies
+        working-directory: server
+        run: npm ci
+
+      - name: Build server
+        working-directory: server
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: npm run build
+
+      - name: Initialize PgBoss schema
+        working-directory: server
+        run: node -e "const PgBoss = require('pg-boss'); const boss = new PgBoss('postgres://test:test@localhost:5432/test'); boss.start().then(() => boss.stop()).then(() => { console.log('PgBoss schema initialized'); process.exit(0); }).catch(err => { console.error('Failed to initialize PgBoss:', err); process.exit(1); })"
+
+      - name: Run database migrations
+        working-directory: server
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USERNAME: test
+          DB_PASSWORD: test
+          DB_NAME: test
+        run: npx typeorm migration:run -d dist/data-source.js
+
+      - name: Start server and run smoke tests
+        working-directory: server
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USERNAME: test
+          DB_PASSWORD: test
+          DB_NAME: test
+          JWT_SECRET: smoke-test-jwt-secret
+          ENCRYPTION_KEY: smoke-test-encryption-key-32ch!
+          PORT: 3001
+          NODE_ENV: test
+        run: |
+          node dist/main.js &
+          SERVER_PID=$!
+
+          chmod +x scripts/smoke-test.sh
+          scripts/smoke-test.sh
+          SMOKE_EXIT=$?
+
+          kill $SERVER_PID 2>/dev/null || true
+          exit $SMOKE_EXIT
+
+      - name: Verify worker starts successfully
+        working-directory: server
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USERNAME: test
+          DB_PASSWORD: test
+          DB_NAME: test
+          JWT_SECRET: smoke-test-jwt-secret
+          ENCRYPTION_KEY: smoke-test-encryption-key-32ch!
+          NODE_ENV: test
+          WORKER_PROCESSES: 1
+        run: |
+          echo "Starting worker process..."
+          node dist/worker.js &
+          WORKER_PID=$!
+
+          TIMEOUT=30
+          STARTED=false
+          for i in $(seq 1 $TIMEOUT); do
+            if ! kill -0 $WORKER_PID 2>/dev/null; then
+              echo "FATAL: Worker process exited prematurely"
+              wait $WORKER_PID
+              EXIT_CODE=$?
+              echo "Worker exit code: $EXIT_CODE"
+              exit 1
+            fi
+
+            if [ $i -ge 15 ]; then
+              STARTED=true
+              break
+            fi
+            sleep 1
+          done
+
+          if [ "$STARTED" = true ]; then
+            echo "Worker process is running successfully after 15 seconds"
+          else
+            echo "FATAL: Worker did not stabilize within ${TIMEOUT} seconds"
+            kill $WORKER_PID 2>/dev/null || true
+            exit 1
+          fi
+
+          kill $WORKER_PID 2>/dev/null || true
+          wait $WORKER_PID 2>/dev/null || true
+          echo "Worker startup check passed!"
+
   promptfoo-tests:
     name: Promptfoo Tests
     runs-on: ubuntu-latest

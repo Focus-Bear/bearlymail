@@ -363,6 +363,7 @@ ${closing}`;
       replySubject,
       body,
       allAttachments.length > 0 ? allAttachments : undefined,
+      body, // Pass body as htmlBody so HTML tags are rendered
     );
 
     // Store the sent reply in the database so it appears in the thread view

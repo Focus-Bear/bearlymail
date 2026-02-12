@@ -504,6 +504,7 @@ describe("RepliesService", () => {
         "Re: Test Subject",
         "Reply body",
         undefined,
+        "Reply body", // htmlBody parameter
       );
     });
 
@@ -530,6 +531,7 @@ describe("RepliesService", () => {
         "Re: Test Subject", // Should not double add Re:
         "Reply body",
         undefined,
+        "Reply body", // htmlBody parameter
       );
     });
   });

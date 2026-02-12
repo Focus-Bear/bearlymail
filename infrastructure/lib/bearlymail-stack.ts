@@ -102,6 +102,15 @@ export class BearlyMailStack extends cdk.Stack {
       resources: ['*'], // In production, restrict to specific verified email addresses
     }));
 
+    // Grant CloudWatch permissions for publishing metrics
+    taskRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'cloudwatch:PutMetricData',
+      ],
+      resources: ['*'],
+    }));
+
     // ============================================
     // Log Groups
     // ============================================

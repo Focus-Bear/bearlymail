@@ -39,7 +39,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: server
-        run: npm install
+        run: npm ci
 
       - name: Run tests with coverage
         working-directory: server
@@ -295,4 +295,6 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           PROMPTFOO_REQUEST_BACKOFF_MS: 1000
           OPENAI_MAX_RETRIES: 3
+          PROMPTFOO_CHANGED_ONLY: 'true'
+          GITHUB_BASE_REF: ${{ github.event.pull_request.base.ref || 'main' }}
         run: npm run promptfoo:test

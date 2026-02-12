@@ -1077,14 +1077,20 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
 
   const handleSetStarCount = useCallback(async (emailId: string, starCount: number) => {
     captureEvent('email_star_count_changed', { email_id: emailId, star_count: starCount });
-    await axios.put(`${API_URL}/emails/${emailId}/star-count`, { starCount }).catch(error => {
+    // Optimistic update - show the new star count immediately
+    if (emailId === id && email) {
+      setEmail({ ...email, starCount });
+    }
+    try {
+      await axios.put(`${API_URL}/emails/${emailId}/star-count`, { starCount });
+    } catch (error) {
       console.error('Error setting star count:', error);
-    });
-    // Refresh email to get updated star count
+    }
+    // Refresh email to get updated star count and archived status from server
     if (emailId === id) {
       fetchEmail();
     }
-  }, [id, fetchEmail]);
+  }, [id, email, setEmail, fetchEmail]);
 
   const handleBlockSender = useCallback(async (emailId: string) => {
     if (!email) return;

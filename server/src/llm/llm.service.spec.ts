@@ -53,6 +53,10 @@ describe("LLMService", () => {
     service = module.get<LLMService>(LLMService);
   });
 
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   describe("Prompt Loading", () => {
     it("should load all required prompts from markdown files", () => {
       const prompts = loadPrompts();
@@ -74,7 +78,7 @@ describe("LLMService", () => {
         "classify_email_type",
         "generate_qa_answer",
         "detect_opt_out",
-        "search_relevance_explanation",
+        "search-relevance-explanation",
       ];
 
       requiredPrompts.forEach((promptId) => {
@@ -164,9 +168,15 @@ describe("LLMService", () => {
       ).rejects.toThrow("Reply generation prompt not available");
     });
 
-    it("should throw error when generate_multiple_replies prompt is missing", async () => {
-      // Mock getPrompt to return null for generate_multiple_replies
-      jest.spyOn(prompts, "getPrompt").mockReturnValueOnce(null);
+    it("should fall back to generateReplyDraft when generate_multiple_replies prompt is missing", async () => {
+      // Mock getPrompt to return null only for generate_multiple_replies
+      // The fallback calls generateReplyDraft which also needs its prompt
+      jest.spyOn(prompts, "getPrompt").mockImplementation((id: string) => {
+        if (id === "generate_multiple_replies") return null;
+        // Return null for all prompts to trigger the throw in generateReplyDraft
+        if (id === "generate_reply") return null;
+        return null;
+      });
 
       await expect(
         service.generateReplyOptions(
@@ -179,7 +189,7 @@ describe("LLMService", () => {
           undefined,
           "test-user-id",
         ),
-      ).rejects.toThrow("Multiple reply generation prompt not available");
+      ).rejects.toThrow("Reply generation prompt not available");
     });
 
     it("should throw error when generate_meeting_reply prompt is missing", async () => {
@@ -226,7 +236,7 @@ describe("LLMService", () => {
         "dispute_tone_check",
         "consolidate_categories",
         "generate_categories_from_other",
-        "search_relevance_explanation",
+        "search-relevance-explanation",
       ];
 
       promptIds.forEach((promptId) => {

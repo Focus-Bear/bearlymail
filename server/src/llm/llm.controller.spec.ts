@@ -1,6 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { INestApplication } from "@nestjs/common";
-import * as request from "supertest";
+import request from "supertest";
 import { LLMController } from "./llm.controller";
 import { LLMService } from "./llm.service";
 import { UsersService } from "../users/users.service";
@@ -37,7 +37,10 @@ describe("LLMController (Integration)", () => {
       },
     ]),
     generateReplyOptions: jest.fn().mockResolvedValue([
-      { text: "Thanks for your email. I'll review this.", tone: "professional" },
+      {
+        text: "Thanks for your email. I'll review this.",
+        tone: "professional",
+      },
       {
         text: "Thank you! I'll take a look at this soon.",
         tone: "friendly",
@@ -59,6 +62,8 @@ describe("LLMController (Integration)", () => {
   };
 
   beforeEach(async () => {
+    jest.clearAllMocks();
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [LLMController],
       providers: [
@@ -194,7 +199,7 @@ describe("LLMController (Integration)", () => {
           name: "Test User",
           email: "test@example.com",
         },
-        false,
+        "", // senderEmail is "" when no senderInfo, short-circuits to ""
       );
     });
 

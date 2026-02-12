@@ -3,6 +3,7 @@ import { getRepositoryToken } from "@nestjs/typeorm";
 import { RepliesService } from "./replies.service";
 import { EmailsService } from "../emails/emails.service";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
+import { EmailThreadService } from "../emails/email-thread.service";
 import { ContextService } from "../context/context.service";
 import { LLMService } from "../llm/llm.service";
 import { UsersService } from "../users/users.service";
@@ -34,6 +35,13 @@ describe("RepliesService", () => {
           provide: EmailProviderManager,
           useValue: {
             getPrimaryProvider: jest.fn(),
+          },
+        },
+        {
+          provide: EmailThreadService,
+          useValue: {
+            findByThreadId: jest.fn(),
+            updateThread: jest.fn(),
           },
         },
         {

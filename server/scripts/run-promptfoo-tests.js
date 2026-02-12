@@ -14,6 +14,7 @@ const fs = require('fs');
 const path = require('path');
 
 const PROMPTFOO_DIR = path.join(__dirname, '..', 'promptfoo');
+const PROMPTS_DIR = path.join(PROMPTFOO_DIR, 'prompts');
 
 // ANSI color codes
 const colors = {
@@ -30,12 +31,97 @@ function log(message, color = '') {
   console.log(`${color}${message}${colors.reset}`);
 }
 
-function findYamlFiles() {
-  const files = fs.readdirSync(PROMPTFOO_DIR);
-  return files
+/**
+ * Get changed prompt files from git diff
+ * @returns {Set<string>} Set of changed prompt filenames (e.g., 'prioritise-email.md')
+ */
+function getChangedPromptFiles() {
+  const changedFiles = new Set();
+
+  try {
+    // Get changed files between base branch and current HEAD
+    // For PRs, GitHub sets GITHUB_BASE_REF and we can use origin/${GITHUB_BASE_REF}
+    // For local testing, fallback to comparing with main
+    const baseBranch = process.env.GITHUB_BASE_REF || 'main';
+    const compareRef = process.env.GITHUB_BASE_REF ? `origin/${baseBranch}` : baseBranch;
+
+    const result = require('child_process').execSync(
+      `git diff --name-only ${compareRef}...HEAD -- server/promptfoo/prompts/`,
+      { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] }
+    );
+
+    const files = result.trim().split('\n').filter(Boolean);
+    for (const file of files) {
+      const basename = path.basename(file);
+      if (basename.endsWith('.md')) {
+        changedFiles.add(basename);
+      }
+    }
+  } catch (error) {
+    // If git diff fails (e.g., no base branch, new repo), return empty set
+    // This will cause all tests to run (safer default)
+    log(`Warning: Could not determine changed files: ${error.message}`, colors.yellow);
+    log(`Falling back to running all tests`, colors.yellow);
+  }
+
+  return changedFiles;
+}
+
+/**
+ * Map prompt filename to corresponding YAML config file(s)
+ * @param {string} promptFile - e.g., 'prioritise-email.md'
+ * @returns {string[]} Array of YAML config paths that reference this prompt
+ */
+function findYamlConfigsForPrompt(promptFile) {
+  const allYamlFiles = fs.readdirSync(PROMPTFOO_DIR)
     .filter(f => f.endsWith('.yaml') && f !== 'promptfoo.yaml')
-    .sort()
     .map(f => path.join(PROMPTFOO_DIR, f));
+
+  const matchingConfigs = [];
+
+  for (const yamlPath of allYamlFiles) {
+    try {
+      const content = fs.readFileSync(yamlPath, 'utf-8');
+      // Check if this YAML references the prompt file
+      // Prompts are referenced like: file://prompts/prioritise-email.md
+      if (content.includes(`prompts/${promptFile}`)) {
+        matchingConfigs.push(yamlPath);
+      }
+    } catch (error) {
+      log(`Warning: Could not read ${yamlPath}: ${error.message}`, colors.yellow);
+    }
+  }
+
+  return matchingConfigs;
+}
+
+function findYamlFiles(changedPromptsOnly = false) {
+  if (!changedPromptsOnly) {
+    // Original behavior: return all YAML files
+    const files = fs.readdirSync(PROMPTFOO_DIR);
+    return files
+      .filter(f => f.endsWith('.yaml') && f !== 'promptfoo.yaml')
+      .sort()
+      .map(f => path.join(PROMPTFOO_DIR, f));
+  }
+
+  // New behavior: only return YAML files for changed prompts
+  const changedPrompts = getChangedPromptFiles();
+
+  if (changedPrompts.size === 0) {
+    log('No prompt files changed in this PR', colors.cyan);
+    return [];
+  }
+
+  log(`Changed prompt files: ${Array.from(changedPrompts).join(', ')}`, colors.cyan);
+
+  const yamlFiles = new Set();
+  for (const promptFile of changedPrompts) {
+    const configs = findYamlConfigsForPrompt(promptFile);
+    configs.forEach(c => yamlFiles.add(c));
+  }
+
+  return Array.from(yamlFiles).sort();
 }
 
 function runEvaluation(configPath, index, total) {
@@ -212,15 +298,32 @@ async function main() {
   log('Promptfoo Test Runner', colors.bold + colors.blue);
   log('');
 
-  const yamlFiles = findYamlFiles();
-  log(`Found ${yamlFiles.length} test configuration(s)`, colors.cyan);
-  log(`Running with concurrency: 5 tests at a time`, colors.cyan);
+  // Check if we should run only changed prompts
+  const changedPromptsOnly = process.env.PROMPTFOO_CHANGED_ONLY === 'true' || process.argv.includes('--changed-only');
+
+  if (changedPromptsOnly) {
+    log('Running tests only for changed prompt files', colors.cyan);
+  } else {
+    log('Running all promptfoo tests', colors.cyan);
+  }
   log('');
 
+  const yamlFiles = findYamlFiles(changedPromptsOnly);
+
   if (yamlFiles.length === 0) {
-    log('No test configurations found!', colors.red);
-    process.exit(1);
+    if (changedPromptsOnly) {
+      log('No prompt files changed - skipping all tests', colors.green);
+      log('✓ No tests needed', colors.green);
+      process.exit(0);
+    } else {
+      log('No test configurations found!', colors.red);
+      process.exit(1);
+    }
   }
+
+  log(`Found ${yamlFiles.length} test configuration(s) to run`, colors.cyan);
+  log(`Running with concurrency: 5 tests at a time`, colors.cyan);
+  log('');
 
   // Run tests in parallel
   const results = await runTestsInParallel(yamlFiles, 5);

@@ -121,8 +121,36 @@ export class CalendarService {
   }
 
   private toTzDate(date: Date, tz: string): Date {
-    const str = date.toLocaleString("en-US", { timeZone: tz });
-    return new Date(str);
+    // Get the time in the target timezone as a formatted string
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: tz,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+      hourCycle: "h23",
+    });
+    const parts = formatter.formatToParts(date);
+    const dateMap: Record<string, string> = {};
+    parts.forEach((part) => {
+      if (part.type !== "literal") {
+        dateMap[part.type] = part.value;
+      }
+    });
+
+    // Create a Date object using the timezone-specific values
+    // This represents the same wall-clock time in the target timezone
+    return new Date(
+      Number(dateMap.year),
+      Number(dateMap.month) - 1,
+      Number(dateMap.day),
+      Number(dateMap.hour),
+      Number(dateMap.minute),
+      Number(dateMap.second),
+    );
   }
 
   private toDayKey(date: Date, tz: string): string {

@@ -40,7 +40,7 @@ jobs:
             actions: read
           allowed_bots: '*'
 
-          prompt: |
+          custom_instructions: |
             Follow the instructions in issue #${{ github.event.issue.number }}.
             
             Rules:

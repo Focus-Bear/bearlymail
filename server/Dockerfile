@@ -33,6 +33,8 @@ COPY package*.json ./
 # which can cause network timeouts (ECONNRESET) during Docker builds
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
+# Copy promptfoo directory containing LLM prompt markdown files
+COPY --from=builder /app/promptfoo ./promptfoo
 
 # Expose port
 EXPOSE 3001

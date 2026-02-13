@@ -47,6 +47,8 @@ jobs:
             - NEVER commit or push directly to main.
             - Create a new branch named claude/issue-${{ github.event.issue.number }}-<short-description>
             - Complete the work described in the issue.
+            - Always write/update unit tests when any logic changes
+            - Follow clean code principles
             - Open a PR targeting main that references the issue (Closes #${{ github.event.issue.number }}).
             - Open the PR yourself - no need to ask for confirmation.
             - Unless you are very unsure about the direction, don't ask for confirmation, just go ahead with solving the bug/following instructions.

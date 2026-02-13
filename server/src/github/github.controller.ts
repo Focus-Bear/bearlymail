@@ -418,9 +418,14 @@ export class GitHubController {
   }
 
   @Get("connect")
-  @UseGuards(JwtAuthGuard)
-  async connect(@Request() req, @Res() res: Response) {
-    const { userId } = req.user;
+  async connect(@Query("userId") userId: string, @Res() res: Response) {
+    const frontendUrl = this.githubAppService.getFrontendUrl();
+
+    if (!userId) {
+      this.logger.error("GitHub connect endpoint called without userId");
+      return res.redirect(`${frontendUrl}/settings?github=error`);
+    }
+
     const authUrl = this.githubAppService.getAuthorizationUrl(userId);
     return res.redirect(authUrl);
   }

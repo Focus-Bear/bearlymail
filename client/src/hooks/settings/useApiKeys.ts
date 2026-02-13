@@ -3,9 +3,11 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { TOAST_DURATION_MS } from 'constants/numbers';
 import { API_URL } from 'config/api';
+import { useAuth } from 'contexts/AuthContext';
 
 export const useApiKeys = () => {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [openAiApiKey, setOpenAiApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
   const [apiKeySaved, setApiKeySaved] = useState(false);
@@ -55,9 +57,14 @@ export const useApiKeys = () => {
   }, [t]);
 
   const connectGitHub = useCallback(() => {
-    // Redirect to backend OAuth endpoint
-    window.location.href = `${API_URL}/github/connect`;
-  }, []);
+    if (!user?.id) {
+      console.error('Cannot connect GitHub: user not authenticated');
+      alert(t('settings.githubConnectError'));
+      return;
+    }
+    // Redirect to backend OAuth endpoint with userId as query parameter
+    window.location.href = `${API_URL}/github/connect?userId=${encodeURIComponent(user.id)}`;
+  }, [user, t]);
 
   const disconnectGitHub = useCallback(async () => {
     if (!window.confirm(t('settings.confirmRemoveGithubToken'))) {

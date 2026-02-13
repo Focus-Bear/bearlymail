@@ -1589,6 +1589,7 @@
         "confirmRemoveGithubToken":"¿Estás seguro de que deseas desconectar tu cuenta de GitHub? Esto eliminará el acceso a la integración de GitHub.",
         "githubTokenRemoved": "GitHub desconectado exitosamente",
         "githubTokenRemoveError": "No se pudo desconectar GitHub. Por favor intenta de nuevo.",
+        "githubConnectError": "No se puede conectar GitHub: por favor inicia sesión primero",
         "setPassword": {
           "title": "Inicio de sesión con contraseña",
           "description": "Establece una contraseña para habilitar el inicio de sesión con correo electrónico y contraseña además de SSO. Esto es útil si viajas a regiones donde tu proveedor SSO puede estar bloqueado.",

@@ -4,6 +4,7 @@ import { Repository } from "typeorm";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { PRIORITY_SCORES } from "../constants/priority-constants";
 import { DAYS, MINUTES } from "../constants/time-constants";
+import { DateTime } from "luxon";
 
 @Injectable()
 export class BatchScheduleService {
@@ -91,25 +92,25 @@ export class BatchScheduleService {
       return null;
     }
 
-    const now = new Date();
     const userTimezone = schedule.timezone || "UTC";
+    const now = DateTime.now().setZone(userTimezone);
 
-    // Convert to user's timezone
-    const nowInUserTz = new Date(
-      now.toLocaleString("en-US", { timeZone: userTimezone }),
-    );
-    const currentDay = nowInUserTz.getDay();
-    const currentTime = `${String(nowInUserTz.getHours()).padStart(2, "0")}:${String(nowInUserTz.getMinutes()).padStart(2, "0")}`;
+    // Ensure deliveryDays are numbers (they might be stored as strings in DB)
+    const deliveryDays = schedule.deliveryDays.map(day => typeof day === 'string' ? parseInt(day, 10) : day);
+
+    const currentDay = now.weekday % 7; // Luxon uses 1-7 (Mon-Sun), convert to 0-6 (Sun-Sat)
+    const currentTime = now.toFormat('HH:mm');
 
     // Parse delivery times and sort them
     const sortedTimes = [...schedule.deliveryTimes].sort();
 
     // Check if we can deliver today
-    if (schedule.deliveryDays.includes(currentDay)) {
+    if (deliveryDays.includes(currentDay)) {
       // Find the next delivery time today
       for (const time of sortedTimes) {
         if (time > currentTime) {
-          return this.createDateInTimezone(nowInUserTz, time, userTimezone);
+          const [hours, minutes] = time.split(':').map(Number);
+          return now.set({ hour: hours, minute: minutes, second: 0, millisecond: 0 }).toJSDate();
         }
       }
     }
@@ -118,15 +119,10 @@ export class BatchScheduleService {
     let daysToAdd = 1;
     while (daysToAdd <= DAYS.WEEK) {
       const nextDay = (currentDay + daysToAdd) % DAYS.WEEK;
-      if (schedule.deliveryDays.includes(nextDay)) {
+      if (deliveryDays.includes(nextDay)) {
         // Use the first delivery time of that day
-        const nextDate = new Date(nowInUserTz);
-        nextDate.setDate(nextDate.getDate() + daysToAdd);
-        return this.createDateInTimezone(
-          nextDate,
-          sortedTimes[0],
-          userTimezone,
-        );
+        const [hours, minutes] = sortedTimes[0].split(':').map(Number);
+        return now.plus({ days: daysToAdd }).set({ hour: hours, minute: minutes, second: 0, millisecond: 0 }).toJSDate();
       }
       daysToAdd++;
     }
@@ -139,41 +135,6 @@ export class BatchScheduleService {
    * Create a date object for a specific time in a timezone
    * The result is in UTC (for storage) but represents the local time in the given timezone
    */
-  private createDateInTimezone(
-    baseDate: Date,
-    time: string,
-    timezone: string,
-  ): Date {
-    const [hours, minutes] = time.split(":").map(Number);
-
-    // Create a date string in the user's timezone
-    const year = baseDate.getFullYear();
-    const month = String(baseDate.getMonth() + 1).padStart(2, "0");
-    const day = String(baseDate.getDate()).padStart(2, "0");
-    const hoursStr = String(hours).padStart(2, "0");
-    const minutesStr = String(minutes).padStart(2, "0");
-
-    // Format: "YYYY-MM-DD HH:MM:SS" in user's timezone
-    const dateString = `${year}-${month}-${day} ${hoursStr}:${minutesStr}:00`;
-
-    // Parse this as a date in the user's timezone, then convert to UTC
-    // We use toLocaleString to get the UTC offset, then manually adjust
-    const localDate = new Date(dateString);
-
-    // Get the offset between the user's timezone and UTC at this specific time
-    // (accounts for DST changes)
-    const utcDate = new Date(
-      localDate.toLocaleString("en-US", { timeZone: "UTC" }),
-    );
-    const tzDate = new Date(
-      localDate.toLocaleString("en-US", { timeZone: timezone }),
-    );
-    const offset = utcDate.getTime() - tzDate.getTime();
-
-    // Apply the offset to get the correct UTC time
-    return new Date(localDate.getTime() + offset);
-  }
-
   /**
    * Check if now is within delivery hours
    */

@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { google, calendar_v3 } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
 import { UsersService } from "../users/users.service";
@@ -42,6 +42,7 @@ interface BusyPeriod {
 
 @Injectable()
 export class CalendarService {
+  private readonly logger = new Logger(CalendarService.name);
   private oauth2Client: OAuth2Client;
 
   constructor(
@@ -190,6 +191,11 @@ export class CalendarService {
         );
       });
 
+      if (isBusy) {
+        current = new Date(current.getTime() + slotDuration * 60 * 1000);
+        continue;
+      }
+
       const isTooCloseToMeeting = busy.some((b) => {
         const busyEnd = new Date(b.end);
         const busyStart = new Date(b.start);
@@ -202,6 +208,11 @@ export class CalendarService {
           slotEnd.getTime() > busyStart.getTime() - gapMs;
         return tooCloseAfter || tooCloseBefore;
       });
+
+      if (isTooCloseToMeeting) {
+        current = new Date(current.getTime() + slotDuration * 60 * 1000);
+        continue;
+      }
 
       const totalAvailMinutes = (endHour - startHour) * 60;
       const existingMeetingMinutes = this.getMeetingMinutesForDay(
@@ -216,18 +227,18 @@ export class CalendarService {
       const deepWorkMinutes = deepWorkHours * 60;
       const maxBookableMinutes = totalAvailMinutes - deepWorkMinutes;
 
-      if (
-        !isBusy &&
-        !isTooCloseToMeeting &&
-        totalBooked + slotDuration <= maxBookableMinutes
-      ) {
-        slots.push({
-          start: current.toISOString(),
-          end: slotEnd.toISOString(),
-          duration: slotDuration,
-        });
-        meetingMinutesPerDay.set(dayKey, bookedSlotMinutes + slotDuration);
+      if (totalBooked + slotDuration > maxBookableMinutes) {
+        current = new Date(current.getTime() + slotDuration * 60 * 1000);
+        continue;
       }
+
+      // Slot is available!
+      slots.push({
+        start: current.toISOString(),
+        end: slotEnd.toISOString(),
+        duration: slotDuration,
+      });
+      meetingMinutesPerDay.set(dayKey, bookedSlotMinutes + slotDuration);
 
       current = new Date(current.getTime() + slotDuration * 60 * 1000);
     }

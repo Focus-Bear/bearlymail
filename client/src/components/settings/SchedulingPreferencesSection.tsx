@@ -5,6 +5,7 @@ import { theme } from 'theme/theme';
 import { SCHEDULING_GAP_15_MIN, SCHEDULING_GAP_45_MIN, SAVE_CONFIRMATION_DURATION_MS, HOURS_12_HOUR_FORMAT, DAYS_IN_MONTH_30 } from 'constants/numbers';
 import { API_URL } from 'config/api';
 import { EMOJI_CALENDAR } from 'constants/emojis';
+import { TimezoneAutocomplete } from 'components/common/TimezoneAutocomplete';
 
 const DEBOUNCE_MS = 600;
 
@@ -27,20 +28,6 @@ const GAP_OPTIONS = [0, SCHEDULING_GAP_15_MIN, DAYS_IN_MONTH_30, SCHEDULING_GAP_
 const DEEP_WORK_OPTIONS = [0, 1, 2, 3, 4];
 
 const SLOT_DURATION_OPTIONS = [SCHEDULING_GAP_15_MIN, DAYS_IN_MONTH_30, SCHEDULING_GAP_45_MIN, 60];
-
-const TIMEZONE_OPTIONS: string[] = (() => {
-  try {
-    return Intl.supportedValuesOf('timeZone');
-  } catch {
-    return [
-      'UTC',
-      'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
-      'Europe/London', 'Europe/Paris', 'Europe/Berlin',
-      'Asia/Tokyo', 'Asia/Shanghai', 'Asia/Kolkata',
-      'Australia/Sydney', 'Australia/Melbourne', 'Pacific/Auckland',
-    ];
-  }
-})();
 
 export const SchedulingPreferencesSection: React.FC = () => {
   const { t } = useTranslation();
@@ -290,17 +277,10 @@ export const SchedulingPreferencesSection: React.FC = () => {
 
         <div id="scheduling-timezone">
           <div style={labelStyle}>{t('settings.schedulingPreferences.timezone')}</div>
-          <select
+          <TimezoneAutocomplete
             value={prefs.timezone}
-            onChange={(e) => savePrefs({ timezone: e.target.value })}
-            style={selectStyle}
-          >
-            {TIMEZONE_OPTIONS.map((tz) => (
-              <option key={tz} value={tz}>
-                {tz.replace(/_/g, ' ')}
-              </option>
-            ))}
-          </select>
+            onChange={(timezone) => savePrefs({ timezone })}
+          />
         </div>
       </div>
     </div>

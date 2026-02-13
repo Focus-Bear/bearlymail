@@ -48,6 +48,8 @@ jobs:
             - Create a new branch named claude/issue-${{ github.event.issue.number }}-<short-description>
             - Complete the work described in the issue.
             - Open a PR targeting main that references the issue (Closes #${{ github.event.issue.number }}).
+            - Open the PR yourself - no need to ask for confirmation.
+            - Unless you are very unsure about the direction, don't ask for confirmation, just go ahead with solving the bug/following instructions.
 
           # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
           # prompt: 'Update the pull request description to include a summary of changes.'

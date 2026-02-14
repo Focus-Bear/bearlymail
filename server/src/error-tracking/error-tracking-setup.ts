@@ -20,9 +20,7 @@ export function initializeGlobalErrorTracking(): void {
     });
     logger.log("Global error tracking initialized");
   } else {
-    logger.warn(
-      "Global error tracking disabled - POSTHOG_API_KEY not set",
-    );
+    logger.warn("Global error tracking disabled - POSTHOG_API_KEY not set");
   }
 }
 

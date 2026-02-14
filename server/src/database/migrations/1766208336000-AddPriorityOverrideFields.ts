@@ -7,9 +7,7 @@ import {
   TableForeignKey,
 } from "typeorm";
 
-export class AddPriorityOverrideFields1766208336000
-  implements MigrationInterface
-{
+export class AddPriorityOverrideFields1766208336000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Create enum type for OverrideReasonType if it doesn't exist
     await queryRunner.query(`

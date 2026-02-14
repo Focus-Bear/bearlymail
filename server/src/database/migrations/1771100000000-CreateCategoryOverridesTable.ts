@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class CreateCategoryOverridesTable1771100000000
-  implements MigrationInterface
-{
+export class CreateCategoryOverridesTable1771100000000 implements MigrationInterface {
   name = "CreateCategoryOverridesTable1771100000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {

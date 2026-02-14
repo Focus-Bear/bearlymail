@@ -106,6 +106,21 @@ export class GmailProvider implements EmailProvider {
     return !!user?.googleCalendarAccessToken;
   }
 
+  async getAccountInfo(userId: string): Promise<{
+    email?: string;
+    name?: string;
+    isPrimary?: boolean;
+  } | null> {
+    const user = await this.usersService.findOneWithTokens(userId);
+    if (!user?.googleCalendarAccessToken) return null;
+
+    return {
+      email: user.email,
+      name: user.name,
+      isPrimary: true, // Legacy implementation - always primary
+    };
+  }
+
   private async createGmailClient(
     userId: string,
   ): Promise<gmail_v1.Gmail | null> {

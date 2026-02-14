@@ -56,6 +56,7 @@ export class EmailSearchService {
       userId: string,
       email: Partial<Email>,
     ) => Promise<number | undefined>,
+    accountTypes?: string[],
   ): Promise<
     Array<
       Email & {
@@ -66,17 +67,22 @@ export class EmailSearchService {
     >
   > {
     const originalQuery = query;
-    const queriesTried: Array<{ query: string; resultCount: number }> = [];
+    const queriesTried: Array<{
+      query: string;
+      resultCount: number;
+      accountType?: string;
+    }> = [];
     const searchStartTime = Date.now();
 
     // Log search start
     searchLogger.logSearchStart(userId, originalQuery);
 
     try {
-      // Use the injected EmailProviderManager
-      const provider =
-        await this.emailProviderManager.getPrimaryProvider(userId);
-      if (!provider) {
+      // Get connected providers based on filter
+      const connectedProviders =
+        await this.emailProviderManager.getAllConnectedProviders(userId);
+
+      if (connectedProviders.length === 0) {
         this.logger.warn(`No email provider connected for user ${userId}`);
         searchLogger.logSearchError(
           userId,
@@ -94,6 +100,31 @@ export class EmailSearchService {
               originalQuery,
               queriesTried: [],
               message: "No email provider connected",
+            },
+          } as unknown as EmailWithMetadata,
+        ];
+      }
+
+      // Filter providers if accountTypes is specified
+      const providersToSearch = accountTypes
+        ? connectedProviders.filter((p) => accountTypes.includes(p.type))
+        : connectedProviders;
+
+      if (providersToSearch.length === 0) {
+        this.logger.warn(
+          `No matching email providers for user ${userId} with filter ${accountTypes?.join(", ")}`,
+        );
+        return [
+          {
+            id: "no-results",
+            subject: "",
+            from: "",
+            body: "",
+            receivedAt: new Date().toISOString(),
+            debugInfo: {
+              originalQuery,
+              queriesTried: [],
+              message: `No matching email accounts found for the selected filters: ${accountTypes?.join(", ")}`,
             },
           } as unknown as EmailWithMetadata,
         ];
@@ -139,53 +170,75 @@ export class EmailSearchService {
       );
       searchLogger.logGmailQueries(userId, originalQuery, gmailQueries);
 
-      // Step 2: Try each query variation until we get results
-      onProgress?.("searching", "Searching for emails in Gmail...");
+      // Step 2: Search across all selected providers
+      onProgress?.(
+        "searching",
+        `Searching for emails across ${providersToSearch.length} account(s)...`,
+      );
       const initialMaxResults = QUERY_LIMITS.MAX_SENT_EMAILS_FOR_STYLE;
-      let rawEmails: Array<{
+      const allRawEmails: Array<{
         receivedAt: Date;
         from?: string;
         fromName?: string;
         subject?: string;
+        messageId?: string;
         [key: string]: unknown;
       }> = [];
       let successfulQuery: string | null = null;
 
-      for (const gmailQuery of gmailQueries) {
-        try {
-          const searchResults = await provider.searchEmails(
-            userId,
-            gmailQuery,
-            initialMaxResults,
-          );
-          queriesTried.push({
-            query: gmailQuery,
-            resultCount: searchResults.length,
-          });
+      // Search each provider
+      for (const providerInfo of providersToSearch) {
+        const provider = await this.emailProviderManager.getProvider(
+          userId,
+          providerInfo.type,
+        );
+        if (!provider) continue;
 
-          if (searchResults.length > 0) {
-            rawEmails = searchResults as unknown as Array<{
-              receivedAt: Date;
-              from?: string;
-              fromName?: string;
-              subject?: string;
-              messageId?: string;
-              [key: string]: unknown;
-            }>;
-            successfulQuery = gmailQuery;
-            this.logger.log(
-              `[SEARCH] Query "${gmailQuery}" returned ${searchResults.length} results`,
+        for (const gmailQuery of gmailQueries) {
+          try {
+            const searchResults = await provider.searchEmails(
+              userId,
+              gmailQuery,
+              initialMaxResults,
             );
-            break;
+            queriesTried.push({
+              query: gmailQuery,
+              resultCount: searchResults.length,
+              accountType: providerInfo.type,
+            });
+
+            if (searchResults.length > 0) {
+              allRawEmails.push(
+                ...(searchResults as unknown as Array<{
+                  receivedAt: Date;
+                  from?: string;
+                  fromName?: string;
+                  subject?: string;
+                  messageId?: string;
+                  [key: string]: unknown;
+                }>),
+              );
+              successfulQuery = gmailQuery;
+              this.logger.log(
+                `[SEARCH] Query "${gmailQuery}" on ${providerInfo.type} returned ${searchResults.length} results`,
+              );
+              break; // Found results for this provider, move to next provider
+            }
+          } catch (error) {
+            this.logger.warn(
+              `Search query "${gmailQuery}" on ${providerInfo.type} failed:`,
+              error,
+            );
+            queriesTried.push({
+              query: gmailQuery,
+              resultCount: 0,
+              accountType: providerInfo.type,
+            });
           }
-        } catch (error) {
-          this.logger.warn(`Search query "${gmailQuery}" failed:`, error);
-          queriesTried.push({
-            query: gmailQuery,
-            resultCount: 0,
-          });
         }
       }
+
+      const rawEmails = allRawEmails;
 
       if (rawEmails.length === 0) {
         searchLogger.logSearchComplete(

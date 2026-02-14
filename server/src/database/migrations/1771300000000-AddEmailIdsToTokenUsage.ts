@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner, TableColumn } from "typeorm";
 
-export class AddEmailIdsToTokenUsage1771300000000
-  implements MigrationInterface
-{
+export class AddEmailIdsToTokenUsage1771300000000 implements MigrationInterface {
   name = "AddEmailIdsToTokenUsage1771300000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {

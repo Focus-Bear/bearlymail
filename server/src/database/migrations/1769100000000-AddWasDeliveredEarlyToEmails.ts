@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner, TableColumn } from "typeorm";
 
-export class AddWasDeliveredEarlyToEmails1769100000000
-  implements MigrationInterface
-{
+export class AddWasDeliveredEarlyToEmails1769100000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Add wasDeliveredEarly column to emails table
     const emailsTable = await queryRunner.getTable("emails");

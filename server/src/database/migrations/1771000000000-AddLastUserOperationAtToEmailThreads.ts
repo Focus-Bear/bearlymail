@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner, TableColumn } from "typeorm";
 
-export class AddLastUserOperationAtToEmailThreads1771000000000
-  implements MigrationInterface
-{
+export class AddLastUserOperationAtToEmailThreads1771000000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.addColumn(
       "email_threads",

@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner, Table } from "typeorm";
 
-export class CreatePromptExamplesTable1771800000000
-  implements MigrationInterface
-{
+export class CreatePromptExamplesTable1771800000000 implements MigrationInterface {
   name = "CreatePromptExamplesTable1771800000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {

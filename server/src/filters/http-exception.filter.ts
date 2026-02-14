@@ -80,7 +80,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
       if (this.errorTracking && exception instanceof Error) {
         // Extract user ID from request if available (no PII)
         const userId =
-          request.user && typeof request.user === "object" && "userId" in request.user
+          request.user &&
+          typeof request.user === "object" &&
+          "userId" in request.user
             ? String(request.user.userId)
             : undefined;
 

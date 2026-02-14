@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class CreateGitHubRepoMappingsTable1771700000000
-  implements MigrationInterface
-{
+export class CreateGitHubRepoMappingsTable1771700000000 implements MigrationInterface {
   name = "CreateGitHubRepoMappingsTable1771700000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {

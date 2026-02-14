@@ -82,6 +82,74 @@ const Search: React.FC = () => {
           onSubmit={search.handleSearch}
         />
 
+        {search.connectedAccounts.length > 1 && (
+          <div style={{
+            marginTop: theme.spacing.md,
+            marginBottom: theme.spacing.md,
+            padding: theme.spacing.md,
+            backgroundColor: theme.colors.background.paper,
+            borderRadius: theme.borderRadius.md,
+            border: `1px solid ${theme.colors.border.light}`,
+          }}>
+            <div style={{
+              fontSize: theme.typography.fontSize.sm,
+              fontWeight: theme.typography.fontWeight.medium,
+              color: theme.colors.text.secondary,
+              marginBottom: theme.spacing.sm,
+            }}>
+              {t('search.searchAccounts')}:
+            </div>
+            <div style={{
+              display: 'flex',
+              gap: theme.spacing.sm,
+              flexWrap: 'wrap',
+            }}>
+              {search.connectedAccounts.map((account) => {
+                const isSelected = search.selectedAccountTypes.includes(account.provider);
+                const accountLabel = account.email || `${account.provider} account`;
+
+                return (
+                  <button
+                    key={account.provider}
+                    onClick={() => search.handleAccountToggle(account.provider)}
+                    style={{
+                      padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+                      backgroundColor: isSelected
+                        ? theme.colors.primary.main
+                        : theme.colors.background.subtle,
+                      color: isSelected
+                        ? 'white'
+                        : theme.colors.text.secondary,
+                      border: `1px solid ${isSelected ? theme.colors.primary.main : theme.colors.border.medium}`,
+                      borderRadius: theme.borderRadius.full,
+                      cursor: 'pointer',
+                      fontSize: theme.typography.fontSize.sm,
+                      fontWeight: theme.typography.fontWeight.medium,
+                      transition: theme.transitions.default,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: theme.spacing.xs,
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.backgroundColor = theme.colors.background.default;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.backgroundColor = theme.colors.background.subtle;
+                      }
+                    }}
+                  >
+                    <span>{isSelected ? '✓' : ''}</span>
+                    <span>{accountLabel}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {search.hasSearched && (
           <div>
             {search.loading ? (

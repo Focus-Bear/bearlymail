@@ -107,4 +107,39 @@ export class EmailProviderManager {
     // Currently only Gmail is supported
     return this.gmailProvider.convertLabelIdsToNames(userId, labelIds);
   }
+
+  /**
+   * Get all connected providers for a user
+   * Returns a list of provider types with account details
+   */
+  async getAllConnectedProviders(userId: string): Promise<
+    Array<{
+      type: string;
+      email?: string;
+      name?: string;
+      isPrimary?: boolean;
+    }>
+  > {
+    const connectedProviders: Array<{
+      type: string;
+      email?: string;
+      name?: string;
+      isPrimary?: boolean;
+    }> = [];
+
+    for (const [providerType, provider] of this.providers.entries()) {
+      if (await provider.isConnected(userId)) {
+        // Get account details from the provider
+        const accountInfo = await provider.getAccountInfo(userId);
+        connectedProviders.push({
+          type: providerType,
+          email: accountInfo?.email,
+          name: accountInfo?.name,
+          isPrimary: accountInfo?.isPrimary,
+        });
+      }
+    }
+
+    return connectedProviders;
+  }
 }

@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner, TableColumn } from "typeorm";
 
-export class AddBatchDecisionReasonToEmails1771400000000
-  implements MigrationInterface
-{
+export class AddBatchDecisionReasonToEmails1771400000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     const emailsTable = await queryRunner.getTable("emails");
     if (emailsTable) {

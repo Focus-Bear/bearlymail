@@ -60,6 +60,22 @@ export class Office365Provider implements EmailProvider {
     return this.office365AccountsService.hasConnectedOffice365(userId);
   }
 
+  async getAccountInfo(userId: string): Promise<{
+    email?: string;
+    name?: string;
+    isPrimary?: boolean;
+  } | null> {
+    const primaryAccount =
+      await this.office365AccountsService.findPrimary(userId);
+    if (!primaryAccount) return null;
+
+    return {
+      email: primaryAccount.email,
+      name: primaryAccount.name,
+      isPrimary: primaryAccount.isPrimary,
+    };
+  }
+
   async syncEmails(userId: string): Promise<void> {
     const primaryAccount =
       await this.office365AccountsService.findPrimary(userId);

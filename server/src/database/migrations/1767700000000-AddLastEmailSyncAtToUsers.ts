@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner, TableColumn } from "typeorm";
 
-export class AddLastEmailSyncAtToUsers1767700000000
-  implements MigrationInterface
-{
+export class AddLastEmailSyncAtToUsers1767700000000 implements MigrationInterface {
   name = "AddLastEmailSyncAtToUsers1767700000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {

@@ -5,9 +5,7 @@ import {
   TableIndex,
 } from "typeorm";
 
-export class ExtendActionItemsForSuggestedActions1770100000000
-  implements MigrationInterface
-{
+export class ExtendActionItemsForSuggestedActions1770100000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     const actionItemsTable = await queryRunner.getTable("action_items");
     if (actionItemsTable) {

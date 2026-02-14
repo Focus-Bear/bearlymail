@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner, TableColumn } from "typeorm";
 
-export class AddFollowUpGenerationFields1766114688000
-  implements MigrationInterface
-{
+export class AddFollowUpGenerationFields1766114688000 implements MigrationInterface {
   name = "AddFollowUpGenerationFields1766114688000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {

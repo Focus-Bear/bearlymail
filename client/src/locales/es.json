@@ -1246,6 +1246,7 @@
     "relevance": "Relevancia: {{score}}%",
     "scoreBreakdown": "Desglose de puntuación",
     "search": "Buscar",
+    "searchAccounts": "Buscar en",
     "searching": "Buscando...",
     "title": "Buscar correos electrónicos"
   },

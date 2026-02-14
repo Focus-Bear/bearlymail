@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class AddEmailCategoryContextEnum1770600000000
-  implements MigrationInterface
-{
+export class AddEmailCategoryContextEnum1770600000000 implements MigrationInterface {
   name = "AddEmailCategoryContextEnum1770600000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {

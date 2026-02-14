@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner, TableIndex } from "typeorm";
 
-export class RemovePriorityScoreColumn1766600000000
-  implements MigrationInterface
-{
+export class RemovePriorityScoreColumn1766600000000 implements MigrationInterface {
   name = "RemovePriorityScoreColumn1766600000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {

@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner, TableColumn } from "typeorm";
 
-export class AddDisplayNameAndJobTitleToUsers1770200000000
-  implements MigrationInterface
-{
+export class AddDisplayNameAndJobTitleToUsers1770200000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     const usersTable = await queryRunner.getTable("users");
     if (usersTable) {

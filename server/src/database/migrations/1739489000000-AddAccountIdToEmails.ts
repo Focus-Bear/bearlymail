@@ -1,8 +1,11 @@
-import { MigrationInterface, QueryRunner, TableColumn, TableForeignKey } from "typeorm";
+import {
+  MigrationInterface,
+  QueryRunner,
+  TableColumn,
+  TableForeignKey,
+} from "typeorm";
 
-export class AddAccountIdToEmails1739489000000
-  implements MigrationInterface
-{
+export class AddAccountIdToEmails1739489000000 implements MigrationInterface {
   name = "AddAccountIdToEmails1739489000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -10,13 +13,16 @@ export class AddAccountIdToEmails1739489000000
     const emailsTable = await queryRunner.getTable("emails");
 
     if (emailsTable) {
-      const hasGoogleAccountId = emailsTable.findColumnByName("googleAccountId");
-      const hasOffice365AccountId = emailsTable.findColumnByName("office365AccountId");
+      const hasGoogleAccountId =
+        emailsTable.findColumnByName("googleAccountId");
+      const hasOffice365AccountId =
+        emailsTable.findColumnByName("office365AccountId");
       const hasZohoAccountId = emailsTable.findColumnByName("zohoAccountId");
 
       // Check if referenced tables exist
       const googleAccountsTable = await queryRunner.getTable("google_accounts");
-      const office365AccountsTable = await queryRunner.getTable("office365_accounts");
+      const office365AccountsTable =
+        await queryRunner.getTable("office365_accounts");
       const zohoAccountsTable = await queryRunner.getTable("zoho_accounts");
 
       if (!hasGoogleAccountId) {
@@ -123,12 +129,14 @@ export class AddAccountIdToEmails1739489000000
       }
 
       // Then drop columns
-      const hasGoogleAccountId = emailsTable.findColumnByName("googleAccountId");
+      const hasGoogleAccountId =
+        emailsTable.findColumnByName("googleAccountId");
       if (hasGoogleAccountId) {
         await queryRunner.dropColumn("emails", "googleAccountId");
       }
 
-      const hasOffice365AccountId = emailsTable.findColumnByName("office365AccountId");
+      const hasOffice365AccountId =
+        emailsTable.findColumnByName("office365AccountId");
       if (hasOffice365AccountId) {
         await queryRunner.dropColumn("emails", "office365AccountId");
       }

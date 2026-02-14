@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner, TableColumn } from "typeorm";
 
-export class AddPriorityExplanationToThreads1767645300000
-  implements MigrationInterface
-{
+export class AddPriorityExplanationToThreads1767645300000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     const emailThreadsTable = await queryRunner.getTable("email_threads");
 

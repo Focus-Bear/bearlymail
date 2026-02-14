@@ -5,9 +5,7 @@ import {
   TableIndex,
 } from "typeorm";
 
-export class AddCategoryToEmailThreads1770500000000
-  implements MigrationInterface
-{
+export class AddCategoryToEmailThreads1770500000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.addColumn(
       "email_threads",

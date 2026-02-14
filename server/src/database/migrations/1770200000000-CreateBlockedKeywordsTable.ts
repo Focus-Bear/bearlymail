@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner, Table, TableIndex } from "typeorm";
 
-export class CreateBlockedKeywordsTable1770200000000
-  implements MigrationInterface
-{
+export class CreateBlockedKeywordsTable1770200000000 implements MigrationInterface {
   name = "CreateBlockedKeywordsTable1770200000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {

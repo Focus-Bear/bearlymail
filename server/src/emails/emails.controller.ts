@@ -121,8 +121,12 @@ export class EmailsController {
     @Query("minPriority") minPriority?: string,
   ) {
     // Parse filter parameters
-    const accountIds = accounts ? accounts.split(",").filter(Boolean) : undefined;
-    const categoryList = categories ? categories.split(",").filter(Boolean) : undefined;
+    const accountIds = accounts
+      ? accounts.split(",").filter(Boolean)
+      : undefined;
+    const categoryList = categories
+      ? categories.split(",").filter(Boolean)
+      : undefined;
     const minPriorityValue = minPriority ? parseFloat(minPriority) : undefined;
 
     return this.emailsService.getInbox(
@@ -218,14 +222,24 @@ export class EmailsController {
     @Request() req,
     @Query("q") query: string,
     @Query("maxResults") maxResults?: string,
+    @Query("accountTypes") accountTypes?: string,
   ) {
     if (!query) {
       return [];
     }
     const DEFAULT_MAX_RESULTS = 50;
     const max = maxResults ? parseInt(maxResults, 10) : DEFAULT_MAX_RESULTS;
+    const selectedAccountTypes = accountTypes
+      ? accountTypes.split(",")
+      : undefined;
     try {
-      return await this.emailsService.searchEmails(req.user.userId, query, max);
+      return await this.emailsService.searchEmails(
+        req.user.userId,
+        query,
+        max,
+        undefined,
+        selectedAccountTypes,
+      );
     } catch (error) {
       this.logger.error(`Error in searchEmails:`, error);
       // Return no-results marker with error info so UI can show what happened

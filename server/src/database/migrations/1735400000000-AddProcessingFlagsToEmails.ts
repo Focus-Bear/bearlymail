@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner, TableColumn } from "typeorm";
 
-export class AddProcessingFlagsToEmails1735400000000
-  implements MigrationInterface
-{
+export class AddProcessingFlagsToEmails1735400000000 implements MigrationInterface {
   name = "AddProcessingFlagsToEmails1735400000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {

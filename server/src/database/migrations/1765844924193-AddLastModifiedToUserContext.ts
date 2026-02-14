@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner, TableColumn } from "typeorm";
 
-export class AddLastModifiedToUserContext1765844924193
-  implements MigrationInterface
-{
+export class AddLastModifiedToUserContext1765844924193 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     const userContextsTable = await queryRunner.getTable("user_contexts");
     if (userContextsTable) {

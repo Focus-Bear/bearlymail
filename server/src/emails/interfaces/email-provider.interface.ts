@@ -128,6 +128,16 @@ export interface EmailProvider {
   isConnected(userId: string): Promise<boolean>;
 
   /**
+   * Get account information for the connected provider
+   * Returns email address, name, and whether it's the primary account
+   */
+  getAccountInfo(userId: string): Promise<{
+    email?: string;
+    name?: string;
+    isPrimary?: boolean;
+  } | null>;
+
+  /**
    * Search emails using provider-specific search syntax
    * Returns raw email messages that match the query
    */

@@ -97,7 +97,7 @@ describe("ResourceMonitorService", () => {
 
   afterEach(() => {
     // Clean up any running intervals to prevent open handles
-    if (service && service['monitoringInterval']) {
+    if (service && service["monitoringInterval"]) {
       service.onModuleDestroy();
     }
     jest.restoreAllMocks();

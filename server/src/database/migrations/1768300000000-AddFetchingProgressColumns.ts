@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class AddFetchingProgressColumns1768300000000
-  implements MigrationInterface
-{
+export class AddFetchingProgressColumns1768300000000 implements MigrationInterface {
   name = "AddFetchingProgressColumns1768300000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {

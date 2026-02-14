@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner, TableColumn } from "typeorm";
 
-export class AddGithubMetadataToThreads1766300000000
-  implements MigrationInterface
-{
+export class AddGithubMetadataToThreads1766300000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Add githubMetadata to email_threads
     const emailThreadsTable = await queryRunner.getTable("email_threads");

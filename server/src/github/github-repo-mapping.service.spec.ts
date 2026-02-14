@@ -34,8 +34,20 @@ describe("GitHubRepoMappingService", () => {
   describe("findAllForUser", () => {
     it("should return all mappings for a user", async () => {
       const mockMappings = [
-        { id: "1", userId: "user1", owner: "org", repo: "repo1", isDefault: true },
-        { id: "2", userId: "user1", owner: "org", repo: "repo2", isDefault: false },
+        {
+          id: "1",
+          userId: "user1",
+          owner: "org",
+          repo: "repo1",
+          isDefault: true,
+        },
+        {
+          id: "2",
+          userId: "user1",
+          owner: "org",
+          repo: "repo2",
+          isDefault: false,
+        },
       ];
       mockRepository.find.mockResolvedValue(mockMappings);
 
@@ -51,7 +63,12 @@ describe("GitHubRepoMappingService", () => {
 
   describe("findOneForUser", () => {
     it("should return a single mapping", async () => {
-      const mockMapping = { id: "1", userId: "user1", owner: "org", repo: "repo1" };
+      const mockMapping = {
+        id: "1",
+        userId: "user1",
+        owner: "org",
+        repo: "repo1",
+      };
       mockRepository.findOne.mockResolvedValue(mockMapping);
 
       const result = await service.findOneForUser("user1", "1");
@@ -73,11 +90,22 @@ describe("GitHubRepoMappingService", () => {
 
   describe("create", () => {
     it("should create a new mapping", async () => {
-      const newMapping = { userId: "user1", owner: "org", repo: "repo1", emailCategories: null, context: null, isDefault: false, isAutoDiscovered: false };
+      const newMapping = {
+        userId: "user1",
+        owner: "org",
+        repo: "repo1",
+        emailCategories: null,
+        context: null,
+        isDefault: false,
+        isAutoDiscovered: false,
+      };
       mockRepository.create.mockReturnValue(newMapping);
       mockRepository.save.mockResolvedValue({ id: "1", ...newMapping });
 
-      const result = await service.create("user1", { owner: "org", repo: "repo1" });
+      const result = await service.create("user1", {
+        owner: "org",
+        repo: "repo1",
+      });
 
       expect(result).toEqual({ id: "1", ...newMapping });
       expect(mockRepository.create).toHaveBeenCalled();
@@ -85,11 +113,23 @@ describe("GitHubRepoMappingService", () => {
     });
 
     it("should clear other defaults when creating a default mapping", async () => {
-      const newMapping = { userId: "user1", owner: "org", repo: "repo1", emailCategories: null, context: null, isDefault: true, isAutoDiscovered: false };
+      const newMapping = {
+        userId: "user1",
+        owner: "org",
+        repo: "repo1",
+        emailCategories: null,
+        context: null,
+        isDefault: true,
+        isAutoDiscovered: false,
+      };
       mockRepository.create.mockReturnValue(newMapping);
       mockRepository.save.mockResolvedValue({ id: "1", ...newMapping });
 
-      await service.create("user1", { owner: "org", repo: "repo1", isDefault: true });
+      await service.create("user1", {
+        owner: "org",
+        repo: "repo1",
+        isDefault: true,
+      });
 
       expect(mockRepository.update).toHaveBeenCalledWith(
         { userId: "user1", isDefault: true },
@@ -100,11 +140,24 @@ describe("GitHubRepoMappingService", () => {
 
   describe("update", () => {
     it("should update an existing mapping", async () => {
-      const existing = { id: "1", userId: "user1", owner: "org", repo: "repo1", emailCategories: null, context: null, isDefault: false };
+      const existing = {
+        id: "1",
+        userId: "user1",
+        owner: "org",
+        repo: "repo1",
+        emailCategories: null,
+        context: null,
+        isDefault: false,
+      };
       mockRepository.findOne.mockResolvedValue({ ...existing });
-      mockRepository.save.mockResolvedValue({ ...existing, emailCategories: "bugs" });
+      mockRepository.save.mockResolvedValue({
+        ...existing,
+        emailCategories: "bugs",
+      });
 
-      const result = await service.update("user1", "1", { emailCategories: "bugs" });
+      const result = await service.update("user1", "1", {
+        emailCategories: "bugs",
+      });
 
       expect(result).toBeDefined();
       expect(mockRepository.save).toHaveBeenCalled();
@@ -113,13 +166,23 @@ describe("GitHubRepoMappingService", () => {
     it("should return null when mapping not found", async () => {
       mockRepository.findOne.mockResolvedValue(null);
 
-      const result = await service.update("user1", "nonexistent", { emailCategories: "bugs" });
+      const result = await service.update("user1", "nonexistent", {
+        emailCategories: "bugs",
+      });
 
       expect(result).toBeNull();
     });
 
     it("should clear other defaults when setting as default", async () => {
-      const existing = { id: "1", userId: "user1", owner: "org", repo: "repo1", emailCategories: null, context: null, isDefault: false };
+      const existing = {
+        id: "1",
+        userId: "user1",
+        owner: "org",
+        repo: "repo1",
+        emailCategories: null,
+        context: null,
+        isDefault: false,
+      };
       mockRepository.findOne.mockResolvedValue({ ...existing });
       mockRepository.save.mockResolvedValue({ ...existing, isDefault: true });
 
@@ -167,7 +230,12 @@ describe("GitHubRepoMappingService", () => {
   describe("findByCategory", () => {
     it("should find mapping by category", async () => {
       const mappings = [
-        { id: "1", emailCategories: "bugs,features", owner: "org", repo: "repo1" },
+        {
+          id: "1",
+          emailCategories: "bugs,features",
+          owner: "org",
+          repo: "repo1",
+        },
         { id: "2", emailCategories: "support", owner: "org", repo: "repo2" },
       ];
       mockRepository.find.mockResolvedValue(mappings);
@@ -190,7 +258,12 @@ describe("GitHubRepoMappingService", () => {
 
     it("should be case-insensitive", async () => {
       const mappings = [
-        { id: "1", emailCategories: "Bugs,Features", owner: "org", repo: "repo1" },
+        {
+          id: "1",
+          emailCategories: "Bugs,Features",
+          owner: "org",
+          repo: "repo1",
+        },
       ];
       mockRepository.find.mockResolvedValue(mappings);
 
@@ -202,7 +275,12 @@ describe("GitHubRepoMappingService", () => {
 
   describe("getRepoForEmail", () => {
     it("should return category-matched repo when available", async () => {
-      const mapping = { id: "1", owner: "org", repo: "repo1", emailCategories: "bugs" };
+      const mapping = {
+        id: "1",
+        owner: "org",
+        repo: "repo1",
+        emailCategories: "bugs",
+      };
       mockRepository.find.mockResolvedValue([mapping]);
 
       const result = await service.getRepoForEmail("user1", "bugs");
@@ -212,7 +290,12 @@ describe("GitHubRepoMappingService", () => {
 
     it("should fall back to default repo", async () => {
       mockRepository.find.mockResolvedValue([]);
-      const defaultMapping = { id: "2", owner: "org", repo: "default-repo", isDefault: true };
+      const defaultMapping = {
+        id: "2",
+        owner: "org",
+        repo: "default-repo",
+        isDefault: true,
+      };
       mockRepository.findOne.mockResolvedValue(defaultMapping);
 
       const result = await service.getRepoForEmail("user1", "unknown-category");
@@ -234,7 +317,13 @@ describe("GitHubRepoMappingService", () => {
     it("should create new mapping for undiscovered repo", async () => {
       mockRepository.findOne.mockResolvedValue(null);
       mockRepository.count.mockResolvedValue(0);
-      const newMapping = { userId: "user1", owner: "org", repo: "new-repo", isAutoDiscovered: true, isDefault: true };
+      const newMapping = {
+        userId: "user1",
+        owner: "org",
+        repo: "new-repo",
+        isAutoDiscovered: true,
+        isDefault: true,
+      };
       mockRepository.create.mockReturnValue(newMapping);
       mockRepository.save.mockResolvedValue({ id: "1", ...newMapping });
 
@@ -252,7 +341,13 @@ describe("GitHubRepoMappingService", () => {
     it("should set isDefault false when user already has mappings", async () => {
       mockRepository.findOne.mockResolvedValue(null);
       mockRepository.count.mockResolvedValue(2);
-      const newMapping = { userId: "user1", owner: "org", repo: "new-repo", isAutoDiscovered: true, isDefault: false };
+      const newMapping = {
+        userId: "user1",
+        owner: "org",
+        repo: "new-repo",
+        isAutoDiscovered: true,
+        isDefault: false,
+      };
       mockRepository.create.mockReturnValue(newMapping);
       mockRepository.save.mockResolvedValue({ id: "1", ...newMapping });
 
@@ -266,32 +361,71 @@ describe("GitHubRepoMappingService", () => {
     });
 
     it("should return existing mapping without changes if already exists", async () => {
-      const existing = { id: "1", userId: "user1", owner: "org", repo: "repo1", emailCategories: "bugs" };
+      const existing = {
+        id: "1",
+        userId: "user1",
+        owner: "org",
+        repo: "repo1",
+        emailCategories: "bugs",
+      };
       mockRepository.findOne.mockResolvedValue(existing);
 
-      const result = await service.autoDiscoverRepo("user1", "org", "repo1", "bugs");
+      const result = await service.autoDiscoverRepo(
+        "user1",
+        "org",
+        "repo1",
+        "bugs",
+      );
 
       expect(result).toEqual(existing);
       expect(mockRepository.create).not.toHaveBeenCalled();
     });
 
     it("should append new category to existing mapping", async () => {
-      const existing = { id: "1", userId: "user1", owner: "org", repo: "repo1", emailCategories: "bugs" };
+      const existing = {
+        id: "1",
+        userId: "user1",
+        owner: "org",
+        repo: "repo1",
+        emailCategories: "bugs",
+      };
       mockRepository.findOne.mockResolvedValue(existing);
-      mockRepository.save.mockResolvedValue({ ...existing, emailCategories: "bugs,features" });
+      mockRepository.save.mockResolvedValue({
+        ...existing,
+        emailCategories: "bugs,features",
+      });
 
-      const result = await service.autoDiscoverRepo("user1", "org", "repo1", "features");
+      const result = await service.autoDiscoverRepo(
+        "user1",
+        "org",
+        "repo1",
+        "features",
+      );
 
       expect(mockRepository.save).toHaveBeenCalled();
       expect(result?.emailCategories).toBe("bugs,features");
     });
 
     it("should set category on existing mapping with no categories", async () => {
-      const existing = { id: "1", userId: "user1", owner: "org", repo: "repo1", emailCategories: null };
+      const existing = {
+        id: "1",
+        userId: "user1",
+        owner: "org",
+        repo: "repo1",
+        emailCategories: null,
+      };
       mockRepository.findOne.mockResolvedValue(existing);
-      mockRepository.save.mockResolvedValue({ ...existing, emailCategories: "bugs" });
+      mockRepository.save.mockResolvedValue({
+        ...existing,
+        emailCategories: "bugs",
+      });
 
-      const result = await service.autoDiscoverRepo("user1", "org", "repo1", "bugs");
+      const result = await service.autoDiscoverRepo(
+        "user1",
+        "org",
+        "repo1",
+        "bugs",
+      );
 
       expect(mockRepository.save).toHaveBeenCalled();
       expect(result?.emailCategories).toBe("bugs");

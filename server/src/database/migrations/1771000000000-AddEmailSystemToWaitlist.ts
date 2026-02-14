@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class AddEmailSystemToWaitlist1771000000000
-  implements MigrationInterface
-{
+export class AddEmailSystemToWaitlist1771000000000 implements MigrationInterface {
   name = "AddEmailSystemToWaitlist1771000000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {

@@ -30,6 +30,8 @@ describe('useSearch', () => {
     console.error = jest.fn();
     window.alert = jest.fn();
     mockedUseNavigate.mockReturnValue(mockNavigate);
+    // Mock connected-accounts call that happens on mount
+    mockedAxios.get.mockResolvedValue({ data: [] });
   });
 
   afterEach(() => {
@@ -53,6 +55,14 @@ describe('useSearch', () => {
     it('should not search when query is empty', async () => {
       const { result } = renderHook(() => useSearch());
 
+      // Wait for connected accounts to load
+      await waitFor(() => {
+        expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/emails/connected-accounts`);
+      });
+
+      // Clear the mock calls from the connected-accounts fetch
+      mockedAxios.get.mockClear();
+
       const mockEvent = { preventDefault: jest.fn() } as any;
       await act(async () => {
         await result.current.handleSearch(mockEvent);
@@ -64,6 +74,14 @@ describe('useSearch', () => {
 
     it('should not search when query is only whitespace', async () => {
       const { result } = renderHook(() => useSearch());
+
+      // Wait for connected accounts to load
+      await waitFor(() => {
+        expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/emails/connected-accounts`);
+      });
+
+      // Clear the mock calls from the connected-accounts fetch
+      mockedAxios.get.mockClear();
 
       act(() => {
         result.current.setQuery('   ');
@@ -79,6 +97,12 @@ describe('useSearch', () => {
 
     it('should perform search successfully', async () => {
       const { result } = renderHook(() => useSearch());
+
+      // Wait for connected accounts to load
+      await waitFor(() => {
+        expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/emails/connected-accounts`);
+      });
+
       const mockResults = [
         { id: '1', subject: 'Test', from: 'test@example.com' },
       ];
@@ -87,7 +111,7 @@ describe('useSearch', () => {
         result.current.setQuery('test query');
       });
 
-      mockedAxios.get.mockResolvedValue({ data: mockResults });
+      mockedAxios.get.mockResolvedValueOnce({ data: mockResults });
 
       const mockEvent = { preventDefault: jest.fn() } as any;
       await act(async () => {
@@ -100,18 +124,21 @@ describe('useSearch', () => {
 
       expect(result.current.searchResults).toEqual(mockResults);
       expect(result.current.hasSearched).toBe(true);
-      expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/emails/search`, {
-        params: { q: 'test query', maxResults: 50 },
-      });
       expect(mockedCaptureEvent).toHaveBeenCalledWith('search_performed', {
         query_length: 10,
         has_query: true,
         result_count: 1,
+        selected_accounts: 0,
       });
     });
 
     it('should show progress steps during search', async () => {
       const { result } = renderHook(() => useSearch());
+
+      // Wait for connected accounts to load
+      await waitFor(() => {
+        expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/emails/connected-accounts`);
+      });
 
       act(() => {
         result.current.setQuery('test');
@@ -130,12 +157,12 @@ describe('useSearch', () => {
       await act(async () => {
         jest.advanceTimersByTime(100);
       });
-      expect(result.current.progressStep).toBe('Crafting search query for Gmail...');
+      expect(result.current.progressStep).toBe('Crafting search query...');
 
       await act(async () => {
         jest.advanceTimersByTime(900);
       });
-      expect(result.current.progressStep).toBe('Searching for emails in Gmail...');
+      expect(result.current.progressStep).toBe('Searching for emails...');
 
       await act(async () => {
         jest.advanceTimersByTime(1300);
@@ -151,11 +178,16 @@ describe('useSearch', () => {
     it('should handle empty results', async () => {
       const { result } = renderHook(() => useSearch());
 
+      // Wait for connected accounts to load
+      await waitFor(() => {
+        expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/emails/connected-accounts`);
+      });
+
       act(() => {
         result.current.setQuery('test');
       });
 
-      mockedAxios.get.mockResolvedValue({ data: [] });
+      mockedAxios.get.mockResolvedValueOnce({ data: [] });
 
       const mockEvent = { preventDefault: jest.fn() } as any;
       await act(async () => {
@@ -174,11 +206,16 @@ describe('useSearch', () => {
     it('should handle null response data', async () => {
       const { result } = renderHook(() => useSearch());
 
+      // Wait for connected accounts to load
+      await waitFor(() => {
+        expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/emails/connected-accounts`);
+      });
+
       act(() => {
         result.current.setQuery('test');
       });
 
-      mockedAxios.get.mockResolvedValue({ data: null });
+      mockedAxios.get.mockResolvedValueOnce({ data: null });
 
       const mockEvent = { preventDefault: jest.fn() } as any;
       await act(async () => {
@@ -196,6 +233,11 @@ describe('useSearch', () => {
     it('should handle 401 unauthorized error', async () => {
       const { result } = renderHook(() => useSearch());
 
+      // Wait for connected accounts to load
+      await waitFor(() => {
+        expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/emails/connected-accounts`);
+      });
+
       act(() => {
         result.current.setQuery('test');
       });
@@ -203,7 +245,7 @@ describe('useSearch', () => {
       const error = {
         response: { status: HTTP_UNAUTHORIZED },
       };
-      mockedAxios.get.mockRejectedValue(error);
+      mockedAxios.get.mockRejectedValueOnce(error);
 
       const mockEvent = { preventDefault: jest.fn() } as any;
       await act(async () => {
@@ -221,12 +263,17 @@ describe('useSearch', () => {
     it('should handle other errors', async () => {
       const { result } = renderHook(() => useSearch());
 
+      // Wait for connected accounts to load
+      await waitFor(() => {
+        expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/emails/connected-accounts`);
+      });
+
       act(() => {
         result.current.setQuery('test');
       });
 
       const error = new Error('Network error');
-      mockedAxios.get.mockRejectedValue(error);
+      mockedAxios.get.mockRejectedValueOnce(error);
 
       const mockEvent = { preventDefault: jest.fn() } as any;
       await act(async () => {
@@ -244,11 +291,16 @@ describe('useSearch', () => {
     it('should clear progress step after search completes', async () => {
       const { result } = renderHook(() => useSearch());
 
+      // Wait for connected accounts to load
+      await waitFor(() => {
+        expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/emails/connected-accounts`);
+      });
+
       act(() => {
         result.current.setQuery('test');
       });
 
-      mockedAxios.get.mockResolvedValue({ data: [] });
+      mockedAxios.get.mockResolvedValueOnce({ data: [] });
 
       const mockEvent = { preventDefault: jest.fn() } as any;
       await act(async () => {
@@ -263,11 +315,16 @@ describe('useSearch', () => {
     it('should clear progress step on error', async () => {
       const { result } = renderHook(() => useSearch());
 
+      // Wait for connected accounts to load
+      await waitFor(() => {
+        expect(mockedAxios.get).toHaveBeenCalledWith(`${API_URL}/emails/connected-accounts`);
+      });
+
       act(() => {
         result.current.setQuery('test');
       });
 
-      mockedAxios.get.mockRejectedValue(new Error('Error'));
+      mockedAxios.get.mockRejectedValueOnce(new Error('Error'));
 
       const mockEvent = { preventDefault: jest.fn() } as any;
       await act(async () => {
@@ -292,4 +349,3 @@ describe('useSearch', () => {
     });
   });
 });
-

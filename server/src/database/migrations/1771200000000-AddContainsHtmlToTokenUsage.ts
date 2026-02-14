@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner, TableColumn } from "typeorm";
 
-export class AddContainsHtmlToTokenUsage1771200000000
-  implements MigrationInterface
-{
+export class AddContainsHtmlToTokenUsage1771200000000 implements MigrationInterface {
   name = "AddContainsHtmlToTokenUsage1771200000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {

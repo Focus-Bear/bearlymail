@@ -55,7 +55,10 @@ export class Email {
   @Column({ nullable: true, comment: "Foreign key to google_accounts table" })
   googleAccountId: string | null;
 
-  @Column({ nullable: true, comment: "Foreign key to office365_accounts table" })
+  @Column({
+    nullable: true,
+    comment: "Foreign key to office365_accounts table",
+  })
   office365AccountId: string | null;
 
   @Column({ nullable: true, comment: "Foreign key to zoho_accounts table" })

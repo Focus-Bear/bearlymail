@@ -5,9 +5,7 @@ import {
   TableIndex,
 } from "typeorm";
 
-export class AddPriorityScoreToThreads1769200000000
-  implements MigrationInterface
-{
+export class AddPriorityScoreToThreads1769200000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     const emailThreadsTable = await queryRunner.getTable("email_threads");
 

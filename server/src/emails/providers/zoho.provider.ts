@@ -57,6 +57,21 @@ export class ZohoProvider implements EmailProvider {
     return this.zohoAccountsService.hasConnectedZoho(userId);
   }
 
+  async getAccountInfo(userId: string): Promise<{
+    email?: string;
+    name?: string;
+    isPrimary?: boolean;
+  } | null> {
+    const primaryAccount = await this.zohoAccountsService.findPrimary(userId);
+    if (!primaryAccount) return null;
+
+    return {
+      email: primaryAccount.email,
+      name: primaryAccount.name,
+      isPrimary: primaryAccount.isPrimary,
+    };
+  }
+
   async syncEmails(userId: string): Promise<void> {
     const primaryAccount = await this.zohoAccountsService.findPrimary(userId);
     if (!primaryAccount) {

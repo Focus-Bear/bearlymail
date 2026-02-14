@@ -8,9 +8,7 @@ import {
   TableIndex,
 } from "typeorm";
 
-export class CreateContextAnalysisTable1735400001000
-  implements MigrationInterface
-{
+export class CreateContextAnalysisTable1735400001000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Create context_analyses table
     await queryRunner.createTable(

@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner, TableColumn } from "typeorm";
 
-export class AddLastCheckedAtToThreads1766500000000
-  implements MigrationInterface
-{
+export class AddLastCheckedAtToThreads1766500000000 implements MigrationInterface {
   name = "AddLastCheckedAtToThreads1766500000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {

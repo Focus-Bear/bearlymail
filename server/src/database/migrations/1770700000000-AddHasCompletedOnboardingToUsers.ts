@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class AddHasCompletedOnboardingToUsers1770700000000
-  implements MigrationInterface
-{
+export class AddHasCompletedOnboardingToUsers1770700000000 implements MigrationInterface {
   name = "AddHasCompletedOnboardingToUsers1770700000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {

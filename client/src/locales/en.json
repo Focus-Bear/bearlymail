@@ -1097,7 +1097,8 @@
     "recencyDescription": "Bonus for recent emails, penalty for old emails",
     "finalScore": "Final Score",
     "finalScoreDescription": "Base relevance + recency adjustment (capped at 0-100)",
-    "close": "Close"
+    "close": "Close",
+    "searchAccounts": "Search in"
   },
   "priority": {
     "high": "High Priority",

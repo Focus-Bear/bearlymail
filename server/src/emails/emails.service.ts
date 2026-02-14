@@ -382,7 +382,11 @@ export class EmailsService {
         OR e."office365AccountId" IN (${accountPlaceholders})
         OR e."zohoAccountId" IN (${accountPlaceholders}))`;
       // Add account IDs three times (once for each provider type)
-      queryParams.push(...filters.accountIds, ...filters.accountIds, ...filters.accountIds);
+      queryParams.push(
+        ...filters.accountIds,
+        ...filters.accountIds,
+        ...filters.accountIds,
+      );
       paramIndex += filters.accountIds.length * 2; // We added them 3 times but already incremented once
     }
 
@@ -2795,6 +2799,7 @@ export class EmailsService {
     query: string,
     maxResults: number = QUERY_LIMITS.MAX_SENT_EMAILS_FOR_STYLE,
     onProgress?: (step: string, message: string) => void,
+    accountTypes?: string[],
   ): Promise<
     Array<
       Email & {
@@ -2810,6 +2815,7 @@ export class EmailsService {
       maxResults,
       onProgress,
       (userId, email) => this.calculateDaysSinceLastEmail(userId, email),
+      accountTypes,
     );
   }
 

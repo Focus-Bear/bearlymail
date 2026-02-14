@@ -140,8 +140,6 @@ export class UsersService {
     const savedUser = await this.userRepository.save(user);
     const afterUpdatedAt = savedUser.updatedAt?.toISOString() || "null";
     const logMsg = `[UsersService.update] User ${id} updated. updatedAt: ${beforeUpdatedAt} -> ${afterUpdatedAt}`;
-    // eslint-disable-next-line no-console
-    console.log(logMsg);
     writeDebugLog(logMsg);
     return savedUser;
   }
@@ -270,8 +268,6 @@ export class UsersService {
     }
 
     const logMsg = `[UsersService.deleteAccount] Deleting account for user ${userId}`;
-    // eslint-disable-next-line no-console
-    console.log(logMsg);
     writeDebugLog(logMsg);
 
     // Delete all related data in the correct order (respecting foreign key constraints)
@@ -412,8 +408,6 @@ export class UsersService {
     await this.userRepository.delete(userId);
 
     const completedMsg = `[UsersService.deleteAccount] Successfully deleted account for user ${userId}`;
-    // eslint-disable-next-line no-console
-    console.log(completedMsg);
     writeDebugLog(completedMsg);
   }
 }

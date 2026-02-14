@@ -57,7 +57,8 @@ export interface GitHubIssueStatus {
   assignees: Array<{ login: string; avatar_url: string }>;
   projects?: Array<{
     name: string;
-    status?: string; // Status field value (e.g., "In Progress", "Backlog")
+    // Status field value (e.g., "In Progress", "Backlog")
+    status?: string;
   }>;
 }
 
@@ -72,7 +73,8 @@ export interface GitHubPRStatus {
   merged: boolean;
   projects?: Array<{
     name: string;
-    status?: string; // Status field value (e.g., "In Progress", "Backlog")
+    // Status field value (e.g., "In Progress", "Backlog")
+    status?: string;
   }>;
 }
 

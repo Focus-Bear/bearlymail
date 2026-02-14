@@ -174,7 +174,8 @@ describe("ScanAnalysisService", () => {
       usersService.findOne.mockResolvedValue(mockUser as any);
 
       const originalDate = new Date("2024-01-01T10:00:00Z");
-      const replyDate = new Date("2024-01-01T11:00:00Z"); // 1 hour later
+      // 1 hour later
+      const replyDate = new Date("2024-01-01T11:00:00Z");
 
       mockGmail.users.threads.get.mockResolvedValue({
         data: {
@@ -241,9 +242,10 @@ describe("ScanAnalysisService", () => {
         timeToReply: 1, // 1 hour (within 2 hour threshold)
       };
 
+      // Second quick reply
       scanEmailService.findAllForUser.mockResolvedValue([
         quickReplyEmail,
-        { ...quickReplyEmail, messageId: "msg-2" }, // Second quick reply
+        { ...quickReplyEmail, messageId: "msg-2" },
       ]);
 
       usersService.findOne.mockResolvedValue(mockUser as any);

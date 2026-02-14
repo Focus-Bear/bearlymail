@@ -102,8 +102,9 @@ describe("AdminGuard", () => {
     });
 
     it("should return false when userId is missing from request", async () => {
+      // No userId
       const mockRequest = {
-        user: {}, // No userId
+        user: {},
       };
 
       (
@@ -117,7 +118,8 @@ describe("AdminGuard", () => {
     });
 
     it("should return false when user object is missing from request", async () => {
-      const mockRequest = {}; // No user object
+      // No user object
+      const mockRequest = {};
 
       (
         mockExecutionContext.switchToHttp().getRequest as jest.Mock

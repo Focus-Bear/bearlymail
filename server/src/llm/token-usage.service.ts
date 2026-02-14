@@ -141,7 +141,7 @@ export class TokenUsageService implements OnModuleInit {
   /**
    * Capture a prompt example if it's longer than the current stored example
    */
-  private captureExample(data: TokenUsageLogData): void {
+  private captureExample(usageData: TokenUsageLogData): void {
     const {
       operation,
       promptTokens,
@@ -149,7 +149,7 @@ export class TokenUsageService implements OnModuleInit {
       systemPromptText,
       provider,
       model,
-    } = data;
+    } = usageData;
 
     if (!promptText) return;
 
@@ -232,38 +232,38 @@ export class TokenUsageService implements OnModuleInit {
   /**
    * Log token usage for an LLM API call
    */
-  async logUsage(data: TokenUsageLogData): Promise<TokenUsage> {
+  async logUsage(usageData: TokenUsageLogData): Promise<TokenUsage> {
     try {
       // Capture prompt example if prompt text is provided
-      if (data.promptText) {
-        this.captureExample(data);
+      if (usageData.promptText) {
+        this.captureExample(usageData);
       }
 
       // Detect HTML in prompt if not explicitly provided
-      let containsHtml = data.containsHtml ?? false;
-      if (data.promptText && data.containsHtml === undefined) {
-        const fullPromptText = data.systemPromptText
-          ? `${data.systemPromptText}\n${data.promptText}`
-          : data.promptText;
+      let containsHtml = usageData.containsHtml ?? false;
+      if (usageData.promptText && usageData.containsHtml === undefined) {
+        const fullPromptText = usageData.systemPromptText
+          ? `${usageData.systemPromptText}\n${usageData.promptText}`
+          : usageData.promptText;
         containsHtml = this.detectHtml(fullPromptText);
       }
 
       const usage = this.tokenUsageRepository.create({
-        userId: data.userId || null,
-        operation: data.operation || LLM_OP_UNKNOWN,
-        provider: data.provider,
-        model: data.model,
-        promptTokens: data.promptTokens || 0,
-        completionTokens: data.completionTokens || 0,
-        totalTokens: data.totalTokens || 0,
-        durationMs: data.durationMs || null,
+        userId: usageData.userId || null,
+        operation: usageData.operation || LLM_OP_UNKNOWN,
+        provider: usageData.provider,
+        model: usageData.model,
+        promptTokens: usageData.promptTokens || 0,
+        completionTokens: usageData.completionTokens || 0,
+        totalTokens: usageData.totalTokens || 0,
+        durationMs: usageData.durationMs || null,
         containsHtml,
-        emailIds: data.emailIds?.length ? data.emailIds : null,
+        emailIds: usageData.emailIds?.length ? usageData.emailIds : null,
       });
 
       const saved = await this.tokenUsageRepository.save(usage);
       this.logger.debug(
-        `Logged token usage: ${data.operation} - ${data.totalTokens} tokens (${data.provider}/${data.model}), containsHtml: ${containsHtml}`,
+        `Logged token usage: ${usageData.operation} - ${usageData.totalTokens} tokens (${usageData.provider}/${usageData.model}), containsHtml: ${containsHtml}`,
       );
       return saved;
     } catch (error) {
@@ -464,23 +464,24 @@ export class TokenUsageService implements OnModuleInit {
       // Calculate summary
       const totalDuplicateEmails = duplicates.length;
       const totalWastedCalls = duplicates.reduce(
-        (sum, d) => sum + (d.processCount - 1),
+        (sum, duplicate) => sum + (duplicate.processCount - 1),
         0,
       );
       // Estimate wasted tokens (approximate - divide tokens by process count for each email)
-      const totalWastedTokens = duplicates.reduce((sum, d) => {
-        const tokensPerCall = d.totalTokensUsed / d.processCount;
-        const wastedCalls = d.processCount - 1;
+      const totalWastedTokens = duplicates.reduce((sum, duplicate) => {
+        const tokensPerCall =
+          duplicate.totalTokensUsed / duplicate.processCount;
+        const wastedCalls = duplicate.processCount - 1;
         return sum + Math.round(tokensPerCall * wastedCalls);
       }, 0);
 
       return {
-        duplicateEmails: duplicates.map((d) => ({
-          emailId: d.emailId,
-          processCount: parseInt(d.processCount, 10),
-          totalTokensUsed: parseInt(d.totalTokensUsed, 10),
-          firstProcessed: d.firstProcessed,
-          lastProcessed: d.lastProcessed,
+        duplicateEmails: duplicates.map((duplicate) => ({
+          emailId: duplicate.emailId,
+          processCount: parseInt(duplicate.processCount, 10),
+          totalTokensUsed: parseInt(duplicate.totalTokensUsed, 10),
+          firstProcessed: duplicate.firstProcessed,
+          lastProcessed: duplicate.lastProcessed,
         })),
         summary: {
           totalDuplicateEmails,

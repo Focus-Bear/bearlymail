@@ -482,13 +482,16 @@ export class GmailProvider implements EmailProvider {
     if (updates.length > 0) {
       await this.emailsService.batchUpdateThreadStarCount(
         userId,
-        updates.map((u) => ({ threadId: u.threadId, starCount: u.starCount })),
+        updates.map((update) => ({
+          threadId: update.threadId,
+          starCount: update.starCount,
+        })),
       );
       await this.emailsService.batchUpdateThreadArchivedStatuses(
         userId,
-        updates.map((u) => ({
-          threadId: u.threadId,
-          isArchived: u.isArchived,
+        updates.map((update) => ({
+          threadId: update.threadId,
+          isArchived: update.isArchived,
         })),
       );
     }
@@ -915,13 +918,13 @@ export class GmailProvider implements EmailProvider {
       messageId,
       id: attachmentId,
     });
-    const data = Buffer.from(response.data.data || "", "base64");
+    const attachmentBuffer = Buffer.from(response.data.data || "", "base64");
 
     return {
-      data,
+      data: attachmentBuffer,
       filename: attachmentMetadata?.filename || "attachment",
       mimeType: attachmentMetadata?.mimeType || "application/octet-stream",
-      size: attachmentMetadata?.size || data.length,
+      size: attachmentMetadata?.size || attachmentBuffer.length,
     };
   }
 }

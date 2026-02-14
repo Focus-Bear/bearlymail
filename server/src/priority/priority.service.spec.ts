@@ -107,7 +107,9 @@ describe("PriorityService", () => {
 
       const result = service.calculatePriorityWithExplanation(email, contexts);
 
-      const vipFactor = result.factors.find((f) => f.type === "VIP_CONTACT");
+      const vipFactor = result.factors.find(
+        (factor) => factor.type === "VIP_CONTACT",
+      );
       expect(vipFactor).toBeDefined();
       expect(vipFactor?.contribution).toBe(25);
       expect(result.score).toBeGreaterThanOrEqual(25);
@@ -135,7 +137,7 @@ describe("PriorityService", () => {
       const result = service.calculatePriorityWithExplanation(email, contexts);
 
       const goalFactor = result.factors.find(
-        (f) => f.type === "GOAL_ALIGNMENT",
+        (factor) => factor.type === "GOAL_ALIGNMENT",
       );
       expect(goalFactor).toBeDefined();
       expect(goalFactor?.contribution).toBeGreaterThan(0);
@@ -164,10 +166,11 @@ describe("PriorityService", () => {
       const result = service.calculatePriorityWithExplanation(email, contexts);
 
       const projectFactor = result.factors.find(
-        (f) => f.type === "CURRENT_PROJECT",
+        (factor) => factor.type === "CURRENT_PROJECT",
       );
       expect(projectFactor).toBeDefined();
-      expect(projectFactor?.contribution).toBe(15); // Priority 1 = +15
+      // Priority 1 = +15
+      expect(projectFactor?.contribution).toBe(15);
     });
 
     it("should apply different priority boosts for working on projects", () => {
@@ -195,8 +198,11 @@ describe("PriorityService", () => {
         email,
         contexts2,
       );
-      const factor2 = result2.factors.find((f) => f.type === "CURRENT_PROJECT");
-      expect(factor2?.contribution).toBe(10); // Priority 2 = +10
+      const factor2 = result2.factors.find(
+        (factor) => factor.type === "CURRENT_PROJECT",
+      );
+      // Priority 2 = +10
+      expect(factor2?.contribution).toBe(10);
 
       // Test priority 3
       const contexts3: UserContext[] = [
@@ -217,8 +223,11 @@ describe("PriorityService", () => {
         email,
         contexts3,
       );
-      const factor3 = result3.factors.find((f) => f.type === "CURRENT_PROJECT");
-      expect(factor3?.contribution).toBe(5); // Priority 3 = +5
+      const factor3 = result3.factors.find(
+        (factor) => factor.type === "CURRENT_PROJECT",
+      );
+      // Priority 3 = +5
+      expect(factor3?.contribution).toBe(5);
     });
 
     it("should apply dont care penalty", () => {
@@ -243,7 +252,7 @@ describe("PriorityService", () => {
       const result = service.calculatePriorityWithExplanation(email, contexts);
 
       const dontCareFactor = result.factors.find(
-        (f) => f.type === "NOT_IMPORTANT",
+        (factor) => factor.type === "NOT_IMPORTANT",
       );
       expect(dontCareFactor).toBeDefined();
       expect(dontCareFactor?.contribution).toBe(-20);
@@ -260,7 +269,7 @@ describe("PriorityService", () => {
       const result = service.calculatePriorityWithExplanation(email, contexts);
 
       const sentimentFactor = result.factors.find(
-        (f) => f.type === "SENTIMENT",
+        (factor) => factor.type === "SENTIMENT",
       );
       expect(sentimentFactor).toBeDefined();
       expect(result.dimensions?.sentiment.type).toBe("negative");
@@ -302,7 +311,9 @@ describe("PriorityService", () => {
 
       const result = service.calculatePriorityWithExplanation(email, contexts);
 
-      const jobFactor = result.factors.find((f) => f.type === "SENDER_ROLE");
+      const jobFactor = result.factors.find(
+        (factor) => factor.type === "SENDER_ROLE",
+      );
       expect(jobFactor).toBeDefined();
       expect(jobFactor?.contribution).toBeGreaterThan(0);
     });
@@ -319,7 +330,7 @@ describe("PriorityService", () => {
 
       expect(result.score).toBe(85);
       const overrideFactor = result.factors.find(
-        (f) => f.type === "USER_OVERRIDE",
+        (factor) => factor.type === "USER_OVERRIDE",
       );
       expect(overrideFactor).toBeDefined();
     });
@@ -351,7 +362,9 @@ describe("PriorityService", () => {
         daysSinceLastEmail,
       );
 
-      const recencyFactor = result.factors.find((f) => f.type === "RECENCY");
+      const recencyFactor = result.factors.find(
+        (factor) => factor.type === "RECENCY",
+      );
       expect(recencyFactor).toBeDefined();
       expect(recencyFactor?.contribution).toBeGreaterThan(0);
     });
@@ -431,7 +444,9 @@ describe("PriorityService", () => {
 
       const result = service.calculatePriorityWithExplanation(email, contexts);
 
-      const vipFactor = result.factors.find((f) => f.type === "VIP_CONTACT");
+      const vipFactor = result.factors.find(
+        (factor) => factor.type === "VIP_CONTACT",
+      );
       expect(vipFactor).toBeDefined();
     });
 
@@ -457,7 +472,9 @@ describe("PriorityService", () => {
 
       const result = service.calculatePriorityWithExplanation(email, contexts);
 
-      const vipFactor = result.factors.find((f) => f.type === "VIP_CONTACT");
+      const vipFactor = result.factors.find(
+        (factor) => factor.type === "VIP_CONTACT",
+      );
       expect(vipFactor).toBeDefined();
     });
 
@@ -494,7 +511,7 @@ describe("PriorityService", () => {
       const result = service.calculatePriorityWithExplanation(email, contexts);
 
       const goalFactor = result.factors.find(
-        (f) => f.type === "GOAL_ALIGNMENT",
+        (factor) => factor.type === "GOAL_ALIGNMENT",
       );
       expect(goalFactor).toBeDefined();
       expect(goalFactor?.description).toContain("Project A");

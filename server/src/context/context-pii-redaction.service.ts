@@ -83,11 +83,13 @@ export class ContextPiiRedactionService {
     // PO Box
     redacted = redacted.replace(/\bP\.?O\.?\s*Box\s*\d+\b/gi, "[PO Box]");
     // Postal/ZIP codes (various formats)
-    redacted = redacted.replace(/\b\d{5}(?:-\d{4})?\b/g, "[Postal Code]"); // US ZIP
+    // US ZIP
+    redacted = redacted.replace(/\b\d{5}(?:-\d{4})?\b/g, "[Postal Code]");
+    // Australian postcode before state
     redacted = redacted.replace(
       /\b\d{4}\b(?=\s*[A-Z]{2,3}\b)/g,
       "[Postal Code]",
-    ); // Australian postcode before state
+    );
 
     // 6. Redact dates of birth in common formats
     redacted = redacted.replace(

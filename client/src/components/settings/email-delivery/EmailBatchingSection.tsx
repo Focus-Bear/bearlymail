@@ -5,9 +5,22 @@ import { theme } from 'theme/theme';
 import { INPUT_WIDTH_PX } from 'constants/numbers';
 import { DeliveryDaysSelector } from 'components/settings/email-delivery/DeliveryDaysSelector';
 import { DeliveryTimesManager } from 'components/settings/email-delivery/DeliveryTimesManager';
-import { TimezoneAutocomplete } from 'components/common/TimezoneAutocomplete';
 
 import { API_URL } from 'config/api';
+
+const TIMEZONE_OPTIONS: string[] = (() => {
+  try {
+    return Intl.supportedValuesOf('timeZone');
+  } catch {
+    return [
+      'UTC',
+      'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
+      'Europe/London', 'Europe/Paris', 'Europe/Berlin',
+      'Asia/Tokyo', 'Asia/Shanghai', 'Asia/Kolkata',
+      'Australia/Sydney', 'Australia/Melbourne', 'Pacific/Auckland',
+    ];
+  }
+})();
 
 interface BatchSchedule {
   deliveryDays: number[];
@@ -113,10 +126,25 @@ export const EmailBatchingSection: React.FC<EmailBatchingSectionProps> = ({
         }}>
           {t('settings.delivery.timezone')}
         </label>
-        <TimezoneAutocomplete
+        <select
           value={batchSchedule.timezone}
-          onChange={(timezone) => onBatchScheduleChange({ ...batchSchedule, timezone })}
-        />
+          onChange={(e) => onBatchScheduleChange({ ...batchSchedule, timezone: e.target.value })}
+          style={{
+            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+            borderRadius: theme.borderRadius.sm,
+            border: `1px solid ${theme.colors.border.medium}`,
+            fontSize: theme.typography.fontSize.sm,
+            backgroundColor: theme.colors.background.paper,
+            color: theme.colors.text.primary,
+            minWidth: '250px',
+          }}
+        >
+          {TIMEZONE_OPTIONS.map((tz) => (
+            <option key={tz} value={tz}>
+              {tz.replace(/_/g, ' ')}
+            </option>
+          ))}
+        </select>
       </div>
 
       <button

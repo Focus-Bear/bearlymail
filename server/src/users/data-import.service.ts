@@ -92,14 +92,14 @@ export class DataImportService {
   /**
    * Validate the imported data structure
    */
-  private validateImportData(data: unknown): ExportedUserData {
-    if (!data || typeof data !== "object") {
+  private validateImportData(rawInput: unknown): ExportedUserData {
+    if (!rawInput || typeof rawInput !== "object") {
       throw new BadRequestException(
         "Invalid import data: must be a JSON object",
       );
     }
 
-    const importData = data as Record<string, unknown>;
+    const importData = rawInput as Record<string, unknown>;
 
     // Check required fields
     if (!importData.version) {
@@ -130,7 +130,7 @@ export class DataImportService {
    */
   async importUserData(
     userId: string,
-    data: unknown,
+    rawInput: unknown,
     options: Partial<ImportOptions> = {},
   ): Promise<ImportResult> {
     const mergedOptions: ImportOptions = {
@@ -142,7 +142,7 @@ export class DataImportService {
       },
     };
 
-    const importData = this.validateImportData(data);
+    const importData = this.validateImportData(rawInput);
     const result: ImportResult = {
       success: true,
       imported: {

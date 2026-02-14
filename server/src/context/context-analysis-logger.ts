@@ -48,7 +48,8 @@ export function writeAnalysisLog(
     (dbHost === "localhost" || dbHost === "127.0.0.1" || !dbHost);
 
   if (!isLocal) {
-    return; // Don't log to file in production
+    // Don't log to file in production
+    return;
   }
 
   try {

@@ -54,11 +54,7 @@ export const LandingFooter: React.FC = () => {
         }}
       >
         <a
-          href="/privacy"
-          onClick={(e) => {
-            e.preventDefault();
-            navigate('/privacy');
-          }}
+          onClick={() => navigate('/privacy')}
           style={linkStyle}
           onMouseEnter={(e) => {
             e.currentTarget.style.textDecoration = 'underline';
@@ -71,11 +67,7 @@ export const LandingFooter: React.FC = () => {
         </a>
         <span style={{ color: theme.colors.text.secondary, fontSize }}>•</span>
         <a
-          href="/terms"
-          onClick={(e) => {
-            e.preventDefault();
-            navigate('/terms');
-          }}
+          onClick={() => navigate('/terms')}
           style={linkStyle}
           onMouseEnter={(e) => {
             e.currentTarget.style.textDecoration = 'underline';

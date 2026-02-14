@@ -48,17 +48,17 @@ export class SchedulingPreferencesService {
 
   async upsertPreferences(
     userId: string,
-    data: Partial<SchedulingPreferenceData>,
+    preferenceUpdates: Partial<SchedulingPreferenceData>,
   ): Promise<SchedulingPreferenceData> {
     let prefs = await this.repository.findOne({ where: { userId } });
     if (!prefs) {
       prefs = this.repository.create({
         userId,
         ...DEFAULT_PREFERENCES,
-        ...data,
+        ...preferenceUpdates,
       });
     } else {
-      Object.assign(prefs, data);
+      Object.assign(prefs, preferenceUpdates);
     }
     const saved = await this.repository.save(prefs);
     return {

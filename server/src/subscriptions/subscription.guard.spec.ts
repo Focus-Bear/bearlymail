@@ -83,8 +83,9 @@ describe("SubscriptionGuard", () => {
     });
 
     it("should throw ForbiddenException when userId is missing", async () => {
+      // No userId
       const mockRequest = {
-        user: {}, // No userId
+        user: {},
       };
 
       (
@@ -101,7 +102,8 @@ describe("SubscriptionGuard", () => {
     });
 
     it("should throw ForbiddenException when user object is missing", async () => {
-      const mockRequest = {}; // No user object
+      // No user object
+      const mockRequest = {};
 
       (
         mockExecutionContext.switchToHttp().getRequest as jest.Mock

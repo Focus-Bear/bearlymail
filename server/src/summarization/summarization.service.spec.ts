@@ -4,7 +4,6 @@ import { SummarizationService } from "./summarization.service";
 import { EmailsService } from "../emails/emails.service";
 import { LLMService } from "../llm/llm.service";
 import { SummarizationRule as SummarizationRuleEntity } from "../database/entities/summarization-rule.entity";
-import { LLM_OP_SUMMARIZE_EMAIL_CUSTOM } from "../llm/llm-operations";
 
 describe("SummarizationService", () => {
   let service: SummarizationService;
@@ -162,7 +161,6 @@ describe("SummarizationService", () => {
         }),
         undefined,
         userId,
-        LLM_OP_SUMMARIZE_EMAIL_CUSTOM,
       );
     });
 

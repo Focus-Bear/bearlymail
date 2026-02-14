@@ -11,10 +11,6 @@ import {
   PRIORITY_SCORES,
 } from "../constants/priority-constants";
 import { DAYS } from "../constants/time-constants";
-import {
-  LLM_OP_SEARCH_RANKING,
-  LLM_OP_SEARCH_QUERY_CONVERSION,
-} from "../llm/llm-operations";
 
 // Type for emails with search metadata
 // Note: We use a type intersection instead of extends to avoid getPriorityScore requirement issues
@@ -134,7 +130,8 @@ export class EmailSearchService {
       onProgress?.("converting", "Crafting search query for Gmail...");
 
       // Generate natural language variations first
-      const naturalVariations = [query]; // Simple implementation: use query as-is
+      // Simple implementation: use query as-is
+      const naturalVariations = [query];
       this.logger.log(
         `[SEARCH] Generated ${naturalVariations.length} variations: ${naturalVariations.join(", ")}`,
       );
@@ -466,7 +463,6 @@ Return ONLY a JSON array of objects.`;
             },
             undefined,
             userId,
-            LLM_OP_SEARCH_RANKING,
           );
 
           searchLogger.logAIScoringComplete(
@@ -744,7 +740,6 @@ Return ONLY the Gmail search query, nothing else.`;
         },
         undefined,
         userId,
-        LLM_OP_SEARCH_QUERY_CONVERSION,
       );
 
       // Extract the query (remove any markdown formatting or extra text)

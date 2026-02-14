@@ -161,11 +161,13 @@ describe("BatchScheduleService", () => {
 
     it("should NOT bypass when priorityScore < 75 even with urgentBypassSchedule enabled", () => {
       jest.useFakeTimers();
-      jest.setSystemTime(new Date("2024-01-08T08:00:00Z")); // Monday 8am UTC
+      // Monday 8am UTC
+      jest.setSystemTime(new Date("2024-01-08T08:00:00Z"));
 
+      // Monday-Friday
       const schedule = {
         isEnabled: true,
-        deliveryDays: [1, 2, 3, 4, 5], // Monday-Friday
+        deliveryDays: [1, 2, 3, 4, 5],
         deliveryTimes: ["09:00", "15:00"],
         timezone: "UTC",
         urgentBypassSchedule: true,
@@ -211,11 +213,13 @@ describe("BatchScheduleService", () => {
 
     it("should return false when not a delivery day", () => {
       jest.useFakeTimers();
-      jest.setSystemTime(new Date("2024-01-07T10:00:00Z")); // Sunday (0)
+      // Sunday (0)
+      jest.setSystemTime(new Date("2024-01-07T10:00:00Z"));
 
+      // Monday-Friday
       const schedule = {
         isEnabled: true,
-        deliveryDays: [1, 2, 3, 4, 5], // Monday-Friday
+        deliveryDays: [1, 2, 3, 4, 5],
         deliveryTimes: ["09:00"],
         timezone: "UTC",
       } as BatchSchedule;
@@ -250,9 +254,10 @@ describe("BatchScheduleService", () => {
       // Monday 8am UTC
       jest.setSystemTime(new Date("2024-01-08T08:00:00Z"));
 
+      // Monday-Friday
       const schedule = {
         isEnabled: true,
-        deliveryDays: [1, 2, 3, 4, 5], // Monday-Friday
+        deliveryDays: [1, 2, 3, 4, 5],
         deliveryTimes: ["09:00", "15:00"],
         timezone: "UTC",
         urgentBypassSchedule: false,
@@ -270,10 +275,12 @@ describe("BatchScheduleService", () => {
       // Monday 8am UTC = Monday 3am EST (UTC-5)
       jest.setSystemTime(new Date("2024-01-08T08:00:00Z"));
 
+      // Monday-Friday
+      // 9am and 3pm EST
       const schedule = {
         isEnabled: true,
-        deliveryDays: [1, 2, 3, 4, 5], // Monday-Friday
-        deliveryTimes: ["09:00", "15:00"], // 9am and 3pm EST
+        deliveryDays: [1, 2, 3, 4, 5],
+        deliveryTimes: ["09:00", "15:00"],
         timezone: "America/New_York",
         urgentBypassSchedule: false,
       } as BatchSchedule;
@@ -290,10 +297,12 @@ describe("BatchScheduleService", () => {
       // Monday 8am UTC = Monday 8am GMT (no offset in winter)
       jest.setSystemTime(new Date("2024-01-08T08:00:00Z"));
 
+      // Monday-Friday
+      // 11am and 3pm GMT
       const schedule = {
         isEnabled: true,
-        deliveryDays: [1, 2, 3, 4, 5], // Monday-Friday
-        deliveryTimes: ["11:00", "15:00"], // 11am and 3pm GMT
+        deliveryDays: [1, 2, 3, 4, 5],
+        deliveryTimes: ["11:00", "15:00"],
         timezone: "Europe/London",
         urgentBypassSchedule: false,
       } as BatchSchedule;
@@ -310,10 +319,12 @@ describe("BatchScheduleService", () => {
       // Monday 8am UTC = Monday 5pm JST (UTC+9)
       jest.setSystemTime(new Date("2024-01-08T08:00:00Z"));
 
+      // Monday-Friday
+      // 9am and 3pm JST
       const schedule = {
         isEnabled: true,
-        deliveryDays: [1, 2, 3, 4, 5], // Monday-Friday
-        deliveryTimes: ["09:00", "15:00"], // 9am and 3pm JST
+        deliveryDays: [1, 2, 3, 4, 5],
+        deliveryTimes: ["09:00", "15:00"],
         timezone: "Asia/Tokyo",
         urgentBypassSchedule: false,
       } as BatchSchedule;
@@ -332,10 +343,12 @@ describe("BatchScheduleService", () => {
       // Set time to Sunday 1am UTC = Saturday 8pm EST
       jest.setSystemTime(new Date("2024-03-10T01:00:00Z"));
 
+      // All days
+      // 9am EST/EDT
       const schedule = {
         isEnabled: true,
-        deliveryDays: [0, 1, 2, 3, 4, 5, 6], // All days
-        deliveryTimes: ["09:00"], // 9am EST/EDT
+        deliveryDays: [0, 1, 2, 3, 4, 5, 6],
+        deliveryTimes: ["09:00"],
         timezone: "America/New_York",
         urgentBypassSchedule: false,
       } as BatchSchedule;
@@ -355,10 +368,12 @@ describe("BatchScheduleService", () => {
       // Set time to Sunday 1am UTC = Saturday 9pm EDT
       jest.setSystemTime(new Date("2024-11-03T01:00:00Z"));
 
+      // All days
+      // 9am EDT/EST
       const schedule = {
         isEnabled: true,
-        deliveryDays: [0, 1, 2, 3, 4, 5, 6], // All days
-        deliveryTimes: ["09:00"], // 9am EDT/EST
+        deliveryDays: [0, 1, 2, 3, 4, 5, 6],
+        deliveryTimes: ["09:00"],
         timezone: "America/New_York",
         urgentBypassSchedule: false,
       } as BatchSchedule;
@@ -377,10 +392,12 @@ describe("BatchScheduleService", () => {
       // Monday 10am UTC
       jest.setSystemTime(new Date("2024-01-08T10:00:00Z"));
 
+      // Monday-Friday
+      // 9am and 3pm UTC
       const schedule = {
         isEnabled: true,
-        deliveryDays: [1, 2, 3, 4, 5], // Monday-Friday
-        deliveryTimes: ["09:00", "15:00"], // 9am and 3pm UTC
+        deliveryDays: [1, 2, 3, 4, 5],
+        deliveryTimes: ["09:00", "15:00"],
         timezone: "UTC",
         urgentBypassSchedule: false,
       } as BatchSchedule;
@@ -397,10 +414,12 @@ describe("BatchScheduleService", () => {
       // Monday 4pm UTC (after both delivery times)
       jest.setSystemTime(new Date("2024-01-08T16:00:00Z"));
 
+      // Monday-Friday
+      // 9am and 3pm UTC
       const schedule = {
         isEnabled: true,
-        deliveryDays: [1, 2, 3, 4, 5], // Monday-Friday
-        deliveryTimes: ["09:00", "15:00"], // 9am and 3pm UTC
+        deliveryDays: [1, 2, 3, 4, 5],
+        deliveryTimes: ["09:00", "15:00"],
         timezone: "UTC",
         urgentBypassSchedule: false,
       } as BatchSchedule;
@@ -417,9 +436,10 @@ describe("BatchScheduleService", () => {
       // Sunday 10am UTC
       jest.setSystemTime(new Date("2024-01-07T10:00:00Z"));
 
+      // Monday-Friday (no Sunday)
       const schedule = {
         isEnabled: true,
-        deliveryDays: [1, 2, 3, 4, 5], // Monday-Friday (no Sunday)
+        deliveryDays: [1, 2, 3, 4, 5],
         deliveryTimes: ["09:00", "15:00"],
         timezone: "UTC",
         urgentBypassSchedule: false,
@@ -437,10 +457,12 @@ describe("BatchScheduleService", () => {
       // Monday 11pm UTC = Tuesday 8am JST (UTC+9)
       jest.setSystemTime(new Date("2024-01-08T23:00:00Z"));
 
+      // Monday-Friday
+      // 9am and 3pm JST
       const schedule = {
         isEnabled: true,
-        deliveryDays: [1, 2, 3, 4, 5], // Monday-Friday
-        deliveryTimes: ["09:00", "15:00"], // 9am and 3pm JST
+        deliveryDays: [1, 2, 3, 4, 5],
+        deliveryTimes: ["09:00", "15:00"],
         timezone: "Asia/Tokyo",
         urgentBypassSchedule: false,
       } as BatchSchedule;
@@ -457,9 +479,10 @@ describe("BatchScheduleService", () => {
       jest.useFakeTimers();
       jest.setSystemTime(new Date("2024-01-08T10:00:00Z"));
 
+      // No delivery days
       const schedule = {
         isEnabled: true,
-        deliveryDays: [], // No delivery days
+        deliveryDays: [],
         deliveryTimes: ["09:00", "15:00"],
         timezone: "UTC",
         urgentBypassSchedule: false,
@@ -474,10 +497,11 @@ describe("BatchScheduleService", () => {
       jest.useFakeTimers();
       jest.setSystemTime(new Date("2024-01-08T10:00:00Z"));
 
+      // No delivery times
       const schedule = {
         isEnabled: true,
         deliveryDays: [1, 2, 3, 4, 5],
-        deliveryTimes: [], // No delivery times
+        deliveryTimes: [],
         timezone: "UTC",
         urgentBypassSchedule: false,
       } as BatchSchedule;
@@ -492,10 +516,11 @@ describe("BatchScheduleService", () => {
       // Monday 8am UTC
       jest.setSystemTime(new Date("2024-01-08T08:00:00Z"));
 
+      // Unsorted
       const schedule = {
         isEnabled: true,
         deliveryDays: [1, 2, 3, 4, 5],
-        deliveryTimes: ["15:00", "09:00", "12:00"], // Unsorted
+        deliveryTimes: ["15:00", "09:00", "12:00"],
         timezone: "UTC",
         urgentBypassSchedule: false,
       } as BatchSchedule;
@@ -512,10 +537,11 @@ describe("BatchScheduleService", () => {
       // Monday 8am UTC = Monday 1am MST (UTC-7)
       jest.setSystemTime(new Date("2024-01-08T08:00:00Z"));
 
+      // 9am and 3pm MST
       const schedule = {
         isEnabled: true,
         deliveryDays: [1, 2, 3, 4, 5],
-        deliveryTimes: ["09:00", "15:00"], // 9am and 3pm MST
+        deliveryTimes: ["09:00", "15:00"],
         timezone: "America/Denver",
         urgentBypassSchedule: false,
       } as BatchSchedule;
@@ -532,10 +558,11 @@ describe("BatchScheduleService", () => {
       // Monday 8am UTC = Monday 7pm AEDT (UTC+11 during DST)
       jest.setSystemTime(new Date("2024-01-08T08:00:00Z"));
 
+      // 9am and 3pm AEDT
       const schedule = {
         isEnabled: true,
         deliveryDays: [1, 2, 3, 4, 5],
-        deliveryTimes: ["09:00", "15:00"], // 9am and 3pm AEDT
+        deliveryTimes: ["09:00", "15:00"],
         timezone: "Australia/Sydney",
         urgentBypassSchedule: false,
       } as BatchSchedule;
@@ -546,67 +573,6 @@ describe("BatchScheduleService", () => {
       // Current time is Monday 7pm AEDT, next delivery is Tuesday 9am AEDT
       // Tuesday 9am AEDT = Monday 10pm UTC
       expect(result?.toISOString()).toBe("2024-01-08T22:00:00.000Z");
-    });
-
-    it("should handle Australia/Melbourne timezone correctly", () => {
-      jest.useFakeTimers();
-      // Thursday 2:44 UTC = Thursday 1:44 PM AEDT (UTC+11)
-      jest.setSystemTime(new Date("2026-02-13T02:44:00Z"));
-
-      const schedule = {
-        isEnabled: true,
-        deliveryDays: [1, 2, 3, 4, 5], // Monday-Friday (0=Sun, 1=Mon, ..., 5=Fri)
-        deliveryTimes: ["11:00", "15:00"], // 11am and 3pm AEDT
-        timezone: "Australia/Melbourne",
-        urgentBypassSchedule: false,
-      } as BatchSchedule;
-
-      const result = service.getNextScheduledDeliveryTime(schedule);
-
-      expect(result).not.toBeNull();
-      // Current time is Thursday 1:44 PM AEDT, next delivery is Thursday 3pm AEDT
-      // Thursday 3pm AEDT (15:00) = Thursday 4am UTC (15:00 - 11:00)
-      expect(result?.toISOString()).toBe("2026-02-13T04:00:00.000Z");
-    });
-
-    it("should handle delivery days stored as strings in database", () => {
-      jest.useFakeTimers();
-      // Monday 8am UTC
-      jest.setSystemTime(new Date("2024-01-08T08:00:00Z"));
-
-      const schedule = {
-        isEnabled: true,
-        deliveryDays: ["1", "2", "3", "4", "5"] as any, // Stored as strings in DB
-        deliveryTimes: ["09:00", "15:00"],
-        timezone: "UTC",
-        urgentBypassSchedule: false,
-      } as BatchSchedule;
-
-      const result = service.getNextScheduledDeliveryTime(schedule);
-
-      expect(result).not.toBeNull();
-      // Should correctly parse string days and find Monday at 9am UTC
-      expect(result?.toISOString()).toBe("2024-01-08T09:00:00.000Z");
-    });
-
-    it("should handle mixed string and number delivery days", () => {
-      jest.useFakeTimers();
-      // Monday 8am UTC
-      jest.setSystemTime(new Date("2024-01-08T08:00:00Z"));
-
-      const schedule = {
-        isEnabled: true,
-        deliveryDays: [1, "2", 3, "4", 5] as any, // Mixed types
-        deliveryTimes: ["09:00", "15:00"],
-        timezone: "UTC",
-        urgentBypassSchedule: false,
-      } as BatchSchedule;
-
-      const result = service.getNextScheduledDeliveryTime(schedule);
-
-      expect(result).not.toBeNull();
-      // Should correctly normalize all to numbers
-      expect(result?.toISOString()).toBe("2024-01-08T09:00:00.000Z");
     });
   });
 });

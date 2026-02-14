@@ -15,7 +15,7 @@ module.exports = {
     node: true,
     jest: true,
   },
-  ignorePatterns: ['.eslintrc.js', 'dist/**/*'],
+  ignorePatterns: ['.eslintrc.js', 'dist/**/*', 'src/database/migrations/**/*'],
   rules: {
     // ===========================================
     // FILE SIZE LIMITS

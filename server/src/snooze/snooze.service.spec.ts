@@ -155,7 +155,8 @@ describe("SnoozeService", () => {
 
     it("should parse day names (mon)", async () => {
       // Set to Wednesday (3)
-      const now = new Date("2024-01-03T12:00:00Z"); // Wednesday
+      // Wednesday
+      const now = new Date("2024-01-03T12:00:00Z");
       jest.useFakeTimers();
       jest.setSystemTime(now);
 
@@ -170,7 +171,8 @@ describe("SnoozeService", () => {
 
     it("should parse day names for same day (next week)", async () => {
       // Set to Monday
-      const now = new Date("2024-01-01T12:00:00Z"); // Monday
+      // Monday
+      const now = new Date("2024-01-01T12:00:00Z");
       jest.useFakeTimers();
       jest.setSystemTime(now);
 
@@ -184,18 +186,25 @@ describe("SnoozeService", () => {
     });
 
     it("should parse day names (tue, wed, thu, fri, sat, sun)", async () => {
-      const now = new Date("2024-01-01T12:00:00Z"); // Monday
+      // Monday
+      const now = new Date("2024-01-01T12:00:00Z");
       jest.useFakeTimers();
       jest.setSystemTime(now);
 
       const days = ["tue", "wed", "thu", "fri", "sat", "sun"];
       const expectedDates = [
-        "2024-01-02T09:00:00Z", // Tuesday
-        "2024-01-03T09:00:00Z", // Wednesday
-        "2024-01-04T09:00:00Z", // Thursday
-        "2024-01-05T09:00:00Z", // Friday
-        "2024-01-06T09:00:00Z", // Saturday
-        "2024-01-07T09:00:00Z", // Sunday
+        // Tuesday
+        "2024-01-02T09:00:00Z",
+        // Wednesday
+        "2024-01-03T09:00:00Z",
+        // Thursday
+        "2024-01-04T09:00:00Z",
+        // Friday
+        "2024-01-05T09:00:00Z",
+        // Saturday
+        "2024-01-06T09:00:00Z",
+        // Sunday
+        "2024-01-07T09:00:00Z",
       ];
 
       for (let i = 0; i < days.length; i++) {

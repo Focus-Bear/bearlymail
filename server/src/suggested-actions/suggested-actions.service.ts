@@ -89,7 +89,8 @@ export class SuggestedActionsService {
 
         // Check if LLM-generated actions exist and are still valid
         const llmActions = existingActions.filter((a) => a.source === "llm");
-        const llmAction = llmActions[0]; // Check first LLM action for lastEmailId
+        // Check first LLM action for lastEmailId
+        const llmAction = llmActions[0];
 
         // Return existing actions if LLM cache is valid
         if (llmAction && llmAction.lastEmailId === latestEmailId) {

@@ -1,5 +1,5 @@
 import { NestFactory } from "@nestjs/core";
-import { ValidationPipe } from "@nestjs/common";
+import { Logger, ValidationPipe } from "@nestjs/common";
 import { AppModule } from "./app.module";
 import { AllExceptionsFilter } from "./filters/http-exception.filter";
 import { setupGlobalErrorHandlers, logErrorToFile } from "./utils/error-logger";
@@ -13,11 +13,11 @@ initializeGlobalErrorTracking();
 setupGlobalErrorHandlers("Server");
 
 async function bootstrap() {
+  const logger = new Logger("Bootstrap");
   try {
     // Check if running in worker mode
     if (process.env.WORKER_MODE === "true") {
-      // eslint-disable-next-line no-console
-      console.log("Starting application in WORKER mode...");
+      logger.log("Starting application in WORKER mode...");
       await NestFactory.createApplicationContext(AppModule);
       // Keep the process alive
       // The pg-boss workers inside onModuleInit will handle the jobs
@@ -31,7 +31,7 @@ async function bootstrap() {
       process.env.FRONTEND_URL,
       "http://localhost:3000",
       "https://app.bearlymail.com",
-    ].filter((o): o is string => Boolean(o));
+    ].filter((origin): origin is string => Boolean(origin));
     const uniqueOrigins = [...new Set(allowedOrigins)];
     app.enableCors({
       origin:
@@ -57,8 +57,7 @@ async function bootstrap() {
     // Default port for development
     const port = process.env.PORT || DEFAULT_PORT;
     await app.listen(port);
-    // eslint-disable-next-line no-console
-    console.log(`Application is running on: http://localhost:${port}`);
+    logger.log(`Application is running on: http://localhost:${port}`);
   } catch (error: unknown) {
     logErrorToFile("Failed to start application", error, "Server");
     process.exit(1);

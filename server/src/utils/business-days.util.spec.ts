@@ -25,37 +25,44 @@ describe("BusinessDaysUtil", () => {
     });
 
     it("should return false for New Year's Day (AU & US)", () => {
-      const newYearsDay = new Date(2024, 0, 1); // January 1
+      // January 1
+      const newYearsDay = new Date(2024, 0, 1);
       expect(isBusinessDay(newYearsDay)).toBe(false);
     });
 
     it("should return false for Australia Day", () => {
-      const australiaDay = new Date(2024, 0, 26); // January 26
+      // January 26
+      const australiaDay = new Date(2024, 0, 26);
       expect(isBusinessDay(australiaDay)).toBe(false);
     });
 
     it("should return false for ANZAC Day", () => {
-      const anzacDay = new Date(2024, 3, 25); // April 25
+      // April 25
+      const anzacDay = new Date(2024, 3, 25);
       expect(isBusinessDay(anzacDay)).toBe(false);
     });
 
     it("should return false for Christmas (AU & US)", () => {
-      const christmas = new Date(2024, 11, 25); // December 25
+      // December 25
+      const christmas = new Date(2024, 11, 25);
       expect(isBusinessDay(christmas)).toBe(false);
     });
 
     it("should return false for Boxing Day (AU)", () => {
-      const boxingDay = new Date(2024, 11, 26); // December 26
+      // December 26
+      const boxingDay = new Date(2024, 11, 26);
       expect(isBusinessDay(boxingDay)).toBe(false);
     });
 
     it("should return false for Independence Day (US)", () => {
-      const independenceDay = new Date(2024, 6, 4); // July 4
+      // July 4
+      const independenceDay = new Date(2024, 6, 4);
       expect(isBusinessDay(independenceDay)).toBe(false);
     });
 
     it("should return false for Veterans Day (US)", () => {
-      const veteransDay = new Date(2024, 10, 11); // November 11
+      // November 11
+      const veteransDay = new Date(2024, 10, 11);
       expect(isBusinessDay(veteransDay)).toBe(false);
     });
 
@@ -87,7 +94,8 @@ describe("BusinessDaysUtil", () => {
       // Memorial Day 2024 is calculated as the last Monday in May
       // The getLastMonday function should calculate it correctly
       // Testing with a known fixed holiday instead to avoid calculation verification
-      const newYearsDay = new Date(2024, 0, 1); // New Year's Day is definitely a holiday
+      // New Year's Day is definitely a holiday
+      const newYearsDay = new Date(2024, 0, 1);
       expect(isBusinessDay(newYearsDay)).toBe(false);
     });
 
@@ -143,7 +151,8 @@ describe("BusinessDaysUtil", () => {
       const saturday = new Date(2024, 0, 6);
       const next = getNextBusinessDay(saturday);
       // Should skip Sunday and return Monday, 2024-01-08
-      expect(next.getDay()).toBe(1); // Monday
+      // Monday
+      expect(next.getDay()).toBe(1);
       expect(next.getDate()).toBe(8);
     });
 
@@ -152,7 +161,8 @@ describe("BusinessDaysUtil", () => {
       const sunday = new Date(2024, 0, 7);
       const next = getNextBusinessDay(sunday);
       // Should return Monday, 2024-01-08
-      expect(next.getDay()).toBe(1); // Monday
+      // Monday
+      expect(next.getDay()).toBe(1);
       expect(next.getDate()).toBe(8);
     });
 
@@ -170,7 +180,8 @@ describe("BusinessDaysUtil", () => {
       const friday = new Date(2024, 11, 27);
       const next = getNextBusinessDay(friday);
       // Next day is Saturday, but should skip to Monday
-      expect(next.getDay()).toBe(1); // Monday
+      // Monday
+      expect(next.getDay()).toBe(1);
       expect(next.getDate()).toBe(30);
     });
 
@@ -188,7 +199,8 @@ describe("BusinessDaysUtil", () => {
 
   describe("calculateBusinessDays", () => {
     it("should return 1 for same business day", () => {
-      const date = new Date(2024, 0, 8); // Monday
+      // Monday
+      const date = new Date(2024, 0, 8);
       expect(calculateBusinessDays(date, date)).toBe(1);
     });
 
@@ -228,8 +240,10 @@ describe("BusinessDaysUtil", () => {
 
     it("should handle date range spanning multiple years", () => {
       // December 30, 2024 to January 5, 2025
-      const dec30 = new Date(2024, 11, 30); // Monday
-      const jan5 = new Date(2025, 0, 5); // Sunday
+      // Monday
+      const dec30 = new Date(2024, 11, 30);
+      // Sunday
+      const jan5 = new Date(2025, 0, 5);
       // Dec 30, 31 (Tue), Jan 1 (Wed - New Year's Day), 2 (Thu), 3 (Fri)
       // Jan 4 (Sat), 5 (Sun) excluded
       // Business days: Dec 30, 31, Jan 2, 3 = 4 business days
@@ -255,8 +269,10 @@ describe("BusinessDaysUtil", () => {
     });
 
     it("should normalize dates to start of day", () => {
-      const monday = new Date(2024, 0, 8, 15, 30, 45); // Monday 3:30:45 PM
-      const friday = new Date(2024, 0, 12, 9, 15, 30); // Friday 9:15:30 AM
+      // Monday 3:30:45 PM
+      const monday = new Date(2024, 0, 8, 15, 30, 45);
+      // Friday 9:15:30 AM
+      const friday = new Date(2024, 0, 12, 9, 15, 30);
       // Should still count all 5 business days regardless of time
       expect(calculateBusinessDays(monday, friday)).toBe(5);
     });
@@ -265,8 +281,10 @@ describe("BusinessDaysUtil", () => {
       // February 2024 has 29 days (leap year)
       // Weekdays: Mon-Fri each week = 5 days per week
       // Feb 2024: 5 full weeks = 25 weekdays, but need to check actual dates
-      const feb1 = new Date(2024, 1, 1); // Thursday
-      const feb29 = new Date(2024, 1, 29); // Thursday
+      // Thursday
+      const feb1 = new Date(2024, 1, 1);
+      // Thursday
+      const feb29 = new Date(2024, 1, 29);
       // Should calculate correctly excluding weekends
       const result = calculateBusinessDays(feb1, feb29);
       expect(result).toBeGreaterThan(0);

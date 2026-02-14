@@ -24,7 +24,8 @@ export class QueueAutoscalingService implements OnModuleInit, OnModuleDestroy {
   // Queue names to monitor (same as QueueMonitorService)
   private readonly queueNames = [
     "fetch-user-emails",
-    "sync-emails", // Legacy
+    // Legacy
+    "sync-emails",
     "schedule-email-fetch-jobs",
     "sync-gmail",
     "scan-history",

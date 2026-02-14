@@ -181,8 +181,7 @@
     "selected": "seleccionado",
     "send": "Enviar",
     "showLess": "Mostrar menos",
-    "showMore": "Mostrar más",
-    "submitting": "Enviando..."
+    "showMore": "Mostrar más"
   },
   "compose": {
     "addBcc": "Agregar CCO",
@@ -1055,12 +1054,7 @@
           "emailSystemOutlook": "Outlook/Office365",
           "emailSystemZoho": "Zoho Mail",
           "emailSystemOther": "Otro",
-          "emailSystemOtherLabel": "Por favor especifica tu sistema de correo",
-          "firstNameLabel": "Nombre",
-          "emailLabel": "Correo electrónico",
-          "reasonLabel": "¿Por qué quieres usar BearlyMail?",
-          "joinButton": "Unirse a la lista de espera",
-          "submitError": "Error al enviar. Por favor, inténtelo de nuevo."
+          "emailSystemOtherLabel": "Por favor especifica tu sistema de correo"
         },
     "sidebar": {
       "expand": "Expandir barra lateral"
@@ -1602,7 +1596,6 @@
         "confirmRemoveGithubToken":"¿Estás seguro de que deseas desconectar tu cuenta de GitHub? Esto eliminará el acceso a la integración de GitHub.",
         "githubTokenRemoved": "GitHub desconectado exitosamente",
         "githubTokenRemoveError": "No se pudo desconectar GitHub. Por favor intenta de nuevo.",
-        "githubConnectError": "No se puede conectar GitHub: por favor inicia sesión primero",
         "setPassword": {
           "title": "Inicio de sesión con contraseña",
           "description": "Establece una contraseña para habilitar el inicio de sesión con correo electrónico y contraseña además de SSO. Esto es útil si viajas a regiones donde tu proveedor SSO puede estar bloqueado.",

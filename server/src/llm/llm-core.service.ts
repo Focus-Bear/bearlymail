@@ -9,7 +9,6 @@ import { LLM_OP_UNKNOWN } from "./llm-operations";
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { MILLISECONDS } from "../constants/time-constants";
-import { supportsReasoningEffort } from "./llm-utils";
 
 @Injectable()
 export class LLMCoreService {
@@ -220,25 +219,14 @@ export class LLMCoreService {
       this.logger.debug(
         `Generating text with OpenAI using ${apiKeySource} API key${request.userId ? ` (userId: ${request.userId})` : ""}`,
       );
-
-      // Build the request parameters
-      const completionParams: any = {
+      const completion = await openaiClient!.chat.completions.create({
         model,
         messages: messages as any,
         temperature: request.temperature || RATIOS.SEVENTY_PERCENT,
         max_completion_tokens:
           request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
-      };
-
-      // Only add reasoning parameter for models that support it (o1/o3 series and gpt-5+)
-      if (supportsReasoningEffort(model)) {
-        completionParams.reasoning = {
-          effort: reasoningEffort as "low" | "medium" | "high",
-        };
-      }
-
-      const completion =
-        await openaiClient!.chat.completions.create(completionParams);
+        reasoning_effort: reasoningEffort as "low" | "medium" | "high",
+      } as any);
 
       const durationMs = Date.now() - startTime;
 

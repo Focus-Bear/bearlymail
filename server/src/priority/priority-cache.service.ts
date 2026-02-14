@@ -19,8 +19,10 @@ export class PriorityCacheService {
   >();
 
   // TTL in milliseconds
-  private readonly CONTEXTS_TTL = 5 * 60 * 1000; // 5 minutes
-  private readonly AVG_TIME_TO_REPLY_TTL = 60 * 60 * 1000; // 1 hour
+  // 5 minutes
+  private readonly CONTEXTS_TTL = 5 * 60 * 1000;
+  // 1 hour
+  private readonly AVG_TIME_TO_REPLY_TTL = 60 * 60 * 1000;
 
   constructor(
     @InjectRepository(UserContext)

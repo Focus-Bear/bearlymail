@@ -283,7 +283,8 @@ describe("GoogleAccountsService", () => {
 
       await service.updateTokens("account-1", "user-1", "new-access-token");
 
-      expect(freshAccount.refreshToken).toBe("original-refresh-token"); // Original value
+      // Original value
+      expect(freshAccount.refreshToken).toBe("original-refresh-token");
     });
 
     it("should throw NotFoundException when account not found", async () => {

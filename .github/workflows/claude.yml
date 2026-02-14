@@ -13,10 +13,10 @@ on:
 jobs:
   claude:
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && !contains(github.event.comment.body, '(ignore)')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && !contains(github.event.comment.body, '(ignore)')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && !contains(github.event.review.body, '(ignore)')) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) && !contains(github.event.issue.body, '(ignore)') && !contains(github.event.issue.title, '(ignore)'))
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -35,23 +35,11 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
           # This is an optional setting that allows Claude to read CI results on PRs
           additional_permissions: |
             actions: read
           allowed_bots: '*'
-
-          custom_instructions: |
-            Follow the instructions in issue #${{ github.event.issue.number }}.
-            
-            Rules:
-            - NEVER commit or push directly to main.
-            - Create a new branch named claude/issue-${{ github.event.issue.number }}-<short-description>
-            - Complete the work described in the issue.
-            - Always write/update unit tests when any logic changes
-            - Follow clean code principles
-            - Open a PR targeting main that references the issue (Closes #${{ github.event.issue.number }}).
-            - Open the PR yourself - no need to ask for confirmation.
-            - Unless you are very unsure about the direction, don't ask for confirmation, just go ahead with solving the bug/following instructions.
 
           # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
           # prompt: 'Update the pull request description to include a summary of changes.'

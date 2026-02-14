@@ -39,7 +39,6 @@ import {
   BODY_PREVIEW_LENGTHS,
   CONTEXT_ANALYSIS,
 } from "../constants/llm-constants";
-import { supportsReasoningEffort } from "./llm-utils";
 
 export enum LLMProvider {
   GEMINI = "gemini",
@@ -299,25 +298,14 @@ export class LLMService {
       this.logger.debug(
         `Generating text with OpenAI using ${apiKeySource} API key${request.userId ? ` (userId: ${request.userId})` : ""}`,
       );
-
-      // Build the request parameters
-      const completionParams: any = {
+      const completion = await openaiClient!.chat.completions.create({
         model,
         messages: messages as any,
         temperature: request.temperature || RATIOS.SEVENTY_PERCENT,
         max_completion_tokens:
           request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
-      };
-
-      // Only add reasoning parameter for models that support it (o1/o3 series and gpt-5+)
-      if (supportsReasoningEffort(model)) {
-        completionParams.reasoning = {
-          effort: reasoningEffort as "low" | "medium" | "high",
-        };
-      }
-
-      const completion =
-        await openaiClient!.chat.completions.create(completionParams);
+        reasoning_effort: reasoningEffort as "low" | "medium" | "high",
+      } as any);
 
       const durationMs = Date.now() - startTime;
 
@@ -614,7 +602,6 @@ export class LLMService {
       ? "This is an email thread with multiple messages. Summarize the entire conversation, focusing on the most recent developments and key points across all messages."
       : "";
 
-    let promptConfig;
     let promptId: string;
     if (summaryType === "tldr") {
       promptId = "summarize_email_tldr";
@@ -627,7 +614,7 @@ export class LLMService {
       promptId = "summarize_email_tldr";
     }
 
-    promptConfig = getPrompt(promptId);
+    const promptConfig = getPrompt(promptId);
     if (!promptConfig) {
       const expectedFileName = `${promptId.replace(/_/g, "-")}.md`;
       throw new Error(
@@ -676,7 +663,8 @@ export class LLMService {
     threads: Array<{
       index: number;
       subject: string;
-      body: string; // Combined thread content (first + last 3 messages)
+      // Combined thread content (first + last 3 messages)
+      body: string;
       isThread: boolean;
       messageCount?: number;
     }>,
@@ -1615,9 +1603,9 @@ export class LLMService {
     provider?: LLMProvider,
   ): Promise<string> {
     // Load prompt from markdown file
-    const promptConfig = getPrompt("search-relevance-explanation");
+    const promptConfig = getPrompt("search_relevance_explanation");
     if (!promptConfig) {
-      this.logger.error("search-relevance-explanation prompt not found");
+      this.logger.error("search_relevance_explanation prompt not found");
       return "";
     }
 
@@ -1685,9 +1673,9 @@ export class LLMService {
     }
 
     // Load prompt from markdown file
-    const promptConfig = getPrompt("search-relevance-explanation");
+    const promptConfig = getPrompt("search_relevance_explanation");
     if (!promptConfig) {
-      this.logger.error("search-relevance-explanation prompt not found");
+      this.logger.error("search_relevance_explanation prompt not found");
       return new Map();
     }
 

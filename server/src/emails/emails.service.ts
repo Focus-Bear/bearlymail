@@ -122,8 +122,10 @@ export class EmailsService {
     string,
     { emailIds: string[]; timer: ReturnType<typeof setTimeout> | null }
   >();
-  private readonly BATCH_FLUSH_DELAY_MS = 2000; // Wait 2s to collect more emails before flushing
-  private readonly BATCH_MAX_SIZE = 5; // Max emails per batch LLM call
+  // Wait 2s to collect more emails before flushing
+  private readonly BATCH_FLUSH_DELAY_MS = 2000;
+  // Max emails per batch LLM call
+  private readonly BATCH_MAX_SIZE = 5;
 
   /**
    * Queue an email for batch priority refinement.
@@ -985,7 +987,8 @@ export class EmailsService {
           .map((idOrName) => {
             // First check if it's a system label (by ID or name)
             if (systemLabels.has(idOrName)) {
-              return null; // Skip system labels
+              // Skip system labels
+              return null;
             }
 
             // If it's an ID, try to convert it
@@ -1007,9 +1010,11 @@ export class EmailsService {
               if (systemLabels.has(idOrName)) {
                 return null;
               }
-              return idOrName; // Keep as-is (might be a custom label name)
+              // Keep as-is (might be a custom label name)
+              return idOrName;
             }
-            return null; // Skip unmapped Label_* labels
+            // Skip unmapped Label_* labels
+            return null;
           })
           .filter((label): label is string => label !== null);
 

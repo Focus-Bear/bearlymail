@@ -11,7 +11,8 @@ import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { QASearchResult } from "./types/auto-responder.types";
 import { RATIOS } from "../constants/percentages";
 import { LLM_CONFIG } from "./auto-responder-constants";
-import { LLM_OP_GENERATE_QA_ANSWER } from "../llm/llm-operations";
+
+const LLM_OP_GENERATE_QA_ANSWER = "generate_qa_answer";
 
 /**
  * Service for generating Q&A answers from user context
@@ -103,7 +104,7 @@ export class AutoResponderQaService {
         },
         undefined,
         userId,
-        LLM_OP_GENERATE_QA_ANSWER,
+        LLM_OP_GENERATE_QA_ANSWER as any,
       );
 
       // Parse response

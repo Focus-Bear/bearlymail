@@ -159,7 +159,8 @@ export class ContextFinalizationProcessor implements OnModuleInit {
               `Invalid finalization job: totalBatches is ${actualTotalBatches}`,
             ),
           );
-          return; // Exit early - don't process (checkBatchesComplete will handle re-queueing)
+          // Exit early - don't process (checkBatchesComplete will handle re-queueing)
+          return;
         }
 
         try {
@@ -213,7 +214,8 @@ export class ContextFinalizationProcessor implements OnModuleInit {
               `[Worker ${workerId}] Re-queued finalization job with ID: ${retryJobId}`,
               "log",
             );
-            tracker.finish(); // Log even when re-queuing
+            // Log even when re-queuing
+            tracker.finish();
             return;
           }
 
@@ -240,9 +242,6 @@ export class ContextFinalizationProcessor implements OnModuleInit {
 
           this.logger.log(
             `[Worker ${workerId}] ✅ Completed context analysis for user ${userId} (analysis ${analysisRecordId}). All ${totalBatches} batches processed.`,
-          );
-          console.log(
-            `[PROCESSOR] [Worker ${workerId}] ✅ Completed context analysis for user ${userId} (analysis ${analysisRecordId}). All ${totalBatches} batches processed.`,
           );
           writeAnalysisLog(
             `[Worker ${workerId}] ✅ Completed context analysis for user ${userId} (analysis ${analysisRecordId}). All ${totalBatches} batches processed.`,

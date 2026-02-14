@@ -132,9 +132,11 @@ export class EmailGmailService {
           };
         });
 
-        const isAnyStarred = messageStarStatuses.some((m) => m.isStarred);
+        const isAnyStarred = messageStarStatuses.some(
+          (message) => message.isStarred,
+        );
         const starredMessageCount = messageStarStatuses.filter(
-          (m) => m.isStarred,
+          (message) => message.isStarred,
         ).length;
 
         // Get the latest message (last in array) for backward compatibility

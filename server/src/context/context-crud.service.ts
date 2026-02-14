@@ -64,7 +64,8 @@ export class ContextCrudService {
 
     if (existing) {
       existing.lastModified = new Date();
-      existing.contextValue = redactedValue; // Update with redacted value
+      // Update with redacted value
+      existing.contextValue = redactedValue;
       if (source === Source.USER_EDITED) {
         existing.source = Source.USER_EDITED;
       }

@@ -199,7 +199,7 @@ describe("LLMController (Integration)", () => {
           name: "Test User",
           email: "test@example.com",
         },
-        "", // senderEmail is "" when no senderInfo, short-circuits to ""
+        false,
       );
     });
 

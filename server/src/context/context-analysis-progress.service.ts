@@ -181,7 +181,7 @@ export class ContextAnalysisProgressService {
     const missingJobs = Math.max(0, remainingBatchesInDb - queuedJobsInPgBoss);
 
     // Log the comparison
-    console.log(
+    this.logger.debug(
       `\n[PROGRESS-CHECK] =========================================\n` +
         `Analysis: ${analysis.id} (User: ${userId})\n` +
         `\n📊 DB State:\n` +

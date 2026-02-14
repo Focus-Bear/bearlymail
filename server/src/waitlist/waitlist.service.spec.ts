@@ -89,7 +89,8 @@ describe("WaitlistService", () => {
     it("should create a waitlist entry", async () => {
       repository.create.mockReturnValue(mockWaitlistEntry);
       repository.save.mockResolvedValue(mockWaitlistEntry);
-      configService.get.mockReturnValue(undefined); // No Cliq config
+      // No Cliq config
+      configService.get.mockReturnValue(undefined);
 
       const result = await service.create(
         "test@example.com",
@@ -398,7 +399,8 @@ describe("WaitlistService", () => {
       expect(usersService.create).toHaveBeenCalled();
     });
 
-    it("should not set isApproved to true when creating user (needs password setup)", async () => {
+    // User needs password setup
+    it("should not set isApproved to true when creating user", async () => {
       repository.findOne
         .mockResolvedValueOnce(mockWaitlistEntry)
         .mockResolvedValueOnce({ ...mockWaitlistEntry, approved: true });

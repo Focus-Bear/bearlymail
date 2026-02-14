@@ -76,10 +76,11 @@ export class LLMController {
       const match = email.match(/<(.+)>/);
       return (match ? match[1] : email).toLowerCase().trim();
     };
-    const isUserSender =
+    const isUserSender = Boolean(
       senderEmail &&
       userEmail &&
-      normalizeEmail(senderEmail) === normalizeEmail(userEmail);
+      normalizeEmail(senderEmail) === normalizeEmail(userEmail)
+    );
 
     return this.llmService.extractActionItems(
       body.emailBody,

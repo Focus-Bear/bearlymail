@@ -92,10 +92,12 @@ describe("priority.utils", () => {
     it("should ignore score property when breakdown exists", () => {
       const input = {
         breakdown: [{ value: 30 }],
-        score: 50, // Should be ignored
+        // Should be ignored
+        score: 50,
       };
       const result = calculateScoreFromBreakdown(input);
-      expect(result).toBe(30); // Uses breakdown, not score
+      // Uses breakdown, not score
+      expect(result).toBe(30);
     });
 
     it("should handle decimal values", () => {

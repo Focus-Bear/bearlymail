@@ -229,7 +229,7 @@ export class EmailThreadService {
     const now = new Date();
 
     // Get all threads that might be updated to check lastUserOperationAt
-    const threadIds = updates.map((u) => u.threadId);
+    const threadIds = updates.map((update) => update.threadId);
     const existingThreads = await this.emailThreadRepository.find({
       where: { userId, threadId: In(threadIds) },
       select: ["id", "threadId", "isArchived", "lastUserOperationAt"],
@@ -323,21 +323,10 @@ export class EmailThreadService {
     });
 
     if (thread) {
+      // Only update if starCount changed to avoid unnecessary DB writes
       const normalizedStarCount = Math.max(0, Math.min(3, starCount));
-      // When starring (starCount > 0), also unarchive the thread so it appears in the Action tab.
-      // This handles the case where a user stars an archived email from the detail view.
-      const shouldUnarchive = normalizedStarCount > 0 && thread.isArchived;
-      const starCountChanged = thread.starCount !== normalizedStarCount;
-
-      if (starCountChanged || shouldUnarchive) {
+      if (thread.starCount !== normalizedStarCount) {
         thread.starCount = normalizedStarCount;
-        if (shouldUnarchive) {
-          thread.isArchived = false;
-          thread.lastUserOperationAt = new Date();
-          this.logger.debug(
-            `Unarchiving thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... due to starring`,
-          );
-        }
         await this.emailThreadRepository.save(thread);
         this.logger.debug(
           `Updated thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... star count to ${normalizedStarCount}`,

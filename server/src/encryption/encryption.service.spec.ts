@@ -32,7 +32,8 @@ describe("EncryptionService", () => {
       const encrypted = service.encrypt(plaintext);
       expect(encrypted).toBeTruthy();
       expect(encrypted).not.toBe(plaintext);
-      expect(encrypted).toContain(":"); // Format: IV:authTag:encrypted
+      // Format: IV:authTag:encrypted
+      expect(encrypted).toContain(":");
     });
 
     it("should return empty string for empty input", () => {
@@ -83,9 +84,12 @@ describe("EncryptionService", () => {
       const encrypted = service.encrypt(plaintext);
       const parts = encrypted.split(":");
       expect(parts.length).toBe(3);
-      expect(parts[0].length).toBe(32); // IV in hex (16 bytes = 32 hex chars)
-      expect(parts[1].length).toBe(32); // Auth tag in hex (16 bytes = 32 hex chars)
-      expect(parts[2].length).toBeGreaterThan(0); // Encrypted data
+      // IV in hex (16 bytes = 32 hex chars)
+      expect(parts[0].length).toBe(32);
+      // Auth tag in hex (16 bytes = 32 hex chars)
+      expect(parts[1].length).toBe(32);
+      // Encrypted data
+      expect(parts[2].length).toBeGreaterThan(0);
     });
   });
 
@@ -115,7 +119,8 @@ describe("EncryptionService", () => {
     });
 
     it("should return plaintext for invalid format (not 3 parts)", () => {
-      const invalidFormat = "part1:part2"; // Only 2 parts, need 3
+      // Only 2 parts, need 3
+      const invalidFormat = "part1:part2";
       const result = service.decrypt(invalidFormat);
       expect(result).toBe(invalidFormat);
     });
@@ -151,7 +156,8 @@ describe("EncryptionService", () => {
       const email = "test@example.com";
       const hash = service.hashEmail(email);
       expect(hash).toBeTruthy();
-      expect(hash.length).toBe(64); // SHA-256 produces 64 hex characters
+      // SHA-256 produces 64 hex characters
+      expect(hash.length).toBe(64);
     });
 
     it("should return empty string for empty email", () => {

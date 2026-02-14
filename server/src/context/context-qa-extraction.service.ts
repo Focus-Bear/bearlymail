@@ -243,7 +243,8 @@ export class ContextQaExtractionService {
         "error",
       );
       // Don't fail the entire analysis if Q&A extraction fails
-      throw error; // Re-throw so caller can handle it
+      // Re-throw so caller can handle it
+      throw error;
     }
   }
 }

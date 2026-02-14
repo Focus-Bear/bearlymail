@@ -103,8 +103,8 @@ describe("GitHubService", () => {
       const links = service.parseGitHubLinks(emailBody, htmlBody);
 
       expect(links.length).toBe(2);
-      expect(links.find((l) => l.type === "issue")?.number).toBe(123);
-      expect(links.find((l) => l.type === "pr")?.number).toBe(456);
+      expect(links.find((link) => link.type === "issue")?.number).toBe(123);
+      expect(links.find((link) => link.type === "pr")?.number).toBe(456);
     });
 
     it("should deduplicate between plain text and HTML", () => {

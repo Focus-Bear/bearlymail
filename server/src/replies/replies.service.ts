@@ -82,12 +82,12 @@ export class RepliesService {
 
     // Log for debugging
     if (emailExamples.length > 0) {
-      console.log(
-        `[RepliesService] Using ${emailExamples.length} email examples for reply generation`,
+      this.logger.debug(
+        `Using ${emailExamples.length} email examples for reply generation`,
       );
     } else {
-      console.log(
-        `[RepliesService] No email examples found in toneSettings.rules (total rules: ${toneRules.length})`,
+      this.logger.debug(
+        `No email examples found in toneSettings.rules (total rules: ${toneRules.length})`,
       );
     }
 
@@ -112,11 +112,10 @@ export class RepliesService {
     // Use LLM to generate reply
     try {
       // Convert string provider to LLMProvider enum
-      const llmProvider: LLMProvider | undefined = provider
-        ? provider === "gemini"
-          ? LLMProvider.GEMINI
-          : LLMProvider.OPENAI
-        : undefined;
+      let llmProvider: LLMProvider | undefined = undefined;
+      if (provider) {
+        llmProvider = provider === "gemini" ? LLMProvider.GEMINI : LLMProvider.OPENAI;
+      }
 
       return await this.llmService.generateReplyDraft(
         {
@@ -363,7 +362,6 @@ ${closing}`;
       replySubject,
       body,
       allAttachments.length > 0 ? allAttachments : undefined,
-      body, // Pass body as htmlBody so HTML tags are rendered
     );
 
     // Store the sent reply in the database so it appears in the thread view

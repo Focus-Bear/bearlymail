@@ -20,7 +20,9 @@ import { CloudWatchService } from "../aws/cloudwatch.service";
 interface BatchAnalysisJob {
   userId: string;
   batchIndex: number;
-  threadIds?: string[]; // New: thread IDs to fetch and process
+  // New: thread IDs to fetch and process
+  threadIds?: string[];
+  // Legacy: pre-processed payloads
   batch?: Array<{
     threadId?: string;
     from: string;
@@ -34,7 +36,7 @@ interface BatchAnalysisJob {
     repliedAt?: string | null;
     starCount?: number;
     isArchived?: boolean;
-  }>; // Legacy: pre-processed payloads
+  }>;
   sentPayload: Array<{
     emailId?: string;
     to: string;
@@ -50,7 +52,8 @@ interface BatchAnalysisJob {
   }>;
   analysisRecordId: string;
   totalBatches: number;
-  after?: string; // Date range for fetching threads
+  // Date range for fetching threads
+  after?: string;
   before?: string;
 }
 
@@ -113,9 +116,6 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
     this.logger.log(
       `Registering batch-analysis worker with concurrency: ${this.batchConcurrency}`,
     );
-    console.log(
-      `[BATCH-PROCESSOR] Registering batch-analysis worker with concurrency: ${this.batchConcurrency}`,
-    );
     writeAnalysisLog(
       `===== Batch Analysis Worker Registered ===== (concurrency: ${this.batchConcurrency})`,
       "log",
@@ -150,9 +150,6 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
         this.logger.log(
           `[Worker ${workerId}] ✅ JOB RECEIVED at ${jobReceivedTime}: batch ${batchIndex + 1}/${totalBatches} for user ${userId} (analysis ${analysisRecordId}, ${threadIds?.length || legacyBatch?.length || 0} threads)`,
         );
-        console.log(
-          `[BATCH-PROCESSOR] [Worker ${workerId}] ✅ JOB RECEIVED at ${jobReceivedTime}: batch ${batchIndex + 1}/${totalBatches} for user ${userId} (analysis ${analysisRecordId}, ${threadIds?.length || legacyBatch?.length || 0} threads)`,
-        );
         writeAnalysisLog(
           `[Worker ${workerId}] ✅ JOB RECEIVED: batch ${batchIndex + 1}/${totalBatches} for analysis ${analysisRecordId}`,
           "log",
@@ -161,9 +158,6 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
         this.logger.log(
           `[Worker ${workerId}] 🚀 STARTING batch ${batchIndex + 1}/${totalBatches} for user ${userId} (${threadIds?.length || legacyBatch?.length || 0} threads)`,
         );
-        console.log(
-          `[BATCH-PROCESSOR] [Worker ${workerId}] 🚀 STARTING batch ${batchIndex + 1}/${totalBatches} for user ${userId} (${threadIds?.length || legacyBatch?.length || 0} threads)`,
-        );
         writeAnalysisLog(
           `[Worker ${workerId}] 🚀 STARTING batch ${batchIndex + 1}/${totalBatches} for user ${userId}`,
           "log",
@@ -171,8 +165,10 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
 
         let attemptNumber = 0;
         const maxRetries = 5;
-        const baseDelay = 1000; // 1 second
-        const maxDelay = 60000; // 60 seconds
+        // 1 second
+        const baseDelay = 1000;
+        // 60 seconds
+        const maxDelay = 60000;
 
         while (attemptNumber <= maxRetries) {
           try {
@@ -185,9 +181,6 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
               this.logger.log(
                 `[Worker ${workerId}] Retry attempt ${attemptNumber}/${maxRetries} after ${backoffDelay}ms backoff`,
               );
-              console.log(
-                `[BATCH-PROCESSOR] [Worker ${workerId}] Retry attempt ${attemptNumber}/${maxRetries} after ${backoffDelay}ms backoff`,
-              );
               writeAnalysisLog(
                 `[Worker ${workerId}] Retry attempt ${attemptNumber}/${maxRetries} after ${backoffDelay}ms backoff`,
                 "log",
@@ -197,9 +190,6 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
 
             this.logger.log(
               `[Worker ${workerId}] Processing batch ${batchIndex + 1}/${totalBatches} (attempt ${attemptNumber + 1})`,
-            );
-            console.log(
-              `[BATCH-PROCESSOR] [Worker ${workerId}] Processing batch ${batchIndex + 1}/${totalBatches} (attempt ${attemptNumber + 1})`,
             );
             writeAnalysisLog(
               `[Worker ${workerId}] Processing batch ${batchIndex + 1}/${totalBatches} (attempt ${attemptNumber + 1})`,
@@ -636,9 +626,6 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
             this.logger.log(
               `[Worker ${workerId}] ✅ COMPLETED batch ${batchIndex + 1}/${totalBatches} in ${duration}s. Analyzed ${batchSize} threads.`,
             );
-            console.log(
-              `[BATCH-PROCESSOR] [Worker ${workerId}] ✅ COMPLETED batch ${batchIndex + 1}/${totalBatches} in ${duration}s. Analyzed ${batchSize} threads.`,
-            );
             writeAnalysisLog(
               `[Worker ${workerId}] ✅ COMPLETED batch ${batchIndex + 1}/${totalBatches} in ${duration}s. Analyzed ${batchSize} threads.`,
               "log",
@@ -724,9 +711,6 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
     );
 
     this.logger.log("Batch analysis worker registered successfully");
-    console.log(
-      "[BATCH-PROCESSOR] Batch analysis worker registered successfully",
-    );
     writeAnalysisLog("Batch analysis worker registered successfully", "log");
   }
 }

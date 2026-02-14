@@ -6,7 +6,8 @@ describe("SearchIndexHelper", () => {
       const value = "test@example.com";
       const hash = SearchIndexHelper.hashExact(value);
       expect(hash).toBeTruthy();
-      expect(hash.length).toBe(64); // SHA-256 produces 64 hex characters
+      // SHA-256 produces 64 hex characters
+      expect(hash.length).toBe(64);
       expect(typeof hash).toBe("string");
     });
 

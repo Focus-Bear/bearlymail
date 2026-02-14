@@ -76,28 +76,6 @@ export const LLM_OP_CONSOLIDATE_CATEGORIES = "consolidate_categories";
 export const LLM_OP_GENERATE_CATEGORIES_FROM_OTHER =
   "generate_categories_from_other";
 
-// Custom summarization (user-defined rules)
-export const LLM_OP_SUMMARIZE_EMAIL_CUSTOM = "summarize_email_custom";
-
-// Summarization rule matching
-export const LLM_OP_SUMMARIZATION_RULE_MATCHING = "summarization_rule_matching";
-
-// Search query conversion (natural language to Gmail syntax)
-export const LLM_OP_SEARCH_QUERY_CONVERSION = "search_query_conversion";
-
-// Search ranking (relevance scoring)
-export const LLM_OP_SEARCH_RANKING = "search_ranking";
-
-// Follow-up draft review and cleanup
-export const LLM_OP_FOLLOW_UP_DRAFT_REVIEW = "follow_up_draft_review";
-
-// Triage suggestions (AI-based star/archive suggestions)
-export const LLM_OP_TRIAGE_SUGGESTIONS = "triage_suggestions";
-
-// Auto-responder: custom exclusion rule checking
-export const LLM_OP_CHECK_CUSTOM_EXCLUSION_RULES =
-  "check_custom_exclusion_rules";
-
 // Generic/unknown operation (fallback)
 export const LLM_OP_UNKNOWN = "unknown";
 
@@ -129,13 +107,6 @@ export type LLMOperation =
   | typeof LLM_OP_DISPUTE_TONE_CHECK
   | typeof LLM_OP_CONSOLIDATE_CATEGORIES
   | typeof LLM_OP_GENERATE_CATEGORIES_FROM_OTHER
-  | typeof LLM_OP_SUMMARIZE_EMAIL_CUSTOM
-  | typeof LLM_OP_SUMMARIZATION_RULE_MATCHING
-  | typeof LLM_OP_SEARCH_QUERY_CONVERSION
-  | typeof LLM_OP_SEARCH_RANKING
-  | typeof LLM_OP_FOLLOW_UP_DRAFT_REVIEW
-  | typeof LLM_OP_TRIAGE_SUGGESTIONS
-  | typeof LLM_OP_CHECK_CUSTOM_EXCLUSION_RULES
   | typeof LLM_OP_UNKNOWN;
 
 /**
@@ -166,12 +137,5 @@ export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
   [LLM_OP_DISPUTE_TONE_CHECK]: "Dispute Tone Check",
   [LLM_OP_CONSOLIDATE_CATEGORIES]: "Consolidate Categories",
   [LLM_OP_GENERATE_CATEGORIES_FROM_OTHER]: "Generate Categories from Other",
-  [LLM_OP_SUMMARIZE_EMAIL_CUSTOM]: "Summarize Email (Custom Rules)",
-  [LLM_OP_SUMMARIZATION_RULE_MATCHING]: "Summarization Rule Matching",
-  [LLM_OP_SEARCH_QUERY_CONVERSION]: "Search Query Conversion",
-  [LLM_OP_SEARCH_RANKING]: "Search Ranking",
-  [LLM_OP_FOLLOW_UP_DRAFT_REVIEW]: "Follow-up Draft Review",
-  [LLM_OP_TRIAGE_SUGGESTIONS]: "Triage Suggestions",
-  [LLM_OP_CHECK_CUSTOM_EXCLUSION_RULES]: "Check Custom Exclusion Rules",
   [LLM_OP_UNKNOWN]: "Unknown Operation",
 };

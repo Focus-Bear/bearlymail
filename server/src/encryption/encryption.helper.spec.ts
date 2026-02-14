@@ -32,7 +32,8 @@ describe("EncryptionHelper", () => {
       const encrypted = EncryptionHelper.encrypt(plaintext);
       expect(encrypted).toBeTruthy();
       expect(encrypted).not.toBe(plaintext);
-      expect(encrypted).toContain(":"); // Format: IV:authTag:encrypted
+      // Format: IV:authTag:encrypted
+      expect(encrypted).toContain(":");
     });
 
     it("should return null for null input", () => {
@@ -63,9 +64,12 @@ describe("EncryptionHelper", () => {
       const encrypted = EncryptionHelper.encrypt(plaintext);
       const parts = encrypted!.split(":");
       expect(parts.length).toBe(3);
-      expect(parts[0].length).toBe(ENCRYPTION_CONSTANTS.IV_LENGTH * 2); // IV in hex
-      expect(parts[1].length).toBe(32); // Auth tag in hex (16 bytes = 32 hex chars)
-      expect(parts[2].length).toBeGreaterThan(0); // Encrypted data
+      // IV in hex
+      expect(parts[0].length).toBe(ENCRYPTION_CONSTANTS.IV_LENGTH * 2);
+      // Auth tag in hex (16 bytes = 32 hex chars)
+      expect(parts[1].length).toBe(32);
+      // Encrypted data
+      expect(parts[2].length).toBeGreaterThan(0);
     });
 
     it("should encrypt special characters correctly", () => {
@@ -154,7 +158,8 @@ describe("EncryptionHelper", () => {
       const email = "test@example.com";
       const hash = EncryptionHelper.hashEmail(email);
       expect(hash).toBeTruthy();
-      expect(hash.length).toBe(64); // SHA-256 produces 64 hex characters
+      // SHA-256 produces 64 hex characters
+      expect(hash.length).toBe(64);
       expect(typeof hash).toBe("string");
     });
 
@@ -257,22 +262,26 @@ describe("EncryptionHelper", () => {
 
   describe("encryptedJsonTransformer", () => {
     it("should encrypt JSON object on write", () => {
-      const obj = { key: "value", number: 123, nested: { data: "test" } };
-      const encrypted = encryptedJsonTransformer.to(obj);
+      const testObject = {
+        key: "value",
+        number: 123,
+        nested: { data: "test" },
+      };
+      const encrypted = encryptedJsonTransformer.to(testObject);
       expect(encrypted).toBeTruthy();
       expect(typeof encrypted).toBe("string");
       expect(encrypted).toContain(":");
     });
 
     it("should decrypt and parse JSON object on read", () => {
-      const obj = { key: "value", number: 123 };
-      const encrypted = encryptedJsonTransformer.to(obj);
+      const testObject = { key: "value", number: 123 };
+      const encrypted = encryptedJsonTransformer.to(testObject);
       const decrypted = encryptedJsonTransformer.from(encrypted);
-      expect(decrypted).toEqual(obj);
+      expect(decrypted).toEqual(testObject);
     });
 
     it("should handle complex nested objects", () => {
-      const obj = {
+      const complexObject = {
         user: {
           name: "Test",
           email: "test@example.com",
@@ -283,9 +292,9 @@ describe("EncryptionHelper", () => {
         },
         items: [1, 2, 3],
       };
-      const encrypted = encryptedJsonTransformer.to(obj);
+      const encrypted = encryptedJsonTransformer.to(complexObject);
       const decrypted = encryptedJsonTransformer.from(encrypted);
-      expect(decrypted).toEqual(obj);
+      expect(decrypted).toEqual(complexObject);
     });
 
     it("should return null for null input", () => {
@@ -308,10 +317,10 @@ describe("EncryptionHelper", () => {
     });
 
     it("should handle arrays", () => {
-      const arr = [1, 2, 3, "test", { nested: "value" }];
-      const encrypted = encryptedJsonTransformer.to(arr);
+      const testArray = [1, 2, 3, "test", { nested: "value" }];
+      const encrypted = encryptedJsonTransformer.to(testArray);
       const decrypted = encryptedJsonTransformer.from(encrypted);
-      expect(decrypted).toEqual(arr);
+      expect(decrypted).toEqual(testArray);
     });
 
     it("should handle primitive values", () => {

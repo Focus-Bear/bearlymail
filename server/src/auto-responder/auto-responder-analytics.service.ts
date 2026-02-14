@@ -93,16 +93,20 @@ export class AutoResponderAnalyticsService {
 
     const totalSent = logs.length;
     const byPriority = {
-      low: logs.filter((l) => l.priorityLevel === AutoResponseLogPriority.LOW)
-        .length,
-      medium: logs.filter(
-        (l) => l.priorityLevel === AutoResponseLogPriority.MEDIUM,
+      low: logs.filter(
+        (log) => log.priorityLevel === AutoResponseLogPriority.LOW,
       ).length,
-      high: logs.filter((l) => l.priorityLevel === AutoResponseLogPriority.HIGH)
-        .length,
+      medium: logs.filter(
+        (log) => log.priorityLevel === AutoResponseLogPriority.MEDIUM,
+      ).length,
+      high: logs.filter(
+        (log) => log.priorityLevel === AutoResponseLogPriority.HIGH,
+      ).length,
     };
-    const qaAnswerCount = logs.filter((l) => l.qaAnswerProvided).length;
-    const escalationCount = logs.filter((l) => l.escalationRequested).length;
+    const qaAnswerCount = logs.filter((log) => log.qaAnswerProvided).length;
+    const escalationCount = logs.filter(
+      (log) => log.escalationRequested,
+    ).length;
 
     const templateBreakdown: Record<string, number> = {};
     for (const log of logs) {

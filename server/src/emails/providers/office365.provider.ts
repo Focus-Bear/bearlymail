@@ -296,7 +296,9 @@ export class Office365Provider implements EmailProvider {
         )[0];
 
         const isInInbox = inboxMessages.some(
-          (m) => m.conversationId === conversationId || m.id === conversationId,
+          (message) =>
+            message.conversationId === conversationId ||
+            message.id === conversationId,
         );
         const isImportant = latestMessage.importance === "high";
 
@@ -427,16 +429,16 @@ export class Office365Provider implements EmailProvider {
     if (existingThreadUpdates.length > 0) {
       await this.emailsService.batchUpdateThreadStarCount(
         userId,
-        existingThreadUpdates.map((u) => ({
-          threadId: u.threadId,
-          starCount: u.starCount,
+        existingThreadUpdates.map((update) => ({
+          threadId: update.threadId,
+          starCount: update.starCount,
         })),
       );
       await this.emailsService.batchUpdateThreadArchivedStatuses(
         userId,
-        existingThreadUpdates.map((u) => ({
-          threadId: u.threadId,
-          isArchived: u.isArchived,
+        existingThreadUpdates.map((update) => ({
+          threadId: update.threadId,
+          isArchived: update.isArchived,
         })),
       );
     }
@@ -466,21 +468,21 @@ export class Office365Provider implements EmailProvider {
       if (updates.length > 0) {
         await this.emailsService.batchUpdateThreadStarCount(
           userId,
-          updates.map((u) => ({
-            threadId: u.threadId,
-            starCount: u.starCount,
+          updates.map((update) => ({
+            threadId: update.threadId,
+            starCount: update.starCount,
           })),
         );
         await this.emailsService.batchUpdateThreadArchivedStatuses(
           userId,
-          updates.map((u) => ({
-            threadId: u.threadId,
-            isArchived: u.isArchived,
+          updates.map((update) => ({
+            threadId: update.threadId,
+            isArchived: update.isArchived,
           })),
         );
         await this.emailsService.updateThreadsLastCheckedAt(
           userId,
-          updates.map((u) => u.threadId),
+          updates.map((update) => update.threadId),
         );
       }
     }
@@ -767,7 +769,7 @@ export class Office365Provider implements EmailProvider {
       );
       return messages
         .map((msg) => parseOffice365Message(msg))
-        .filter((m): m is RawEmailMessage => m !== null);
+        .filter((msg): msg is RawEmailMessage => msg !== null);
     } catch (error: unknown) {
       if (isAuthError(error)) {
         accessToken = await this.client.refreshTokenIfNeeded(

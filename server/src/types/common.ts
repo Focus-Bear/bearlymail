@@ -63,7 +63,6 @@ export type LLMProvider = "gemini" | "openai" | undefined;
  * Google API response types
  */
 export interface GoogleApiResponse<T = unknown> {
-  // eslint-disable-next-line id-denylist
   data: T;
   status?: number;
   statusText?: string;
@@ -103,19 +102,16 @@ export interface GmailMessage {
   payload?: {
     headers?: Array<{ name: string; value: string }>;
     body?: {
-      // eslint-disable-next-line id-denylist
       data?: string;
     };
     parts?: Array<{
       mimeType?: string;
       body?: {
-        // eslint-disable-next-line id-denylist
         data?: string;
       };
       parts?: Array<{
         mimeType?: string;
         body?: {
-          // eslint-disable-next-line id-denylist
           data?: string;
         };
       }>;
@@ -175,7 +171,6 @@ export interface ApiError {
   statusText?: string;
   response?: {
     statusText?: string;
-    // eslint-disable-next-line id-denylist
     data?: unknown;
   };
 }
@@ -289,18 +284,18 @@ export function getGaxiosErrorDetails(error: unknown): GaxiosErrorDetails {
     details.responseData = error.response.data;
 
     // Try to extract error message from response data
-    const data = error.response.data as {
+    const responseData = error.response.data as {
       error?: {
         message?: string;
         code?: number;
         errors?: Array<{ message?: string; reason?: string; domain?: string }>;
       };
     };
-    if (data?.error) {
-      details.errorMessage = data.error.message;
-      if (data.error.errors && data.error.errors.length > 0) {
-        details.errorReason = data.error.errors[0].reason;
-        details.errorDomain = data.error.errors[0].domain;
+    if (responseData?.error) {
+      details.errorMessage = responseData.error.message;
+      if (responseData.error.errors && responseData.error.errors.length > 0) {
+        details.errorReason = responseData.error.errors[0].reason;
+        details.errorDomain = responseData.error.errors[0].domain;
       }
     }
   }

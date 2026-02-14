@@ -6,10 +6,9 @@ import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { RATIOS } from "../constants/percentages";
 import { LLM_CONFIG } from "./auto-responder-constants";
 import { EMAIL_CLASSIFICATION } from "../constants/llm-constants";
-import {
-  LLM_OP_CLASSIFY_EMAIL,
-  LLM_OP_CHECK_CUSTOM_EXCLUSION_RULES,
-} from "../llm/llm-operations";
+
+// LLM operation for email classification
+const LLM_OP_CLASSIFY_EMAIL = "classify_email_type";
 
 /**
  * Service for classifying emails to determine if auto-response should be sent
@@ -77,10 +76,14 @@ export class EmailClassifierService {
       /^greetings[,!]?\s*$/i,
     ],
     mergeFields: [
-      /\{\{.*?\}\}/g, // Handlebars-style
-      /\[\[.*?\]\]/g, // Double bracket style
-      /%[A-Z_]+%/g, // Percent-style
-      /\$\{.*?\}/g, // Template literal style
+      // Handlebars-style
+      /\{\{.*?\}\}/g,
+      // Double bracket style
+      /\[\[.*?\]\]/g,
+      // Percent-style
+      /%[A-Z_]+%/g,
+      // Template literal style
+      /\$\{.*?\}/g,
       /\{FIRST_?NAME\}/i,
       /\{COMPANY\}/i,
       /\{NAME\}/i,
@@ -388,14 +391,15 @@ export class EmailClassifierService {
       /\bneed(ed)? (by|before) (today|tomorrow|tonight|eod|cob)/i,
     ];
 
-    const highUrgencyMatches = urgentPatterns.filter((p) =>
-      p.test(text),
+    const highUrgencyMatches = urgentPatterns.filter((pattern) =>
+      pattern.test(text),
     ).length;
 
     if (highUrgencyMatches >= 2) return "high";
     if (highUrgencyMatches === 1) return "medium";
 
-    return "medium"; // Default to medium for human emails
+    // Default to medium for human emails
+    return "medium";
   }
 
   /**
@@ -434,7 +438,7 @@ export class EmailClassifierService {
       },
       LLMProvider.OPENAI,
       undefined,
-      LLM_OP_CLASSIFY_EMAIL,
+      LLM_OP_CLASSIFY_EMAIL as any,
     );
 
     try {
@@ -565,7 +569,7 @@ Respond with a JSON object in this exact format:
         },
         LLMProvider.OPENAI,
         undefined,
-        LLM_OP_CHECK_CUSTOM_EXCLUSION_RULES,
+        "check_custom_exclusion_rules" as any,
       );
 
       // Parse JSON response

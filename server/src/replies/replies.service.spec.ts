@@ -40,7 +40,7 @@ describe("RepliesService", () => {
         {
           provide: EmailThreadService,
           useValue: {
-            findByThreadId: jest.fn(),
+            findOne: jest.fn(),
             updateThread: jest.fn(),
           },
         },
@@ -302,7 +302,8 @@ describe("RepliesService", () => {
       });
 
       expect(updated.template).toBe("Updated template");
-      expect(updated.trigger).toBe(rule.trigger); // Other fields unchanged
+      // Other fields unchanged
+      expect(updated.trigger).toBe(rule.trigger);
     });
 
     it("should throw error when rule not found", async () => {
@@ -431,7 +432,8 @@ describe("RepliesService", () => {
 
       expect(rule).toBeDefined();
       expect(rule.template).toBe(modifiedDraft);
-      expect(rule.trigger).toContain("Test"); // First word of subject
+      // First word of subject
+      expect(rule.trigger).toContain("Test");
     });
 
     it("should throw error when email not found", async () => {
@@ -512,7 +514,6 @@ describe("RepliesService", () => {
         "Re: Test Subject",
         "Reply body",
         undefined,
-        "Reply body", // htmlBody parameter
       );
     });
 
@@ -532,14 +533,14 @@ describe("RepliesService", () => {
 
       await service.sendReply(userId, emailId, "Reply body");
 
+      // Should not double add Re:
       expect(mockProvider.sendReply).toHaveBeenCalledWith(
         userId,
         email.threadId,
         email.from,
-        "Re: Test Subject", // Should not double add Re:
+        "Re: Test Subject",
         "Reply body",
         undefined,
-        "Reply body", // htmlBody parameter
       );
     });
   });

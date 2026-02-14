@@ -81,14 +81,16 @@ describe("PriorityLearningService", () => {
       const email = {
         id: emailId,
         userId,
+        // Priority score 60 = 2 stars predicted
         priorityExplanation: {
-          breakdown: [{ value: 60 }], // Priority score 60 = 2 stars predicted
+          breakdown: [{ value: 60 }],
         },
       } as unknown as Email;
 
       emailRepository.findOne.mockResolvedValue(email);
 
-      const result = await service.checkStarDiscrepancy(userId, emailId, 2); // User selected 2 stars (no discrepancy)
+      // User selected 2 stars (no discrepancy)
+      const result = await service.checkStarDiscrepancy(userId, emailId, 2);
 
       expect(result.shouldPrompt).toBe(false);
     });
@@ -97,14 +99,16 @@ describe("PriorityLearningService", () => {
       const email = {
         id: emailId,
         userId,
+        // Priority score 30 = 1 star predicted
         priorityExplanation: {
-          breakdown: [{ value: 30 }], // Priority score 30 = 1 star predicted
+          breakdown: [{ value: 30 }],
         },
       } as unknown as Email;
 
       emailRepository.findOne.mockResolvedValue(email);
 
-      const result = await service.checkStarDiscrepancy(userId, emailId, 3); // User selected 3 stars (discrepancy of 2)
+      // User selected 3 stars (discrepancy of 2)
+      const result = await service.checkStarDiscrepancy(userId, emailId, 3);
 
       expect(result.shouldPrompt).toBe(true);
       expect(result.predictedStarCount).toBe(1);
@@ -115,16 +119,19 @@ describe("PriorityLearningService", () => {
       const email = {
         id: emailId,
         userId,
+        // Priority score 80 = 3 stars predicted
         priorityExplanation: {
-          breakdown: [{ value: 80 }], // Priority score 80 = 3 stars predicted
+          breakdown: [{ value: 80 }],
         },
       } as unknown as Email;
 
       emailRepository.findOne.mockResolvedValue(email);
 
-      const result = await service.checkStarDiscrepancy(userId, emailId, 0); // User selected 0 stars
+      // User selected 0 stars
+      const result = await service.checkStarDiscrepancy(userId, emailId, 0);
 
-      expect(result.shouldPrompt).toBe(false); // Should not prompt when userStarCount is 0
+      // Should not prompt when userStarCount is 0
+      expect(result.shouldPrompt).toBe(false);
     });
 
     it("should convert priority score to predicted star count correctly", async () => {

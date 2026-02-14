@@ -124,13 +124,16 @@ export class ContextController {
         if (fetchedGeneral !== undefined || fetchedSent !== undefined) {
           // Show progress based on what's been fetched (target: 300 general + 150 sent = 450 threads)
           const totalFetched = (fetchedGeneral || 0) + (fetchedSent || 0);
+          // 0-10% range
           const fetchPercent = Math.min(
             (totalFetched / CONTEXT_ANALYSIS.CONTEXT_TIMEOUT_SECONDS) * 10,
             10,
-          ); // 0-10% range
-          percent = Math.max(1, Math.floor(fetchPercent)); // Minimum 1% to show progress, never 0%
+          );
+          // Minimum 1% to show progress, never 0%
+          percent = Math.max(1, Math.floor(fetchPercent));
         } else {
-          percent = 1; // Minimum 1% while starting (not 0% or 5%)
+          // Minimum 1% while starting (not 0% or 5%)
+          percent = 1;
         }
         stage = "fetching";
       } else if (
@@ -140,7 +143,8 @@ export class ContextController {
         completedBatches > 0
       ) {
         // All batches complete but analysis not finished - summarizing stage (70-99%)
-        percent = CONTEXT_ANALYSIS.PROGRESS_THRESHOLD; // Show 85% while finalizing
+        // Show 85% while finalizing
+        percent = CONTEXT_ANALYSIS.PROGRESS_THRESHOLD;
         stage = "summarizing";
       } else {
         // Batches are processing - analyzing stage (10-70%)
@@ -281,9 +285,6 @@ export class ContextController {
       `[CONTROLLER] POST /context/analyze received for user ${userId}`,
       "log",
     );
-    console.log(
-      `[CONTEXT-CONTROLLER] POST /context/analyze received for user ${userId}`,
-    );
 
     // Mark any existing "running" analysis as failed before starting new one
     // This prevents insights from previous analyses from being shown
@@ -328,9 +329,6 @@ export class ContextController {
       `[CONTROLLER] Sending job to queue with priority ${priority}`,
       "debug",
     );
-    console.log(
-      `[CONTEXT-CONTROLLER] Sending job to queue with priority ${priority}`,
-    );
 
     // Send job to queue with analysis ID
     await this.boss.send(
@@ -345,9 +343,6 @@ export class ContextController {
     writeAnalysisLog(
       `[CONTROLLER] Job sent successfully for user ${userId} with analysis ID ${analysisRecord.id}`,
       "log",
-    );
-    console.log(
-      `[CONTEXT-CONTROLLER] Job sent successfully for user ${userId} with analysis ID ${analysisRecord.id}`,
     );
 
     // Return analysis ID so frontend can track it

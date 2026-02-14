@@ -371,8 +371,9 @@ export class LLMProcessor implements OnModuleInit {
           tracker.startPhase("llmCall");
 
           // Format thread emails for LLM (exclude current email, already in chronological order)
+          // Exclude current email
           const threadEmailsForLLM = threadEmails
-            .filter((e) => e.id !== email.id) // Exclude current email
+            .filter((e) => e.id !== email.id)
             .map((e) => ({
               from: e.from || "",
               fromName: e.fromName,
@@ -513,7 +514,8 @@ export class LLMProcessor implements OnModuleInit {
                 .includes(vip.contextValue.toLowerCase()),
           );
           if (matchedVip) {
-            const vipBoost = 25; // PRIORITY_BOOSTS.URGENT_KEYWORD
+            // PRIORITY_BOOSTS.URGENT_KEYWORD
+            const vipBoost = 25;
             breakdown.push({
               factor: "⭐ VIP Contact",
               value: vipBoost,
@@ -537,7 +539,8 @@ export class LLMProcessor implements OnModuleInit {
               jobTitleLower.includes(title),
             );
             if (hasHighPriorityTitle) {
-              const titleBoost = 15; // PRIORITY_BOOSTS.GOAL_ALIGNMENT
+              // PRIORITY_BOOSTS.GOAL_ALIGNMENT
+              const titleBoost = 15;
               breakdown.push({
                 factor: "⭐ VIP Contact",
                 value: titleBoost,
@@ -549,7 +552,8 @@ export class LLMProcessor implements OnModuleInit {
           // Read status penalty: lower priority by 15 for emails that are read and not starred
           // This helps prioritize unread emails in triage
           if (email.isRead && thread && thread.starCount === 0) {
-            const readPenalty = -15; // PRIORITY_BOOSTS.READ_NOT_STARRED_PENALTY
+            // PRIORITY_BOOSTS.READ_NOT_STARRED_PENALTY
+            const readPenalty = -15;
             breakdown.push({
               factor: "📖 Read Status",
               value: readPenalty,
@@ -602,11 +606,12 @@ export class LLMProcessor implements OnModuleInit {
           tracker.startPhase("dbUpdate");
 
           // Build priority explanation with timestamp
+          // Track when priority was calculated
           const priorityExplanation = {
             score: finalScore,
             breakdown,
             dimensions,
-            calculatedAt: new Date().toISOString(), // Track when priority was calculated
+            calculatedAt: new Date().toISOString(),
           };
 
           // Update email with sentiment (priority explanation is now thread-level)

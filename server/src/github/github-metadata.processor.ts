@@ -47,7 +47,8 @@ export class GitHubMetadataProcessor implements OnModuleInit {
             `Failed to fetch GitHub metadata for email ${emailId}:`,
             error,
           );
-          throw error; // Let pg-boss handle retry
+          // Let pg-boss handle retry
+          throw error;
         }
       },
     );

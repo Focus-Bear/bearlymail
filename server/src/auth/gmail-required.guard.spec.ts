@@ -123,7 +123,8 @@ describe("GmailRequiredGuard", () => {
     });
 
     it("should throw UnauthorizedException when user is missing", async () => {
-      const mockRequest = {}; // No user object
+      // No user object
+      const mockRequest = {};
 
       (
         mockExecutionContext.switchToHttp().getRequest as jest.Mock
@@ -139,8 +140,9 @@ describe("GmailRequiredGuard", () => {
     });
 
     it("should throw UnauthorizedException when userId is missing (using userId field)", async () => {
+      // No userId
       const mockRequest = {
-        user: {}, // No userId
+        user: {},
       };
 
       (
@@ -156,8 +158,9 @@ describe("GmailRequiredGuard", () => {
     });
 
     it("should throw UnauthorizedException when userId is missing (using id field)", async () => {
+      // id is undefined
       const mockRequest = {
-        user: { id: undefined }, // id is undefined
+        user: { id: undefined },
       };
 
       (
@@ -174,8 +177,9 @@ describe("GmailRequiredGuard", () => {
 
     it("should use id field when userId is not present", async () => {
       const userId = "user-123";
+      // Using id instead of userId
       const mockRequest = {
-        user: { id: userId }, // Using id instead of userId
+        user: { id: userId },
       };
 
       (

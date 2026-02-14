@@ -30,7 +30,7 @@ export class GitHubRepoMappingService {
 
   async create(
     userId: string,
-    data: {
+    mappingData: {
       owner: string;
       repo: string;
       emailCategories?: string;
@@ -39,7 +39,7 @@ export class GitHubRepoMappingService {
       isAutoDiscovered?: boolean;
     },
   ): Promise<GitHubRepoMapping> {
-    if (data.isDefault) {
+    if (mappingData.isDefault) {
       await this.repoMappingRepository.update(
         { userId, isDefault: true },
         { isDefault: false },
@@ -48,12 +48,12 @@ export class GitHubRepoMappingService {
 
     const mapping = this.repoMappingRepository.create({
       userId,
-      owner: data.owner,
-      repo: data.repo,
-      emailCategories: data.emailCategories || null,
-      context: data.context || null,
-      isDefault: data.isDefault || false,
-      isAutoDiscovered: data.isAutoDiscovered || false,
+      owner: mappingData.owner,
+      repo: mappingData.repo,
+      emailCategories: mappingData.emailCategories || null,
+      context: mappingData.context || null,
+      isDefault: mappingData.isDefault || false,
+      isAutoDiscovered: mappingData.isAutoDiscovered || false,
     });
 
     return this.repoMappingRepository.save(mapping);
@@ -62,7 +62,7 @@ export class GitHubRepoMappingService {
   async update(
     userId: string,
     id: string,
-    data: {
+    updates: {
       emailCategories?: string;
       context?: string;
       isDefault?: boolean;
@@ -76,21 +76,21 @@ export class GitHubRepoMappingService {
       return null;
     }
 
-    if (data.isDefault) {
+    if (updates.isDefault) {
       await this.repoMappingRepository.update(
         { userId, isDefault: true },
         { isDefault: false },
       );
     }
 
-    if (data.emailCategories !== undefined) {
-      mapping.emailCategories = data.emailCategories || null;
+    if (updates.emailCategories !== undefined) {
+      mapping.emailCategories = updates.emailCategories || null;
     }
-    if (data.context !== undefined) {
-      mapping.context = data.context || null;
+    if (updates.context !== undefined) {
+      mapping.context = updates.context || null;
     }
-    if (data.isDefault !== undefined) {
-      mapping.isDefault = data.isDefault;
+    if (updates.isDefault !== undefined) {
+      mapping.isDefault = updates.isDefault;
     }
 
     return this.repoMappingRepository.save(mapping);

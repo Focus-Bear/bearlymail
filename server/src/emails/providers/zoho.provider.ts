@@ -276,7 +276,8 @@ export class ZohoProvider implements EmailProvider {
           (a, b) => (b.receivedTime || 0) - (a.receivedTime || 0),
         )[0];
         const isInInbox = inboxMessages.some(
-          (m) => m.threadId === threadId || m.uid === threadId,
+          (message) =>
+            message.threadId === threadId || message.uid === threadId,
         );
         const isImportant = latestMessage.importance === "high";
 
@@ -393,13 +394,16 @@ export class ZohoProvider implements EmailProvider {
     if (updates.length > 0) {
       await this.emailsService.batchUpdateThreadStarCount(
         userId,
-        updates.map((u) => ({ threadId: u.threadId, starCount: u.starCount })),
+        updates.map((update) => ({
+          threadId: update.threadId,
+          starCount: update.starCount,
+        })),
       );
       await this.emailsService.batchUpdateThreadArchivedStatuses(
         userId,
-        updates.map((u) => ({
-          threadId: u.threadId,
-          isArchived: u.isArchived,
+        updates.map((update) => ({
+          threadId: update.threadId,
+          isArchived: update.isArchived,
         })),
       );
     }
@@ -430,21 +434,21 @@ export class ZohoProvider implements EmailProvider {
       if (updates.length > 0) {
         await this.emailsService.batchUpdateThreadStarCount(
           userId,
-          updates.map((u) => ({
-            threadId: u.threadId,
-            starCount: u.starCount,
+          updates.map((update) => ({
+            threadId: update.threadId,
+            starCount: update.starCount,
           })),
         );
         await this.emailsService.batchUpdateThreadArchivedStatuses(
           userId,
-          updates.map((u) => ({
-            threadId: u.threadId,
-            isArchived: u.isArchived,
+          updates.map((update) => ({
+            threadId: update.threadId,
+            isArchived: update.isArchived,
           })),
         );
         await this.emailsService.updateThreadsLastCheckedAt(
           userId,
-          updates.map((u) => u.threadId),
+          updates.map((update) => update.threadId),
         );
       }
     }
@@ -730,7 +734,7 @@ export class ZohoProvider implements EmailProvider {
       );
       return messages
         .map((msg) => parseZohoMessage(msg))
-        .filter((m): m is RawEmailMessage => m !== null);
+        .filter((msg): msg is RawEmailMessage => msg !== null);
     } catch (error: unknown) {
       if (isAuthError(error)) {
         accessToken = await this.client.refreshTokenIfNeeded(

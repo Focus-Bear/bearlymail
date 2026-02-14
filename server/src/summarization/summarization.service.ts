@@ -9,10 +9,6 @@ import {
   cleanEmailForThread,
 } from "../llm/email-content-cleaner";
 import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
-import {
-  LLM_OP_SUMMARIZE_EMAIL_CUSTOM,
-  LLM_OP_SUMMARIZATION_RULE_MATCHING,
-} from "../llm/llm-operations";
 
 export interface SummarizationRule {
   type: "bullet-points" | "action-items" | "sender-request" | "tldr" | "custom";
@@ -58,10 +54,11 @@ export class SummarizationService {
 
     // For thread summaries, get the first email (for context) + last 3 messages (current state)
     // Fetch all emails in ASC order to get first email, then determine which to include
+    // ASC to get oldest first
     const allThreadEmails = await this.emailsService.getThreadEmails(
       userId,
       email.threadId,
-      { limit: 20, order: "ASC" }, // ASC to get oldest first
+      { limit: 20, order: "ASC" },
     );
 
     // Build the messages to summarize: first email + last 3
@@ -133,7 +130,6 @@ export class SummarizationService {
           },
           llmProvider,
           userId,
-          LLM_OP_SUMMARIZE_EMAIL_CUSTOM,
         );
       }
 
@@ -196,11 +192,15 @@ export class SummarizationService {
 
     // Prepare thread data for summarization
     interface ThreadData {
-      emailId: string; // The email ID that triggered this thread summarization
+      // The email ID that triggered this thread summarization
+      emailId: string;
       email: NonNullable<(typeof emails)[0]>;
-      threadText: string; // Combined text of all messages in thread
-      isThread: boolean; // Whether this has multiple messages
-      messageCount: number; // Number of messages included in summary
+      // Combined text of all messages in thread
+      threadText: string;
+      // Whether this has multiple messages
+      isThread: boolean;
+      // Number of messages included in summary
+      messageCount: number;
       matchedRule: SummarizationRuleEntity | null;
     }
     const threadsToSummarize: ThreadData[] = [];
@@ -296,7 +296,8 @@ export class SummarizationService {
       const batchData = threads.map((item, idx) => ({
         index: idx,
         subject: item.email.subject || "",
-        body: item.threadText, // Full thread content (first + last 3 messages)
+        // Full thread content (first + last 3 messages)
+        body: item.threadText,
         isThread: item.isThread,
         messageCount: item.messageCount,
       }));
@@ -306,12 +307,14 @@ export class SummarizationService {
         const threadEmailIds = threads.map((item) => item.emailId);
 
         // Call thread summarization with the rule's instructions
+        // Pass custom summarization instructions if available
+        // Pass email IDs for tracking
         const summaryMap = await this.llmService.summarizeThreads(
           batchData,
           undefined,
           userId,
-          rule?.howToSummarize, // Pass custom summarization instructions if available
-          threadEmailIds, // Pass email IDs for tracking
+          rule?.howToSummarize,
+          threadEmailIds,
         );
 
         // Map summaries back to email IDs
@@ -517,7 +520,8 @@ export class SummarizationService {
     // Primary method: Use LLM to evaluate which rule matches based on whenToUse criteria
     try {
       // Prepare email context (use more content for better matching)
-      const emailPreview = cleanedBody.substring(0, 2000); // Increased from 1000 for better context
+      // Increased from 1000 for better context
+      const emailPreview = cleanedBody.substring(0, 2000);
       const emailText = `Subject: ${email.subject || "(no subject)"}\nFrom: ${email.fromName || email.from || "(unknown sender)"} <${email.from || ""}>\n\nEmail Body:\n${emailPreview}${cleanedBody.length > 2000 ? "\n\n[... email continues ...]" : ""}`;
 
       // Format rules with their whenToUse criteria
@@ -547,22 +551,24 @@ Examples:
 
 Respond with ONLY the rule number (1-${rules.length}) or "0" if no match. Do not include any explanation or other text.`;
 
+      // Lower temperature for more consistent matching
+      // Just need a number
       const response = await this.llmService.generateText(
         {
           prompt,
           systemPrompt:
             "You are a precise assistant that evaluates whether emails match rule criteria. You respond with only a number: the rule number (1-N) if a match is found, or 0 if no rule matches.",
-          temperature: 0.1, // Lower temperature for more consistent matching
-          maxTokens: 5, // Just need a number
+          temperature: 0.1,
+          maxTokens: 5,
           userId,
         },
         undefined,
         userId,
-        LLM_OP_SUMMARIZATION_RULE_MATCHING,
       );
 
       // Parse response - handle various formats the LLM might return
-      const cleanedResponse = response.trim().replace(/[^0-9]/g, ""); // Extract only digits
+      // Extract only digits
+      const cleanedResponse = response.trim().replace(/[^0-9]/g, "");
       const ruleIndex = parseInt(cleanedResponse, 10) - 1;
 
       if (ruleIndex >= 0 && ruleIndex < rules.length) {
@@ -571,7 +577,8 @@ Respond with ONLY the rule number (1-${rules.length}) or "0" if no match. Do not
 
       // If LLM returned 0 or invalid response, no rule matches
       if (cleanedResponse === "0") {
-        return null; // No matching rule found
+        // No matching rule found
+        return null;
       }
 
       // If response is invalid, log and fall through to fallback

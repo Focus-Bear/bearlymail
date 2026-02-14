@@ -32,7 +32,7 @@ export class PusherService {
   async trigger(
     channel: string,
     event: string,
-    data: Record<string, unknown>,
+    payload: Record<string, unknown>,
   ): Promise<void> {
     if (!this.pusher) {
       this.logger.debug(
@@ -42,7 +42,7 @@ export class PusherService {
     }
 
     try {
-      await this.pusher.trigger(channel, event, data);
+      await this.pusher.trigger(channel, event, payload);
     } catch (error) {
       this.logger.error(
         `Failed to send Pusher event ${event} on ${channel}:`,

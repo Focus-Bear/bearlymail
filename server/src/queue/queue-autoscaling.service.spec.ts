@@ -68,7 +68,8 @@ describe("QueueAutoscalingService", () => {
       await service.onModuleInit();
 
       // Fast-forward time to trigger interval
-      jest.advanceTimersByTime(31000); // 31 seconds
+      // 31 seconds
+      jest.advanceTimersByTime(31000);
 
       expect(cloudWatchService.putMetrics).toHaveBeenCalled();
 
@@ -189,7 +190,8 @@ describe("QueueAutoscalingService", () => {
   describe("checkAndPublishMetrics", () => {
     it("should calculate desired workers and publish metrics", async () => {
       // Mock queue depth: 550 pending jobs (11 queues * 50 each), 50 per worker = 11 workers, capped at max 10
-      dataSource.query.mockResolvedValue([{ pending: "50" }]); // 11 queues with 50 each = 550
+      // 11 queues with 50 each = 550
+      dataSource.query.mockResolvedValue([{ pending: "50" }]);
 
       await (service as any).checkAndPublishMetrics();
 
@@ -215,24 +217,27 @@ describe("QueueAutoscalingService", () => {
 
       const metricsCall = cloudWatchService.putMetrics.mock.calls[0][0];
       const desiredWorkersMetric = metricsCall.find(
-        (m: any) => m.name === "DesiredWorkers",
+        (metric: any) => metric.name === "DesiredWorkers",
       );
 
-      expect(desiredWorkersMetric.value).toBeGreaterThanOrEqual(1); // minWorkers = 1
+      // minWorkers = 1
+      expect(desiredWorkersMetric.value).toBeGreaterThanOrEqual(1);
     });
 
     it("should respect maximum workers", async () => {
       // Mock very high queue depth (1000 pending = 20 workers, but max is 10)
-      dataSource.query.mockResolvedValue([{ pending: "100" }]); // 10 queues * 100 = 1000
+      // 10 queues * 100 = 1000
+      dataSource.query.mockResolvedValue([{ pending: "100" }]);
 
       await (service as any).checkAndPublishMetrics();
 
       const metricsCall = cloudWatchService.putMetrics.mock.calls[0][0];
       const desiredWorkersMetric = metricsCall.find(
-        (m: any) => m.name === "DesiredWorkers",
+        (metric: any) => metric.name === "DesiredWorkers",
       );
 
-      expect(desiredWorkersMetric.value).toBeLessThanOrEqual(10); // maxWorkers = 10
+      // maxWorkers = 10
+      expect(desiredWorkersMetric.value).toBeLessThanOrEqual(10);
     });
 
     it("should handle queue query errors gracefully", async () => {
@@ -281,7 +286,8 @@ describe("QueueAutoscalingService", () => {
 
       // 11 queues * 10 pending = 110
       expect(depth).toBe(110);
-      expect(dataSource.query).toHaveBeenCalledTimes(11); // One per queue
+      // One per queue
+      expect(dataSource.query).toHaveBeenCalledTimes(11);
     });
 
     it("should handle missing pending count", async () => {
@@ -338,14 +344,16 @@ describe("QueueAutoscalingService", () => {
       // 1000 jobs / 50 per worker = 20, but max is 10
       const workers = (service as any).calculateDesiredWorkers(1000);
 
-      expect(workers).toBe(10); // maxWorkers
+      // maxWorkers
+      expect(workers).toBe(10);
     });
 
     it("should not go below minimum workers", () => {
       // 0 jobs / 50 per worker = 0, but min is 1
       const workers = (service as any).calculateDesiredWorkers(0);
 
-      expect(workers).toBe(1); // minWorkers
+      // minWorkers
+      expect(workers).toBe(1);
     });
 
     it("should handle edge case at boundary", () => {

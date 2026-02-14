@@ -60,7 +60,8 @@ describe("EmailContentCleaner", () => {
     });
 
     it("should decode numeric HTML entities in HTML content", () => {
-      const html = "<p>Hello &#65; World</p>"; // &#65; is 'A'
+      // &#65; is 'A'
+      const html = "<p>Hello &#65; World</p>";
       const result = cleanEmailContent(html);
       // The implementation should decode when processing HTML
       expect(result).toContain("Hello");
@@ -112,8 +113,10 @@ describe("EmailContentCleaner", () => {
     it("should normalize whitespace", () => {
       const text = "Hello    World\n\n\n\nTest";
       const result = cleanEmailContent(text);
-      expect(result).not.toContain("    "); // Multiple spaces
-      expect(result.split("\n\n\n").length).toBe(1); // No triple newlines
+      // Multiple spaces
+      expect(result).not.toContain("    ");
+      // No triple newlines
+      expect(result.split("\n\n\n").length).toBe(1);
     });
 
     it("should normalize line endings (CRLF to LF)", () => {
@@ -125,7 +128,8 @@ describe("EmailContentCleaner", () => {
     it("should truncate text longer than maxLength", () => {
       const longText = "A".repeat(3000);
       const result = cleanEmailContent(longText, undefined, 1000);
-      expect(result.length).toBeLessThanOrEqual(1000 + 3); // +3 for "..."
+      // +3 for "..."
+      expect(result.length).toBeLessThanOrEqual(1000 + 3);
     });
 
     it("should prefer htmlBody with proper stripping over plain text body", () => {
@@ -180,7 +184,8 @@ describe("EmailContentCleaner", () => {
     it("should use smaller maxLength per message", () => {
       const longText = "A".repeat(2000);
       const result = cleanEmailForThread(longText, undefined, 500);
-      expect(result.length).toBeLessThanOrEqual(503); // +3 for "..."
+      // +3 for "..."
+      expect(result.length).toBeLessThanOrEqual(503);
     });
 
     it("should default to 500 maxLength", () => {

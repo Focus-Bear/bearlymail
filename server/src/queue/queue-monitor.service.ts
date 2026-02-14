@@ -144,7 +144,8 @@ export class QueueMonitorService implements OnModuleInit {
     try {
       const queueNames = [
         "fetch-user-emails",
-        "sync-emails", // Legacy
+        // Legacy
+        "sync-emails",
         "schedule-email-fetch-jobs",
         "sync-gmail",
         "scan-history",
@@ -251,7 +252,8 @@ export class QueueMonitorService implements OnModuleInit {
   async getQueueHealth(): Promise<QueueHealthMetrics> {
     const queueNames = [
       "fetch-user-emails",
-      "sync-emails", // Legacy
+      // Legacy
+      "sync-emails",
       "schedule-email-fetch-jobs",
       "sync-gmail",
       "scan-history",

@@ -141,10 +141,14 @@ describe("QueueMonitorService", () => {
 
       expect(stats).not.toBeNull();
       expect(stats?.count).toBe(10);
-      expect(stats?.avg).toBeCloseTo(55, 0); // Average of 10-100
-      expect(stats?.p50).toBe(60); // Median (index 5 of sorted array)
-      expect(stats?.p95).toBe(100); // 95th percentile (index 9)
-      expect(stats?.p99).toBe(100); // 99th percentile (index 9)
+      // Average of 10-100
+      expect(stats?.avg).toBeCloseTo(55, 0);
+      // Median (index 5 of sorted array)
+      expect(stats?.p50).toBe(60);
+      // 95th percentile (index 9)
+      expect(stats?.p95).toBe(100);
+      // 99th percentile (index 9)
+      expect(stats?.p99).toBe(100);
     });
 
     it("should return correct percentiles for odd number of samples", () => {
@@ -158,7 +162,8 @@ describe("QueueMonitorService", () => {
       const stats = service.getProcessingTimeStats("sync-emails");
 
       expect(stats?.count).toBe(11);
-      expect(stats?.p50).toBe(60); // Median of 11 items
+      // Median of 11 items
+      expect(stats?.p50).toBe(60);
     });
   });
 
@@ -219,8 +224,10 @@ describe("QueueMonitorService", () => {
       expect(fs.appendFileSync).toHaveBeenCalled();
       const logCall = (fs.appendFileSync as jest.Mock).mock.calls[0];
       const loggedData = JSON.parse(logCall[1].trim());
-      expect(loggedData.totalPending).toBe(110); // 11 queues * 10
-      expect(loggedData.totalActive).toBe(55); // 11 queues * 5
+      // 11 queues * 10 pending each
+      expect(loggedData.totalPending).toBe(110);
+      // 11 queues * 5 active each
+      expect(loggedData.totalActive).toBe(55);
     });
 
     it("should log warning when queue depth is high", async () => {
@@ -248,7 +255,8 @@ describe("QueueMonitorService", () => {
 
     it("should log warning when active jobs are high", async () => {
       // Use a reasonable high value for active jobs test
-      const highActiveCount = String(250); // Higher than typical limit
+      // Higher than typical limit
+      const highActiveCount = String(250);
       dataSource.query.mockResolvedValue([
         {
           pending: "0",
@@ -385,7 +393,8 @@ describe("QueueMonitorService", () => {
       expect(result).toHaveProperty("totalCompleted");
       expect(result).toHaveProperty("totalFailed");
       expect(result.queues).toHaveLength(11);
-      expect(result.totalPending).toBe(110); // 11 queues * 10
+      // 11 queues * 10 pending each
+      expect(result.totalPending).toBe(110);
     });
 
     it("should handle query errors for individual queues", async () => {
@@ -456,7 +465,8 @@ describe("QueueMonitorService", () => {
       await service.onModuleInit();
 
       // Fast-forward time to trigger interval
-      jest.advanceTimersByTime(61000); // 61 seconds
+      // 61 seconds
+      jest.advanceTimersByTime(61000);
 
       // Should have called collectMetrics multiple times (initial + interval)
       expect(dataSource.query).toHaveBeenCalled();

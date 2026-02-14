@@ -41,10 +41,6 @@ export class ContextAnalysisProcessor implements OnModuleInit {
     this.logger.log(
       `Registering context-analysis worker with concurrency: ${this.contextConcurrency}`,
     );
-    // eslint-disable-next-line no-console
-    console.log(
-      `[PROCESSOR] Registering context-analysis worker with concurrency: ${this.contextConcurrency}`,
-    );
     writeAnalysisLog(
       `===== Context Analysis Worker Registered ===== (concurrency: ${this.contextConcurrency})`,
       "log",
@@ -68,10 +64,6 @@ export class ContextAnalysisProcessor implements OnModuleInit {
         this.logger.log(
           `[Worker ${workerId}] Job received for user ${userId}${analysisId ? ` with analysis ID ${analysisId}` : ""}`,
         );
-        // eslint-disable-next-line no-console
-        console.log(
-          `[PROCESSOR] [Worker ${workerId}] Job received for user ${userId}${analysisId ? ` with analysis ID ${analysisId}` : ""}`,
-        );
         writeAnalysisLog(
           `[Worker ${workerId}] Job received for user ${userId}${analysisId ? ` with analysis ID ${analysisId}` : ""}`,
           "log",
@@ -80,10 +72,6 @@ export class ContextAnalysisProcessor implements OnModuleInit {
         try {
           this.logger.log(
             `[Worker ${workerId}] Starting context analysis for user ${userId}${analysisId ? ` with analysis ID ${analysisId}` : ""}`,
-          );
-          // eslint-disable-next-line no-console
-          console.log(
-            `[PROCESSOR] [Worker ${workerId}] Starting context analysis for user ${userId}${analysisId ? ` with analysis ID ${analysisId}` : ""}`,
           );
           writeAnalysisLog(
             `[Worker ${workerId}] Starting context analysis for user ${userId}${analysisId ? ` with analysis ID ${analysisId}` : ""}`,
@@ -101,10 +89,6 @@ export class ContextAnalysisProcessor implements OnModuleInit {
           this.logger.log(
             `[Worker ${workerId}] Enqueued batch jobs for context analysis for user ${userId}. Analysis will complete when all batches finish.`,
           );
-          // eslint-disable-next-line no-console
-          console.log(
-            `[PROCESSOR] [Worker ${workerId}] Enqueued batch jobs for context analysis for user ${userId}`,
-          );
           writeAnalysisLog(
             `[Worker ${workerId}] Enqueued batch jobs for context analysis for user ${userId}`,
             "log",
@@ -119,15 +103,6 @@ export class ContextAnalysisProcessor implements OnModuleInit {
             errorStack || error,
           );
           tracker.finish(error as Error);
-          // eslint-disable-next-line no-console
-          console.error(
-            `[PROCESSOR] [Worker ${workerId}] Failed context analysis for user ${userId}: ${errorMessage}`,
-          );
-          // eslint-disable-next-line no-console
-          console.error(
-            `[PROCESSOR] [Worker ${workerId}] Error stack:`,
-            errorStack || "No stack trace",
-          );
           writeAnalysisLog(
             `[Worker ${workerId}] Failed context analysis for user ${userId}: ${errorMessage}`,
             "error",
@@ -138,11 +113,6 @@ export class ContextAnalysisProcessor implements OnModuleInit {
           );
           this.logger.error(
             `[Worker ${workerId}] Error details: ${JSON.stringify(error, Object.getOwnPropertyNames(error))}`,
-          );
-          // eslint-disable-next-line no-console
-          console.error(
-            `[PROCESSOR] [Worker ${workerId}] Error details:`,
-            JSON.stringify(error, Object.getOwnPropertyNames(error)),
           );
           writeAnalysisLog(
             `[Worker ${workerId}] Error details: ${JSON.stringify(error, Object.getOwnPropertyNames(error))}`,
@@ -156,8 +126,6 @@ export class ContextAnalysisProcessor implements OnModuleInit {
     );
 
     this.logger.log("Context analysis worker registered successfully");
-    // eslint-disable-next-line no-console
-    console.log("[PROCESSOR] Context analysis worker registered successfully");
     writeAnalysisLog("Context analysis worker registered successfully", "log");
   }
 }

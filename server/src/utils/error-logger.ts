@@ -207,12 +207,12 @@ export function setupGlobalErrorHandlers(source?: string): void {
 
       // Log but don't crash - let the app handle reconnections
       // Check if reason is an Error with a message property
-      const reasonMessage =
-        reason instanceof Error
-          ? reason.message
-          : typeof reason === "object" && reason !== null && "message" in reason
-            ? String((reason as { message: unknown }).message)
-            : null;
+      let reasonMessage: string | null = null;
+      if (reason instanceof Error) {
+        reasonMessage = reason.message;
+      } else if (typeof reason === "object" && reason !== null && "message" in reason) {
+        reasonMessage = String((reason as { message: unknown }).message);
+      }
       if (reasonMessage && reasonMessage.includes("Connection terminated")) {
         console.warn(
           "Database connection error detected, will retry automatically",

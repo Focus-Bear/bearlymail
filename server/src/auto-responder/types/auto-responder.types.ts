@@ -26,11 +26,14 @@ export interface AutoResponderConfig {
 
   // Q&A settings
   qaContextEnabled: boolean;
-  qaMinConfidence: number; // 0-1, minimum confidence to include answer
+  // 0-1, minimum confidence to include answer
+  qaMinConfidence: number;
 
   // Rate limiting
-  maxAutoResponsesPerSender: number; // Default: 1 per thread
-  cooldownPeriodDays: number; // Don't auto-respond to same sender within X days
+  // Default: 1 per thread
+  maxAutoResponsesPerSender: number;
+  // Don't auto-respond to same sender within X days
+  cooldownPeriodDays: number;
 }
 
 export interface EmailClassification {
@@ -40,7 +43,8 @@ export interface EmailClassification {
   isReply: boolean;
   isOutOfOffice: boolean;
   isBounce: boolean;
-  personalizationScore: number; // 0-1
+  // 0-1
+  personalizationScore: number;
   urgencyLevel: "low" | "medium" | "high";
   reasons: string[];
 }
@@ -52,11 +56,16 @@ export interface CategoryReplyTime {
 }
 
 export interface QueueStats {
-  actionCount: number; // Emails marked for action
-  triageCount: number; // Emails pending triage
-  avgResponseTime: string; // Human-readable (e.g., "~4 days")
-  urgentResponseTime: string; // For high-priority template
-  categoryReplyTimes?: CategoryReplyTime[]; // Category-specific reply times from actual data
+  // Emails marked for action
+  actionCount: number;
+  // Emails pending triage
+  triageCount: number;
+  // Human-readable (e.g., "~4 days")
+  avgResponseTime: string;
+  // For high-priority template
+  urgentResponseTime: string;
+  // Category-specific reply times from actual data
+  categoryReplyTimes?: CategoryReplyTime[];
 }
 
 export interface QASearchResult {

@@ -803,9 +803,9 @@ export class EmailsController {
 
     let modes: ValidMode[] = ["triage", "action"];
     if (modesParam) {
-      const requestedModes = modesParam.split(",").map((m) => m.trim());
-      modes = requestedModes.filter((m): m is ValidMode =>
-        validModes.includes(m as ValidMode),
+      const requestedModes = modesParam.split(",").map((mode) => mode.trim());
+      modes = requestedModes.filter((mode): mode is ValidMode =>
+        validModes.includes(mode as ValidMode),
       );
     }
 

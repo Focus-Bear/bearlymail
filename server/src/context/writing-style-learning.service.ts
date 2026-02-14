@@ -141,9 +141,11 @@ export class WritingStyleLearningService {
         let snippet = body.substring(0, MAX_EMAIL_LENGTH);
 
         // Clean up the snippet - remove excessive whitespace, HTML artifacts
+        // Remove HTML tags
+        // Normalize whitespace
         snippet = snippet
-          .replace(/<[^>]+>/g, "") // Remove HTML tags
-          .replace(/\s+/g, " ") // Normalize whitespace
+          .replace(/<[^>]+>/g, "")
+          .replace(/\s+/g, " ")
           .trim();
 
         if (snippet.length < MIN_EMAIL_LENGTH) {

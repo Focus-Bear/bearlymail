@@ -15,7 +15,6 @@ import { EmailsService } from "../emails/emails.service";
 import { calculateBusinessDays } from "../utils/business-days.util";
 import PgBoss = require("pg-boss");
 import { EncryptionHelper } from "../encryption/encryption.helper";
-import { LLM_OP_FOLLOW_UP_DRAFT_REVIEW } from "../llm/llm-operations";
 
 @Injectable()
 export class FollowUpsService {
@@ -358,7 +357,6 @@ Clean up the draft to match the user's tone and writing style. Keep it concise (
         },
         undefined,
         userId,
-        LLM_OP_FOLLOW_UP_DRAFT_REVIEW,
       );
 
       return reviewedDraft.trim();
@@ -474,9 +472,11 @@ Clean up the draft to match the user's tone and writing style. Keep it concise (
         followUp.generationStatus === "generating"
       ) {
         continue;
-      } // Update status to pending
+      }
+      // Update status to pending
       followUp.generationStatus = "pending";
-      await this.followUpRepository.save(followUp); // Queue background job
+      // Queue background job
+      await this.followUpRepository.save(followUp);
       await this.boss.send(
         "generate-follow-up-draft",
         {

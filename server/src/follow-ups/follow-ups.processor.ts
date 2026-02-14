@@ -299,8 +299,6 @@ export class FollowUpsProcessor implements OnModuleInit {
                 recipient,
                 subject,
                 draft,
-                undefined, // No attachments
-                draft, // Pass draft as htmlBody so HTML tags are rendered
               );
               break;
               // Success, exit retry loop

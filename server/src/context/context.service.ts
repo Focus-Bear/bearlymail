@@ -562,10 +562,6 @@ export class ContextService {
     this.logger.log(
       `[CONTEXT-ANALYSIS] ===== Starting deep email analysis for user ${userId}${analysisId ? ` with analysis ID ${analysisId}` : ""} =====`,
     );
-    // eslint-disable-next-line no-console
-    console.log(
-      `[CONTEXT-SERVICE] ===== Starting deep email analysis for user ${userId}${analysisId ? ` with analysis ID ${analysisId}` : ""} =====`,
-    );
     writeAnalysisLog(
       `===== Starting deep email analysis for user ${userId}${analysisId ? ` with analysis ID ${analysisId}` : ""} =====`,
       "log",
@@ -672,7 +668,8 @@ export class ContextService {
       );
       analysisRecord.progress = 0;
       analysisRecord.total = 100;
-      analysisRecord.analyzedCount = 0; // Ensure analyzedCount starts at 0
+      // Ensure analyzedCount starts at 0
+      analysisRecord.analyzedCount = 0;
       await this.contextAnalysisRepository.save(analysisRecord);
 
       // Also reset user.scanProgress to 0 to prevent fallback to old progress
@@ -845,10 +842,14 @@ export class ContextService {
         threadsReadButNotReplied: 0,
         vipContactsEvaluated: 0,
         // CRITICAL: Clear these to start fresh
-        batchResults: {}, // Clear old batch results
-        batchJobIds: {}, // Clear old job ID mappings
-        batchPayloadsForRetry: {}, // Clear old retry payloads
-        totalBatches: 0, // Will be set once all batches are enqueued
+        // Clear old batch results
+        batchResults: {},
+        // Clear old job ID mappings
+        batchJobIds: {},
+        // Clear old retry payloads
+        batchPayloadsForRetry: {},
+        // Will be set once all batches are enqueued
+        totalBatches: 0,
       };
 
       this.logger.log(
@@ -923,8 +924,10 @@ export class ContextService {
 
       // Step 2: Fetch threads progressively in batches of 30, start analysis jobs as batches are ready
       // This avoids waiting for all 400 threads to be fetched before starting analysis
-      const FETCH_BATCH_SIZE = 30; // Fetch 30 threads at a time
-      const ANALYSIS_BATCH_SIZE = 10; // Process 10 threads per analysis batch
+      // Fetch 30 threads at a time
+      const FETCH_BATCH_SIZE = 30;
+      // Process 10 threads per analysis batch
+      const ANALYSIS_BATCH_SIZE = 10;
 
       this.logger.log(
         `[CONTEXT-ANALYSIS] Fetching threads progressively (${FETCH_BATCH_SIZE} at a time) and starting analysis jobs as ready...`,
@@ -1064,7 +1067,8 @@ export class ContextService {
                     (firstSent.getTime() - firstReceived.getTime()) /
                     (1000 * 60 * 60);
                   if (replyTimeHours >= 0) {
-                    quickestReply = replyTimeHours * 60; // Convert to minutes
+                    // Convert to minutes
+                    quickestReply = replyTimeHours * 60;
                   }
                 }
               }
@@ -1150,9 +1154,10 @@ export class ContextService {
                   userEmail: userEmail || undefined,
                   currentContextForPrompt,
                   analysisRecordId: analysisRecord.id,
+                  // Estimate (will be refined to actual count in stats)
                   totalBatches: Math.ceil(
                     threadIds.length / ANALYSIS_BATCH_SIZE,
-                  ), // Estimate (will be refined to actual count in stats)
+                  ),
                   after: twelveDaysAgo.toISOString(),
                   before: fiveDaysAgo.toISOString(),
                 },
@@ -1509,9 +1514,10 @@ export class ContextService {
             priority: getJobPriority("finalize-context-analysis", false),
             singletonKey: `finalize-context-analysis-${analysisRecord.id}`,
             singletonMinutes: 60,
+            // Start after 60 seconds to give batches time to process
             startAfter: new Date(
               Date.now() + CONTEXT_ANALYSIS.BATCH_TIMEOUT_MS,
-            ), // Start after 60 seconds to give batches time to process
+            ),
           },
         );
 
@@ -1899,9 +1905,6 @@ export class ContextService {
     // Check DB state
     const completedBatchesInDb = Object.keys(batchResults).length;
     const failedBatchesInDb = failedBatches.length;
-    const batchesWithJobIdsInDb = Object.keys(batchJobIds).filter(
-      (k) => batchJobIds[parseInt(k, 10)] !== null,
-    ).length;
     const remainingBatchesInDb =
       totalBatches - completedBatchesInDb - failedBatchesInDb;
 
@@ -1924,26 +1927,7 @@ export class ContextService {
     // Calculate missing jobs
     const missingJobs = Math.max(0, remainingBatchesInDb - queuedJobsInPgBoss);
 
-    // Log the comparison
-    console.log(
-      `\n[PROGRESS-CHECK] =========================================\n` +
-        `Analysis: ${analysis.id} (User: ${userId})\n` +
-        `\n📊 DB State:\n` +
-        `  • Total batches: ${totalBatches}\n` +
-        `  • Completed in DB: ${completedBatchesInDb}\n` +
-        `  • Failed in DB: ${failedBatchesInDb}\n` +
-        `  • Remaining in DB: ${remainingBatchesInDb}\n` +
-        `  • Batches with job IDs: ${batchesWithJobIdsInDb}\n` +
-        `\n📦 PgBoss State:\n` +
-        `  • Queued jobs (pending + active): ${queuedJobsInPgBoss}\n` +
-        `\n🔍 Difference:\n` +
-        `  • Expected remaining: ${remainingBatchesInDb}\n` +
-        `  • Actually queued: ${queuedJobsInPgBoss}\n` +
-        `  • Missing jobs: ${missingJobs}\n` +
-        `=========================================\n`,
-    );
-
-    // Also log using logger for file logging
+    // Log using logger for file logging
     this.logger.log(
       `[PROGRESS-CHECK] Analysis ${analysis.id} (user ${userId}): ` +
         `DB: ${completedBatchesInDb}/${totalBatches} completed, ` +
@@ -2132,7 +2116,8 @@ export class ContextService {
         `[BATCH-CHECK] totalBatches is ${totalBatches} - batches not enqueued yet`,
         "warn",
       );
-      return false; // Cannot be complete if no batches were enqueued
+      // Cannot be complete if no batches were enqueued
+      return false;
     }
 
     // Check if all batches are complete (either succeeded or failed)
@@ -2218,7 +2203,8 @@ export class ContextService {
     // Check job statuses in PgBoss for stuck/failed jobs if we have job IDs
     if (Object.keys(batchJobIds).length > 0) {
       for (const [batchIndexStr, jobId] of Object.entries(batchJobIds)) {
-        if (!jobId) continue; // Skip null job IDs
+        // Skip null job IDs
+        if (!jobId) continue;
 
         const batchIndex = parseInt(batchIndexStr, 10);
         // Check if this batch has a result
@@ -2449,7 +2435,8 @@ export class ContextService {
             commonPhrases: string[];
             emailExamples?: string[];
           } | null;
-          threadIds?: string[]; // Thread IDs for source linking
+          // Thread IDs for source linking
+          threadIds?: string[];
           error?: string;
           completedAt?: string;
           failedAt?: string;
@@ -2525,13 +2512,16 @@ export class ContextService {
       threadCount: number;
     }> = Array.from(vipContactsFromPayloads.values())
       .filter(
-        (v) => v.starCount >= 3 || v.quickReplyCount >= 2 || v.threadCount >= 3,
+        (vip) =>
+          vip.starCount >= 3 ||
+          vip.quickReplyCount >= 2 ||
+          vip.threadCount >= 3,
       )
-      .map((v) => ({
-        emailKey: v.emailKey,
-        from: v.from,
-        fromName: v.fromName,
-        threadCount: v.threadCount,
+      .map((vip) => ({
+        emailKey: vip.emailKey,
+        from: vip.from,
+        fromName: vip.fromName,
+        threadCount: vip.threadCount,
       }));
 
     // Use computed VIP contacts if the passed array is empty
@@ -2604,10 +2594,11 @@ export class ContextService {
           batchResult.writingStyle.emailExamples &&
           batchResult.writingStyle.emailExamples.length > 0
         ) {
+          // Limit to 3 examples total
           combinedWritingStyle.emailExamples = [
             ...(combinedWritingStyle.emailExamples || []),
             ...batchResult.writingStyle.emailExamples,
-          ].slice(0, 3); // Limit to 3 examples total
+          ].slice(0, 3);
         }
       }
     }
@@ -3008,7 +2999,8 @@ export class ContextService {
         let priority: number | undefined;
 
         const keyStr = String(item.key || "");
-        const valueStr = trimmedValue; // Use already-trimmed value
+        // Use already-trimmed value
+        const valueStr = trimmedValue;
         const keyUpper = keyStr.toUpperCase();
         const keyLower = keyStr.toLowerCase();
         const valueLower = valueStr.toLowerCase();

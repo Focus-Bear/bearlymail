@@ -481,7 +481,8 @@ export class ContextEmailDataService {
 
           // Stop when we have enough threads
           if (allSentThreadIds.length >= limit) break;
-          if (sentPageCount >= maxPages) break; // Max 10 pages
+          // Max 10 pages
+          if (sentPageCount >= maxPages) break;
         } while (sentNextPageToken && allSentThreadIds.length < limit);
       } catch (error) {
         // Log detailed error info for Gmail API errors
@@ -581,7 +582,8 @@ export class ContextEmailDataService {
     const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
     const threadsInRange: ThreadData[] = [];
-    const BATCH_SIZE = 50; // Fetch 50 threads at a time
+    // Fetch 50 threads at a time
+    const BATCH_SIZE = 50;
 
     for (let i = 0; i < threadIds.length; i += BATCH_SIZE) {
       const batch = threadIds.slice(i, i + BATCH_SIZE);
@@ -1049,7 +1051,8 @@ export class ContextEmailDataService {
     );
 
     // Search sent emails using the provider's searchEmails method
-    const messages = await provider.searchEmails(userId, sentQuery, limit * 2); // Fetch more to account for filtering
+    // Fetch more to account for filtering
+    const messages = await provider.searchEmails(userId, sentQuery, limit * 2);
 
     this.logger.log(
       `[CONTEXT-ANALYSIS] ${providerType} returned ${messages.length} sent messages`,
@@ -1168,7 +1171,8 @@ export class ContextEmailDataService {
 
       // Stop when we have enough threads
       if (allSentThreadIds.length >= limit) break;
-      if (sentPageCount >= 10) break; // Max 10 pages
+      // Max 10 pages
+      if (sentPageCount >= 10) break;
     } while (sentNextPageToken && allSentThreadIds.length < limit);
 
     // Limit to requested number of sent threads

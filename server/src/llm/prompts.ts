@@ -66,8 +66,6 @@ export function loadPrompts(): Map<string, PromptConfig> {
   for (const possiblePath of possiblePaths) {
     if (fs.existsSync(possiblePath)) {
       promptsDir = possiblePath;
-      // eslint-disable-next-line no-console
-      console.log(`Found prompts directory at: ${promptsDir}`);
       break;
     }
   }
@@ -95,8 +93,6 @@ export function loadPrompts(): Map<string, PromptConfig> {
         prompt: content,
         systemPrompt: "",
       });
-      // eslint-disable-next-line no-console
-      console.log("Loaded extract_action_items prompt");
     } else {
       console.warn(
         `extract-action-items.md not found at ${extractActionItemsPath}`,
@@ -146,8 +142,8 @@ export function loadPrompts(): Map<string, PromptConfig> {
     );
     if (fs.existsSync(searchRelevancePath)) {
       const content = fs.readFileSync(searchRelevancePath, "utf-8");
-      promptsCache.set("search-relevance-explanation", {
-        id: "search-relevance-explanation",
+      promptsCache.set("search_relevance_explanation", {
+        id: "search_relevance_explanation",
         prompt: content,
         systemPrompt: "",
       });
@@ -379,6 +375,20 @@ export function loadPrompts(): Map<string, PromptConfig> {
       const content = fs.readFileSync(generateCategoriesFromOtherPath, "utf-8");
       promptsCache.set("generate_categories_from_other", {
         id: "generate_categories_from_other",
+        prompt: content,
+        systemPrompt: "",
+      });
+    }
+
+    // Load summarize-email-batch.md
+    const summarizeEmailBatchPath = path.join(
+      promptsDir,
+      "summarize-email-batch.md",
+    );
+    if (fs.existsSync(summarizeEmailBatchPath)) {
+      const content = fs.readFileSync(summarizeEmailBatchPath, "utf-8");
+      promptsCache.set("summarize_email_batch", {
+        id: "summarize_email_batch",
         prompt: content,
         systemPrompt: "",
       });

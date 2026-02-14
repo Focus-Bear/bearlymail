@@ -75,8 +75,10 @@ describe("ResourceMonitorService", () => {
     ]);
 
     mockLoadavg.mockReturnValue([1.5, 2.0, 1.8]);
-    mockTotalmem.mockReturnValue(8 * 1024 * 1024 * 1024); // 8GB
-    mockFreemem.mockReturnValue(4 * 1024 * 1024 * 1024); // 4GB
+    // 8GB
+    mockTotalmem.mockReturnValue(8 * 1024 * 1024 * 1024);
+    // 4GB
+    mockFreemem.mockReturnValue(4 * 1024 * 1024 * 1024);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -120,10 +122,13 @@ describe("ResourceMonitorService", () => {
           model: "Intel",
           speed: 2400,
           times: {
-            user: 2000, // Increased
+            // Increased
+            user: 2000,
             nice: 0,
-            sys: 1000, // Increased
-            idle: 4000, // Less idle
+            // Increased
+            sys: 1000,
+            // Less idle
+            idle: 4000,
             irq: 0,
           },
         },
@@ -131,10 +136,13 @@ describe("ResourceMonitorService", () => {
           model: "Intel",
           speed: 2400,
           times: {
-            user: 3000, // Increased
+            // Increased
+            user: 3000,
             nice: 0,
-            sys: 2000, // Increased
-            idle: 8000, // Less idle
+            // Increased
+            sys: 2000,
+            // Less idle
+            idle: 8000,
             irq: 0,
           },
         },
@@ -307,8 +315,10 @@ describe("ResourceMonitorService", () => {
       ]);
 
       // Mock high memory usage (90% used)
-      mockTotalmem.mockReturnValue(100 * 1024 * 1024); // 100MB
-      mockFreemem.mockReturnValue(10 * 1024 * 1024); // 10MB (90% used)
+      // 100MB
+      mockTotalmem.mockReturnValue(100 * 1024 * 1024);
+      // 10MB (90% used)
+      mockFreemem.mockReturnValue(10 * 1024 * 1024);
 
       (service as any).calculateCpuUsage();
 
@@ -447,7 +457,8 @@ describe("ResourceMonitorService", () => {
       await service.onModuleInit();
 
       // Fast-forward time to trigger interval
-      jest.advanceTimersByTime(61000); // 61 seconds
+      // 61 seconds
+      jest.advanceTimersByTime(61000);
 
       // Should have called collectMetrics multiple times
       expect(fs.appendFileSync).toHaveBeenCalled();

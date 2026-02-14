@@ -15,8 +15,9 @@ import { EmailsService } from "../emails/emails.service";
 import PgBoss = require("pg-boss");
 
 jest.mock("../encryption/encryption.helper", () => ({
+  // Simple mock - returns as-is
   EncryptionHelper: {
-    decrypt: jest.fn((str: string) => str), // Simple mock - returns as-is
+    decrypt: jest.fn((str: string) => str),
   },
 }));
 
@@ -246,10 +247,11 @@ describe("FollowUpsService", () => {
       expect(followUpRepository.find).toHaveBeenCalledWith({
         where: expect.arrayContaining([
           { userId: "user-1", status: FollowUpStatus.FOLLOW_UP_DUE },
+          // LessThanOrEqual
           {
             userId: "user-1",
             status: FollowUpStatus.AWAITING_REPLY,
-            followUpDueAt: expect.any(Object), // LessThanOrEqual
+            followUpDueAt: expect.any(Object),
           },
         ]),
         order: { followUpDueAt: "ASC" },
@@ -315,10 +317,11 @@ describe("FollowUpsService", () => {
 
   describe("generateFollowUpDrafts", () => {
     it("should generate draft for due follow-ups", async () => {
+      // Past due
       const dueFollowUp = {
         ...mockFollowUp,
         status: FollowUpStatus.AWAITING_REPLY,
-        followUpDueAt: new Date(Date.now() - 1000), // Past due
+        followUpDueAt: new Date(Date.now() - 1000),
         lastTheirReply: "Their reply",
         lastTheirReplyFrom: "them@example.com",
       };
@@ -488,11 +491,12 @@ describe("FollowUpsService", () => {
     it("should calculate business days since last user message", async () => {
       usersService.findOne.mockResolvedValue(mockUser as any);
 
+      // 5 days ago
       const userEmail = {
         ...mockEmail,
         from: "user@example.com",
         labels: ["SENT"],
-        receivedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+        receivedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
         getPriorityScore: jest.fn().mockReturnValue(50),
       } as any;
 
@@ -503,7 +507,8 @@ describe("FollowUpsService", () => {
         "thread-1",
       );
 
-      expect(result).toBeGreaterThanOrEqual(3); // At least 3 business days (5 calendar days)
+      // At least 3 business days (5 calendar days)
+      expect(result).toBeGreaterThanOrEqual(3);
       expect(result).toBeLessThanOrEqual(5);
     });
 

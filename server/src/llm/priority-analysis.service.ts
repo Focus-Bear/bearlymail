@@ -443,7 +443,7 @@ Body: ${cleanedBody}`;
     }
     if (userContext?.goals?.length) {
       contextParts.push(
-        `Goals: ${userContext.goals.map((g) => g.value).join(", ")}`,
+        `Goals: ${userContext.goals.map((goal) => goal.value).join(", ")}`,
       );
     }
     if (userContext?.workingOn?.length) {
@@ -453,7 +453,7 @@ Body: ${cleanedBody}`;
     }
     if (userContext?.dontCare?.length) {
       contextParts.push(
-        `Don't care: ${userContext.dontCare.map((d) => d.value).join(", ")}`,
+        `Don't care: ${userContext.dontCare.map((item) => item.value).join(", ")}`,
       );
     }
 

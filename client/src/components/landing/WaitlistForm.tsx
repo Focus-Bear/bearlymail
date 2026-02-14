@@ -55,7 +55,7 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
       captureEvent('wait-list-submitted');
       onSuccess();
     } catch (err: any) {
-      setError(err.response?.data?.message || t('landing.waitlist.submitError'));
+      setError(err.response?.data?.message || 'Failed to submit. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -93,7 +93,7 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
 
       <form onSubmit={handleSubmit} style={{ width: '100%', boxSizing: 'border-box' }}>
         <WaitlistFormField
-          label={t('landing.waitlist.firstNameLabel')}
+          label="First Name"
           type="text"
           value={firstName}
           onChange={setFirstName}
@@ -101,7 +101,7 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
           required
         />
         <WaitlistFormField
-          label={t('landing.waitlist.emailLabel')}
+          label="Email"
           type="email"
           value={email}
           onChange={setEmail}
@@ -109,7 +109,7 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
           required
         />
                 <WaitlistFormField
-                  label={t('landing.waitlist.reasonLabel')}
+                  label="Why do you want to use BearlyMail?"
                   type="textarea"
                   value={reason}
                   onChange={setReason}
@@ -169,7 +169,7 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
                                 )}
 
                 <button type="submit" disabled={submitting} style={buttonStyle}>
-          {submitting ? t('common.submitting') : t('landing.waitlist.joinButton')}
+          {submitting ? 'Submitting...' : 'Join Waitlist'}
         </button>
       </form>
     </WaitlistFormContainer>

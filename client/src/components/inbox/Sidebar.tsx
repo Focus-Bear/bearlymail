@@ -7,6 +7,7 @@ import { SidebarHeader } from 'components/inbox/sidebar/SidebarHeader';
 import { SidebarFooter } from 'components/inbox/sidebar/SidebarFooter';
 import { SettingsSubNavGroup as SettingsSubNavGroupComponent } from 'components/inbox/sidebar/SettingsSubNavGroup';
 import { SettingsSubNavItem as SettingsSubNavItemComponent } from 'components/inbox/sidebar/SettingsSubNavItem';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 interface SidebarItemProps {
   label: string;
@@ -15,11 +16,12 @@ interface SidebarItemProps {
   active?: boolean;
   onClick?: () => void;
   isCollapsed?: boolean;
+  onNavigationClick?: () => void;
 }
 
-const SidebarItem: React.FC<SidebarItemProps> = ({ label, path, icon, active, onClick, isCollapsed }) => {
+const SidebarItem: React.FC<SidebarItemProps> = ({ label, path, icon, active, onClick, isCollapsed, onNavigationClick }) => {
   const navigate = useNavigate();
-  
+
   const handleClick = () => {
     if (path === '/inbox') captureEvent('sidebar_inbox_clicked');
     else if (path === '/search') captureEvent('sidebar_search_clicked');
@@ -31,6 +33,10 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ label, path, icon, active, on
       onClick();
     } else {
       navigate(path);
+    }
+    // Call navigation click handler (for closing mobile menu)
+    if (onNavigationClick) {
+      onNavigationClick();
     }
   };
 
@@ -199,98 +205,150 @@ interface SidebarProps {
   logout: () => void;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
+  isMobileMenuOpen?: boolean;
+  onCloseMobileMenu?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ user, logout, isCollapsed = false, onToggleCollapse }) => {
+export const Sidebar: React.FC<SidebarProps> = ({
+  user,
+  logout,
+  isCollapsed = false,
+  onToggleCollapse,
+  isMobileMenuOpen = false,
+  onCloseMobileMenu
+}) => {
   const { t } = useTranslation();
   const location = useLocation();
   const isSettingsPage = location.pathname === '/settings';
+  const { isMobile } = useResponsiveBreakpoints();
+
+  // On mobile, clicking a navigation item should close the mobile menu
+  const handleNavigationClick = () => {
+    if (isMobile && onCloseMobileMenu) {
+      onCloseMobileMenu();
+    }
+  };
 
   return (
-    <div style={{
-      width: isCollapsed ? '80px' : '280px',
-      backgroundColor: theme.colors.background.paper,
-      borderRight: `1px solid ${theme.colors.border.light}`,
-      padding: isCollapsed ? theme.spacing.sm : `${theme.spacing.sm} ${theme.spacing.md}`,
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100vh',
-      transition: 'width 0.3s ease, padding 0.3s ease',
-    }}>
-      <SidebarHeader isCollapsed={isCollapsed} />
-      
-      <nav style={{ 
-        flex: 1, 
-        overflowY: 'auto', 
-        overflowX: 'hidden',
-        paddingRight: theme.spacing.xs,
-      }}>
-        <SidebarItem 
-          label={t('inbox.title')} 
-          path="/inbox" 
-          icon="📥"
-          active={location.pathname === '/inbox'}
-          isCollapsed={isCollapsed}
+    <>
+      {/* Mobile overlay backdrop */}
+      {isMobile && isMobileMenuOpen && (
+        <div
+          onClick={onCloseMobileMenu}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 999,
+          }}
         />
-        <SidebarItem 
-          label="Search" 
-          path="/search" 
-          icon="🔍"
-          active={location.pathname === '/search'}
-          isCollapsed={isCollapsed}
-        />
-        <SidebarItem 
-          label={t('contacts.title')} 
-          path="/contacts" 
-          icon="👤"
-          active={location.pathname === '/contacts'}
-          isCollapsed={isCollapsed}
-        />
-        <SidebarItem 
-          label={t('stats.title')} 
-          path="/stats" 
-          icon="📊"
-          active={location.pathname === '/stats'}
-          isCollapsed={isCollapsed}
-        />
-        {!isCollapsed && (
-          <div style={{ marginTop: theme.spacing.xs }}>
-            <SidebarItem 
-              label={t('settings.title')} 
-              path="/settings" 
-              icon="⚙️"
-              active={isSettingsPage}
-              isCollapsed={isCollapsed}
-            />
-            {isSettingsPage && <SettingsSubNav hash={location.hash} />}
-          </div>
-        )}
-        {isCollapsed && (
-          <div style={{ marginTop: theme.spacing.xs }}>
-            <SidebarItem 
-              label={t('settings.title')} 
-              path="/settings" 
-              icon="⚙️"
-              active={isSettingsPage}
-              isCollapsed={isCollapsed}
-            />
-          </div>
-        )}
-        {user?.isAdmin && (
-          <div style={{ marginTop: theme.spacing.sm }}>
-            <SidebarItem 
-              label={t('admin.title')} 
-              path="/admin" 
-              icon="🛠️"
-              active={location.pathname === '/admin'}
-              isCollapsed={isCollapsed}
-            />
-          </div>
-        )}
-      </nav>
+      )}
 
-      <SidebarFooter userEmail={user?.email} onLogout={logout} isCollapsed={isCollapsed} onToggleCollapse={onToggleCollapse} />
-    </div>
+      {/* Sidebar */}
+      <div style={{
+        width: isCollapsed ? '80px' : '280px',
+        backgroundColor: theme.colors.background.paper,
+        borderRight: `1px solid ${theme.colors.border.light}`,
+        padding: isCollapsed ? theme.spacing.sm : `${theme.spacing.sm} ${theme.spacing.md}`,
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        transition: 'width 0.3s ease, padding 0.3s ease, transform 0.3s ease',
+        // Mobile-specific styles
+        ...(isMobile && {
+          position: 'fixed',
+          left: 0,
+          top: 0,
+          zIndex: 1000,
+          transform: isMobileMenuOpen ? 'translateX(0)' : 'translateX(-100%)',
+          width: '280px',
+        }),
+      }}>
+        <SidebarHeader isCollapsed={isCollapsed} />
+
+        <nav style={{
+          flex: 1,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          paddingRight: theme.spacing.xs,
+        }}>
+          <SidebarItem
+            label={t('inbox.title')}
+            path="/inbox"
+            icon="📥"
+            active={location.pathname === '/inbox'}
+            isCollapsed={isCollapsed}
+            onNavigationClick={handleNavigationClick}
+          />
+          <SidebarItem
+            label="Search"
+            path="/search"
+            icon="🔍"
+            active={location.pathname === '/search'}
+            isCollapsed={isCollapsed}
+            onNavigationClick={handleNavigationClick}
+          />
+          <SidebarItem
+            label={t('contacts.title')}
+            path="/contacts"
+            icon="👤"
+            active={location.pathname === '/contacts'}
+            isCollapsed={isCollapsed}
+            onNavigationClick={handleNavigationClick}
+          />
+          <SidebarItem
+            label={t('stats.title')}
+            path="/stats"
+            icon="📊"
+            active={location.pathname === '/stats'}
+            isCollapsed={isCollapsed}
+            onNavigationClick={handleNavigationClick}
+          />
+          {!isCollapsed && (
+            <div style={{ marginTop: theme.spacing.xs }}>
+              <SidebarItem
+                label={t('settings.title')}
+                path="/settings"
+                icon="⚙️"
+                active={isSettingsPage}
+                isCollapsed={isCollapsed}
+                onNavigationClick={handleNavigationClick}
+              />
+              {isSettingsPage && <SettingsSubNav hash={location.hash} />}
+            </div>
+          )}
+          {isCollapsed && (
+            <div style={{ marginTop: theme.spacing.xs }}>
+              <SidebarItem
+                label={t('settings.title')}
+                path="/settings"
+                icon="⚙️"
+                active={isSettingsPage}
+                isCollapsed={isCollapsed}
+                onNavigationClick={handleNavigationClick}
+              />
+            </div>
+          )}
+          {user?.isAdmin && (
+            <div style={{ marginTop: theme.spacing.sm }}>
+              <SidebarItem
+                label={t('admin.title')}
+                path="/admin"
+                icon="🛠️"
+                active={location.pathname === '/admin'}
+                isCollapsed={isCollapsed}
+                onNavigationClick={handleNavigationClick}
+              />
+            </div>
+          )}
+        </nav>
+
+        <SidebarFooter userEmail={user?.email} onLogout={logout} isCollapsed={isCollapsed} onToggleCollapse={onToggleCollapse} />
+      </div>
+    </>
   );
 };
 

@@ -74,12 +74,21 @@ const Inbox: React.FC = () => {
   } = useInboxState();
 
   const [sidebarManuallyExpanded, setSidebarManuallyExpanded] = useState(false);
-  
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   const handleToggleSidebarCollapse = useCallback(() => {
     if (splitView.selectedEmailId) {
       setSidebarManuallyExpanded(prev => !prev);
     }
   }, [splitView.selectedEmailId]);
+
+  const handleToggleMobileMenu = useCallback(() => {
+    setIsMobileMenuOpen(prev => !prev);
+  }, []);
+
+  const handleCloseMobileMenu = useCallback(() => {
+    setIsMobileMenuOpen(false);
+  }, []);
 
   const isSidebarCollapsed = !!splitView.selectedEmailId && !sidebarManuallyExpanded;
 
@@ -98,7 +107,14 @@ const Inbox: React.FC = () => {
       backgroundColor: theme.colors.background.default,
       overflow: 'hidden',
     }}>
-      <Sidebar user={user} logout={logout} isCollapsed={isSidebarCollapsed} onToggleCollapse={handleToggleSidebarCollapse} />
+      <Sidebar
+        user={user}
+        logout={logout}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={handleToggleSidebarCollapse}
+        isMobileMenuOpen={isMobileMenuOpen}
+        onCloseMobileMenu={handleCloseMobileMenu}
+      />
 
       {/* Main Content */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
@@ -140,6 +156,7 @@ const Inbox: React.FC = () => {
           actionTabRef={actionTabRef}
           followUpTabRef={followUpTabRef}
           tabCounts={tabCounts}
+          onToggleMobileMenu={handleToggleMobileMenu}
         />
 
         <InboxFilters onFilterChange={fetchEmails} />

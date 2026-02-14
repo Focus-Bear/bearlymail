@@ -2,6 +2,9 @@ import React, { RefObject } from 'react';
 import { theme } from 'theme/theme';
 import { InboxMode } from 'types/email';
 import { InboxHeaderTabs, InboxHeaderActions } from 'components/inbox/header';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+
+const HAMBURGER_ICON = '\u2630'; // ☰
 
 interface TabCounts {
   triage: number;
@@ -18,6 +21,7 @@ interface InboxHeaderProps {
   actionTabRef: RefObject<HTMLButtonElement | null>;
   followUpTabRef: RefObject<HTMLButtonElement | null>;
   tabCounts?: TabCounts | null;
+  onToggleMobileMenu?: () => void;
 }
 
 export const InboxHeader: React.FC<InboxHeaderProps> = ({
@@ -29,7 +33,10 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
   actionTabRef,
   followUpTabRef,
   tabCounts,
+  onToggleMobileMenu,
 }) => {
+  const { isMobile } = useResponsiveBreakpoints();
+
   return (
     <header
       style={{
@@ -48,6 +55,26 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
           alignItems: 'center',
         }}
       >
+        {/* Hamburger menu button for mobile */}
+        {isMobile && (
+          <button
+            onClick={onToggleMobileMenu}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: theme.spacing.xs,
+              display: 'flex',
+              alignItems: 'center',
+              fontSize: '24px',
+              color: theme.colors.text.primary,
+            }}
+            aria-label="Toggle navigation menu"
+          >
+            {HAMBURGER_ICON}
+          </button>
+        )}
+
         <InboxHeaderTabs
           mode={mode}
           setMode={setMode}
@@ -66,7 +93,4 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
     </header>
   );
 };
-
-
-
 

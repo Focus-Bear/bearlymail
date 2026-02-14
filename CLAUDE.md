@@ -1,6 +1,6 @@
 # CLAUDE.md - BearlyMail Codebase Documentation
 
-**Last Updated**: 2026-02-12
+**Last Updated**: 2026-02-14
 **Maintained By**: BearlyMail Team
 **Purpose**: Comprehensive reference for AI assistants working with the BearlyMail codebase
 
@@ -1495,3 +1495,45 @@ WHERE "userId" = 'user-uuid' AND "lastUserOperationAt" IS NOT NULL;
 4. Check rate limits in provider dashboard
 5. System automatically falls back between Gemini ↔ OpenAI on failure
 6. Users can provide their own `openAiApiKey` in profile as fallback
+
+#### Merge Conflicts
+
+**Symptom**: PR branch is behind `main` and has conflicting changes, or CI fails due to outdated code.
+
+**Context**: When working on feature branches, `main` may receive new commits that conflict with your changes. AI assistants running in CI (shallow clones) need extra steps to resolve conflicts.
+
+**Resolution steps**:
+
+1. **Unshallow the clone** (CI runners use shallow clones by default):
+   ```bash
+   git fetch --unshallow origin || true
+   ```
+
+2. **Fetch the latest main**:
+   ```bash
+   git fetch origin main
+   ```
+
+3. **Merge main into your feature branch** (do NOT rebase — AI assistants cannot perform interactive rebases):
+   ```bash
+   git merge origin/main
+   ```
+
+4. **Resolve conflicts** if any:
+   - Read the conflicting files to understand both sides
+   - Edit files to resolve conflicts (remove `<<<<<<<`, `=======`, `>>>>>>>` markers)
+   - Ensure the merged result includes changes from both sides where appropriate
+   - Stage resolved files: `git add <resolved-files>`
+   - Complete the merge: `git commit --no-edit`
+
+5. **Push the resolved merge**:
+   ```bash
+   git push origin HEAD
+   ```
+
+**Important notes**:
+- Always prefer `git merge` over `git rebase` when resolving conflicts in CI/automated contexts
+- Never force push (`--force`) unless explicitly asked by the user
+- After resolving conflicts, run linting and tests to ensure the merge didn't break anything
+- If the clone is too shallow to merge, `git fetch --unshallow` is required first
+- When conflict resolution is too complex (e.g., large refactors on both sides), explain the situation and let the human developer handle it

@@ -13,6 +13,7 @@ import { AnalysisProgressModal } from 'components/settings/AnalysisProgressModal
 import { AutoResponderSection } from 'components/settings/auto-responder';
 import { SchedulingPreferencesSection } from 'components/settings/SchedulingPreferencesSection';
 import { SetPasswordSection } from 'components/settings/SetPasswordSection';
+import { EmailSignatureSection } from 'components/settings/EmailSignatureSection';
 import { useSettingsData } from 'hooks/useSettingsData';
 import { useAutoResponder } from 'hooks/useAutoResponder';
 
@@ -167,6 +168,13 @@ const Settings: React.FC = () => {
         />
 
         <SchedulingPreferencesSection />
+
+        <EmailSignatureSection
+          emailSignature={settingsData.emailSignature}
+          onSignatureChange={settingsData.setEmailSignature}
+          onSave={settingsData.handleSaveEmailSignature}
+          saving={settingsData.savingSignature}
+        />
 
         <IntegrationsSection
           openAiApiKey={settingsData.openAiApiKey}

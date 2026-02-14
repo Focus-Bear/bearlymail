@@ -25,6 +25,8 @@ export function useSettingsData() {
   const [zohoAccounts, setZohoAccounts] = useState<any[]>([]);
   const [displayName, setDisplayName] = useState<string | undefined>(undefined);
   const [jobTitle, setJobTitle] = useState<string | undefined>(undefined);
+  const [emailSignature, setEmailSignature] = useState<string>('');
+  const [savingSignature, setSavingSignature] = useState(false);
 
   const contextManagement = useContextManagement();
   const toneRules = useToneRules();
@@ -87,9 +89,10 @@ export function useSettingsData() {
       // eslint-disable-next-line id-denylist -- 'data' is a standard property in Axios responses
       const zohoAccountsData = zohoAccountsRes.data;
       const hasTokens = !!(user.googleCalendarAccessToken || user.googleCalendarRefreshToken);
-      
+
       setDisplayName(user.displayName);
       setJobTitle(user.jobTitle);
+      setEmailSignature(user.emailSignature || 'Sent from BearlyMail (anti inbox overwhelm system)');
       
       if (hasTokens && googleAccountsData.length === 0) {
         setGoogleAccounts([{
@@ -136,6 +139,18 @@ export function useSettingsData() {
     }
   }, []);
 
+  const handleSaveEmailSignature = useCallback(async () => {
+    try {
+      setSavingSignature(true);
+      await axios.put(`${API_URL}/users/me`, { emailSignature });
+    } catch (error) {
+      console.error('Error saving email signature:', error);
+      alert('Failed to save email signature. Please try again.');
+    } finally {
+      setSavingSignature(false);
+    }
+  }, [emailSignature]);
+
   useEffect(() => {
     const hash = window.location.hash;
     captureEvent('settings_viewed', {
@@ -164,9 +179,13 @@ export function useSettingsData() {
     setZohoAccounts,
     displayName,
     jobTitle,
+    emailSignature,
+    savingSignature,
     // Handlers
     fetchData,
     updateProfile,
+    setEmailSignature,
+    handleSaveEmailSignature,
     handleAnalyzeContext: analysisProgress.startAnalysis,
     handleAddContext: contextManagement.addContext,
     handleUpdateContext: contextManagement.updateContext,

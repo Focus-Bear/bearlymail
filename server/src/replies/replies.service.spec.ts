@@ -512,8 +512,9 @@ describe("RepliesService", () => {
         email.threadId,
         email.from,
         "Re: Test Subject",
-        "Reply body",
+        "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
         undefined,
+        "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
       );
     });
 
@@ -539,8 +540,9 @@ describe("RepliesService", () => {
         email.threadId,
         email.from,
         "Re: Test Subject",
-        "Reply body",
+        "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
         undefined,
+        "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
       );
     });
   });

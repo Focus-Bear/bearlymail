@@ -1369,6 +1369,14 @@
       "jobTitlePlaceholder": "ej., Ingeniero de Software, Gerente de Producto",
       "notSet": "No establecido"
     },
+    "emailSignature": {
+      "title": "Firma de Correo Electrónico",
+      "description": "Personaliza la firma que aparece al final de tus correos electrónicos.",
+      "label": "Firma",
+      "placeholder": "Enviado desde BearlyMail (sistema anti abrumación de bandeja de entrada)",
+      "save": "Guardar Firma",
+      "saving": "Guardando..."
+    },
     "contextSections": {
       "notImportant": "Lo que no considero importante",
       "other": "Otro contexto",

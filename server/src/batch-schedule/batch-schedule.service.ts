@@ -6,9 +6,6 @@ import { PRIORITY_SCORES } from "../constants/priority-constants";
 import { DAYS, MINUTES } from "../constants/time-constants";
 import { DateTime } from "luxon";
 
-// Weekday constants
-const DAYS_IN_WEEK = 7;
-
 @Injectable()
 export class BatchScheduleService {
   private readonly logger = new Logger(BatchScheduleService.name);
@@ -104,7 +101,7 @@ export class BatchScheduleService {
     );
 
     // Luxon uses 1-7 (Mon-Sun), convert to 0-6 (Sun-Sat)
-    const currentDay = now.weekday % DAYS_IN_WEEK;
+    const currentDay = now.weekday % DAYS.WEEK;
     const currentTime = now.toFormat("HH:mm");
 
     // Parse delivery times and sort them

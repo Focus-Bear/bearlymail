@@ -1319,6 +1319,14 @@
       "jobTitlePlaceholder": "e.g., Software Engineer, Product Manager",
       "notSet": "Not set"
     },
+    "emailSignature": {
+      "title": "Email Signature",
+      "description": "Customize the signature that appears at the bottom of your emails.",
+      "label": "Signature",
+      "placeholder": "Sent from BearlyMail (anti inbox overwhelm system)",
+      "save": "Save Signature",
+      "saving": "Saving..."
+    },
     "nav": {
       "emailDelivery": "Email Delivery",
       "googleAccounts": "Google Accounts",

@@ -268,6 +268,19 @@ ${closing}`;
     return this.createReplyRule(userId, rule);
   }
 
+  /**
+   * Appends email signature to the body if user has one configured
+   */
+  private appendSignature(body: string, signature: string | null): string {
+    if (!signature) {
+      // Use default signature if none is set
+      signature = "Sent from BearlyMail (anti inbox overwhelm system)";
+    }
+
+    // Append signature with proper spacing (two line breaks before signature)
+    return `${body}\n\n${signature}`;
+  }
+
   async sendReply(
     userId: string,
     emailId: string,
@@ -291,6 +304,9 @@ ${closing}`;
       throw new Error("User not found");
     }
     const userEmail = EncryptionHelper.decrypt(user.email);
+
+    // Append signature to the body
+    const bodyWithSignature = this.appendSignature(body, user.emailSignature);
 
     // Determine reply subject (add Re: if not already present)
     let replySubject = email.subject;
@@ -360,8 +376,9 @@ ${closing}`;
       email.threadId,
       replyToAddress,
       replySubject,
-      body,
+      bodyWithSignature,
       allAttachments.length > 0 ? allAttachments : undefined,
+      bodyWithSignature,
     );
 
     // Store the sent reply in the database so it appears in the thread view
@@ -379,7 +396,7 @@ ${closing}`;
         from: userEmail,
         fromName: user.name || undefined,
         subject: replySubject,
-        body,
+        body: bodyWithSignature,
         isRead: true,
         receivedAt: new Date(),
         labels: ["SENT"],

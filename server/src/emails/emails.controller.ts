@@ -23,6 +23,7 @@ import { EmailProviderManager } from "./email-provider-manager.service";
 import { ContactsService } from "../contacts/contacts.service";
 import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
 import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
+import { UsersService } from "../users/users.service";
 import PgBoss = require("pg-boss");
 import { Email } from "../database/entities/email.entity";
 
@@ -106,6 +107,7 @@ export class EmailsController {
     private readonly contactsService: ContactsService,
     private readonly blockedSendersService: BlockedSendersService,
     private readonly batchScheduleService: BatchScheduleService,
+    private readonly usersService: UsersService,
     @Inject("PG_BOSS") private readonly boss: PgBoss,
     @InjectRepository(EmailThread)
     private readonly emailThreadRepository: Repository<EmailThread>,
@@ -668,12 +670,17 @@ export class EmailsController {
         content: file.buffer,
       })) || undefined;
 
+    // Get user to append signature
+    const user = await this.usersService.findOne(userId);
+    const signature = user?.emailSignature || "Sent from BearlyMail (anti inbox overwhelm system)";
+    const bodyWithSignature = `${body.body}\n\n${signature}`;
+
     // Send the email
     const result = await provider.sendEmail(
       userId,
       body.to,
       body.subject,
-      body.body,
+      bodyWithSignature,
       body.cc,
       body.bcc,
       attachments,

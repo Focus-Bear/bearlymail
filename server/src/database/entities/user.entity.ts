@@ -221,6 +221,13 @@ export class User {
   })
   timezone: string;
 
+  @Column({
+    nullable: true,
+    transformer: encryptedColumnTransformer,
+    comment: "User's email signature (encrypted). Default: 'Sent from BearlyMail (anti inbox overwhelm system)'",
+  })
+  emailSignature: string;
+
   @CreateDateColumn()
   createdAt: Date;
 

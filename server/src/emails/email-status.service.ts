@@ -93,26 +93,24 @@ export class EmailStatusService {
       .andWhere("thread.isArchived = false")
       // Must have high urgency score (90+)
       .andWhere("thread.urgencyScore >= 90")
-      // AND must have very high priority (90+) - calculated from thread priorityExplanation
-      .andWhere(
-        `COALESCE(
-          (SELECT (jsonb_extract_path_text(thread."priorityExplanation"::jsonb, 'score')::int))
-          , 0
-        ) >= ${PRIORITY_SCORES.VERY_HIGH}`,
-      )
+      // AND must have very high priority (95+) - using denormalized priorityScore field
+      // Note: priorityExplanation is encrypted and cannot be parsed in SQL
+      .andWhere("COALESCE(thread.priorityScore, 0) >= :veryHighPriority", {
+        veryHighPriority: PRIORITY_SCORES.VERY_HIGH,
+      })
       .select([
         "email.subject",
         "email.from",
         "email.fromName",
         "thread.urgencyScore",
+        "thread.priorityScore",
       ])
       .limit(QUERY_LIMITS.MAX_RESULTS_DEFAULT)
       .getMany();
 
     const urgentEmails = urgentBatchedEmails.map((email) => {
-      // Calculate priority score from thread (if available)
-      // For now, use urgencyScore as a proxy
-      const priorityScore = (email as any).urgencyScore || 0;
+      // Use the denormalized priorityScore from thread
+      const priorityScore = (email as any).priorityScore;
 
       return {
         subject: email.subject || "No subject",

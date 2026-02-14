@@ -23,7 +23,7 @@ export const EmailSignatureSection: React.FC<EmailSignatureSectionProps> = ({
   return (
     <div id="email-signature" style={{ marginBottom: theme.spacing.xl }}>
       <h2 style={{
-        fontSize: theme.fontSize.xl,
+        fontSize: theme.typography.fontSize.xl,
         fontWeight: '600',
         marginBottom: theme.spacing.md,
         color: theme.colors.text.primary,
@@ -34,7 +34,7 @@ export const EmailSignatureSection: React.FC<EmailSignatureSectionProps> = ({
       <p style={{
         marginBottom: theme.spacing.md,
         color: theme.colors.text.secondary,
-        fontSize: theme.fontSize.md,
+        fontSize: theme.typography.fontSize.md,
       }}>
         {t('settings.emailSignature.description')}
       </p>
@@ -45,7 +45,7 @@ export const EmailSignatureSection: React.FC<EmailSignatureSectionProps> = ({
           style={{
             display: 'block',
             marginBottom: theme.spacing.sm,
-            fontSize: theme.fontSize.md,
+            fontSize: theme.typography.fontSize.md,
             fontWeight: '500',
             color: theme.colors.text.primary,
           }}
@@ -61,7 +61,7 @@ export const EmailSignatureSection: React.FC<EmailSignatureSectionProps> = ({
             width: '100%',
             minHeight: '80px',
             padding: theme.spacing.md,
-            fontSize: theme.fontSize.md,
+            fontSize: theme.typography.fontSize.md,
             border: `1px solid ${theme.colors.border}`,
             borderRadius: theme.borderRadius.md,
             fontFamily: 'inherit',
@@ -75,7 +75,7 @@ export const EmailSignatureSection: React.FC<EmailSignatureSectionProps> = ({
         disabled={saving}
         style={{
           padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-          fontSize: theme.fontSize.md,
+          fontSize: theme.typography.fontSize.md,
           fontWeight: '500',
           color: theme.colors.white,
           backgroundColor: theme.colors.primary,

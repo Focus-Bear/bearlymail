@@ -61,4 +61,5 @@ jobs:
           # or https://code.claude.com/docs/en/cli-reference for available options
           claude_args: |
             --model opusplan
+            --append-system-prompt "NEVER commit to main. Create branches named claude/issue-${{ github.event.issue.number }}. Write unit tests. Open PRs referencing the issue."
             --allowedTools "Edit,MultiEdit,Write,Read,Bash(git:*),Bash(gh:*),Bash(npm:*),Bash(yarn:*)"

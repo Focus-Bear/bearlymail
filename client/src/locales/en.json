@@ -244,6 +244,7 @@
     },
     "filters": {
       "toggle": "Toggle filters",
+      "icon": "Filter icon",
       "clear": "Clear all filters",
       "account": "Email Account",
       "category": "Category",

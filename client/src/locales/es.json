@@ -813,6 +813,7 @@
     },
     "filters": {
       "toggle": "Alternar filtros",
+      "icon": "Icono de filtro",
       "clear": "Borrar todos los filtros",
       "account": "Cuenta de correo",
       "category": "Categoría",

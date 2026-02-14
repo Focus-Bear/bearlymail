@@ -1000,7 +1000,32 @@
     "selectSlotFirst": "Please select a time slot first",
     "confirmed": "Booking Confirmed!",
     "invitationSent": "A calendar invitation has been sent to {{email}}",
-    "timezoneNote": "Times are shown in {{timezone}}"
+    "timezoneNote": "Times are shown in {{timezone}}",
+    "reschedule": {
+      "title": "Reschedule Booking",
+      "subtitle": "Select a new time for your meeting",
+      "currentTime": "Current booking time:",
+      "confirmReschedule": "Confirm Reschedule",
+      "rescheduling": "Rescheduling...",
+      "success": "Booking Rescheduled!",
+      "successMessage": "Your meeting has been rescheduled. An updated calendar invitation has been sent.",
+      "failedToLoad": "Failed to load booking details. The link may be invalid or expired.",
+      "failedToReschedule": "Failed to reschedule the booking. Please try again.",
+      "alreadyCancelled": "This booking has been cancelled and cannot be rescheduled."
+    },
+    "cancel": {
+      "title": "Cancel Booking",
+      "subtitle": "Are you sure you want to cancel this meeting?",
+      "bookingDetails": "Booking details:",
+      "confirmMessage": "This action cannot be undone. The calendar event will be removed for all attendees.",
+      "confirmCancel": "Cancel Booking",
+      "cancelling": "Cancelling...",
+      "success": "Booking Cancelled",
+      "successMessage": "Your meeting has been cancelled. The calendar event has been removed.",
+      "failedToLoad": "Failed to load booking details. The link may be invalid or expired.",
+      "failedToCancel": "Failed to cancel the booking. Please try again.",
+      "alreadyCancelled": "This booking has already been cancelled."
+    }
   },
   "consent": {
     "welcome": "Welcome to BearlyMail",

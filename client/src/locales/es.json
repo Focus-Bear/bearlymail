@@ -140,7 +140,32 @@
     "selectSlotFirst": "Por favor seleccione primero un horario",
     "subtitle": "Seleccione un horario disponible para programar una reunión",
     "title": "Reserve una reunión",
-    "yourDetails": "Tus detalles"
+    "yourDetails": "Tus detalles",
+    "reschedule": {
+      "title": "Reprogramar reserva",
+      "subtitle": "Seleccione un nuevo horario para su reunión",
+      "currentTime": "Horario actual de la reserva:",
+      "confirmReschedule": "Confirmar reprogramación",
+      "rescheduling": "Reprogramando...",
+      "success": "¡Reserva reprogramada!",
+      "successMessage": "Su reunión ha sido reprogramada. Se ha enviado una invitación de calendario actualizada.",
+      "failedToLoad": "No se pudieron cargar los detalles de la reserva. El enlace puede ser inválido o estar expirado.",
+      "failedToReschedule": "No se pudo reprogramar la reserva. Por favor inténtelo de nuevo.",
+      "alreadyCancelled": "Esta reserva ha sido cancelada y no se puede reprogramar."
+    },
+    "cancel": {
+      "title": "Cancelar reserva",
+      "subtitle": "¿Está seguro de que desea cancelar esta reunión?",
+      "bookingDetails": "Detalles de la reserva:",
+      "confirmMessage": "Esta acción no se puede deshacer. El evento del calendario se eliminará para todos los asistentes.",
+      "confirmCancel": "Cancelar reserva",
+      "cancelling": "Cancelando...",
+      "success": "Reserva cancelada",
+      "successMessage": "Su reunión ha sido cancelada. El evento del calendario ha sido eliminado.",
+      "failedToLoad": "No se pudieron cargar los detalles de la reserva. El enlace puede ser inválido o estar expirado.",
+      "failedToCancel": "No se pudo cancelar la reserva. Por favor inténtelo de nuevo.",
+      "alreadyCancelled": "Esta reserva ya ha sido cancelada."
+    }
   },
   "calendar": {
     "attendeeEmail": "Correo electrónico del asistente",

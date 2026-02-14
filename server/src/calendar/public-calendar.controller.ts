@@ -41,4 +41,29 @@ export class PublicCalendarController {
       body.guestName,
     );
   }
+
+  @Get("booking/:bookingToken")
+  async getBooking(@Param("bookingToken") bookingToken: string) {
+    return this.calendarService.getBookingByToken(bookingToken);
+  }
+
+  @Post("booking/:bookingToken/reschedule")
+  async rescheduleBooking(
+    @Param("bookingToken") bookingToken: string,
+    @Body() body: { newStartTime: string },
+  ) {
+    if (!body.newStartTime) {
+      throw new BadRequestException("New start time is required");
+    }
+
+    return this.calendarService.rescheduleBooking(
+      bookingToken,
+      body.newStartTime,
+    );
+  }
+
+  @Post("booking/:bookingToken/cancel")
+  async cancelBooking(@Param("bookingToken") bookingToken: string) {
+    return this.calendarService.cancelBooking(bookingToken);
+  }
 }

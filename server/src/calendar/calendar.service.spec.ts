@@ -1,9 +1,11 @@
 import { Test, TestingModule } from "@nestjs/testing";
+import { getRepositoryToken } from "@nestjs/typeorm";
 import { CalendarService } from "./calendar.service";
 import { UsersService } from "../users/users.service";
 import { LLMService } from "../llm/llm.service";
 import { EmailsService } from "../emails/emails.service";
 import { SchedulingPreferencesService } from "../scheduling-preferences/scheduling-preferences.service";
+import { CalendarBooking } from "../database/entities/calendar-booking.entity";
 import { google } from "googleapis";
 
 // Mock googleapis
@@ -26,6 +28,7 @@ describe("CalendarService", () => {
   let usersService: jest.Mocked<UsersService>;
   let llmService: jest.Mocked<LLMService>;
   let emailsService: jest.Mocked<EmailsService>;
+  let mockCalendarBookingRepository: any;
   let mockOAuth2Client: any;
   let mockCalendar: any;
 
@@ -56,7 +59,14 @@ describe("CalendarService", () => {
       events: {
         insert: jest.fn(),
         list: jest.fn(),
+        patch: jest.fn(),
+        delete: jest.fn(),
       },
+    };
+
+    mockCalendarBookingRepository = {
+      findOne: jest.fn(),
+      save: jest.fn(),
     };
 
     (google.auth as any).OAuth2 = jest
@@ -67,6 +77,10 @@ describe("CalendarService", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CalendarService,
+        {
+          provide: getRepositoryToken(CalendarBooking),
+          useValue: mockCalendarBookingRepository,
+        },
         {
           provide: UsersService,
           useValue: {
@@ -190,7 +204,7 @@ describe("CalendarService", () => {
   });
 
   describe("createEvent", () => {
-    it("should create a calendar event", async () => {
+    it("should create a calendar event with booking record", async () => {
       const mockEvent = {
         id: "event-1",
         summary: "Meeting with Guest",
@@ -213,15 +227,45 @@ describe("CalendarService", () => {
 
       expect(mockCalendar.events.insert).toHaveBeenCalledWith({
         calendarId: "primary",
-        requestBody: {
+        requestBody: expect.objectContaining({
           summary: "Meeting Title",
-          description: "Meeting description",
           start: { dateTime: "2024-01-15T10:00:00.000Z" },
           end: { dateTime: "2024-01-15T11:00:00.000Z" },
           attendees: [{ email: "guest@example.com" }],
-        },
+        }),
       });
+      expect(mockCalendarBookingRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: "user-1",
+          googleEventId: "event-1",
+          guestEmail: "guest@example.com",
+          guestName: "Guest Name",
+          durationMinutes: 60,
+          status: "active",
+        }),
+      );
       expect(result).toEqual(mockEvent);
+    });
+
+    it("should include reschedule and cancel links in description", async () => {
+      const mockEvent = { id: "event-1" };
+      usersService.findOne.mockResolvedValue(mockUser as any);
+      mockCalendar.events.insert.mockResolvedValue({ data: mockEvent });
+
+      await service.createEvent(
+        "user-1",
+        "2024-01-15T10:00:00Z",
+        60,
+        "guest@example.com",
+        "Guest",
+      );
+
+      const insertCall = mockCalendar.events.insert.mock.calls[0][0];
+      expect(insertCall.requestBody.description).toContain("Reschedule:");
+      expect(insertCall.requestBody.description).toContain("Cancel:");
+      expect(insertCall.requestBody.description).toContain("/booking/");
+      expect(insertCall.requestBody.description).toContain("/reschedule");
+      expect(insertCall.requestBody.description).toContain("/cancel");
     });
 
     it("should use default title when not provided", async () => {
@@ -751,6 +795,161 @@ describe("CalendarService", () => {
         const result = (service as any).toDayKey(date, tz);
         expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       });
+    });
+  });
+
+  describe("getBookingByToken", () => {
+    it("should return booking when found", async () => {
+      const mockBooking = {
+        id: "booking-1",
+        bookingToken: "test-token",
+        userId: "user-1",
+        status: "active",
+      };
+
+      mockCalendarBookingRepository.findOne.mockResolvedValue(mockBooking);
+
+      const result = await service.getBookingByToken("test-token");
+
+      expect(result).toEqual(mockBooking);
+      expect(mockCalendarBookingRepository.findOne).toHaveBeenCalledWith({
+        where: { bookingToken: "test-token" },
+      });
+    });
+
+    it("should throw error when booking not found", async () => {
+      mockCalendarBookingRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.getBookingByToken("invalid-token")).rejects.toThrow(
+        "Booking not found",
+      );
+    });
+  });
+
+  describe("rescheduleBooking", () => {
+    const mockBooking = {
+      id: "booking-1",
+      bookingToken: "test-token",
+      userId: "user-1",
+      googleEventId: "event-1",
+      durationMinutes: 30,
+      startTime: "2024-01-15T10:00:00.000Z",
+      endTime: "2024-01-15T10:30:00.000Z",
+      status: "active",
+    };
+
+    it("should reschedule a booking", async () => {
+      const mockEvent = { id: "event-1" };
+      mockCalendarBookingRepository.findOne.mockResolvedValue({
+        ...mockBooking,
+      });
+      usersService.findOne.mockResolvedValue(mockUser as any);
+      mockCalendar.events.patch.mockResolvedValue({ data: mockEvent });
+
+      const result = await service.rescheduleBooking(
+        "test-token",
+        "2024-01-16T14:00:00Z",
+      );
+
+      expect(mockCalendar.events.patch).toHaveBeenCalledWith({
+        calendarId: "primary",
+        eventId: "event-1",
+        requestBody: {
+          start: { dateTime: "2024-01-16T14:00:00.000Z" },
+          end: { dateTime: "2024-01-16T14:30:00.000Z" },
+        },
+      });
+      expect(mockCalendarBookingRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: "rescheduled",
+          startTime: "2024-01-16T14:00:00.000Z",
+        }),
+      );
+      expect(result).toEqual(mockEvent);
+    });
+
+    it("should throw error when booking is cancelled", async () => {
+      mockCalendarBookingRepository.findOne.mockResolvedValue({
+        ...mockBooking,
+        status: "cancelled",
+      });
+
+      await expect(
+        service.rescheduleBooking("test-token", "2024-01-16T14:00:00Z"),
+      ).rejects.toThrow("Cannot reschedule a cancelled booking");
+    });
+
+    it("should throw error when calendar not connected", async () => {
+      mockCalendarBookingRepository.findOne.mockResolvedValue({
+        ...mockBooking,
+      });
+      usersService.findOne.mockResolvedValue({
+        ...mockUser,
+        googleCalendarAccessToken: null,
+      } as any);
+
+      await expect(
+        service.rescheduleBooking("test-token", "2024-01-16T14:00:00Z"),
+      ).rejects.toThrow("Google Calendar not connected");
+    });
+  });
+
+  describe("cancelBooking", () => {
+    const mockBooking = {
+      id: "booking-1",
+      bookingToken: "test-token",
+      userId: "user-1",
+      googleEventId: "event-1",
+      status: "active",
+    };
+
+    it("should cancel a booking", async () => {
+      mockCalendarBookingRepository.findOne.mockResolvedValue({
+        ...mockBooking,
+      });
+      usersService.findOne.mockResolvedValue(mockUser as any);
+      mockCalendar.events.delete.mockResolvedValue({});
+
+      const result = await service.cancelBooking("test-token");
+
+      expect(mockCalendar.events.delete).toHaveBeenCalledWith({
+        calendarId: "primary",
+        eventId: "event-1",
+      });
+      expect(mockCalendarBookingRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: "cancelled",
+        }),
+      );
+      expect(result).toEqual({
+        success: true,
+        message: "Booking cancelled successfully",
+      });
+    });
+
+    it("should throw error when booking is already cancelled", async () => {
+      mockCalendarBookingRepository.findOne.mockResolvedValue({
+        ...mockBooking,
+        status: "cancelled",
+      });
+
+      await expect(service.cancelBooking("test-token")).rejects.toThrow(
+        "Booking is already cancelled",
+      );
+    });
+
+    it("should throw error when calendar not connected", async () => {
+      mockCalendarBookingRepository.findOne.mockResolvedValue({
+        ...mockBooking,
+      });
+      usersService.findOne.mockResolvedValue({
+        ...mockUser,
+        googleCalendarAccessToken: null,
+      } as any);
+
+      await expect(service.cancelBooking("test-token")).rejects.toThrow(
+        "Google Calendar not connected",
+      );
     });
   });
 });

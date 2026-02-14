@@ -1,4 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
 import { google, calendar_v3 } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
 import { UsersService } from "../users/users.service";
@@ -11,6 +13,8 @@ import {
   SchedulingPreferencesService,
   SchedulingPreferenceData,
 } from "../scheduling-preferences/scheduling-preferences.service";
+import { CalendarBooking } from "../database/entities/calendar-booking.entity";
+import { randomBytes } from "crypto";
 
 const ICAL_DATE_MIN_LENGTH = 8;
 const ICAL_YEAR_END = 4;
@@ -23,6 +27,7 @@ const ICAL_HOUR_END = 11;
 const ICAL_MINUTE_START = 11;
 const ICAL_MINUTE_END = 13;
 const ICAL_DATE_WITH_HOURS_LENGTH = 10;
+const BOOKING_TOKEN_BYTES = 32;
 
 export interface TimeSlot {
   start: string;
@@ -50,6 +55,8 @@ export class CalendarService {
     private llmService: LLMService,
     private emailsService: EmailsService,
     private schedulingPreferencesService: SchedulingPreferencesService,
+    @InjectRepository(CalendarBooking)
+    private calendarBookingRepository: Repository<CalendarBooking>,
   ) {
     this.oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
@@ -331,21 +338,166 @@ export class CalendarService {
     const start = new Date(startTime);
     const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
 
+    // Generate booking token for reschedule/cancel links
+    const bookingToken = this.generateBookingToken();
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    const rescheduleUrl = `${frontendUrl}/booking/${bookingToken}/reschedule`;
+    const cancelUrl = `${frontendUrl}/booking/${bookingToken}/cancel`;
+
+    // Add reschedule/cancel links to description
+    const enhancedDescription = `${description || "Scheduled via BearlyMail"}
+
+---
+Manage this booking:
+• Reschedule: ${rescheduleUrl}
+• Cancel: ${cancelUrl}`;
+
     try {
       const event = await calendar.events.insert({
         calendarId: "primary",
         requestBody: {
           summary: title || `Meeting with ${guestName || guestEmail}`,
-          description: description || "Scheduled via ADHD Email Client",
+          description: enhancedDescription,
           start: { dateTime: start.toISOString() },
           end: { dateTime: end.toISOString() },
           attendees: [{ email: guestEmail }],
         },
       });
+
+      // Save booking record to database
+      if (event.data.id) {
+        await this.calendarBookingRepository.save({
+          userId,
+          bookingToken,
+          googleEventId: event.data.id,
+          guestEmail,
+          guestName: guestName || null,
+          startTime: start.toISOString(),
+          endTime: end.toISOString(),
+          durationMinutes,
+          title: title || null,
+          description: description || null,
+          status: "active",
+        });
+      }
+
       return event.data;
     } catch (error) {
       console.error("Error creating calendar event:", error);
       throw new Error("Failed to create calendar event");
+    }
+  }
+
+  private generateBookingToken(): string {
+    return randomBytes(BOOKING_TOKEN_BYTES).toString("hex");
+  }
+
+  async getBookingByToken(bookingToken: string): Promise<CalendarBooking> {
+    const booking = await this.calendarBookingRepository.findOne({
+      where: { bookingToken },
+    });
+
+    if (!booking) {
+      throw new Error("Booking not found");
+    }
+
+    return booking;
+  }
+
+  async rescheduleBooking(
+    bookingToken: string,
+    newStartTime: string,
+  ): Promise<calendar_v3.Schema$Event> {
+    const booking = await this.getBookingByToken(bookingToken);
+
+    if (booking.status === "cancelled") {
+      throw new Error("Cannot reschedule a cancelled booking");
+    }
+
+    const user = await this.usersService.findOne(booking.userId);
+    if (!user?.googleCalendarAccessToken) {
+      throw new Error("Google Calendar not connected");
+    }
+
+    this.oauth2Client.setCredentials({
+      access_token: user.googleCalendarAccessToken,
+      refresh_token: user.googleCalendarRefreshToken,
+    });
+
+    const calendar = google.calendar({
+      version: "v3",
+      auth: this.oauth2Client,
+    });
+
+    const newStart = new Date(newStartTime);
+    const newEnd = new Date(
+      newStart.getTime() + booking.durationMinutes * 60 * 1000,
+    );
+
+    try {
+      const event = await calendar.events.patch({
+        calendarId: "primary",
+        eventId: booking.googleEventId,
+        requestBody: {
+          start: { dateTime: newStart.toISOString() },
+          end: { dateTime: newEnd.toISOString() },
+        },
+      });
+
+      // Update booking record
+      booking.startTime = newStart.toISOString();
+      booking.endTime = newEnd.toISOString();
+      booking.status = "rescheduled";
+      await this.calendarBookingRepository.save(booking);
+
+      return event.data;
+    } catch (error) {
+      console.error("Error rescheduling calendar event:", error);
+      throw new Error("Failed to reschedule calendar event");
+    }
+  }
+
+  async cancelBooking(
+    bookingToken: string,
+  ): Promise<{ success: boolean; message: string }> {
+    const booking = await this.getBookingByToken(bookingToken);
+
+    if (booking.status === "cancelled") {
+      throw new Error("Booking is already cancelled");
+    }
+
+    const user = await this.usersService.findOne(booking.userId);
+    if (!user?.googleCalendarAccessToken) {
+      throw new Error("Google Calendar not connected");
+    }
+
+    this.oauth2Client.setCredentials({
+      access_token: user.googleCalendarAccessToken,
+      refresh_token: user.googleCalendarRefreshToken,
+    });
+
+    const calendar = google.calendar({
+      version: "v3",
+      auth: this.oauth2Client,
+    });
+
+    try {
+      await calendar.events.delete({
+        calendarId: "primary",
+        eventId: booking.googleEventId,
+      });
+
+      // Update booking status
+      booking.status = "cancelled";
+      await this.calendarBookingRepository.save(booking);
+
+      return {
+        success: true,
+        message: "Booking cancelled successfully",
+      };
+    } catch (error) {
+      console.error("Error cancelling calendar event:", error);
+      throw new Error("Failed to cancel calendar event");
     }
   }
 

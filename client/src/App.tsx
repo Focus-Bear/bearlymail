@@ -13,6 +13,8 @@ import FocusedInbox from 'pages/FocusedInbox';
 import EmailDetail from 'pages/EmailDetail';
 import Settings from 'pages/Settings';
 import BookingPage from 'pages/BookingPage';
+import BookingReschedulePage from 'pages/BookingReschedulePage';
+import BookingCancelPage from 'pages/BookingCancelPage';
 import AdminDashboard from 'pages/AdminDashboard';
 import PrivacyPolicy from 'pages/PrivacyPolicy';
 import TermsOfUse from 'pages/TermsOfUse';
@@ -258,6 +260,8 @@ function App() {
               }
             />
             <Route path="/book/:userId" element={<BookingPage />} />
+            <Route path="/booking/:token/reschedule" element={<BookingReschedulePage />} />
+            <Route path="/booking/:token/cancel" element={<BookingCancelPage />} />
             </Routes>
           </div>
         </Router>

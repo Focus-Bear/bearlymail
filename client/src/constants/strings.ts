@@ -41,6 +41,8 @@ export const DEBUG_TAB_STATS = 'stats' as const;
 
 // Booking form status
 export const BOOKING_STATUS_SUCCESS = 'success' as const;
+export const BOOKING_STATUS_SUBMITTING = 'submitting' as const;
+export const BOOKING_STATUS_CANCELLED = 'cancelled' as const;
 
 // Action types
 export const ACTION_TYPE_CUSTOM = 'Custom' as const;

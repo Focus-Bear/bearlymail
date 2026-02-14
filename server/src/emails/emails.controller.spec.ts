@@ -139,6 +139,7 @@ describe("EmailsController", () => {
         userId,
         false,
         "triage",
+        { accountIds: undefined, categories: undefined, minPriority: undefined },
       );
     });
 
@@ -155,6 +156,7 @@ describe("EmailsController", () => {
         userId,
         true,
         "action",
+        { accountIds: undefined, categories: undefined, minPriority: undefined },
       );
     });
 
@@ -170,6 +172,7 @@ describe("EmailsController", () => {
         userId,
         false,
         "triage",
+        { accountIds: undefined, categories: undefined, minPriority: undefined },
       );
     });
   });

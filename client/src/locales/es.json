@@ -787,6 +787,18 @@
       "reanalyseSuccess": "Se generaron {{count}} nuevas categorías. {{reclassifyCount}} correos en cola para reclasificación.",
       "reanalyseNoNewCategories": "No se pudieron generar nuevas categorías a partir de los correos en Otros"
     },
+    "filters": {
+      "toggle": "Alternar filtros",
+      "clear": "Borrar todos los filtros",
+      "account": "Cuenta de correo",
+      "category": "Categoría",
+      "priority": "Prioridad mínima",
+      "allAccounts": "Todas las cuentas",
+      "allCategories": "Todas las categorías",
+      "noAccounts": "No se encontraron cuentas",
+      "noCategories": "No hay categorías todavía",
+      "clearAll": "Borrar filtros"
+    },
     "checkUrgent": "Verificar urgentes",
     "checkingUrgent": "Verificando...",
     "clickToSetStars": "Haz clic para establecer {{count}} estrellas (o presiona {{count}})",

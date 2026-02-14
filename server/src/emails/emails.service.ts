@@ -221,12 +221,110 @@ export class EmailsService {
     }
   }
 
+  /**
+   * Get list of unique email categories for the user
+   * Returns categories for filtering inbox
+   */
+  async getCategories(userId: string): Promise<string[]> {
+    const categories = await this.emailThreadRepository.query(
+      `SELECT DISTINCT category FROM email_threads WHERE "userId" = $1 AND category IS NOT NULL`,
+      [userId],
+    );
+
+    const decryptedCategories = categories
+      .map((row: { category: string }) =>
+        row.category ? EncryptionHelper.decrypt(row.category) : null,
+      )
+      .filter((cat: string | null): cat is string => cat !== null && cat !== "")
+      .sort();
+
+    return decryptedCategories;
+  }
+
+  /**
+   * Get list of user's connected email accounts
+   * Returns account info for filtering inbox by account
+   */
+  async getConnectedAccounts(userId: string): Promise<
+    Array<{
+      id: string;
+      email: string;
+      provider: "gmail" | "office365" | "zoho";
+      isPrimary: boolean;
+      isActive: boolean;
+    }>
+  > {
+    const accounts: Array<{
+      id: string;
+      email: string;
+      provider: "gmail" | "office365" | "zoho";
+      isPrimary: boolean;
+      isActive: boolean;
+    }> = [];
+
+    // Get Gmail accounts
+    const googleAccounts = await this.emailRepository.query(
+      `SELECT id, email, "isPrimary", "isActive" FROM google_accounts WHERE "userId" = $1`,
+      [userId],
+    );
+    for (const acc of googleAccounts) {
+      accounts.push({
+        id: acc.id,
+        email: EncryptionHelper.decrypt(acc.email),
+        provider: "gmail",
+        isPrimary: acc.isPrimary,
+        isActive: acc.isActive,
+      });
+    }
+
+    // Get Office365 accounts
+    const office365Accounts = await this.emailRepository.query(
+      `SELECT id, email, "isPrimary", "isActive" FROM office365_accounts WHERE "userId" = $1`,
+      [userId],
+    );
+    for (const acc of office365Accounts) {
+      accounts.push({
+        id: acc.id,
+        email: EncryptionHelper.decrypt(acc.email),
+        provider: "office365",
+        isPrimary: acc.isPrimary,
+        isActive: acc.isActive,
+      });
+    }
+
+    // Get Zoho accounts
+    const zohoAccounts = await this.emailRepository.query(
+      `SELECT id, email, "isPrimary", "isActive" FROM zoho_accounts WHERE "userId" = $1`,
+      [userId],
+    );
+    for (const acc of zohoAccounts) {
+      accounts.push({
+        id: acc.id,
+        email: EncryptionHelper.decrypt(acc.email),
+        provider: "zoho",
+        isPrimary: acc.isPrimary,
+        isActive: acc.isActive,
+      });
+    }
+
+    // Sort by primary first, then by provider
+    return accounts.sort((a, b) => {
+      if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1;
+      return a.provider.localeCompare(b.provider);
+    });
+  }
+
   // eslint-disable-next-line max-lines-per-function, max-statements
   async getInbox(
     userId: string,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _includeBatched: boolean = false,
     mode: "triage" | "action" | "follow-up" = "triage",
+    filters?: {
+      accountIds?: string[];
+      categories?: string[];
+      minPriority?: number;
+    },
   ): Promise<Email[]> {
     const perf = new PerformanceTracker(
       `getInbox(${mode})`,
@@ -270,6 +368,37 @@ export class EmailsService {
         'AND thread."isArchived" = false AND thread."starCount" = 0';
     }
 
+    // Build additional filter conditions for accounts, categories, and priority
+    let additionalFilters = "";
+    const queryParams: string[] = [userId];
+    let paramIndex = 2;
+
+    // Account filter: match any of the specified account IDs
+    if (filters?.accountIds && filters.accountIds.length > 0) {
+      const accountPlaceholders = filters.accountIds
+        .map(() => `$${paramIndex++}`)
+        .join(", ");
+      additionalFilters += ` AND (e."googleAccountId" IN (${accountPlaceholders})
+        OR e."office365AccountId" IN (${accountPlaceholders})
+        OR e."zohoAccountId" IN (${accountPlaceholders}))`;
+      // Add account IDs three times (once for each provider type)
+      queryParams.push(...filters.accountIds, ...filters.accountIds, ...filters.accountIds);
+      paramIndex += filters.accountIds.length * 2; // We added them 3 times but already incremented once
+    }
+
+    // Category filter: match any of the specified categories
+    if (filters?.categories && filters.categories.length > 0) {
+      // Categories are encrypted, so we need to match against the decrypted value in a subquery
+      // For now, we'll filter in memory after decryption (simpler and more maintainable)
+      // TODO: Consider adding a category index for better performance
+    }
+
+    // Priority filter: minimum priority score
+    if (filters?.minPriority !== undefined) {
+      additionalFilters += ` AND COALESCE(thread."priorityScore", 0) >= $${paramIndex++}`;
+      queryParams.push(filters.minPriority.toString());
+    }
+
     // Single query: Get threads + full email data in one round-trip
     // Uses LATERAL JOIN to find best email per thread, then fetches all needed fields
     // Priority explanation is now thread-level, so get it from thread table
@@ -295,6 +424,9 @@ export class EmailsService {
         e."threadId",
         e."emailThreadId",
         e."messageId",
+        e."googleAccountId",
+        e."office365AccountId",
+        e."zohoAccountId",
         e."from",
         e."fromName",
         e."senderJobTitle",
@@ -353,6 +485,7 @@ export class EmailsService {
       LEFT JOIN proto_categories pc ON pc.id = thread."protoCategoryId"
             WHERE thread."userId" = $1
               ${threadFilter}
+              ${additionalFilters}
               AND (e."isBatched" = false OR e."batchReleaseAt" IS NULL OR e."batchReleaseAt" <= NOW())
               AND (thread."isSnoozed" = false OR thread."snoozeUntil" IS NULL OR thread."snoozeUntil" <= NOW())
       ORDER BY
@@ -360,7 +493,7 @@ export class EmailsService {
         thread."updatedAt" DESC,
         thread."threadId" ASC
       LIMIT ${mode === "action" ? QUERY_LIMITS.INBOX_PROCESS_TOTAL : QUERY_LIMITS.INBOX_TOTAL}`,
-      [userId],
+      queryParams,
     );
 
     endCombinedQuery();
@@ -465,6 +598,9 @@ export class EmailsService {
         threadId: row.threadId,
         emailThreadId: row.emailThreadId,
         messageId: row.messageId,
+        googleAccountId: row.googleAccountId,
+        office365AccountId: row.office365AccountId,
+        zohoAccountId: row.zohoAccountId,
         from: EncryptionHelper.decrypt(row.from as string | null),
         fromName: EncryptionHelper.decrypt(row.fromName as string | null),
         senderJobTitle: EncryptionHelper.decrypt(
@@ -584,6 +720,21 @@ export class EmailsService {
       this.logger.debug(
         `Filtered ${blockedEmailIds.length} emails from blocked senders`,
       );
+    }
+
+    // STEP 7.4b: Apply category filter if specified
+    if (filters?.categories && filters.categories.length > 0) {
+      const beforeCategoryFilter = filteredEmails.length;
+      filteredEmails = filteredEmails.filter((e) => {
+        const emailCategory = (e as any).category; // Category is already decrypted
+        return filters.categories.includes(emailCategory);
+      });
+      const removedCount = beforeCategoryFilter - filteredEmails.length;
+      if (removedCount > 0) {
+        this.logger.debug(
+          `Category filter: Removed ${removedCount} emails not matching categories: ${filters.categories.join(", ")}`,
+        );
+      }
     }
 
     // STEP 7.5a: For action mode, exclude threads where the user sent the last email

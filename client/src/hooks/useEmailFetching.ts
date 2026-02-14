@@ -5,15 +5,18 @@ import { HTTP_UNAUTHORIZED } from 'constants/numbers';
 import { ERROR_NETWORK, ERROR_CODE_ERR_NETWORK, ERROR_GMAIL_REQUIRED, ERROR_GMAIL } from 'constants/strings';
 import { InboxMode } from 'types/email';
 import { API_URL } from 'config/api';
+import { InboxFilter } from 'hooks/useInboxFilters';
 import { AppDispatch } from 'store/store';
 import { setEmails, setDecrypting, setLoading, setRefreshing, setLoadingModeSwitch, setFetchError } from 'store/slices/emailSlice';
 
 interface UseEmailFetchingProps {
   mode: InboxMode;
+  filters?: InboxFilter;
 }
 
 export function useEmailFetching({
   mode,
+  filters,
 }: UseEmailFetchingProps) {
   const dispatch = useDispatch<AppDispatch>();
 
@@ -27,7 +30,23 @@ export function useEmailFetching({
     dispatch(setDecrypting(true));
     dispatch(setFetchError(null));
     try {
-      const response = await axios.get(`${API_URL}/emails/inbox?mode=${mode}`);
+      // Build query string with filters
+      const params = new URLSearchParams();
+      params.append('mode', mode);
+
+      if (filters) {
+        if (filters.accountIds && filters.accountIds.length > 0) {
+          params.append('accounts', filters.accountIds.join(','));
+        }
+        if (filters.categories && filters.categories.length > 0) {
+          params.append('categories', filters.categories.join(','));
+        }
+        if (filters.minPriority !== null && filters.minPriority !== undefined) {
+          params.append('minPriority', filters.minPriority.toString());
+        }
+      }
+
+      const response = await axios.get(`${API_URL}/emails/inbox?${params.toString()}`);
       console.log(`Fetched ${response.data.length} emails for mode: ${mode}`);
       const emails = response.data;
       
@@ -58,7 +77,7 @@ export function useEmailFetching({
       dispatch(setRefreshing(false));
       dispatch(setLoadingModeSwitch(false));
     }
-  }, [mode, dispatch]);
+  }, [mode, filters, dispatch]);
 
   return { fetchEmails };
 }

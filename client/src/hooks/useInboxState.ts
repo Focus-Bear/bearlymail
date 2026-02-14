@@ -26,6 +26,7 @@ import { useInboxInitialization } from 'hooks/useInboxInitialization';
 import { useInboxModeChanges } from 'hooks/useInboxModeChanges';
 import { useInboxKeyboardNavigation } from 'hooks/useInboxKeyboardNavigation';
 import { useGitHubBatchFetch } from 'hooks/useGitHubBatchFetch';
+import { useInboxFilters } from 'hooks/useInboxFilters';
 
 const VALID_MODES: InboxMode[] = [MODE_TRIAGE, MODE_ACTION, MODE_FOLLOW_UP];
 
@@ -68,11 +69,15 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
   // Tab counts hook - must be before useEmailManagement since it's passed to it
   const { tabCounts, fetchTabCounts, updateTabCountsOptimistically } = useTabCounts();
 
+  // Inbox filters hook
+  const inboxFilters = useInboxFilters();
+
   // Email management hook
-  const emailManagement = useEmailManagement({ 
-    mode, 
+  const emailManagement = useEmailManagement({
+    mode,
     onSuggestionRemove: removeSuggestion,
     onTabCountsUpdateOptimistically: updateTabCountsOptimistically,
+    filters: inboxFilters.filters,
   });
   const {
     emails,
@@ -440,6 +445,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     splitView,
     emailActions,
     keyboardShortcuts,
+    inboxFilters,
     // Initialization
     hasInitiallyLoaded,
     hasRunAnalysis,

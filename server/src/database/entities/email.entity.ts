@@ -9,6 +9,9 @@ import {
 } from "typeorm";
 import { User } from "./user.entity";
 import { EmailThread } from "./email-thread.entity";
+import { GoogleAccount } from "./google-account.entity";
+import { Office365Account } from "./office365-account.entity";
+import { ZohoAccount } from "./zoho-account.entity";
 import {
   encryptedColumnTransformer,
   encryptedJsonTransformer,
@@ -48,6 +51,15 @@ export class Email {
 
   @Column()
   messageId: string;
+
+  @Column({ nullable: true, comment: "Foreign key to google_accounts table" })
+  googleAccountId: string | null;
+
+  @Column({ nullable: true, comment: "Foreign key to office365_accounts table" })
+  office365AccountId: string | null;
+
+  @Column({ nullable: true, comment: "Foreign key to zoho_accounts table" })
+  zohoAccountId: string | null;
 
   @Column({ transformer: encryptedColumnTransformer })
   from: string;
@@ -191,6 +203,18 @@ export class Email {
   @ManyToOne(() => EmailThread, (thread) => thread.emails)
   @JoinColumn({ name: "emailThreadId" })
   thread: EmailThread;
+
+  @ManyToOne(() => GoogleAccount, { nullable: true })
+  @JoinColumn({ name: "googleAccountId" })
+  googleAccount: GoogleAccount | null;
+
+  @ManyToOne(() => Office365Account, { nullable: true })
+  @JoinColumn({ name: "office365AccountId" })
+  office365Account: Office365Account | null;
+
+  @ManyToOne(() => ZohoAccount, { nullable: true })
+  @JoinColumn({ name: "zohoAccountId" })
+  zohoAccount: ZohoAccount | null;
 
   /**
    * Calculate priority score from breakdown array

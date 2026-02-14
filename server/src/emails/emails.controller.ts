@@ -116,12 +116,37 @@ export class EmailsController {
     @Request() req,
     @Query("includeBatched") includeBatched?: string,
     @Query("mode") mode: "triage" | "action" | "follow-up" = "triage",
+    @Query("accounts") accounts?: string,
+    @Query("categories") categories?: string,
+    @Query("minPriority") minPriority?: string,
   ) {
+    // Parse filter parameters
+    const accountIds = accounts ? accounts.split(",").filter(Boolean) : undefined;
+    const categoryList = categories ? categories.split(",").filter(Boolean) : undefined;
+    const minPriorityValue = minPriority ? parseFloat(minPriority) : undefined;
+
     return this.emailsService.getInbox(
       req.user.userId,
       includeBatched === "true",
       mode,
+      {
+        accountIds,
+        categories: categoryList,
+        minPriority: minPriorityValue,
+      },
     );
+  }
+
+  @Get("connected-accounts")
+  async getConnectedAccounts(@Request() req) {
+    // Return list of user's connected email accounts for filtering
+    return this.emailsService.getConnectedAccounts(req.user.userId);
+  }
+
+  @Get("categories")
+  async getCategories(@Request() req) {
+    // Return list of unique categories for filtering
+    return this.emailsService.getCategories(req.user.userId);
   }
 
   @Get("batch-status")

@@ -13,6 +13,7 @@ import { InboxLoadingState } from 'components/inbox/InboxLoadingState';
 import { GmailConnectionScreen } from 'components/inbox/GmailConnectionScreen';
 import { InboxContent } from 'components/inbox/InboxContent';
 import { InboxModals } from 'components/inbox/InboxModals';
+import { InboxFilters } from 'components/inbox/InboxFilters';
 import { API_URL } from 'config/api';
 import { useInboxState } from 'hooks/useInboxState';
 
@@ -48,6 +49,7 @@ const Inbox: React.FC = () => {
     splitView,
     emailActions,
     keyboardShortcuts,
+    inboxFilters,
     hasInitiallyLoaded,
     loadingModeSwitch,
     decrypting,
@@ -139,6 +141,8 @@ const Inbox: React.FC = () => {
           followUpTabRef={followUpTabRef}
           tabCounts={tabCounts}
         />
+
+        <InboxFilters onFilterChange={fetchEmails} />
 
         {user?.isAdmin && (
           <DebugPanel

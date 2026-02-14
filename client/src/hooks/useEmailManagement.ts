@@ -5,6 +5,7 @@ import { Email, InboxMode } from 'types/email';
 import { API_URL } from 'config/api';
 import { useEmailFetching } from 'hooks/useEmailFetching';
 import { useEmailActionsBase } from 'hooks/useEmailActionsBase';
+import { InboxFilter } from 'hooks/useInboxFilters';
 import { AppDispatch } from 'store/store';
 import { updateEmail, setRefreshing, setEmails as setEmailsAction, setLoadingModeSwitch as setLoadingModeSwitchAction } from 'store/slices/emailSlice';
 import { selectVisibleEmails, selectLoading, selectDecrypting, selectRefreshing, selectLoadingModeSwitch, selectFetchError } from 'store/selectors/emailSelectors';
@@ -19,6 +20,7 @@ interface UseEmailManagementProps {
   mode: InboxMode;
   onSuggestionRemove?: (emailId: string) => void;
   onTabCountsUpdateOptimistically?: (changes: TabCountChanges) => void;
+  filters?: InboxFilter;
 }
 
 interface UseEmailManagementReturn {
@@ -41,7 +43,7 @@ interface UseEmailManagementReturn {
   handleCheckUrgent: () => Promise<{ hasUrgent: boolean; count: number; emails: any[] }>;
 }
 
-export function useEmailManagement({ mode, onSuggestionRemove, onTabCountsUpdateOptimistically }: UseEmailManagementProps): UseEmailManagementReturn {
+export function useEmailManagement({ mode, onSuggestionRemove, onTabCountsUpdateOptimistically, filters }: UseEmailManagementProps): UseEmailManagementReturn {
   const dispatch = useDispatch<AppDispatch>();
   // Use selectVisibleEmails to automatically filter out optimistically archived/snoozed emails
   // This ensures the filtering always uses the latest Redux state, fixing the issue where
@@ -53,7 +55,7 @@ export function useEmailManagement({ mode, onSuggestionRemove, onTabCountsUpdate
   const loadingModeSwitch = useSelector(selectLoadingModeSwitch);
   const fetchError = useSelector(selectFetchError);
 
-  const { fetchEmails } = useEmailFetching({ mode });
+  const { fetchEmails } = useEmailFetching({ mode, filters });
 
   const { handleSetStarCount, handleArchive, handleSnooze } = useEmailActionsBase({
     fetchEmails,

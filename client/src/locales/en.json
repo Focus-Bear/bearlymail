@@ -242,6 +242,18 @@
       "reanalysingCategories": "Re-analysing...",
       "reanalyseSuccess": "Generated {{count}} new categories. {{reclassifyCount}} emails queued for reclassification.",
       "reanalyseNoNewCategories": "No new categories could be generated from the emails in Other"
+    },
+    "filters": {
+      "toggle": "Toggle filters",
+      "clear": "Clear all filters",
+      "account": "Email Account",
+      "category": "Category",
+      "priority": "Minimum Priority",
+      "allAccounts": "All accounts",
+      "allCategories": "All categories",
+      "noAccounts": "No accounts found",
+      "noCategories": "No categories yet",
+      "clearAll": "Clear Filters"
     }
   },
       "emailDetail": {

@@ -18,6 +18,9 @@ jest.mock("googleapis", () => ({
   },
 }));
 
+// Constants for test values
+const DAYS_AHEAD_FOR_AVAILABILITY = 7;
+
 describe("CalendarService", () => {
   let service: CalendarService;
   let usersService: jest.Mocked<UsersService>;
@@ -119,7 +122,7 @@ describe("CalendarService", () => {
         },
       });
 
-      const result = await service.getAvailableTimeSlots("user-1", 7);
+      const result = await service.getAvailableTimeSlots("user-1", DAYS_AHEAD_FOR_AVAILABILITY);
 
       expect(mockOAuth2Client.setCredentials).toHaveBeenCalledWith({
         access_token: "access-token",
@@ -135,7 +138,7 @@ describe("CalendarService", () => {
         googleCalendarAccessToken: null,
       } as any);
 
-      await expect(service.getAvailableTimeSlots("user-1", 7)).rejects.toThrow(
+      await expect(service.getAvailableTimeSlots("user-1", DAYS_AHEAD_FOR_AVAILABILITY)).rejects.toThrow(
         "Google Calendar not connected",
       );
     });
@@ -144,7 +147,7 @@ describe("CalendarService", () => {
       usersService.findOne.mockResolvedValue(mockUser as any);
       mockCalendar.freebusy.query.mockRejectedValue(new Error("API Error"));
 
-      await expect(service.getAvailableTimeSlots("user-1", 7)).rejects.toThrow(
+      await expect(service.getAvailableTimeSlots("user-1", DAYS_AHEAD_FOR_AVAILABILITY)).rejects.toThrow(
         "Failed to fetch calendar data",
       );
     });
@@ -172,7 +175,7 @@ describe("CalendarService", () => {
         },
       });
 
-      const result = await service.getAvailableTimeSlots("user-1", 7);
+      const result = await service.getAvailableTimeSlots("user-1", DAYS_AHEAD_FOR_AVAILABILITY);
 
       // Should filter out busy slots
       expect(result).toBeDefined();

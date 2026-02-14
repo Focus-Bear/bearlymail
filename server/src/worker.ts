@@ -4,8 +4,12 @@ import { NestFactory } from "@nestjs/core";
 import { Logger } from "@nestjs/common";
 import { WorkerModule } from "./worker.module";
 import { setupGlobalErrorHandlers, logErrorToFile } from "./utils/error-logger";
+import { initializeGlobalErrorTracking } from "./error-tracking/error-tracking-setup";
 
 const logger = new Logger("Worker");
+
+// Initialize PostHog for global error tracking in workers
+initializeGlobalErrorTracking();
 
 // Get number of worker processes from env or use CPU cores
 // In development, use half the CPU cores to leave resources for other dev tools

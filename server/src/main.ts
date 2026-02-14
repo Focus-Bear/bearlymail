@@ -3,6 +3,11 @@ import { ValidationPipe } from "@nestjs/common";
 import { AppModule } from "./app.module";
 import { AllExceptionsFilter } from "./filters/http-exception.filter";
 import { setupGlobalErrorHandlers, logErrorToFile } from "./utils/error-logger";
+import { initializeGlobalErrorTracking } from "./error-tracking/error-tracking-setup";
+import { ErrorTrackingService } from "./error-tracking/error-tracking.service";
+
+// Initialize PostHog for global error tracking
+initializeGlobalErrorTracking();
 
 // Set up global error handlers for unhandled rejections and exceptions
 setupGlobalErrorHandlers("Server");
@@ -43,8 +48,10 @@ async function bootstrap() {
       }),
     );
 
-    // Global exception filter to log errors to file
-    app.useGlobalFilters(new AllExceptionsFilter());
+    // Global exception filter to log errors to file and PostHog
+    // Get ErrorTrackingService from app context
+    const errorTracking = app.get(ErrorTrackingService, { strict: false });
+    app.useGlobalFilters(new AllExceptionsFilter(errorTracking));
 
     const DEFAULT_PORT = 3001;
     // Default port for development

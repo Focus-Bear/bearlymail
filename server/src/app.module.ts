@@ -38,6 +38,7 @@ import { AutoResponderModule } from "./auto-responder/auto-responder.module";
 import { DraftsModule } from "./drafts/drafts.module";
 import { SchedulingPreferencesModule } from "./scheduling-preferences/scheduling-preferences.module";
 import { PusherModule } from "./pusher/pusher.module";
+import { ErrorTrackingModule } from "./error-tracking/error-tracking.module";
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { PusherModule } from "./pusher/pusher.module";
       isGlobal: true,
       envFilePath: ".env",
     }),
+    ErrorTrackingModule,
     QueueModule,
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],

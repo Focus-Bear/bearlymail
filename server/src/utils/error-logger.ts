@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
+import { captureGlobalError } from "../error-tracking/error-tracking-setup";
 
 // Only log to file during local development
 const isDevelopment = process.env.NODE_ENV !== "production";
@@ -195,6 +196,15 @@ export function setupGlobalErrorHandlers(source?: string): void {
         { promise: String(promise), reason },
         source,
       );
+
+      // Capture to PostHog (production only, avoid noise in dev)
+      if (process.env.NODE_ENV === "production" && reason instanceof Error) {
+        captureGlobalError(reason, {
+          error_type: "unhandled_rejection",
+          source: source || "unknown",
+        });
+      }
+
       // Log but don't crash - let the app handle reconnections
       // Check if reason is an Error with a message property
       const reasonMessage =
@@ -215,6 +225,15 @@ export function setupGlobalErrorHandlers(source?: string): void {
   // Handle uncaught exceptions
   process.on("uncaughtException", (error: Error) => {
     logErrorToFile("Uncaught Exception", error, source);
+
+    // Capture to PostHog (production only)
+    if (process.env.NODE_ENV === "production") {
+      captureGlobalError(error, {
+        error_type: "uncaught_exception",
+        source: source || "unknown",
+      });
+    }
+
     // Only exit on critical errors, not connection errors
     if (error.message && error.message.includes("Connection terminated")) {
       console.warn("Database connection error, will retry automatically");

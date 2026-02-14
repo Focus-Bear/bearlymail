@@ -272,5 +272,13 @@ module.exports = {
         'i18next/no-literal-string': 'warn', // Still warn, but don't block
       },
     },
+    {
+      // Disable i18n for ErrorBoundary - error boundaries catch errors during render
+      // and may not have access to translation context when the app crashes
+      files: ['**/ErrorBoundary.tsx'],
+      rules: {
+        'i18next/no-literal-string': 'off',
+      },
+    },
   ],
 };

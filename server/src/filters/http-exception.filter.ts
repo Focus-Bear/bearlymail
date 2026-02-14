@@ -5,15 +5,24 @@ import {
   HttpException,
   HttpStatus,
   Logger,
+  Inject,
+  Optional,
 } from "@nestjs/common";
 import { Request, Response } from "express";
 import { logErrorToFile } from "../utils/error-logger";
+import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 
 const isProduction = process.env.NODE_ENV === "production";
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
+
+  constructor(
+    @Optional()
+    @Inject(ErrorTrackingService)
+    private readonly errorTracking?: ErrorTrackingService,
+  ) {}
 
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
@@ -65,6 +74,22 @@ export class AllExceptionsFilter implements ExceptionFilter {
           `HTTP ${status} ${request.method} ${request.url}`,
           JSON.stringify(errorDetails),
         );
+      }
+
+      // Capture 5xx errors to PostHog (server errors, not client errors)
+      if (this.errorTracking && exception instanceof Error) {
+        // Extract user ID from request if available (no PII)
+        const userId =
+          request.user && typeof request.user === "object" && "userId" in request.user
+            ? String(request.user.userId)
+            : undefined;
+
+        this.errorTracking.captureException(exception, userId, {
+          http_status: status,
+          http_method: request.method,
+          http_path: request.url,
+          user_agent: request.headers["user-agent"],
+        });
       }
     }
 

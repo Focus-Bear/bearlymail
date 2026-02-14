@@ -69,6 +69,37 @@ export const resetPostHog = () => {
   }
 };
 
+// Helper function to capture exceptions (errors) with stack traces
+export const captureException = (error: Error, additionalContext?: Record<string, any>) => {
+  try {
+    if (!isPostHogLoaded()) return;
+
+    // Build error properties
+    const errorProperties: Record<string, any> = {
+      error_name: error.name,
+      error_message: error.message,
+      error_stack: error.stack,
+      ...additionalContext,
+    };
+
+    // Remove any PII from additional context
+    delete errorProperties.email;
+    delete errorProperties.name;
+    delete errorProperties.query;
+
+    // Capture as a special "$exception" event (PostHog's standard for errors)
+    posthog.capture('$exception', {
+      $exception_message: error.message,
+      $exception_type: error.name,
+      $exception_stack_trace_raw: error.stack,
+      ...errorProperties,
+    });
+  } catch (captureError) {
+    // Don't throw errors when trying to capture errors
+    console.error('Failed to capture exception to PostHog:', captureError);
+  }
+};
+
 // Helper function to check if PostHog is loaded
 export const isPostHogLoaded = (): boolean => {
   try {

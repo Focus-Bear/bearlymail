@@ -200,6 +200,19 @@ jobs:
           DB_NAME: test
         run: npx typeorm migration:run -d dist/data-source.js
 
+      - name: Check for schema drift
+        working-directory: server
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USERNAME: test
+          DB_PASSWORD: test
+          DB_NAME: test
+          ENCRYPTION_KEY: smoke-test-encryption-key-32ch!
+        run: |
+          chmod +x scripts/check-schema-drift.sh
+          scripts/check-schema-drift.sh
+
       - name: Start server and run smoke tests
         working-directory: server
         env:

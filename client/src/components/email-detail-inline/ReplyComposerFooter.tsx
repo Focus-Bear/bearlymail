@@ -22,7 +22,8 @@ interface ReplyComposerFooterProps {
   checkingTone: boolean;
   draft: string | null;
   onClose: () => void;
-  onSend: (expectedReplyHours?: number) => void;
+  onSend: (expectedReplyHours?: number, scheduledSendAt?: Date) => void;
+  onSchedule?: () => void;
 }
 
 export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = ({
@@ -31,6 +32,7 @@ export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = ({
   draft,
   onClose,
   onSend,
+  onSchedule,
 }) => {
   const { t } = useTranslation();
   const [expectedReplyHours, setExpectedReplyHours] = useState<number>(DEFAULT_EXPECTED_REPLY_HOURS);
@@ -112,6 +114,24 @@ export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = ({
         >
           {t('common.cancel')}
         </button>
+        {onSchedule && (
+          <button
+            onClick={onSchedule}
+            disabled={isDisabled}
+            style={{
+              padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
+              backgroundColor: 'transparent',
+              color: isDisabled ? theme.colors.text.tertiary : theme.colors.primary.main,
+              border: `1px solid ${isDisabled ? theme.colors.border.light : theme.colors.primary.main}`,
+              borderRadius: theme.borderRadius.md,
+              cursor: isDisabled ? 'not-allowed' : 'pointer',
+              fontSize: theme.typography.fontSize.sm,
+              fontWeight: theme.typography.fontWeight.medium,
+            }}
+          >
+            {t('emailDetail.schedule')}
+          </button>
+        )}
         <button
           onClick={handleSend}
           disabled={isDisabled}

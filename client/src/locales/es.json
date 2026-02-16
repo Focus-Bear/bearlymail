@@ -232,7 +232,14 @@
     "syncContacts": "Sincronizar contactos",
     "syncing": "Sincronizando...",
     "title": "Redactar",
-    "to": "A"
+    "to": "A",
+    "schedule": "Programar",
+    "scheduleEmail": "Programar Correo",
+    "quickOptions": "Opciones Rápidas",
+    "customTime": "Hora Personalizada",
+    "hideCustomTime": "Ocultar Hora Personalizada",
+    "setCustomTime": "Establecer Hora",
+    "useSuggestion": "Usar Sugerencia"
   },
   "consent": {
     "acceptAndContinue": "Aceptar y continuar",
@@ -399,6 +406,8 @@
     "replyAllSoon": "Responder todas las funciones próximamente",
     "replySentError": "No se pudo enviar la respuesta. Por favor inténtalo de nuevo.",
     "replySentSuccess": "¡Respuesta enviada exitosamente!",
+    "replyScheduledSuccess": "¡Respuesta programada exitosamente!",
+    "schedule": "Programar",
     "saveNote": "Guardar nota",
     "scoreBreakdown": "Desglose de puntuación",
     "send": "Enviar",
@@ -464,6 +473,14 @@
     "tryDifferentSearch": "Prueba con un término de búsqueda diferente.",
     "totalContacts": "{{count}} contacto",
     "totalContacts_plural": "{{count}} contactos"
+  },
+  "scheduledEmails": {
+    "title": "Correos Programados",
+    "noScheduled": "No hay correos programados",
+    "confirmCancel": "¿Estás seguro de que quieres cancelar este correo programado?",
+    "to": "Para",
+    "typeReply": "Responder",
+    "typeNew": "Nuevo Correo"
   },
   "footer": {
     "focusBear": "Oso de enfoque",

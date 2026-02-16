@@ -1,6 +1,8 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { RepliesController } from "./replies.controller";
 import { RepliesService } from "./replies.service";
+import { EmailsService } from "../emails/emails.service";
+import { ScheduledEmailsService } from "../scheduled-emails/scheduled-emails.service";
 
 describe("RepliesController", () => {
   let controller: RepliesController;
@@ -16,6 +18,17 @@ describe("RepliesController", () => {
     sendReply: jest.fn(),
   };
 
+  const mockScheduledEmailsService = {
+    createScheduledEmail: jest.fn(),
+    getSuggestedTimes: jest.fn(),
+    checkSendTimeAppropriate: jest.fn(),
+    cancelScheduledEmail: jest.fn(),
+  };
+
+  const mockEmailsService = {
+    getEmailById: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [RepliesController],
@@ -23,6 +36,14 @@ describe("RepliesController", () => {
         {
           provide: RepliesService,
           useValue: mockRepliesService,
+        },
+        {
+          provide: ScheduledEmailsService,
+          useValue: mockScheduledEmailsService,
+        },
+        {
+          provide: EmailsService,
+          useValue: mockEmailsService,
         },
       ],
     }).compile();

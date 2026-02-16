@@ -30,6 +30,7 @@ import { BlockedKeywordsModule } from "./blocked-keywords/blocked-keywords.modul
 import { NotesModule } from "./notes/notes.module";
 import { PusherModule } from "./pusher/pusher.module";
 import { ContactsModule } from "./contacts/contacts.module";
+import { ScheduledEmailsModule } from "./scheduled-emails/scheduled-emails.module";
 
 @Module({
   imports: [
@@ -70,6 +71,7 @@ import { ContactsModule } from "./contacts/contacts.module";
     NotesModule,
     PusherModule,
     ContactsModule,
+    ScheduledEmailsModule,
   ],
 })
 export class WorkerModule {}

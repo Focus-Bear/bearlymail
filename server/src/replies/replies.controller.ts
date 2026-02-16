@@ -10,15 +10,24 @@ import {
   Request,
   UseInterceptors,
   UploadedFiles,
+  Inject,
+  forwardRef,
 } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
 import { RepliesService, ReplyRule } from "./replies.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { ScheduledEmailsService } from "../scheduled-emails/scheduled-emails.service";
+import { EmailsService } from "../emails/emails.service";
 
 @Controller("replies")
 @UseGuards(JwtAuthGuard)
 export class RepliesController {
-  constructor(private readonly repliesService: RepliesService) {}
+  constructor(
+    private readonly repliesService: RepliesService,
+    @Inject(forwardRef(() => ScheduledEmailsService))
+    private readonly scheduledEmailsService: ScheduledEmailsService,
+    private readonly emailsService: EmailsService,
+  ) {}
 
   @Post("draft/:id")
   async generateDraft(
@@ -84,6 +93,8 @@ export class RepliesController {
       reply: string;
       expectedReplyHours?: number | string;
       forwardAttachmentIds?: string | string[];
+      scheduledSendAt?: string;
+      userTimezone?: string;
     },
     @UploadedFiles() files?: Express.Multer.File[],
   ) {
@@ -114,6 +125,59 @@ export class RepliesController {
         ? parseInt(body.expectedReplyHours, 10)
         : body.expectedReplyHours;
 
+    // If scheduled send time is provided, create scheduled email instead of sending immediately
+    if (body.scheduledSendAt) {
+      const scheduledSendAt = new Date(body.scheduledSendAt);
+
+      // Get email details for scheduling
+      const email = await this.emailsService.getEmailById(req.user.userId, id);
+      if (!email) {
+        throw new Error("Email not found");
+      }
+
+      // Determine reply subject (add Re: if not already present)
+      let replySubject = email.subject;
+      if (!replySubject.toLowerCase().startsWith("re:")) {
+        replySubject = `Re: ${replySubject}`;
+      }
+
+      // Use Reply-To address if available, otherwise fall back to From address
+      const replyToAddress = email.replyTo || email.from;
+
+      // Convert attachments to base64 for storage
+      const scheduledAttachments = attachments?.map((att) => ({
+        filename: att.filename,
+        mimeType: att.mimeType,
+        content: att.content.toString("base64"),
+      }));
+
+      const scheduledEmail = await this.scheduledEmailsService.scheduleEmail(
+        req.user.userId,
+        {
+          emailType: "reply",
+          threadId: email.threadId,
+          emailId: id,
+          to: [{ email: replyToAddress, name: email.fromName }],
+          subject: replySubject,
+          body: body.reply,
+          attachments: scheduledAttachments,
+          scheduledSendAt,
+          userTimezone: body.userTimezone,
+          expectedReplyHours: isNaN(expectedReplyHours as number)
+            ? undefined
+            : expectedReplyHours,
+          forwardAttachmentIds,
+        },
+      );
+
+      return {
+        message: "Reply scheduled successfully",
+        scheduledEmailId: scheduledEmail.id,
+        scheduledSendAt: scheduledEmail.scheduledSendAt,
+      };
+    }
+
+    // Otherwise send immediately (existing behavior)
     await this.repliesService.sendReply(
       req.user.userId,
       id,

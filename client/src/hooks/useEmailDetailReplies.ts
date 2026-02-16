@@ -47,7 +47,9 @@ export function useEmailDetailReplies(
   const [showBcc, setShowBcc] = useState(false);
   const [sending, setSending] = useState(false);
   const [initialAttachments, setInitialAttachments] = useState<EmailAttachment[]>([]);
-  
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [scheduledSendAt, setScheduledSendAt] = useState<Date | null>(null);
+
   const {
     checkingTone,
     toneCheckResult,
@@ -132,17 +134,21 @@ export function useEmailDetailReplies(
     forwardAttachmentIds?: string[],
     onClose?: () => void,
     draftOverride?: string,
+    scheduledSendAtOverride?: Date,
   ) => {
     const draftToSend = draftOverride || draft;
+    const scheduleTime = scheduledSendAtOverride || scheduledSendAt;
     if (!emailId || !draftToSend) return;
-    
+
     if (!draftOverride) {
       const toneOk = await checkTone(draftToSend);
       if (!toneOk) return;
     }
-    
+
     setSending(true);
     try {
+      const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
       // Use FormData if we have files to send
       if (files.length > 0) {
         const formData = new FormData();
@@ -157,6 +163,10 @@ export function useEmailDetailReplies(
         if (forwardAttachmentIds && forwardAttachmentIds.length > 0) {
           formData.append('forwardAttachmentIds', JSON.stringify(forwardAttachmentIds));
         }
+        if (scheduleTime) {
+          formData.append('scheduledSendAt', scheduleTime.toISOString());
+          formData.append('userTimezone', userTimezone);
+        }
         files.forEach((file) => {
           formData.append('files', file);
         });
@@ -167,7 +177,7 @@ export function useEmailDetailReplies(
           },
         });
       } else {
-        await axios.post(`${API_URL}/replies/send/${emailId}`, { 
+        await axios.post(`${API_URL}/replies/send/${emailId}`, {
           reply: draftToSend,
           recipients: replyRecipients,
           cc: replyCc || undefined,
@@ -175,6 +185,8 @@ export function useEmailDetailReplies(
           replyAll: replyMode === REPLY_MODE_REPLY_ALL,
           expectedReplyHours: expectedReplyHours || undefined,
           forwardAttachmentIds: forwardAttachmentIds && forwardAttachmentIds.length > 0 ? forwardAttachmentIds : undefined,
+          scheduledSendAt: scheduleTime?.toISOString(),
+          userTimezone: scheduleTime ? userTimezone : undefined,
         });
       }
       setDraft(null);
@@ -184,7 +196,8 @@ export function useEmailDetailReplies(
       setShowCc(false);
       setShowBcc(false);
       setInitialAttachments([]);
-      showSuccess(t('emailDetail.replySentSuccess'));
+      setScheduledSendAt(null);
+      showSuccess(scheduleTime ? t('emailDetail.replyScheduledSuccess') : t('emailDetail.replySentSuccess'));
       if (onClose) {
         onClose();
       }
@@ -194,7 +207,20 @@ export function useEmailDetailReplies(
     } finally {
       setSending(false);
     }
-  }, [emailId, draft, replyRecipients, replyCc, replyBcc, replyMode, checkTone, setDraft, showSuccess, showError, t]);
+  }, [emailId, draft, replyRecipients, replyCc, replyBcc, replyMode, scheduledSendAt, checkTone, setDraft, showSuccess, showError, t]);
+
+  const handleOpenTimePicker = useCallback(() => {
+    setShowTimePicker(true);
+  }, []);
+
+  const handleTimeSelect = useCallback((time: Date) => {
+    setScheduledSendAt(time);
+    setShowTimePicker(false);
+  }, []);
+
+  const handleCancelTimePicker = useCallback(() => {
+    setShowTimePicker(false);
+  }, []);
 
   return {
     replyOptions,
@@ -215,6 +241,8 @@ export function useEmailDetailReplies(
     disputeResult,
     initialAttachments,
     replyGenerationDebugInfo,
+    showTimePicker,
+    scheduledSendAt,
     setReplyRecipients,
     setReplyCc,
     setReplyBcc,
@@ -227,6 +255,9 @@ export function useEmailDetailReplies(
     setToneCheckResult,
     handleOpenReplyComposer,
     handleSendReply,
+    handleOpenTimePicker,
+    handleTimeSelect,
+    handleCancelTimePicker,
     disputeToneCheck,
     clearDisputeResult,
   };

@@ -10,12 +10,14 @@ import { Contact } from 'types/contact';
 import { useComposeForm } from 'hooks/useComposeForm';
 import { useContactSearch } from 'hooks/useContactSearch';
 import { useEmailDetailToneCheck } from 'hooks/useEmailDetailToneCheck';
+import { useScheduledEmails } from 'hooks/useScheduledEmails';
 import { RecipientFields } from 'components/compose/RecipientFields';
 import { ComposeBody } from 'components/compose/ComposeBody';
 import { FrequentContactsList } from 'components/compose/FrequentContactsList';
 import { ComposeActions } from 'components/compose/ComposeActions';
 import { ComposeMessages } from 'components/compose/ComposeMessages';
 import { ToneCheckResult } from 'components/email-detail-inline/ToneCheckResult';
+import { TimePicker } from 'components/compose/TimePicker';
 
 import { API_URL } from 'config/api';
 
@@ -35,12 +37,21 @@ const Compose: React.FC = () => {
     disputeResult,
     disputeToneCheck,
   } = useEmailDetailToneCheck();
-  
+  const {
+    timeSuggestions,
+    checkSendTime,
+    fetchTimeSuggestions,
+  } = useScheduledEmails();
+
   const [sending, setSending] = useState(false);
   const [sendSuccess, setSendSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [frequentContacts, setFrequentContacts] = useState<Contact[]>([]);
   const [syncingContacts, setSyncingContacts] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [scheduledSendAt, setScheduledSendAt] = useState<Date | null>(null);
+  const [timeWarning, setTimeWarning] = useState<string | undefined>();
+  const [suggestedTime, setSuggestedTime] = useState<Date | undefined>();
 
   useEffect(() => {
     captureEvent('compose_viewed');
@@ -122,16 +133,20 @@ const Compose: React.FC = () => {
         has_subject: !!form.subject.trim(),
       });
 
+      const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
       await axios.post(`${API_URL}/emails/send`, {
         to: form.to,
         cc: form.cc.length > 0 ? form.cc : undefined,
         bcc: form.bcc.length > 0 ? form.bcc : undefined,
         subject: form.subject.trim(),
         body: form.body.trim(),
+        scheduledSendAt: scheduledSendAt?.toISOString(),
+        userTimezone: scheduledSendAt ? userTimezone : undefined,
       });
 
       setSendSuccess(true);
-      
+
       setTimeout(() => {
         navigate('/inbox');
         }, DELAY_1_5_SECONDS_MS);
@@ -141,6 +156,30 @@ const Compose: React.FC = () => {
       setSending(false);
     }
   };
+
+  const handleOpenTimePicker = useCallback(() => {
+    fetchTimeSuggestions();
+    setShowTimePicker(true);
+  }, [fetchTimeSuggestions]);
+
+  const handleTimeSelect = useCallback(async (time: Date) => {
+    const checkResult = await checkSendTime(time);
+    if (!checkResult.isAppropriate) {
+      setTimeWarning(checkResult.warning);
+      setSuggestedTime(checkResult.suggestion ? new Date(checkResult.suggestion) : undefined);
+    } else {
+      setTimeWarning(undefined);
+      setSuggestedTime(undefined);
+      setScheduledSendAt(time);
+      setShowTimePicker(false);
+    }
+  }, [checkSendTime]);
+
+  const handleCancelTimePicker = useCallback(() => {
+    setShowTimePicker(false);
+    setTimeWarning(undefined);
+    setSuggestedTime(undefined);
+  }, []);
 
   let currentSearchQuery = '';
   if (search.activeField === EMAIL_FIELD_TO) {
@@ -297,8 +336,20 @@ const Compose: React.FC = () => {
           checkingTone={checkingTone}
           onDiscard={() => navigate('/inbox')}
           onSend={handleSend}
+          onSchedule={handleOpenTimePicker}
         />
       </div>
+
+      {showTimePicker && (
+        <TimePicker
+          selectedTime={scheduledSendAt}
+          suggestions={timeSuggestions}
+          onTimeSelect={handleTimeSelect}
+          onCancel={handleCancelTimePicker}
+          warning={timeWarning}
+          suggestedTime={suggestedTime}
+        />
+      )}
     </div>
   );
 };

@@ -8,6 +8,7 @@ interface ComposeActionsProps {
   checkingTone?: boolean;
   onDiscard: () => void;
   onSend: () => void;
+  onSchedule?: () => void;
 }
 
 export const ComposeActions: React.FC<ComposeActionsProps> = ({
@@ -16,6 +17,7 @@ export const ComposeActions: React.FC<ComposeActionsProps> = ({
   checkingTone = false,
   onDiscard,
   onSend,
+  onSchedule,
 }) => {
   const { t } = useTranslation();
 
@@ -46,6 +48,25 @@ export const ComposeActions: React.FC<ComposeActionsProps> = ({
       >
         {t('compose.discard')}
       </button>
+      {onSchedule && (
+        <button
+          onClick={onSchedule}
+          disabled={sending || sendSuccess || checkingTone}
+          style={{
+            padding: '10px 20px',
+            backgroundColor: 'transparent',
+            border: `1px solid ${sending || sendSuccess || checkingTone ? theme.colors.border.light : theme.colors.primary.main}`,
+            borderRadius: theme.borderRadius.md,
+            cursor: sending || sendSuccess || checkingTone ? 'not-allowed' : 'pointer',
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.medium,
+            color: sending || sendSuccess || checkingTone ? theme.colors.text.tertiary : theme.colors.primary.main,
+            transition: theme.transitions.default,
+          }}
+        >
+          {t('compose.schedule')}
+        </button>
+      )}
       <button
         onClick={onSend}
         disabled={sending || sendSuccess || checkingTone}

@@ -13,6 +13,7 @@ import {
   Logger,
   UseInterceptors,
   UploadedFiles,
+  forwardRef,
 } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
 import { InjectRepository } from "@nestjs/typeorm";
@@ -111,6 +112,8 @@ export class EmailsController {
     @Inject("PG_BOSS") private readonly boss: PgBoss,
     @InjectRepository(EmailThread)
     private readonly emailThreadRepository: Repository<EmailThread>,
+    @Inject(forwardRef(() => "ScheduledEmailsService"))
+    private readonly scheduledEmailsService: any,
   ) {}
 
   @Get("inbox")
@@ -651,17 +654,12 @@ export class EmailsController {
       body: string;
       cc?: EmailRecipient[];
       bcc?: EmailRecipient[];
+      scheduledSendAt?: string;
+      userTimezone?: string;
     },
     @UploadedFiles() files?: Express.Multer.File[],
   ) {
     const { userId } = req.user;
-    const provider = await this.emailProviderManager.getPrimaryProvider(userId);
-
-    if (!provider) {
-      throw new Error(
-        "No email provider connected. Please connect your email account.",
-      );
-    }
 
     const attachments =
       files?.map((file) => ({
@@ -669,6 +667,49 @@ export class EmailsController {
         mimeType: file.mimetype,
         content: file.buffer,
       })) || undefined;
+
+    // If scheduled send time is provided, create scheduled email instead of sending immediately
+    if (body.scheduledSendAt) {
+      const scheduledSendAt = new Date(body.scheduledSendAt);
+
+      // Convert attachments to base64 for storage
+      const scheduledAttachments = attachments?.map((att) => ({
+        filename: att.filename,
+        mimeType: att.mimeType,
+        content: att.content.toString("base64"),
+      }));
+
+      const scheduledEmail = await this.scheduledEmailsService.scheduleEmail(
+        userId,
+        {
+          emailType: "new",
+          to: body.to,
+          cc: body.cc,
+          bcc: body.bcc,
+          subject: body.subject,
+          body: body.body,
+          attachments: scheduledAttachments,
+          scheduledSendAt,
+          userTimezone: body.userTimezone,
+        },
+      );
+
+      return {
+        success: true,
+        scheduledEmailId: scheduledEmail.id,
+        scheduledSendAt: scheduledEmail.scheduledSendAt,
+        message: "Email scheduled successfully",
+      };
+    }
+
+    // Otherwise send immediately (existing behavior)
+    const provider = await this.emailProviderManager.getPrimaryProvider(userId);
+
+    if (!provider) {
+      throw new Error(
+        "No email provider connected. Please connect your email account.",
+      );
+    }
 
     // Get user to append signature
     const user = await this.usersService.findOne(userId);

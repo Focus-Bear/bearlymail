@@ -10,6 +10,7 @@ import { SnoozeModule } from "../snooze/snooze.module";
 import { FollowUpsModule } from "../follow-ups/follow-ups.module";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { ScheduledEmailsModule } from "../scheduled-emails/scheduled-emails.module";
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { EmailThread } from "../database/entities/email-thread.entity";
     UsersModule,
     SnoozeModule,
     forwardRef(() => FollowUpsModule),
+    forwardRef(() => ScheduledEmailsModule),
   ],
   controllers: [RepliesController],
   providers: [RepliesService],

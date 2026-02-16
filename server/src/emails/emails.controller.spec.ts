@@ -66,6 +66,13 @@ describe("EmailsController", () => {
       .mockResolvedValue({ googleCalendarAccessToken: "token" }),
   };
 
+  const mockScheduledEmailsService = {
+    createScheduledEmail: jest.fn(),
+    getSuggestedTimes: jest.fn(),
+    checkSendTimeAppropriate: jest.fn(),
+    cancelScheduledEmail: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [EmailsController],
@@ -105,6 +112,10 @@ describe("EmailsController", () => {
         {
           provide: UsersService,
           useValue: mockUsersService,
+        },
+        {
+          provide: "ScheduledEmailsService",
+          useValue: mockScheduledEmailsService,
         },
       ],
     }).compile();

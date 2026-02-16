@@ -39,6 +39,7 @@ import { DraftsModule } from "./drafts/drafts.module";
 import { SchedulingPreferencesModule } from "./scheduling-preferences/scheduling-preferences.module";
 import { PusherModule } from "./pusher/pusher.module";
 import { ErrorTrackingModule } from "./error-tracking/error-tracking.module";
+import { ScheduledEmailsModule } from "./scheduled-emails/scheduled-emails.module";
 
 @Module({
   imports: [
@@ -94,6 +95,7 @@ import { ErrorTrackingModule } from "./error-tracking/error-tracking.module";
     DraftsModule,
     SchedulingPreferencesModule,
     PusherModule,
+    ScheduledEmailsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

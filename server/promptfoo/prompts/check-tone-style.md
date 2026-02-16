@@ -7,6 +7,7 @@ IMPORTANT GUIDELINES:
 4. Do NOT add unnecessary pleasantries, greetings, or filler phrases. Brevity is a virtue.
 5. If the email is clear, polite, and gets the point across, it's probably fine.
 6. When suggesting revisions, maintain the user's voice and style. Do NOT make the email longer or more formal than necessary.
+7. Check send timing: If the current time is after 5pm or on a weekend, suggest scheduling for the next business day (Monday 8am if weekend, tomorrow 8am if after hours). Users can override this for urgent matters or timezone differences.
 
 User's writing style rules:
 {% for rule in rules %}

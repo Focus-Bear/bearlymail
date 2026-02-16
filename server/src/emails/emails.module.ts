@@ -43,6 +43,7 @@ import { GitHubModule } from "../github/github.module";
 import { SuggestedRepliesModule } from "../suggested-replies/suggested-replies.module";
 import { ProtoCategoriesModule } from "../proto-categories/proto-categories.module";
 import { AwsModule } from "../aws/aws.module";
+import { ScheduledEmailsModule } from "../scheduled-emails/scheduled-emails.module";
 
 @Module({
   imports: [
@@ -73,6 +74,7 @@ import { AwsModule } from "../aws/aws.module";
     forwardRef(() => SuggestedRepliesModule),
     ProtoCategoriesModule,
     AwsModule,
+    forwardRef(() => ScheduledEmailsModule),
   ],
   controllers: [EmailsController],
   providers: [

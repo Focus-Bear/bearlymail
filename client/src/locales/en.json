@@ -306,7 +306,9 @@
     "emailNotFound": "Email not found",
     "loadingEmail": "Loading email...",
     "replySentSuccess": "Reply sent successfully!",
+    "replyScheduledSuccess": "Reply scheduled successfully!",
     "replySentError": "Failed to send reply. Please try again.",
+    "schedule": "Schedule",
     "backToInbox": "Back to Inbox",
     "clickToCopyEmail": "Click to copy email address",
     "emailCopied": "Copied!",
@@ -641,7 +643,14 @@
     "errorNoRecipient": "Please add at least one recipient",
     "errorNoSubject": "Please enter a subject",
     "errorNoBody": "Please enter a message body",
-    "errorSendFailed": "Failed to send email. Please try again."
+    "errorSendFailed": "Failed to send email. Please try again.",
+    "schedule": "Schedule",
+    "scheduleEmail": "Schedule Email",
+    "quickOptions": "Quick Options",
+    "customTime": "Custom Time",
+    "hideCustomTime": "Hide Custom Time",
+    "setCustomTime": "Set Time",
+    "useSuggestion": "Use Suggestion"
   },
   "contacts": {
     "title": "Contacts",
@@ -659,6 +668,14 @@
     "tryDifferentSearch": "Try a different search term.",
     "totalContacts": "{{count}} contact",
     "totalContacts_plural": "{{count}} contacts"
+  },
+  "scheduledEmails": {
+    "title": "Scheduled Emails",
+    "noScheduled": "No scheduled emails",
+    "confirmCancel": "Are you sure you want to cancel this scheduled email?",
+    "to": "To",
+    "typeReply": "Reply",
+    "typeNew": "New Email"
   },
   "footer": {
     "madeBy": "Made by",

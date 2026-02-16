@@ -195,6 +195,11 @@ export class ContactsService {
       10,
     );
 
+    // Filter Gmail results to only show contacts where query matches visible fields
+    const filteredGmailResults = gmailResults.filter((contact) =>
+      this.contactMatchesQuery(contact, query),
+    );
+
     // Merge results, preferring local contacts (they have frequency data)
     const results = new Map<string, ContactSearchResult>();
 
@@ -204,7 +209,7 @@ export class ContactsService {
     }
 
     // Add Gmail results that aren't already in local
-    for (const raw of gmailResults) {
+    for (const raw of filteredGmailResults) {
       const key = raw.email.toLowerCase();
       if (!results.has(key)) {
         results.set(key, {
@@ -398,6 +403,33 @@ export class ContactsService {
       company: contactData.company,
       jobTitle: contactData.jobTitle,
       searchTokens: JSON.stringify(searchTokens),
+    });
+  }
+
+  /**
+   * Check if a contact matches the search query in visible fields
+   * This filters out false positives from Gmail API that match in hidden fields
+   */
+  private contactMatchesQuery(
+    contact: {
+      name?: string;
+      firstName?: string;
+      lastName?: string;
+      email: string;
+    },
+    query: string,
+  ): boolean {
+    const normalizedQuery = query.toLowerCase().trim();
+    const searchableFields = [
+      contact.name,
+      contact.firstName,
+      contact.lastName,
+      contact.email,
+    ];
+
+    return searchableFields.some((field) => {
+      if (!field) return false;
+      return field.toLowerCase().includes(normalizedQuery);
     });
   }
 

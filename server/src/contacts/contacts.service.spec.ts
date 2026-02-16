@@ -191,13 +191,13 @@ describe("ContactsService", () => {
       const localContact = {
         id: "contact-1",
         email: "local@example.com",
-        name: "Local Contact",
+        name: "Local Test Contact",
         contactFrequency: 10,
         isFavorite: false,
       };
       const gmailContact = {
         providerId: "gmail-1",
-        email: "gmail@example.com",
+        email: "testgmail@example.com",
         name: "Gmail Contact",
       };
       const queryBuilder = {
@@ -219,7 +219,9 @@ describe("ContactsService", () => {
 
       expect(result.length).toBeGreaterThanOrEqual(1);
       expect(result.some((r) => r.email === "local@example.com")).toBe(true);
-      expect(result.some((r) => r.email === "gmail@example.com")).toBe(true);
+      expect(result.some((r) => r.email === "testgmail@example.com")).toBe(
+        true,
+      );
     });
 
     it("should respect limit parameter", async () => {
@@ -241,6 +243,42 @@ describe("ContactsService", () => {
       await service.searchContacts(userId, query, 5);
 
       expect(queryBuilder.take).toHaveBeenCalledWith(5);
+    });
+
+    it("should filter Gmail results to only show contacts matching visible fields", async () => {
+      const userId = "user-123";
+      const query = "sid";
+      const matchingGmailContact = {
+        providerId: "gmail-1",
+        email: "sid@example.com",
+        name: "Sid Smith",
+      };
+      const nonMatchingGmailContact = {
+        providerId: "gmail-2",
+        email: "john@example.com",
+        name: "John Doe",
+      };
+      const queryBuilder = {
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        addOrderBy: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([]),
+      };
+
+      mockRepository.findOne.mockResolvedValue(null);
+      mockRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+      mockGmailContactsProvider.searchContacts.mockResolvedValue([
+        matchingGmailContact,
+        nonMatchingGmailContact,
+      ]);
+
+      const result = await service.searchContacts(userId, query, 20);
+
+      // Should only include the matching contact
+      expect(result.some((r) => r.email === "sid@example.com")).toBe(true);
+      expect(result.some((r) => r.email === "john@example.com")).toBe(false);
     });
   });
 

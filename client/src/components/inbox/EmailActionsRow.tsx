@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Email, InboxMode, TriageSuggestion } from 'types/email';
 import { MODE_TRIAGE } from 'constants/strings';
-import { StarButtons } from 'components/inbox/actions/StarButtons';
+import { PrioritySlider } from 'components/inbox/actions/PrioritySlider';
 import { SnoozeButton } from 'components/inbox/actions/SnoozeButton';
 import { SnoozeInputForm } from 'components/inbox/actions/SnoozeInputForm';
 import { EMOJI_INBOX, EMOJI_BLOCK, EMOJI_LINK } from 'constants/emojis';
@@ -45,8 +45,22 @@ export const EmailActionsRow: React.FC<EmailActionsRowProps> = ({
 }) => {
   const { t } = useTranslation();
   
-  const getSuggestedText = (count: number) => {
-    return count === 1 ? '1 star' : `${count} stars`;
+  const getSuggestedEmoji = (count: number) => {
+    const emojiMap: Record<number, string> = {
+      1: '😌',
+      2: '😅',
+      3: '🙀',
+    };
+    return emojiMap[count] || '';
+  };
+
+  const getSuggestedLabel = (count: number) => {
+    const labelMap: Record<number, string> = {
+      1: t('inbox.canWait'),
+      2: t('inbox.getOnIt'),
+      3: t('inbox.ohShit'),
+    };
+    return labelMap[count] || '';
   };
 
   const isSnoozeInputVisible = snoozeInput.showSnoozeInput === email.id;
@@ -73,9 +87,9 @@ export const EmailActionsRow: React.FC<EmailActionsRowProps> = ({
           alignItems: 'center',
           flexWrap: 'wrap',
         }}>
-          {/* Prioritise more deeply section */}
-          <div style={{ 
-            display: 'flex', 
+          {/* Prioritise section */}
+          <div style={{
+            display: 'flex',
             alignItems: 'center',
             gap: theme.spacing.xs,
           }}>
@@ -85,9 +99,9 @@ export const EmailActionsRow: React.FC<EmailActionsRowProps> = ({
               fontWeight: theme.typography.fontWeight.medium,
               whiteSpace: 'nowrap',
             }}>
-              {t('inbox.prioritiseMoreDeeply')}:
+              {t('inbox.prioritise')}:
             </div>
-            <StarButtons
+            <PrioritySlider
               email={email}
               keyboardHint={keyboardHint}
               onSetStarCount={onSetStarCount}
@@ -95,43 +109,80 @@ export const EmailActionsRow: React.FC<EmailActionsRowProps> = ({
           </div>
 
           {/* Suggested section */}
-          {suggestion && mode === MODE_TRIAGE && suggestion.suggestedStarCount > 0 && (
-            <div style={{ 
-              display: 'flex', 
+          {suggestion && mode === MODE_TRIAGE && (
+            <div style={{
+              display: 'flex',
               alignItems: 'center',
               gap: theme.spacing.xs,
             }}>
-              <div
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  captureEvent('triage_suggestion_accepted', {
-                    email_id: email.id,
-                    suggested_star_count: suggestion.suggestedStarCount,
-                  });
-                  await onSetStarCount(email.id, suggestion.suggestedStarCount);
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: theme.spacing.xs,
-                  cursor: 'pointer',
-                  opacity: 0.7,
-                  transition: 'opacity 0.2s',
-                  fontSize: theme.typography.fontSize.xs,
-                  color: theme.colors.text.secondary,
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.opacity = '1';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.opacity = '0.7';
-                }}
-                title={t('inbox.clickToSetStars', { count: suggestion.suggestedStarCount })}
-              >
-                <span style={{ fontWeight: theme.typography.fontWeight.medium }}>
-                  {t('inbox.suggested')}: {getSuggestedText(suggestion.suggestedStarCount)}
-                </span>
-              </div>
+              {suggestion.suggestedStarCount > 0 ? (
+                <div
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    captureEvent('triage_suggestion_accepted', {
+                      email_id: email.id,
+                      suggested_star_count: suggestion.suggestedStarCount,
+                    });
+                    await onSetStarCount(email.id, suggestion.suggestedStarCount);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: theme.spacing.xs,
+                    cursor: 'pointer',
+                    opacity: 0.7,
+                    transition: 'opacity 0.2s',
+                    fontSize: theme.typography.fontSize.xs,
+                    color: theme.colors.text.secondary,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.opacity = '1';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.opacity = '0.7';
+                  }}
+                  title={t('inbox.clickToSetPriority', { priority: getSuggestedLabel(suggestion.suggestedStarCount) })}
+                >
+                  {/* eslint-disable-next-line i18next/no-literal-string */}
+                  <span style={{ fontSize: '1.2rem' }}>{getSuggestedEmoji(suggestion.suggestedStarCount)}</span>
+                  <span style={{ fontWeight: theme.typography.fontWeight.medium }}>
+                    {t('inbox.suggested')}: {getSuggestedLabel(suggestion.suggestedStarCount)}
+                  </span>
+                </div>
+              ) : (
+                <div
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    captureEvent('triage_suggestion_archive_accepted', {
+                      email_id: email.id,
+                    });
+                    await onArchive(email.id, e);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: theme.spacing.xs,
+                    cursor: 'pointer',
+                    opacity: 0.7,
+                    transition: 'opacity 0.2s',
+                    fontSize: theme.typography.fontSize.xs,
+                    color: theme.colors.text.secondary,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.opacity = '1';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.opacity = '0.7';
+                  }}
+                  title={t('inbox.clickToArchive')}
+                >
+                  {/* eslint-disable-next-line i18next/no-literal-string */}
+                  <span>{EMOJI_INBOX}</span>
+                  <span style={{ fontWeight: theme.typography.fontWeight.medium }}>
+                    {t('inbox.suggested')}: {t('inbox.archive')}
+                  </span>
+                </div>
+              )}
             </div>
           )}
 

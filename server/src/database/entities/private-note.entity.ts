@@ -26,7 +26,7 @@ export class PrivateNote {
   @CreateDateColumn()
   createdAt: Date;
 
-  @ManyToOne(() => User, (user) => user.notes)
+  @ManyToOne(() => User, (user) => user.notes, { onDelete: "CASCADE" })
   @JoinColumn({ name: "userId" })
   user: User;
 }

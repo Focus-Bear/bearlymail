@@ -184,7 +184,7 @@ export class EmailThread {
   @JoinColumn({ name: "protoCategoryId" })
   protoCategory: ProtoCategory | null;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, { onDelete: "CASCADE" })
   @JoinColumn({ name: "userId" })
   user: User;
 

@@ -25,10 +25,8 @@ export class ScheduledEmailsController {
   }
 
   @Get("suggestions")
-  async getSuggestedTimes(@Request() req) {
-    // Get user timezone from request or use default
-    const userTimezone = req.query.timezone || undefined;
-    return this.scheduledEmailsService.getSuggestedTimes(userTimezone);
+  async getSuggestedTimes() {
+    return this.scheduledEmailsService.getSuggestedTimes();
   }
 
   @Post("check-time")

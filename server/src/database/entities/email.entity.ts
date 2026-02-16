@@ -199,7 +199,7 @@ export class Email {
   @CreateDateColumn()
   receivedAt: Date;
 
-  @ManyToOne(() => User, (user) => user.emails)
+  @ManyToOne(() => User, (user) => user.emails, { onDelete: "CASCADE" })
   @JoinColumn({ name: "userId" })
   user: User;
 

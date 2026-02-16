@@ -34,7 +34,7 @@ export class SummarizationRule {
   @CreateDateColumn()
   createdAt: Date;
 
-  @ManyToOne(() => User, (user) => user.summarizationRules)
+  @ManyToOne(() => User, (user) => user.summarizationRules, { onDelete: "CASCADE" })
   @JoinColumn({ name: "userId" })
   user: User;
 }

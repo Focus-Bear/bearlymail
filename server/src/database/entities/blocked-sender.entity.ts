@@ -48,7 +48,7 @@ export class BlockedSender {
   @CreateDateColumn()
   blockedAt: Date;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, { onDelete: "CASCADE" })
   @JoinColumn({ name: "userId" })
   user: User;
 }

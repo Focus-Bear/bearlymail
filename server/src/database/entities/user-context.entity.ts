@@ -105,7 +105,7 @@ export class UserContext {
   @UpdateDateColumn()
   lastModified: Date;
 
-  @ManyToOne(() => User, (user) => user.contexts)
+  @ManyToOne(() => User, (user) => user.contexts, { onDelete: "CASCADE" })
   @JoinColumn({ name: "userId" })
   user: User;
 }

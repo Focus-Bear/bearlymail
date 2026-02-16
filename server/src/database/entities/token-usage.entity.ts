@@ -68,7 +68,7 @@ export class TokenUsage {
   @CreateDateColumn()
   createdAt: Date;
 
-  @ManyToOne(() => User, { nullable: true })
+  @ManyToOne(() => User, { nullable: true, onDelete: "SET NULL" })
   @JoinColumn({ name: "userId" })
   user: User | null;
 }

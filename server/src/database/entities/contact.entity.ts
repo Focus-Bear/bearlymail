@@ -101,7 +101,7 @@ export class Contact {
   @Column({ nullable: true })
   lastSyncedAt: Date;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, { onDelete: "CASCADE" })
   @JoinColumn({ name: "userId" })
   user: User;
 }

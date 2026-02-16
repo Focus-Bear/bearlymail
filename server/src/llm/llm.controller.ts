@@ -79,7 +79,7 @@ export class LLMController {
     const isUserSender = Boolean(
       senderEmail &&
       userEmail &&
-      normalizeEmail(senderEmail) === normalizeEmail(userEmail)
+      normalizeEmail(senderEmail) === normalizeEmail(userEmail),
     );
 
     return this.llmService.extractActionItems(

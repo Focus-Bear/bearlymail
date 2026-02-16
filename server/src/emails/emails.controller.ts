@@ -713,7 +713,9 @@ export class EmailsController {
 
     // Get user to append signature
     const user = await this.usersService.findOne(userId);
-    const signature = user?.emailSignature || "Sent from BearlyMail (anti inbox overwhelm system)";
+    const signature =
+      user?.emailSignature ||
+      "Sent from BearlyMail (anti inbox overwhelm system)";
     const bodyWithSignature = `${body.body}\n\n${signature}`;
 
     // Send the email

@@ -1,4 +1,10 @@
-import { Module, forwardRef, OnModuleInit, Inject, Logger } from "@nestjs/common";
+import {
+  Module,
+  forwardRef,
+  OnModuleInit,
+  Inject,
+  Logger,
+} from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { ScheduledEmailsController } from "./scheduled-emails.controller";
 import { ScheduledEmailsService } from "./scheduled-emails.service";

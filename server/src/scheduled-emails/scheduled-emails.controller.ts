@@ -25,15 +25,20 @@ export class ScheduledEmailsController {
   }
 
   @Get("suggestions")
-  async getSuggestedTimes() {
-    return this.scheduledEmailsService.getSuggestedTimes();
+  async getSuggestedTimes(@Request() req) {
+    // Get user timezone from query params (e.g., ?timezone=America/New_York)
+    const userTimezone = req.query.timezone as string | undefined;
+    return this.scheduledEmailsService.getSuggestedTimes(userTimezone);
   }
 
   @Post("check-time")
-  async checkSendTime(@Body() body: { scheduledSendAt: string }) {
+  async checkSendTime(
+    @Body() body: { scheduledSendAt: string; userTimezone?: string },
+  ) {
     const scheduledSendAt = new Date(body.scheduledSendAt);
     return this.scheduledEmailsService.checkSendTimeAppropriate(
       scheduledSendAt,
+      body.userTimezone,
     );
   }
 
@@ -44,10 +49,7 @@ export class ScheduledEmailsController {
 
   @Delete(":id")
   async cancelScheduledEmail(@Request() req, @Param("id") id: string) {
-    await this.scheduledEmailsService.cancelScheduledEmail(
-      req.user.userId,
-      id,
-    );
+    await this.scheduledEmailsService.cancelScheduledEmail(req.user.userId, id);
     return { message: "Scheduled email cancelled" };
   }
 }

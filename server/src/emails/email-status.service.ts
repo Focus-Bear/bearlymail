@@ -110,7 +110,7 @@ export class EmailStatusService {
 
     const urgentEmails = urgentBatchedEmails.map((email) => {
       // Use the denormalized priorityScore from thread
-      const priorityScore = (email as any).priorityScore;
+      const { priorityScore } = email as any;
 
       return {
         subject: email.subject || "No subject",

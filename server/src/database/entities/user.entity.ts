@@ -224,7 +224,8 @@ export class User {
   @Column({
     nullable: true,
     transformer: encryptedColumnTransformer,
-    comment: "User's email signature (encrypted). Default: 'Sent from BearlyMail (anti inbox overwhelm system)'",
+    comment:
+      "User's email signature (encrypted). Default: 'Sent from BearlyMail (anti inbox overwhelm system)'",
   })
   emailSignature: string;
 

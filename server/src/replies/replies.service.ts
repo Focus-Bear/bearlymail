@@ -114,7 +114,8 @@ export class RepliesService {
       // Convert string provider to LLMProvider enum
       let llmProvider: LLMProvider | undefined = undefined;
       if (provider) {
-        llmProvider = provider === "gemini" ? LLMProvider.GEMINI : LLMProvider.OPENAI;
+        llmProvider =
+          provider === "gemini" ? LLMProvider.GEMINI : LLMProvider.OPENAI;
       }
 
       return await this.llmService.generateReplyDraft(

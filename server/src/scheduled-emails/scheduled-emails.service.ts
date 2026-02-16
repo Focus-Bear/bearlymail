@@ -10,6 +10,7 @@ import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { EmailsService } from "../emails/emails.service";
 import { ContactsService } from "../contacts/contacts.service";
 import { UsersService } from "../users/users.service";
+import { DateTime } from "luxon";
 
 // Time constants for scheduling
 const SUNDAY = 0;
@@ -333,21 +334,24 @@ export class ScheduledEmailsService {
    * Get smart scheduling suggestions based on current time
    * Returns suggested times in the user's timezone
    */
-  getSuggestedTimes(): Array<{
+  getSuggestedTimes(userTimezone?: string): Array<{
     label: string;
     value: Date;
     description: string;
   }> {
-    const now = new Date();
+    // Use user's timezone if provided, otherwise default to UTC
+    const timezone = userTimezone || "UTC";
+    const now = DateTime.now().setZone(timezone);
+
     const suggestions: Array<{
       label: string;
       value: Date;
       description: string;
     }> = [];
 
-    // Get current hour
-    const currentHour = now.getHours();
-    const currentDay = now.getDay(); // 0 = Sunday, 6 = Saturday
+    // Get current hour in user's timezone
+    const currentHour = now.hour;
+    const currentDay = now.weekday % DAYS_IN_WEEK; // Convert ISO weekday (1=Mon) to JS weekday (0=Sun)
 
     // Check if it's the weekend (Saturday or Sunday)
     const isWeekend = currentDay === SUNDAY || currentDay === SATURDAY;
@@ -360,66 +364,73 @@ export class ScheduledEmailsService {
 
     if (isWeekend) {
       // If it's the weekend, suggest Monday at 8am
-      const nextMonday = new Date(now);
       const daysUntilMonday = (MONDAY_OFFSET - currentDay) % DAYS_IN_WEEK;
-      nextMonday.setDate(now.getDate() + daysUntilMonday);
-      nextMonday.setHours(BUSINESS_DAY_START_HOUR, 0, 0, 0);
+      const nextMonday = now.plus({ days: daysUntilMonday }).set({
+        hour: BUSINESS_DAY_START_HOUR,
+        minute: 0,
+        second: 0,
+        millisecond: 0,
+      });
 
       suggestions.push({
         label: "Monday 8am",
-        value: nextMonday,
+        value: nextMonday.toJSDate(),
         description: "Next business day morning",
       });
     } else if (isAfterHours || isBeforeHours) {
       // If it's after 5pm or before 8am, suggest tomorrow at 8am
-      const tomorrow8am = new Date(now);
-      if (isAfterHours) {
-        tomorrow8am.setDate(now.getDate() + 1);
-      }
-      tomorrow8am.setHours(BUSINESS_DAY_START_HOUR, 0, 0, 0);
+      const daysToAdd = isAfterHours ? 1 : 0;
+      const tomorrow8am = now.plus({ days: daysToAdd }).set({
+        hour: BUSINESS_DAY_START_HOUR,
+        minute: 0,
+        second: 0,
+        millisecond: 0,
+      });
 
       suggestions.push({
         label: "Tomorrow 8am",
-        value: tomorrow8am,
+        value: tomorrow8am.toJSDate(),
         description: "Next business day morning",
       });
     } else {
       // During business hours, suggest "in 2 hours"
-      const in2Hours = new Date(now);
-      in2Hours.setHours(now.getHours() + 2, 0, 0, 0);
+      const in2Hours = now
+        .plus({ hours: 2 })
+        .set({ minute: 0, second: 0, millisecond: 0 });
 
       suggestions.push({
         label: "In 2 hours",
-        value: in2Hours,
+        value: in2Hours.toJSDate(),
         description: "Later today",
       });
     }
 
     // Always offer "This evening (6pm)"
-    const thisEvening = new Date(now);
-    if (currentHour >= EVENING_CUTOFF_HOUR) {
-      // If it's already past 6pm, suggest tomorrow at 6pm
-      thisEvening.setDate(now.getDate() + 1);
-    }
-    thisEvening.setHours(EVENING_CUTOFF_HOUR, 0, 0, 0);
+    const daysToAdd = currentHour >= EVENING_CUTOFF_HOUR ? 1 : 0;
+    const thisEvening = now
+      .plus({ days: daysToAdd })
+      .set({ hour: EVENING_CUTOFF_HOUR, minute: 0, second: 0, millisecond: 0 });
 
     suggestions.push({
       label:
         currentHour >= EVENING_CUTOFF_HOUR
           ? "Tomorrow 6pm"
           : "This evening 6pm",
-      value: thisEvening,
+      value: thisEvening.toJSDate(),
       description: "End of business day",
     });
 
     // Always offer "Tomorrow morning (9am)"
-    const tomorrowMorning = new Date(now);
-    tomorrowMorning.setDate(now.getDate() + 1);
-    tomorrowMorning.setHours(LATE_NIGHT_START_HOUR, 0, 0, 0);
+    const tomorrowMorning = now.plus({ days: 1 }).set({
+      hour: LATE_NIGHT_START_HOUR,
+      minute: 0,
+      second: 0,
+      millisecond: 0,
+    });
 
     suggestions.push({
       label: "Tomorrow 9am",
-      value: tomorrowMorning,
+      value: tomorrowMorning.toJSDate(),
       description: "Next day morning",
     });
 
@@ -430,44 +441,55 @@ export class ScheduledEmailsService {
    * Check if a send time is inappropriate (outside business hours or weekend)
    * Returns a warning message if inappropriate, or null if OK
    */
-  checkSendTimeAppropriate(scheduledSendAt: Date): {
+  checkSendTimeAppropriate(
+    scheduledSendAt: Date,
+    userTimezone?: string,
+  ): {
     isAppropriate: boolean;
     warning?: string;
     suggestion?: Date;
   } {
-    const hour = scheduledSendAt.getHours();
-    const day = scheduledSendAt.getDay();
+    const timezone = userTimezone || "UTC";
+    const sendTime = DateTime.fromJSDate(scheduledSendAt).setZone(timezone);
+
+    const { hour } = sendTime;
+    const day = sendTime.weekday % DAYS_IN_WEEK; // Convert ISO weekday to JS weekday
 
     const isWeekend = day === SUNDAY || day === SATURDAY;
     const isAfterHours =
       hour >= BUSINESS_DAY_END_HOUR || hour < BUSINESS_DAY_START_HOUR;
 
     if (isWeekend) {
-      const nextMonday = new Date(scheduledSendAt);
       const daysUntilMonday = (MONDAY_OFFSET - day) % DAYS_IN_WEEK;
-      nextMonday.setDate(scheduledSendAt.getDate() + daysUntilMonday);
-      nextMonday.setHours(BUSINESS_DAY_START_HOUR, 0, 0, 0);
+      const nextMonday = sendTime.plus({ days: daysUntilMonday }).set({
+        hour: BUSINESS_DAY_START_HOUR,
+        minute: 0,
+        second: 0,
+        millisecond: 0,
+      });
 
       return {
         isAppropriate: false,
         warning:
           "This email is scheduled for a weekend. Consider sending on the next business day.",
-        suggestion: nextMonday,
+        suggestion: nextMonday.toJSDate(),
       };
     }
 
     if (isAfterHours) {
-      const nextMorning = new Date(scheduledSendAt);
-      if (hour >= BUSINESS_DAY_END_HOUR) {
-        nextMorning.setDate(scheduledSendAt.getDate() + 1);
-      }
-      nextMorning.setHours(BUSINESS_DAY_START_HOUR, 0, 0, 0);
+      const daysToAdd = hour >= BUSINESS_DAY_END_HOUR ? 1 : 0;
+      const nextMorning = sendTime.plus({ days: daysToAdd }).set({
+        hour: BUSINESS_DAY_START_HOUR,
+        minute: 0,
+        second: 0,
+        millisecond: 0,
+      });
 
       return {
         isAppropriate: false,
         warning:
           "This email is scheduled outside business hours (8am-5pm). Consider sending during business hours.",
-        suggestion: nextMorning,
+        suggestion: nextMorning.toJSDate(),
       };
     }
 

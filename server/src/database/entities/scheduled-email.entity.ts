@@ -140,7 +140,8 @@ export class ScheduledEmail {
   @Column("jsonb", {
     transformer: encryptedJsonTransformer,
     nullable: true,
-    comment: "Forward attachment IDs if this is a reply with forwarded attachments",
+    comment:
+      "Forward attachment IDs if this is a reply with forwarded attachments",
   })
   forwardAttachmentIds: string[] | null;
 

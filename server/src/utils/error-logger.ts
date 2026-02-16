@@ -210,7 +210,11 @@ export function setupGlobalErrorHandlers(source?: string): void {
       let reasonMessage: string | null = null;
       if (reason instanceof Error) {
         reasonMessage = reason.message;
-      } else if (typeof reason === "object" && reason !== null && "message" in reason) {
+      } else if (
+        typeof reason === "object" &&
+        reason !== null &&
+        "message" in reason
+      ) {
         reasonMessage = String((reason as { message: unknown }).message);
       }
       if (reasonMessage && reasonMessage.includes("Connection terminated")) {

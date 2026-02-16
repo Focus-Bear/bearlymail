@@ -166,7 +166,8 @@ describe("LLMService", () => {
 
     it("should use fallback when generate_multiple_replies prompt is missing", async () => {
       // Mock getPrompt to return null for generate_multiple_replies, then valid for generate_reply
-      jest.spyOn(prompts, "getPrompt")
+      jest
+        .spyOn(prompts, "getPrompt")
         .mockReturnValueOnce(null)
         .mockReturnValueOnce({
           prompt: "Generate a reply",
@@ -174,7 +175,9 @@ describe("LLMService", () => {
         });
 
       // Mock generateText for the fallback
-      jest.spyOn(service as any, "generateText").mockResolvedValueOnce("Fallback reply");
+      jest
+        .spyOn(service as any, "generateText")
+        .mockResolvedValueOnce("Fallback reply");
 
       const result = await service.generateReplyOptions(
         {
@@ -187,7 +190,9 @@ describe("LLMService", () => {
         "test-user-id",
       );
 
-      expect(result).toEqual([{ label: "Draft Reply", text: "Fallback reply" }]);
+      expect(result).toEqual([
+        { label: "Draft Reply", text: "Fallback reply" },
+      ]);
     });
 
     it("should throw error when generate_meeting_reply prompt is missing", async () => {

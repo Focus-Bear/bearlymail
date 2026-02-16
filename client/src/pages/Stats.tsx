@@ -5,6 +5,8 @@ import { STATS_PERIOD_14_DAYS, DAYS_IN_MONTH_30, MONTHS_IN_YEAR, CHART_BAR_MAX_W
 import { useAuth } from 'contexts/AuthContext';
 import { Sidebar } from 'components/inbox/Sidebar';
 import { useEmailStats, CategoryStats } from 'hooks/useEmailStats';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { EMOJI_MENU } from 'constants/emojis';
 
 const PERIOD_OPTIONS = [7, STATS_PERIOD_14_DAYS, DAYS_IN_MONTH_30, 60, CALENDAR_DAYS_AHEAD] as const;
 
@@ -203,6 +205,8 @@ const Stats: React.FC = () => {
   const { user, logout } = useAuth();
   const [days, setDays] = useState<number>(DAYS_IN_MONTH_30);
   const { stats, loading, error, refetch } = useEmailStats(days);
+  const { isMobile } = useResponsiveBreakpoints();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const maxEmails = stats
     ? Math.max(...stats.categoryStats.map(c => c.totalEmails), 1)
@@ -215,13 +219,45 @@ const Stats: React.FC = () => {
       backgroundColor: theme.colors.background.default,
       overflow: 'hidden',
     }}>
-      <Sidebar user={user} logout={logout} />
+      <Sidebar
+        user={user}
+        logout={logout}
+        isMobileMenuOpen={isMobileMenuOpen}
+        onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
+      />
 
       <div style={{
         flex: 1,
         overflowY: 'auto',
         padding: theme.spacing.xl,
       }}>
+        {isMobile && (
+          <button
+            onClick={() => setIsMobileMenuOpen(true)}
+            style={{
+              position: 'fixed',
+              top: theme.spacing.md,
+              left: theme.spacing.md,
+              width: '48px',
+              height: '48px',
+              borderRadius: '50%',
+              border: `1px solid ${theme.colors.border.medium}`,
+              backgroundColor: theme.colors.background.paper,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.5rem',
+              transition: theme.transitions.fast,
+              boxShadow: theme.shadows.md,
+              zIndex: 100,
+            }}
+            aria-label="Open navigation menu"
+          >
+            {EMOJI_MENU}
+          </button>
+        )}
+
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',

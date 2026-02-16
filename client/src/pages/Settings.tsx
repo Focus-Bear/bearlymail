@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { Sidebar } from 'components/inbox/Sidebar';
@@ -16,14 +16,18 @@ import { SetPasswordSection } from 'components/settings/SetPasswordSection';
 import { EmailSignatureSection } from 'components/settings/EmailSignatureSection';
 import { useSettingsData } from 'hooks/useSettingsData';
 import { useAutoResponder } from 'hooks/useAutoResponder';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 import { API_URL } from 'config/api';
+import { EMOJI_MENU } from 'constants/emojis';
 
 const Settings: React.FC = () => {
   const { user, logout, refreshUser } = useAuth();
   const settingsData = useSettingsData();
   const autoResponder = useAutoResponder();
   const hasTriggeredAutoAnalyze = useRef(false);
+  const { isMobile } = useResponsiveBreakpoints();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Handle OAuth callback
   useEffect(() => {
@@ -89,8 +93,40 @@ const Settings: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-      <Sidebar user={user} logout={logout} />
+      <Sidebar
+        user={user}
+        logout={logout}
+        isMobileMenuOpen={isMobileMenuOpen}
+        onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
+      />
       <div style={{ flex: 1, overflowY: 'auto', padding: theme.spacing.xl, position: 'relative' }}>
+        {isMobile && (
+          <button
+            onClick={() => setIsMobileMenuOpen(true)}
+            style={{
+              position: 'fixed',
+              top: theme.spacing.md,
+              left: theme.spacing.md,
+              width: '48px',
+              height: '48px',
+              borderRadius: '50%',
+              border: `1px solid ${theme.colors.border.medium}`,
+              backgroundColor: theme.colors.background.paper,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.5rem',
+              transition: theme.transitions.fast,
+              boxShadow: theme.shadows.md,
+              zIndex: 100,
+            }}
+            aria-label="Open navigation menu"
+          >
+            {EMOJI_MENU}
+          </button>
+        )}
+
         <AnalysisProgressModal
           analyzeProgress={settingsData.analyzeProgress}
           onDismiss={settingsData.dismissAnalyzeProgress}

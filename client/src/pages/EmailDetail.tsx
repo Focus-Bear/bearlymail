@@ -725,19 +725,20 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
 
   // Full page mode with sidebar and overlay
   return (
-    <div style={{
-      display: 'flex',
-      height: '100vh',
-      backgroundColor: theme.colors.background.default,
-      overflow: 'hidden',
-      position: 'relative',
-    }}>
+    <>
       <EmailDetailAnimationOverlay animationClass={animationClass} />
       <EmailDetailSidebar />
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: theme.spacing['2xl'] }}>
-        <div style={{ maxWidth: '900px', margin: '0 auto' }}>
-          {emailContent}
+      <div style={{
+        height: '100vh',
+        backgroundColor: theme.colors.background.default,
+        overflow: 'hidden',
+        position: 'relative',
+      }}>
+        <div style={{ height: '100%', overflowY: 'auto', padding: theme.spacing['2xl'] }}>
+          <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+            {emailContent}
+          </div>
         </div>
       </div>
 
@@ -751,7 +752,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
         }}
         onCreate={handleCreateCustomRule}
       />
-    </div>
+    </>
   );
 });
 

@@ -8,13 +8,18 @@ import { captureEvent } from 'utils/posthog';
 import { Contact } from 'types/contact';
 import { useAuth } from 'contexts/AuthContext';
 import { getPusherInstance } from 'config/pusher';
+import { Sidebar } from 'components/inbox/Sidebar';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 import { API_URL } from 'config/api';
+import { EMOJI_MENU } from 'constants/emojis';
 
 const Contacts: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const { isMobile } = useResponsiveBreakpoints();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -140,67 +145,87 @@ const Contacts: React.FC = () => {
 
   return (
     <div style={{
-      minHeight: '100vh',
-      backgroundColor: theme.colors.background.default,
-      padding: theme.spacing.lg,
+      display: 'flex',
+      height: '100vh',
+      overflow: 'hidden',
     }}>
+      <Sidebar
+        user={user}
+        logout={logout}
+        isMobileMenuOpen={isMobileMenuOpen}
+        onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
+      />
+
       <div style={{
-        maxWidth: '900px',
-        margin: '0 auto',
+        flex: 1,
+        overflowY: 'auto',
+        backgroundColor: theme.colors.background.default,
+        padding: theme.spacing.lg,
       }}>
+        {isMobile && (
+          <button
+            onClick={() => setIsMobileMenuOpen(true)}
+            style={{
+              position: 'fixed',
+              top: theme.spacing.md,
+              left: theme.spacing.md,
+              width: '48px',
+              height: '48px',
+              borderRadius: '50%',
+              border: `1px solid ${theme.colors.border.medium}`,
+              backgroundColor: theme.colors.background.paper,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.5rem',
+              transition: theme.transitions.fast,
+              boxShadow: theme.shadows.md,
+              zIndex: 100,
+            }}
+            aria-label="Open navigation menu"
+          >
+            {EMOJI_MENU}
+          </button>
+        )}
+
         <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: theme.spacing.lg,
+          maxWidth: '900px',
+          margin: '0 auto',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
-            <button
-              onClick={() => navigate('/inbox')}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                color: theme.colors.text.secondary,
-                fontSize: theme.typography.fontSize.base,
-                padding: '8px 12px',
-                borderRadius: theme.borderRadius.md,
-                transition: theme.transitions.default,
-              }}
-            >
-              {t('contacts.backToInbox')}
-            </button>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: theme.spacing.lg,
+          }}>
             <h1 style={{
-              margin: 0,
-              fontSize: theme.typography.fontSize['2xl'],
-              fontWeight: theme.typography.fontWeight.bold,
+              ...theme.typography.heading.h4,
               color: theme.colors.text.primary,
+              margin: 0,
             }}>
               {t('contacts.title')}
             </h1>
+
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              style={{
+                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                backgroundColor: theme.colors.primary.main,
+                color: 'white',
+                border: 'none',
+                borderRadius: theme.borderRadius.md,
+                cursor: syncing ? 'not-allowed' : 'pointer',
+                fontSize: theme.typography.fontSize.sm,
+                fontWeight: theme.typography.fontWeight.medium,
+                opacity: syncing ? OPACITY_DISABLED : OPACITY_FULL,
+                transition: theme.transitions.default,
+              }}
+            >
+              {syncing ? t('contacts.syncing') : t('contacts.syncContacts')}
+            </button>
           </div>
-          <button
-            onClick={handleSync}
-            disabled={syncing}
-            style={{
-              padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-              backgroundColor: theme.colors.primary.main,
-              color: 'white',
-              border: 'none',
-              borderRadius: theme.borderRadius.md,
-              cursor: syncing ? 'not-allowed' : 'pointer',
-              fontSize: theme.typography.fontSize.sm,
-              fontWeight: theme.typography.fontWeight.medium,
-              opacity: syncing ? OPACITY_DISABLED : OPACITY_FULL,
-              transition: theme.transitions.default,
-            }}
-          >
-            {syncing ? t('contacts.syncing') : t('contacts.syncContacts')}
-          </button>
-        </div>
 
         <div style={{
           marginBottom: theme.spacing.lg,
@@ -377,6 +402,7 @@ const Contacts: React.FC = () => {
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

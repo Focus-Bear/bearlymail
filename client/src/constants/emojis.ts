@@ -48,4 +48,5 @@ export const EMOJI_PEOPLE = '👥';
 export const EMOJI_DELETE = '🗑️';
 export const EMOJI_TRASH = '🗑️';
 export const EMOJI_INFO = 'ℹ️';
+export const EMOJI_MENU = '☰';
 

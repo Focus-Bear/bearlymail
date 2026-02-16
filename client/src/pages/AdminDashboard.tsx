@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from 'contexts/AuthContext';
 import { theme } from 'theme/theme';
@@ -10,12 +10,17 @@ import { SubscriptionsSection } from 'components/admin/SubscriptionsSection';
 import { JobsSection } from 'components/admin/JobsSection';
 import { TokenUsageSection } from 'components/admin/TokenUsageSection';
 import { ADMIN_TAB_WAITLIST, ADMIN_TAB_JOBS, ADMIN_TAB_TOKEN_USAGE } from 'constants/adminTabs';
+import { Sidebar } from 'components/inbox/Sidebar';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { EMOJI_MENU } from 'constants/emojis';
 
 const DEFAULT_EXTEND_DAYS = 7;
 
 const AdminDashboard: React.FC = () => {
   const { t } = useTranslation();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
+  const { isMobile } = useResponsiveBreakpoints();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const {
     activeTab,
     setActiveTab,
@@ -74,17 +79,58 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div style={{
-      minHeight: '100vh',
-      backgroundColor: theme.colors.background.default,
-      padding: theme.spacing.xl,
+      display: 'flex',
+      height: '100vh',
+      overflow: 'hidden',
     }}>
+      <Sidebar
+        user={user}
+        logout={logout}
+        isMobileMenuOpen={isMobileMenuOpen}
+        onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
+      />
+
       <div style={{
-        maxWidth: '1200px',
-        margin: '0 auto',
+        flex: 1,
+        overflowY: 'auto',
+        backgroundColor: theme.colors.background.default,
+        padding: theme.spacing.xl,
       }}>
-        <AdminDashboardHeader onLogout={logout} />
-        <AdminTabs activeTab={activeTab} onTabChange={setActiveTab} />
-        {renderContent()}
+        {isMobile && (
+          <button
+            onClick={() => setIsMobileMenuOpen(true)}
+            style={{
+              position: 'fixed',
+              top: theme.spacing.md,
+              left: theme.spacing.md,
+              width: '48px',
+              height: '48px',
+              borderRadius: '50%',
+              border: `1px solid ${theme.colors.border.medium}`,
+              backgroundColor: theme.colors.background.paper,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.5rem',
+              transition: theme.transitions.fast,
+              boxShadow: theme.shadows.md,
+              zIndex: 100,
+            }}
+            aria-label="Open navigation menu"
+          >
+            {EMOJI_MENU}
+          </button>
+        )}
+
+        <div style={{
+          maxWidth: '1200px',
+          margin: '0 auto',
+        }}>
+          <AdminDashboardHeader onLogout={logout} />
+          <AdminTabs activeTab={activeTab} onTabChange={setActiveTab} />
+          {renderContent()}
+        </div>
       </div>
     </div>
   );

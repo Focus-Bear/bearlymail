@@ -574,5 +574,66 @@ describe("BatchScheduleService", () => {
       // Tuesday 9am AEDT = Monday 10pm UTC
       expect(result?.toISOString()).toBe("2024-01-08T22:00:00.000Z");
     });
+
+    it("should handle Australia/Melbourne timezone correctly", () => {
+      jest.useFakeTimers();
+      // Thursday 2:44 UTC = Thursday 1:44 PM AEDT (UTC+11)
+      jest.setSystemTime(new Date("2026-02-13T02:44:00Z"));
+
+      const schedule = {
+        isEnabled: true,
+        deliveryDays: [1, 2, 3, 4, 5], // Monday-Friday (0=Sun, 1=Mon, ..., 5=Fri)
+        deliveryTimes: ["11:00", "15:00"], // 11am and 3pm AEDT
+        timezone: "Australia/Melbourne",
+        urgentBypassSchedule: false,
+      } as BatchSchedule;
+
+      const result = service.getNextScheduledDeliveryTime(schedule);
+
+      expect(result).not.toBeNull();
+      // Current time is Thursday 1:44 PM AEDT, next delivery is Thursday 3pm AEDT
+      // Thursday 3pm AEDT (15:00) = Thursday 4am UTC (15:00 - 11:00)
+      expect(result?.toISOString()).toBe("2026-02-13T04:00:00.000Z");
+    });
+
+    it("should handle delivery days stored as strings in database", () => {
+      jest.useFakeTimers();
+      // Monday 8am UTC
+      jest.setSystemTime(new Date("2024-01-08T08:00:00Z"));
+
+      const schedule = {
+        isEnabled: true,
+        deliveryDays: ["1", "2", "3", "4", "5"] as any, // Stored as strings in DB
+        deliveryTimes: ["09:00", "15:00"],
+        timezone: "UTC",
+        urgentBypassSchedule: false,
+      } as BatchSchedule;
+
+      const result = service.getNextScheduledDeliveryTime(schedule);
+
+      expect(result).not.toBeNull();
+      // Should correctly parse string days and find Monday at 9am UTC
+      expect(result?.toISOString()).toBe("2024-01-08T09:00:00.000Z");
+    });
+
+    it("should handle mixed string and number delivery days", () => {
+      jest.useFakeTimers();
+      // Monday 8am UTC
+      jest.setSystemTime(new Date("2024-01-08T08:00:00Z"));
+
+      const schedule = {
+        isEnabled: true,
+        deliveryDays: [1, "2", 3, "4", 5] as any, // Mixed types
+        deliveryTimes: ["09:00", "15:00"],
+        timezone: "UTC",
+        urgentBypassSchedule: false,
+      } as BatchSchedule;
+
+      const result = service.getNextScheduledDeliveryTime(schedule);
+
+      expect(result).not.toBeNull();
+      // Should correctly normalize all to numbers
+      expect(result?.toISOString()).toBe("2024-01-08T09:00:00.000Z");
+    });
   });
 });

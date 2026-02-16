@@ -58,82 +58,130 @@ export const ContextSection: React.FC<ContextSectionProps> = ({
   onEditContextValueChange,
 }) => {
   const { t } = useTranslation();
+  const [isExpanded, setIsExpanded] = useState(true); // Default to expanded
   const keys = Array.isArray(contextKey) ? contextKey : [contextKey];
   const filteredContexts = contexts.filter(c => keys.includes(c.contextKey));
   const addType = keys[0];
+  const itemCount = filteredContexts.length;
 
   return (
-    <div style={{ marginBottom: theme.spacing.lg }}>
-      <h3 style={{ 
-        fontSize: theme.typography.fontSize.lg, 
-        color: theme.colors.text.primary,
-        marginBottom: theme.spacing.sm,
-        borderBottom: `1px solid ${theme.colors.border.light}`,
-        paddingBottom: theme.spacing.xs,
-        display: 'flex',
-        alignItems: 'center',
-        gap: theme.spacing.xs
-      }}>
-        {title}
+    <div style={{
+      marginBottom: theme.spacing.lg,
+      border: `1px solid ${theme.colors.border.light}`,
+      borderRadius: theme.borderRadius.md,
+      backgroundColor: theme.colors.background.paper,
+    }}>
+      <div
+        onClick={() => setIsExpanded(!isExpanded)}
+        style={{
+          fontSize: theme.typography.fontSize.lg,
+          color: theme.colors.text.primary,
+          padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+          display: 'flex',
+          alignItems: 'center',
+          gap: theme.spacing.sm,
+          cursor: 'pointer',
+          backgroundColor: theme.colors.background.paper,
+          borderBottom: isExpanded ? `1px solid ${theme.colors.border.light}` : 'none',
+          borderRadius: isExpanded ? `${theme.borderRadius.md} ${theme.borderRadius.md} 0 0` : theme.borderRadius.md,
+          transition: theme.transitions.fast,
+        }}
+      >
+        <span
+          style={{
+            transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+            transition: theme.transitions.fast,
+            fontSize: theme.typography.fontSize.base,
+            color: theme.colors.text.secondary,
+          }}
+        >
+          ▶
+        </span>
+        <span style={{ fontWeight: theme.typography.fontWeight.semibold }}>
+          {title}
+        </span>
+        <span
+          style={{
+            backgroundColor: theme.colors.greyscale[300],
+            color: theme.colors.text.secondary,
+            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+            borderRadius: theme.borderRadius.full,
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.medium,
+          }}
+        >
+          {itemCount}
+        </span>
         {tooltipContent && <InfoTooltip content={tooltipContent} />}
-        {actionButton}
-      </h3>
-      
-      <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
-        {filteredContexts.length > 0 ? (
-          filteredContexts.map(context => (
-            <ContextItem
-              key={context.contextId}
-              context={context}
-              editingContextId={editingContextId}
-              editContextValue={editContextValue}
-              onUpdateContext={onUpdateContext}
-              onEditingContextIdChange={onEditingContextIdChange}
-              onEditContextValueChange={onEditContextValueChange}
-              onDeleteContext={onDeleteContext}
-            />
-          ))
-        ) : (
-          <div style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.sm, fontStyle: 'italic' }}>
-            {t('settings.context.noItems')}
+        {actionButton && (
+          <div onClick={(e) => e.stopPropagation()}>
+            {actionButton}
           </div>
         )}
-
-        {addingContextType === addType ? (
-          <ContextAddInput
-            newContextValue={newContextValue}
-            onNewContextValueChange={onNewContextValueChange}
-            onAddContext={onAddContext}
-            onCancel={() => {
-              onAddingContextTypeChange(null);
-              onNewContextValueChange('');
-            }}
-          />
-        ) : (
-          <button
-            onClick={() => {
-              onAddingContextTypeChange(addType);
-              onNewContextValueChange('');
-            }}
-            style={{
-              alignSelf: 'flex-start',
-              marginTop: theme.spacing.xs,
-              background: 'transparent',
-              border: `1px dashed ${theme.colors.border.medium}`,
-              borderRadius: theme.borderRadius.md,
-              padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-              color: theme.colors.text.secondary,
-              cursor: 'pointer',
-              fontSize: theme.typography.fontSize.sm,
-              display: 'flex',
-              alignItems: 'center',
-              gap: theme.spacing.xs
-            }}
-          >
-            <span>+</span> {addLabel}
-          </button>
-        )}
       </div>
+
+      {isExpanded && (
+        <div style={{
+          padding: theme.spacing.md,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: theme.spacing.sm
+        }}>
+          {filteredContexts.length > 0 ? (
+            filteredContexts.map(context => (
+              <ContextItem
+                key={context.contextId}
+                context={context}
+                editingContextId={editingContextId}
+                editContextValue={editContextValue}
+                onUpdateContext={onUpdateContext}
+                onEditingContextIdChange={onEditingContextIdChange}
+                onEditContextValueChange={onEditContextValueChange}
+                onDeleteContext={onDeleteContext}
+              />
+            ))
+          ) : (
+            <div style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.sm, fontStyle: 'italic' }}>
+              {t('settings.context.noItems')}
+            </div>
+          )}
+
+          {addingContextType === addType ? (
+            <ContextAddInput
+              newContextValue={newContextValue}
+              onNewContextValueChange={onNewContextValueChange}
+              onAddContext={onAddContext}
+              onCancel={() => {
+                onAddingContextTypeChange(null);
+                onNewContextValueChange('');
+              }}
+            />
+          ) : (
+            <button
+              onClick={() => {
+                onAddingContextTypeChange(addType);
+                onNewContextValueChange('');
+              }}
+              style={{
+                alignSelf: 'flex-start',
+                marginTop: theme.spacing.xs,
+                background: 'transparent',
+                border: `1px dashed ${theme.colors.border.medium}`,
+                borderRadius: theme.borderRadius.md,
+                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+                color: theme.colors.text.secondary,
+                cursor: 'pointer',
+                fontSize: theme.typography.fontSize.sm,
+                display: 'flex',
+                alignItems: 'center',
+                gap: theme.spacing.xs
+              }}
+            >
+              <span>+</span> {addLabel}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 };

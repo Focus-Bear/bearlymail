@@ -29,6 +29,7 @@ export interface MicrosoftGraphMessage {
   importance?: "low" | "normal" | "high";
   parentFolderId?: string;
   webLink?: string;
+  categories?: string[];
 }
 
 /**

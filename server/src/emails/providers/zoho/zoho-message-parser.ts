@@ -25,6 +25,7 @@ export interface ZohoMailMessage {
   importance?: "low" | "normal" | "high";
   folderId?: string;
   folderName?: string;
+  tags?: string[];
 }
 
 /**

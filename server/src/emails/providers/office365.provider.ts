@@ -554,7 +554,7 @@ export class Office365Provider implements EmailProvider {
       const fullMsg = await graphClient.get(`/me/messages/${messageId}`, {
         params: {
           $select:
-            "id,subject,from,receivedDateTime,isRead,body,bodyPreview,conversationId,importance,parentFolderId",
+            "id,subject,from,receivedDateTime,isRead,body,bodyPreview,conversationId,importance,parentFolderId,categories",
         },
       });
 
@@ -565,10 +565,15 @@ export class Office365Provider implements EmailProvider {
         return;
       }
 
-      const isArchived = messageData.parentFolderId !== "inbox";
+      const isArchived =
+        messageData.parentFolderId !== "inbox" &&
+        messageData.parentFolderId !== "deleteditems";
+      const isDeleted = messageData.parentFolderId === "deleteditems";
+      const categories = (messageData.categories as string[]) || [];
       await this.scanEmailService.createScanEmail(userId, {
         ...rawEmail,
-        isArchived,
+        isArchived: isArchived || isDeleted,
+        labels: categories,
       });
       await this.updateScanProgress(userId);
       this.logger.log(
@@ -617,16 +622,29 @@ export class Office365Provider implements EmailProvider {
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - DAYS.WEEK);
 
-      const response = await graphClient.get("/me/mailFolders/inbox/messages", {
-        params: {
-          $filter: `receivedDateTime ge ${sevenDaysAgo.toISOString()}`,
-          $orderby: "receivedDateTime desc",
-          $top: 300,
-          $select: "id",
-        },
-      });
+      // Fetch from both inbox and deleted items
+      const [inboxResponse, deletedResponse] = await Promise.all([
+        graphClient.get("/me/mailFolders/inbox/messages", {
+          params: {
+            $filter: `receivedDateTime ge ${sevenDaysAgo.toISOString()}`,
+            $orderby: "receivedDateTime desc",
+            $top: 200,
+            $select: "id",
+          },
+        }),
+        graphClient.get("/me/mailFolders/deleteditems/messages", {
+          params: {
+            $filter: `receivedDateTime ge ${sevenDaysAgo.toISOString()}`,
+            $orderby: "receivedDateTime desc",
+            $top: 100,
+            $select: "id",
+          },
+        }),
+      ]);
 
-      const messages = response.data.value || [];
+      const inboxMessages = inboxResponse.data.value || [];
+      const deletedMessages = deletedResponse.data.value || [];
+      const messages = [...inboxMessages, ...deletedMessages];
       const total = Math.min(
         messages.length,
         BODY_PREVIEW_LENGTHS.BATCH_PREVIEW,

@@ -27,8 +27,10 @@ import {
   LLM_OP_DISPUTE_TONE_CHECK,
   LLM_OP_CONSOLIDATE_CATEGORIES,
   LLM_OP_GENERATE_CATEGORIES_FROM_OTHER,
+  LLM_OP_IDENTIFY_CUSTOM_LABELS,
   LLM_OP_UNKNOWN,
 } from "./llm-operations";
+import { getErrorMessage } from "../types/common";
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { MINUTES, MILLISECONDS } from "../constants/time-constants";
@@ -2473,6 +2475,121 @@ export class LLMService {
 
     this.logger.log(
       `[GENERATE-CATEGORIES] === FALLBACK === No new categories generated`,
+    );
+    return [];
+  }
+
+  /**
+   * Identify custom labels from email scan that could be converted into categories.
+   * Filters out system labels and suggests useful category candidates.
+   */
+  async identifyCustomLabels(
+    labels: string[],
+    provider?: LLMProvider,
+    userId?: string,
+  ): Promise<
+    Array<{
+      label: string;
+      categoryName: string;
+      description: string;
+      confidence: "HIGH" | "MEDIUM" | "LOW";
+    }>
+  > {
+    this.logger.log(
+      `[IDENTIFY-CUSTOM-LABELS] === START === Input: ${labels.length} labels`,
+    );
+
+    if (labels.length === 0) {
+      this.logger.log(
+        `[IDENTIFY-CUSTOM-LABELS] === SKIP === No labels to analyze`,
+      );
+      return [];
+    }
+
+    const prompt = await renderPrompt("identify_custom_labels", {
+      labels: labels.join(", "),
+    });
+
+    this.logger.log(`[IDENTIFY-CUSTOM-LABELS] Calling LLM to identify labels`);
+    const response = await this.generateText(
+      {
+        prompt,
+        systemPrompt: "",
+        temperature: RATIOS.THIRTY_PERCENT,
+        maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_MEDIUM,
+        userId,
+      },
+      provider,
+      userId,
+      LLM_OP_IDENTIFY_CUSTOM_LABELS,
+    );
+
+    this.logger.log(
+      `[IDENTIFY-CUSTOM-LABELS] LLM response received (length: ${response.length} chars)`,
+    );
+
+    try {
+      const jsonString = response
+        .replace(/^```json\s*/i, "")
+        .replace(/^```\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim();
+
+      const jsonMatch = jsonString.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+
+        if (Array.isArray(parsed)) {
+          const customLabels = parsed
+            .filter(
+              (item: {
+                label?: string;
+                categoryName?: string;
+                description?: string;
+                confidence?: string;
+              }) =>
+                item.label &&
+                item.categoryName &&
+                item.description &&
+                item.confidence,
+            )
+            .map(
+              (item: {
+                label: string;
+                categoryName: string;
+                description: string;
+                confidence: string;
+              }) => ({
+                label: String(item.label).trim(),
+                categoryName: String(item.categoryName).trim(),
+                description: String(item.description).trim(),
+                confidence: String(item.confidence).trim() as
+                  | "HIGH"
+                  | "MEDIUM"
+                  | "LOW",
+              }),
+            );
+
+          this.logger.log(
+            `[IDENTIFY-CUSTOM-LABELS] === SUCCESS === Identified ${customLabels.length} custom labels`,
+          );
+          this.logger.log(
+            `[IDENTIFY-CUSTOM-LABELS] Labels:\n${customLabels.map((l) => `  - ${l.categoryName} (${l.confidence})`).join("\n")}`,
+          );
+          return customLabels;
+        }
+      }
+    } catch (error) {
+      this.logger.error(
+        `[IDENTIFY-CUSTOM-LABELS] === ERROR === Failed to parse LLM response: ${getErrorMessage(error)}`,
+      );
+      this.logger.log(
+        `[IDENTIFY-CUSTOM-LABELS] Raw response:\n${response.substring(0, 500)}`,
+      );
+    }
+
+    this.logger.log(
+      `[IDENTIFY-CUSTOM-LABELS] === FALLBACK === No custom labels identified`,
     );
     return [];
   }

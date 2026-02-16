@@ -592,7 +592,8 @@ export class GmailProvider implements EmailProvider {
     try {
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - DAYS.WEEK);
-      const query = `after:${Math.floor(sevenDaysAgo.getTime() / 1000)} (label:INBOX OR label:SENT)`;
+      // Include TRASH to capture deleted emails (treat as archived)
+      const query = `after:${Math.floor(sevenDaysAgo.getTime() / 1000)} (label:INBOX OR label:SENT OR label:TRASH)`;
       const response = await gmail.users.messages.list({
         userId: "me",
         maxResults: 300,
@@ -665,9 +666,11 @@ export class GmailProvider implements EmailProvider {
       }
 
       const labelIds = fullMsg.data.labelIds || [];
+      const labelNames = await this.convertLabelIdsToNames(userId, labelIds);
       await this.scanEmailService.createScanEmail(userId, {
         ...rawEmail,
-        isArchived: !labelIds.includes("INBOX"),
+        isArchived: !labelIds.includes("INBOX") || labelIds.includes("TRASH"),
+        labels: labelNames,
       });
       await this.updateScanProgress(userId);
     } catch (error) {

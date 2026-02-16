@@ -526,9 +526,14 @@ export class ZohoProvider implements EmailProvider {
         return;
       }
 
+      const isArchived =
+        messageData.folderId !== "inbox" && messageData.folderId !== "trash";
+      const isDeleted = messageData.folderId === "trash";
+      const tags = (messageData.tags as string[]) || [];
       await this.scanEmailService.createScanEmail(userId, {
         ...rawEmail,
-        isArchived: messageData.folderId !== "inbox",
+        isArchived: isArchived || isDeleted,
+        labels: tags,
       });
       await this.updateScanProgress(userId);
     } catch (error: unknown) {
@@ -573,20 +578,30 @@ export class ZohoProvider implements EmailProvider {
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - DAYS.WEEK);
       const sevenDaysAgoTimestamp = Math.floor(sevenDaysAgo.getTime() / 1000);
 
-      const response = await zohoClient.get(
-        `/accounts/${zohoAccountId}/messages`,
-        {
+      // Fetch from both inbox and trash
+      const [inboxResponse, trashResponse] = await Promise.all([
+        zohoClient.get(`/accounts/${zohoAccountId}/messages`, {
           params: {
-            limit: 300,
+            limit: 200,
             sort: "receivedTime",
             sortorder: "desc",
             folderid: "inbox",
           },
-        },
-      );
+        }),
+        zohoClient.get(`/accounts/${zohoAccountId}/messages`, {
+          params: {
+            limit: 100,
+            sort: "receivedTime",
+            sortorder: "desc",
+            folderid: "trash",
+          },
+        }),
+      ]);
 
-      const messages = response.data.data || [];
-      const filteredMessages = messages.filter(
+      const inboxMessages = inboxResponse.data.data || [];
+      const trashMessages = trashResponse.data.data || [];
+      const allMessages = [...inboxMessages, ...trashMessages];
+      const filteredMessages = allMessages.filter(
         (msg: any) => msg.receivedTime >= sevenDaysAgoTimestamp,
       );
       const total = Math.min(

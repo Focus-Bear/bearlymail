@@ -8,6 +8,7 @@ import { ContextService } from "../context/context.service";
 import { UsersService } from "../users/users.service";
 import { ContextKey, Source } from "../database/entities/user-context.entity";
 import { google } from "googleapis";
+import { LLMService } from "../llm/llm.service";
 
 // Mock googleapis
 jest.mock("googleapis", () => ({
@@ -87,6 +88,12 @@ describe("ScanAnalysisService", () => {
           provide: UsersService,
           useValue: {
             findOne: jest.fn(),
+          },
+        },
+        {
+          provide: LLMService,
+          useValue: {
+            identifyCustomLabels: jest.fn(),
           },
         },
         {

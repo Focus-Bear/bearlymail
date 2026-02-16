@@ -5,7 +5,10 @@ import {
   CreateDateColumn,
   Index,
 } from "typeorm";
-import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
+import {
+  encryptedColumnTransformer,
+  encryptedJsonTransformer,
+} from "../../encryption/encryption.helper";
 
 /**
  * Temporary table for storing emails during the historical scan process.
@@ -83,4 +86,12 @@ export class ScanEmail {
     comment: "Whether user replied to this email (check thread)",
   })
   wasRepliedTo: boolean;
+
+  @Column({
+    type: "text",
+    nullable: true,
+    transformer: encryptedJsonTransformer,
+    comment: "Email labels from provider (Gmail labels, Office365 categories)",
+  })
+  labels: string[];
 }

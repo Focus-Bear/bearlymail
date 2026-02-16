@@ -10,6 +10,7 @@ import { UsersModule } from "../users/users.module";
 import { QueueModule } from "../queue/queue.module";
 import { EmailsModule } from "../emails/emails.module";
 import { ContextModule } from "../context/context.module";
+import { LLMModule } from "../llm/llm.module";
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { ContextModule } from "../context/context.module";
     QueueModule,
     EmailsModule,
     ContextModule,
+    LLMModule,
   ],
   controllers: [OnboardingController],
   providers: [OnboardingService, ScanAnalysisService, ScanAnalysisProcessor],

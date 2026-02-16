@@ -76,6 +76,9 @@ export const LLM_OP_CONSOLIDATE_CATEGORIES = "consolidate_categories";
 export const LLM_OP_GENERATE_CATEGORIES_FROM_OTHER =
   "generate_categories_from_other";
 
+// Identify custom labels for category generation
+export const LLM_OP_IDENTIFY_CUSTOM_LABELS = "identify_custom_labels";
+
 // Generic/unknown operation (fallback)
 export const LLM_OP_UNKNOWN = "unknown";
 
@@ -107,6 +110,7 @@ export type LLMOperation =
   | typeof LLM_OP_DISPUTE_TONE_CHECK
   | typeof LLM_OP_CONSOLIDATE_CATEGORIES
   | typeof LLM_OP_GENERATE_CATEGORIES_FROM_OTHER
+  | typeof LLM_OP_IDENTIFY_CUSTOM_LABELS
   | typeof LLM_OP_UNKNOWN;
 
 /**
@@ -137,5 +141,6 @@ export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
   [LLM_OP_DISPUTE_TONE_CHECK]: "Dispute Tone Check",
   [LLM_OP_CONSOLIDATE_CATEGORIES]: "Consolidate Categories",
   [LLM_OP_GENERATE_CATEGORIES_FROM_OTHER]: "Generate Categories from Other",
+  [LLM_OP_IDENTIFY_CUSTOM_LABELS]: "Identify Custom Labels",
   [LLM_OP_UNKNOWN]: "Unknown Operation",
 };

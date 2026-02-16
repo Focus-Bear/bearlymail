@@ -102,7 +102,7 @@ export const CategoryOverrideModal: React.FC<CategoryOverrideModalProps> = ({
   };
 
   return createPortal(
-    <ModalBackdrop onClose={onClose}>
+    <ModalBackdrop onClose={onClose} zIndex={10001}>
       <ModalContent>
         <ModalHeader title={t('priority.categoryOverride.title')} />
 

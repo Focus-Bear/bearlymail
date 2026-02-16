@@ -11,6 +11,7 @@ import { EmailThread } from "../database/entities/email-thread.entity";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
 import { UsersService } from "../users/users.service";
+import { ScheduledEmailsService } from "../scheduled-emails/scheduled-emails.service";
 
 describe("EmailsController", () => {
   let controller: EmailsController;
@@ -114,7 +115,7 @@ describe("EmailsController", () => {
           useValue: mockUsersService,
         },
         {
-          provide: "ScheduledEmailsService",
+          provide: ScheduledEmailsService,
           useValue: mockScheduledEmailsService,
         },
       ],

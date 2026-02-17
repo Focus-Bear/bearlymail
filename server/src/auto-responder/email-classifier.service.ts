@@ -6,6 +6,8 @@ import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { RATIOS } from "../constants/percentages";
 import { LLM_CONFIG } from "./auto-responder-constants";
 import { EMAIL_CLASSIFICATION } from "../constants/llm-constants";
+import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
+import { StructuralError } from "../errors/structural-error";
 
 // LLM operation for email classification
 const LLM_OP_CLASSIFY_EMAIL = "classify_email_type";
@@ -104,6 +106,7 @@ export class EmailClassifierService {
   constructor(
     @Inject(forwardRef(() => LLMService))
     private llmService: LLMService,
+    private errorTrackingService: ErrorTrackingService,
   ) {}
 
   /**
@@ -216,20 +219,14 @@ export class EmailClassifierService {
         reasons: [...reasons, ...llmClassification.reasons],
       };
     } catch (error) {
-      this.logger.error("LLM classification failed, using fallback", error);
-      // Fallback to pattern-based classification
-      return {
-        isAutomated: false,
-        isNewsletter: false,
-        isColdOutreach:
-          coldOutreachScore > EMAIL_CLASSIFICATION.COLD_OUTREACH_MEDIUM,
-        isReply: threadHasReplies || false,
-        isOutOfOffice: false,
-        isBounce: false,
-        personalizationScore: 1 - coldOutreachScore,
-        urgencyLevel: this.detectUrgency(email.subject, email.body),
-        reasons: [...reasons, "Fallback classification (LLM unavailable)"],
-      };
+      // Log to PostHog and re-throw - no fallback
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error("LLM classification failed", err);
+      this.errorTrackingService.captureException(err, undefined, {
+        operation: "classify_email",
+        emailFrom: email.from,
+      });
+      throw err;
     }
   }
 
@@ -413,10 +410,15 @@ export class EmailClassifierService {
   }): Promise<EmailClassification> {
     const promptConfig = getPrompt("classify_email_type");
     if (!promptConfig) {
-      this.logger.warn(
-        "classify_email_type prompt not found, using fallback classification",
+      const error = new StructuralError(
+        "Prompt template not found: classify_email_type. Expected file: classify-email-type.md in server/promptfoo/prompts/ directory. Please ensure the prompt template file exists.",
       );
-      return this.getFallbackClassification();
+      this.logger.error("classify_email_type prompt not found", error);
+      this.errorTrackingService.captureException(error, undefined, {
+        operation: "classify_email_type",
+        promptId: "classify_email_type",
+      });
+      throw error;
     }
 
     // Clean and truncate body for LLM

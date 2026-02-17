@@ -4,6 +4,7 @@ import { AutoResponderService } from "./auto-responder.service";
 import { getJobPriority } from "../queue/job-priorities";
 import { autoresponderLogger } from "./autoresponder-logger";
 import { QUEUE_CONFIG } from "./auto-responder-constants";
+import { StructuralError } from "../errors/structural-error";
 
 interface AutoResponderJobData {
   userId: string;
@@ -49,6 +50,22 @@ export class AutoResponderProcessor implements OnModuleInit {
 
           return result;
         } catch (error) {
+          // Check if this is a structural error (missing prompts, config issues, etc.)
+          // These should fail immediately without retrying
+          if (StructuralError.isStructuralError(error)) {
+            this.logger.error(
+              `[STRUCTURAL ERROR - NO RETRY] Auto-responder job failed for thread ${emailThreadId}: ${error.message}`,
+            );
+            // Return an error object instead of throwing to prevent retries
+            // PgBoss treats thrown errors as retriable, but returning signals completion (even with error info)
+            return {
+              error: "StructuralError",
+              message: error.message,
+              threadId: emailThreadId,
+            };
+          }
+
+          // For all other errors, log and re-throw to allow retries
           this.logger.error(
             `Failed to process auto-responder job for thread ${emailThreadId}`,
             error,

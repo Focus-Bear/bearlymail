@@ -4,6 +4,7 @@ import { SummarizationService } from "./summarization.service";
 import { EmailsService } from "../emails/emails.service";
 import { LLMService } from "../llm/llm.service";
 import { SummarizationRule as SummarizationRuleEntity } from "../database/entities/summarization-rule.entity";
+import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 
 describe("SummarizationService", () => {
   let service: SummarizationService;
@@ -30,6 +31,11 @@ describe("SummarizationService", () => {
     delete: jest.fn(),
   };
 
+  const mockErrorTrackingService = {
+    captureException: jest.fn(),
+    captureMessage: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -45,6 +51,10 @@ describe("SummarizationService", () => {
         {
           provide: getRepositoryToken(SummarizationRuleEntity),
           useValue: mockSummarizationRuleRepository,
+        },
+        {
+          provide: ErrorTrackingService,
+          useValue: mockErrorTrackingService,
         },
       ],
     }).compile();
@@ -206,7 +216,7 @@ describe("SummarizationService", () => {
       ).rejects.toThrow("Email not found");
     });
 
-    it("should use fallback summary when LLM fails", async () => {
+    it("should throw error and track it when LLM fails", async () => {
       const userId = "user-123";
       const emailId = "email-123";
       const rule = { type: "bullet-points" as const };
@@ -222,14 +232,19 @@ describe("SummarizationService", () => {
       mockEmailsService.getEmailById.mockResolvedValue(mockEmail);
       mockEmailsService.getThreadEmails.mockResolvedValue([mockEmail]);
       mockLLMService.summarizeEmail.mockRejectedValue(error);
-      console.error = jest.fn();
 
-      const result = await service.summarizeEmail(userId, emailId, rule);
+      await expect(
+        service.summarizeEmail(userId, emailId, rule),
+      ).rejects.toThrow("LLM service unavailable");
 
-      expect(result).toBeDefined();
-      expect(console.error).toHaveBeenCalledWith(
-        "LLM summarization failed, using fallback",
+      expect(mockErrorTrackingService.captureException).toHaveBeenCalledWith(
         error,
+        userId,
+        expect.objectContaining({
+          operation: "summarize_email",
+          ruleType: "bullet-points",
+          emailId,
+        }),
       );
     });
   });

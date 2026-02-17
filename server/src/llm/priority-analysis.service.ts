@@ -11,12 +11,17 @@ import { getPrompt, renderPrompt } from "./prompts";
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { PRIORITY_ANALYSIS_FALLBACK } from "../constants/llm-constants";
+import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
+import { StructuralError } from "../errors/structural-error";
 
 @Injectable()
 export class PriorityAnalysisService {
   private readonly logger = new Logger(PriorityAnalysisService.name);
 
-  constructor(private llmCoreService: LLMCoreService) {}
+  constructor(
+    private llmCoreService: LLMCoreService,
+    private errorTrackingService: ErrorTrackingService,
+  ) {}
 
   // eslint-disable-next-line max-lines-per-function, complexity
   async analyzePriority(
@@ -75,79 +80,15 @@ export class PriorityAnalysisService {
     // Load prompt from markdown file
     const promptConfig = getPrompt("analyze_priority");
     if (!promptConfig) {
-      this.logger.warn("analyze_priority prompt not found, using fallback");
-      // Fallback: use inline prompt if markdown file not found
-      const historyContext = userHistory
-        ? `\nUser's average time to reply: ${userHistory.averageTimeToReply || "unknown"} hours`
-        : "";
-      const fallbackPrompt = `Analyze this email and provide component scores.\n\nFrom: ${email.fromName || email.from}${email.senderJobTitle ? ` (${email.senderJobTitle})` : ""}\nSubject: ${email.subject}\n\n${cleanedBody}${historyContext}`;
-
-      const fallbackSystemPrompt = `You are an email prioritization assistant. Provide component scores only (urgencyScore 0-100, urgencyExplanation, sentimentScore -1 to 1, goalAlignmentScore 0-100, goalAlignmentExplanation, reasoning). Return JSON: { "urgencyScore": number, "urgencyExplanation": string, "sentimentScore": number, "goalAlignmentScore": number, "goalAlignmentExplanation": string, "reasoning": string }`;
-
-      const response = await this.llmCoreService.generateText(
-        {
-          prompt: fallbackPrompt,
-          systemPrompt: fallbackSystemPrompt,
-          temperature: RATIOS.THIRTY_PERCENT,
-          maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_SMALL,
-          userId,
-          operation: LLM_OP_ANALYZE_PRIORITY,
-        },
-        provider,
-        userId,
+      const error = new StructuralError(
+        "Prompt template not found: analyze_priority. Expected file: prioritise-email.md in server/promptfoo/prompts/ directory. Please ensure the prompt template file exists.",
       );
-
-      try {
-        const jsonMatch = response.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          const category = parsed.category || "Other";
-          return {
-            urgencyScore: Math.max(0, Math.min(100, parsed.urgencyScore || 0)),
-            urgencyExplanation:
-              parsed.urgencyExplanation || "No urgency explanation provided",
-            sentimentScore:
-              parsed.sentimentScore !== undefined
-                ? Math.max(-1, Math.min(1, parsed.sentimentScore))
-                : 0,
-            goalAlignmentScore: Math.max(
-              0,
-              Math.min(100, parsed.goalAlignmentScore || 0),
-            ),
-            goalAlignmentExplanation:
-              parsed.goalAlignmentExplanation ||
-              "No goal alignment explanation provided",
-            category,
-            categoryExplanation:
-              parsed.categoryExplanation || "No category explanation provided",
-            reasoning: parsed.reasoning || "No reasoning provided",
-            protoCategorySuggestion:
-              category === "Other" && parsed.protoCategorySuggestion
-                ? {
-                    name: parsed.protoCategorySuggestion.name || "",
-                    description:
-                      parsed.protoCategorySuggestion.description || "",
-                  }
-                : undefined,
-          };
-        }
-      } catch (error) {
-        this.logger.warn(
-          "Failed to parse LLM priority response as JSON",
-          error,
-        );
-      }
-
-      return {
-        urgencyScore: 0,
-        urgencyExplanation: "No urgent indicators detected",
-        sentimentScore: 0,
-        goalAlignmentScore: 0,
-        goalAlignmentExplanation: "No goal alignment detected",
-        category: "Other",
-        categoryExplanation: "Unable to categorize - fallback response",
-        reasoning: response.substring(0, QUERY_LIMITS.LLM_REASONING_MAX_LENGTH),
-      };
+      this.logger.error("analyze_priority prompt not found", error);
+      this.errorTrackingService.captureException(error, userId, {
+        operation: "analyze_priority",
+        promptId: "analyze_priority",
+      });
+      throw error;
     }
 
     // Get current date for urgency calculation (deadlines, time-sensitive requests)

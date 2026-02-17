@@ -31,6 +31,7 @@ import { NotesModule } from "./notes/notes.module";
 import { PusherModule } from "./pusher/pusher.module";
 import { ContactsModule } from "./contacts/contacts.module";
 import { ScheduledEmailsModule } from "./scheduled-emails/scheduled-emails.module";
+import { ErrorTrackingModule } from "./error-tracking/error-tracking.module";
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { ScheduledEmailsModule } from "./scheduled-emails/scheduled-emails.modul
     // Infrastructure modules
     QueueModule,
     EncryptionModule,
+    ErrorTrackingModule,
 
     // Feature modules — processors inside these modules register themselves
     // with pg-boss on init, so the worker picks up jobs automatically.

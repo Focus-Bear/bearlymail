@@ -10,6 +10,7 @@ import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { CloudWatchService } from "../aws/cloudwatch.service";
 import { QUERY_LIMITS } from "../constants/query-limits";
+import { StructuralError } from "../errors/structural-error";
 
 @Injectable()
 export class SuggestedRepliesProcessor implements OnModuleInit {
@@ -172,6 +173,24 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
             `[Worker ${workerId}] Generated ${options.length} suggested replies for thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}...`,
           );
         } catch (error) {
+          // Check if this is a structural error (missing prompts, config issues, etc.)
+          if (StructuralError.isStructuralError(error)) {
+            this.logger.error(
+              `[STRUCTURAL ERROR - NO RETRY] [Worker ${workerId}] Suggested replies job failed for thread ${threadId}: ${error.message}`,
+            );
+            await this.suggestedRepliesService.markAsNotGenerating(
+              userId,
+              threadId,
+            );
+            tracker.finish(error);
+            // Return error object instead of throwing to prevent retries
+            return {
+              error: "StructuralError",
+              message: error.message,
+              threadId,
+            };
+          }
+
           this.logger.error(
             `[Worker ${workerId}] Failed to generate suggested replies for thread ${threadId}`,
             error,

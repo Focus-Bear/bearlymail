@@ -6,6 +6,7 @@ import { UsersService } from "../users/users.service";
 import { cleanEmailContent } from "./email-content-cleaner";
 import { getPrompt, renderPrompt } from "./prompts";
 import { TokenUsageService } from "./token-usage.service";
+import { StructuralError } from "../errors/structural-error";
 import { supportsReasoningEffort } from "./llm-utils";
 import {
   LLMOperation,
@@ -631,7 +632,7 @@ export class LLMService {
     const promptConfig = getPrompt(promptId);
     if (!promptConfig) {
       const expectedFileName = `${promptId.replace(/_/g, "-")}.md`;
-      throw new Error(
+      throw new StructuralError(
         `Prompt template not found: ${promptId}. Expected file: ${expectedFileName} in server/promptfoo/prompts/ directory. Please ensure the prompt template file exists.`,
       );
     }

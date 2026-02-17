@@ -1,6 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { EmailClassifierService } from "./email-classifier.service";
 import { LLMService } from "../llm/llm.service";
+import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 
 describe("EmailClassifierService", () => {
   let service: EmailClassifierService;
@@ -11,12 +12,21 @@ describe("EmailClassifierService", () => {
       generateText: jest.fn(),
     };
 
+    const mockErrorTrackingService = {
+      captureException: jest.fn(),
+      captureMessage: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         EmailClassifierService,
         {
           provide: LLMService,
           useValue: mockLLMService,
+        },
+        {
+          provide: ErrorTrackingService,
+          useValue: mockErrorTrackingService,
         },
       ],
     }).compile();

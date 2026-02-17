@@ -9,6 +9,7 @@ import {
   cleanEmailForThread,
 } from "../llm/email-content-cleaner";
 import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
+import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 
 export interface SummarizationRule {
   type: "bullet-points" | "action-items" | "sender-request" | "tldr" | "custom";
@@ -37,6 +38,7 @@ export class SummarizationService {
     private llmService: LLMService,
     @InjectRepository(SummarizationRuleEntity)
     private summarizationRuleRepository: Repository<SummarizationRuleEntity>,
+    private errorTrackingService: ErrorTrackingService,
   ) {}
 
   async summarizeEmail(
@@ -96,8 +98,6 @@ export class SummarizationService {
     // Cast to EmailWithHtmlBody to access htmlBody which exists on the entity
     const emailWithHtml = email as EmailWithHtmlBody;
     const subject = email.subject || "";
-    const text =
-      threadText || cleanEmailContent(email.body, emailWithHtml.htmlBody);
 
     // Use LLM for all summarization types
     try {
@@ -158,9 +158,14 @@ export class SummarizationService {
         );
       }
     } catch (error) {
-      // Fallback to simple extraction if LLM fails
-      console.error("LLM summarization failed, using fallback", error);
-      return this.fallbackSummary(text, subject, rule.type, email.from);
+      // Log to PostHog and re-throw - no fallback
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.errorTrackingService.captureException(err, userId, {
+        operation: "summarize_email",
+        ruleType: rule.type,
+        emailId,
+      });
+      throw err;
     }
   }
 

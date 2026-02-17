@@ -1075,7 +1075,8 @@
     "iAcceptThe": "I accept the",
     "termsOfUse": "Terms of Use",
     "privacyPolicy": "Privacy Policy",
-    "pleaseAcceptBoth": "Please accept both the Terms of Use and Privacy Policy to continue.",
+    "and": "and",
+    "pleaseAcceptBoth": "Please accept the Terms of Use and Privacy Policy to continue.",
     "acceptAndContinue": "Accept and Continue",
     "saving": "Saving...",
     "saveError": "Failed to save your consent. Please try again."

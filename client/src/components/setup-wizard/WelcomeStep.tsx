@@ -11,8 +11,7 @@ interface WelcomeStepProps {
 
 export const WelcomeStep: React.FC<WelcomeStepProps> = ({ onComplete, refreshUser }) => {
   const { t } = useTranslation();
-  const [termsAccepted, setTermsAccepted] = useState(false);
-  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [consentAccepted, setConsentAccepted] = useState(false);
   const [openAiApiKey, setOpenAiApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -22,7 +21,7 @@ export const WelcomeStep: React.FC<WelcomeStepProps> = ({ onComplete, refreshUse
     setOpenAiExpanded(prev => !prev);
   }, []);
 
-  const canContinue = termsAccepted && privacyAccepted;
+  const canContinue = consentAccepted;
 
   const handleContinue = async () => {
     if (!canContinue) return;
@@ -207,22 +206,23 @@ export const WelcomeStep: React.FC<WelcomeStepProps> = ({ onComplete, refreshUse
             display: 'flex',
             alignItems: 'flex-start',
             gap: theme.spacing.sm,
-            marginBottom: theme.spacing.md,
             cursor: 'pointer',
           }}
         >
           <input
             type="checkbox"
-            checked={termsAccepted}
-            onChange={(e) => setTermsAccepted(e.target.checked)}
+            checked={consentAccepted}
+            onChange={(e) => setConsentAccepted(e.target.checked)}
             style={{
               width: '20px',
               height: '20px',
               marginTop: '2px',
+              flexShrink: 0,
               accentColor: theme.colors.primary.main,
+              cursor: 'pointer',
             }}
           />
-          <span style={{ color: theme.colors.text.primary, fontSize: theme.typography.fontSize.sm }}>
+          <span style={{ color: theme.colors.text.primary, fontSize: theme.typography.fontSize.sm, flex: 1 }}>
             {t('consent.iAcceptThe')}{' '}
             <a
               href="/terms"
@@ -232,30 +232,7 @@ export const WelcomeStep: React.FC<WelcomeStepProps> = ({ onComplete, refreshUse
             >
               {t('consent.termsOfUse')}
             </a>
-          </span>
-        </label>
-
-        <label
-          style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: theme.spacing.sm,
-            cursor: 'pointer',
-          }}
-        >
-          <input
-            type="checkbox"
-            checked={privacyAccepted}
-            onChange={(e) => setPrivacyAccepted(e.target.checked)}
-            style={{
-              width: '20px',
-              height: '20px',
-              marginTop: '2px',
-              accentColor: theme.colors.primary.main,
-            }}
-          />
-          <span style={{ color: theme.colors.text.primary, fontSize: theme.typography.fontSize.sm }}>
-            {t('consent.iAcceptThe')}{' '}
+            {' '}{t('consent.and')}{' '}
             <a
               href="/privacy"
               target="_blank"

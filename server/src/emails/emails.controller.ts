@@ -641,6 +641,29 @@ export class EmailsController {
   @Get("debug/thread-lookup/:threadId")
   @UseGuards(JwtAuthGuard, AdminGuard)
   async lookupThread(@Request() req, @Param("threadId") threadId: string) {
+    // Check if the input is a Gmail URL and extract the message ID
+    const gmailUrlPattern = /^https?:\/\/mail\.google\.com\/mail\/.*[/#](.+)$/i;
+    const match = threadId.match(gmailUrlPattern);
+
+    if (match) {
+      // Extract the last part after the final slash or hash
+      const urlParts = threadId.split(/[/#]/);
+      const messageId = urlParts[urlParts.length - 1];
+      this.logger.log(`Detected Gmail URL, extracted message ID: ${messageId}`);
+      return this.emailsService.lookupByMessageId(req.user.userId, messageId);
+    }
+
+    // Otherwise treat it as a thread ID or message ID
+    // Try message ID lookup first (since it's more specific)
+    const messageIdResult = await this.emailsService.lookupByMessageId(
+      req.user.userId,
+      threadId,
+    );
+    if (messageIdResult.found) {
+      return messageIdResult;
+    }
+
+    // Fall back to thread ID lookup
     return this.emailsService.lookupThread(req.user.userId, threadId);
   }
 

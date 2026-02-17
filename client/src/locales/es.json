@@ -322,7 +322,7 @@
     },
     "threadLookup": {
       "sectionTitle": "Búsqueda de hilo",
-      "placeholder": "Ingrese ID de hilo (ej., 18f1a2b3c4d5e6f7)",
+      "placeholder": "Ingrese ID de hilo, ID de mensaje, o pegue URL de Gmail",
       "lookupButton": "Buscar",
       "threadId": "ID de hilo",
       "status": "Estado",

@@ -1130,7 +1130,7 @@
     },
     "threadLookup": {
       "sectionTitle": "Thread Lookup",
-      "placeholder": "Enter thread ID (e.g., 18f1a2b3c4d5e6f7)",
+      "placeholder": "Enter thread ID, message ID, or paste Gmail URL",
       "lookupButton": "Lookup",
       "threadId": "Thread ID",
       "status": "Status",

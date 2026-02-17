@@ -674,4 +674,41 @@ export class EmailDebugService {
       reasons,
     };
   }
+
+  /**
+   * Look up a thread by Gmail message ID (from Gmail URL)
+   * This extracts the thread ID from the email with the given message ID
+   */
+  async lookupByMessageId(
+    userId: string,
+    messageId: string,
+  ): Promise<ThreadLookupResult> {
+    this.logger.log(`Looking up message ${messageId} for user ${userId}`);
+
+    // Find the email with this message ID
+    const email = await this.emailRepository.findOne({
+      where: { userId, messageId },
+      select: ["id", "threadId", "emailThreadId"],
+    });
+
+    if (!email) {
+      return {
+        found: false,
+        threadId: messageId,
+        thread: null,
+        emails: [],
+        visibility: {
+          wouldShowInTriage: false,
+          wouldShowInAction: false,
+          wouldShowInFollowUp: false,
+        },
+        reasons: [
+          "Message ID not found in database - the email may not have been synced yet",
+        ],
+      };
+    }
+
+    // Now look up the thread using the threadId from the email
+    return this.lookupThread(userId, email.threadId);
+  }
 }

@@ -28,3 +28,50 @@ tests:
             throw new Error(`Expected reply to mention status/update/project and be at least 30 chars. Got: ${text.substring(0, 100)}`);
           }
           return true;
+
+  - vars:
+      fromName: "Sarah Chen"
+      subject: "Quick question"
+      body: "Do you have time to review the document I sent?"
+      tone: "friendly"
+    assert:
+      - type: javascript
+        value: |
+          let text = typeof output === 'string' ? output : JSON.stringify(output);
+          text = text.replace(/^```[\w]*\s*/i, '').replace(/\s*```$/i, '').trim();
+          // Check for proper line break formatting
+          // Should have \n\n between paragraphs (blank lines)
+          const hasDoubleNewlines = text.includes('\\n\\n') || text.includes('\n\n');
+          if (!hasDoubleNewlines) {
+            throw new Error(`Expected proper paragraph separation with \\n\\n. Got: ${text.substring(0, 150)}`);
+          }
+          // Should not be a single run-on paragraph
+          const lines = text.split(/\\n|\\n\\n|\n|\n\n/).filter(l => l.trim().length > 0);
+          if (lines.length < 2) {
+            throw new Error(`Expected multiple paragraphs/lines, got single block: ${text.substring(0, 100)}`);
+          }
+          return true;
+    description: "Should format reply with proper line breaks between paragraphs"
+
+  - vars:
+      fromName: "Mike Johnson"
+      subject: "Meeting confirmation"
+      body: "Can we meet on Friday at 2pm to discuss the proposal?"
+      tone: "professional"
+      emailExamples:
+        - "Hi Team,\n\nThanks for your work on this.\n\nLet me know if you need anything.\n\ncheers,\nJohn"
+    assert:
+      - type: javascript
+        value: |
+          let text = typeof output === 'string' ? output : JSON.stringify(output);
+          text = text.replace(/^```[\w]*\s*/i, '').replace(/\s*```$/i, '').trim();
+          // Should match the example style with greeting, blank line, body, blank line, sign-off
+          const hasProperStructure = (
+            (text.includes('\\n\\n') || text.includes('\n\n')) &&
+            text.length > 40
+          );
+          if (!hasProperStructure) {
+            throw new Error(`Expected proper email structure with greeting, blank lines, and sign-off. Got: ${text.substring(0, 150)}`);
+          }
+          return true;
+    description: "Should match user's writing style from examples with proper formatting"

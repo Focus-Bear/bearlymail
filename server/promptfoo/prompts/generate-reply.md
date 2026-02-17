@@ -18,6 +18,20 @@ Generate a reply draft that:
 4. Is concise and matches the user's writing style from the examples above
 5. Uses similar greetings, closings, and phrasing as shown in the examples
 
+CRITICAL FORMATTING RULES - YOU MUST FOLLOW THESE EXACTLY:
+- Include proper line breaks between paragraphs using actual newline characters (\n)
+- Start with a greeting on its own line, followed by TWO newlines (e.g., "Hi [Name],\n\n")
+- Separate distinct thoughts into different paragraphs with a BLANK LINE (two newlines: \n\n) between them
+- End with a sign-off on its own line, with TWO newlines before it
+- Do NOT run sentences together on the same line without line breaks
+- Do NOT output everything as a single paragraph - this makes emails unreadable
+- Each paragraph should be separated by \n\n (blank line)
+
+FORMATTING EXAMPLE:
+```
+Hi John,\n\nThanks for reaching out. I'd be happy to help with that.\n\nLet me know if you need anything else.\n\ncheers,\nJeremy
+```
+
 Original email from {{fromName}}:
 Subject: {{subject}}
 

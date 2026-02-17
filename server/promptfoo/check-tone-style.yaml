@@ -60,5 +60,70 @@ tests:
           }
     description: "Should validate JSON structure for compliant text"
 
+  - vars:
+      rules:
+        - "Be concise"
+        - "Avoid jargon"
+      text: "<p>Hi there,</p><p>I wanted to follow up on our conversation.</p><p>Thanks,<br>John</p>"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (typeof parsed.isOk !== 'boolean') {
+              throw new Error(`Expected isOk boolean`);
+            }
+            // HTML tags should be ignored, not flagged as issues
+            if (!parsed.isOk && parsed.suggestions) {
+              const hasHtmlComplaint = parsed.suggestions.some(s =>
+                s.toLowerCase().includes('<p>') ||
+                s.toLowerCase().includes('<br>') ||
+                s.toLowerCase().includes('html') ||
+                s.toLowerCase().includes('tag')
+              );
+              if (hasHtmlComplaint) {
+                throw new Error(`Should not flag HTML tags as issues. Suggestions: ${JSON.stringify(parsed.suggestions)}`);
+              }
+            }
+            return true;
+          } catch (e) {
+            throw new Error(`Test failed: ${e.message}`);
+          }
+    description: "Should ignore HTML formatting tags and not flag them as tone/style issues"
+
+  - vars:
+      rules:
+        - "Always use formal greetings"
+      text: "<div><strong>Hello Mr. Smith,</strong></div><div>I am writing to inform you about the meeting.</div><div><em>Best regards</em></div>"
+    assert:
+      - type: javascript
+        value: |
+          const text = typeof output === 'string' ? output : JSON.stringify(output);
+          const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (typeof parsed.isOk !== 'boolean') {
+              throw new Error(`Expected isOk boolean`);
+            }
+            // Should analyze text content (formal greeting is present), not complain about HTML
+            if (!parsed.isOk && parsed.suggestions) {
+              const hasHtmlComplaint = parsed.suggestions.some(s =>
+                s.toLowerCase().includes('<div>') ||
+                s.toLowerCase().includes('<strong>') ||
+                s.toLowerCase().includes('<em>') ||
+                s.toLowerCase().includes('html')
+              );
+              if (hasHtmlComplaint) {
+                throw new Error(`Should analyze content, not HTML structure. Suggestions: ${JSON.stringify(parsed.suggestions)}`);
+              }
+            }
+            return true;
+          } catch (e) {
+            throw new Error(`Test failed: ${e.message}`);
+          }
+    description: "Should analyze text content within HTML, ignoring the HTML tags themselves"
+
 
 

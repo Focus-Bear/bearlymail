@@ -58,7 +58,7 @@ export const ContextSection: React.FC<ContextSectionProps> = ({
   onEditContextValueChange,
 }) => {
   const { t } = useTranslation();
-  const [isExpanded, setIsExpanded] = useState(true); // Default to expanded
+  const [isExpanded, setIsExpanded] = useState(false); // Default to collapsed
   const keys = Array.isArray(contextKey) ? contextKey : [contextKey];
   const filteredContexts = contexts.filter(c => keys.includes(c.contextKey));
   const addType = keys[0];

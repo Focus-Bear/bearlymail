@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { INPUT_WIDTH_PX } from 'constants/numbers';
@@ -23,47 +23,89 @@ export const BlockedSendersSection: React.FC<BlockedSendersSectionProps> = ({
   onUnblockSender,
 }) => {
   const { t } = useTranslation();
-  
+  const [isExpanded, setIsExpanded] = useState(false); // Default to collapsed
+  const itemCount = blockedSenders.length;
+
   return (
     <div id="blocked-senders" style={{
-      backgroundColor: theme.colors.background.paper,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing.xl,
       marginBottom: theme.spacing.lg,
-      boxShadow: theme.shadows.md,
+      border: `1px solid ${theme.colors.border.light}`,
+      borderRadius: theme.borderRadius.md,
+      backgroundColor: theme.colors.background.paper,
     }}>
-      <h3 style={{
-        color: theme.colors.text.primary,
-        marginBottom: theme.spacing.md,
-        fontSize: theme.typography.fontSize.xl,
-        scrollMarginTop: `${INPUT_WIDTH_PX}px`,
-      }}>
-        {/* eslint-disable-next-line i18next/no-literal-string */}
-        {EMOJI_BLOCK} {t('settings.blockedSenders.title')}
-      </h3>
-      <p style={{
-        color: theme.colors.text.secondary,
-        marginBottom: theme.spacing.md,
-        fontSize: theme.typography.fontSize.sm,
-      }}>
-        {t('settings.blockedSenders.description')}
-      </p>
-      
-      {blockedSenders.length === 0 ? (
+      <div
+        onClick={() => setIsExpanded(!isExpanded)}
+        style={{
+          fontSize: theme.typography.fontSize.lg,
+          color: theme.colors.text.primary,
+          padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+          display: 'flex',
+          alignItems: 'center',
+          gap: theme.spacing.sm,
+          cursor: 'pointer',
+          backgroundColor: theme.colors.background.paper,
+          borderBottom: isExpanded ? `1px solid ${theme.colors.border.light}` : 'none',
+          borderRadius: isExpanded ? `${theme.borderRadius.md} ${theme.borderRadius.md} 0 0` : theme.borderRadius.md,
+          transition: theme.transitions.fast,
+        }}
+      >
+        <span
+          style={{
+            transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+            transition: theme.transitions.fast,
+            fontSize: theme.typography.fontSize.base,
+            color: theme.colors.text.secondary,
+          }}
+        >
+          ▶
+        </span>
+        <span style={{ fontWeight: theme.typography.fontWeight.semibold }}>
+          {/* eslint-disable-next-line i18next/no-literal-string */}
+          {EMOJI_BLOCK} {t('settings.blockedSenders.title')}
+        </span>
+        <span
+          style={{
+            backgroundColor: theme.colors.greyscale[300],
+            color: theme.colors.text.secondary,
+            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+            borderRadius: theme.borderRadius.full,
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.medium,
+          }}
+        >
+          {itemCount}
+        </span>
+      </div>
+
+      {isExpanded && (
         <div style={{
-          padding: theme.spacing.xl,
-          textAlign: 'center',
-          color: theme.colors.text.secondary,
-          border: `2px dashed ${theme.colors.border.light}`,
-          borderRadius: theme.borderRadius.md,
+          padding: theme.spacing.md,
         }}>
-          {t('settings.blockedSenders.emptyState')}
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
-          {blockedSenders.map((sender) => (
-            <BlockedSenderItem key={sender.id} sender={sender} onUnblock={onUnblockSender} />
-          ))}
+          <p style={{
+            color: theme.colors.text.secondary,
+            marginBottom: theme.spacing.md,
+            fontSize: theme.typography.fontSize.sm,
+          }}>
+            {t('settings.blockedSenders.description')}
+          </p>
+
+          {blockedSenders.length === 0 ? (
+            <div style={{
+              padding: theme.spacing.xl,
+              textAlign: 'center',
+              color: theme.colors.text.secondary,
+              border: `2px dashed ${theme.colors.border.light}`,
+              borderRadius: theme.borderRadius.md,
+            }}>
+              {t('settings.blockedSenders.emptyState')}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
+              {blockedSenders.map((sender) => (
+                <BlockedSenderItem key={sender.id} sender={sender} onUnblock={onUnblockSender} />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

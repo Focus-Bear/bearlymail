@@ -90,8 +90,8 @@ export const EmailActionsRow: React.FC<EmailActionsRowProps> = ({
           {/* Prioritise section */}
           <div style={{
             display: 'flex',
-            alignItems: 'center',
-            gap: theme.spacing.xs,
+            flexDirection: 'column',
+            gap: '4px',
           }}>
             <div style={{
               fontSize: theme.typography.fontSize.xs,

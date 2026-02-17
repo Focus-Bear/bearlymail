@@ -72,7 +72,7 @@ export const PrioritySlider: React.FC<PrioritySliderProps> = ({
           {/* eslint-disable-next-line i18next/no-literal-string */}
           <span>{level.emoji}</span>
           <span style={{
-            fontSize: theme.typography.fontSize.xxs,
+            fontSize: '0.65rem',
             color: theme.colors.text.tertiary,
             whiteSpace: 'nowrap',
           }}>

@@ -8,6 +8,8 @@ import { InboxMode, Email } from 'types/email';
 import { MODE_ACTION } from 'constants/strings';
 import { captureEvent } from 'utils/posthog';
 
+const INACTIVE_PRIORITY_OPACITY = 0.4;
+
 interface SelectedEmail {
   subject: string;
   from: string;
@@ -163,27 +165,48 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
 
         {/* Action buttons - always visible in header */}
         <div style={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center', flexShrink: 0 }}>
-          {/* Star buttons */}
+          {/* Priority emoji buttons */}
           <div style={{ display: 'flex', gap: theme.spacing.xs, alignItems: 'center' }}>
-            {[1, 2, 3].map((count) => (
+            {[
+              { value: 1, emoji: '😌', label: 'inbox.canWait' },
+              { value: 2, emoji: '😅', label: 'inbox.getOnIt' },
+              { value: 3, emoji: '🙀', label: 'inbox.ohShit' },
+            ].map((level) => (
               <button
-                key={count}
-                onClick={() => handleStarClick(count)}
+                key={level.value}
+                onClick={() => handleStarClick(level.value)}
                 style={{
-                  padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                  backgroundColor: starCount === count ? theme.colors.primary.main : 'transparent',
-                  color: starCount === count ? 'white' : theme.colors.text.secondary,
-                  border: `1px solid ${starCount === count ? theme.colors.primary.main : theme.colors.border.medium}`,
-                  borderRadius: theme.borderRadius.sm,
+                  background: 'transparent',
+                  border: 'none',
                   cursor: 'pointer',
-                  fontSize: theme.typography.fontSize.xs,
+                  fontSize: '1.2rem',
+                  padding: '2px 4px',
+                  opacity: starCount === level.value ? 1 : INACTIVE_PRIORITY_OPACITY,
+                  transition: theme.transitions.fast,
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
+                  gap: '2px',
                 }}
-                title={t('inbox.prioritise')}
+                title={t(level.label)}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.opacity = '1';
+                  e.currentTarget.style.transform = 'scale(1.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.opacity = starCount === level.value ? '1' : String(INACTIVE_PRIORITY_OPACITY);
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
               >
                 {/* eslint-disable-next-line i18next/no-literal-string */}
-                {EMOJI_STAR}
+                <span>{level.emoji}</span>
+                <span style={{
+                  fontSize: '0.65rem',
+                  color: theme.colors.text.tertiary,
+                  whiteSpace: 'nowrap',
+                }}>
+                  {t(level.label)}
+                </span>
               </button>
             ))}
           </div>

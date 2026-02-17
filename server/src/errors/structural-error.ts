@@ -12,7 +12,7 @@
 export class StructuralError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'StructuralError';
+    this.name = "StructuralError";
     // Maintain proper stack trace for where the error was thrown
     Error.captureStackTrace(this, this.constructor);
   }

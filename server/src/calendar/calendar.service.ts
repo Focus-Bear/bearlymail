@@ -7,7 +7,12 @@ import { UsersService } from "../users/users.service";
 import { LLMService } from "../llm/llm.service";
 import { LLMProvider } from "../llm/llm.types";
 import { EmailsService } from "../emails/emails.service";
-import { MINUTES, HOURS } from "../constants/time-constants";
+import {
+  MINUTES,
+  HOURS,
+  DAYS,
+  MILLISECONDS,
+} from "../constants/time-constants";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import {
   SchedulingPreferencesService,
@@ -669,32 +674,25 @@ Manage this booking:
       auth: this.oauth2Client,
     });
 
-    // Try to find the event by searching for events with matching subject/time
-    // First, try to extract event details from email
+    const userEmail = EncryptionHelper.decrypt(user.email);
     const subject = email.subject || "";
     const body = email.body || email.htmlBody || "";
+    const organizerEmail = email.from; // Organizer is typically the sender
 
-    // Parse iCal content if present
+    // Try to extract event details from email
     let eventId: string | null = null;
     let eventStart: Date | null = null;
+    let icalUID: string | null = null;
 
     // Try to extract from iCal format
     const icalMatch = body.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/);
     if (icalMatch) {
       const icalContent = icalMatch[0];
       const uidMatch = icalContent.match(/UID:([^\r\n]+)/);
-      const organizerMatch = icalContent.match(
-        /ORGANIZER[^:]*:MAILTO:([^\r\n]+)/i,
-      );
       const dtstartMatch = icalContent.match(/DTSTART[^:]*:([^\r\n]+)/i);
 
       if (uidMatch) {
-        // UID might be the event ID or contain it
-        eventId = uidMatch[1].trim();
-      }
-      if (organizerMatch) {
-        // organizerEmail extracted for potential future use
-        organizerMatch[1].trim();
+        icalUID = uidMatch[1].trim();
       }
       if (dtstartMatch) {
         try {
@@ -717,13 +715,13 @@ Manage this booking:
             );
           }
         } catch (error) {
-          console.error("Error parsing iCal date:", error);
+          this.logger.error("Error parsing iCal date:", error);
         }
       }
     }
 
-    // If we have event details, try to find the event in Google Calendar
-    if (eventStart) {
+    // Strategy 1: If we have a start time from iCal, search in a narrow time window
+    if (eventStart && !eventId) {
       const timeMin = new Date(eventStart.getTime() - 24 * 60 * 60 * 1000); // 1 day before
       const timeMax = new Date(eventStart.getTime() + 24 * 60 * 60 * 1000); // 1 day after
 
@@ -736,24 +734,21 @@ Manage this booking:
           singleEvents: true,
         });
 
-        // Try to match by subject or UID
         const matchingEvent = eventsResponse.data.items?.find((event) => {
-          if (eventId && event.iCalUID === eventId) {
+          // Match by iCal UID (most reliable)
+          if (icalUID && event.iCalUID === icalUID) {
             return true;
           }
+          // Match by subject and user is attendee
           if (
             event.summary &&
-            subject.toLowerCase().includes(event.summary.toLowerCase())
-          ) {
-            return true;
-          }
-          // Check if user is an attendee
-          if (event.attendees) {
-            const userEmail = EncryptionHelper.decrypt(user.email);
-            return event.attendees.some(
+            subject.toLowerCase().includes(event.summary.toLowerCase()) &&
+            event.attendees?.some(
               (attendee) =>
                 attendee.email?.toLowerCase() === userEmail?.toLowerCase(),
-            );
+            )
+          ) {
+            return true;
           }
           return false;
         });
@@ -762,7 +757,167 @@ Manage this booking:
           eventId = matchingEvent.id;
         }
       } catch (error) {
-        console.error("Error searching for calendar event:", error);
+        this.logger.error("Error searching calendar by date:", error);
+      }
+    }
+
+    // Strategy 2: Search for recent events where user is an attendee
+    if (!eventId) {
+      try {
+        const now = new Date();
+        const timeMin = new Date(now.getTime() - DAYS.WEEK * MILLISECONDS.DAY); // 7 days ago
+        const timeMax = new Date(
+          now.getTime() + DAYS.NINETY * MILLISECONDS.DAY,
+        ); // 90 days ahead
+
+        const eventsResponse = await calendar.events.list({
+          calendarId: "primary",
+          timeMin: timeMin.toISOString(),
+          timeMax: timeMax.toISOString(),
+          maxResults: 100,
+          singleEvents: true,
+          orderBy: "updated", // Most recently updated events first
+        });
+
+        // Clean the subject line for better matching
+        const cleanSubject = subject
+          .replace(
+            /^(invitation:|invite:|updated invitation:|updated invite:)/i,
+            "",
+          )
+          .replace(/\s+/g, " ")
+          .trim()
+          .toLowerCase();
+
+        const matchingEvent = eventsResponse.data.items?.find((event) => {
+          // Must be an attendee
+          const isAttendee = event.attendees?.some(
+            (attendee) =>
+              attendee.email?.toLowerCase() === userEmail?.toLowerCase(),
+          );
+          if (!isAttendee) {
+            return false;
+          }
+
+          // Match by iCal UID
+          if (icalUID && event.iCalUID === icalUID) {
+            return true;
+          }
+
+          // Match by subject (check both ways - subject contains event, event contains subject)
+          if (event.summary) {
+            const eventSummary = event.summary.toLowerCase();
+            const summaryMatch =
+              cleanSubject.includes(eventSummary) ||
+              eventSummary.includes(cleanSubject);
+            if (summaryMatch) {
+              return true;
+            }
+          }
+
+          // Match by organizer email
+          if (event.organizer?.email && organizerEmail) {
+            const eventOrganizerEmail = event.organizer.email.toLowerCase();
+            const emailOrganizerLower = organizerEmail.toLowerCase();
+            if (eventOrganizerEmail === emailOrganizerLower) {
+              // Same organizer, check if subject has any overlap
+              if (
+                event.summary &&
+                (cleanSubject.includes(event.summary.toLowerCase()) ||
+                  event.summary.toLowerCase().includes(cleanSubject))
+              ) {
+                return true;
+              }
+            }
+          }
+
+          return false;
+        });
+
+        if (matchingEvent?.id) {
+          eventId = matchingEvent.id;
+        }
+      } catch (error) {
+        this.logger.error(
+          "Error searching calendar for attendee events:",
+          error,
+        );
+      }
+    }
+
+    // Strategy 3: Search for events with "needsAction" response status
+    if (!eventId) {
+      try {
+        const now = new Date();
+        const timeMin = new Date(now.getTime() - DAYS.WEEK * MILLISECONDS.DAY);
+        const timeMax = new Date(
+          now.getTime() + DAYS.NINETY * MILLISECONDS.DAY,
+        );
+
+        const eventsResponse = await calendar.events.list({
+          calendarId: "primary",
+          timeMin: timeMin.toISOString(),
+          timeMax: timeMax.toISOString(),
+          maxResults: 100,
+          singleEvents: true,
+        });
+
+        // Clean the subject for matching
+        const cleanSubject = subject
+          .replace(
+            /^(invitation:|invite:|updated invitation:|updated invite:)/i,
+            "",
+          )
+          .replace(/\s+/g, " ")
+          .trim()
+          .toLowerCase();
+
+        // Find events where user has not responded yet
+        const pendingEvent = eventsResponse.data.items?.find((event) => {
+          const userAttendee = event.attendees?.find(
+            (attendee) =>
+              attendee.email?.toLowerCase() === userEmail?.toLowerCase(),
+          );
+
+          // User must be an attendee with needsAction status
+          if (!userAttendee || userAttendee.responseStatus !== "needsAction") {
+            return false;
+          }
+
+          // Match by iCal UID
+          if (icalUID && event.iCalUID === icalUID) {
+            return true;
+          }
+
+          // Match by subject similarity
+          if (event.summary) {
+            const eventSummary = event.summary.toLowerCase();
+            if (
+              cleanSubject.includes(eventSummary) ||
+              eventSummary.includes(cleanSubject)
+            ) {
+              return true;
+            }
+          }
+
+          // Match by organizer
+          if (event.organizer?.email && organizerEmail) {
+            if (
+              event.organizer.email.toLowerCase() ===
+              organizerEmail.toLowerCase()
+            ) {
+              return true;
+            }
+          }
+
+          return false;
+        });
+
+        if (pendingEvent?.id) {
+          eventId = pendingEvent.id;
+        }
+      } catch (error) {
+        this.logger.error("Error searching for pending invitations:", error);
       }
     }
 
@@ -779,7 +934,6 @@ Manage this booking:
           throw new Error("Event has no attendees");
         }
 
-        const userEmail = EncryptionHelper.decrypt(user.email);
         const attendeeIndex = event.data.attendees.findIndex(
           (attendee) =>
             attendee.email?.toLowerCase() === userEmail?.toLowerCase(),
@@ -812,18 +966,24 @@ Manage this booking:
           },
         });
 
+        this.logger.log(
+          `Successfully responded to calendar invitation: ${eventId}`,
+        );
         return;
       } catch (error) {
-        console.error("Error updating calendar event:", error);
+        this.logger.error("Error updating calendar event:", error);
         throw new Error(
           `Failed to respond to invitation: ${error instanceof Error ? error.message : "Unknown error"}`,
         );
       }
     }
 
-    // If we couldn't find the event, throw an error
+    // If we couldn't find the event, throw an error with more helpful message
+    this.logger.error(
+      `Could not find calendar event for email ${emailId}, subject: ${subject}`,
+    );
     throw new Error(
-      "Could not find corresponding calendar event. Please respond to the invitation directly in your calendar.",
+      "Could not find the calendar event. This may happen if the invitation was not automatically added to your calendar. Please try responding directly in Google Calendar.",
     );
   }
 

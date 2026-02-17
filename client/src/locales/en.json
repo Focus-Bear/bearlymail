@@ -1500,6 +1500,7 @@
         "confirmRemoveGithubToken":"Are you sure you want to disconnect your GitHub account?",
         "githubTokenRemoved": "GitHub disconnected successfully",
         "githubTokenRemoveError": "Failed to disconnect GitHub",
+        "githubConnectError": "Cannot connect GitHub: please log in first",
         "setPassword": {
           "title": "Password Login",
           "description": "Set a password to enable login with email and password in addition to SSO. This is useful if you travel to regions where your SSO provider may be blocked.",

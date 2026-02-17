@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { JwtService } from "@nestjs/jwt";
 import { UsersService } from "../users/users.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import axios from "axios";
@@ -29,6 +30,7 @@ export class GitHubAppService {
   constructor(
     private configService: ConfigService,
     private usersService: UsersService,
+    private jwtService: JwtService,
   ) {
     this.clientId =
       this.configService.get<string>("GITHUB_APP_CLIENT_ID") || "";
@@ -48,12 +50,42 @@ export class GitHubAppService {
   }
 
   /**
+   * Create a signed connect token for secure OAuth initiation
+   * This token is short-lived (5 minutes) and prevents userId spoofing
+   */
+  createConnectToken(userId: string): string {
+    return this.jwtService.sign(
+      { userId, action: "connect" },
+      { expiresIn: "5m" },
+    );
+  }
+
+  /**
+   * Verify and extract userId from connect token
+   */
+  verifyConnectToken(token: string): string | null {
+    try {
+      const payload = this.jwtService.verify(token);
+      if (payload.action !== "connect") {
+        this.logger.error("Invalid token action");
+        return null;
+      }
+      return payload.userId;
+    } catch (error) {
+      this.logger.error(`Failed to verify connect token: ${error}`);
+      return null;
+    }
+  }
+
+  /**
    * Generate GitHub OAuth authorization URL
    */
   getAuthorizationUrl(userId: string): string {
-    const state = Buffer.from(
-      JSON.stringify({ userId, action: "connect" }),
-    ).toString("base64");
+    // Sign the state parameter with JWT for defense-in-depth
+    const state = this.jwtService.sign(
+      { userId, action: "connect" },
+      { expiresIn: "10m" },
+    );
 
     const params = new URLSearchParams({
       client_id: this.clientId,

@@ -417,15 +417,36 @@ export class GitHubController {
     return this.repoMappingService.getDefaultForUser(userId);
   }
 
-  @Get("connect")
-  @UseGuards(JwtAuthGuard)
-  async connect(@Request() req, @Res() res: Response) {
+  @Post("create-connect-token")
+  async createConnectToken(@Request() req) {
     const { userId } = req.user;
+    const token = this.githubAppService.createConnectToken(userId);
+    return { token };
+  }
+
+  @Get("connect")
+  @UseGuards() // Override class-level guard - no auth required for this endpoint
+  async connect(@Query("token") token: string, @Res() res: Response) {
+    const frontendUrl = this.githubAppService.getFrontendUrl();
+
+    if (!token) {
+      this.logger.error("GitHub connect endpoint called without token");
+      return res.redirect(`${frontendUrl}/settings?github=error`);
+    }
+
+    // Verify and extract userId from signed token
+    const userId = this.githubAppService.verifyConnectToken(token);
+    if (!userId) {
+      this.logger.error("Invalid or expired connect token");
+      return res.redirect(`${frontendUrl}/settings?github=error`);
+    }
+
     const authUrl = this.githubAppService.getAuthorizationUrl(userId);
     return res.redirect(authUrl);
   }
 
   @Get("callback")
+  @UseGuards() // Override class-level guard - GitHub calls this endpoint
   async callback(
     @Query("code") code: string,
     @Query("state") state: string,
@@ -440,13 +461,10 @@ export class GitHubController {
         return res.redirect(`${frontendUrl}/settings?github=error`);
       }
 
-      // Decode state to get userId
-      let userId: string;
-      try {
-        const stateData = JSON.parse(Buffer.from(state, "base64").toString());
-        userId = stateData.userId;
-      } catch (error) {
-        this.logger.error("Failed to decode state parameter:", error);
+      // Verify signed state parameter and extract userId
+      const userId = this.githubAppService.verifyConnectToken(state);
+      if (!userId) {
+        this.logger.error("Invalid or expired state parameter");
         return res.redirect(`${frontendUrl}/settings?github=error`);
       }
 

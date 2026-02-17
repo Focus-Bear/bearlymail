@@ -757,7 +757,12 @@
       "labels": "Labels",
       "labelsPlaceholder": "e.g., bug, enhancement (comma-separated)",
       "project": "Project",
-      "more": "+{{count}} more"
+      "more": "+{{count}} more",
+      "connectionPrompt": {
+        "title": "Connect GitHub for Enhanced Insights",
+        "description": "This email mentions GitHub. Connect your GitHub account to see PR and issue status, assignees, and more directly in your emails.",
+        "connectButton": "Connect GitHub"
+      }
   },
   "gmail": {
     "connectTitle": "Connect Your Gmail Account",

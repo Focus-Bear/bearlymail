@@ -4,6 +4,7 @@ import { GitHubLink } from 'types/email';
 import { GitHubStatusHeader } from 'components/github/GitHubStatusHeader';
 import { GitHubStatusLoading } from 'components/github/GitHubStatusLoading';
 import { GitHubLinksList } from 'components/github/GitHubLinksList';
+import { GitHubConnectionPrompt } from 'components/github/GitHubConnectionPrompt';
 import { emailMentionsGitHub } from 'utils/githubUtils';
 
 interface GitHubStatusSectionProps {
@@ -25,13 +26,14 @@ export const GitHubStatusSection: React.FC<GitHubStatusSectionProps> = ({
   emailBody,
   emailHtmlBody,
 }) => {
-  if (!hasToken) {
-    return null;
-  }
-
   // Instant keyword check - if email doesn't mention GitHub, don't show section at all
   if (!emailMentionsGitHub(emailSubject, emailBody, emailHtmlBody)) {
     return null;
+  }
+
+  // If user doesn't have GitHub connected but email mentions GitHub, show connection prompt
+  if (!hasToken) {
+    return <GitHubConnectionPrompt />;
   }
 
   // Hide section completely if no links and not loading

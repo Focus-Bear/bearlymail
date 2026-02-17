@@ -674,47 +674,63 @@ export class LLMProcessor implements OnModuleInit {
                 llmResult.protoCategorySuggestion?.name
               ) {
                 try {
-                  // First, check if there's an existing proto category that matches
-                  const existingProtoCategory =
-                    await this.protoCategoriesService.findMatchingProtoCategory(
+                  // First, check if the suggestion matches an existing full category
+                  const matchingFullCategory =
+                    await this.protoCategoriesService.findMatchingFullCategory(
                       userId,
                       llmResult.protoCategorySuggestion.name,
                     );
 
-                  if (existingProtoCategory) {
-                    // Assign to existing proto category
-                    const updatedProtoCategory =
-                      await this.protoCategoriesService.assignThreadToProtoCategory(
-                        existingProtoCategory.id,
-                        email.emailThreadId!,
-                      );
-
-                    // If promoted, update the category
-                    if (updatedProtoCategory.isPromoted) {
-                      finalCategory = updatedProtoCategory.name;
-                      this.logger.log(
-                        `[Worker ${workerId}] Proto category "${updatedProtoCategory.name}" was promoted to real category`,
-                      );
-                    } else {
-                      protoCategoryId = updatedProtoCategory.id;
-                      this.logger.log(
-                        `[Worker ${workerId}] Assigned thread to existing proto category "${updatedProtoCategory.name}" (count: ${updatedProtoCategory.emailCount})`,
-                      );
-                    }
+                  if (matchingFullCategory) {
+                    // Assign directly to the existing category (not proto-category)
+                    finalCategory = matchingFullCategory;
+                    protoCategoryId = null; // Clear proto category ID
+                    this.logger.log(
+                      `[Worker ${workerId}] Proto category suggestion "${llmResult.protoCategorySuggestion.name}" matches existing category "${matchingFullCategory}", assigning directly`,
+                    );
                   } else {
-                    // Create new proto category
-                    const newProtoCategory =
-                      await this.protoCategoriesService.createAndAssignToThread(
+                    // Check if there's an existing proto category that matches
+                    const existingProtoCategory =
+                      await this.protoCategoriesService.findMatchingProtoCategory(
                         userId,
                         llmResult.protoCategorySuggestion.name,
-                        llmResult.protoCategorySuggestion.description || null,
-                        email.emailThreadId!,
                       );
 
-                    protoCategoryId = newProtoCategory.id;
-                    this.logger.log(
-                      `[Worker ${workerId}] Created new proto category "${newProtoCategory.name}"`,
-                    );
+                    if (existingProtoCategory) {
+                      // Assign to existing proto category
+                      const updatedProtoCategory =
+                        await this.protoCategoriesService.assignThreadToProtoCategory(
+                          existingProtoCategory.id,
+                          email.emailThreadId!,
+                        );
+
+                      // If promoted, update the category
+                      if (updatedProtoCategory.isPromoted) {
+                        finalCategory = updatedProtoCategory.name;
+                        this.logger.log(
+                          `[Worker ${workerId}] Proto category "${updatedProtoCategory.name}" was promoted to real category`,
+                        );
+                      } else {
+                        protoCategoryId = updatedProtoCategory.id;
+                        this.logger.log(
+                          `[Worker ${workerId}] Assigned thread to existing proto category "${updatedProtoCategory.name}" (count: ${updatedProtoCategory.emailCount})`,
+                        );
+                      }
+                    } else {
+                      // Create new proto category
+                      const newProtoCategory =
+                        await this.protoCategoriesService.createAndAssignToThread(
+                          userId,
+                          llmResult.protoCategorySuggestion.name,
+                          llmResult.protoCategorySuggestion.description || null,
+                          email.emailThreadId!,
+                        );
+
+                      protoCategoryId = newProtoCategory.id;
+                      this.logger.log(
+                        `[Worker ${workerId}] Created new proto category "${newProtoCategory.name}"`,
+                      );
+                    }
                   }
                 } catch (protoCategoryError) {
                   this.logger.warn(
@@ -1445,43 +1461,59 @@ export class LLMProcessor implements OnModuleInit {
         llmResult.protoCategorySuggestion?.name
       ) {
         try {
-          const existingProtoCategory =
-            await this.protoCategoriesService.findMatchingProtoCategory(
+          // First, check if the suggestion matches an existing full category
+          const matchingFullCategory =
+            await this.protoCategoriesService.findMatchingFullCategory(
               userId,
               llmResult.protoCategorySuggestion.name,
             );
 
-          if (existingProtoCategory) {
-            const updatedProtoCategory =
-              await this.protoCategoriesService.assignThreadToProtoCategory(
-                existingProtoCategory.id,
-                email.emailThreadId,
-              );
-
-            if (updatedProtoCategory.isPromoted) {
-              finalCategory = updatedProtoCategory.name;
-              this.logger.log(
-                `[Worker ${workerId}] Proto category "${updatedProtoCategory.name}" was promoted to real category`,
-              );
-            } else {
-              protoCategoryId = updatedProtoCategory.id;
-              this.logger.log(
-                `[Worker ${workerId}] Assigned thread to existing proto category "${updatedProtoCategory.name}" (count: ${updatedProtoCategory.emailCount})`,
-              );
-            }
+          if (matchingFullCategory) {
+            // Assign directly to the existing category (not proto-category)
+            finalCategory = matchingFullCategory;
+            protoCategoryId = null; // Clear proto category ID
+            this.logger.log(
+              `[Worker ${workerId}] Proto category suggestion "${llmResult.protoCategorySuggestion.name}" matches existing category "${matchingFullCategory}", assigning directly`,
+            );
           } else {
-            const newProtoCategory =
-              await this.protoCategoriesService.createAndAssignToThread(
+            const existingProtoCategory =
+              await this.protoCategoriesService.findMatchingProtoCategory(
                 userId,
                 llmResult.protoCategorySuggestion.name,
-                llmResult.protoCategorySuggestion.description || null,
-                email.emailThreadId,
               );
 
-            protoCategoryId = newProtoCategory.id;
-            this.logger.log(
-              `[Worker ${workerId}] Created new proto category "${newProtoCategory.name}"`,
-            );
+            if (existingProtoCategory) {
+              const updatedProtoCategory =
+                await this.protoCategoriesService.assignThreadToProtoCategory(
+                  existingProtoCategory.id,
+                  email.emailThreadId,
+                );
+
+              if (updatedProtoCategory.isPromoted) {
+                finalCategory = updatedProtoCategory.name;
+                this.logger.log(
+                  `[Worker ${workerId}] Proto category "${updatedProtoCategory.name}" was promoted to real category`,
+                );
+              } else {
+                protoCategoryId = updatedProtoCategory.id;
+                this.logger.log(
+                  `[Worker ${workerId}] Assigned thread to existing proto category "${updatedProtoCategory.name}" (count: ${updatedProtoCategory.emailCount})`,
+                );
+              }
+            } else {
+              const newProtoCategory =
+                await this.protoCategoriesService.createAndAssignToThread(
+                  userId,
+                  llmResult.protoCategorySuggestion.name,
+                  llmResult.protoCategorySuggestion.description || null,
+                  email.emailThreadId,
+                );
+
+              protoCategoryId = newProtoCategory.id;
+              this.logger.log(
+                `[Worker ${workerId}] Created new proto category "${newProtoCategory.name}"`,
+              );
+            }
           }
         } catch (protoCategoryError) {
           this.logger.warn(

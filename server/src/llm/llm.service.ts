@@ -6,6 +6,7 @@ import { UsersService } from "../users/users.service";
 import { cleanEmailContent } from "./email-content-cleaner";
 import { getPrompt, renderPrompt } from "./prompts";
 import { TokenUsageService } from "./token-usage.service";
+import { supportsReasoningEffort } from "./llm-utils";
 import {
   LLMOperation,
   LLM_OP_ANALYZE_EMAIL_PATTERNS,
@@ -300,14 +301,25 @@ export class LLMService {
       this.logger.debug(
         `Generating text with OpenAI using ${apiKeySource} API key${request.userId ? ` (userId: ${request.userId})` : ""}`,
       );
-      const completion = await openaiClient!.chat.completions.create({
+
+      const completionParams: any = {
         model,
         messages: messages as any,
         temperature: request.temperature || RATIOS.SEVENTY_PERCENT,
         max_completion_tokens:
           request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
-        reasoning_effort: reasoningEffort as "low" | "medium" | "high",
-      } as any);
+      };
+
+      // Only add reasoning parameter for supported models (o1, o3, gpt-5+)
+      if (supportsReasoningEffort(model)) {
+        completionParams.reasoning = reasoningEffort as
+          | "low"
+          | "medium"
+          | "high";
+      }
+
+      const completion =
+        await openaiClient!.chat.completions.create(completionParams);
 
       const durationMs = Date.now() - startTime;
 

@@ -193,6 +193,45 @@ export class ProtoCategoriesService {
   }
 
   /**
+   * Check if a suggested proto-category name matches an existing full category
+   * Returns the category name if it matches, null otherwise
+   */
+  async findMatchingFullCategory(
+    userId: string,
+    suggestedName: string,
+  ): Promise<string | null> {
+    // Get all existing categories from UserContext
+    const categories = await this.userContextRepository.find({
+      where: { userId, contextKey: ContextKey.EMAIL_CATEGORY },
+    });
+
+    const normalizedSuggestion = suggestedName.toLowerCase().trim();
+    const suggestionWithoutEmoji = normalizedSuggestion
+      .replace(/[\p{Emoji}]/gu, "")
+      .trim();
+
+    for (const category of categories) {
+      // contextValue can be "Category Name" or "Category Name - Description"
+      const categoryName = category.contextValue.split(" - ")[0];
+      const normalizedName = categoryName.toLowerCase().trim();
+      const nameWithoutEmoji = normalizedName
+        .replace(/[\p{Emoji}]/gu, "")
+        .trim();
+
+      // Check if names match (ignoring emoji and case)
+      if (
+        suggestionWithoutEmoji === nameWithoutEmoji ||
+        normalizedSuggestion === normalizedName
+      ) {
+        // Return the original category name (with emoji)
+        return categoryName;
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Find the best matching proto category for an email based on LLM suggestion
    * Returns null if no good match is found
    */

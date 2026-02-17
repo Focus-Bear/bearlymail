@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { BOOKING_STATUS_SUCCESS } from 'constants/strings';
+import { DAYS_IN_MONTH_30 } from 'constants/numbers';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { BookingLoadingState } from 'components/booking/BookingLoadingState';
@@ -26,27 +27,48 @@ const BookingPage: React.FC = () => {
   const [guestEmail, setGuestEmail] = useState('');
   const [guestName, setGuestName] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [daysAhead, setDaysAhead] = useState(DAYS_IN_MONTH_30);
   const [bookingStatus, setBookingStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    const fetchSlots = async () => {
-      try {
-        const response = await axios.get(`${API_URL}/public/calendar/${userId}/slots`);
-        setSlots(response.data.slots);
-        setTimezone(response.data.timezone);
-      } catch (error) {
-        console.error('Error fetching slots:', error);
-        setError(t('booking.failedToLoad'));
-      } finally {
-        setLoading(false);
+  const fetchSlots = async (days: number, append = false) => {
+    try {
+      if (append) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
       }
-    };
 
-    if (userId) {
-      fetchSlots();
+      const response = await axios.get(`${API_URL}/public/calendar/${userId}/slots?daysAhead=${days}`);
+
+      if (append) {
+        setSlots(response.data.slots);
+      } else {
+        setSlots(response.data.slots);
+      }
+      setTimezone(response.data.timezone);
+    } catch (error) {
+      console.error('Error fetching slots:', error);
+      setError(t('booking.failedToLoad'));
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
     }
-  }, [userId, t]);
+  };
+
+  useEffect(() => {
+    if (userId) {
+      fetchSlots(daysAhead);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  const handleLoadMore = () => {
+    const newDaysAhead = daysAhead + DAYS_IN_MONTH_30;
+    setDaysAhead(newDaysAhead);
+    fetchSlots(newDaysAhead, true);
+  };
 
   const handleBook = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,6 +141,9 @@ const BookingPage: React.FC = () => {
               selectedSlot={selectedSlot}
               onSelectSlot={setSelectedSlot}
               timezone={timezone}
+              onLoadMore={handleLoadMore}
+              loadingMore={loadingMore}
+              hasMore
             />
             <BookingForm
               selectedSlot={selectedSlot}

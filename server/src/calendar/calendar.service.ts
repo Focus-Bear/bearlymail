@@ -105,6 +105,7 @@ export class CalendarService {
       const prefs =
         prefsOverride ||
         (await this.schedulingPreferencesService.getPreferences(userId));
+
       const freeSlots = this.calculateFreeSlots(now, endDate, busy, prefs);
 
       return freeSlots;

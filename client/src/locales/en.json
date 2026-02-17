@@ -1041,6 +1041,8 @@
     "confirmed": "Booking Confirmed!",
     "invitationSent": "A calendar invitation has been sent to {{email}}",
     "timezoneNote": "Times are shown in {{timezone}}",
+    "loadingMore": "Loading more dates...",
+    "loadMoreDates": "Look for more dates in the future",
     "reschedule": {
       "title": "Reschedule Booking",
       "subtitle": "Select a new time for your meeting",

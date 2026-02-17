@@ -4,18 +4,23 @@ import {
   Post,
   Param,
   Body,
+  Query,
   BadRequestException,
 } from "@nestjs/common";
 import { CalendarService } from "./calendar.service";
-import { MINUTES } from "../constants/time-constants";
+import { DAYS, MINUTES } from "../constants/time-constants";
 
 @Controller("public/calendar")
 export class PublicCalendarController {
   constructor(private readonly calendarService: CalendarService) {}
 
   @Get(":userId/slots")
-  async getPublicSlots(@Param("userId") userId: string) {
-    return this.calendarService.getAvailableSlotsWithTimezone(userId);
+  async getPublicSlots(
+    @Param("userId") userId: string,
+    @Query("daysAhead") daysAhead?: string,
+  ) {
+    const days = daysAhead ? parseInt(daysAhead, 10) : DAYS.MONTH;
+    return this.calendarService.getAvailableSlotsWithTimezone(userId, days);
   }
 
   @Post(":userId/book")

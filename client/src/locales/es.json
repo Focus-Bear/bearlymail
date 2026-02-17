@@ -153,6 +153,8 @@
     "failedToLoad": "No se pudieron cargar los horarios disponibles. Inténtelo de nuevo más tarde.",
     "invitationSent": "Se envió una invitación de calendario a {{email}}",
     "timezoneNote": "Los horarios se muestran en {{timezone}}",
+    "loadingMore": "Cargando más fechas...",
+    "loadMoreDates": "Buscar más fechas en el futuro",
     "loading": "Cargando horarios disponibles...",
     "noSlotsAvailable": "No hay franjas horarias disponibles por el momento.",
     "selectSlotFirst": "Por favor seleccione primero un horario",

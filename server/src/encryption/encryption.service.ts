@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { ENCRYPTION_CONSTANTS } from "../constants/encryption-constants";
 import { ConfigService } from "@nestjs/config";
 import * as crypto from "crypto";
+import { logError } from "../utils/logger";
 
 @Injectable()
 export class EncryptionService {
@@ -54,7 +55,10 @@ export class EncryptionService {
       // Combine IV, authTag, and encrypted data
       return `${iv.toString("hex")}:${authTag.toString("hex")}:${encrypted}`;
     } catch (error) {
-      console.error("Encryption error:", error);
+      logError(
+        "Encryption error",
+        error instanceof Error ? error : new Error(String(error)),
+      );
       throw new Error("Failed to encrypt data");
     }
   }
@@ -89,7 +93,10 @@ export class EncryptionService {
 
       return decrypted;
     } catch (error) {
-      console.error("Decryption error:", error);
+      logError(
+        "Decryption error",
+        error instanceof Error ? error : new Error(String(error)),
+      );
       // Return original if decryption fails (might be plaintext from before encryption)
       return encryptedText;
     }

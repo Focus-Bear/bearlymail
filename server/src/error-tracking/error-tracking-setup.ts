@@ -1,6 +1,8 @@
 import { PostHog } from "posthog-node";
 import { Logger } from "@nestjs/common";
 
+const API_KEY_PREVIEW_LENGTH = 8;
+
 let posthogClient: PostHog | null = null;
 const logger = new Logger("ErrorTrackingSetup");
 
@@ -18,9 +20,14 @@ export function initializeGlobalErrorTracking(): void {
       flushAt: 20,
       flushInterval: 10000,
     });
-    logger.log("Global error tracking initialized");
+    logger.log(
+      `✅ Global error tracking initialized (host: ${apiHost}, API key starts with: ${apiKey.substring(0, API_KEY_PREVIEW_LENGTH)}...)`,
+    );
   } else {
-    logger.warn("Global error tracking disabled - POSTHOG_API_KEY not set");
+    logger.warn("❌ Global error tracking disabled - POSTHOG_API_KEY not set");
+    logger.warn(
+      "Set POSTHOG_API_KEY environment variable to enable global error tracking",
+    );
   }
 }
 
@@ -32,6 +39,9 @@ export function captureGlobalError(
   context: Record<string, unknown>,
 ): void {
   if (!posthogClient) {
+    logger.debug(
+      "captureGlobalError called but PostHog client not initialized",
+    );
     return;
   }
 
@@ -50,6 +60,9 @@ export function captureGlobalError(
         ...context,
       },
     });
+    logger.debug(
+      `Captured global error to PostHog: ${error.name} - ${error.message}`,
+    );
   } catch (captureError) {
     logger.error("Failed to capture global error to PostHog", captureError);
   }

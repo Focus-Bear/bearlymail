@@ -1,6 +1,7 @@
 import { Logger } from "@nestjs/common";
 import * as fs from "fs";
 import * as path from "path";
+import { logError } from "../utils/logger";
 
 // Ensure logs directory exists
 const LOGS_DIR = path.join(process.cwd(), "logs");
@@ -22,7 +23,10 @@ function writeToAuthLog(message: string) {
     const logLine = `[${timestamp}] ${message}\n`;
     fs.appendFileSync(AUTH_LOG_FILE, logLine, "utf8");
   } catch (error) {
-    console.error("Failed to write to auth log file:", error);
+    logError(
+      "Failed to write to auth log file",
+      error instanceof Error ? error : new Error(String(error)),
+    );
   }
 }
 
@@ -37,7 +41,10 @@ export function writeDebugLog(message: string) {
     const logLine = `[${timestamp}] ${message}\n`;
     fs.appendFileSync(DEBUG_LOG_FILE, logLine, "utf8");
   } catch (error) {
-    console.error("Failed to write to debug log file:", error);
+    logError(
+      "Failed to write to debug log file",
+      error instanceof Error ? error : new Error(String(error)),
+    );
   }
 }
 
@@ -203,5 +210,8 @@ try {
     );
   }
 } catch (error) {
-  console.error("Failed to initialize auth log file:", error);
+  logError(
+    "Failed to initialize auth log file",
+    error instanceof Error ? error : new Error(String(error)),
+  );
 }

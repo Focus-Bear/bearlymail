@@ -5,6 +5,7 @@ import { EmailsService } from "./emails.service";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Email } from "../database/entities/email.entity";
 import { RawEmailMessage } from "./interfaces/email-provider.interface";
+import { logError } from "../utils/logger";
 
 interface GmailPayloadPart {
   // eslint-disable-next-line id-denylist
@@ -387,7 +388,10 @@ export class GmailService {
       });
     } catch (error: unknown) {
       // eslint-disable-next-line no-console
-      console.error("Error sending reply:", error);
+      logError(
+        "Error sending reply",
+        error instanceof Error ? error : new Error(String(error)),
+      );
       const apiError = error as {
         code?: number;
         response?: { status?: number };

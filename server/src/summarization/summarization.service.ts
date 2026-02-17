@@ -10,6 +10,7 @@ import {
 } from "../llm/email-content-cleaner";
 import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
+import { logError, logWarn } from "../utils/logger";
 
 export interface SummarizationRule {
   type: "bullet-points" | "action-items" | "sender-request" | "tldr" | "custom";
@@ -330,9 +331,9 @@ export class SummarizationService {
           }
         });
       } catch (error) {
-        console.error(
+        logError(
           `Thread summarization failed for rule ${ruleKey || "default"}, falling back to individual calls`,
-          error,
+          error instanceof Error ? error : new Error(String(error)),
         );
 
         // Fallback: summarize each thread individually
@@ -344,9 +345,9 @@ export class SummarizationService {
             });
             result.set(item.emailId, summary);
           } catch (summaryError) {
-            console.error(
-              `Failed to summarize thread for email ${item.emailId}:`,
-              summaryError,
+            logError(
+              `Failed to summarize thread for email ${item.emailId}`,
+              summaryError instanceof Error ? summaryError : new Error(String(summaryError)),
             );
           }
         }
@@ -587,11 +588,14 @@ Respond with ONLY the rule number (1-${rules.length}) or "0" if no match. Do not
       }
 
       // If response is invalid, log and fall through to fallback
-      console.warn(
+      logWarn(
         `LLM returned invalid rule index: "${response.trim()}", parsed as: ${ruleIndex}`,
       );
     } catch (error) {
-      console.error("LLM rule matching failed:", error);
+      logError(
+        "LLM rule matching failed",
+        error instanceof Error ? error : new Error(String(error)),
+      );
       // Fall through to fallback
     }
 

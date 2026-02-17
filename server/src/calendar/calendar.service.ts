@@ -14,6 +14,7 @@ import {
   MILLISECONDS,
 } from "../constants/time-constants";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import { logError } from "../utils/logger";
 import {
   SchedulingPreferencesService,
   SchedulingPreferenceData,
@@ -115,7 +116,10 @@ export class CalendarService {
 
       return freeSlots;
     } catch (error) {
-      console.error("Error fetching calendar:", error);
+      logError(
+        "Error fetching calendar",
+        error instanceof Error ? error : new Error(String(error)),
+      );
       throw new Error("Failed to fetch calendar data");
     }
   }
@@ -389,7 +393,10 @@ Manage this booking:
 
       return event.data;
     } catch (error) {
-      console.error("Error creating calendar event:", error);
+      logError(
+        "Error creating calendar event",
+        error instanceof Error ? error : new Error(String(error)),
+      );
       throw new Error("Failed to create calendar event");
     }
   }
@@ -458,7 +465,10 @@ Manage this booking:
 
       return event.data;
     } catch (error) {
-      console.error("Error rescheduling calendar event:", error);
+      logError(
+        "Error rescheduling calendar event",
+        error instanceof Error ? error : new Error(String(error)),
+      );
       throw new Error("Failed to reschedule calendar event");
     }
   }
@@ -502,7 +512,10 @@ Manage this booking:
         message: "Booking cancelled successfully",
       };
     } catch (error) {
-      console.error("Error cancelling calendar event:", error);
+      logError(
+        "Error cancelling calendar event",
+        error instanceof Error ? error : new Error(String(error)),
+      );
       throw new Error("Failed to cancel calendar event");
     }
   }
@@ -583,7 +596,10 @@ Manage this booking:
         location: event.location,
       }));
     } catch (error) {
-      console.error("Error finding calendar events:", error);
+      logError(
+        "Error finding calendar events",
+        error instanceof Error ? error : new Error(String(error)),
+      );
       throw new Error("Failed to find calendar events");
     }
   }
@@ -715,7 +731,10 @@ Manage this booking:
             );
           }
         } catch (error) {
-          this.logger.error("Error parsing iCal date:", error);
+          logError(
+            "Error parsing iCal date",
+            error instanceof Error ? error : new Error(String(error)),
+          );
         }
       }
     }
@@ -757,7 +776,10 @@ Manage this booking:
           eventId = matchingEvent.id;
         }
       } catch (error) {
-        this.logger.error("Error searching calendar by date:", error);
+        logError(
+          "Error searching for calendar event",
+          error instanceof Error ? error : new Error(String(error)),
+        );
       }
     }
 
@@ -838,9 +860,9 @@ Manage this booking:
           eventId = matchingEvent.id;
         }
       } catch (error) {
-        this.logger.error(
-          "Error searching calendar for attendee events:",
-          error,
+        logError(
+          "Error searching calendar for attendee events",
+          error instanceof Error ? error : new Error(String(error)),
         );
       }
     }
@@ -917,7 +939,10 @@ Manage this booking:
           eventId = pendingEvent.id;
         }
       } catch (error) {
-        this.logger.error("Error searching for pending invitations:", error);
+        logError(
+          "Error searching for pending invitations",
+          error instanceof Error ? error : new Error(String(error)),
+        );
       }
     }
 
@@ -971,7 +996,10 @@ Manage this booking:
         );
         return;
       } catch (error) {
-        this.logger.error("Error updating calendar event:", error);
+        logError(
+          "Error updating calendar event",
+          error instanceof Error ? error : new Error(String(error)),
+        );
         throw new Error(
           `Failed to respond to invitation: ${error instanceof Error ? error.message : "Unknown error"}`,
         );
@@ -1058,9 +1086,9 @@ Best regards`;
         userId,
       );
     } catch (error) {
-      console.error(
+      logError(
         "LLM meeting reply generation failed, using fallback",
-        error,
+        error instanceof Error ? error : new Error(String(error)),
       );
       // Fallback to template-based reply
       const slotsText = slots

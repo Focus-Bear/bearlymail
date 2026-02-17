@@ -14,6 +14,7 @@ import { writeDebugLog, AuthLogger } from "./auth-logger";
 import { getJobPriority } from "../queue/job-priorities";
 import { User } from "../database/entities/user.entity";
 import { AUTH_CONSTANTS } from "../constants/auth-constants";
+import { logError } from "../utils/logger";
 
 interface GoogleProfile {
   id: string;
@@ -281,7 +282,10 @@ export class AuthService {
         },
       );
     } catch (logError) {
-      console.error("Failed to log login success:", logError);
+      logError(
+        "Failed to log login success",
+        logError instanceof Error ? logError : new Error(String(logError)),
+      );
     }
 
     // Trigger email sync asynchronously via queue with a small delay to let tokens stabilize
@@ -300,7 +304,12 @@ export class AuthService {
             singletonMinutes: 5,
           },
         )
-        .catch((err) => console.error("Failed to add sync job", err));
+        .catch((err) =>
+          logError(
+            "Failed to add sync job",
+            err instanceof Error ? err : new Error(String(err)),
+          ),
+        );
 
       this.boss
         .send(
@@ -311,7 +320,12 @@ export class AuthService {
             singletonMinutes: 60,
           },
         )
-        .catch((err) => console.error("Failed to add contact sync job", err));
+        .catch((err) =>
+          logError(
+            "Failed to add contact sync job",
+            err instanceof Error ? err : new Error(String(err)),
+          ),
+        );
     }, 2000);
 
     return result;

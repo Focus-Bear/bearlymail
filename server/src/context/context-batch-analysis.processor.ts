@@ -13,6 +13,7 @@ import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { GMAIL_LABELS } from "../constants/email-labels";
 import { UsersService } from "../users/users.service";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
+import { logError, logWarn } from "../utils/logger";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { PERCENTAGES } from "../constants/percentages";
 import { CloudWatchService } from "../aws/cloudwatch.service";
@@ -646,7 +647,7 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
                 `[Worker ${workerId}] Batch ${batchIndex + 1}/${totalBatches} failed after ${maxRetries} retries: ${errorMessage}`,
                 errorStack || error,
               );
-              console.error(
+              logError(
                 `[BATCH-PROCESSOR] [Worker ${workerId}] Batch ${batchIndex + 1}/${totalBatches} failed after ${maxRetries} retries: ${errorMessage}`,
               );
               writeAnalysisLog(
@@ -697,7 +698,7 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
               this.logger.warn(
                 `[Worker ${workerId}] Batch ${batchIndex + 1}/${totalBatches} attempt ${attemptNumber} failed: ${errorMessage}. Will retry.`,
               );
-              console.warn(
+              logWarn(
                 `[BATCH-PROCESSOR] [Worker ${workerId}] Batch ${batchIndex + 1}/${totalBatches} attempt ${attemptNumber} failed: ${errorMessage}. Will retry.`,
               );
               writeAnalysisLog(

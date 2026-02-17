@@ -1,5 +1,6 @@
 import * as crypto from "crypto";
 import { ENCRYPTION_CONSTANTS } from "../constants/encryption-constants";
+import { logError } from "../utils/logger";
 
 /**
  * Static encryption helper for use in TypeORM column transformers
@@ -46,7 +47,10 @@ class EncryptionHelper {
       // Combine IV, authTag, and encrypted data
       return `${iv.toString("hex")}:${authTag.toString("hex")}:${encrypted}`;
     } catch (error) {
-      console.error("Encryption error:", error);
+      logError(
+        "Encryption error",
+        error instanceof Error ? error : new Error(String(error)),
+      );
       throw new Error("Failed to encrypt data");
     }
   }
@@ -83,7 +87,10 @@ class EncryptionHelper {
 
       return decrypted;
     } catch (error) {
-      console.error("Decryption error:", error);
+      logError(
+        "Decryption error",
+        error instanceof Error ? error : new Error(String(error)),
+      );
       // Return original if decryption fails (might be plaintext from before encryption)
       return encryptedText;
     }
@@ -136,7 +143,10 @@ export const encryptedJsonTransformer = {
     try {
       return JSON.parse(decrypted);
     } catch (e) {
-      console.error("Failed to parse decrypted JSON", e);
+      logError(
+        "Failed to parse decrypted JSON",
+        e instanceof Error ? e : new Error(String(e)),
+      );
       return null;
     }
   },

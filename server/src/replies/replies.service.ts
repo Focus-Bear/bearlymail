@@ -8,6 +8,7 @@ import { ContextService } from "../context/context.service";
 import { LLMService, LLMProvider } from "../llm/llm.service";
 import { UsersService } from "../users/users.service";
 import { WritingStyleLearningService } from "../context/writing-style-learning.service";
+import { logError } from "../utils/logger";
 import { ContextKey } from "../database/entities/user-context.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -135,7 +136,10 @@ export class RepliesService {
         userId,
       );
     } catch (error) {
-      console.error("LLM reply generation failed, using fallback", error);
+      logError(
+        "LLM reply generation failed, using fallback",
+        error instanceof Error ? error : new Error(String(error)),
+      );
       // Fallback to default reply
       return this.generateDefaultReply(email, tone, commonPhrases);
     }
@@ -420,7 +424,10 @@ ${closing}`;
       ]);
     } catch (learningError) {
       // Don't fail the send if learning fails
-      console.error("Failed to learn from sent reply:", learningError);
+      logError(
+        "Failed to learn from sent reply",
+        learningError instanceof Error ? learningError : new Error(String(learningError)),
+      );
     }
 
     // If expected reply hours is set, snooze the email and create a follow-up

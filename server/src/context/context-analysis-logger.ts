@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
+import { logError, logWarn } from "../utils/logger";
 
 // Ensure logs directory exists
 const LOGS_DIR = path.join(process.cwd(), "logs");
@@ -25,11 +26,11 @@ export function writeAnalysisLog(
   switch (level) {
     case "error":
       // eslint-disable-next-line no-console
-      console.error(consoleMessage);
+      logError(consoleMessage);
       break;
     case "warn":
       // eslint-disable-next-line no-console
-      console.warn(consoleMessage);
+      logWarn(consoleMessage);
       break;
     case "debug":
       // eslint-disable-next-line no-console
@@ -57,10 +58,9 @@ export function writeAnalysisLog(
     fs.appendFileSync(ANALYSIS_LOG_FILE, logLine, "utf8");
   } catch (err) {
     // Log error to console (but don't break the app)
-    // eslint-disable-next-line no-console
-    console.error(
-      `Failed to write to analysis log file (${ANALYSIS_LOG_FILE}):`,
-      err,
+    logError(
+      `Failed to write to analysis log file (${ANALYSIS_LOG_FILE})`,
+      err instanceof Error ? err : new Error(String(err)),
     );
   }
 }

@@ -18,6 +18,7 @@ import { EncryptionHelper } from "../encryption/encryption.helper";
 import { LLMService } from "../llm/llm.service";
 import { UsersService } from "../users/users.service";
 import { getJobPriority } from "../queue/job-priorities";
+import { logError } from "../utils/logger";
 import { GitHubService } from "../github/github.service";
 import { GitHubApiService } from "../github/github-api.service";
 import { RATIOS } from "../constants/percentages";
@@ -1036,9 +1037,9 @@ export class EmailsService {
           this.emailRepository
             .update(email.id, { labels: uniqueConvertedLabels })
             .catch((err) =>
-              console.error(
-                `Failed to update labels for email ${email.id}:`,
-                err,
+              logError(
+                `Failed to update labels for email ${email.id}`,
+                err instanceof Error ? err : new Error(String(err)),
               ),
             );
         }

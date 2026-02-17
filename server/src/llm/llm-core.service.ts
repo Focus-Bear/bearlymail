@@ -218,7 +218,7 @@ export class LLMCoreService {
       messages.push({ role: "user", content: request.prompt });
 
       this.logger.debug(
-        `Generating text with OpenAI using ${apiKeySource} API key${request.userId ? ` (userId: ${request.userId})` : ""}`,
+        `Generating text with OpenAI model: ${model} using ${apiKeySource} API key${request.userId ? ` (userId: ${request.userId})` : ""}`,
       );
 
       const completionParams: any = {
@@ -230,12 +230,19 @@ export class LLMCoreService {
       };
 
       // Only add reasoning parameter for supported models (o1, o3, gpt-5+)
+      // Uses nested structure: { effort: "low" | "medium" | "high" }
       if (supportsReasoningEffort(model)) {
-        completionParams.reasoning = reasoningEffort as
-          | "low"
-          | "medium"
-          | "high";
+        completionParams.reasoning = {
+          effort: reasoningEffort as "low" | "medium" | "high",
+        };
+        this.logger.debug(
+          `Using reasoning effort: ${reasoningEffort} for model ${model}`,
+        );
       }
+
+      this.logger.debug(
+        `OpenAI request params: ${JSON.stringify({ model, reasoning: completionParams.reasoning, temperature: completionParams.temperature, max_completion_tokens: completionParams.max_completion_tokens })}`,
+      );
 
       const completion =
         await openaiClient!.chat.completions.create(completionParams);

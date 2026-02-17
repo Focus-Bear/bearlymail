@@ -7,6 +7,7 @@ import {
 } from "../interfaces/contact-provider.interface";
 import { isApiError } from "../../types/common";
 import { QUERY_LIMITS } from "../../constants/query-limits";
+import { logError } from "../../utils/logger";
 
 @Injectable()
 export class GmailContactsProvider implements ContactProvider {
@@ -115,7 +116,10 @@ export class GmailContactsProvider implements ContactProvider {
       // The ContactsService will call this and then store them
       return totalSynced;
     } catch (error: unknown) {
-      console.error(`Error syncing contacts for user ${userId}:`, error);
+      logError(
+        `Error syncing contacts for user ${userId}`,
+        error instanceof Error ? error : new Error(String(error)),
+      );
 
       const errorCode =
         typeof error === "object" && error !== null && "code" in error
@@ -304,9 +308,9 @@ export class GmailContactsProvider implements ContactProvider {
         photoUrl: photo?.url,
       };
     } catch (error) {
-      console.error(
-        `Error getting contact ${providerId} for user ${userId}:`,
-        error,
+      logError(
+        `Error getting contact ${providerId} for user ${userId}`,
+        error instanceof Error ? error : new Error(String(error)),
       );
       return null;
     }

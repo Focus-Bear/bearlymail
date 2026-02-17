@@ -1,6 +1,8 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PostHog } from "posthog-node";
 
+const API_KEY_PREVIEW_LENGTH = 8;
+
 /**
  * Service for tracking errors and events to PostHog
  * See: https://posthog.com/docs/libraries/node
@@ -25,10 +27,18 @@ export class ErrorTrackingService {
         flushInterval: 10000, // Or every 10 seconds
       });
 
-      this.logger.log("PostHog error tracking initialized");
+      this.logger.log(
+        `✅ PostHog error tracking initialized (host: ${apiHost}, flushAt: 20 events, flushInterval: 10s)`,
+      );
+      this.logger.debug(
+        `PostHog API key (first 8 chars): ${apiKey!.substring(0, API_KEY_PREVIEW_LENGTH)}...`,
+      );
     } else {
       this.logger.warn(
-        "PostHog error tracking disabled - POSTHOG_API_KEY not set",
+        "❌ PostHog error tracking disabled - POSTHOG_API_KEY not set",
+      );
+      this.logger.warn(
+        "Set POSTHOG_API_KEY environment variable to enable error tracking",
       );
     }
   }
@@ -45,6 +55,9 @@ export class ErrorTrackingService {
     additionalContext?: Record<string, unknown>,
   ): void {
     if (!this.isEnabled || !this.posthog) {
+      this.logger.debug(
+        `PostHog captureException called but tracking is disabled (isEnabled: ${this.isEnabled}, hasClient: ${!!this.posthog})`,
+      );
       return;
     }
 
@@ -69,6 +82,10 @@ export class ErrorTrackingService {
         event: "$exception",
         properties,
       });
+
+      this.logger.debug(
+        `Captured exception to PostHog: ${error.name} - ${error.message} (distinctId: ${distinctId})`,
+      );
     } catch (captureError) {
       // Don't throw errors when trying to capture errors
       this.logger.error("Failed to capture exception to PostHog", captureError);

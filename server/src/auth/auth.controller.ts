@@ -18,6 +18,7 @@ import { GoogleAuthGuard } from "./google-auth.guard";
 import { MicrosoftAuthGuard } from "./microsoft-auth.guard";
 import { ZohoAuthGuard } from "./zoho-auth.guard";
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
+import { logError } from "../utils/logger";
 import { Office365AccountsService } from "../office365-accounts/office365-accounts.service";
 import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
 import { WaitlistService } from "../waitlist/waitlist.service";
@@ -209,7 +210,10 @@ export class AuthController {
         }
       } catch (e) {
         // Invalid state, fall through to login flow
-        console.error("Error parsing state in Google callback:", e);
+        logError(
+          "Error parsing state in Google callback",
+          e instanceof Error ? e : new Error(String(e)),
+        );
       }
     }
 
@@ -320,7 +324,10 @@ export class AuthController {
         }
       } catch (e) {
         // Invalid state, fall through to login flow
-        console.error("Error parsing state in Microsoft callback:", e);
+        logError(
+          "Error parsing state in Microsoft callback",
+          e instanceof Error ? e : new Error(String(e)),
+        );
       }
     }
 
@@ -426,7 +433,10 @@ export class AuthController {
         }
       } catch (e) {
         // Invalid state, fall through to login flow
-        console.error("Error parsing state in Zoho callback:", e);
+        logError(
+          "Error parsing state in Zoho callback",
+          e instanceof Error ? e : new Error(String(e)),
+        );
       }
     }
 

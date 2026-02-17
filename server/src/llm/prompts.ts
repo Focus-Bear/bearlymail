@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
+import { logError, logWarn } from "../utils/logger";
 
 interface PromptConfig {
   id: string;
@@ -71,14 +72,25 @@ export function loadPrompts(): Map<string, PromptConfig> {
   }
 
   if (!promptsDir) {
-    console.warn(
-      `Prompts directory not found. Tried paths: ${possiblePaths.join(", ")}`,
+    logError(
+      `❌ PROMPTS DIRECTORY NOT FOUND. Tried paths: ${possiblePaths.join(", ")}`,
+      undefined,
+      {
+        __dirname,
+        cwd: process.cwd(),
+        serverDir,
+      },
     );
-    console.warn(
+    logError(
       `Current __dirname: ${__dirname}, process.cwd(): ${process.cwd()}, serverDir: ${serverDir}`,
+    );
+    logError(
+      `This will cause "prompt not found" errors. Check that promptfoo/prompts/ exists relative to the server directory.`,
     );
     return promptsCache;
   }
+
+  console.log(`✅ Prompts directory found at: ${promptsDir}`);
 
   try {
     // Load extract-action-items.md
@@ -94,7 +106,7 @@ export function loadPrompts(): Map<string, PromptConfig> {
         systemPrompt: "",
       });
     } else {
-      console.warn(
+      logWarn(
         `extract-action-items.md not found at ${extractActionItemsPath}`,
       );
     }
@@ -108,6 +120,15 @@ export function loadPrompts(): Map<string, PromptConfig> {
         prompt: content,
         systemPrompt: "",
       });
+      console.log(
+        "✅ Loaded prompt: analyze_priority from prioritise-email.md",
+      );
+    } else {
+      logError(
+        `❌ CRITICAL: prioritise-email.md not found at ${prioritiseEmailPath}`,
+        undefined,
+        { promptPath: prioritiseEmailPath },
+      );
     }
 
     // Load generate-reply.md
@@ -394,7 +415,10 @@ export function loadPrompts(): Map<string, PromptConfig> {
       });
     }
   } catch (error) {
-    console.error("Failed to load prompts from markdown files:", error);
+    logError(
+      "Failed to load prompts from markdown files",
+      error instanceof Error ? error : new Error(String(error)),
+    );
   }
 
   return promptsCache;

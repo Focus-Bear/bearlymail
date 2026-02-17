@@ -5,6 +5,7 @@ import { Contact } from "../database/entities/contact.entity";
 import { RawContact } from "./interfaces/contact-provider.interface";
 import { SearchIndexHelper } from "./search-index.helper";
 import { GmailContactsProvider } from "./providers/gmail-contacts.provider";
+import { logError } from "../utils/logger";
 
 export interface ContactSearchResult {
   id: string;
@@ -48,7 +49,10 @@ export class ContactsService {
         const synced = await this.upsertContacts(userId, "gmail", rawContacts);
         results.push({ synced, provider: "gmail" });
       } catch (error) {
-        console.error("Gmail contact sync failed:", error);
+        logError(
+          "Gmail contact sync failed",
+          error instanceof Error ? error : new Error(String(error)),
+        );
         results.push({ synced: 0, provider: "gmail" });
       }
     }
@@ -128,7 +132,10 @@ export class ContactsService {
 
         upserted++;
       } catch (error) {
-        console.error(`Error upserting contact ${raw.email}:`, error);
+        logError(
+          `Error upserting contact ${raw.email}`,
+          error instanceof Error ? error : new Error(String(error)),
+        );
       }
     }
 

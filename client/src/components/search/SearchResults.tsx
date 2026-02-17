@@ -7,6 +7,7 @@ import { SEARCH_RESULT_NO_RESULTS } from 'constants/strings';
 import { captureEvent } from 'utils/posthog';
 import { Email, getEmailPriorityScore } from 'types/email';
 import { humanizeTimestamp } from 'utils/dateUtils';
+import { useAuth } from 'contexts/AuthContext';
 
 interface SearchEmail extends Email {
   starCount?: number;
@@ -39,6 +40,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
 }) => {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { user } = useAuth();
 
   const hasNoResults = searchResults.length === 0 || (searchResults.length === 1 && searchResults[0].id === SEARCH_RESULT_NO_RESULTS);
   
@@ -66,7 +68,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
         <p style={{ color: theme.colors.text.secondary, marginBottom: theme.spacing.lg }}>
           {t('search.noResultsHint')}
         </p>
-        {noResultsDebugInfo?.queriesTried && noResultsDebugInfo.queriesTried.length > 0 && (
+        {user?.isAdmin && noResultsDebugInfo?.queriesTried && noResultsDebugInfo.queriesTried.length > 0 && (
           <div style={{
             marginTop: theme.spacing.md,
             padding: theme.spacing.md,
@@ -74,23 +76,23 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
             borderRadius: theme.borderRadius.md,
             textAlign: 'left',
           }}>
-            <p style={{ 
-              color: theme.colors.text.secondary, 
+            <p style={{
+              color: theme.colors.text.secondary,
               fontSize: theme.typography.fontSize.sm,
               marginBottom: theme.spacing.sm,
               fontWeight: theme.typography.fontWeight.medium,
             }}>
               {t('search.queriesUsed')}:
             </p>
-            <ul style={{ 
-              margin: 0, 
+            <ul style={{
+              margin: 0,
               paddingLeft: theme.spacing.lg,
               color: theme.colors.text.tertiary,
               fontSize: theme.typography.fontSize.xs,
             }}>
               {noResultsDebugInfo.queriesTried.map((q: { query: string; resultCount: number }, idx: number) => (
                 <li key={idx} style={{ marginBottom: theme.spacing.xs }}>
-                  <code style={{ 
+                  <code style={{
                     backgroundColor: theme.colors.background.paper,
                     padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
                     borderRadius: theme.borderRadius.sm,

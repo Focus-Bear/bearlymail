@@ -250,14 +250,29 @@ jobs:
           WORKER_PROCESSES: 1
         run: |
           echo "Starting worker process..."
-          node dist/worker.js &
+          # Capture both stdout and stderr to a log file
+          node dist/worker.js > worker.log 2>&1 &
           WORKER_PID=$!
 
           TIMEOUT=30
           STARTED=false
           for i in $(seq 1 $TIMEOUT); do
+            # Check for NestJS structural errors in the log
+            if grep -i "Nest can't resolve dependencies\|Module not found\|Cannot find module\|Error: No provider" worker.log 2>/dev/null; then
+              echo "=========================================="
+              echo "FATAL: NestJS structural error detected!"
+              echo "=========================================="
+              cat worker.log
+              echo "=========================================="
+              kill $WORKER_PID 2>/dev/null || true
+              exit 1
+            fi
             if ! kill -0 $WORKER_PID 2>/dev/null; then
+            
               echo "FATAL: Worker process exited prematurely"
+              echo "=========================================="
+              cat worker.log
+              echo "=========================================="
               wait $WORKER_PID
               EXIT_CODE=$?
               echo "Worker exit code: $EXIT_CODE"
@@ -274,7 +289,11 @@ jobs:
           if [ "$STARTED" = true ]; then
             echo "Worker process is running successfully after 15 seconds"
           else
+            echo "=========================================="
             echo "FATAL: Worker did not stabilize within ${TIMEOUT} seconds"
+            echo "=========================================="
+            cat worker.log
+            echo "=========================================="
             kill $WORKER_PID 2>/dev/null || true
             exit 1
           fi

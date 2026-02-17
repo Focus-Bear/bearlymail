@@ -123,6 +123,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
   // Category accordion state - stored here to persist across InboxContent remounts
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [stableCategoryOrder, setStableCategoryOrder] = useState<string[]>([]);
+  const hasAutoExpandedRef = useRef(false);
 
   // Fetch follow-up data when in follow-up mode
   useEffect(() => {
@@ -330,6 +331,8 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     setModeState(newMode);
     // Reset category order when mode changes so it gets recalculated for the new mode
     setStableCategoryOrder([]);
+    // Reset auto-expand flag so the top category gets auto-expanded in the new mode
+    hasAutoExpandedRef.current = false;
   }, []);
 
   // Toggle category expansion
@@ -349,6 +352,12 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
   const updateStableCategoryOrder = useCallback((categories: string[]) => {
     if (categories.length > 0) {
       setStableCategoryOrder(categories);
+
+      // Auto-expand the top priority category on initial load
+      if (!hasAutoExpandedRef.current && categories.length > 0) {
+        hasAutoExpandedRef.current = true;
+        setExpandedCategories(new Set([categories[0]]));
+      }
     }
   }, []);
 

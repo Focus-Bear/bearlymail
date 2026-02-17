@@ -20,6 +20,7 @@ import { Repository } from "typeorm";
 import { Response } from "express";
 import PgBoss = require("pg-boss");
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { Public } from "../auth/public.decorator";
 import { GitHubService, ParsedGitHubLink } from "./github.service";
 import { GitHubApiService } from "./github-api.service";
 import { GitHubAppService } from "./github-app.service";
@@ -424,8 +425,8 @@ export class GitHubController {
     return { token };
   }
 
+  @Public()
   @Get("connect")
-  @UseGuards() // Override class-level guard - no auth required for this endpoint
   async connect(@Query("token") token: string, @Res() res: Response) {
     const frontendUrl = this.githubAppService.getFrontendUrl();
 
@@ -445,8 +446,8 @@ export class GitHubController {
     return res.redirect(authUrl);
   }
 
+  @Public()
   @Get("callback")
-  @UseGuards() // Override class-level guard - GitHub calls this endpoint
   async callback(
     @Query("code") code: string,
     @Query("state") state: string,

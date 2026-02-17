@@ -107,6 +107,24 @@
       "joinWaitlist": "Unirse a la lista de espera",
       "backToLogin": "Volver al inicio de sesión",
       "goToHomepage": "Ir a la página principal",
+      "permissions": {
+        "title": "Permisos explicados",
+        "intro": "BearlyMail necesita los siguientes permisos para ayudarte a gestionar tu correo electrónico de manera efectiva. Nos tomamos tu privacidad en serio y solo solicitamos lo necesario.",
+        "gmail": {
+          "title": "Acceso a Gmail",
+          "description": "Leer, organizar y enviar correos electrónicos en tu nombre. Esto permite a BearlyMail priorizar tu bandeja de entrada, archivar correos y enviar respuestas."
+        },
+        "calendar": {
+          "title": "Eventos del calendario",
+          "description": "Ver tu disponibilidad y crear invitaciones de reuniones. BearlyMail solo gestiona eventos de calendario, no tus calendarios en sí."
+        },
+        "contacts": {
+          "title": "Contactos",
+          "description": "Leer tus contactos para identificar personas importantes y personalizar tu experiencia de correo electrónico."
+        },
+        "security": "🔒 Todos tus datos están encriptados y almacenados de forma segura. Nunca compartimos tu información con terceros.",
+        "continue": "Continuar a Google"
+      },
       "errors": {
         "waitlistSubmitted": {
           "title": "¡Estás en la lista de espera!",

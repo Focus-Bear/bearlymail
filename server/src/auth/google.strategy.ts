@@ -51,7 +51,8 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
       scope: [
         "email",
         "profile",
-        "https://www.googleapis.com/auth/calendar",
+        // Only manage calendar events (not delete calendars)
+        "https://www.googleapis.com/auth/calendar.events",
         // Includes read + modify (labels, etc.)
         "https://www.googleapis.com/auth/gmail.modify",
         "https://www.googleapis.com/auth/gmail.send",

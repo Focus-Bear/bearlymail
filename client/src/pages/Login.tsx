@@ -7,12 +7,16 @@ import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 import { devLog } from 'utils/dev-logger';
 import { API_URL } from 'config/api';
+import { PermissionsExplanation } from 'components/auth/PermissionsExplanation';
+
+const PERMISSIONS_SEEN_KEY = 'bearlymail_permissions_explanation_seen';
 
 const Login: React.FC = () => {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [showPermissionsModal, setShowPermissionsModal] = useState(false);
   const { login, user, loading } = useAuth();
   const navigate = useNavigate();
 
@@ -52,20 +56,46 @@ const Login: React.FC = () => {
 
 
   const handleGoogleLogin = () => {
+    // Check if user has seen the permissions explanation before
+    const hasSeenPermissions = localStorage.getItem(PERMISSIONS_SEEN_KEY);
+
+    if (!hasSeenPermissions) {
+      // Show permissions explanation modal
+      setShowPermissionsModal(true);
+    } else {
+      // Proceed directly to Google OAuth
+      proceedToGoogleOAuth();
+    }
+  };
+
+  const proceedToGoogleOAuth = () => {
     captureEvent('google_login_initiated');
+    localStorage.setItem(PERMISSIONS_SEEN_KEY, 'true');
     window.location.href = `${API_URL}/auth/google`;
   };
 
+  const handlePermissionsCancel = () => {
+    setShowPermissionsModal(false);
+  };
+
   return (
-    <div style={{
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      minHeight: '100vh',
-      backgroundColor: theme.colors.background.default,
-      padding: theme.spacing.md,
-    }}>
+    <>
+      {showPermissionsModal && (
+        <PermissionsExplanation
+          onContinue={proceedToGoogleOAuth}
+          onCancel={handlePermissionsCancel}
+        />
+      )}
+
       <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
+        backgroundColor: theme.colors.background.default,
+        padding: theme.spacing.md,
+      }}>
+        <div style={{
         backgroundColor: theme.colors.background.paper,
         padding: theme.spacing['2xl'],
         borderRadius: theme.borderRadius.lg,
@@ -213,8 +243,9 @@ const Login: React.FC = () => {
             {t('auth.signIn')}
           </button>
         </form>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

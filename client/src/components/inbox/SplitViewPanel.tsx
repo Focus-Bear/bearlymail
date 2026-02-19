@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import EmailDetail, { EmailDetailRef } from 'pages/EmailDetail';
 import { SnoozeInputForm } from 'components/inbox/actions/SnoozeInputForm';
-import { EMOJI_CLOSE, EMOJI_EXPAND, EMOJI_REPLY, EMOJI_ARCHIVE, EMOJI_STAR, EMOJI_CLOCK } from 'constants/emojis';
+import { EMOJI_CLOSE, EMOJI_EXPAND, EMOJI_REPLY, EMOJI_FORWARD, EMOJI_ARCHIVE, EMOJI_STAR, EMOJI_CLOCK } from 'constants/emojis';
 import { InboxMode, Email } from 'types/email';
 import { MODE_ACTION } from 'constants/strings';
 import { captureEvent } from 'utils/posthog';
@@ -64,7 +64,11 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
   }, [selectedEmailId]);
 
   const handleReplyClick = () => {
-    emailDetailComponentRef.current?.openReplyComposer();
+    emailDetailComponentRef.current?.openReplyComposer('replyAll');
+  };
+
+  const handleForwardClick = () => {
+    emailDetailComponentRef.current?.openReplyComposer('forward');
   };
 
   const handleArchiveClick = () => {
@@ -211,7 +215,7 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
             ))}
           </div>
 
-          {/* Reply button */}
+          {/* Reply All button */}
           <button
             onClick={handleReplyClick}
             style={{
@@ -226,11 +230,33 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
               alignItems: 'center',
               gap: theme.spacing.xs,
             }}
-            title={t('emailDetail.reply')}
+            title={t('emailDetail.replyAll')}
           >
             {/* eslint-disable-next-line i18next/no-literal-string */}
             <span>{EMOJI_REPLY}</span>
-            <span>{t('emailDetail.reply')}</span>
+            <span>{t('emailDetail.replyAll')}</span>
+          </button>
+
+          {/* Forward button */}
+          <button
+            onClick={handleForwardClick}
+            style={{
+              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+              backgroundColor: 'transparent',
+              border: `1px solid ${theme.colors.border.medium}`,
+              borderRadius: theme.borderRadius.sm,
+              cursor: 'pointer',
+              fontSize: theme.typography.fontSize.xs,
+              color: theme.colors.text.secondary,
+              display: 'flex',
+              alignItems: 'center',
+              gap: theme.spacing.xs,
+            }}
+            title={t('emailDetail.forward')}
+          >
+            {/* eslint-disable-next-line i18next/no-literal-string */}
+            <span>{EMOJI_FORWARD}</span>
+            <span>{t('emailDetail.forward')}</span>
           </button>
 
           {/* Archive button */}

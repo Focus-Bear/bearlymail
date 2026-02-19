@@ -35,7 +35,7 @@ interface EmailDetailProps {
 
 // Methods exposed via ref for external control (e.g., from SplitViewPanel header)
 export interface EmailDetailRef {
-  openReplyComposer: () => void;
+  openReplyComposer: (mode?: 'reply' | 'replyAll' | 'forward') => void;
   archive: () => void;
   snooze: (duration: string) => void;
   setStarCount: (count: number) => void;
@@ -195,8 +195,8 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
 
   // Expose methods via ref for external control (e.g., SplitViewPanel header actions)
   useImperativeHandle(ref, () => ({
-    openReplyComposer: () => {
-      handleOpenReplyComposer('reply');
+    openReplyComposer: (mode: 'reply' | 'replyAll' | 'forward' = 'reply') => {
+      handleOpenReplyComposer(mode);
       // Scroll to reply composer and focus the textarea after a short delay to ensure it's mounted
       setTimeout(() => {
         replyComposerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });

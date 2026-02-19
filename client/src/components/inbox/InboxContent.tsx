@@ -15,6 +15,7 @@ import { BatchInfoBar } from 'components/inbox/BatchInfoBar';
 import { useSplitView } from 'hooks/useSplitView';
 import { CategoryAccordion, groupEmailsByCategory } from 'components/inbox/CategoryAccordion';
 import { useNotifications } from 'contexts/NotificationContext';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 interface InboxContentProps {
   mode: InboxMode;
@@ -100,6 +101,7 @@ export const InboxContent: React.FC<InboxContentProps> = ({
 }) => {
   const { t } = useTranslation();
   const { showNotification } = useNotifications();
+  const { isMobile } = useResponsiveBreakpoints();
   const splitViewContainerRef = useRef<HTMLDivElement>(null);
   const [isReanalysingOther, setIsReanalysingOther] = useState(false);
 
@@ -243,13 +245,15 @@ export const InboxContent: React.FC<InboxContentProps> = ({
             if (splitView.selectedEmailId) return `0 0 ${splitView.splitPosition}%`;
             return 1;
           })(),
-          overflowY: 'auto', 
-          padding: `${theme.spacing.md} ${theme.spacing.lg} ${theme.spacing.lg}`,
+          overflowY: 'auto',
+          padding: isMobile
+            ? `${theme.spacing.sm} ${theme.spacing.xs}`
+            : `${theme.spacing.md} ${theme.spacing.lg} ${theme.spacing.lg}`,
           transition: splitView.isResizing ? 'none' : 'flex 0.3s ease',
           borderRight: splitView.selectedEmailId && !splitView.panelExpanded && !splitView.isMobile ? `1px solid ${theme.colors.border.light}` : 'none',
         }}
       >
-        <div style={{ maxWidth: splitView.selectedEmailId ? '100%' : '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
+        <div style={{ maxWidth: splitView.selectedEmailId ? '100%' : '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: isMobile ? theme.spacing.xs : theme.spacing.md }}>
           {mode === MODE_TRIAGE && (
             <BatchInfoBar
               nextDelivery={nextDelivery}

@@ -264,7 +264,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           top: 0,
           zIndex: 1000,
           transform: isMobileMenuOpen ? 'translateX(0)' : 'translateX(-100%)',
-          width: '280px',
+          width: '220px',
+          padding: `${theme.spacing.sm} ${theme.spacing.sm}`,
         }),
       }}>
         <SidebarHeader isCollapsed={isCollapsed} />

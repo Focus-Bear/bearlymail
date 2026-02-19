@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 import { InboxMode } from 'types/email';
 import { captureEvent } from 'utils/posthog';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 interface TabCounts {
   triage: number;
@@ -35,6 +36,7 @@ export const InboxHeaderTabs: React.FC<InboxHeaderTabsProps> = ({
   tabCounts,
 }) => {
   const { t } = useTranslation();
+  const { isMobile } = useResponsiveBreakpoints();
 
   const handleTabClick = (newMode: InboxMode) => {
     if (mode !== newMode) {
@@ -49,14 +51,16 @@ export const InboxHeaderTabs: React.FC<InboxHeaderTabsProps> = ({
   const getTabStyle = (tabMode: InboxMode) => {
     const isActive = mode === tabMode;
     return {
-      padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
+      padding: isMobile
+        ? `${theme.spacing.xs} ${theme.spacing.sm}`
+        : `${theme.spacing.sm} ${theme.spacing.lg}`,
       backgroundColor: isActive ? theme.colors.primary.subtle : 'transparent',
       color: isActive ? theme.colors.primary.main : theme.colors.text.secondary,
       border: 'none',
       borderRadius: theme.borderRadius.full,
       cursor: loadingModeSwitch ? 'wait' : 'pointer',
       fontWeight: theme.typography.fontWeight.semibold,
-      fontSize: theme.typography.fontSize.base,
+      fontSize: isMobile ? theme.typography.fontSize.lg : theme.typography.fontSize.base,
       opacity: loadingModeSwitch ? OPACITY_DISABLED : OPACITY_FULL,
     };
   };
@@ -91,7 +95,7 @@ export const InboxHeaderTabs: React.FC<InboxHeaderTabsProps> = ({
   };
 
   return (
-    <div style={{ display: 'flex', gap: theme.spacing.md }}>
+    <div style={{ display: 'flex', gap: isMobile ? theme.spacing.xs : theme.spacing.md }}>
       <button
         ref={triageTabRef}
         className="triage-tab"

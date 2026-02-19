@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Email, InboxMode } from 'types/email';
 import { MODE_TRIAGE } from 'constants/strings';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 interface EmailCardProps {
   email: Email;
@@ -27,8 +28,13 @@ export const EmailCard: React.FC<EmailCardProps> = ({
   mode,
 }) => {
   const { t } = useTranslation();
+  const { isMobile } = useResponsiveBreakpoints();
   const wasDeliveredEarly = email.wasDeliveredEarly ?? false;
   const showEmergencyRibbon = wasDeliveredEarly && mode === MODE_TRIAGE;
+  const cardPadding = isMobile ? theme.spacing.sm : theme.spacing.lg;
+  const cardPaddingTop = showEmergencyRibbon
+    ? (isMobile ? theme.spacing.lg : theme.spacing.xl)
+    : cardPadding;
 
   return (
     <div
@@ -37,8 +43,8 @@ export const EmailCard: React.FC<EmailCardProps> = ({
       style={{
         backgroundColor: isSelected ? theme.colors.primary.subtle : theme.colors.background.paper,
         borderRadius: theme.borderRadius.lg,
-        padding: theme.spacing.lg,
-        paddingTop: showEmergencyRibbon ? theme.spacing.xl : theme.spacing.lg,
+        padding: cardPadding,
+        paddingTop: cardPaddingTop,
         border: `2px solid ${getBorderColor(isSelected, email.isRead, showEmergencyRibbon)}`,
         borderLeft: email.isRead ? `1px solid ${theme.colors.border.light}` : `4px solid ${showEmergencyRibbon ? theme.colors.warning.main : theme.colors.primary.main}`,
         boxShadow: theme.shadows.sm,

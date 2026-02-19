@@ -40,7 +40,7 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
   return (
     <header
       style={{
-        padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
+        padding: isMobile ? `${theme.spacing.sm} ${theme.spacing.xs}` : `${theme.spacing.sm} ${theme.spacing.lg}`,
         backgroundColor: theme.colors.background.paper,
         borderBottom: `1px solid ${theme.colors.border.light}`,
         display: 'flex',

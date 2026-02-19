@@ -37,6 +37,7 @@ export class BearlyMailSecretsStack extends cdk.Stack {
     // - ZOHO_CLIQ_BEARLY_MAIL_SIGNUP_CHANNEL (Cliq channel name)
     // - AWS_REGION (AWS region for SES, e.g., 'ap-southeast-2')
     // - SES_FROM_EMAIL (Verified SES email address for sending emails)
+    // - POSTHOG_API_KEY (PostHog project API key for backend error tracking)
 
     // ============================================
     // Outputs

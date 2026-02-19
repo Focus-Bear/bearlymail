@@ -9,6 +9,10 @@ export const initPostHog = () => {
   if (apiKey) {
     posthog.init(apiKey, {
       api_host: apiHost,
+      // Enable PostHog's native exception autocapture so errors appear in the
+      // Error Tracking dashboard with the required $exception_list format.
+      // This replaces the manual window.addEventListener('error', ...) handlers.
+      exception_autocapture: true,
       session_recording: {
         maskAllInputs: true,
         maskTextSelector: '*',
@@ -70,30 +74,21 @@ export const resetPostHog = () => {
 };
 
 // Helper function to capture exceptions (errors) with stack traces
+// Uses posthog.captureException() which sends the $exception_list format
+// required by PostHog's Error Tracking dashboard.
 export const captureException = (error: Error, additionalContext?: Record<string, any>) => {
   try {
     if (!isPostHogLoaded()) return;
 
-    // Build error properties
-    const errorProperties: Record<string, any> = {
-      error_name: error.name,
-      error_message: error.message,
-      error_stack: error.stack,
-      ...additionalContext,
-    };
+    // Remove PII from additional context before sending
+    const safeContext = additionalContext ? { ...additionalContext } : {};
+    delete safeContext.email;
+    delete safeContext.name;
+    delete safeContext.query;
 
-    // Remove any PII from additional context
-    delete errorProperties.email;
-    delete errorProperties.name;
-    delete errorProperties.query;
-
-    // Capture as a special "$exception" event (PostHog's standard for errors)
-    posthog.capture('$exception', {
-      $exception_message: error.message,
-      $exception_type: error.name,
-      $exception_stack_trace_raw: error.stack,
-      ...errorProperties,
-    });
+    // Use PostHog's native captureException which formats the event correctly
+    // for the Error Tracking dashboard (uses $exception_list internally).
+    posthog.captureException(error, safeContext);
   } catch (captureError) {
     // Don't throw errors when trying to capture errors
     console.error('Failed to capture exception to PostHog:', captureError);

@@ -50,11 +50,16 @@ export function captureGlobalError(
       distinctId: "backend-global-errors",
       event: "$exception",
       properties: {
-        $exception_message: error.message,
-        $exception_type: error.name,
-        $exception_stack_trace_raw: error.stack,
-        error_name: error.name,
-        error_message: error.message,
+        $exception_list: [
+          {
+            type: error.name,
+            value: error.message,
+            stacktrace: {
+              type: "raw",
+              frames: error.stack || "",
+            },
+          },
+        ],
         environment: process.env.NODE_ENV,
         service: "backend",
         ...context,

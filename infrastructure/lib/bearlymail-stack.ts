@@ -177,6 +177,7 @@ export class BearlyMailStack extends cdk.Stack {
         ZOHO_CLIQ_BACKEND_BOT_WEBHOOK: ecs.Secret.fromSecretsManager(appSecrets, 'ZOHO_CLIQ_BACKEND_BOT_WEBHOOK'),
         ZOHO_CLIQ_API_KEY: ecs.Secret.fromSecretsManager(appSecrets, 'ZOHO_CLIQ_API_KEY'),
         ZOHO_CLIQ_BEARLY_MAIL_SIGNUP_CHANNEL: ecs.Secret.fromSecretsManager(appSecrets, 'ZOHO_CLIQ_BEARLY_MAIL_SIGNUP_CHANNEL'),
+        POSTHOG_API_KEY: ecs.Secret.fromSecretsManager(appSecrets, 'POSTHOG_API_KEY'),
       },
       healthCheck: {
         command: ['CMD-SHELL', 'node -e "require(\'http\').get(\'http://localhost:3001/health\', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"'],
@@ -284,6 +285,7 @@ export class BearlyMailStack extends cdk.Stack {
         ZOHO_CLIQ_BACKEND_BOT_WEBHOOK: ecs.Secret.fromSecretsManager(appSecrets, 'ZOHO_CLIQ_BACKEND_BOT_WEBHOOK'),
         ZOHO_CLIQ_API_KEY: ecs.Secret.fromSecretsManager(appSecrets, 'ZOHO_CLIQ_API_KEY'),
         ZOHO_CLIQ_BEARLY_MAIL_SIGNUP_CHANNEL: ecs.Secret.fromSecretsManager(appSecrets, 'ZOHO_CLIQ_BEARLY_MAIL_SIGNUP_CHANNEL'),
+        POSTHOG_API_KEY: ecs.Secret.fromSecretsManager(appSecrets, 'POSTHOG_API_KEY'),
       },
     });
 

@@ -62,13 +62,19 @@ export class ErrorTrackingService {
     }
 
     try {
-      // Build properties (ensure no PII)
+      // Build properties using PostHog's $exception_list format, which is
+      // required by the Error Tracking dashboard for grouping and display.
       const properties: Record<string, unknown> = {
-        $exception_message: error.message,
-        $exception_type: error.name,
-        $exception_stack_trace_raw: error.stack,
-        error_name: error.name,
-        error_message: error.message,
+        $exception_list: [
+          {
+            type: error.name,
+            value: error.message,
+            stacktrace: {
+              type: "raw",
+              frames: error.stack || "",
+            },
+          },
+        ],
         environment: process.env.NODE_ENV,
         service: "backend",
         ...this.sanitizeProperties(additionalContext || {}),

@@ -280,6 +280,47 @@ describe("ContactsService", () => {
       expect(result.some((r) => r.email === "sid@example.com")).toBe(true);
       expect(result.some((r) => r.email === "john@example.com")).toBe(false);
     });
+
+    it("should filter local database results to only show contacts matching visible fields", async () => {
+      const userId = "user-123";
+      const query = "sid";
+      const matchingLocalContact = {
+        id: "contact-1",
+        email: "sidney@example.com",
+        name: "Sidney Jones",
+        contactFrequency: 5,
+        isFavorite: false,
+      };
+      const nonMatchingLocalContact = {
+        id: "contact-2",
+        email: "doingdoingdonecoaching@gmail.com",
+        name: "Swantje Lorrimer",
+        contactFrequency: 3,
+        isFavorite: false,
+      };
+      const queryBuilder = {
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        addOrderBy: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getMany: jest
+          .fn()
+          .mockResolvedValue([matchingLocalContact, nonMatchingLocalContact]),
+      };
+
+      mockRepository.findOne.mockResolvedValue(null);
+      mockRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+      mockGmailContactsProvider.searchContacts.mockResolvedValue([]);
+
+      const result = await service.searchContacts(userId, query, 20);
+
+      // Should only include the contact with "sid" in visible fields
+      expect(result.some((r) => r.email === "sidney@example.com")).toBe(true);
+      expect(
+        result.some((r) => r.email === "doingdoingdonecoaching@gmail.com"),
+      ).toBe(false);
+    });
   });
 
   describe("getFrequentContacts", () => {

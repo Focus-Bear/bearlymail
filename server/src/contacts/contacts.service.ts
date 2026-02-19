@@ -210,9 +210,12 @@ export class ContactsService {
     // Merge results, preferring local contacts (they have frequency data)
     const results = new Map<string, ContactSearchResult>();
 
-    // Add local contacts first
+    // Add local contacts first, but only if they match visible fields
+    // (searchTokens can match on tokenized internal data we don't display)
     for (const contact of contacts) {
-      results.set(contact.email.toLowerCase(), this.toSearchResult(contact));
+      if (this.contactMatchesQuery(contact, query)) {
+        results.set(contact.email.toLowerCase(), this.toSearchResult(contact));
+      }
     }
 
     // Add Gmail results that aren't already in local

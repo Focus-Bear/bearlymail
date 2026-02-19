@@ -238,10 +238,15 @@ export class EmailsService {
       .map((row: { category: string }) =>
         row.category ? EncryptionHelper.decrypt(row.category) : null,
       )
-      .filter((cat: string | null): cat is string => cat !== null && cat !== "")
-      .sort();
+      .filter(
+        (cat: string | null): cat is string => cat !== null && cat !== "",
+      );
 
-    return decryptedCategories;
+    // Deduplicate after decryption since DISTINCT operates on encrypted values
+    // AES-GCM uses random IVs, so same category can have different encrypted values
+    const uniqueCategories = Array.from(new Set<string>(decryptedCategories)).sort();
+
+    return uniqueCategories;
   }
 
   /**

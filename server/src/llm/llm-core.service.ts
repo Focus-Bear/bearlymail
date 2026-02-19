@@ -205,68 +205,103 @@ export class LLMCoreService {
       this.configService.get<string>("OPENAI_MODEL") || "gpt-5-mini";
     const reasoningEffort =
       this.configService.get<string>("OPENAI_REASONING_EFFORT") || "low";
+    const isReasoningModel = supportsReasoningEffort(model);
 
     return this.retryOperation(async () => {
       const startTime = Date.now();
-      const messages: Array<{
-        role: "system" | "user" | "assistant";
-        content: string;
-      }> = [];
-      if (request.systemPrompt) {
-        messages.push({ role: "system", content: request.systemPrompt });
-      }
-      messages.push({ role: "user", content: request.prompt });
 
       this.logger.debug(
         `Generating text with OpenAI model: ${model} using ${apiKeySource} API key${request.userId ? ` (userId: ${request.userId})` : ""}`,
       );
 
-      const completionParams: any = {
-        model,
-        messages: messages as any,
-        temperature: request.temperature || RATIOS.SEVENTY_PERCENT,
-        max_completion_tokens:
-          request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
-      };
-
-      // Only add reasoning parameter for supported models (o1, o3, gpt-5+)
-      // Uses nested structure: { effort: "low" | "medium" | "high" }
-      if (supportsReasoningEffort(model)) {
-        completionParams.reasoning = {
-          effort: reasoningEffort as "low" | "medium" | "high",
-        };
-        this.logger.debug(
-          `Using reasoning effort: ${reasoningEffort} for model ${model}`,
-        );
-      }
-
-      this.logger.debug(
-        `OpenAI request params: ${JSON.stringify({ model, reasoning: completionParams.reasoning, temperature: completionParams.temperature, max_completion_tokens: completionParams.max_completion_tokens })}`,
-      );
-
-      const completion =
-        await openaiClient!.chat.completions.create(completionParams);
-
-      const durationMs = Date.now() - startTime;
-
-      // Log token usage from OpenAI response
-      if (completion.usage) {
-        await this.tokenUsageService.logUsage({
-          userId: userId || null,
-          operation: request.operation || LLM_OP_UNKNOWN,
-          provider: LLMProvider.OPENAI,
+      if (isReasoningModel) {
+        // Use the Responses API for reasoning models (gpt-5+, o1, o3)
+        // The Responses API uses reasoning: { effort: "..." } and input/instructions
+        // instead of messages. Temperature is not supported for reasoning models.
+        // See: https://platform.openai.com/docs/guides/reasoning
+        const responseParams: any = {
           model,
-          promptTokens: completion.usage.prompt_tokens || 0,
-          completionTokens: completion.usage.completion_tokens || 0,
-          totalTokens: completion.usage.total_tokens || 0,
-          durationMs,
-          // Pass prompt text for example capture
-          promptText: request.prompt,
-          systemPromptText: request.systemPrompt,
-        });
-      }
+          reasoning: { effort: reasoningEffort as "low" | "medium" | "high" },
+          input: [{ role: "user", content: request.prompt }],
+          max_output_tokens:
+            request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
+        };
 
-      return completion.choices[0]?.message?.content || "";
+        if (request.systemPrompt) {
+          // System prompts go in instructions for the Responses API
+          responseParams.instructions = request.systemPrompt;
+        }
+
+        this.logger.debug(
+          `OpenAI Responses API params: ${JSON.stringify({ model, reasoning: responseParams.reasoning, max_output_tokens: responseParams.max_output_tokens, hasInstructions: !!request.systemPrompt })}`,
+        );
+
+        const response = await openaiClient.responses.create(responseParams);
+
+        const durationMs = Date.now() - startTime;
+
+        if (response.usage) {
+          await this.tokenUsageService.logUsage({
+            userId: userId || null,
+            operation: request.operation || LLM_OP_UNKNOWN,
+            provider: LLMProvider.OPENAI,
+            model,
+            // Responses API uses input_tokens/output_tokens instead of prompt/completion tokens
+            promptTokens: response.usage.input_tokens || 0,
+            completionTokens: response.usage.output_tokens || 0,
+            totalTokens: response.usage.total_tokens || 0,
+            durationMs,
+            promptText: request.prompt,
+            systemPromptText: request.systemPrompt,
+          });
+        }
+
+        return response.output_text || "";
+      } else {
+        // Use Chat Completions API for standard (non-reasoning) models
+        const messages: Array<{
+          role: "system" | "user" | "assistant";
+          content: string;
+        }> = [];
+        if (request.systemPrompt) {
+          messages.push({ role: "system", content: request.systemPrompt });
+        }
+        messages.push({ role: "user", content: request.prompt });
+
+        const completionParams: any = {
+          model,
+          messages: messages as any,
+          temperature: request.temperature || RATIOS.SEVENTY_PERCENT,
+          max_completion_tokens:
+            request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
+        };
+
+        this.logger.debug(
+          `OpenAI Chat Completions params: ${JSON.stringify({ model, temperature: completionParams.temperature, max_completion_tokens: completionParams.max_completion_tokens })}`,
+        );
+
+        const completion =
+          await openaiClient!.chat.completions.create(completionParams);
+
+        const durationMs = Date.now() - startTime;
+
+        if (completion.usage) {
+          await this.tokenUsageService.logUsage({
+            userId: userId || null,
+            operation: request.operation || LLM_OP_UNKNOWN,
+            provider: LLMProvider.OPENAI,
+            model,
+            promptTokens: completion.usage.prompt_tokens || 0,
+            completionTokens: completion.usage.completion_tokens || 0,
+            totalTokens: completion.usage.total_tokens || 0,
+            durationMs,
+            promptText: request.prompt,
+            systemPromptText: request.systemPrompt,
+          });
+        }
+
+        return completion.choices[0]?.message?.content || "";
+      }
     });
   }
 

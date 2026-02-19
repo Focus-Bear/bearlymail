@@ -29,10 +29,12 @@ export const BlockedKeywordsSection: React.FC<BlockedKeywordsSectionProps> = ({
   const [newKeyword, setNewKeyword] = useState('');
   const [exactMatch, setExactMatch] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
-  
+  const [isExpanded, setIsExpanded] = useState(false);
+  const itemCount = blockedKeywords.length;
+
   const handleAddKeyword = async () => {
     if (!newKeyword.trim()) return;
-    
+
     captureEvent('blocked_keyword_added', { exact_match: exactMatch });
     setIsAdding(true);
     try {
@@ -51,105 +53,144 @@ export const BlockedKeywordsSection: React.FC<BlockedKeywordsSectionProps> = ({
       handleAddKeyword();
     }
   };
-  
+
   return (
     <div id="blocked-keywords" style={{
-      backgroundColor: theme.colors.background.paper,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing.xl,
       marginBottom: theme.spacing.lg,
-      boxShadow: theme.shadows.md,
+      border: `1px solid ${theme.colors.border.light}`,
+      borderRadius: theme.borderRadius.md,
+      backgroundColor: theme.colors.background.paper,
     }}>
-      <h3 style={{
-        color: theme.colors.text.primary,
-        marginBottom: theme.spacing.md,
-        fontSize: theme.typography.fontSize.xl,
-        scrollMarginTop: `${INPUT_WIDTH_PX}px`,
-      }}>
-        {/* eslint-disable-next-line i18next/no-literal-string */}
-        {EMOJI_BLOCK} {t('settings.blockedKeywords.title')}
-      </h3>
-      <p style={{
-        color: theme.colors.text.secondary,
-        marginBottom: theme.spacing.md,
-        fontSize: theme.typography.fontSize.sm,
-      }}>
-        {t('settings.blockedKeywords.description')}
-      </p>
-
-      <div style={{
-        display: 'flex',
-        gap: theme.spacing.sm,
-        marginBottom: theme.spacing.lg,
-        flexWrap: 'wrap',
-        alignItems: 'center',
-      }}>
-        <input
-          type="text"
-          value={newKeyword}
-          onChange={(e) => setNewKeyword(e.target.value)}
-          onKeyPress={handleKeyPress}
-          placeholder={t('settings.blockedKeywords.placeholder')}
-          style={{
-            flex: 1,
-            minWidth: '200px',
-            padding: theme.spacing.sm,
-            borderRadius: theme.borderRadius.md,
-            border: `1px solid ${theme.colors.border.light}`,
-            fontSize: theme.typography.fontSize.sm,
-            backgroundColor: theme.colors.background.subtle,
-            color: theme.colors.text.primary,
-          }}
-        />
-        <label style={{
+      <div
+        onClick={() => setIsExpanded(!isExpanded)}
+        style={{
+          fontSize: theme.typography.fontSize.lg,
+          color: theme.colors.text.primary,
+          padding: `${theme.spacing.sm} ${theme.spacing.md}`,
           display: 'flex',
           alignItems: 'center',
-          gap: theme.spacing.xs,
-          color: theme.colors.text.secondary,
-          fontSize: theme.typography.fontSize.sm,
+          gap: theme.spacing.sm,
           cursor: 'pointer',
-        }}>
-          <input
-            type="checkbox"
-            checked={exactMatch}
-            onChange={(e) => setExactMatch(e.target.checked)}
-            style={{ cursor: 'pointer' }}
-          />
-          {t('settings.blockedKeywords.exactMatchLabel')}
-        </label>
-        <button
-          onClick={handleAddKeyword}
-          disabled={!newKeyword.trim() || isAdding}
+          backgroundColor: theme.colors.background.paper,
+          borderBottom: isExpanded ? `1px solid ${theme.colors.border.light}` : 'none',
+          borderRadius: isExpanded ? `${theme.borderRadius.md} ${theme.borderRadius.md} 0 0` : theme.borderRadius.md,
+          transition: theme.transitions.fast,
+          scrollMarginTop: `${INPUT_WIDTH_PX}px`,
+        }}
+      >
+        <span
           style={{
-            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-            backgroundColor: theme.colors.primary.main,
-            color: 'white',
-            border: 'none',
-            borderRadius: theme.borderRadius.md,
-            cursor: newKeyword.trim() && !isAdding ? 'pointer' : 'not-allowed',
-            fontSize: theme.typography.fontSize.sm,
-            opacity: newKeyword.trim() && !isAdding ? 1 : OPACITY_HALF,
+            transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+            transition: theme.transitions.fast,
+            fontSize: theme.typography.fontSize.base,
+            color: theme.colors.text.secondary,
           }}
         >
-          {isAdding ? t('common.saving') : t('settings.blockedKeywords.addKeyword')}
-        </button>
+          ▶
+        </span>
+        <span style={{ fontWeight: theme.typography.fontWeight.semibold }}>
+          {/* eslint-disable-next-line i18next/no-literal-string */}
+          {EMOJI_BLOCK} {t('settings.blockedKeywords.title')}
+        </span>
+        <span
+          style={{
+            backgroundColor: theme.colors.greyscale[300],
+            color: theme.colors.text.secondary,
+            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+            borderRadius: theme.borderRadius.full,
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.medium,
+          }}
+        >
+          {itemCount}
+        </span>
       </div>
-      
-      {blockedKeywords.length === 0 ? (
-        <div style={{
-          padding: theme.spacing.xl,
-          textAlign: 'center',
-          color: theme.colors.text.secondary,
-          border: `2px dashed ${theme.colors.border.light}`,
-          borderRadius: theme.borderRadius.md,
-        }}>
-          {t('settings.blockedKeywords.emptyState')}
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
-          {blockedKeywords.map((keyword) => (
-            <BlockedKeywordItem key={keyword.id} keyword={keyword} onUnblock={onUnblockKeyword} />
-          ))}
+
+      {isExpanded && (
+        <div style={{ padding: theme.spacing.md }}>
+          <p style={{
+            color: theme.colors.text.secondary,
+            marginBottom: theme.spacing.md,
+            fontSize: theme.typography.fontSize.sm,
+          }}>
+            {t('settings.blockedKeywords.description')}
+          </p>
+
+          <div style={{
+            display: 'flex',
+            gap: theme.spacing.sm,
+            marginBottom: theme.spacing.lg,
+            flexWrap: 'wrap',
+            alignItems: 'center',
+          }}>
+            <input
+              type="text"
+              value={newKeyword}
+              onChange={(e) => setNewKeyword(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder={t('settings.blockedKeywords.placeholder')}
+              style={{
+                flex: 1,
+                minWidth: '200px',
+                padding: theme.spacing.sm,
+                borderRadius: theme.borderRadius.md,
+                border: `1px solid ${theme.colors.border.light}`,
+                fontSize: theme.typography.fontSize.sm,
+                backgroundColor: theme.colors.background.subtle,
+                color: theme.colors.text.primary,
+              }}
+            />
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: theme.spacing.xs,
+              color: theme.colors.text.secondary,
+              fontSize: theme.typography.fontSize.sm,
+              cursor: 'pointer',
+            }}>
+              <input
+                type="checkbox"
+                checked={exactMatch}
+                onChange={(e) => setExactMatch(e.target.checked)}
+                style={{ cursor: 'pointer' }}
+              />
+              {t('settings.blockedKeywords.exactMatchLabel')}
+            </label>
+            <button
+              onClick={handleAddKeyword}
+              disabled={!newKeyword.trim() || isAdding}
+              style={{
+                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                backgroundColor: theme.colors.primary.main,
+                color: 'white',
+                border: 'none',
+                borderRadius: theme.borderRadius.md,
+                cursor: newKeyword.trim() && !isAdding ? 'pointer' : 'not-allowed',
+                fontSize: theme.typography.fontSize.sm,
+                opacity: newKeyword.trim() && !isAdding ? 1 : OPACITY_HALF,
+              }}
+            >
+              {isAdding ? t('common.saving') : t('settings.blockedKeywords.addKeyword')}
+            </button>
+          </div>
+
+          {blockedKeywords.length === 0 ? (
+            <div style={{
+              padding: theme.spacing.xl,
+              textAlign: 'center',
+              color: theme.colors.text.secondary,
+              border: `2px dashed ${theme.colors.border.light}`,
+              borderRadius: theme.borderRadius.md,
+            }}>
+              {t('settings.blockedKeywords.emptyState')}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
+              {blockedKeywords.map((keyword) => (
+                <BlockedKeywordItem key={keyword.id} keyword={keyword} onUnblock={onUnblockKeyword} />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

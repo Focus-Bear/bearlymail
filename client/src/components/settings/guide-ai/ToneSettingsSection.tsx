@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { ToneRuleItem } from 'components/settings/guide-ai/ToneRuleItem';
@@ -23,76 +23,119 @@ export const ToneSettingsSection: React.FC<ToneSettingsSectionProps> = ({
   onNewToneRuleChange,
 }) => {
   const { t } = useTranslation();
+  const [isExpanded, setIsExpanded] = useState(false);
+  const itemCount = toneRules.length;
 
   return (
     <div id="tone-settings" style={{
-      marginBottom: theme.spacing.xl,
-      paddingBottom: theme.spacing.lg,
-      borderBottom: `1px solid ${theme.colors.border.light}`,
+      marginBottom: theme.spacing.lg,
+      border: `1px solid ${theme.colors.border.light}`,
+      borderRadius: theme.borderRadius.md,
+      backgroundColor: theme.colors.background.paper,
     }}>
-      <h3 style={{
-        color: theme.colors.text.primary,
-        marginBottom: theme.spacing.md,
-        fontSize: theme.typography.fontSize.lg,
-      }}>
-        {t('settings.howIWrite')}
-      </h3>
-      <p style={{
-        color: theme.colors.text.secondary,
-        marginBottom: theme.spacing.md,
-        fontSize: theme.typography.fontSize.sm,
-      }}>
-        {t('settings.toneConfig')}
-      </p>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
-        {toneRules.map((rule, position) => {
-          // Create a stable key using rule content and position
-          // Use position (from map) rather than index to avoid ESLint warning
-          const ruleHash = rule.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-          const key = `tone-rule-${ruleHash}-pos${position}`;
-          return (
-            <ToneRuleItem
-              key={key}
-              rule={rule}
-              index={position}
-              onRemove={() => onRemoveToneRule(position)}
-              onEdit={onEditToneRule}
-            />
-          );
-        })}
-        <div style={{ display: 'flex', gap: theme.spacing.md, marginTop: theme.spacing.sm }}>
-          <input
-            type="text"
-            value={newToneRule}
-            onChange={(e) => onNewToneRuleChange(e.target.value)}
-            onKeyDown={(e) => e.key === KEY_ENTER && onAddToneRule()}
-            placeholder={t('settings.addRulePlaceholder')}
-            style={{
-              flex: 1,
-              padding: theme.spacing.sm,
-              border: `1px solid ${theme.colors.border.medium}`,
-              borderRadius: theme.borderRadius.md,
-            }}
-          />
-          <button
-            onClick={() => {
-              captureEvent('tone_rule_added');
-              onAddToneRule();
-            }}
-            disabled={!newToneRule.trim()}
-            style={{
-              padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-              backgroundColor: theme.colors.secondary.main,
-              color: 'white',
-              border: 'none',
-              borderRadius: theme.borderRadius.md,
-              cursor: newToneRule.trim() ? 'pointer' : 'not-allowed',
-            }}
-          >
-            {t('settings.addRule')}
-          </button>
-        </div>
+      <div
+        onClick={() => setIsExpanded(!isExpanded)}
+        style={{
+          fontSize: theme.typography.fontSize.lg,
+          color: theme.colors.text.primary,
+          padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+          display: 'flex',
+          alignItems: 'center',
+          gap: theme.spacing.sm,
+          cursor: 'pointer',
+          backgroundColor: theme.colors.background.paper,
+          borderBottom: isExpanded ? `1px solid ${theme.colors.border.light}` : 'none',
+          borderRadius: isExpanded ? `${theme.borderRadius.md} ${theme.borderRadius.md} 0 0` : theme.borderRadius.md,
+          transition: theme.transitions.fast,
+        }}
+      >
+        <span
+          style={{
+            transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+            transition: theme.transitions.fast,
+            fontSize: theme.typography.fontSize.base,
+            color: theme.colors.text.secondary,
+          }}
+        >
+          ▶
+        </span>
+        <span style={{ fontWeight: theme.typography.fontWeight.semibold }}>
+          {t('settings.howIWrite')}
+        </span>
+        <span
+          style={{
+            backgroundColor: theme.colors.greyscale[300],
+            color: theme.colors.text.secondary,
+            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+            borderRadius: theme.borderRadius.full,
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.medium,
+          }}
+        >
+          {itemCount}
+        </span>
       </div>
+
+      {isExpanded && (
+        <div style={{ padding: theme.spacing.md }}>
+          <p style={{
+            color: theme.colors.text.secondary,
+            marginBottom: theme.spacing.md,
+            fontSize: theme.typography.fontSize.sm,
+          }}>
+            {t('settings.toneConfig')}
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
+            {toneRules.map((rule, position) => {
+              // Create a stable key using rule content and position
+              // Use position (from map) rather than index to avoid ESLint warning
+              const ruleHash = rule.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+              const key = `tone-rule-${ruleHash}-pos${position}`;
+              return (
+                <ToneRuleItem
+                  key={key}
+                  rule={rule}
+                  index={position}
+                  onRemove={() => onRemoveToneRule(position)}
+                  onEdit={onEditToneRule}
+                />
+              );
+            })}
+            <div style={{ display: 'flex', gap: theme.spacing.md, marginTop: theme.spacing.sm }}>
+              <input
+                type="text"
+                value={newToneRule}
+                onChange={(e) => onNewToneRuleChange(e.target.value)}
+                onKeyDown={(e) => e.key === KEY_ENTER && onAddToneRule()}
+                placeholder={t('settings.addRulePlaceholder')}
+                style={{
+                  flex: 1,
+                  padding: theme.spacing.sm,
+                  border: `1px solid ${theme.colors.border.medium}`,
+                  borderRadius: theme.borderRadius.md,
+                }}
+              />
+              <button
+                onClick={() => {
+                  captureEvent('tone_rule_added');
+                  onAddToneRule();
+                }}
+                disabled={!newToneRule.trim()}
+                style={{
+                  padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
+                  backgroundColor: theme.colors.secondary.main,
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: theme.borderRadius.md,
+                  cursor: newToneRule.trim() ? 'pointer' : 'not-allowed',
+                }}
+              >
+                {t('settings.addRule')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

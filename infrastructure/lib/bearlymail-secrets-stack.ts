@@ -30,6 +30,9 @@ export class BearlyMailSecretsStack extends cdk.Stack {
     // - GOOGLE_CLIENT_ID
     // - GOOGLE_CLIENT_SECRET
     // - GOOGLE_REDIRECT_URI
+    // - GITHUB_APP_CLIENT_ID (GitHub OAuth app client ID)
+    // - GITHUB_APP_CLIENT_SECRET (GitHub OAuth app client secret)
+    // - GITHUB_APP_REDIRECT_URI (GitHub OAuth callback URL, e.g. https://api.app.bearlymail.com/github/callback)
     // - GEMINI_API_KEY (optional)
     // - OPENAI_API_KEY (optional)
     // - ZOHO_CLIQ_BACKEND_BOT_WEBHOOK (Cliq webhook URL)

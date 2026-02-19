@@ -13,7 +13,9 @@ logs/
 *.log
 
 # Test files
-promptfoo/
+# NOTE: promptfoo/ contains production prompt templates (required at runtime)
+# Only exclude test-related files within promptfoo
+promptfoo/*.test.yaml
 test/
 *.spec.ts
 *.test.ts

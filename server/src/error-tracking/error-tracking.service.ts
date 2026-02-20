@@ -20,25 +20,39 @@ export class ErrorTrackingService {
     this.isEnabled = Boolean(apiKey);
 
     if (this.isEnabled) {
-      this.posthog = new PostHog(apiKey!, {
-        host: apiHost,
-        // Automatically batch events for performance
-        flushAt: 20, // Flush every 20 events
-        flushInterval: 10000, // Or every 10 seconds
-      });
+      try {
+        this.posthog = new PostHog(apiKey!, {
+          host: apiHost,
+          // Automatically batch events for performance
+          flushAt: 20, // Flush every 20 events
+          flushInterval: 10000, // Or every 10 seconds
+        });
 
-      this.logger.log(
-        `✅ PostHog error tracking initialized (host: ${apiHost}, flushAt: 20 events, flushInterval: 10s)`,
-      );
-      this.logger.debug(
-        `PostHog API key (first 8 chars): ${apiKey!.substring(0, API_KEY_PREVIEW_LENGTH)}...`,
-      );
+        this.logger.log(
+          `✅ PostHog error tracking initialized (host: ${apiHost}, flushAt: 20 events, flushInterval: 10s)`,
+        );
+        this.logger.debug(
+          `PostHog API key (first 8 chars): ${apiKey!.substring(0, API_KEY_PREVIEW_LENGTH)}...`,
+        );
+        console.error(
+          `POSTHOG: Initialized successfully (host: ${apiHost}, key prefix: ${apiKey!.substring(0, API_KEY_PREVIEW_LENGTH)}...)`,
+        );
+      } catch (initError) {
+        this.logger.error("Failed to initialize PostHog client", initError);
+        console.error(
+          `POSTHOG: Failed to initialize client:`,
+          initError instanceof Error ? initError.message : String(initError),
+        );
+      }
     } else {
       this.logger.warn(
         "❌ PostHog error tracking disabled - POSTHOG_API_KEY not set",
       );
       this.logger.warn(
         "Set POSTHOG_API_KEY environment variable to enable error tracking",
+      );
+      console.error(
+        "POSTHOG: Disabled - POSTHOG_API_KEY environment variable is not set",
       );
     }
   }
@@ -57,6 +71,9 @@ export class ErrorTrackingService {
     if (!this.isEnabled || !this.posthog) {
       this.logger.debug(
         `PostHog captureException called but tracking is disabled (isEnabled: ${this.isEnabled}, hasClient: ${!!this.posthog})`,
+      );
+      console.error(
+        `POSTHOG: captureException called but PostHog is not initialized (isEnabled: ${this.isEnabled}, hasClient: ${!!this.posthog})`,
       );
       return;
     }
@@ -95,6 +112,12 @@ export class ErrorTrackingService {
     } catch (captureError) {
       // Don't throw errors when trying to capture errors
       this.logger.error("Failed to capture exception to PostHog", captureError);
+      console.error(
+        `POSTHOG: Failed to capture exception "${error.name}: ${error.message}":`,
+        captureError instanceof Error
+          ? captureError.message
+          : String(captureError),
+      );
     }
   }
 

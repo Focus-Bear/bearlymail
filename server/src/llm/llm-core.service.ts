@@ -106,8 +106,10 @@ export class LLMCoreService {
         const delay =
           Math.pow(2, i) * MILLISECONDS.SECOND +
           Math.random() * MILLISECONDS.SECOND;
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         this.logger.warn(
-          `LLM operation failed, retrying in ${Math.round(delay)}ms... (Attempt ${i + 1}/${maxRetries})`,
+          `LLM operation failed, retrying in ${Math.round(delay)}ms... (Attempt ${i + 1}/${maxRetries}): ${errorMessage}`,
         );
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
@@ -219,6 +221,25 @@ export class LLMCoreService {
         // The Responses API uses reasoning: { effort: "..." } and input/instructions
         // instead of messages. Temperature is not supported for reasoning models.
         // See: https://platform.openai.com/docs/guides/reasoning
+
+        // Safety check: verify Responses API is available in the installed SDK version
+        if (
+          !openaiClient.responses ||
+          typeof openaiClient.responses.create !== "function"
+        ) {
+          const sdkError = new Error(
+            `OpenAI SDK does not support responses.create() - the Responses API requires openai SDK v4.87.0+. ` +
+              `Current model ${model} requires this API for reasoning support. ` +
+              `Consider upgrading the openai package or switching to a non-reasoning model.`,
+          );
+          this.logger.error(sdkError.message);
+          console.error(
+            `[OPENAI] Responses API not available:`,
+            sdkError.message,
+          );
+          throw sdkError;
+        }
+
         const responseParams: any = {
           model,
           reasoning: { effort: reasoningEffort as "low" | "medium" | "high" },

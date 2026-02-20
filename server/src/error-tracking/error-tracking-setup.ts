@@ -15,18 +15,32 @@ export function initializeGlobalErrorTracking(): void {
   const apiHost = process.env.POSTHOG_HOST || "https://us.i.posthog.com";
 
   if (apiKey) {
-    posthogClient = new PostHog(apiKey, {
-      host: apiHost,
-      flushAt: 20,
-      flushInterval: 10000,
-    });
-    logger.log(
-      `✅ Global error tracking initialized (host: ${apiHost}, API key starts with: ${apiKey.substring(0, API_KEY_PREVIEW_LENGTH)}...)`,
-    );
+    try {
+      posthogClient = new PostHog(apiKey, {
+        host: apiHost,
+        flushAt: 20,
+        flushInterval: 10000,
+      });
+      logger.log(
+        `✅ Global error tracking initialized (host: ${apiHost}, API key starts with: ${apiKey.substring(0, API_KEY_PREVIEW_LENGTH)}...)`,
+      );
+      console.error(
+        `POSTHOG: Global tracking initialized (host: ${apiHost}, key prefix: ${apiKey.substring(0, API_KEY_PREVIEW_LENGTH)}...)`,
+      );
+    } catch (initError) {
+      logger.error("Failed to initialize global PostHog client", initError);
+      console.error(
+        `POSTHOG: Failed to initialize global client:`,
+        initError instanceof Error ? initError.message : String(initError),
+      );
+    }
   } else {
     logger.warn("❌ Global error tracking disabled - POSTHOG_API_KEY not set");
     logger.warn(
       "Set POSTHOG_API_KEY environment variable to enable global error tracking",
+    );
+    console.error(
+      "POSTHOG: Disabled - POSTHOG_API_KEY environment variable is not set",
     );
   }
 }
@@ -41,6 +55,9 @@ export function captureGlobalError(
   if (!posthogClient) {
     logger.debug(
       "captureGlobalError called but PostHog client not initialized",
+    );
+    console.error(
+      `POSTHOG: captureGlobalError called but client not initialized - error was: ${error.name}: ${error.message}`,
     );
     return;
   }
@@ -70,6 +87,12 @@ export function captureGlobalError(
     );
   } catch (captureError) {
     logger.error("Failed to capture global error to PostHog", captureError);
+    console.error(
+      `POSTHOG: Failed to capture global error "${error.name}: ${error.message}":`,
+      captureError instanceof Error
+        ? captureError.message
+        : String(captureError),
+    );
   }
 }
 

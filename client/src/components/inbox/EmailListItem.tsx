@@ -1,4 +1,5 @@
 import React from 'react';
+import { useSelector } from 'react-redux';
 import { theme } from 'theme/theme';
 import { Email, InboxMode, TriageSuggestion } from 'types/email';
 import { EmailCardHeader } from 'components/inbox/EmailCardHeader';
@@ -10,6 +11,7 @@ import { MetadataIndicators } from 'components/inbox/MetadataIndicators';
 import { FollowUpMetadata } from 'components/inbox/FollowUpMetadata';
 import { FollowUpDraft } from 'components/inbox/FollowUpDraft';
 import { GitHubProjectBadges } from 'components/github/GitHubProjectBadges';
+import { selectAnimatingOut } from 'store/selectors/emailSelectors';
 
 interface EmailListItemProps {
   email: Email;
@@ -79,12 +81,22 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
   onSendFollowUp,
   recipientName,
 }) => {
+  const animatingOut = useSelector(selectAnimatingOut);
+  const animatingOutItem = animatingOut.find(item => item.id === email.id);
+
+  let animationClass = '';
+  if (animatingOutItem?.type === 'archive') {
+    animationClass = 'animate-fly-out-right';
+  } else if (animatingOutItem?.type === 'priority') {
+    animationClass = 'animate-priority-out';
+  }
+
   const handleCardClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     if (target.closest('[data-priority-badge]') || target.closest('[data-priority-tooltip]')) {
       return;
     }
-    
+
     if (e.ctrlKey || e.metaKey || e.shiftKey) {
       onEmailClick(email.id, index, e);
     } else {
@@ -93,11 +105,15 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
   };
 
   return (
-    <div 
+    <div
       data-email-index={index}
       data-email-id={email.id}
-      style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}
+      className={animationClass}
+      style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs, position: 'relative' }}
     >
+      {animatingOutItem?.type === 'priority' && (
+        <div className="priority-emoji-float" aria-hidden="true" />
+      )}
       <EmailCard email={email} isSelected={isSelected} onCardClick={handleCardClick} mode={mode}>
         <EmailCardHeader 
           email={email} 

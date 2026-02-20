@@ -159,6 +159,7 @@ export const DELIVERY_STATUS_OVERDUE = 'overdue' as const;
 // Animation types
 export const ANIMATION_TYPE_SEND = 'send' as const;
 export const ANIMATION_TYPE_ARCHIVE = 'archive' as const;
+export const ANIMATION_TYPE_PRIORITY = 'priority' as const;
 
 // Link types
 export const LINK_TYPE_ISSUE = 'issue' as const;

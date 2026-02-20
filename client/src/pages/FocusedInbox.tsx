@@ -121,17 +121,43 @@ const FocusedInbox: React.FC = () => {
           hasMore={hasMore}
           onSplitViewArchive={(archivedEmailId) => {
             const visibleEmails = emails.filter(e => !e.isArchived && e.id !== archivedEmailId);
-            
+
             if (visibleEmails.length === 0) {
               splitView.closeEmail();
               return;
             }
-            
+
             const currentIndex = selectedEmailIndex >= 0 ? selectedEmailIndex : 0;
-            const nextIndex = currentIndex < visibleEmails.length 
-              ? currentIndex 
+            const nextIndex = currentIndex < visibleEmails.length
+              ? currentIndex
               : Math.max(0, visibleEmails.length - 1);
-            
+
+            const nextEmail = visibleEmails[nextIndex];
+            if (nextEmail) {
+              splitView.openEmail(nextEmail.id);
+              setSelectedEmailIndex(nextIndex);
+            } else {
+              splitView.closeEmail();
+            }
+          }}
+          onSplitViewPrioritySet={(prioritizedEmailId, starCount) => {
+            // Trigger the exit animation on the triage list item
+            const fakeEvent = { stopPropagation: () => {} } as React.MouseEvent;
+            emailActions.handleSetStarCount(prioritizedEmailId, starCount, fakeEvent);
+
+            // Navigate to next email
+            const visibleEmails = emails.filter(e => !e.isArchived && e.id !== prioritizedEmailId);
+
+            if (visibleEmails.length === 0) {
+              splitView.closeEmail();
+              return;
+            }
+
+            const currentIndex = selectedEmailIndex >= 0 ? selectedEmailIndex : 0;
+            const nextIndex = currentIndex < visibleEmails.length
+              ? currentIndex
+              : Math.max(0, visibleEmails.length - 1);
+
             const nextEmail = visibleEmails[nextIndex];
             if (nextEmail) {
               splitView.openEmail(nextEmail.id);

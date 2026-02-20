@@ -4,10 +4,16 @@ import { Email, getEmailPriorityScore } from 'types/email';
 // Threshold for considering priority scores "equal" (matches backend RATIOS.TINY)
 const PRIORITY_SCORE_TINY_THRESHOLD = 0.01;
 
+export interface AnimatingOutItem {
+  id: string;
+  type: 'archive' | 'priority';
+}
+
 interface EmailState {
   emails: Email[];
   optimisticallyArchived: string[];
   optimisticallySnoozed: string[];
+  animatingOut: AnimatingOutItem[];
   loading: boolean;
   decrypting: boolean;
   refreshing: boolean;
@@ -22,6 +28,7 @@ const initialState: EmailState = {
   emails: [],
   optimisticallyArchived: [],
   optimisticallySnoozed: [],
+  animatingOut: [],
   loading: true,
   decrypting: false,
   refreshing: false,
@@ -136,6 +143,14 @@ const emailSlice = createSlice({
     setFetchError: (state, action: PayloadAction<string | null>) => {
       state.fetchError = action.payload;
     },
+    addAnimatingOut: (state, action: PayloadAction<AnimatingOutItem>) => {
+      if (!state.animatingOut.find(item => item.id === action.payload.id)) {
+        state.animatingOut.push(action.payload);
+      }
+    },
+    removeAnimatingOut: (state, action: PayloadAction<string>) => {
+      state.animatingOut = state.animatingOut.filter(item => item.id !== action.payload);
+    },
   },
 });
 
@@ -157,6 +172,8 @@ export const {
   setRefreshing,
   setLoadingModeSwitch,
   setFetchError,
+  addAnimatingOut,
+  removeAnimatingOut,
 } = emailSlice.actions;
 
 export default emailSlice.reducer;

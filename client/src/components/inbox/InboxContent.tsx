@@ -50,6 +50,7 @@ interface InboxContentProps {
   emailDetailRef: React.RefObject<HTMLDivElement | null>;
   onSplitViewArchive?: (emailId: string) => void;
   onSplitViewSnooze?: (emailId: string) => void;
+  onSplitViewPrioritySet?: (emailId: string, starCount: number) => void;
   onBulkArchive?: (emailIds: string[]) => Promise<void>;
   expandedCategories: Set<string>;
   stableCategoryOrder: string[];
@@ -93,6 +94,7 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   emailDetailRef,
   onSplitViewArchive,
   onSplitViewSnooze,
+  onSplitViewPrioritySet,
   onBulkArchive,
   expandedCategories,
   stableCategoryOrder,
@@ -226,6 +228,12 @@ export const InboxContent: React.FC<InboxContentProps> = ({
       onSplitViewSnooze(emailId);
     }
   }, [onSplitViewSnooze]);
+
+  const handleSplitViewPrioritySet = useCallback((emailId: string, starCount: number) => {
+    if (onSplitViewPrioritySet && emailId) {
+      onSplitViewPrioritySet(emailId, starCount);
+    }
+  }, [onSplitViewPrioritySet]);
 
   const handleSendFollowUp = async (followUpId: string, draft: string, recipientName?: string) => {
     try {
@@ -404,6 +412,7 @@ export const InboxContent: React.FC<InboxContentProps> = ({
           onClose={splitView.closeEmail}
           onArchiveComplete={handleSplitViewArchive}
           onSnoozeComplete={handleSplitViewSnooze}
+          onPrioritySet={handleSplitViewPrioritySet}
           mode={mode}
         />
       )}

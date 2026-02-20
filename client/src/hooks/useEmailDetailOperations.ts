@@ -10,7 +10,7 @@ import { captureEvent } from 'utils/posthog';
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 import { extractCleanBody, removeSignature, extractCleanHtmlBody, sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
 import { emailMentionsGitHub } from 'utils/githubUtils';
-import { ACTION_ITEM_SOURCE_LLM, REPLY_MODE_REPLY_ALL, ANIMATION_TYPE_SEND, ANIMATION_TYPE_ARCHIVE, GITHUB_ACTION_PREFIX } from 'constants/strings';
+import { ACTION_ITEM_SOURCE_LLM, REPLY_MODE_REPLY_ALL, ANIMATION_TYPE_SEND, ANIMATION_TYPE_ARCHIVE, ANIMATION_TYPE_PRIORITY, GITHUB_ACTION_PREFIX } from 'constants/strings';
 import { TIMEOUT_800_MS } from 'constants/numbers';
 import { AppDispatch } from 'store/store';
 import { removeEmail, addOptimisticArchive, restoreEmail, removeOptimisticArchive, addOptimisticSnooze, removeOptimisticSnooze } from 'store/slices/emailSlice';
@@ -219,12 +219,18 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     }
   }, [id, setGithubLinks, setLoadingGithub]);
 
-  const triggerAnimation = useCallback((type: 'send' | 'archive') => {
-    const animations = type === ANIMATION_TYPE_SEND
-      ? ['animate-fly-out-right', 'animate-fly-out-up']
-      : ['animate-poof', 'animate-fly-out-right'];
-    const randomAnimation = animations[Math.floor(Math.random() * animations.length)];
-    setAnimationClass(randomAnimation);
+  const triggerAnimation = useCallback((type: 'send' | 'archive' | 'priority') => {
+    let animClass: string;
+    if (type === ANIMATION_TYPE_SEND) {
+      const animations = ['animate-fly-out-right', 'animate-fly-out-up'];
+      animClass = animations[Math.floor(Math.random() * animations.length)];
+    } else if (type === ANIMATION_TYPE_PRIORITY) {
+      animClass = 'animate-priority-out';
+    } else {
+      const animations = ['animate-poof', 'animate-fly-out-right'];
+      animClass = animations[Math.floor(Math.random() * animations.length)];
+    }
+    setAnimationClass(animClass);
     return new Promise(resolve => setTimeout(resolve, TIMEOUT_800_MS));
   }, [setAnimationClass]);
 
@@ -1077,14 +1083,27 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
 
   const handleSetStarCount = useCallback(async (emailId: string, starCount: number) => {
     captureEvent('email_star_count_changed', { email_id: emailId, star_count: starCount });
+
+    const currentStarCount = (emailRef.current as any)?.starCount ?? 0;
+    const isTriageToAction = currentStarCount === 0 && starCount > 0;
+
     await axios.put(`${API_URL}/emails/${emailId}/star-count`, { starCount }).catch(error => {
       console.error('Error setting star count:', error);
     });
+
+    // In standalone full-page view (not split view), moving from triage to action:
+    // show priority animation then navigate back to inbox
+    if (isTriageToAction && !options.onArchiveComplete) {
+      await triggerAnimation(ANIMATION_TYPE_PRIORITY);
+      navigate('/inbox');
+      return;
+    }
+
     // Refresh email to get updated star count
     if (emailId === id) {
       fetchEmail();
     }
-  }, [id, fetchEmail]);
+  }, [id, fetchEmail, options, triggerAnimation, navigate]);
 
   const handleBlockSender = useCallback(async (emailId: string) => {
     if (!email) return;

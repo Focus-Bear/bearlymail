@@ -1,12 +1,15 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { DEFAULT_PRIORITY_SCORE, PRIORITY_MEDIUM_THRESHOLD } from 'constants/numbers';
 import axios from 'axios';
 import { Email, getEmailPriorityScore } from 'types/email';
 import { API_URL } from 'config/api';
 import { AppDispatch } from 'store/store';
-import { removeEmail, updateEmail, restoreEmail, addOptimisticArchive, removeOptimisticArchive, addOptimisticSnooze, removeOptimisticSnooze } from 'store/slices/emailSlice';
+import { removeEmail, updateEmail, restoreEmail, addOptimisticArchive, removeOptimisticArchive, addOptimisticSnooze, removeOptimisticSnooze, addAnimatingOut, removeAnimatingOut } from 'store/slices/emailSlice';
 import { selectEmails } from 'store/selectors/emailSelectors';
+
+/** Duration (ms) of email exit animations — must match CSS animation durations in App.css */
+export const EMAIL_EXIT_ANIMATION_DURATION_MS = 800;
 
 interface TabCountChanges {
   triage?: number;
@@ -31,6 +34,11 @@ export function useEmailActionsBase({
 }: UseEmailActionsBaseProps) {
   const dispatch = useDispatch<AppDispatch>();
   const emails = useSelector(selectEmails);
+
+  // Track pending animation timeouts so they can be cancelled on API error
+  const archiveAnimationTimeouts = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const priorityAnimationTimeouts = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
   const handleSetStarCount = useCallback(async (emailId: string, starCount: number, e?: React.MouseEvent) => {
     e?.stopPropagation();
 
@@ -43,12 +51,20 @@ export function useEmailActionsBase({
     // In Triage mode, starring an email (starCount > 0) should remove it from the list
     // since starred emails belong in the Action tab
     if (mode === 'triage' && starCount > 0) {
-      dispatch(removeEmail(emailId));
+      // Animate the email out with 🏗️ overlay before removing it
+      dispatch(addAnimatingOut({ id: emailId, type: 'priority' }));
       onSuggestionRemove?.(emailId);
       // Optimistically update tab counts: decrement triage, increment action
       if (onTabCountsUpdateOptimistically) {
         onTabCountsUpdateOptimistically({ triage: -1, action: 1 });
       }
+      // Remove from list after animation completes
+      const priorityTimeoutId = setTimeout(() => {
+        dispatch(removeEmail(emailId));
+        dispatch(removeAnimatingOut(emailId));
+        priorityAnimationTimeouts.current.delete(emailId);
+      }, EMAIL_EXIT_ANIMATION_DURATION_MS);
+      priorityAnimationTimeouts.current.set(emailId, priorityTimeoutId);
     } else if (mode === 'action' && starCount === 0) {
       // In Action mode, unstarring an email (starCount = 0) should remove it from the list
       // since unstarred emails belong in the Triage tab
@@ -79,7 +95,17 @@ export function useEmailActionsBase({
         console.error('Error setting star count:', error);
         // Revert optimistic update on error - restore email to list or star count
         if (mode === 'triage' && starCount > 0 && email) {
-          dispatch(restoreEmail(email));
+          const pendingTimeout = priorityAnimationTimeouts.current.get(emailId);
+          if (pendingTimeout !== undefined) {
+            // Animation hasn't finished yet — cancel it and stop the animation
+            clearTimeout(pendingTimeout);
+            priorityAnimationTimeouts.current.delete(emailId);
+            dispatch(removeAnimatingOut(emailId));
+            // Email is still in state.emails, no need to restore
+          } else {
+            // Animation already completed and email was removed — restore it
+            dispatch(restoreEmail(email));
+          }
           // Revert tab count changes
           if (onTabCountsUpdateOptimistically) {
             onTabCountsUpdateOptimistically({ triage: 1, action: -1 });
@@ -121,12 +147,19 @@ export function useEmailActionsBase({
       return;
     }
     
-    // Optimistic update - remove from list immediately and add to optimistic archive set
-    // This way, even if fetchEmails() runs, the email won't show because it's filtered out
-    console.log('[Archive] Dispatching removeEmail and addOptimisticArchive');
-    dispatch(removeEmail(emailId));
+    // Add to optimistic archive immediately so fetches don't re-show the email
+    // Also start the fly-out animation; the email is removed from the list after animation
+    console.log('[Archive] Dispatching addOptimisticArchive and addAnimatingOut');
     dispatch(addOptimisticArchive(emailId));
+    dispatch(addAnimatingOut({ id: emailId, type: 'archive' }));
     onSuggestionRemove?.(emailId);
+    // Remove from list after animation completes (duration matches animate-fly-out-right in App.css)
+    const archiveTimeoutId = setTimeout(() => {
+      dispatch(removeEmail(emailId));
+      dispatch(removeAnimatingOut(emailId));
+      archiveAnimationTimeouts.current.delete(emailId);
+    }, EMAIL_EXIT_ANIMATION_DURATION_MS);
+    archiveAnimationTimeouts.current.set(emailId, archiveTimeoutId);
 
     // Optimistically update tab counts based on current mode
     // Archive removes the email from the current tab
@@ -153,10 +186,19 @@ export function useEmailActionsBase({
       })
       .catch((error) => {
         console.error('[Archive] API call failed:', error);
-        // Revert optimistic update on error - restore email to list and remove from optimistic set
         console.log('[Archive] Reverting optimistic update');
-        if (emailToArchive) {
-          dispatch(restoreEmail(emailToArchive));
+        // Cancel the animation timeout and remove from animatingOut so email becomes visible again
+        const pendingArchiveTimeout = archiveAnimationTimeouts.current.get(emailId);
+        if (pendingArchiveTimeout !== undefined) {
+          clearTimeout(pendingArchiveTimeout);
+          archiveAnimationTimeouts.current.delete(emailId);
+          dispatch(removeAnimatingOut(emailId));
+          // Email is still in state.emails — no need to restore
+        } else {
+          // Animation already completed and email was removed — restore it
+          if (emailToArchive) {
+            dispatch(restoreEmail(emailToArchive));
+          }
         }
         dispatch(removeOptimisticArchive(emailId));
         // Revert tab count changes

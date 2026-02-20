@@ -27,6 +27,7 @@ interface SplitViewPanelProps {
   onClose: () => void;
   onArchiveComplete?: (emailId: string) => void;
   onSnoozeComplete?: (emailId: string) => void;
+  onPrioritySet?: (emailId: string, starCount: number) => void;
   mode?: InboxMode;
 }
 
@@ -41,6 +42,7 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
   onClose,
   onArchiveComplete,
   onSnoozeComplete,
+  onPrioritySet,
   mode,
 }) => {
   const { t } = useTranslation();
@@ -77,6 +79,14 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
 
   const handleStarClick = (count: number) => {
     const newCount = starCount === count ? 0 : count;
+
+    // In triage mode, setting star > 0 moves email to Action tab — delegate to parent
+    // which triggers the exit animation on the list item and navigates to the next email
+    if (mode === 'triage' && newCount > 0 && onPrioritySet) {
+      onPrioritySet(selectedEmailId, newCount);
+      return;
+    }
+
     setStarCount(newCount);
     emailDetailComponentRef.current?.setStarCount(newCount);
   };

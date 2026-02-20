@@ -112,6 +112,40 @@ button, a, input, select, textarea {
   animation: poof 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
+/* Priority out: email slides right toward the Action tab */
+@keyframes priorityOut {
+  0%   { transform: translateX(0) scale(1); opacity: 1; }
+  15%  { transform: translateX(-12px) scale(0.97); opacity: 1; }
+  100% { transform: translateX(80vw) translateY(-20px) scale(0.6); opacity: 0; }
+}
+
+.animate-priority-out {
+  animation: priorityOut 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  pointer-events: none;
+}
+
+/* 🏗️ emoji floats upward and toward the Action tab when priority is set */
+@keyframes emojiFloat {
+  0%   { transform: scale(1) translate(0, 0); opacity: 1; }
+  30%  { transform: scale(1.5) translate(10px, -20px); opacity: 1; }
+  100% { transform: scale(2) translate(60px, -80px); opacity: 0; }
+}
+
+.priority-emoji-float {
+  position: absolute;
+  top: 50%;
+  right: 1.5rem;
+  transform: translateY(-50%);
+  font-size: 1.5rem;
+  pointer-events: none;
+  animation: emojiFloat 0.8s cubic-bezier(0.2, 0, 0.8, 1) forwards;
+  z-index: 100;
+}
+
+.priority-emoji-float::before {
+  content: "🏗️";
+}
+
 /* Confetti overlay */
 .confetti-container {
   position: fixed;

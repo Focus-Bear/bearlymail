@@ -283,18 +283,18 @@ const Inbox: React.FC = () => {
             // Find the snoozed email to get its category
             const snoozedEmail = emails.find(e => e.id === snoozedEmailId);
             const snoozedCategory = snoozedEmail?.category || 'Other';
-            
+
             // Filter out archived emails and the just-snoozed email
             const visibleEmails = emails.filter(e => !e.isArchived && e.id !== snoozedEmailId);
-            
+
             if (visibleEmails.length === 0) {
               splitView.closeEmail();
               return;
             }
-            
+
             // First, try to find the next email in the same category
             const sameCategoryEmails = visibleEmails.filter(e => (e.category || 'Other') === snoozedCategory);
-            
+
             if (sameCategoryEmails.length > 0) {
               // Open the first email in the same category
               const nextEmail = sameCategoryEmails[0];
@@ -303,6 +303,34 @@ const Inbox: React.FC = () => {
               setSelectedEmailIndex(nextIndex >= 0 ? nextIndex : 0);
             } else {
               // No more emails in this category, open the first email from the next category
+              const nextEmail = visibleEmails[0];
+              splitView.openEmail(nextEmail.id);
+              setSelectedEmailIndex(0);
+            }
+          }}
+          onSplitViewPrioritySet={(prioritizedEmailId, starCount) => {
+            // Trigger the exit animation on the triage list item (same as clicking priority in the list)
+            const fakeEvent = { stopPropagation: () => {} } as React.MouseEvent;
+            emailActions.handleSetStarCount(prioritizedEmailId, starCount, fakeEvent);
+
+            // Navigate to next email in same category (same pattern as archive/snooze)
+            const prioritizedEmail = emails.find(e => e.id === prioritizedEmailId);
+            const prioritizedCategory = prioritizedEmail?.category || 'Other';
+            const visibleEmails = emails.filter(e => !e.isArchived && e.id !== prioritizedEmailId);
+
+            if (visibleEmails.length === 0) {
+              splitView.closeEmail();
+              return;
+            }
+
+            const sameCategoryEmails = visibleEmails.filter(e => (e.category || 'Other') === prioritizedCategory);
+
+            if (sameCategoryEmails.length > 0) {
+              const nextEmail = sameCategoryEmails[0];
+              const nextIndex = visibleEmails.findIndex(e => e.id === nextEmail.id);
+              splitView.openEmail(nextEmail.id);
+              setSelectedEmailIndex(nextIndex >= 0 ? nextIndex : 0);
+            } else {
               const nextEmail = visibleEmails[0];
               splitView.openEmail(nextEmail.id);
               setSelectedEmailIndex(0);

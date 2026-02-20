@@ -130,12 +130,12 @@ describe("QueueMonitorService", () => {
     });
 
     it("should calculate percentile statistics correctly", () => {
-      // Add processing times: [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
-      for (let i = 1; i <= 10; i++) {
-        const startTime = Date.now() - (11 - i) * 10;
-        service["jobStartTimes"].set(`sync-emails:job-${i}`, startTime);
-        service.trackJobComplete(`job-${i}`, "sync-emails", true);
-      }
+      // Directly inject precise processing times to avoid timing flakiness
+      // [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+      service["processingTimes"].set(
+        "sync-emails",
+        [10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
+      );
 
       const stats = service.getProcessingTimeStats("sync-emails");
 
@@ -152,17 +152,17 @@ describe("QueueMonitorService", () => {
     });
 
     it("should return correct percentiles for odd number of samples", () => {
-      // Add 11 processing times
-      for (let i = 1; i <= 11; i++) {
-        const startTime = Date.now() - (12 - i) * 10;
-        service["jobStartTimes"].set(`sync-emails:job-${i}`, startTime);
-        service.trackJobComplete(`job-${i}`, "sync-emails", true);
-      }
+      // Directly inject precise processing times to avoid timing flakiness
+      // [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110]
+      service["processingTimes"].set(
+        "sync-emails",
+        [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110],
+      );
 
       const stats = service.getProcessingTimeStats("sync-emails");
 
       expect(stats?.count).toBe(11);
-      // Median of 11 items
+      // Median of 11 items (index 5 of sorted array)
       expect(stats?.p50).toBe(60);
     });
   });

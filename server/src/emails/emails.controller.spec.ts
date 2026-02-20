@@ -30,6 +30,8 @@ describe("EmailsController", () => {
     toggleStar: jest.fn(),
     setStarCount: jest.fn(),
     searchEmails: jest.fn(),
+    rankSearchResults: jest.fn(),
+    expandSearchResults: jest.fn(),
     getPriorityExplanation: jest.fn(),
     getThreadEmails: jest.fn(),
   };
@@ -435,6 +437,7 @@ describe("EmailsController", () => {
         50,
         undefined,
         undefined,
+        false,
       );
     });
 
@@ -464,6 +467,7 @@ describe("EmailsController", () => {
         100,
         undefined,
         undefined,
+        false,
       );
     });
 
@@ -595,6 +599,215 @@ describe("EmailsController", () => {
 
       expect(result).toEqual({ nextDelivery: nextTime });
       expect(mockBatchScheduleService.getDefaultSchedule).toHaveBeenCalled();
+    });
+  });
+
+  describe("searchEmails", () => {
+    it("should return empty array when no query provided", async () => {
+      const mockRequest = { user: { userId: "user-123" } };
+
+      const result = await controller.searchEmails(
+        mockRequest,
+        "",
+        undefined,
+        undefined,
+        undefined,
+      );
+
+      expect(result).toEqual([]);
+      expect(mockEmailsService.searchEmails).not.toHaveBeenCalled();
+    });
+
+    it("should call searchEmails with skipLlmRanking=false by default", async () => {
+      const userId = "user-123";
+      const mockRequest = { user: { userId } };
+      const mockResults = [{ id: "1", subject: "Test" }];
+
+      mockEmailsService.searchEmails.mockResolvedValue(mockResults);
+
+      const result = await controller.searchEmails(
+        mockRequest,
+        "test query",
+        undefined,
+        undefined,
+        undefined,
+      );
+
+      expect(result).toEqual(mockResults);
+      expect(mockEmailsService.searchEmails).toHaveBeenCalledWith(
+        userId,
+        "test query",
+        50,
+        undefined,
+        undefined,
+        false,
+      );
+    });
+
+    it("should pass skipLlmRanking=true when skipLlm='true'", async () => {
+      const userId = "user-123";
+      const mockRequest = { user: { userId } };
+      const mockResults = [{ id: "1", subject: "Test" }];
+
+      mockEmailsService.searchEmails.mockResolvedValue(mockResults);
+
+      await controller.searchEmails(
+        mockRequest,
+        "test query",
+        undefined,
+        undefined,
+        "true",
+      );
+
+      expect(mockEmailsService.searchEmails).toHaveBeenCalledWith(
+        userId,
+        "test query",
+        50,
+        undefined,
+        undefined,
+        true,
+      );
+    });
+
+    it("should return no-results marker on error", async () => {
+      const userId = "user-123";
+      const mockRequest = { user: { userId } };
+
+      mockEmailsService.searchEmails.mockRejectedValue(
+        new Error("Search failed"),
+      );
+
+      const result = await controller.searchEmails(
+        mockRequest,
+        "test query",
+        undefined,
+        undefined,
+        undefined,
+      );
+
+      expect(result).toHaveLength(1);
+      expect((result as any[])[0].id).toBe("no-results");
+    });
+  });
+
+  describe("rankSearchResults", () => {
+    it("should return empty array when no emailIds provided", async () => {
+      const mockRequest = { user: { userId: "user-123" } };
+
+      const result = await controller.rankSearchResults(mockRequest, {
+        emailIds: [],
+        query: "test",
+      });
+
+      expect(result).toEqual([]);
+      expect(mockEmailsService.rankSearchResults).not.toHaveBeenCalled();
+    });
+
+    it("should call rankSearchResults with correct parameters", async () => {
+      const userId = "user-123";
+      const mockRequest = { user: { userId } };
+      const emailIds = ["id-1", "id-2"];
+      const mockRanked = [{ id: "id-1", relevanceScore: 90 }];
+
+      mockEmailsService.rankSearchResults.mockResolvedValue(mockRanked);
+
+      const result = await controller.rankSearchResults(mockRequest, {
+        emailIds,
+        query: "test query",
+        maxResults: 10,
+      });
+
+      expect(result).toEqual(mockRanked);
+      expect(mockEmailsService.rankSearchResults).toHaveBeenCalledWith(
+        userId,
+        "test query",
+        emailIds,
+        10,
+      );
+    });
+
+    it("should return empty array on error", async () => {
+      const userId = "user-123";
+      const mockRequest = { user: { userId } };
+
+      mockEmailsService.rankSearchResults.mockRejectedValue(
+        new Error("Ranking failed"),
+      );
+
+      const result = await controller.rankSearchResults(mockRequest, {
+        emailIds: ["id-1"],
+        query: "test",
+      });
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe("expandSearchResults", () => {
+    it("should return empty array when no query provided", async () => {
+      const mockRequest = { user: { userId: "user-123" } };
+
+      const result = await controller.expandSearchResults(mockRequest, {
+        query: "",
+        existingEmailIds: ["id-1"],
+      });
+
+      expect(result).toEqual([]);
+      expect(mockEmailsService.expandSearchResults).not.toHaveBeenCalled();
+    });
+
+    it("should call expandSearchResults with correct parameters", async () => {
+      const userId = "user-123";
+      const mockRequest = { user: { userId } };
+      const existingEmailIds = ["id-1", "id-2"];
+      const mockExpanded = [{ id: "id-3", subject: "New result" }];
+
+      mockEmailsService.expandSearchResults.mockResolvedValue(mockExpanded);
+
+      const result = await controller.expandSearchResults(mockRequest, {
+        query: "test query",
+        existingEmailIds,
+      });
+
+      expect(result).toEqual(mockExpanded);
+      expect(mockEmailsService.expandSearchResults).toHaveBeenCalledWith(
+        userId,
+        "test query",
+        existingEmailIds,
+      );
+    });
+
+    it("should use empty array when existingEmailIds not provided", async () => {
+      const userId = "user-123";
+      const mockRequest = { user: { userId } };
+
+      mockEmailsService.expandSearchResults.mockResolvedValue([]);
+
+      await controller.expandSearchResults(mockRequest, {
+        query: "test query",
+        existingEmailIds: undefined as unknown as string[],
+      });
+
+      expect(mockEmailsService.expandSearchResults).toHaveBeenCalledWith(
+        userId,
+        "test query",
+        [],
+      );
+    });
+
+    it("should return empty array on error", async () => {
+      const mockRequest = { user: { userId: "user-123" } };
+
+      mockEmailsService.expandSearchResults.mockRejectedValue(
+        new Error("Expand failed"),
+      );
+
+      const result = await controller.expandSearchResults(mockRequest, {
+        query: "test",
+        existingEmailIds: [],
+      });
+
+      expect(result).toEqual([]);
     });
   });
 });

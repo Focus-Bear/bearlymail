@@ -7,7 +7,6 @@ import { SEARCH_RESULT_NO_RESULTS } from 'constants/strings';
 import { captureEvent } from 'utils/posthog';
 import { Email, getEmailPriorityScore } from 'types/email';
 import { humanizeTimestamp } from 'utils/dateUtils';
-import { useAuth } from 'contexts/AuthContext';
 
 interface SearchEmail extends Email {
   starCount?: number;
@@ -24,6 +23,8 @@ interface SearchEmail extends Email {
 
 interface SearchResultsProps {
   searchResults: Email[];
+  isRefining?: boolean;
+  refiningMessage?: string;
   onSelectScoreBreakdown: (email: SearchEmail, breakdown: NonNullable<SearchEmail['scoreBreakdown']>) => void;
   getScoreBackgroundColor: (score: number) => string;
   getScoreColor: (score: number) => string;
@@ -33,6 +34,8 @@ interface SearchResultsProps {
 // eslint-disable-next-line max-lines-per-function -- Search results component requires handling multiple result types and UI states
 export const SearchResults: React.FC<SearchResultsProps> = ({
   searchResults,
+  isRefining,
+  refiningMessage,
   onSelectScoreBreakdown,
   getScoreBackgroundColor,
   getScoreColor,
@@ -40,7 +43,6 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
 }) => {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { user } = useAuth();
 
   const hasNoResults = searchResults.length === 0 || (searchResults.length === 1 && searchResults[0].id === SEARCH_RESULT_NO_RESULTS);
   
@@ -68,7 +70,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
         <p style={{ color: theme.colors.text.secondary, marginBottom: theme.spacing.lg }}>
           {t('search.noResultsHint')}
         </p>
-        {user?.isAdmin && noResultsDebugInfo?.queriesTried && noResultsDebugInfo.queriesTried.length > 0 && (
+        {noResultsDebugInfo?.queriesTried && noResultsDebugInfo.queriesTried.length > 0 && (
           <div style={{
             marginTop: theme.spacing.md,
             padding: theme.spacing.md,
@@ -119,11 +121,33 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
       gap: theme.spacing.md,
     }}>
       <div style={{
-        color: theme.colors.text.secondary,
-        fontSize: theme.typography.fontSize.sm,
+        display: 'flex',
+        alignItems: 'center',
+        gap: theme.spacing.md,
         marginBottom: theme.spacing.sm,
       }}>
-        {t('search.found', { count: searchResults.length, plural: searchResults.length !== 1 ? 's' : '' })}
+        <div style={{
+          color: theme.colors.text.secondary,
+          fontSize: theme.typography.fontSize.sm,
+        }}>
+          {t('search.found', { count: searchResults.length, plural: searchResults.length !== 1 ? 's' : '' })}
+        </div>
+        {isRefining && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: theme.spacing.xs,
+            fontSize: theme.typography.fontSize.xs,
+            color: theme.colors.primary.main,
+            backgroundColor: theme.colors.primary.subtle,
+            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+            borderRadius: theme.borderRadius.full,
+          }}>
+            <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>🤖</span>
+            <span>{refiningMessage || t('search.aiRefining')}</span>
+            <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+          </div>
+        )}
       </div>
       
       {/* eslint-disable-next-line max-lines-per-function -- Search result rendering requires handling multiple result types and UI states */}

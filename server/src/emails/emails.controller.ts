@@ -253,6 +253,7 @@ export class EmailsController {
     @Query("q") query: string,
     @Query("maxResults") maxResults?: string,
     @Query("accountTypes") accountTypes?: string,
+    @Query("skipLlm") skipLlm?: string,
   ) {
     if (!query) {
       return [];
@@ -262,6 +263,7 @@ export class EmailsController {
     const selectedAccountTypes = accountTypes
       ? accountTypes.split(",")
       : undefined;
+    const skipLlmRanking = skipLlm === "true";
     try {
       return await this.emailsService.searchEmails(
         req.user.userId,
@@ -269,6 +271,7 @@ export class EmailsController {
         max,
         undefined,
         selectedAccountTypes,
+        skipLlmRanking,
       );
     } catch (error) {
       this.logger.error(`Error in searchEmails:`, error);
@@ -288,6 +291,50 @@ export class EmailsController {
           },
         },
       ];
+    }
+  }
+
+  @Post("search/rank")
+  async rankSearchResults(
+    @Request() req,
+    @Body() body: { emailIds: string[]; query: string; maxResults?: number },
+  ) {
+    const { emailIds, query, maxResults } = body;
+    if (!query || !emailIds || emailIds.length === 0) {
+      return [];
+    }
+    const DEFAULT_MAX_RESULTS = 50;
+    try {
+      return await this.emailsService.rankSearchResults(
+        req.user.userId,
+        query,
+        emailIds,
+        maxResults ?? DEFAULT_MAX_RESULTS,
+      );
+    } catch (error) {
+      this.logger.error(`Error in rankSearchResults:`, error);
+      return [];
+    }
+  }
+
+  @Post("search/expand")
+  async expandSearchResults(
+    @Request() req,
+    @Body() body: { query: string; existingEmailIds: string[] },
+  ) {
+    const { query, existingEmailIds } = body;
+    if (!query) {
+      return [];
+    }
+    try {
+      return await this.emailsService.expandSearchResults(
+        req.user.userId,
+        query,
+        existingEmailIds ?? [],
+      );
+    } catch (error) {
+      this.logger.error(`Error in expandSearchResults:`, error);
+      return [];
     }
   }
 

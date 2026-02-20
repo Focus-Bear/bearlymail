@@ -1318,6 +1318,8 @@
     "search": "Buscar",
     "searchAccounts": "Buscar en",
     "searching": "Buscando...",
+    "aiRefining": "Refinando con IA...",
+    "searchingMore": "Buscando con consultas alternativas...",
     "title": "Buscar correos electrónicos"
   },
   "settings": {

@@ -1157,6 +1157,8 @@
     "hint": "💡 Ask a question in natural language or use Gmail search syntax: from:, to:, subject:, has:attachment, before:, after:, etc.",
     "search": "Search",
     "searching": "Searching...",
+    "aiRefining": "Refining with AI...",
+    "searchingMore": "Searching with alternative queries...",
     "noResults": "No emails found",
     "noResultsHint": "Try adjusting your search query or using different keywords.",
     "queriesUsed": "Search queries used",

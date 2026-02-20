@@ -129,6 +129,7 @@ describe('useSearch', () => {
         has_query: true,
         result_count: 1,
         selected_accounts: 0,
+        phase: 'initial',
       });
     });
 
@@ -163,16 +164,6 @@ describe('useSearch', () => {
         jest.advanceTimersByTime(900);
       });
       expect(result.current.progressStep).toBe('Searching for emails...');
-
-      await act(async () => {
-        jest.advanceTimersByTime(1300);
-      });
-      expect(result.current.progressStep).toBe('Filtering emails with AI...');
-
-      await act(async () => {
-        jest.advanceTimersByTime(1600);
-      });
-      expect(result.current.progressStep).toBe('Generating explanations...');
     });
 
     it('should handle empty results', async () => {

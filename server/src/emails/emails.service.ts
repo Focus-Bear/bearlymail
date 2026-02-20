@@ -2886,6 +2886,7 @@ export class EmailsService {
     maxResults: number = QUERY_LIMITS.MAX_SENT_EMAILS_FOR_STYLE,
     onProgress?: (step: string, message: string) => void,
     accountTypes?: string[],
+    skipLlmRanking?: boolean,
   ): Promise<
     Array<
       Email & {
@@ -2902,7 +2903,59 @@ export class EmailsService {
       onProgress,
       (userId, email) => this.calculateDaysSinceLastEmail(userId, email),
       accountTypes,
+      skipLlmRanking,
     );
+  }
+
+  /**
+   * Rank and explain a list of emails by ID using AI relevance scoring.
+   * Used for async LLM refinement after returning initial fast results.
+   */
+  async rankSearchResults(
+    userId: string,
+    query: string,
+    emailIds: string[],
+    maxResults: number = QUERY_LIMITS.MAX_SENT_EMAILS_FOR_STYLE,
+  ): Promise<
+    Array<
+      Email & {
+        searchExplanation?: string;
+        relevanceScore?: number;
+      }
+    >
+  > {
+    const emails = await this.emailRepository.find({
+      where: { userId, id: In(emailIds) },
+      order: { receivedAt: "DESC" },
+    });
+    return this.emailSearchService.rankAndExplainEmails(
+      userId,
+      query,
+      emails,
+      maxResults,
+      (uid, email) => this.calculateDaysSinceLastEmail(uid, email),
+    );
+  }
+
+  /**
+   * Expand search results by trying alternative queries.
+   * Used when initial search + LLM ranking yields no/few good results.
+   * Returns new emails not already in existingEmailIds.
+   */
+  async expandSearchResults(
+    userId: string,
+    query: string,
+    existingEmailIds: string[],
+  ): Promise<
+    Array<
+      Email & {
+        searchExplanation?: string;
+        relevanceScore?: number;
+      }
+    >
+  > {
+    const existingSet = new Set(existingEmailIds);
+    return this.emailSearchService.searchExpand(userId, query, existingSet);
   }
 
   /**

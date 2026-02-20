@@ -157,6 +157,8 @@ const Search: React.FC = () => {
             ) : (
               <SearchResults
                 searchResults={search.searchResults}
+                isRefining={search.isRefining}
+                refiningMessage={search.progressStep || undefined}
                 onSelectScoreBreakdown={handleSelectScoreBreakdown}
                 getScoreBackgroundColor={getScoreBackgroundColor}
                 getScoreColor={getScoreColor}

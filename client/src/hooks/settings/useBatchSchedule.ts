@@ -25,7 +25,8 @@ export const useBatchSchedule = () => {
       const response = await axios.get(`${API_URL}/batch-schedule`);
       if (response.data) {
         setBatchSchedule({
-          deliveryDays: response.data.deliveryDays || [1, 2, 3, 4, 5],
+          // Normalize to numbers: simple-array TypeORM columns return strings from DB
+          deliveryDays: [...new Set((response.data.deliveryDays || [1, 2, 3, 4, 5]).map(Number))].sort((a, b) => a - b),
           deliveryTimes: response.data.deliveryTimes || ['11:00', '15:00'],
           timezone: response.data.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
           isEnabled: response.data.isEnabled ?? true,

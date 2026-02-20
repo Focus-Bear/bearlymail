@@ -39,8 +39,18 @@ export class BatchScheduleService {
       where: { userId },
     });
 
+    // Normalize deliveryDays: simple-array columns return strings from DB; clients may
+    // send mixed types after round-tripping. Deduplicate and coerce to numbers.
+    const normalizedDeliveryDays = [
+      ...new Set(
+        scheduleData.deliveryDays
+          .map((day) => (typeof day === "string" ? parseInt(day, 10) : day))
+          .filter((day) => !isNaN(day) && day >= 0 && day <= DAYS.SATURDAY),
+      ),
+    ].sort((a, b) => a - b);
+
     if (schedule) {
-      schedule.deliveryDays = scheduleData.deliveryDays;
+      schedule.deliveryDays = normalizedDeliveryDays;
       schedule.deliveryTimes = scheduleData.deliveryTimes;
       schedule.timezone = scheduleData.timezone;
       schedule.isEnabled = scheduleData.isEnabled;
@@ -49,6 +59,7 @@ export class BatchScheduleService {
       schedule = this.batchScheduleRepository.create({
         userId,
         ...scheduleData,
+        deliveryDays: normalizedDeliveryDays,
       });
     }
 
@@ -157,8 +168,13 @@ export class BatchScheduleService {
     const currentDay = nowInUserTz.getDay();
     const currentTime = `${String(nowInUserTz.getHours()).padStart(2, "0")}:${String(nowInUserTz.getMinutes()).padStart(2, "0")}`;
 
+    // Normalize to numbers (simple-array stores as strings in DB)
+    const deliveryDays = schedule.deliveryDays.map((day) =>
+      typeof day === "string" ? parseInt(day, 10) : day,
+    );
+
     // Check if today is a delivery day
-    if (!schedule.deliveryDays.includes(currentDay)) {
+    if (!deliveryDays.includes(currentDay)) {
       return false;
     }
 

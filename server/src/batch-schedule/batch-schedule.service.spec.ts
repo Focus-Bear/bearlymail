@@ -93,6 +93,97 @@ describe("BatchScheduleService", () => {
       expect(mockRepository.save).toHaveBeenCalledWith(mockSchedule);
     });
 
+    it("should normalize string delivery days to numbers when creating", async () => {
+      const userId = "user-123";
+      const scheduleData = {
+        deliveryDays: ["1", "2", "3"] as any, // strings as would come from DB round-trip
+        deliveryTimes: ["09:00"],
+        timezone: "UTC",
+        isEnabled: true,
+        urgentBypassSchedule: false,
+      };
+      const mockSchedule = {
+        id: "schedule-1",
+        userId,
+        deliveryDays: [1, 2, 3],
+        deliveryTimes: ["09:00"],
+        timezone: "UTC",
+        isEnabled: true,
+        urgentBypassSchedule: false,
+      };
+
+      mockRepository.findOne.mockResolvedValue(null);
+      mockRepository.create.mockReturnValue(mockSchedule);
+      mockRepository.save.mockResolvedValue(mockSchedule);
+
+      await service.upsertSchedule(userId, scheduleData);
+
+      expect(mockRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          deliveryDays: [1, 2, 3],
+        }),
+      );
+    });
+
+    it("should deduplicate delivery days when saving", async () => {
+      const userId = "user-123";
+      // Corrupted data with duplicates (strings and numbers mixed)
+      const scheduleData = {
+        deliveryDays: ["1", "1", 1, "2", "2", 2, "3", "3", 3] as any,
+        deliveryTimes: ["11:00", "15:00"],
+        timezone: "UTC",
+        isEnabled: true,
+        urgentBypassSchedule: true,
+      };
+      const existingSchedule = {
+        id: "schedule-1",
+        userId,
+        deliveryDays: [1, 2, 3],
+        deliveryTimes: ["11:00"],
+        timezone: "UTC",
+        isEnabled: true,
+        urgentBypassSchedule: false,
+      };
+
+      mockRepository.findOne.mockResolvedValue(existingSchedule);
+      mockRepository.save.mockResolvedValue({
+        ...existingSchedule,
+        deliveryDays: [1, 2, 3],
+      });
+
+      await service.upsertSchedule(userId, scheduleData);
+
+      // The saved schedule should have deduplicated days
+      expect(mockRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          deliveryDays: [1, 2, 3],
+        }),
+      );
+    });
+
+    it("should filter out invalid delivery day values", async () => {
+      const userId = "user-123";
+      const scheduleData = {
+        deliveryDays: [1, 2, 7, -1, 8, 3] as any, // 7, -1, 8 are invalid (0-6 only)
+        deliveryTimes: ["09:00"],
+        timezone: "UTC",
+        isEnabled: true,
+        urgentBypassSchedule: false,
+      };
+
+      mockRepository.findOne.mockResolvedValue(null);
+      mockRepository.create.mockReturnValue({ id: "schedule-1", userId });
+      mockRepository.save.mockResolvedValue({ id: "schedule-1", userId });
+
+      await service.upsertSchedule(userId, scheduleData);
+
+      expect(mockRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          deliveryDays: [1, 2, 3],
+        }),
+      );
+    });
+
     it("should update existing schedule", async () => {
       const userId = "user-123";
       const existingSchedule = {
@@ -220,6 +311,44 @@ describe("BatchScheduleService", () => {
       const schedule = {
         isEnabled: true,
         deliveryDays: [1, 2, 3, 4, 5],
+        deliveryTimes: ["09:00"],
+        timezone: "UTC",
+      } as BatchSchedule;
+
+      const result = service.isWithinDeliveryWindow(schedule);
+
+      expect(result).toBe(false);
+
+      jest.useRealTimers();
+    });
+
+    it("should handle delivery days stored as strings in database", () => {
+      jest.useFakeTimers();
+      // Monday 8am UTC, within delivery window (09:00 - 09:30)
+      jest.setSystemTime(new Date("2024-01-08T09:10:00Z"));
+
+      const schedule = {
+        isEnabled: true,
+        deliveryDays: ["1", "2", "3", "4", "5"] as any, // Strings from DB
+        deliveryTimes: ["09:00"],
+        timezone: "UTC",
+      } as BatchSchedule;
+
+      const result = service.isWithinDeliveryWindow(schedule);
+
+      expect(result).toBe(true);
+
+      jest.useRealTimers();
+    });
+
+    it("should return false on Sunday with string delivery days for weekdays only", () => {
+      jest.useFakeTimers();
+      // Sunday 10am UTC
+      jest.setSystemTime(new Date("2024-01-07T10:00:00Z"));
+
+      const schedule = {
+        isEnabled: true,
+        deliveryDays: ["1", "2", "3", "4", "5"] as any, // Mon-Fri as strings
         deliveryTimes: ["09:00"],
         timezone: "UTC",
       } as BatchSchedule;

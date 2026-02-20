@@ -3,10 +3,10 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { BatchScheduleService } from "./batch-schedule.service";
 import { BatchScheduleController } from "./batch-schedule.controller";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
-import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([BatchSchedule, Email])],
+  imports: [TypeOrmModule.forFeature([BatchSchedule, EmailThread])],
   providers: [BatchScheduleService],
   controllers: [BatchScheduleController],
   exports: [BatchScheduleService],

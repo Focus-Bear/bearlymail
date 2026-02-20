@@ -2,7 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
-import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
 import { PRIORITY_SCORES } from "../constants/priority-constants";
 import { DAYS, MINUTES } from "../constants/time-constants";
 import { DateTime } from "luxon";
@@ -14,8 +14,8 @@ export class BatchScheduleService {
   constructor(
     @InjectRepository(BatchSchedule)
     private batchScheduleRepository: Repository<BatchSchedule>,
-    @InjectRepository(Email)
-    private emailRepository: Repository<Email>,
+    @InjectRepository(EmailThread)
+    private emailThreadRepository: Repository<EmailThread>,
   ) {}
 
   /**
@@ -79,31 +79,54 @@ export class BatchScheduleService {
   }
 
   /**
-   * After a schedule change, update the batchReleaseAt for any batched emails
+   * After a schedule change, update the batchReleaseAt for any batched threads
    * whose current release time would be delivered sooner under the new schedule.
    * If the schedule is disabled or has no delivery windows configured, all
-   * pending batched emails are released immediately (isBatched = false).
+   * pending batched threads are released immediately (isBatched = false).
+   *
+   * Also immediately releases any threads whose batchReleaseAt is already in
+   * the past — these are threads that should have been delivered but weren't
+   * due to previous bugs in the scheduling logic.
    */
   private async rescheduleExistingBatchedEmails(
     userId: string,
     schedule: BatchSchedule,
   ): Promise<void> {
+    // First: release any threads that are already past their batch release time.
+    // These are overdue deliveries that should have been shown to the user already.
+    const pastDueResult = await this.emailThreadRepository.query(
+      `UPDATE email_threads
+         SET "isBatched" = false,
+             "batchDecisionReason" = 'Auto-released: past delivery window'
+       WHERE "userId" = $1
+         AND "isBatched" = true
+         AND "batchReleaseAt" IS NOT NULL
+         AND "batchReleaseAt" < NOW()`,
+      [userId],
+    );
+    const pastDueCount = pastDueResult[1] ?? 0;
+    if (pastDueCount > 0) {
+      this.logger.log(
+        `Released ${pastDueCount} past-due batched threads for user ${userId}`,
+      );
+    }
+
     if (!schedule.isEnabled) {
-      // Batching disabled — release all pending emails immediately
-      const updated = await this.emailRepository.update(
+      // Batching disabled — release all remaining pending threads immediately
+      const updated = await this.emailThreadRepository.update(
         { userId, isBatched: true },
         { isBatched: false, batchDecisionReason: "Schedule disabled" },
       );
       this.logger.log(
-        `Schedule disabled: released ${updated.affected ?? 0} batched emails for user ${userId}`,
+        `Schedule disabled: released ${updated.affected ?? 0} batched threads for user ${userId}`,
       );
       return;
     }
 
     const newReleaseTime = this.getNextScheduledDeliveryTime(schedule);
     if (!newReleaseTime) {
-      // No delivery windows configured — release all pending emails
-      const updated = await this.emailRepository.update(
+      // No delivery windows configured — release all remaining pending threads
+      const updated = await this.emailThreadRepository.update(
         { userId, isBatched: true },
         {
           isBatched: false,
@@ -111,15 +134,15 @@ export class BatchScheduleService {
         },
       );
       this.logger.log(
-        `No delivery windows: released ${updated.affected ?? 0} batched emails for user ${userId}`,
+        `No delivery windows: released ${updated.affected ?? 0} batched threads for user ${userId}`,
       );
       return;
     }
 
-    // Update only the emails whose current batchReleaseAt is LATER than what the
+    // Update only the threads whose current batchReleaseAt is LATER than what the
     // new schedule would produce — i.e., move them forward to the earlier time.
-    const rawUpdated = await this.emailRepository.query(
-      `UPDATE emails
+    const rawUpdated = await this.emailThreadRepository.query(
+      `UPDATE email_threads
          SET "batchReleaseAt" = $1,
              "batchDecisionReason" = $2
        WHERE "userId" = $3
@@ -133,7 +156,7 @@ export class BatchScheduleService {
     );
 
     this.logger.log(
-      `Schedule updated: rescheduled batched emails for user ${userId} to ${newReleaseTime.toISOString()} (rows affected: ${rawUpdated[1] ?? "unknown"})`,
+      `Schedule updated: rescheduled batched threads for user ${userId} to ${newReleaseTime.toISOString()} (rows affected: ${rawUpdated[1] ?? "unknown"})`,
     );
   }
 

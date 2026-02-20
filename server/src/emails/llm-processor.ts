@@ -759,11 +759,12 @@ export class LLMProcessor implements OnModuleInit {
                 },
               );
 
-              // If priority score >= 75 (HIGH_THRESHOLD), un-batch the email (high priority emails shouldn't be batched)
-              // Only truly high-priority emails should bypass batching to avoid false positives
+              // If priority score >= 75 (HIGH_THRESHOLD), un-batch the thread (high priority threads shouldn't be batched)
+              // Only truly high-priority emails should bypass batching to avoid false positives.
+              // Batch state is now thread-level.
               if (finalScore >= PRIORITY_SCORES.HIGH_THRESHOLD) {
-                await this.emailRepository.update(
-                  { emailThreadId: email.emailThreadId, userId },
+                await this.emailThreadRepository.update(
+                  { id: email.emailThreadId, userId },
                   {
                     isBatched: false,
                     batchReleaseAt: null,
@@ -772,7 +773,7 @@ export class LLMProcessor implements OnModuleInit {
                   },
                 );
                 this.logger.log(
-                  `[Worker ${workerId}] Emergency delivery: Un-batched email ${emailId} due to high priority score: ${finalScore}`,
+                  `[Worker ${workerId}] Emergency delivery: Un-batched thread ${email.emailThreadId} due to high priority score: ${finalScore}`,
                 );
               }
 
@@ -1539,10 +1540,10 @@ export class LLMProcessor implements OnModuleInit {
         },
       );
 
-      // Emergency delivery for high priority
+      // Emergency delivery for high priority — batch state is now thread-level
       if (finalScore >= PRIORITY_SCORES.HIGH_THRESHOLD) {
-        await this.emailRepository.update(
-          { emailThreadId: email.emailThreadId, userId },
+        await this.emailThreadRepository.update(
+          { id: email.emailThreadId, userId },
           {
             isBatched: false,
             batchReleaseAt: null,
@@ -1551,7 +1552,7 @@ export class LLMProcessor implements OnModuleInit {
           },
         );
         this.logger.log(
-          `[Worker ${workerId}] Emergency delivery: Un-batched email ${email.id} due to high priority score: ${finalScore}`,
+          `[Worker ${workerId}] Emergency delivery: Un-batched thread ${email.emailThreadId} due to high priority score: ${finalScore}`,
         );
       }
 

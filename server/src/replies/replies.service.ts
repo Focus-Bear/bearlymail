@@ -426,7 +426,9 @@ ${closing}`;
       // Don't fail the send if learning fails
       logError(
         "Failed to learn from sent reply",
-        learningError instanceof Error ? learningError : new Error(String(learningError)),
+        learningError instanceof Error
+          ? learningError
+          : new Error(String(learningError)),
       );
     }
 

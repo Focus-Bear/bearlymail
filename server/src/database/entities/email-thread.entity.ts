@@ -28,6 +28,8 @@ import {
 @Index(["userId", "urgencyScore"])
 // For priority-based sorting
 @Index(["userId", "priorityScore"])
+// For batch-status queries
+@Index(["userId", "isBatched", "batchReleaseAt"])
 export class EmailThread {
   @PrimaryGeneratedColumn("uuid")
   id: string;
@@ -146,6 +148,35 @@ export class EmailThread {
 
   @Column({ type: "timestamp", nullable: true })
   snoozeUntil: Date | null;
+
+  @Column({
+    default: false,
+    comment: "Whether this thread is currently held in a batch window",
+  })
+  isBatched: boolean;
+
+  @Column({
+    type: "timestamp",
+    nullable: true,
+    comment:
+      "When this batched thread will be released and visible in the inbox",
+  })
+  batchReleaseAt: Date | null;
+
+  @Column({
+    default: false,
+    comment:
+      "Whether this thread was delivered early (emergency) due to high priority outside batch window",
+  })
+  wasDeliveredEarly: boolean;
+
+  @Column({
+    type: "varchar",
+    nullable: true,
+    comment:
+      "Human-readable reason for the batching decision (e.g. 'Batched until 15:00', 'Schedule disabled', 'Emergency delivery')",
+  })
+  batchDecisionReason: string | null;
 
   @Column({
     type: "timestamp",

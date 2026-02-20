@@ -585,17 +585,17 @@ export class EmailDebugService {
           `Email is SNOOZED until ${new Date(latestEmail.snoozeUntil).toISOString()}`,
         );
       }
+    }
 
-      // Check if batched
-      if (
-        latestEmail.isBatched &&
-        latestEmail.batchReleaseAt &&
-        new Date(latestEmail.batchReleaseAt) > new Date()
-      ) {
-        reasons.push(
-          `Email is BATCHED and will be released at ${new Date(latestEmail.batchReleaseAt).toISOString()}`,
-        );
-      }
+    // Check if thread is batched (batch state is now thread-level)
+    if (
+      thread.isBatched &&
+      thread.batchReleaseAt &&
+      new Date(thread.batchReleaseAt) > new Date()
+    ) {
+      reasons.push(
+        `Thread is BATCHED and will be released at ${new Date(thread.batchReleaseAt).toISOString()}`,
+      );
     }
 
     // 5. Determine visibility in each mode
@@ -612,10 +612,9 @@ export class EmailDebugService {
       !latestEmail.snoozeUntil ||
       new Date(latestEmail.snoozeUntil) <= new Date();
     const isNotBatched =
-      !latestEmail ||
-      !latestEmail.isBatched ||
-      !latestEmail.batchReleaseAt ||
-      new Date(latestEmail.batchReleaseAt) <= new Date();
+      !thread.isBatched ||
+      !thread.batchReleaseAt ||
+      new Date(thread.batchReleaseAt) <= new Date();
 
     const baseConditionsMet =
       isNotArchived && hasNoBlockedSender && isNotSnoozed && isNotBatched;

@@ -347,7 +347,9 @@ export class SummarizationService {
           } catch (summaryError) {
             logError(
               `Failed to summarize thread for email ${item.emailId}`,
-              summaryError instanceof Error ? summaryError : new Error(String(summaryError)),
+              summaryError instanceof Error
+                ? summaryError
+                : new Error(String(summaryError)),
             );
           }
         }

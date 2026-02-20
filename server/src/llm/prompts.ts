@@ -106,9 +106,7 @@ export function loadPrompts(): Map<string, PromptConfig> {
         systemPrompt: "",
       });
     } else {
-      logWarn(
-        `extract-action-items.md not found at ${extractActionItemsPath}`,
-      );
+      logWarn(`extract-action-items.md not found at ${extractActionItemsPath}`);
     }
 
     // Load prioritise-email.md

@@ -97,8 +97,15 @@ export function createLogger(contextName: string) {
     /**
      * Log an error with context
      */
-    error: (message: string, error?: Error | unknown, context?: Record<string, unknown>) => {
-      nestLogger.error(message, error instanceof Error ? error.stack : undefined);
+    error: (
+      message: string,
+      error?: Error | unknown,
+      context?: Record<string, unknown>,
+    ) => {
+      nestLogger.error(
+        message,
+        error instanceof Error ? error.stack : undefined,
+      );
 
       if (error instanceof Error) {
         captureGlobalError(error, {
@@ -119,7 +126,11 @@ export function createLogger(contextName: string) {
     /**
      * Log a warning with context
      */
-    warn: (message: string, data?: unknown, context?: Record<string, unknown>) => {
+    warn: (
+      message: string,
+      data?: unknown,
+      context?: Record<string, unknown>,
+    ) => {
       nestLogger.warn(message);
 
       if (process.env.NODE_ENV === "production") {

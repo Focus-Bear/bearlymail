@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Repository, MoreThan } from "typeorm";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { QUERY_LIMITS } from "../constants/query-limits";
@@ -34,7 +34,7 @@ export class EmailStatusService {
   }
 
   /**
-   * Force check for new emails by unbatting all pending batched emails
+   * Force check for new emails by releasing all pending batched threads
    */
   async forceCheckNewEmails(
     userId: string,
@@ -44,7 +44,7 @@ export class EmailStatusService {
       mode: "triage" | "action" | "follow-up",
     ) => Promise<{ emails: Email[]; total: number; hasMore: boolean }>,
   ): Promise<Email[]> {
-    await this.emailRepository.update(
+    await this.emailThreadRepository.update(
       {
         userId,
         isBatched: true,
@@ -58,11 +58,13 @@ export class EmailStatusService {
   }
 
   /**
-   * Get the next batch release time for a user
+   * Get the next batch release time for a user.
+   * Only returns FUTURE dates — past-due batched threads are effectively already visible.
    */
   async getNextBatchReleaseTime(userId: string): Promise<Date | null> {
-    const nextBatch = await this.emailRepository.findOne({
-      where: { userId, isBatched: true },
+    const now = new Date();
+    const nextBatch = await this.emailThreadRepository.findOne({
+      where: { userId, isBatched: true, batchReleaseAt: MoreThan(now) },
       order: { batchReleaseAt: "ASC" },
       select: ["batchReleaseAt"],
     });
@@ -81,44 +83,39 @@ export class EmailStatusService {
       priorityScore: number;
     }>;
   }> {
-    // Get all batched emails that are marked as urgent AND have very high priority score
-    // Require BOTH conditions to be more strict about what counts as urgent
-    // Priority threshold raised to 90+ (was 80+) to reduce false positives
-    // Join with email_threads to check isArchived and get priority (now thread-level)
-    const urgentBatchedEmails = await this.emailRepository
-      .createQueryBuilder("email")
-      .innerJoin("email_threads", "thread", "thread.id = email.emailThreadId")
-      .where("email.userId = :userId", { userId })
-      .andWhere("thread.userId = :userId", { userId })
-      .andWhere("email.isBatched = true")
+    // Get all batched threads that are marked as urgent AND have very high priority score.
+    // Batch state is now thread-level (thread.isBatched). Query threads directly,
+    // then fetch the latest email subject/from for display.
+    const urgentBatchedThreads = await this.emailThreadRepository
+      .createQueryBuilder("thread")
+      .where("thread.userId = :userId", { userId })
+      .andWhere("thread.isBatched = true")
       .andWhere("thread.isArchived = false")
       // Must have high urgency score (90+)
       .andWhere("thread.urgencyScore >= 90")
-      // AND must have very high priority (95+) - using denormalized priorityScore field
-      // Note: priorityExplanation is encrypted and cannot be parsed in SQL
+      // AND must have very high priority (95+)
       .andWhere("COALESCE(thread.priorityScore, 0) >= :veryHighPriority", {
         veryHighPriority: PRIORITY_SCORES.VERY_HIGH,
       })
-      .select([
-        "email.subject",
-        "email.from",
-        "email.fromName",
-        "thread.urgencyScore",
-        "thread.priorityScore",
-      ])
+      .select(["thread.id", "thread.urgencyScore", "thread.priorityScore"])
       .limit(QUERY_LIMITS.MAX_RESULTS_DEFAULT)
       .getMany();
 
-    const urgentEmails = urgentBatchedEmails.map((email) => {
-      // Use the denormalized priorityScore from thread
-      const { priorityScore } = email as any;
-
-      return {
-        subject: email.subject || "No subject",
-        from: email.fromName || email.from || "Unknown",
-        priorityScore,
-      };
-    });
+    // Fetch latest email for subject/from display
+    const urgentEmails = await Promise.all(
+      urgentBatchedThreads.map(async (thread) => {
+        const latestEmail = await this.emailRepository.findOne({
+          where: { emailThreadId: thread.id, userId },
+          order: { receivedAt: "DESC" },
+          select: ["subject", "from", "fromName"],
+        });
+        return {
+          subject: latestEmail?.subject || "No subject",
+          from: latestEmail?.fromName || latestEmail?.from || "Unknown",
+          priorityScore: thread.priorityScore ?? 0,
+        };
+      }),
+    );
 
     return {
       hasUrgent: urgentEmails.length > 0,

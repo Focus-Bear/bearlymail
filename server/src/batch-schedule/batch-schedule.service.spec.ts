@@ -2,7 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { BatchScheduleService } from "./batch-schedule.service";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
-import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
 
 describe("BatchScheduleService", () => {
   let service: BatchScheduleService;
@@ -13,7 +13,7 @@ describe("BatchScheduleService", () => {
     save: jest.fn(),
   };
 
-  const mockEmailRepository = {
+  const mockEmailThreadRepository = {
     update: jest.fn().mockResolvedValue({ affected: 0 }),
     query: jest.fn().mockResolvedValue([[], 0]),
   };
@@ -27,8 +27,8 @@ describe("BatchScheduleService", () => {
           useValue: mockRepository,
         },
         {
-          provide: getRepositoryToken(Email),
-          useValue: mockEmailRepository,
+          provide: getRepositoryToken(EmailThread),
+          useValue: mockEmailThreadRepository,
         },
       ],
     }).compile();
@@ -38,8 +38,8 @@ describe("BatchScheduleService", () => {
 
   afterEach(() => {
     jest.clearAllMocks();
-    mockEmailRepository.update.mockResolvedValue({ affected: 0 });
-    mockEmailRepository.query.mockResolvedValue([[], 0]);
+    mockEmailThreadRepository.update.mockResolvedValue({ affected: 0 });
+    mockEmailThreadRepository.query.mockResolvedValue([[], 0]);
   });
 
   describe("getSchedule", () => {
@@ -252,7 +252,7 @@ describe("BatchScheduleService", () => {
       );
     });
 
-    it("should release all batched emails immediately when schedule is disabled", async () => {
+    it("should release all batched threads immediately when schedule is disabled", async () => {
       const disabledSchedule = { ...baseSchedule, isEnabled: false };
       mockRepository.save.mockResolvedValue(disabledSchedule);
 
@@ -261,13 +261,14 @@ describe("BatchScheduleService", () => {
         deliveryDays: [1, 2, 3, 4, 5],
       });
 
-      expect(mockEmailRepository.update).toHaveBeenCalledWith(
+      // The past-due release happens via raw query first, then update releases the rest
+      expect(mockEmailThreadRepository.update).toHaveBeenCalledWith(
         { userId, isBatched: true },
         expect.objectContaining({ isBatched: false }),
       );
     });
 
-    it("should release all batched emails when no delivery days are configured", async () => {
+    it("should release all batched threads when no delivery days are configured", async () => {
       const emptyDaysSchedule = {
         ...baseSchedule,
         deliveryDays: [],
@@ -280,7 +281,8 @@ describe("BatchScheduleService", () => {
         deliveryDays: [],
       });
 
-      expect(mockEmailRepository.update).toHaveBeenCalledWith(
+      // The past-due release happens via raw query first, then update releases the rest
+      expect(mockEmailThreadRepository.update).toHaveBeenCalledWith(
         { userId, isBatched: true },
         expect.objectContaining({ isBatched: false }),
       );
@@ -301,9 +303,16 @@ describe("BatchScheduleService", () => {
         urgentBypassSchedule: true,
       });
 
-      // Should issue raw SQL update for emails with batchReleaseAt > new delivery time
-      expect(mockEmailRepository.query).toHaveBeenCalledWith(
-        expect.stringContaining("UPDATE emails"),
+      // Should issue raw SQL update for threads with batchReleaseAt > new delivery time
+      // First call is the past-due release query, second is the reschedule query
+      const { calls } = mockEmailThreadRepository.query.mock;
+      const rescheduleCall = calls.find((c: unknown[]) =>
+        (c[0] as string).includes("batchReleaseAt"),
+      );
+      expect(rescheduleCall).toBeDefined();
+      expect(rescheduleCall![0]).toContain("UPDATE email_threads");
+      expect(mockEmailThreadRepository.query).toHaveBeenCalledWith(
+        expect.stringContaining("UPDATE email_threads"),
         expect.arrayContaining([
           expect.any(Date), // newReleaseTime
           expect.stringContaining("Schedule updated"),
@@ -311,15 +320,17 @@ describe("BatchScheduleService", () => {
         ]),
       );
 
-      const queryArgs = mockEmailRepository.query.mock.calls[0][1];
+      // The reschedule call is the second query (first is the past-due release)
+      const rescheduleQueryArgs =
+        mockEmailThreadRepository.query.mock.calls[1][1];
       // The new release time should be Monday at 11am UTC (next window from 8am)
-      const newReleaseTime = queryArgs[0] as Date;
+      const newReleaseTime = rescheduleQueryArgs[0] as Date;
       expect(newReleaseTime.toISOString()).toBe("2024-01-08T11:00:00.000Z");
 
       jest.useRealTimers();
     });
 
-    it("should not call emailRepository.update when schedule is enabled with delivery windows", async () => {
+    it("should not call emailThreadRepository.update when schedule is enabled with delivery windows", async () => {
       jest.useFakeTimers();
       jest.setSystemTime(new Date("2024-01-08T08:00:00Z"));
       mockRepository.save.mockResolvedValue(baseSchedule);
@@ -332,10 +343,11 @@ describe("BatchScheduleService", () => {
         urgentBypassSchedule: true,
       });
 
-      // emailRepository.update is for disabled/empty schedules only
-      expect(mockEmailRepository.update).not.toHaveBeenCalled();
-      // Raw query should be used for the enabled+configured case
-      expect(mockEmailRepository.query).toHaveBeenCalled();
+      // emailThreadRepository.update is for disabled/empty schedules only;
+      // the past-due release and rescheduling use raw SQL (query)
+      expect(mockEmailThreadRepository.update).not.toHaveBeenCalled();
+      // Raw query should be called twice: once for past-due, once for rescheduling
+      expect(mockEmailThreadRepository.query).toHaveBeenCalledTimes(2);
 
       jest.useRealTimers();
     });

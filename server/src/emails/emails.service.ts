@@ -420,7 +420,8 @@ export class EmailsService {
     // Single query: Get threads + full email data in one round-trip
     // Uses LATERAL JOIN to find best email per thread, then fetches all needed fields
     // Priority explanation is now thread-level, so get it from thread table
-    // Filter out batched emails that haven't been released yet (isBatched = true AND batchReleaseAt > NOW())
+    // Batch filtering is now thread-level (thread.isBatched / thread.batchReleaseAt)
+    // so that new emails arriving in an already-batched thread don't reset the batch window.
     // Also includes correspondent info (first email from someone other than the user) for display
     const rawEmails = await this.emailRepository.query(
       `SELECT
@@ -435,6 +436,10 @@ export class EmailsService {
             thread."categoryExplanation",
             thread."protoCategoryId",
             thread."updatedAt" as "threadUpdatedAt",
+            thread."isBatched",
+            thread."batchReleaseAt",
+            thread."wasDeliveredEarly",
+            thread."batchDecisionReason",
             pc."name" as "protoCategoryName",
             pc."description" as "protoCategoryDescription",
         e.id,
@@ -451,10 +456,6 @@ export class EmailsService {
         e.subject,
         e."isSnoozed",
         e."snoozeUntil",
-        e."isBatched",
-        e."batchReleaseAt",
-        e."wasDeliveredEarly",
-        e."batchDecisionReason",
         e."isRead",
         e.summary,
         e."isProcessingSummary",
@@ -479,10 +480,6 @@ export class EmailsService {
           em."zohoAccountId",
           em."isSnoozed",
           em."snoozeUntil",
-          em."isBatched",
-          em."batchReleaseAt",
-          em."wasDeliveredEarly",
-          em."batchDecisionReason",
           em."isRead",
           em.summary,
           em."isProcessingSummary",
@@ -507,7 +504,7 @@ export class EmailsService {
             WHERE thread."userId" = $1
               ${threadFilter}
               ${additionalFilters}
-              AND (e."isBatched" = false OR e."batchReleaseAt" IS NULL OR e."batchReleaseAt" <= NOW())
+              AND (thread."isBatched" = false OR thread."batchReleaseAt" IS NULL OR thread."batchReleaseAt" <= NOW())
               AND (thread."isSnoozed" = false OR thread."snoozeUntil" IS NULL OR thread."snoozeUntil" <= NOW())
       ORDER BY
         COALESCE(thread."priorityScore", 0) DESC,
@@ -849,7 +846,10 @@ export class EmailsService {
     // Apply pagination if requested
     const queryOffset = pagination?.offset ?? 0;
     const queryLimit = pagination?.limit ?? total;
-    const finalEmails = allFilteredEmails.slice(queryOffset, queryOffset + queryLimit);
+    const finalEmails = allFilteredEmails.slice(
+      queryOffset,
+      queryOffset + queryLimit,
+    );
     const hasMore = queryOffset + finalEmails.length < total;
 
     this.logger.log(
@@ -1521,8 +1521,17 @@ export class EmailsService {
     // Get priority score from thread for batch bypass decision
     const priorityScore = thread.priorityScore || 0;
 
-    // Apply batching if not starred (starCount = 0) and not skipping batching
-    // Skip batching for initial sync (new users) so their triage isn't blank
+    // Apply batching at the THREAD level (not email level).
+    // Batch state lives on EmailThread so that new emails arriving in an already-batched
+    // thread do not push back the delivery window — the earliest batch time is preserved.
+    // Skip batching for initial sync (new users) so their triage isn't blank.
+    let threadBatchDecision: {
+      isBatched: boolean;
+      batchReleaseAt: Date | null;
+      wasDeliveredEarly: boolean;
+      batchDecisionReason: string;
+    } | null = null;
+
     if (starCount === 0 && !options?.skipBatching) {
       let schedule = await this.batchScheduleService.getSchedule(userId);
 
@@ -1544,23 +1553,65 @@ export class EmailsService {
       );
 
       if (nextReleaseTime !== null) {
-        email.isBatched = true;
-        email.batchReleaseAt = nextReleaseTime;
-        email.batchDecisionReason = `Batched until ${nextReleaseTime.toISOString()}`;
+        // If the thread is already batched with an EARLIER release time, keep the earlier time.
+        // This prevents a new email from pushing back the batch delivery window.
+        const existingReleaseAt = thread.batchReleaseAt;
+        const effectiveReleaseTime =
+          existingReleaseAt && existingReleaseAt < nextReleaseTime
+            ? existingReleaseAt
+            : nextReleaseTime;
+
+        threadBatchDecision = {
+          isBatched: true,
+          batchReleaseAt: effectiveReleaseTime,
+          wasDeliveredEarly: false,
+          batchDecisionReason: `Batched until ${effectiveReleaseTime.toISOString()}`,
+        };
+        email.batchDecisionReason = threadBatchDecision.batchDecisionReason;
       } else if (!schedule.isEnabled) {
         email.batchDecisionReason = "Schedule disabled";
+        threadBatchDecision = {
+          isBatched: false,
+          batchReleaseAt: null,
+          wasDeliveredEarly: false,
+          batchDecisionReason: "Schedule disabled",
+        };
       } else if (
         priorityScore >= PRIORITY_SCORES.HIGH_THRESHOLD &&
         schedule.urgentBypassSchedule
       ) {
         email.batchDecisionReason = `High priority (${priorityScore}) bypassed schedule`;
+        threadBatchDecision = {
+          isBatched: false,
+          batchReleaseAt: null,
+          wasDeliveredEarly: false,
+          batchDecisionReason: email.batchDecisionReason,
+        };
       } else {
         email.batchDecisionReason = "No upcoming delivery window";
+        threadBatchDecision = {
+          isBatched: false,
+          batchReleaseAt: null,
+          wasDeliveredEarly: false,
+          batchDecisionReason: "No upcoming delivery window",
+        };
       }
     } else if (options?.skipBatching) {
       email.batchDecisionReason = "Initial sync";
+      threadBatchDecision = {
+        isBatched: false,
+        batchReleaseAt: null,
+        wasDeliveredEarly: false,
+        batchDecisionReason: "Initial sync",
+      };
     } else if (starCount > 0) {
       email.batchDecisionReason = "Starred email";
+      threadBatchDecision = {
+        isBatched: false,
+        batchReleaseAt: null,
+        wasDeliveredEarly: false,
+        batchDecisionReason: "Starred email",
+      };
     }
 
     const savedEmail = await this.emailRepository.save(email);
@@ -1569,12 +1620,20 @@ export class EmailsService {
     );
 
     // Ensure thread's updatedAt is updated when a new email is added
-    // This is critical for detecting new emails in priority recalculation logic
+    // This is critical for detecting new emails in priority recalculation logic.
+    // Also update thread-level batch state so inbox filtering uses the thread's batch window.
     if (thread) {
-      await this.emailThreadRepository.update(
-        { id: thread.id },
-        { updatedAt: new Date() },
-      );
+      const threadUpdate: Partial<
+        import("../database/entities/email-thread.entity").EmailThread
+      > = { updatedAt: new Date() };
+      if (threadBatchDecision !== null) {
+        threadUpdate.isBatched = threadBatchDecision.isBatched;
+        threadUpdate.batchReleaseAt = threadBatchDecision.batchReleaseAt;
+        threadUpdate.wasDeliveredEarly = threadBatchDecision.wasDeliveredEarly;
+        threadUpdate.batchDecisionReason =
+          threadBatchDecision.batchDecisionReason;
+      }
+      await this.emailThreadRepository.update({ id: thread.id }, threadUpdate);
 
       // Cancel snooze for any snoozed emails in this thread when a new email arrives
       // This ensures users see replies immediately instead of waiting for snooze to expire

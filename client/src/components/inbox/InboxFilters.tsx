@@ -443,7 +443,6 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({ onFilterChange }) =>
           }}
         >
           <FiFilter size={18} />
-          <span>{t('inbox.filters.toggle')}</span>
           {hasActiveFilters && (
             <span
               style={{

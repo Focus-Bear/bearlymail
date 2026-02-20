@@ -116,61 +116,108 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
       {/* Panel Header with buttons */}
       <div style={{
         display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+        flexDirection: 'column',
         borderBottom: `1px solid ${theme.colors.border.light}`,
         backgroundColor: theme.colors.background.subtle,
-        gap: theme.spacing.sm,
-        minHeight: '40px',
       }}>
-        <div style={{ 
-          flex: 1,
-          minWidth: 0,
+        {/* Top row: sender info + expand/close */}
+        <div style={{
           display: 'flex',
+          justifyContent: 'space-between',
           alignItems: 'center',
-          gap: theme.spacing.xs,
+          padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+          gap: theme.spacing.sm,
+          minHeight: '40px',
         }}>
-          {selectedEmail ? (
-            <>
-              <span style={{ 
-                fontWeight: theme.typography.fontWeight.semibold,
-                fontSize: theme.typography.fontSize.sm,
-                color: theme.colors.text.primary,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                maxWidth: '200px',
-              }}>
-                {senderName}
+          <div style={{
+            flex: 1,
+            minWidth: 0,
+            display: 'flex',
+            alignItems: 'center',
+            gap: theme.spacing.xs,
+          }}>
+            {selectedEmail ? (
+              <>
+                <span style={{
+                  fontWeight: theme.typography.fontWeight.semibold,
+                  fontSize: theme.typography.fontSize.sm,
+                  color: theme.colors.text.primary,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  maxWidth: '200px',
+                }}>
+                  {senderName}
+                </span>
+                <span style={{
+                  color: theme.colors.text.tertiary,
+                  fontSize: theme.typography.fontSize.sm,
+                }}>
+                  —
+                </span>
+                <span style={{
+                  fontSize: theme.typography.fontSize.sm,
+                  color: theme.colors.text.secondary,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {subject}
+                </span>
+              </>
+            ) : (
+              <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
+                {t('inbox.emailDetails')}
               </span>
-              <span style={{ 
-                color: theme.colors.text.tertiary,
-                fontSize: theme.typography.fontSize.sm,
-              }}>
-                —
-              </span>
-              <span style={{ 
-                fontSize: theme.typography.fontSize.sm,
+            )}
+          </div>
+
+          {/* Expand/Close buttons */}
+          <div style={{ display: 'flex', gap: theme.spacing.xs, flexShrink: 0 }}>
+            <button
+              onClick={() => {
+                window.open(`/email/${selectedEmailId}`, '_blank');
+              }}
+              style={{
+                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                backgroundColor: 'transparent',
+                border: `1px solid ${theme.colors.border.medium}`,
+                borderRadius: theme.borderRadius.sm,
+                cursor: 'pointer',
+                fontSize: theme.typography.fontSize.xs,
                 color: theme.colors.text.secondary,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}>
-                {subject}
-              </span>
-            </>
-          ) : (
-            <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
-              {t('inbox.emailDetails')}
-            </span>
-          )}
+              }}
+              title={t('inbox.openInNewTab')}
+            >
+              {EMOJI_EXPAND}
+            </button>
+            <button
+              onClick={onClose}
+              style={{
+                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                backgroundColor: 'transparent',
+                border: `1px solid ${theme.colors.border.medium}`,
+                borderRadius: theme.borderRadius.sm,
+                cursor: 'pointer',
+                fontSize: theme.typography.fontSize.xs,
+                color: theme.colors.text.secondary,
+              }}
+              title={t('inbox.closePanel')}
+            >
+              {EMOJI_CLOSE}
+            </button>
+          </div>
         </div>
 
-        {/* Action buttons - always visible in header */}
-        <div style={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center', flexShrink: 0 }}>
-          {/* Priority emoji buttons */}
-          <div style={{ display: 'flex', gap: theme.spacing.xs, alignItems: 'center' }}>
+        {/* Action buttons - split into two rows */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: theme.spacing.xs,
+          padding: `0 ${theme.spacing.md} ${theme.spacing.sm}`,
+        }}>
+          {/* Row 1: Priority emoji buttons + Archive */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs }}>
             {[
               { value: 1, emoji: '😌', label: 'inbox.canWait' },
               { value: 2, emoji: '😅', label: 'inbox.getOnIt' },
@@ -213,131 +260,98 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
                 </span>
               </button>
             ))}
+            {/* Archive button on first row */}
+            <button
+              onClick={handleArchiveClick}
+              style={{
+                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                backgroundColor: 'transparent',
+                border: `1px solid ${theme.colors.border.medium}`,
+                borderRadius: theme.borderRadius.sm,
+                cursor: 'pointer',
+                fontSize: theme.typography.fontSize.xs,
+                color: theme.colors.text.secondary,
+                display: 'flex',
+                alignItems: 'center',
+                gap: theme.spacing.xs,
+                marginLeft: theme.spacing.xs,
+              }}
+              title={t('emailDetail.archive')}
+            >
+              {/* eslint-disable-next-line i18next/no-literal-string */}
+              <span>{EMOJI_ARCHIVE}</span>
+              <span>{t('emailDetail.archive')}</span>
+            </button>
           </div>
 
-          {/* Reply All button */}
-          <button
-            onClick={handleReplyClick}
-            style={{
-              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-              backgroundColor: 'transparent',
-              border: `1px solid ${theme.colors.border.medium}`,
-              borderRadius: theme.borderRadius.sm,
-              cursor: 'pointer',
-              fontSize: theme.typography.fontSize.xs,
-              color: theme.colors.text.secondary,
-              display: 'flex',
-              alignItems: 'center',
-              gap: theme.spacing.xs,
-            }}
-            title={t('emailDetail.replyAll')}
-          >
-            {/* eslint-disable-next-line i18next/no-literal-string */}
-            <span>{EMOJI_REPLY}</span>
-            <span>{t('emailDetail.replyAll')}</span>
-          </button>
+          {/* Row 2: Reply All, Forward, Snooze */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
+            {/* Reply All button */}
+            <button
+              onClick={handleReplyClick}
+              style={{
+                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                backgroundColor: 'transparent',
+                border: `1px solid ${theme.colors.border.medium}`,
+                borderRadius: theme.borderRadius.sm,
+                cursor: 'pointer',
+                fontSize: theme.typography.fontSize.xs,
+                color: theme.colors.text.secondary,
+                display: 'flex',
+                alignItems: 'center',
+                gap: theme.spacing.xs,
+              }}
+              title={t('emailDetail.replyAll')}
+            >
+              {/* eslint-disable-next-line i18next/no-literal-string */}
+              <span>{EMOJI_REPLY}</span>
+              <span>{t('emailDetail.replyAll')}</span>
+            </button>
 
-          {/* Forward button */}
-          <button
-            onClick={handleForwardClick}
-            style={{
-              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-              backgroundColor: 'transparent',
-              border: `1px solid ${theme.colors.border.medium}`,
-              borderRadius: theme.borderRadius.sm,
-              cursor: 'pointer',
-              fontSize: theme.typography.fontSize.xs,
-              color: theme.colors.text.secondary,
-              display: 'flex',
-              alignItems: 'center',
-              gap: theme.spacing.xs,
-            }}
-            title={t('emailDetail.forward')}
-          >
-            {/* eslint-disable-next-line i18next/no-literal-string */}
-            <span>{EMOJI_FORWARD}</span>
-            <span>{t('emailDetail.forward')}</span>
-          </button>
+            {/* Forward button */}
+            <button
+              onClick={handleForwardClick}
+              style={{
+                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                backgroundColor: 'transparent',
+                border: `1px solid ${theme.colors.border.medium}`,
+                borderRadius: theme.borderRadius.sm,
+                cursor: 'pointer',
+                fontSize: theme.typography.fontSize.xs,
+                color: theme.colors.text.secondary,
+                display: 'flex',
+                alignItems: 'center',
+                gap: theme.spacing.xs,
+              }}
+              title={t('emailDetail.forward')}
+            >
+              {/* eslint-disable-next-line i18next/no-literal-string */}
+              <span>{EMOJI_FORWARD}</span>
+              <span>{t('emailDetail.forward')}</span>
+            </button>
 
-          {/* Archive button */}
-          <button
-            onClick={handleArchiveClick}
-            style={{
-              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-              backgroundColor: 'transparent',
-              border: `1px solid ${theme.colors.border.medium}`,
-              borderRadius: theme.borderRadius.sm,
-              cursor: 'pointer',
-              fontSize: theme.typography.fontSize.xs,
-              color: theme.colors.text.secondary,
-              display: 'flex',
-              alignItems: 'center',
-              gap: theme.spacing.xs,
-            }}
-            title={t('emailDetail.archive')}
-          >
-            {/* eslint-disable-next-line i18next/no-literal-string */}
-            <span>{EMOJI_ARCHIVE}</span>
-            <span>{t('emailDetail.archive')}</span>
-          </button>
-
-          {/* Snooze button */}
-          <button
-            onClick={handleSnoozeClick}
-            style={{
-              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-              backgroundColor: showSnoozeInput ? theme.colors.primary.light : 'transparent',
-              border: `1px solid ${showSnoozeInput ? theme.colors.primary.main : theme.colors.border.medium}`,
-              borderRadius: theme.borderRadius.sm,
-              cursor: 'pointer',
-              fontSize: theme.typography.fontSize.xs,
-              color: theme.colors.text.secondary,
-              display: 'flex',
-              alignItems: 'center',
-              gap: theme.spacing.xs,
-            }}
-            title={t('emailDetail.snooze')}
-          >
-            {/* eslint-disable-next-line i18next/no-literal-string */}
-            <span>{EMOJI_CLOCK}</span>
-            <span>{t('emailDetail.snooze')}</span>
-          </button>
-        </div>
-
-        {/* Expand/Close buttons */}
-        <div style={{ display: 'flex', gap: theme.spacing.xs, flexShrink: 0 }}>
-          <button
-            onClick={() => {
-              window.open(`/email/${selectedEmailId}`, '_blank');
-            }}
-            style={{
-              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-              backgroundColor: 'transparent',
-              border: `1px solid ${theme.colors.border.medium}`,
-              borderRadius: theme.borderRadius.sm,
-              cursor: 'pointer',
-              fontSize: theme.typography.fontSize.xs,
-              color: theme.colors.text.secondary,
-            }}
-            title={t('inbox.openInNewTab')}
-          >
-            {EMOJI_EXPAND}
-          </button>
-          <button
-            onClick={onClose}
-            style={{
-              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-              backgroundColor: 'transparent',
-              border: `1px solid ${theme.colors.border.medium}`,
-              borderRadius: theme.borderRadius.sm,
-              cursor: 'pointer',
-              fontSize: theme.typography.fontSize.xs,
-              color: theme.colors.text.secondary,
-            }}
-            title={t('inbox.closePanel')}
-          >
-            {EMOJI_CLOSE}
-          </button>
+            {/* Snooze button */}
+            <button
+              onClick={handleSnoozeClick}
+              style={{
+                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                backgroundColor: showSnoozeInput ? theme.colors.primary.light : 'transparent',
+                border: `1px solid ${showSnoozeInput ? theme.colors.primary.main : theme.colors.border.medium}`,
+                borderRadius: theme.borderRadius.sm,
+                cursor: 'pointer',
+                fontSize: theme.typography.fontSize.xs,
+                color: theme.colors.text.secondary,
+                display: 'flex',
+                alignItems: 'center',
+                gap: theme.spacing.xs,
+              }}
+              title={t('emailDetail.snooze')}
+            >
+              {/* eslint-disable-next-line i18next/no-literal-string */}
+              <span>{EMOJI_CLOCK}</span>
+              <span>{t('emailDetail.snooze')}</span>
+            </button>
+          </div>
         </div>
       </div>
 

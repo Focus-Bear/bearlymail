@@ -88,6 +88,8 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     setLoadingModeSwitch,
     fetchError,
     fetchEmails,
+    loadMore,
+    hasMore,
     handleSetStarCount: handleSetStarCountBase,
     handleArchive: handleArchiveBase,
     handleSnooze: handleSnoozeBase,
@@ -428,6 +430,8 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     loadingModeSwitch,
     fetchError,
     fetchEmails,
+    loadMore,
+    hasMore,
     // Selection
     selectedEmailIndex,
     setSelectedEmailIndex,

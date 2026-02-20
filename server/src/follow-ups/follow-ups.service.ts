@@ -383,7 +383,8 @@ Clean up the draft to match the user's tone and writing style. Keep it concise (
    * Get threads in follow-up mode (user sent last, no reply received)
    */
   async getThreadsForFollowUp(userId: string): Promise<Email[]> {
-    return this.emailsService.getInbox(userId, false, "follow-up");
+    const result = await this.emailsService.getInbox(userId, false, "follow-up");
+    return result.emails;
   }
 
   /**

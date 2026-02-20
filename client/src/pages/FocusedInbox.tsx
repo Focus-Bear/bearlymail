@@ -43,6 +43,8 @@ const FocusedInbox: React.FC = () => {
     handleEmailClick,
     handleEmailSelect,
     emails,
+    loadMore,
+    hasMore,
     expandedCategories,
     stableCategoryOrder,
     toggleCategory,
@@ -115,6 +117,8 @@ const FocusedInbox: React.FC = () => {
           stableCategoryOrder={stableCategoryOrder}
           onToggleCategory={toggleCategory}
           onUpdateStableCategoryOrder={updateStableCategoryOrder}
+          onLoadMore={loadMore}
+          hasMore={hasMore}
           onSplitViewArchive={(archivedEmailId) => {
             const visibleEmails = emails.filter(e => !e.isArchived && e.id !== archivedEmailId);
             

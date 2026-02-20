@@ -51,6 +51,7 @@ import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import * as fs from "fs";
 import * as path from "path";
 import { getJobPriority } from "../queue/job-priorities";
+import { QUERY_LIMITS } from "../constants/query-limits";
 
 // Performance budgets for batch-status
 // 500ms
@@ -125,6 +126,9 @@ export class EmailsController {
     @Query("accounts") accounts?: string,
     @Query("categories") categories?: string,
     @Query("minPriority") minPriority?: string,
+    @Query("page") pageParam?: string,
+    @Query("limit") limitParam?: string,
+    @Query("offset") offsetParam?: string,
   ) {
     // Parse filter parameters
     const accountIds = accounts
@@ -135,7 +139,18 @@ export class EmailsController {
       : undefined;
     const minPriorityValue = minPriority ? parseFloat(minPriority) : undefined;
 
-    return this.emailsService.getInbox(
+    // Parse pagination parameters
+    const pageSize = limitParam
+      ? Math.max(1, parseInt(limitParam, 10))
+      : QUERY_LIMITS.INBOX_PAGE_SIZE;
+    const pageNum = pageParam ? Math.max(1, parseInt(pageParam, 10)) : 1;
+    // Support explicit offset override (useful when in-memory filtering means page boundaries don't align)
+    const offset =
+      offsetParam !== undefined
+        ? Math.max(0, parseInt(offsetParam, 10))
+        : (pageNum - 1) * pageSize;
+
+    const result = await this.emailsService.getInbox(
       req.user.userId,
       includeBatched === "true",
       mode,
@@ -144,7 +159,16 @@ export class EmailsController {
         categories: categoryList,
         minPriority: minPriorityValue,
       },
+      { offset, limit: pageSize },
     );
+
+    return {
+      emails: result.emails,
+      total: result.total,
+      hasMore: result.hasMore,
+      page: pageNum,
+      limit: pageSize,
+    };
   }
 
   @Get("connected-accounts")
@@ -217,9 +241,9 @@ export class EmailsController {
     ]);
 
     return {
-      triage: triageEmails.length,
-      action: actionEmails.length,
-      followUp: followUpEmails.length,
+      triage: triageEmails.total,
+      action: actionEmails.total,
+      followUp: followUpEmails.total,
     };
   }
 
@@ -891,8 +915,8 @@ export class EmailsController {
     const seenIds = new Set<string>();
 
     for (const mode of modes) {
-      const emails = await this.emailsService.getInbox(userId, false, mode);
-      for (const email of emails) {
+      const result = await this.emailsService.getInbox(userId, false, mode);
+      for (const email of result.emails) {
         if (!seenIds.has(email.id)) {
           seenIds.add(email.id);
           allEmails.push(email);

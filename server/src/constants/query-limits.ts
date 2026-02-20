@@ -18,6 +18,7 @@ export type InboxMode = (typeof INBOX_MODES)[keyof typeof INBOX_MODES];
 export const QUERY_LIMITS = {
   INBOX_TOTAL: 500,
   INBOX_PROCESS_TOTAL: 1000,
+  INBOX_PAGE_SIZE: 50,
   THREAD_QUERY: 100,
   EMAIL_QUERY: 100,
   MAX_CONTACTS: 5000,

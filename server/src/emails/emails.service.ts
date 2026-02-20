@@ -244,7 +244,9 @@ export class EmailsService {
 
     // Deduplicate after decryption since DISTINCT operates on encrypted values
     // AES-GCM uses random IVs, so same category can have different encrypted values
-    const uniqueCategories = Array.from(new Set<string>(decryptedCategories)).sort();
+    const uniqueCategories = Array.from(
+      new Set<string>(decryptedCategories),
+    ).sort();
 
     return uniqueCategories;
   }
@@ -333,7 +335,11 @@ export class EmailsService {
       categories?: string[];
       minPriority?: number;
     },
-  ): Promise<Email[]> {
+    pagination?: {
+      offset?: number;
+      limit?: number;
+    },
+  ): Promise<{ emails: Email[]; total: number; hasMore: boolean }> {
     const perf = new PerformanceTracker(
       `getInbox(${mode})`,
       this.cloudWatchService,
@@ -515,7 +521,7 @@ export class EmailsService {
 
     if (rawEmails.length === 0) {
       perf.finish(mode);
-      return [];
+      return { emails: [], total: 0, hasMore: false };
     }
 
     this.logger.debug(`Found ${rawEmails.length} threads for mode=${mode}`);
@@ -837,14 +843,21 @@ export class EmailsService {
     );
 
     // Apply final limit after all filtering to ensure consistent page size
-    const finalEmails = filteredEmails.slice(0, maxResults);
+    const allFilteredEmails = filteredEmails.slice(0, maxResults);
+    const total = allFilteredEmails.length;
+
+    // Apply pagination if requested
+    const queryOffset = pagination?.offset ?? 0;
+    const queryLimit = pagination?.limit ?? total;
+    const finalEmails = allFilteredEmails.slice(queryOffset, queryOffset + queryLimit);
+    const hasMore = queryOffset + finalEmails.length < total;
 
     this.logger.log(
-      `getInbox(${mode}): Returning ${finalEmails.length} threads (from ${rawEmails.length} matching threads, ${blockedEmailIds.length} blocked)`,
+      `getInbox(${mode}): Returning ${finalEmails.length}/${total} threads (from ${rawEmails.length} matching threads, ${blockedEmailIds.length} blocked)`,
     );
 
     perf.finish(mode);
-    return finalEmails;
+    return { emails: finalEmails, total, hasMore };
   }
 
   /**

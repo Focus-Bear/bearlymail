@@ -474,7 +474,11 @@ describe("FollowUpsService", () => {
   describe("getThreadsForFollowUp", () => {
     it("should delegate to emailsService.getInbox with follow-up mode", async () => {
       const mockEmails = [mockEmail];
-      emailsService.getInbox.mockResolvedValue(mockEmails);
+      emailsService.getInbox.mockResolvedValue({
+        emails: mockEmails,
+        total: 1,
+        hasMore: false,
+      });
 
       const result = await service.getThreadsForFollowUp("user-1");
 

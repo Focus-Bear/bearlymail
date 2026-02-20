@@ -868,6 +868,8 @@
       "clearAll": "Borrar filtros"
     },
     "checkUrgent": "Verificar urgentes",
+    "loadMore": "Cargar más correos",
+    "loadingMore": "Cargando...",
     "checkingUrgent": "Verificando...",
     "clickToSetStars": "Haz clic para establecer {{count}} estrellas (o presiona {{count}})",
     "closePanel": "Cerrar panel",

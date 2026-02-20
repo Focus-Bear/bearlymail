@@ -144,6 +144,8 @@
     "loadingEmails": "Loading emails...",
     "loadingEmailsSub": "Fetching your emails from the server.",
     "checkUrgent": "Check for Urgent",
+    "loadMore": "Load more emails",
+    "loadingMore": "Loading...",
     "checkingUrgent": "Checking...",
     "urgentNotification": "Found {{count}} urgent email(s)!",
     "noUrgentEmails": "No urgent emails found.",

@@ -66,6 +66,8 @@ const Inbox: React.FC = () => {
     handleEmailSelect,
     tourSteps,
     emails,
+    loadMore,
+    hasMore,
     expandedCategories,
     stableCategoryOrder,
     toggleCategory,
@@ -246,6 +248,8 @@ const Inbox: React.FC = () => {
           stableCategoryOrder={stableCategoryOrder}
           onToggleCategory={toggleCategory}
           onUpdateStableCategoryOrder={updateStableCategoryOrder}
+          onLoadMore={loadMore}
+          hasMore={hasMore}
           onSplitViewArchive={(archivedEmailId) => {
             // Find the archived email to get its category
             const archivedEmail = emails.find(e => e.id === archivedEmailId);

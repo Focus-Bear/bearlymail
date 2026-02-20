@@ -8,7 +8,7 @@ import { useEmailActionsBase } from 'hooks/useEmailActionsBase';
 import { InboxFilter } from 'hooks/useInboxFilters';
 import { AppDispatch } from 'store/store';
 import { updateEmail, setRefreshing, setEmails as setEmailsAction, setLoadingModeSwitch as setLoadingModeSwitchAction } from 'store/slices/emailSlice';
-import { selectVisibleEmails, selectLoading, selectDecrypting, selectRefreshing, selectLoadingModeSwitch, selectFetchError } from 'store/selectors/emailSelectors';
+import { selectVisibleEmails, selectLoading, selectDecrypting, selectRefreshing, selectLoadingModeSwitch, selectFetchError, selectHasMore } from 'store/selectors/emailSelectors';
 
 interface TabCountChanges {
   triage?: number;
@@ -33,6 +33,8 @@ interface UseEmailManagementReturn {
   setLoadingModeSwitch: React.Dispatch<React.SetStateAction<boolean>>;
   fetchError: string | null;
   fetchEmails: () => Promise<void>;
+  loadMore: () => Promise<void>;
+  hasMore: boolean;
   handleSetStarCount: (emailId: string, starCount: number, e?: React.MouseEvent) => Promise<{ discrepancy: number; predictedStarCount: number } | null>;
   handleArchive: (emailId: string, e: React.MouseEvent) => Promise<void>;
   handleSnooze: (emailId: string, duration: string) => Promise<void>;
@@ -55,7 +57,8 @@ export function useEmailManagement({ mode, onSuggestionRemove, onTabCountsUpdate
   const loadingModeSwitch = useSelector(selectLoadingModeSwitch);
   const fetchError = useSelector(selectFetchError);
 
-  const { fetchEmails } = useEmailFetching({ mode, filters });
+  const hasMore = useSelector(selectHasMore);
+  const { fetchEmails, loadMore } = useEmailFetching({ mode, filters });
 
   const { handleSetStarCount, handleArchive, handleSnooze } = useEmailActionsBase({
     fetchEmails,
@@ -166,6 +169,8 @@ export function useEmailManagement({ mode, onSuggestionRemove, onTabCountsUpdate
     setLoadingModeSwitch,
     fetchError,
     fetchEmails,
+    loadMore,
+    hasMore,
     handleSetStarCount,
     handleArchive,
     handleSnooze,

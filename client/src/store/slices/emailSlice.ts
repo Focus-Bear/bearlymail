@@ -13,6 +13,9 @@ interface EmailState {
   refreshing: boolean;
   loadingModeSwitch: boolean;
   fetchError: string | null;
+  hasMore: boolean;
+  totalCount: number;
+  currentOffset: number;
 }
 
 const initialState: EmailState = {
@@ -24,6 +27,9 @@ const initialState: EmailState = {
   refreshing: false,
   loadingModeSwitch: false,
   fetchError: null,
+  hasMore: false,
+  totalCount: 0,
+  currentOffset: 0,
 };
 
 const emailSlice = createSlice({
@@ -38,6 +44,21 @@ const emailSlice = createSlice({
         optimisticArchivedIds: state.optimisticallyArchived,
       });
       state.emails = action.payload;
+      state.currentOffset = 0;
+    },
+    appendEmails: (state, action: PayloadAction<Email[]>) => {
+      const existingIds = new Set(state.emails.map(e => e.id));
+      const newEmails = action.payload.filter(e => !existingIds.has(e.id));
+      state.emails = [...state.emails, ...newEmails];
+    },
+    setHasMore: (state, action: PayloadAction<boolean>) => {
+      state.hasMore = action.payload;
+    },
+    setTotalCount: (state, action: PayloadAction<number>) => {
+      state.totalCount = action.payload;
+    },
+    setCurrentOffset: (state, action: PayloadAction<number>) => {
+      state.currentOffset = action.payload;
     },
     addOptimisticArchive: (state, action: PayloadAction<string>) => {
       if (!state.optimisticallyArchived.includes(action.payload)) {
@@ -120,6 +141,10 @@ const emailSlice = createSlice({
 
 export const {
   setEmails,
+  appendEmails,
+  setHasMore,
+  setTotalCount,
+  setCurrentOffset,
   addOptimisticArchive,
   removeOptimisticArchive,
   addOptimisticSnooze,

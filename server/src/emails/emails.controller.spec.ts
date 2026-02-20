@@ -138,7 +138,11 @@ describe("EmailsController", () => {
       const mockRequest = { user: { userId } };
       const mockEmails = [{ id: "1", subject: "Test" }];
 
-      mockEmailsService.getInbox.mockResolvedValue(mockEmails);
+      mockEmailsService.getInbox.mockResolvedValue({
+        emails: mockEmails,
+        total: 1,
+        hasMore: false,
+      });
 
       const result = await controller.getInbox(
         mockRequest,
@@ -146,7 +150,13 @@ describe("EmailsController", () => {
         "triage",
       );
 
-      expect(result).toEqual(mockEmails);
+      expect(result).toEqual({
+        emails: mockEmails,
+        total: 1,
+        hasMore: false,
+        page: 1,
+        limit: 50,
+      });
       expect(emailsService.getInbox).toHaveBeenCalledWith(
         userId,
         false,
@@ -156,15 +166,19 @@ describe("EmailsController", () => {
           categories: undefined,
           minPriority: undefined,
         },
+        { offset: 0, limit: 50 },
       );
     });
 
     it("should handle includeBatched parameter", async () => {
       const userId = "user-123";
       const mockRequest = { user: { userId } };
-      const mockEmails = [];
 
-      mockEmailsService.getInbox.mockResolvedValue(mockEmails);
+      mockEmailsService.getInbox.mockResolvedValue({
+        emails: [],
+        total: 0,
+        hasMore: false,
+      });
 
       await controller.getInbox(mockRequest, "true", "action");
 
@@ -177,6 +191,7 @@ describe("EmailsController", () => {
           categories: undefined,
           minPriority: undefined,
         },
+        { offset: 0, limit: 50 },
       );
     });
 
@@ -184,7 +199,11 @@ describe("EmailsController", () => {
       const userId = "user-123";
       const mockRequest = { user: { userId } };
 
-      mockEmailsService.getInbox.mockResolvedValue([]);
+      mockEmailsService.getInbox.mockResolvedValue({
+        emails: [],
+        total: 0,
+        hasMore: false,
+      });
 
       await controller.getInbox(mockRequest);
 
@@ -197,6 +216,7 @@ describe("EmailsController", () => {
           categories: undefined,
           minPriority: undefined,
         },
+        { offset: 0, limit: 50 },
       );
     });
   });

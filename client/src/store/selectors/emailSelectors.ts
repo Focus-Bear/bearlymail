@@ -25,6 +25,11 @@ export const selectVisibleEmails = createSelector(
 );
 
 // Selector to check if an email is optimistically archived
-export const selectIsOptimisticallyArchived = (emailId: string) => 
+export const selectIsOptimisticallyArchived = (emailId: string) =>
   (state: RootState): boolean => state.email.optimisticallyArchived.includes(emailId);
+
+// Pagination selectors
+export const selectHasMore = (state: RootState): boolean => state.email.hasMore;
+export const selectTotalCount = (state: RootState): number => state.email.totalCount;
+export const selectCurrentOffset = (state: RootState): number => state.email.currentOffset;
 

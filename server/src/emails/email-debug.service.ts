@@ -65,7 +65,7 @@ export class EmailDebugService {
       userId: string,
       includeBatched: boolean,
       mode: "triage" | "action" | "follow-up",
-    ) => Promise<Email[]>,
+    ) => Promise<{ emails: Email[]; total: number; hasMore: boolean }>,
   ): Promise<{
     gmail: {
       starredThreadCount: number;
@@ -152,7 +152,8 @@ export class EmailDebugService {
         : [];
 
     // 4. Run the actual getInbox query for action mode to see what's returned
-    const actionTabEmails: Email[] = await getInbox(userId, false, "action");
+    const actionTabResult = await getInbox(userId, false, "action");
+    const actionTabEmails: Email[] = actionTabResult.emails;
 
     // 6. Compare Gmail vs DB
     const dbThreadIds = allStarredThreads.map((t) => t.threadId);

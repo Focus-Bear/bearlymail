@@ -42,7 +42,7 @@ export class EmailStatusService {
       userId: string,
       includeBatched: boolean,
       mode: "triage" | "action" | "follow-up",
-    ) => Promise<Email[]>,
+    ) => Promise<{ emails: Email[]; total: number; hasMore: boolean }>,
   ): Promise<Email[]> {
     await this.emailRepository.update(
       {
@@ -53,7 +53,8 @@ export class EmailStatusService {
     );
 
     // Return Triage inbox by default after force check
-    return getInbox(userId, true, "triage");
+    const result = await getInbox(userId, true, "triage");
+    return result.emails;
   }
 
   /**

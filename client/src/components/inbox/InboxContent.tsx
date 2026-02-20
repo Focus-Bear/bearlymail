@@ -55,6 +55,8 @@ interface InboxContentProps {
   stableCategoryOrder: string[];
   onToggleCategory: (category: string) => void;
   onUpdateStableCategoryOrder: (categories: string[]) => void;
+  onLoadMore?: () => Promise<void>;
+  hasMore?: boolean;
 }
 
 // eslint-disable-next-line max-lines-per-function -- Inbox content component requires handling multiple inbox modes, emails, and UI states
@@ -96,12 +98,44 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   stableCategoryOrder,
   onToggleCategory,
   onUpdateStableCategoryOrder,
+  onLoadMore,
+  hasMore,
 }) => {
   const { t } = useTranslation();
   const { showNotification } = useNotifications();
   const { isMobile } = useResponsiveBreakpoints();
   const splitViewContainerRef = useRef<HTMLDivElement>(null);
   const [isReanalysingOther, setIsReanalysingOther] = useState(false);
+  const isLoadingMoreRef = useRef(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  const handleLoadMore = useCallback(async () => {
+    if (!onLoadMore || isLoadingMoreRef.current || !hasMore) return;
+    isLoadingMoreRef.current = true;
+    try {
+      await onLoadMore();
+    } finally {
+      isLoadingMoreRef.current = false;
+    }
+  }, [onLoadMore, hasMore]);
+
+  // Infinite scroll: trigger loadMore when the sentinel element enters the viewport
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          handleLoadMore();
+        }
+      },
+      { rootMargin: '200px' },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, handleLoadMore]);
 
   const handleReanalyseOther = async () => {
     setIsReanalysingOther(true);
@@ -333,6 +367,14 @@ export const InboxContent: React.FC<InboxContentProps> = ({
                 </CategoryAccordion>
               );
             })
+          )}
+          {/* Sentinel element for infinite scroll — triggers loadMore via IntersectionObserver */}
+          {hasMore && !loading && !loadingModeSwitch && hasInitiallyLoaded && (
+            <div
+              ref={sentinelRef}
+              style={{ height: '1px', visibility: 'hidden' }}
+              aria-hidden="true"
+            />
           )}
           <DebugView emails={emails} />
         </div>

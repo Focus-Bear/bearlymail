@@ -1,5 +1,5 @@
-import { useCallback } from 'react';
-import { useDispatch } from 'react-redux';
+import { useCallback, useRef } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import axios from 'axios';
 import { HTTP_UNAUTHORIZED } from 'constants/numbers';
 import { ERROR_NETWORK, ERROR_CODE_ERR_NETWORK, ERROR_GMAIL_REQUIRED, ERROR_GMAIL } from 'constants/strings';
@@ -7,18 +7,46 @@ import { InboxMode } from 'types/email';
 import { API_URL } from 'config/api';
 import { InboxFilter } from 'hooks/useInboxFilters';
 import { AppDispatch } from 'store/store';
-import { setEmails, setDecrypting, setLoading, setRefreshing, setLoadingModeSwitch, setFetchError } from 'store/slices/emailSlice';
+import { setEmails, appendEmails, setHasMore, setTotalCount, setCurrentOffset, setDecrypting, setLoading, setRefreshing, setLoadingModeSwitch, setFetchError } from 'store/slices/emailSlice';
+import { selectCurrentOffset } from 'store/selectors/emailSelectors';
+
+const INBOX_PAGE_SIZE = 50;
 
 interface UseEmailFetchingProps {
   mode: InboxMode;
   filters?: InboxFilter;
 }
 
+// eslint-disable-next-line max-lines-per-function -- Inbox fetching requires pagination, background prefetch, and error handling
 export function useEmailFetching({
   mode,
   filters,
 }: UseEmailFetchingProps) {
   const dispatch = useDispatch<AppDispatch>();
+  const currentOffset = useSelector(selectCurrentOffset);
+  // Prevent concurrent loadMore calls (background prefetch + scroll trigger)
+  const isLoadingMoreRef = useRef(false);
+
+  const buildParams = useCallback((offset: number): URLSearchParams => {
+    const params = new URLSearchParams();
+    params.append('mode', mode);
+    params.append('limit', INBOX_PAGE_SIZE.toString());
+    params.append('offset', offset.toString());
+
+    if (filters) {
+      if (filters.accountIds && filters.accountIds.length > 0) {
+        params.append('accounts', filters.accountIds.join(','));
+      }
+      if (filters.categories && filters.categories.length > 0) {
+        params.append('categories', filters.categories.join(','));
+      }
+      if (filters.minPriority !== null && filters.minPriority !== undefined) {
+        params.append('minPriority', filters.minPriority.toString());
+      }
+    }
+
+    return params;
+  }, [mode, filters]);
 
   // Note: We no longer filter optimistically archived emails here.
   // Instead, filtering is done at the selector level (selectVisibleEmails) which always
@@ -29,33 +57,44 @@ export function useEmailFetching({
   const fetchEmails = useCallback(async () => {
     dispatch(setDecrypting(true));
     dispatch(setFetchError(null));
+    dispatch(setCurrentOffset(0));
+    isLoadingMoreRef.current = false;
     try {
-      // Build query string with filters
-      const params = new URLSearchParams();
-      params.append('mode', mode);
-
-      if (filters) {
-        if (filters.accountIds && filters.accountIds.length > 0) {
-          params.append('accounts', filters.accountIds.join(','));
-        }
-        if (filters.categories && filters.categories.length > 0) {
-          params.append('categories', filters.categories.join(','));
-        }
-        if (filters.minPriority !== null && filters.minPriority !== undefined) {
-          params.append('minPriority', filters.minPriority.toString());
-        }
-      }
+      const params = buildParams(0);
+      // Keep page param for backward compat with controller
+      params.append('page', '1');
 
       const response = await axios.get(`${API_URL}/emails/inbox?${params.toString()}`);
-      console.log(`Fetched ${response.data.length} emails for mode: ${mode}`);
-      const emails = response.data;
-      
-      // Set all emails - filtering of optimistically archived/snoozed emails
-      // is now done at the selector level (selectVisibleEmails) to ensure
-      // we always use the latest Redux state
+      const { emails, total, hasMore } = response.data;
+      console.log(`Fetched ${emails.length}/${total} emails for mode: ${mode}, hasMore: ${hasMore}`);
+
       dispatch(setEmails(emails));
+      dispatch(setTotalCount(total));
+      dispatch(setHasMore(hasMore));
+      dispatch(setCurrentOffset(emails.length));
       dispatch(setDecrypting(false));
       dispatch(setFetchError(null));
+
+      // Background prefetch: silently load the next page so it's ready when user scrolls
+      if (hasMore && emails.length > 0) {
+        const nextOffset = emails.length;
+        isLoadingMoreRef.current = true;
+        axios.get(`${API_URL}/emails/inbox?${buildParams(nextOffset).toString()}`)
+          .then(({ data }) => {
+            const { emails: moreEmails, total: newTotal, hasMore: newHasMore } = data;
+            console.log(`Background prefetch: ${moreEmails.length}/${newTotal} emails for mode: ${mode}`);
+            dispatch(appendEmails(moreEmails));
+            dispatch(setTotalCount(newTotal));
+            dispatch(setHasMore(newHasMore));
+            dispatch(setCurrentOffset(nextOffset + moreEmails.length));
+          })
+          .catch(() => {
+            // Silently ignore background prefetch errors
+          })
+          .finally(() => {
+            isLoadingMoreRef.current = false;
+          });
+      }
     } catch (error: any) {
       console.error('Error fetching emails:', error);
       dispatch(setDecrypting(false));
@@ -77,9 +116,30 @@ export function useEmailFetching({
       dispatch(setRefreshing(false));
       dispatch(setLoadingModeSwitch(false));
     }
-  }, [mode, filters, dispatch]);
+  }, [mode, filters, dispatch, buildParams]);
 
-  return { fetchEmails };
+  const loadMore = useCallback(async () => {
+    if (isLoadingMoreRef.current) return;
+    isLoadingMoreRef.current = true;
+    try {
+      const params = buildParams(currentOffset);
+
+      const response = await axios.get(`${API_URL}/emails/inbox?${params.toString()}`);
+      const { emails, total, hasMore } = response.data;
+      console.log(`Loaded more: ${emails.length}/${total} emails for mode: ${mode}, hasMore: ${hasMore}`);
+
+      dispatch(appendEmails(emails));
+      dispatch(setTotalCount(total));
+      dispatch(setHasMore(hasMore));
+      dispatch(setCurrentOffset(currentOffset + emails.length));
+    } catch (error: any) {
+      console.error('Error loading more emails:', error);
+    } finally {
+      isLoadingMoreRef.current = false;
+    }
+  }, [mode, filters, dispatch, currentOffset, buildParams]);
+
+  return { fetchEmails, loadMore };
 }
 
 

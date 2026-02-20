@@ -3,23 +3,16 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 import { BulkActionButton } from 'components/inbox/bulk/BulkActionButton';
-import { EMOJI_STAR } from 'constants/emojis';
 
 interface BulkOperationsBarProps {
   selectedCount: number;
-  onBulkStar: (count: number) => void;
   onBulkArchive: () => void;
-  onBulkMarkAsRead?: () => void;
-  onBulkMarkAsUnread?: () => void;
   onClearSelection: () => void;
 }
 
 export const BulkOperationsBar: React.FC<BulkOperationsBarProps> = ({
   selectedCount,
-  onBulkStar,
   onBulkArchive,
-  onBulkMarkAsRead,
-  onBulkMarkAsUnread,
   onClearSelection,
 }) => {
   const { t } = useTranslation();
@@ -44,22 +37,6 @@ export const BulkOperationsBar: React.FC<BulkOperationsBarProps> = ({
         {t('inbox.bulk.selected', { count: selectedCount })}
       </span>
       <div style={{ display: 'flex', gap: theme.spacing.sm }}>
-        {[1, 2, 3].map(count => (
-          <BulkActionButton key={count} onClick={() => onBulkStar(count)}>
-            {/* eslint-disable-next-line i18next/no-literal-string */}
-            {EMOJI_STAR.repeat(count)}
-          </BulkActionButton>
-        ))}
-        {onBulkMarkAsRead && (
-          <BulkActionButton onClick={onBulkMarkAsRead}>
-            {t('inbox.bulk.markAsRead')}
-          </BulkActionButton>
-        )}
-        {onBulkMarkAsUnread && (
-          <BulkActionButton onClick={onBulkMarkAsUnread}>
-            {t('inbox.bulk.markAsUnread')}
-          </BulkActionButton>
-        )}
         <BulkActionButton onClick={onBulkArchive}>
           {t('inbox.bulk.archive')}
         </BulkActionButton>

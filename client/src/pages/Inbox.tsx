@@ -49,7 +49,6 @@ const Inbox: React.FC = () => {
     splitView,
     emailActions,
     keyboardShortcuts,
-    inboxFilters,
     hasInitiallyLoaded,
     loadingModeSwitch,
     decrypting,
@@ -185,10 +184,7 @@ const Inbox: React.FC = () => {
 
         <BulkOperationsBar
           selectedCount={selectedEmailIds.size}
-          onBulkStar={emailActions.handleBulkStar}
           onBulkArchive={emailActions.handleBulkArchive}
-          onBulkMarkAsRead={emailActions.handleBulkMarkAsRead}
-          onBulkMarkAsUnread={emailActions.handleBulkMarkAsUnread}
           onClearSelection={() => setSelectedEmailIds(new Set())}
         />
 
@@ -245,19 +241,7 @@ const Inbox: React.FC = () => {
           fetchThreadsWithDrafts={fetchThreadsWithDrafts}
           emailListRef={emailListRef}
           emailDetailRef={emailDetailRef}
-          onBulkArchive={emailActions.handleBulkArchive}
-          onBulkSelect={(emailIds: string[]) => {
-            setSelectedEmailIds(prev => {
-              const next = new Set(prev);
-              const allSelected = emailIds.every(id => next.has(id));
-              if (allSelected) {
-                emailIds.forEach(id => next.delete(id));
-              } else {
-                emailIds.forEach(id => next.add(id));
-              }
-              return next;
-            });
-          }}
+          onBulkArchive={emailActions.handleBulkArchiveByIds}
           expandedCategories={expandedCategories}
           stableCategoryOrder={stableCategoryOrder}
           onToggleCategory={toggleCategory}

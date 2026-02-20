@@ -21,6 +21,7 @@ interface UseBulkEmailActionsProps {
 
 interface UseBulkEmailActionsReturn {
   handleBulkArchive: () => Promise<void>;
+  handleBulkArchiveByIds: (emailIds: string[]) => Promise<void>;
   handleBulkStar: (starCount: number) => Promise<void>;
   handleBulkMarkAsRead: () => Promise<void>;
   handleBulkMarkAsUnread: () => Promise<void>;
@@ -39,46 +40,42 @@ export function useBulkEmailActions({
   const dispatch = useDispatch<AppDispatch>();
   const emails = useSelector(selectEmails);
 
-  // Use bulk archive API endpoint for efficiency (single API call instead of N calls)
-  const handleBulkArchive = useCallback(async () => {
-    if (selectedEmailIds.size === 0) return;
-    
-    const emailIds = Array.from(selectedEmailIds);
-    captureEvent('bulk_archive_clicked', { selected_count: emailIds.length });
-    
+  // Core archive implementation - archives a specific list of email IDs with optimistic updates
+  const handleBulkArchiveByIds = useCallback(async (emailIdsToArchive: string[]) => {
+    if (emailIdsToArchive.length === 0) return;
+
+    captureEvent('bulk_archive_clicked', { selected_count: emailIdsToArchive.length });
+
     // Store emails for potential rollback
     const emailsToArchive: Email[] = [];
-    emailIds.forEach(id => {
+    emailIdsToArchive.forEach(id => {
       const email = emails.find(e => e.id === id);
       if (email) {
         emailsToArchive.push(email);
       }
     });
-    
+
     // Optimistic update - remove all emails from list and add to optimistic archive
-    emailIds.forEach(id => {
+    emailIdsToArchive.forEach(id => {
       dispatch(removeEmail(id));
       dispatch(addOptimisticArchive(id));
     });
-    
+
     // Optimistically update tab counts
     if (onTabCountsUpdateOptimistically) {
       if (mode === 'triage') {
-        onTabCountsUpdateOptimistically({ triage: -emailIds.length });
+        onTabCountsUpdateOptimistically({ triage: -emailIdsToArchive.length });
       } else if (mode === 'action') {
-        onTabCountsUpdateOptimistically({ action: -emailIds.length });
+        onTabCountsUpdateOptimistically({ action: -emailIdsToArchive.length });
       } else if (mode === 'follow-up') {
-        onTabCountsUpdateOptimistically({ followUp: -emailIds.length });
+        onTabCountsUpdateOptimistically({ followUp: -emailIdsToArchive.length });
       }
     }
-    
-    // Clear selection
-    setSelectedEmailIds(new Set());
-    
+
     // Make single bulk API call
     try {
-      await axios.post(`${API_URL}/emails/bulk/archive`, { emailIds });
-      console.log(`[BulkArchive] Successfully archived ${emailIds.length} emails`);
+      await axios.post(`${API_URL}/emails/bulk/archive`, { emailIds: emailIdsToArchive });
+      console.log(`[BulkArchive] Successfully archived ${emailIdsToArchive.length} emails`);
     } catch (error) {
       console.error('[BulkArchive] Failed to archive emails:', error);
       // Revert optimistic updates on error
@@ -89,15 +86,27 @@ export function useBulkEmailActions({
       // Revert tab count changes
       if (onTabCountsUpdateOptimistically) {
         if (mode === 'triage') {
-          onTabCountsUpdateOptimistically({ triage: emailIds.length });
+          onTabCountsUpdateOptimistically({ triage: emailIdsToArchive.length });
         } else if (mode === 'action') {
-          onTabCountsUpdateOptimistically({ action: emailIds.length });
+          onTabCountsUpdateOptimistically({ action: emailIdsToArchive.length });
         } else if (mode === 'follow-up') {
-          onTabCountsUpdateOptimistically({ followUp: emailIds.length });
+          onTabCountsUpdateOptimistically({ followUp: emailIdsToArchive.length });
         }
       }
     }
-  }, [selectedEmailIds, setSelectedEmailIds, dispatch, emails, onTabCountsUpdateOptimistically, mode]);
+  }, [dispatch, emails, onTabCountsUpdateOptimistically, mode]);
+
+  // Use bulk archive API endpoint for efficiency (single API call instead of N calls)
+  const handleBulkArchive = useCallback(async () => {
+    if (selectedEmailIds.size === 0) return;
+
+    const emailIds = Array.from(selectedEmailIds);
+
+    // Clear selection before archiving
+    setSelectedEmailIds(new Set());
+
+    await handleBulkArchiveByIds(emailIds);
+  }, [selectedEmailIds, setSelectedEmailIds, handleBulkArchiveByIds]);
 
   const handleBulkStar = useCallback(async (starCount: number) => {
     if (selectedEmailIds.size === 0) return;
@@ -125,6 +134,7 @@ export function useBulkEmailActions({
 
   return {
     handleBulkArchive,
+    handleBulkArchiveByIds,
     handleBulkStar,
     handleBulkMarkAsRead: handleBulkMarkAsReadAction,
     handleBulkMarkAsUnread: handleBulkMarkAsUnreadAction,

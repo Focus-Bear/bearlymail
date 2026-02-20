@@ -51,7 +51,6 @@ interface InboxContentProps {
   onSplitViewArchive?: (emailId: string) => void;
   onSplitViewSnooze?: (emailId: string) => void;
   onBulkArchive?: (emailIds: string[]) => Promise<void>;
-  onBulkSelect?: (emailIds: string[]) => void;
   expandedCategories: Set<string>;
   stableCategoryOrder: string[];
   onToggleCategory: (category: string) => void;
@@ -93,7 +92,6 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   onSplitViewArchive,
   onSplitViewSnooze,
   onBulkArchive,
-  onBulkSelect,
   expandedCategories,
   stableCategoryOrder,
   onToggleCategory,
@@ -177,12 +175,6 @@ export const InboxContent: React.FC<InboxContentProps> = ({
       return orderA - orderB;
     });
   }, [categoryGroups, stableCategoryOrder]);
-
-  const handleCategorySelectAll = (emailIds: string[]) => {
-    if (onBulkSelect) {
-      onBulkSelect(emailIds);
-    }
-  };
 
   const selectedEmailForPanel = useMemo(() => 
     splitView.selectedEmailId ? emails.find(e => e.id === splitView.selectedEmailId) : undefined,
@@ -294,8 +286,7 @@ export const InboxContent: React.FC<InboxContentProps> = ({
                   emails={group.emails}
                   isExpanded={isExpanded}
                   onToggle={() => onToggleCategory(group.category)}
-                  onSelectAll={handleCategorySelectAll}
-                  selectedEmailIds={selectedEmailIds}
+                  onArchiveAll={onBulkArchive}
                   onReanalyseOther={handleReanalyseOther}
                   isReanalysingOther={isReanalysingOther}
                 >

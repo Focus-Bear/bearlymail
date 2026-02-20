@@ -1,17 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
 import { OPACITY_DISABLED } from 'constants/numbers';
 import { Email, getEmailPriorityScore } from 'types/email';
+import { ArchiveConfirmationToast } from 'components/inbox/ArchiveConfirmationToast';
 
 interface CategoryAccordionProps {
   category: string;
   emails: Email[];
   isExpanded: boolean;
   onToggle: () => void;
-  onSelectAll: (emailIds: string[]) => void;
-  selectedEmailIds: Set<string>;
+  onArchiveAll?: (emailIds: string[]) => Promise<void>;
   children: React.ReactNode;
   onReanalyseOther?: () => void;
   isReanalysingOther?: boolean;
@@ -50,13 +50,14 @@ const EDIT_ICON = '✏️';
 
 const REANALYSE_ICON = '🔄';
 
+const ARCHIVE_ALL_ICON = '🗄️';
+
 export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
   category,
   emails,
   isExpanded,
   onToggle,
-  onSelectAll,
-  selectedEmailIds,
+  onArchiveAll,
   children,
   onReanalyseOther,
   isReanalysingOther,
@@ -66,9 +67,10 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
   const [isHovered, setIsHovered] = useState(false);
   const [isPencilHovered, setIsPencilHovered] = useState(false);
   const [isReanalyseHovered, setIsReanalyseHovered] = useState(false);
+  const [isArchiveAllHovered, setIsArchiveAllHovered] = useState(false);
+  const [showArchiveConfirmation, setShowArchiveConfirmation] = useState(false);
   const emailCount = emails.length;
   const emailIds = emails.map(e => e.id);
-  const allSelected = emailIds.length > 0 && emailIds.every(id => selectedEmailIds.has(id));
   const isOtherCategory = category === 'Other';
 
   const handleEditCategoryClick = (e: React.MouseEvent) => {
@@ -76,10 +78,23 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
     navigate('/settings#email-categories');
   };
 
-  const handleSelectAllClick = (e: React.MouseEvent) => {
+  const handleArchiveAllClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onSelectAll(emailIds);
+    if (emailCount > 0) {
+      setShowArchiveConfirmation(true);
+    }
   };
+
+  const handleConfirmArchive = useCallback(async () => {
+    setShowArchiveConfirmation(false);
+    if (onArchiveAll) {
+      await onArchiveAll(emailIds);
+    }
+  }, [onArchiveAll, emailIds]);
+
+  const handleCancelArchive = useCallback(() => {
+    setShowArchiveConfirmation(false);
+  }, []);
 
   const handleReanalyseClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -88,12 +103,22 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
     }
   };
 
-  const getSelectButtonText = (): string => {
-    if (allSelected) {
-      return t('inbox.category.deselectAll');
-    }
-    return t('inbox.category.selectAll');
-  };
+  useEffect(() => {
+    if (!showArchiveConfirmation) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'y' || e.key === 'Y') {
+        e.stopPropagation();
+        handleConfirmArchive();
+      } else if (e.key === 'Escape') {
+        e.stopPropagation();
+        handleCancelArchive();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showArchiveConfirmation, handleConfirmArchive, handleCancelArchive]);
 
   return (
     <div
@@ -210,24 +235,40 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
-          <button
-            onClick={handleSelectAllClick}
-            style={{
-              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-              borderRadius: theme.borderRadius.sm,
-              border: 'none',
-              backgroundColor: allSelected ? theme.colors.primary.subtle : 'transparent',
-              color: theme.colors.text.tertiary,
-              fontSize: theme.typography.fontSize.sm,
-              cursor: 'pointer',
-              transition: theme.transitions.fast,
-            }}
-            title={allSelected ? t('inbox.category.deselectAll') : t('inbox.category.selectAll')}
-          >
-            {getSelectButtonText()}
-          </button>
+          {onArchiveAll && emailCount > 0 && (
+            <button
+              onClick={handleArchiveAllClick}
+              onMouseEnter={() => setIsArchiveAllHovered(true)}
+              onMouseLeave={() => setIsArchiveAllHovered(false)}
+              style={{
+                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                borderRadius: theme.borderRadius.sm,
+                border: 'none',
+                backgroundColor: isArchiveAllHovered ? theme.colors.interactive.hover : 'transparent',
+                color: theme.colors.text.tertiary,
+                fontSize: theme.typography.fontSize.sm,
+                cursor: 'pointer',
+                transition: theme.transitions.fast,
+                display: 'flex',
+                alignItems: 'center',
+                gap: theme.spacing.xs,
+              }}
+              title={t('inbox.category.archiveAllTooltip')}
+            >
+              <span>{ARCHIVE_ALL_ICON}</span>
+              {t('inbox.category.archiveAll')}
+            </button>
+          )}
         </div>
       </div>
+
+      {showArchiveConfirmation && (
+        <ArchiveConfirmationToast
+          emailCount={emailCount}
+          onConfirm={handleConfirmArchive}
+          onCancel={handleCancelArchive}
+        />
+      )}
 
       {isExpanded && (
         <div

@@ -46,6 +46,7 @@ interface UseEmailActionsReturn {
   confirmBlockSender: () => Promise<void>;
   handleSnooze: (emailId: string) => Promise<void>;
   handleBulkArchive: () => Promise<void>;
+  handleBulkArchiveByIds: (emailIds: string[]) => Promise<void>;
   handleBulkStar: (starCount: number) => Promise<void>;
   handleBulkMarkAsRead: () => Promise<void>;
   handleBulkMarkAsUnread: () => Promise<void>;

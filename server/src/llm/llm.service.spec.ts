@@ -1,52 +1,25 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { ConfigService } from "@nestjs/config";
 import { LLMService } from "./llm.service";
-import { UsersService } from "../users/users.service";
-import { TokenUsageService } from "./token-usage.service";
+import { LLMCoreService } from "./llm-core.service";
+import { LLMProvider } from "./llm.types";
 import { getPrompt, loadPrompts } from "./prompts";
 import * as prompts from "./prompts";
 
 describe("LLMService", () => {
   let service: LLMService;
-  let mockUsersService: Partial<UsersService>;
-  let mockTokenUsageService: Partial<TokenUsageService>;
-  let mockConfigService: Partial<ConfigService>;
+  let mockLLMCoreService: Partial<LLMCoreService>;
 
   beforeEach(async () => {
-    // Mock services
-    mockUsersService = {
-      findOne: jest.fn().mockResolvedValue({
-        id: "test-user-id",
-        email: "test@example.com",
-        name: "Test User",
-        openAiApiKey: null,
-        toneSettings: { rules: [] },
-      }),
-    };
-
-    mockTokenUsageService = {
-      trackUsage: jest.fn().mockResolvedValue(undefined),
-    };
-
-    mockConfigService = {
-      get: jest.fn((key: string) => {
-        const config: Record<string, string> = {
-          LLM_PROVIDER: "openai",
-          OPENAI_API_KEY: process.env.OPENAI_API_KEY || "test-key",
-          OPENAI_MODEL: "gpt-4",
-          GEMINI_API_KEY: process.env.GEMINI_API_KEY,
-          GEMINI_MODEL: "gemini-pro",
-        };
-        return config[key];
-      }),
+    mockLLMCoreService = {
+      generateText: jest.fn().mockResolvedValue("Generated text"),
+      getAvailableProviders: jest.fn().mockReturnValue([LLMProvider.OPENAI]),
+      getDefaultProvider: jest.fn().mockReturnValue(LLMProvider.OPENAI),
     };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         LLMService,
-        { provide: UsersService, useValue: mockUsersService },
-        { provide: TokenUsageService, useValue: mockTokenUsageService },
-        { provide: ConfigService, useValue: mockConfigService },
+        { provide: LLMCoreService, useValue: mockLLMCoreService },
       ],
     }).compile();
 

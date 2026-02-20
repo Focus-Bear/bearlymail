@@ -26,6 +26,11 @@ import { AuthModule } from "../auth/auth.module";
     PriorityAnalysisService,
     TokenUsageService,
   ],
-  exports: [LLMService, PriorityAnalysisService, TokenUsageService],
+  exports: [
+    LLMService,
+    LLMCoreService,
+    PriorityAnalysisService,
+    TokenUsageService,
+  ],
 })
 export class LLMModule {}

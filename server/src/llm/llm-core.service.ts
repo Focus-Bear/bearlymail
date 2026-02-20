@@ -167,6 +167,7 @@ export class LLMCoreService {
           // Pass prompt text for example capture
           promptText: request.prompt,
           systemPromptText: request.systemPrompt,
+          emailIds: request.metadata?.emailIds,
         });
       }
 
@@ -274,6 +275,7 @@ export class LLMCoreService {
             durationMs,
             promptText: request.prompt,
             systemPromptText: request.systemPrompt,
+            emailIds: request.metadata?.emailIds,
           });
         }
 
@@ -318,6 +320,7 @@ export class LLMCoreService {
             durationMs,
             promptText: request.prompt,
             systemPromptText: request.systemPrompt,
+            emailIds: request.metadata?.emailIds,
           });
         }
 

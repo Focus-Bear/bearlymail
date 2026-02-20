@@ -14,4 +14,8 @@ export interface LLMRequest {
   // Optional userId to use user's API key
   operation?: LLMOperation;
   // Operation type for token usage tracking
+  metadata?: {
+    // Email IDs processed in this LLM call (for tracking duplicate summarizations)
+    emailIds?: string[];
+  };
 }

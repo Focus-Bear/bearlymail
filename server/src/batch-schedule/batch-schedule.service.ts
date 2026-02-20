@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
+import { Email } from "../database/entities/email.entity";
 import { PRIORITY_SCORES } from "../constants/priority-constants";
 import { DAYS, MINUTES } from "../constants/time-constants";
 import { DateTime } from "luxon";
@@ -13,6 +14,8 @@ export class BatchScheduleService {
   constructor(
     @InjectRepository(BatchSchedule)
     private batchScheduleRepository: Repository<BatchSchedule>,
+    @InjectRepository(Email)
+    private emailRepository: Repository<Email>,
   ) {}
 
   /**
@@ -63,7 +66,75 @@ export class BatchScheduleService {
       });
     }
 
-    return this.batchScheduleRepository.save(schedule);
+    const savedSchedule = await this.batchScheduleRepository.save(schedule);
+
+    // Re-evaluate existing batched emails against the new schedule.
+    // Emails that were batched under the old (possibly broken) schedule may have a
+    // batchReleaseAt that is later than what the new schedule would produce. Move
+    // those emails forward to the earliest valid window under the updated schedule
+    // so that past-missed batches are delivered as soon as possible.
+    await this.rescheduleExistingBatchedEmails(userId, savedSchedule);
+
+    return savedSchedule;
+  }
+
+  /**
+   * After a schedule change, update the batchReleaseAt for any batched emails
+   * whose current release time would be delivered sooner under the new schedule.
+   * If the schedule is disabled or has no delivery windows configured, all
+   * pending batched emails are released immediately (isBatched = false).
+   */
+  private async rescheduleExistingBatchedEmails(
+    userId: string,
+    schedule: BatchSchedule,
+  ): Promise<void> {
+    if (!schedule.isEnabled) {
+      // Batching disabled — release all pending emails immediately
+      const updated = await this.emailRepository.update(
+        { userId, isBatched: true },
+        { isBatched: false, batchDecisionReason: "Schedule disabled" },
+      );
+      this.logger.log(
+        `Schedule disabled: released ${updated.affected ?? 0} batched emails for user ${userId}`,
+      );
+      return;
+    }
+
+    const newReleaseTime = this.getNextScheduledDeliveryTime(schedule);
+    if (!newReleaseTime) {
+      // No delivery windows configured — release all pending emails
+      const updated = await this.emailRepository.update(
+        { userId, isBatched: true },
+        {
+          isBatched: false,
+          batchDecisionReason: "No delivery window configured",
+        },
+      );
+      this.logger.log(
+        `No delivery windows: released ${updated.affected ?? 0} batched emails for user ${userId}`,
+      );
+      return;
+    }
+
+    // Update only the emails whose current batchReleaseAt is LATER than what the
+    // new schedule would produce — i.e., move them forward to the earlier time.
+    const rawUpdated = await this.emailRepository.query(
+      `UPDATE emails
+         SET "batchReleaseAt" = $1,
+             "batchDecisionReason" = $2
+       WHERE "userId" = $3
+         AND "isBatched" = true
+         AND "batchReleaseAt" > $1`,
+      [
+        newReleaseTime,
+        `Schedule updated: batched until ${newReleaseTime.toISOString()}`,
+        userId,
+      ],
+    );
+
+    this.logger.log(
+      `Schedule updated: rescheduled batched emails for user ${userId} to ${newReleaseTime.toISOString()} (rows affected: ${rawUpdated[1] ?? "unknown"})`,
+    );
   }
 
   /**

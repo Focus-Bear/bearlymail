@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { BatchScheduleService } from "./batch-schedule.service";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
+import { Email } from "../database/entities/email.entity";
 
 describe("BatchScheduleService", () => {
   let service: BatchScheduleService;
@@ -12,6 +13,11 @@ describe("BatchScheduleService", () => {
     save: jest.fn(),
   };
 
+  const mockEmailRepository = {
+    update: jest.fn().mockResolvedValue({ affected: 0 }),
+    query: jest.fn().mockResolvedValue([[], 0]),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -19,6 +25,10 @@ describe("BatchScheduleService", () => {
         {
           provide: getRepositoryToken(BatchSchedule),
           useValue: mockRepository,
+        },
+        {
+          provide: getRepositoryToken(Email),
+          useValue: mockEmailRepository,
         },
       ],
     }).compile();
@@ -28,6 +38,8 @@ describe("BatchScheduleService", () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+    mockEmailRepository.update.mockResolvedValue({ affected: 0 });
+    mockEmailRepository.query.mockResolvedValue([[], 0]);
   });
 
   describe("getSchedule", () => {
@@ -218,6 +230,114 @@ describe("BatchScheduleService", () => {
         scheduleData.urgentBypassSchedule,
       );
       expect(mockRepository.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("upsertSchedule - reschedule existing batched emails", () => {
+    const userId = "user-123";
+    const baseSchedule = {
+      id: "schedule-1",
+      userId,
+      deliveryDays: [1, 2, 3, 4, 5],
+      deliveryTimes: ["11:00", "15:00"],
+      timezone: "UTC",
+      isEnabled: true,
+      urgentBypassSchedule: true,
+    };
+
+    beforeEach(() => {
+      mockRepository.findOne.mockResolvedValue(baseSchedule);
+      mockRepository.save.mockImplementation((s) =>
+        Promise.resolve({ ...baseSchedule, ...s }),
+      );
+    });
+
+    it("should release all batched emails immediately when schedule is disabled", async () => {
+      const disabledSchedule = { ...baseSchedule, isEnabled: false };
+      mockRepository.save.mockResolvedValue(disabledSchedule);
+
+      await service.upsertSchedule(userId, {
+        ...disabledSchedule,
+        deliveryDays: [1, 2, 3, 4, 5],
+      });
+
+      expect(mockEmailRepository.update).toHaveBeenCalledWith(
+        { userId, isBatched: true },
+        expect.objectContaining({ isBatched: false }),
+      );
+    });
+
+    it("should release all batched emails when no delivery days are configured", async () => {
+      const emptyDaysSchedule = {
+        ...baseSchedule,
+        deliveryDays: [],
+        isEnabled: true,
+      };
+      mockRepository.save.mockResolvedValue(emptyDaysSchedule);
+
+      await service.upsertSchedule(userId, {
+        ...emptyDaysSchedule,
+        deliveryDays: [],
+      });
+
+      expect(mockEmailRepository.update).toHaveBeenCalledWith(
+        { userId, isBatched: true },
+        expect.objectContaining({ isBatched: false }),
+      );
+    });
+
+    it("should run raw SQL update to move far-future batchReleaseAt to next schedule window", async () => {
+      jest.useFakeTimers();
+      // Monday 8am UTC
+      jest.setSystemTime(new Date("2024-01-08T08:00:00Z"));
+
+      mockRepository.save.mockResolvedValue(baseSchedule);
+
+      await service.upsertSchedule(userId, {
+        deliveryDays: [1, 2, 3, 4, 5],
+        deliveryTimes: ["11:00", "15:00"],
+        timezone: "UTC",
+        isEnabled: true,
+        urgentBypassSchedule: true,
+      });
+
+      // Should issue raw SQL update for emails with batchReleaseAt > new delivery time
+      expect(mockEmailRepository.query).toHaveBeenCalledWith(
+        expect.stringContaining("UPDATE emails"),
+        expect.arrayContaining([
+          expect.any(Date), // newReleaseTime
+          expect.stringContaining("Schedule updated"),
+          userId,
+        ]),
+      );
+
+      const queryArgs = mockEmailRepository.query.mock.calls[0][1];
+      // The new release time should be Monday at 11am UTC (next window from 8am)
+      const newReleaseTime = queryArgs[0] as Date;
+      expect(newReleaseTime.toISOString()).toBe("2024-01-08T11:00:00.000Z");
+
+      jest.useRealTimers();
+    });
+
+    it("should not call emailRepository.update when schedule is enabled with delivery windows", async () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date("2024-01-08T08:00:00Z"));
+      mockRepository.save.mockResolvedValue(baseSchedule);
+
+      await service.upsertSchedule(userId, {
+        deliveryDays: [1, 2, 3, 4, 5],
+        deliveryTimes: ["11:00", "15:00"],
+        timezone: "UTC",
+        isEnabled: true,
+        urgentBypassSchedule: true,
+      });
+
+      // emailRepository.update is for disabled/empty schedules only
+      expect(mockEmailRepository.update).not.toHaveBeenCalled();
+      // Raw query should be used for the enabled+configured case
+      expect(mockEmailRepository.query).toHaveBeenCalled();
+
+      jest.useRealTimers();
     });
   });
 

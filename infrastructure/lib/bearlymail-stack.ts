@@ -253,8 +253,8 @@ export class BearlyMailStack extends cdk.Stack {
     // Worker Service (Background Jobs)
     // ============================================
     const workerTaskDefinition = new ecs.FargateTaskDefinition(this, 'WorkerTaskDefinition', {
-      cpu: props?.workerTaskCpu || 512,
-      memoryLimitMiB: props?.workerTaskMemory || 1024,
+      cpu: props?.workerTaskCpu || 1024,
+      memoryLimitMiB: props?.workerTaskMemory || 2048,
       executionRole: taskExecutionRole,
       taskRole: taskRole,
     });
@@ -268,7 +268,8 @@ export class BearlyMailStack extends cdk.Stack {
       }),
       environment: {
         NODE_ENV: 'production',
-        WORKER_PROCESSES: '1', // Single process in container to avoid OOM (each worker loads full NestJS + TypeORM + providers)
+        WORKER_PROCESSES: '2', // 2 workers on 1024 CPU / 2048 MiB task; each worker loads full NestJS + TypeORM + providers (~480 MiB each)
+        LLM_PRIORITY_CONCURRENCY: '25', // 25 teamSize × 2 worker processes = 50 concurrent refine-priority jobs
         FRONTEND_URL: frontendUrl,
         DB_HOST: database.instanceEndpoint.hostname,
         DB_PORT: '5432',

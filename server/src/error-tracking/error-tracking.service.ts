@@ -3,6 +3,67 @@ import { PostHog } from "posthog-node";
 
 const API_KEY_PREVIEW_LENGTH = 8;
 
+interface ExceptionFrame {
+  filename: string;
+  function: string;
+  lineno: number;
+  colno: number;
+  in_app: boolean;
+}
+
+/**
+ * Parse a Node.js Error.stack string into an array of frame objects.
+ * PostHog Error Tracking requires stacktrace.frames to be an array,
+ * not a raw string, in order to display and group errors correctly.
+ */
+function parseStackTrace(stack: string): ExceptionFrame[] {
+  if (!stack) return [];
+
+  const frames: ExceptionFrame[] = [];
+
+  for (const line of stack.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("at ")) continue;
+
+    // "at FunctionName (filename:line:col)" or "at async FunctionName (...)"
+    const withName = trimmed.match(
+      /^at\s+(?:async\s+)?(.+?)\s+\((.+?):(\d+):(\d+)\)$/,
+    );
+    if (withName) {
+      const filename = withName[2];
+      frames.push({
+        function: withName[1],
+        filename,
+        lineno: parseInt(withName[3], 10),
+        colno: parseInt(withName[4], 10),
+        in_app:
+          !filename.includes("node_modules") &&
+          !filename.startsWith("node:") &&
+          !filename.startsWith("internal/"),
+      });
+      continue;
+    }
+
+    // "at filename:line:col" (anonymous)
+    const anonymous = trimmed.match(/^at\s+(?:async\s+)?(.+?):(\d+):(\d+)$/);
+    if (anonymous) {
+      const filename = anonymous[1];
+      frames.push({
+        function: "<anonymous>",
+        filename,
+        lineno: parseInt(anonymous[2], 10),
+        colno: parseInt(anonymous[3], 10),
+        in_app:
+          !filename.includes("node_modules") &&
+          !filename.startsWith("node:") &&
+          !filename.startsWith("internal/"),
+      });
+    }
+  }
+
+  return frames;
+}
+
 /**
  * Service for tracking errors and events to PostHog
  * See: https://posthog.com/docs/libraries/node
@@ -81,14 +142,14 @@ export class ErrorTrackingService {
     try {
       // Build properties using PostHog's $exception_list format, which is
       // required by the Error Tracking dashboard for grouping and display.
+      // frames must be an array of {filename, function, lineno, colno} objects.
       const properties: Record<string, unknown> = {
         $exception_list: [
           {
             type: error.name,
             value: error.message,
             stacktrace: {
-              type: "raw",
-              frames: error.stack || "",
+              frames: parseStackTrace(error.stack || ""),
             },
           },
         ],

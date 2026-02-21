@@ -9,12 +9,13 @@ interface EmailBodyIframeProps {
  * Renders email HTML content inside an iframe for complete CSS isolation.
  * This prevents BearlyMail styles from affecting email rendering and vice versa.
  */
-export const EmailBodyIframe: React.FC<EmailBodyIframeProps> = ({ 
-  html, 
-  minHeight = 100 
+export const EmailBodyIframe: React.FC<EmailBodyIframeProps> = ({
+  html,
+  minHeight = 100
 }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [height, setHeight] = useState(minHeight);
+  const [contentWidth, setContentWidth] = useState<number | null>(null);
 
   // Base styles to apply inside the iframe for readability
   const baseStyles = `
@@ -30,7 +31,6 @@ export const EmailBodyIframe: React.FC<EmailBodyIframeProps> = ({
         line-height: 1.6;
         color: #333;
         background: transparent;
-        overflow-x: hidden;
         word-wrap: break-word;
         overflow-wrap: break-word;
       }
@@ -102,7 +102,7 @@ export const EmailBodyIframe: React.FC<EmailBodyIframeProps> = ({
     </html>
   `;
 
-  // Resize iframe to match content height
+  // Resize iframe to match content dimensions (height and natural width)
   const updateHeight = useCallback(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
@@ -115,6 +115,10 @@ export const EmailBodyIframe: React.FC<EmailBodyIframeProps> = ({
         // Add small buffer to prevent any scrollbar flickering
         const newHeight = Math.max(contentHeight + 10, minHeight);
         setHeight(newHeight);
+
+        // Track natural content width to enable horizontal scrolling for wide emails
+        const naturalWidth = doc.body.scrollWidth;
+        setContentWidth(naturalWidth > 0 ? naturalWidth : null);
       }
     } catch {
       // Cross-origin access error - should not happen with srcdoc
@@ -167,18 +171,21 @@ export const EmailBodyIframe: React.FC<EmailBodyIframeProps> = ({
   }, [html, updateHeight]);
 
   return (
-    <iframe
-      ref={iframeRef}
-      srcDoc={fullDocument}
-      title="Email content"
-      sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-      style={{
-        width: '100%',
-        height: `${height}px`,
-        border: 'none',
-        display: 'block',
-        backgroundColor: 'transparent',
-      }}
-    />
+    <div style={{ overflowX: 'auto', width: '100%' }}>
+      <iframe
+        ref={iframeRef}
+        srcDoc={fullDocument}
+        title="Email content"
+        sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+        style={{
+          width: contentWidth ? `${contentWidth}px` : '100%',
+          minWidth: '100%',
+          height: `${height}px`,
+          border: 'none',
+          display: 'block',
+          backgroundColor: 'transparent',
+        }}
+      />
+    </div>
   );
 };

@@ -21,6 +21,7 @@ export const ThreadItemBody: React.FC<ThreadItemBodyProps> = ({
         padding: theme.spacing.md,
         backgroundColor: theme.colors.background.paper,
         borderTop: `1px solid ${theme.colors.border.light}`,
+        overflowX: 'auto',
       }}
     >
       <div

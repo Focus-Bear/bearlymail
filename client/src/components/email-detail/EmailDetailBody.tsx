@@ -32,6 +32,7 @@ export const EmailDetailBody: React.FC<EmailDetailBodyProps> = ({ body, htmlBody
             color: theme.colors.text.primary,
             lineHeight: 1.8,
             whiteSpace: 'pre-wrap',
+            overflowX: 'auto',
           }}
         >
           {removeSignature(body || '', false)}

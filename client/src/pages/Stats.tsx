@@ -205,7 +205,8 @@ const Stats: React.FC = () => {
   const { user, logout } = useAuth();
   const [days, setDays] = useState<number>(DAYS_IN_MONTH_30);
   const { stats, loading, error, refetch } = useEmailStats(days);
-  const { isMobile } = useResponsiveBreakpoints();
+  const { isMobile, isTablet } = useResponsiveBreakpoints();
+  const isNarrow = isMobile || isTablet;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const maxEmails = stats
@@ -229,9 +230,9 @@ const Stats: React.FC = () => {
       <div style={{
         flex: 1,
         overflowY: 'auto',
-        padding: theme.spacing.xl,
+        padding: isNarrow ? `70px ${theme.spacing.sm} ${theme.spacing.md}` : theme.spacing.xl,
       }}>
-        {isMobile && (
+        {isNarrow && (
           <button
             onClick={() => setIsMobileMenuOpen(true)}
             style={{

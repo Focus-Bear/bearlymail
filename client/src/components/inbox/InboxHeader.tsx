@@ -35,12 +35,13 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
   tabCounts,
   onToggleMobileMenu,
 }) => {
-  const { isMobile } = useResponsiveBreakpoints();
+  const { isMobile, isTablet } = useResponsiveBreakpoints();
+  const isNarrow = isMobile || isTablet;
 
   return (
     <header
       style={{
-        padding: isMobile ? `${theme.spacing.sm} ${theme.spacing.xs}` : `${theme.spacing.sm} ${theme.spacing.lg}`,
+        padding: isNarrow ? `${theme.spacing.sm} ${theme.spacing.xs}` : `${theme.spacing.sm} ${theme.spacing.lg}`,
         backgroundColor: theme.colors.background.paper,
         borderBottom: `1px solid ${theme.colors.border.light}`,
         display: 'flex',
@@ -55,8 +56,8 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
           alignItems: 'center',
         }}
       >
-        {/* Hamburger menu button for mobile */}
-        {isMobile && (
+        {/* Hamburger menu button for mobile and tablet */}
+        {isNarrow && (
           <button
             onClick={onToggleMobileMenu}
             style={{

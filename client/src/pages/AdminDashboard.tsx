@@ -20,7 +20,8 @@ const DEFAULT_EXTEND_DAYS = 7;
 const AdminDashboard: React.FC = () => {
   const { t } = useTranslation();
   const { user, logout } = useAuth();
-  const { isMobile } = useResponsiveBreakpoints();
+  const { isMobile, isTablet } = useResponsiveBreakpoints();
+  const isNarrow = isMobile || isTablet;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const {
     activeTab,
@@ -98,9 +99,9 @@ const AdminDashboard: React.FC = () => {
         flex: 1,
         overflowY: 'auto',
         backgroundColor: theme.colors.background.default,
-        padding: theme.spacing.xl,
+        padding: isNarrow ? `70px ${theme.spacing.sm} ${theme.spacing.md}` : theme.spacing.xl,
       }}>
-        {isMobile && (
+        {isNarrow && (
           <button
             onClick={() => setIsMobileMenuOpen(true)}
             style={{

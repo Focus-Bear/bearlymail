@@ -18,7 +18,8 @@ const Contacts: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { user, logout } = useAuth();
-  const { isMobile } = useResponsiveBreakpoints();
+  const { isMobile, isTablet } = useResponsiveBreakpoints();
+  const isNarrow = isMobile || isTablet;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
@@ -160,9 +161,9 @@ const Contacts: React.FC = () => {
         flex: 1,
         overflowY: 'auto',
         backgroundColor: theme.colors.background.default,
-        padding: theme.spacing.lg,
+        padding: isNarrow ? `70px ${theme.spacing.sm} ${theme.spacing.md}` : theme.spacing.lg,
       }}>
-        {isMobile && (
+        {isNarrow && (
           <button
             onClick={() => setIsMobileMenuOpen(true)}
             style={{

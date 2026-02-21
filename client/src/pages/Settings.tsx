@@ -26,7 +26,8 @@ const Settings: React.FC = () => {
   const settingsData = useSettingsData();
   const autoResponder = useAutoResponder();
   const hasTriggeredAutoAnalyze = useRef(false);
-  const { isMobile } = useResponsiveBreakpoints();
+  const { isMobile, isTablet } = useResponsiveBreakpoints();
+  const isNarrow = isMobile || isTablet;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Handle OAuth callback
@@ -99,8 +100,8 @@ const Settings: React.FC = () => {
         isMobileMenuOpen={isMobileMenuOpen}
         onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
       />
-      <div style={{ flex: 1, overflowY: 'auto', padding: theme.spacing.xl, position: 'relative' }}>
-        {isMobile && (
+      <div style={{ flex: 1, overflowY: 'auto', padding: isNarrow ? `70px ${theme.spacing.sm} ${theme.spacing.md}` : theme.spacing.xl, position: 'relative' }}>
+        {isNarrow && (
           <button
             onClick={() => setIsMobileMenuOpen(true)}
             style={{

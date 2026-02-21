@@ -220,19 +220,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { t } = useTranslation();
   const location = useLocation();
   const isSettingsPage = location.pathname === '/settings';
-  const { isMobile } = useResponsiveBreakpoints();
+  const { isMobile, isTablet } = useResponsiveBreakpoints();
+  // Use overlay mode for any non-desktop viewport (mobile + tablet)
+  const isNarrow = isMobile || isTablet;
 
-  // On mobile, clicking a navigation item should close the mobile menu
+  // On narrow screens, clicking a navigation item should close the menu
   const handleNavigationClick = () => {
-    if (isMobile && onCloseMobileMenu) {
+    if (isNarrow && onCloseMobileMenu) {
       onCloseMobileMenu();
     }
   };
 
   return (
     <>
-      {/* Mobile overlay backdrop */}
-      {isMobile && isMobileMenuOpen && (
+      {/* Overlay backdrop for mobile/tablet */}
+      {isNarrow && isMobileMenuOpen && (
         <div
           onClick={onCloseMobileMenu}
           style={{
@@ -257,14 +259,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
         flexDirection: 'column',
         height: '100vh',
         transition: 'width 0.3s ease, padding 0.3s ease, transform 0.3s ease',
-        // Mobile-specific styles
-        ...(isMobile && {
+        // Overlay sidebar for mobile/tablet
+        ...(isNarrow && {
           position: 'fixed',
           left: 0,
           top: 0,
           zIndex: 1000,
           transform: isMobileMenuOpen ? 'translateX(0)' : 'translateX(-100%)',
-          width: '220px',
+          width: '240px',
           padding: `${theme.spacing.sm} ${theme.spacing.sm}`,
         }),
       }}>

@@ -2,6 +2,7 @@ import React, { useEffect, useImperativeHandle, forwardRef, useRef, useMemo } fr
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import { captureEvent } from 'utils/posthog';
 import { getCorrespondent } from 'utils/emailUtils';
 import { useAuth } from 'contexts/AuthContext';
@@ -48,6 +49,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
   const id = propEmailId || params.id;
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { isMobile } = useResponsiveBreakpoints();
   const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
   const replyComposerRef = useRef<HTMLDivElement>(null);
   
@@ -371,7 +373,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
   // Shared content that appears in both full and compact mode
   const emailContent = (
     <>
-      <div style={{ marginBottom: theme.spacing.xl }}>
+      <div style={{ marginBottom: isMobile ? theme.spacing.sm : theme.spacing.xl }}>
         <PrivateNotesSection
           noteContent={noteContent}
           notesCollapsed={notesCollapsed}
@@ -395,11 +397,15 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
       
       <div style={{
         backgroundColor: theme.colors.background.paper,
-        borderRadius: compactMode ? 0 : theme.borderRadius.xl,
-        padding: compactMode ? `${theme.spacing.xs} ${theme.spacing.sm}` : theme.spacing['2xl'],
-        paddingTop: compactMode ? theme.spacing.xs : theme.spacing['2xl'],
+        borderRadius: compactMode ? 0 : (isMobile ? theme.borderRadius.md : theme.borderRadius.xl),
+        padding: compactMode
+          ? `${theme.spacing.xs} ${theme.spacing.sm}`
+          : isMobile
+            ? `${theme.spacing.md} ${theme.spacing.sm}`
+            : theme.spacing['2xl'],
+        paddingTop: compactMode ? theme.spacing.xs : (isMobile ? theme.spacing.md : theme.spacing['2xl']),
         boxShadow: compactMode ? 'none' : theme.shadows.md,
-        marginBottom: compactMode ? theme.spacing.xs : theme.spacing.xl,
+        marginBottom: compactMode ? theme.spacing.xs : (isMobile ? theme.spacing.sm : theme.spacing.xl),
       }}>
         <div style={{ marginBottom: compactMode ? theme.spacing.sm : theme.spacing.xl }}>
           <EmailDetailHeader
@@ -735,8 +741,15 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
         overflow: 'hidden',
         position: 'relative',
       }}>
-        <div style={{ height: '100%', overflowY: 'auto', padding: theme.spacing['2xl'] }}>
-          <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+        <div style={{
+          height: '100%',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          padding: isMobile
+            ? `70px ${theme.spacing.xs} ${theme.spacing.md}`
+            : theme.spacing['2xl'],
+        }}>
+          <div style={{ maxWidth: isMobile ? '100%' : '900px', margin: '0 auto' }}>
             {emailContent}
           </div>
         </div>

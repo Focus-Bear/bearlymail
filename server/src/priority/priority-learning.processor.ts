@@ -8,7 +8,7 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as os from "os";
-import PgBoss = require("pg-boss");
+import PgBoss from "pg-boss";
 import { PriorityLearningService } from "./priority-learning.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { CloudWatchService } from "../aws/cloudwatch.service";

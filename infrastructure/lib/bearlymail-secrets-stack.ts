@@ -41,6 +41,13 @@ export class BearlyMailSecretsStack extends cdk.Stack {
     // - AWS_REGION (AWS region for SES, e.g., 'ap-southeast-2')
     // - SES_FROM_EMAIL (Verified SES email address for sending emails)
     // - POSTHOG_API_KEY (PostHog project API key for backend error tracking)
+    //
+    // Queue Dashboard secrets (for the @pg-boss/dashboard ECS service):
+    // - PGBOSS_DASHBOARD_DATABASE_URL  Full PostgreSQL connection URL, e.g.:
+    //     postgresql://bearlymail:<password>@<rds-endpoint>:5432/bearlymail?sslmode=require
+    //   (retrieve the password from the DatabaseSecret in Secrets Manager, URL-encode any special chars)
+    // - PGBOSS_DASHBOARD_AUTH_USERNAME  Basic auth username for the queue dashboard UI
+    // - PGBOSS_DASHBOARD_AUTH_PASSWORD  Basic auth password for the queue dashboard UI
 
     // ============================================
     // Outputs

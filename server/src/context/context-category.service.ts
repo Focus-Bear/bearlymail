@@ -14,7 +14,7 @@ import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
 import { getJobPriority } from "../queue/job-priorities";
-import PgBoss = require("pg-boss");
+import PgBoss from "pg-boss";
 
 /**
  * Service for managing email category consolidation and generation.

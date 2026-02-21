@@ -1,6 +1,6 @@
 import { Injectable, Inject, Logger, OnModuleInit } from "@nestjs/common";
 import { DataSource } from "typeorm";
-import PgBoss = require("pg-boss");
+import PgBoss from "pg-boss";
 import * as fs from "fs";
 import * as path from "path";
 import { QUEUE_CONSTANTS } from "../constants/queue-constants";

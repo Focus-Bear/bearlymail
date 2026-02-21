@@ -21,6 +21,10 @@ export class BearlyMailNetworkingStack extends cdk.Stack {
   public readonly apiCertificateArn?: string;
   /** API domain name (e.g. api.app.bearlymail.com) */
   public readonly apiDomainName?: string;
+  /** ACM certificate ARN for queue dashboard domain (queue.api.app.bearlymail.com) in this stack's region */
+  public readonly queueDashboardCertificateArn?: string;
+  /** Queue dashboard domain name (e.g. queue.api.app.bearlymail.com) */
+  public readonly queueDashboardDomainName?: string;
 
   constructor(scope: Construct, id: string, props?: BearlyMailNetworkingStackProps) {
     super(scope, id, props);
@@ -105,6 +109,16 @@ export class BearlyMailNetworkingStack extends cdk.Stack {
         validation: certificatemanager.CertificateValidation.fromDns(hostedZone),
       });
       this.apiCertificateArn = apiCertificate.certificateArn;
+
+      // Queue Dashboard domain and certificate (queue.api.app.bearlymail.com)
+      const queueDashboardDomain = `queue.${apiDomain}`;
+      this.queueDashboardDomainName = queueDashboardDomain;
+
+      const queueDashboardCertificate = new certificatemanager.Certificate(this, 'QueueDashboardCertificate', {
+        domainName: queueDashboardDomain,
+        validation: certificatemanager.CertificateValidation.fromDns(hostedZone),
+      });
+      this.queueDashboardCertificateArn = queueDashboardCertificate.certificateArn;
     }
 
     // ============================================
@@ -165,6 +179,22 @@ export class BearlyMailNetworkingStack extends cdk.Stack {
         value: this.apiDomainName,
         description: 'API domain (e.g. api.app.bearlymail.com)',
         exportName: 'BearlyMail-API-Domain-Name',
+      });
+    }
+
+    if (this.queueDashboardDomainName) {
+      new cdk.CfnOutput(this, 'QueueDashboardDomainName', {
+        value: this.queueDashboardDomainName,
+        description: 'Queue Dashboard domain (e.g. queue.api.app.bearlymail.com)',
+        exportName: 'BearlyMail-Queue-Dashboard-Domain',
+      });
+    }
+
+    if (this.queueDashboardCertificateArn) {
+      new cdk.CfnOutput(this, 'QueueDashboardCertificateArn', {
+        value: this.queueDashboardCertificateArn,
+        description: 'ACM Certificate ARN for Queue Dashboard domain',
+        exportName: 'BearlyMail-Queue-Dashboard-Certificate-ARN',
       });
     }
   }

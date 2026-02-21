@@ -26,7 +26,7 @@ import { BlockedSendersService } from "../blocked-senders/blocked-senders.servic
 import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
 import { UsersService } from "../users/users.service";
 import { ScheduledEmailsService } from "../scheduled-emails/scheduled-emails.service";
-import PgBoss = require("pg-boss");
+import PgBoss from "pg-boss";
 import { Email } from "../database/entities/email.entity";
 
 /**

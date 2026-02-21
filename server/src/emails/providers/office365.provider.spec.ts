@@ -5,7 +5,7 @@ import { EmailsService } from "../emails.service";
 import { ScanEmailService } from "../scan-email.service";
 import { Office365AccountsService } from "../../office365-accounts/office365-accounts.service";
 import { ConfigService } from "@nestjs/config";
-import PgBoss = require("pg-boss");
+import PgBoss from "pg-boss";
 
 describe("Office365Provider", () => {
   let provider: Office365Provider;

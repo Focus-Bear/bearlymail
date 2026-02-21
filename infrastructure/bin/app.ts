@@ -89,6 +89,8 @@ const appStack = new BearlyMailStack(app, 'BearlyMailStack', {
   domainName: networkingStack.domainName,
   apiDomainName: networkingStack.apiDomainName,
   apiCertificateArn: networkingStack.apiCertificateArn,
+  queueDashboardDomainName: networkingStack.queueDashboardDomainName,
+  queueDashboardCertificateArn: networkingStack.queueDashboardCertificateArn,
   database: databaseStack.database,
   dbSecret: databaseStack.dbSecret,
   appSecrets: secretsStack.appSecrets,

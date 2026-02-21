@@ -1,5 +1,5 @@
 import { Injectable, OnModuleInit, Logger, Inject } from "@nestjs/common";
-import PgBoss = require("pg-boss");
+import PgBoss from "pg-boss";
 import { ContactsService } from "./contacts.service";
 import { UsersService } from "../users/users.service";
 import { PusherService } from "../pusher/pusher.service";

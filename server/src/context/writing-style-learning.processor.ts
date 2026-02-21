@@ -1,6 +1,6 @@
 import { Injectable, OnModuleInit, Logger, Inject } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import PgBoss = require("pg-boss");
+import PgBoss from "pg-boss";
 import { UsersService } from "../users/users.service";
 import { WritingStyleLearningService } from "./writing-style-learning.service";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";

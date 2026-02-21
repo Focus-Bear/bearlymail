@@ -28,7 +28,7 @@ import { ContextAnalysisProgressService } from "./context-analysis-progress.serv
 import { writeAnalysisLog } from "./context-analysis-logger";
 import { classifyContextAnalysisError } from "./context-error-handler";
 import { Inject } from "@nestjs/common";
-import PgBoss = require("pg-boss");
+import PgBoss from "pg-boss";
 import { getJobPriority } from "../queue/job-priorities";
 
 // eslint-disable-next-line max-lines

@@ -32,6 +32,8 @@ export interface BearlyMailStackProps extends cdk.StackProps {
   domainName?: string; // Domain name for CloudFront
   apiDomainName?: string; // API domain (e.g. api.app.bearlymail.com) for ALB HTTPS + Route53
   apiCertificateArn?: string; // ACM certificate ARN for API domain (from networking stack, same region as ALB)
+  queueDashboardDomainName?: string; // Queue dashboard domain (e.g. queue.api.app.bearlymail.com)
+  queueDashboardCertificateArn?: string; // ACM certificate ARN for queue dashboard domain
   // Database and Secrets (from other stacks)
   database: rds.IDatabaseInstance;
   dbSecret: secretsmanager.ISecret;
@@ -122,6 +124,12 @@ export class BearlyMailStack extends cdk.Stack {
 
     const workerLogGroup = new logs.LogGroup(this, 'WorkerLogGroup', {
       logGroupName: '/ecs/bearlymail/worker',
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    const dashboardLogGroup = new logs.LogGroup(this, 'QueueDashboardLogGroup', {
+      logGroupName: '/ecs/bearlymail/queue-dashboard',
       retention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
@@ -223,6 +231,7 @@ export class BearlyMailStack extends cdk.Stack {
     const apiDomainName = props?.apiDomainName;
     const apiCertificateArn = props?.apiCertificateArn;
     const hostedZoneForApi = props?.hostedZone;
+    let httpsListener: elbv2.ApplicationListener | undefined;
     if (apiDomainName && apiCertificateArn && hostedZoneForApi) {
       const apiCertificate = certificatemanager.Certificate.fromCertificateArn(
         this,
@@ -230,8 +239,8 @@ export class BearlyMailStack extends cdk.Stack {
         apiCertificateArn
       );
 
-      // HTTPS listener on the ALB
-      webService.loadBalancer.addListener('HttpsListener', {
+      // HTTPS listener on the ALB (save reference for adding additional certs/rules later)
+      httpsListener = webService.loadBalancer.addListener('HttpsListener', {
         port: 443,
         certificates: [apiCertificate],
         defaultTargetGroups: [webService.targetGroup],
@@ -303,6 +312,145 @@ export class BearlyMailStack extends cdk.Stack {
       vpcSubnets: {
         subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
       },
+    });
+
+    // ============================================
+    // Queue Dashboard Service (pg-boss dashboard)
+    // Runs @pg-boss/dashboard as a separate Fargate service behind the existing ALB.
+    // Accessible at https://queue.api.app.bearlymail.com (when domain is configured).
+    //
+    // Required secrets to add to AppSecrets in AWS Secrets Manager:
+    //   PGBOSS_DASHBOARD_DATABASE_URL  - Full PostgreSQL URL e.g. postgresql://user:pass@host:5432/bearlymail?sslmode=require
+    //   PGBOSS_DASHBOARD_AUTH_USERNAME - Basic auth username for the dashboard
+    //   PGBOSS_DASHBOARD_AUTH_PASSWORD - Basic auth password for the dashboard
+    // ============================================
+    const dashboardTaskDefinition = new ecs.FargateTaskDefinition(this, 'QueueDashboardTaskDefinition', {
+      cpu: 256,
+      memoryLimitMiB: 512,
+      executionRole: taskExecutionRole,
+      taskRole: taskRole,
+    });
+
+    const dashboardContainer = dashboardTaskDefinition.addContainer('QueueDashboardContainer', {
+      image: serverImage,
+      // Run the pg-boss dashboard CLI directly (package is in production dependencies)
+      command: ['node', 'node_modules/@pg-boss/dashboard/bin/cli.js'],
+      logging: ecs.LogDrivers.awsLogs({
+        streamPrefix: 'queue-dashboard',
+        logGroup: dashboardLogGroup,
+      }),
+      environment: {
+        NODE_ENV: 'production',
+        PORT: '3004',
+      },
+      secrets: {
+        // DATABASE_URL stored as a complete URL in AppSecrets to avoid URL-encoding issues with the password
+        DATABASE_URL: ecs.Secret.fromSecretsManager(appSecrets, 'PGBOSS_DASHBOARD_DATABASE_URL'),
+        PGBOSS_DASHBOARD_AUTH_USERNAME: ecs.Secret.fromSecretsManager(appSecrets, 'PGBOSS_DASHBOARD_AUTH_USERNAME'),
+        PGBOSS_DASHBOARD_AUTH_PASSWORD: ecs.Secret.fromSecretsManager(appSecrets, 'PGBOSS_DASHBOARD_AUTH_PASSWORD'),
+      },
+      healthCheck: {
+        // Dashboard returns 401 for unauthenticated requests — that's healthy
+        command: ['CMD-SHELL', 'node -e "require(\'http\').get(\'http://localhost:3004/\', (r) => {process.exit(r.statusCode < 500 ? 0 : 1)})"'],
+        interval: cdk.Duration.seconds(30),
+        timeout: cdk.Duration.seconds(5),
+        retries: 3,
+        startPeriod: cdk.Duration.seconds(30),
+      },
+    });
+
+    dashboardContainer.addPortMappings({
+      containerPort: 3004,
+      protocol: ecs.Protocol.TCP,
+    });
+
+    // Security group: allow inbound from ALB on port 3004; allow all outbound (for DB, ECR, etc.)
+    const dashboardSecurityGroup = new ec2.SecurityGroup(this, 'QueueDashboardSecurityGroup', {
+      vpc,
+      description: 'Security group for pg-boss queue dashboard ECS service',
+      allowAllOutbound: true,
+    });
+    dashboardSecurityGroup.connections.allowFrom(
+      webService.loadBalancer.connections,
+      ec2.Port.tcp(3004),
+      'Allow traffic from ALB to queue dashboard',
+    );
+
+    const dashboardService = new ecs.FargateService(this, 'QueueDashboardService', {
+      cluster,
+      taskDefinition: dashboardTaskDefinition,
+      desiredCount: 1,
+      vpcSubnets: {
+        subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
+      },
+      securityGroups: [dashboardSecurityGroup],
+    });
+
+    // Wire the dashboard to the ALB if domain is configured
+    const queueDashboardDomainName = props?.queueDashboardDomainName;
+    const queueDashboardCertificateArn = props?.queueDashboardCertificateArn;
+    if (queueDashboardDomainName && queueDashboardCertificateArn && httpsListener && hostedZoneForApi) {
+      const queueDashboardCertificate = certificatemanager.Certificate.fromCertificateArn(
+        this,
+        'QueueDashboardCertificate',
+        queueDashboardCertificateArn,
+      );
+
+      // Add the dashboard certificate to the shared HTTPS listener (ALB SNI)
+      httpsListener.addCertificates('QueueDashboardCert', [queueDashboardCertificate]);
+
+      // Target group for the dashboard
+      const dashboardTargetGroup = new elbv2.ApplicationTargetGroup(this, 'QueueDashboardTargetGroup', {
+        vpc,
+        port: 3004,
+        protocol: elbv2.ApplicationProtocol.HTTP,
+        targets: [
+          dashboardService.loadBalancerTarget({
+            containerName: 'QueueDashboardContainer',
+            containerPort: 3004,
+          }),
+        ],
+        healthCheck: {
+          path: '/',
+          // Dashboard returns 401 for unauthenticated health check requests
+          healthyHttpCodes: '200-499',
+          interval: cdk.Duration.seconds(30),
+          timeout: cdk.Duration.seconds(5),
+          healthyThresholdCount: 2,
+          unhealthyThresholdCount: 3,
+        },
+      });
+
+      // Host-based routing rule: queue.api.app.bearlymail.com → dashboard target group
+      httpsListener.addAction('QueueDashboardAction', {
+        priority: 10,
+        conditions: [
+          elbv2.ListenerCondition.hostHeaders([queueDashboardDomainName]),
+        ],
+        action: elbv2.ListenerAction.forward([dashboardTargetGroup]),
+      });
+
+      // Route53 A record: queue.api.app.bearlymail.com → same ALB
+      const queueDashboardRecordName = queueDashboardDomainName.replace(`.${hostedZoneForApi.zoneName}`, '');
+      new route53.ARecord(this, 'QueueDashboardARecord', {
+        zone: hostedZoneForApi,
+        recordName: queueDashboardRecordName,
+        target: route53.RecordTarget.fromAlias(
+          new route53Targets.LoadBalancerTarget(webService.loadBalancer, { evaluateTargetHealth: true }),
+        ),
+      });
+
+      new cdk.CfnOutput(this, 'QueueDashboardURL', {
+        value: `https://${queueDashboardDomainName}`,
+        description: 'Queue Dashboard URL (set REACT_APP_QUEUE_DASHBOARD_URL to this value)',
+        exportName: 'BearlyMail-Queue-Dashboard-URL',
+      });
+    }
+
+    new cdk.CfnOutput(this, 'QueueDashboardServiceName', {
+      value: dashboardService.serviceName,
+      description: 'Queue Dashboard ECS service name',
+      exportName: 'BearlyMail-Queue-Dashboard-Service-Name',
     });
 
     // ============================================

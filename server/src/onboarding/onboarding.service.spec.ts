@@ -3,7 +3,7 @@ import { getRepositoryToken } from "@nestjs/typeorm";
 import { OnboardingService } from "./onboarding.service";
 import { UsersService } from "../users/users.service";
 import { EmailThread } from "../database/entities/email-thread.entity";
-import PgBoss = require("pg-boss");
+import PgBoss from "pg-boss";
 
 describe("OnboardingService", () => {
   let service: OnboardingService;

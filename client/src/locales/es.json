@@ -23,6 +23,7 @@
       "subscriptions": "Suscripciones",
           "title": "Panel de administración",
           "tokenUsage": "Uso de tokens",
+          "queueDashboard": "Panel de colas",
           "waitlist": "Lista de espera",
           "emailSystem": "Sistema de correo",
           "decline": "Rechazar"
@@ -76,6 +77,19 @@
         "tokens": "tokens",
         "confirmReset": "¿Está seguro de que desea reiniciar todos los ejemplos de prompts capturados?"
       }
+    },
+    "queueDashboard": {
+      "title": "Panel de colas",
+      "openInNewTab": "Abrir en nueva pestaña",
+      "notConfigured": "El panel de colas no está configurado. Inicie el servidor del panel y establezca REACT_APP_QUEUE_DASHBOARD_URL para integrarlo aquí.",
+      "startCommand": "Iniciar el panel",
+      "startLine1": "DATABASE_URL=<your-db-url> \\",
+      "startLine2": "PGBOSS_DASHBOARD_AUTH_USERNAME=admin \\",
+      "startLine3": "PGBOSS_DASHBOARD_AUTH_PASSWORD=<secure-password> \\",
+      "startLine4": "PORT=3004 \\",
+      "startLine5": "npm run queue:dashboard",
+      "configureEnvVar": "Luego establezca la siguiente variable de entorno y reconstruya el cliente:",
+      "envVarExample": "REACT_APP_QUEUE_DASHBOARD_URL=http://localhost:3004"
     }
   },
     "auth": {

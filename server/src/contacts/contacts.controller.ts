@@ -11,7 +11,7 @@ import {
   UseGuards,
   Request,
 } from "@nestjs/common";
-import PgBoss = require("pg-boss");
+import PgBoss from "pg-boss";
 import { ContactsService, ContactSearchResult } from "./contacts.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { QUERY_LIMITS } from "../constants/query-limits";

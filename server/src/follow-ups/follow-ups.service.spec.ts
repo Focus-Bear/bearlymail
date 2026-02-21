@@ -12,7 +12,7 @@ import { LLMService } from "../llm/llm.service";
 import { UsersService } from "../users/users.service";
 import { ContextService } from "../context/context.service";
 import { EmailsService } from "../emails/emails.service";
-import PgBoss = require("pg-boss");
+import PgBoss from "pg-boss";
 
 jest.mock("../encryption/encryption.helper", () => ({
   // Simple mock - returns as-is

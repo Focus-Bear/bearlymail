@@ -7,7 +7,7 @@ import {
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import PgBoss = require("pg-boss");
+import PgBoss from "pg-boss";
 import {
   FollowUp,
   FollowUpStatus,

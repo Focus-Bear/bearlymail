@@ -8,7 +8,7 @@ import {
 } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import PgBoss = require("pg-boss");
+import PgBoss from "pg-boss";
 import { QueueMonitorService } from "./queue-monitor.service";
 import { ResourceMonitorService } from "./resource-monitor.service";
 import { QueueAutoscalingService } from "./queue-autoscaling.service";

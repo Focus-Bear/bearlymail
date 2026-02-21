@@ -5,7 +5,7 @@ import { ContextAnalysis } from "../database/entities/context-analysis.entity";
 import { getErrorMessage } from "../types/common";
 import { writeAnalysisLog } from "./context-analysis-logger";
 import { getJobPriority } from "../queue/job-priorities";
-import PgBoss = require("pg-boss");
+import PgBoss from "pg-boss";
 
 /**
  * Service for managing context analysis progress tracking and job synchronization.

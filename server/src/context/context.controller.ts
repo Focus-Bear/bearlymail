@@ -21,7 +21,7 @@ import {
 } from "../database/entities/user-context.entity";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { UsersService } from "../users/users.service";
-import PgBoss = require("pg-boss");
+import PgBoss from "pg-boss";
 import { getJobPriority } from "../queue/job-priorities";
 import { PERCENTAGES } from "../constants/percentages";
 import { writeAnalysisLog } from "./context-analysis-logger";

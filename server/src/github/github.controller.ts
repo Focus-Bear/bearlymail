@@ -18,7 +18,7 @@ import { In } from "typeorm";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Response } from "express";
-import PgBoss = require("pg-boss");
+import PgBoss from "pg-boss";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Public } from "../auth/public.decorator";
 import { GitHubService, ParsedGitHubLink } from "./github.service";

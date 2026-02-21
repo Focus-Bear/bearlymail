@@ -1,7 +1,7 @@
 import { Injectable, OnModuleInit, Logger, Inject } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, LessThanOrEqual } from "typeorm";
-import PgBoss = require("pg-boss");
+import PgBoss from "pg-boss";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";

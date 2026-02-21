@@ -11,7 +11,7 @@
 import { DataSource } from "typeorm";
 import { config } from "dotenv";
 import * as path from "path";
-import PgBoss = require("pg-boss");
+import PgBoss from "pg-boss";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { Email } from "../database/entities/email.entity";
 import { getJobPriority } from "../queue/job-priorities";

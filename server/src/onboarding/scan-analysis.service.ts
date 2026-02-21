@@ -1,7 +1,7 @@
 import { Injectable, Inject, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import PgBoss = require("pg-boss");
+import PgBoss from "pg-boss";
 import { ScanEmail } from "../database/entities/scan-email.entity";
 import { ScanEmailService } from "../emails/scan-email.service";
 import { ContextService } from "../context/context.service";

@@ -8,7 +8,7 @@ import { GmailProvider } from "./providers/gmail.provider";
 import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { isError } from "../types/common";
-import PgBoss = require("pg-boss");
+import PgBoss from "pg-boss";
 import { getJobPriority } from "../queue/job-priorities";
 import { SyncHistoryService, SyncHistoryEntry } from "./sync-history.service";
 

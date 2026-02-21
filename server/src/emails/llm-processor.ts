@@ -3,7 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, In, Not, IsNull } from "typeorm";
 import * as os from "os";
-import PgBoss = require("pg-boss");
+import PgBoss from "pg-boss";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { EmailsService } from "./emails.service";

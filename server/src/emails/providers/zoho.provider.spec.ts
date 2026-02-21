@@ -5,7 +5,7 @@ import { EmailsService } from "../emails.service";
 import { ScanEmailService } from "../scan-email.service";
 import { ZohoAccountsService } from "../../zoho-accounts/zoho-accounts.service";
 import { ConfigService } from "@nestjs/config";
-import PgBoss = require("pg-boss");
+import PgBoss from "pg-boss";
 
 describe("ZohoProvider", () => {
   let provider: ZohoProvider;

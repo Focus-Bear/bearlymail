@@ -8,7 +8,7 @@ import {
   EmailRecipient,
   EmailAttachmentData,
 } from "../interfaces/email-provider.interface";
-import PgBoss = require("pg-boss");
+import PgBoss from "pg-boss";
 import { getJobPriority } from "../../queue/job-priorities";
 import { QUERY_LIMITS } from "../../constants/query-limits";
 import { BODY_PREVIEW_LENGTHS } from "../../constants/llm-constants";

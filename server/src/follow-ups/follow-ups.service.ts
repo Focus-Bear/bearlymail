@@ -13,7 +13,7 @@ import { ContextService } from "../context/context.service";
 import { ContextKey } from "../database/entities/user-context.entity";
 import { EmailsService } from "../emails/emails.service";
 import { calculateBusinessDays } from "../utils/business-days.util";
-import PgBoss = require("pg-boss");
+import PgBoss from "pg-boss";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 
 @Injectable()

@@ -46,7 +46,8 @@
     "security:audit": "ts-node -r tsconfig-paths/register scripts/security-audit.ts",
     "security:audit:diff": "ts-node -r tsconfig-paths/register scripts/security-audit.ts --diff",
     "security:audit:llm": "ts-node -r tsconfig-paths/register scripts/security-audit.ts --llm",
-    "security:audit:diff:llm": "ts-node -r tsconfig-paths/register scripts/security-audit.ts --diff --llm"
+    "security:audit:diff:llm": "ts-node -r tsconfig-paths/register scripts/security-audit.ts --diff --llm",
+    "queue:dashboard": "node node_modules/@pg-boss/dashboard/bin/cli.js"
   },
   "dependencies": {
     "@aws-sdk/client-cloudwatch": "^3.947.0",
@@ -61,6 +62,7 @@
     "@nestjs/platform-express": "^10.3.0",
     "@nestjs/typeorm": "^10.0.1",
     "@octokit/rest": "^22.0.1",
+    "@pg-boss/dashboard": "^1.1.0",
     "@types/mjml": "^4.7.4",
     "axios": "^1.13.2",
     "bcrypt": "^5.1.1",

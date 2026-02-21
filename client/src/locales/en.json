@@ -575,6 +575,7 @@
       "subscriptions": "Subscriptions",
       "jobs": "Jobs",
       "tokenUsage": "Token Usage",
+      "queueDashboard": "Queue Dashboard",
       "days": "days",
       "extend": "Extend",
       "allUsers": "All Users",
@@ -641,6 +642,19 @@
         "tokens": "tokens",
         "confirmReset": "Are you sure you want to reset all captured prompt examples?"
       }
+    },
+    "queueDashboard": {
+      "title": "Queue Dashboard",
+      "openInNewTab": "Open in new tab",
+      "notConfigured": "The queue dashboard is not yet configured. Start the dashboard server and set REACT_APP_QUEUE_DASHBOARD_URL to embed it here.",
+      "startCommand": "Start the dashboard",
+      "startLine1": "DATABASE_URL=<your-db-url> \\",
+      "startLine2": "PGBOSS_DASHBOARD_AUTH_USERNAME=admin \\",
+      "startLine3": "PGBOSS_DASHBOARD_AUTH_PASSWORD=<secure-password> \\",
+      "startLine4": "PORT=3004 \\",
+      "startLine5": "npm run queue:dashboard",
+      "configureEnvVar": "Then set the following environment variable and rebuild the client:",
+      "envVarExample": "REACT_APP_QUEUE_DASHBOARD_URL=http://localhost:3004"
     }
   },
   "compose": {

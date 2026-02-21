@@ -10,7 +10,7 @@ import {
   EmailRecipient,
   EmailAttachmentData,
 } from "../interfaces/email-provider.interface";
-import PgBoss = require("pg-boss");
+import PgBoss from "pg-boss";
 import { getJobPriority } from "../../queue/job-priorities";
 // QUERY_LIMITS used in helper modules
 import { MINUTES, DAYS, MILLISECONDS } from "../../constants/time-constants";

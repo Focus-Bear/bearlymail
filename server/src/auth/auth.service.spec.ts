@@ -2,7 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { JwtService } from "@nestjs/jwt";
 import { UnauthorizedException } from "@nestjs/common";
 import * as bcrypt from "bcrypt";
-import PgBoss = require("pg-boss");
+import PgBoss from "pg-boss";
 import { AuthService } from "./auth.service";
 import { UsersService } from "../users/users.service";
 import { WaitlistService } from "../waitlist/waitlist.service";

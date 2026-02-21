@@ -13,7 +13,7 @@ import {
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { FollowUpsService } from "./follow-ups.service";
 import { Inject } from "@nestjs/common";
-import PgBoss = require("pg-boss");
+import PgBoss from "pg-boss";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { Email } from "../database/entities/email.entity";
 

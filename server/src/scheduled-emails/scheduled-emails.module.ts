@@ -14,7 +14,7 @@ import { EmailsModule } from "../emails/emails.module";
 import { ContactsModule } from "../contacts/contacts.module";
 import { UsersModule } from "../users/users.module";
 import { GoogleAccountsModule } from "../google-accounts/google-accounts.module";
-import PgBoss = require("pg-boss");
+import PgBoss from "pg-boss";
 
 @Module({
   imports: [

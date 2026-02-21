@@ -6,7 +6,7 @@ import {
   forwardRef,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import PgBoss = require("pg-boss");
+import PgBoss from "pg-boss";
 import { UsersService } from "../users/users.service";
 import { WaitlistService } from "../waitlist/waitlist.service";
 import * as bcrypt from "bcrypt";

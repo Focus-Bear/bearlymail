@@ -6,7 +6,8 @@ import { QuickActionsSection } from 'components/email-detail/QuickActionsSection
 import { CalendarInviteActions } from 'components/email-detail/CalendarInviteActions';
 import { SchedulingRequestCard } from 'components/email-detail/SchedulingRequestCard';
 import { SnoozeInputForm } from 'components/inbox/actions/SnoozeInputForm';
-import { EMOJI_REPLY, EMOJI_FORWARD, EMOJI_ARCHIVE, EMOJI_BLOCK, EMOJI_LINK, EMOJI_DELETE, EMOJI_STAR, EMOJI_CLOCK } from 'constants/emojis';
+import { PrioritySlider } from 'components/inbox/actions/PrioritySlider';
+import { EMOJI_REPLY, EMOJI_FORWARD, EMOJI_ARCHIVE, EMOJI_BLOCK, EMOJI_LINK, EMOJI_DELETE, EMOJI_CLOCK } from 'constants/emojis';
 import { OPACITY_DISABLED } from 'constants/numbers';
 import { REPLY_MODE_REPLY, REPLY_MODE_FORWARD, ACTION_TYPE_SCHEDULING_REQUEST } from 'constants/strings';
 import { extractUnsubscribeLink } from 'utils/unsubscribeUtils';
@@ -57,9 +58,6 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
   const { t } = useTranslation();
   const [showSnoozeInput, setShowSnoozeInput] = useState(false);
   const [snoozeValue, setSnoozeValue] = useState('');
-  
-  const emailWithStarCount = email as any;
-  const starCount = emailWithStarCount?.starCount ?? 0;
 
   // Check if email is a calendar invitation
   const isInvitation = useMemo(() => isCalendarInvitation(email), [email]);
@@ -134,10 +132,10 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
         flexWrap: 'wrap',
       }}>
         {/* Prioritise section */}
-        <div style={{ 
-          display: 'flex', 
-          gap: theme.spacing.xs, 
-          alignItems: 'center' 
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '4px',
         }}>
           <div style={{
             fontSize: theme.typography.fontSize.xs,
@@ -145,34 +143,12 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
             fontWeight: theme.typography.fontWeight.medium,
             whiteSpace: 'nowrap',
           }}>
-            {t('inbox.prioritise') || 'Prioritise'}:
+            {t('inbox.prioritise')}:
           </div>
-          {[1, 2, 3].map((count) => (
-            <button
-              key={count}
-              onClick={(e) => {
-                e.stopPropagation();
-                const newCount = starCount === count ? 0 : count;
-                onSetStarCount(email.id, newCount);
-              }}
-              style={{
-                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                backgroundColor: starCount === count ? theme.colors.primary.main : 'transparent',
-                color: starCount === count ? 'white' : theme.colors.text.secondary,
-                border: `1px solid ${starCount === count ? theme.colors.primary.main : theme.colors.border.medium}`,
-                borderRadius: theme.borderRadius.sm,
-                cursor: 'pointer',
-                fontSize: theme.typography.fontSize.sm,
-                fontWeight: theme.typography.fontWeight.medium,
-                display: 'flex',
-                alignItems: 'center',
-                gap: theme.spacing.xs,
-              }}
-            >
-              {/* eslint-disable-next-line i18next/no-literal-string */}
-              <span>{EMOJI_STAR}</span>
-            </button>
-          ))}
+          <PrioritySlider
+            email={email}
+            onSetStarCount={onSetStarCount}
+          />
         </div>
 
         {/* Other Actions */}

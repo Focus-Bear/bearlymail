@@ -5,7 +5,7 @@ import { Email } from 'types/email';
 
 interface PrioritySliderProps {
   email: Email;
-  keyboardHint: {
+  keyboardHint?: {
     showHint: (emailId: string, action: string) => void;
     hideHint: () => void;
   };

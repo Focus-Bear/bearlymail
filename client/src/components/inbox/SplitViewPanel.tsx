@@ -3,12 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import EmailDetail, { EmailDetailRef } from 'pages/EmailDetail';
 import { SnoozeInputForm } from 'components/inbox/actions/SnoozeInputForm';
-import { EMOJI_CLOSE, EMOJI_EXPAND, EMOJI_REPLY, EMOJI_FORWARD, EMOJI_ARCHIVE, EMOJI_STAR, EMOJI_CLOCK } from 'constants/emojis';
+import { PrioritySlider } from 'components/inbox/actions/PrioritySlider';
+import { EMOJI_CLOSE, EMOJI_EXPAND, EMOJI_REPLY, EMOJI_FORWARD, EMOJI_ARCHIVE, EMOJI_CLOCK } from 'constants/emojis';
 import { InboxMode, Email } from 'types/email';
 import { MODE_ACTION } from 'constants/strings';
 import { captureEvent } from 'utils/posthog';
-
-const INACTIVE_PRIORITY_OPACITY = 0.4;
 
 interface SelectedEmail {
   subject: string;
@@ -77,9 +76,8 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
     emailDetailComponentRef.current?.archive();
   };
 
-  const handleStarClick = (count: number) => {
-    const newCount = starCount === count ? 0 : count;
-
+  // Adapter for PrioritySlider: receives the already-computed new count (0 = unset, 1/2/3 = set)
+  const handleSetStarCountForSlider = useCallback(async (_emailId: string, newCount: number): Promise<void> => {
     // In triage mode, setting star > 0 moves email to Action tab — delegate to parent
     // which triggers the exit animation on the list item and navigates to the next email
     if (mode === 'triage' && newCount > 0 && onPrioritySet) {
@@ -89,7 +87,7 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
 
     setStarCount(newCount);
     emailDetailComponentRef.current?.setStarCount(newCount);
-  };
+  }, [mode, onPrioritySet, selectedEmailId, emailDetailComponentRef]);
 
   const handleSnoozeClick = () => {
     captureEvent('email_snooze_clicked', { email_id: selectedEmailId });
@@ -228,48 +226,10 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
         }}>
           {/* Row 1: Priority emoji buttons + Archive */}
           <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs }}>
-            {[
-              { value: 1, emoji: '😌', label: 'inbox.canWait' },
-              { value: 2, emoji: '😅', label: 'inbox.getOnIt' },
-              { value: 3, emoji: '🙀', label: 'inbox.ohShit' },
-            ].map((level) => (
-              <button
-                key={level.value}
-                onClick={() => handleStarClick(level.value)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '1.2rem',
-                  padding: '2px 4px',
-                  opacity: starCount === level.value ? 1 : INACTIVE_PRIORITY_OPACITY,
-                  transition: theme.transitions.fast,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '2px',
-                }}
-                title={t(level.label)}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.opacity = '1';
-                  e.currentTarget.style.transform = 'scale(1.1)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.opacity = starCount === level.value ? '1' : String(INACTIVE_PRIORITY_OPACITY);
-                  e.currentTarget.style.transform = 'scale(1)';
-                }}
-              >
-                {/* eslint-disable-next-line i18next/no-literal-string */}
-                <span>{level.emoji}</span>
-                <span style={{
-                  fontSize: '0.65rem',
-                  color: theme.colors.text.tertiary,
-                  whiteSpace: 'nowrap',
-                }}>
-                  {t(level.label)}
-                </span>
-              </button>
-            ))}
+            <PrioritySlider
+              email={{ id: selectedEmailId, starCount } as unknown as Email}
+              onSetStarCount={handleSetStarCountForSlider}
+            />
             {/* Archive button on first row */}
             <button
               onClick={handleArchiveClick}

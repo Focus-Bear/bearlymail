@@ -233,12 +233,17 @@ export class PriorityAnalysisService {
         maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_SMALL,
         userId,
         operation: LLM_OP_ANALYZE_PRIORITY,
+        jsonMode: true,
       },
       provider,
       userId,
     );
 
     // Try to parse JSON response
+    const responsePreview = response.substring(
+      0,
+      QUERY_LIMITS.LLM_RESPONSE_PREVIEW_LENGTH,
+    );
     try {
       const jsonMatch = response.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
@@ -271,9 +276,28 @@ export class PriorityAnalysisService {
                 }
               : undefined,
         };
+      } else {
+        // No JSON object found in response - log clearly so it's visible in worker terminal
+        this.logger.error(
+          `analyzePriority: LLM returned a non-JSON response - falling back to heuristics. Email subject: "${email.subject}". Response preview: "${responsePreview}"`,
+        );
+        this.errorTrackingService.captureException(
+          new Error(
+            `LLM priority response contained no JSON object. Response preview: ${responsePreview}`,
+          ),
+          userId,
+          { operation: "analyze_priority", responsePreview },
+        );
       }
     } catch (error) {
-      this.logger.warn("Failed to parse LLM priority response as JSON", error);
+      this.logger.error(
+        `analyzePriority: Failed to parse LLM priority response as JSON - falling back to heuristics. Email subject: "${email.subject}". Response preview: "${responsePreview}"`,
+        error,
+      );
+      this.errorTrackingService.captureException(error as Error, userId, {
+        operation: "analyze_priority",
+        responsePreview,
+      });
     }
 
     // Fallback: extract component scores from text if JSON parsing fails
@@ -459,12 +483,17 @@ IMPORTANT: Return ONLY the JSON array, no other text.`;
           maxTokens: emails.length * 200,
           userId,
           operation: LLM_OP_ANALYZE_PRIORITY_BATCH,
+          jsonMode: true,
         },
         provider,
         userId,
       );
 
       // Parse the JSON array response
+      const batchResponsePreview = response.substring(
+        0,
+        QUERY_LIMITS.LLM_RESPONSE_PREVIEW_LENGTH,
+      );
       const jsonMatch = response.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
@@ -505,14 +534,37 @@ IMPORTANT: Return ONLY the JSON array, no other text.`;
             }
           }
         }
+      } else {
+        // No JSON array found in batch response - log clearly so it's visible in worker terminal
+        const emailKeys = emails.map((e) => e.emailKey).join(", ");
+        this.logger.error(
+          `analyzePriorityBatch: LLM returned a non-JSON response for batch of ${emails.length} emails [${emailKeys}]. Response preview: "${batchResponsePreview}"`,
+        );
+        this.errorTrackingService.captureException(
+          new Error(
+            `LLM batch priority response contained no JSON array. Response preview: ${batchResponsePreview}`,
+          ),
+          userId,
+          {
+            operation: "analyze_priority_batch",
+            emailCount: emails.length,
+            emailKeys,
+            responsePreview: batchResponsePreview,
+          },
+        );
       }
     } catch (error) {
-      this.logger.error("Failed to parse batch priority response", error);
+      this.logger.error(
+        `analyzePriorityBatch: Failed to parse batch priority response for ${emails.length} emails`,
+        error,
+      );
     }
 
     // Fill in defaults for any emails that didn't get a result
+    const missingEmailKeys: string[] = [];
     for (const email of emails) {
       if (!results.has(email.emailKey)) {
+        missingEmailKeys.push(email.emailKey);
         results.set(email.emailKey, {
           urgencyScore: 0,
           urgencyExplanation: "Batch analysis failed for this email",
@@ -524,6 +576,12 @@ IMPORTANT: Return ONLY the JSON array, no other text.`;
           reasoning: "Batch analysis did not return results for this email",
         });
       }
+    }
+
+    if (missingEmailKeys.length > 0) {
+      this.logger.error(
+        `analyzePriorityBatch: ${missingEmailKeys.length} of ${emails.length} emails were missing from LLM batch response and received fallback values. Missing email keys: [${missingEmailKeys.join(", ")}]`,
+      );
     }
 
     return results;

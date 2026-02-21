@@ -145,6 +145,7 @@ export class LLMCoreService {
         generationConfig: {
           temperature: request.temperature || RATIOS.SEVENTY_PERCENT,
           maxOutputTokens: request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
+          ...(request.jsonMode && { responseMimeType: "application/json" }),
         },
       });
 
@@ -247,6 +248,9 @@ export class LLMCoreService {
           input: [{ role: "user", content: request.prompt }],
           max_output_tokens:
             request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
+          ...(request.jsonMode && {
+            text: { format: { type: "json_object" } },
+          }),
         };
 
         if (request.systemPrompt) {
@@ -297,6 +301,9 @@ export class LLMCoreService {
           temperature: request.temperature || RATIOS.SEVENTY_PERCENT,
           max_completion_tokens:
             request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
+          ...(request.jsonMode && {
+            response_format: { type: "json_object" },
+          }),
         };
 
         this.logger.debug(

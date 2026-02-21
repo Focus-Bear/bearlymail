@@ -80,4 +80,6 @@ export const QUERY_LIMITS = {
   RANDOM_BASE_36: 36,
   RANDOM_STRING_START: 2,
   RANDOM_STRING_LENGTH: 9,
+  // LLM response preview length for error logging
+  LLM_RESPONSE_PREVIEW_LENGTH: 300,
 } as const;

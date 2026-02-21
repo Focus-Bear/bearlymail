@@ -841,6 +841,7 @@
     "actionItems": "{{count}} elemento de acción",
     "actionItems_plural": "{{count}} elementos de acción",
     "actionTab": "Acción",
+    "toggleDebug": "Alternar panel de depuración",
     "andMore": "y {{count}} más",
     "archive": "Archivar",
     "archiveOrPressDelete": "Archivar (o presiona Eliminar)",

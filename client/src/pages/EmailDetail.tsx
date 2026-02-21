@@ -52,7 +52,8 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
   const { isMobile } = useResponsiveBreakpoints();
   const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
   const replyComposerRef = useRef<HTMLDivElement>(null);
-  
+  const [activeSideTab, setActiveSideTab] = useState<'notes' | 'actions' | 'github' | null>(null);
+
   const state = useEmailDetailState();
   const operations = useEmailDetailOperations(id, state, { onArchiveComplete, onSnoozeComplete });
   
@@ -407,7 +408,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
         boxShadow: compactMode ? 'none' : theme.shadows.md,
         marginBottom: compactMode ? theme.spacing.xs : (isMobile ? theme.spacing.sm : theme.spacing.xl),
       }}>
-        <div style={{ marginBottom: compactMode ? theme.spacing.sm : theme.spacing.xl }}>
+        <div style={{ marginBottom: theme.spacing.xl }}>
           <EmailDetailHeader
             email={email as any}
             threadEmails={threadEmails as Email[]}
@@ -439,7 +440,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
             setDraft(replyDraft);
             setShowReplyComposer(true);
           }}
-          hideActionButtons={compactMode}
+          hideActionButtons={false}
         />
 
         {showReplyComposer && (
@@ -498,8 +499,8 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
           </div>
         )}
 
-        {/* GitHubStatusSection - visible in both modes, positioned above summary */}
-        <div style={{ marginBottom: compactMode ? theme.spacing.md : theme.spacing.xl }}>
+        {/* GitHubStatusSection - visible in full-page mode */}
+        <div style={{ marginBottom: theme.spacing.xl }}>
           <GitHubStatusSection
             links={githubLinks}
             loading={loadingGithub}
@@ -551,78 +552,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
         />
       </div>
 
-      {/* Attachment Debug Section - visible in split view (compactMode) for admins */}
-      {compactMode && user?.isAdmin && email && (() => {
-        const emailData = email as any;
-        return (
-          /* eslint-disable i18next/no-literal-string */
-          <div style={{
-            marginTop: theme.spacing.md,
-            padding: theme.spacing.md,
-            backgroundColor: theme.colors.background.subtle,
-            borderRadius: theme.borderRadius.md,
-            border: `1px solid ${theme.colors.border.light}`,
-          }}>
-            <h4 style={{
-              marginTop: 0,
-              marginBottom: theme.spacing.sm,
-              fontSize: theme.typography.fontSize.xs,
-              fontWeight: 600,
-              color: theme.colors.text.primary,
-            }}>
-              Attachment Debug (Admin Only)
-            </h4>
-            <div style={{
-              fontFamily: 'monospace',
-              fontSize: theme.typography.fontSize.xs,
-              color: theme.colors.text.secondary,
-              lineHeight: 1.5,
-            }}>
-              <div><strong>Email ID:</strong> {emailData.id}</div>
-              <div><strong>Has attachments prop:</strong> {emailData.attachments !== undefined ? 'true' : 'false'}</div>
-              <div><strong>Attachments count:</strong> {emailData.attachments?.length ?? 0}</div>
-              <div><strong>Raw attachments:</strong> {emailData.attachments ? JSON.stringify(emailData.attachments) : 'null/undefined'}</div>
-              {emailData.attachments && emailData.attachments.length > 0 && (
-                <div style={{ marginTop: theme.spacing.xs }}>
-                  <strong>Details:</strong>
-                  {emailData.attachments.map((att: any, idx: number) => (
-                    <div key={att.attachmentId || idx} style={{ marginLeft: theme.spacing.sm, marginTop: theme.spacing.xs }}>
-                      [{idx}] ID: {att.attachmentId || 'N/A'} | File: {att.filename || 'N/A'} | MIME: {att.mimeType || 'N/A'} | Size: {att.size ?? 'N/A'}
-                    </div>
-                  ))}
-                </div>
-              )}
-              {(!emailData.attachments || emailData.attachments.length === 0) && (
-                <div style={{ 
-                  marginTop: theme.spacing.xs,
-                  padding: theme.spacing.xs,
-                  backgroundColor: '#ffebee',
-                  borderRadius: theme.borderRadius.sm,
-                  color: '#d32f2f',
-                }}>
-                  No attachments on email object. Check Gmail API fetch and DB storage.
-                </div>
-              )}
-              {threadEmails && threadEmails.length > 0 && (
-                <div style={{ marginTop: theme.spacing.sm, paddingTop: theme.spacing.sm, borderTop: `1px solid ${theme.colors.border.light}` }}>
-                  <strong>Thread emails attachments ({threadEmails.length} emails):</strong>
-                  {threadEmails.map((te, idx) => {
-                    const teData = te as any;
-                    return (
-                      <div key={te.id} style={{ marginLeft: theme.spacing.sm, marginTop: theme.spacing.xs }}>
-                        [{idx}] {teData.attachments?.length ?? 0} attachments {teData.attachments?.length > 0 ? `(${teData.attachments.map((a: any) => a.filename).join(', ')})` : ''}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-          /* eslint-enable i18next/no-literal-string */
-        );
-      })()}
-
-      {!compactMode && user?.isAdmin && email && (
+      {user?.isAdmin && email && (
           /* eslint-disable i18next/no-literal-string */
           (() => {
                 const emailData = email as any;
@@ -710,11 +640,305 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
       </>
     );
 
-  // In compact mode, return just the content without full-page layout
+  // In compact mode, render with side tabs for Notes, Actions, GitHub
   if (compactMode) {
     return (
-      <div style={{ padding: theme.spacing.sm, paddingBottom: 0 }}>
-        {emailContent}
+      <div style={{ display: 'flex', height: '100%', overflow: 'hidden', position: 'relative' }}>
+        {/* Main scrollable content */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: theme.spacing.sm, paddingBottom: 0 }}>
+          <div style={{
+            backgroundColor: theme.colors.background.paper,
+            borderRadius: 0,
+            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+            paddingTop: theme.spacing.xs,
+            boxShadow: 'none',
+            marginBottom: theme.spacing.xs,
+          }}>
+            <div style={{ marginBottom: theme.spacing.sm }}>
+              <EmailDetailHeader
+                email={email as any}
+                threadEmails={threadEmails as Email[]}
+                priorityExplanation={priorityExplanation}
+                showPriorityExplanation={showPriorityExplanation}
+                onFetchPriorityExplanation={handleFetchPriorityExplanation}
+                onClosePriorityExplanation={() => setShowPriorityExplanation(false)}
+              />
+            </div>
+
+            <EmailDetailActions
+              email={email as any}
+              suggestedActions={suggestedActions}
+              showQuickActionsMenu={showQuickActionsMenu}
+              selectedAction={selectedAction}
+              onShowQuickActionsMenu={() => setShowQuickActionsMenu(true)}
+              onCloseQuickActionsMenu={() => setShowQuickActionsMenu(false)}
+              onSelectAction={handleActionSelected}
+              onCloseAction={() => setSelectedAction(null)}
+              onActionSuccess={handleActionSuccess}
+              onOpenReplyComposer={handleOpenReplyComposer}
+              onArchive={handleArchive}
+              onDelete={handleDelete}
+              onSetStarCount={handleSetStarCount}
+              onBlockSender={handleBlockSender}
+              onSnooze={handleSnooze}
+              onRespondToInvitation={handleRespondToInvitation}
+              onDraftReply={(replyDraft) => {
+                setDraft(replyDraft);
+                setShowReplyComposer(true);
+              }}
+              hideActionButtons={true}
+            />
+
+            {showReplyComposer && (
+              <div ref={replyComposerRef}>
+                <ReplyComposer
+                  showReplyComposer={showReplyComposer}
+                  replyMode={replyMode}
+                  replyRecipients={replyRecipients}
+                  replyCc={replyCc}
+                  replyBcc={replyBcc}
+                  showCc={showCc}
+                  showBcc={showBcc}
+                  draft={draft}
+                  replyOptions={replyOptions}
+                  selectedReplyOption={selectedReplyOption}
+                  loadingReplies={loadingReplies}
+                  checkingTone={checkingTone}
+                  toneCheckResult={toneCheckResult}
+                  sending={sending}
+                  textareaRef={replyTextareaRef}
+                  onReplyRecipientsChange={setReplyRecipients}
+                  onCcChange={setReplyCc}
+                  onBccChange={setReplyBcc}
+                  onShowCc={() => setShowCc(true)}
+                  onShowBcc={() => setShowBcc(true)}
+                  onDraftChange={(newDraft) => {
+                    setDraft(newDraft);
+                    setToneCheckResult(null);
+                    if (replyOptions && selectedReplyOption !== replyOptions.length - 1) {
+                      const customIdx = replyOptions.findIndex(option => option.label === ACTION_TYPE_CUSTOM);
+                      if (customIdx >= 0) setSelectedReplyOption(customIdx);
+                    }
+                  }}
+                  onReplyOptionSelect={(index, text) => {
+                    setSelectedReplyOption(index);
+                    setDraft(text);
+                  }}
+                  onClose={() => {
+                    setShowReplyComposer(false);
+                    setDraft('');
+                    setReplyOptions(null);
+                    setToneCheckResult(null);
+                  }}
+                  onSend={(files, expectedReplyHours, _forwardAttachmentIds, draftOverride) => handleSendReply(files, expectedReplyHours, draftOverride)}
+                  onUseRevisedText={(text) => {
+                    setDraft(text);
+                    setToneCheckResult(null);
+                  }}
+                  onDispute={disputeToneCheck}
+                  disputing={disputing}
+                  disputeResult={disputeResult}
+                  currentEmailId={id}
+                  currentEmailObjectId={email?.id}
+                  currentEmailThreadId={(email as any)?.emailThreadId}
+                />
+              </div>
+            )}
+
+            <SummarySection
+              summary={summary}
+              summaryType={summaryType}
+              summaryCollapsed={summaryCollapsed}
+              isGeneratingSummary={isGeneratingSummary}
+              emailIsProcessingSummary={email?.isProcessingSummary}
+              customRules={customRules}
+              onSummaryTypeChange={(type) => {
+                if (type === SUMMARY_TYPE_CUSTOM) {
+                  setShowRuleModal(true);
+                } else if (type.startsWith(SUMMARY_TYPE_CUSTOM_PREFIX)) {
+                  const ruleId = type.replace(SUMMARY_TYPE_CUSTOM_PREFIX, '');
+                  const rule = customRules.find(r => r.ruleId === ruleId);
+                  if (rule) {
+                    handleUseCustomRule(rule);
+                  } else {
+                    console.error('Custom rule not found:', ruleId);
+                  }
+                } else {
+                  handleSummarize(type);
+                }
+              }}
+              onToggleCollapsed={() => setSummaryCollapsed(!summaryCollapsed)}
+              onShowRuleModal={() => setShowRuleModal(true)}
+              onUseCustomRule={handleUseCustomRule}
+            />
+
+            <EmailThreadView
+              email={email as Email}
+              threadEmails={threadEmails as Email[]}
+              expandedThreadItems={expandedThreadItems}
+              onToggleThreadItem={toggleThreadItem}
+              extractCleanBody={extractCleanBody}
+              removeSignature={removeSignature}
+              extractCleanHtmlBody={extractCleanHtmlBody}
+              sanitizeAndProcessHtml={sanitizeAndProcessHtml}
+            />
+          </div>
+
+          {/* Admin attachment debug section in compact mode */}
+          {user?.isAdmin && email && (() => {
+            const emailData = email as any;
+            return (
+              /* eslint-disable i18next/no-literal-string */
+              <div style={{
+                marginTop: theme.spacing.md,
+                padding: theme.spacing.md,
+                backgroundColor: theme.colors.background.subtle,
+                borderRadius: theme.borderRadius.md,
+                border: `1px solid ${theme.colors.border.light}`,
+              }}>
+                <h4 style={{
+                  marginTop: 0,
+                  marginBottom: theme.spacing.sm,
+                  fontSize: theme.typography.fontSize.xs,
+                  fontWeight: 600,
+                  color: theme.colors.text.primary,
+                }}>
+                  Attachment Debug (Admin Only)
+                </h4>
+                <div style={{
+                  fontFamily: 'monospace',
+                  fontSize: theme.typography.fontSize.xs,
+                  color: theme.colors.text.secondary,
+                  lineHeight: 1.5,
+                }}>
+                  <div><strong>Email ID:</strong> {emailData.id}</div>
+                  <div><strong>Has attachments prop:</strong> {emailData.attachments !== undefined ? 'true' : 'false'}</div>
+                  <div><strong>Attachments count:</strong> {emailData.attachments?.length ?? 0}</div>
+                  <div><strong>Raw attachments:</strong> {emailData.attachments ? JSON.stringify(emailData.attachments) : 'null/undefined'}</div>
+                  {emailData.attachments && emailData.attachments.length > 0 && (
+                    <div style={{ marginTop: theme.spacing.xs }}>
+                      <strong>Details:</strong>
+                      {emailData.attachments.map((att: any, idx: number) => (
+                        <div key={att.attachmentId || idx} style={{ marginLeft: theme.spacing.sm, marginTop: theme.spacing.xs }}>
+                          [{idx}] ID: {att.attachmentId || 'N/A'} | File: {att.filename || 'N/A'} | MIME: {att.mimeType || 'N/A'} | Size: {att.size ?? 'N/A'}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {(!emailData.attachments || emailData.attachments.length === 0) && (
+                    <div style={{
+                      marginTop: theme.spacing.xs,
+                      padding: theme.spacing.xs,
+                      backgroundColor: '#ffebee',
+                      borderRadius: theme.borderRadius.sm,
+                      color: '#d32f2f',
+                    }}>
+                      No attachments on email object. Check Gmail API fetch and DB storage.
+                    </div>
+                  )}
+                  {emailData.attachments && emailData.attachments.length > 0 && (
+                    <div style={{ marginTop: theme.spacing.sm, paddingTop: theme.spacing.sm, borderTop: `1px solid ${theme.colors.border.light}` }}>
+                      <strong>Thread emails attachments ({threadEmails.length} emails):</strong>
+                      {threadEmails.map((te, idx) => {
+                        const teData = te as any;
+                        return (
+                          <div key={te.id} style={{ marginLeft: theme.spacing.sm, marginTop: theme.spacing.xs }}>
+                            [{idx}] {teData.attachments?.length ?? 0} attachments {teData.attachments?.length > 0 ? `(${teData.attachments.map((a: any) => a.filename).join(', ')})` : ''}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+              /* eslint-enable i18next/no-literal-string */
+            );
+          })()}
+        </div>
+
+        {/* Side panel - expanded when a tab is active */}
+        {activeSideTab && (
+          <div style={{
+            width: '260px',
+            borderLeft: `1px solid ${theme.colors.border.light}`,
+            overflowY: 'auto',
+            padding: theme.spacing.sm,
+            backgroundColor: theme.colors.background.paper,
+            flexShrink: 0,
+          }}>
+            {activeSideTab === 'notes' && (
+              <PrivateNotesSection
+                noteContent={noteContent}
+                notesCollapsed={notesCollapsed}
+                onNoteContentChange={setNoteContent}
+                onToggleCollapsed={() => setNotesCollapsed(!notesCollapsed)}
+                onSaveNote={handleSaveNote}
+              />
+            )}
+            {activeSideTab === 'actions' && (
+              <ActionItemsSection
+                actionItems={actionItems}
+                newActionItem={newActionItem}
+                isGeneratingSummary={isGeneratingSummary}
+                onNewActionItemChange={setNewActionItem}
+                onAddActionItem={handleAddActionItem}
+                onToggleActionItem={handleToggleActionItem}
+                onDeleteActionItem={handleDeleteActionItem}
+                onExtractActions={handleExtractActions}
+                onRegenerateActionItems={handleRegenerateActionItems}
+              />
+            )}
+            {activeSideTab === 'github' && (
+              <GitHubStatusSection
+                links={githubLinks}
+                loading={loadingGithub}
+                hasToken={hasGithubToken}
+                onRefresh={refreshGithubInfo}
+                emailSubject={email?.subject}
+                emailBody={email?.body}
+                emailHtmlBody={email?.htmlBody}
+              />
+            )}
+          </div>
+        )}
+
+        {/* Vertical tab strip */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          borderLeft: `1px solid ${theme.colors.border.light}`,
+          backgroundColor: theme.colors.background.subtle,
+          flexShrink: 0,
+        }}>
+          {([
+            { key: 'notes' as const, label: `📝 ${t('emailDetail.privateNotes')}` },
+            { key: 'actions' as const, label: `✅ ${t('emailDetail.actionItems')}` },
+            { key: 'github' as const, label: '🐙 GitHub' },
+          ] as const).map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveSideTab(prev => prev === tab.key ? null : tab.key)}
+              style={{
+                writingMode: 'vertical-rl',
+                textOrientation: 'mixed',
+                transform: 'rotate(180deg)',
+                padding: `${theme.spacing.md} ${theme.spacing.xs}`,
+                border: 'none',
+                borderTop: `1px solid ${theme.colors.border.light}`,
+                cursor: 'pointer',
+                backgroundColor: activeSideTab === tab.key ? theme.colors.primary.subtle : 'transparent',
+                color: activeSideTab === tab.key ? theme.colors.primary.main : theme.colors.text.secondary,
+                fontSize: theme.typography.fontSize.xs,
+                fontWeight: activeSideTab === tab.key ? theme.typography.fontWeight.semibold : theme.typography.fontWeight.normal,
+                whiteSpace: 'nowrap',
+                transition: theme.transitions.fast,
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         <CustomRuleModal
           show={showRuleModal}
           customRule={customRule}

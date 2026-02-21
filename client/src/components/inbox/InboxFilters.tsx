@@ -1,14 +1,23 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FiFilter } from 'react-icons/fi';
 import { theme } from 'theme/theme';
 import {
-  useInboxFilters,
   PRIORITY_RANGES,
 } from 'hooks/useInboxFilters';
+import type { InboxFilter, ConnectedAccount } from 'hooks/useInboxFilters';
 
 interface InboxFiltersProps {
   onFilterChange?: () => void;
+  isFilterBarVisible: boolean;
+  filters: InboxFilter;
+  connectedAccounts: ConnectedAccount[];
+  availableCategories: string[];
+  loadingAccounts: boolean;
+  loadingCategories: boolean;
+  hasActiveFilters: boolean;
+  setAccountFilter: (accountIds: string[]) => void;
+  setCategoryFilter: (categories: string[]) => void;
+  setPriorityFilter: (value: number | null) => void;
 }
 
 // Multi-select dropdown component with search
@@ -355,22 +364,19 @@ const SingleSelectDropdown: React.FC<SingleSelectDropdownProps> = ({
   );
 };
 
-export const InboxFilters: React.FC<InboxFiltersProps> = ({ onFilterChange }) => {
+export const InboxFilters: React.FC<InboxFiltersProps> = ({
+  onFilterChange,
+  isFilterBarVisible,
+  filters,
+  connectedAccounts,
+  availableCategories,
+  loadingAccounts,
+  loadingCategories,
+  setAccountFilter,
+  setCategoryFilter,
+  setPriorityFilter,
+}) => {
   const { t } = useTranslation();
-  const {
-    isFilterBarVisible,
-    filters,
-    connectedAccounts,
-    availableCategories,
-    loadingAccounts,
-    loadingCategories,
-    hasActiveFilters,
-    toggleFilterBar,
-    setAccountFilter,
-    setCategoryFilter,
-    setPriorityFilter,
-    clearFilters,
-  } = useInboxFilters();
 
   const handleAccountChange = (ids: string[]) => {
     setAccountFilter(ids);
@@ -387,11 +393,6 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({ onFilterChange }) =>
     onFilterChange?.();
   };
 
-  const handleClearFilters = () => {
-    clearFilters();
-    onFilterChange?.();
-  };
-
   const accountOptions = connectedAccounts.map((account) => ({
     id: account.id,
     label: `${account.email} (${account.provider})`,
@@ -405,137 +406,51 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({ onFilterChange }) =>
   // Hide account filter if only one account
   const showAccountFilter = connectedAccounts.length > 1;
 
+  if (!isFilterBarVisible) return null;
+
   return (
-    <div style={{ marginBottom: theme.spacing.md }}>
-      {/* Filter toggle button */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, marginBottom: theme.spacing.sm }}>
-        <button
-          onClick={toggleFilterBar}
-          data-testid="filter-toggle-button"
-          style={{
-            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-            fontSize: theme.typography.fontSize.lg,
-            borderRadius: theme.borderRadius.md,
-            border: hasActiveFilters ? 'none' : `1px solid ${theme.colors.border.medium}`,
-            backgroundColor: hasActiveFilters ? theme.colors.primary.main : theme.colors.background.paper,
-            color: hasActiveFilters ? 'white' : theme.colors.text.primary,
-            cursor: 'pointer',
-            fontWeight: hasActiveFilters ? theme.typography.fontWeight.semibold : theme.typography.fontWeight.normal,
-            display: 'flex',
-            alignItems: 'center',
-            gap: theme.spacing.xs,
-            transition: theme.transitions.default,
-            boxShadow: hasActiveFilters ? theme.shadows.sm : 'none',
-          }}
-          onMouseEnter={(e) => {
-            if (!hasActiveFilters) {
-              e.currentTarget.style.backgroundColor = theme.colors.background.subtle;
-            } else {
-              e.currentTarget.style.backgroundColor = theme.colors.primary.light;
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!hasActiveFilters) {
-              e.currentTarget.style.backgroundColor = theme.colors.background.paper;
-            } else {
-              e.currentTarget.style.backgroundColor = theme.colors.primary.main;
-            }
-          }}
-        >
-          <FiFilter size={18} />
-          {hasActiveFilters && (
-            <span
-              style={{
-                backgroundColor: 'white',
-                color: theme.colors.primary.main,
-                borderRadius: theme.borderRadius.full,
-                padding: `0 ${theme.spacing.xs}`,
-                fontSize: theme.typography.fontSize.sm,
-                fontWeight: theme.typography.fontWeight.bold,
-                minWidth: '20px',
-                textAlign: 'center',
-              }}
-            >
-              {(filters.accountIds.length > 0 ? 1 : 0) +
-                (filters.categories.length > 0 ? 1 : 0) +
-                (filters.minPriority !== null ? 1 : 0)}
-            </span>
-          )}
-        </button>
-        {hasActiveFilters && (
-          <button
-            onClick={handleClearFilters}
-            style={{
-              padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-              fontSize: theme.typography.fontSize.lg,
-              borderRadius: theme.borderRadius.md,
-              border: 'none',
-              backgroundColor: 'transparent',
-              color: theme.colors.primary.main,
-              cursor: 'pointer',
-              textDecoration: 'underline',
-              transition: theme.transitions.fast,
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = theme.colors.primary.light;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = theme.colors.primary.main;
-            }}
-          >
-            {t('inbox.filters.clear')}
-          </button>
-        )}
-      </div>
-
-      {/* Filter bar */}
-      {isFilterBarVisible && (
-        <div
-          style={{
-            display: 'flex',
-            gap: theme.spacing.md,
-            flexWrap: 'wrap',
-            padding: theme.spacing.md,
-            backgroundColor: theme.colors.background.paper,
-            borderRadius: theme.borderRadius.lg,
-            border: `1px solid ${theme.colors.border.light}`,
-            boxShadow: theme.shadows.sm,
-          }}
-        >
-          {/* Account Filter - only show if more than 1 account */}
-          {showAccountFilter && !loadingAccounts && (
-            <MultiSelectDropdown
-              label={t('inbox.filters.account')}
-              options={accountOptions}
-              selectedIds={filters.accountIds}
-              onChange={handleAccountChange}
-              placeholder={t('inbox.filters.allAccounts')}
-              emptyMessage={t('inbox.filters.noAccounts')}
-            />
-          )}
-
-          {/* Category Filter - with search */}
-          {!loadingCategories && categoryOptions.length > 0 && (
-            <MultiSelectDropdown
-              label={t('inbox.filters.category')}
-              options={categoryOptions}
-              selectedIds={filters.categories}
-              onChange={handleCategoryChange}
-              placeholder={t('inbox.filters.allCategories')}
-              searchable={true}
-              emptyMessage={t('inbox.filters.noCategories')}
-            />
-          )}
-
-          {/* Priority Filter */}
-          <SingleSelectDropdown
-            label={t('inbox.filters.priority')}
-            options={PRIORITY_RANGES}
-            selectedValue={filters.minPriority}
-            onChange={handlePriorityChange}
-          />
-        </div>
+    <div
+      style={{
+        display: 'flex',
+        gap: theme.spacing.md,
+        flexWrap: 'wrap',
+        padding: theme.spacing.md,
+        backgroundColor: theme.colors.background.paper,
+        borderBottom: `1px solid ${theme.colors.border.light}`,
+      }}
+    >
+      {/* Account Filter - only show if more than 1 account */}
+      {showAccountFilter && !loadingAccounts && (
+        <MultiSelectDropdown
+          label={t('inbox.filters.account')}
+          options={accountOptions}
+          selectedIds={filters.accountIds}
+          onChange={handleAccountChange}
+          placeholder={t('inbox.filters.allAccounts')}
+          emptyMessage={t('inbox.filters.noAccounts')}
+        />
       )}
+
+      {/* Category Filter - with search */}
+      {!loadingCategories && categoryOptions.length > 0 && (
+        <MultiSelectDropdown
+          label={t('inbox.filters.category')}
+          options={categoryOptions}
+          selectedIds={filters.categories}
+          onChange={handleCategoryChange}
+          placeholder={t('inbox.filters.allCategories')}
+          searchable={true}
+          emptyMessage={t('inbox.filters.noCategories')}
+        />
+      )}
+
+      {/* Priority Filter */}
+      <SingleSelectDropdown
+        label={t('inbox.filters.priority')}
+        options={PRIORITY_RANGES}
+        selectedValue={filters.minPriority}
+        onChange={handlePriorityChange}
+      />
     </div>
   );
 };

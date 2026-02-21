@@ -1,4 +1,6 @@
 import React, { RefObject } from 'react';
+import { useTranslation } from 'react-i18next';
+import { FiFilter } from 'react-icons/fi';
 import { theme } from 'theme/theme';
 import { InboxMode } from 'types/email';
 import { InboxHeaderTabs, InboxHeaderActions } from 'components/inbox/header';
@@ -22,6 +24,16 @@ interface InboxHeaderProps {
   followUpTabRef: RefObject<HTMLButtonElement | null>;
   tabCounts?: TabCounts | null;
   onToggleMobileMenu?: () => void;
+  // Filter props
+  isFilterBarVisible: boolean;
+  hasActiveFilters: boolean;
+  activeFilterCount: number;
+  onToggleFilterBar: () => void;
+  onClearFilters: () => void;
+  // Debug toggle (admin only)
+  isAdmin?: boolean;
+  debugViewOpen?: boolean;
+  onToggleDebug?: () => void;
 }
 
 export const InboxHeader: React.FC<InboxHeaderProps> = ({
@@ -34,7 +46,16 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
   followUpTabRef,
   tabCounts,
   onToggleMobileMenu,
+  isFilterBarVisible,
+  hasActiveFilters,
+  activeFilterCount,
+  onToggleFilterBar,
+  onClearFilters,
+  isAdmin,
+  debugViewOpen,
+  onToggleDebug,
 }) => {
+  const { t } = useTranslation();
   const { isMobile, isTablet } = useResponsiveBreakpoints();
   const isNarrow = isMobile || isTablet;
 
@@ -52,7 +73,7 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
       <div
         style={{
           display: 'flex',
-          gap: theme.spacing.md,
+          gap: theme.spacing.sm,
           alignItems: 'center',
         }}
       >
@@ -85,11 +106,88 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
           followUpTabRef={followUpTabRef}
           tabCounts={tabCounts}
         />
+
+        {/* Filter toggle button - inline with tabs */}
+        <button
+          onClick={onToggleFilterBar}
+          data-testid="filter-toggle-button"
+          title={t('inbox.filters.toggle')}
+          style={{
+            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+            fontSize: theme.typography.fontSize.base,
+            borderRadius: theme.borderRadius.md,
+            border: hasActiveFilters ? 'none' : `1px solid ${theme.colors.border.medium}`,
+            backgroundColor: hasActiveFilters
+              ? theme.colors.primary.main
+              : isFilterBarVisible
+              ? theme.colors.background.subtle
+              : theme.colors.background.paper,
+            color: hasActiveFilters ? 'white' : theme.colors.text.primary,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: theme.spacing.xs,
+            transition: theme.transitions.fast,
+            flexShrink: 0,
+          }}
+          onMouseEnter={(e) => {
+            if (!hasActiveFilters) {
+              e.currentTarget.style.backgroundColor = theme.colors.background.subtle;
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!hasActiveFilters) {
+              e.currentTarget.style.backgroundColor = isFilterBarVisible
+                ? theme.colors.background.subtle
+                : theme.colors.background.paper;
+            }
+          }}
+        >
+          <FiFilter size={14} />
+          {hasActiveFilters && (
+            <span
+              style={{
+                backgroundColor: 'white',
+                color: theme.colors.primary.main,
+                borderRadius: theme.borderRadius.full,
+                padding: `0 ${theme.spacing.xs}`,
+                fontSize: theme.typography.fontSize.xs,
+                fontWeight: theme.typography.fontWeight.bold,
+                minWidth: '16px',
+                textAlign: 'center',
+              }}
+            >
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
+
+        {/* Clear filters link - shown when active */}
+        {hasActiveFilters && (
+          <button
+            onClick={onClearFilters}
+            style={{
+              padding: `${theme.spacing.xs} ${theme.spacing.xs}`,
+              fontSize: theme.typography.fontSize.sm,
+              border: 'none',
+              backgroundColor: 'transparent',
+              color: theme.colors.primary.main,
+              cursor: 'pointer',
+              textDecoration: 'underline',
+              flexShrink: 0,
+            }}
+          >
+            {t('inbox.filters.clear')}
+          </button>
+        )}
       </div>
 
       <InboxHeaderActions
         mode={mode}
         hasRunAnalysis={hasRunAnalysis}
+        isAdmin={isAdmin}
+        debugViewOpen={debugViewOpen}
+        onToggleDebug={onToggleDebug}
       />
     </header>
   );

@@ -179,6 +179,7 @@
     },
     "actionTab": "Action",
     "followUpTab": "Follow Up",
+    "toggleDebug": "Toggle debug panel",
     "emailDetails": "Email Details",
     "showSplitView": "Show split view",
     "expandToFullWidth": "Expand to full width",

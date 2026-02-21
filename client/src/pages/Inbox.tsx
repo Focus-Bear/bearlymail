@@ -16,6 +16,7 @@ import { InboxModals } from 'components/inbox/InboxModals';
 import { InboxFilters } from 'components/inbox/InboxFilters';
 import { API_URL } from 'config/api';
 import { useInboxState } from 'hooks/useInboxState';
+import { useInboxFilters } from 'hooks/useInboxFilters';
 
 const Inbox: React.FC = () => {
   const {
@@ -73,6 +74,26 @@ const Inbox: React.FC = () => {
     toggleCategory,
     updateStableCategoryOrder,
   } = useInboxState();
+
+  const {
+    isFilterBarVisible,
+    filters,
+    connectedAccounts,
+    availableCategories,
+    loadingAccounts,
+    loadingCategories,
+    hasActiveFilters,
+    toggleFilterBar,
+    setAccountFilter,
+    setCategoryFilter,
+    setPriorityFilter,
+    clearFilters,
+  } = useInboxFilters();
+
+  const activeFilterCount =
+    (filters.accountIds.length > 0 ? 1 : 0) +
+    (filters.categories.length > 0 ? 1 : 0) +
+    (filters.minPriority !== null ? 1 : 0);
 
   const [sidebarManuallyExpanded, setSidebarManuallyExpanded] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -158,9 +179,29 @@ const Inbox: React.FC = () => {
           followUpTabRef={followUpTabRef}
           tabCounts={tabCounts}
           onToggleMobileMenu={handleToggleMobileMenu}
+          isFilterBarVisible={isFilterBarVisible}
+          hasActiveFilters={hasActiveFilters}
+          activeFilterCount={activeFilterCount}
+          onToggleFilterBar={toggleFilterBar}
+          onClearFilters={() => { clearFilters(); fetchEmails(); }}
+          isAdmin={user?.isAdmin}
+          debugViewOpen={debugPanel.debugViewOpen}
+          onToggleDebug={() => debugPanel.setDebugViewOpen(!debugPanel.debugViewOpen)}
         />
 
-        <InboxFilters onFilterChange={fetchEmails} />
+        <InboxFilters
+          onFilterChange={fetchEmails}
+          isFilterBarVisible={isFilterBarVisible}
+          filters={filters}
+          connectedAccounts={connectedAccounts}
+          availableCategories={availableCategories}
+          loadingAccounts={loadingAccounts}
+          loadingCategories={loadingCategories}
+          hasActiveFilters={hasActiveFilters}
+          setAccountFilter={setAccountFilter}
+          setCategoryFilter={setCategoryFilter}
+          setPriorityFilter={setPriorityFilter}
+        />
 
         {user?.isAdmin && (
           <DebugPanel

@@ -1280,8 +1280,7 @@ export class LLMProcessor implements OnModuleInit {
 
     // Calculate contributions
     let sentimentContribution = 0;
-    // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-    if (sentimentScore < -0.3) {
+    if (sentimentScore < SENTIMENT_THRESHOLDS.NEGATIVE) {
       sentimentContribution = Math.round(
         -sentimentScore * LLM_PROCESSOR_CONSTANTS.SENTIMENT_MULTIPLIER,
       );
@@ -1327,11 +1326,9 @@ export class LLMProcessor implements OnModuleInit {
         factor: "😊 Sentiment",
         value: sentimentContribution,
         description:
-          // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-          sentimentScore < -0.3
+          sentimentScore < SENTIMENT_THRESHOLDS.NEGATIVE
             ? `Negative sentiment (${sentimentScore.toFixed(2)})`
-            : // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-              sentimentScore > 0.3
+            : sentimentScore > SENTIMENT_THRESHOLDS.POSITIVE
               ? `Positive sentiment (${sentimentScore.toFixed(2)})`
               : "Neutral sentiment",
       },
@@ -1413,11 +1410,9 @@ export class LLMProcessor implements OnModuleInit {
       sentiment: {
         score: sentimentScore,
         type:
-          // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-          sentimentScore < -0.3
+          sentimentScore < SENTIMENT_THRESHOLDS.NEGATIVE
             ? "negative"
-            : // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-              sentimentScore > 0.3
+            : sentimentScore > SENTIMENT_THRESHOLDS.POSITIVE
               ? "positive"
               : "neutral",
         reasons: [],

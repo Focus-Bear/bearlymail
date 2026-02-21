@@ -13,6 +13,8 @@ import { useAuth } from 'contexts/AuthContext';
 const REPLY_OPTION_LABEL_CUSTOM = 'Custom';
 const EMPTY_ATTACHMENTS: EmailAttachment[] = [];
 const DRAG_OVERLAY_OPACITY = 0.95;
+const DEBUG_PANEL_LINE_HEIGHT = 1.6;
+const DEBUG_PANEL_PREVIEW_LENGTH = 50;
 
 interface ReplyOption {
   label: string;
@@ -365,7 +367,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
         disputing={disputing}
         disputeResult={disputeResult}
       />
-      {/* eslint-disable i18next/no-literal-string, react/no-array-index-key, no-magic-numbers */}
+      {/* eslint-disable i18next/no-literal-string, react/no-array-index-key */}
       {user?.isAdmin && (debugInfo || currentEmailId) && (
         <div style={{
           marginTop: theme.spacing.md,
@@ -379,7 +381,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
           <div style={{ fontWeight: 'bold', marginBottom: theme.spacing.xs, color: '#e65100' }}>
             Reply Generation Debug (Admin Only)
           </div>
-          <div style={{ color: theme.colors.text.secondary, lineHeight: 1.6 }}>
+          <div style={{ color: theme.colors.text.secondary, lineHeight: DEBUG_PANEL_LINE_HEIGHT }}>
             <div><strong>Current State:</strong></div>
             <div style={{ marginLeft: theme.spacing.md }}>
               <div>Prop emailId: {currentEmailId || 'N/A'}</div>
@@ -420,7 +422,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
                 <div style={{ marginTop: theme.spacing.sm }}><strong>Reply Options ({replyOptions.length}):</strong></div>
                 <div style={{ marginLeft: theme.spacing.md }}>
                   {replyOptions.map((opt, idx) => (
-                    <div key={idx}>[{idx}] {opt.label}: {opt.text.substring(0, 50)}...</div>
+                    <div key={idx}>[{idx}] {opt.label}: {opt.text.substring(0, DEBUG_PANEL_PREVIEW_LENGTH)}...</div>
                   ))}
                 </div>
               </>
@@ -428,7 +430,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
           </div>
         </div>
       )}
-      {/* eslint-enable i18next/no-literal-string, react/no-array-index-key, no-magic-numbers */}
+      {/* eslint-enable i18next/no-literal-string, react/no-array-index-key */}
       <ReplyComposerFooter
         sending={sending}
         checkingTone={checkingTone}

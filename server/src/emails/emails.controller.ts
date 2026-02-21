@@ -650,6 +650,16 @@ export class EmailsController {
     return this.emailsService.getSyncStatus(req.user.userId);
   }
 
+  @Get("debug/sync-history")
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async getSyncHistory(@Request() req, @Query("limit") limit?: string) {
+    const parsedLimit = limit ? parseInt(limit, 10) : undefined;
+    return this.emailsService.getSyncHistory(
+      req.user.userId,
+      parsedLimit && !isNaN(parsedLimit) ? parsedLimit : undefined,
+    );
+  }
+
   @Get("debug/starred-threads")
   @UseGuards(JwtAuthGuard, AdminGuard)
   async debugStarredThreads(@Request() req) {

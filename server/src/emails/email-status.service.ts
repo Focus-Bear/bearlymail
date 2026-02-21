@@ -5,6 +5,7 @@ import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { PRIORITY_SCORES } from "../constants/priority-constants";
+import { UsersService } from "../users/users.service";
 
 @Injectable()
 export class EmailStatusService {
@@ -15,20 +16,19 @@ export class EmailStatusService {
     private emailRepository: Repository<Email>,
     @InjectRepository(EmailThread)
     private emailThreadRepository: Repository<EmailThread>,
+    private usersService: UsersService,
   ) {}
 
   /**
    * Get sync status for a user
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async getSyncStatus(_userId: string): Promise<{
+  async getSyncStatus(userId: string): Promise<{
     lastSyncAt: Date | null;
     isSyncing: boolean;
   }> {
-    // TODO: Add lastEmailSyncAt property to User entity
-    // TODO: Track active sync jobs
+    const user = await this.usersService.findOneLightweight(userId);
     return {
-      lastSyncAt: null,
+      lastSyncAt: user?.lastEmailSyncAt ?? null,
       isSyncing: false,
     };
   }

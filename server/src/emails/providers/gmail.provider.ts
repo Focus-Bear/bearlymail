@@ -3,6 +3,7 @@ import { google, gmail_v1 } from "googleapis";
 import { UsersService } from "../../users/users.service";
 import { EmailsService } from "../emails.service";
 import { ScanEmailService } from "../scan-email.service";
+import { SyncHistoryService } from "../sync-history.service";
 import {
   EmailProvider,
   RawEmailMessage,
@@ -45,6 +46,7 @@ export class GmailProvider implements EmailProvider {
     private emailsService: EmailsService,
     private scanEmailService: ScanEmailService,
     @Inject("PG_BOSS") private readonly boss: PgBoss,
+    private syncHistoryService: SyncHistoryService,
   ) {}
 
   async getGmailLabels(userId: string): Promise<Map<string, string>> {
@@ -277,7 +279,10 @@ export class GmailProvider implements EmailProvider {
     providedThreadIds?: string[],
     isContinuation = false,
   ): Promise<void> {
+    const syncStart = Date.now();
     let allThreadIds: Set<string>;
+    let syncWindowStart: Date | null = null;
+    const queries: string[] = [];
 
     // If thread IDs are provided (continuation job), skip the fetch phase
     if (providedThreadIds && providedThreadIds.length > 0) {
@@ -288,29 +293,31 @@ export class GmailProvider implements EmailProvider {
     } else {
       // Normal sync - fetch thread lists
       const user = await this.usersService.findOneWithTokens(userId);
-      const syncWindowStart = this.calculateSyncWindowStart(
-        user,
-        syncWindowHours,
-      );
+      syncWindowStart = this.calculateSyncWindowStart(user, syncWindowHours);
       const syncWindowTimestamp = Math.floor(syncWindowStart.getTime() / 1000);
       const baseQuery = "-label:SnoozedBearlyMail -label:VA-to-action";
       const afterQuery = `after:${syncWindowTimestamp}`;
+
+      const inboxQuery = `in:inbox ${baseQuery} ${afterQuery}`;
+      const starredQuery = `is:starred in:inbox ${baseQuery}`;
+      const sentQuery = `in:sent ${baseQuery} ${afterQuery}`;
+      queries.push(inboxQuery, starredQuery, sentQuery);
 
       const [inboxThreads, starredThreads, sentThreads] = await Promise.all([
         gmail.users.threads.list({
           userId: "me",
           maxResults: 500,
-          q: `in:inbox ${baseQuery} ${afterQuery}`,
+          q: inboxQuery,
         }),
         gmail.users.threads.list({
           userId: "me",
           maxResults: 500,
-          q: `is:starred in:inbox ${baseQuery}`,
+          q: starredQuery,
         }),
         gmail.users.threads.list({
           userId: "me",
           maxResults: 100,
-          q: `in:sent ${baseQuery} ${afterQuery}`,
+          q: sentQuery,
         }),
       ]);
 
@@ -343,6 +350,17 @@ export class GmailProvider implements EmailProvider {
       await this.checkExistingStarredThreads(userId, allThreadIds, gmail);
       await this.syncThreadArchivedStatus(userId, gmail);
     }
+
+    // Log sync history (non-blocking)
+    void this.syncHistoryService.logSyncAttempt({
+      userId,
+      provider: "gmail",
+      syncWindowStart,
+      queries,
+      threadsFound: allThreadIds.size,
+      durationMs: Date.now() - syncStart,
+      isContinuation,
+    });
   }
 
   private calculateSyncWindowStart(user: any, syncWindowHours?: number): Date {

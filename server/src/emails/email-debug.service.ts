@@ -10,6 +10,7 @@ import { QUERY_LIMITS } from "../constants/query-limits";
 import { isError } from "../types/common";
 import PgBoss = require("pg-boss");
 import { getJobPriority } from "../queue/job-priorities";
+import { SyncHistoryService, SyncHistoryEntry } from "./sync-history.service";
 
 export interface ThreadLookupResult {
   found: boolean;
@@ -55,6 +56,7 @@ export class EmailDebugService {
     private gmailProvider: GmailProvider,
     @Inject("PG_BOSS") private readonly boss: PgBoss,
     private blockedSendersService: BlockedSendersService,
+    private syncHistoryService: SyncHistoryService,
   ) {}
 
   /**
@@ -676,6 +678,16 @@ export class EmailDebugService {
       },
       reasons,
     };
+  }
+
+  /**
+   * Get sync history for a user – the last N sync attempts with queries used.
+   */
+  async getSyncHistory(
+    userId: string,
+    limit = 20,
+  ): Promise<SyncHistoryEntry[]> {
+    return this.syncHistoryService.getSyncHistory(userId, limit);
   }
 
   /**

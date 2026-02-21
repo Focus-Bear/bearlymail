@@ -16,7 +16,7 @@
  *   - all: Run all scenarios
  */
 
-import PgBoss from "pg-boss";
+import PgBoss = require("pg-boss");
 import * as dotenv from "dotenv";
 import * as path from "path";
 

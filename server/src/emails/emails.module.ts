@@ -44,6 +44,8 @@ import { SuggestedRepliesModule } from "../suggested-replies/suggested-replies.m
 import { ProtoCategoriesModule } from "../proto-categories/proto-categories.module";
 import { AwsModule } from "../aws/aws.module";
 import { ScheduledEmailsModule } from "../scheduled-emails/scheduled-emails.module";
+import { SyncHistoryLog } from "../database/entities/sync-history-log.entity";
+import { SyncHistoryService } from "./sync-history.service";
 
 @Module({
   imports: [
@@ -56,6 +58,7 @@ import { ScheduledEmailsModule } from "../scheduled-emails/scheduled-emails.modu
       BatchSchedule,
       CategoryOverride,
       ProtoCategory,
+      SyncHistoryLog,
     ]),
     PriorityModule,
     forwardRef(() => SummarizationModule),
@@ -78,6 +81,7 @@ import { ScheduledEmailsModule } from "../scheduled-emails/scheduled-emails.modu
   ],
   controllers: [EmailsController],
   providers: [
+    SyncHistoryService,
     EmailProviderManager,
     // Put EmailProviderManager before EmailsService to avoid circular dependency
     EmailThreadService,

@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit, Inject } from "@nestjs/common";
-import PgBoss from "pg-boss";
+import PgBoss = require("pg-boss");
 import { AutoResponderService } from "./auto-responder.service";
 import { getJobPriority } from "../queue/job-priorities";
 import { autoresponderLogger } from "./autoresponder-logger";

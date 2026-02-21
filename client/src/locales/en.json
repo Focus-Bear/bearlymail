@@ -1149,6 +1149,17 @@
       "emails": "Emails in Thread",
       "gmailApiResult": "Gmail API Lookup Result",
       "gmailApiNotFound": "Could not resolve URL ID via Gmail API"
+    },
+    "syncHistory": {
+      "sectionTitle": "Sync History",
+      "fetchButton": "Load Sync History",
+      "refreshButton": "Refresh",
+      "noHistory": "No sync history recorded yet. History is captured after the next sync.",
+      "showingLast": "Showing last {{count}} syncs",
+      "continuation": "continuation",
+      "threads": "{{count}} threads",
+      "windowStart": "Window start",
+      "queries": "Queries"
     }
   },
   "search": {

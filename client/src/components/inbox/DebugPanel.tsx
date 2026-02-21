@@ -10,8 +10,10 @@ import {
   DebugOrphanSection,
   DebugThreadLookupSection,
   DebugEmailList,
+  DebugSyncHistorySection,
 } from 'components/inbox/debug';
 import { ThreadLookupResult } from 'hooks/useDebugPanel';
+import { SyncHistoryEntry } from 'components/inbox/debug/DebugSyncHistorySection';
 
 interface DebugStarredData {
   lastSyncTime: string | null;
@@ -87,6 +89,9 @@ interface DebugPanelProps {
   onToggle: () => void;
   syncStatus: SyncStatus | null;
   loadingSyncStatus: boolean;
+  syncHistory: SyncHistoryEntry[] | null;
+  loadingSyncHistory: boolean;
+  onFetchSyncHistory: () => void;
   debugStarredData: DebugStarredData | null;
   loadingDebugData: boolean;
   onFetchDebugStarred: () => void;
@@ -107,6 +112,9 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
   onToggle,
   syncStatus,
   loadingSyncStatus,
+  syncHistory,
+  loadingSyncHistory,
+  onFetchSyncHistory,
   debugStarredData,
   loadingDebugData,
   onFetchDebugStarred,
@@ -185,6 +193,12 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
               loadingSyncStatus={loadingSyncStatus}
             />
           </div>
+
+          <DebugSyncHistorySection
+            syncHistory={syncHistory}
+            loadingSyncHistory={loadingSyncHistory}
+            onFetchSyncHistory={onFetchSyncHistory}
+          />
 
           <DebugStarredSection
             debugStarredData={debugStarredData}

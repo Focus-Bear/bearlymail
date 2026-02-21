@@ -334,6 +334,17 @@
       "emails": "Correos en el hilo",
       "gmailApiResult": "Resultado de consulta a la API de Gmail",
       "gmailApiNotFound": "No se pudo resolver el ID de URL a través de la API de Gmail"
+    },
+    "syncHistory": {
+      "sectionTitle": "Historial de sincronización",
+      "fetchButton": "Cargar historial",
+      "refreshButton": "Actualizar",
+      "noHistory": "Aún no hay historial de sincronización. Se capturará después de la próxima sincronización.",
+      "showingLast": "Mostrando las últimas {{count}} sincronizaciones",
+      "continuation": "continuación",
+      "threads": "{{count}} hilos",
+      "windowStart": "Inicio de ventana",
+      "queries": "Consultas"
     }
   },
   "email": {

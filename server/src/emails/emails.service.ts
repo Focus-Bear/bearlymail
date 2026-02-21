@@ -1931,16 +1931,19 @@ export class EmailsService {
     return this.emailReadService.bulkMarkAsUnread(userId, emailIds);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async getSyncStatus(_userId: string): Promise<{
+  async getSyncStatus(userId: string): Promise<{
     lastSyncAt: Date | null;
     isSyncing: boolean;
   }> {
-    return {
-      lastSyncAt: null, // TODO: Add lastEmailSyncAt property to User entity
-      // TODO: Track active sync jobs
-      isSyncing: false,
-    };
+    return this.emailStatusService.getSyncStatus(userId);
+  }
+
+  /**
+   * Get sync history for a user
+   * Delegates to EmailDebugService
+   */
+  async getSyncHistory(userId: string, limit?: number) {
+    return this.emailDebugService.getSyncHistory(userId, limit);
   }
 
   /**

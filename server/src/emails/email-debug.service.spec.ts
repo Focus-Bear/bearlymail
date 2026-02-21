@@ -7,6 +7,7 @@ import { EmailThread } from "../database/entities/email-thread.entity";
 import { EmailProviderManager } from "./email-provider-manager.service";
 import { GmailProvider } from "./providers/gmail.provider";
 import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
+import { SyncHistoryService } from "./sync-history.service";
 
 describe("EmailDebugService", () => {
   let service: EmailDebugService;
@@ -68,6 +69,13 @@ describe("EmailDebugService", () => {
         {
           provide: BlockedSendersService,
           useValue: mockBlockedSendersService,
+        },
+        {
+          provide: SyncHistoryService,
+          useValue: {
+            getSyncHistory: jest.fn().mockResolvedValue([]),
+            logSyncAttempt: jest.fn().mockResolvedValue(undefined),
+          },
         },
       ],
     }).compile();

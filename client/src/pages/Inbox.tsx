@@ -170,6 +170,9 @@ const Inbox: React.FC = () => {
             onToggle={() => debugPanel.setDebugViewOpen(!debugPanel.debugViewOpen)}
             syncStatus={debugPanel.syncStatus}
             loadingSyncStatus={debugPanel.loadingSyncStatus}
+            syncHistory={debugPanel.syncHistory}
+            loadingSyncHistory={debugPanel.loadingSyncHistory}
+            onFetchSyncHistory={debugPanel.fetchSyncHistory}
             debugStarredData={debugPanel.debugStarredData}
             loadingDebugData={debugPanel.loadingDebugData}
             onFetchDebugStarred={debugPanel.fetchDebugStarredThreads}

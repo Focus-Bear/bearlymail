@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import axios from 'axios';
 import { API_URL } from 'config/api';
+import { SyncHistoryEntry } from 'components/inbox/debug/DebugSyncHistorySection';
 
 interface SyncStatus {
   lastSyncTime: string | null;
@@ -112,6 +113,8 @@ interface UseDebugPanelReturn {
   setDebugViewOpen: React.Dispatch<React.SetStateAction<boolean>>;
   syncStatus: SyncStatus | null;
   loadingSyncStatus: boolean;
+  syncHistory: SyncHistoryEntry[] | null;
+  loadingSyncHistory: boolean;
   debugStarredData: DebugStarredData | null;
   loadingDebugData: boolean;
   debugOrphanData: DebugOrphanData | null;
@@ -120,6 +123,7 @@ interface UseDebugPanelReturn {
   threadLookupResult: ThreadLookupResult | null;
   loadingThreadLookup: boolean;
   fetchSyncStatus: () => Promise<void>;
+  fetchSyncHistory: () => Promise<void>;
   fetchDebugStarredThreads: () => Promise<void>;
   fetchDebugOrphanEmails: () => Promise<void>;
   handleFixOrphanEmails: (onSuccess?: () => void) => Promise<void>;
@@ -130,6 +134,8 @@ export function useDebugPanel(onSuccess?: () => void): UseDebugPanelReturn {
   const [debugViewOpen, setDebugViewOpen] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
   const [loadingSyncStatus, setLoadingSyncStatus] = useState(false);
+  const [syncHistory, setSyncHistory] = useState<SyncHistoryEntry[] | null>(null);
+  const [loadingSyncHistory, setLoadingSyncHistory] = useState(false);
   const [debugStarredData, setDebugStarredData] = useState<DebugStarredData | null>(null);
   const [loadingDebugData, setLoadingDebugData] = useState(false);
   const [debugOrphanData, setDebugOrphanData] = useState<DebugOrphanData | null>(null);
@@ -156,6 +162,18 @@ export function useDebugPanel(onSuccess?: () => void): UseDebugPanelReturn {
       fetchSyncStatus();
     }
   }, [debugViewOpen, syncStatus, loadingSyncStatus, fetchSyncStatus]);
+
+  const fetchSyncHistory = useCallback(async () => {
+    setLoadingSyncHistory(true);
+    try {
+      const response = await axios.get(`${API_URL}/emails/debug/sync-history`);
+      setSyncHistory(response.data);
+    } catch (error) {
+      console.error('Error fetching sync history:', error);
+    } finally {
+      setLoadingSyncHistory(false);
+    }
+  }, []);
 
   const fetchDebugStarredThreads = useCallback(async () => {
     setLoadingDebugData(true);
@@ -230,6 +248,8 @@ export function useDebugPanel(onSuccess?: () => void): UseDebugPanelReturn {
     setDebugViewOpen,
     syncStatus,
     loadingSyncStatus,
+    syncHistory,
+    loadingSyncHistory,
     debugStarredData,
     loadingDebugData,
     debugOrphanData,
@@ -238,6 +258,7 @@ export function useDebugPanel(onSuccess?: () => void): UseDebugPanelReturn {
     threadLookupResult,
     loadingThreadLookup,
     fetchSyncStatus,
+    fetchSyncHistory,
     fetchDebugStarredThreads,
     fetchDebugOrphanEmails,
     handleFixOrphanEmails,

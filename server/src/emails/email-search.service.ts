@@ -333,7 +333,10 @@ export class EmailSearchService {
 
       // If skipLlmRanking is set, return raw results immediately without LLM processing
       if (skipLlmRanking) {
-        const rawResults = matchedEmails.slice(0, maxResults) as EmailWithMetadata[];
+        const rawResults = matchedEmails.slice(
+          0,
+          maxResults,
+        ) as EmailWithMetadata[];
         if (rawResults.length > 0) {
           rawResults[0].debugInfo = {
             originalQuery,
@@ -728,10 +731,12 @@ Return ONLY a JSON array of objects.`;
       const recency7D = PRIORITY_BOOSTS.RECENCY_7D;
       const recency30D = PRIORITY_BOOSTS.RECENCY_30D;
       const recency30DPenalty = isTimeSensitive
-        ? PRIORITY_BOOSTS.RECENCY_30D_PENALTY * QUERY_LIMITS.SEARCH_RELEVANCE_MULTIPLIER
+        ? PRIORITY_BOOSTS.RECENCY_30D_PENALTY *
+          QUERY_LIMITS.SEARCH_RELEVANCE_MULTIPLIER
         : PRIORITY_BOOSTS.RECENCY_30D_PENALTY;
       const recency60DPenalty = isTimeSensitive
-        ? PRIORITY_BOOSTS.RECENCY_60D_PENALTY * QUERY_LIMITS.SEARCH_RELEVANCE_MULTIPLIER
+        ? PRIORITY_BOOSTS.RECENCY_60D_PENALTY *
+          QUERY_LIMITS.SEARCH_RELEVANCE_MULTIPLIER
         : PRIORITY_BOOSTS.RECENCY_60D_PENALTY;
       const timeSensitivityNote = isTimeSensitive
         ? "\n\n⚠️ TIME-SENSITIVE QUERY DETECTED: This query appears to be about a meeting, event, or time-sensitive question. OLDER emails should be penalized MORE HEAVILY as they are likely about past events, not the current question. Emails older than 30 days should receive significantly lower scores unless they are extremely relevant."
@@ -1001,8 +1006,10 @@ Format: ["alternative query 1", "alternative query 2"]`;
     originalQuery: string,
     existingEmailIds: Set<string>,
   ): Promise<EmailWithMetadata[]> {
-    const alternativeQueries =
-      await this.generateAlternativeQueries(userId, originalQuery);
+    const alternativeQueries = await this.generateAlternativeQueries(
+      userId,
+      originalQuery,
+    );
     this.logger.log(
       `[SEARCH EXPAND] Trying ${alternativeQueries.length} alternative queries for "${originalQuery}"`,
     );

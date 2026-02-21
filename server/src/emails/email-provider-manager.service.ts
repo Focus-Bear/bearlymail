@@ -1,5 +1,8 @@
 import { Injectable, Logger, Inject, forwardRef } from "@nestjs/common";
-import { EmailProvider } from "./interfaces/email-provider.interface";
+import {
+  EmailProvider,
+  SyncEmailsOptions,
+} from "./interfaces/email-provider.interface";
 import { GmailProvider } from "./providers/gmail.provider";
 import { Office365Provider } from "./providers/office365.provider";
 import { ZohoProvider } from "./providers/zoho.provider";
@@ -74,19 +77,27 @@ export class EmailProviderManager {
   /**
    * Sync emails from all connected providers for a user
    * @param userId - The user ID to sync emails for
-   * @param syncWindowHours - Optional custom sync window in hours (overrides default calculation)
+   * @param syncWindowHoursOrOptions - Optional sync window in hours OR SyncEmailsOptions object
    */
   async syncAllProviders(
     userId: string,
-    syncWindowHours?: number,
+    syncWindowHoursOrOptions?: number | SyncEmailsOptions,
   ): Promise<void> {
+    const label =
+      typeof syncWindowHoursOrOptions === "number"
+        ? `${syncWindowHoursOrOptions}h window`
+        : syncWindowHoursOrOptions?.noDateFilter
+          ? "no date filter"
+          : syncWindowHoursOrOptions?.syncWindowHours
+            ? `${syncWindowHoursOrOptions.syncWindowHours}h window`
+            : "";
     for (const [providerType, provider] of this.providers.entries()) {
       if (await provider.isConnected(userId)) {
         try {
           this.logger.debug(
-            `Syncing ${providerType} for user ${userId}${syncWindowHours ? ` (${syncWindowHours}h window)` : ""}`,
+            `Syncing ${providerType} for user ${userId}${label ? ` (${label})` : ""}`,
           );
-          await provider.syncEmails(userId, syncWindowHours);
+          await provider.syncEmails(userId, syncWindowHoursOrOptions);
         } catch (error) {
           this.logger.error(
             `Failed to sync ${providerType} for user ${userId}`,

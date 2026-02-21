@@ -556,8 +556,7 @@ describe("RepliesService", () => {
         mockProvider as any,
       );
 
-      const replyAllRecipients =
-        "sender@example.com, other@example.com";
+      const replyAllRecipients = "sender@example.com, other@example.com";
       await service.sendReply(
         userId,
         emailId,

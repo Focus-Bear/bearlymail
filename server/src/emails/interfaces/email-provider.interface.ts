@@ -71,6 +71,12 @@ export interface SyncEmailsOptions {
    * Whether this is a continuation job (affects logging and behavior)
    */
   isContinuation?: boolean;
+
+  /**
+   * When true, skip the `after:` date filter on the inbox query.
+   * Used by the 2-hour extended sync so it fetches ALL inbox emails regardless of age.
+   */
+  noDateFilter?: boolean;
 }
 
 /**

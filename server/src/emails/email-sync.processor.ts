@@ -6,7 +6,7 @@ import { EmailProviderManager } from "./email-provider-manager.service";
 import { UsersService } from "../users/users.service";
 import { GmailProvider } from "./providers/gmail.provider";
 import { getJobPriority } from "../queue/job-priorities";
-import { DAYS } from "../constants/time-constants";
+import { DAYS, HOURS } from "../constants/time-constants";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { CloudWatchService } from "../aws/cloudwatch.service";
 
@@ -53,11 +53,14 @@ export class EmailSyncProcessor implements OnModuleInit {
     // Schedule recurring sync for all users every 5 minutes (for urgency checks and status updates)
     await this.boss.schedule("schedule-email-fetch-jobs", "*/5 * * * *");
 
-    // Schedule extended sync (48 hours) every 2 hours to catch any missed emails
+    // Schedule extended sync (all inbox, no date filter) every 2 hours to catch any missed emails
     await this.boss.schedule(
       "schedule-extended-email-fetch-jobs",
       "0 */2 * * *",
     );
+
+    // Schedule inbox status verification every 2 hours to detect Gmail-archived emails
+    await this.boss.schedule("schedule-verify-inbox-status", "30 */2 * * *");
 
     // Worker for scheduling email fetch jobs (every 5 minutes) - queues individual fetch-user-emails jobs for each user
     await this.boss.work("schedule-email-fetch-jobs", async (job) => {
@@ -207,7 +210,7 @@ export class EmailSyncProcessor implements OnModuleInit {
       },
     );
 
-    // Worker for scheduling extended email fetch jobs (every 2 hours) - syncs last 48 hours to catch missed emails
+    // Worker for scheduling extended email fetch jobs (every 2 hours) - fetches ALL inbox emails (no date filter)
     await this.boss.work("schedule-extended-email-fetch-jobs", async (job) => {
       const workerId = job.id || "unknown";
       const tracker = new JobPerformanceTracker(
@@ -217,7 +220,7 @@ export class EmailSyncProcessor implements OnModuleInit {
       );
 
       this.logger.log(
-        "Starting extended email fetch job scheduling (48-hour sync)",
+        "Starting extended email fetch job scheduling (full inbox sync, no date filter)",
       );
       try {
         tracker.startPhase("fetchUsers");
@@ -234,9 +237,10 @@ export class EmailSyncProcessor implements OnModuleInit {
             );
             if (provider) {
               // Use singletonKey to prevent duplicate extended fetch jobs per user
+              // noDateFilter: true fetches ALL inbox emails without `after:` restriction
               await this.boss.send(
                 "fetch-user-emails-extended",
-                { userId: user.id, syncWindowHours: 48 },
+                { userId: user.id, noDateFilter: true },
                 {
                   priority: getJobPriority("fetch-user-emails", false),
                   singletonKey: `fetch-user-emails-extended-${user.id}`,
@@ -257,7 +261,7 @@ export class EmailSyncProcessor implements OnModuleInit {
         tracker.finish();
 
         this.logger.log(
-          `Scheduled ${jobsQueued} extended email fetch jobs (48-hour sync)`,
+          `Scheduled ${jobsQueued} extended email fetch jobs (full inbox, no date filter)`,
         );
       } catch (error) {
         this.logger.error(
@@ -269,16 +273,17 @@ export class EmailSyncProcessor implements OnModuleInit {
       }
     });
 
-    // Worker for extended email fetch (48-hour sync window)
+    // Worker for extended email fetch (full inbox, no date filter)
     await this.boss.work(
       "fetch-user-emails-extended",
       {
         teamSize: this.syncConcurrency,
       } as { teamSize: number },
       async (job) => {
-        const { userId, syncWindowHours } = job.data as {
+        const { userId, noDateFilter, syncWindowHours } = job.data as {
           userId: string;
-          syncWindowHours: number;
+          noDateFilter?: boolean;
+          syncWindowHours?: number; // kept for backwards-compat with any in-flight jobs
         };
         const workerId = job.id || "unknown";
         const tracker = new JobPerformanceTracker(
@@ -286,16 +291,23 @@ export class EmailSyncProcessor implements OnModuleInit {
           workerId,
           this.cloudWatchService,
         );
-        tracker.setMetadata({ userId, syncWindowHours });
+        tracker.setMetadata({ userId });
 
         this.logger.log(
-          `[Worker ${workerId}] Starting extended email fetch (${syncWindowHours}h) for user ${userId}`,
+          `[Worker ${workerId}] Starting extended email fetch (${noDateFilter ? "no date filter" : `${syncWindowHours ?? HOURS.TWO_DAYS}h`}) for user ${userId}`,
         );
         try {
-          await this.emailProviderManager.syncAllProviders(
-            userId,
-            syncWindowHours,
-          );
+          if (noDateFilter) {
+            await this.emailProviderManager.syncAllProviders(userId, {
+              noDateFilter: true,
+            });
+          } else {
+            // Backwards compat: old jobs may still carry syncWindowHours
+            await this.emailProviderManager.syncAllProviders(
+              userId,
+              syncWindowHours ?? HOURS.TWO_DAYS,
+            );
+          }
           this.logger.log(
             `[Worker ${workerId}] Completed extended email fetch for user ${userId}`,
           );
@@ -303,6 +315,99 @@ export class EmailSyncProcessor implements OnModuleInit {
         } catch (error) {
           this.logger.error(
             `[Worker ${workerId}] Failed to sync emails (extended) for user ${userId}`,
+            error,
+          );
+          tracker.finish(error as Error);
+          throw error;
+        }
+      },
+    );
+
+    // Worker for scheduling inbox status verification (every 2 hours)
+    // Queues individual verify-user-inbox-status jobs per user
+    await this.boss.work("schedule-verify-inbox-status", async (job) => {
+      const workerId = job.id || "unknown";
+      const tracker = new JobPerformanceTracker(
+        "schedule-verify-inbox-status",
+        workerId,
+        this.cloudWatchService,
+      );
+
+      this.logger.log(
+        "Starting inbox status verification scheduling (2-hour check)",
+      );
+      try {
+        tracker.startPhase("fetchUsers");
+        const users = await this.usersService.findAll();
+        tracker.endPhase("fetchUsers");
+        tracker.startPhase("queueJobs");
+
+        let jobsQueued = 0;
+
+        for (const user of users) {
+          try {
+            const provider = await this.emailProviderManager.getPrimaryProvider(
+              user.id,
+            );
+            if (provider) {
+              await this.boss.send(
+                "verify-user-inbox-status",
+                { userId: user.id },
+                {
+                  priority: getJobPriority("fetch-user-emails", false),
+                  singletonKey: `verify-user-inbox-status-${user.id}`,
+                  singletonMinutes: 120,
+                },
+              );
+              jobsQueued++;
+            }
+          } catch (userError) {
+            this.logger.error(
+              `Error scheduling inbox status check for user ${user.id}:`,
+              userError,
+            );
+          }
+        }
+        tracker.endPhase("queueJobs");
+        tracker.finish();
+
+        this.logger.log(
+          `Scheduled ${jobsQueued} inbox status verification jobs`,
+        );
+      } catch (error) {
+        this.logger.error(`Error in schedule-verify-inbox-status:`, error);
+        tracker.finish(error as Error);
+        throw error;
+      }
+    });
+
+    // Worker for verifying inbox status per user - checks all non-archived BearlyMail threads
+    // against Gmail and archives any that have been archived in Gmail
+    await this.boss.work(
+      "verify-user-inbox-status",
+      { teamSize: this.syncConcurrency } as { teamSize: number },
+      async (job) => {
+        const { userId } = job.data as { userId: string };
+        const workerId = job.id || "unknown";
+        const tracker = new JobPerformanceTracker(
+          "verify-user-inbox-status",
+          workerId,
+          this.cloudWatchService,
+        );
+        tracker.setMetadata({ userId });
+
+        this.logger.log(
+          `[Worker ${workerId}] Starting inbox status verification for user ${userId}`,
+        );
+        try {
+          await this.gmailProvider.verifyInboxStatus(userId);
+          this.logger.log(
+            `[Worker ${workerId}] Completed inbox status verification for user ${userId}`,
+          );
+          tracker.finish();
+        } catch (error) {
+          this.logger.error(
+            `[Worker ${workerId}] Failed inbox status verification for user ${userId}`,
             error,
           );
           tracker.finish(error as Error);

@@ -47,6 +47,7 @@ export const MINUTES = {
 // Hours
 export const HOURS = {
   DAY: HOURS_PER_DAY,
+  TWO_DAYS: HOURS_PER_DAY * 2,
   WEEK: DAYS_PER_WEEK * HOURS_PER_DAY,
   EIGHT: 8,
   NINE: 9,

@@ -18,7 +18,11 @@ import { QUERY_LIMITS } from "../../constants/query-limits";
 import { isApiError, formatGaxiosError } from "../../types/common";
 import { logErrorToFile } from "../../utils/error-logger";
 import { parseGmailMessage } from "./gmail/gmail-message-parser";
-import { getExistingThreadUpdates, isGmailAuthError } from "./gmail/gmail-sync";
+import {
+  getExistingThreadUpdates,
+  isGmailAuthError,
+  verifyThreadStatusesInGmail,
+} from "./gmail/gmail-sync";
 import {
   archiveThreadInGmail,
   unarchiveThreadInGmail,
@@ -183,6 +187,7 @@ export class GmailProvider implements EmailProvider {
     let syncWindowHours: number | undefined;
     let providedThreadIds: string[] | undefined;
     let isContinuation = false;
+    let noDateFilter = false;
 
     if (typeof syncWindowHoursOrOptions === "number") {
       syncWindowHours = syncWindowHoursOrOptions;
@@ -190,6 +195,7 @@ export class GmailProvider implements EmailProvider {
       syncWindowHours = syncWindowHoursOrOptions.syncWindowHours;
       providedThreadIds = syncWindowHoursOrOptions.threadIds;
       isContinuation = syncWindowHoursOrOptions.isContinuation || false;
+      noDateFilter = syncWindowHoursOrOptions.noDateFilter || false;
     }
 
     const user = await this.usersService.findOneWithTokens(userId);
@@ -218,6 +224,7 @@ export class GmailProvider implements EmailProvider {
         syncWindowHours,
         providedThreadIds,
         isContinuation,
+        noDateFilter,
       );
       await this.usersService.update(userId, {
         lastEmailSyncAt: new Date(),
@@ -298,6 +305,7 @@ export class GmailProvider implements EmailProvider {
     syncWindowHours?: number,
     providedThreadIds?: string[],
     isContinuation = false,
+    noDateFilter = false,
   ): Promise<void> {
     const syncStart = Date.now();
     let allThreadIds: Set<string>;
@@ -313,14 +321,30 @@ export class GmailProvider implements EmailProvider {
     } else {
       // Normal sync - fetch thread lists
       const user = await this.usersService.findOneWithTokens(userId);
-      syncWindowStart = this.calculateSyncWindowStart(user, syncWindowHours);
-      const syncWindowTimestamp = Math.floor(syncWindowStart.getTime() / 1000);
       const baseQuery = "-label:SnoozedBearlyMail -label:VA-to-action";
-      const afterQuery = `after:${syncWindowTimestamp}`;
 
-      const inboxQuery = `in:inbox ${baseQuery} ${afterQuery}`;
+      // Build inbox query - omit `after:` date filter when noDateFilter is true so we
+      // fetch ALL inbox emails regardless of age (used by the 2-hour extended sync).
+      let inboxQuery: string;
+      let sentQuery: string;
+      if (noDateFilter) {
+        syncWindowStart = null;
+        inboxQuery = `in:inbox ${baseQuery}`;
+        sentQuery = `in:sent ${baseQuery} newer_than:2d`;
+        this.logger.log(
+          `[SYNC] noDateFilter=true: fetching all inbox emails without date restriction`,
+        );
+      } else {
+        syncWindowStart = this.calculateSyncWindowStart(user, syncWindowHours);
+        const syncWindowTimestamp = Math.floor(
+          syncWindowStart.getTime() / 1000,
+        );
+        const afterQuery = `after:${syncWindowTimestamp}`;
+        inboxQuery = `in:inbox ${baseQuery} ${afterQuery}`;
+        sentQuery = `in:sent ${baseQuery} ${afterQuery}`;
+      }
+
       const starredQuery = `is:starred in:inbox ${baseQuery}`;
-      const sentQuery = `in:sent ${baseQuery} ${afterQuery}`;
       queries.push(inboxQuery, starredQuery, sentQuery);
 
       const [inboxThreads, starredThreads, sentThreads] = await Promise.all([
@@ -614,6 +638,63 @@ export class GmailProvider implements EmailProvider {
         await this.usersService.update(userId, { needsRelogin: true });
     }
     throw error;
+  }
+
+  /**
+   * Verify the Gmail status of all non-archived threads in BearlyMail.
+   * Checks each thread individually via the Gmail API and archives any that
+   * have been archived in Gmail (INBOX label removed).
+   *
+   * Called by the 2-hour `verify-user-inbox-status` job to catch emails that
+   * were archived in Gmail but not yet reflected in BearlyMail.
+   */
+  async verifyInboxStatus(userId: string): Promise<void> {
+    const gmail = await this.createGmailClient(userId);
+    if (!gmail) return;
+
+    const allThreadIds =
+      await this.emailsService.getAllNonArchivedThreadIds(userId);
+    if (allThreadIds.length === 0) return;
+
+    this.logger.log(
+      `[VerifyInbox] Checking ${allThreadIds.length} non-archived threads for user ${userId}`,
+    );
+
+    const updates = await verifyThreadStatusesInGmail(
+      userId,
+      allThreadIds,
+      gmail,
+    );
+
+    if (updates.length === 0) return;
+
+    // Only apply updates where something actually changed
+    const starUpdates = updates.filter((u) => u.starCount !== undefined);
+    const archiveUpdates = updates.filter((u) => u.isArchived !== undefined);
+
+    if (starUpdates.length > 0) {
+      await this.emailsService.batchUpdateThreadStarCount(
+        userId,
+        starUpdates.map((u) => ({
+          threadId: u.threadId,
+          starCount: u.starCount,
+        })),
+      );
+    }
+    if (archiveUpdates.length > 0) {
+      await this.emailsService.batchUpdateThreadArchivedStatuses(
+        userId,
+        archiveUpdates.map((u) => ({
+          threadId: u.threadId,
+          isArchived: u.isArchived,
+        })),
+      );
+    }
+
+    const archivedCount = updates.filter((u) => u.isArchived).length;
+    this.logger.log(
+      `[VerifyInbox] Done for user ${userId}: ${updates.length} threads checked, ${archivedCount} newly archived`,
+    );
   }
 
   async scanHistory(userId: string): Promise<void> {

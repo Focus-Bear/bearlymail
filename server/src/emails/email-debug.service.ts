@@ -4,6 +4,7 @@ import { Repository, IsNull, Not } from "typeorm";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { EmailProviderManager } from "./email-provider-manager.service";
+import { GmailProvider } from "./providers/gmail.provider";
 import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { isError } from "../types/common";
@@ -50,6 +51,8 @@ export class EmailDebugService {
     private emailThreadRepository: Repository<EmailThread>,
     @Inject(forwardRef(() => EmailProviderManager))
     private emailProviderManager: EmailProviderManager,
+    @Inject(forwardRef(() => GmailProvider))
+    private gmailProvider: GmailProvider,
     @Inject("PG_BOSS") private readonly boss: PgBoss,
     private blockedSendersService: BlockedSendersService,
   ) {}
@@ -710,5 +713,161 @@ export class EmailDebugService {
 
     // Now look up the thread using the threadId from the email
     return this.lookupThread(userId, email.threadId);
+  }
+
+  /**
+   * Look up a thread using a Gmail web UI URL.
+   *
+   * Gmail web URLs encode thread/message IDs differently from the Gmail REST API:
+   *   - URL format: base64url-encoded (e.g. "FMfcgzQfBsphbPMHvCJWcFscclwTDqzk")
+   *   - API format: hexadecimal (e.g. "18a12345678abcde")
+   *
+   * This method:
+   *   1. Extracts the URL ID from the Gmail URL
+   *   2. Tries a direct DB lookup (in case it's already an API-format ID)
+   *   3. If not found in DB, calls the Gmail API to resolve the URL ID to an API thread/message ID
+   *   4. Looks up the resolved thread ID in our DB
+   *   5. Returns a result with Gmail API metadata even if the thread is not yet in our DB
+   */
+  async lookupByGmailUrl(
+    userId: string,
+    gmailUrl: string,
+  ): Promise<
+    ThreadLookupResult & {
+      gmailApiResult?: {
+        foundInGmailApi: boolean;
+        apiMessageId: string | null;
+        apiThreadId: string | null;
+        subject: string | null;
+        from: string | null;
+        receivedAt: string | null;
+      };
+    }
+  > {
+    // Extract the URL ID — the last path segment after # or /
+    const urlParts = gmailUrl.split(/[/#]/);
+    const urlId = urlParts[urlParts.length - 1];
+
+    this.logger.log(
+      `Looking up Gmail URL for user ${userId}, extracted URL ID: ${urlId}`,
+    );
+
+    // 1. Try direct DB lookups first (works if the URL ID happens to be the API hex ID)
+    const byMessageId = await this.lookupByMessageId(userId, urlId);
+    if (byMessageId.found) {
+      return byMessageId;
+    }
+
+    const byThreadId = await this.lookupThread(userId, urlId);
+    if (byThreadId.found) {
+      return byThreadId;
+    }
+
+    // 2. Call the Gmail API to resolve the URL-format ID to the canonical API thread ID
+    this.logger.log(
+      `URL ID ${urlId} not found in DB, calling Gmail API to resolve...`,
+    );
+
+    let gmailApiResult: {
+      foundInGmailApi: boolean;
+      apiMessageId: string | null;
+      apiThreadId: string | null;
+      subject: string | null;
+      from: string | null;
+      receivedAt: string | null;
+    } = {
+      foundInGmailApi: false,
+      apiMessageId: null,
+      apiThreadId: null,
+      subject: null,
+      from: null,
+      receivedAt: null,
+    };
+
+    try {
+      const gmailLookup = await this.gmailProvider.lookupByGmailUrlId(
+        userId,
+        urlId,
+      );
+
+      if (gmailLookup) {
+        gmailApiResult = {
+          foundInGmailApi: true,
+          apiMessageId: gmailLookup.messageId,
+          apiThreadId: gmailLookup.threadId,
+          subject: gmailLookup.subject,
+          from: gmailLookup.from,
+          receivedAt: gmailLookup.receivedAt?.toISOString() ?? null,
+        };
+
+        this.logger.log(
+          `Gmail API resolved URL ID ${urlId} → threadId: ${gmailLookup.threadId}, messageId: ${gmailLookup.messageId}`,
+        );
+
+        // 3. Now look up the resolved thread ID in our DB
+        const byResolvedThread = await this.lookupThread(
+          userId,
+          gmailLookup.threadId,
+        );
+        if (byResolvedThread.found) {
+          return { ...byResolvedThread, gmailApiResult };
+        }
+
+        // Also try by the resolved message ID
+        const byResolvedMessage = await this.lookupByMessageId(
+          userId,
+          gmailLookup.messageId,
+        );
+        if (byResolvedMessage.found) {
+          return { ...byResolvedMessage, gmailApiResult };
+        }
+
+        // Thread exists in Gmail but not in our DB
+        return {
+          found: false,
+          threadId: gmailLookup.threadId,
+          thread: null,
+          emails: [],
+          visibility: {
+            wouldShowInTriage: false,
+            wouldShowInAction: false,
+            wouldShowInFollowUp: false,
+          },
+          reasons: [
+            `Thread found in Gmail (threadId: ${gmailLookup.threadId}) but NOT synced to BearlyMail yet. Subject: "${gmailLookup.subject || "unknown"}" from "${gmailLookup.from || "unknown"}". Try triggering a manual sync.`,
+          ],
+          gmailApiResult,
+        };
+      }
+    } catch (error) {
+      this.logger.warn(
+        `Gmail API lookup failed for URL ID ${urlId}: ${isError(error) ? error.message : "unknown error"}`,
+      );
+      gmailApiResult = {
+        foundInGmailApi: false,
+        apiMessageId: null,
+        apiThreadId: null,
+        subject: null,
+        from: null,
+        receivedAt: null,
+      };
+    }
+
+    // Not found anywhere
+    return {
+      found: false,
+      threadId: urlId,
+      thread: null,
+      emails: [],
+      visibility: {
+        wouldShowInTriage: false,
+        wouldShowInAction: false,
+        wouldShowInFollowUp: false,
+      },
+      reasons: [
+        `URL ID "${urlId}" not found in BearlyMail database or Gmail API. The Gmail URL may be invalid or the email may have been deleted.`,
+      ],
+      gmailApiResult,
+    };
   }
 }

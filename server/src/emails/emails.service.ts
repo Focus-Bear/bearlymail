@@ -3130,6 +3130,15 @@ export class EmailsService {
   }
 
   /**
+   * Look up a thread by a Gmail web UI URL
+   * Handles the URL-encoded ID format used in Gmail URLs, which differs from the Gmail API ID format.
+   * Delegates to EmailDebugService
+   */
+  async lookupByGmailUrl(userId: string, gmailUrl: string) {
+    return this.emailDebugService.lookupByGmailUrl(userId, gmailUrl);
+  }
+
+  /**
    * Detect GitHub links in email and fetch their status
    * This runs asynchronously and doesn't block email processing
    */

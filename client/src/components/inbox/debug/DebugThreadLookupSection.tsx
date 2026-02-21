@@ -222,6 +222,40 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
               </div>
             </div>
           )}
+
+          {threadLookupResult.gmailApiResult && (
+            <div
+              style={{
+                marginTop: theme.spacing.md,
+                padding: theme.spacing.sm,
+                backgroundColor: threadLookupResult.gmailApiResult.foundInGmailApi ? '#E3F2FD' : '#F5F5F5',
+                borderRadius: theme.borderRadius.sm,
+                border: `1px solid ${threadLookupResult.gmailApiResult.foundInGmailApi ? '#90CAF9' : '#E0E0E0'}`,
+                fontSize: theme.typography.fontSize.xs,
+              }}
+            >
+              {/* eslint-disable-next-line i18next/no-literal-string */}
+              <strong>{t('debug.threadLookup.gmailApiResult')}:</strong>
+              {threadLookupResult.gmailApiResult.foundInGmailApi ? (
+                <ul style={{ margin: `${theme.spacing.xs} 0 0 0`, paddingLeft: theme.spacing.lg }}>
+                  {/* eslint-disable-next-line i18next/no-literal-string */}
+                  <li><strong>Gmail API Thread ID:</strong> <code style={{ backgroundColor: '#f5f5f5', padding: '1px 3px', borderRadius: '2px' }}>{threadLookupResult.gmailApiResult.apiThreadId}</code></li>
+                  {/* eslint-disable-next-line i18next/no-literal-string */}
+                  <li><strong>Gmail API Message ID:</strong> <code style={{ backgroundColor: '#f5f5f5', padding: '1px 3px', borderRadius: '2px' }}>{threadLookupResult.gmailApiResult.apiMessageId}</code></li>
+                  {/* eslint-disable-next-line i18next/no-literal-string */}
+                  {threadLookupResult.gmailApiResult.subject && <li><strong>Subject:</strong> {threadLookupResult.gmailApiResult.subject}</li>}
+                  {/* eslint-disable-next-line i18next/no-literal-string */}
+                  {threadLookupResult.gmailApiResult.from && <li><strong>From:</strong> {threadLookupResult.gmailApiResult.from}</li>}
+                  {/* eslint-disable-next-line i18next/no-literal-string */}
+                  {threadLookupResult.gmailApiResult.receivedAt && <li><strong>Date:</strong> {new Date(threadLookupResult.gmailApiResult.receivedAt).toLocaleString()}</li>}
+                </ul>
+              ) : (
+                <span style={{ color: '#757575', marginLeft: theme.spacing.xs }}>
+                  {t('debug.threadLookup.gmailApiNotFound')}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

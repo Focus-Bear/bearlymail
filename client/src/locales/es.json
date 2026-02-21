@@ -331,7 +331,9 @@
       "threadDetails": "Detalles del hilo",
       "visibility": "Visibilidad en modos",
       "reasons": "Razones de diagnóstico",
-      "emails": "Correos en el hilo"
+      "emails": "Correos en el hilo",
+      "gmailApiResult": "Resultado de consulta a la API de Gmail",
+      "gmailApiNotFound": "No se pudo resolver el ID de URL a través de la API de Gmail"
     }
   },
   "email": {

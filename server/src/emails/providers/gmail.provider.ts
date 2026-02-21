@@ -930,4 +930,106 @@ export class GmailProvider implements EmailProvider {
       size: attachmentMetadata?.size || attachmentBuffer.length,
     };
   }
+
+  /**
+   * Look up a message by a Gmail URL ID (the base64url-encoded ID from Gmail web interface URLs).
+   *
+   * Gmail web URLs use a different encoding than the Gmail REST API IDs:
+   *   - API message/thread IDs are hexadecimal strings (e.g. "18a12345678abcde")
+   *   - URL IDs are base64url-encoded (e.g. "FMfcgzQfBsphbPMHvCJWcFscclwTDqzk")
+   *
+   * Strategy:
+   *   1. Try the URL ID as-is (in case Gmail API accepts it or the user pasted an API ID)
+   *   2. Decode the URL ID from base64url to hex and retry
+   *
+   * Returns the canonical API message/thread IDs so we can look them up in our DB.
+   */
+  async lookupByGmailUrlId(
+    userId: string,
+    urlId: string,
+  ): Promise<{
+    messageId: string;
+    threadId: string;
+    subject: string;
+    from: string;
+    receivedAt: Date | null;
+  } | null> {
+    const gmail = await this.createGmailClient(userId);
+    if (!gmail) return null;
+
+    const idsToTry: string[] = [urlId];
+
+    // Also try decoding from base64url → hex (Gmail URL IDs are base64url of the raw internal bytes)
+    try {
+      const base64 = urlId.replace(/-/g, "+").replace(/_/g, "/");
+      const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+      const hexId = Buffer.from(padded, "base64").toString("hex");
+      if (hexId && hexId !== urlId) {
+        idsToTry.push(hexId);
+      }
+    } catch {
+      // ignore decode errors
+    }
+
+    for (const id of idsToTry) {
+      try {
+        const response = await gmail.users.messages.get({
+          userId: "me",
+          id,
+          format: "metadata",
+          metadataHeaders: ["Subject", "From", "Date"],
+        });
+        const message = response.data;
+        if (message.id && message.threadId) {
+          const headers = message.payload?.headers || [];
+          const subject =
+            headers.find((h) => h.name === "Subject")?.value || "";
+          const from = headers.find((h) => h.name === "From")?.value || "";
+          const dateStr = headers.find((h) => h.name === "Date")?.value || "";
+          return {
+            messageId: message.id,
+            threadId: message.threadId,
+            subject,
+            from,
+            receivedAt: dateStr ? new Date(dateStr) : null,
+          };
+        }
+      } catch {
+        // Try next ID variant
+      }
+    }
+
+    // Also try as a thread ID directly (some Gmail URLs link to threads, not individual messages)
+    for (const id of idsToTry) {
+      try {
+        const response = await gmail.users.threads.get({
+          userId: "me",
+          id,
+          format: "metadata",
+        });
+        const thread = response.data;
+        if (thread.id) {
+          // Get metadata from the latest message in the thread
+          const latestMsg =
+            thread.messages?.[thread.messages.length - 1] ?? null;
+          const headers = latestMsg?.payload?.headers || [];
+          const subject =
+            headers.find((h) => h.name === "Subject")?.value || "";
+          const from = headers.find((h) => h.name === "From")?.value || "";
+          const dateStr = headers.find((h) => h.name === "Date")?.value || "";
+          return {
+            messageId: latestMsg?.id || thread.id,
+            threadId: thread.id,
+            subject,
+            from,
+            receivedAt: dateStr ? new Date(dateStr) : null,
+          };
+        }
+      } catch {
+        // Try next ID variant
+      }
+    }
+
+    return null;
+  }
 }

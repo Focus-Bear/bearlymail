@@ -96,6 +96,15 @@ export interface ThreadLookupResult {
     wouldShowInFollowUp: boolean;
   };
   reasons: string[];
+  /** Present when the lookup was triggered from a Gmail URL with a URL-encoded ID */
+  gmailApiResult?: {
+    foundInGmailApi: boolean;
+    apiMessageId: string | null;
+    apiThreadId: string | null;
+    subject: string | null;
+    from: string | null;
+    receivedAt: string | null;
+  };
 }
 
 interface UseDebugPanelReturn {

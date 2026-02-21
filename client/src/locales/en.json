@@ -1146,7 +1146,9 @@
       "threadDetails": "Thread Details",
       "visibility": "Visibility in Modes",
       "reasons": "Diagnostic Reasons",
-      "emails": "Emails in Thread"
+      "emails": "Emails in Thread",
+      "gmailApiResult": "Gmail API Lookup Result",
+      "gmailApiNotFound": "Could not resolve URL ID via Gmail API"
     }
   },
   "search": {

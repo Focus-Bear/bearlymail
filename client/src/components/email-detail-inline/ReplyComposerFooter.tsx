@@ -47,7 +47,7 @@ export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = ({
 
   const handleSend = () => {
     captureEvent('reply_sent', { expected_reply_hours: expectedReplyHours > 0 ? expectedReplyHours : null });
-    onSend(expectedReplyHours > 0 ? expectedReplyHours : undefined);
+    onSend(expectedReplyHours);
   };
 
   const getOptionLabel = (option: typeof EXPECTED_REPLY_OPTIONS[0]): string => {

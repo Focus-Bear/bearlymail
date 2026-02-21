@@ -843,24 +843,24 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
   const performArchiveAfterReply = useCallback(async () => {
     if (!id) return;
     const emailToArchive = emails.find(e => e.id === id);
-    if (emailToArchive) {
-      dispatch(removeEmail(id));
-      dispatch(addOptimisticArchive(id));
-    }
-    
+    // Always dispatch optimistic update so the email is hidden immediately,
+    // even if the email object isn't in the Redux store (e.g. full-page view)
+    dispatch(removeEmail(id));
+    dispatch(addOptimisticArchive(id));
+
     // Navigate immediately after optimistic update for instant UI feedback
     if (options.onArchiveComplete && id) {
       options.onArchiveComplete(id);
     } else {
       navigate('/inbox');
     }
-    
+
     // Make API call in background - revert optimistic update if it fails
     axios.put(`${API_URL}/emails/${id}/archive`).catch((error) => {
       console.error('Error archiving email after reply:', error);
+      dispatch(removeOptimisticArchive(id));
       if (emailToArchive) {
         dispatch(restoreEmail(emailToArchive));
-        dispatch(removeOptimisticArchive(id));
       }
     });
   }, [id, emails, dispatch, options, navigate]);
@@ -868,24 +868,24 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
   const performSnoozeAfterReply = useCallback(async (duration: string) => {
     if (!id) return;
     const emailToSnooze = emails.find(e => e.id === id);
-    if (emailToSnooze) {
-      dispatch(removeEmail(id));
-      dispatch(addOptimisticSnooze(id));
-    }
-    
+    // Always dispatch optimistic update so the email is hidden immediately,
+    // even if the email object isn't in the Redux store (e.g. full-page view)
+    dispatch(removeEmail(id));
+    dispatch(addOptimisticSnooze(id));
+
     // Navigate immediately after optimistic update for instant UI feedback
     if (options.onSnoozeComplete) {
       options.onSnoozeComplete(id);
     } else {
       navigate('/inbox');
     }
-    
+
     // Make API call in background - revert optimistic update if it fails
     axios.post(`${API_URL}/snooze/${id}`, { duration }).catch((error) => {
       console.error('Error snoozing email after reply:', error);
+      dispatch(removeOptimisticSnooze(id));
       if (emailToSnooze) {
         dispatch(restoreEmail(emailToSnooze));
-        dispatch(removeOptimisticSnooze(id));
       }
     });
   }, [id, emails, dispatch, options, navigate]);
@@ -929,6 +929,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
         formData.append('replyAll', String(replyMode === REPLY_MODE_REPLY_ALL));
         if (replyCc) formData.append('cc', replyCc);
         if (replyBcc) formData.append('bcc', replyBcc);
+        if (expectedReplyHours !== undefined) formData.append('expectedReplyHours', String(expectedReplyHours));
         files.forEach((file) => {
           formData.append('files', file);
         });
@@ -945,6 +946,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
           cc: replyCc || undefined,
           bcc: replyBcc || undefined,
           replyAll: replyMode === REPLY_MODE_REPLY_ALL,
+          expectedReplyHours,
         });
       }
 

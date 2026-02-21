@@ -90,6 +90,28 @@ export async function unarchiveThreadInZoho(
 }
 
 /**
+ * Parse a comma-separated recipient string (supports "Name <email>" format)
+ * into an array of Zoho address objects.
+ */
+function parseRecipientsToZoho(
+  recipientStr: string,
+): Array<{ address: string; personal?: string }> {
+  return recipientStr
+    .split(",")
+    .map((r) => r.trim())
+    .filter((r) => r.length > 0)
+    .map((r) => {
+      const match = r.match(/^(.*?)\s*<([^>]+)>$/);
+      if (match) {
+        const name = match[1].trim();
+        const address = match[2].trim();
+        return name ? { address, personal: name } : { address };
+      }
+      return { address: r };
+    });
+}
+
+/**
  * Send a reply email via Zoho
  */
 export async function sendReplyViaZoho(
@@ -99,15 +121,22 @@ export async function sendReplyViaZoho(
   subject: string,
   htmlBody: string,
   threadId: string,
+  cc?: string,
 ): Promise<{ messageId: string }> {
+  const message: Record<string, unknown> = {
+    to: parseRecipientsToZoho(to),
+    subject: subject.startsWith("Re:") ? subject : `Re: ${subject}`,
+    content: { html: htmlBody },
+    inReplyTo: threadId,
+  };
+
+  if (cc) {
+    message.cc = parseRecipientsToZoho(cc);
+  }
+
   const response = await zohoClient.post(
     `/accounts/${zohoAccountId}/messages`,
-    {
-      to: [{ address: to }],
-      subject: subject.startsWith("Re:") ? subject : `Re: ${subject}`,
-      content: { html: htmlBody },
-      inReplyTo: threadId,
-    },
+    message,
   );
 
   return { messageId: response?.data?.messageId || `zoho-${Date.now()}` };

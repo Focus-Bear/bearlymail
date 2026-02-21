@@ -701,6 +701,7 @@ export class Office365Provider implements EmailProvider {
     body: string,
     attachments?: EmailAttachmentData[],
     htmlBody?: string,
+    cc?: string,
   ): Promise<{ messageId: string; threadId: string }> {
     const primaryAccount =
       await this.office365AccountsService.findPrimary(userId);
@@ -715,6 +716,7 @@ export class Office365Provider implements EmailProvider {
         to,
         subject,
         htmlBody || body,
+        cc,
       );
       this.logger.log(`Reply sent for user ${userId} to ${to}`);
       return { messageId: result.messageId, threadId };
@@ -724,7 +726,16 @@ export class Office365Provider implements EmailProvider {
           userId,
           primaryAccount.id,
         );
-        return this.sendReply(userId, threadId, to, subject, body, attachments);
+        return this.sendReply(
+          userId,
+          threadId,
+          to,
+          subject,
+          body,
+          attachments,
+          htmlBody,
+          cc,
+        );
       }
       throw new Error("Failed to send reply");
     }

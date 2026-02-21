@@ -91,6 +91,9 @@ export class RepliesController {
     @Body()
     body: {
       reply: string;
+      recipients?: string;
+      cc?: string;
+      bcc?: string;
       expectedReplyHours?: number | string;
       forwardAttachmentIds?: string | string[];
       scheduledSendAt?: string;
@@ -141,8 +144,11 @@ export class RepliesController {
         replySubject = `Re: ${replySubject}`;
       }
 
-      // Use Reply-To address if available, otherwise fall back to From address
-      const replyToAddress = email.replyTo || email.from;
+      // Use provided recipients if available (reply-all), otherwise fall back to Reply-To or From address
+      const replyToAddress =
+        body.recipients && body.recipients.trim()
+          ? body.recipients
+          : email.replyTo || email.from;
 
       // Convert attachments to base64 for storage
       const scheduledAttachments = attachments?.map((att) => ({
@@ -177,7 +183,7 @@ export class RepliesController {
       };
     }
 
-    // Otherwise send immediately (existing behavior)
+    // Otherwise send immediately
     await this.repliesService.sendReply(
       req.user.userId,
       id,
@@ -185,6 +191,8 @@ export class RepliesController {
       attachments,
       isNaN(expectedReplyHours as number) ? undefined : expectedReplyHours,
       forwardAttachmentIds,
+      body.recipients || undefined,
+      body.cc || undefined,
     );
     return { message: "Reply sent successfully" };
   }

@@ -297,6 +297,8 @@ ${closing}`;
     }>,
     expectedReplyHours?: number,
     forwardAttachmentIds?: string[],
+    recipients?: string,
+    cc?: string,
   ): Promise<void> {
     const email = await this.emailsService.getEmailById(userId, emailId);
     if (!email) {
@@ -327,8 +329,11 @@ ${closing}`;
       );
     }
 
-    // Use Reply-To address if available, otherwise fall back to From address
-    const replyToAddress = email.replyTo || email.from;
+    // Use provided recipients if available (reply-all), otherwise fall back to Reply-To or From address
+    const replyToAddress =
+      recipients && recipients.trim()
+        ? recipients
+        : email.replyTo || email.from;
 
     // Fetch forward attachments if requested
     const allAttachments = attachments ? [...attachments] : [];
@@ -384,6 +389,7 @@ ${closing}`;
       bodyWithSignature,
       allAttachments.length > 0 ? allAttachments : undefined,
       bodyWithSignature,
+      cc || undefined,
     );
 
     // Store the sent reply in the database so it appears in the thread view

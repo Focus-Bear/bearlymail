@@ -31,6 +31,26 @@ import {
 } from "./gmail/gmail-operations";
 import { buildEmailContent, encodeEmailForGmail } from "./gmail/gmail-send";
 
+/**
+ * Parse a comma-separated recipient string (supports "Name <email>" format)
+ * into an array of EmailRecipient objects.
+ */
+function parseRecipientsFromString(recipientStr: string): EmailRecipient[] {
+  return recipientStr
+    .split(",")
+    .map((r) => r.trim())
+    .filter((r) => r.length > 0)
+    .map((r) => {
+      const match = r.match(/^(.*?)\s*<([^>]+)>$/);
+      if (match) {
+        const name = match[1].trim();
+        const email = match[2].trim();
+        return name ? { name, email } : { email };
+      }
+      return { email: r };
+    });
+}
+
 @Injectable()
 export class GmailProvider implements EmailProvider {
   private readonly progressUpdateCounters = new Map<string, number>();
@@ -723,12 +743,17 @@ export class GmailProvider implements EmailProvider {
     body: string,
     attachments?: EmailAttachmentData[],
     htmlBody?: string,
+    cc?: string,
   ): Promise<{ messageId: string; threadId: string }> {
     const gmail = await this.createGmailClient(userId);
     if (!gmail) throw new Error("Gmail account not connected.");
 
+    const toRecipients = parseRecipientsFromString(to);
+    const ccRecipients = cc ? parseRecipientsFromString(cc) : undefined;
+
     const emailContent = buildEmailContent({
-      to: [{ email: to }],
+      to: toRecipients,
+      cc: ccRecipients,
       subject,
       body,
       htmlBody,

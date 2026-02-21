@@ -97,6 +97,8 @@ export interface EmailProvider {
 
   /**
    * Send a reply email (continues an existing thread)
+   * @param to - Comma-separated list of recipient email addresses (supports "Name <email>" format)
+   * @param cc - Optional comma-separated list of CC recipient email addresses
    * @param htmlBody - Optional HTML version of the body for rich formatting
    */
   sendReply(
@@ -107,6 +109,7 @@ export interface EmailProvider {
     body: string,
     attachments?: EmailAttachmentData[],
     htmlBody?: string,
+    cc?: string,
   ): Promise<{ messageId: string; threadId: string }>;
 
   /**

@@ -659,6 +659,7 @@ export class ZohoProvider implements EmailProvider {
     body: string,
     attachments?: EmailAttachmentData[],
     htmlBody?: string,
+    cc?: string,
   ): Promise<{ messageId: string; threadId: string }> {
     const primaryAccount = await this.zohoAccountsService.findPrimary(userId);
     if (!primaryAccount) throw new Error("Zoho Mail account not connected.");
@@ -675,6 +676,7 @@ export class ZohoProvider implements EmailProvider {
         subject,
         htmlBody || body,
         threadId,
+        cc,
       );
       this.logger.log(`Reply sent for user ${userId} to ${to}`);
       return { messageId: result.messageId, threadId };
@@ -684,7 +686,16 @@ export class ZohoProvider implements EmailProvider {
           userId,
           primaryAccount.id,
         );
-        return this.sendReply(userId, threadId, to, subject, body, attachments);
+        return this.sendReply(
+          userId,
+          threadId,
+          to,
+          subject,
+          body,
+          attachments,
+          htmlBody,
+          cc,
+        );
       }
       throw new Error("Failed to send reply");
     }

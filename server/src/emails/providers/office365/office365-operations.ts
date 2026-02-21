@@ -110,6 +110,28 @@ export async function unarchiveThreadInOffice365(
 }
 
 /**
+ * Parse a comma-separated recipient string (supports "Name <email>" format)
+ * into an array of Office365 emailAddress objects.
+ */
+function parseRecipientsToOffice365(
+  recipientStr: string,
+): Array<{ emailAddress: { address: string; name?: string } }> {
+  return recipientStr
+    .split(",")
+    .map((r) => r.trim())
+    .filter((r) => r.length > 0)
+    .map((r) => {
+      const match = r.match(/^(.*?)\s*<([^>]+)>$/);
+      if (match) {
+        const name = match[1].trim();
+        const address = match[2].trim();
+        return { emailAddress: name ? { address, name } : { address } };
+      }
+      return { emailAddress: { address: r } };
+    });
+}
+
+/**
  * Send a reply email via Office365
  */
 export async function sendReplyViaOffice365(
@@ -117,23 +139,22 @@ export async function sendReplyViaOffice365(
   to: string,
   subject: string,
   htmlBody: string,
+  cc?: string,
 ): Promise<{ messageId: string }> {
-  const response = await graphClient.post("/me/sendMail", {
-    message: {
-      subject: subject.startsWith("Re:") ? subject : `Re: ${subject}`,
-      body: {
-        contentType: "HTML",
-        content: htmlBody,
-      },
-      toRecipients: [
-        {
-          emailAddress: {
-            address: to,
-          },
-        },
-      ],
+  const message: Record<string, unknown> = {
+    subject: subject.startsWith("Re:") ? subject : `Re: ${subject}`,
+    body: {
+      contentType: "HTML",
+      content: htmlBody,
     },
-  });
+    toRecipients: parseRecipientsToOffice365(to),
+  };
+
+  if (cc) {
+    message.ccRecipients = parseRecipientsToOffice365(cc);
+  }
+
+  const response = await graphClient.post("/me/sendMail", { message });
 
   return {
     messageId: response?.data?.id || `office365-${Date.now()}`,

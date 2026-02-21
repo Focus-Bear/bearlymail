@@ -94,27 +94,47 @@ export function useEmailDetailReplies(
         setInitialAttachments(email.attachments || []);
       } else if (mode === REPLY_MODE_REPLY_ALL) {
         const recipients: string[] = [];
+        const extractEmail = (addr: string): string => {
+          const match = addr.match(/<([^>]+)>/);
+          return match ? match[1].toLowerCase() : addr.toLowerCase();
+        };
+        const isCurrentUser = (addr: string): boolean =>
+          !!normalizedUserEmail && extractEmail(addr) === normalizedUserEmail;
+
         if (isFromCurrentUser) {
           // User sent this email - reply to the original recipients, not to self
           if ((email as any).to) {
-            const toRecipients = (email as any).to.split(',').map((r: string) => r.trim()).filter((r: string) => r && r.toLowerCase() !== normalizedUserEmail);
+            const toRecipients = (email as any).to.split(',').map((r: string) => r.trim()).filter((r: string) => r && !isCurrentUser(r));
             recipients.push(...toRecipients);
           }
         } else {
           recipients.push(replyToAddress);
           if ((email as any).to) {
-            const toRecipients = (email as any).to.split(',').map((r: string) => r.trim()).filter((r: string) => r && r.toLowerCase() !== normalizedUserEmail);
+            const toRecipients = (email as any).to.split(',').map((r: string) => r.trim()).filter((r: string) => r && !isCurrentUser(r));
             recipients.push(...toRecipients);
           }
         }
         setReplyRecipients([...new Set(recipients)].join(', '));
+
+        // Add CC recipients from the original email
+        if ((email as any).cc) {
+          const ccRecipients = (email as any).cc.split(',').map((r: string) => r.trim()).filter((r: string) => r && !isCurrentUser(r));
+          if (ccRecipients.length > 0) {
+            setReplyCc(ccRecipients.join(', '));
+            setShowCc(true);
+          }
+        }
         setInitialAttachments([]);
       } else {
         // Regular reply
         if (isFromCurrentUser) {
           // User sent this email - reply to the first recipient, not to self
           if ((email as any).to) {
-            const firstRecipient = (email as any).to.split(',').map((r: string) => r.trim()).filter((r: string) => r && r.toLowerCase() !== normalizedUserEmail)[0];
+            const extractEmail = (addr: string): string => {
+              const match = addr.match(/<([^>]+)>/);
+              return match ? match[1].toLowerCase() : addr.toLowerCase();
+            };
+            const firstRecipient = (email as any).to.split(',').map((r: string) => r.trim()).filter((r: string) => r && !!normalizedUserEmail && extractEmail(r) !== normalizedUserEmail)[0];
             setReplyRecipients(firstRecipient || replyToAddress);
           } else {
             setReplyRecipients(replyToAddress);

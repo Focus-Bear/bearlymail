@@ -233,6 +233,8 @@ describe("RepliesController", () => {
         undefined,
         undefined,
         undefined,
+        undefined,
+        undefined,
       );
     });
 
@@ -272,6 +274,8 @@ describe("RepliesController", () => {
         ],
         undefined,
         undefined,
+        undefined,
+        undefined,
       );
     });
 
@@ -296,6 +300,8 @@ describe("RepliesController", () => {
         undefined,
         undefined,
         ["attach-1", "attach-2"],
+        undefined,
+        undefined,
       );
     });
 
@@ -320,6 +326,35 @@ describe("RepliesController", () => {
         undefined,
         24,
         undefined,
+        undefined,
+        undefined,
+      );
+    });
+
+    it("should send reply-all with recipients and cc", async () => {
+      const userId = "user-123";
+      const emailId = "email-123";
+      const mockRequest = { user: { userId } };
+      const body = {
+        reply: "Thanks everyone",
+        recipients: "sender@example.com, other@example.com",
+        cc: "cc@example.com",
+      };
+
+      mockRepliesService.sendReply.mockResolvedValue(undefined);
+
+      const result = await controller.sendReply(mockRequest, emailId, body);
+
+      expect(result).toEqual({ message: "Reply sent successfully" });
+      expect(repliesService.sendReply).toHaveBeenCalledWith(
+        userId,
+        emailId,
+        body.reply,
+        undefined,
+        undefined,
+        undefined,
+        "sender@example.com, other@example.com",
+        "cc@example.com",
       );
     });
   });

@@ -515,6 +515,7 @@ describe("RepliesService", () => {
         "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
         undefined,
         "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
+        undefined,
       );
     });
 
@@ -543,6 +544,70 @@ describe("RepliesService", () => {
         "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
         undefined,
         "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
+        undefined,
+      );
+    });
+
+    it("should use provided recipients for reply-all instead of from address", async () => {
+      const mockProvider = {
+        sendReply: jest.fn().mockResolvedValue({ messageId: "sent-msg-1" }),
+      };
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(
+        mockProvider as any,
+      );
+
+      const replyAllRecipients =
+        "sender@example.com, other@example.com";
+      await service.sendReply(
+        userId,
+        emailId,
+        "Reply body",
+        undefined,
+        undefined,
+        undefined,
+        replyAllRecipients,
+        "cc@example.com",
+      );
+
+      expect(mockProvider.sendReply).toHaveBeenCalledWith(
+        userId,
+        email.threadId,
+        replyAllRecipients,
+        "Re: Test Subject",
+        "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
+        undefined,
+        "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
+        "cc@example.com",
+      );
+    });
+
+    it("should fall back to from address when recipients is empty", async () => {
+      const mockProvider = {
+        sendReply: jest.fn().mockResolvedValue({ messageId: "sent-msg-1" }),
+      };
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(
+        mockProvider as any,
+      );
+
+      await service.sendReply(
+        userId,
+        emailId,
+        "Reply body",
+        undefined,
+        undefined,
+        undefined,
+        "",
+      );
+
+      expect(mockProvider.sendReply).toHaveBeenCalledWith(
+        userId,
+        email.threadId,
+        email.from,
+        "Re: Test Subject",
+        "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
+        undefined,
+        "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
+        undefined,
       );
     });
   });

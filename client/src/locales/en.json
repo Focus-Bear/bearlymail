@@ -1385,7 +1385,15 @@
       "recategorize": "Recategorise emails in Inbox",
       "recategorizing": "Recategorising...",
       "consolidate": "Consolidate Categories",
-      "consolidating": "Consolidating..."
+      "consolidating": "Consolidating...",
+      "recategorizeProgress": {
+        "inProgress": "Recategorising emails...",
+        "complete": "Recategorisation complete",
+        "status": "{{processed}} of {{total}} emails processed",
+        "statusWithFailed": "{{processed}} of {{total}} emails processed ({{failed}} failed)",
+        "remaining": "· {{pending}} remaining",
+        "dismiss": "Dismiss recategorisation progress"
+      }
     },
     "contextExplanations": {
       "vipContactStarredExplanation": "You've starred {{count}} email{{plural}} from this contact"

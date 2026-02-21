@@ -50,6 +50,7 @@ import { EmailRecipient } from "./interfaces/email-provider.interface";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import * as fs from "fs";
 import * as path from "path";
+import * as crypto from "crypto";
 import { getJobPriority } from "../queue/job-priorities";
 import { QUERY_LIMITS } from "../constants/query-limits";
 
@@ -982,14 +983,16 @@ export class EmailsController {
       return {
         message: `No emails to recategorize in ${modes.join(" or ")}`,
         queued: 0,
+        batchId: null,
       };
     }
 
+    const batchId = crypto.randomUUID();
     let queued = 0;
     for (const email of allEmails) {
       await this.boss.send(
         "refine-priority",
-        { userId, emailId: email.id, forceRecalculate: true },
+        { userId, emailId: email.id, forceRecalculate: true, recategorizeBatchId: batchId },
         {
           priority: getJobPriority("refine-priority", true),
           singletonKey: `recategorize-${email.id}`,
@@ -1000,13 +1003,66 @@ export class EmailsController {
     }
 
     this.logger.log(
-      `[Recategorize] Queued ${queued} recategorization jobs for userId: ${userId}`,
+      `[Recategorize] Queued ${queued} recategorization jobs for userId: ${userId}, batchId: ${batchId}`,
     );
 
     return {
       message: `Queued ${queued} emails for recategorization`,
       queued,
+      batchId,
     };
+  }
+
+  @Get("recategorize-progress")
+  async getRecategorizeProgress(
+    @Request() req,
+    @Query("batchId") batchId: string,
+  ) {
+    const { userId } = req.user;
+
+    if (!batchId) {
+      return { total: 0, completed: 0, failed: 0, pending: 0 };
+    }
+
+    const { db } = this.boss as unknown as PgBossWithInternals;
+
+    // Query both the active job table and archive table for this batch
+    const result = await db.executeSql(
+      `
+      WITH all_jobs AS (
+        SELECT state::text, data->>'userId' as "userId"
+        FROM pgboss.job
+        WHERE data->>'recategorizeBatchId' = $1
+        UNION ALL
+        SELECT state::text, data->>'userId' as "userId"
+        FROM pgboss.archive
+        WHERE data->>'recategorizeBatchId' = $1
+      )
+      SELECT state, COUNT(*) as count
+      FROM all_jobs
+      WHERE "userId" = $2
+      GROUP BY state
+      `,
+      [batchId, userId],
+    );
+
+    const counts: Record<string, number> = {};
+    if (result?.rows) {
+      (result.rows as { state: string; count: string }[]).forEach((row) => {
+        counts[row.state] = parseInt(row.count, 10);
+      });
+    }
+
+    const completed = counts["completed"] ?? 0;
+    const failed = (counts["failed"] ?? 0) + (counts["expired"] ?? 0) + (counts["cancelled"] ?? 0);
+    const pending = (counts["created"] ?? 0) + (counts["retry"] ?? 0) + (counts["active"] ?? 0);
+    const total = completed + failed + pending;
+
+    this.logger.log(
+      `[Recategorize] Progress for batchId: ${batchId}, userId: ${userId} - total: ${total}, completed: ${completed}, failed: ${failed}, pending: ${pending}`,
+    );
+
+    return { total, completed, failed, pending };
   }
 
   @Get("admin/job-stats")

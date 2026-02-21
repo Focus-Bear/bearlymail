@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { ContextSection } from 'components/settings/guide-ai/ContextSection';
+import { RecategorizeProgressBar } from 'components/settings/RecategorizeProgressBar';
+import { useRecategorizeProgress } from 'hooks/settings/useRecategorizeProgress';
 import { theme } from 'theme/theme';
 import { OPACITY_DISABLED } from 'constants/numbers';
 import { API_URL } from 'config/api';
@@ -71,11 +73,16 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
     originalCount: number;
     consolidatedCount: number;
   } | null>(null);
+  const { progress: recategorizeProgress, startTracking, dismiss: dismissProgress } = useRecategorizeProgress();
 
   const handleRecategorize = async () => {
     setIsRecategorizing(true);
     try {
-      await axios.post(`${API_URL}/emails/recategorize-triage`);
+      const response = await axios.post(`${API_URL}/emails/recategorize-triage`);
+      const { batchId, queued } = response.data as { batchId: string | null; queued: number };
+      if (batchId && queued > 0) {
+        startTracking(batchId, queued);
+      }
     } catch (error) {
       console.error('Failed to recategorize emails:', error);
     } finally {
@@ -118,37 +125,40 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
   };
 
   const emailCategoryButtons = (
-    <div style={{ display: 'flex', gap: '12px', marginLeft: 'auto' }}>
-      <button
-        onClick={handleConsolidateCategories}
-        disabled={isConsolidating}
-        style={{
-          background: 'transparent',
-          border: 'none',
-          color: theme.colors.primary.main,
-          cursor: isConsolidating ? 'not-allowed' : 'pointer',
-          fontSize: theme.typography.fontSize.sm,
-          fontWeight: theme.typography.fontWeight.medium,
-          opacity: isConsolidating ? OPACITY_DISABLED : 1,
-        }}
-      >
-        {isConsolidating ? t('settings.emailCategories.consolidating') : t('settings.emailCategories.consolidate')}
-      </button>
-      <button
-        onClick={handleRecategorize}
-        disabled={isRecategorizing}
-        style={{
-          background: 'transparent',
-          border: 'none',
-          color: theme.colors.accent.warning,
-          cursor: isRecategorizing ? 'not-allowed' : 'pointer',
-          fontSize: theme.typography.fontSize.sm,
-          fontWeight: theme.typography.fontWeight.medium,
-          opacity: isRecategorizing ? OPACITY_DISABLED : 1,
-        }}
-      >
-        {isRecategorizing ? t('settings.emailCategories.recategorizing') : t('settings.emailCategories.recategorize')}
-      </button>
+    <div style={{ marginLeft: 'auto', minWidth: '260px' }}>
+      <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+        <button
+          onClick={handleConsolidateCategories}
+          disabled={isConsolidating}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: theme.colors.primary.main,
+            cursor: isConsolidating ? 'not-allowed' : 'pointer',
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.medium,
+            opacity: isConsolidating ? OPACITY_DISABLED : 1,
+          }}
+        >
+          {isConsolidating ? t('settings.emailCategories.consolidating') : t('settings.emailCategories.consolidate')}
+        </button>
+        <button
+          onClick={handleRecategorize}
+          disabled={isRecategorizing}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: theme.colors.accent.warning,
+            cursor: isRecategorizing ? 'not-allowed' : 'pointer',
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.medium,
+            opacity: isRecategorizing ? OPACITY_DISABLED : 1,
+          }}
+        >
+          {isRecategorizing ? t('settings.emailCategories.recategorizing') : t('settings.emailCategories.recategorize')}
+        </button>
+      </div>
+      <RecategorizeProgressBar progress={recategorizeProgress} onDismiss={dismissProgress} />
     </div>
   );
 

@@ -1482,7 +1482,15 @@
       "recategorize": "Recategorizar correos en Bandeja",
       "recategorizing": "Recategorizando...",
       "consolidate": "Consolidar Categorias",
-      "consolidating": "Consolidando..."
+      "consolidating": "Consolidando...",
+      "recategorizeProgress": {
+        "inProgress": "Recategorizando correos...",
+        "complete": "Recategorización completa",
+        "status": "{{processed}} de {{total}} correos procesados",
+        "statusWithFailed": "{{processed}} de {{total}} correos procesados ({{failed}} fallaron)",
+        "remaining": "· {{pending}} restantes",
+        "dismiss": "Cerrar progreso de recategorización"
+      }
     },
     "created": "Creado {{date}}",
     "delivery": {

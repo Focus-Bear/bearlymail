@@ -1800,5 +1800,13 @@
     "noReplyData": "-",
     "periodDays_one": "{{count}}d",
     "periodDays_other": "{{count}}d"
+  },
+  "errorBoundary": {
+    "title": "¡Vaya! Algo salió mal",
+    "message": "Se nos ha notificado y estamos investigando.",
+    "networkTitle": "Problema de conexión",
+    "networkMessage": "Parece que tienes problemas con tu conexión a internet. Por favor, verifica tu conexión e inténtalo de nuevo.",
+    "correlationId": "Código de error: {{id}}",
+    "reloadButton": "Recargar página"
   }
 }

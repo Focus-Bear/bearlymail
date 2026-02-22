@@ -1987,5 +1987,13 @@
     "noReplyData": "-",
     "periodDays_one": "{{count}}d",
     "periodDays_other": "{{count}}d"
+  },
+  "errorBoundary": {
+    "title": "Oops! Something went wrong",
+    "message": "We've been notified and are looking into it.",
+    "networkTitle": "Connection Problem",
+    "networkMessage": "It looks like you're having trouble with your network connection. Please check your connection and try again.",
+    "correlationId": "Error code: {{id}}",
+    "reloadButton": "Reload Page"
   }
 }

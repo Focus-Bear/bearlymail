@@ -59,8 +59,8 @@ export const ContextAboutMeSection: React.FC<ContextAboutMeSectionProps> = ({
 
   return (
     <div id="context" style={{
-      marginBottom: theme.spacing.xl,
-      paddingBottom: theme.spacing.lg,
+      marginBottom: theme.spacing.md,
+      paddingBottom: theme.spacing.sm,
       borderBottom: `1px solid ${theme.colors.border.light}`,
     }}>
       <ContextAboutMeHeader />

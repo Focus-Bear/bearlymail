@@ -43,12 +43,12 @@ interface ContextSectionConfig {
 }
 
 const CONTEXT_SECTIONS: ContextSectionConfig[] = [
+  { titleKey: 'settings.contextSections.emailCategories', contextKey: 'EMAIL_CATEGORY', addLabelKey: 'settings.addContext.emailCategories', tooltipKey: 'settings.contextTypes.tooltip.emailCategories', anchorId: 'email-categories' },
   { titleKey: 'settings.contextSections.vip', contextKey: 'VIP_CONTACT', addLabelKey: 'settings.addContext.vip', tooltipKey: 'settings.contextTypes.tooltip.vip' },
   { titleKey: 'settings.contextSections.userInfo', contextKey: 'USER_INFO', addLabelKey: 'settings.addContext.userInfo', tooltipKey: 'settings.contextTypes.tooltip.userInfo' },
   { titleKey: 'settings.contextSections.projects', contextKey: ['CURRENT_TOPIC', 'PROJECT_NAME', 'WORKING_ON'], addLabelKey: 'settings.addContext.projects', tooltipKey: 'settings.contextTypes.tooltip.projects' },
   { titleKey: 'settings.contextSections.urgent', contextKey: 'URGENT', addLabelKey: 'settings.addContext.urgent', tooltipKey: 'settings.contextTypes.tooltip.urgent' },
   { titleKey: 'settings.contextSections.notImportant', contextKey: 'NOT_IMPORTANT', addLabelKey: 'settings.addContext.notImportant', tooltipKey: 'settings.contextTypes.tooltip.notImportant' },
-  { titleKey: 'settings.contextSections.emailCategories', contextKey: 'EMAIL_CATEGORY', addLabelKey: 'settings.addContext.emailCategories', tooltipKey: 'settings.contextTypes.tooltip.emailCategories', anchorId: 'email-categories' },
   { title: 'Q&A', contextKey: 'Q_AND_A', addLabel: 'Add common Q&A', tooltipKey: 'settings.contextTypes.tooltip.qanda' },
 ];
 

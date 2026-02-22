@@ -566,7 +566,8 @@
       "connectionPrompt": {
         "title": "Conectar GitHub para obtener información mejorada",
         "description": "Este correo menciona GitHub. Conecta tu cuenta de GitHub para ver el estado de PR y problemas, asignados y más directamente en tus correos.",
-        "connectButton": "Conectar GitHub"
+        "connectButton": "Conectar GitHub",
+        "connecting": "Conectando..."
       }
     },
   "gmail": {

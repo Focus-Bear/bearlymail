@@ -1,15 +1,27 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { theme } from 'theme/theme';
 import { EMOJI_OCTOPUS, EMOJI_LINK } from 'constants/emojis';
+import { API_URL } from 'config/api';
+
+const CONNECTING_OPACITY = 0.8;
 
 export const GitHubConnectionPrompt: React.FC = () => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
+  const [isConnecting, setIsConnecting] = useState(false);
 
-  const handleConnectClick = () => {
-    navigate('/settings?section=integrations');
+  const handleConnectClick = async () => {
+    setIsConnecting(true);
+    try {
+      const response = await axios.post(`${API_URL}/github/create-connect-token`);
+      const { token } = response.data;
+      window.location.href = `${API_URL}/github/connect?token=${encodeURIComponent(token)}`;
+    } catch (error) {
+      console.error('Error connecting GitHub:', error);
+      alert(t('settings.githubConnectError'));
+      setIsConnecting(false);
+    }
   };
 
   return (
@@ -50,29 +62,35 @@ export const GitHubConnectionPrompt: React.FC = () => {
 
       <button
         onClick={handleConnectClick}
+        disabled={isConnecting}
         style={{
-          backgroundColor: theme.colors.primary.main,
+          backgroundColor: isConnecting ? theme.colors.primary.dark : theme.colors.primary.main,
           color: theme.colors.primary.contrast,
           border: 'none',
           borderRadius: theme.borderRadius.md,
           padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
           fontSize: theme.typography.fontSize.sm,
           fontWeight: theme.typography.fontWeight.medium,
-          cursor: 'pointer',
+          cursor: isConnecting ? 'not-allowed' : 'pointer',
           display: 'flex',
           alignItems: 'center',
           gap: theme.spacing.xs,
           transition: 'background-color 0.2s ease',
+          opacity: isConnecting ? CONNECTING_OPACITY : 1,
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = theme.colors.primary.dark;
+          if (!isConnecting) {
+            e.currentTarget.style.backgroundColor = theme.colors.primary.dark;
+          }
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = theme.colors.primary.main;
+          if (!isConnecting) {
+            e.currentTarget.style.backgroundColor = theme.colors.primary.main;
+          }
         }}
       >
         {/* eslint-disable-next-line i18next/no-literal-string */}
-        {EMOJI_LINK} {t('github.connectionPrompt.connectButton')}
+        {EMOJI_LINK} {isConnecting ? t('github.connectionPrompt.connecting') : t('github.connectionPrompt.connectButton')}
       </button>
     </div>
   );

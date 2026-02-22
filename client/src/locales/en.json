@@ -778,7 +778,8 @@
       "connectionPrompt": {
         "title": "Connect GitHub for Enhanced Insights",
         "description": "This email mentions GitHub. Connect your GitHub account to see PR and issue status, assignees, and more directly in your emails.",
-        "connectButton": "Connect GitHub"
+        "connectButton": "Connect GitHub",
+        "connecting": "Connecting..."
       }
   },
   "gmail": {

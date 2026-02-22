@@ -4,6 +4,7 @@ import {
   extractCleanHtmlBody,
   sanitizeAndProcessHtml,
   extractCleanBody,
+  stripHtmlTags,
 } from './emailBodyUtils';
 
 // Mock DOMPurify
@@ -288,6 +289,42 @@ describe('emailBodyUtils', () => {
       (DOMPurify.sanitize as jest.Mock).mockReturnValue(html);
       const result = sanitizeAndProcessHtml(html);
       expect(result).not.toContain('<a');
+    });
+  });
+
+  describe('stripHtmlTags', () => {
+    it('should return empty string for empty input', () => {
+      expect(stripHtmlTags('')).toBe('');
+    });
+
+    it('should return plain text unchanged when no HTML tags present', () => {
+      expect(stripHtmlTags('Hello world')).toBe('Hello world');
+    });
+
+    it('should strip paragraph tags and return text content', () => {
+      expect(stripHtmlTags('<p>Hi Zac,</p>')).toBe('Hi Zac,');
+    });
+
+    it('should strip multiple paragraph tags', () => {
+      const result = stripHtmlTags('<p>Hi Zac,</p><p>Can you go through it again?</p>');
+      expect(result).toContain('Hi Zac,');
+      expect(result).toContain('Can you go through it again?');
+      expect(result).not.toContain('<p>');
+      expect(result).not.toContain('</p>');
+    });
+
+    it('should strip mixed HTML tags', () => {
+      const result = stripHtmlTags('<div><strong>Bold text</strong> and <em>italic</em></div>');
+      expect(result).toBe('Bold text and italic');
+      expect(result).not.toContain('<');
+    });
+
+    it('should handle HTML with line breaks', () => {
+      const result = stripHtmlTags('<p>Line one</p><br><p>Line two</p>');
+      expect(result).toContain('Line one');
+      expect(result).toContain('Line two');
+      expect(result).not.toContain('<p>');
+      expect(result).not.toContain('<br>');
     });
   });
 

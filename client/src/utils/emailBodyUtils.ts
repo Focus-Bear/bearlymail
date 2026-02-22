@@ -320,6 +320,18 @@ export function sanitizeAndProcessHtml(html: string): string {
 }
 
 /**
+ * Strip HTML tags from a string, returning plain text.
+ * Used for display contexts where raw HTML should not be shown (e.g. email previews).
+ */
+export function stripHtmlTags(html: string): string {
+  if (!html) return '';
+  if (!html.includes('<')) return html;
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = html;
+  return tempDiv.textContent || tempDiv.innerText || '';
+}
+
+/**
  * Extract clean body from email (removes quoted content and signatures)
  */
 export function extractCleanBody(emailBody: string, htmlBody?: string): string {

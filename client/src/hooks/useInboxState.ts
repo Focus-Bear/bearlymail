@@ -301,7 +301,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     captureEvent('email_clicked', { email_id: emailId, mode });
     if (splitView.isMobile) {
       handleMarkAsRead(emailId);
-      navigate(`/email/${emailId}`);
+      navigate(`/email/${emailId}`, { state: { fromMode: mode } });
     } else {
       handleMarkAsRead(emailId);
       splitView.openEmail(emailId);

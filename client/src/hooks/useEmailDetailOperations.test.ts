@@ -12,8 +12,11 @@ import { API_URL } from 'config/api';
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
+const mockLocationState: { fromMode?: string } = {};
+
 jest.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
+  useLocation: () => ({ state: mockLocationState }),
 }));
 
 jest.mock('contexts/NotificationContext', () => ({
@@ -173,6 +176,8 @@ describe('useEmailDetailOperations', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockNavigate.mockClear();
+    // Reset location state so tests start without fromMode
+    delete mockLocationState.fromMode;
     mockedAxios.post.mockResolvedValue({ data: {} });
     mockedAxios.put.mockResolvedValue({ data: {} });
     mockedAxios.delete.mockResolvedValue({ data: {} });
@@ -212,7 +217,7 @@ describe('useEmailDetailOperations', () => {
       expect(store.getState().email.optimisticallySnoozed).toContain(TEST_EMAIL_ID);
     });
 
-    it('navigates to /inbox after snooze when no onSnoozeComplete callback', async () => {
+    it('navigates to /inbox after snooze when no onSnoozeComplete callback and no fromMode', async () => {
       const store = createTestStore([]);
 
       const { result } = renderHook(
@@ -225,6 +230,38 @@ describe('useEmailDetailOperations', () => {
       });
 
       expect(mockNavigate).toHaveBeenCalledWith('/inbox');
+    });
+
+    it('navigates to /inbox/action after snooze when fromMode is action', async () => {
+      mockLocationState.fromMode = 'action';
+      const store = createTestStore([]);
+
+      const { result } = renderHook(
+        () => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}),
+        { wrapper: createWrapper(store) }
+      );
+
+      await act(async () => {
+        await result.current.handleSendReply([], 48, 'Test reply');
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith('/inbox/action');
+    });
+
+    it('navigates to /inbox/follow-up after snooze when fromMode is follow-up', async () => {
+      mockLocationState.fromMode = 'follow-up';
+      const store = createTestStore([]);
+
+      const { result } = renderHook(
+        () => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}),
+        { wrapper: createWrapper(store) }
+      );
+
+      await act(async () => {
+        await result.current.handleSendReply([], 48, 'Test reply');
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith('/inbox/follow-up');
     });
 
     it('calls onSnoozeComplete callback instead of navigating in split view', async () => {
@@ -299,6 +336,22 @@ describe('useEmailDetailOperations', () => {
 
       expect(store.getState().email.optimisticallyArchived).toContain(TEST_EMAIL_ID);
     });
+
+    it('navigates to /inbox/action after archive when fromMode is action', async () => {
+      mockLocationState.fromMode = 'action';
+      const store = createTestStore([]);
+
+      const { result } = renderHook(
+        () => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}),
+        { wrapper: createWrapper(store) }
+      );
+
+      await act(async () => {
+        await result.current.handleSendReply([], 0, 'Test reply');
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith('/inbox/action');
+    });
   });
 
   describe('handleSendReply – API request includes expectedReplyHours', () => {
@@ -354,6 +407,55 @@ describe('useEmailDetailOperations', () => {
         `${API_URL}/replies/send/${TEST_EMAIL_ID}`,
         expect.objectContaining({ expectedReplyHours: undefined })
       );
+    });
+  });
+
+  describe('handleSendReply – navigate back to correct inbox tab', () => {
+    it('navigates to /inbox when no expectedReplyHours and no fromMode', async () => {
+      const store = createTestStore([]);
+
+      const { result } = renderHook(
+        () => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}),
+        { wrapper: createWrapper(store) }
+      );
+
+      await act(async () => {
+        await result.current.handleSendReply([], undefined, 'Test reply');
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith('/inbox');
+    });
+
+    it('navigates to /inbox/action when no expectedReplyHours and fromMode is action', async () => {
+      mockLocationState.fromMode = 'action';
+      const store = createTestStore([]);
+
+      const { result } = renderHook(
+        () => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}),
+        { wrapper: createWrapper(store) }
+      );
+
+      await act(async () => {
+        await result.current.handleSendReply([], undefined, 'Test reply');
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith('/inbox/action');
+    });
+
+    it('navigates to /inbox/triage when no expectedReplyHours and fromMode is triage', async () => {
+      mockLocationState.fromMode = 'triage';
+      const store = createTestStore([]);
+
+      const { result } = renderHook(
+        () => useEmailDetailOperations(TEST_EMAIL_ID, createMockState(), {}),
+        { wrapper: createWrapper(store) }
+      );
+
+      await act(async () => {
+        await result.current.handleSendReply([], undefined, 'Test reply');
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith('/inbox/triage');
     });
   });
 });

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
 import axios from 'axios';
@@ -120,6 +120,7 @@ interface EmailDetailOperationsOptions {
 
 export function useEmailDetailOperations(id: string | undefined, state: EmailDetailState, options: EmailDetailOperationsOptions = {}) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
   const emails = useSelector(selectEmails);
@@ -185,6 +186,12 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     setAnimationClass,
     setLoading,
   } = state;
+
+  // Returns the inbox path including the mode the user came from (if known)
+  const getInboxPath = useCallback(() => {
+    const fromMode = (location.state as { fromMode?: string } | null)?.fromMode;
+    return fromMode ? `/inbox/${fromMode}` : '/inbox';
+  }, [location.state]);
 
   const summaryAbortControllerRef = useRef<AbortController | null>(null);
   const draftAbortControllerRef = useRef<AbortController | null>(null);
@@ -852,7 +859,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     if (options.onArchiveComplete && id) {
       options.onArchiveComplete(id);
     } else {
-      navigate('/inbox');
+      navigate(getInboxPath());
     }
 
     // Make API call in background - revert optimistic update if it fails
@@ -863,7 +870,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
         dispatch(restoreEmail(emailToArchive));
       }
     });
-  }, [id, emails, dispatch, options, navigate]);
+  }, [id, emails, dispatch, options, navigate, getInboxPath]);
 
   const performSnoozeAfterReply = useCallback(async (duration: string) => {
     if (!id) return;
@@ -877,7 +884,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     if (options.onSnoozeComplete) {
       options.onSnoozeComplete(id);
     } else {
-      navigate('/inbox');
+      navigate(getInboxPath());
     }
 
     // Make API call in background - revert optimistic update if it fails
@@ -888,7 +895,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
         dispatch(restoreEmail(emailToSnooze));
       }
     });
-  }, [id, emails, dispatch, options, navigate]);
+  }, [id, emails, dispatch, options, navigate, getInboxPath]);
 
   const handleSendReply = useCallback(async (files: File[] = [], expectedReplyHours?: number, draftOverride?: string) => {
     const draftToSend = draftOverride || draft;
@@ -967,7 +974,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
           await performSnoozeAfterReply(duration);
         }
       } else {
-        navigate('/inbox');
+        navigate(getInboxPath());
       }
     } catch (error: any) {
       console.error('Error sending reply:', error);
@@ -975,7 +982,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     } finally {
       setSending(false);
     }
-  }, [id, draft, replyMode, replyRecipients, replyCc, replyBcc, disputeResult, triggerAnimation, t, navigate, setCheckingTone, setToneCheckResult, setSending, setDraft, setShowReplyComposer, showSuccess, showError, deleteDraft, performArchiveAfterReply, performSnoozeAfterReply]);
+  }, [id, draft, replyMode, replyRecipients, replyCc, replyBcc, disputeResult, triggerAnimation, t, navigate, getInboxPath, setCheckingTone, setToneCheckResult, setSending, setDraft, setShowReplyComposer, showSuccess, showError, deleteDraft, performArchiveAfterReply, performSnoozeAfterReply]);
 
   const disputeToneCheck = useCallback(async (emailText: string, userArgument: string) => {
     setDisputing(true);

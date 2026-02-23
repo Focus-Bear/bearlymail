@@ -14,6 +14,7 @@ import {
   Inject,
   NotFoundException,
 } from "@nestjs/common";
+import { AdminGuard } from "../auth/admin.guard";
 import { In } from "typeorm";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
@@ -31,6 +32,15 @@ import { EmailThread } from "../database/entities/email-thread.entity";
 import { Email } from "../database/entities/email.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { GitHubRepoMappingService } from "./github-repo-mapping.service";
+
+interface PgBossWithInternals extends PgBoss {
+  db: {
+    executeSql(
+      sql: string,
+      params?: unknown[],
+    ): Promise<{ rowCount?: number; rows?: unknown[] }>;
+  };
+}
 
 @Controller("github")
 @UseGuards(JwtAuthGuard)
@@ -73,6 +83,9 @@ export class GitHubController {
     // Get user's GitHub token
     const user = await this.usersService.findOne(userId);
     if (!user || !user.githubToken) {
+      this.logger.log(
+        `GitHub info requested for email ${emailId} but user ${userId} has no GitHub token`,
+      );
       return { links: [], hasToken: false };
     }
 
@@ -98,6 +111,10 @@ export class GitHubController {
 
     const uniqueLinks = Array.from(allLinks.values());
 
+    this.logger.log(
+      `GitHub info for email ${emailId}: found ${uniqueLinks.length} unique link(s) across ${threadEmails.length} thread email(s)`,
+    );
+
     if (uniqueLinks.length === 0) {
       return { links: [], hasToken: true };
     }
@@ -109,7 +126,10 @@ export class GitHubController {
 
       // Check if all links in the cache match current links and have been fetched recently
       const cachedLinksMap = new Map(
-        thread.githubMetadata.links.map((link) => [link.url.toLowerCase(), link]),
+        thread.githubMetadata.links.map((link) => [
+          link.url.toLowerCase(),
+          link,
+        ]),
       );
 
       // Check if all current links are in cache and fresh
@@ -124,6 +144,9 @@ export class GitHubController {
 
       // If all links are cached and fresh, return cached data
       if (allLinksCachedAndFresh) {
+        this.logger.log(
+          `GitHub cache hit for email ${emailId}: returning ${uniqueLinks.length} cached link(s)`,
+        );
         // Return cached links that match current links (already deduplicated via uniqueLinks)
         const cachedLinksToReturn = uniqueLinks
           .map((link) => cachedLinksMap.get(link.url.toLowerCase()))
@@ -132,7 +155,9 @@ export class GitHubController {
         // Double-check deduplication before returning
         const seenUrls = new Set<string>();
         const dedupedLinks = cachedLinksToReturn.filter((link) => {
-          const key = (link.url || `${link.owner}-${link.repo}-${link.number}`).toLowerCase();
+          const key = (
+            link.url || `${link.owner}-${link.repo}-${link.number}`
+          ).toLowerCase();
           if (seenUrls.has(key)) {
             return false;
           }
@@ -145,14 +170,34 @@ export class GitHubController {
           hasToken: true,
         };
       }
+      this.logger.log(
+        `GitHub cache miss for email ${emailId}: fetching fresh status for ${uniqueLinks.length} link(s)`,
+      );
     }
 
     // Fetch fresh status for all links
     try {
+      this.logger.log(
+        `Fetching GitHub status for email ${emailId}: ${uniqueLinks.map((l) => `${l.owner}/${l.repo}#${l.number}`).join(", ")}`,
+      );
       const statuses = await this.githubApiService.fetchMultipleStatuses(
         token,
         uniqueLinks,
       );
+
+      const linksWithStatus = uniqueLinks.filter((l) => statuses.get(l.url));
+      const linksWithoutStatus = uniqueLinks.filter(
+        (l) => !statuses.get(l.url),
+      );
+      if (linksWithoutStatus.length > 0) {
+        this.logger.warn(
+          `GitHub fetch for email ${emailId}: ${linksWithStatus.length}/${uniqueLinks.length} link(s) returned status. Missing: ${linksWithoutStatus.map((l) => `${l.owner}/${l.repo}#${l.number}`).join(", ")}`,
+        );
+      } else {
+        this.logger.log(
+          `GitHub fetch for email ${emailId}: all ${uniqueLinks.length} link(s) returned status successfully`,
+        );
+      }
 
       const metadataLinks = uniqueLinks.map((link) => {
         const status = statuses.get(link.url);
@@ -184,7 +229,9 @@ export class GitHubController {
       };
     } catch (error: unknown) {
       const errorMessage = isError(error) ? error.message : "Unknown error";
-      this.logger.error(`Error fetching GitHub statuses: ${errorMessage}`);
+      this.logger.error(
+        `Error fetching GitHub statuses for email ${emailId}: ${errorMessage}`,
+      );
       throw error;
     }
   }
@@ -293,6 +340,10 @@ export class GitHubController {
       return {};
     }
 
+    this.logger.log(
+      `Batch GitHub status requested for ${emailIds.length} email(s) by user ${userId}`,
+    );
+
     const emails = await this.emailRepository.find({
       where: { id: In(emailIds), userId },
       select: ["id", "emailThreadId"],
@@ -358,7 +409,126 @@ export class GitHubController {
       }
     }
 
+    const cachedCount = Object.values(result).filter(
+      (r) => r && !r.pending,
+    ).length;
+    const pendingCount = Object.values(result).filter((r) => r?.pending).length;
+    this.logger.log(
+      `Batch GitHub status for user ${userId}: ${cachedCount} cached, ${pendingCount} pending (queued for background fetch)`,
+    );
+
     return result;
+  }
+
+  @Get("admin/debug")
+  @UseGuards(AdminGuard)
+  // eslint-disable-next-line max-statements
+  async getAdminDebugInfo() {
+    const { db } = this.boss as unknown as PgBossWithInternals;
+
+    // Count users with GitHub token configured
+    const usersWithTokenResult = await db.executeSql(`
+      SELECT COUNT(*) as count
+      FROM users
+      WHERE "githubToken" IS NOT NULL AND "githubToken" != ''
+    `);
+    const usersWithToken = parseInt(
+      (usersWithTokenResult?.rows?.[0] as { count: string })?.count ?? "0",
+      10,
+    );
+
+    // Count threads with GitHub metadata populated
+    const threadsWithMetadataResult = await db.executeSql(`
+      SELECT COUNT(*) as count
+      FROM email_threads
+      WHERE "githubMetadata" IS NOT NULL AND "githubMetadata" != ''
+    `);
+    const threadsWithMetadata = parseInt(
+      (threadsWithMetadataResult?.rows?.[0] as { count: string })?.count ?? "0",
+      10,
+    );
+
+    // Get stats for fetch-github-metadata jobs (last 7 days)
+    const jobStatsResult = await db.executeSql(`
+      SELECT state, COUNT(*) as count
+      FROM pgboss.job
+      WHERE name = 'fetch-github-metadata'
+        AND createdon >= NOW() - INTERVAL '7 days'
+      GROUP BY state
+    `);
+    const jobStats: Record<string, number> = {};
+    if (jobStatsResult?.rows) {
+      for (const row of jobStatsResult.rows as Array<{
+        state: string;
+        count: string;
+      }>) {
+        jobStats[row.state] = parseInt(row.count, 10);
+      }
+    }
+
+    // Get recent failed jobs with error details (last 7 days, most recent first)
+    const failedJobsResult = await db.executeSql(`
+      SELECT
+        id,
+        data,
+        output,
+        createdon,
+        completedon,
+        retrylimit,
+        retrycount
+      FROM pgboss.job
+      WHERE name = 'fetch-github-metadata'
+        AND state = 'failed'
+        AND createdon >= NOW() - INTERVAL '7 days'
+      ORDER BY createdon DESC
+      LIMIT 10
+    `);
+    interface PgBossJobRow {
+      id: string;
+      data: { userId?: string; emailId?: string; threadId?: string };
+      output: { message?: string } | null;
+      createdon: string;
+      completedon: string | null;
+      retrylimit: number;
+      retrycount: number;
+    }
+    const recentFailedJobs = (
+      (failedJobsResult?.rows ?? []) as PgBossJobRow[]
+    ).map((row) => ({
+      id: row.id,
+      userId: row.data?.userId,
+      emailId: row.data?.emailId,
+      threadId: row.data?.threadId,
+      error: row.output?.message ?? "Unknown error",
+      createdAt: row.createdon,
+      completedAt: row.completedon,
+      retryCount: row.retrycount,
+      retryLimit: row.retrylimit,
+    }));
+
+    // Get archived (completed) job stats for fetch-github-metadata (last 7 days)
+    const archiveStatsResult = await db.executeSql(`
+      SELECT COUNT(*) as "completedCount"
+      FROM pgboss.archive
+      WHERE name = 'fetch-github-metadata'
+        AND createdon >= NOW() - INTERVAL '7 days'
+    `);
+    const completedCount = parseInt(
+      (archiveStatsResult?.rows?.[0] as { completedCount: string })
+        ?.completedCount ?? "0",
+      10,
+    );
+
+    return {
+      usersWithToken,
+      threadsWithMetadata,
+      jobStats: {
+        ...jobStats,
+        completed: completedCount,
+      },
+      recentFailedJobs,
+      timestamp: new Date().toISOString(),
+    };
   }
 
   @Get("repo-mappings")

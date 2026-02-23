@@ -24,6 +24,7 @@
           "title": "Panel de administración",
           "tokenUsage": "Uso de tokens",
           "queueDashboard": "Panel de colas",
+          "githubDebug": "Debug de GitHub",
           "waitlist": "Lista de espera",
           "emailSystem": "Sistema de correo",
           "decline": "Rechazar"
@@ -90,6 +91,26 @@
       "startLine5": "npm run queue:dashboard",
       "configureEnvVar": "Luego establezca la siguiente variable de entorno y reconstruya el cliente:",
       "envVarExample": "REACT_APP_QUEUE_DASHBOARD_URL=http://localhost:3004"
+    },
+    "githubDebug": {
+      "title": "Debug de Integración GitHub",
+      "description": "Diagnósticos para la carga de datos de GitHub. Muestra el estado de tokens, conteos de metadatos en caché y fallos recientes de trabajos (últimos 7 días).",
+      "refresh": "Actualizar",
+      "usersWithToken": "Usuarios con Token GitHub",
+      "threadsWithMetadata": "Hilos con Metadatos GitHub",
+      "jobsFailed7d": "Trabajos Fallidos (7 días)",
+      "jobsCompleted7d": "Trabajos Completados (7 días)",
+      "jobsQueued": "Trabajos en Cola",
+      "jobsRetry": "Trabajos en Reintento",
+      "recentFailures": "Trabajos Fallidos Recientes",
+      "noRecentFailures": "No hay trabajos fallidos en los últimos 7 días",
+      "jobId": "ID de Trabajo",
+      "emailId": "ID de Correo",
+      "error": "Error",
+      "createdAt": "Creado El",
+      "retries": "Reintentos",
+      "never": "Nunca",
+      "loadError": "Error al cargar el debug de GitHub"
     }
   },
     "auth": {

@@ -578,6 +578,7 @@
       "jobs": "Jobs",
       "tokenUsage": "Token Usage",
       "queueDashboard": "Queue Dashboard",
+      "githubDebug": "GitHub Debug",
       "days": "days",
       "extend": "Extend",
       "allUsers": "All Users",
@@ -657,6 +658,26 @@
       "startLine5": "npm run queue:dashboard",
       "configureEnvVar": "Then set the following environment variable and rebuild the client:",
       "envVarExample": "REACT_APP_QUEUE_DASHBOARD_URL=http://localhost:3004"
+    },
+    "githubDebug": {
+      "title": "GitHub Integration Debug",
+      "description": "Diagnostics for GitHub data loading. Shows token health, cached metadata counts, and recent job failures (last 7 days).",
+      "refresh": "Refresh",
+      "usersWithToken": "Users with GitHub Token",
+      "threadsWithMetadata": "Threads with GitHub Metadata",
+      "jobsFailed7d": "Failed Jobs (7 days)",
+      "jobsCompleted7d": "Completed Jobs (7 days)",
+      "jobsQueued": "Jobs Queued",
+      "jobsRetry": "Jobs Retrying",
+      "recentFailures": "Recent Failed Jobs",
+      "noRecentFailures": "No failed jobs in the last 7 days",
+      "jobId": "Job ID",
+      "emailId": "Email ID",
+      "error": "Error",
+      "createdAt": "Created At",
+      "retries": "Retries",
+      "never": "Never",
+      "loadError": "Failed to load GitHub debug info"
     }
   },
   "compose": {

@@ -61,6 +61,10 @@ export class GitHubMetadataProcessor implements OnModuleInit {
     emailId: string,
     threadId: string,
   ): Promise<void> {
+    this.logger.log(
+      `Processing GitHub metadata job for email ${emailId} (thread ${threadId}, user ${userId})`,
+    );
+
     // Check if user has GitHub token
     const user = await this.usersService.findOne(userId);
     if (!user?.githubToken) {
@@ -91,6 +95,10 @@ export class GitHubMetadataProcessor implements OnModuleInit {
       return;
     }
 
+    this.logger.log(
+      `GitHub metadata job for email ${emailId}: fetching status for ${links.length} link(s): ${links.map((l) => `${l.owner}/${l.repo}#${l.number}`).join(", ")}`,
+    );
+
     // Fetch status for all links
     const token = EncryptionHelper.decrypt(user.githubToken);
     if (!token) {
@@ -102,6 +110,18 @@ export class GitHubMetadataProcessor implements OnModuleInit {
       token,
       links,
     );
+
+    const linksWithStatus = links.filter((l) => statuses.get(l.url));
+    const linksWithoutStatus = links.filter((l) => !statuses.get(l.url));
+    if (linksWithoutStatus.length > 0) {
+      this.logger.warn(
+        `GitHub metadata job for email ${emailId}: ${linksWithStatus.length}/${links.length} link(s) returned status. Missing: ${linksWithoutStatus.map((l) => `${l.owner}/${l.repo}#${l.number}`).join(", ")}`,
+      );
+    } else {
+      this.logger.log(
+        `GitHub metadata job for email ${emailId}: all ${links.length} link(s) returned status successfully`,
+      );
+    }
 
     // Build metadata
     const metadataLinks = links.map((link) => {

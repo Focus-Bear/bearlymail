@@ -1008,7 +1008,9 @@ export class EmailsController {
     const batchId = crypto.randomUUID();
     let queued = 0;
     for (const email of allEmails) {
-      await this.boss.send(
+      // boss.send() returns null when the job is deduplicated (singletonKey already exists).
+      // Only count jobs that were actually created so the frontend knows the real total.
+      const jobId = await this.boss.send(
         "refine-priority",
         {
           userId,
@@ -1022,7 +1024,17 @@ export class EmailsController {
           singletonMinutes: 1,
         },
       );
-      queued++;
+      if (jobId !== null) {
+        queued++;
+      }
+    }
+
+    if (queued === 0) {
+      return {
+        message: `All ${allEmails.length} emails are already queued for recategorization`,
+        queued: 0,
+        batchId: null,
+      };
     }
 
     this.logger.log(

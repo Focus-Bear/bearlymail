@@ -86,9 +86,12 @@ export const useRecategorizeProgress = () => {
         pending: number;
       };
 
-      // Use stored total if backend reports 0 (jobs may have all completed and been archived)
+      // Use stored total if backend reports 0 (for display purposes only)
       const effectiveTotal = total > 0 ? total : storedTotal;
-      const isComplete = effectiveTotal > 0 && pending === 0;
+      // Only mark as complete when backend confirmed jobs exist and none are pending.
+      // Using `total` (not effectiveTotal) prevents premature completion when the backend
+      // returns total=0 because jobs haven't appeared in PgBoss yet or were deduplicated.
+      const isComplete = total > 0 && pending === 0;
 
       setProgress({
         batchId,

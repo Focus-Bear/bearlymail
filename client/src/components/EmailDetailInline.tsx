@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from 'contexts/NotificationContext';
 import { ReplyComposer, LoadingSpinner, EmailNotFound, EmailDetailContent } from 'components/email-detail-inline';
+import { TimePicker } from 'components/compose/TimePicker';
 import { useEmailDetailInline } from 'hooks/useEmailDetailInline';
+import { useScheduledEmails } from 'hooks/useScheduledEmails';
 import { ACTION_TYPE_CUSTOM } from 'constants/strings';
 import { API_URL } from 'config/api';
 import { captureEvent } from 'utils/posthog';
@@ -82,8 +84,8 @@ const useEmailDetailInlineHandlers = (
   };
 };
 
-export const EmailDetailInline: React.FC<EmailDetailInlineProps> = ({ 
-  emailId, 
+export const EmailDetailInline: React.FC<EmailDetailInlineProps> = ({
+  emailId,
   onClose,
   onArchive,
   onSetStarCount,
@@ -91,6 +93,15 @@ export const EmailDetailInline: React.FC<EmailDetailInlineProps> = ({
   autoGenerateReplies = false,
 }) => {
   const navigate = useNavigate();
+  const [timeWarning, setTimeWarning] = useState<string | undefined>();
+  const [suggestedTime, setSuggestedTime] = useState<Date | undefined>();
+
+  const {
+    timeSuggestions,
+    checkSendTime,
+    fetchTimeSuggestions,
+  } = useScheduledEmails();
+
   const {
     email,
     threadEmails,
@@ -122,6 +133,8 @@ export const EmailDetailInline: React.FC<EmailDetailInlineProps> = ({
     isGeneratingSummary,
     replyGenerationDebugInfo,
     initialAttachments,
+    showTimePicker,
+    scheduledSendAt,
     setNoteContent,
     setNewActionItem,
     setReplyRecipients,
@@ -142,11 +155,39 @@ export const EmailDetailInline: React.FC<EmailDetailInlineProps> = ({
     handleReplyComposerClose,
     handleReplyOptionSelect,
     handleToggleNotesCollapsed,
+    handleOpenTimePicker: openTimePickerBase,
+    handleTimeSelect: setScheduledTime,
+    handleCancelTimePicker,
     disputeToneCheck,
   } = useEmailDetailInlineHandlers(emailId, onClose, autoGenerateReplies);
 
+  const handleOpenTimePicker = useCallback(() => {
+    fetchTimeSuggestions();
+    setTimeWarning(undefined);
+    setSuggestedTime(undefined);
+    openTimePickerBase();
+  }, [fetchTimeSuggestions, openTimePickerBase]);
+
+  const handleTimeSelect = useCallback(async (time: Date) => {
+    const checkResult = await checkSendTime(time);
+    if (!checkResult.isAppropriate) {
+      setTimeWarning(checkResult.warning);
+      setSuggestedTime(checkResult.suggestion ? new Date(checkResult.suggestion) : undefined);
+    } else {
+      setTimeWarning(undefined);
+      setSuggestedTime(undefined);
+      setScheduledTime(time);
+    }
+  }, [checkSendTime, setScheduledTime]);
+
+  const handleCancelTimePickerWithReset = useCallback(() => {
+    setTimeWarning(undefined);
+    setSuggestedTime(undefined);
+    handleCancelTimePicker();
+  }, [handleCancelTimePicker]);
+
   // Block sender handler
-  const handleBlockSender = React.useCallback(async (emailIdToBlock: string) => {
+  const handleBlockSender = useCallback(async (emailIdToBlock: string) => {
     if (onBlockSender) {
       onBlockSender(emailIdToBlock);
     } else {
@@ -236,7 +277,18 @@ export const EmailDetailInline: React.FC<EmailDetailInlineProps> = ({
         onDispute={disputeToneCheck}
         disputing={disputing}
         disputeResult={disputeResult}
+        onSchedule={handleOpenTimePicker}
       />
+      {showTimePicker && (
+        <TimePicker
+          selectedTime={scheduledSendAt}
+          suggestions={timeSuggestions}
+          onTimeSelect={handleTimeSelect}
+          onCancel={handleCancelTimePickerWithReset}
+          warning={timeWarning}
+          suggestedTime={suggestedTime}
+        />
+      )}
     </>
   );
 };

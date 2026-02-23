@@ -119,6 +119,7 @@ describe("LLMController (Integration)", () => {
         ["Be professional", "Avoid slang"],
         undefined,
         "test-user-id",
+        undefined,
       );
     });
 
@@ -137,6 +138,7 @@ describe("LLMController (Integration)", () => {
         ["Be professional", "Keep it concise"],
         undefined,
         "test-user-id",
+        undefined,
       );
     });
 

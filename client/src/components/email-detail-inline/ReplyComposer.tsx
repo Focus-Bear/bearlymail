@@ -76,6 +76,7 @@ interface ReplyComposerProps {
   onDispute?: (emailText: string, suggestions: string[], argument: string) => Promise<DisputeResult | null>;
   disputing?: boolean;
   disputeResult?: DisputeResult | null;
+  onSchedule?: () => void;
 }
 
 export const ReplyComposer: React.FC<ReplyComposerProps> = ({
@@ -112,6 +113,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
   onDispute,
   disputing,
   disputeResult,
+  onSchedule,
 }) => {
   const { user } = useAuth();
   const [files, setFiles] = useState<File[]>([]);
@@ -437,6 +439,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
         draft={draft}
         onClose={handleClose}
         onSend={handleSend}
+        onSchedule={onSchedule}
       />
     </div>
   );

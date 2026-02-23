@@ -26,7 +26,8 @@ export function useEmailDetailToneCheck() {
     setCheckingTone(true);
     setDisputeResult(null);
     try {
-      const toneResponse = await axios.post(`${API_URL}/llm/check-tone`, { text: draft });
+      const currentTime = new Date().toISOString();
+      const toneResponse = await axios.post(`${API_URL}/llm/check-tone`, { text: draft, currentTime });
       setToneCheckResult(toneResponse.data);
       
       if (!toneResponse.data.isOk) {

@@ -64,6 +64,8 @@ export const useEmailDetailInline = (
     disputeResult,
     initialAttachments,
     replyGenerationDebugInfo,
+    showTimePicker,
+    scheduledSendAt,
     setReplyRecipients,
     setReplyCc,
     setReplyBcc,
@@ -76,6 +78,9 @@ export const useEmailDetailInline = (
     setToneCheckResult,
     handleOpenReplyComposer,
     handleSendReply,
+    handleOpenTimePicker,
+    handleTimeSelect,
+    handleCancelTimePicker,
     disputeToneCheck,
     clearDisputeResult,
   } = useEmailDetailReplies(emailId, email, { autoGenerateReplies });
@@ -132,10 +137,15 @@ export const useEmailDetailInline = (
     handleExtractActions,
     handleOpenReplyComposer,
     handleSendReply,
+    handleOpenTimePicker,
+    handleTimeSelect,
+    handleCancelTimePicker,
     disputeToneCheck,
     clearDisputeResult,
     toggleThreadItem,
     fetchThreadEmails,
+    showTimePicker,
+    scheduledSendAt,
   };
 };
 

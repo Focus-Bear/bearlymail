@@ -589,6 +589,7 @@ export class LLMService {
     rules: string[] = ["Be concise", "Use non-violent communication"],
     provider?: LLMProvider,
     userId?: string,
+    currentTime?: string,
   ): Promise<{ isOk: boolean; suggestions: string[]; revisedText?: string }> {
     const promptConfig = getPrompt("check_tone_style");
     if (!promptConfig) {
@@ -601,6 +602,7 @@ export class LLMService {
     const prompt = renderPrompt(promptConfig.prompt || "", {
       rules,
       text,
+      currentTime: currentTime || new Date().toISOString(),
     });
 
     const response = await this.generateText(

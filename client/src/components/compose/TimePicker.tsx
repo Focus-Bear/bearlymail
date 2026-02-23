@@ -4,7 +4,6 @@ import { theme } from 'theme/theme';
 import { TimeSuggestion } from 'hooks/useScheduledEmails';
 
 const OPACITY_DISABLED = 0.5;
-const FONT_SIZE_SMALL = '14px';
 const WARNING_ICON = '⚠️';
 
 interface TimePickerProps {
@@ -74,45 +73,46 @@ export const TimePicker: React.FC<TimePickerProps> = ({
     >
       <div
         style={{
-          backgroundColor: theme.colors.background,
-          borderRadius: '8px',
-          padding: '24px',
+          backgroundColor: theme.colors.background.paper,
+          borderRadius: theme.borderRadius.lg,
+          padding: theme.spacing.xl,
           maxWidth: '500px',
           width: '90%',
           maxHeight: '80vh',
           overflowY: 'auto',
+          boxShadow: theme.shadows.xl,
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 style={{ marginTop: 0, color: theme.colors.text }}>
+        <h3 style={{ marginTop: 0, color: theme.colors.text.primary, fontSize: theme.typography.fontSize.xl }}>
           {t('compose.scheduleEmail')}
         </h3>
 
         {warning && (
           <div
             style={{
-              backgroundColor: theme.colors.warning + '20',
-              border: `1px solid ${theme.colors.warning}`,
-              borderRadius: '4px',
-              padding: '12px',
-              marginBottom: '16px',
+              backgroundColor: theme.colors.warning.light,
+              border: `1px solid ${theme.colors.warning.main}`,
+              borderRadius: theme.borderRadius.md,
+              padding: theme.spacing.md,
+              marginBottom: theme.spacing.md,
             }}
           >
-            <p style={{ margin: 0, color: theme.colors.text, fontSize: FONT_SIZE_SMALL }}>
+            <p style={{ margin: 0, color: theme.colors.text.primary, fontSize: theme.typography.fontSize.sm }}>
               {WARNING_ICON} {warning}
             </p>
             {suggestedTime && (
               <button
                 onClick={handleUseSuggestion}
                 style={{
-                  marginTop: '8px',
-                  padding: '6px 12px',
-                  backgroundColor: theme.colors.primary,
+                  marginTop: theme.spacing.sm,
+                  padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                  backgroundColor: theme.colors.primary.main,
                   color: 'white',
                   border: 'none',
-                  borderRadius: '4px',
+                  borderRadius: theme.borderRadius.sm,
                   cursor: 'pointer',
-                  fontSize: '14px',
+                  fontSize: theme.typography.fontSize.sm,
                 }}
               >
                 {t('compose.useSuggestion')} ({new Date(suggestedTime).toLocaleString()})
@@ -121,35 +121,36 @@ export const TimePicker: React.FC<TimePickerProps> = ({
           </div>
         )}
 
-        <div style={{ marginBottom: '16px' }}>
-          <h4 style={{ color: theme.colors.text, fontSize: '14px', marginBottom: '8px' }}>
+        <div style={{ marginBottom: theme.spacing.md }}>
+          <h4 style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, marginBottom: theme.spacing.sm }}>
             {t('compose.quickOptions')}
           </h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
             {suggestions.map((suggestion, index) => (
               <button
+                // eslint-disable-next-line react/no-array-index-key
                 key={index}
                 onClick={() => handleSuggestionClick(suggestion)}
                 style={{
-                  padding: '12px',
-                  backgroundColor: theme.colors.surface,
-                  border: `1px solid ${theme.colors.border}`,
-                  borderRadius: '4px',
+                  padding: theme.spacing.md,
+                  backgroundColor: theme.colors.background.subtle,
+                  border: `1px solid ${theme.colors.border.light}`,
+                  borderRadius: theme.borderRadius.md,
                   cursor: 'pointer',
                   textAlign: 'left',
-                  transition: 'background-color 0.2s',
+                  transition: theme.transitions.default,
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = theme.colors.hover;
+                  e.currentTarget.style.backgroundColor = theme.colors.interactive.hover;
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = theme.colors.surface;
+                  e.currentTarget.style.backgroundColor = theme.colors.background.subtle;
                 }}
               >
-                <div style={{ fontWeight: 'bold', color: theme.colors.text }}>
+                <div style={{ fontWeight: theme.typography.fontWeight.semibold, color: theme.colors.text.primary }}>
                   {suggestion.label}
                 </div>
-                <div style={{ fontSize: '12px', color: theme.colors.textSecondary }}>
+                <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
                   {suggestion.description}
                 </div>
               </button>
@@ -157,17 +158,18 @@ export const TimePicker: React.FC<TimePickerProps> = ({
           </div>
         </div>
 
-        <div style={{ marginBottom: '16px' }}>
+        <div style={{ marginBottom: theme.spacing.md }}>
           <button
             onClick={() => setShowCustom(!showCustom)}
             style={{
-              padding: '8px 16px',
+              padding: `${theme.spacing.sm} ${theme.spacing.md}`,
               backgroundColor: 'transparent',
-              border: `1px solid ${theme.colors.border}`,
-              borderRadius: '4px',
+              border: `1px solid ${theme.colors.border.medium}`,
+              borderRadius: theme.borderRadius.md,
               cursor: 'pointer',
-              color: theme.colors.text,
+              color: theme.colors.text.secondary,
               width: '100%',
+              fontSize: theme.typography.fontSize.sm,
             }}
           >
             {showCustom ? t('compose.hideCustomTime') : t('compose.customTime')}
@@ -175,19 +177,20 @@ export const TimePicker: React.FC<TimePickerProps> = ({
         </div>
 
         {showCustom && (
-          <div style={{ marginBottom: '16px' }}>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+          <div style={{ marginBottom: theme.spacing.md }}>
+            <div style={{ display: 'flex', gap: theme.spacing.sm, marginBottom: theme.spacing.sm }}>
               <input
                 type="date"
                 value={customDate}
                 onChange={(e) => setCustomDate(e.target.value)}
                 style={{
                   flex: 1,
-                  padding: '8px',
-                  border: `1px solid ${theme.colors.border}`,
-                  borderRadius: '4px',
-                  backgroundColor: theme.colors.surface,
-                  color: theme.colors.text,
+                  padding: theme.spacing.sm,
+                  border: `1px solid ${theme.colors.border.medium}`,
+                  borderRadius: theme.borderRadius.md,
+                  backgroundColor: theme.colors.background.subtle,
+                  color: theme.colors.text.primary,
+                  fontSize: theme.typography.fontSize.sm,
                 }}
               />
               <input
@@ -196,11 +199,12 @@ export const TimePicker: React.FC<TimePickerProps> = ({
                 onChange={(e) => setCustomTime(e.target.value)}
                 style={{
                   flex: 1,
-                  padding: '8px',
-                  border: `1px solid ${theme.colors.border}`,
-                  borderRadius: '4px',
-                  backgroundColor: theme.colors.surface,
-                  color: theme.colors.text,
+                  padding: theme.spacing.sm,
+                  border: `1px solid ${theme.colors.border.medium}`,
+                  borderRadius: theme.borderRadius.md,
+                  backgroundColor: theme.colors.background.subtle,
+                  color: theme.colors.text.primary,
+                  fontSize: theme.typography.fontSize.sm,
                 }}
               />
             </div>
@@ -208,14 +212,16 @@ export const TimePicker: React.FC<TimePickerProps> = ({
               onClick={handleCustomTimeSubmit}
               disabled={!customDate || !customTime}
               style={{
-                padding: '8px 16px',
-                backgroundColor: theme.colors.primary,
+                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                backgroundColor: theme.colors.primary.main,
                 color: 'white',
                 border: 'none',
-                borderRadius: '4px',
+                borderRadius: theme.borderRadius.md,
                 cursor: customDate && customTime ? 'pointer' : 'not-allowed',
                 opacity: customDate && customTime ? 1 : OPACITY_DISABLED,
                 width: '100%',
+                fontSize: theme.typography.fontSize.sm,
+                fontWeight: theme.typography.fontWeight.medium,
               }}
             >
               {t('compose.setCustomTime')}
@@ -223,17 +229,18 @@ export const TimePicker: React.FC<TimePickerProps> = ({
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: theme.spacing.sm }}>
           <button
             onClick={onCancel}
             style={{
               flex: 1,
-              padding: '10px',
-              backgroundColor: theme.colors.surface,
-              border: `1px solid ${theme.colors.border}`,
-              borderRadius: '4px',
+              padding: theme.spacing.sm,
+              backgroundColor: theme.colors.background.subtle,
+              border: `1px solid ${theme.colors.border.medium}`,
+              borderRadius: theme.borderRadius.md,
               cursor: 'pointer',
-              color: theme.colors.text,
+              color: theme.colors.text.secondary,
+              fontSize: theme.typography.fontSize.sm,
             }}
           >
             {t('common.cancel')}

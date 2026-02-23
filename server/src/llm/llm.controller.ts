@@ -29,7 +29,7 @@ export class LLMController {
   @Post("check-tone")
   async checkTone(
     @Request() req,
-    @Body() body: { text: string; rules?: string[] },
+    @Body() body: { text: string; rules?: string[]; currentTime?: string },
   ) {
     // Fetch user tone settings if rules not provided
     let { rules } = body;
@@ -48,6 +48,7 @@ export class LLMController {
       rules,
       undefined,
       req.user.userId,
+      body.currentTime,
     );
   }
 

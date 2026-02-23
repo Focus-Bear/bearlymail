@@ -35,7 +35,7 @@ export const GitHubLinkHeader: React.FC<GitHubLinkHeaderProps> = ({
 
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: theme.spacing.sm }}>
-      <div style={{ flex: 1 }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
         <a
           href={link.url}
           target="_blank"
@@ -47,8 +47,11 @@ export const GitHubLinkHeader: React.FC<GitHubLinkHeaderProps> = ({
             fontSize: theme.typography.fontSize.base,
             display: 'flex',
             alignItems: 'center',
+            flexWrap: 'wrap',
             gap: theme.spacing.xs,
             marginBottom: theme.spacing.xs,
+            wordBreak: 'break-word',
+            overflowWrap: 'anywhere',
           }}
         >
           {isIssue ? '🔵' : '🟣'} {link.owner}/{link.repo}#{link.number}

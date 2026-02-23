@@ -19,8 +19,8 @@ export class GitHubService {
    */
   parseGitHubLinks(emailBody: string, htmlBody?: string): ParsedGitHubLink[] {
     const links: ParsedGitHubLink[] = [];
-    // Deduplicate by URL
-    const seen = new Set<string>();
+    // Deduplicate by normalized (lowercase) URL to handle case variations
+    const seenNormalized = new Set<string>();
 
     // GitHub URL pattern: https://github.com/{owner}/{repo}/issues/{number} or /pull/{number}
     const githubUrlPattern =
@@ -32,8 +32,8 @@ export class GitHubService {
       while ((match = githubUrlPattern.exec(emailBody)) !== null) {
         // Remove fragments and query params
         const url = match[0].split("#")[0].split("?")[0];
-        if (!seen.has(url)) {
-          seen.add(url);
+        if (!seenNormalized.has(url.toLowerCase())) {
+          seenNormalized.add(url.toLowerCase());
           links.push({
             type: match[3] === "pull" ? "pr" : "issue",
             owner: match[1],
@@ -55,8 +55,8 @@ export class GitHubService {
       let match: RegExpExecArray | null;
       while ((match = githubUrlPattern.exec(textContent)) !== null) {
         const url = match[0].split("#")[0].split("?")[0];
-        if (!seen.has(url)) {
-          seen.add(url);
+        if (!seenNormalized.has(url.toLowerCase())) {
+          seenNormalized.add(url.toLowerCase());
           links.push({
             type: match[3] === "pull" ? "pr" : "issue",
             owner: match[1],
@@ -77,8 +77,8 @@ export class GitHubService {
         );
         if (linkMatch) {
           const url = linkMatch[0];
-          if (!seen.has(url)) {
-            seen.add(url);
+          if (!seenNormalized.has(url.toLowerCase())) {
+            seenNormalized.add(url.toLowerCase());
             links.push({
               type: linkMatch[3] === "pull" ? "pr" : "issue",
               owner: linkMatch[1],

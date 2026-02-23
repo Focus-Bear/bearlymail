@@ -85,14 +85,14 @@ export class GitHubController {
 
     // Parse GitHub links from all emails in thread
     const allLinks = new Map<string, ParsedGitHubLink>();
-    // Use Map to deduplicate by URL
+    // Use Map to deduplicate by normalized (lowercase) URL to handle case variations
     for (const threadEmail of threadEmails) {
       const links = this.githubService.parseGitHubLinks(
         threadEmail.body || "",
         threadEmail.htmlBody || undefined,
       );
       for (const link of links) {
-        allLinks.set(link.url, link);
+        allLinks.set(link.url.toLowerCase(), link);
       }
     }
 
@@ -109,12 +109,12 @@ export class GitHubController {
 
       // Check if all links in the cache match current links and have been fetched recently
       const cachedLinksMap = new Map(
-        thread.githubMetadata.links.map((link) => [link.url, link]),
+        thread.githubMetadata.links.map((link) => [link.url.toLowerCase(), link]),
       );
 
       // Check if all current links are in cache and fresh
       const allLinksCachedAndFresh = uniqueLinks.every((link) => {
-        const cachedLink = cachedLinksMap.get(link.url);
+        const cachedLink = cachedLinksMap.get(link.url.toLowerCase());
         if (!cachedLink || !cachedLink.status || !cachedLink.fetchedAt) {
           return false;
         }
@@ -126,13 +126,13 @@ export class GitHubController {
       if (allLinksCachedAndFresh) {
         // Return cached links that match current links (already deduplicated via uniqueLinks)
         const cachedLinksToReturn = uniqueLinks
-          .map((link) => cachedLinksMap.get(link.url))
+          .map((link) => cachedLinksMap.get(link.url.toLowerCase()))
           .filter((link) => link !== undefined);
 
         // Double-check deduplication before returning
         const seenUrls = new Set<string>();
         const dedupedLinks = cachedLinksToReturn.filter((link) => {
-          const key = link.url || `${link.owner}-${link.repo}-${link.number}`;
+          const key = (link.url || `${link.owner}-${link.repo}-${link.number}`).toLowerCase();
           if (seenUrls.has(key)) {
             return false;
           }
@@ -222,14 +222,14 @@ export class GitHubController {
 
     // Parse GitHub links from all emails in thread
     const allLinks = new Map<string, ParsedGitHubLink>();
-    // Use Map to deduplicate by URL
+    // Use Map to deduplicate by normalized (lowercase) URL to handle case variations
     for (const threadEmail of threadEmails) {
       const links = this.githubService.parseGitHubLinks(
         threadEmail.body || "",
         threadEmail.htmlBody || undefined,
       );
       for (const link of links) {
-        allLinks.set(link.url, link);
+        allLinks.set(link.url.toLowerCase(), link);
       }
     }
 

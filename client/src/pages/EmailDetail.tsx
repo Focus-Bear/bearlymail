@@ -861,6 +861,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
             width: '260px',
             borderLeft: `1px solid ${theme.colors.border.light}`,
             overflowY: 'auto',
+            overflowX: 'hidden',
             padding: theme.spacing.sm,
             backgroundColor: theme.colors.background.paper,
             flexShrink: 0,
@@ -916,18 +917,24 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
           ] as const).map(tab => (
             <button
               key={tab.key}
-              onClick={() => setActiveSideTab(prev => prev === tab.key ? null : tab.key)}
+              onClick={() => {
+                setActiveSideTab(prev => prev === tab.key ? null : tab.key);
+                // Auto-expand notes when Notes tab is clicked
+                if (tab.key === 'notes') {
+                  setNotesCollapsed(false);
+                }
+              }}
               style={{
                 writingMode: 'vertical-rl',
                 textOrientation: 'mixed',
                 transform: 'rotate(180deg)',
-                padding: `${theme.spacing.md} ${theme.spacing.xs}`,
+                padding: `${theme.spacing.md} ${theme.spacing.sm}`,
                 border: 'none',
                 borderTop: `1px solid ${theme.colors.border.light}`,
                 cursor: 'pointer',
                 backgroundColor: activeSideTab === tab.key ? theme.colors.primary.subtle : 'transparent',
                 color: activeSideTab === tab.key ? theme.colors.primary.main : theme.colors.text.secondary,
-                fontSize: theme.typography.fontSize.xs,
+                fontSize: theme.typography.fontSize.lg,
                 fontWeight: activeSideTab === tab.key ? theme.typography.fontWeight.semibold : theme.typography.fontWeight.normal,
                 whiteSpace: 'nowrap',
                 transition: theme.transitions.fast,

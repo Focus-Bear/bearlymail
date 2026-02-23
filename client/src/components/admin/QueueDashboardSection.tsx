@@ -2,7 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
-const QUEUE_DASHBOARD_URL = process.env.REACT_APP_QUEUE_DASHBOARD_URL || '';
+const QUEUE_DASHBOARD_URL = import.meta.env.VITE_QUEUE_DASHBOARD_URL || '';
 
 export const QueueDashboardSection: React.FC = () => {
   const { t } = useTranslation();

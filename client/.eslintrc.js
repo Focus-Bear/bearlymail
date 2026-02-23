@@ -209,6 +209,20 @@ module.exports = {
     ],
 
     // ===========================================
+    // VITE ENVIRONMENT VARIABLES
+    // ===========================================
+    // Disallow process.env in client code - this is a Vite project, not CRA.
+    // Use import.meta.env.VITE_* instead of process.env.REACT_APP_*.
+    'no-restricted-properties': [
+      'error',
+      {
+        object: 'process',
+        property: 'env',
+        message: 'Use import.meta.env instead of process.env. This is a Vite project - use VITE_* prefixed variables.',
+      },
+    ],
+
+    // ===========================================
     // IMPORT ENFORCEMENT
     // ===========================================
     // Disallow relative imports that go up directories (enforce absolute imports from src/)

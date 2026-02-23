@@ -42,6 +42,7 @@ describe("RepliesService", () => {
           useValue: {
             findOne: jest.fn(),
             updateThread: jest.fn(),
+            updateThreadStarCount: jest.fn(),
           },
         },
         {
@@ -607,6 +608,49 @@ describe("RepliesService", () => {
         undefined,
         "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
         undefined,
+      );
+    });
+
+    it("should sync star to provider when expectedReplyHours is set (follow-up triage→follow-up fix)", async () => {
+      // Regression test: when a user replies to a triage email and sets "follow up in 48hrs",
+      // the star must be synced to Gmail immediately. Without this, Gmail still shows the
+      // thread as unstarred, so the next email sync resets starCount back to 0 and the
+      // thread falls out of Follow-Up mode.
+      const syncStarStatusToGmail = jest
+        .fn()
+        .mockResolvedValue(undefined);
+      const mockProvider = {
+        sendReply: jest.fn().mockResolvedValue({ messageId: "sent-msg-1" }),
+        syncStarStatusToGmail,
+      };
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(
+        mockProvider as any,
+      );
+
+      const snoozeService = module.get(SnoozeService);
+      const followUpsService = module.get(FollowUpsService);
+      const emailThreadService = module.get(EmailThreadService);
+      (snoozeService.snoozeEmail as jest.Mock).mockResolvedValue(undefined);
+      (followUpsService.createFollowUp as jest.Mock).mockResolvedValue(
+        undefined,
+      );
+      (
+        emailThreadService.updateThreadStarCount as jest.Mock
+      ).mockResolvedValue(undefined);
+
+      await service.sendReply(
+        userId,
+        emailId,
+        "Reply body",
+        undefined,
+        48, // expectedReplyHours
+      );
+
+      // Verify star was synced to provider with starCount=1 (STAR_COUNTS.LOW)
+      expect(syncStarStatusToGmail).toHaveBeenCalledWith(
+        userId,
+        email.threadId,
+        1, // STAR_COUNTS.LOW
       );
     });
   });

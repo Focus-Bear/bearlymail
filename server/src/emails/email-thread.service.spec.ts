@@ -10,6 +10,9 @@ describe("EmailThreadService", () => {
 
   const mockEmailThreadRepository = {
     find: jest.fn(),
+    findOne: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
     createQueryBuilder: jest.fn(),
   };
 
@@ -285,6 +288,166 @@ describe("EmailThreadService", () => {
         { threadId: "thread-1", isArchived: false, starCount: 0 },
         { threadId: "thread-2", isArchived: true, starCount: 1 },
       ]);
+    });
+  });
+
+  describe("getOrCreateEmailThread", () => {
+    it("should create a new thread when one does not exist", async () => {
+      const userId = "user-123";
+      const threadId = "thread-new";
+      const newThread = {
+        id: "uuid-1",
+        userId,
+        threadId,
+        starCount: 0,
+        isArchived: false,
+        lastUserOperationAt: null,
+      };
+
+      mockEmailThreadRepository.findOne.mockResolvedValue(null);
+      mockEmailThreadRepository.create.mockReturnValue(newThread);
+      mockEmailThreadRepository.save.mockResolvedValue(newThread);
+
+      const result = await service.getOrCreateEmailThread(
+        userId,
+        threadId,
+        0,
+        false,
+      );
+
+      expect(result).toEqual(newThread);
+      expect(mockEmailThreadRepository.create).toHaveBeenCalledWith({
+        userId,
+        threadId,
+        starCount: 0,
+        isArchived: false,
+      });
+    });
+
+    it("should preserve starCount when new email arrives and provider says starred (follow-up bug fix)", async () => {
+      // Core bug scenario:
+      // 1. User sets starCount=1 in BearlyMail → star synced to Gmail (STARRED label)
+      // 2. New email arrives in thread → lastUserOperationAt cleared, shouldClearUserOperation=true
+      // 3. Sync runs, Gmail sees STARRED label → provider returns starCount=3
+      // 4. Bug (old code): starCount overwritten to 3 (provider value), losing user's level-1 setting
+      // Fix: when provider says "starred" (starCount > 0), preserve BearlyMail's granular value
+      // because Gmail only knows binary starred/not-starred (not 1/2/3 distinction)
+      const userId = "user-123";
+      const threadId = "thread-with-follow-up";
+      const existingThread = {
+        id: "uuid-1",
+        userId,
+        threadId,
+        starCount: 1, // User's specific follow-up priority level
+        isArchived: false,
+        lastUserOperationAt: new Date(), // Set by user action
+      };
+
+      mockEmailThreadRepository.findOne.mockResolvedValue(existingThread);
+      mockEmailThreadRepository.save.mockImplementation((thread) =>
+        Promise.resolve({ ...thread }),
+      );
+
+      // Sync calls getOrCreateEmailThread with starCount=3 from provider
+      // (Gmail sees STARRED label and maps to starCount=3)
+      const result = await service.getOrCreateEmailThread(
+        userId,
+        threadId,
+        3, // Provider says "starred" (Gmail maps STARRED label to 3)
+        false,
+      );
+
+      // starCount should be preserved at 1 (user's specific priority level)
+      expect(result.starCount).toBe(1);
+      // lastUserOperationAt should be cleared (so future syncs can update the thread)
+      expect(result.lastUserOperationAt).toBeNull();
+
+      // Verify save was called with preserved starCount
+      const savedThread = mockEmailThreadRepository.save.mock.calls[0][0];
+      expect(savedThread.starCount).toBe(1);
+      expect(savedThread.lastUserOperationAt).toBeNull();
+    });
+
+    it("should set starCount to 0 when provider says not starred, even when shouldClearUserOperation is true", async () => {
+      // Scenario: user had starred email (starCount=2) but then unstarred it in Gmail.
+      // When new email arrives, sync should respect the provider's unstarred state.
+      const userId = "user-123";
+      const threadId = "thread-unstarred-in-provider";
+      const existingThread = {
+        id: "uuid-1",
+        userId,
+        threadId,
+        starCount: 2, // Previously starred at level 2
+        isArchived: false,
+        lastUserOperationAt: new Date(), // Set by previous user action
+      };
+
+      mockEmailThreadRepository.findOne.mockResolvedValue(existingThread);
+      mockEmailThreadRepository.save.mockImplementation((thread) =>
+        Promise.resolve({ ...thread }),
+      );
+
+      // Sync calls getOrCreateEmailThread with starCount=0 (provider says not starred)
+      const result = await service.getOrCreateEmailThread(
+        userId,
+        threadId,
+        0, // Provider says "not starred"
+        false,
+      );
+
+      // starCount should follow the provider's value (0 = not starred)
+      expect(result.starCount).toBe(0);
+      expect(result.lastUserOperationAt).toBeNull();
+    });
+
+    it("should update starCount from provider when no lastUserOperationAt is set", async () => {
+      // Normal sync scenario: thread has no user operation protection
+      const userId = "user-123";
+      const threadId = "thread-normal";
+      const existingThread = {
+        id: "uuid-1",
+        userId,
+        threadId,
+        starCount: 0,
+        isArchived: false,
+        lastUserOperationAt: null, // No user protection
+      };
+
+      mockEmailThreadRepository.findOne.mockResolvedValue(existingThread);
+      mockEmailThreadRepository.save.mockImplementation((thread) =>
+        Promise.resolve({ ...thread }),
+      );
+
+      // Provider says thread is now starred (starCount=3, the value Gmail sync returns)
+      const result = await service.getOrCreateEmailThread(
+        userId,
+        threadId,
+        3,
+        false,
+      );
+
+      // starCount should be updated from provider (3)
+      expect(result.starCount).toBe(3);
+    });
+
+    it("should not call save when thread is already up to date", async () => {
+      const userId = "user-123";
+      const threadId = "thread-unchanged";
+      const existingThread = {
+        id: "uuid-1",
+        userId,
+        threadId,
+        starCount: 0,
+        isArchived: false,
+        lastUserOperationAt: null, // No user protection, no changes needed
+      };
+
+      mockEmailThreadRepository.findOne.mockResolvedValue(existingThread);
+
+      await service.getOrCreateEmailThread(userId, threadId, 0, false);
+
+      // No changes, save should not be called
+      expect(mockEmailThreadRepository.save).not.toHaveBeenCalled();
     });
   });
 });

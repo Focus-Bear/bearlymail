@@ -627,23 +627,35 @@ export class EmailThreadService {
       const shouldClearUserOperation =
         isExistingThread && thread.lastUserOperationAt !== null;
 
+      // When a new email arrives in a user-protected thread (shouldClearUserOperation=true):
+      // - If provider says "starred" (starCount > 0): preserve the existing BearlyMail
+      //   starCount, because providers sync stars as binary starred/not-starred and don't
+      //   know about BearlyMail's 1/2/3 distinction. This prevents sync from overwriting
+      //   e.g. starCount=1 (follow-up level) with starCount=3 (provider's default for "starred").
+      // - If provider says "not starred" (starCount = 0): use the provider's value, since
+      //   the email is genuinely unstarred (user unstarred it in the provider).
+      const effectiveStarCount =
+        shouldClearUserOperation && starCount > 0
+          ? thread.starCount
+          : starCount;
+
       const needsUpdate =
-        thread.starCount !== starCount ||
+        thread.starCount !== effectiveStarCount ||
         thread.isArchived !== isArchived ||
         shouldClearUserOperation;
 
       if (needsUpdate) {
-        thread.starCount = starCount;
+        thread.starCount = effectiveStarCount;
         thread.isArchived = isArchived;
         if (shouldClearUserOperation) {
           this.logger.debug(
-            `Clearing lastUserOperationAt for thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... - new email arrived`,
+            `Clearing lastUserOperationAt for thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... - new email arrived (effectiveStarCount=${effectiveStarCount})`,
           );
           thread.lastUserOperationAt = null;
         }
         thread = await this.emailThreadRepository.save(thread);
         this.logger.debug(
-          `Updated EmailThread for thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... (starCount=${starCount}, isArchived=${isArchived})`,
+          `Updated EmailThread for thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... (starCount=${effectiveStarCount}, isArchived=${isArchived})`,
         );
       }
     }

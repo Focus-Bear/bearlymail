@@ -466,6 +466,26 @@ ${closing}`;
           STAR_COUNTS.LOW,
         );
 
+        // Sync star to provider immediately so that when email sync runs and calls
+        // getOrCreateEmailThread, it sees the thread as starred (starCount > 0) and
+        // preserves BearlyMail's level-1 value instead of resetting to 0.
+        // Without this, Gmail still shows the thread as unstarred, so the next
+        // sync would reset starCount back to 0 and the thread would fall out of Follow-Up.
+        try {
+          if ("syncStarStatusToGmail" in provider) {
+            await provider.syncStarStatusToGmail(
+              userId,
+              email.threadId,
+              STAR_COUNTS.LOW,
+            );
+          }
+        } catch (starSyncError) {
+          this.logger.error(
+            `Failed to sync follow-up star to provider for thread ${email.threadId}:`,
+            starSyncError,
+          );
+        }
+
         this.logger.log(
           `Created follow-up for thread ${email.threadId} with ${expectedReplyHours}h expected reply time`,
         );

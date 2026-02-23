@@ -6,6 +6,7 @@ import {
   Body,
   Query,
   BadRequestException,
+  ServiceUnavailableException,
 } from "@nestjs/common";
 import { CalendarService } from "./calendar.service";
 import { DAYS, MINUTES } from "../constants/time-constants";
@@ -20,7 +21,15 @@ export class PublicCalendarController {
     @Query("daysAhead") daysAhead?: string,
   ) {
     const days = daysAhead ? parseInt(daysAhead, 10) : DAYS.MONTH;
-    return this.calendarService.getAvailableSlotsWithTimezone(userId, days);
+    try {
+      return await this.calendarService.getAvailableSlotsWithTimezone(
+        userId,
+        days,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      throw new ServiceUnavailableException(message);
+    }
   }
 
   @Post(":userId/book")

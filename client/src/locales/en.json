@@ -1450,6 +1450,10 @@
       "slotDuration": "Meeting Slot Duration",
       "slotDurationMinutes": "{{count}} minutes",
       "timezone": "Timezone",
+      "bookingLink": "Your Booking Link",
+      "bookingLinkDescription": "Share this link so people can book time with you",
+      "copyLink": "Copy Link",
+      "linkCopied": "Copied!",
       "saved": "Preferences saved",
       "saveError": "Failed to save preferences",
       "days": {

@@ -120,6 +120,15 @@ export class CalendarService {
         "Error fetching calendar",
         error instanceof Error ? error : new Error(String(error)),
       );
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      if (
+        errorMessage.includes("Insufficient Permission") ||
+        errorMessage.includes("insufficientPermissions") ||
+        errorMessage.includes("PERMISSION_DENIED")
+      ) {
+        throw new Error("Google Calendar access not authorized");
+      }
       throw new Error("Failed to fetch calendar data");
     }
   }

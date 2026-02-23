@@ -169,6 +169,30 @@ describe("CalendarService", () => {
       ).rejects.toThrow("Failed to fetch calendar data");
     });
 
+    it("should throw specific error for Insufficient Permission from Google", async () => {
+      usersService.findOne.mockResolvedValue(mockUser as any);
+      mockCalendar.freebusy.query.mockRejectedValue(
+        new Error("Insufficient Permission"),
+      );
+
+      await expect(
+        service.getAvailableTimeSlots("user-1", DAYS_AHEAD_FOR_AVAILABILITY),
+      ).rejects.toThrow("Google Calendar access not authorized");
+    });
+
+    it("should throw specific error for insufficientPermissions from Google", async () => {
+      usersService.findOne.mockResolvedValue(mockUser as any);
+      mockCalendar.freebusy.query.mockRejectedValue(
+        new Error(
+          "Request failed with status code 403: insufficientPermissions",
+        ),
+      );
+
+      await expect(
+        service.getAvailableTimeSlots("user-1", DAYS_AHEAD_FOR_AVAILABILITY),
+      ).rejects.toThrow("Google Calendar access not authorized");
+    });
+
     it("should filter out busy periods", async () => {
       const now = new Date();
       const busyStart = new Date(now);

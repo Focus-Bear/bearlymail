@@ -1620,6 +1620,10 @@
       "slotDuration": "Duración del espacio de reunión",
       "slotDurationMinutes": "{{count}} minutos",
       "timezone": "Zona horaria",
+      "bookingLink": "Tu enlace de reserva",
+      "bookingLinkDescription": "Comparte este enlace para que las personas puedan reservar tiempo contigo",
+      "copyLink": "Copiar enlace",
+      "linkCopied": "¡Copiado!",
       "saved": "Preferencias guardadas",
       "saveError": "No se pudieron guardar las preferencias",
       "days": {

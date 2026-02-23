@@ -2,10 +2,11 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
-import { SCHEDULING_GAP_15_MIN, SCHEDULING_GAP_45_MIN, SAVE_CONFIRMATION_DURATION_MS, HOURS_12_HOUR_FORMAT, DAYS_IN_MONTH_30 } from 'constants/numbers';
+import { SCHEDULING_GAP_15_MIN, SCHEDULING_GAP_45_MIN, SAVE_CONFIRMATION_DURATION_MS, HOURS_12_HOUR_FORMAT, DAYS_IN_MONTH_30, SHORT_TIMEOUT_MS } from 'constants/numbers';
 import { API_URL } from 'config/api';
 import { EMOJI_CALENDAR } from 'constants/emojis';
 import { TimezoneAutocomplete } from 'components/common/TimezoneAutocomplete';
+import { useAuth } from 'contexts/AuthContext';
 
 const DEBOUNCE_MS = 600;
 
@@ -31,6 +32,8 @@ const SLOT_DURATION_OPTIONS = [SCHEDULING_GAP_15_MIN, DAYS_IN_MONTH_30, SCHEDULI
 
 export const SchedulingPreferencesSection: React.FC = () => {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const [linkCopied, setLinkCopied] = useState(false);
   const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const [prefs, setPrefs] = useState<SchedulingPreferences>({
     availabilityStartHour: 9,
@@ -103,6 +106,18 @@ export const SchedulingPreferencesSection: React.FC = () => {
       : [...prefs.availabilityDays, day].sort();
     savePrefs({ availabilityDays: days });
   }, [prefs.availabilityDays, savePrefs]);
+
+  const handleCopyBookingLink = useCallback(async () => {
+    if (!user?.id) return;
+    const bookingUrl = `${window.location.origin}/book/${user.id}`;
+    try {
+      await navigator.clipboard.writeText(bookingUrl);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), SHORT_TIMEOUT_MS);
+    } catch (err) {
+      console.error('Failed to copy booking link:', err);
+    }
+  }, [user?.id]);
 
   const formatHour = (hour: number): string => {
     if (hour === 0) return '12 AM';
@@ -282,6 +297,62 @@ export const SchedulingPreferencesSection: React.FC = () => {
             onChange={(timezone) => savePrefs({ timezone })}
           />
         </div>
+
+        {user?.id && (
+          <div id="scheduling-booking-link">
+            <div style={labelStyle}>{t('settings.schedulingPreferences.bookingLink')}</div>
+            <p style={{
+              fontSize: theme.typography.fontSize.sm,
+              color: theme.colors.text.tertiary,
+              marginBottom: theme.spacing.sm,
+              marginTop: 0,
+            }}>
+              {t('settings.schedulingPreferences.bookingLinkDescription')}
+            </p>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: theme.spacing.sm,
+              flexWrap: 'wrap',
+            }}>
+              <div style={{
+                flex: 1,
+                minWidth: '200px',
+                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                borderRadius: theme.borderRadius.sm,
+                border: `1px solid ${theme.colors.border.medium}`,
+                fontSize: theme.typography.fontSize.sm,
+                backgroundColor: theme.colors.background.default,
+                color: theme.colors.text.secondary,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}>
+                {`${window.location.origin}/book/${user.id}`}
+              </div>
+              <button
+                onClick={handleCopyBookingLink}
+                style={{
+                  padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+                  borderRadius: theme.borderRadius.sm,
+                  border: 'none',
+                  backgroundColor: linkCopied
+                    ? theme.colors.accent.success
+                    : theme.colors.primary.main,
+                  color: 'white',
+                  fontSize: theme.typography.fontSize.sm,
+                  fontWeight: theme.typography.fontWeight.medium,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {linkCopied
+                  ? t('settings.schedulingPreferences.linkCopied')
+                  : t('settings.schedulingPreferences.copyLink')}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

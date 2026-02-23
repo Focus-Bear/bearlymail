@@ -784,7 +784,14 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
 
     if (latestEmail) {
       const normalizedUserEmail = user?.email?.toLowerCase();
-      const isLatestFromCurrentUser = normalizedUserEmail && latestEmail.from?.toLowerCase() === normalizedUserEmail;
+      // Extract plain email address from "Name <email>" or plain "email" format
+      const extractEmail = (addr: string): string => {
+        const match = addr.match(/<([^>]+)>/);
+        return match ? match[1].toLowerCase() : addr.toLowerCase();
+      };
+      const isCurrentUser = (addr: string): boolean =>
+        !!normalizedUserEmail && extractEmail(addr) === normalizedUserEmail;
+      const isLatestFromCurrentUser = normalizedUserEmail && isCurrentUser(latestEmail.from);
 
       if (mode === REPLY_MODE_REPLY_ALL) {
         const recipients: string[] = [];
@@ -792,14 +799,15 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
         if (isLatestFromCurrentUser) {
           // User sent the last email - reply to the original recipients
           if (latestEmail.to) {
-            const toRecipients = latestEmail.to.split(',').map((r: string) => r.trim()).filter((r: string) => r && r.toLowerCase() !== normalizedUserEmail);
+            const toRecipients = latestEmail.to.split(',').map((r: string) => r.trim()).filter((r: string) => r && !isCurrentUser(r));
             recipients.push(...toRecipients);
           }
         } else {
           // Someone else sent the last email - reply to them + other recipients
-          recipients.push(latestEmail.from);
+          const replyToAddress = latestEmail.replyTo || latestEmail.from;
+          recipients.push(replyToAddress);
           if (latestEmail.to) {
-            const toRecipients = latestEmail.to.split(',').map((r: string) => r.trim()).filter((r: string) => r && r.toLowerCase() !== normalizedUserEmail);
+            const toRecipients = latestEmail.to.split(',').map((r: string) => r.trim()).filter((r: string) => r && !isCurrentUser(r));
             recipients.push(...toRecipients);
           }
         }
@@ -808,7 +816,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
         setReplyRecipients(uniqueRecipients.join(', '));
         if (latestEmail.cc) {
           // Filter out current user from CC as well
-          const ccRecipients = latestEmail.cc.split(',').map((r: string) => r.trim()).filter((r: string) => r && r.toLowerCase() !== normalizedUserEmail);
+          const ccRecipients = latestEmail.cc.split(',').map((r: string) => r.trim()).filter((r: string) => r && !isCurrentUser(r));
           if (ccRecipients.length > 0) {
             setReplyCc(ccRecipients.join(', '));
             setShowCc(true);
@@ -820,19 +828,20 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
           // User sent the last email - reply to the recipients of that email, not to yourself
           // Try to find the correspondent from thread emails first
           const otherPersonEmail = threadEmails.find(
-            (e: any) => e.from?.toLowerCase() !== normalizedUserEmail
+            (e: any) => !isCurrentUser(e.from)
           );
           if (otherPersonEmail) {
             setReplyRecipients(otherPersonEmail.from);
           } else if (latestEmail.to) {
             // Fall back to the 'to' field of the latest email
-            const firstRecipient = latestEmail.to.split(',').map((r: string) => r.trim()).filter((r: string) => r && r.toLowerCase() !== normalizedUserEmail)[0];
+            const firstRecipient = latestEmail.to.split(',').map((r: string) => r.trim()).filter((r: string) => r && !isCurrentUser(r))[0];
             setReplyRecipients(firstRecipient || latestEmail.to);
           } else {
             setReplyRecipients(latestEmail.from);
           }
         } else {
-          setReplyRecipients(latestEmail.from);
+          // Use Reply-To if present, otherwise From
+          setReplyRecipients(latestEmail.replyTo || latestEmail.from);
         }
       }
     }

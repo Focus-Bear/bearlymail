@@ -1,4 +1,4 @@
-import React, { useEffect, useImperativeHandle, forwardRef, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useImperativeHandle, forwardRef, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
@@ -6,7 +6,6 @@ import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import { captureEvent } from 'utils/posthog';
 import { getCorrespondent } from 'utils/emailUtils';
 import { useAuth } from 'contexts/AuthContext';
-import { devLog } from 'utils/dev-logger';
 import { GitHubStatusSection } from 'components/github/GitHubStatusSection';
 import { useEmailDetailState } from 'hooks/useEmailDetailState';
 import { useEmailDetailOperations } from 'hooks/useEmailDetailOperations';

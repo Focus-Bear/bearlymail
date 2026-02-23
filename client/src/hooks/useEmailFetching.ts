@@ -85,9 +85,10 @@ export function useEmailFetching({
    */
   const fetchEmails = useCallback(async () => {
     dispatch(setDecrypting(true));
-    dispatch(setSummaryLoading(true));
     dispatch(setFetchError(null));
     dispatch(clearCategoryState());
+    // Set summaryLoading AFTER clearCategoryState to avoid it being immediately reset
+    dispatch(setSummaryLoading(true));
     dispatch(setEmails([]));
     dispatch(setCurrentOffset(0));
     dispatch(setHasMore(false));

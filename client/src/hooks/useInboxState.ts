@@ -337,7 +337,9 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     setModeState(newMode);
     // Reset category order when mode changes so it gets recalculated for the new mode
     setStableCategoryOrder([]);
-    // Reset auto-expand flag so the top category gets auto-expanded in the new mode
+    // Reset expanded categories so stale categories from the previous mode don't remain expanded
+    setExpandedCategories(new Set());
+    // Reset auto-expand flag so the top categories get auto-expanded in the new mode
     hasAutoExpandedRef.current = false;
   }, []);
 
@@ -365,13 +367,17 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     if (categories.length > 0) {
       setStableCategoryOrder(categories);
 
-      // Auto-expand the top priority category on initial load and fetch its emails
+      // Auto-expand and pre-load the top 3 priority categories on initial load
       if (!hasAutoExpandedRef.current && categories.length > 0) {
         hasAutoExpandedRef.current = true;
-        setExpandedCategories(new Set([categories[0]]));
-        fetchCategoryEmails(categories[0]).catch(err =>
-          console.error(`Error fetching emails for auto-expanded category ${categories[0]}:`, err)
-        );
+        const INITIAL_PRELOAD_COUNT = 3;
+        const initialCategories = categories.slice(0, INITIAL_PRELOAD_COUNT);
+        setExpandedCategories(new Set(initialCategories));
+        initialCategories.forEach(category => {
+          fetchCategoryEmails(category).catch(err =>
+            console.error(`Error fetching emails for auto-expanded category ${category}:`, err)
+          );
+        });
       }
     }
   }, [fetchCategoryEmails]);

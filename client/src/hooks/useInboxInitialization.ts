@@ -33,14 +33,13 @@ export function useInboxInitialization({
     
     const initializeData = async () => {
       isInitializingRef.current = true;
-      setHasInitiallyLoaded(true);
-      
+
       try {
         await Promise.all([
           fetchEmails().catch(err => console.error('Error fetching emails:', err)),
           fetchBatchStatus().catch(err => console.error('Error fetching batch status:', err)),
           fetchTabCounts(true).catch(err => console.error('Error fetching tab counts:', err)),
-          
+
           axios.get(`${API_URL}/context`)
             .then((contextResponse) => {
               const contexts = contextResponse.data || [];
@@ -54,6 +53,10 @@ export function useInboxInitialization({
         ]);
       } finally {
         isInitializingRef.current = false;
+        // Set after fetch completes so the loading state is shown while data is being fetched.
+        // Setting it early (before await) caused an empty state flash on re-navigation because
+        // loading=false (persisted Redux) + hasInitiallyLoaded=true + categorySummary=null => EmptyState.
+        setHasInitiallyLoaded(true);
       }
     };
     

@@ -18,6 +18,10 @@ export function createTypeOrmConfig(
   const isLocal = dbHost === "localhost" || dbHost === "127.0.0.1";
   const sslEnabled = configService.get<string>("DB_SSL") === "true";
   const useSsl = !isLocal || sslEnabled ? { rejectUnauthorized: false } : false;
+  const poolSize = parseInt(
+    configService.get<string>("DB_POOL_SIZE") || "10",
+    10,
+  );
 
   return {
     type: "postgres",
@@ -32,6 +36,16 @@ export function createTypeOrmConfig(
     autoLoadEntities: true,
     synchronize: false,
     ssl: useSsl,
+    // Explicit connection pool settings to prevent exhausting RDS max_connections.
+    // Both the web server and worker processes each create their own pool, so
+    // keeping this bounded is critical. Tune DB_POOL_SIZE in production based
+    // on your RDS instance's max_connections limit.
+    extra: {
+      max: poolSize,
+      min: 2,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 5000,
+    },
     ...overrides,
   } as TypeOrmModuleOptions;
 }

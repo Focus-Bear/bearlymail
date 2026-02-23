@@ -29,9 +29,19 @@ import { logErrorToFile } from "../utils/error-logger";
         const useSsl =
           !isLocal || sslEnabled ? { rejectUnauthorized: false } : false;
 
+        const pgBossPoolSize = parseInt(
+          configService.get<string>("DB_PGBOSS_POOL_SIZE") || "10",
+          10,
+        );
+
         const boss = new PgBoss({
           connectionString: `postgres://${configService.get("DB_USERNAME")}:${configService.get("DB_PASSWORD")}@${configService.get("DB_HOST")}:${configService.get("DB_PORT")}/${configService.get("DB_NAME")}`,
           ssl: useSsl,
+          // Explicit connection pool limit. PgBoss creates its own pg.Pool
+          // separate from TypeORM, so without this it can exhaust the database's
+          // max_connections alongside the TypeORM pool. Tune DB_PGBOSS_POOL_SIZE
+          // in production based on your RDS instance's max_connections limit.
+          max: pgBossPoolSize,
           // Worker settings
           noSupervisor: false,
           // Job defaults - reasonable retry settings

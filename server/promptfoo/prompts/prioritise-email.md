@@ -17,30 +17,36 @@ Provide:
    - 90-100: Perfect alignment, critical to user's goals or current work
 5. goalAlignmentExplanation: Brief explanation of the goal alignment score
 6. category: Classify the email into the BEST FITTING category from the list provided in the dynamic context below.
-   - "Other": ONLY use this if no other category is a good fit (last resort)
-   
-   NOTE: Categories marked as "(proposed category, not yet finalized)" are proto-categories that the system is learning. If the email fits one of these, use that proto-category name exactly as shown - this helps the system learn and eventually promote it to a real category.
-   
+   - "Other": ONLY use this if no other category is a good fit — treat this as a last resort after exhausting ALL provided categories
+
    IMPORTANT for category selection — follow these steps IN ORDER:
-   
+
    **Step 1: Identify sender type BEFORE selecting a category.** Determine if the sender is a human, bot, or automated system by examining the sender name. Common indicators of automated/bot senders include:
      - Brackets in the name (e.g., "someapp[bot]", "service[app]")
      - Words like "bot", "automation", "integration", "noreply", "notifications"
      - Service or platform names without a recognizable human name
-   
+
    **Step 2: Parse category names carefully and eliminate incompatible categories.** Category names often contain important qualifiers and constraints. Read the FULL category name and understand ALL its criteria:
      - Exclusion criteria (e.g., "not X", "excluding Y") mean emails matching X or Y MUST NOT be placed in this category
      - Source qualifiers (e.g., "from humans", "by human developers", "from bots", "automated") restrict who the email must be from — if the sender type identified in Step 1 does not match, that category is NOT eligible
      - Topic qualifiers narrow down what content belongs in the category
    For example, if a sender is identified as a bot in Step 1, they cannot be placed in any category that specifies "from humans" or "by human developers", even if the email topic matches.
-   
+
    **Step 3: Select the best fitting category** from the remaining eligible categories, considering the email's primary purpose, content, and sender intent.
    - Evaluate ALL eligible categories before choosing — don't just pick the first one that seems to fit
    - Only use "Other" when the email genuinely doesn't fit any of the defined categories
+   - STRONGLY prefer an existing category over "Other". When in doubt, pick the closest matching category.
+
+   **Special guidance for GitHub notifications:**
+   - **Devin PR identification**: When categorizing GitHub PR notifications, check the FULL thread context (not just the latest message). If ANY earlier message in the thread indicates the PR was created or initiated by Devin.AI (e.g., the PR author is Devin, or the thread started with a Devin PR creation notification), categorize the entire thread into the "Devin PRs" category — even if the latest message is a human merging or commenting on it. The PR initiator determines the category, not who performed the last action.
+   - **QA comments**: A GitHub issue comment where QA reports testing results (whether pass or fail) is NOT the same as "New Github issues raised by QAs". The "New Github issues raised by QAs" category is specifically for newly created issues, not comments on existing issues. If a QA comment indicates the issue is FIXED and the test PASSED, use "Other" with the protoCategorySuggestion "✅ QA passed issues". If a QA comment indicates the issue FAILED testing, use the "QA failed issues" category.
+
 7. categoryExplanation: Explain why you chose this category AND why the other top 2 closest categories were not chosen. Format: "Chose [category] because [reason]. Considered [alternative1] but [why not]. Considered [alternative2] but [why not]."
 8. protoCategorySuggestion (ONLY if category is "Other"): When you must use "Other", suggest a NEW category that would better describe this email. This helps the system learn new categories automatically. Provide:
    - name: A concise category name with emoji prefix (2-4 words, e.g., "🔧 Technical Issues", "📊 Reports", "🎓 Learning Resources")
    - description: A brief description of what emails belong in this category
+   - Be SPECIFIC: suggest "✅ QA passed issues" not "📂 Issue Comments". Overly generic categories like "Issue Comments", "GitHub Notifications", or "PR Updates" add no value since GitHub emails are already covered by the specific GitHub categories.
+   - Only suggest a proto-category when the email truly has no home in any existing category. Do NOT suggest proto-categories for emails that could fit an existing category with a reasonable interpretation.
    If the email is truly miscellaneous with no clear pattern, you may omit this field.
 9. reasoning: Brief explanation of your analysis
 
@@ -55,11 +61,11 @@ Consider when analyzing:
 - Current date relative to any deadlines mentioned
 - Time since last reply
 
-IMPORTANT: If the email is part of a thread, consider ALL messages in the thread when analyzing, but give MORE WEIGHT to the most recent messages:
-- **For categorization**: The most recent email in the thread best represents the current state of the conversation. If a thread started as "customer feedback" but the latest messages show QA testing or resolution, categorize based on the current state, not the original topic.
-- If a critical issue was reported in an earlier message but then resolved in a follow-up reply, adjust the priority accordingly (lower urgency if resolved)
-- If the conversation has evolved (e.g., from urgent to resolved, or from question to answered), reflect this in your analysis
-- Consider the full conversation flow, but prioritize recent context over older messages
+IMPORTANT: If the email is part of a thread, consider ALL messages in the thread when analyzing:
+- **For categorization**: Use the ENTIRE thread to determine the correct category — early messages often establish the fundamental nature of the thread (e.g., who created a PR, what kind of issue it is). For example, if the first message shows a PR was created by Devin, later messages (like a human merging it) do not change the thread's fundamental category.
+- **For urgency/priority**: Give MORE WEIGHT to the most recent messages. If a critical issue was reported in an earlier message but then resolved in a follow-up reply, adjust the priority accordingly (lower urgency if resolved).
+- If the conversation has evolved (e.g., from urgent to resolved, or from question to answered), reflect this in your urgency analysis
+- Consider the full conversation flow for both categorization and prioritization
 
 If the email mentions deadlines, dates, or time-sensitive requests (e.g., "by Friday", "this side of Christmas", "before end of month"), calculate urgency based on how close the deadline is. Emails with deadlines that are very soon (within 1-2 days) should have high urgency scores (70-90+).
 

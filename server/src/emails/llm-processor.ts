@@ -669,6 +669,43 @@ export class LLMProcessor implements OnModuleInit {
               let protoCategoryId: string | null =
                 finalCategory === "Other" ? thread.protoCategoryId : null;
 
+              // Defensive check: LLM may have returned a proto-category name directly
+              // (e.g. from a cached/older prompt). Re-route through proto-category logic.
+              if (
+                llmResult.category &&
+                llmResult.category !== "Other" &&
+                email.emailThreadId
+              ) {
+                try {
+                  const directProtoMatch =
+                    await this.protoCategoriesService.findMatchingProtoCategory(
+                      userId,
+                      llmResult.category,
+                    );
+                  if (directProtoMatch) {
+                    const updatedProto =
+                      await this.protoCategoriesService.assignThreadToProtoCategory(
+                        directProtoMatch.id,
+                        email.emailThreadId,
+                      );
+                    if (updatedProto.isPromoted) {
+                      finalCategory = updatedProto.name;
+                    } else {
+                      finalCategory = "Other";
+                      protoCategoryId = updatedProto.id;
+                    }
+                    this.logger.log(
+                      `[Worker ${workerId}] LLM returned proto-category name directly: "${llmResult.category}" — re-routed through proto-category logic`,
+                    );
+                  }
+                } catch (err) {
+                  this.logger.warn(
+                    `[Worker ${workerId}] Failed defensive proto-category check for "${llmResult.category}":`,
+                    err,
+                  );
+                }
+              }
+
               if (
                 llmResult.category === "Other" &&
                 llmResult.protoCategorySuggestion?.name
@@ -1451,6 +1488,43 @@ export class LLMProcessor implements OnModuleInit {
       let finalCategory = llmResult.category || thread.category || null;
       let protoCategoryId: string | null =
         finalCategory === "Other" ? (thread.protoCategoryId ?? null) : null;
+
+      // Defensive check: LLM may have returned a proto-category name directly.
+      // Re-route through proto-category logic so counts stay accurate.
+      if (
+        llmResult.category &&
+        llmResult.category !== "Other" &&
+        email.emailThreadId
+      ) {
+        try {
+          const directProtoMatch =
+            await this.protoCategoriesService.findMatchingProtoCategory(
+              userId,
+              llmResult.category,
+            );
+          if (directProtoMatch) {
+            const updatedProto =
+              await this.protoCategoriesService.assignThreadToProtoCategory(
+                directProtoMatch.id,
+                email.emailThreadId,
+              );
+            if (updatedProto.isPromoted) {
+              finalCategory = updatedProto.name;
+            } else {
+              finalCategory = "Other";
+              protoCategoryId = updatedProto.id;
+            }
+            this.logger.log(
+              `[Worker ${workerId}] Batch: LLM returned proto-category name directly: "${llmResult.category}" — re-routed`,
+            );
+          }
+        } catch (err) {
+          this.logger.warn(
+            `[Worker ${workerId}] Batch: Failed defensive proto-category check for "${llmResult.category}":`,
+            err,
+          );
+        }
+      }
 
       if (
         llmResult.category === "Other" &&

@@ -413,3 +413,76 @@ tests:
         config:
           expectedCategory: "Other"
 
+  # ============================================================
+  # GITHUB-SPECIFIC CATEGORIZATION TESTS
+  # These test the Devin PR and QA comment guidance added to the prompt.
+  # ============================================================
+
+  # Devin PR: human merging a Devin-initiated PR should still be "Devin PRs"
+  - description: "Devin PR: human merging Devin's PR should still categorize as 'Devin PRs', not 'PRs from humans'"
+    vars:
+      from: "notifications@github.com"
+      fromName: "Bao Ho Gia"
+      subject: "Re: [Focus-Bear/mobile-app] feat: Set up Storybook for React Native (PR #3916)"
+      body: "Merged #3916 into develop.--\nReply to this email directly or view it on GitHub."
+      emailCategories: |
+        - "Devin PRs (PRs that have only been touched by Devin.AI and not any of the human devs)": PRs created or initiated by Devin AI
+        - "PRs from humans (not Devin)": Pull requests authored by human developers, not Devin.ai or other AI bots
+        - "New Github issues based on customer feedback. Only issues not pull requests. Not for issues raised by QA": Customer feedback issues on GitHub
+      threadContext: |
+        [Message 1 from devin-ai-integration[bot] on Feb 20, 2026]:
+        Subject: [Focus-Bear/mobile-app] feat: Set up Storybook for React Native (PR #3916)
+        Body: devin-ai-integration[bot] opened a pull request. This PR sets up Storybook for React Native to enable component-driven development and visual testing.
+
+        ---
+
+        [Message 2 from Bao Ho Gia on Feb 22, 2026]:
+        Subject: Re: [Focus-Bear/mobile-app] feat: Set up Storybook for React Native (PR #3916)
+        Body: Merged #3916 into develop.
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          expectedCategory: "Devin PRs (PRs that have only been touched by Devin.AI and not any of the human devs)"
+          excludedCategories: "PRs from humans (not Devin)"
+
+  # QA pass comment: should get "Other" + "✅ QA passed issues" proto category
+  - description: "QA pass comment: GitHub QA pass comment should be 'Other' with '✅ QA passed issues' proto category, NOT 'New Github issues raised by QAs'"
+    vars:
+      from: "notifications@github.com"
+      fromName: "QA Tester"
+      subject: "Re: [Focus-Bear/app] Bug: Login button not working (#123)"
+      body: "QA passed ✅ The fix has been verified. Login button now works correctly in all tested browsers and devices. Ready for production."
+      emailCategories: |
+        - "QA failed issues": where a human QA has marked an issue as failed on Github
+        - "New Github issues raised by QAs (not based on customer feedback). Only issues not pull requests": Newly created issues raised by QA team, not comments on existing issues
+        - "PRs from humans (not Devin)": Pull requests authored by human developers
+        - "Devin PRs (PRs that have only been touched by Devin.AI and not any of the human devs)": Devin AI PRs
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          expectedCategory: "Other"
+          expectProtoCategorySuggestion: true
+          excludedCategories: ["New Github issues raised by QAs (not based on customer feedback). Only issues not pull requests", "QA failed issues"]
+          protoCategoryNameContains: ["passed", "QA", "✅"]
+
+  # QA fail comment: should get "QA failed issues", NOT "New Github issues raised by QAs"
+  - description: "QA fail comment: GitHub QA fail comment should be 'QA failed issues', NOT 'New Github issues raised by QAs'"
+    vars:
+      from: "notifications@github.com"
+      fromName: "QA Tester"
+      subject: "Re: [Focus-Bear/app] Bug: Submit button broken (#456)"
+      body: "QA failed ❌ The submit button is still not working in Safari after the fix. The issue persists - clicking submit does nothing on Safari 17."
+      emailCategories: |
+        - "QA failed issues": where a human QA has marked an issue as failed on Github
+        - "New Github issues raised by QAs (not based on customer feedback). Only issues not pull requests": Newly created issues raised by QA team, not comments on existing issues
+        - "PRs from humans (not Devin)": Pull requests authored by human developers
+        - "Devin PRs (PRs that have only been touched by Devin.AI and not any of the human devs)": Devin AI PRs
+    assert:
+      - type: javascript
+        value: file://promptfoo-assertions/validate-priority-response.js
+        config:
+          expectedCategory: "QA failed issues"
+          excludedCategories: "New Github issues raised by QAs (not based on customer feedback). Only issues not pull requests"
+

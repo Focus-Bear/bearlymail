@@ -152,17 +152,6 @@ export class PriorityAnalysisService {
             .join("\n")
         : "";
 
-    // Format proto categories for prompt (shown separately to help LLM match)
-    const protoCategoriesText =
-      userContext?.protoCategories && userContext.protoCategories.length > 0
-        ? userContext.protoCategories
-            .map(
-              (cat) =>
-                `   - "${cat.name}"${cat.description ? `: ${cat.description}` : ""} (proposed category, not yet finalized)`,
-            )
-            .join("\n")
-        : "";
-
     // Format thread info for prompt
     const threadInfoText = threadInfo
       ? `\nThread Information:\n${threadInfo.daysSinceLastReply !== undefined ? `- Days since last reply: ${threadInfo.daysSinceLastReply}` : ""}${threadInfo.userShouldReply !== undefined ? `\n- User should reply: ${threadInfo.userShouldReply ? "Yes" : "No"}` : ""}${threadInfo.lastReplyFrom ? `\n- Last reply from: ${threadInfo.lastReplyFrom}` : ""}`
@@ -199,11 +188,11 @@ export class PriorityAnalysisService {
       threadContextText = `\n\nThread Context (${emailsToInclude.length} previous messages, chronological order):\n${threadMessages.join("\n\n---\n\n")}`;
     }
 
-    // Combine email categories and proto categories for prompt
-    const combinedCategoriesText =
-      emailCategoriesText +
-      (emailCategoriesText && protoCategoriesText ? "\n" : "") +
-      protoCategoriesText;
+    // Only show full categories to LLM — NOT proto-categories.
+    // Proto-categories are discovered via the "Other" + protoCategorySuggestion path.
+    // Showing them to the LLM caused it to return proto-category names directly as
+    // `category`, bypassing the proto-category counting/promotion mechanism entirely.
+    const combinedCategoriesText = emailCategoriesText;
 
     // Render prompt template with variables
     const prompt = renderPrompt(promptConfig.prompt, {
@@ -442,16 +431,6 @@ Body: ${cleanedBody}`;
           .join(", ")
       : '"Newsletters", "Sales", "Partnerships", "Customer Support", "HR Admin"';
 
-    const protoCategoriesText =
-      userContext?.protoCategories && userContext.protoCategories.length > 0
-        ? userContext.protoCategories
-            .map(
-              (cat) =>
-                `"${cat.name}"${cat.description ? `: ${cat.description}` : ""} (proposed)`,
-            )
-            .join(", ")
-        : "";
-
     const currentDateStr = new Date().toLocaleDateString("en-US", {
       weekday: "long",
       year: "numeric",
@@ -467,9 +446,9 @@ For EACH email, provide:
 - sentimentScore (-1 to 1): Email sentiment
 - goalAlignmentScore (0-100): Alignment with user's goals
 - goalAlignmentExplanation: Brief explanation
-- category: Best fitting from: ${emailCategoriesText}${protoCategoriesText ? `, ${protoCategoriesText}` : ""}, "Other"
+- category: Best fitting from: ${emailCategoriesText}, "Other". Use "Other" ONLY as a last resort after exhausting all provided categories.
 - categoryExplanation: Brief explanation
-- protoCategorySuggestion (ONLY if category is "Other"): { "name": "emoji + 2-4 word category name", "description": "brief description" }. Always provide this when using "Other".
+- protoCategorySuggestion (ONLY if category is "Other"): { "name": "emoji + 2-4 word category name", "description": "brief description" }. Be SPECIFIC (e.g. "✅ QA passed issues" not "📂 Issue Comments"). Only suggest when the email truly has no home in any existing category.
 - reasoning: Brief analysis
 
 IMPORTANT: Newsletters, digests, mailing list emails, and promotional content should ALWAYS receive an urgency score of 0 and LOW goal alignment scores (0-20). Even if a newsletter's topic overlaps with the user's goals, it is informational background reading and does not require action or a reply. Only score higher if the newsletter contains a specific, time-bound call to action directly relevant to the user. This does NOT apply to calendar invitations, meeting requests, account alerts, or transactional emails — those are automated but actionable and should be scored normally.

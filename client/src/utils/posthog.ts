@@ -78,7 +78,10 @@ export const resetPostHog = () => {
 // required by PostHog's Error Tracking dashboard.
 export const captureException = (error: Error, additionalContext?: Record<string, any>) => {
   try {
-    if (!isPostHogLoaded()) return;
+    if (!isPostHogLoaded()) {
+      console.error('PostHog not loaded, exception not tracked:', error.name, error.message);
+      return;
+    }
 
     // Remove PII from additional context before sending
     const safeContext = additionalContext ? { ...additionalContext } : {};

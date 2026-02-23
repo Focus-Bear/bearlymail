@@ -992,7 +992,12 @@ export class EmailsController {
     for (const email of allEmails) {
       await this.boss.send(
         "refine-priority",
-        { userId, emailId: email.id, forceRecalculate: true, recategorizeBatchId: batchId },
+        {
+          userId,
+          emailId: email.id,
+          forceRecalculate: true,
+          recategorizeBatchId: batchId,
+        },
         {
           priority: getJobPriority("refine-priority", true),
           singletonKey: `recategorize-${email.id}`,
@@ -1054,8 +1059,14 @@ export class EmailsController {
     }
 
     const completed = counts["completed"] ?? 0;
-    const failed = (counts["failed"] ?? 0) + (counts["expired"] ?? 0) + (counts["cancelled"] ?? 0);
-    const pending = (counts["created"] ?? 0) + (counts["retry"] ?? 0) + (counts["active"] ?? 0);
+    const failed =
+      (counts["failed"] ?? 0) +
+      (counts["expired"] ?? 0) +
+      (counts["cancelled"] ?? 0);
+    const pending =
+      (counts["created"] ?? 0) +
+      (counts["retry"] ?? 0) +
+      (counts["active"] ?? 0);
     const total = completed + failed + pending;
 
     this.logger.log(

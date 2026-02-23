@@ -134,7 +134,7 @@ export class ErrorTrackingService {
         `PostHog captureException called but tracking is disabled (isEnabled: ${this.isEnabled}, hasClient: ${!!this.posthog})`,
       );
       console.error(
-        `POSTHOG: captureException called but PostHog is not initialized (isEnabled: ${this.isEnabled}, hasClient: ${!!this.posthog})`,
+        `POSTHOG: captureException called but PostHog is not initialized (isEnabled: ${this.isEnabled}, hasClient: ${!!this.posthog}). Error not tracked: ${error.name}: ${error.message}`,
       );
       return;
     }

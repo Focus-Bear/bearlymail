@@ -3,6 +3,7 @@ import { Logger } from "@nestjs/common";
 import { PriorityAnalysisService } from "./priority-analysis.service";
 import { LLMCoreService } from "./llm-core.service";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
+import { QUERY_LIMITS } from "../constants/query-limits";
 import * as prompts from "./prompts";
 
 jest.mock("./prompts", () => ({
@@ -96,6 +97,22 @@ describe("PriorityAnalysisService", () => {
 
       expect(mockLLMCoreService.generateText).toHaveBeenCalledWith(
         expect.objectContaining({ jsonMode: true }),
+        undefined,
+        undefined,
+      );
+    });
+
+    it("should use LLM_MAX_TOKENS_MEDIUM to prevent JSON truncation", async () => {
+      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
+        validPriorityResponse,
+      );
+
+      await service.analyzePriority(mockEmail);
+
+      expect(mockLLMCoreService.generateText).toHaveBeenCalledWith(
+        expect.objectContaining({
+          maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_MEDIUM,
+        }),
         undefined,
         undefined,
       );

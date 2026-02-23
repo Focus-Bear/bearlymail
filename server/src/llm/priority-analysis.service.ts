@@ -230,7 +230,7 @@ export class PriorityAnalysisService {
         systemPrompt: promptConfig.systemPrompt || "",
         temperature: RATIOS.THIRTY_PERCENT,
         // Lower temperature for more consistent scoring
-        maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_SMALL,
+        maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_MEDIUM,
         userId,
         operation: LLM_OP_ANALYZE_PRIORITY,
         jsonMode: true,

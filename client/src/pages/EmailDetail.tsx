@@ -578,9 +578,9 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
                       color: theme.colors.text.secondary,
                       lineHeight: 1.6,
                     }}>
-                      <div><strong>Email ID:</strong> {emailData.id}</div>
+                      <div><strong>Gmail Message ID:</strong> {emailData.messageId || 'N/A'}</div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <strong>Thread ID (Gmail):</strong>
+                        <strong>Gmail Thread ID:</strong>
                         <code style={{
                           backgroundColor: '#e3f2fd',
                           padding: '2px 6px',
@@ -609,8 +609,6 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
                           </button>
                         )}
                       </div>
-                      <div><strong>Email Thread ID:</strong> {emailData.emailThreadId || 'N/A'}</div>
-                      <div><strong>Message ID:</strong> {emailData.messageId || 'N/A'}</div>
                       <div><strong>Labels:</strong> {emailData.labels ? JSON.stringify(emailData.labels) : '[]'}</div>
                       <div><strong>Labels Count:</strong> {emailData.labels?.length || 0}</div>
                       <div><strong>Received At:</strong> {emailData.receivedAt}</div>
@@ -624,7 +622,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
                             const threadEmailData = threadEmail as any;
                             return (
                               <div key={threadEmail.id} style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs }}>
-                                [{idx}] ID: {threadEmailData.id} | Labels: {threadEmailData.labels ? JSON.stringify(threadEmailData.labels) : '[]'} | Received: {threadEmailData.receivedAt}
+                                [{idx}] MsgID: {threadEmailData.messageId || 'N/A'} | Labels: {threadEmailData.labels ? JSON.stringify(threadEmailData.labels) : '[]'} | Received: {threadEmailData.receivedAt}
                               </div>
                             );
                           })}
@@ -810,7 +808,8 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
                   color: theme.colors.text.secondary,
                   lineHeight: 1.5,
                 }}>
-                  <div><strong>Email ID:</strong> {emailData.id}</div>
+                  <div><strong>Gmail Message ID:</strong> {emailData.messageId || 'N/A'}</div>
+                  <div><strong>Gmail Thread ID:</strong> {emailData.threadId || 'N/A'}</div>
                   <div><strong>Has attachments prop:</strong> {emailData.attachments !== undefined ? 'true' : 'false'}</div>
                   <div><strong>Attachments count:</strong> {emailData.attachments?.length ?? 0}</div>
                   <div><strong>Raw attachments:</strong> {emailData.attachments ? JSON.stringify(emailData.attachments) : 'null/undefined'}</div>

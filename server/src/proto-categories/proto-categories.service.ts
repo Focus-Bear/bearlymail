@@ -273,6 +273,48 @@ export class ProtoCategoriesService {
   }
 
   /**
+   * Find a specific proto category by ID for a user (must not be promoted)
+   */
+  async findActiveById(
+    userId: string,
+    id: string,
+  ): Promise<ProtoCategory | null> {
+    return this.protoCategoryRepository.findOne({
+      where: { id, userId, isPromoted: false },
+    });
+  }
+
+  /**
+   * Delete a proto category and clear its reference from threads
+   */
+  async deleteProtoCategory(
+    userId: string,
+    protoCategoryId: string,
+  ): Promise<void> {
+    const protoCategory = await this.protoCategoryRepository.findOne({
+      where: { id: protoCategoryId, userId },
+    });
+
+    if (!protoCategory) {
+      throw new Error(
+        `Proto category ${protoCategoryId} not found for user ${userId}`,
+      );
+    }
+
+    // Clear proto category reference from all threads
+    await this.emailThreadRepository.update(
+      { protoCategoryId: protoCategory.id },
+      { protoCategoryId: null },
+    );
+
+    await this.protoCategoryRepository.delete({ id: protoCategoryId, userId });
+
+    this.logger.log(
+      `Deleted proto category "${protoCategory.name}" for user ${userId}`,
+    );
+  }
+
+  /**
    * Get proto category statistics for a user
    */
   async getStats(userId: string): Promise<{

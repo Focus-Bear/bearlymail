@@ -4,11 +4,13 @@ import { ProtoCategory } from "../database/entities/proto-category.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { UserContext } from "../database/entities/user-context.entity";
 import { ProtoCategoriesService } from "./proto-categories.service";
+import { ProtoCategoriesController } from "./proto-categories.controller";
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([ProtoCategory, EmailThread, UserContext]),
   ],
+  controllers: [ProtoCategoriesController],
   providers: [ProtoCategoriesService],
   exports: [ProtoCategoriesService],
 })

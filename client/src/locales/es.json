@@ -1522,6 +1522,17 @@
         "dismiss": "Cerrar progreso de recategorización"
       }
     },
+    "protoCategories": {
+      "viewButton": "Ver categorías sugeridas por IA",
+      "title": "Categorías sugeridas por IA",
+      "description": "Estas categorías fueron sugeridas por la IA según tus correos. Promueve las que quieras conservar o elimina las que no sean relevantes.",
+      "empty": "Aún no hay categorías sugeridas por IA. A medida que recibas correos que no encajen en categorías existentes, la IA sugerirá nuevas aquí.",
+      "progress": "{{count}}/{{threshold}} correos",
+      "promote": "Promover",
+      "promoting": "Promoviendo...",
+      "delete": "Eliminar",
+      "deleting": "Eliminando..."
+    },
     "created": "Creado {{date}}",
     "delivery": {
       "days": {

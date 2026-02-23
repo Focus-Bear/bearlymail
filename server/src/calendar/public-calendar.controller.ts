@@ -30,8 +30,7 @@ export class PublicCalendarController {
         days,
       );
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unknown error";
+      const message = error instanceof Error ? error.message : "Unknown error";
       this.logger.warn(
         `Public calendar slots unavailable for user ${userId}: ${message}`,
       );

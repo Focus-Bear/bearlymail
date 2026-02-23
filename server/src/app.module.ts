@@ -40,6 +40,7 @@ import { SchedulingPreferencesModule } from "./scheduling-preferences/scheduling
 import { PusherModule } from "./pusher/pusher.module";
 import { ErrorTrackingModule } from "./error-tracking/error-tracking.module";
 import { ScheduledEmailsModule } from "./scheduled-emails/scheduled-emails.module";
+import { ProtoCategoriesModule } from "./proto-categories/proto-categories.module";
 
 @Module({
   imports: [
@@ -96,6 +97,7 @@ import { ScheduledEmailsModule } from "./scheduled-emails/scheduled-emails.modul
     SchedulingPreferencesModule,
     PusherModule,
     ScheduledEmailsModule,
+    ProtoCategoriesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

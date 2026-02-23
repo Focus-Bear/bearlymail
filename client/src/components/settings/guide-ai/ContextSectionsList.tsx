@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { ContextSection } from 'components/settings/guide-ai/ContextSection';
+import { ProtoCategoriesModal } from 'components/settings/guide-ai/ProtoCategoriesModal';
 import { RecategorizeProgressBar } from 'components/settings/RecategorizeProgressBar';
 import { useRecategorizeProgress } from 'hooks/settings/useRecategorizeProgress';
 import { theme } from 'theme/theme';
@@ -69,6 +70,7 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
   const { t } = useTranslation();
   const [isRecategorizing, setIsRecategorizing] = useState(false);
   const [isConsolidating, setIsConsolidating] = useState(false);
+  const [showProtoCategoriesModal, setShowProtoCategoriesModal] = useState(false);
   const [consolidationResult, setConsolidationResult] = useState<{
     originalCount: number;
     consolidatedCount: number;
@@ -126,7 +128,20 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
 
   const emailCategoryButtons = (
     <div style={{ marginLeft: 'auto', minWidth: '260px' }}>
-      <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+      <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+        <button
+          onClick={() => setShowProtoCategoriesModal(true)}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: theme.colors.primary.main,
+            cursor: 'pointer',
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.medium,
+          }}
+        >
+          {t('settings.protoCategories.viewButton')}
+        </button>
         <button
           onClick={handleConsolidateCategories}
           disabled={isConsolidating}
@@ -159,6 +174,12 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
         </button>
       </div>
       <RecategorizeProgressBar progress={recategorizeProgress} onDismiss={dismissProgress} />
+      {showProtoCategoriesModal && (
+        <ProtoCategoriesModal
+          onClose={() => setShowProtoCategoriesModal(false)}
+          onCategoryPromoted={() => window.location.reload()}
+        />
+      )}
     </div>
   );
 

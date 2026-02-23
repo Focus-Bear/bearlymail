@@ -3211,6 +3211,16 @@ export class EmailsService {
   }
 
   /**
+   * Get category debug data for an email (admin only)
+   * Returns the email data, available categories, and user context that would have been
+   * passed to the LLM for categorization.
+   * Delegates to EmailDebugService
+   */
+  async getCategoryDebugData(userId: string, emailId: string) {
+    return this.emailDebugService.getCategoryDebugData(userId, emailId);
+  }
+
+  /**
    * Detect GitHub links in email and fetch their status
    * This runs asynchronously and doesn't block email processing
    */

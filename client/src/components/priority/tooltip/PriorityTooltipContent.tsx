@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { PriorityTooltipHeader } from 'components/priority/tooltip/PriorityTooltipHeader';

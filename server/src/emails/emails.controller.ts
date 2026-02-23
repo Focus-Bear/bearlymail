@@ -764,6 +764,12 @@ export class EmailsController {
     return this.emailsService.lookupThread(req.user.userId, threadId);
   }
 
+  @Get(":id/debug/category")
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async getCategoryDebugData(@Request() req, @Param("id") id: string) {
+    return this.emailsService.getCategoryDebugData(req.user.userId, id);
+  }
+
   @Post("send")
   @UseInterceptors(FilesInterceptor("files", 10))
   async sendEmail(

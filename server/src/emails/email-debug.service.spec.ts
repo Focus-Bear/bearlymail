@@ -4,6 +4,11 @@ import { Repository } from "typeorm";
 import { EmailDebugService } from "./email-debug.service";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import {
+  UserContext,
+  ContextKey,
+} from "../database/entities/user-context.entity";
+import { ProtoCategory } from "../database/entities/proto-category.entity";
 import { EmailProviderManager } from "./email-provider-manager.service";
 import { GmailProvider } from "./providers/gmail.provider";
 import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
@@ -13,6 +18,8 @@ describe("EmailDebugService", () => {
   let service: EmailDebugService;
   let mockEmailRepository: jest.Mocked<Repository<Email>>;
   let mockEmailThreadRepository: jest.Mocked<Repository<EmailThread>>;
+  let mockUserContextRepository: jest.Mocked<Repository<UserContext>>;
+  let mockProtoCategoryRepository: jest.Mocked<Repository<ProtoCategory>>;
   let mockGmailProvider: jest.Mocked<Partial<GmailProvider>>;
   let mockBlockedSendersService: jest.Mocked<Partial<BlockedSendersService>>;
 
@@ -35,6 +42,14 @@ describe("EmailDebugService", () => {
       save: jest.fn(),
     } as unknown as jest.Mocked<Repository<EmailThread>>;
 
+    mockUserContextRepository = {
+      find: jest.fn().mockResolvedValue([]),
+    } as unknown as jest.Mocked<Repository<UserContext>>;
+
+    mockProtoCategoryRepository = {
+      find: jest.fn().mockResolvedValue([]),
+    } as unknown as jest.Mocked<Repository<ProtoCategory>>;
+
     mockGmailProvider = {
       lookupByGmailUrlId: jest.fn(),
     };
@@ -53,6 +68,14 @@ describe("EmailDebugService", () => {
         {
           provide: getRepositoryToken(EmailThread),
           useValue: mockEmailThreadRepository,
+        },
+        {
+          provide: getRepositoryToken(UserContext),
+          useValue: mockUserContextRepository,
+        },
+        {
+          provide: getRepositoryToken(ProtoCategory),
+          useValue: mockProtoCategoryRepository,
         },
         {
           provide: EmailProviderManager,
@@ -139,12 +162,16 @@ describe("EmailDebugService", () => {
       } as EmailThread;
 
       // First two DB lookups (by message ID and by thread ID using URL ID) return not found
-      mockEmailRepository.findOne.mockResolvedValue(null); // lookupByMessageId
+      // lookupByMessageId
+      mockEmailRepository.findOne.mockResolvedValue(null);
       mockEmailThreadRepository.findOne
-        .mockResolvedValueOnce(null) // first lookupThread call (by urlId)
-        .mockResolvedValueOnce(mockThread); // second lookupThread call (by resolved threadId)
+        // first lookupThread call (by urlId)
+        .mockResolvedValueOnce(null)
+        // second lookupThread call (by resolved threadId)
+        .mockResolvedValueOnce(mockThread);
 
-      mockEmailRepository.find.mockResolvedValue([]); // emails in thread
+      // emails in thread
+      mockEmailRepository.find.mockResolvedValue([]);
 
       const gmailApiResponse = {
         messageId: "18a1234567890abc",
@@ -215,6 +242,134 @@ describe("EmailDebugService", () => {
 
       expect(result.found).toBe(false);
       expect(result.gmailApiResult?.foundInGmailApi).toBe(false);
+    });
+  });
+
+  describe("getCategoryDebugData", () => {
+    const userId = "user-123";
+    const emailId = "email-abc";
+
+    it("should return email data, categories and user context", async () => {
+      const mockEmail = {
+        id: emailId,
+        userId,
+        emailThreadId: "thread-uuid-1",
+        from: "sender@example.com",
+        fromName: "Sender Name",
+        senderJobTitle: "Engineer",
+        subject: "Test email subject",
+        body: "This is the email body",
+      } as Email;
+
+      const mockThread = {
+        id: "thread-uuid-1",
+        userId,
+        category: "PR Bot Comments",
+        categoryExplanation: "Automated PR comment from a bot",
+      } as EmailThread;
+
+      const mockContexts: UserContext[] = [
+        {
+          contextId: "ctx-1",
+          userId,
+          contextKey: ContextKey.EMAIL_CATEGORY,
+          contextValue: "PR Bot Comments - GitHub PR bot notifications",
+        } as UserContext,
+        {
+          contextId: "ctx-2",
+          userId,
+          contextKey: ContextKey.URGENT,
+          contextValue: "Production issues",
+          explanation: "Anything breaking prod",
+        } as UserContext,
+        {
+          contextId: "ctx-3",
+          userId,
+          contextKey: ContextKey.MY_GOALS,
+          contextValue: "Ship feature X",
+          priority: 1,
+        } as UserContext,
+      ];
+
+      const mockProtoCategories: ProtoCategory[] = [
+        {
+          id: "proto-1",
+          userId,
+          name: "🤖 Bot Alerts",
+          description: "Automated alerts from bots",
+          emailCount: 3,
+          isPromoted: false,
+        } as ProtoCategory,
+      ];
+
+      mockEmailRepository.findOne.mockResolvedValue(mockEmail);
+      mockEmailThreadRepository.findOne.mockResolvedValue(mockThread);
+      mockUserContextRepository.find.mockResolvedValue(mockContexts);
+      mockProtoCategoryRepository.find.mockResolvedValue(mockProtoCategories);
+
+      const result = await service.getCategoryDebugData(userId, emailId);
+
+      expect(result.email.from).toBe("sender@example.com");
+      expect(result.email.fromName).toBe("Sender Name");
+      expect(result.email.senderJobTitle).toBe("Engineer");
+      expect(result.email.subject).toBe("Test email subject");
+      expect(result.email.bodyPreview).toBeTruthy();
+
+      expect(result.thread.category).toBe("PR Bot Comments");
+      expect(result.thread.categoryExplanation).toBe(
+        "Automated PR comment from a bot",
+      );
+
+      expect(result.emailCategories).toHaveLength(1);
+      expect(result.emailCategories[0].name).toBe("PR Bot Comments");
+      expect(result.emailCategories[0].description).toBe(
+        "GitHub PR bot notifications",
+      );
+
+      expect(result.protoCategories).toHaveLength(1);
+      expect(result.protoCategories[0].name).toBe("🤖 Bot Alerts");
+
+      expect(result.userContext.urgentItems).toHaveLength(1);
+      expect(result.userContext.urgentItems[0].value).toBe("Production issues");
+      expect(result.userContext.urgentItems[0].explanation).toBe(
+        "Anything breaking prod",
+      );
+
+      expect(result.userContext.goals).toHaveLength(1);
+      expect(result.userContext.goals[0].value).toBe("Ship feature X");
+      expect(result.userContext.goals[0].priority).toBe(1);
+    });
+
+    it("should throw when email is not found", async () => {
+      mockEmailRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.getCategoryDebugData(userId, emailId),
+      ).rejects.toThrow(`Email ${emailId} not found for user ${userId}`);
+    });
+
+    it("should handle email with no thread", async () => {
+      const mockEmail = {
+        id: emailId,
+        userId,
+        emailThreadId: null,
+        from: "sender@example.com",
+        fromName: "Sender",
+        senderJobTitle: "",
+        subject: "Subject",
+        body: "Body",
+      } as unknown as Email;
+
+      mockEmailRepository.findOne.mockResolvedValue(mockEmail);
+      mockUserContextRepository.find.mockResolvedValue([]);
+      mockProtoCategoryRepository.find.mockResolvedValue([]);
+
+      const result = await service.getCategoryDebugData(userId, emailId);
+
+      expect(result.thread.category).toBeNull();
+      expect(result.thread.categoryExplanation).toBeNull();
+      expect(result.emailCategories).toHaveLength(0);
+      expect(result.protoCategories).toHaveLength(0);
     });
   });
 });

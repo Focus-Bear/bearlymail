@@ -1,6 +1,7 @@
 import React, { useRef, useMemo, useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
+import { useSelector } from 'react-redux';
 import { theme } from 'theme/theme';
 import { Email, InboxMode, getEmailPriorityScore } from 'types/email';
 import { API_URL } from 'config/api';
@@ -15,6 +16,7 @@ import { BatchInfoBar } from 'components/inbox/BatchInfoBar';
 import { useSplitView } from 'hooks/useSplitView';
 import { CategoryAccordion, groupEmailsByCategory, CategoryGroup } from 'components/inbox/CategoryAccordion';
 import { CategorySummaryItem } from 'store/slices/emailSlice';
+import { selectSummaryLoading } from 'store/selectors/emailSelectors';
 import { useNotifications } from 'contexts/NotificationContext';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
@@ -113,6 +115,11 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   const { t } = useTranslation();
   const { showNotification } = useNotifications();
   const { isMobile } = useResponsiveBreakpoints();
+  const summaryLoading = useSelector(selectSummaryLoading);
+  // True when we're fetching a fresh summary and have no cached category data yet.
+  // In this state we show a loading indicator and suppress the empty-state to avoid
+  // a false "No emails" flash while data is being fetched.
+  const isRefetchingWithoutData = summaryLoading && (categorySummary === null || categorySummary === undefined);
   const splitViewContainerRef = useRef<HTMLDivElement>(null);
   const [isReanalysingOther, setIsReanalysingOther] = useState(false);
   const isLoadingMoreRef = useRef(false);
@@ -334,21 +341,24 @@ export const InboxContent: React.FC<InboxContentProps> = ({
             />
           )}
           <EmailListStates
-            loading={loading}
+            loading={loading || isRefetchingWithoutData}
             hasInitiallyLoaded={hasInitiallyLoaded}
             loadingModeSwitch={loadingModeSwitch}
             decrypting={decrypting}
             fetchError={fetchError}
             emailsEmpty={
-              // Empty when summary loaded and has no categories, or (fallback) no emails loaded
-              categorySummary !== null && categorySummary !== undefined
-                ? categorySummary.length === 0 && !loading && !loadingModeSwitch
-                : emails.length === 0 && !loading && !loadingModeSwitch
+              // Never show empty state while we're fetching (suppresses false "no emails" flash)
+              !isRefetchingWithoutData && (
+                // Empty when summary loaded and has no categories, or (fallback) no emails loaded
+                categorySummary !== null && categorySummary !== undefined
+                  ? categorySummary.length === 0 && !loading && !loadingModeSwitch
+                  : emails.length === 0 && !loading && !loadingModeSwitch
+              )
             }
             mode={mode}
             onRetry={onRetry}
           />
-          {!loading && hasInitiallyLoaded && !loadingModeSwitch && !fetchError && displayCategories.length > 0 && (
+          {!loading && !isRefetchingWithoutData && hasInitiallyLoaded && !loadingModeSwitch && !fetchError && displayCategories.length > 0 && (
             displayCategories.map((categoryItem, catIdx) => {
               const categoryName = categoryItem.name;
               const isExpanded = expandedCategories.has(categoryName);
@@ -356,6 +366,10 @@ export const InboxContent: React.FC<InboxContentProps> = ({
               const isCategoryLoading = (loadingCategoryNames ?? []).includes(categoryName);
               const group = emailCategoryMap.get(categoryName);
               const categoryEmails = group?.emails ?? [];
+
+              // If the category has been fully loaded but all emails are gone (e.g. archived),
+              // don't render the accordion — it would show an empty, misleading shell.
+              if (isLoaded && categoryEmails.length === 0) return null;
 
               // Compute global index for keyboard navigation (across categories)
               let globalIndex = 0;
@@ -369,7 +383,8 @@ export const InboxContent: React.FC<InboxContentProps> = ({
                   key={categoryName}
                   category={categoryName}
                   emails={categoryEmails}
-                  count={categoryItem.count}
+                  // Use actual email count when loaded (summary count can be stale after archives)
+                  count={isLoaded ? categoryEmails.length : categoryItem.count}
                   isLoadingContent={isExpanded && isCategoryLoading && !isLoaded}
                   isExpanded={isExpanded}
                   onToggle={() => onToggleCategory(categoryName)}

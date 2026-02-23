@@ -9,6 +9,10 @@ import { ArchiveConfirmationToast } from 'components/inbox/ArchiveConfirmationTo
 interface CategoryAccordionProps {
   category: string;
   emails: Email[];
+  /** Total count from the inbox summary (shown in badge even before emails are loaded) */
+  count?: number;
+  /** True while the category emails are being fetched for the first time */
+  isLoadingContent?: boolean;
   isExpanded: boolean;
   onToggle: () => void;
   onArchiveAll?: (emailIds: string[]) => Promise<void>;
@@ -55,6 +59,8 @@ const ARCHIVE_ALL_ICON = '🗄️';
 export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
   category,
   emails,
+  count,
+  isLoadingContent,
   isExpanded,
   onToggle,
   onArchiveAll,
@@ -69,7 +75,8 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
   const [isReanalyseHovered, setIsReanalyseHovered] = useState(false);
   const [isArchiveAllHovered, setIsArchiveAllHovered] = useState(false);
   const [showArchiveConfirmation, setShowArchiveConfirmation] = useState(false);
-  const emailCount = emails.length;
+  // Use summary count when available (shows accurate count even before emails are loaded)
+  const emailCount = count !== undefined ? count : emails.length;
   const emailIds = emails.map(e => e.id);
   const isOtherCategory = category === 'Other';
 
@@ -279,7 +286,27 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
             gap: theme.spacing.md,
           }}
         >
-          {children}
+          {isLoadingContent ? (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: theme.spacing.lg,
+              color: theme.colors.text.secondary,
+              fontSize: theme.typography.fontSize.sm,
+              gap: theme.spacing.sm,
+            }}>
+              <div style={{
+                width: '14px',
+                height: '14px',
+                border: '2px solid rgba(128,128,128,0.3)',
+                borderTopColor: 'currentColor',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite',
+              }} />
+              {t('inbox.category.loadingContent')}
+            </div>
+          ) : children}
         </div>
       )}
     </div>

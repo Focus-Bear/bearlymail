@@ -49,6 +49,9 @@ const FocusedInbox: React.FC = () => {
     stableCategoryOrder,
     toggleCategory,
     updateStableCategoryOrder,
+    categorySummary,
+    loadedCategoryNames,
+    loadingCategoryNames,
   } = useInboxState({ isFocusedMode: true });
 
   if (loading) {
@@ -119,6 +122,9 @@ const FocusedInbox: React.FC = () => {
           onUpdateStableCategoryOrder={updateStableCategoryOrder}
           onLoadMore={loadMore}
           hasMore={hasMore}
+          categorySummary={categorySummary}
+          loadedCategoryNames={loadedCategoryNames}
+          loadingCategoryNames={loadingCategoryNames}
           onSplitViewArchive={(archivedEmailId) => {
             const visibleEmails = emails.filter(e => !e.isArchived && e.id !== archivedEmailId);
 

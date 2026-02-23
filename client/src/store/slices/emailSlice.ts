@@ -9,6 +9,11 @@ export interface AnimatingOutItem {
   type: 'archive' | 'priority';
 }
 
+export interface CategorySummaryItem {
+  name: string;
+  count: number;
+}
+
 interface EmailState {
   emails: Email[];
   optimisticallyArchived: string[];
@@ -22,6 +27,10 @@ interface EmailState {
   hasMore: boolean;
   totalCount: number;
   currentOffset: number;
+  categorySummary: CategorySummaryItem[] | null;
+  summaryLoading: boolean;
+  loadedCategoryNames: string[];
+  loadingCategoryNames: string[];
 }
 
 const initialState: EmailState = {
@@ -37,6 +46,10 @@ const initialState: EmailState = {
   hasMore: false,
   totalCount: 0,
   currentOffset: 0,
+  categorySummary: null,
+  summaryLoading: false,
+  loadedCategoryNames: [],
+  loadingCategoryNames: [],
 };
 
 const emailSlice = createSlice({
@@ -151,6 +164,30 @@ const emailSlice = createSlice({
     removeAnimatingOut: (state, action: PayloadAction<string>) => {
       state.animatingOut = state.animatingOut.filter(item => item.id !== action.payload);
     },
+    setCategorySummary: (state, action: PayloadAction<CategorySummaryItem[]>) => {
+      state.categorySummary = action.payload;
+      state.summaryLoading = false;
+    },
+    setSummaryLoading: (state, action: PayloadAction<boolean>) => {
+      state.summaryLoading = action.payload;
+    },
+    markCategoryLoaded: (state, action: PayloadAction<string>) => {
+      if (!state.loadedCategoryNames.includes(action.payload)) {
+        state.loadedCategoryNames.push(action.payload);
+      }
+      state.loadingCategoryNames = state.loadingCategoryNames.filter(n => n !== action.payload);
+    },
+    markCategoryLoading: (state, action: PayloadAction<string>) => {
+      if (!state.loadingCategoryNames.includes(action.payload)) {
+        state.loadingCategoryNames.push(action.payload);
+      }
+    },
+    clearCategoryState: (state) => {
+      state.categorySummary = null;
+      state.summaryLoading = false;
+      state.loadedCategoryNames = [];
+      state.loadingCategoryNames = [];
+    },
   },
 });
 
@@ -174,6 +211,11 @@ export const {
   setFetchError,
   addAnimatingOut,
   removeAnimatingOut,
+  setCategorySummary,
+  setSummaryLoading,
+  markCategoryLoaded,
+  markCategoryLoading,
+  clearCategoryState,
 } = emailSlice.actions;
 
 export default emailSlice.reducer;

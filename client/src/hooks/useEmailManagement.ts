@@ -8,7 +8,8 @@ import { useEmailActionsBase } from 'hooks/useEmailActionsBase';
 import { InboxFilter } from 'hooks/useInboxFilters';
 import { AppDispatch } from 'store/store';
 import { updateEmail, setRefreshing, setEmails as setEmailsAction, setLoadingModeSwitch as setLoadingModeSwitchAction } from 'store/slices/emailSlice';
-import { selectVisibleEmails, selectLoading, selectDecrypting, selectRefreshing, selectLoadingModeSwitch, selectFetchError, selectHasMore } from 'store/selectors/emailSelectors';
+import { selectVisibleEmails, selectLoading, selectDecrypting, selectRefreshing, selectLoadingModeSwitch, selectFetchError, selectHasMore, selectCategorySummary, selectLoadedCategoryNames, selectLoadingCategoryNames } from 'store/selectors/emailSelectors';
+import { CategorySummaryItem } from 'store/slices/emailSlice';
 
 interface TabCountChanges {
   triage?: number;
@@ -34,7 +35,11 @@ interface UseEmailManagementReturn {
   fetchError: string | null;
   fetchEmails: () => Promise<void>;
   loadMore: () => Promise<void>;
+  fetchCategoryEmails: (categoryName: string) => Promise<void>;
   hasMore: boolean;
+  categorySummary: CategorySummaryItem[] | null;
+  loadedCategoryNames: string[];
+  loadingCategoryNames: string[];
   handleSetStarCount: (emailId: string, starCount: number, e?: React.MouseEvent) => Promise<{ discrepancy: number; predictedStarCount: number } | null>;
   handleArchive: (emailId: string, e: React.MouseEvent) => Promise<void>;
   handleSnooze: (emailId: string, duration: string) => Promise<void>;
@@ -58,7 +63,10 @@ export function useEmailManagement({ mode, onSuggestionRemove, onTabCountsUpdate
   const fetchError = useSelector(selectFetchError);
 
   const hasMore = useSelector(selectHasMore);
-  const { fetchEmails, loadMore } = useEmailFetching({ mode, filters });
+  const categorySummary = useSelector(selectCategorySummary);
+  const loadedCategoryNames = useSelector(selectLoadedCategoryNames);
+  const loadingCategoryNames = useSelector(selectLoadingCategoryNames);
+  const { fetchEmails, loadMore, fetchCategoryEmails } = useEmailFetching({ mode, filters });
 
   const { handleSetStarCount, handleArchive, handleSnooze } = useEmailActionsBase({
     fetchEmails,
@@ -170,7 +178,11 @@ export function useEmailManagement({ mode, onSuggestionRemove, onTabCountsUpdate
     fetchError,
     fetchEmails,
     loadMore,
+    fetchCategoryEmails,
     hasMore,
+    categorySummary,
+    loadedCategoryNames,
+    loadingCategoryNames,
     handleSetStarCount,
     handleArchive,
     handleSnooze,

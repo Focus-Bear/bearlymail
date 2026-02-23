@@ -13,7 +13,8 @@ import { FollowUpActions } from 'components/inbox/FollowUpActions';
 import { DebugView } from 'components/inbox/DebugView';
 import { BatchInfoBar } from 'components/inbox/BatchInfoBar';
 import { useSplitView } from 'hooks/useSplitView';
-import { CategoryAccordion, groupEmailsByCategory } from 'components/inbox/CategoryAccordion';
+import { CategoryAccordion, groupEmailsByCategory, CategoryGroup } from 'components/inbox/CategoryAccordion';
+import { CategorySummaryItem } from 'store/slices/emailSlice';
 import { useNotifications } from 'contexts/NotificationContext';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
@@ -58,6 +59,9 @@ interface InboxContentProps {
   onUpdateStableCategoryOrder: (categories: string[]) => void;
   onLoadMore?: () => Promise<void>;
   hasMore?: boolean;
+  categorySummary?: CategorySummaryItem[] | null;
+  loadedCategoryNames?: string[];
+  loadingCategoryNames?: string[];
 }
 
 // eslint-disable-next-line max-lines-per-function -- Inbox content component requires handling multiple inbox modes, emails, and UI states
@@ -102,6 +106,9 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   onUpdateStableCategoryOrder,
   onLoadMore,
   hasMore,
+  categorySummary,
+  loadedCategoryNames,
+  loadingCategoryNames,
 }) => {
   const { t } = useTranslation();
   const { showNotification } = useNotifications();
@@ -172,45 +179,69 @@ export const InboxContent: React.FC<InboxContentProps> = ({
     [emails]
   );
 
-  const categoryGroups = useMemo(() => 
-    groupEmailsByCategory(filteredEmails),
-    [filteredEmails]
-  );
+  // Build per-category email map from the loaded flat email array
+  const emailCategoryMap = useMemo(() => {
+    const map = new Map<string, CategoryGroup>();
+    groupEmailsByCategory(filteredEmails).forEach(group => {
+      map.set(group.category, group);
+    });
+    return map;
+  }, [filteredEmails]);
 
-  // Update stable category order - only set on initial load, then only append new categories.
-  // This ensures the category display order is fixed once set and doesn't re-sort when
-  // emails are archived/starred (which would change maxPriority and cause layout shifts).
+  // When a summary is available, use it as the authoritative category order.
+  // Fall back to grouping loaded emails when no summary is available.
+  const summaryCategories = categorySummary ?? null;
+
+  // Update stable category order from summary (preferred) or from loaded emails (fallback).
+  // The summary is available before emails are loaded so accordions appear immediately.
   useEffect(() => {
-    if (categoryGroups.length > 0) {
+    if (summaryCategories && summaryCategories.length > 0) {
       if (stableCategoryOrder.length === 0) {
-        // Initial load - set the order based on priority sorting
-        onUpdateStableCategoryOrder(categoryGroups.map(g => g.category));
+        onUpdateStableCategoryOrder(summaryCategories.map(c => c.name));
       } else {
-        // Only add new categories that aren't already in the stable order
-        const newCategories = categoryGroups
-          .filter(g => !stableCategoryOrder.includes(g.category))
-          .map(g => g.category);
-        
+        const newCategories = summaryCategories
+          .map(c => c.name)
+          .filter(name => !stableCategoryOrder.includes(name));
         if (newCategories.length > 0) {
           onUpdateStableCategoryOrder([...stableCategoryOrder, ...newCategories]);
         }
       }
+    } else if (!summaryCategories) {
+      // Fallback: derive order from loaded emails (legacy path)
+      const categoryGroups = groupEmailsByCategory(filteredEmails);
+      if (categoryGroups.length > 0) {
+        if (stableCategoryOrder.length === 0) {
+          onUpdateStableCategoryOrder(categoryGroups.map(g => g.category));
+        } else {
+          const newCategories = categoryGroups
+            .filter(g => !stableCategoryOrder.includes(g.category))
+            .map(g => g.category);
+          if (newCategories.length > 0) {
+            onUpdateStableCategoryOrder([...stableCategoryOrder, ...newCategories]);
+          }
+        }
+      }
     }
-  }, [categoryGroups, stableCategoryOrder, onUpdateStableCategoryOrder]);
+  }, [summaryCategories, filteredEmails, stableCategoryOrder, onUpdateStableCategoryOrder]);
 
-  const sortedCategoryGroups = useMemo(() => {
-    if (stableCategoryOrder.length === 0) {
-      return categoryGroups;
-    }
-    
+  // Build the ordered list of categories to render.
+  // When a summary exists: show ALL categories (even those without loaded emails yet).
+  // Order follows stableCategoryOrder, with new categories appended.
+  const displayCategories = useMemo((): Array<{ name: string; count: number }> => {
+    const source = summaryCategories ?? groupEmailsByCategory(filteredEmails).map(g => ({
+      name: g.category,
+      count: g.emails.length,
+    }));
+
+    if (stableCategoryOrder.length === 0) return source;
+
     const orderMap = new Map(stableCategoryOrder.map((cat, idx) => [cat, idx]));
-    
-    return [...categoryGroups].sort((a, b) => {
-      const orderA = orderMap.get(a.category) ?? Number.MAX_SAFE_INTEGER;
-      const orderB = orderMap.get(b.category) ?? Number.MAX_SAFE_INTEGER;
+    return [...source].sort((a, b) => {
+      const orderA = orderMap.get(a.name) ?? Number.MAX_SAFE_INTEGER;
+      const orderB = orderMap.get(b.name) ?? Number.MAX_SAFE_INTEGER;
       return orderA - orderB;
     });
-  }, [categoryGroups, stableCategoryOrder]);
+  }, [summaryCategories, filteredEmails, stableCategoryOrder]);
 
   const selectedEmailForPanel = useMemo(() => 
     splitView.selectedEmailId ? emails.find(e => e.id === splitView.selectedEmailId) : undefined,
@@ -308,31 +339,45 @@ export const InboxContent: React.FC<InboxContentProps> = ({
             loadingModeSwitch={loadingModeSwitch}
             decrypting={decrypting}
             fetchError={fetchError}
-            emailsEmpty={emails.length === 0 && !loading && !loadingModeSwitch}
+            emailsEmpty={
+              // Empty when summary loaded and has no categories, or (fallback) no emails loaded
+              categorySummary !== null && categorySummary !== undefined
+                ? categorySummary.length === 0 && !loading && !loadingModeSwitch
+                : emails.length === 0 && !loading && !loadingModeSwitch
+            }
             mode={mode}
             onRetry={onRetry}
           />
-          {!loading && hasInitiallyLoaded && !loadingModeSwitch && !fetchError && filteredEmails.length > 0 && (
-            sortedCategoryGroups.map((group) => {
-              const isExpanded = expandedCategories.has(group.category);
+          {!loading && hasInitiallyLoaded && !loadingModeSwitch && !fetchError && displayCategories.length > 0 && (
+            displayCategories.map((categoryItem, catIdx) => {
+              const categoryName = categoryItem.name;
+              const isExpanded = expandedCategories.has(categoryName);
+              const isLoaded = (loadedCategoryNames ?? []).includes(categoryName);
+              const isCategoryLoading = (loadingCategoryNames ?? []).includes(categoryName);
+              const group = emailCategoryMap.get(categoryName);
+              const categoryEmails = group?.emails ?? [];
+
+              // Compute global index for keyboard navigation (across categories)
               let globalIndex = 0;
-              for (const g of sortedCategoryGroups) {
-                if (g.category === group.category) break;
-                globalIndex += g.emails.length;
+              for (let i = 0; i < catIdx; i++) {
+                const prevGroup = emailCategoryMap.get(displayCategories[i].name);
+                globalIndex += prevGroup?.emails.length ?? 0;
               }
-              
+
               return (
                 <CategoryAccordion
-                  key={group.category}
-                  category={group.category}
-                  emails={group.emails}
+                  key={categoryName}
+                  category={categoryName}
+                  emails={categoryEmails}
+                  count={categoryItem.count}
+                  isLoadingContent={isExpanded && isCategoryLoading && !isLoaded}
                   isExpanded={isExpanded}
-                  onToggle={() => onToggleCategory(group.category)}
+                  onToggle={() => onToggleCategory(categoryName)}
                   onArchiveAll={onBulkArchive}
                   onReanalyseOther={handleReanalyseOther}
                   isReanalysingOther={isReanalysingOther}
                 >
-                  {group.emails.map((email, indexInCategory) => {
+                  {categoryEmails.map((email, indexInCategory) => {
                     const emailIndex = globalIndex + indexInCategory;
                     const suggestion = mode === MODE_TRIAGE ? (triageSuggestions.get(email.id) || null) : null;
                     const isSelected = selectedEmailIds.has(email.id) || selectedEmailIndex === emailIndex;
@@ -365,7 +410,7 @@ export const InboxContent: React.FC<InboxContentProps> = ({
                         }}
                         followUpData={followUpData}
                         onUpdateDraft={updateDraft}
-                        onSendFollowUp={(followUpId: string, draft: string) => 
+                        onSendFollowUp={(followUpId: string, draft: string) =>
                           handleSendFollowUp(followUpId, draft, (email as any).otherPersonName)
                         }
                         recipientName={(email as any).otherPersonName}

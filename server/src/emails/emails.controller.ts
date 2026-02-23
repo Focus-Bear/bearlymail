@@ -184,6 +184,24 @@ export class EmailsController {
     return this.emailsService.getCategories(req.user.userId);
   }
 
+  @Get("inbox-summary")
+  async getInboxSummary(
+    @Request() req,
+    @Query("mode") mode: "triage" | "action" | "follow-up" = "triage",
+    @Query("categories") categories?: string,
+    @Query("minPriority") minPriority?: string,
+  ) {
+    const categoryList = categories
+      ? categories.split(",").filter(Boolean)
+      : undefined;
+    const minPriorityValue = minPriority ? parseFloat(minPriority) : undefined;
+
+    return this.emailsService.getInboxSummary(req.user.userId, mode, {
+      categories: categoryList,
+      minPriority: minPriorityValue,
+    });
+  }
+
   @Get("batch-status")
   async getBatchStatus(@Request() req) {
     const perf = new BatchStatusPerformanceTracker();

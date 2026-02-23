@@ -1,7 +1,7 @@
 import { createSelector } from '@reduxjs/toolkit';
 import { RootState } from '../store';
 import { Email } from 'types/email';
-import { AnimatingOutItem } from 'store/slices/emailSlice';
+import { AnimatingOutItem, CategorySummaryItem } from 'store/slices/emailSlice';
 
 // Basic selectors
 export const selectEmails = (state: RootState): Email[] => state.email.emails;
@@ -40,4 +40,10 @@ export const selectIsOptimisticallyArchived = (emailId: string) =>
 export const selectHasMore = (state: RootState): boolean => state.email.hasMore;
 export const selectTotalCount = (state: RootState): number => state.email.totalCount;
 export const selectCurrentOffset = (state: RootState): number => state.email.currentOffset;
+
+// Category summary selectors
+export const selectCategorySummary = (state: RootState): CategorySummaryItem[] | null => state.email.categorySummary;
+export const selectSummaryLoading = (state: RootState): boolean => state.email.summaryLoading;
+export const selectLoadedCategoryNames = (state: RootState): string[] => state.email.loadedCategoryNames;
+export const selectLoadingCategoryNames = (state: RootState): string[] => state.email.loadingCategoryNames;
 

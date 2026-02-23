@@ -7,36 +7,46 @@ import { InboxMode } from 'types/email';
 import { API_URL } from 'config/api';
 import { InboxFilter } from 'hooks/useInboxFilters';
 import { AppDispatch } from 'store/store';
-import { setEmails, appendEmails, setHasMore, setTotalCount, setCurrentOffset, setDecrypting, setLoading, setRefreshing, setLoadingModeSwitch, setFetchError } from 'store/slices/emailSlice';
-import { selectCurrentOffset } from 'store/selectors/emailSelectors';
-
-const INBOX_PAGE_SIZE = 50;
+import {
+  setEmails,
+  appendEmails,
+  setHasMore,
+  setTotalCount,
+  setCurrentOffset,
+  setDecrypting,
+  setLoading,
+  setRefreshing,
+  setLoadingModeSwitch,
+  setFetchError,
+  setCategorySummary,
+  setSummaryLoading,
+  markCategoryLoaded,
+  markCategoryLoading,
+  clearCategoryState,
+} from 'store/slices/emailSlice';
+import { selectCurrentOffset, selectLoadedCategoryNames } from 'store/selectors/emailSelectors';
 
 interface UseEmailFetchingProps {
   mode: InboxMode;
   filters?: InboxFilter;
 }
 
-// eslint-disable-next-line max-lines-per-function -- Inbox fetching requires pagination, background prefetch, and error handling
+// eslint-disable-next-line max-lines-per-function -- Inbox fetching requires summary, per-category lazy loading, and error handling
 export function useEmailFetching({
   mode,
   filters,
 }: UseEmailFetchingProps) {
   const dispatch = useDispatch<AppDispatch>();
   const currentOffset = useSelector(selectCurrentOffset);
+  const loadedCategoryNames = useSelector(selectLoadedCategoryNames);
   // Prevent concurrent loadMore calls (background prefetch + scroll trigger)
   const isLoadingMoreRef = useRef(false);
 
-  const buildParams = useCallback((offset: number): URLSearchParams => {
+  const buildSummaryParams = useCallback((): URLSearchParams => {
     const params = new URLSearchParams();
     params.append('mode', mode);
-    params.append('limit', INBOX_PAGE_SIZE.toString());
-    params.append('offset', offset.toString());
 
     if (filters) {
-      if (filters.accountIds && filters.accountIds.length > 0) {
-        params.append('accounts', filters.accountIds.join(','));
-      }
       if (filters.categories && filters.categories.length > 0) {
         params.append('categories', filters.categories.join(','));
       }
@@ -48,63 +58,63 @@ export function useEmailFetching({
     return params;
   }, [mode, filters]);
 
-  // Note: We no longer filter optimistically archived emails here.
-  // Instead, filtering is done at the selector level (selectVisibleEmails) which always
-  // has access to the latest Redux state. This fixes the issue where the ref-based
-  // approach could have stale values when fetchEmails is called before the useEffect
-  // that updates the ref has a chance to run.
+  const buildCategoryParams = useCallback((categoryName: string): URLSearchParams => {
+    const params = new URLSearchParams();
+    params.append('mode', mode);
+    params.append('categories', categoryName);
+    // Fetch all emails for this category in one request
+    params.append('limit', '500');
+    params.append('offset', '0');
 
+    if (filters) {
+      if (filters.accountIds && filters.accountIds.length > 0) {
+        params.append('accounts', filters.accountIds.join(','));
+      }
+      if (filters.minPriority !== null && filters.minPriority !== undefined) {
+        params.append('minPriority', filters.minPriority.toString());
+      }
+    }
+
+    return params;
+  }, [mode, filters]);
+
+  /**
+   * Fetch the inbox summary: category names and counts.
+   * This replaces the old fetchEmails behaviour — accordions are rendered from the
+   * summary immediately, then each category's emails are loaded lazily on expand.
+   */
   const fetchEmails = useCallback(async () => {
     dispatch(setDecrypting(true));
+    dispatch(setSummaryLoading(true));
     dispatch(setFetchError(null));
+    dispatch(clearCategoryState());
+    dispatch(setEmails([]));
     dispatch(setCurrentOffset(0));
+    dispatch(setHasMore(false));
+    dispatch(setTotalCount(0));
     isLoadingMoreRef.current = false;
     try {
-      const params = buildParams(0);
-      // Keep page param for backward compat with controller
-      params.append('page', '1');
+      const params = buildSummaryParams();
 
-      const response = await axios.get(`${API_URL}/emails/inbox?${params.toString()}`);
-      const { emails, total, hasMore } = response.data;
-      console.log(`Fetched ${emails.length}/${total} emails for mode: ${mode}, hasMore: ${hasMore}`);
+      const response = await axios.get(`${API_URL}/emails/inbox-summary?${params.toString()}`);
+      const { total, categories } = response.data;
+      console.log(`Fetched inbox summary: ${categories.length} categories, ${total} total emails for mode: ${mode}`);
 
-      dispatch(setEmails(emails));
+      dispatch(setCategorySummary(categories));
       dispatch(setTotalCount(total));
-      dispatch(setHasMore(hasMore));
-      dispatch(setCurrentOffset(emails.length));
       dispatch(setDecrypting(false));
       dispatch(setFetchError(null));
-
-      // Background prefetch: silently load the next page so it's ready when user scrolls
-      if (hasMore && emails.length > 0) {
-        const nextOffset = emails.length;
-        isLoadingMoreRef.current = true;
-        axios.get(`${API_URL}/emails/inbox?${buildParams(nextOffset).toString()}`)
-          .then(({ data }) => {
-            const { emails: moreEmails, total: newTotal, hasMore: newHasMore } = data;
-            console.log(`Background prefetch: ${moreEmails.length}/${newTotal} emails for mode: ${mode}`);
-            dispatch(appendEmails(moreEmails));
-            dispatch(setTotalCount(newTotal));
-            dispatch(setHasMore(newHasMore));
-            dispatch(setCurrentOffset(nextOffset + moreEmails.length));
-          })
-          .catch(() => {
-            // Silently ignore background prefetch errors
-          })
-          .finally(() => {
-            isLoadingMoreRef.current = false;
-          });
-      }
     } catch (error: any) {
-      console.error('Error fetching emails:', error);
+      console.error('Error fetching inbox summary:', error);
       dispatch(setDecrypting(false));
+      dispatch(setSummaryLoading(false));
       // eslint-disable-next-line no-restricted-syntax -- Error code comparison requires literal string for axios error codes
       if (error.code === ERROR_CODE_ERR_NETWORK || error.message?.includes(ERROR_NETWORK)) {
         dispatch(setFetchError('Unable to connect to the server. Please check if the server is running.'));
       } else if (error.response?.status === HTTP_UNAUTHORIZED) {
         const errorMessage = error.response?.data?.message || '';
         if (errorMessage.includes(ERROR_GMAIL_REQUIRED) || errorMessage.includes(ERROR_GMAIL)) {
-          dispatch(setFetchError('GMAIL_REQUIRED')); // Special error code for Gmail requirement
+          dispatch(setFetchError('GMAIL_REQUIRED'));
         } else {
           dispatch(setFetchError('Please log in again to view emails.'));
         }
@@ -116,30 +126,44 @@ export function useEmailFetching({
       dispatch(setRefreshing(false));
       dispatch(setLoadingModeSwitch(false));
     }
-  }, [mode, filters, dispatch, buildParams]);
+  }, [mode, filters, dispatch, buildSummaryParams]);
 
+  /**
+   * Fetch emails for a specific category and append to the flat email list.
+   * Called when the user expands a category accordion that hasn't been loaded yet.
+   */
+  const fetchCategoryEmails = useCallback(async (categoryName: string) => {
+    if (loadedCategoryNames.includes(categoryName)) return;
+
+    dispatch(markCategoryLoading(categoryName));
+    try {
+      const params = buildCategoryParams(categoryName);
+
+      const response = await axios.get(`${API_URL}/emails/inbox?${params.toString()}`);
+      const { emails } = response.data;
+      console.log(`Fetched ${emails.length} emails for category: ${categoryName}`);
+
+      dispatch(appendEmails(emails));
+      dispatch(markCategoryLoaded(categoryName));
+    } catch (error: any) {
+      console.error(`Error fetching emails for category ${categoryName}:`, error);
+      // Mark as loaded even on error to prevent infinite loading spinner
+      dispatch(markCategoryLoaded(categoryName));
+    }
+  }, [mode, filters, dispatch, buildCategoryParams, loadedCategoryNames]);
+
+  // loadMore is kept for backward compatibility but is now a no-op.
+  // Category emails are loaded lazily via fetchCategoryEmails instead.
   const loadMore = useCallback(async () => {
     if (isLoadingMoreRef.current) return;
     isLoadingMoreRef.current = true;
     try {
-      const params = buildParams(currentOffset);
-
-      const response = await axios.get(`${API_URL}/emails/inbox?${params.toString()}`);
-      const { emails, total, hasMore } = response.data;
-      console.log(`Loaded more: ${emails.length}/${total} emails for mode: ${mode}, hasMore: ${hasMore}`);
-
-      dispatch(appendEmails(emails));
-      dispatch(setTotalCount(total));
-      dispatch(setHasMore(hasMore));
-      dispatch(setCurrentOffset(currentOffset + emails.length));
-    } catch (error: any) {
-      console.error('Error loading more emails:', error);
+      // no-op: use fetchCategoryEmails for per-category lazy loading
+      void currentOffset;
     } finally {
       isLoadingMoreRef.current = false;
     }
-  }, [mode, filters, dispatch, currentOffset, buildParams]);
+  }, [currentOffset]);
 
-  return { fetchEmails, loadMore };
+  return { fetchEmails, loadMore, fetchCategoryEmails };
 }
-
-

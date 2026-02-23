@@ -73,6 +73,9 @@ const Inbox: React.FC = () => {
     stableCategoryOrder,
     toggleCategory,
     updateStableCategoryOrder,
+    categorySummary,
+    loadedCategoryNames,
+    loadingCategoryNames,
   } = useInboxState();
 
   const {
@@ -294,6 +297,9 @@ const Inbox: React.FC = () => {
           onUpdateStableCategoryOrder={updateStableCategoryOrder}
           onLoadMore={loadMore}
           hasMore={hasMore}
+          categorySummary={categorySummary}
+          loadedCategoryNames={loadedCategoryNames}
+          loadingCategoryNames={loadingCategoryNames}
           onSplitViewArchive={(archivedEmailId) => {
             // Find the archived email to get its category
             const archivedEmail = emails.find(e => e.id === archivedEmailId);

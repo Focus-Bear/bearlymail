@@ -252,6 +252,75 @@ export class EmailsService {
   }
 
   /**
+   * Get a lightweight summary of inbox categories with counts.
+   * Returns all categories visible to the user without fetching full email data.
+   * Counts are approximate — blocked sender and account filtering are skipped for performance.
+   * For follow-up mode the count includes all starred threads (the per-thread follow-up check is skipped).
+   */
+  async getInboxSummary(
+    userId: string,
+    mode: "triage" | "action" | "follow-up" = "triage",
+    filters?: {
+      categories?: string[];
+      minPriority?: number;
+    },
+  ): Promise<{ total: number; categories: { name: string; count: number }[] }> {
+    const threadFilter =
+      mode === "action" || mode === "follow-up"
+        ? 'AND thread."isArchived" = false AND thread."starCount" > 0'
+        : 'AND thread."isArchived" = false AND thread."starCount" = 0';
+
+    let additionalFilters = "";
+    const queryParams: unknown[] = [userId];
+    let paramIndex = 2;
+
+    if (filters?.minPriority !== undefined) {
+      additionalFilters += ` AND COALESCE(thread."priorityScore", 0) >= $${paramIndex++}`;
+      queryParams.push(filters.minPriority);
+    }
+
+    const rows = await this.emailThreadRepository.query(
+      `SELECT thread.category
+       FROM email_threads thread
+       WHERE thread."userId" = $1
+         ${threadFilter}
+         ${additionalFilters}
+         AND (thread."isBatched" = false OR thread."batchReleaseAt" IS NULL OR thread."batchReleaseAt" <= NOW())
+         AND (thread."isSnoozed" = false OR thread."snoozeUntil" IS NULL OR thread."snoozeUntil" <= NOW())
+       ORDER BY COALESCE(thread."priorityScore", 0) DESC, thread."updatedAt" DESC`,
+      queryParams,
+    );
+
+    // Decrypt categories in-memory (AES-GCM random IVs prevent SQL DISTINCT)
+    const categoryOrder: string[] = [];
+    const categoryCounts: Record<string, number> = {};
+
+    for (const row of rows as { category: string | null }[]) {
+      const category =
+        (row.category ? EncryptionHelper.decrypt(row.category) : null) ||
+        "Other";
+      if (!categoryOrder.includes(category)) {
+        categoryOrder.push(category);
+      }
+      categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+    }
+
+    // Apply user-selected category filter in-memory (same as getInbox)
+    const visibleCategories =
+      filters?.categories && filters.categories.length > 0
+        ? categoryOrder.filter((cat) => filters.categories!.includes(cat))
+        : categoryOrder;
+
+    const categories = visibleCategories.map((name) => ({
+      name,
+      count: categoryCounts[name] || 0,
+    }));
+
+    const total = categories.reduce((sum, cat) => sum + cat.count, 0);
+    return { total, categories };
+  }
+
+  /**
    * Get list of user's connected email accounts
    * Returns account info for filtering inbox by account
    */

@@ -89,7 +89,11 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     fetchError,
     fetchEmails,
     loadMore,
+    fetchCategoryEmails,
     hasMore,
+    categorySummary,
+    loadedCategoryNames,
+    loadingCategoryNames,
     handleSetStarCount: handleSetStarCountBase,
     handleArchive: handleArchiveBase,
     handleSnooze: handleSnoozeBase,
@@ -337,7 +341,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     hasAutoExpandedRef.current = false;
   }, []);
 
-  // Toggle category expansion
+  // Toggle category expansion — fetch category emails lazily on first expand
   const toggleCategory = useCallback((category: string) => {
     setExpandedCategories(prev => {
       const next = new Set(prev);
@@ -345,23 +349,32 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
         next.delete(category);
       } else {
         next.add(category);
+        // Trigger lazy load if not already loaded or loading
+        if (!loadedCategoryNames.includes(category) && !loadingCategoryNames.includes(category)) {
+          fetchCategoryEmails(category).catch(err =>
+            console.error(`Error fetching category emails for ${category}:`, err)
+          );
+        }
       }
       return next;
     });
-  }, []);
+  }, [loadedCategoryNames, loadingCategoryNames, fetchCategoryEmails]);
 
   // Update stable category order when priority-based order changes
   const updateStableCategoryOrder = useCallback((categories: string[]) => {
     if (categories.length > 0) {
       setStableCategoryOrder(categories);
 
-      // Auto-expand the top priority category on initial load
+      // Auto-expand the top priority category on initial load and fetch its emails
       if (!hasAutoExpandedRef.current && categories.length > 0) {
         hasAutoExpandedRef.current = true;
         setExpandedCategories(new Set([categories[0]]));
+        fetchCategoryEmails(categories[0]).catch(err =>
+          console.error(`Error fetching emails for auto-expanded category ${categories[0]}:`, err)
+        );
       }
     }
-  }, []);
+  }, [fetchCategoryEmails]);
 
   useEffect(() => {
     if (isInitialMount.current) {
@@ -484,6 +497,10 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     stableCategoryOrder,
     toggleCategory,
     updateStableCategoryOrder,
+    categorySummary,
+    loadedCategoryNames,
+    loadingCategoryNames,
+    fetchCategoryEmails,
   };
 }
 

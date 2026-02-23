@@ -248,31 +248,42 @@ export class PriorityAnalysisService {
       const jsonMatch = response.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
-        const category = parsed.category || "Other";
+        // Support new format { "result": {...} } and legacy flat format
+        const analysisResult =
+          parsed.result && typeof parsed.result === "object"
+            ? parsed.result
+            : parsed;
+        const category = analysisResult.category || "Other";
         return {
-          urgencyScore: Math.max(0, Math.min(100, parsed.urgencyScore || 0)),
+          urgencyScore: Math.max(
+            0,
+            Math.min(100, analysisResult.urgencyScore || 0),
+          ),
           urgencyExplanation:
-            parsed.urgencyExplanation || "No urgency explanation provided",
+            analysisResult.urgencyExplanation ||
+            "No urgency explanation provided",
           sentimentScore:
-            parsed.sentimentScore !== undefined
-              ? Math.max(-1, Math.min(1, parsed.sentimentScore))
+            analysisResult.sentimentScore !== undefined
+              ? Math.max(-1, Math.min(1, analysisResult.sentimentScore))
               : 0,
           goalAlignmentScore: Math.max(
             0,
-            Math.min(100, parsed.goalAlignmentScore || 0),
+            Math.min(100, analysisResult.goalAlignmentScore || 0),
           ),
           goalAlignmentExplanation:
-            parsed.goalAlignmentExplanation ||
+            analysisResult.goalAlignmentExplanation ||
             "No goal alignment explanation provided",
           category,
           categoryExplanation:
-            parsed.categoryExplanation || "No category explanation provided",
-          reasoning: parsed.reasoning || "No reasoning provided",
+            analysisResult.categoryExplanation ||
+            "No category explanation provided",
+          reasoning: analysisResult.reasoning || "No reasoning provided",
           protoCategorySuggestion:
-            category === "Other" && parsed.protoCategorySuggestion
+            category === "Other" && analysisResult.protoCategorySuggestion
               ? {
-                  name: parsed.protoCategorySuggestion.name || "",
-                  description: parsed.protoCategorySuggestion.description || "",
+                  name: analysisResult.protoCategorySuggestion.name || "",
+                  description:
+                    analysisResult.protoCategorySuggestion.description || "",
                 }
               : undefined,
         };

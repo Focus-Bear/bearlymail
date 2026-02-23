@@ -69,7 +69,12 @@ module.exports = (output, context) => {
   if (!parsed || typeof parsed !== 'object') {
     throw new Error('Response must be a JSON object');
   }
-  
+
+  // Unwrap "result" key if present (new format: { "result": { ... } })
+  if (parsed.result && typeof parsed.result === 'object') {
+    parsed = parsed.result;
+  }
+
   // Validate required fields - new format uses urgencyScore, sentimentScore, reasoning, urgencyExplanation
   if (typeof parsed.urgencyScore !== 'number' || parsed.urgencyScore < 0 || parsed.urgencyScore > 100) {
     throw new Error('Response must have a valid urgencyScore (0-100)');

@@ -20,14 +20,16 @@ const mockEmail = {
 };
 
 const validPriorityResponse = JSON.stringify({
-  urgencyScore: 50,
-  urgencyExplanation: "Moderate urgency",
-  sentimentScore: 0,
-  goalAlignmentScore: 40,
-  goalAlignmentExplanation: "Somewhat aligned",
-  category: "Customer Support",
-  categoryExplanation: "Support request",
-  reasoning: "Standard support email",
+  result: {
+    urgencyScore: 50,
+    urgencyExplanation: "Moderate urgency",
+    sentimentScore: 0,
+    goalAlignmentScore: 40,
+    goalAlignmentExplanation: "Somewhat aligned",
+    category: "Customer Support",
+    categoryExplanation: "Support request",
+    reasoning: "Standard support email",
+  },
 });
 
 describe("PriorityAnalysisService", () => {
@@ -75,7 +77,7 @@ describe("PriorityAnalysisService", () => {
   });
 
   describe("analyzePriority", () => {
-    it("should parse a valid JSON response correctly", async () => {
+    it("should parse a valid JSON response with top-level result key correctly", async () => {
       (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
         validPriorityResponse,
       );
@@ -86,6 +88,27 @@ describe("PriorityAnalysisService", () => {
       expect(result.categoryExplanation).toBe("Support request");
       expect(result.urgencyScore).toBe(50);
       expect(result.sentimentScore).toBe(0);
+    });
+
+    it("should parse legacy flat JSON response for backward compatibility", async () => {
+      const legacyResponse = JSON.stringify({
+        urgencyScore: 75,
+        urgencyExplanation: "High urgency",
+        sentimentScore: -0.5,
+        goalAlignmentScore: 60,
+        goalAlignmentExplanation: "Aligned",
+        category: "Sales",
+        categoryExplanation: "Sales email",
+        reasoning: "Sales inquiry",
+      });
+      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
+        legacyResponse,
+      );
+
+      const result = await service.analyzePriority(mockEmail);
+
+      expect(result.category).toBe("Sales");
+      expect(result.urgencyScore).toBe(75);
     });
 
     it("should pass jsonMode: true to LLM to enforce JSON responses", async () => {
@@ -219,17 +242,19 @@ describe("PriorityAnalysisService", () => {
 
     it("should handle category 'Other' with protoCategorySuggestion", async () => {
       const responseWithProtoCategory = JSON.stringify({
-        urgencyScore: 20,
-        urgencyExplanation: "Low urgency",
-        sentimentScore: 0,
-        goalAlignmentScore: 10,
-        goalAlignmentExplanation: "Not aligned",
-        category: "Other",
-        categoryExplanation: "Does not fit existing categories",
-        reasoning: "Miscellaneous email",
-        protoCategorySuggestion: {
-          name: "📦 Shipping Updates",
-          description: "Emails about package delivery status",
+        result: {
+          urgencyScore: 20,
+          urgencyExplanation: "Low urgency",
+          sentimentScore: 0,
+          goalAlignmentScore: 10,
+          goalAlignmentExplanation: "Not aligned",
+          category: "Other",
+          categoryExplanation: "Does not fit existing categories",
+          reasoning: "Miscellaneous email",
+          protoCategorySuggestion: {
+            name: "📦 Shipping Updates",
+            description: "Emails about package delivery status",
+          },
         },
       });
       (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(

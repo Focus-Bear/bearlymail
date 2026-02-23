@@ -645,7 +645,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
     return (
       <div style={{ display: 'flex', height: '100%', overflow: 'hidden', position: 'relative' }}>
         {/* Main scrollable content */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: theme.spacing.sm, paddingBottom: 0 }}>
+        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: theme.spacing.sm, paddingBottom: 0 }}>
           <div style={{
             backgroundColor: theme.colors.background.paper,
             borderRadius: 0,

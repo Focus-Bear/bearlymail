@@ -343,7 +343,7 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
       )}
       
       {/* EmailDetail component */}
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
         <EmailDetail ref={emailDetailComponentRef} emailId={selectedEmailId} compactMode={true} onArchiveComplete={onArchiveComplete} onSnoozeComplete={onSnoozeComplete} autoGenerateReplies={mode === MODE_ACTION} onCorrespondentChange={handleCorrespondentChange} />
       </div>
     </div>

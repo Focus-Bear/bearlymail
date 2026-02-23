@@ -7,12 +7,15 @@ import {
   Query,
   BadRequestException,
   ServiceUnavailableException,
+  Logger,
 } from "@nestjs/common";
 import { CalendarService } from "./calendar.service";
 import { DAYS, MINUTES } from "../constants/time-constants";
 
 @Controller("public/calendar")
 export class PublicCalendarController {
+  private readonly logger = new Logger(PublicCalendarController.name);
+
   constructor(private readonly calendarService: CalendarService) {}
 
   @Get(":userId/slots")
@@ -27,8 +30,14 @@ export class PublicCalendarController {
         days,
       );
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error";
-      throw new ServiceUnavailableException(message);
+      const message =
+        error instanceof Error ? error.message : "Unknown error";
+      this.logger.warn(
+        `Public calendar slots unavailable for user ${userId}: ${message}`,
+      );
+      throw new ServiceUnavailableException(
+        "Calendar is temporarily unavailable",
+      );
     }
   }
 

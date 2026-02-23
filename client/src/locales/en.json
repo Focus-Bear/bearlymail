@@ -1485,6 +1485,10 @@
       "linkCopied": "Copied!",
       "saved": "Preferences saved",
       "saveError": "Failed to save preferences",
+      "bookingLink": "Your Booking Link",
+      "bookingLinkDescription": "Share this link so others can book time with you based on your availability.",
+      "copyLink": "Copy Link",
+      "linkCopied": "Copied!",
       "days": {
         "sun": "Sun",
         "mon": "Mon",

@@ -268,6 +268,12 @@
       "reanalyseNoNewCategories": "No new categories could be generated from the emails in Other",
       "loadingContent": "Loading emails..."
     },
+    "protoCategory": {
+      "convertToCategory": "Convert to category",
+      "converting": "Converting...",
+      "convertSuccess": "\"{{name}}\" has been converted to a real category",
+      "convertError": "Failed to convert category. Please try again."
+    },
     "filters": {
       "toggle": "Toggle filters",
       "icon": "Filter icon",

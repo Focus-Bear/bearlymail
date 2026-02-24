@@ -904,6 +904,12 @@
       "reanalyseNoNewCategories": "No se pudieron generar nuevas categorías a partir de los correos en Otros",
       "loadingContent": "Cargando correos..."
     },
+    "protoCategory": {
+      "convertToCategory": "Convertir a categoría",
+      "converting": "Convirtiendo...",
+      "convertSuccess": "\"{{name}}\" se ha convertido en una categoría real",
+      "convertError": "Error al convertir la categoría. Por favor, inténtalo de nuevo."
+    },
     "filters": {
       "toggle": "Alternar filtros",
       "icon": "Icono de filtro",

@@ -25,6 +25,7 @@ export const useSearch = () => {
   const [progressStep, setProgressStep] = useState<string>('');
   const [connectedAccounts, setConnectedAccounts] = useState<ConnectedAccount[]>([]);
   const [selectedAccountTypes, setSelectedAccountTypes] = useState<string[]>([]);
+  const [queriesTried, setQueriesTried] = useState<Array<{query: string; resultCount: number; accountType?: string}>>([]);
   // Track search session to discard stale async results
   const searchSessionRef = useRef(0);
 
@@ -55,6 +56,7 @@ export const useSearch = () => {
     setLoading(true);
     setIsRefining(false);
     setHasSearched(true);
+    setQueriesTried([]);
 
     const steps = [
       { delay: 0, message: 'Crafting search query...' },
@@ -108,6 +110,12 @@ export const useSearch = () => {
         } as any as Email]);
         setLoading(false);
         return;
+      }
+
+      // Extract queriesTried from the first result (Phase 1 sets debugInfo on first email)
+      const firstResult = responseData[0] as any;
+      if (firstResult?.debugInfo?.queriesTried) {
+        setQueriesTried(firstResult.debugInfo.queriesTried);
       }
 
       setSearchResults(responseData);
@@ -260,5 +268,6 @@ export const useSearch = () => {
     connectedAccounts,
     selectedAccountTypes,
     handleAccountToggle,
+    queriesTried,
   };
 };

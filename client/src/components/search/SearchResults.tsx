@@ -29,6 +29,7 @@ interface SearchResultsProps {
   getScoreBackgroundColor: (score: number) => string;
   getScoreColor: (score: number) => string;
   getPriorityBadge: (score?: number) => { label: string; color: string; bg: string };
+  queriesTried?: Array<{query: string; resultCount: number; accountType?: string}>;
 }
 
 // eslint-disable-next-line max-lines-per-function -- Search results component requires handling multiple result types and UI states
@@ -40,6 +41,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   getScoreBackgroundColor,
   getScoreColor,
   getPriorityBadge,
+  queriesTried,
 }) => {
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -70,46 +72,70 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
         <p style={{ color: theme.colors.text.secondary, marginBottom: theme.spacing.lg }}>
           {t('search.noResultsHint')}
         </p>
-        {noResultsDebugInfo?.queriesTried && noResultsDebugInfo.queriesTried.length > 0 && (
-          <div style={{
-            marginTop: theme.spacing.md,
-            padding: theme.spacing.md,
-            backgroundColor: theme.colors.background.subtle,
-            borderRadius: theme.borderRadius.md,
-            textAlign: 'left',
+        {noResultsDebugInfo?.message && (
+          <p style={{
+            color: theme.colors.accent.warning,
+            fontSize: theme.typography.fontSize.sm,
+            marginBottom: theme.spacing.md,
+            padding: theme.spacing.sm,
+            backgroundColor: theme.colors.sunray.light3,
+            borderRadius: theme.borderRadius.sm,
           }}>
-            <p style={{
-              color: theme.colors.text.secondary,
-              fontSize: theme.typography.fontSize.sm,
-              marginBottom: theme.spacing.sm,
-              fontWeight: theme.typography.fontWeight.medium,
-            }}>
-              {t('search.queriesUsed')}:
-            </p>
-            <ul style={{
-              margin: 0,
-              paddingLeft: theme.spacing.lg,
-              color: theme.colors.text.tertiary,
-              fontSize: theme.typography.fontSize.xs,
-            }}>
-              {noResultsDebugInfo.queriesTried.map((q: { query: string; resultCount: number }, idx: number) => (
-                <li key={idx} style={{ marginBottom: theme.spacing.xs }}>
-                  <code style={{
-                    backgroundColor: theme.colors.background.paper,
-                    padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                    borderRadius: theme.borderRadius.sm,
-                    fontFamily: 'monospace',
-                  }}>
-                    {q.query}
-                  </code>
-                  <span style={{ marginLeft: theme.spacing.sm, color: theme.colors.text.tertiary }}>
-                    ({q.resultCount} {t('search.results')})
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
+            {'⚠️ '}{noResultsDebugInfo.message}
+          </p>
         )}
+        {(() => {
+          // Use queriesTried from debugInfo if available, otherwise fall back to prop
+          const triedQueries = (noResultsDebugInfo?.queriesTried && noResultsDebugInfo.queriesTried.length > 0)
+            ? noResultsDebugInfo.queriesTried
+            : (queriesTried && queriesTried.length > 0 ? queriesTried : null);
+          if (!triedQueries) return null;
+          return (
+            <div style={{
+              marginTop: theme.spacing.md,
+              padding: theme.spacing.md,
+              backgroundColor: theme.colors.background.subtle,
+              borderRadius: theme.borderRadius.md,
+              textAlign: 'left',
+            }}>
+              <p style={{
+                color: theme.colors.text.secondary,
+                fontSize: theme.typography.fontSize.sm,
+                marginBottom: theme.spacing.sm,
+                fontWeight: theme.typography.fontWeight.medium,
+              }}>
+                {t('search.queriesUsed')}:
+              </p>
+              <ul style={{
+                margin: 0,
+                paddingLeft: theme.spacing.lg,
+                color: theme.colors.text.tertiary,
+                fontSize: theme.typography.fontSize.xs,
+              }}>
+                {triedQueries.map((q: { query: string; resultCount: number; accountType?: string }, idx: number) => (
+                  <li key={idx} style={{ marginBottom: theme.spacing.xs }}>
+                    <code style={{
+                      backgroundColor: theme.colors.background.paper,
+                      padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                      borderRadius: theme.borderRadius.sm,
+                      fontFamily: 'monospace',
+                    }}>
+                      {q.query}
+                    </code>
+                    {q.accountType && (
+                      <span style={{ marginLeft: theme.spacing.sm, color: theme.colors.text.tertiary }}>
+                        [{q.accountType}]
+                      </span>
+                    )}
+                    <span style={{ marginLeft: theme.spacing.sm, color: theme.colors.text.tertiary }}>
+                      ({q.resultCount} {t('search.results')})
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })()}
       </div>
     );
   }
@@ -150,6 +176,43 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
         )}
       </div>
       
+      {queriesTried && queriesTried.length > 0 && (
+        <details style={{
+          padding: theme.spacing.sm,
+          backgroundColor: theme.colors.background.subtle,
+          borderRadius: theme.borderRadius.md,
+          fontSize: theme.typography.fontSize.xs,
+          color: theme.colors.text.tertiary,
+          marginBottom: theme.spacing.xs,
+        }}>
+          <summary style={{ cursor: 'pointer', color: theme.colors.text.secondary }}>
+            {t('search.queriesUsed')} ({queriesTried.length})
+          </summary>
+          <ul style={{ margin: `${theme.spacing.xs} 0 0`, paddingLeft: theme.spacing.lg }}>
+            {queriesTried.map((q, idx) => (
+              <li key={idx} style={{ marginTop: theme.spacing.xs }}>
+                <code style={{
+                  backgroundColor: theme.colors.background.paper,
+                  padding: `1px ${theme.spacing.xs}`,
+                  borderRadius: theme.borderRadius.sm,
+                  fontFamily: 'monospace',
+                }}>
+                  {q.query}
+                </code>
+                {q.accountType && (
+                  <span style={{ marginLeft: theme.spacing.xs, color: theme.colors.text.tertiary }}>
+                    [{q.accountType}]
+                  </span>
+                )}
+                <span style={{ marginLeft: theme.spacing.xs }}>
+                  — {q.resultCount} {t('search.results')}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
       {/* eslint-disable-next-line max-lines-per-function -- Search result rendering requires handling multiple result types and UI states */}
       {searchResults.filter((email) => email.id !== SEARCH_RESULT_NO_RESULTS).map((email, index) => {
         const searchEmail = email as SearchEmail;
@@ -213,7 +276,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                     {t('search.relevance', { score: searchEmail.relevanceScore })}
                   </span>
                 )}
-                {emailPriorityScore !== undefined && !searchEmail.relevanceScore && priority && (
+                {searchEmail.priorityExplanation && emailPriorityScore !== undefined && !searchEmail.relevanceScore && priority && priority.label !== 'N/A' && (
                   <span style={{
                     fontSize: theme.typography.fontSize.xs,
                     padding: `${theme.spacing.xs} ${theme.spacing.sm}`,

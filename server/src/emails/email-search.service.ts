@@ -163,6 +163,12 @@ export class EmailSearchService {
         gmailQueries.push(gmailQuery);
       }
 
+      // Always also try the original raw query as a fallback
+      // (LLM conversion can be overly specific, e.g. adding subject: prefix)
+      if (!gmailQueries.includes(query)) {
+        gmailQueries.push(query);
+      }
+
       this.logger.log(
         `[SEARCH] Will try ${gmailQueries.length} Gmail queries: ${gmailQueries.join(", ")}`,
       );

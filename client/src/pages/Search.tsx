@@ -163,6 +163,7 @@ const Search: React.FC = () => {
                 getScoreBackgroundColor={getScoreBackgroundColor}
                 getScoreColor={getScoreColor}
                 getPriorityBadge={getPriorityBadge}
+                queriesTried={search.queriesTried}
               />
             )}
           </div>

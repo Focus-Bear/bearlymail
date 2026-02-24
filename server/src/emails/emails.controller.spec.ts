@@ -230,24 +230,36 @@ describe("EmailsController", () => {
       const mockRequest = { user: { userId } };
 
       mockEmailsService.getInboxSummary
-        .mockResolvedValueOnce({ total: 10, categories: [] })  // triage
-        .mockResolvedValueOnce({ total: 5, categories: [] })   // action
-        .mockResolvedValueOnce({ total: 2, categories: [] });  // follow-up
+        .mockResolvedValueOnce({ total: 10, categories: [] }) // triage
+        .mockResolvedValueOnce({ total: 5, categories: [] }) // action
+        .mockResolvedValueOnce({ total: 2, categories: [] }); // follow-up
 
       const result = await controller.getTabCounts(mockRequest);
 
       expect(result).toEqual({ triage: 10, action: 5, followUp: 2 });
       expect(mockEmailsService.getInboxSummary).toHaveBeenCalledTimes(3);
-      expect(mockEmailsService.getInboxSummary).toHaveBeenCalledWith(userId, "triage");
-      expect(mockEmailsService.getInboxSummary).toHaveBeenCalledWith(userId, "action");
-      expect(mockEmailsService.getInboxSummary).toHaveBeenCalledWith(userId, "follow-up");
+      expect(mockEmailsService.getInboxSummary).toHaveBeenCalledWith(
+        userId,
+        "triage",
+      );
+      expect(mockEmailsService.getInboxSummary).toHaveBeenCalledWith(
+        userId,
+        "action",
+      );
+      expect(mockEmailsService.getInboxSummary).toHaveBeenCalledWith(
+        userId,
+        "follow-up",
+      );
     });
 
     it("should NOT call getInbox (uses getInboxSummary for consistency with inbox display)", async () => {
       const userId = "user-123";
       const mockRequest = { user: { userId } };
 
-      mockEmailsService.getInboxSummary.mockResolvedValue({ total: 0, categories: [] });
+      mockEmailsService.getInboxSummary.mockResolvedValue({
+        total: 0,
+        categories: [],
+      });
 
       await controller.getTabCounts(mockRequest);
 
@@ -258,7 +270,10 @@ describe("EmailsController", () => {
       const userId = "user-123";
       const mockRequest = { user: { userId } };
 
-      mockEmailsService.getInboxSummary.mockResolvedValue({ total: 0, categories: [] });
+      mockEmailsService.getInboxSummary.mockResolvedValue({
+        total: 0,
+        categories: [],
+      });
 
       const result = await controller.getTabCounts(mockRequest);
 

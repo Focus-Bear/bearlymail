@@ -616,9 +616,7 @@ describe("RepliesService", () => {
       // the star must be synced to Gmail immediately. Without this, Gmail still shows the
       // thread as unstarred, so the next email sync resets starCount back to 0 and the
       // thread falls out of Follow-Up mode.
-      const syncStarStatusToGmail = jest
-        .fn()
-        .mockResolvedValue(undefined);
+      const syncStarStatusToGmail = jest.fn().mockResolvedValue(undefined);
       const mockProvider = {
         sendReply: jest.fn().mockResolvedValue({ messageId: "sent-msg-1" }),
         syncStarStatusToGmail,
@@ -634,9 +632,9 @@ describe("RepliesService", () => {
       (followUpsService.createFollowUp as jest.Mock).mockResolvedValue(
         undefined,
       );
-      (
-        emailThreadService.updateThreadStarCount as jest.Mock
-      ).mockResolvedValue(undefined);
+      (emailThreadService.updateThreadStarCount as jest.Mock).mockResolvedValue(
+        undefined,
+      );
 
       await service.sendReply(
         userId,

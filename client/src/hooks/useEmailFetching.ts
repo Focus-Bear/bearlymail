@@ -19,6 +19,7 @@ import {
   setLoadingModeSwitch,
   setFetchError,
   setCategorySummary,
+  setSummaryLoading,
   markCategoryLoaded,
   markCategoryLoading,
   clearCategoryState,
@@ -40,6 +41,11 @@ export function useEmailFetching({
   const loadedCategoryNames = useSelector(selectLoadedCategoryNames);
   // Prevent concurrent loadMore calls (background prefetch + scroll trigger)
   const isLoadingMoreRef = useRef(false);
+  // Incremented each time fetchEmails() is called. fetchCategoryEmails captures the current
+  // session ID and abandons its results if the session changed while the API call was in flight.
+  // This prevents a stale fetchCategoryEmails from marking a category as "loaded" after
+  // fetchEmails() cleared the state, which would block a subsequent re-fetch via the guard.
+  const fetchSessionRef = useRef(0);
 
   const buildSummaryParams = useCallback((): URLSearchParams => {
     const params = new URLSearchParams();
@@ -83,6 +89,10 @@ export function useEmailFetching({
    * summary immediately, then each category's emails are loaded lazily on expand.
    */
   const fetchEmails = useCallback(async () => {
+    // Increment session to invalidate any in-flight fetchCategoryEmails calls from a prior cycle.
+    // Without this, a stale fetchCategoryEmails could dispatch markCategoryLoaded AFTER we
+    // cleared the state, poisoning the guard and preventing a correct re-fetch.
+    fetchSessionRef.current += 1;
     dispatch(setDecrypting(true));
     dispatch(setFetchError(null));
     // clearCategoryState sets summaryLoading = true internally, so no separate dispatch needed
@@ -130,9 +140,18 @@ export function useEmailFetching({
   /**
    * Fetch emails for a specific category and append to the flat email list.
    * Called when the user expands a category accordion that hasn't been loaded yet.
+   *
+   * Session-based invalidation: each fetchEmails() call increments fetchSessionRef.current.
+   * We capture the session ID at the start of this call and abandon results if the session
+   * changed while the API request was in-flight (i.e. fetchEmails() was called concurrently).
+   * This prevents a stale fetch from dispatching markCategoryLoaded() after clearCategoryState()
+   * cleared loadedCategoryNames, which would block the correct re-fetch via the guard.
    */
   const fetchCategoryEmails = useCallback(async (categoryName: string) => {
     if (loadedCategoryNames.includes(categoryName)) return;
+
+    // Capture session ID before any async work
+    const sessionId = fetchSessionRef.current;
 
     dispatch(markCategoryLoading(categoryName));
     try {
@@ -140,14 +159,23 @@ export function useEmailFetching({
 
       const response = await axios.get(`${API_URL}/emails/inbox?${params.toString()}`);
       const { emails } = response.data;
-      console.log(`Fetched ${emails.length} emails for category: ${categoryName}`);
 
+      // Check if fetchEmails() was called while this request was in-flight
+      if (fetchSessionRef.current !== sessionId) {
+        console.log(`[Category fetch] Discarding stale results for "${categoryName}" (session ${sessionId} vs current ${fetchSessionRef.current})`);
+        return;
+      }
+
+      console.log(`Fetched ${emails.length} emails for category: ${categoryName}`);
       dispatch(appendEmails(emails));
       dispatch(markCategoryLoaded(categoryName));
     } catch (error: any) {
       console.error(`Error fetching emails for category ${categoryName}:`, error);
-      // Mark as loaded even on error to prevent infinite loading spinner
-      dispatch(markCategoryLoaded(categoryName));
+      // Only mark as loaded if still the current session — otherwise clearCategoryState()
+      // already cleaned up loadingCategoryNames and a re-fetch will be triggered correctly.
+      if (fetchSessionRef.current === sessionId) {
+        dispatch(markCategoryLoaded(categoryName));
+      }
     }
   }, [mode, filters, dispatch, buildCategoryParams, loadedCategoryNames]);
 

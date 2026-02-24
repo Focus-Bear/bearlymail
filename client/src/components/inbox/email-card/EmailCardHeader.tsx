@@ -1,7 +1,6 @@
 import React from 'react';
 import { theme } from 'theme/theme';
 import { PriorityBadge } from 'components/inbox/email-card/PriorityBadge';
-import { UrgencyBadge } from 'components/inbox/email-card/UrgencyBadge';
 import { EmailLabels } from 'components/inbox/email-card/EmailLabels';
 import { EmailTimestamp } from 'components/inbox/email-card/EmailTimestamp';
 
@@ -22,7 +21,7 @@ interface EmailCardHeaderProps {
 
 /**
  * Email card header component
- * Displays sender, priority, urgency, labels, and timestamp
+ * Displays sender, priority, labels, and timestamp
  */
 export const EmailCardHeader: React.FC<EmailCardHeaderProps> = ({
   from,
@@ -33,8 +32,6 @@ export const EmailCardHeader: React.FC<EmailCardHeaderProps> = ({
   priorityBg,
   priorityScore,
   isProcessingPriority,
-  urgencyScore,
-  urgencyExplanation,
   labels,
   receivedAt,
 }) => {
@@ -66,9 +63,6 @@ export const EmailCardHeader: React.FC<EmailCardHeaderProps> = ({
           priorityScore={priorityScore}
           isProcessingPriority={isProcessingPriority}
         />
-        {urgencyScore !== undefined && (
-          <UrgencyBadge urgencyScore={urgencyScore} urgencyExplanation={urgencyExplanation} />
-        )}
         {labels && <EmailLabels labels={labels} />}
       </div>
       <EmailTimestamp receivedAt={receivedAt} />

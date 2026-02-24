@@ -2,7 +2,6 @@ import React from 'react';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
 import { PriorityBadge } from 'components/inbox/header/PriorityBadge';
-import { UrgencyIndicator } from 'components/inbox/header/UrgencyIndicator';
 import { EmailLabels } from 'components/inbox/header/EmailLabels';
 
 interface EmailHeaderLeftProps {
@@ -42,11 +41,6 @@ export const EmailHeaderLeft: React.FC<EmailHeaderLeftProps> = ({
         onProvideFeedback={onProvideFeedback}
       />
 
-      <UrgencyIndicator
-        urgencyScore={email.urgencyScore}
-        urgencyExplanation={email.urgencyExplanation}
-      />
-      
       <EmailLabels labels={email.labels || []} />
     </div>
   );

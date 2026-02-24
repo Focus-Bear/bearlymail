@@ -339,8 +339,15 @@ export function extractCleanBody(emailBody: string, htmlBody?: string): string {
   
   // Prefer plain text body, fallback to HTML
   let content = emailBody || '';
-  
-  if (htmlBody && !emailBody) {
+
+  if (content.includes('<')) {
+    // emailBody contains HTML markup (e.g. replies sent from BearlyMail store HTML in body field)
+    // Strip tags to get plain text before further processing
+    const tempDiv = document.createElement('div');
+    // Remove cid: images before parsing to prevent browser from trying to load them
+    tempDiv.innerHTML = removeCidImagesFromString(content);
+    content = tempDiv.textContent || tempDiv.innerText || '';
+  } else if (htmlBody && !emailBody) {
     // Convert HTML to text for cleaning
     const tempDiv = document.createElement('div');
     // Remove cid: images before parsing to prevent browser from trying to load them

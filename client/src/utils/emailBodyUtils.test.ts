@@ -397,6 +397,23 @@ describe('emailBodyUtils', () => {
       const result = extractCleanBody(content);
       expect(result).toContain('Clean email content');
     });
+
+    it('should strip HTML tags from emailBody when body contains HTML markup', () => {
+      const htmlEmailBody = '<p>Hi Zac,</p><p>Can you go through it again?</p>';
+      const result = extractCleanBody(htmlEmailBody);
+      expect(result).not.toContain('<p>');
+      expect(result).not.toContain('</p>');
+      expect(result).toContain('Hi Zac,');
+      expect(result).toContain('Can you go through it again?');
+    });
+
+    it('should strip HTML from emailBody even when htmlBody is also provided', () => {
+      const htmlEmailBody = '<p>Reply sent from BearlyMail</p>';
+      const htmlBody = '<html><body><p>Reply sent from BearlyMail</p></body></html>';
+      const result = extractCleanBody(htmlEmailBody, htmlBody);
+      expect(result).not.toContain('<p>');
+      expect(result).toContain('Reply sent from BearlyMail');
+    });
   });
 });
 

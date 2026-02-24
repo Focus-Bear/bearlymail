@@ -396,6 +396,7 @@ jobs:
         env:
           REACT_APP_API_URL: https://api.app.bearlymail.com
           VITE_POSTHOG_KEY: ${{ vars.VITE_POSTHOG_KEY }}
+          VITE_QUEUE_DASHBOARD_URL: https://queue.api.app.bearlymail.com
         run: npm run build
 
       - name: Get S3 Bucket and CloudFront Distribution

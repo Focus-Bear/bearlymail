@@ -2,6 +2,7 @@ import React from 'react';
 import { OpenAIApiKeySection } from 'components/settings/integrations/OpenAIApiKeySection';
 import { GitHubIntegrationSection } from 'components/settings/integrations/GitHubIntegrationSection';
 import { GitHubRepoMappingsSection } from 'components/settings/integrations/GitHubRepoMappingsSection';
+import { GitHubConnectionStatusSection } from 'components/settings/integrations/GitHubConnectionStatusSection';
 
 interface IntegrationsSectionProps {
   openAiApiKey: string;
@@ -43,6 +44,10 @@ export const IntegrationsSection: React.FC<IntegrationsSectionProps> = ({
         hasGithubToken={hasGithubToken}
         onConnectGitHub={onConnectGitHub}
         onDisconnectGitHub={onDisconnectGitHub}
+      />
+      <GitHubConnectionStatusSection
+        hasGithubToken={hasGithubToken}
+        onConnectGitHub={onConnectGitHub}
       />
       <GitHubRepoMappingsSection hasGithubToken={hasGithubToken} />
     </>

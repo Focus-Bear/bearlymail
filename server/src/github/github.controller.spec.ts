@@ -422,3 +422,209 @@ describe("GitHubController - testUserToken", () => {
     expect(result.repoAccess).toBeUndefined();
   });
 });
+
+describe("GitHubController - getMyConnectionStatus", () => {
+  let controller: GitHubController;
+
+  const mockBoss = {
+    send: jest.fn(),
+    db: { executeSql: jest.fn() },
+  };
+
+  const mockEmailThreadRepository = {
+    findOne: jest.fn(),
+    find: jest.fn(),
+    save: jest.fn(),
+  };
+  const mockEmailRepository = { findOne: jest.fn(), find: jest.fn() };
+  const mockUsersService = { findOne: jest.fn() };
+  const mockEmailsService = { getEmailById: jest.fn() };
+  const mockGitHubService = { parseGitHubLinks: jest.fn() };
+  const mockGitHubApiService = {
+    fetchMultipleStatuses: jest.fn(),
+    testToken: jest.fn(),
+    testRepoAccess: jest.fn(),
+  };
+  const mockGitHubAppService = {
+    getFrontendUrl: jest.fn(),
+    getAuthorizationUrl: jest.fn(),
+    createConnectToken: jest.fn(),
+    verifyConnectToken: jest.fn(),
+    exchangeCodeForToken: jest.fn(),
+    storeTokenForUser: jest.fn(),
+  };
+  const mockRepoMappingService = {
+    findAllForUser: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    remove: jest.fn(),
+    getDefaultForUser: jest.fn(),
+  };
+
+  const mockReq = { user: { userId: "user-1" } };
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [GitHubController],
+      providers: [
+        { provide: "PG_BOSS", useValue: mockBoss },
+        {
+          provide: getRepositoryToken(EmailThread),
+          useValue: mockEmailThreadRepository,
+        },
+        { provide: getRepositoryToken(Email), useValue: mockEmailRepository },
+        { provide: UsersService, useValue: mockUsersService },
+        { provide: EmailsService, useValue: mockEmailsService },
+        { provide: GitHubService, useValue: mockGitHubService },
+        { provide: GitHubApiService, useValue: mockGitHubApiService },
+        { provide: GitHubAppService, useValue: mockGitHubAppService },
+        { provide: GitHubRepoMappingService, useValue: mockRepoMappingService },
+      ],
+    }).compile();
+
+    controller = module.get<GitHubController>(GitHubController);
+  });
+
+  it("should return hasToken: false when user has no GitHub token", async () => {
+    mockUsersService.findOne.mockResolvedValue({
+      id: "user-1",
+      githubToken: null,
+    });
+
+    const result = await controller.getMyConnectionStatus(mockReq);
+
+    expect(result).toEqual({ hasToken: false });
+    expect(mockGitHubApiService.testToken).not.toHaveBeenCalled();
+  });
+
+  it("should return token validity and login when token is valid", async () => {
+    mockUsersService.findOne.mockResolvedValue({
+      id: "user-1",
+      githubToken: "plaintoken",
+    });
+    mockGitHubApiService.testToken.mockResolvedValue({
+      valid: true,
+      login: "testuser",
+      name: "Test User",
+      scopes: ["issues", "read:project"],
+    });
+    mockRepoMappingService.findAllForUser.mockResolvedValue([]);
+
+    const result = await controller.getMyConnectionStatus(mockReq);
+
+    expect(result).toMatchObject({
+      hasToken: true,
+      tokenValid: true,
+      login: "testuser",
+      name: "Test User",
+      scopes: ["issues", "read:project"],
+      repos: [],
+    });
+  });
+
+  it("should return tokenValid: false when token is invalid", async () => {
+    mockUsersService.findOne.mockResolvedValue({
+      id: "user-1",
+      githubToken: "plaintoken",
+    });
+    mockGitHubApiService.testToken.mockResolvedValue({
+      valid: false,
+      error: "Bad credentials",
+    });
+
+    const result = await controller.getMyConnectionStatus(mockReq);
+
+    expect(result).toMatchObject({
+      hasToken: true,
+      tokenValid: false,
+      error: "Bad credentials",
+    });
+    expect(mockRepoMappingService.findAllForUser).not.toHaveBeenCalled();
+  });
+
+  it("should include repo access results for each mapped repo", async () => {
+    mockUsersService.findOne.mockResolvedValue({
+      id: "user-1",
+      githubToken: "plaintoken",
+    });
+    mockGitHubApiService.testToken.mockResolvedValue({
+      valid: true,
+      login: "testuser",
+      scopes: ["issues"],
+    });
+    mockRepoMappingService.findAllForUser.mockResolvedValue([
+      {
+        id: "mapping-1",
+        owner: "Focus-Bear",
+        repo: "public-repo",
+        isDefault: true,
+        isAutoDiscovered: false,
+      },
+      {
+        id: "mapping-2",
+        owner: "Focus-Bear",
+        repo: "private-repo",
+        isDefault: false,
+        isAutoDiscovered: true,
+      },
+    ]);
+    mockGitHubApiService.testRepoAccess
+      .mockResolvedValueOnce({ accessible: true, isPrivate: false })
+      .mockResolvedValueOnce({ accessible: false, isPrivate: true });
+
+    const result = await controller.getMyConnectionStatus(mockReq);
+
+    expect(result.repos).toHaveLength(2);
+    expect(result.repos[0]).toMatchObject({
+      id: "mapping-1",
+      owner: "Focus-Bear",
+      repo: "public-repo",
+      isDefault: true,
+      accessible: true,
+      isPrivate: false,
+    });
+    expect(result.repos[1]).toMatchObject({
+      id: "mapping-2",
+      owner: "Focus-Bear",
+      repo: "private-repo",
+      isDefault: false,
+      accessible: false,
+      isPrivate: true,
+    });
+  });
+
+  it("should call testRepoAccess for each mapped repo", async () => {
+    mockUsersService.findOne.mockResolvedValue({
+      id: "user-1",
+      githubToken: "plaintoken",
+    });
+    mockGitHubApiService.testToken.mockResolvedValue({
+      valid: true,
+      login: "testuser",
+      scopes: [],
+    });
+    mockRepoMappingService.findAllForUser.mockResolvedValue([
+      {
+        id: "mapping-1",
+        owner: "org1",
+        repo: "repo1",
+        isDefault: true,
+        isAutoDiscovered: false,
+      },
+    ]);
+    mockGitHubApiService.testRepoAccess.mockResolvedValue({
+      accessible: true,
+      isPrivate: false,
+    });
+
+    await controller.getMyConnectionStatus(mockReq);
+
+    expect(mockGitHubApiService.testRepoAccess).toHaveBeenCalledWith(
+      expect.any(String),
+      "org1",
+      "repo1",
+    );
+  });
+});

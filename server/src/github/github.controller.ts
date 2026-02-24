@@ -420,6 +420,61 @@ export class GitHubController {
     return result;
   }
 
+  @Get("my/connection-status")
+  async getMyConnectionStatus(@Request() req) {
+    const { userId } = req.user;
+
+    const user = await this.usersService.findOne(userId);
+    if (!user?.githubToken) {
+      return { hasToken: false };
+    }
+
+    const token = EncryptionHelper.decrypt(user.githubToken);
+    if (!token) {
+      return { hasToken: true, tokenValid: false, error: "Token decryption failed" };
+    }
+
+    const tokenResult = await this.githubApiService.testToken(token);
+    if (!tokenResult.valid) {
+      return {
+        hasToken: true,
+        tokenValid: false,
+        error: tokenResult.error,
+      };
+    }
+
+    // Test access for each repo mapping
+    const repoMappings = await this.repoMappingService.findAllForUser(userId);
+    const repoStatuses = await Promise.all(
+      repoMappings.map(async (mapping) => {
+        const access = await this.githubApiService.testRepoAccess(
+          token,
+          mapping.owner,
+          mapping.repo,
+        );
+        return {
+          id: mapping.id,
+          owner: mapping.owner,
+          repo: mapping.repo,
+          isDefault: mapping.isDefault,
+          isAutoDiscovered: mapping.isAutoDiscovered,
+          accessible: access.accessible,
+          isPrivate: access.isPrivate,
+          error: access.error,
+        };
+      }),
+    );
+
+    return {
+      hasToken: true,
+      tokenValid: true,
+      login: tokenResult.login,
+      name: tokenResult.name,
+      scopes: tokenResult.scopes,
+      repos: repoStatuses,
+    };
+  }
+
   @Get("admin/debug")
   @UseGuards(AdminGuard)
   // eslint-disable-next-line max-statements

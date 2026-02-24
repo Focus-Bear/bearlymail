@@ -1652,6 +1652,22 @@
         "autoDiscovered": "Descubierto automáticamente",
         "setDefault": "Establecer como predeterminado",
         "confirmDelete": "¿Está seguro de que desea eliminar este mapeo de repositorio?"
+      },
+      "connectionStatus": {
+        "title": "Estado de conexión de GitHub",
+        "refresh": "Actualizar",
+        "checkedAt": "Verificado a las",
+        "tokenValid": "Token válido",
+        "tokenInvalid": "Token inválido o expirado",
+        "scopes": "Permisos",
+        "reposTitle": "Acceso a repositorios",
+        "noReposMapped": "Aún no hay repositorios mapeados. Agrégalos en la sección de Mapeo de repositorios a continuación.",
+        "private": "privado",
+        "noAccess": "Sin acceso",
+        "issuesFound": "Problemas de acceso detectados",
+        "privateRepoHint": "No se puede acceder a uno o más repositorios. Esto suele ocurrir porque el repositorio es privado y su token de GitHub no tiene el alcance 'repo'. Vuelva a conectar GitHub para otorgar acceso.",
+        "tokenExpiredHint": "Su token de GitHub parece ser inválido o expirado. Vuelva a conectar GitHub para solucionarlo.",
+        "reconnect": "Reconectar GitHub"
       }
     },
     "gmail": {

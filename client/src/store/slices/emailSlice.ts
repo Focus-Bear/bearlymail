@@ -184,7 +184,9 @@ const emailSlice = createSlice({
     },
     clearCategoryState: (state) => {
       state.categorySummary = null;
-      state.summaryLoading = false;
+      // Set summaryLoading = true immediately so isRefetchingWithoutData is true
+      // from the moment we clear, preventing empty-state flashes.
+      state.summaryLoading = true;
       state.loadedCategoryNames = [];
       state.loadingCategoryNames = [];
     },

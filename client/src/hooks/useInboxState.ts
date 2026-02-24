@@ -382,6 +382,32 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     }
   }, [fetchCategoryEmails]);
 
+  // Re-fetch expanded category emails when categorySummary reloads after a background poll.
+  // When fetchEmails() is called (e.g., by useEmailProcessingPolling), clearCategoryState()
+  // wipes loadedCategoryNames. After the summary re-fetches, expanded categories need their
+  // emails re-fetched or they appear empty with no loading spinner.
+  const prevCategorySummaryRef = useRef<typeof categorySummary>(null);
+  // Keep latest expandedCategories accessible inside the effect without adding it as a
+  // dependency (we only want the effect to react to categorySummary transitions).
+  const expandedCategoriesForRefetchRef = useRef(expandedCategories);
+  expandedCategoriesForRefetchRef.current = expandedCategories;
+
+  useEffect(() => {
+    const wasNull = prevCategorySummaryRef.current === null;
+    prevCategorySummaryRef.current = categorySummary ?? null;
+
+    // Only act on the null → non-null transition (summary just reloaded after a re-fetch)
+    if (!categorySummary || !wasNull) return;
+
+    // Re-trigger fetching for any expanded category whose data was cleared during re-fetch
+    expandedCategoriesForRefetchRef.current.forEach(category => {
+      fetchCategoryEmails(category).catch(err =>
+        console.error(`Error re-fetching category ${category} after summary reload:`, err)
+      );
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categorySummary, fetchCategoryEmails]);
+
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;

@@ -111,7 +111,6 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   hasMore,
   categorySummary,
   loadedCategoryNames,
-  loadingCategoryNames,
 }) => {
   const { t } = useTranslation();
   const { showNotification } = useNotifications();
@@ -425,7 +424,6 @@ export const InboxContent: React.FC<InboxContentProps> = ({
               const categoryName = categoryItem.name;
               const isExpanded = expandedCategories.has(categoryName);
               const isLoaded = (loadedCategoryNames ?? []).includes(categoryName);
-              const isCategoryLoading = (loadingCategoryNames ?? []).includes(categoryName);
               const group = emailCategoryMap.get(categoryName);
               const categoryEmails = group?.emails ?? [];
 
@@ -498,7 +496,7 @@ export const InboxContent: React.FC<InboxContentProps> = ({
                   emails={categoryEmails}
                   // Use actual email count when loaded (summary count can be stale after archives)
                   count={isLoaded ? categoryEmails.length : categoryItem.count}
-                  isLoadingContent={isExpanded && isCategoryLoading && !isLoaded}
+                  isLoadingContent={isExpanded && !isLoaded}
                   isExpanded={isExpanded}
                   onToggle={() => onToggleCategory(categoryName)}
                   onArchiveAll={onBulkArchive}

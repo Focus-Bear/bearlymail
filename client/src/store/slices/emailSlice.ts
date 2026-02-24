@@ -165,6 +165,7 @@ const emailSlice = createSlice({
       state.animatingOut = state.animatingOut.filter(item => item.id !== action.payload);
     },
     setCategorySummary: (state, action: PayloadAction<CategorySummaryItem[]>) => {
+      console.log(`[Redux] setCategorySummary: ${action.payload.length} categories: ${action.payload.map(c => c.name).join(', ')}`);
       state.categorySummary = action.payload;
       state.summaryLoading = false;
     },
@@ -172,17 +173,21 @@ const emailSlice = createSlice({
       state.summaryLoading = action.payload;
     },
     markCategoryLoaded: (state, action: PayloadAction<string>) => {
+      console.log(`[Redux] markCategoryLoaded: "${action.payload}" (was loading: ${state.loadingCategoryNames.includes(action.payload)})`);
       if (!state.loadedCategoryNames.includes(action.payload)) {
         state.loadedCategoryNames.push(action.payload);
       }
       state.loadingCategoryNames = state.loadingCategoryNames.filter(n => n !== action.payload);
+      console.log(`[Redux] loadedCategoryNames now: [${state.loadedCategoryNames.join(', ')}]`);
     },
     markCategoryLoading: (state, action: PayloadAction<string>) => {
+      console.log(`[Redux] markCategoryLoading: "${action.payload}"`);
       if (!state.loadingCategoryNames.includes(action.payload)) {
         state.loadingCategoryNames.push(action.payload);
       }
     },
     clearCategoryState: (state) => {
+      console.log(`[Redux] clearCategoryState: was loaded=[${state.loadedCategoryNames.join(', ')}] loading=[${state.loadingCategoryNames.join(', ')}]`);
       state.categorySummary = null;
       // Set summaryLoading = true immediately so isRefetchingWithoutData is true
       // from the moment we clear, preventing empty-state flashes.

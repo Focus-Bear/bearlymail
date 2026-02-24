@@ -24,7 +24,7 @@ import {
   markCategoryLoading,
   clearCategoryState,
 } from 'store/slices/emailSlice';
-import { selectCurrentOffset, selectLoadedCategoryNames } from 'store/selectors/emailSelectors';
+import { selectCurrentOffset, selectLoadedCategoryNames, selectLoadingCategoryNames } from 'store/selectors/emailSelectors';
 
 interface UseEmailFetchingProps {
   mode: InboxMode;
@@ -38,7 +38,16 @@ export function useEmailFetching({
 }: UseEmailFetchingProps) {
   const dispatch = useDispatch<AppDispatch>();
   const currentOffset = useSelector(selectCurrentOffset);
+  // Subscribe to both loaded and loading state for internal guards in fetchCategoryEmails.
+  // We use refs so that fetchCategoryEmails doesn't need these as useCallback deps —
+  // keeping fetchCategoryEmails stable prevents cascading re-runs of the re-fetch effect
+  // in useInboxState every time a category finishes loading.
   const loadedCategoryNames = useSelector(selectLoadedCategoryNames);
+  const loadingCategoryNames = useSelector(selectLoadingCategoryNames);
+  const loadedCategoryNamesRef = useRef<string[]>(loadedCategoryNames);
+  loadedCategoryNamesRef.current = loadedCategoryNames;
+  const loadingCategoryNamesRef = useRef<string[]>(loadingCategoryNames);
+  loadingCategoryNamesRef.current = loadingCategoryNames;
   // Prevent concurrent loadMore calls (background prefetch + scroll trigger)
   const isLoadingMoreRef = useRef(false);
   // Incremented each time fetchEmails() is called. fetchCategoryEmails captures the current
@@ -93,6 +102,8 @@ export function useEmailFetching({
     // Without this, a stale fetchCategoryEmails could dispatch markCategoryLoaded AFTER we
     // cleared the state, poisoning the guard and preventing a correct re-fetch.
     fetchSessionRef.current += 1;
+    const session = fetchSessionRef.current;
+    console.log(`[fetchEmails] Starting session=${session} mode=${mode} loadedCats=${loadedCategoryNamesRef.current.join(',') || 'none'}`);
     dispatch(setDecrypting(true));
     dispatch(setFetchError(null));
     // clearCategoryState sets summaryLoading = true internally, so no separate dispatch needed
@@ -107,14 +118,14 @@ export function useEmailFetching({
 
       const response = await axios.get(`${API_URL}/emails/inbox-summary?${params.toString()}`);
       const { total, categories } = response.data;
-      console.log(`Fetched inbox summary: ${categories.length} categories, ${total} total emails for mode: ${mode}`);
+      console.log(`[fetchEmails] session=${session} got summary: ${categories.length} categories, ${total} total emails, mode=${mode}`);
 
       dispatch(setCategorySummary(categories));
       dispatch(setTotalCount(total));
       dispatch(setDecrypting(false));
       dispatch(setFetchError(null));
     } catch (error: any) {
-      console.error('Error fetching inbox summary:', error);
+      console.error('[fetchEmails] Error fetching inbox summary:', error);
       dispatch(setDecrypting(false));
       dispatch(setSummaryLoading(false));
       // eslint-disable-next-line no-restricted-syntax -- Error code comparison requires literal string for axios error codes
@@ -134,12 +145,19 @@ export function useEmailFetching({
       dispatch(setLoading(false));
       dispatch(setRefreshing(false));
       dispatch(setLoadingModeSwitch(false));
+      console.log(`[fetchEmails] session=${session} complete`);
     }
   }, [mode, filters, dispatch, buildSummaryParams]);
 
   /**
    * Fetch emails for a specific category and append to the flat email list.
    * Called when the user expands a category accordion that hasn't been loaded yet.
+   *
+   * Uses refs for loadedCategoryNames and loadingCategoryNames so this callback stays
+   * STABLE across category loads. This is critical: if loadedCategoryNames were in the
+   * dep array, every category load would create a new fetchCategoryEmails reference,
+   * which would trigger the re-fetch effect in useInboxState, causing cascading effect
+   * re-runs that can leave categories stuck or fetch them multiple times.
    *
    * Session-based invalidation: each fetchEmails() call increments fetchSessionRef.current.
    * We capture the session ID at the start of this call and abandon results if the session
@@ -148,10 +166,20 @@ export function useEmailFetching({
    * cleared loadedCategoryNames, which would block the correct re-fetch via the guard.
    */
   const fetchCategoryEmails = useCallback(async (categoryName: string) => {
-    if (loadedCategoryNames.includes(categoryName)) return;
+    // Use refs (updated every render) instead of closed-over state values.
+    // This prevents stale reads without making loadedCategoryNames a dep.
+    if (loadedCategoryNamesRef.current.includes(categoryName)) {
+      console.log(`[fetchCategoryEmails] Skipping "${categoryName}": already loaded (session=${fetchSessionRef.current})`);
+      return;
+    }
+    if (loadingCategoryNamesRef.current.includes(categoryName)) {
+      console.log(`[fetchCategoryEmails] Skipping "${categoryName}": already loading (session=${fetchSessionRef.current})`);
+      return;
+    }
 
     // Capture session ID before any async work
     const sessionId = fetchSessionRef.current;
+    console.log(`[fetchCategoryEmails] Starting "${categoryName}" session=${sessionId}`);
 
     dispatch(markCategoryLoading(categoryName));
     try {
@@ -162,22 +190,27 @@ export function useEmailFetching({
 
       // Check if fetchEmails() was called while this request was in-flight
       if (fetchSessionRef.current !== sessionId) {
-        console.log(`[Category fetch] Discarding stale results for "${categoryName}" (session ${sessionId} vs current ${fetchSessionRef.current})`);
+        console.log(`[fetchCategoryEmails] Discarding stale results for "${categoryName}" (session ${sessionId} vs current ${fetchSessionRef.current})`);
         return;
       }
 
-      console.log(`Fetched ${emails.length} emails for category: ${categoryName}`);
+      console.log(`[fetchCategoryEmails] Got ${emails.length} emails for "${categoryName}" session=${sessionId}`);
       dispatch(appendEmails(emails));
       dispatch(markCategoryLoaded(categoryName));
     } catch (error: any) {
-      console.error(`Error fetching emails for category ${categoryName}:`, error);
+      console.error(`[fetchCategoryEmails] Error fetching "${categoryName}":`, error);
       // Only mark as loaded if still the current session — otherwise clearCategoryState()
       // already cleaned up loadingCategoryNames and a re-fetch will be triggered correctly.
       if (fetchSessionRef.current === sessionId) {
         dispatch(markCategoryLoaded(categoryName));
       }
     }
-  }, [mode, filters, dispatch, buildCategoryParams, loadedCategoryNames]);
+  // NOTE: loadedCategoryNames and loadingCategoryNames are intentionally NOT in deps.
+  // They are read via refs (loadedCategoryNamesRef, loadingCategoryNamesRef) which are
+  // always current. Keeping them out of deps makes this callback stable across category
+  // loads, which prevents the cascading re-fetch effect runs that caused the bug.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, filters, dispatch, buildCategoryParams]);
 
   // loadMore is kept for backward compatibility but is now a no-op.
   // Category emails are loaded lazily via fetchCategoryEmails instead.

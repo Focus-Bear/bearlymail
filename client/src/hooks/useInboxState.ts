@@ -356,8 +356,10 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
       const next = new Set(prev);
       if (next.has(category)) {
         next.delete(category);
+        console.log(`[toggleCategory] Collapsed "${category}"`);
       } else {
         next.add(category);
+        console.log(`[toggleCategory] Expanded "${category}" - re-fetch effect will fetch if needed`);
       }
       return next;
     });
@@ -374,13 +376,20 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
       if (!hasAutoExpandedRef.current) {
         hasAutoExpandedRef.current = true;
         const INITIAL_PRELOAD_COUNT = 3;
-        setExpandedCategories(new Set(categories.slice(0, INITIAL_PRELOAD_COUNT)));
+        const toExpand = categories.slice(0, INITIAL_PRELOAD_COUNT);
+        console.log(`[updateStableCategoryOrder] Auto-expanding top ${INITIAL_PRELOAD_COUNT}: ${toExpand.join(', ')}`);
+        setExpandedCategories(new Set(toExpand));
+      } else {
+        console.log(`[updateStableCategoryOrder] Already auto-expanded, updating order for ${categories.length} categories`);
       }
     }
   }, []);
 
   // Refs to read the latest loaded/loading state inside the re-fetch effect without making it
   // a dependency (avoids re-running the effect after every category load).
+  // Note: fetchCategoryEmails also maintains its own internal refs for these values,
+  // so these refs here serve as a secondary guard to avoid even calling fetchCategoryEmails
+  // when we know the category is already handled.
   const loadedCategoryNamesRef = useRef(loadedCategoryNames);
   loadedCategoryNamesRef.current = loadedCategoryNames;
   const loadingCategoryNamesRef = useRef(loadingCategoryNames);
@@ -390,21 +399,28 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
   // Fires whenever:
   //   • categorySummary becomes available (initial load or after background poll clears it)
   //   • expandedCategories changes (user toggles an accordion or auto-expand fires)
-  //   • fetchCategoryEmails changes (loadedCategoryNames updated — harmless re-run, guards skip
-  //     already-loaded/loading categories via the refs)
+  //   • fetchCategoryEmails changes (only on mode/filter changes — NOT on category loads,
+  //     since fetchCategoryEmails is now stable across category loads via internal refs)
   useEffect(() => {
-    if (!categorySummary) return;
+    if (!categorySummary) {
+      console.log('[re-fetch effect] No categorySummary yet, skipping');
+      return;
+    }
 
-    expandedCategories.forEach(category => {
-      // Skip if already loaded or currently being fetched
-      if (
-        loadedCategoryNamesRef.current.includes(category) ||
-        loadingCategoryNamesRef.current.includes(category)
-      ) {
-        return;
-      }
+    const toFetch = Array.from(expandedCategories).filter(category =>
+      !loadedCategoryNamesRef.current.includes(category) &&
+      !loadingCategoryNamesRef.current.includes(category)
+    );
+
+    if (toFetch.length === 0) {
+      console.log(`[re-fetch effect] All ${expandedCategories.size} expanded categories already loaded/loading`);
+      return;
+    }
+
+    console.log(`[re-fetch effect] Fetching ${toFetch.length} categories: ${toFetch.join(', ')}`);
+    toFetch.forEach(category => {
       fetchCategoryEmails(category).catch(err =>
-        console.error(`Error fetching category ${category}:`, err)
+        console.error(`[re-fetch effect] Error fetching category ${category}:`, err)
       );
     });
   }, [categorySummary, expandedCategories, fetchCategoryEmails]);

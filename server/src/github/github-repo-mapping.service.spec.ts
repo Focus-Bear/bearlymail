@@ -40,6 +40,8 @@ describe("GitHubRepoMappingService", () => {
           owner: "org",
           repo: "repo1",
           isDefault: true,
+          createdAt: new Date("2024-01-01"),
+          updatedAt: new Date("2024-01-01"),
         },
         {
           id: "2",
@@ -47,17 +49,129 @@ describe("GitHubRepoMappingService", () => {
           owner: "org",
           repo: "repo2",
           isDefault: false,
+          createdAt: new Date("2024-01-02"),
+          updatedAt: new Date("2024-01-02"),
         },
       ];
       mockRepository.find.mockResolvedValue(mockMappings);
 
       const result = await service.findAllForUser("user1");
 
-      expect(result).toEqual(mockMappings);
+      expect(result).toHaveLength(2);
       expect(mockRepository.find).toHaveBeenCalledWith({
         where: { userId: "user1" },
-        order: { isDefault: "DESC", updatedAt: "DESC" },
+        order: { isDefault: "DESC", createdAt: "ASC" },
       });
+    });
+
+    it("should deduplicate mappings with identical owner/repo and delete extras", async () => {
+      const mockMappings = [
+        {
+          id: "1",
+          userId: "user1",
+          owner: "org",
+          repo: "repo1",
+          isDefault: true,
+          createdAt: new Date("2024-01-01"),
+          updatedAt: new Date("2024-01-02"),
+        },
+        {
+          id: "2",
+          userId: "user1",
+          owner: "org",
+          repo: "repo1", // duplicate
+          isDefault: false,
+          createdAt: new Date("2024-01-02"),
+          updatedAt: new Date("2024-01-02"),
+        },
+        {
+          id: "3",
+          userId: "user1",
+          owner: "org",
+          repo: "repo2",
+          isDefault: false,
+          createdAt: new Date("2024-01-03"),
+          updatedAt: new Date("2024-01-03"),
+        },
+      ];
+      // find is called with isDefault DESC, createdAt ASC - default first
+      mockRepository.find.mockResolvedValue(mockMappings);
+      mockRepository.delete.mockResolvedValue({ affected: 1 });
+
+      const result = await service.findAllForUser("user1");
+
+      // Should return 2 unique mappings (id:1 and id:3), deduplicated
+      expect(result).toHaveLength(2);
+      const ids = result.map((m) => m.id);
+      expect(ids).toContain("1");
+      expect(ids).toContain("3");
+      expect(ids).not.toContain("2");
+
+      // Should schedule deletion of the duplicate
+      await Promise.resolve(); // flush microtasks
+      expect(mockRepository.delete).toHaveBeenCalledWith(["2"]);
+    });
+
+    it("should keep isDefault mapping when deduplicating", async () => {
+      const mockMappings = [
+        // isDefault=true comes first (order: isDefault DESC)
+        {
+          id: "1",
+          userId: "user1",
+          owner: "org",
+          repo: "repo1",
+          isDefault: true,
+          createdAt: new Date("2024-01-02"),
+          updatedAt: new Date("2024-01-02"),
+        },
+        {
+          id: "2",
+          userId: "user1",
+          owner: "org",
+          repo: "repo1", // duplicate, older but not default
+          isDefault: false,
+          createdAt: new Date("2024-01-01"),
+          updatedAt: new Date("2024-01-01"),
+        },
+      ];
+      mockRepository.find.mockResolvedValue(mockMappings);
+      mockRepository.delete.mockResolvedValue({ affected: 1 });
+
+      const result = await service.findAllForUser("user1");
+
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe("1");
+      expect(result[0].isDefault).toBe(true);
+    });
+
+    it("should handle case-insensitive owner/repo deduplication", async () => {
+      const mockMappings = [
+        {
+          id: "1",
+          userId: "user1",
+          owner: "Focus-Bear",
+          repo: "BearlyMail",
+          isDefault: true,
+          createdAt: new Date("2024-01-01"),
+          updatedAt: new Date("2024-01-01"),
+        },
+        {
+          id: "2",
+          userId: "user1",
+          owner: "focus-bear", // same org, different case
+          repo: "bearlymail",
+          isDefault: false,
+          createdAt: new Date("2024-01-02"),
+          updatedAt: new Date("2024-01-02"),
+        },
+      ];
+      mockRepository.find.mockResolvedValue(mockMappings);
+      mockRepository.delete.mockResolvedValue({ affected: 1 });
+
+      const result = await service.findAllForUser("user1");
+
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe("1");
     });
   });
 
@@ -315,7 +429,8 @@ describe("GitHubRepoMappingService", () => {
 
   describe("autoDiscoverRepo", () => {
     it("should create new mapping for undiscovered repo", async () => {
-      mockRepository.findOne.mockResolvedValue(null);
+      // find returns empty list — no existing mapping for this owner/repo
+      mockRepository.find.mockResolvedValue([]);
       mockRepository.count.mockResolvedValue(0);
       const newMapping = {
         userId: "user1",
@@ -339,7 +454,8 @@ describe("GitHubRepoMappingService", () => {
     });
 
     it("should set isDefault false when user already has mappings", async () => {
-      mockRepository.findOne.mockResolvedValue(null);
+      // find returns empty list — no existing mapping for this specific owner/repo
+      mockRepository.find.mockResolvedValue([]);
       mockRepository.count.mockResolvedValue(2);
       const newMapping = {
         userId: "user1",
@@ -368,7 +484,8 @@ describe("GitHubRepoMappingService", () => {
         repo: "repo1",
         emailCategories: "bugs",
       };
-      mockRepository.findOne.mockResolvedValue(existing);
+      // find returns the existing mapping — owner/repo match in decrypted values
+      mockRepository.find.mockResolvedValue([existing]);
 
       const result = await service.autoDiscoverRepo(
         "user1",
@@ -389,7 +506,7 @@ describe("GitHubRepoMappingService", () => {
         repo: "repo1",
         emailCategories: "bugs",
       };
-      mockRepository.findOne.mockResolvedValue(existing);
+      mockRepository.find.mockResolvedValue([existing]);
       mockRepository.save.mockResolvedValue({
         ...existing,
         emailCategories: "bugs,features",
@@ -414,7 +531,7 @@ describe("GitHubRepoMappingService", () => {
         repo: "repo1",
         emailCategories: null,
       };
-      mockRepository.findOne.mockResolvedValue(existing);
+      mockRepository.find.mockResolvedValue([existing]);
       mockRepository.save.mockResolvedValue({
         ...existing,
         emailCategories: "bugs",
@@ -429,6 +546,29 @@ describe("GitHubRepoMappingService", () => {
 
       expect(mockRepository.save).toHaveBeenCalled();
       expect(result?.emailCategories).toBe("bugs");
+    });
+
+    it("should not create duplicate when repo already exists with different case", async () => {
+      const existing = {
+        id: "1",
+        userId: "user1",
+        owner: "Focus-Bear",
+        repo: "BearlyMail",
+        emailCategories: null,
+      };
+      // Simulate find returning a mapping that matches after decryption
+      mockRepository.find.mockResolvedValue([existing]);
+
+      const result = await service.autoDiscoverRepo(
+        "user1",
+        "Focus-Bear",
+        "BearlyMail",
+      );
+
+      // Should return the existing mapping, not create a new one
+      expect(result).toEqual(existing);
+      expect(mockRepository.create).not.toHaveBeenCalled();
+      expect(mockRepository.save).not.toHaveBeenCalled();
     });
   });
 });

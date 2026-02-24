@@ -13,9 +13,46 @@ export class GitHubRepoMappingService {
   ) {}
 
   async findAllForUser(userId: string): Promise<GitHubRepoMapping[]> {
-    return this.repoMappingRepository.find({
+    // Fetch ordered so isDefault rows come first, then oldest first within each group.
+    // This gives us a deterministic "winner" when deduplicating: the default mapping
+    // wins over non-defaults, and among equals the oldest entry is kept.
+    const all = await this.repoMappingRepository.find({
       where: { userId },
-      order: { isDefault: "DESC", updatedAt: "DESC" },
+      order: { isDefault: "DESC", createdAt: "ASC" },
+    });
+
+    // Deduplicate in-memory because owner/repo are encrypted with random IVs,
+    // so DB-level UNIQUE constraints and WHERE-clause lookups on those columns
+    // never match equivalent plaintext values (different ciphertext each time).
+    const seen = new Map<string, GitHubRepoMapping>();
+    const toDelete: string[] = [];
+
+    for (const mapping of all) {
+      const key = `${mapping.owner?.toLowerCase()}/${mapping.repo?.toLowerCase()}`;
+      if (seen.has(key)) {
+        toDelete.push(mapping.id);
+      } else {
+        seen.set(key, mapping);
+      }
+    }
+
+    // Clean up duplicates asynchronously so we do not block the response.
+    if (toDelete.length > 0) {
+      this.logger.warn(
+        `Found ${toDelete.length} duplicate repo mapping(s) for user ${userId}, cleaning up`,
+      );
+      this.repoMappingRepository.delete(toDelete).catch((err) =>
+        this.logger.error(
+          `Failed to clean up duplicate repo mappings: ${err}`,
+        ),
+      );
+    }
+
+    // Return deduplicated results sorted by isDefault DESC, updatedAt DESC
+    return Array.from(seen.values()).sort((a, b) => {
+      if (a.isDefault && !b.isDefault) return -1;
+      if (!a.isDefault && b.isDefault) return 1;
+      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
     });
   }
 
@@ -153,9 +190,16 @@ export class GitHubRepoMappingService {
     repo: string,
     emailCategory?: string,
   ): Promise<GitHubRepoMapping | null> {
-    const existing = await this.repoMappingRepository.findOne({
-      where: { userId, owner, repo },
+    // We cannot query by owner/repo directly because those columns are encrypted
+    // with a random IV on every write, so the same plaintext produces a different
+    // ciphertext each time.  A WHERE clause on those columns would encrypt the
+    // search value with a fresh IV that never matches any stored ciphertext.
+    // Instead we fetch all mappings for the user and compare the decrypted values.
+    const allMappings = await this.repoMappingRepository.find({
+      where: { userId },
     });
+    const existing =
+      allMappings.find((m) => m.owner === owner && m.repo === repo) ?? null;
 
     if (existing) {
       if (

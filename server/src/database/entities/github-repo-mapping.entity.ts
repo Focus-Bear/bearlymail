@@ -12,7 +12,10 @@ import { User } from "./user.entity";
 import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
 
 @Entity("github_repo_mappings")
-@Index(["userId", "owner", "repo"], { unique: true })
+// Note: owner and repo are encrypted columns (random IV per write), so a unique
+// index on them is ineffective — identical plaintext produces different ciphertexts
+// each time, meaning the DB always sees distinct values and the constraint is never
+// enforced.  Duplicate prevention is handled in application logic instead.
 @Index(["userId"])
 export class GitHubRepoMapping {
   @PrimaryGeneratedColumn("uuid")

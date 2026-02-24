@@ -186,6 +186,8 @@ export class EmailSearchService {
         fromName?: string;
         subject?: string;
         messageId?: string;
+        threadId?: string;
+        _providerType?: string;
         [key: string]: unknown;
       }> = [];
       let successfulQuery: string | null = null;
@@ -219,8 +221,12 @@ export class EmailSearchService {
                   fromName?: string;
                   subject?: string;
                   messageId?: string;
+                  threadId?: string;
                   [key: string]: unknown;
-                }>),
+                }>).map((email) => ({
+                  ...email,
+                  _providerType: providerInfo.type,
+                })),
               );
               successfulQuery = gmailQuery;
               this.logger.log(
@@ -275,6 +281,59 @@ export class EmailSearchService {
         .filter((id): id is string => id !== null && id !== undefined);
 
       if (messageIds.length === 0) {
+        // Raw emails found but without message IDs — try syncing by thread ID
+        const threadIds = [
+          ...new Set(
+            rawEmails
+              .map((e) => e.threadId as string | undefined)
+              .filter((id): id is string => !!id),
+          ),
+        ].slice(0, 10);
+
+        if (threadIds.length > 0) {
+          const byProvider = new Map<string, Set<string>>();
+          for (const rawEmail of rawEmails) {
+            const threadId = rawEmail.threadId as string | undefined;
+            const providerType = (rawEmail._providerType as string) || "gmail";
+            if (threadId) {
+              if (!byProvider.has(providerType))
+                byProvider.set(providerType, new Set());
+              byProvider.get(providerType)!.add(threadId);
+            }
+          }
+          for (const [providerType, threadIdSet] of byProvider.entries()) {
+            const provider = await this.emailProviderManager.getProvider(
+              userId,
+              providerType,
+            );
+            if (!provider) continue;
+            const syncThreadIds = [...threadIdSet].slice(0, 10);
+            try {
+              onProgress?.(
+                "syncing",
+                `Syncing ${syncThreadIds.length} email(s) to BearlyMail...`,
+              );
+              await provider.syncEmails(userId, {
+                threadIds: syncThreadIds,
+                isContinuation: true,
+              });
+            } catch (syncError) {
+              this.logger.warn(
+                `[SEARCH] Targeted sync (no messageIds) for ${providerType} failed:`,
+                syncError,
+              );
+            }
+          }
+          // Try to find newly synced emails by threadId
+          const syncedByThread = await this.emailRepository.find({
+            where: { userId, threadId: In(threadIds) },
+            order: { receivedAt: "DESC" },
+          });
+          if (syncedByThread.length > 0) {
+            return syncedByThread as EmailWithMetadata[];
+          }
+        }
+
         // Return a special "no-results" marker with debug info including queries tried
         return [
           {
@@ -286,7 +345,8 @@ export class EmailSearchService {
             debugInfo: {
               originalQuery,
               queriesTried,
-              message: "Emails found in Gmail but not yet synced to BearlyMail",
+              message:
+                "Emails found in your email provider but could not be synced to BearlyMail. They will appear after the next automatic sync.",
             },
           } as unknown as EmailWithMetadata,
         ];
@@ -314,27 +374,89 @@ export class EmailSearchService {
       }
 
       if (matchedEmails.length === 0) {
-        searchLogger.logSearchComplete(
-          userId,
-          originalQuery,
-          0,
-          Date.now() - searchStartTime,
+        // Emails were found in the provider but aren't in our DB yet.
+        // Trigger a targeted sync for those specific threads, then re-query.
+        const byProvider = new Map<string, Set<string>>();
+        for (const rawEmail of rawEmails) {
+          const threadId = rawEmail.threadId as string | undefined;
+          const providerType = (rawEmail._providerType as string) || "gmail";
+          if (threadId) {
+            if (!byProvider.has(providerType))
+              byProvider.set(providerType, new Set());
+            byProvider.get(providerType)!.add(threadId);
+          }
+        }
+
+        const MAX_THREADS_TO_SYNC = 10;
+        for (const [providerType, threadIdSet] of byProvider.entries()) {
+          const provider = await this.emailProviderManager.getProvider(
+            userId,
+            providerType,
+          );
+          if (!provider) continue;
+          const threadIds = [...threadIdSet].slice(0, MAX_THREADS_TO_SYNC);
+          this.logger.log(
+            `[SEARCH] Syncing ${threadIds.length} missing threads from ${providerType} for user ${userId}`,
+          );
+          try {
+            onProgress?.(
+              "syncing",
+              `Syncing ${threadIds.length} email(s) to BearlyMail...`,
+            );
+            await provider.syncEmails(userId, {
+              threadIds,
+              isContinuation: true,
+            });
+          } catch (syncError) {
+            this.logger.warn(
+              `[SEARCH] Targeted sync for ${providerType} failed:`,
+              syncError,
+            );
+          }
+        }
+
+        // Re-query the database after the sync
+        const syncedDbEmails = await this.emailRepository.find({
+          where: {
+            userId,
+            messageId: In(messageIds as string[]),
+          },
+          order: { receivedAt: "DESC" },
+        });
+        const syncedEmailMap = new Map(
+          syncedDbEmails.map((e) => [e.messageId, e]),
         );
-        // Return a special "no-results" marker with debug info including queries tried
-        return [
-          {
-            id: "no-results",
-            subject: "",
-            from: "",
-            body: "",
-            receivedAt: new Date().toISOString(),
-            debugInfo: {
-              originalQuery,
-              queriesTried,
-              message: "Emails found in Gmail but not yet synced to BearlyMail",
-            },
-          } as unknown as EmailWithMetadata,
-        ];
+        for (const rawEmail of rawEmails) {
+          const messageId = rawEmail.messageId as string | undefined;
+          if (messageId && syncedEmailMap.has(messageId)) {
+            matchedEmails.push(syncedEmailMap.get(messageId)!);
+          }
+        }
+
+        if (matchedEmails.length === 0) {
+          searchLogger.logSearchComplete(
+            userId,
+            originalQuery,
+            0,
+            Date.now() - searchStartTime,
+          );
+          // Return a special "no-results" marker with debug info including queries tried
+          return [
+            {
+              id: "no-results",
+              subject: "",
+              from: "",
+              body: "",
+              receivedAt: new Date().toISOString(),
+              debugInfo: {
+                originalQuery,
+                queriesTried,
+                message:
+                  "Emails found in your email provider but could not be synced to BearlyMail. They will appear after the next automatic sync.",
+              },
+            } as unknown as EmailWithMetadata,
+          ];
+        }
       }
 
       // If skipLlmRanking is set, return raw results immediately without LLM processing

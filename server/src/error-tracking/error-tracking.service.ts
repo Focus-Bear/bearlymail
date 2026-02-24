@@ -144,6 +144,8 @@ export class ErrorTrackingService {
       // required by the Error Tracking dashboard for grouping and display.
       // frames must be an array of {filename, function, lineno, colno} objects.
       const properties: Record<string, unknown> = {
+        $exception_type: error.name,
+        $exception_message: error.message,
         $exception_list: [
           {
             type: error.name,

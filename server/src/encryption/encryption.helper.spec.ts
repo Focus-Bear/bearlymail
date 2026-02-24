@@ -143,6 +143,25 @@ describe("EncryptionHelper", () => {
       expect(result).toBe(invalidEncrypted);
     });
 
+    it("should return plaintext when 3-part value has wrong IV length (e.g. time strings)", () => {
+      // A time string like "12:30:45" has exactly 3 colon-separated parts,
+      // but the first part "12" decodes to only 1 byte, not the required IV_LENGTH bytes.
+      // Without the IV length check this would reach createDecipheriv and throw
+      // "Invalid initialization vector".
+      const timeString = "12:30:45";
+      const result = EncryptionHelper.decrypt(timeString);
+      expect(result).toBe(timeString);
+    });
+
+    it("should return plaintext when 3-part value has correct IV length but is not encrypted data", () => {
+      // Construct a value where the first part is the right hex length but random data
+      const fakeIvHex = "a".repeat(ENCRYPTION_CONSTANTS.IV_LENGTH * 2);
+      const fakeValue = `${fakeIvHex}:fakeauth:fakedata`;
+      const result = EncryptionHelper.decrypt(fakeValue);
+      // Should return original value when GCM auth tag verification fails
+      expect(result).toBe(fakeValue);
+    });
+
     it("should handle decrypting text encrypted with different IV", () => {
       const plaintext = "test message";
       const encrypted1 = EncryptionHelper.encrypt(plaintext);

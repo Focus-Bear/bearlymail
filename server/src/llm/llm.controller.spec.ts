@@ -51,9 +51,6 @@ describe("LLMController (Integration)", () => {
       explanation: "The suggestion is valid",
       rulesToRemove: [],
     }),
-    usersService: {
-      findOne: jest.fn().mockResolvedValue(mockUser),
-    },
   };
 
   const mockUsersService = {
@@ -181,6 +178,7 @@ describe("LLMController (Integration)", () => {
       expect(response.body).toBeDefined();
       expect(Array.isArray(response.body)).toBe(true);
       expect(mockLLMService.extractActionItems).toHaveBeenCalled();
+      expect(mockUsersService.findOne).toHaveBeenCalledWith("test-user-id");
     });
 
     it("should handle missing sender info", async () => {
@@ -255,6 +253,7 @@ describe("LLMController (Integration)", () => {
       expect(response.body).toBeDefined();
       expect(Array.isArray(response.body)).toBe(true);
       expect(mockLLMService.generateReplyOptions).toHaveBeenCalled();
+      expect(mockUsersService.findOne).toHaveBeenCalledWith("test-user-id");
     });
 
     it("should use default tone when not provided", async () => {

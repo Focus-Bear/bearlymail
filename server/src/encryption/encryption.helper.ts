@@ -73,6 +73,12 @@ class EncryptionHelper {
       const key = this.getKey();
       const [ivHex, authTagHex, encrypted] = parts;
       const iv = Buffer.from(ivHex, "hex");
+      // Validate IV length matches expected size — strings with 2 colons (e.g. timestamps
+      // like "12:30:45") would otherwise reach createDecipheriv and throw
+      // "Invalid initialization vector"
+      if (iv.length !== this.ivLength) {
+        return encryptedText;
+      }
       const authTag = Buffer.from(authTagHex, "hex");
 
       const decipher = crypto.createDecipheriv(

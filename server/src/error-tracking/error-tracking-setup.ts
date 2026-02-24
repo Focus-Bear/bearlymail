@@ -128,6 +128,8 @@ export function captureGlobalError(
       distinctId: "backend-global-errors",
       event: "$exception",
       properties: {
+        $exception_type: error.name,
+        $exception_message: error.message,
         $exception_list: [
           {
             type: error.name,

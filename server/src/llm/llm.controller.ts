@@ -63,7 +63,7 @@ export class LLMController {
     },
   ) {
     // Get user info for recipient if not provided
-    const user = await this.llmService["usersService"].findOne(req.user.userId);
+    const user = await this.usersService.findOne(req.user.userId);
     const recipientInfo = body.recipientInfo || {
       name: user?.name || "You",
       email: user?.email || "",
@@ -107,7 +107,7 @@ export class LLMController {
       context?: { tone?: string; writingStyle?: string };
     },
   ) {
-    const user = await this.llmService["usersService"].findOne(req.user.userId);
+    const user = await this.usersService.findOne(req.user.userId);
     const toneRules = user?.toneSettings?.rules || [];
     const emailExamples = toneRules.filter(
       (rule: string) =>

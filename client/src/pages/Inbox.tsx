@@ -206,7 +206,7 @@ const Inbox: React.FC = () => {
           setPriorityFilter={setPriorityFilter}
         />
 
-        {user?.isAdmin && (
+        {user?.isAdmin && debugPanel.debugViewOpen && (
           <DebugPanel
             mode={mode}
             emails={emails}

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { GitHubLink } from 'types/email';
 import { EMOJI_ISSUE, EMOJI_PR } from 'constants/emojis';
@@ -9,6 +10,7 @@ interface GitHubLinkCardNoStatusProps {
 }
 
 export const GitHubLinkCardNoStatus: React.FC<GitHubLinkCardNoStatusProps> = ({ link }) => {
+  const { t } = useTranslation();
   return (
     <div style={{
       padding: theme.spacing.md,
@@ -33,6 +35,13 @@ export const GitHubLinkCardNoStatus: React.FC<GitHubLinkCardNoStatusProps> = ({ 
         {/* eslint-disable-next-line i18next/no-literal-string */}
         {link.type === LINK_TYPE_ISSUE ? EMOJI_ISSUE : EMOJI_PR} {link.owner}/{link.repo}#{link.number}
       </a>
+      <p style={{
+        margin: `${theme.spacing.xs} 0 0`,
+        fontSize: theme.typography.fontSize.xs,
+        color: theme.colors.text.tertiary,
+      }}>
+        {t('github.statusUnavailable')}
+      </p>
     </div>
   );
 };

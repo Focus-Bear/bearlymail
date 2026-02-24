@@ -519,16 +519,127 @@ export class GitHubController {
       10,
     );
 
+    // Find threads with GitHub metadata links but no status fetched (silent failures)
+    // These are threads where the background job ran but the GitHub API returned null
+    // (e.g., private repo the token can't access)
+    interface ThreadMetadataRow {
+      id: string;
+      userId: string;
+      githubMetadata: string;
+      updatedAt: string;
+    }
+    const recentThreadsResult = await db.executeSql(`
+      SELECT id, "userId", "githubMetadata", "updatedAt"
+      FROM email_threads
+      WHERE "githubMetadata" IS NOT NULL AND "githubMetadata" != ''
+      ORDER BY "updatedAt" DESC
+      LIMIT 200
+    `);
+
+    let threadsWithLinksNoStatus = 0;
+    const recentSilentFailures: Array<{
+      threadId: string;
+      links: string;
+      lastAttempted: string;
+    }> = [];
+
+    for (const row of (recentThreadsResult?.rows ??
+      []) as ThreadMetadataRow[]) {
+      try {
+        const decrypted = EncryptionHelper.decrypt(row.githubMetadata);
+        if (!decrypted) continue;
+        const metadata = JSON.parse(decrypted) as {
+          links?: Array<{
+            owner?: string;
+            repo?: string;
+            number?: number;
+            status?: unknown;
+            fetchedAt?: string;
+          }>;
+          lastFetchedAt?: string;
+        };
+        if (!metadata?.links?.length) continue;
+        const hasAnyStatus = metadata.links.some((l) => l.status);
+        if (!hasAnyStatus) {
+          threadsWithLinksNoStatus++;
+          if (recentSilentFailures.length < 10) {
+            const linkDescriptions = metadata.links
+              .map(
+                (l) => `${l.owner ?? "?"}/${l.repo ?? "?"}#${l.number ?? "?"}`,
+              )
+              .join(", ");
+            recentSilentFailures.push({
+              threadId: row.id,
+              links: linkDescriptions,
+              lastAttempted: metadata.lastFetchedAt ?? row.updatedAt,
+            });
+          }
+        }
+      } catch {
+        // Skip malformed metadata
+      }
+    }
+
     return {
       usersWithToken,
       threadsWithMetadata,
+      threadsWithLinksNoStatus,
       jobStats: {
         ...jobStats,
         completed: completedCount,
       },
       recentFailedJobs,
+      recentSilentFailures,
       timestamp: new Date().toISOString(),
     };
+  }
+
+  @Post("admin/test-token")
+  @UseGuards(AdminGuard)
+  async testUserToken(
+    @Body() body: { userId: string; testOwner?: string; testRepo?: string },
+  ) {
+    const { userId, testOwner, testRepo } = body;
+
+    const user = await this.usersService.findOne(userId);
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    if (!user.githubToken) {
+      return { hasToken: false, valid: false };
+    }
+
+    const token = EncryptionHelper.decrypt(user.githubToken);
+    if (!token) {
+      return { hasToken: true, valid: false, error: "Token decryption failed" };
+    }
+
+    const tokenResult = await this.githubApiService.testToken(token);
+    const result: {
+      hasToken: boolean;
+      valid: boolean;
+      login?: string;
+      name?: string;
+      scopes?: string[];
+      error?: string;
+      repoAccess?: boolean;
+      repoIsPrivate?: boolean;
+      repoError?: string;
+    } = { hasToken: true, ...tokenResult };
+
+    if (tokenResult.valid && testOwner && testRepo) {
+      const repoResult = await this.githubApiService.testRepoAccess(
+        token,
+        testOwner,
+        testRepo,
+      );
+      result.repoAccess = repoResult.accessible;
+      result.repoIsPrivate = repoResult.isPrivate;
+      result.repoError = repoResult.error;
+    }
+
+    return result;
   }
 
   @Get("repo-mappings")

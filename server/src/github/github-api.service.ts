@@ -92,6 +92,60 @@ export class GitHubApiService {
   }
 
   /**
+   * Test if a GitHub token is valid and return the authenticated user info
+   */
+  async testToken(token: string): Promise<{
+    valid: boolean;
+    login?: string;
+    name?: string;
+    scopes?: string[];
+    error?: string;
+  }> {
+    try {
+      const octokit = this.createClient(token);
+      const response = await octokit.request("GET /user", {
+        headers: { "X-OAuth-Scopes": "" },
+      });
+      // Extract scopes from response headers if available
+      const scopesHeader =
+        (response.headers as unknown as Record<string, string | undefined>)?.[
+          "x-oauth-scopes"
+        ] ?? "";
+      const scopes = scopesHeader
+        ? scopesHeader
+            .split(",")
+            .map((s: string) => s.trim())
+            .filter(Boolean)
+        : [];
+      return {
+        valid: true,
+        login: response.data.login,
+        name: (response.data.name as string | null) ?? undefined,
+        scopes,
+      };
+    } catch (error: unknown) {
+      return { valid: false, error: getErrorMessage(error) };
+    }
+  }
+
+  /**
+   * Test if a token can access a specific repository
+   */
+  async testRepoAccess(
+    token: string,
+    owner: string,
+    repo: string,
+  ): Promise<{ accessible: boolean; isPrivate?: boolean; error?: string }> {
+    try {
+      const octokit = this.createClient(token);
+      const result = await this.checkRepositoryAccess(octokit, owner, repo);
+      return result;
+    } catch (error: unknown) {
+      return { accessible: false, error: getErrorMessage(error) };
+    }
+  }
+
+  /**
    * Check if we can access a repository (helps distinguish 404 between "doesn't exist" and "no access")
    */
   private async checkRepositoryAccess(

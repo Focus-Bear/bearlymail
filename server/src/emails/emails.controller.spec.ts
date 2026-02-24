@@ -20,6 +20,7 @@ describe("EmailsController", () => {
 
   const mockEmailsService = {
     getInbox: jest.fn(),
+    getInboxSummary: jest.fn(),
     getEmailById: jest.fn(),
     createEmail: jest.fn(),
     markAsRead: jest.fn(),
@@ -220,6 +221,48 @@ describe("EmailsController", () => {
         },
         { offset: 0, limit: 50 },
       );
+    });
+  });
+
+  describe("getTabCounts", () => {
+    it("should return tab counts using getInboxSummary for all three modes", async () => {
+      const userId = "user-123";
+      const mockRequest = { user: { userId } };
+
+      mockEmailsService.getInboxSummary
+        .mockResolvedValueOnce({ total: 10, categories: [] })  // triage
+        .mockResolvedValueOnce({ total: 5, categories: [] })   // action
+        .mockResolvedValueOnce({ total: 2, categories: [] });  // follow-up
+
+      const result = await controller.getTabCounts(mockRequest);
+
+      expect(result).toEqual({ triage: 10, action: 5, followUp: 2 });
+      expect(mockEmailsService.getInboxSummary).toHaveBeenCalledTimes(3);
+      expect(mockEmailsService.getInboxSummary).toHaveBeenCalledWith(userId, "triage");
+      expect(mockEmailsService.getInboxSummary).toHaveBeenCalledWith(userId, "action");
+      expect(mockEmailsService.getInboxSummary).toHaveBeenCalledWith(userId, "follow-up");
+    });
+
+    it("should NOT call getInbox (uses getInboxSummary for consistency with inbox display)", async () => {
+      const userId = "user-123";
+      const mockRequest = { user: { userId } };
+
+      mockEmailsService.getInboxSummary.mockResolvedValue({ total: 0, categories: [] });
+
+      await controller.getTabCounts(mockRequest);
+
+      expect(mockEmailsService.getInbox).not.toHaveBeenCalled();
+    });
+
+    it("should return zero counts when inbox is empty", async () => {
+      const userId = "user-123";
+      const mockRequest = { user: { userId } };
+
+      mockEmailsService.getInboxSummary.mockResolvedValue({ total: 0, categories: [] });
+
+      const result = await controller.getTabCounts(mockRequest);
+
+      expect(result).toEqual({ triage: 0, action: 0, followUp: 0 });
     });
   });
 

@@ -242,27 +242,20 @@ export class EmailsController {
   async getTabCounts(@Request() req) {
     const { userId } = req.user;
 
-    // Query counts for each tab mode in parallel
-    // Use getInbox() for all modes to ensure counts match what's actually displayed
-    // This accounts for filtering like batched emails, blocked senders, etc.
-    const [triageEmails, actionEmails, followUpEmails] = await Promise.all([
-      // Triage count: use the same logic as the inbox view
-      // This accounts for batched emails, blocked senders, and other filters
-      this.emailsService.getInbox(userId, false, "triage"),
-
-      // Action count: use the same logic as the inbox view
-      // This accounts for batched emails, blocked senders, snoozed emails, and other filters
-      this.emailsService.getInbox(userId, false, "action"),
-
-      // Follow-up count: use the same logic as the inbox view
-      // This checks for threads where user sent last and no reply received
-      this.emailsService.getInbox(userId, false, "follow-up"),
+    // Use getInboxSummary() for all modes - the same lightweight query used by the inbox display.
+    // This ensures tab counts are always consistent with what the inbox shows.
+    // Previously used getInbox() which applies heavier in-memory filtering (blocked senders,
+    // user-sent-last checks) that can diverge from the inbox-summary query results.
+    const [triageSummary, actionSummary, followUpSummary] = await Promise.all([
+      this.emailsService.getInboxSummary(userId, "triage"),
+      this.emailsService.getInboxSummary(userId, "action"),
+      this.emailsService.getInboxSummary(userId, "follow-up"),
     ]);
 
     return {
-      triage: triageEmails.total,
-      action: actionEmails.total,
-      followUp: followUpEmails.total,
+      triage: triageSummary.total,
+      action: actionSummary.total,
+      followUp: followUpSummary.total,
     };
   }
 

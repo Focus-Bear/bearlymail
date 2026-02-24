@@ -86,12 +86,21 @@ export function useTabCounts(): UseTabCountsReturn {
         action: Math.max(0, prev.action + (changes.action || 0)),
         followUp: Math.max(0, prev.followUp + (changes.followUp || 0)),
       };
-      // Also update the cache so it stays in sync
-      const cacheEntry: CacheEntry = {
-        counts: newCounts,
-        timestamp: Date.now(),
-      };
-      localStorage.setItem(TAB_COUNTS_CACHE_KEY, JSON.stringify(cacheEntry));
+      // Update cache counts but PRESERVE the original timestamp from the last server fetch.
+      // This prevents optimistic updates from extending the cache TTL, which could hide
+      // server-side changes (e.g. background sync) for longer than the intended TTL.
+      try {
+        const cached = localStorage.getItem(TAB_COUNTS_CACHE_KEY);
+        if (cached) {
+          const existingEntry: CacheEntry = JSON.parse(cached);
+          localStorage.setItem(TAB_COUNTS_CACHE_KEY, JSON.stringify({
+            counts: newCounts,
+            timestamp: existingEntry.timestamp,
+          }));
+        }
+      } catch (e) {
+        // Ignore cache errors
+      }
       return newCounts;
     });
   }, []);

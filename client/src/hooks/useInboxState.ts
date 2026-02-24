@@ -1,10 +1,13 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from 'contexts/AuthContext';
 import { InboxMode } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 import { MODE_FOLLOW_UP, MODE_TRIAGE, MODE_ACTION } from 'constants/strings';
+import { AppDispatch } from 'store/store';
+import { clearCategoryState } from 'store/slices/emailSlice';
 import { useEmailManagement } from 'hooks/useEmailManagement';
 import { useTriageSuggestions } from 'hooks/useTriageSuggestions';
 import { useEmailSelection } from 'hooks/useEmailSelection';
@@ -41,6 +44,7 @@ interface UseInboxStateOptions {
 // eslint-disable-next-line max-lines-per-function -- Inbox state hook requires managing multiple inbox states, modes, and operations
 export function useInboxState(options: UseInboxStateOptions = {}) {
   const { isFocusedMode = false } = options;
+  const dispatch = useDispatch<AppDispatch>();
   const { t } = useTranslation();
   const { user, logout, refreshUser, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -335,15 +339,18 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
 
   const setMode = useCallback((newMode: InboxMode) => {
     setModeState(newMode);
+    // Clear Redux category state immediately so InboxContent's effect doesn't fire with stale
+    // categorySummary from the previous mode before fetchEmails() clears it.
+    dispatch(clearCategoryState());
     // Reset category order when mode changes so it gets recalculated for the new mode
     setStableCategoryOrder([]);
     // Reset expanded categories so stale categories from the previous mode don't remain expanded
     setExpandedCategories(new Set());
     // Reset auto-expand flag so the top categories get auto-expanded in the new mode
     hasAutoExpandedRef.current = false;
-  }, []);
+  }, [dispatch]);
 
-  // Toggle category expansion — fetch category emails lazily on first expand
+  // Toggle category expansion. Fetching is handled by the re-fetch effect below.
   const toggleCategory = useCallback((category: string) => {
     setExpandedCategories(prev => {
       const next = new Set(prev);
@@ -351,62 +358,56 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
         next.delete(category);
       } else {
         next.add(category);
-        // Trigger lazy load if not already loaded or loading
-        if (!loadedCategoryNames.includes(category) && !loadingCategoryNames.includes(category)) {
-          fetchCategoryEmails(category).catch(err =>
-            console.error(`Error fetching category emails for ${category}:`, err)
-          );
-        }
       }
       return next;
     });
-  }, [loadedCategoryNames, loadingCategoryNames, fetchCategoryEmails]);
+  }, []);
 
-  // Update stable category order when priority-based order changes
+  // Update stable category order and auto-expand the top categories on first load.
+  // Fetching is handled by the re-fetch effect below — no direct fetchCategoryEmails needed.
   const updateStableCategoryOrder = useCallback((categories: string[]) => {
     if (categories.length > 0) {
       setStableCategoryOrder(categories);
 
-      // Auto-expand and pre-load the top 3 priority categories on initial load
-      if (!hasAutoExpandedRef.current && categories.length > 0) {
+      // Auto-expand the top 3 priority categories on initial load.
+      // The re-fetch effect will trigger the actual data fetch once expandedCategories updates.
+      if (!hasAutoExpandedRef.current) {
         hasAutoExpandedRef.current = true;
         const INITIAL_PRELOAD_COUNT = 3;
-        const initialCategories = categories.slice(0, INITIAL_PRELOAD_COUNT);
-        setExpandedCategories(new Set(initialCategories));
-        initialCategories.forEach(category => {
-          fetchCategoryEmails(category).catch(err =>
-            console.error(`Error fetching emails for auto-expanded category ${category}:`, err)
-          );
-        });
+        setExpandedCategories(new Set(categories.slice(0, INITIAL_PRELOAD_COUNT)));
       }
     }
-  }, [fetchCategoryEmails]);
+  }, []);
 
-  // Re-fetch expanded category emails when categorySummary reloads after a background poll.
-  // When fetchEmails() is called (e.g., by useEmailProcessingPolling), clearCategoryState()
-  // wipes loadedCategoryNames. After the summary re-fetches, expanded categories need their
-  // emails re-fetched or they appear empty with no loading spinner.
-  const prevCategorySummaryRef = useRef<typeof categorySummary>(null);
-  // Keep latest expandedCategories accessible inside the effect without adding it as a
-  // dependency (we only want the effect to react to categorySummary transitions).
-  const expandedCategoriesForRefetchRef = useRef(expandedCategories);
-  expandedCategoriesForRefetchRef.current = expandedCategories;
+  // Refs to read the latest loaded/loading state inside the re-fetch effect without making it
+  // a dependency (avoids re-running the effect after every category load).
+  const loadedCategoryNamesRef = useRef(loadedCategoryNames);
+  loadedCategoryNamesRef.current = loadedCategoryNames;
+  const loadingCategoryNamesRef = useRef(loadingCategoryNames);
+  loadingCategoryNamesRef.current = loadingCategoryNames;
 
+  // Fetch expanded categories whose data is missing.
+  // Fires whenever:
+  //   • categorySummary becomes available (initial load or after background poll clears it)
+  //   • expandedCategories changes (user toggles an accordion or auto-expand fires)
+  //   • fetchCategoryEmails changes (loadedCategoryNames updated — harmless re-run, guards skip
+  //     already-loaded/loading categories via the refs)
   useEffect(() => {
-    const wasNull = prevCategorySummaryRef.current === null;
-    prevCategorySummaryRef.current = categorySummary ?? null;
+    if (!categorySummary) return;
 
-    // Only act on the null → non-null transition (summary just reloaded after a re-fetch)
-    if (!categorySummary || !wasNull) return;
-
-    // Re-trigger fetching for any expanded category whose data was cleared during re-fetch
-    expandedCategoriesForRefetchRef.current.forEach(category => {
+    expandedCategories.forEach(category => {
+      // Skip if already loaded or currently being fetched
+      if (
+        loadedCategoryNamesRef.current.includes(category) ||
+        loadingCategoryNamesRef.current.includes(category)
+      ) {
+        return;
+      }
       fetchCategoryEmails(category).catch(err =>
-        console.error(`Error re-fetching category ${category} after summary reload:`, err)
+        console.error(`Error fetching category ${category}:`, err)
       );
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categorySummary, fetchCategoryEmails]);
+  }, [categorySummary, expandedCategories, fetchCategoryEmails]);
 
   useEffect(() => {
     if (isInitialMount.current) {

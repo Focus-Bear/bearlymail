@@ -9,7 +9,6 @@ import { InboxFilter } from 'hooks/useInboxFilters';
 import { AppDispatch } from 'store/store';
 import {
   setEmails,
-  appendEmails,
   updateCategoryEmails,
   setHasMore,
   setTotalCount,
@@ -180,6 +179,20 @@ export function useEmailFetching({
       const response = await axios.get(`${API_URL}/emails/inbox?${params.toString()}`);
       const { emails } = response.data;
 
+      // Defensive normalization: the category-specific endpoint is requested for a
+      // single categoryName, but backend/category-sync races can occasionally return
+      // rows with null/mismatched category values. That caused the expanded accordion
+      // to appear empty because grouping is based on email.category.
+      //
+      // Force these rows into the requested category so the UI consistently renders
+      // what the summary and fetch request are asking for.
+      const normalizedEmails = emails.map((email: any) => {
+        if (!email.category || email.category !== categoryName) {
+          return { ...email, category: categoryName };
+        }
+        return email;
+      });
+
       // Discard results if fetchEmails() was called while this request was in-flight.
       // A stale result dispatching markCategoryLoaded() would poison the guard and
       // prevent a correct re-fetch in the new session.
@@ -187,7 +200,7 @@ export function useEmailFetching({
         return;
       }
 
-      dispatch(appendEmails(emails));
+      dispatch(updateCategoryEmails({ categoryName, emails: normalizedEmails }));
       dispatch(markCategoryLoaded(categoryName));
     } catch (error: any) {
       console.error(`Error fetching category "${categoryName}":`, error);

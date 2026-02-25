@@ -427,9 +427,14 @@ export const InboxContent: React.FC<InboxContentProps> = ({
               const group = emailCategoryMap.get(categoryName);
               const categoryEmails = group?.emails ?? [];
 
-              // If the category has been fully loaded but all emails are gone (e.g. archived),
-              // don't render the accordion — it would show an empty, misleading shell.
-              if (isLoaded && categoryEmails.length === 0) return null;
+              // Hide categories only when we know they're truly empty:
+              // - loaded and collapsed (not currently being inspected)
+              // - no loaded emails
+              // - summary count is also zero
+              //
+              // If summary still says there are emails, keep the category visible so it
+              // never "vanishes" after expand due to temporary payload/category mismatch.
+              if (!isExpanded && isLoaded && categoryEmails.length === 0 && categoryItem.count === 0) return null;
 
               // Compute global index for keyboard navigation (across categories)
               let globalIndex = 0;

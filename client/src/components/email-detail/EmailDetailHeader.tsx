@@ -8,6 +8,7 @@ import { Email, getEmailPriorityScore } from 'types/email';
 import { EMOJI_EMAIL, EMOJI_USER, EMOJI_GOAL, EMOJI_SETTINGS, EMOJI_POSITIVE, EMOJI_NEGATIVE, EMOJI_NEUTRAL } from 'constants/emojis';
 import { PRIORITY_HIGH_THRESHOLD, PRIORITY_MEDIUM_THRESHOLD, SAVE_CONFIRMATION_DURATION_MS } from 'constants/numbers';
 import { useAuth } from 'contexts/AuthContext';
+import { useNotifications } from 'contexts/NotificationContext';
 
 interface PriorityExplanation {
   score: number;
@@ -18,6 +19,8 @@ interface PriorityExplanation {
     vipContact?: { score: number; reasons: string[] };
   };
 }
+
+const COPY_ICON = '⧉';
 
 interface EmailDetailHeaderProps {
   email: Email;
@@ -40,6 +43,7 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { showSuccess } = useNotifications();
 
   const correspondent = useMemo(() => {
     return getCorrespondent(email, user?.email, threadEmails);
@@ -50,12 +54,13 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
     try {
       await navigator.clipboard.writeText(correspondent.email);
       setEmailCopied(true);
+      showSuccess(t('emailDetail.emailCopied'));
       setTimeout(() => setEmailCopied(false), SAVE_CONFIRMATION_DURATION_MS);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('Failed to copy email:', err);
     }
-  }, [correspondent.email]);
+  }, [correspondent.email, showSuccess, t]);
 
   const getSentimentLabel = (value: number) => {
     if (value > 0) return `${EMOJI_NEGATIVE} ${t('emailDetail.sentiment.negative')}`;
@@ -99,17 +104,42 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
                         {EMOJI_USER} {correspondent.name}
                         {correspondent.email && (
                           <span
-                            onClick={handleCopyEmail}
-                            title={emailCopied ? t('emailDetail.emailCopied') : t('emailDetail.clickToCopyEmail')}
                             style={{
-                              fontSize: theme.typography.fontSize.xs,
-                              color: emailCopied ? theme.colors.accent.success : theme.colors.text.secondary,
-                              fontWeight: theme.typography.fontWeight.normal,
-                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: theme.spacing.xs,
                             }}
                           >
-                            {/* eslint-disable-next-line i18next/no-literal-string */}
-                            &lt;{correspondent.email}&gt;
+                            <span
+                              onClick={handleCopyEmail}
+                              title={emailCopied ? t('emailDetail.emailCopied') : t('emailDetail.clickToCopyEmail')}
+                              style={{
+                                fontSize: theme.typography.fontSize.xs,
+                                color: emailCopied ? theme.colors.accent.success : theme.colors.text.secondary,
+                                fontWeight: theme.typography.fontWeight.normal,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              {/* eslint-disable-next-line i18next/no-literal-string */}
+                              &lt;{correspondent.email}&gt;
+                            </span>
+                            <button
+                              type="button"
+                              onClick={handleCopyEmail}
+                              title={emailCopied ? t('emailDetail.emailCopied') : t('emailDetail.clickToCopyEmail')}
+                              aria-label={t('emailDetail.clickToCopyEmail')}
+                              style={{
+                                border: 'none',
+                                background: 'transparent',
+                                padding: 0,
+                                cursor: 'pointer',
+                                color: emailCopied ? theme.colors.accent.success : theme.colors.text.secondary,
+                                fontSize: theme.typography.fontSize.sm,
+                                lineHeight: 1,
+                              }}
+                            >
+                              {COPY_ICON}
+                            </button>
                           </span>
                         )}
                       </div>

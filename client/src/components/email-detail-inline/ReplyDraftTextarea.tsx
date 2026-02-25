@@ -22,11 +22,10 @@ export const ReplyDraftTextarea: React.FC<ReplyDraftTextareaProps> = ({
       content={draft}
       onChange={onDraftChange}
       placeholder={loadingReplies ? "Generating reply suggestions..." : "Type your reply here..."}
-      disabled={loadingReplies}
+      disabled={false}
       hasToneError={hasToneError}
       onPasteFiles={onPasteFiles}
     />
   );
 };
-
 

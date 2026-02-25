@@ -3,6 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { humanizeTimestamp } from 'utils/dateUtils';
 import { SAVE_CONFIRMATION_DURATION_MS } from 'constants/numbers';
+import { useNotifications } from 'contexts/NotificationContext';
+
+const COPY_ICON = '⧉';
 
 interface ThreadItemHeaderProps {
   from: string;
@@ -26,17 +29,19 @@ export const ThreadItemHeader: React.FC<ThreadItemHeaderProps> = ({
   onToggle,
 }) => {
   const { t } = useTranslation();
+  const { showSuccess } = useNotifications();
   const [emailCopied, setEmailCopied] = useState(false);
   const handleCopyEmail = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(from);
       setEmailCopied(true);
+      showSuccess(t('emailDetail.emailCopied'));
       setTimeout(() => setEmailCopied(false), SAVE_CONFIRMATION_DURATION_MS);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('Failed to copy email:', err);
     }
-  }, [from]);
+  }, [from, showSuccess, t]);
 
   const getBackgroundColor = (): string => {
     if (isCurrentEmail) return theme.colors.primary.subtle;
@@ -62,16 +67,47 @@ export const ThreadItemHeader: React.FC<ThreadItemHeaderProps> = ({
           </strong>
           {from && fromName && (
             <span
-              onClick={(e) => { e.stopPropagation(); handleCopyEmail(); }}
-              title={emailCopied ? t('emailDetail.emailCopied') : t('emailDetail.clickToCopyEmail')}
               style={{
-                fontSize: theme.typography.fontSize.xs,
-                color: emailCopied ? theme.colors.accent.success : theme.colors.text.secondary,
-                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: theme.spacing.xs,
               }}
             >
-              {/* eslint-disable-next-line i18next/no-literal-string */}
-              &lt;{from}&gt;
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCopyEmail();
+                }}
+                title={emailCopied ? t('emailDetail.emailCopied') : t('emailDetail.clickToCopyEmail')}
+                style={{
+                  fontSize: theme.typography.fontSize.xs,
+                  color: emailCopied ? theme.colors.accent.success : theme.colors.text.secondary,
+                  cursor: 'pointer',
+                }}
+              >
+                {/* eslint-disable-next-line i18next/no-literal-string */}
+                &lt;{from}&gt;
+              </span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCopyEmail();
+                }}
+                title={emailCopied ? t('emailDetail.emailCopied') : t('emailDetail.clickToCopyEmail')}
+                aria-label={t('emailDetail.clickToCopyEmail')}
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  padding: 0,
+                  cursor: 'pointer',
+                  color: emailCopied ? theme.colors.accent.success : theme.colors.text.secondary,
+                  fontSize: theme.typography.fontSize.sm,
+                  lineHeight: 1,
+                }}
+              >
+                {COPY_ICON}
+              </button>
             </span>
           )}
           <span style={{ color: theme.colors.text.secondary }}>

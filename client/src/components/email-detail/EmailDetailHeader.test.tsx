@@ -28,6 +28,12 @@ jest.mock('utils/emailUtils', () => ({
   }),
 }));
 
+
+jest.mock('contexts/NotificationContext', () => ({
+  useNotifications: () => ({
+    showSuccess: jest.fn(),
+  }),
+}));
 const mockWriteText = jest.fn().mockResolvedValue(undefined);
 Object.assign(navigator, {
   clipboard: { writeText: mockWriteText },
@@ -77,8 +83,8 @@ describe('EmailDetailHeader', () => {
 
     it('should show click-to-copy tooltip on the email element', () => {
       render(<EmailDetailHeader {...defaultProps} />);
-      const emailSpan = screen.getByTitle('emailDetail.clickToCopyEmail');
-      expect(emailSpan).toBeInTheDocument();
+      const copyButton = screen.getByRole('button', { name: 'emailDetail.clickToCopyEmail' });
+      expect(copyButton).toBeInTheDocument();
     });
 
     it('should not show email span when correspondent has no email', () => {
@@ -88,15 +94,15 @@ describe('EmailDetailHeader', () => {
         fromName: 'No Email Sender',
       };
       render(<EmailDetailHeader {...defaultProps} email={emailWithoutFrom} />);
-      expect(screen.queryByTitle('emailDetail.clickToCopyEmail')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'emailDetail.clickToCopyEmail' })).not.toBeInTheDocument();
     });
   });
 
   describe('click-to-copy', () => {
     it('should copy email to clipboard when clicked', async () => {
       render(<EmailDetailHeader {...defaultProps} />);
-      const emailSpan = screen.getByTitle('emailDetail.clickToCopyEmail');
-      fireEvent.click(emailSpan);
+      const copyButton = screen.getByRole('button', { name: 'emailDetail.clickToCopyEmail' });
+      fireEvent.click(copyButton);
 
       await waitFor(() => {
         expect(mockWriteText).toHaveBeenCalledWith('sender@example.com');
@@ -105,21 +111,21 @@ describe('EmailDetailHeader', () => {
 
     it('should show copied feedback after clicking', async () => {
       render(<EmailDetailHeader {...defaultProps} />);
-      const emailSpan = screen.getByTitle('emailDetail.clickToCopyEmail');
-      fireEvent.click(emailSpan);
+      const copyButton = screen.getByRole('button', { name: 'emailDetail.clickToCopyEmail' });
+      fireEvent.click(copyButton);
 
       await waitFor(() => {
-        expect(screen.getByTitle('emailDetail.emailCopied')).toBeInTheDocument();
+        expect(screen.getAllByTitle('emailDetail.emailCopied').length).toBeGreaterThan(0);
       });
     });
 
     it('should revert copied feedback after timeout', async () => {
       render(<EmailDetailHeader {...defaultProps} />);
-      const emailSpan = screen.getByTitle('emailDetail.clickToCopyEmail');
-      fireEvent.click(emailSpan);
+      const copyButton = screen.getByRole('button', { name: 'emailDetail.clickToCopyEmail' });
+      fireEvent.click(copyButton);
 
       await waitFor(() => {
-        expect(screen.getByTitle('emailDetail.emailCopied')).toBeInTheDocument();
+        expect(screen.getAllByTitle('emailDetail.emailCopied').length).toBeGreaterThan(0);
       });
 
       act(() => {
@@ -127,7 +133,7 @@ describe('EmailDetailHeader', () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByTitle('emailDetail.clickToCopyEmail')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'emailDetail.clickToCopyEmail' })).toBeInTheDocument();
       });
     });
 
@@ -136,8 +142,8 @@ describe('EmailDetailHeader', () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
       render(<EmailDetailHeader {...defaultProps} />);
-      const emailSpan = screen.getByTitle('emailDetail.clickToCopyEmail');
-      fireEvent.click(emailSpan);
+      const copyButton = screen.getByRole('button', { name: 'emailDetail.clickToCopyEmail' });
+      fireEvent.click(copyButton);
 
       await waitFor(() => {
         expect(consoleSpy).toHaveBeenCalled();

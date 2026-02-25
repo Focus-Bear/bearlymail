@@ -5,7 +5,7 @@ import axios from 'axios';
 import { Email, getEmailPriorityScore } from 'types/email';
 import { API_URL } from 'config/api';
 import { AppDispatch } from 'store/store';
-import { removeEmail, updateEmail, restoreEmail, addOptimisticArchive, removeOptimisticArchive, addOptimisticSnooze, removeOptimisticSnooze, addAnimatingOut, removeAnimatingOut } from 'store/slices/emailSlice';
+import { removeEmail, updateEmail, restoreEmail, addOptimisticArchive, removeOptimisticArchive, addOptimisticSnooze, removeOptimisticSnooze, addAnimatingOut, removeAnimatingOut, decrementCategorySummaryCount, incrementCategorySummaryCount } from 'store/slices/emailSlice';
 import { selectEmails } from 'store/selectors/emailSelectors';
 
 /** Duration (ms) of email exit animations — must match CSS animation durations in App.css */
@@ -152,6 +152,9 @@ export function useEmailActionsBase({
     console.log('[Archive] Dispatching addOptimisticArchive and addAnimatingOut');
     dispatch(addOptimisticArchive(emailId));
     dispatch(addAnimatingOut({ id: emailId, type: 'archive' }));
+    // Decrement the category summary count to keep accordion badge in sync
+    const categoryName = emailToArchive.category || 'Other';
+    dispatch(decrementCategorySummaryCount(categoryName));
     onSuggestionRemove?.(emailId);
     // Remove from list after animation completes (duration matches animate-fly-out-right in App.css)
     const archiveTimeoutId = setTimeout(() => {
@@ -201,6 +204,8 @@ export function useEmailActionsBase({
           }
         }
         dispatch(removeOptimisticArchive(emailId));
+        // Revert category summary count
+        dispatch(incrementCategorySummaryCount(categoryName));
         // Revert tab count changes
         if (onTabCountsUpdateOptimistically) {
           if (mode === 'triage') {

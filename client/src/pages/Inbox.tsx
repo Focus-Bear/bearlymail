@@ -210,8 +210,11 @@ const Inbox: React.FC = () => {
           <DebugPanel
             mode={mode}
             emails={emails}
+            allEmails={debugPanel.allEmails}
+            loadingAllEmails={debugPanel.loadingAllEmails}
             isOpen={debugPanel.debugViewOpen}
             onToggle={() => debugPanel.setDebugViewOpen(!debugPanel.debugViewOpen)}
+            onFetchAllEmails={() => debugPanel.fetchAllEmails(mode)}
             syncStatus={debugPanel.syncStatus}
             loadingSyncStatus={debugPanel.loadingSyncStatus}
             syncHistory={debugPanel.syncHistory}

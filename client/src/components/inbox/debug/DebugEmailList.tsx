@@ -60,19 +60,25 @@ export const DebugEmailList: React.FC<DebugEmailListProps> = ({ emails, mode }) 
                   flexDirection: 'column',
                   gap: '2px',
                   flex: 1,
-                  minWidth: '500px',
+                  minWidth: 0,
+                  overflow: 'hidden',
                 }}
               >
-                <span>
-                  <strong>ThreadID:</strong> {email.threadId?.substring(0, 8)}... |
-                  <strong> EmailID:</strong> {email.id.substring(0, 8)}... |
+                <span style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                  <strong>ThreadID:</strong> {email.threadId?.substring(0, 8)}...
+                  <br />
+                  <strong>EmailID:</strong> {email.id.substring(0, 8)}... |
                   <strong> StarCount:</strong> {starCount} |
-                  <strong> Archived:</strong> {isArchived ? 'YES' : 'NO'} |
-                  <strong> Should be in:</strong> {shouldBeIn} |
+                  <strong> Archived:</strong> {isArchived ? 'YES' : 'NO'}
+                  <br />
+                  <strong>Should be in:</strong> {shouldBeIn} |
                   <strong> Current tab:</strong> {mode} |
                   <strong> Priority:</strong> {getEmailPriorityScore(email).toFixed(1)}
                   {email.lastCheckedAt && (
-                    <> | <strong> Last checked:</strong> {new Date(email.lastCheckedAt).toLocaleString()}</>
+                    <>
+                      <br />
+                      <strong>Last checked:</strong> {new Date(email.lastCheckedAt).toLocaleString()}
+                    </>
                   )}
                   {isArchived && (
                     <span style={{ color: 'red', fontWeight: 'bold' }}> ⚠️ ARCHIVED!</span>

@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import axios from 'axios';
 import { API_URL } from 'config/api';
 import { SyncHistoryEntry } from 'components/inbox/debug/DebugSyncHistorySection';
+import { Email, InboxMode } from 'types/email';
 
 interface SyncStatus {
   lastSyncTime: string | null;
@@ -122,12 +123,15 @@ interface UseDebugPanelReturn {
   fixingOrphans: boolean;
   threadLookupResult: ThreadLookupResult | null;
   loadingThreadLookup: boolean;
+  allEmails: Email[];
+  loadingAllEmails: boolean;
   fetchSyncStatus: () => Promise<void>;
   fetchSyncHistory: () => Promise<void>;
   fetchDebugStarredThreads: () => Promise<void>;
   fetchDebugOrphanEmails: () => Promise<void>;
   handleFixOrphanEmails: (onSuccess?: () => void) => Promise<void>;
   lookupThread: (threadId: string) => Promise<void>;
+  fetchAllEmails: (mode: InboxMode) => Promise<void>;
 }
 
 export function useDebugPanel(onSuccess?: () => void): UseDebugPanelReturn {
@@ -143,6 +147,8 @@ export function useDebugPanel(onSuccess?: () => void): UseDebugPanelReturn {
   const [fixingOrphans, setFixingOrphans] = useState(false);
   const [threadLookupResult, setThreadLookupResult] = useState<ThreadLookupResult | null>(null);
   const [loadingThreadLookup, setLoadingThreadLookup] = useState(false);
+  const [allEmails, setAllEmails] = useState<Email[]>([]);
+  const [loadingAllEmails, setLoadingAllEmails] = useState(false);
 
   const fetchSyncStatus = useCallback(async () => {
     setLoadingSyncStatus(true);
@@ -243,6 +249,26 @@ export function useDebugPanel(onSuccess?: () => void): UseDebugPanelReturn {
     }
   }, []);
 
+  const fetchAllEmails = useCallback(async (mode: InboxMode) => {
+    setLoadingAllEmails(true);
+    try {
+      // Fetch all emails for the current mode without pagination
+      // Using a high limit to get all emails in one request
+      const params = new URLSearchParams();
+      params.append('mode', mode);
+      params.append('limit', '1000');
+      params.append('offset', '0');
+
+      const response = await axios.get(`${API_URL}/emails/inbox?${params.toString()}`);
+      setAllEmails(response.data.emails || []);
+    } catch (error) {
+      console.error('Error fetching all emails for debug:', error);
+      setAllEmails([]);
+    } finally {
+      setLoadingAllEmails(false);
+    }
+  }, []);
+
   return {
     debugViewOpen,
     setDebugViewOpen,
@@ -257,12 +283,15 @@ export function useDebugPanel(onSuccess?: () => void): UseDebugPanelReturn {
     fixingOrphans,
     threadLookupResult,
     loadingThreadLookup,
+    allEmails,
+    loadingAllEmails,
     fetchSyncStatus,
     fetchSyncHistory,
     fetchDebugStarredThreads,
     fetchDebugOrphanEmails,
     handleFixOrphanEmails,
     lookupThread,
+    fetchAllEmails,
   };
 }
 

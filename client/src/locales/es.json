@@ -354,7 +354,10 @@
     },
     "panel": {
       "syncStatus": "Estado de sincronización",
-      "title": "Panel de depuración (modo {{mode}}, subprocesos {{count}})"
+      "title": "Panel de depuración (modo {{mode}}, subprocesos {{count}})",
+      "allEmails": "Todos los correos",
+      "loadAllEmails": "Cargar todos los correos",
+      "loadingAllEmails": "Cargando todos los correos..."
     },
     "starred": {
       "database": "Base de datos",

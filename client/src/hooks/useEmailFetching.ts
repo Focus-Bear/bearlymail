@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import axios from 'axios';
 import { HTTP_UNAUTHORIZED } from 'constants/numbers';
 import { ERROR_NETWORK, ERROR_CODE_ERR_NETWORK, ERROR_GMAIL_REQUIRED, ERROR_GMAIL } from 'constants/strings';
-import { InboxMode } from 'types/email';
+import { Email, InboxMode } from 'types/email';
 import { API_URL } from 'config/api';
 import { InboxFilter } from 'hooks/useInboxFilters';
 import { AppDispatch } from 'store/store';
@@ -268,7 +268,20 @@ export function useEmailFetching({
         try {
           const catParams = buildCategoryParams(categoryName);
           const catResponse = await axios.get(`${API_URL}/emails/inbox?${catParams.toString()}`);
-          dispatch(updateCategoryEmails({ categoryName, emails: catResponse.data.emails }));
+          const { emails: categoryEmails } = catResponse.data as { emails: Email[] };
+
+          // Defensive normalization: same as fetchCategoryEmails.
+          // Backend/category-sync races can occasionally return rows with null/mismatched
+          // category values. Force these into the requested category so the UI consistently
+          // renders what the summary and fetch request are asking for.
+          const normalizedEmails = categoryEmails.map((email) => {
+            if (!email.category || email.category !== categoryName) {
+              return { ...email, category: categoryName };
+            }
+            return email;
+          });
+
+          dispatch(updateCategoryEmails({ categoryName, emails: normalizedEmails }));
         } catch (err) {
           console.warn(`[refreshInPlace] Failed to refresh category "${categoryName}":`, err);
         }

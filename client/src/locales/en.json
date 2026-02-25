@@ -1158,7 +1158,10 @@
   "debug": {
     "panel": {
       "title": "Debug Panel ({{mode}} mode, {{count}} threads)",
-      "syncStatus": "Sync Status"
+      "syncStatus": "Sync Status",
+      "allEmails": "All Emails",
+      "loadAllEmails": "Load All Emails",
+      "loadingAllEmails": "Loading all emails..."
     },
     "stats": {
       "loading": "Loading...",

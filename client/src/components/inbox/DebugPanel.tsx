@@ -1,5 +1,6 @@
 import React from 'react';
 import { MODE_ACTION, MODE_FOLLOW_UP } from 'constants/strings';
+import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
@@ -85,8 +86,11 @@ interface SyncStatus {
 interface DebugPanelProps {
   mode: 'triage' | 'action' | 'follow-up';
   emails: Email[];
+  allEmails: Email[];
+  loadingAllEmails: boolean;
   isOpen: boolean;
   onToggle: () => void;
+  onFetchAllEmails: () => void;
   syncStatus: SyncStatus | null;
   loadingSyncStatus: boolean;
   syncHistory: SyncHistoryEntry[] | null;
@@ -108,8 +112,11 @@ interface DebugPanelProps {
 export const DebugPanel: React.FC<DebugPanelProps> = ({
   mode,
   emails,
+  allEmails,
+  loadingAllEmails,
   isOpen,
   onToggle,
+  onFetchAllEmails,
   syncStatus,
   loadingSyncStatus,
   syncHistory,
@@ -175,6 +182,7 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
           fontFamily: 'monospace',
           maxHeight: '600px',
           overflowY: 'auto',
+          overflowX: 'hidden',
         }}>
           {/* Sync Status Section */}
           <div
@@ -220,7 +228,44 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
             onLookupThread={onLookupThread}
           />
 
-          <DebugEmailList emails={emails} mode={mode} />
+          <div
+            style={{
+              marginBottom: theme.spacing.md,
+              padding: theme.spacing.sm,
+              backgroundColor: '#FFF8E1',
+              borderRadius: theme.borderRadius.sm,
+              border: '1px solid #FFE082',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: theme.spacing.sm }}>
+              <h4 style={{ margin: 0 }}>
+                📧 {t('debug.panel.allEmails')} ({allEmails.length > 0 ? allEmails.length : emails.length})
+              </h4>
+              <button
+                onClick={onFetchAllEmails}
+                disabled={loadingAllEmails}
+                style={{
+                  padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                  backgroundColor: theme.colors.primary.main,
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: theme.borderRadius.sm,
+                  cursor: loadingAllEmails ? 'not-allowed' : 'pointer',
+                  opacity: loadingAllEmails ? OPACITY_DISABLED : OPACITY_FULL,
+                  fontSize: theme.typography.fontSize.xs,
+                }}
+              >
+                {loadingAllEmails ? t('common.loading') : t('debug.panel.loadAllEmails')}
+              </button>
+            </div>
+            {loadingAllEmails ? (
+              <div style={{ color: theme.colors.text.secondary, padding: theme.spacing.sm }}>
+                {t('debug.panel.loadingAllEmails')}
+              </div>
+            ) : (
+              <DebugEmailList emails={allEmails.length > 0 ? allEmails : emails} mode={mode} />
+            )}
+          </div>
         </div>
       )}
     </div>

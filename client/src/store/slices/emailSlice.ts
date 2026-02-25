@@ -194,6 +194,24 @@ const emailSlice = createSlice({
       state.loadedCategoryNames = [];
       state.loadingCategoryNames = [];
     },
+    decrementCategorySummaryCount: (state, action: PayloadAction<string>) => {
+      const categoryName = action.payload;
+      if (state.categorySummary) {
+        const category = state.categorySummary.find(c => c.name === categoryName);
+        if (category && category.count > 0) {
+          category.count -= 1;
+        }
+      }
+    },
+    incrementCategorySummaryCount: (state, action: PayloadAction<string>) => {
+      const categoryName = action.payload;
+      if (state.categorySummary) {
+        const category = state.categorySummary.find(c => c.name === categoryName);
+        if (category) {
+          category.count += 1;
+        }
+      }
+    },
   },
 });
 
@@ -223,6 +241,8 @@ export const {
   markCategoryLoaded,
   markCategoryLoading,
   clearCategoryState,
+  decrementCategorySummaryCount,
+  incrementCategorySummaryCount,
 } = emailSlice.actions;
 
 export default emailSlice.reducer;

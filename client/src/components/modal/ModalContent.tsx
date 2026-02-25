@@ -24,10 +24,10 @@ export const ModalContent: React.FC<ModalContentProps> = ({
         overflowY: maxHeight ? 'auto' : undefined,
         boxShadow: theme.shadows.xl,
       }}
+      onMouseDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >
       {children}
     </div>
   );
 };
-

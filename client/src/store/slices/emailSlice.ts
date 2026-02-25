@@ -57,18 +57,34 @@ const emailSlice = createSlice({
   initialState,
   reducers: {
     setEmails: (state, action: PayloadAction<Email[]>) => {
-      console.log('[Redux] setEmails called:', {
-        before: state.emails.length,
-        after: action.payload.length,
-        optimisticArchivedCount: state.optimisticallyArchived.length,
-        optimisticArchivedIds: state.optimisticallyArchived,
-      });
       state.emails = action.payload;
       state.currentOffset = 0;
     },
     appendEmails: (state, action: PayloadAction<Email[]>) => {
       const existingIds = new Set(state.emails.map(e => e.id));
       const newEmails = action.payload.filter(e => !existingIds.has(e.id));
+      state.emails = [...state.emails, ...newEmails];
+    },
+    /**
+     * Replace emails for a single category in-place without clearing other categories.
+     * Used by the background polling refresh so updates happen invisibly.
+     * "Other" category matches emails where category is null/undefined/empty string,
+     * mirroring how getInboxSummary maps null categories to "Other".
+     */
+    updateCategoryEmails: (state, action: PayloadAction<{ categoryName: string; emails: Email[] }>) => {
+      const { categoryName, emails } = action.payload;
+      const isOther = categoryName === 'Other';
+      // Remove emails that previously belonged to this category
+      state.emails = state.emails.filter(e => {
+        if (isOther) {
+          // Keep emails that have a real (non-Other) category
+          return e.category !== null && e.category !== undefined && e.category !== '' && e.category !== 'Other';
+        }
+        return e.category !== categoryName;
+      });
+      // Append the fresh emails (skip any that are already present from another category)
+      const existingIds = new Set(state.emails.map(e => e.id));
+      const newEmails = emails.filter(e => !existingIds.has(e.id));
       state.emails = [...state.emails, ...newEmails];
     },
     setHasMore: (state, action: PayloadAction<boolean>) => {
@@ -83,37 +99,25 @@ const emailSlice = createSlice({
     addOptimisticArchive: (state, action: PayloadAction<string>) => {
       if (!state.optimisticallyArchived.includes(action.payload)) {
         state.optimisticallyArchived.push(action.payload);
-        console.log('[Redux] Added to optimistic archive:', action.payload, 'Total:', state.optimisticallyArchived.length);
-      } else {
-        console.log('[Redux] Email already in optimistic archive:', action.payload);
       }
     },
     removeOptimisticArchive: (state, action: PayloadAction<string>) => {
-      const before = state.optimisticallyArchived.length;
       state.optimisticallyArchived = state.optimisticallyArchived.filter(
         id => id !== action.payload
       );
-      console.log('[Redux] Removed from optimistic archive:', action.payload, 'Before:', before, 'After:', state.optimisticallyArchived.length);
     },
     addOptimisticSnooze: (state, action: PayloadAction<string>) => {
       if (!state.optimisticallySnoozed.includes(action.payload)) {
         state.optimisticallySnoozed.push(action.payload);
-        console.log('[Redux] Added to optimistic snooze:', action.payload, 'Total:', state.optimisticallySnoozed.length);
-      } else {
-        console.log('[Redux] Email already in optimistic snooze:', action.payload);
       }
     },
     removeOptimisticSnooze: (state, action: PayloadAction<string>) => {
-      const before = state.optimisticallySnoozed.length;
       state.optimisticallySnoozed = state.optimisticallySnoozed.filter(
         id => id !== action.payload
       );
-      console.log('[Redux] Removed from optimistic snooze:', action.payload, 'Before:', before, 'After:', state.optimisticallySnoozed.length);
     },
     removeEmail: (state, action: PayloadAction<string>) => {
-      const before = state.emails.length;
       state.emails = state.emails.filter(email => email.id !== action.payload);
-      console.log('[Redux] Removed email from list:', action.payload, 'Before:', before, 'After:', state.emails.length);
     },
     updateEmail: (state, action: PayloadAction<{ id: string; updates: Partial<Email> }>) => {
       const index = state.emails.findIndex(email => email.id === action.payload.id);
@@ -165,7 +169,6 @@ const emailSlice = createSlice({
       state.animatingOut = state.animatingOut.filter(item => item.id !== action.payload);
     },
     setCategorySummary: (state, action: PayloadAction<CategorySummaryItem[]>) => {
-      console.log(`[Redux] setCategorySummary: ${action.payload.length} categories: ${action.payload.map(c => c.name).join(', ')}`);
       state.categorySummary = action.payload;
       state.summaryLoading = false;
     },
@@ -173,21 +176,17 @@ const emailSlice = createSlice({
       state.summaryLoading = action.payload;
     },
     markCategoryLoaded: (state, action: PayloadAction<string>) => {
-      console.log(`[Redux] markCategoryLoaded: "${action.payload}" (was loading: ${state.loadingCategoryNames.includes(action.payload)})`);
       if (!state.loadedCategoryNames.includes(action.payload)) {
         state.loadedCategoryNames.push(action.payload);
       }
       state.loadingCategoryNames = state.loadingCategoryNames.filter(n => n !== action.payload);
-      console.log(`[Redux] loadedCategoryNames now: [${state.loadedCategoryNames.join(', ')}]`);
     },
     markCategoryLoading: (state, action: PayloadAction<string>) => {
-      console.log(`[Redux] markCategoryLoading: "${action.payload}"`);
       if (!state.loadingCategoryNames.includes(action.payload)) {
         state.loadingCategoryNames.push(action.payload);
       }
     },
     clearCategoryState: (state) => {
-      console.log(`[Redux] clearCategoryState: was loaded=[${state.loadedCategoryNames.join(', ')}] loading=[${state.loadingCategoryNames.join(', ')}]`);
       state.categorySummary = null;
       // Set summaryLoading = true immediately so isRefetchingWithoutData is true
       // from the moment we clear, preventing empty-state flashes.
@@ -201,6 +200,7 @@ const emailSlice = createSlice({
 export const {
   setEmails,
   appendEmails,
+  updateCategoryEmails,
   setHasMore,
   setTotalCount,
   setCurrentOffset,

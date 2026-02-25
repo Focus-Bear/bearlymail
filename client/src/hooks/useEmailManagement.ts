@@ -34,6 +34,7 @@ interface UseEmailManagementReturn {
   setLoadingModeSwitch: React.Dispatch<React.SetStateAction<boolean>>;
   fetchError: string | null;
   fetchEmails: () => Promise<void>;
+  refreshInPlace: () => Promise<void>;
   loadMore: () => Promise<void>;
   fetchCategoryEmails: (categoryName: string) => Promise<void>;
   hasMore: boolean;
@@ -66,7 +67,7 @@ export function useEmailManagement({ mode, onSuggestionRemove, onTabCountsUpdate
   const categorySummary = useSelector(selectCategorySummary);
   const loadedCategoryNames = useSelector(selectLoadedCategoryNames);
   const loadingCategoryNames = useSelector(selectLoadingCategoryNames);
-  const { fetchEmails, loadMore, fetchCategoryEmails } = useEmailFetching({ mode, filters });
+  const { fetchEmails, loadMore, fetchCategoryEmails, refreshInPlace } = useEmailFetching({ mode, filters });
 
   const { handleSetStarCount, handleArchive, handleSnooze } = useEmailActionsBase({
     fetchEmails,
@@ -177,6 +178,7 @@ export function useEmailManagement({ mode, onSuggestionRemove, onTabCountsUpdate
     setLoadingModeSwitch,
     fetchError,
     fetchEmails,
+    refreshInPlace,
     loadMore,
     fetchCategoryEmails,
     hasMore,

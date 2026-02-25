@@ -4,16 +4,20 @@ import { Email } from 'types/email';
 
 interface UseEmailProcessingPollingProps {
   emails: Email[];
-  fetchEmails: () => Promise<void>;
+  /**
+   * Called on each poll tick. Must NOT wipe existing email state — use
+   * refreshInPlace() rather than fetchEmails() so there is no visible reload.
+   */
+  onPoll: () => Promise<void>;
 }
 
 export function useEmailProcessingPolling({
   emails,
-  fetchEmails,
+  onPoll,
 }: UseEmailProcessingPollingProps) {
   useEffect(() => {
     const processingEmails = emails.filter(e => e.isProcessingPriority || e.isProcessingSummary);
-    
+
     if (processingEmails.length === 0) {
       return;
     }
@@ -21,8 +25,7 @@ export function useEmailProcessingPolling({
     const interval = setInterval(() => {
       const stillProcessing = emails.some(e => e.isProcessingPriority || e.isProcessingSummary);
       if (stillProcessing) {
-        console.log(`[Polling] ${processingEmails.length} emails still processing, refreshing...`);
-        fetchEmails();
+        onPoll();
       }
     }, LONG_TIMEOUT_MS);
 

@@ -10,6 +10,7 @@ import { AppDispatch } from 'store/store';
 import {
   setEmails,
   appendEmails,
+  updateCategoryEmails,
   setHasMore,
   setTotalCount,
   setCurrentOffset,
@@ -102,8 +103,6 @@ export function useEmailFetching({
     // Without this, a stale fetchCategoryEmails could dispatch markCategoryLoaded AFTER we
     // cleared the state, poisoning the guard and preventing a correct re-fetch.
     fetchSessionRef.current += 1;
-    const session = fetchSessionRef.current;
-    console.log(`[fetchEmails] Starting session=${session} mode=${mode} loadedCats=${loadedCategoryNamesRef.current.join(',') || 'none'}`);
     dispatch(setDecrypting(true));
     dispatch(setFetchError(null));
     // clearCategoryState sets summaryLoading = true internally, so no separate dispatch needed
@@ -118,14 +117,11 @@ export function useEmailFetching({
 
       const response = await axios.get(`${API_URL}/emails/inbox-summary?${params.toString()}`);
       const { total, categories } = response.data;
-      console.log(`[fetchEmails] session=${session} got summary: ${categories.length} categories, ${total} total emails, mode=${mode}`);
-
       dispatch(setCategorySummary(categories));
       dispatch(setTotalCount(total));
       dispatch(setDecrypting(false));
       dispatch(setFetchError(null));
     } catch (error: any) {
-      console.error('[fetchEmails] Error fetching inbox summary:', error);
       dispatch(setDecrypting(false));
       dispatch(setSummaryLoading(false));
       // eslint-disable-next-line no-restricted-syntax -- Error code comparison requires literal string for axios error codes
@@ -145,7 +141,6 @@ export function useEmailFetching({
       dispatch(setLoading(false));
       dispatch(setRefreshing(false));
       dispatch(setLoadingModeSwitch(false));
-      console.log(`[fetchEmails] session=${session} complete`);
     }
   }, [mode, filters, dispatch, buildSummaryParams]);
 
@@ -169,17 +164,14 @@ export function useEmailFetching({
     // Use refs (updated every render) instead of closed-over state values.
     // This prevents stale reads without making loadedCategoryNames a dep.
     if (loadedCategoryNamesRef.current.includes(categoryName)) {
-      console.log(`[fetchCategoryEmails] Skipping "${categoryName}": already loaded (session=${fetchSessionRef.current})`);
       return;
     }
     if (loadingCategoryNamesRef.current.includes(categoryName)) {
-      console.log(`[fetchCategoryEmails] Skipping "${categoryName}": already loading (session=${fetchSessionRef.current})`);
       return;
     }
 
     // Capture session ID before any async work
     const sessionId = fetchSessionRef.current;
-    console.log(`[fetchCategoryEmails] Starting "${categoryName}" session=${sessionId}`);
 
     dispatch(markCategoryLoading(categoryName));
     try {
@@ -188,17 +180,17 @@ export function useEmailFetching({
       const response = await axios.get(`${API_URL}/emails/inbox?${params.toString()}`);
       const { emails } = response.data;
 
-      // Check if fetchEmails() was called while this request was in-flight
+      // Discard results if fetchEmails() was called while this request was in-flight.
+      // A stale result dispatching markCategoryLoaded() would poison the guard and
+      // prevent a correct re-fetch in the new session.
       if (fetchSessionRef.current !== sessionId) {
-        console.log(`[fetchCategoryEmails] Discarding stale results for "${categoryName}" (session ${sessionId} vs current ${fetchSessionRef.current})`);
         return;
       }
 
-      console.log(`[fetchCategoryEmails] Got ${emails.length} emails for "${categoryName}" session=${sessionId}`);
       dispatch(appendEmails(emails));
       dispatch(markCategoryLoaded(categoryName));
     } catch (error: any) {
-      console.error(`[fetchCategoryEmails] Error fetching "${categoryName}":`, error);
+      console.error(`Error fetching category "${categoryName}":`, error);
       // Only mark as loaded if still the current session — otherwise clearCategoryState()
       // already cleaned up loadingCategoryNames and a re-fetch will be triggered correctly.
       if (fetchSessionRef.current === sessionId) {
@@ -225,5 +217,52 @@ export function useEmailFetching({
     }
   }, [currentOffset]);
 
-  return { fetchEmails, loadMore, fetchCategoryEmails };
+  /**
+   * Refresh inbox data in-place without wiping existing state.
+   *
+   * Unlike fetchEmails() — which clears all emails and category state before reloading —
+   * this function quietly updates:
+   *   1. The category summary (counts)
+   *   2. The email list for every already-loaded category
+   *
+   * No loading spinners are shown and no existing data is removed until the fresh data
+   * arrives. This makes it safe to call from background polling without causing a visible
+   * reload of the inbox.
+   *
+   * Only loaded categories are refreshed. Categories the user has not yet expanded are
+   * left untouched; their summary counts will be updated in step 1.
+   */
+  const refreshInPlace = useCallback(async () => {
+    try {
+      // Step 1: Silently update the summary (category names + counts)
+      const summaryParams = buildSummaryParams();
+      const summaryResponse = await axios.get(`${API_URL}/emails/inbox-summary?${summaryParams.toString()}`);
+      const { total, categories } = summaryResponse.data;
+      dispatch(setCategorySummary(categories));
+      dispatch(setTotalCount(total));
+    } catch (err) {
+      // If the summary fetch fails, bail out — no point refreshing category emails
+      console.warn('[refreshInPlace] Summary fetch failed, skipping category refresh:', err);
+      return;
+    }
+
+    // Step 2: Re-fetch emails for each category that has already been loaded.
+    // We read the snapshot of loaded categories at the start; new categories that
+    // finish loading during this refresh cycle will not be double-fetched.
+    const loadedCategories = [...loadedCategoryNamesRef.current];
+    await Promise.all(
+      loadedCategories.map(async (categoryName) => {
+        try {
+          const catParams = buildCategoryParams(categoryName);
+          const catResponse = await axios.get(`${API_URL}/emails/inbox?${catParams.toString()}`);
+          dispatch(updateCategoryEmails({ categoryName, emails: catResponse.data.emails }));
+        } catch (err) {
+          console.warn(`[refreshInPlace] Failed to refresh category "${categoryName}":`, err);
+        }
+      })
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch, buildSummaryParams, buildCategoryParams]);
+
+  return { fetchEmails, loadMore, fetchCategoryEmails, refreshInPlace };
 }

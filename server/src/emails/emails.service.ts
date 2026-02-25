@@ -814,7 +814,12 @@ export class EmailsService {
       const beforeCategoryFilter = filteredEmails.length;
       filteredEmails = filteredEmails.filter((e) => {
         const emailCategory = (e as any).category; // Category is already decrypted
-        return filters.categories.includes(emailCategory);
+        // Treat null/undefined/empty category as "Other" to mirror getInboxSummary behaviour.
+        // Without this, requesting category="Other" would miss threads whose category
+        // column is NULL (i.e. not yet classified), even though the summary counts them
+        // under "Other".
+        const effectiveCategory = emailCategory || "Other";
+        return filters.categories!.includes(effectiveCategory);
       });
       const removedCount = beforeCategoryFilter - filteredEmails.length;
       if (removedCount > 0) {

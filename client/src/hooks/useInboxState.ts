@@ -92,6 +92,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     setLoadingModeSwitch,
     fetchError,
     fetchEmails,
+    refreshInPlace,
     loadMore,
     fetchCategoryEmails,
     hasMore,
@@ -240,10 +241,12 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
   // Fetch GitHub metadata in batch after inbox loads
   useGitHubBatchFetch(emails, loading);
 
-  // Poll for email updates when emails are actively processing
+  // Poll for email updates when emails are actively processing.
+  // Use refreshInPlace so polling never wipes the existing email list — the update
+  // happens invisibly in the background without any visible reload.
   useEmailProcessingPolling({
     emails,
-    fetchEmails,
+    onPoll: refreshInPlace,
   });
 
   // Track inbox view
@@ -356,10 +359,8 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
       const next = new Set(prev);
       if (next.has(category)) {
         next.delete(category);
-        console.log(`[toggleCategory] Collapsed "${category}"`);
       } else {
         next.add(category);
-        console.log(`[toggleCategory] Expanded "${category}" - re-fetch effect will fetch if needed`);
       }
       return next;
     });
@@ -377,10 +378,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
         hasAutoExpandedRef.current = true;
         const INITIAL_PRELOAD_COUNT = 3;
         const toExpand = categories.slice(0, INITIAL_PRELOAD_COUNT);
-        console.log(`[updateStableCategoryOrder] Auto-expanding top ${INITIAL_PRELOAD_COUNT}: ${toExpand.join(', ')}`);
         setExpandedCategories(new Set(toExpand));
-      } else {
-        console.log(`[updateStableCategoryOrder] Already auto-expanded, updating order for ${categories.length} categories`);
       }
     }
   }, []);
@@ -397,13 +395,12 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
 
   // Fetch expanded categories whose data is missing.
   // Fires whenever:
-  //   • categorySummary becomes available (initial load or after background poll clears it)
+  //   • categorySummary becomes available (initial load or after a full fetchEmails clears it)
   //   • expandedCategories changes (user toggles an accordion or auto-expand fires)
   //   • fetchCategoryEmails changes (only on mode/filter changes — NOT on category loads,
-  //     since fetchCategoryEmails is now stable across category loads via internal refs)
+  //     since fetchCategoryEmails is stable across category loads via internal refs)
   useEffect(() => {
     if (!categorySummary) {
-      console.log('[re-fetch effect] No categorySummary yet, skipping');
       return;
     }
 
@@ -413,14 +410,12 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     );
 
     if (toFetch.length === 0) {
-      console.log(`[re-fetch effect] All ${expandedCategories.size} expanded categories already loaded/loading`);
       return;
     }
 
-    console.log(`[re-fetch effect] Fetching ${toFetch.length} categories: ${toFetch.join(', ')}`);
     toFetch.forEach(category => {
       fetchCategoryEmails(category).catch(err =>
-        console.error(`[re-fetch effect] Error fetching category ${category}:`, err)
+        console.error(`Error fetching category "${category}":`, err)
       );
     });
   }, [categorySummary, expandedCategories, fetchCategoryEmails]);

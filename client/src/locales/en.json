@@ -1482,10 +1482,20 @@
       "description": "These categories were suggested by AI based on your emails. Promote ones you want to keep, or delete ones that aren't relevant.",
       "empty": "No AI suggested categories yet. As you receive emails that don't fit existing categories, AI will suggest new ones here.",
       "progress": "{{count}}/{{threshold}} emails",
+      "nameLabel": "Category name",
+      "saveName": "Save",
+      "savingName": "Saving...",
+      "nameRequired": "Category name is required",
+      "renameSuccess": "Category name updated",
+      "renameError": "Failed to update category name",
       "promote": "Promote",
       "promoting": "Promoting...",
+      "promotedSuccess": "Category promoted",
+      "promoteError": "Failed to promote category",
       "delete": "Delete",
-      "deleting": "Deleting..."
+      "deleting": "Deleting...",
+      "deletedSuccess": "Category deleted",
+      "deleteError": "Failed to delete category"
     },
     "contextExplanations": {
       "vipContactStarredExplanation": "You've starred {{count}} email{{plural}} from this contact"

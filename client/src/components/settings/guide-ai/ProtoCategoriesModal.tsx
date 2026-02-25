@@ -4,6 +4,7 @@ import axios from 'axios';
 import { theme } from 'theme/theme';
 import { OPACITY_DISABLED } from 'constants/numbers';
 import { API_URL } from 'config/api';
+import { useNotifications } from 'contexts/NotificationContext';
 
 const PROTO_CATEGORY_PROMOTION_THRESHOLD = 5;
 
@@ -17,24 +18,26 @@ interface ProtoCategory {
 
 interface ProtoCategoriesModalProps {
   onClose: () => void;
-  onCategoryPromoted: () => void;
 }
 
 export const ProtoCategoriesModal: React.FC<ProtoCategoriesModalProps> = ({
   onClose,
-  onCategoryPromoted,
 }) => {
   const { t } = useTranslation();
+  const { showError, showSuccess } = useNotifications();
   const [categories, setCategories] = useState<ProtoCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [promotingId, setPromotingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [savingNameId, setSavingNameId] = useState<string | null>(null);
+  const [draftNames, setDraftNames] = useState<Record<string, string>>({});
 
   const fetchCategories = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await axios.get<ProtoCategory[]>(`${API_URL}/proto-categories`);
       setCategories(response.data);
+      setDraftNames(Object.fromEntries(response.data.map((category) => [category.id, category.name])));
     } catch (error) {
       console.error('Failed to fetch proto categories:', error);
     } finally {
@@ -51,11 +54,48 @@ export const ProtoCategoriesModal: React.FC<ProtoCategoriesModalProps> = ({
     try {
       await axios.post(`${API_URL}/proto-categories/${id}/promote`);
       setCategories((prev) => prev.filter((c) => c.id !== id));
-      onCategoryPromoted();
+      setDraftNames((prev) => {
+        const { [id]: _removed, ...rest } = prev;
+        return rest;
+      });
+      showSuccess(t('settings.protoCategories.promotedSuccess'));
     } catch (error) {
       console.error('Failed to promote proto category:', error);
+      showError(t('settings.protoCategories.promoteError'));
     } finally {
       setPromotingId(null);
+    }
+  };
+
+
+  const handleNameChange = (id: string, value: string) => {
+    setDraftNames((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const handleSaveName = async (id: string) => {
+    const nextName = (draftNames[id] ?? '').trim();
+    if (!nextName) {
+      showError(t('settings.protoCategories.nameRequired'));
+      return;
+    }
+
+    setSavingNameId(id);
+    try {
+      const response = await axios.put<ProtoCategory>(`${API_URL}/proto-categories/${id}`, {
+        name: nextName,
+      });
+      setCategories((prev) =>
+        prev.map((category) =>
+          category.id === id ? { ...category, name: response.data.name } : category,
+        ),
+      );
+      setDraftNames((prev) => ({ ...prev, [id]: response.data.name }));
+      showSuccess(t('settings.protoCategories.renameSuccess'));
+    } catch (error) {
+      console.error('Failed to update proto category name:', error);
+      showError(t('settings.protoCategories.renameError'));
+    } finally {
+      setSavingNameId(null);
     }
   };
 
@@ -64,8 +104,14 @@ export const ProtoCategoriesModal: React.FC<ProtoCategoriesModalProps> = ({
     try {
       await axios.delete(`${API_URL}/proto-categories/${id}`);
       setCategories((prev) => prev.filter((c) => c.id !== id));
+      setDraftNames((prev) => {
+        const { [id]: _removed, ...rest } = prev;
+        return rest;
+      });
+      showSuccess(t('settings.protoCategories.deletedSuccess'));
     } catch (error) {
       console.error('Failed to delete proto category:', error);
+      showError(t('settings.protoCategories.deleteError'));
     } finally {
       setDeletingId(null);
     }
@@ -175,8 +221,11 @@ export const ProtoCategoriesModal: React.FC<ProtoCategoriesModalProps> = ({
               {categories.map((category) => {
                 const isPromoting = promotingId === category.id;
                 const isDeleting = deletingId === category.id;
+                const isSavingName = savingNameId === category.id;
                 const isBusy = isPromoting || isDeleting;
                 const progress = Math.min(category.emailCount, PROTO_CATEGORY_PROMOTION_THRESHOLD);
+                const draftName = draftNames[category.id] ?? category.name;
+                const hasNameChanged = draftName.trim() !== category.name;
 
                 return (
                   <div
@@ -196,14 +245,24 @@ export const ProtoCategoriesModal: React.FC<ProtoCategoriesModalProps> = ({
                       gap: theme.spacing.sm,
                     }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{
-                          fontWeight: theme.typography.fontWeight.medium,
-                          fontSize: theme.typography.fontSize.base,
-                          color: theme.colors.text.primary,
-                          marginBottom: theme.spacing.xs,
-                        }}>
-                          {category.name}
-                        </div>
+                        <input
+                          type="text"
+                          value={draftName}
+                          onChange={(event) => handleNameChange(category.id, event.target.value)}
+                          disabled={isSavingName}
+                          style={{
+                            width: '100%',
+                            fontWeight: theme.typography.fontWeight.medium,
+                            fontSize: theme.typography.fontSize.base,
+                            color: theme.colors.text.primary,
+                            marginBottom: theme.spacing.xs,
+                            border: `1px solid ${theme.colors.border.medium}`,
+                            borderRadius: theme.borderRadius.sm,
+                            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                            backgroundColor: theme.colors.background.paper,
+                          }}
+                          aria-label={t('settings.protoCategories.nameLabel')}
+                        />
                         {category.description && (
                           <div style={{
                             fontSize: theme.typography.fontSize.sm,
@@ -242,6 +301,25 @@ export const ProtoCategoriesModal: React.FC<ProtoCategoriesModalProps> = ({
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: theme.spacing.sm, flexShrink: 0 }}>
+                        <button
+                          onClick={() => handleSaveName(category.id)}
+                          disabled={isSavingName || !hasNameChanged || isBusy}
+                          style={{
+                            background: 'transparent',
+                            border: `1px solid ${theme.colors.border.medium}`,
+                            color: theme.colors.text.primary,
+                            cursor: isSavingName || !hasNameChanged || isBusy ? 'not-allowed' : 'pointer',
+                            fontSize: theme.typography.fontSize.sm,
+                            fontWeight: theme.typography.fontWeight.medium,
+                            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                            borderRadius: theme.borderRadius.sm,
+                            opacity: isSavingName || !hasNameChanged || isBusy ? OPACITY_DISABLED : 1,
+                          }}
+                        >
+                          {isSavingName
+                            ? t('settings.protoCategories.savingName')
+                            : t('settings.protoCategories.saveName')}
+                        </button>
                         <button
                           onClick={() => handlePromote(category.id)}
                           disabled={isBusy}

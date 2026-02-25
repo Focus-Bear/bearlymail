@@ -1,4 +1,10 @@
-import { Injectable, Logger } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { ProtoCategory } from "../database/entities/proto-category.entity";
@@ -270,6 +276,55 @@ export class ProtoCategoriesService {
     }
 
     return null;
+  }
+
+  async updateProtoCategoryName(
+    userId: string,
+    protoCategoryId: string,
+    name: string,
+  ): Promise<ProtoCategory> {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      throw new BadRequestException("Proto category name cannot be empty");
+    }
+
+    const protoCategory = await this.findActiveById(userId, protoCategoryId);
+    if (!protoCategory) {
+      throw new NotFoundException(
+        `Proto category ${protoCategoryId} not found or already promoted`,
+      );
+    }
+
+    const activeCategories = await this.findActiveByUser(userId);
+    const hasDuplicate = activeCategories.some(
+      (category) =>
+        category.id !== protoCategoryId &&
+        category.name.trim().toLowerCase() === trimmedName.toLowerCase(),
+    );
+
+    if (hasDuplicate) {
+      throw new ConflictException(
+        `A proto category named "${trimmedName}" already exists`,
+      );
+    }
+
+    await this.protoCategoryRepository.update(
+      { id: protoCategoryId, userId, isPromoted: false },
+      { name: trimmedName },
+    );
+
+    const updated = await this.findActiveById(userId, protoCategoryId);
+    if (!updated) {
+      throw new NotFoundException(
+        `Proto category ${protoCategoryId} not found or already promoted`,
+      );
+    }
+
+    this.logger.log(
+      `Updated proto category ${protoCategoryId} name to "${trimmedName}" for user ${userId}`,
+    );
+
+    return updated;
   }
 
   /**

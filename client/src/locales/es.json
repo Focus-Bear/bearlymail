@@ -1579,10 +1579,20 @@
       "description": "Estas categorías fueron sugeridas por la IA según tus correos. Promueve las que quieras conservar o elimina las que no sean relevantes.",
       "empty": "Aún no hay categorías sugeridas por IA. A medida que recibas correos que no encajen en categorías existentes, la IA sugerirá nuevas aquí.",
       "progress": "{{count}}/{{threshold}} correos",
+      "nameLabel": "Nombre de categoría",
+      "saveName": "Guardar",
+      "savingName": "Guardando...",
+      "nameRequired": "El nombre de la categoría es obligatorio",
+      "renameSuccess": "Nombre de categoría actualizado",
+      "renameError": "No se pudo actualizar el nombre de la categoría",
       "promote": "Promover",
       "promoting": "Promoviendo...",
+      "promotedSuccess": "Categoría promovida",
+      "promoteError": "No se pudo promover la categoría",
       "delete": "Eliminar",
-      "deleting": "Eliminando..."
+      "deleting": "Eliminando...",
+      "deletedSuccess": "Categoría eliminada",
+      "deleteError": "No se pudo eliminar la categoría"
     },
     "created": "Creado {{date}}",
     "delivery": {

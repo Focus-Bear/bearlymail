@@ -1,9 +1,11 @@
 import {
+  Body,
   Controller,
   Get,
   Post,
   Delete,
   Param,
+  Put,
   UseGuards,
   Request,
   Logger,
@@ -11,6 +13,7 @@ import {
 } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { ProtoCategoriesService } from "./proto-categories.service";
+import { UpdateProtoCategoryDto } from "./dto/update-proto-category.dto";
 
 @Controller("proto-categories")
 @UseGuards(JwtAuthGuard)
@@ -64,6 +67,28 @@ export class ProtoCategoriesController {
       name: promoted.name,
       isPromoted: promoted.isPromoted,
       promotedCategoryId: promoted.promotedCategoryId,
+    };
+  }
+
+  @Put(":id")
+  async updateProtoCategory(
+    @Param("id") id: string,
+    @Body() body: UpdateProtoCategoryDto,
+    @Request() req: { user: { userId: string } },
+  ) {
+    const { userId } = req.user;
+    const updated = await this.protoCategoriesService.updateProtoCategoryName(
+      userId,
+      id,
+      body.name,
+    );
+
+    return {
+      id: updated.id,
+      name: updated.name,
+      description: updated.description,
+      emailCount: updated.emailCount,
+      createdAt: updated.createdAt,
     };
   }
 

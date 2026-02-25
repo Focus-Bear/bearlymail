@@ -177,7 +177,6 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
       {showProtoCategoriesModal && (
         <ProtoCategoriesModal
           onClose={() => setShowProtoCategoriesModal(false)}
-          onCategoryPromoted={() => window.location.reload()}
         />
       )}
     </div>

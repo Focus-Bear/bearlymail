@@ -1834,9 +1834,10 @@
         "private": "private",
         "noAccess": "No access",
         "issuesFound": "Access issues detected",
-        "privateRepoHint": "One or more repositories could not be accessed. This is usually because the repository is private and your GitHub token doesn't have the 'repo' scope. Reconnect GitHub to grant access.",
+        "privateRepoHint": "One or more repositories could not be accessed. Private repositories require the 'repo' permission. Click below to reconnect and grant access to your private repos.",
         "tokenExpiredHint": "Your GitHub token appears to be invalid or expired. Reconnect GitHub to fix this.",
-        "reconnect": "Reconnect GitHub"
+        "reconnect": "Reconnect GitHub",
+        "reconnectWithRepoAccess": "Grant private repo access"
       }
     }
   },

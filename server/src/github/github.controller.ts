@@ -755,9 +755,15 @@ export class GitHubController {
   }
 
   @Post("create-connect-token")
-  async createConnectToken(@Request() req) {
+  async createConnectToken(
+    @Request() req,
+    @Body() body?: { includeRepo?: boolean },
+  ) {
     const { userId } = req.user;
-    const token = this.githubAppService.createConnectToken(userId);
+    const token = this.githubAppService.createConnectToken(
+      userId,
+      body?.includeRepo ?? false,
+    );
     return { token };
   }
 
@@ -771,14 +777,17 @@ export class GitHubController {
       return res.redirect(`${frontendUrl}/settings?github=error`);
     }
 
-    // Verify and extract userId from signed token
-    const userId = this.githubAppService.verifyConnectToken(token);
-    if (!userId) {
+    // Verify and extract payload from signed token
+    const payload = this.githubAppService.verifyConnectToken(token);
+    if (!payload) {
       this.logger.error("Invalid or expired connect token");
       return res.redirect(`${frontendUrl}/settings?github=error`);
     }
 
-    const authUrl = this.githubAppService.getAuthorizationUrl(userId);
+    const authUrl = this.githubAppService.getAuthorizationUrl(
+      payload.userId,
+      payload.includeRepo ?? false,
+    );
     return res.redirect(authUrl);
   }
 
@@ -799,8 +808,8 @@ export class GitHubController {
       }
 
       // Verify signed state parameter and extract userId
-      const userId = this.githubAppService.verifyConnectToken(state);
-      if (!userId) {
+      const statePayload = this.githubAppService.verifyConnectToken(state);
+      if (!statePayload) {
         this.logger.error("Invalid or expired state parameter");
         return res.redirect(`${frontendUrl}/settings?github=error`);
       }
@@ -810,9 +819,14 @@ export class GitHubController {
         await this.githubAppService.exchangeCodeForToken(code);
 
       // Store token for user
-      await this.githubAppService.storeTokenForUser(userId, accessToken);
+      await this.githubAppService.storeTokenForUser(
+        statePayload.userId,
+        accessToken,
+      );
 
-      this.logger.log(`GitHub OAuth successful for user ${userId}`);
+      this.logger.log(
+        `GitHub OAuth successful for user ${statePayload.userId}`,
+      );
       return res.redirect(settingsUrl);
     } catch (error) {
       const errorMessage = isError(error) ? error.message : "Unknown error";

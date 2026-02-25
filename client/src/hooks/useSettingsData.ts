@@ -196,6 +196,7 @@ export function useSettingsData() {
     handleSaveApiKey: apiKeys.saveOpenAiApiKey,
     handleRemoveApiKey: apiKeys.removeOpenAiApiKey,
     handleConnectGitHub: apiKeys.connectGitHub,
+    handleConnectGitHubWithRepoAccess: apiKeys.connectGitHubWithRepoAccess,
     handleDisconnectGitHub: apiKeys.disconnectGitHub,
     handleAddSummarizationRule: summarizationRules.createSummarizationRule,
     handleEditSummarizationRule: summarizationRules.editSummarizationRule,

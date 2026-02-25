@@ -28,6 +28,7 @@ interface ConnectionStatus {
 interface GitHubConnectionStatusSectionProps {
   hasGithubToken: boolean;
   onConnectGitHub: () => void;
+  onConnectGitHubWithRepoAccess: () => void;
 }
 
 const BUTTON_DISABLED_OPACITY = 0.6;
@@ -35,6 +36,7 @@ const BUTTON_DISABLED_OPACITY = 0.6;
 export const GitHubConnectionStatusSection: React.FC<GitHubConnectionStatusSectionProps> = ({
   hasGithubToken,
   onConnectGitHub,
+  onConnectGitHubWithRepoAccess,
 }) => {
   const { t } = useTranslation();
   const [status, setStatus] = useState<ConnectionStatus | null>(null);
@@ -239,21 +241,39 @@ export const GitHubConnectionStatusSection: React.FC<GitHubConnectionStatusSecti
                   ? t('settings.github.connectionStatus.privateRepoHint')
                   : t('settings.github.connectionStatus.tokenExpiredHint')}
               </p>
-              <button
-                onClick={onConnectGitHub}
-                style={{
-                  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                  backgroundColor: theme.colors.primary.main,
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: theme.borderRadius.md,
-                  cursor: 'pointer',
-                  fontSize: theme.typography.fontSize.sm,
-                  fontWeight: theme.typography.fontWeight.medium,
-                }}
-              >
-                {t('settings.github.connectionStatus.reconnect')}
-              </button>
+              {inaccessibleRepos.length > 0 ? (
+                <button
+                  onClick={onConnectGitHubWithRepoAccess}
+                  style={{
+                    padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                    backgroundColor: theme.colors.primary.main,
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: theme.borderRadius.md,
+                    cursor: 'pointer',
+                    fontSize: theme.typography.fontSize.sm,
+                    fontWeight: theme.typography.fontWeight.medium,
+                  }}
+                >
+                  {t('settings.github.connectionStatus.reconnectWithRepoAccess')}
+                </button>
+              ) : (
+                <button
+                  onClick={onConnectGitHub}
+                  style={{
+                    padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                    backgroundColor: theme.colors.primary.main,
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: theme.borderRadius.md,
+                    cursor: 'pointer',
+                    fontSize: theme.typography.fontSize.sm,
+                    fontWeight: theme.typography.fontWeight.medium,
+                  }}
+                >
+                  {t('settings.github.connectionStatus.reconnect')}
+                </button>
+              )}
             </div>
           )}
         </>

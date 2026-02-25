@@ -14,6 +14,7 @@ interface IntegrationsSectionProps {
   onSaveApiKey: () => Promise<void>;
   onRemoveApiKey: () => Promise<void>;
   onConnectGitHub: () => void;
+  onConnectGitHubWithRepoAccess: () => void;
   onDisconnectGitHub: () => Promise<void>;
 }
 
@@ -27,6 +28,7 @@ export const IntegrationsSection: React.FC<IntegrationsSectionProps> = ({
   onSaveApiKey,
   onRemoveApiKey,
   onConnectGitHub,
+  onConnectGitHubWithRepoAccess,
   onDisconnectGitHub,
 }) => {
   return (
@@ -48,6 +50,7 @@ export const IntegrationsSection: React.FC<IntegrationsSectionProps> = ({
       <GitHubConnectionStatusSection
         hasGithubToken={hasGithubToken}
         onConnectGitHub={onConnectGitHub}
+        onConnectGitHubWithRepoAccess={onConnectGitHubWithRepoAccess}
       />
       <GitHubRepoMappingsSection hasGithubToken={hasGithubToken} />
     </>

@@ -52,25 +52,29 @@ export class GitHubAppService {
   /**
    * Create a signed connect token for secure OAuth initiation
    * This token is short-lived (5 minutes) and prevents userId spoofing
+   * @param userId - The user ID to encode in the token
+   * @param includeRepo - Whether to request 'repo' scope for private repo access
    */
-  createConnectToken(userId: string): string {
+  createConnectToken(userId: string, includeRepo = false): string {
     return this.jwtService.sign(
-      { userId, action: "connect" },
+      { userId, action: "connect", includeRepo },
       { expiresIn: "5m" },
     );
   }
 
   /**
-   * Verify and extract userId from connect token
+   * Verify and extract payload from connect token
    */
-  verifyConnectToken(token: string): string | null {
+  verifyConnectToken(
+    token: string,
+  ): { userId: string; includeRepo?: boolean } | null {
     try {
       const payload = this.jwtService.verify(token);
       if (payload.action !== "connect") {
         this.logger.error("Invalid token action");
         return null;
       }
-      return payload.userId;
+      return { userId: payload.userId, includeRepo: payload.includeRepo };
     } catch (error) {
       this.logger.error(`Failed to verify connect token: ${error}`);
       return null;
@@ -79,18 +83,26 @@ export class GitHubAppService {
 
   /**
    * Generate GitHub OAuth authorization URL
+   * @param userId - The user ID to encode in the state parameter
+   * @param includeRepo - Whether to include 'repo' scope for private repository access
    */
-  getAuthorizationUrl(userId: string): string {
+  getAuthorizationUrl(userId: string, includeRepo = false): string {
     // Sign the state parameter with JWT for defense-in-depth
     const state = this.jwtService.sign(
       { userId, action: "connect" },
       { expiresIn: "10m" },
     );
 
+    // Base scopes for GitHub integration (issues, projects, org membership)
+    // Add 'repo' scope when user needs private repository access
+    const scope = includeRepo
+      ? "issues read:project read:org repo"
+      : "issues read:project read:org";
+
     const params = new URLSearchParams({
       client_id: this.clientId,
       redirect_uri: this.redirectUri,
-      scope: "issues read:project read:org",
+      scope,
       state,
     });
     // Note: Organization-level projects require the app to be installed on the organization

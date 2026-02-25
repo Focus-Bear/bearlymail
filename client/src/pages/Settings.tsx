@@ -223,6 +223,7 @@ const Settings: React.FC = () => {
           onSaveApiKey={settingsData.handleSaveApiKey}
           onRemoveApiKey={settingsData.handleRemoveApiKey}
           onConnectGitHub={settingsData.handleConnectGitHub}
+          onConnectGitHubWithRepoAccess={settingsData.handleConnectGitHubWithRepoAccess}
           onDisconnectGitHub={settingsData.handleDisconnectGitHub}
         />
 

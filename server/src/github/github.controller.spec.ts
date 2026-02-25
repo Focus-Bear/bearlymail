@@ -628,3 +628,113 @@ describe("GitHubController - getMyConnectionStatus", () => {
     );
   });
 });
+
+describe("GitHubController - createConnectToken", () => {
+  let controller: GitHubController;
+
+  const mockBoss = {
+    send: jest.fn(),
+    db: { executeSql: jest.fn() },
+  };
+
+  const mockEmailThreadRepository = {
+    findOne: jest.fn(),
+    find: jest.fn(),
+    save: jest.fn(),
+  };
+  const mockEmailRepository = { findOne: jest.fn(), find: jest.fn() };
+  const mockUsersService = { findOne: jest.fn() };
+  const mockEmailsService = { getEmailById: jest.fn() };
+  const mockGitHubService = { parseGitHubLinks: jest.fn() };
+  const mockGitHubApiService = {
+    fetchMultipleStatuses: jest.fn(),
+    testToken: jest.fn(),
+    testRepoAccess: jest.fn(),
+  };
+  const mockGitHubAppService = {
+    getFrontendUrl: jest.fn(),
+    getAuthorizationUrl: jest.fn(),
+    createConnectToken: jest.fn().mockReturnValue("mock-token"),
+    verifyConnectToken: jest.fn(),
+    exchangeCodeForToken: jest.fn(),
+    storeTokenForUser: jest.fn(),
+  };
+  const mockRepoMappingService = {
+    findAllForUser: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    remove: jest.fn(),
+    getDefaultForUser: jest.fn(),
+  };
+
+  const mockReq = { user: { userId: "user-1" } };
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    mockGitHubAppService.createConnectToken.mockReturnValue("mock-token");
+
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [GitHubController],
+      providers: [
+        { provide: "PG_BOSS", useValue: mockBoss },
+        {
+          provide: getRepositoryToken(EmailThread),
+          useValue: mockEmailThreadRepository,
+        },
+        { provide: getRepositoryToken(Email), useValue: mockEmailRepository },
+        { provide: UsersService, useValue: mockUsersService },
+        { provide: EmailsService, useValue: mockEmailsService },
+        { provide: GitHubService, useValue: mockGitHubService },
+        { provide: GitHubApiService, useValue: mockGitHubApiService },
+        { provide: GitHubAppService, useValue: mockGitHubAppService },
+        { provide: GitHubRepoMappingService, useValue: mockRepoMappingService },
+      ],
+    }).compile();
+
+    controller = module.get<GitHubController>(GitHubController);
+  });
+
+  it("should create connect token without repo scope by default", async () => {
+    const result = await controller.createConnectToken(mockReq, {});
+
+    expect(mockGitHubAppService.createConnectToken).toHaveBeenCalledWith(
+      "user-1",
+      false,
+    );
+    expect(result).toEqual({ token: "mock-token" });
+  });
+
+  it("should create connect token without repo scope when includeRepo is false", async () => {
+    const result = await controller.createConnectToken(mockReq, {
+      includeRepo: false,
+    });
+
+    expect(mockGitHubAppService.createConnectToken).toHaveBeenCalledWith(
+      "user-1",
+      false,
+    );
+    expect(result).toEqual({ token: "mock-token" });
+  });
+
+  it("should create connect token with repo scope when includeRepo is true", async () => {
+    const result = await controller.createConnectToken(mockReq, {
+      includeRepo: true,
+    });
+
+    expect(mockGitHubAppService.createConnectToken).toHaveBeenCalledWith(
+      "user-1",
+      true,
+    );
+    expect(result).toEqual({ token: "mock-token" });
+  });
+
+  it("should handle missing body by defaulting includeRepo to false", async () => {
+    const result = await controller.createConnectToken(mockReq, undefined);
+
+    expect(mockGitHubAppService.createConnectToken).toHaveBeenCalledWith(
+      "user-1",
+      false,
+    );
+    expect(result).toEqual({ token: "mock-token" });
+  });
+});

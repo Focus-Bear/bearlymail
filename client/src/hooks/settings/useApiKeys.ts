@@ -76,6 +76,25 @@ export const useApiKeys = () => {
     }
   }, [user, t]);
 
+  const connectGitHubWithRepoAccess = useCallback(async () => {
+    if (!user?.id) {
+      console.error('Cannot connect GitHub: user not authenticated');
+      alert(t('settings.githubConnectError'));
+      return;
+    }
+
+    try {
+      // Request a connect token that includes the 'repo' scope for private repo access
+      const response = await axios.post(`${API_URL}/github/create-connect-token`, { includeRepo: true });
+      const { token } = response.data;
+
+      window.location.href = `${API_URL}/github/connect?token=${encodeURIComponent(token)}`;
+    } catch (error) {
+      console.error('Error creating GitHub connect token with repo access:', error);
+      alert(t('settings.githubConnectError'));
+    }
+  }, [user, t]);
+
   const disconnectGitHub = useCallback(async () => {
     if (!window.confirm(t('settings.confirmRemoveGithubToken'))) {
       return;
@@ -102,6 +121,7 @@ export const useApiKeys = () => {
     saveOpenAiApiKey,
     removeOpenAiApiKey,
     connectGitHub,
+    connectGitHubWithRepoAccess,
     disconnectGitHub,
   };
 };

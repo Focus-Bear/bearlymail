@@ -1665,9 +1665,10 @@
         "private": "privado",
         "noAccess": "Sin acceso",
         "issuesFound": "Problemas de acceso detectados",
-        "privateRepoHint": "No se puede acceder a uno o más repositorios. Esto suele ocurrir porque el repositorio es privado y su token de GitHub no tiene el alcance 'repo'. Vuelva a conectar GitHub para otorgar acceso.",
+        "privateRepoHint": "No se puede acceder a uno o más repositorios. Los repositorios privados requieren el permiso 'repo'. Haga clic abajo para reconectar y otorgar acceso a sus repositorios privados.",
         "tokenExpiredHint": "Su token de GitHub parece ser inválido o expirado. Vuelva a conectar GitHub para solucionarlo.",
-        "reconnect": "Reconectar GitHub"
+        "reconnect": "Reconectar GitHub",
+        "reconnectWithRepoAccess": "Otorgar acceso a repositorios privados"
       }
     },
     "gmail": {

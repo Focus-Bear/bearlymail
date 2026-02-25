@@ -51,52 +51,49 @@ export const ProtoCategorySubAccordion: React.FC<ProtoCategorySubAccordionProps>
             : theme.borderRadius.md,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, flex: 1, minWidth: 0 }}>
-          <span
-            style={{
-              transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-              transition: theme.transitions.fast,
-              fontSize: theme.typography.fontSize.sm,
-              color: theme.colors.text.secondary,
-              flexShrink: 0,
-            }}
-          >
-            ▶
-          </span>
-          <span
-            style={{
-              fontWeight: theme.typography.fontWeight.medium,
-              fontSize: theme.typography.fontSize.sm,
-              color: theme.colors.text.primary,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            {name}
-          </span>
-          <span
-            style={{
-              backgroundColor: theme.colors.greyscale[300],
-              color: theme.colors.text.secondary,
-              padding: `2px ${theme.spacing.xs}`,
-              borderRadius: theme.borderRadius.full,
-              fontSize: theme.typography.fontSize.xs,
-              fontWeight: theme.typography.fontWeight.medium,
-              flexShrink: 0,
-            }}
-          >
-            {emailCount}
-          </span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs, flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
+            <span
+              style={{
+                transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                transition: theme.transitions.fast,
+                fontSize: theme.typography.fontSize.sm,
+                color: theme.colors.text.secondary,
+                flexShrink: 0,
+              }}
+            >
+              ▶
+            </span>
+            <span
+              style={{
+                fontWeight: theme.typography.fontWeight.medium,
+                fontSize: theme.typography.fontSize.sm,
+                color: theme.colors.text.primary,
+              }}
+            >
+              {name}
+            </span>
+            <span
+              style={{
+                backgroundColor: theme.colors.greyscale[300],
+                color: theme.colors.text.secondary,
+                padding: `2px ${theme.spacing.xs}`,
+                borderRadius: theme.borderRadius.full,
+                fontSize: theme.typography.fontSize.xs,
+                fontWeight: theme.typography.fontWeight.medium,
+                flexShrink: 0,
+              }}
+            >
+              {emailCount}
+            </span>
+          </div>
           {description && (
             <span
               style={{
                 fontSize: theme.typography.fontSize.xs,
                 color: theme.colors.text.tertiary,
                 fontStyle: 'italic',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
+                paddingLeft: '1.5rem',
               }}
             >
               {description}

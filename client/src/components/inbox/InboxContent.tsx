@@ -521,6 +521,8 @@ export const InboxContent: React.FC<InboxContentProps> = ({
                                 handleConvertProtoCategory(protoCategory?.id ?? '', group.name)
                               }
                               isConverting={convertingProtoCategoryId === protoCategory?.id && protoCategory !== undefined}
+                              onArchiveAll={onBulkArchive}
+                              emailIds={group.emails.map(email => email.id)}
                               onDelete={protoCategory ? () => handleDeleteProtoCategoryFromInbox(protoCategory.id) : undefined}
                               isDeleting={deletingProtoCategoryId === protoCategory?.id && protoCategory !== undefined}
                             >
@@ -587,4 +589,3 @@ export const InboxContent: React.FC<InboxContentProps> = ({
     </div>
   );
 };
-

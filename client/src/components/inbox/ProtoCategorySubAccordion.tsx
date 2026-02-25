@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { OPACITY_DISABLED } from 'constants/numbers';
+import { ArchiveConfirmationToast } from 'components/inbox/ArchiveConfirmationToast';
+
+const ARCHIVE_ALL_ICON = '🗄️';
 
 interface ProtoCategorySubAccordionProps {
   name: string;
@@ -10,6 +13,8 @@ interface ProtoCategorySubAccordionProps {
   children: React.ReactNode;
   onConvertToCategory: () => Promise<void>;
   isConverting: boolean;
+  onArchiveAll?: (emailIds: string[]) => Promise<void>;
+  emailIds?: string[];
   onDelete?: () => Promise<void>;
   isDeleting?: boolean;
 }
@@ -21,12 +26,51 @@ export const ProtoCategorySubAccordion: React.FC<ProtoCategorySubAccordionProps>
   children,
   onConvertToCategory,
   isConverting,
+  onArchiveAll,
+  emailIds = [],
   onDelete,
   isDeleting,
 }) => {
   const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(true);
+  const [isArchiveAllHovered, setIsArchiveAllHovered] = useState(false);
+  const [showArchiveConfirmation, setShowArchiveConfirmation] = useState(false);
   const isBusy = isConverting || (isDeleting ?? false);
+
+  const handleArchiveAllClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!isBusy && onArchiveAll && emailIds.length > 0) {
+      setShowArchiveConfirmation(true);
+    }
+  };
+
+  const handleConfirmArchive = useCallback(async () => {
+    setShowArchiveConfirmation(false);
+    if (onArchiveAll && emailIds.length > 0) {
+      await onArchiveAll(emailIds);
+    }
+  }, [onArchiveAll, emailIds]);
+
+  const handleCancelArchive = useCallback(() => {
+    setShowArchiveConfirmation(false);
+  }, []);
+
+  useEffect(() => {
+    if (!showArchiveConfirmation) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'y' || e.key === 'Y') {
+        e.stopPropagation();
+        handleConfirmArchive();
+      } else if (e.key === 'Escape') {
+        e.stopPropagation();
+        handleCancelArchive();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showArchiveConfirmation, handleConfirmArchive, handleCancelArchive]);
 
   return (
     <div
@@ -104,6 +148,33 @@ export const ProtoCategorySubAccordion: React.FC<ProtoCategorySubAccordionProps>
           style={{ display: 'flex', gap: theme.spacing.sm, flexShrink: 0 }}
           onClick={(e) => e.stopPropagation()}
         >
+          {onArchiveAll && emailCount > 0 && (
+            <button
+              onClick={handleArchiveAllClick}
+              onMouseEnter={() => setIsArchiveAllHovered(true)}
+              onMouseLeave={() => setIsArchiveAllHovered(false)}
+              disabled={isBusy}
+              style={{
+                background: isArchiveAllHovered ? theme.colors.interactive.hover : 'transparent',
+                border: 'none',
+                color: theme.colors.text.tertiary,
+                cursor: isBusy ? 'not-allowed' : 'pointer',
+                fontSize: theme.typography.fontSize.xs,
+                fontWeight: theme.typography.fontWeight.medium,
+                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                borderRadius: theme.borderRadius.sm,
+                opacity: isBusy ? OPACITY_DISABLED : 1,
+                whiteSpace: 'nowrap',
+                display: 'flex',
+                alignItems: 'center',
+                gap: theme.spacing.xs,
+              }}
+              title={t('inbox.category.archiveAllTooltip')}
+            >
+              <span>{ARCHIVE_ALL_ICON}</span>
+              {t('inbox.category.archiveAll')}
+            </button>
+          )}
           <button
             onClick={onConvertToCategory}
             disabled={isBusy}
@@ -159,6 +230,14 @@ export const ProtoCategorySubAccordion: React.FC<ProtoCategorySubAccordionProps>
         >
           {children}
         </div>
+      )}
+
+      {showArchiveConfirmation && (
+        <ArchiveConfirmationToast
+          emailCount={emailCount}
+          onConfirm={handleConfirmArchive}
+          onCancel={handleCancelArchive}
+        />
       )}
     </div>
   );

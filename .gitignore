@@ -31,3 +31,6 @@ Thumbs.db
 *.sqlite
 *.db
 
+
+.gemini/
+gha-creds-*.json

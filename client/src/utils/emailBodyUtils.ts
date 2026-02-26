@@ -46,10 +46,10 @@ export function removeSignature(content: string, isHtml: boolean = false): strin
     }
     
     // Also check plain text representation for additional patterns
-    const tempDiv = document.createElement('div');
-    // Remove cid: images before parsing to prevent browser from trying to load them
-    tempDiv.innerHTML = removeCidImagesFromString(content);
-    const text = tempDiv.textContent || tempDiv.innerText || '';
+    // Parse safely to prevent triggering network requests (e.g., tracking pixels)
+    const cleanedContent = removeCidImagesFromString(content);
+    const doc = new DOMParser().parseFromString(cleanedContent, 'text/html');
+    const text = doc.body.textContent || doc.body.innerText || '';
     
     const textSignaturePatterns = [
       /\n\n--\s*$/m,
@@ -126,10 +126,9 @@ export function extractCleanHtmlBody(htmlBody: string): string {
   // Remove cid: images before parsing to prevent browser from trying to load them
   const cleanedHtml = removeCidImagesFromString(htmlBody);
   
-  // Convert to text to find boundary markers
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = cleanedHtml;
-  const textContent = tempDiv.textContent || tempDiv.innerText || '';
+  // Parse safely to prevent triggering network requests (e.g., tracking pixels from <img> tags)
+  const doc = new DOMParser().parseFromString(cleanedHtml, 'text/html');
+  const textContent = doc.body.textContent || doc.body.innerText || '';
   
   // Simple patterns that catch most email boundaries
   const boundaryPatterns = [
@@ -322,13 +321,28 @@ export function sanitizeAndProcessHtml(html: string): string {
 /**
  * Strip HTML tags from a string, returning plain text.
  * Used for display contexts where raw HTML should not be shown (e.g. email previews).
+ * Preserves semantic line breaks from block elements (p, div, br, etc.).
  */
 export function stripHtmlTags(html: string): string {
   if (!html) return '';
   if (!html.includes('<')) return html;
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = html;
-  return tempDiv.textContent || tempDiv.innerText || '';
+  
+  // Replace block-level elements and line breaks with newlines before extracting text
+  // This preserves semantic line breaks from HTML structure
+  const processed = html
+    // Handle <br> tags first
+    .replace(/<br\s*\/?>/gi, '\n')
+    // Add newline after closing block-level tags to preserve paragraph breaks
+    .replace(/<\/(p|div|li|h[1-6]|blockquote|tr)>/gi, '</$1>\n')
+    // Add newline before opening block-level tags (trimmed at end to handle leading newline)
+    .replace(/(<(p|div|li|h[1-6]|blockquote|tr)\b[^>]*>)/gi, '\n$1');
+  
+  // Parse safely to prevent triggering network requests (e.g., tracking pixels from <img> tags)
+  const doc = new DOMParser().parseFromString(processed, 'text/html');
+  const text = doc.body.textContent || doc.body.innerText || '';
+  
+  // Clean up excessive whitespace while preserving single newlines
+  return text.replace(/\n{3,}/g, '\n\n').trim();
 }
 
 /**
@@ -343,16 +357,16 @@ export function extractCleanBody(emailBody: string, htmlBody?: string): string {
   if (content.includes('<')) {
     // emailBody contains HTML markup (e.g. replies sent from BearlyMail store HTML in body field)
     // Strip tags to get plain text before further processing
-    const tempDiv = document.createElement('div');
-    // Remove cid: images before parsing to prevent browser from trying to load them
-    tempDiv.innerHTML = removeCidImagesFromString(content);
-    content = tempDiv.textContent || tempDiv.innerText || '';
+    // Parse safely to prevent triggering network requests (e.g., tracking pixels)
+    const cleanedContent = removeCidImagesFromString(content);
+    const doc = new DOMParser().parseFromString(cleanedContent, 'text/html');
+    content = doc.body.textContent || doc.body.innerText || '';
   } else if (htmlBody && !emailBody) {
     // Convert HTML to text for cleaning
-    const tempDiv = document.createElement('div');
-    // Remove cid: images before parsing to prevent browser from trying to load them
-    tempDiv.innerHTML = removeCidImagesFromString(htmlBody);
-    content = tempDiv.textContent || tempDiv.innerText || '';
+    // Parse safely to prevent triggering network requests (e.g., tracking pixels)
+    const cleanedHtml = removeCidImagesFromString(htmlBody);
+    const doc = new DOMParser().parseFromString(cleanedHtml, 'text/html');
+    content = doc.body.textContent || doc.body.innerText || '';
   }
   
   // Find the boundary where the quoted/forwarded email starts

@@ -138,6 +138,15 @@ describe('emailBodyUtils', () => {
       expect(result).toBe(html);
     });
 
+    it('should preserve HTML with multiple paragraph tags', () => {
+      const html = '<p>First paragraph</p><p>Second paragraph</p><p>Third paragraph</p>';
+      const result = extractCleanHtmlBody(html);
+      expect(result).toBe(html);
+      expect(result).toContain('First paragraph');
+      expect(result).toContain('Second paragraph');
+      expect(result).toContain('Third paragraph');
+    });
+
     it('should preserve reply text when Gmail-style quoted content follows short reply', () => {
       const html = '<div dir="ltr"><div>Certainly, my date of birth is 09 July 1998!</div></div><div class="gmail_quote"><div class="gmail_attr">On Mon, 9 Feb 2026 at 5:53 pm, Jeremy Nagel &lt;jeremy@example.com&gt; wrote:</div><blockquote>Could I get your date of birth?</blockquote></div>';
       const result = extractCleanHtmlBody(html);
@@ -325,6 +334,30 @@ describe('emailBodyUtils', () => {
       expect(result).toContain('Line two');
       expect(result).not.toContain('<p>');
       expect(result).not.toContain('<br>');
+    });
+
+    it('should preserve line breaks between paragraphs', () => {
+      const result = stripHtmlTags('<p>First paragraph</p><p>Second paragraph</p>');
+      expect(result).toContain('First paragraph');
+      expect(result).toContain('Second paragraph');
+      // Paragraphs should be separated by newlines, not run together
+      expect(result).not.toBe('First paragraphSecond paragraph');
+      expect(result).toMatch(/First paragraph[\s\n]+Second paragraph/);
+    });
+
+    it('should convert br tags to newlines', () => {
+      const result = stripHtmlTags('Line one<br>Line two<br/>Line three');
+      expect(result).toContain('\n');
+      expect(result).toMatch(/Line one\nLine two\nLine three/);
+    });
+
+    it('should preserve line breaks from div elements', () => {
+      const result = stripHtmlTags('<div>First div</div><div>Second div</div>');
+      expect(result).toContain('First div');
+      expect(result).toContain('Second div');
+      // Divs should be separated, not run together
+      expect(result).not.toBe('First divSecond div');
+      expect(result).toMatch(/First div[\s\n]+Second div/);
     });
   });
 

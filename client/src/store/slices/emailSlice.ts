@@ -76,18 +76,18 @@ const emailSlice = createSlice({
     updateCategoryEmails: (state, action: PayloadAction<{ categoryName: string; emails: Email[] }>) => {
       const { categoryName, emails } = action.payload;
       const isOther = categoryName === 'Other';
-      // Remove emails that previously belonged to this category
+      const incomingIds = new Set(emails.map(e => e.id));
+      // Remove emails that previously belonged to this category AND any emails
+      // whose ID matches an incoming email (they may have been loaded under a
+      // different category due to concurrent fetches or backend category-sync races).
       state.emails = state.emails.filter(e => {
+        if (incomingIds.has(e.id)) return false;
         if (isOther) {
-          // Keep emails that have a real (non-Other) category
           return e.category !== null && e.category !== undefined && e.category !== '' && e.category !== 'Other';
         }
         return e.category !== categoryName;
       });
-      // Append the fresh emails (skip any that are already present from another category)
-      const existingIds = new Set(state.emails.map(e => e.id));
-      const newEmails = emails.filter(e => !existingIds.has(e.id));
-      state.emails = [...state.emails, ...newEmails];
+      state.emails = [...state.emails, ...emails];
     },
     setHasMore: (state, action: PayloadAction<boolean>) => {
       state.hasMore = action.payload;

@@ -288,15 +288,34 @@ export class EmailsService {
       queryParams.push(filters.minPriority);
     }
 
-    // Fetch thread IDs along with category for action mode when requested
-    const selectFields =
-      filters?.includeThreadIds && (mode === "action" || mode === "follow-up")
-        ? 'thread.category, thread."threadId"'
-        : "thread.category";
+    // For action/follow-up modes we need the latest email's "from" to filter
+    // threads where the user sent the last message (action excludes, follow-up includes).
+    const needsLatestFrom = mode === "action" || mode === "follow-up";
+
+    const selectParts: string[] = ["thread.category"];
+    if (
+      filters?.includeThreadIds &&
+      (mode === "action" || mode === "follow-up")
+    ) {
+      selectParts.push('thread."threadId"');
+    }
+    if (needsLatestFrom) {
+      selectParts.push('latest_email."latestFrom"');
+    }
+    const selectFields = selectParts.join(", ");
+
+    const lateralJoin = needsLatestFrom
+      ? `LEFT JOIN LATERAL (
+           SELECT e."from" AS "latestFrom" FROM emails e
+           WHERE e."emailThreadId" = thread.id
+           ORDER BY e."receivedAt" DESC LIMIT 1
+         ) latest_email ON true`
+      : "";
 
     const rows = await this.emailThreadRepository.query(
       `SELECT ${selectFields}
        FROM email_threads thread
+       ${lateralJoin}
        WHERE thread."userId" = $1
          ${threadFilter}
          ${additionalFilters}
@@ -305,6 +324,23 @@ export class EmailsService {
        ORDER BY COALESCE(thread."priorityScore", 0) DESC, thread."updatedAt" DESC`,
       queryParams,
     );
+
+    // Resolve the user's email for action/follow-up "sent last" filtering
+    let userEmailLower: string | null = null;
+    if (needsLatestFrom) {
+      try {
+        const summaryUser = await this.usersService.findOne(userId);
+        if (summaryUser) {
+          userEmailLower =
+            EncryptionHelper.decrypt(summaryUser.email)?.toLowerCase() || null;
+        }
+      } catch (error) {
+        this.logger.warn(
+          "Failed to get user email for summary sent-last filter:",
+          error,
+        );
+      }
+    }
 
     // Fetch category contexts to map category names to UUIDs
     const categoryContexts = await this.userContextRepository.find({
@@ -331,7 +367,22 @@ export class EmailsService {
     for (const row of rows as {
       category: string | null;
       threadId?: string;
+      latestFrom?: string;
     }[]) {
+      // In action mode, skip threads where the user sent the last email (they
+      // belong in follow-up). In follow-up mode, only include such threads.
+      if (needsLatestFrom && userEmailLower && row.latestFrom) {
+        try {
+          const fromLower =
+            EncryptionHelper.decrypt(row.latestFrom)?.toLowerCase() || "";
+          const userSentLast = fromLower.includes(userEmailLower);
+          if (mode === "action" && userSentLast) continue;
+          if (mode === "follow-up" && !userSentLast) continue;
+        } catch {
+          // Decryption failed — include the row to avoid silently hiding emails
+        }
+      }
+
       const category =
         (row.category ? EncryptionHelper.decrypt(row.category) : null) ||
         "Other";

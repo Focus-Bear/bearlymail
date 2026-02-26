@@ -1448,10 +1448,7 @@ export class LLMProcessor implements OnModuleInit {
       `[Worker ${workerId}] Incremental check: skipping full recalc for thread ${email.emailThreadId} - ${incrementalResult.reason}`,
     );
 
-    if (
-      incrementalResult.suggestedUrgencyDelta !== 0 &&
-      email.emailThreadId
-    ) {
+    if (incrementalResult.suggestedUrgencyDelta !== 0 && email.emailThreadId) {
       const newUrgencyScore = Math.max(
         0,
         Math.min(

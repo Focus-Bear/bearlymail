@@ -320,6 +320,22 @@ export const InboxContent: React.FC<InboxContentProps> = ({
     });
   }, [summaryCategories, filteredEmails, stableCategoryOrder, expandedCategories]);
 
+  // Auto-collapse expanded categories that become empty (e.g. after archiving
+  // all emails). This keeps expandedCategories in sync so displayCategories
+  // doesn't perpetually re-add them via the augmentation path.
+  useEffect(() => {
+    const displayCategoriesMap = new Map(displayCategories.map(c => [c.name, c]));
+    const emptyExpanded = [...expandedCategories].filter(catName => {
+      const isLoaded = loadedCategoryNames?.includes(catName);
+      const group = emailCategoryMap.get(catName);
+      const catItem = displayCategoriesMap.get(catName);
+      return isLoaded && (group?.emails.length ?? 0) === 0 && (catItem?.count ?? 0) === 0;
+    });
+    if (emptyExpanded.length > 0) {
+      emptyExpanded.forEach(onToggleCategory);
+    }
+  }, [displayCategories, expandedCategories, loadedCategoryNames, emailCategoryMap, onToggleCategory]);
+
   // Fetch proto categories when "Other" category is visible and expanded
   useEffect(() => {
     const hasOther = displayCategories.some(cat => cat.name === CATEGORY_OTHER);
@@ -444,14 +460,10 @@ export const InboxContent: React.FC<InboxContentProps> = ({
               const group = emailCategoryMap.get(categoryName);
               const categoryEmails = group?.emails ?? [];
 
-              // Hide categories only when we know they're truly empty:
-              // - loaded and collapsed (not currently being inspected)
-              // - no loaded emails
-              // - summary count is also zero
-              //
-              // If summary still says there are emails, keep the category visible so it
-              // never "vanishes" after expand due to temporary payload/category mismatch.
-              if (!isExpanded && isLoaded && categoryEmails.length === 0 && categoryItem.count === 0) return null;
+              // Hide categories when we know they're truly empty (loaded with no
+              // emails and summary count is zero). Applies regardless of expansion
+              // state so accordions don't linger with "0" after archiving all emails.
+              if (isLoaded && categoryEmails.length === 0 && categoryItem.count === 0) return null;
 
               // Compute global index for keyboard navigation (across categories)
               let globalIndex = 0;

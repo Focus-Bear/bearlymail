@@ -165,69 +165,87 @@ export function useEmailDetailReplies(
       if (!toneOk) return;
     }
 
-    setSending(true);
-    try {
-      const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const currentReplyRecipients = replyRecipients;
+    const currentReplyCc = replyCc;
+    const currentReplyBcc = replyBcc;
+    const currentReplyMode = replyMode;
+    const currentShowCc = showCc;
+    const currentShowBcc = showBcc;
+    const currentInitialAttachments = initialAttachments;
+    const isScheduled = !!scheduleTime;
 
-      // Use FormData if we have files to send
-      if (files.length > 0) {
-        const formData = new FormData();
-        formData.append('reply', draftToSend);
-        formData.append('recipients', replyRecipients);
-        formData.append('replyAll', String(replyMode === REPLY_MODE_REPLY_ALL));
-        if (replyCc) formData.append('cc', replyCc);
-        if (replyBcc) formData.append('bcc', replyBcc);
-        if (expectedReplyHours !== undefined) {
-          formData.append('expectedReplyHours', String(expectedReplyHours));
-        }
-        if (forwardAttachmentIds && forwardAttachmentIds.length > 0) {
-          formData.append('forwardAttachmentIds', JSON.stringify(forwardAttachmentIds));
-        }
-        if (scheduleTime) {
-          formData.append('scheduledSendAt', scheduleTime.toISOString());
-          formData.append('userTimezone', userTimezone);
-        }
-        files.forEach((file) => {
-          formData.append('files', file);
-        });
-
-        await axios.post(`${API_URL}/replies/send/${emailId}`, formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
-      } else {
-        await axios.post(`${API_URL}/replies/send/${emailId}`, {
-          reply: draftToSend,
-          recipients: replyRecipients,
-          cc: replyCc || undefined,
-          bcc: replyBcc || undefined,
-          replyAll: replyMode === REPLY_MODE_REPLY_ALL,
-          expectedReplyHours: expectedReplyHours || undefined,
-          forwardAttachmentIds: forwardAttachmentIds && forwardAttachmentIds.length > 0 ? forwardAttachmentIds : undefined,
-          scheduledSendAt: scheduleTime?.toISOString(),
-          userTimezone: scheduleTime ? userTimezone : undefined,
-        });
-      }
-      setDraft(null);
-      setShowReplyComposer(false);
-      setReplyCc('');
-      setReplyBcc('');
-      setShowCc(false);
-      setShowBcc(false);
-      setInitialAttachments([]);
-      setScheduledSendAt(null);
-      showSuccess(scheduleTime ? t('emailDetail.replyScheduledSuccess') : t('emailDetail.replySentSuccess'));
-      if (onClose) {
-        onClose();
-      }
-    } catch (error: any) {
-      console.error('Error sending reply:', error);
-      showError(error.response?.data?.message || t('emailDetail.replySentError'));
-    } finally {
-      setSending(false);
+    setShowReplyComposer(false);
+    if (onClose) {
+      onClose();
     }
-  }, [emailId, draft, replyRecipients, replyCc, replyBcc, replyMode, scheduledSendAt, checkTone, setDraft, showSuccess, showError, t]);
+
+    const sendReplyAsync = async () => {
+      try {
+        if (files.length > 0) {
+          const formData = new FormData();
+          formData.append('reply', draftToSend);
+          formData.append('recipients', currentReplyRecipients);
+          formData.append('replyAll', String(currentReplyMode === REPLY_MODE_REPLY_ALL));
+          if (currentReplyCc) formData.append('cc', currentReplyCc);
+          if (currentReplyBcc) formData.append('bcc', currentReplyBcc);
+          if (expectedReplyHours !== undefined) {
+            formData.append('expectedReplyHours', String(expectedReplyHours));
+          }
+          if (forwardAttachmentIds && forwardAttachmentIds.length > 0) {
+            formData.append('forwardAttachmentIds', JSON.stringify(forwardAttachmentIds));
+          }
+          if (scheduleTime) {
+            formData.append('scheduledSendAt', scheduleTime.toISOString());
+            formData.append('userTimezone', userTimezone);
+          }
+          files.forEach((file) => {
+            formData.append('files', file);
+          });
+
+          await axios.post(`${API_URL}/replies/send/${emailId}`, formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          });
+        } else {
+          await axios.post(`${API_URL}/replies/send/${emailId}`, {
+            reply: draftToSend,
+            recipients: currentReplyRecipients,
+            cc: currentReplyCc || undefined,
+            bcc: currentReplyBcc || undefined,
+            replyAll: currentReplyMode === REPLY_MODE_REPLY_ALL,
+            expectedReplyHours: expectedReplyHours || undefined,
+            forwardAttachmentIds: forwardAttachmentIds && forwardAttachmentIds.length > 0 ? forwardAttachmentIds : undefined,
+            scheduledSendAt: scheduleTime?.toISOString(),
+            userTimezone: scheduleTime ? userTimezone : undefined,
+          });
+        }
+        setDraft(null);
+        setReplyCc('');
+        setReplyBcc('');
+        setShowCc(false);
+        setShowBcc(false);
+        setInitialAttachments([]);
+        setScheduledSendAt(null);
+        showSuccess(isScheduled ? t('emailDetail.replyScheduledSuccess') : t('emailDetail.replySentSuccess'));
+      } catch (error: any) {
+        console.error('Error sending reply:', error);
+        setDraft(draftToSend);
+        setReplyRecipients(currentReplyRecipients);
+        setReplyCc(currentReplyCc);
+        setReplyBcc(currentReplyBcc);
+        setShowCc(currentShowCc);
+        setShowBcc(currentShowBcc);
+        setInitialAttachments(currentInitialAttachments);
+        setScheduledSendAt(scheduleTime);
+        setShowReplyComposer(true);
+        showError(error.response?.data?.message || t('emailDetail.replySentError'));
+      }
+    };
+
+    sendReplyAsync();
+  }, [emailId, draft, replyRecipients, replyCc, replyBcc, replyMode, showCc, showBcc, initialAttachments, scheduledSendAt, checkTone, setDraft, setReplyRecipients, setReplyCc, setReplyBcc, setShowCc, setShowBcc, setInitialAttachments, setScheduledSendAt, setShowReplyComposer, showSuccess, showError, t]);
 
   const handleOpenTimePicker = useCallback(() => {
     setShowTimePicker(true);

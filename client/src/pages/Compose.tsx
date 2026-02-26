@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
@@ -11,6 +11,7 @@ import { useComposeForm } from 'hooks/useComposeForm';
 import { useContactSearch } from 'hooks/useContactSearch';
 import { useEmailDetailToneCheck } from 'hooks/useEmailDetailToneCheck';
 import { useScheduledEmails } from 'hooks/useScheduledEmails';
+import { useNotifications } from 'contexts/NotificationContext';
 import { RecipientFields } from 'components/compose/RecipientFields';
 import { ComposeBody } from 'components/compose/ComposeBody';
 import { FrequentContactsList } from 'components/compose/FrequentContactsList';
@@ -28,6 +29,7 @@ const Compose: React.FC = () => {
   
   const form = useComposeForm();
   const search = useContactSearch();
+  const { showError } = useNotifications();
   const {
     checkingTone,
     toneCheckResult,
@@ -46,6 +48,7 @@ const Compose: React.FC = () => {
   const [sending, setSending] = useState(false);
   const [sendSuccess, setSendSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const navigationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [frequentContacts, setFrequentContacts] = useState<Contact[]>([]);
   const [syncingContacts, setSyncingContacts] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -124,37 +127,41 @@ const Compose: React.FC = () => {
     if (!toneOk) return;
 
     setSending(true);
+    captureEvent('compose_sent', {
+      recipient_count: form.to.length,
+      has_cc: form.cc.length > 0,
+      has_bcc: form.bcc.length > 0,
+      has_subject: !!form.subject.trim(),
+    });
 
-    try {
-      captureEvent('compose_sent', {
-        recipient_count: form.to.length,
-        has_cc: form.cc.length > 0,
-        has_bcc: form.bcc.length > 0,
-        has_subject: !!form.subject.trim(),
-      });
+    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const payload = {
+      to: form.to,
+      cc: form.cc.length > 0 ? form.cc : undefined,
+      bcc: form.bcc.length > 0 ? form.bcc : undefined,
+      subject: form.subject.trim(),
+      body: form.body.trim(),
+      scheduledSendAt: scheduledSendAt?.toISOString(),
+      userTimezone: scheduledSendAt ? userTimezone : undefined,
+    };
 
-      const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    setSendSuccess(true);
+    setSending(false);
 
-      await axios.post(`${API_URL}/emails/send`, {
-        to: form.to,
-        cc: form.cc.length > 0 ? form.cc : undefined,
-        bcc: form.bcc.length > 0 ? form.bcc : undefined,
-        subject: form.subject.trim(),
-        body: form.body.trim(),
-        scheduledSendAt: scheduledSendAt?.toISOString(),
-        userTimezone: scheduledSendAt ? userTimezone : undefined,
-      });
+    navigationTimeoutRef.current = setTimeout(() => {
+      navigate('/inbox');
+    }, DELAY_1_5_SECONDS_MS);
 
-      setSendSuccess(true);
-
-      setTimeout(() => {
-        navigate('/inbox');
-        }, DELAY_1_5_SECONDS_MS);
-    } catch (err: any) {
+    axios.post(`${API_URL}/emails/send`, payload).catch((err: any) => {
+      console.error('Error sending email:', err);
+      if (navigationTimeoutRef.current) {
+        clearTimeout(navigationTimeoutRef.current);
+        navigationTimeoutRef.current = null;
+      }
+      setSendSuccess(false);
       setError(err.response?.data?.message || t('compose.errorSendFailed'));
-    } finally {
-      setSending(false);
-    }
+      showError(err.response?.data?.message || t('compose.errorSendFailed'));
+    });
   };
 
   const handleOpenTimePicker = useCallback(() => {

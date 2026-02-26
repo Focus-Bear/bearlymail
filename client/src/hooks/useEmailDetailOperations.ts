@@ -928,70 +928,78 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
       }
     }
 
-    setSending(true);
-    try {
-      captureEvent('reply_sent', {
-        email_id: id,
-        reply_type: replyMode,
-        draft_was_edited: false,
-        expected_reply_hours: expectedReplyHours,
-      });
+    captureEvent('reply_sent', {
+      email_id: id,
+      reply_type: replyMode,
+      draft_was_edited: false,
+      expected_reply_hours: expectedReplyHours,
+    });
 
-      // Create FormData if files are present, otherwise use JSON
-      if (files.length > 0) {
-        const formData = new FormData();
-        formData.append('reply', draftToSend);
-        formData.append('recipients', replyRecipients);
-        formData.append('replyAll', String(replyMode === REPLY_MODE_REPLY_ALL));
-        if (replyCc) formData.append('cc', replyCc);
-        if (replyBcc) formData.append('bcc', replyBcc);
-        if (expectedReplyHours !== undefined) formData.append('expectedReplyHours', String(expectedReplyHours));
-        files.forEach((file) => {
-          formData.append('files', file);
-        });
+    const currentReplyRecipients = replyRecipients;
+    const currentReplyCc = replyCc;
+    const currentReplyBcc = replyBcc;
+    const currentReplyMode = replyMode;
+    const currentId = id;
 
-        await axios.post(`${API_URL}/replies/send/${id}`, formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
-      } else {
-        await axios.post(`${API_URL}/replies/send/${id}`, {
-          reply: draftToSend,
-          recipients: replyRecipients,
-          cc: replyCc || undefined,
-          bcc: replyBcc || undefined,
-          replyAll: replyMode === REPLY_MODE_REPLY_ALL,
-          expectedReplyHours,
-        });
-      }
+    setShowReplyComposer(false);
+    triggerAnimation(ANIMATION_TYPE_SEND);
 
-      setDraft(null);
-      setShowReplyComposer(false);
-      deleteDraft();
-      await triggerAnimation(ANIMATION_TYPE_SEND);
-      showSuccess(t('emailDetail.replySentSuccess'));
+    const sendReplyAsync = async () => {
+      try {
+        if (files.length > 0) {
+          const formData = new FormData();
+          formData.append('reply', draftToSend);
+          formData.append('recipients', currentReplyRecipients);
+          formData.append('replyAll', String(currentReplyMode === REPLY_MODE_REPLY_ALL));
+          if (currentReplyCc) formData.append('cc', currentReplyCc);
+          if (currentReplyBcc) formData.append('bcc', currentReplyBcc);
+          if (expectedReplyHours !== undefined) formData.append('expectedReplyHours', String(expectedReplyHours));
+          files.forEach((file) => {
+            formData.append('files', file);
+          });
 
-      // Handle post-send actions based on expectedReplyHours
-      if (expectedReplyHours !== undefined) {
-        if (expectedReplyHours === 0) {
-          // No follow-up: Archive the email
-          await performArchiveAfterReply();
+          await axios.post(`${API_URL}/replies/send/${currentId}`, formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          });
         } else {
-          // Snooze the email for the specified duration
-          const duration = expectedReplyHours <= HOURS_IN_TWO_DAYS ? `${expectedReplyHours}h` : `${Math.round(expectedReplyHours / 24)}d`;
-          await performSnoozeAfterReply(duration);
+          await axios.post(`${API_URL}/replies/send/${currentId}`, {
+            reply: draftToSend,
+            recipients: currentReplyRecipients,
+            cc: currentReplyCc || undefined,
+            bcc: currentReplyBcc || undefined,
+            replyAll: currentReplyMode === REPLY_MODE_REPLY_ALL,
+            expectedReplyHours,
+          });
         }
-      } else {
-        navigate(getInboxPath());
+        setDraft(null);
+        deleteDraft();
+        showSuccess(t('emailDetail.replySentSuccess'));
+
+        if (expectedReplyHours !== undefined) {
+          if (expectedReplyHours === 0) {
+            performArchiveAfterReply();
+          } else {
+            const duration = expectedReplyHours <= HOURS_IN_TWO_DAYS ? `${expectedReplyHours}h` : `${Math.round(expectedReplyHours / 24)}d`;
+            performSnoozeAfterReply(duration);
+          }
+        } else {
+          navigate(getInboxPath());
+        }
+      } catch (error: any) {
+        console.error('Error sending reply:', error);
+        setDraft(draftToSend);
+        setReplyRecipients(currentReplyRecipients);
+        setReplyCc(currentReplyCc);
+        setReplyBcc(currentReplyBcc);
+        setShowReplyComposer(true);
+        showError(error.response?.data?.message || t('emailDetail.replySentError'));
       }
-    } catch (error: any) {
-      console.error('Error sending reply:', error);
-      showError(error.response?.data?.message || t('emailDetail.replySentError'));
-    } finally {
-      setSending(false);
-    }
-  }, [id, draft, replyMode, replyRecipients, replyCc, replyBcc, disputeResult, triggerAnimation, t, navigate, getInboxPath, setCheckingTone, setToneCheckResult, setSending, setDraft, setShowReplyComposer, showSuccess, showError, deleteDraft, performArchiveAfterReply, performSnoozeAfterReply]);
+    };
+
+    sendReplyAsync();
+  }, [id, draft, replyMode, replyRecipients, replyCc, replyBcc, disputeResult, triggerAnimation, t, navigate, getInboxPath, setCheckingTone, setToneCheckResult, setDraft, setShowReplyComposer, setReplyRecipients, setReplyCc, setReplyBcc, showSuccess, showError, deleteDraft, performArchiveAfterReply, performSnoozeAfterReply]);
 
   const disputeToneCheck = useCallback(async (emailText: string, userArgument: string) => {
     setDisputing(true);

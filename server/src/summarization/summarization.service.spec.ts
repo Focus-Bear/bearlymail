@@ -5,6 +5,7 @@ import { EmailsService } from "../emails/emails.service";
 import { LLMService } from "../llm/llm.service";
 import { SummarizationRule as SummarizationRuleEntity } from "../database/entities/summarization-rule.entity";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
+import { UsersService } from "../users/users.service";
 
 describe("SummarizationService", () => {
   let service: SummarizationService;
@@ -32,6 +33,10 @@ describe("SummarizationService", () => {
     captureMessage: jest.fn(),
   };
 
+  const mockUsersService = {
+    findOneForAuth: jest.fn().mockResolvedValue({ email: "user@example.com" }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -51,6 +56,10 @@ describe("SummarizationService", () => {
         {
           provide: ErrorTrackingService,
           useValue: mockErrorTrackingService,
+        },
+        {
+          provide: UsersService,
+          useValue: mockUsersService,
         },
       ],
     }).compile();

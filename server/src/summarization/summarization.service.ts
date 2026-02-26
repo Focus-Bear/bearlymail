@@ -11,6 +11,7 @@ import {
 import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { logError, logWarn } from "../utils/logger";
+import { UsersService } from "../users/users.service";
 
 interface ThreadData {
   emailId: string;
@@ -56,7 +57,41 @@ export class SummarizationService {
     @InjectRepository(SummarizationRuleEntity)
     private summarizationRuleRepository: Repository<SummarizationRuleEntity>,
     private errorTrackingService: ErrorTrackingService,
+    private usersService: UsersService,
   ) {}
+
+  /**
+   * Get user email address for identifying user's messages in threads.
+   * Extracted as helper method per DRY principle.
+   */
+  private async getUserEmail(userId: string): Promise<string> {
+    const user = await this.usersService.findOneForAuth(userId);
+    return user?.email?.toLowerCase() || "";
+  }
+
+  /**
+   * Extract email address from a "from" field for comparison.
+   * Handles formats like "Name <email@example.com>" or just "email@example.com"
+   */
+  private extractEmailAddress(from: string | undefined): string {
+    if (!from) return "";
+    const match = from.match(/<([^>]+)>/);
+    if (match) return match[1].toLowerCase();
+    return from.toLowerCase().trim();
+  }
+
+  /**
+   * Check if an email is from the user using strict equality.
+   * Uses exact match to prevent sender spoofing attacks.
+   */
+  private isEmailFromUser(
+    emailFrom: string | undefined,
+    userEmail: string,
+  ): boolean {
+    if (!userEmail || !emailFrom) return false;
+    const senderEmail = this.extractEmailAddress(emailFrom);
+    return senderEmail === userEmail;
+  }
 
   private buildThreadText(
     messagesToSummarize: Array<{
@@ -66,22 +101,21 @@ export class SummarizationService {
       receivedAt: Date | string;
     }>,
     allThreadEmails: Array<unknown>,
+    userEmail: string = "",
   ): string {
+    const sliceCount = Math.abs(CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE);
     return messagesToSummarize
       .map((e, idx) => {
         const emailWithHtml = e as EmailWithHtmlBody;
-        const sender =
-          (e as { fromName?: string; from?: string }).fromName ||
-          (e as { from?: string }).from;
-        const date = new Date(
-          (e as { receivedAt: Date | string }).receivedAt,
-        ).toLocaleString();
+        const isFromUser = this.isEmailFromUser(e.from, userEmail);
+        const sender = isFromUser ? "You" : e.fromName || e.from;
+        const date = new Date(e.receivedAt).toLocaleString();
         const cleanedBody = cleanEmailForThread(e.body, emailWithHtml.htmlBody);
         const messageLabel =
-          idx === 0 && allThreadEmails.length > 4
+          idx === 0 && allThreadEmails.length > sliceCount + 1
             ? "Original"
             : `Message ${idx + 1}`;
-        return `[${messageLabel} from ${sender} on ${date}]:\n${cleanedBody}`;
+        return `[${messageLabel} from ${sender} on ${date}]:\n"""\n${cleanedBody}\n"""`;
       })
       .join("\n\n---\n\n");
   }
@@ -107,8 +141,8 @@ export class SummarizationService {
     if (rule.type === "custom" && rule.customPrompt) {
       const prompt =
         messagesToSummarize.length > 1
-          ? `Email Thread Subject: ${subject}\n\nThis thread contains ${allThreadEmails.length} messages. Here are the key messages (first + last 3):\n\n${threadText}\n\n${rule.customPrompt}`
-          : `Email Subject: ${subject}\n\nEmail Body:\n${cleanedBody}\n\n${rule.customPrompt}`;
+          ? `Email Thread Subject: ${subject}\n\nThis thread contains ${allThreadEmails.length} messages. Here are the key messages (first + last few):\n\n${threadText}\n\n${rule.customPrompt}`
+          : `Email Subject: ${subject}\n\nEmail Body:\n"""\n${cleanedBody}\n"""\n\n${rule.customPrompt}`;
 
       return this.llmService.generateText(
         {
@@ -147,6 +181,7 @@ export class SummarizationService {
     emailId: string,
     userId: string,
     userRules: SummarizationRuleEntity[],
+    userEmail: string,
   ): Promise<ThreadData> {
     const allThreadEmails = await this.emailsService.getThreadEmails(
       userId,
@@ -154,20 +189,22 @@ export class SummarizationService {
       { limit: 20, order: "ASC" },
     );
 
+    const sliceCount = Math.abs(CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE);
     let messagesToSummarize: typeof allThreadEmails;
-    if (allThreadEmails.length <= 4) {
+    if (allThreadEmails.length <= sliceCount + 1) {
       messagesToSummarize = allThreadEmails;
     } else {
       const firstEmail = allThreadEmails[0];
-      const last3Emails = allThreadEmails.slice(
+      const lastNEmails = allThreadEmails.slice(
         CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE,
       );
-      messagesToSummarize = [firstEmail, ...last3Emails];
+      messagesToSummarize = [firstEmail, ...lastNEmails];
     }
 
     const threadText = this.buildThreadText(
       messagesToSummarize,
       allThreadEmails,
+      userEmail,
     );
     const matchedRule = this.matchRuleFast(
       { from: email.from, subject: email.subject },
@@ -255,26 +292,30 @@ export class SummarizationService {
       throw new Error("Email not found");
     }
 
+    const userEmail = await this.getUserEmail(userId);
+
     const allThreadEmails = await this.emailsService.getThreadEmails(
       userId,
       email.threadId,
       { limit: 20, order: "ASC" },
     );
 
+    const sliceCount = Math.abs(CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE);
     let messagesToSummarize: typeof allThreadEmails;
-    if (allThreadEmails.length <= 4) {
+    if (allThreadEmails.length <= sliceCount + 1) {
       messagesToSummarize = allThreadEmails;
     } else {
       const firstEmail = allThreadEmails[0];
-      const last3Emails = allThreadEmails.slice(
+      const lastNEmails = allThreadEmails.slice(
         CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE,
       );
-      messagesToSummarize = [firstEmail, ...last3Emails];
+      messagesToSummarize = [firstEmail, ...lastNEmails];
     }
 
     const threadText = this.buildThreadText(
       messagesToSummarize,
       allThreadEmails,
+      userEmail,
     );
     const emailWithHtml = email as EmailWithHtmlBody;
     const subject = email.subject || "";
@@ -327,6 +368,9 @@ export class SummarizationService {
     // Get user's summarization rules once (shared across all threads)
     const userRules = await this.getSummarizationRules(userId);
 
+    // Get user email to identify which messages are from the user
+    const userEmail = await this.getUserEmail(userId);
+
     const threadsToSummarize: ThreadData[] = [];
 
     // Fetch all messages in each thread and match summarization rules
@@ -337,6 +381,7 @@ export class SummarizationService {
         emailIds[idx],
         userId,
         userRules,
+        userEmail,
       );
     });
 
@@ -513,7 +558,7 @@ export class SummarizationService {
     userId: string,
   ): Promise<SummarizationRuleEntity | null | undefined> {
     const emailPreview = cleanedBody.substring(0, 2000);
-    const emailText = `Subject: ${email.subject || "(no subject)"}\nFrom: ${email.fromName || email.from || "(unknown sender)"} <${email.from || ""}>\n\nEmail Body:\n${emailPreview}${cleanedBody.length > 2000 ? "\n\n[... email continues ...]" : ""}`;
+    const emailText = `Subject: ${email.subject || "(no subject)"}\nFrom: ${email.fromName || email.from || "(unknown sender)"} <${email.from || ""}>\n\nEmail Body:\n"""\n${emailPreview}${cleanedBody.length > 2000 ? "\n\n[... email continues ...]" : ""}\n"""`;
     const ruleDescriptions = rules
       .map((rule, index) => `Rule ${index + 1}: "${rule.whenToUse}"`)
       .join("\n");

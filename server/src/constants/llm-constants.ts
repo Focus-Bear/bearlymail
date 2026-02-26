@@ -98,7 +98,8 @@ export const CONTEXT_ANALYSIS = {
   // Days lookback for recent context
   LOOKBACK_DAYS: -10,
   // Slice index to get last N thread emails for summarization (negative = from end)
-  LAST_THREAD_EMAILS_SLICE: -3,
+  // Using -5 instead of -3 to capture more recent conversation context
+  LAST_THREAD_EMAILS_SLICE: -5,
   // Max emails to analyze for category generation
   MAX_EMAILS_FOR_CATEGORY_ANALYSIS: 30,
   // Summarization lookback days (kept for backward compatibility)

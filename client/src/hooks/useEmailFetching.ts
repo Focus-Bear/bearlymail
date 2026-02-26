@@ -60,6 +60,11 @@ export function useEmailFetching({
     const params = new URLSearchParams();
     params.append('mode', mode);
 
+    // Include thread IDs for action and follow-up modes
+    if (mode === 'action' || mode === 'follow-up') {
+      params.append('includeThreadIds', 'true');
+    }
+
     if (filters) {
       if (filters.categories && filters.categories.length > 0) {
         params.append('categories', filters.categories.join(','));
@@ -72,10 +77,15 @@ export function useEmailFetching({
     return params;
   }, [mode, filters]);
 
-  const buildCategoryParams = useCallback((categoryName: string): URLSearchParams => {
+  const buildCategoryParams = useCallback((categoryName: string, categoryId?: string | null): URLSearchParams => {
     const params = new URLSearchParams();
     params.append('mode', mode);
-    params.append('categories', categoryName);
+    // Use category ID if available, otherwise fall back to name
+    if (categoryId) {
+      params.append('categoryIds', categoryId);
+    } else {
+      params.append('categories', categoryName);
+    }
     // Fetch all emails for this category in one request
     params.append('limit', '500');
     params.append('offset', '0');
@@ -158,8 +168,11 @@ export function useEmailFetching({
    * changed while the API request was in-flight (i.e. fetchEmails() was called concurrently).
    * This prevents a stale fetch from dispatching markCategoryLoaded() after clearCategoryState()
    * cleared loadedCategoryNames, which would block the correct re-fetch via the guard.
+   *
+   * @param categoryName - The category name (used for tracking and as fallback)
+   * @param categoryId - The category UUID (preferred for API calls)
    */
-  const fetchCategoryEmails = useCallback(async (categoryName: string) => {
+  const fetchCategoryEmails = useCallback(async (categoryName: string, categoryId?: string | null) => {
     // Use refs (updated every render) instead of closed-over state values.
     // This prevents stale reads without making loadedCategoryNames a dep.
     if (loadedCategoryNamesRef.current.includes(categoryName)) {
@@ -174,7 +187,7 @@ export function useEmailFetching({
 
     dispatch(markCategoryLoading(categoryName));
     try {
-      const params = buildCategoryParams(categoryName);
+      const params = buildCategoryParams(categoryName, categoryId);
 
       const response = await axios.get(`${API_URL}/emails/inbox?${params.toString()}`);
       const { emails } = response.data;

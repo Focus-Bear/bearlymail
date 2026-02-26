@@ -287,21 +287,38 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   // Build the ordered list of categories to render.
   // When a summary exists: show ALL categories (even those without loaded emails yet).
   // Order follows stableCategoryOrder, with new categories appended.
+  // CRITICAL: Also include categories that the user has expanded but may have disappeared
+  // from the summary (e.g., if all emails were archived). This prevents accordions from
+  // vanishing after expansion when the summary updates with count = 0.
   const displayCategories = useMemo((): Array<{ name: string; count: number }> => {
     const source = summaryCategories ?? groupEmailsByCategory(filteredEmails).map(g => ({
       name: g.category,
       count: g.emails.length,
     }));
 
-    if (stableCategoryOrder.length === 0) return source;
+    // Create a map for quick lookup
+    const sourceMap = new Map(source.map(cat => [cat.name, cat]));
+
+    // Include expanded categories that may have disappeared from summary
+    // This prevents the accordion from vanishing after user expands it
+    const augmentedSource = [...source];
+    expandedCategories.forEach(expandedCat => {
+      if (!sourceMap.has(expandedCat)) {
+        // Category is expanded but not in summary - add it with count 0
+        // This keeps the accordion visible so user can see it's now empty
+        augmentedSource.push({ name: expandedCat, count: 0 });
+      }
+    });
+
+    if (stableCategoryOrder.length === 0) return augmentedSource;
 
     const orderMap = new Map(stableCategoryOrder.map((cat, idx) => [cat, idx]));
-    return [...source].sort((a, b) => {
+    return augmentedSource.sort((a, b) => {
       const orderA = orderMap.get(a.name) ?? Number.MAX_SAFE_INTEGER;
       const orderB = orderMap.get(b.name) ?? Number.MAX_SAFE_INTEGER;
       return orderA - orderB;
     });
-  }, [summaryCategories, filteredEmails, stableCategoryOrder]);
+  }, [summaryCategories, filteredEmails, stableCategoryOrder, expandedCategories]);
 
   // Fetch proto categories when "Other" category is visible and expanded
   useEffect(() => {

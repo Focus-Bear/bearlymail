@@ -10,8 +10,10 @@ export interface AnimatingOutItem {
 }
 
 export interface CategorySummaryItem {
+  id: string | null;
   name: string;
   count: number;
+  threadIds?: string[];
 }
 
 interface EmailState {
@@ -194,21 +196,25 @@ const emailSlice = createSlice({
       state.loadedCategoryNames = [];
       state.loadingCategoryNames = [];
     },
-    decrementCategorySummaryCount: (state, action: PayloadAction<string>) => {
-      const categoryName = action.payload;
-      if (state.categorySummary) {
-        const category = state.categorySummary.find(c => c.name === categoryName);
-        if (category && category.count > 0) {
-          category.count -= 1;
-        }
-      }
-    },
-    incrementCategorySummaryCount: (state, action: PayloadAction<string>) => {
-      const categoryName = action.payload;
+    decrementCategorySummaryCount: (state, action: PayloadAction<string | { categoryName: string; count: number }>) => {
+      const { categoryName, count } = typeof action.payload === 'string'
+        ? { categoryName: action.payload, count: 1 }
+        : action.payload;
       if (state.categorySummary) {
         const category = state.categorySummary.find(c => c.name === categoryName);
         if (category) {
-          category.count += 1;
+          category.count = Math.max(0, category.count - count);
+        }
+      }
+    },
+    incrementCategorySummaryCount: (state, action: PayloadAction<string | { categoryName: string; count: number }>) => {
+      const { categoryName, count } = typeof action.payload === 'string'
+        ? { categoryName: action.payload, count: 1 }
+        : action.payload;
+      if (state.categorySummary) {
+        const category = state.categorySummary.find(c => c.name === categoryName);
+        if (category) {
+          category.count += count;
         }
       }
     },

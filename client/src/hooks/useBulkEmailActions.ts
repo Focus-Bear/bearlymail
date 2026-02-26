@@ -4,7 +4,7 @@ import axios from 'axios';
 import { captureEvent } from 'utils/posthog';
 import { API_URL } from 'config/api';
 import { AppDispatch } from 'store/store';
-import { removeEmail, restoreEmail, addOptimisticArchive, removeOptimisticArchive } from 'store/slices/emailSlice';
+import { removeEmail, restoreEmail, addOptimisticArchive, removeOptimisticArchive, decrementCategorySummaryCount, incrementCategorySummaryCount } from 'store/slices/emailSlice';
 import { selectEmails } from 'store/selectors/emailSelectors';
 import { Email } from 'types/email';
 
@@ -46,12 +46,19 @@ export function useBulkEmailActions({
 
     captureEvent('bulk_archive_clicked', { selected_count: emailIdsToArchive.length });
 
-    // Store emails for potential rollback
+    // Create a Map for O(1) email lookups (avoids O(N*M) complexity)
+    const emailsById = new Map(emails.map(e => [e.id, e]));
+
+    // Store emails for potential rollback and track category counts
     const emailsToArchive: Email[] = [];
+    const categoryCountChanges = new Map<string, number>();
     emailIdsToArchive.forEach(id => {
-      const email = emails.find(e => e.id === id);
+      const email = emailsById.get(id);
       if (email) {
         emailsToArchive.push(email);
+        // Track category count changes for optimistic update
+        const categoryName = email.category || 'Other';
+        categoryCountChanges.set(categoryName, (categoryCountChanges.get(categoryName) || 0) + 1);
       }
     });
 
@@ -59,6 +66,11 @@ export function useBulkEmailActions({
     emailIdsToArchive.forEach(id => {
       dispatch(removeEmail(id));
       dispatch(addOptimisticArchive(id));
+    });
+
+    // Optimistically update category summary counts (single dispatch per category)
+    categoryCountChanges.forEach((count, categoryName) => {
+      dispatch(decrementCategorySummaryCount({ categoryName, count }));
     });
 
     // Optimistically update tab counts
@@ -82,6 +94,10 @@ export function useBulkEmailActions({
       emailsToArchive.forEach(email => {
         dispatch(restoreEmail(email));
         dispatch(removeOptimisticArchive(email.id));
+      });
+      // Revert category summary counts (single dispatch per category)
+      categoryCountChanges.forEach((count, categoryName) => {
+        dispatch(incrementCategorySummaryCount({ categoryName, count }));
       });
       // Revert tab count changes
       if (onTabCountsUpdateOptimistically) {

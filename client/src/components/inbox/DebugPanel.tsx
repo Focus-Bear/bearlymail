@@ -180,9 +180,10 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
           backgroundColor: theme.colors.sunray.light3,
           fontSize: theme.typography.fontSize.xs,
           fontFamily: 'monospace',
-          maxHeight: '600px',
+          maxHeight: 'calc(100vh - 300px)',
+          minHeight: '400px',
           overflowY: 'auto',
-          overflowX: 'hidden',
+          overflowX: 'auto',
         }}>
           {/* Sync Status Section */}
           <div

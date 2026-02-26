@@ -61,6 +61,7 @@ export class EmailsController {
       mode?: "triage" | "action" | "follow-up";
       accounts?: string;
       categories?: string;
+      categoryIds?: string;
       minPriority?: string;
       page?: string;
       limit?: string;
@@ -72,6 +73,7 @@ export class EmailsController {
       mode = "triage",
       accounts,
       categories,
+      categoryIds,
       minPriority,
       page: pageParam,
       limit: limitParam,
@@ -83,6 +85,9 @@ export class EmailsController {
       : undefined;
     const categoryList = categories
       ? categories.split(",").filter(Boolean)
+      : undefined;
+    const categoryIdList = categoryIds
+      ? categoryIds.split(",").filter(Boolean)
       : undefined;
     const minPriorityValue = minPriority ? parseFloat(minPriority) : undefined;
 
@@ -104,6 +109,7 @@ export class EmailsController {
       {
         accountIds,
         categories: categoryList,
+        categoryIds: categoryIdList,
         minPriority: minPriorityValue,
       },
       { offset, limit: pageSize },
@@ -135,16 +141,24 @@ export class EmailsController {
     @Request() req,
     @Query("mode") mode: "triage" | "action" | "follow-up" = "triage",
     @Query("categories") categories?: string,
+    @Query("categoryIds") categoryIds?: string,
     @Query("minPriority") minPriority?: string,
+    @Query("includeThreadIds") includeThreadIds?: string,
   ) {
     const categoryList = categories
       ? categories.split(",").filter(Boolean)
       : undefined;
+    const categoryIdList = categoryIds
+      ? categoryIds.split(",").filter(Boolean)
+      : undefined;
     const minPriorityValue = minPriority ? parseFloat(minPriority) : undefined;
+    const shouldIncludeThreadIds = includeThreadIds === "true";
 
     return this.emailsService.getInboxSummary(req.user.userId, mode, {
       categories: categoryList,
+      categoryIds: categoryIdList,
       minPriority: minPriorityValue,
+      includeThreadIds: shouldIncludeThreadIds,
     });
   }
 

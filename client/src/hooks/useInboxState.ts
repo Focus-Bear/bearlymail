@@ -413,9 +413,12 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
       return;
     }
 
-    toFetch.forEach(category => {
-      fetchCategoryEmails(category).catch(err =>
-        console.error(`Error fetching category "${category}":`, err)
+    toFetch.forEach(categoryName => {
+      // Look up category ID from summary for API call
+      const categoryItem = categorySummary.find(c => c.name === categoryName);
+      const categoryId = categoryItem?.id;
+      fetchCategoryEmails(categoryName, categoryId).catch(err =>
+        console.error(`Error fetching category "${categoryName}":`, err)
       );
     });
   }, [categorySummary, expandedCategories, fetchCategoryEmails]);

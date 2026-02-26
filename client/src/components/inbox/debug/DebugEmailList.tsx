@@ -60,8 +60,8 @@ export const DebugEmailList: React.FC<DebugEmailListProps> = ({ emails, mode }) 
                   flexDirection: 'column',
                   gap: '2px',
                   flex: 1,
-                  minWidth: 0,
-                  overflow: 'hidden',
+                  minWidth: '200px',
+                  overflow: 'visible',
                 }}
               >
                 <span style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>

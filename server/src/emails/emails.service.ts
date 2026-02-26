@@ -261,9 +261,19 @@ export class EmailsService {
     mode: "triage" | "action" | "follow-up" = "triage",
     filters?: {
       categories?: string[];
+      categoryIds?: string[];
       minPriority?: number;
+      includeThreadIds?: boolean;
     },
-  ): Promise<{ total: number; categories: { name: string; count: number }[] }> {
+  ): Promise<{
+    total: number;
+    categories: {
+      id: string | null;
+      name: string;
+      count: number;
+      threadIds?: string[];
+    }[];
+  }> {
     const threadFilter =
       mode === "action" || mode === "follow-up"
         ? 'AND thread."isArchived" = false AND thread."starCount" > 0'
@@ -278,8 +288,14 @@ export class EmailsService {
       queryParams.push(filters.minPriority);
     }
 
+    // Fetch thread IDs along with category for action mode when requested
+    const selectFields =
+      filters?.includeThreadIds && (mode === "action" || mode === "follow-up")
+        ? 'thread.category, thread."threadId"'
+        : "thread.category";
+
     const rows = await this.emailThreadRepository.query(
-      `SELECT thread.category
+      `SELECT ${selectFields}
        FROM email_threads thread
        WHERE thread."userId" = $1
          ${threadFilter}
@@ -290,29 +306,72 @@ export class EmailsService {
       queryParams,
     );
 
+    // Fetch category contexts to map category names to UUIDs
+    const categoryContexts = await this.userContextRepository.find({
+      where: {
+        userId,
+        contextKey: ContextKey.EMAIL_CATEGORY,
+      },
+      select: ["contextId", "contextValue"],
+    });
+
+    // Build a map from category name to context ID (UUID)
+    const categoryNameToId = new Map<string, string>();
+    for (const ctx of categoryContexts) {
+      // contextValue format: "Category Name - Description" or just "Category Name"
+      const categoryName = ctx.contextValue.split(" - ")[0].trim();
+      categoryNameToId.set(categoryName, ctx.contextId);
+    }
+
     // Decrypt categories in-memory (AES-GCM random IVs prevent SQL DISTINCT)
     const categoryOrder: string[] = [];
     const categoryCounts: Record<string, number> = {};
+    const categoryThreadIds: Record<string, string[]> = {};
 
-    for (const row of rows as { category: string | null }[]) {
+    for (const row of rows as {
+      category: string | null;
+      threadId?: string;
+    }[]) {
       const category =
         (row.category ? EncryptionHelper.decrypt(row.category) : null) ||
         "Other";
       if (!categoryOrder.includes(category)) {
         categoryOrder.push(category);
+        categoryThreadIds[category] = [];
       }
       categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+      if (row.threadId && filters?.includeThreadIds) {
+        categoryThreadIds[category].push(row.threadId);
+      }
     }
 
     // Apply user-selected category filter in-memory (same as getInbox)
-    const visibleCategories =
-      filters?.categories && filters.categories.length > 0
-        ? categoryOrder.filter((cat) => filters.categories!.includes(cat))
-        : categoryOrder;
+    // Support both category names and category IDs for filtering
+    let visibleCategories = categoryOrder;
+    if (filters?.categoryIds && filters.categoryIds.length > 0) {
+      // Filter by category IDs - reverse lookup from ID to name
+      const idToName = new Map<string, string>();
+      categoryNameToId.forEach((id, name) => idToName.set(id, name));
+      const categoryNamesFromIds = filters.categoryIds
+        .map((id) => idToName.get(id))
+        .filter((name): name is string => name !== undefined);
+      visibleCategories = categoryOrder.filter((cat) =>
+        categoryNamesFromIds.includes(cat),
+      );
+    } else if (filters?.categories && filters.categories.length > 0) {
+      visibleCategories = categoryOrder.filter((cat) =>
+        filters.categories!.includes(cat),
+      );
+    }
 
     const categories = visibleCategories.map((name) => ({
+      id: categoryNameToId.get(name) || null,
       name,
       count: categoryCounts[name] || 0,
+      ...(filters?.includeThreadIds &&
+      (mode === "action" || mode === "follow-up")
+        ? { threadIds: categoryThreadIds[name] || [] }
+        : {}),
     }));
 
     const total = categories.reduce((sum, cat) => sum + cat.count, 0);
@@ -399,6 +458,7 @@ export class EmailsService {
     filters?: {
       accountIds?: string[];
       categories?: string[];
+      categoryIds?: string[];
       minPriority?: number;
     },
     pagination?: { offset?: number; limit?: number },
@@ -570,6 +630,7 @@ export class EmailsService {
     filters?: {
       accountIds?: string[];
       categories?: string[];
+      categoryIds?: string[];
       minPriority?: number;
     },
   ): Promise<{ emails: Email[]; blockedCount: number }> {
@@ -592,16 +653,44 @@ export class EmailsService {
       );
     }
 
-    if (filters?.categories && filters.categories.length > 0) {
+    // Apply category filter (by name or by ID)
+    let categoryFilterNames: string[] | undefined;
+
+    if (filters?.categoryIds && filters.categoryIds.length > 0) {
+      // Resolve category IDs to names
+      const categoryContexts = await this.userContextRepository.find({
+        where: {
+          userId,
+          contextKey: ContextKey.EMAIL_CATEGORY,
+        },
+        select: ["contextId", "contextValue"],
+      });
+      const idToName = new Map<string, string>();
+      for (const ctx of categoryContexts) {
+        const categoryName = ctx.contextValue.split(" - ")[0].trim();
+        idToName.set(ctx.contextId, categoryName);
+      }
+      categoryFilterNames = filters.categoryIds
+        .map((id) => idToName.get(id))
+        .filter((name): name is string => name !== undefined);
+    } else if (filters?.categories && filters.categories.length > 0) {
+      categoryFilterNames = filters.categories;
+    }
+
+    if (categoryFilterNames && categoryFilterNames.length > 0) {
       const beforeCount = filteredEmails.length;
-      filteredEmails = filteredEmails.filter((e) =>
-        filters.categories.includes(
-          (e as Email & { category?: string | null }).category,
-        ),
-      );
+      filteredEmails = filteredEmails.filter((e) => {
+        const emailCategory = (e as Email & { category?: string | null })
+          .category;
+        // Treat null/undefined/empty category as "Other" to mirror getInboxSummary behaviour
+        const effectiveCategory = emailCategory || "Other";
+        return categoryFilterNames!.includes(effectiveCategory);
+      });
       const removed = beforeCount - filteredEmails.length;
       if (removed > 0)
-        this.logger.debug(`Category filter: Removed ${removed} emails`);
+        this.logger.debug(
+          `Category filter: Removed ${removed} emails not matching categories: ${categoryFilterNames.join(", ")}`,
+        );
     }
 
     if (mode === "action") {

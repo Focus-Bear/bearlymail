@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React from 'react';
 import { ERROR_CODE_GMAIL_REQUIRED } from 'constants/strings';
 import axios from 'axios';
 import { theme } from 'theme/theme';
@@ -17,6 +17,7 @@ import { InboxFilters } from 'components/inbox/InboxFilters';
 import { API_URL } from 'config/api';
 import { useInboxState } from 'hooks/useInboxState';
 import { useInboxFilters } from 'hooks/useInboxFilters';
+import { useSidebarState } from 'hooks/useSidebarState';
 
 const Inbox: React.FC = () => {
   const {
@@ -98,24 +99,13 @@ const Inbox: React.FC = () => {
     (filters.categories.length > 0 ? 1 : 0) +
     (filters.minPriority !== null ? 1 : 0);
 
-  const [sidebarManuallyExpanded, setSidebarManuallyExpanded] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  const handleToggleSidebarCollapse = useCallback(() => {
-    if (splitView.selectedEmailId) {
-      setSidebarManuallyExpanded(prev => !prev);
-    }
-  }, [splitView.selectedEmailId]);
-
-  const handleToggleMobileMenu = useCallback(() => {
-    setIsMobileMenuOpen(prev => !prev);
-  }, []);
-
-  const handleCloseMobileMenu = useCallback(() => {
-    setIsMobileMenuOpen(false);
-  }, []);
-
-  const isSidebarCollapsed = !!splitView.selectedEmailId && !sidebarManuallyExpanded;
+  const {
+    isCollapsed: isSidebarCollapsed,
+    isMobileMenuOpen,
+    toggleCollapse: handleToggleSidebarCollapse,
+    openMobileMenu,
+    closeMobileMenu: handleCloseMobileMenu,
+  } = useSidebarState({ splitViewActive: !!splitView.selectedEmailId });
 
   if (loading) {
     return <InboxLoadingState />;
@@ -181,7 +171,7 @@ const Inbox: React.FC = () => {
           actionTabRef={actionTabRef}
           followUpTabRef={followUpTabRef}
           tabCounts={tabCounts}
-          onToggleMobileMenu={handleToggleMobileMenu}
+          onToggleMobileMenu={openMobileMenu}
           isFilterBarVisible={isFilterBarVisible}
           hasActiveFilters={hasActiveFilters}
           activeFilterCount={activeFilterCount}

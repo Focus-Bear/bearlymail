@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from 'contexts/AuthContext';
 import { Sidebar } from 'components/inbox/Sidebar';
 import { theme } from 'theme/theme';
+import { useSidebarState } from 'hooks/useSidebarState';
 
 interface HelpArticle {
   id: string;
@@ -16,6 +17,12 @@ const Help: React.FC = () => {
   const { user, logout } = useAuth();
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const {
+    isCollapsed,
+    isMobileMenuOpen,
+    toggleCollapse,
+    closeMobileMenu,
+  } = useSidebarState();
 
   const articles: HelpArticle[] = [
     {
@@ -64,7 +71,14 @@ const Help: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-      <Sidebar user={user} logout={logout} />
+      <Sidebar
+        user={user}
+        logout={logout}
+        isCollapsed={isCollapsed}
+        onToggleCollapse={toggleCollapse}
+        isMobileMenuOpen={isMobileMenuOpen}
+        onCloseMobileMenu={closeMobileMenu}
+      />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ flex: 1, overflowY: 'auto', padding: theme.spacing.xl }}>
           <div style={{ maxWidth: '800px', margin: '0 auto' }}>

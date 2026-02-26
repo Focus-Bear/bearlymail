@@ -4,11 +4,18 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from 'contexts/AuthContext';
 import { Sidebar } from 'components/inbox/Sidebar';
 import { theme } from 'theme/theme';
+import { useSidebarState } from 'hooks/useSidebarState';
 
 const HelpArticle: React.FC = () => {
   const { articleId } = useParams<{ articleId: string }>();
   const { user, logout } = useAuth();
   const { t } = useTranslation();
+  const {
+    isCollapsed,
+    isMobileMenuOpen,
+    toggleCollapse,
+    closeMobileMenu,
+  } = useSidebarState();
 
   const getArticleContent = () => {
     if (!articleId) return null;
@@ -58,7 +65,14 @@ const HelpArticle: React.FC = () => {
   if (!article || !articleId) {
     return (
       <div style={{ display: 'flex', height: '100vh' }}>
-        <Sidebar user={user} logout={logout} />
+        <Sidebar
+          user={user}
+          logout={logout}
+          isCollapsed={isCollapsed}
+          onToggleCollapse={toggleCollapse}
+          isMobileMenuOpen={isMobileMenuOpen}
+          onCloseMobileMenu={closeMobileMenu}
+        />
         <div style={{ flex: 1, padding: theme.spacing.xl }}>
           <p>{t('help.articleNotFound')}</p>
         </div>
@@ -68,7 +82,14 @@ const HelpArticle: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-      <Sidebar user={user} logout={logout} />
+      <Sidebar
+        user={user}
+        logout={logout}
+        isCollapsed={isCollapsed}
+        onToggleCollapse={toggleCollapse}
+        isMobileMenuOpen={isMobileMenuOpen}
+        onCloseMobileMenu={closeMobileMenu}
+      />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ flex: 1, overflowY: 'auto', padding: theme.spacing.xl }}>
           <div style={{ maxWidth: '800px', margin: '0 auto' }}>

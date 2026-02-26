@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { Sidebar } from 'components/inbox/Sidebar';
@@ -17,6 +17,7 @@ import { EmailSignatureSection } from 'components/settings/EmailSignatureSection
 import { useSettingsData } from 'hooks/useSettingsData';
 import { useAutoResponder } from 'hooks/useAutoResponder';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { useSidebarState } from 'hooks/useSidebarState';
 
 import { API_URL } from 'config/api';
 import { EMOJI_MENU } from 'constants/emojis';
@@ -28,7 +29,13 @@ const Settings: React.FC = () => {
   const hasTriggeredAutoAnalyze = useRef(false);
   const { isMobile, isTablet } = useResponsiveBreakpoints();
   const isNarrow = isMobile || isTablet;
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const {
+    isCollapsed,
+    isMobileMenuOpen,
+    toggleCollapse,
+    openMobileMenu,
+    closeMobileMenu,
+  } = useSidebarState();
 
   // Handle OAuth callback
   useEffect(() => {
@@ -97,13 +104,15 @@ const Settings: React.FC = () => {
       <Sidebar
         user={user}
         logout={logout}
+        isCollapsed={isCollapsed}
+        onToggleCollapse={toggleCollapse}
         isMobileMenuOpen={isMobileMenuOpen}
-        onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
+        onCloseMobileMenu={closeMobileMenu}
       />
       <div style={{ flex: 1, overflowY: 'auto', padding: isNarrow ? `70px ${theme.spacing.sm} ${theme.spacing.md}` : theme.spacing.xl, position: 'relative' }}>
         {isNarrow && (
           <button
-            onClick={() => setIsMobileMenuOpen(true)}
+            onClick={openMobileMenu}
             style={{
               position: 'fixed',
               top: theme.spacing.md,

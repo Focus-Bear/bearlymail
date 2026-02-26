@@ -6,6 +6,7 @@ import { useAuth } from 'contexts/AuthContext';
 import { Sidebar } from 'components/inbox/Sidebar';
 import { useEmailStats, CategoryStats } from 'hooks/useEmailStats';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { useSidebarState } from 'hooks/useSidebarState';
 import { EMOJI_MENU } from 'constants/emojis';
 
 const PERIOD_OPTIONS = [7, STATS_PERIOD_14_DAYS, DAYS_IN_MONTH_30, 60, CALENDAR_DAYS_AHEAD] as const;
@@ -207,7 +208,13 @@ const Stats: React.FC = () => {
   const { stats, loading, error, refetch } = useEmailStats(days);
   const { isMobile, isTablet } = useResponsiveBreakpoints();
   const isNarrow = isMobile || isTablet;
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const {
+    isCollapsed,
+    isMobileMenuOpen,
+    toggleCollapse,
+    openMobileMenu,
+    closeMobileMenu,
+  } = useSidebarState();
 
   const maxEmails = stats
     ? Math.max(...stats.categoryStats.map(c => c.totalEmails), 1)
@@ -223,8 +230,10 @@ const Stats: React.FC = () => {
       <Sidebar
         user={user}
         logout={logout}
+        isCollapsed={isCollapsed}
+        onToggleCollapse={toggleCollapse}
         isMobileMenuOpen={isMobileMenuOpen}
-        onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
+        onCloseMobileMenu={closeMobileMenu}
       />
 
       <div style={{
@@ -234,7 +243,7 @@ const Stats: React.FC = () => {
       }}>
         {isNarrow && (
           <button
-            onClick={() => setIsMobileMenuOpen(true)}
+            onClick={openMobileMenu}
             style={{
               position: 'fixed',
               top: theme.spacing.md,

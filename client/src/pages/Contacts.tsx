@@ -10,6 +10,7 @@ import { useAuth } from 'contexts/AuthContext';
 import { getPusherInstance } from 'config/pusher';
 import { Sidebar } from 'components/inbox/Sidebar';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { useSidebarState } from 'hooks/useSidebarState';
 
 import { API_URL } from 'config/api';
 import { EMOJI_MENU } from 'constants/emojis';
@@ -20,7 +21,13 @@ const Contacts: React.FC = () => {
   const { user, logout } = useAuth();
   const { isMobile, isTablet } = useResponsiveBreakpoints();
   const isNarrow = isMobile || isTablet;
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const {
+    isCollapsed,
+    isMobileMenuOpen,
+    toggleCollapse,
+    openMobileMenu,
+    closeMobileMenu,
+  } = useSidebarState();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -153,8 +160,10 @@ const Contacts: React.FC = () => {
       <Sidebar
         user={user}
         logout={logout}
+        isCollapsed={isCollapsed}
+        onToggleCollapse={toggleCollapse}
         isMobileMenuOpen={isMobileMenuOpen}
-        onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
+        onCloseMobileMenu={closeMobileMenu}
       />
 
       <div style={{
@@ -165,7 +174,7 @@ const Contacts: React.FC = () => {
       }}>
         {isNarrow && (
           <button
-            onClick={() => setIsMobileMenuOpen(true)}
+            onClick={openMobileMenu}
             style={{
               position: 'fixed',
               top: theme.spacing.md,

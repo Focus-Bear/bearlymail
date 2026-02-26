@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from 'contexts/AuthContext';
 import { theme } from 'theme/theme';
@@ -15,6 +15,7 @@ import { ContextAnalysisSection } from 'components/admin/ContextAnalysisSection'
 import { ADMIN_TAB_WAITLIST, ADMIN_TAB_JOBS, ADMIN_TAB_TOKEN_USAGE, ADMIN_TAB_QUEUE_DASHBOARD, ADMIN_TAB_GITHUB_DEBUG, ADMIN_TAB_CONTEXT_ANALYSIS } from 'constants/adminTabs';
 import { Sidebar } from 'components/inbox/Sidebar';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { useSidebarState } from 'hooks/useSidebarState';
 import { EMOJI_MENU } from 'constants/emojis';
 
 const DEFAULT_EXTEND_DAYS = 7;
@@ -24,7 +25,13 @@ const AdminDashboard: React.FC = () => {
   const { user, logout } = useAuth();
   const { isMobile, isTablet } = useResponsiveBreakpoints();
   const isNarrow = isMobile || isTablet;
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const {
+    isCollapsed,
+    isMobileMenuOpen,
+    toggleCollapse,
+    openMobileMenu,
+    closeMobileMenu,
+  } = useSidebarState();
   const {
     activeTab,
     setActiveTab,
@@ -99,8 +106,10 @@ const AdminDashboard: React.FC = () => {
       <Sidebar
         user={user}
         logout={logout}
+        isCollapsed={isCollapsed}
+        onToggleCollapse={toggleCollapse}
         isMobileMenuOpen={isMobileMenuOpen}
-        onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
+        onCloseMobileMenu={closeMobileMenu}
       />
 
       <div style={{
@@ -111,7 +120,7 @@ const AdminDashboard: React.FC = () => {
       }}>
         {isNarrow && (
           <button
-            onClick={() => setIsMobileMenuOpen(true)}
+            onClick={openMobileMenu}
             style={{
               position: 'fixed',
               top: theme.spacing.md,

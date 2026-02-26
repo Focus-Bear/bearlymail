@@ -1628,10 +1628,17 @@ export class EmailsService {
     );
     if (nextReleaseTime !== null) {
       const existingReleaseAt = thread.batchReleaseAt;
-      const effectiveReleaseTime =
-        existingReleaseAt && existingReleaseAt < nextReleaseTime
-          ? existingReleaseAt
-          : nextReleaseTime;
+      const now = new Date();
+      // Only use existing release time if it's both:
+      // 1. Earlier than the newly calculated time, AND
+      // 2. Still in the future (not already past)
+      const existingIsValidAndEarlier =
+        existingReleaseAt !== null &&
+        existingReleaseAt > now &&
+        existingReleaseAt < nextReleaseTime;
+      const effectiveReleaseTime = existingIsValidAndEarlier
+        ? existingReleaseAt
+        : nextReleaseTime;
       return {
         isBatched: true,
         batchReleaseAt: effectiveReleaseTime,

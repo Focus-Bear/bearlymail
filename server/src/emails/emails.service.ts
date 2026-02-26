@@ -2006,7 +2006,7 @@ export class EmailsService {
     this.boss
       .send(
         "archive-email-provider-sync",
-        { userId, threadId },
+        { userId, threadId, wasStarred: isStarred },
         {
           priority: getJobPriority("archive-email-provider-sync", true),
           singletonKey: `archive-provider-sync-${threadId}`,
@@ -2103,11 +2103,14 @@ export class EmailsService {
     );
 
     // STEP 2: Queue background jobs for provider sync per thread
+    // Convert starredThreadIds to a Set for O(1) lookups
+    const starredThreadIdsSet = new Set(starredThreadIds);
     for (const threadId of threadIds) {
+      const wasStarred = starredThreadIdsSet.has(threadId);
       this.boss
         .send(
           "archive-email-provider-sync",
-          { userId, threadId },
+          { userId, threadId, wasStarred },
           {
             priority: getJobPriority("archive-email-provider-sync", true),
             singletonKey: `archive-provider-sync-${threadId}`,

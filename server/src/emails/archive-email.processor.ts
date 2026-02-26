@@ -76,13 +76,14 @@ export class ArchiveEmailProcessor implements OnModuleInit {
 
     // Register worker for provider-only sync jobs (DB update already done)
     await this.boss.work("archive-email-provider-sync", async (job) => {
-      const { userId, threadId } = job.data as {
+      const { userId, threadId, wasStarred } = job.data as {
         userId: string;
         threadId: string;
+        wasStarred?: boolean;
       };
 
       this.logger.log(
-        `[Archive Provider Sync] Processing: userId=${userId}, threadId=${threadId}`,
+        `[Archive Provider Sync] Processing: userId=${userId}, threadId=${threadId}, wasStarred=${!!wasStarred}`,
       );
 
       try {
@@ -90,6 +91,26 @@ export class ArchiveEmailProcessor implements OnModuleInit {
           await this.emailProviderManager.getPrimaryProvider(userId);
         if (provider && "archiveThread" in provider) {
           await provider.archiveThread(userId, threadId);
+          this.logger.log(
+            `[Archive Provider Sync] Archived thread: userId=${userId}, threadId=${threadId}`,
+          );
+
+          // If the thread was starred, also remove the star in Gmail
+          if (wasStarred && "syncStarStatusToGmail" in provider) {
+            try {
+              await provider.syncStarStatusToGmail(userId, threadId, 0);
+              this.logger.log(
+                `[Archive Provider Sync] Removed star from thread: userId=${userId}, threadId=${threadId}`,
+              );
+            } catch (starError: unknown) {
+              logErrorToFile(
+                `[Archive Provider Sync] Failed to remove star: userId=${userId}, threadId=${threadId}`,
+                starError,
+                "ArchiveEmailProcessor",
+              );
+            }
+          }
+
           this.logger.log(
             `[Archive Provider Sync] Completed: userId=${userId}, threadId=${threadId}`,
           );

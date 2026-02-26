@@ -198,6 +198,7 @@ export async function syncReadStatusToGmail(
 
 /**
  * Snooze a thread in Gmail by adding a custom label and removing INBOX
+ * Uses thread-level modification for atomic operation on all messages
  */
 export async function snoozeThreadInGmail(
   userId: string,
@@ -207,52 +208,27 @@ export async function snoozeThreadInGmail(
 ): Promise<{ labeledCount: number }> {
   logger.log(`[Gmail Snooze] Starting snooze: threadId=${threadId}`);
 
-  const threadData = await gmail.users.threads.get({
+  // Use thread-level modification for atomic operation on all messages
+  // This is more reliable than modifying individual messages, especially
+  // when new messages (like sent replies) are added to the thread
+  const response = await gmail.users.threads.modify({
     userId: "me",
     id: threadId,
-    format: "full",
+    requestBody: {
+      addLabelIds: [snoozeLabelId],
+      removeLabelIds: ["INBOX"],
+    },
   });
 
-  const thread = threadData.data;
-  const messages = thread.messages || [];
-  let labeledCount = 0;
-
-  for (const message of messages) {
-    if (!message.id) continue;
-
-    const messageLabelIds = message.labelIds || [];
-    const isCurrentlySnoozed = messageLabelIds.includes(snoozeLabelId);
-    const hasInboxLabel = messageLabelIds.includes("INBOX");
-
-    const addLabelIds: string[] = [];
-    const removeLabelIds: string[] = [];
-
-    if (!isCurrentlySnoozed) {
-      addLabelIds.push(snoozeLabelId);
-    }
-    if (hasInboxLabel) {
-      removeLabelIds.push("INBOX");
-    }
-
-    if (addLabelIds.length > 0 || removeLabelIds.length > 0) {
-      await gmail.users.messages.modify({
-        userId: "me",
-        id: message.id,
-        requestBody: {
-          ...(addLabelIds.length > 0 && { addLabelIds }),
-          ...(removeLabelIds.length > 0 && { removeLabelIds }),
-        },
-      });
-      labeledCount++;
-    }
-  }
-
-  logger.log(`[Gmail Snooze] Thread snoozed: labeledCount=${labeledCount}`);
-  return { labeledCount };
+  logger.log(
+    `[Gmail Snooze] Thread snoozed successfully: threadId=${threadId}`,
+  );
+  return { labeledCount: response.data.messages?.length || 1 };
 }
 
 /**
  * Unsnooze a thread in Gmail by removing custom label and adding INBOX back
+ * Uses thread-level modification for atomic operation on all messages
  */
 export async function unsnoozeThreadInGmail(
   userId: string,
@@ -262,50 +238,21 @@ export async function unsnoozeThreadInGmail(
 ): Promise<{ modifiedCount: number }> {
   logger.log(`[Gmail Unsnooze] Starting unsnooze: threadId=${threadId}`);
 
-  const threadData = await gmail.users.threads.get({
+  // Use thread-level modification for atomic operation on all messages
+  // This ensures all messages in the thread are restored to inbox
+  const response = await gmail.users.threads.modify({
     userId: "me",
     id: threadId,
-    format: "full",
+    requestBody: {
+      addLabelIds: ["INBOX"],
+      removeLabelIds: [snoozeLabelId],
+    },
   });
 
-  const thread = threadData.data;
-  const messages = thread.messages || [];
-  let modifiedCount = 0;
-
-  for (const message of messages) {
-    if (!message.id) continue;
-
-    const messageLabelIds = message.labelIds || [];
-    const hasSnoozedLabel = messageLabelIds.includes(snoozeLabelId);
-    const hasInboxLabel = messageLabelIds.includes("INBOX");
-
-    const addLabelIds: string[] = [];
-    const removeLabelIds: string[] = [];
-
-    if (hasSnoozedLabel) {
-      removeLabelIds.push(snoozeLabelId);
-    }
-    if (!hasInboxLabel) {
-      addLabelIds.push("INBOX");
-    }
-
-    if (addLabelIds.length > 0 || removeLabelIds.length > 0) {
-      await gmail.users.messages.modify({
-        userId: "me",
-        id: message.id,
-        requestBody: {
-          ...(addLabelIds.length > 0 && { addLabelIds }),
-          ...(removeLabelIds.length > 0 && { removeLabelIds }),
-        },
-      });
-      modifiedCount++;
-    }
-  }
-
   logger.log(
-    `[Gmail Unsnooze] Thread unsnoozed: modifiedCount=${modifiedCount}`,
+    `[Gmail Unsnooze] Thread unsnoozed successfully: threadId=${threadId}`,
   );
-  return { modifiedCount };
+  return { modifiedCount: response.data.messages?.length || 1 };
 }
 
 /**

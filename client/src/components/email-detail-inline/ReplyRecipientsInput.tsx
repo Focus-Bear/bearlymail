@@ -101,7 +101,7 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
 
     if (value.includes(',')) {
       const parts = value.split(',');
-      const newEmails = parts.slice(0, -1).map(e => e.trim()).filter(e => e.length > 0 && isValidEmail(e));
+      const newEmails = parts.slice(0, -1).map(e => e.trim()).filter(e => e.length > 0 && !/[\r\n]/.test(e) && isValidEmail(e));
       const remaining = parts[parts.length - 1];
 
       if (newEmails.length > 0) {
@@ -166,7 +166,7 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
       return;
     }
 
-    if (e.key === 'Enter' && inputValue.trim() && isValidEmail(inputValue.trim())) {
+    if (e.key === 'Enter' && inputValue.trim() && !/[\r\n]/.test(inputValue.trim()) && isValidEmail(inputValue.trim())) {
       e.preventDefault();
       if (selectedSuggestionIndex >= 0 && searchResults.length > 0) {
         handleSelectContact(searchResults[selectedSuggestionIndex], field);
@@ -208,6 +208,25 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
       setActiveField(null);
     }
   }, [searchResults, selectedSuggestionIndex, handleSelectContact, inputValues, toTags, ccTags, bccTags, handleRemoveTag, onRecipientsChange, onCcChange, onBccChange]);
+
+  const handleBlur = useCallback((field: FieldType) => {
+    const inputValue = inputValues[field]?.trim();
+    if (inputValue && !/[\r\n]/.test(inputValue) && isValidEmail(inputValue)) {
+      const currentTags = field === 'to' ? toTags : field === 'cc' ? ccTags : bccTags;
+      const newTags = [...currentTags, inputValue];
+      const newValue = newTags.join(', ');
+
+      if (field === 'to') onRecipientsChange(newValue);
+      else if (field === 'cc') onCcChange(newValue);
+      else onBccChange(newValue);
+
+      setInputValues(prev => ({ ...prev, [field]: '' }));
+    }
+    setTimeout(() => {
+      setSearchResults([]);
+      setActiveField(null);
+    }, DEBOUNCE_DELAY_200_MS);
+  }, [inputValues, toTags, ccTags, bccTags, onRecipientsChange, onCcChange, onBccChange]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -297,6 +316,7 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
           value={inputValues[field]}
           onChange={(e) => handleInputChange(e.target.value, field)}
           onFocus={() => setActiveField(field)}
+          onBlur={() => handleBlur(field)}
           onKeyDown={(e) => handleKeyDown(e, field)}
           style={{
             flex: 1,

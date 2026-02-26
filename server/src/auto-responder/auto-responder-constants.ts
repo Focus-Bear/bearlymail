@@ -52,6 +52,13 @@ export const STATS_CONFIG = {
   LOOKBACK_DAYS: 30,
 } as const;
 
+// Email age configuration
+export const EMAIL_AGE_CONFIG = {
+  // Maximum age of an email (in hours) that the auto-responder will reply to
+  // Emails older than this will be skipped to avoid replying to old/snoozed emails
+  MAX_EMAIL_AGE_HOURS: 24,
+} as const;
+
 // BearlyMail branding
 export const BRANDING = {
   // URL for the BearlyMail marketing/landing page

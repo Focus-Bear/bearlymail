@@ -18,7 +18,10 @@ import {
   autoresponderLogger,
   AutoresponderDecisionContext,
 } from "./autoresponder-logger";
-import { PRIORITY_THRESHOLDS } from "./auto-responder-constants";
+import {
+  PRIORITY_THRESHOLDS,
+  EMAIL_AGE_CONFIG,
+} from "./auto-responder-constants";
 
 type PreparedResponse = {
   senderEmailHash: string;
@@ -142,6 +145,12 @@ export class AutoResponderService {
 
     logContext.senderEmail = latestEmail.from;
     logContext.subject = latestEmail.subject;
+
+    const emailAgeCheck = this.checkEmailAge(
+      latestEmail.receivedAt,
+      logContext,
+    );
+    if (emailAgeCheck) return emailAgeCheck;
 
     const hasUserReplies = await this.threadHasUserReplies(userId, thread);
     if (hasUserReplies) {
@@ -367,6 +376,36 @@ export class AutoResponderService {
         details: { priorityLevel, configSetting: "sendFor.lowPriority=false" },
       });
       return { sent: false, reason: "Low priority auto-response disabled" };
+    }
+    return null;
+  }
+
+  /**
+   * Check if email is too old to auto-respond to.
+   * This prevents auto-responding to snoozed emails that return to inbox
+   * after the original email was received more than 24 hours ago.
+   */
+  private checkEmailAge(
+    receivedAt: Date,
+    logContext: AutoresponderDecisionContext,
+  ): { sent: boolean; reason: string } | null {
+    const now = new Date();
+    const ageInHours =
+      (now.getTime() - receivedAt.getTime()) / (1000 * 60 * 60);
+
+    if (ageInHours > EMAIL_AGE_CONFIG.MAX_EMAIL_AGE_HOURS) {
+      const roundedAge = Math.round(ageInHours * 10) / 10;
+      const reason = `Email too old for auto-response (${roundedAge} hours old, max ${EMAIL_AGE_CONFIG.MAX_EMAIL_AGE_HOURS} hours)`;
+      autoresponderLogger.logDecision(logContext, {
+        decision: "SKIP",
+        reason,
+        details: {
+          emailAgeHours: roundedAge,
+          maxAgeHours: EMAIL_AGE_CONFIG.MAX_EMAIL_AGE_HOURS,
+          receivedAt: receivedAt.toISOString(),
+        },
+      });
+      return { sent: false, reason };
     }
     return null;
   }

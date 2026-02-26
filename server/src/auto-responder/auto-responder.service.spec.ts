@@ -463,6 +463,92 @@ describe("AutoResponderService", () => {
       expect(mockProvider.sendReply).toHaveBeenCalled();
       expect(analyticsService.logAutoResponse).toHaveBeenCalled();
     });
+
+    it("should not send auto-response for emails older than 24 hours", async () => {
+      jest.useFakeTimers();
+      const now = new Date("2025-01-15T12:00:00Z");
+      jest.setSystemTime(now);
+
+      const oldEmailThread = {
+        ...mockThread,
+        emails: [
+          {
+            id: "email-1",
+            from: "sender@example.com",
+            fromName: "Sender Name",
+            subject: "Test Subject",
+            body: "Test body content",
+            htmlBody: null,
+            // 25 hours ago
+            receivedAt: new Date(now.getTime() - 25 * 60 * 60 * 1000),
+          },
+        ],
+      };
+      userRepository.findOne.mockResolvedValue({
+        ...mockUser,
+        autoResponderSettings: {
+          ...DEFAULT_AUTO_RESPONDER_CONFIG,
+          enabled: true,
+        },
+      } as any);
+      emailThreadRepository.findOne.mockResolvedValue(oldEmailThread as any);
+
+      const result = await service.processEmailForAutoResponse(
+        "user-1",
+        "thread-1",
+      );
+
+      expect(result.sent).toBe(false);
+      expect(result.reason).toContain("Email too old for auto-response");
+      expect(result.reason).toContain("25 hours old");
+
+      jest.useRealTimers();
+    });
+
+    it("should send auto-response for emails within 24 hours", async () => {
+      jest.useFakeTimers();
+      const now = new Date("2025-01-15T12:00:00Z");
+      jest.setSystemTime(now);
+
+      const recentEmailThread = {
+        ...mockThread,
+        emails: [
+          {
+            id: "email-1",
+            from: "sender@example.com",
+            fromName: "Sender Name",
+            subject: "Test Subject",
+            body: "Test body content",
+            htmlBody: null,
+            // 12 hours ago
+            receivedAt: new Date(now.getTime() - 12 * 60 * 60 * 1000),
+          },
+        ],
+      };
+      const mockProvider = {
+        sendReply: jest.fn().mockResolvedValue(undefined),
+      };
+      userRepository.findOne.mockResolvedValue({
+        ...mockUser,
+        autoResponderSettings: {
+          ...DEFAULT_AUTO_RESPONDER_CONFIG,
+          enabled: true,
+        },
+      } as any);
+      emailThreadRepository.findOne.mockResolvedValue(recentEmailThread as any);
+      emailProviderManager.getPrimaryProvider.mockResolvedValue(
+        mockProvider as any,
+      );
+
+      const result = await service.processEmailForAutoResponse(
+        "user-1",
+        "thread-1",
+      );
+
+      expect(result.sent).toBe(true);
+
+      jest.useRealTimers();
+    });
   });
 
   describe("addOptOutSuppression", () => {

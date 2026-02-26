@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { Z_INDEX_POPUP } from 'constants/numbers';
 
 interface CustomRule {
   whenToUse: string;
@@ -41,7 +42,7 @@ export const CustomRuleModal: React.FC<CustomRuleModalProps> = ({
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
-      zIndex: 2000,
+      zIndex: Z_INDEX_POPUP,
     }}>
       <div style={{
         backgroundColor: theme.colors.background.paper,

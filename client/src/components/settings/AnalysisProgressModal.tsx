@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { ANALYSIS_RECENT_INSIGHTS_COUNT } from 'constants/numbers';
+import { ANALYSIS_RECENT_INSIGHTS_COUNT, Z_INDEX_POPUP } from 'constants/numbers';
 import { AnalyzeProgress } from 'hooks/useSettingsData';
 import { EMOJI_WARNING } from 'constants/emojis';
 
@@ -31,7 +31,7 @@ export const AnalysisProgressModal: React.FC<AnalysisProgressModalProps> = ({
       boxShadow: theme.shadows.xl,
       minWidth: '300px',
       maxWidth: '500px',
-      zIndex: 2000,
+      zIndex: Z_INDEX_POPUP,
       border: `1px solid ${analyzeProgress.error ? theme.colors.accent.error : theme.colors.border.light}`,
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: theme.spacing.sm }}>

@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 import { UrgentNotificationHeader } from 'components/inbox/overlays/UrgentNotificationHeader';
 import { UrgentEmailList } from 'components/inbox/overlays/UrgentEmailList';
 import { EMOJI_CHECK } from 'constants/emojis';
+import { Z_INDEX_POPUP } from 'constants/numbers';
 
 interface UrgentEmail {
   subject: string;
@@ -63,7 +64,7 @@ export const UrgentNotification: React.FC<UrgentNotificationProps> = ({
         boxShadow: theme.shadows.xl,
         minWidth: '320px',
         maxWidth: '400px',
-        zIndex: 2000,
+        zIndex: Z_INDEX_POPUP,
         border: `2px solid ${getBorderColor()}`,
       }}
     >

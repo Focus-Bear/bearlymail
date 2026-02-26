@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
-import { OPACITY_DISABLED } from 'constants/numbers';
+import { OPACITY_DISABLED, Z_INDEX_POPUP } from 'constants/numbers';
 import { API_URL } from 'config/api';
 import { useNotifications } from 'contexts/NotificationContext';
 
@@ -147,7 +147,7 @@ export const ProtoCategoriesModal: React.FC<ProtoCategoriesModalProps> = ({
         maxHeight: '80vh',
         display: 'flex',
         flexDirection: 'column',
-        zIndex: 2000,
+        zIndex: Z_INDEX_POPUP,
       }}>
         {/* Header */}
         <div style={{

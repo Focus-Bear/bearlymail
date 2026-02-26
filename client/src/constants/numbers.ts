@@ -50,6 +50,7 @@ export const MESSAGE_ID_PREVIEW_LENGTH = 20;
 
 // Z-index values
 export const Z_INDEX_MODAL_OVERLAY = 10000;
+export const Z_INDEX_POPUP = 2000;
 export const Z_INDEX_DROPDOWN = 1000;
 
 // Viewport heights

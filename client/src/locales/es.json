@@ -607,6 +607,9 @@
     "copyright": "© {{year}} Focus Bear"
   },
     "github": {
+      "open": "Abierto",
+      "closed": "Cerrado",
+      "merged": "Fusionado",
       "approved": "Aprobado",
       "assignedTo": "Asignado a",
       "changesRequested": "Cambios solicitados",

@@ -1111,6 +1111,10 @@ export class LLMService {
     userCommunicationStyle?: { tone?: string; commonPhrases?: string[] },
     provider?: LLMProvider,
     userId?: string,
+    threadStyleInfo?: {
+      preferredName?: string | null;
+      greetingStyle?: string | null;
+    },
   ): Promise<string> {
     const promptConfig = getPrompt("generate_follow_up");
     if (!promptConfig) {
@@ -1135,6 +1139,10 @@ export class LLMService {
       userCommunicationStyle?.tone?.toLowerCase().includes("no greeting") ||
       userCommunicationStyle?.tone?.toLowerCase().includes("skip greeting");
 
+    // Use preferred name from thread analysis if available, otherwise fall back to formal name
+    const preferredName = threadStyleInfo?.preferredName || null;
+    const greetingStyle = threadStyleInfo?.greetingStyle || null;
+
     const prompt = renderPrompt(promptConfig.prompt || "", {
       tone: userCommunicationStyle?.tone || "",
       commonPhrases: userCommunicationStyle?.commonPhrases?.join(", ") || "",
@@ -1142,6 +1150,8 @@ export class LLMService {
       threadMessageCount: threadMessages.length,
       threadContext,
       recipientName: theirName,
+      preferredName,
+      greetingStyle,
       businessDaysWaiting,
       daysLabel: businessDaysWaiting === 1 ? "day" : "days",
       skipGreeting,

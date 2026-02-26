@@ -19,9 +19,14 @@ Thread context (last {{threadMessageCount}} messages in chronological order):
 {{threadContext}}
 
 Recipient: {{recipientName}}
+{% if preferredName %}Recipient's preferred name (how they sign off): {{preferredName}}{% endif %}
+{% if greetingStyle %}Greeting style used in this thread: "{{greetingStyle}}"{% endif %}
 Business days since my last message: {{businessDaysWaiting}} {{daysLabel}}
 
-Generate a brief, friendly follow-up message. {% if skipGreeting %}Don't include a greeting - start directly with the message.{% else %}Start with a brief greeting (e.g., "Hi {{recipientName}}," or "Hey {{recipientName}},") unless the user's tone settings explicitly say to skip greetings.{% endif %} Keep the message body to 2-3 sentences maximum. Don't include a signature - just the greeting and body text.
+Generate a brief, friendly follow-up message. {% if skipGreeting %}Don't include a greeting - start directly with the message.{% else %}Start with a brief greeting that matches the conversational style of this thread:
+- Use the recipient's preferred name ({% if preferredName %}{{preferredName}}{% else %}{{recipientName}}{% endif %}) rather than their full formal name
+- {% if greetingStyle %}Mirror the greeting style used in this thread (e.g., "{{greetingStyle}} {% if preferredName %}{{preferredName}}{% else %}{{recipientName}}{% endif %},"){% else %}Use a casual greeting like "Hi" or "Hey" unless the thread context suggests otherwise{% endif %}{% endif %}
+Keep the message body to 2-3 sentences maximum. Don't include a signature - just the greeting and body text.
 
 
 

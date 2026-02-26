@@ -20,6 +20,7 @@ import { ContextKey } from "../database/entities/user-context.entity";
 import { UsersService } from "../users/users.service";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { calculateBusinessDays } from "../utils/business-days.util";
+import { analyzeThreadStyle } from "../utils/thread-style-extractor";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { THREAD_LIMITS } from "../constants/llm-constants";
 import { HTTP_STATUS } from "../constants/service-constants";
@@ -143,11 +144,30 @@ export class FollowUpsProcessor implements OnModuleInit {
         commonPhrases: commonPhrases.length > 0 ? commonPhrases : undefined,
       };
 
-      const lastTheirMessage = threadMessages
+      // Analyze thread style to extract preferred name and greeting style
+      // This helps make follow-ups sound more natural by matching the recipient's style
+      const recipientMessages = threadMessages
         .filter((message) => !message.isFromUser)
-        .sort((a, b) => b.receivedAt.getTime() - a.receivedAt.getTime())[0];
+        .sort((a, b) => b.receivedAt.getTime() - a.receivedAt.getTime());
+
+      // Get recipient name (formal name from email headers)
+      const lastTheirMessage = recipientMessages[0];
       const theirName =
         lastTheirMessage?.fromName || lastTheirMessage?.from || "there";
+
+      // Get user's display name to help detect greeting patterns
+      const userDisplayName = user.displayName
+        ? EncryptionHelper.decrypt(user.displayName)
+        : undefined;
+
+      const threadStyleInfo = analyzeThreadStyle(
+        recipientMessages,
+        userDisplayName,
+      );
+
+      this.logger.debug(
+        `Thread style analysis for follow-up ${followUpId}: hasPreferredName=${!!threadStyleInfo.preferredName}, greetingStyle=${threadStyleInfo.greetingStyle}`,
+      );
 
       const draft = await this.llmService.generateFollowUpDraft(
         followUp.subject || "Follow up",
@@ -157,6 +177,7 @@ export class FollowUpsProcessor implements OnModuleInit {
         userCommunicationStyle,
         undefined,
         userId,
+        threadStyleInfo,
       );
 
       followUp.draftFollowUp = draft;

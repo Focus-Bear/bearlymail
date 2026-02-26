@@ -287,54 +287,26 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   // Build the ordered list of categories to render.
   // When a summary exists: show ALL categories (even those without loaded emails yet).
   // Order follows stableCategoryOrder, with new categories appended.
-  // CRITICAL: Also include categories that the user has expanded but may have disappeared
-  // from the summary (e.g., if all emails were archived). This prevents accordions from
-  // vanishing after expansion when the summary updates with count = 0.
+  // Empty categories (count=0) are excluded so they disappear after archiving all emails.
   const displayCategories = useMemo((): Array<{ name: string; count: number }> => {
     const source = summaryCategories ?? groupEmailsByCategory(filteredEmails).map(g => ({
       name: g.category,
       count: g.emails.length,
     }));
 
-    // Create a map for quick lookup
-    const sourceMap = new Map(source.map(cat => [cat.name, cat]));
+    // Filter out categories with count=0 from the source.
+    // This ensures empty categories disappear from the inbox after archiving all emails.
+    const nonEmptySource = source.filter(cat => cat.count > 0);
 
-    // Include expanded categories that may have disappeared from summary
-    // This prevents the accordion from vanishing after user expands it
-    const augmentedSource = [...source];
-    expandedCategories.forEach(expandedCat => {
-      if (!sourceMap.has(expandedCat)) {
-        // Category is expanded but not in summary - add it with count 0
-        // This keeps the accordion visible so user can see it's now empty
-        augmentedSource.push({ name: expandedCat, count: 0 });
-      }
-    });
-
-    if (stableCategoryOrder.length === 0) return augmentedSource;
+    if (stableCategoryOrder.length === 0) return nonEmptySource;
 
     const orderMap = new Map(stableCategoryOrder.map((cat, idx) => [cat, idx]));
-    return augmentedSource.sort((a, b) => {
+    return nonEmptySource.sort((a, b) => {
       const orderA = orderMap.get(a.name) ?? Number.MAX_SAFE_INTEGER;
       const orderB = orderMap.get(b.name) ?? Number.MAX_SAFE_INTEGER;
       return orderA - orderB;
     });
-  }, [summaryCategories, filteredEmails, stableCategoryOrder, expandedCategories]);
-
-  // Auto-collapse expanded categories that become empty (e.g. after archiving
-  // all emails). This keeps expandedCategories in sync so displayCategories
-  // doesn't perpetually re-add them via the augmentation path.
-  useEffect(() => {
-    const displayCategoriesMap = new Map(displayCategories.map(c => [c.name, c]));
-    const emptyExpanded = [...expandedCategories].filter(catName => {
-      const isLoaded = loadedCategoryNames?.includes(catName);
-      const group = emailCategoryMap.get(catName);
-      const catItem = displayCategoriesMap.get(catName);
-      return isLoaded && (group?.emails.length ?? 0) === 0 && (catItem?.count ?? 0) === 0;
-    });
-    if (emptyExpanded.length > 0) {
-      emptyExpanded.forEach(onToggleCategory);
-    }
-  }, [displayCategories, expandedCategories, loadedCategoryNames, emailCategoryMap, onToggleCategory]);
+  }, [summaryCategories, filteredEmails, stableCategoryOrder]);
 
   // Fetch proto categories when "Other" category is visible and expanded
   useEffect(() => {
@@ -460,10 +432,9 @@ export const InboxContent: React.FC<InboxContentProps> = ({
               const group = emailCategoryMap.get(categoryName);
               const categoryEmails = group?.emails ?? [];
 
-              // Hide categories when we know they're truly empty (loaded with no
-              // emails and summary count is zero). Applies regardless of expansion
-              // state so accordions don't linger with "0" after archiving all emails.
-              if (isLoaded && categoryEmails.length === 0 && categoryItem.count === 0) return null;
+              // Hide categories that have been loaded and have no emails.
+              // This handles edge cases where the summary count might be stale.
+              if (isLoaded && categoryEmails.length === 0) return null;
 
               // Compute global index for keyboard navigation (across categories)
               let globalIndex = 0;

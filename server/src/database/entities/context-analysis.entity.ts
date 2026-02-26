@@ -7,7 +7,9 @@ import {
   ManyToOne,
   JoinColumn,
   Index,
+  BeforeInsert,
 } from "typeorm";
+import { randomUUID } from "crypto";
 import { User } from "./user.entity";
 import { encryptedJsonTransformer } from "../../encryption/encryption.helper";
 
@@ -86,7 +88,17 @@ export class ContextAnalysis {
 
   @Column("text", { nullable: true })
   errorMessage: string | null;
-  // Error message if status is "failed"
+
+  @Column({ type: "varchar", length: 36, nullable: true })
+  @Index()
+  correlationId: string | null;
+
+  @BeforeInsert()
+  generateCorrelationId() {
+    if (!this.correlationId) {
+      this.correlationId = randomUUID();
+    }
+  }
 
   @CreateDateColumn()
   createdAt: Date;

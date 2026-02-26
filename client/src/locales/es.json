@@ -25,6 +25,7 @@
           "tokenUsage": "Uso de tokens",
           "queueDashboard": "Panel de colas",
           "githubDebug": "Debug de GitHub",
+          "contextAnalysis": "Fallos de Análisis",
           "waitlist": "Lista de espera",
           "emailSystem": "Sistema de correo",
           "decline": "Rechazar"
@@ -134,6 +135,28 @@
       "retries": "Reintentos",
       "never": "Nunca",
       "loadError": "Error al cargar el debug de GitHub"
+    },
+    "contextAnalysis": {
+      "title": "Fallos de Análisis de Contexto",
+      "description": "Ver las ejecuciones recientes de análisis de contexto y sus detalles de fallo. Haz clic en un análisis fallido para ver los errores a nivel de lote y los IDs de correlación para buscar en PostHog.",
+      "noAnalyses": "No se encontraron análisis que coincidan con el filtro seleccionado",
+      "correlationId": "ID de Correlación",
+      "copyCorrelationId": "Haz clic para copiar el ID de correlación",
+      "batches": "Lotes",
+      "threads": "Hilos",
+      "failed": "fallidos",
+      "batch": "Lote",
+      "errorMessage": "Mensaje de Error",
+      "batchFailures": "Fallos de Lotes",
+      "analysisId": "ID de Análisis",
+      "userId": "ID de Usuario",
+      "filter": {
+        "all": "Todos",
+        "failed": "Fallidos",
+        "running": "En Ejecución",
+        "completed": "Completados",
+        "pending": "Pendientes"
+      }
     }
   },
     "auth": {

@@ -11,7 +11,8 @@ import { JobsSection } from 'components/admin/JobsSection';
 import { TokenUsageSection } from 'components/admin/TokenUsageSection';
 import { QueueDashboardSection } from 'components/admin/QueueDashboardSection';
 import { GitHubDebugSection } from 'components/admin/GitHubDebugSection';
-import { ADMIN_TAB_WAITLIST, ADMIN_TAB_JOBS, ADMIN_TAB_TOKEN_USAGE, ADMIN_TAB_QUEUE_DASHBOARD, ADMIN_TAB_GITHUB_DEBUG } from 'constants/adminTabs';
+import { ContextAnalysisSection } from 'components/admin/ContextAnalysisSection';
+import { ADMIN_TAB_WAITLIST, ADMIN_TAB_JOBS, ADMIN_TAB_TOKEN_USAGE, ADMIN_TAB_QUEUE_DASHBOARD, ADMIN_TAB_GITHUB_DEBUG, ADMIN_TAB_CONTEXT_ANALYSIS } from 'constants/adminTabs';
 import { Sidebar } from 'components/inbox/Sidebar';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import { EMOJI_MENU } from 'constants/emojis';
@@ -41,7 +42,7 @@ const AdminDashboard: React.FC = () => {
   } = useAdminDashboard();
 
   const renderContent = () => {
-    if (loading && activeTab !== ADMIN_TAB_JOBS && activeTab !== ADMIN_TAB_TOKEN_USAGE && activeTab !== ADMIN_TAB_QUEUE_DASHBOARD && activeTab !== ADMIN_TAB_GITHUB_DEBUG) {
+    if (loading && activeTab !== ADMIN_TAB_JOBS && activeTab !== ADMIN_TAB_TOKEN_USAGE && activeTab !== ADMIN_TAB_QUEUE_DASHBOARD && activeTab !== ADMIN_TAB_GITHUB_DEBUG && activeTab !== ADMIN_TAB_CONTEXT_ANALYSIS) {
       return (
         <div style={{ textAlign: 'center', padding: theme.spacing['3xl'] }}>
           {t('admin.dashboard.loading')}
@@ -69,6 +70,9 @@ const AdminDashboard: React.FC = () => {
     }
     if (activeTab === ADMIN_TAB_GITHUB_DEBUG) {
       return <GitHubDebugSection />;
+    }
+    if (activeTab === ADMIN_TAB_CONTEXT_ANALYSIS) {
+      return <ContextAnalysisSection />;
     }
     return (
       <SubscriptionsSection

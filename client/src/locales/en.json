@@ -585,6 +585,7 @@
       "tokenUsage": "Token Usage",
       "queueDashboard": "Queue Dashboard",
       "githubDebug": "GitHub Debug",
+      "contextAnalysis": "Analysis Failures",
       "days": "days",
       "extend": "Extend",
       "allUsers": "All Users",
@@ -707,6 +708,28 @@
       "retries": "Retries",
       "never": "Never",
       "loadError": "Failed to load GitHub debug info"
+    },
+    "contextAnalysis": {
+      "title": "Context Analysis Failures",
+      "description": "View recent context analysis runs and their failure details. Click on a failed analysis to see batch-level errors and correlation IDs for PostHog lookup.",
+      "noAnalyses": "No analyses found matching the selected filter",
+      "correlationId": "Correlation ID",
+      "copyCorrelationId": "Click to copy correlation ID",
+      "batches": "Batches",
+      "threads": "Threads",
+      "failed": "failed",
+      "batch": "Batch",
+      "errorMessage": "Error Message",
+      "batchFailures": "Batch Failures",
+      "analysisId": "Analysis ID",
+      "userId": "User ID",
+      "filter": {
+        "all": "All",
+        "failed": "Failed",
+        "running": "Running",
+        "completed": "Completed",
+        "pending": "Pending"
+      }
     }
   },
   "compose": {

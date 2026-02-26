@@ -4,6 +4,7 @@ import { ContextController } from "./context.controller";
 import { ContextService } from "./context.service";
 import { UsersService } from "../users/users.service";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
+import { User } from "../database/entities/user.entity";
 
 describe("ContextController", () => {
   let controller: ContextController;
@@ -32,6 +33,17 @@ describe("ContextController", () => {
     save: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
+    createQueryBuilder: jest.fn(() => ({
+      orderBy: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([]),
+    })),
+  };
+
+  const mockUserRepository = {
+    find: jest.fn(),
+    findOne: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -53,6 +65,10 @@ describe("ContextController", () => {
         {
           provide: getRepositoryToken(ContextAnalysis),
           useValue: mockContextAnalysisRepository,
+        },
+        {
+          provide: getRepositoryToken(User),
+          useValue: mockUserRepository,
         },
       ],
     }).compile();

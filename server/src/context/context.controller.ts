@@ -20,14 +20,16 @@ import {
   Source,
 } from "../database/entities/user-context.entity";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { AdminGuard } from "../auth/admin.guard";
 import { UsersService } from "../users/users.service";
 import PgBoss from "pg-boss";
 import { getJobPriority } from "../queue/job-priorities";
 import { PERCENTAGES } from "../constants/percentages";
 import { writeAnalysisLog } from "./context-analysis-logger";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
+import { User } from "../database/entities/user.entity";
 
 type ProgressStage =
   | "starting"
@@ -60,6 +62,8 @@ export class ContextController {
     @Inject("PG_BOSS") private readonly boss: PgBoss,
     @InjectRepository(ContextAnalysis)
     private readonly contextAnalysisRepository: Repository<ContextAnalysis>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
   ) {}
 
   @Get()
@@ -541,5 +545,86 @@ export class ContextController {
     );
 
     return result;
+  }
+
+  private static readonly DEFAULT_ADMIN_ANALYSES_LIMIT = 50;
+
+  @Get("admin/analyses")
+  @UseGuards(AdminGuard)
+  async getAdminAnalyses(
+    @Query("limit") limitStr?: string,
+    @Query("status") status?: string,
+  ) {
+    const parsedLimit = limitStr ? parseInt(limitStr, 10) : 0;
+    const limit =
+      parsedLimit > 0
+        ? parsedLimit
+        : ContextController.DEFAULT_ADMIN_ANALYSES_LIMIT;
+
+    const queryBuilder = this.contextAnalysisRepository
+      .createQueryBuilder("analysis")
+      .orderBy("analysis.createdAt", "DESC")
+      .take(limit);
+
+    if (status) {
+      queryBuilder.where("analysis.status = :status", { status });
+    }
+
+    const analyses = await queryBuilder.getMany();
+
+    const userIds = [...new Set(analyses.map((a) => a.userId))];
+    const users = userIds.length
+      ? await this.userRepository.find({
+          where: { id: In(userIds) },
+          select: ["id", "email"],
+        })
+      : [];
+    const userMap = new Map(users.map((u) => [u.id, u.email]));
+
+    return {
+      analyses: analyses.map((analysis) => {
+        const stats = analysis.stats || {};
+        const batchResults =
+          (stats.batchResults as Record<string, unknown>) || {};
+        const failedBatches = (stats.failedBatches as number[]) || [];
+        const totalBatches = (stats.totalBatches as number) || 0;
+        const completedBatches = Object.keys(batchResults).filter(
+          (key) => !failedBatches.includes(parseInt(key, 10)),
+        ).length;
+
+        const failureDetails = failedBatches.map((batchIndex) => {
+          const batchResult = batchResults[String(batchIndex)] as
+            | {
+                error?: string;
+                failedAt?: string;
+              }
+            | undefined;
+          return {
+            batchIndex,
+            error: batchResult?.error || "Unknown error",
+            failedAt: batchResult?.failedAt || null,
+          };
+        });
+
+        return {
+          id: analysis.id,
+          correlationId: analysis.correlationId,
+          userId: analysis.userId,
+          userEmail: userMap.get(analysis.userId) || "Unknown",
+          status: analysis.status,
+          errorMessage: analysis.errorMessage,
+          progress: analysis.progress,
+          threadCount: analysis.threadCount,
+          analyzedCount: analysis.analyzedCount,
+          totalBatches,
+          completedBatches,
+          failedBatches: failedBatches.length,
+          failureDetails,
+          createdAt: analysis.createdAt,
+          updatedAt: analysis.updatedAt,
+        };
+      }),
+      timestamp: new Date().toISOString(),
+    };
   }
 }

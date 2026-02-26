@@ -629,16 +629,20 @@ export class EmailThreadService {
         isExistingThread && thread.lastUserOperationAt !== null;
 
       // When a new email arrives in a user-protected thread (shouldClearUserOperation=true):
-      // - If provider says "starred" (starCount > 0): preserve the existing BearlyMail
-      //   starCount, because providers sync stars as binary starred/not-starred and don't
-      //   know about BearlyMail's 1/2/3 distinction. This prevents sync from overwriting
-      //   e.g. starCount=1 (follow-up level) with starCount=3 (provider's default for "starred").
-      // - If provider says "not starred" (starCount = 0): use the provider's value, since
-      //   the email is genuinely unstarred (user unstarred it in the provider).
-      const effectiveStarCount =
-        shouldClearUserOperation && starCount > 0
-          ? thread.starCount
-          : starCount;
+      // ALWAYS preserve the existing BearlyMail starCount.
+      //
+      // Rationale:
+      // - BearlyMail's starCount (0-3) is a BearlyMail-specific concept representing
+      //   triage (0) vs action/follow-up priority levels (1-3).
+      // - Email providers (Gmail, etc.) only have binary starred/not-starred.
+      // - When someone replies to a thread, the new incoming message doesn't have the
+      //   STARRED label, so Gmail sync determines starCount=0 from the latest message.
+      // - This would incorrectly reset a follow-up thread (starCount=1) back to triage (0).
+      // - By preserving the existing starCount, we ensure user's follow-up/action
+      //   designation is maintained when new emails arrive.
+      const effectiveStarCount = shouldClearUserOperation
+        ? thread.starCount
+        : starCount;
 
       const needsUpdate =
         thread.starCount !== effectiveStarCount ||

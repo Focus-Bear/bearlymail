@@ -371,19 +371,25 @@ describe("EmailThreadService", () => {
       expect(savedThread.lastUserOperationAt).toBeNull();
     });
 
-    it("should set starCount to 0 when provider says not starred, even when shouldClearUserOperation is true", async () => {
-      // Scenario: user had starred email (starCount=2) but then unstarred it in Gmail.
-      // When new email arrives, sync should respect the provider's unstarred state.
+    it("should preserve starCount when new email arrives even if provider says not starred (follow-up triage bug fix)", async () => {
+      // Core bug scenario (the actual user report):
+      // 1. User replies to email from triage and selects "follow up in 48hrs"
+      // 2. This sets starCount=1 (follow-up level) and syncs STARRED label to Gmail
+      // 3. Other person replies → new email arrives → lastUserOperationAt cleared
+      // 4. Gmail sync determines starCount from latest message's labels
+      // 5. But the latest message (incoming reply) doesn't have STARRED label!
+      // 6. Bug (old code): provider says starCount=0, BearlyMail overwrote to 0 → thread in triage
+      // Fix: ALWAYS preserve existing starCount when shouldClearUserOperation is true
       const userId = "user-123";
-      const threadId = "thread-unstarred-in-provider";
+      const threadId = "thread-follow-up-reply";
       const existingThread = {
         id: "uuid-1",
         userId,
         threadId,
-        // Previously starred at level 2
-        starCount: 2,
+        // User's follow-up level from reply action
+        starCount: 1,
         isArchived: false,
-        // Set by previous user action
+        // Set by snooze/follow-up action
         lastUserOperationAt: new Date(),
       };
 
@@ -392,17 +398,21 @@ describe("EmailThreadService", () => {
         Promise.resolve({ ...thread }),
       );
 
-      // Sync calls getOrCreateEmailThread with starCount=0 (provider says not starred)
+      // Sync calls getOrCreateEmailThread with starCount=0 because:
+      // - Gmail determines starCount from latest message
+      // - The latest message is the incoming reply
+      // - Incoming replies don't have STARRED label
       const result = await service.getOrCreateEmailThread(
         userId,
         threadId,
-        // Provider says "not starred"
+        // Provider says "not starred" (latest message doesn't have STARRED)
         0,
         false,
       );
 
-      // starCount should follow the provider's value (0 = not starred)
-      expect(result.starCount).toBe(0);
+      // starCount should be PRESERVED at 1 (user's follow-up level)
+      // This ensures the thread stays in action/follow-up mode, not triage
+      expect(result.starCount).toBe(1);
       expect(result.lastUserOperationAt).toBeNull();
     });
 

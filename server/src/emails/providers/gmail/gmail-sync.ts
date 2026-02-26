@@ -7,6 +7,18 @@ import { logErrorToFile } from "../../../utils/error-logger";
 const logger = new Logger("GmailSync");
 
 /**
+ * Check if ANY message in a thread has the STARRED label.
+ * Gmail stores stars at the message level, not thread level.
+ * A thread is considered starred if any of its messages are starred.
+ */
+export function isThreadStarred(
+  messages: gmail_v1.Schema$Message[] | undefined,
+): boolean {
+  if (!messages || messages.length === 0) return false;
+  return messages.some((msg) => (msg.labelIds || []).includes("STARRED"));
+}
+
+/**
  * Verify thread statuses in Gmail API in batches with concurrency limits
  * Returns array of updates: { threadId, starCount, isArchived }[]
  */
@@ -52,12 +64,16 @@ export async function verifyThreadStatusesInGmail(
             return;
           }
 
+          // Check ALL messages for STARRED label (stars are per-message in Gmail)
+          const hasStarredMessage = isThreadStarred(thread.messages);
+
+          // Archive status is based on latest message (if latest is in INBOX, thread is in inbox)
           const latestMessage = thread.messages[thread.messages.length - 1];
           const latestLabelIds = latestMessage.labelIds || [];
 
           updates.push({
             threadId,
-            starCount: latestLabelIds.includes("STARRED") ? 3 : 0,
+            starCount: hasStarredMessage ? 3 : 0,
             isArchived: !latestLabelIds.includes("INBOX"),
           });
         } catch (threadError: unknown) {
@@ -134,12 +150,16 @@ export async function getExistingThreadUpdates(
         continue;
       }
 
+      // Check ALL messages for STARRED label (stars are per-message in Gmail)
+      const hasStarredMessage = isThreadStarred(thread.messages);
+
+      // Archive status is based on latest message (if latest is in INBOX, thread is in inbox)
       const latestMessage = thread.messages[thread.messages.length - 1];
       const latestLabelIds = latestMessage.labelIds || [];
 
       updates.push({
         threadId: dbThread.threadId,
-        starCount: latestLabelIds.includes("STARRED") ? 3 : 0,
+        starCount: hasStarredMessage ? 3 : 0,
         isArchived: !latestLabelIds.includes("INBOX"),
       });
     } catch (threadError: unknown) {

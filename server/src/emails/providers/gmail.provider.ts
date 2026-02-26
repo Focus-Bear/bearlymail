@@ -26,6 +26,7 @@ import { parseGmailMessage } from "./gmail/gmail-message-parser";
 import {
   getExistingThreadUpdates,
   isGmailAuthError,
+  isThreadStarred,
   verifyThreadStatusesInGmail,
 } from "./gmail/gmail-sync";
 import {
@@ -481,10 +482,13 @@ export class GmailProvider implements EmailProvider {
             const thread = threadData.data;
             if (!thread.messages?.length) return;
 
+            // Check ALL messages for STARRED label (stars are per-message in Gmail)
+            const starCount = isThreadStarred(thread.messages) ? 3 : 0;
+
+            // Archive status is based on latest message (if latest is in INBOX, thread is in inbox)
             const latestMessage = thread.messages[thread.messages.length - 1];
             const latestLabelIds = latestMessage.labelIds || [];
             const isArchived = !latestLabelIds.includes("INBOX");
-            const starCount = latestLabelIds.includes("STARRED") ? 3 : 0;
 
             const existingThread = existingThreadMap.get(threadId);
             if (

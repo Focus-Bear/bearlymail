@@ -5,16 +5,13 @@ import { google, calendar_v3 } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
 import { UsersService } from "../users/users.service";
 import { LLMService } from "../llm/llm.service";
-import { LLMProvider } from "../llm/llm.types";
 import { EmailsService } from "../emails/emails.service";
-import {
-  MINUTES,
-  HOURS,
-  DAYS,
-  MILLISECONDS,
-} from "../constants/time-constants";
-import { EncryptionHelper } from "../encryption/encryption.helper";
+import { MINUTES, HOURS } from "../constants/time-constants";
 import { logError } from "../utils/logger";
+import {
+  respondToInvitation,
+  generateMeetingReply,
+} from "./calendar-invitation-response.service";
 import {
   SchedulingPreferencesService,
   SchedulingPreferenceData,
@@ -22,17 +19,6 @@ import {
 import { CalendarBooking } from "../database/entities/calendar-booking.entity";
 import { randomBytes } from "crypto";
 
-const ICAL_DATE_MIN_LENGTH = 8;
-const ICAL_YEAR_END = 4;
-const ICAL_MONTH_START = 4;
-const ICAL_MONTH_END = 6;
-const ICAL_DAY_START = 6;
-const ICAL_DAY_END = 8;
-const ICAL_HOUR_START = 9;
-const ICAL_HOUR_END = 11;
-const ICAL_MINUTE_START = 11;
-const ICAL_MINUTE_END = 13;
-const ICAL_DATE_WITH_HOURS_LENGTH = 10;
 const BOOKING_TOKEN_BYTES = 32;
 
 export interface TimeSlot {
@@ -53,16 +39,16 @@ interface BusyPeriod {
 
 @Injectable()
 export class CalendarService {
-  private readonly logger = new Logger(CalendarService.name);
-  private oauth2Client: OAuth2Client;
+  public readonly logger = new Logger(CalendarService.name);
+  public oauth2Client: OAuth2Client;
 
   constructor(
-    private usersService: UsersService,
-    private llmService: LLMService,
-    private emailsService: EmailsService,
-    private schedulingPreferencesService: SchedulingPreferencesService,
+    public usersService: UsersService,
+    public llmService: LLMService,
+    public emailsService: EmailsService,
+    public schedulingPreferencesService: SchedulingPreferencesService,
     @InjectRepository(CalendarBooking)
-    private calendarBookingRepository: Repository<CalendarBooking>,
+    public calendarBookingRepository: Repository<CalendarBooking>,
   ) {
     this.oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
@@ -180,11 +166,11 @@ export class CalendarService {
   }
 
   private toDayKey(date: Date, tz: string): string {
-    const d = this.toTzDate(date, tz);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
+    const tzDate = this.toTzDate(date, tz);
+    const year = tzDate.getFullYear();
+    const month = String(tzDate.getMonth() + 1).padStart(2, "0");
+    const day = String(tzDate.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   }
 
   private alignToSlotBoundary(date: Date, slotDurationMinutes: number): Date {
@@ -330,7 +316,6 @@ export class CalendarService {
     return total;
   }
 
-  // eslint-disable-next-line max-params
   async createEvent(
     userId: string,
     startTime: string,
@@ -629,8 +614,10 @@ Manage this booking:
 
     // Check subject for specific invitation keywords (more strict)
     const invitationKeywords = [
-      "invitation:", // Most common format
-      "invite:", // Alternative format
+      // Most common format
+      "invitation:",
+      // Alternative format
+      "invite:",
       "meeting invitation",
       "event invitation",
       "calendar invitation",
@@ -674,354 +661,7 @@ Manage this booking:
     emailId: string,
     response: "accepted" | "declined" | "tentative",
   ): Promise<void> {
-    const user = await this.usersService.findOne(userId);
-    if (!user?.googleCalendarAccessToken) {
-      throw new Error("Google Calendar not connected");
-    }
-
-    const email = await this.emailsService.getEmailById(userId, emailId);
-    if (!email) {
-      throw new Error("Email not found");
-    }
-
-    // Check if email is a calendar invitation
-    if (!this.isCalendarInvitation(email)) {
-      throw new Error("Email is not a calendar invitation");
-    }
-
-    this.oauth2Client.setCredentials({
-      access_token: user.googleCalendarAccessToken,
-      refresh_token: user.googleCalendarRefreshToken,
-    });
-
-    const calendar = google.calendar({
-      version: "v3",
-      auth: this.oauth2Client,
-    });
-
-    const userEmail = EncryptionHelper.decrypt(user.email);
-    const subject = email.subject || "";
-    const body = email.body || email.htmlBody || "";
-    const organizerEmail = email.from; // Organizer is typically the sender
-
-    // Try to extract event details from email
-    let eventId: string | null = null;
-    let eventStart: Date | null = null;
-    let icalUID: string | null = null;
-
-    // Try to extract from iCal format
-    const icalMatch = body.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/);
-    if (icalMatch) {
-      const icalContent = icalMatch[0];
-      const uidMatch = icalContent.match(/UID:([^\r\n]+)/);
-      const dtstartMatch = icalContent.match(/DTSTART[^:]*:([^\r\n]+)/i);
-
-      if (uidMatch) {
-        icalUID = uidMatch[1].trim();
-      }
-      if (dtstartMatch) {
-        try {
-          // Parse iCal date format (YYYYMMDDTHHMMSS or YYYYMMDD)
-          const dateStr = dtstartMatch[1].trim();
-          if (dateStr.length >= ICAL_DATE_MIN_LENGTH) {
-            const year = dateStr.substring(0, ICAL_YEAR_END);
-            const month = dateStr.substring(ICAL_MONTH_START, ICAL_MONTH_END);
-            const day = dateStr.substring(ICAL_DAY_START, ICAL_DAY_END);
-            const hour =
-              dateStr.length > ICAL_DATE_MIN_LENGTH
-                ? dateStr.substring(ICAL_HOUR_START, ICAL_HOUR_END)
-                : "00";
-            const minute =
-              dateStr.length > ICAL_DATE_WITH_HOURS_LENGTH
-                ? dateStr.substring(ICAL_MINUTE_START, ICAL_MINUTE_END)
-                : "00";
-            eventStart = new Date(
-              `${year}-${month}-${day}T${hour}:${minute}:00`,
-            );
-          }
-        } catch (error) {
-          logError(
-            "Error parsing iCal date",
-            error instanceof Error ? error : new Error(String(error)),
-          );
-        }
-      }
-    }
-
-    // Strategy 1: If we have a start time from iCal, search in a narrow time window
-    if (eventStart && !eventId) {
-      const timeMin = new Date(eventStart.getTime() - 24 * 60 * 60 * 1000); // 1 day before
-      const timeMax = new Date(eventStart.getTime() + 24 * 60 * 60 * 1000); // 1 day after
-
-      try {
-        const eventsResponse = await calendar.events.list({
-          calendarId: "primary",
-          timeMin: timeMin.toISOString(),
-          timeMax: timeMax.toISOString(),
-          maxResults: 50,
-          singleEvents: true,
-        });
-
-        const matchingEvent = eventsResponse.data.items?.find((event) => {
-          // Match by iCal UID (most reliable)
-          if (icalUID && event.iCalUID === icalUID) {
-            return true;
-          }
-          // Match by subject and user is attendee
-          if (
-            event.summary &&
-            subject.toLowerCase().includes(event.summary.toLowerCase()) &&
-            event.attendees?.some(
-              (attendee) =>
-                attendee.email?.toLowerCase() === userEmail?.toLowerCase(),
-            )
-          ) {
-            return true;
-          }
-          return false;
-        });
-
-        if (matchingEvent?.id) {
-          eventId = matchingEvent.id;
-        }
-      } catch (error) {
-        logError(
-          "Error searching for calendar event",
-          error instanceof Error ? error : new Error(String(error)),
-        );
-      }
-    }
-
-    // Strategy 2: Search for recent events where user is an attendee
-    if (!eventId) {
-      try {
-        const now = new Date();
-        const timeMin = new Date(now.getTime() - DAYS.WEEK * MILLISECONDS.DAY); // 7 days ago
-        const timeMax = new Date(
-          now.getTime() + DAYS.NINETY * MILLISECONDS.DAY,
-        ); // 90 days ahead
-
-        const eventsResponse = await calendar.events.list({
-          calendarId: "primary",
-          timeMin: timeMin.toISOString(),
-          timeMax: timeMax.toISOString(),
-          maxResults: 100,
-          singleEvents: true,
-          orderBy: "updated", // Most recently updated events first
-        });
-
-        // Clean the subject line for better matching
-        const cleanSubject = subject
-          .replace(
-            /^(invitation:|invite:|updated invitation:|updated invite:)/i,
-            "",
-          )
-          .replace(/\s+/g, " ")
-          .trim()
-          .toLowerCase();
-
-        const matchingEvent = eventsResponse.data.items?.find((event) => {
-          // Must be an attendee
-          const isAttendee = event.attendees?.some(
-            (attendee) =>
-              attendee.email?.toLowerCase() === userEmail?.toLowerCase(),
-          );
-          if (!isAttendee) {
-            return false;
-          }
-
-          // Match by iCal UID
-          if (icalUID && event.iCalUID === icalUID) {
-            return true;
-          }
-
-          // Match by subject (check both ways - subject contains event, event contains subject)
-          if (event.summary) {
-            const eventSummary = event.summary.toLowerCase();
-            const summaryMatch =
-              cleanSubject.includes(eventSummary) ||
-              eventSummary.includes(cleanSubject);
-            if (summaryMatch) {
-              return true;
-            }
-          }
-
-          // Match by organizer email
-          if (event.organizer?.email && organizerEmail) {
-            const eventOrganizerEmail = event.organizer.email.toLowerCase();
-            const emailOrganizerLower = organizerEmail.toLowerCase();
-            if (eventOrganizerEmail === emailOrganizerLower) {
-              // Same organizer, check if subject has any overlap
-              if (
-                event.summary &&
-                (cleanSubject.includes(event.summary.toLowerCase()) ||
-                  event.summary.toLowerCase().includes(cleanSubject))
-              ) {
-                return true;
-              }
-            }
-          }
-
-          return false;
-        });
-
-        if (matchingEvent?.id) {
-          eventId = matchingEvent.id;
-        }
-      } catch (error) {
-        logError(
-          "Error searching calendar for attendee events",
-          error instanceof Error ? error : new Error(String(error)),
-        );
-      }
-    }
-
-    // Strategy 3: Search for events with "needsAction" response status
-    if (!eventId) {
-      try {
-        const now = new Date();
-        const timeMin = new Date(now.getTime() - DAYS.WEEK * MILLISECONDS.DAY);
-        const timeMax = new Date(
-          now.getTime() + DAYS.NINETY * MILLISECONDS.DAY,
-        );
-
-        const eventsResponse = await calendar.events.list({
-          calendarId: "primary",
-          timeMin: timeMin.toISOString(),
-          timeMax: timeMax.toISOString(),
-          maxResults: 100,
-          singleEvents: true,
-        });
-
-        // Clean the subject for matching
-        const cleanSubject = subject
-          .replace(
-            /^(invitation:|invite:|updated invitation:|updated invite:)/i,
-            "",
-          )
-          .replace(/\s+/g, " ")
-          .trim()
-          .toLowerCase();
-
-        // Find events where user has not responded yet
-        const pendingEvent = eventsResponse.data.items?.find((event) => {
-          const userAttendee = event.attendees?.find(
-            (attendee) =>
-              attendee.email?.toLowerCase() === userEmail?.toLowerCase(),
-          );
-
-          // User must be an attendee with needsAction status
-          if (!userAttendee || userAttendee.responseStatus !== "needsAction") {
-            return false;
-          }
-
-          // Match by iCal UID
-          if (icalUID && event.iCalUID === icalUID) {
-            return true;
-          }
-
-          // Match by subject similarity
-          if (event.summary) {
-            const eventSummary = event.summary.toLowerCase();
-            if (
-              cleanSubject.includes(eventSummary) ||
-              eventSummary.includes(cleanSubject)
-            ) {
-              return true;
-            }
-          }
-
-          // Match by organizer
-          if (event.organizer?.email && organizerEmail) {
-            if (
-              event.organizer.email.toLowerCase() ===
-              organizerEmail.toLowerCase()
-            ) {
-              return true;
-            }
-          }
-
-          return false;
-        });
-
-        if (pendingEvent?.id) {
-          eventId = pendingEvent.id;
-        }
-      } catch (error) {
-        logError(
-          "Error searching for pending invitations",
-          error instanceof Error ? error : new Error(String(error)),
-        );
-      }
-    }
-
-    // If we found an event ID, update the attendee response
-    if (eventId) {
-      try {
-        // Get the event first to check current attendee status
-        const event = await calendar.events.get({
-          calendarId: "primary",
-          eventId,
-        });
-
-        if (!event.data.attendees) {
-          throw new Error("Event has no attendees");
-        }
-
-        const attendeeIndex = event.data.attendees.findIndex(
-          (attendee) =>
-            attendee.email?.toLowerCase() === userEmail?.toLowerCase(),
-        );
-
-        if (attendeeIndex === -1) {
-          throw new Error("User is not an attendee of this event");
-        }
-
-        // Map response to Google Calendar response status
-        const responseStatus =
-          response === "accepted"
-            ? "accepted"
-            : response === "declined"
-              ? "declined"
-              : "tentative";
-
-        // Update the attendee's response status
-        const updatedAttendees = [...(event.data.attendees || [])];
-        updatedAttendees[attendeeIndex] = {
-          ...updatedAttendees[attendeeIndex],
-          responseStatus,
-        };
-
-        await calendar.events.patch({
-          calendarId: "primary",
-          eventId,
-          requestBody: {
-            attendees: updatedAttendees,
-          },
-        });
-
-        this.logger.log(
-          `Successfully responded to calendar invitation: ${eventId}`,
-        );
-        return;
-      } catch (error) {
-        logError(
-          "Error updating calendar event",
-          error instanceof Error ? error : new Error(String(error)),
-        );
-        throw new Error(
-          `Failed to respond to invitation: ${error instanceof Error ? error.message : "Unknown error"}`,
-        );
-      }
-    }
-
-    // If we couldn't find the event, throw an error with more helpful message
-    this.logger.error(
-      `Could not find calendar event for email ${emailId}, subject: ${subject}`,
-    );
-    throw new Error(
-      "Could not find the calendar event. This may happen if the invitation was not automatically added to your calendar. Please try responding directly in Google Calendar.",
-    );
+    return respondToInvitation(this, userId, emailId, response);
   }
 
   async generateMeetingReply(
@@ -1029,96 +669,6 @@ Manage this booking:
     emailId: string,
     provider?: "gemini" | "openai",
   ): Promise<string> {
-    const slots = await this.getAvailableTimeSlots(userId);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const user = await this.usersService.findOne(userId);
-    const email = await this.emailsService.getEmailById(userId, emailId);
-
-    if (!email) {
-      throw new Error("Email not found");
-    }
-
-    if (slots.length === 0) {
-      // Use LLM even for no-slots scenario
-      try {
-        const llmProvider = provider
-          ? provider === "gemini"
-            ? LLMProvider.GEMINI
-            : LLMProvider.OPENAI
-          : undefined;
-        return await this.llmService.generateMeetingReply(
-          {
-            from: email.from,
-            fromName: email.fromName,
-            subject: email.subject,
-            body: email.body,
-          },
-          [],
-          process.env.CALENDAR_BOOKING_URL,
-          llmProvider,
-          userId,
-        );
-      } catch (error) {
-        // Fallback
-        return `Hi there,
-
-Thank you for reaching out about scheduling a meeting. Unfortunately, I don't have any available slots in the next week.
-
-Please let me know your availability and I'll do my best to accommodate.
-
-Best regards`;
-      }
-    }
-
-    // Format slots for LLM
-    const formattedSlots = slots.slice(0, 5).map((slot) => ({
-      start: slot.start,
-      end: slot.end,
-    }));
-
-    try {
-      const llmProvider = provider
-        ? provider === "gemini"
-          ? LLMProvider.GEMINI
-          : LLMProvider.OPENAI
-        : undefined;
-      return await this.llmService.generateMeetingReply(
-        {
-          from: email.from,
-          fromName: email.fromName,
-          subject: email.subject,
-          body: email.body,
-        },
-        formattedSlots,
-        process.env.CALENDAR_BOOKING_URL,
-        llmProvider,
-        userId,
-      );
-    } catch (error) {
-      logError(
-        "LLM meeting reply generation failed, using fallback",
-        error instanceof Error ? error : new Error(String(error)),
-      );
-      // Fallback to template-based reply
-      const slotsText = slots
-        .slice(0, 5)
-        .map((slot, i) => {
-          const start = new Date(slot.start);
-          return `${i + 1}. ${start.toLocaleDateString()} at ${start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
-        })
-        .join("\n");
-
-      return `Hi there,
-
-Thank you for reaching out about scheduling a meeting. Here are some times that work for me:
-
-${slotsText}
-
-You can also book directly on my calendar: ${process.env.CALENDAR_BOOKING_URL || "https://calendly.com/your-link"}
-
-Let me know what works best for you!
-
-Best regards`;
-    }
+    return generateMeetingReply(this, userId, emailId, provider);
   }
 }

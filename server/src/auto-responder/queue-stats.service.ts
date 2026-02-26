@@ -137,7 +137,8 @@ export class QueueStatsService {
         .where("email.userId = :userId", { userId })
         .andWhere("email.timeToReply IS NOT NULL")
         .andWhere("email.timeToReply > 0")
-        .andWhere("thread.starCount >= 2") // High priority
+        // High priority
+        .andWhere("thread.starCount >= 2")
         .andWhere("email.receivedAt > :thirtyDaysAgo", { thirtyDaysAgo })
         .getRawOne();
 

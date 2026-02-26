@@ -58,7 +58,139 @@ export class LLMService {
     return this.llmCoreService.generateText(effectiveRequest, provider, userId);
   }
 
-  // eslint-disable-next-line max-lines-per-function, complexity, max-statements
+  private buildReceivedEmailStats(
+    receivedEmails: Array<{
+      from: string;
+      fromName?: string;
+      subject: string;
+      receivedAt: string;
+      isRead?: boolean;
+      timeToReply?: number | null;
+      repliedAt?: string | null;
+      starCount?: number;
+      isArchived?: boolean;
+    }>,
+  ): string {
+    return receivedEmails
+      .map((e) => {
+        const replyTimeMinutes =
+          e.timeToReply ??
+          (e.repliedAt
+            ? (new Date(e.repliedAt).getTime() -
+                new Date(e.receivedAt).getTime()) /
+              MILLISECONDS.SECOND /
+              MINUTES.HOUR
+            : null);
+        const readStatus = e.isRead ? "Read" : "Unread";
+        const archiveStatus = e.isArchived ? "Archived" : "InInbox";
+        const starStatus =
+          (e.starCount || 0) > 0 ? `Starred(${e.starCount})` : "NotStarred";
+        let behavior: string;
+        if (e.isArchived && !e.isRead) {
+          behavior = "ArchivedWithoutReading";
+        } else if (e.isRead && !e.isArchived) {
+          behavior = "ReadButKept";
+        } else if (e.isRead && e.isArchived) {
+          behavior = "ReadThenArchived";
+        } else {
+          behavior = "UnreadInInbox";
+        }
+        const replyInfo =
+          replyTimeMinutes !== null
+            ? `${replyTimeMinutes.toFixed(0)}m`
+            : "NoReply";
+        const isQuickReply =
+          replyTimeMinutes !== null &&
+          replyTimeMinutes < QUERY_LIMITS.LLM_QUICK_REPLY_MINUTES;
+        return `From: ${e.fromName || e.from}, Subject: ${e.subject}, Read: ${readStatus}, ${archiveStatus}, ${starStatus}, Behavior: ${behavior}, ReplyTime: ${replyInfo}${isQuickReply ? " (QUICK)" : ""}`;
+      })
+      .join("\n");
+  }
+
+  private buildSentEmailStats(
+    sentEmails: Array<{
+      emailId?: string;
+      to: string;
+      subject: string;
+      body: string;
+      sentAt: string;
+    }>,
+  ): string {
+    return sentEmails
+      .slice(0, QUERY_LIMITS.LLM_SENT_EMAILS_LIMIT)
+      .map((e) => {
+        const cleanBody = cleanEmailContent(
+          e.body,
+          null,
+          QUERY_LIMITS.LLM_BODY_PREVIEW_LENGTH,
+        );
+        return `To: ${e.to}, Subject: ${e.subject}\nFull Email Body:\n${cleanBody}\n---`;
+      })
+      .join("\n\n");
+  }
+
+  private buildEmailTimeAnalysis(
+    receivedEmails: Array<{ receivedAt: string; timeToReply?: number | null }>,
+  ): { receivedHours: string | null; replyHours: string | null } {
+    const receivedHours: number[] = [];
+    const replyHours: number[] = [];
+    receivedEmails.forEach((e) => {
+      if (e.receivedAt) receivedHours.push(new Date(e.receivedAt).getHours());
+      if (
+        e.timeToReply !== null &&
+        e.timeToReply !== undefined &&
+        e.timeToReply < MINUTES.DAY
+      ) {
+        const received = new Date(e.receivedAt);
+        const replyTime = new Date(
+          received.getTime() + e.timeToReply * MILLISECONDS.MINUTE,
+        );
+        replyHours.push(replyTime.getHours());
+      }
+    });
+    return {
+      receivedHours:
+        receivedHours.length > 0 ? this.getTimePattern(receivedHours) : null,
+      replyHours:
+        replyHours.length > 0 ? this.getTimePattern(replyHours) : null,
+    };
+  }
+
+  private parsePatternResponse(response: string): {
+    context: Array<{ key: string; value: string; source: string }>;
+    writingStyle: {
+      tone: string;
+      style: string;
+      commonPhrases: string[];
+      emailExamples?: string[];
+    };
+  } | null {
+    const jsonString = response
+      .replace(/^```json\s*/i, "")
+      .replace(/^```\s*/i, "")
+      .replace(/\s*```$/i, "")
+      .trim();
+    const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+    const parsed = JSON.parse(jsonMatch[0]);
+    return {
+      context: Array.isArray(parsed.context) ? parsed.context : [],
+      writingStyle:
+        parsed.writingStyle && typeof parsed.writingStyle === "object"
+          ? {
+              tone: parsed.writingStyle.tone || "Professional",
+              style: parsed.writingStyle.style || "Concise",
+              commonPhrases: Array.isArray(parsed.writingStyle.commonPhrases)
+                ? parsed.writingStyle.commonPhrases
+                : [],
+              emailExamples: Array.isArray(parsed.writingStyle.emailExamples)
+                ? parsed.writingStyle.emailExamples
+                : undefined,
+            }
+          : { tone: "Professional", style: "Concise", commonPhrases: [] },
+    };
+  }
+
   async analyzeEmailPatterns(
     receivedEmails: Array<{
       from: string;
@@ -111,97 +243,20 @@ export class LLMService {
       };
     }
 
-    // Prepare data for LLM (limit size)
-    // Include read status, archive status, star status, and timeToReply to infer user behavior
     this.logger.log(
       `[CONTEXT-ANALYSIS] [LLM] Preparing data: ${receivedEmails.length} received threads/emails provided`,
     );
     this.logger.log(
       `[CONTEXT-ANALYSIS] [LLM] Using ALL ${receivedEmails.length} items (not limiting to ${QUERY_LIMITS.MAX_RESULTS_DEFAULT})`,
     );
+    const receivedData = this.buildReceivedEmailStats(receivedEmails);
 
-    const receivedData = receivedEmails
-      // Use all threads/emails provided (no artificial limit)
-      .map((e) => {
-        // Use timeToReply if available (in minutes), otherwise calculate from repliedAt
-        const replyTimeMinutes =
-          e.timeToReply ??
-          (e.repliedAt
-            ? (new Date(e.repliedAt).getTime() -
-                new Date(e.receivedAt).getTime()) /
-              MILLISECONDS.SECOND /
-              MINUTES.HOUR
-            : null);
-        const readStatus = e.isRead ? "Read" : "Unread";
-        const archiveStatus = e.isArchived ? "Archived" : "InInbox";
-        const starStatus =
-          (e.starCount || 0) > 0 ? `Starred(${e.starCount})` : "NotStarred";
-        let behavior: string;
-        if (e.isArchived && !e.isRead) {
-          behavior = "ArchivedWithoutReading";
-        } else if (e.isRead && !e.isArchived) {
-          behavior = "ReadButKept";
-        } else if (e.isRead && e.isArchived) {
-          behavior = "ReadThenArchived";
-        } else {
-          behavior = "UnreadInInbox";
-        }
-        const replyInfo =
-          replyTimeMinutes !== null
-            ? `${replyTimeMinutes.toFixed(0)}m`
-            : "NoReply";
-        const isQuickReply =
-          replyTimeMinutes !== null &&
-          replyTimeMinutes < QUERY_LIMITS.LLM_QUICK_REPLY_MINUTES;
-        return `From: ${e.fromName || e.from}, Subject: ${e.subject}, Read: ${readStatus}, ${archiveStatus}, ${starStatus}, Behavior: ${behavior}, ReplyTime: ${replyInfo}${isQuickReply ? " (QUICK)" : ""}`;
-      })
-      .join("\n");
-
-    // Include full email body for writing style analysis (redacted for privacy in actual usage)
-    // Extract longer examples (full emails) instead of just phrases
     this.logger.log(
       `[CONTEXT-ANALYSIS] [LLM] Preparing sent emails: ${sentEmails.length} sent emails provided, will use first ${QUERY_LIMITS.LLM_SENT_EMAILS_LIMIT}`,
     );
+    const sentData = this.buildSentEmailStats(sentEmails);
 
-    const sentData = sentEmails
-      .slice(0, QUERY_LIMITS.LLM_SENT_EMAILS_LIMIT)
-      .map((e) => {
-        const cleanBody = cleanEmailContent(
-          e.body,
-          null,
-          QUERY_LIMITS.LLM_BODY_PREVIEW_LENGTH,
-        );
-        return `To: ${e.to}, Subject: ${e.subject}\nFull Email Body:\n${cleanBody}\n---`;
-      })
-      .join("\n\n");
-
-    // Analyze times of day for read/response patterns
-    const receivedHours: number[] = [];
-    const replyHours: number[] = [];
-
-    receivedEmails.forEach((e) => {
-      if (e.receivedAt) {
-        receivedHours.push(new Date(e.receivedAt).getHours());
-      }
-      if (e.timeToReply !== null && e.timeToReply < MINUTES.DAY) {
-        // Replies within 24 hours
-        const received = new Date(e.receivedAt);
-        const replyMinutes = e.timeToReply;
-        const replyTime = new Date(
-          received.getTime() + replyMinutes * MILLISECONDS.MINUTE,
-        );
-        replyHours.push(replyTime.getHours());
-      }
-    });
-
-    const timeAnalysis = {
-      receivedHours:
-        receivedHours.length > 0 ? this.getTimePattern(receivedHours) : null,
-      replyHours:
-        replyHours.length > 0 ? this.getTimePattern(replyHours) : null,
-    };
-
-    // Format current context for the prompt
+    const timeAnalysis = this.buildEmailTimeAnalysis(receivedEmails);
     const currentContextText =
       currentContext && currentContext.length > 0
         ? currentContext
@@ -211,24 +266,17 @@ export class LLMService {
             )
             .join("\n")
         : "No existing context.";
-
-    // The markdown file contains the full prompt template with {{variables}}
     const timeAnalysisText =
       timeAnalysis.receivedHours || timeAnalysis.replyHours
         ? `\n\nTime Patterns:\n- Email reading times: ${timeAnalysis.receivedHours || "Not enough data"}\n- Email reply times: ${timeAnalysis.replyHours || "Not enough data"}`
         : "";
-
-    const renderedPrompt = renderPrompt(promptConfig.prompt || "", {
+    const prompt = renderPrompt(promptConfig.prompt || "", {
       userEmail: userEmail || "unknown@example.com",
       currentContext: currentContextText,
       receivedEmails: receivedData,
       sentEmails: sentData,
       timeAnalysis: timeAnalysisText,
     });
-
-    // Use the full prompt as the user message (markdown contains all instructions)
-    const prompt = renderedPrompt;
-    const systemPrompt = "";
 
     this.logger.log(
       `[CONTEXT-ANALYSIS] [LLM] About to call generateText() - prompt length: ${prompt.length} chars`,
@@ -237,11 +285,10 @@ export class LLMService {
       `[CONTEXT-ANALYSIS] [LLM] Input: ${receivedEmails.length} received emails, ${sentEmails.length} sent emails`,
     );
     const llmCallStart = Date.now();
-
     const response = await this.generateText(
       {
         prompt,
-        systemPrompt,
+        systemPrompt: "",
         temperature: RATIOS.FORTY_PERCENT,
         maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_LARGE,
         userId,
@@ -250,7 +297,6 @@ export class LLMService {
       userId,
       LLM_OP_ANALYZE_EMAIL_PATTERNS,
     );
-
     const llmCallDuration = Date.now() - llmCallStart;
     this.logger.log(
       `[CONTEXT-ANALYSIS] [LLM] generateText() completed in ${llmCallDuration}ms (${(llmCallDuration / 1000).toFixed(2)}s)`,
@@ -260,44 +306,12 @@ export class LLMService {
     );
 
     try {
-      // Handle markdown code blocks if present
-      let jsonString = response;
-      jsonString = jsonString
-        .replace(/^```json\s*/i, "")
-        .replace(/^```\s*/i, "")
-        .replace(/\s*```$/i, "")
-        .trim();
-
-      const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        // Ensure required structure
-        return {
-          context: Array.isArray(parsed.context) ? parsed.context : [],
-          writingStyle:
-            parsed.writingStyle && typeof parsed.writingStyle === "object"
-              ? {
-                  tone: parsed.writingStyle.tone || "Professional",
-                  style: parsed.writingStyle.style || "Concise",
-                  commonPhrases: Array.isArray(
-                    parsed.writingStyle.commonPhrases,
-                  )
-                    ? parsed.writingStyle.commonPhrases
-                    : [],
-                  emailExamples: Array.isArray(
-                    parsed.writingStyle.emailExamples,
-                  )
-                    ? parsed.writingStyle.emailExamples
-                    : undefined,
-                }
-              : { tone: "Professional", style: "Concise", commonPhrases: [] },
-        };
-      }
+      const parsed = this.parsePatternResponse(response);
+      if (parsed) return parsed;
     } catch (error) {
       this.logger.warn("Failed to parse LLM analysis response as JSON", error);
     }
 
-    // Fallback
     return {
       context: [],
       writingStyle: {
@@ -385,11 +399,128 @@ export class LLMService {
    * @param emailIds Optional array of email IDs for tracking duplicate summarizations
    * @returns Map of thread index to summary string
    */
+  private async summarizeSingleThread(
+    thread: { index: number; subject: string; body: string },
+    provider: LLMProvider | undefined,
+    userId: string | undefined,
+    customInstructions: string | undefined,
+  ): Promise<Map<number, string>> {
+    try {
+      let summary: string;
+      if (customInstructions) {
+        const cleanedBody = cleanEmailContent(
+          thread.body,
+          null,
+          QUERY_LIMITS.LLM_BODY_PREVIEW_LENGTH,
+        );
+        const prompt = `Thread Subject: ${thread.subject}\n\nThread Content:\n${cleanedBody}\n\n${customInstructions}`;
+        summary = await this.generateText(
+          {
+            prompt,
+            systemPrompt:
+              "You are a helpful assistant that summarizes email threads according to user instructions.",
+            temperature: RATIOS.HALF,
+            maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_SMALL,
+            userId,
+          },
+          provider,
+          userId,
+          LLM_OP_SUMMARIZE_EMAIL,
+        );
+      } else {
+        summary = await this.summarizeEmail(
+          thread.body,
+          thread.subject,
+          "tldr",
+          provider,
+          userId,
+        );
+      }
+      const result = new Map<number, string>();
+      result.set(thread.index, summary);
+      return result;
+    } catch (error) {
+      this.logger.error(`Failed to summarize single thread: ${error}`);
+      return new Map();
+    }
+  }
+
+  private async summarizeThreadsFallback(
+    threads: Array<{ index: number; subject: string; body: string }>,
+    provider: LLMProvider | undefined,
+    userId: string | undefined,
+  ): Promise<Map<number, string>> {
+    const result = new Map<number, string>();
+    for (const thread of threads) {
+      try {
+        const summary = await this.summarizeEmail(
+          thread.body,
+          thread.subject,
+          "tldr",
+          provider,
+          userId,
+        );
+        result.set(thread.index, summary);
+      } catch (error) {
+        this.logger.warn(
+          `Failed to summarize thread ${thread.index}: ${error}`,
+        );
+      }
+    }
+    return result;
+  }
+
+  private parseBatchSummaryResponse(
+    response: string,
+    threadsForPrompt: Array<{ index: number }>,
+  ): Map<number, string> | null {
+    let jsonStr: string | null = null;
+    const directMatch = response.match(/\{[\s\S]*\}/);
+    if (directMatch) jsonStr = directMatch[0];
+    if (!jsonStr) {
+      const codeBlockMatch = response.match(
+        /```(?:json)?\s*(\{[\s\S]*?\})\s*```/,
+      );
+      if (codeBlockMatch?.[1]) jsonStr = codeBlockMatch[1];
+    }
+    if (!jsonStr) {
+      this.logger.error("Failed to find JSON in batch summarization response");
+      return null;
+    }
+    try {
+      const summaries = JSON.parse(jsonStr);
+      if (typeof summaries !== "object" || Array.isArray(summaries))
+        throw new Error("Response is not a JSON object");
+      const result = new Map<number, string>();
+      threadsForPrompt.forEach((thread) => {
+        const summary =
+          summaries[thread.index] || summaries[String(thread.index)];
+        if (
+          summary &&
+          typeof summary === "string" &&
+          summary.trim().length > 0
+        ) {
+          result.set(thread.index, summary.trim());
+        } else {
+          this.logger.warn(
+            `Missing summary for thread index ${thread.index} in batch response`,
+          );
+        }
+      });
+      return result;
+    } catch (parseError) {
+      this.logger.error(
+        "Failed to parse JSON from batch summarization response:",
+        parseError,
+      );
+      return null;
+    }
+  }
+
   async summarizeThreads(
     threads: Array<{
       index: number;
       subject: string;
-      // Combined thread content (first + last 3 messages)
       body: string;
       isThread: boolean;
       messageCount?: number;
@@ -399,52 +530,14 @@ export class LLMService {
     customInstructions?: string,
     emailIds?: string[],
   ): Promise<Map<number, string>> {
-    if (threads.length === 0) {
-      return new Map();
-    }
-
-    // If only one thread, use the regular method (more efficient prompt)
+    if (threads.length === 0) return new Map();
     if (threads.length === 1) {
-      const thread = threads[0];
-      try {
-        let summary: string;
-        if (customInstructions) {
-          // Use custom instructions as a direct prompt
-          const cleanedThreadBody = cleanEmailContent(
-            thread.body,
-            null,
-            QUERY_LIMITS.LLM_BODY_PREVIEW_LENGTH,
-          );
-          const prompt = `Thread Subject: ${thread.subject}\n\nThread Content:\n${cleanedThreadBody}\n\n${customInstructions}`;
-          summary = await this.generateText(
-            {
-              prompt,
-              systemPrompt:
-                "You are a helpful assistant that summarizes email threads according to user instructions.",
-              temperature: RATIOS.HALF,
-              maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_SMALL,
-              userId,
-            },
-            provider,
-            userId,
-            LLM_OP_SUMMARIZE_EMAIL,
-          );
-        } else {
-          summary = await this.summarizeEmail(
-            thread.body,
-            thread.subject,
-            "tldr",
-            provider,
-            userId,
-          );
-        }
-        const result = new Map<number, string>();
-        result.set(thread.index, summary);
-        return result;
-      } catch (error) {
-        this.logger.error(`Failed to summarize single thread: ${error}`);
-        return new Map();
-      }
+      return this.summarizeSingleThread(
+        threads[0],
+        provider,
+        userId,
+        customInstructions,
+      );
     }
 
     const promptConfig = getPrompt("summarize_email_batch");
@@ -452,28 +545,9 @@ export class LLMService {
       this.logger.error(
         "summarize_email_batch prompt not found - falling back to individual calls",
       );
-      // Fallback: summarize each thread individually
-      const result = new Map<number, string>();
-      for (const thread of threads) {
-        try {
-          const summary = await this.summarizeEmail(
-            thread.body,
-            thread.subject,
-            "tldr",
-            provider,
-            userId,
-          );
-          result.set(thread.index, summary);
-        } catch (error) {
-          this.logger.warn(
-            `Failed to summarize thread ${thread.index}: ${error}`,
-          );
-        }
-      }
-      return result;
+      return this.summarizeThreadsFallback(threads, provider, userId);
     }
 
-    // Prepare thread data for the prompt (limit body length to save tokens)
     const threadsForPrompt = threads.map((thread) => ({
       index: thread.index,
       subject: thread.subject,
@@ -487,7 +561,7 @@ export class LLMService {
     }));
 
     const prompt = renderPrompt(promptConfig.prompt || "", {
-      emails: threadsForPrompt, // Note: prompt template uses 'emails' variable name
+      emails: threadsForPrompt,
       customInstructions: customInstructions || null,
     });
 
@@ -497,13 +571,11 @@ export class LLMService {
           prompt,
           systemPrompt: promptConfig.systemPrompt || "",
           temperature: RATIOS.HALF,
-          // Increase tokens for batch response: ~150 tokens per summary
           maxTokens: Math.min(
             QUERY_LIMITS.LLM_BODY_PREVIEW_LENGTH * 2,
             threads.length * QUERY_LIMITS.LLM_MAX_TOKENS_VERY_SMALL + 200,
           ),
           userId,
-          // Track email IDs for duplicate summarization detection
           metadata: emailIds?.length ? { emailIds } : undefined,
         },
         provider,
@@ -511,76 +583,16 @@ export class LLMService {
         LLM_OP_SUMMARIZE_EMAIL_BATCH,
       );
 
-      // Parse JSON response
-      let jsonStr: string | null = null;
-
-      // Try 1: Direct JSON object
-      const directMatch = response.match(/\{[\s\S]*\}/);
-      if (directMatch) {
-        jsonStr = directMatch[0];
-      }
-
-      // Try 2: JSON in markdown code block
-      if (!jsonStr) {
-        const codeBlockMatch = response.match(
-          /```(?:json)?\s*(\{[\s\S]*?\})\s*```/,
+      const result = this.parseBatchSummaryResponse(response, threadsForPrompt);
+      if (result) {
+        this.logger.log(
+          `Thread summarization complete: ${result.size}/${threads.length} summaries generated`,
         );
-        if (codeBlockMatch && codeBlockMatch[1]) {
-          jsonStr = codeBlockMatch[1];
-        }
-      }
-
-      if (jsonStr) {
-        try {
-          const summaries = JSON.parse(jsonStr);
-
-          if (typeof summaries !== "object" || Array.isArray(summaries)) {
-            throw new Error("Response is not a JSON object");
-          }
-
-          const result = new Map<number, string>();
-
-          // Map summaries by index
-          threadsForPrompt.forEach((thread) => {
-            const summary =
-              summaries[thread.index] ||
-              summaries[String(thread.index)] ||
-              summaries[thread.index.toString()];
-
-            if (
-              summary &&
-              typeof summary === "string" &&
-              summary.trim().length > 0
-            ) {
-              result.set(thread.index, summary.trim());
-            } else {
-              this.logger.warn(
-                `Missing summary for thread index ${thread.index} in batch response`,
-              );
-            }
-          });
-
-          this.logger.log(
-            `Thread summarization complete: ${result.size}/${threads.length} summaries generated`,
-          );
-
-          return result;
-        } catch (parseError) {
-          this.logger.error(
-            `Failed to parse JSON from batch summarization response:`,
-            parseError,
-          );
-        }
-      } else {
-        this.logger.error(
-          `Failed to find JSON in batch summarization response`,
-        );
+        return result;
       }
     } catch (error) {
       this.logger.error("Batch summarization failed", error);
     }
-
-    // Fallback: return empty map (will trigger individual calls if needed)
     return new Map();
   }
 
@@ -710,7 +722,70 @@ export class LLMService {
     return [];
   }
 
-  // eslint-disable-next-line max-lines-per-function
+  private buildActionsPromptContext(emailMetadata?: {
+    hasGithubLinks?: boolean;
+    githubLinks?: Array<{
+      type: string;
+      owner: string;
+      repo: string;
+      number: number;
+    }>;
+    hasCalendarToken?: boolean;
+    hasGithubToken?: boolean;
+  }): { githubContext: string; integrationsNote: string } {
+    const githubContext = emailMetadata?.hasGithubLinks
+      ? `\n\nNote: This email contains GitHub links: ${JSON.stringify(emailMetadata.githubLinks)}`
+      : "";
+    const availableIntegrations: string[] = [];
+    if (emailMetadata?.hasGithubToken) availableIntegrations.push("GitHub");
+    if (emailMetadata?.hasCalendarToken) availableIntegrations.push("Calendar");
+    const integrationsNote =
+      availableIntegrations.length > 0
+        ? `\n\nAvailable integrations: ${availableIntegrations.join(", ")}`
+        : "";
+    return { githubContext, integrationsNote };
+  }
+
+  private parseAndFilterActions(
+    response: string,
+    emailMetadata?: { hasGithubToken?: boolean; hasCalendarToken?: boolean },
+  ): Array<{
+    type: string;
+    confidence: number;
+    reason: string;
+    metadata?: Record<string, unknown>;
+  }> {
+    const jsonString = response
+      .replace(/^```json\s*/i, "")
+      .replace(/^```\s*/i, "")
+      .replace(/\s*```$/i, "")
+      .trim();
+    const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return [];
+    const parsed = JSON.parse(jsonMatch[0]);
+    const actions = parsed.actions || [];
+    return actions.filter(
+      (action: {
+        confidence: number;
+        type?: string;
+        [key: string]: unknown;
+      }) => {
+        if (action.confidence < RATIOS.SEVENTY_PERCENT) return false;
+        if (
+          action.type?.startsWith("github_") &&
+          !emailMetadata?.hasGithubToken
+        )
+          return false;
+        if (
+          action.type?.startsWith("calendar_") &&
+          !emailMetadata?.hasCalendarToken
+        )
+          return false;
+        return true;
+      },
+    );
+  }
+
   async detectSuggestedActions(
     emailContent: {
       subject: string;
@@ -744,7 +819,8 @@ export class LLMService {
     const cleanedBody = cleanEmailContent(
       emailContent.body,
       emailContent.htmlBody || null,
-      1000, // Reduced from 2000 to save tokens
+      // Reduced from 2000 to save tokens
+      1000,
     );
 
     const promptConfig = getPrompt("suggest_actions");
@@ -755,18 +831,8 @@ export class LLMService {
       return [];
     }
 
-    const githubContext = emailMetadata?.hasGithubLinks
-      ? `\n\nNote: This email contains GitHub links: ${JSON.stringify(emailMetadata.githubLinks)}`
-      : "";
-
-    const availableIntegrations = [];
-    if (emailMetadata?.hasGithubToken) availableIntegrations.push("GitHub");
-    if (emailMetadata?.hasCalendarToken) availableIntegrations.push("Calendar");
-
-    const integrationsNote =
-      availableIntegrations.length > 0
-        ? `\n\nAvailable integrations: ${availableIntegrations.join(", ")}`
-        : "";
+    const { githubContext, integrationsNote } =
+      this.buildActionsPromptContext(emailMetadata);
 
     const prompt = renderPrompt(promptConfig.prompt || "", {
       subject: emailContent.subject,
@@ -790,44 +856,7 @@ export class LLMService {
     );
 
     try {
-      // Handle markdown code blocks if present
-      let jsonString = response;
-      jsonString = jsonString
-        .replace(/^```json\s*/i, "")
-        .replace(/^```\s*/i, "")
-        .replace(/\s*```$/i, "")
-        .trim();
-
-      const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        const actions = parsed.actions || [];
-        // Filter by confidence and only include actions for available integrations
-        return actions.filter(
-          (action: {
-            confidence: number;
-            type?: string;
-            [key: string]: unknown;
-          }) => {
-            if (action.confidence < RATIOS.SEVENTY_PERCENT) return false;
-            // Only show GitHub actions if token is available
-            if (
-              action.type.startsWith("github_") &&
-              !emailMetadata?.hasGithubToken
-            ) {
-              return false;
-            }
-            // Only show Calendar actions if token is available
-            if (
-              action.type.startsWith("calendar_") &&
-              !emailMetadata?.hasCalendarToken
-            ) {
-              return false;
-            }
-            return true;
-          },
-        );
-      }
+      return this.parseAndFilterActions(response, emailMetadata);
     } catch (error) {
       this.logger.warn(
         "Failed to parse LLM suggested actions response as JSON",
@@ -1067,7 +1096,7 @@ export class LLMService {
    * @param provider Optional LLM provider override
    * @param userId Optional user ID for API key
    */
-  // eslint-disable-next-line max-params
+
   async generateFollowUpDraft(
     subject: string,
     threadMessages: Array<{
@@ -1160,7 +1189,7 @@ export class LLMService {
     }>;
   }> {
     const cleanedBody = cleanEmailContent(email.body || "", null, 1000);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
     const _contextSummary = currentContext
       .slice(0, 10)
       .map((c) => `${c.contextKey}: ${c.contextValue}`)
@@ -1301,9 +1330,9 @@ export class LLMService {
       const jsonMatch = response.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
+        // Require minimum occurrences
         return Array.isArray(parsed)
-          ? // Require minimum occurrences
-            parsed.filter((qa) => qa.frequency >= QA_EXTRACTION.MIN_FREQUENCY)
+          ? parsed.filter((qa) => qa.frequency >= QA_EXTRACTION.MIN_FREQUENCY)
           : [];
       }
     } catch (error) {
@@ -1377,10 +1406,100 @@ export class LLMService {
     return response.trim();
   }
 
+  private buildBatchEmailDetails(
+    emails: Array<{
+      index: number;
+      from: string;
+      subject: string;
+      body: string;
+      receivedAt: string;
+    }>,
+    now: Date,
+  ): Array<{
+    index: number;
+    from: string;
+    subject: string;
+    bodyPreview: string;
+    receivedAt: string;
+    isRecent: string;
+  }> {
+    return emails.map((email) => {
+      const receivedDate = new Date(email.receivedAt);
+      const daysAgo = Math.floor(
+        (now.getTime() - receivedDate.getTime()) / (1000 * 60 * 60 * 24),
+      );
+      let receivedAtText: string;
+      if (daysAgo === 0) {
+        receivedAtText = "today";
+      } else if (daysAgo === 1) {
+        receivedAtText = "yesterday";
+      } else {
+        receivedAtText = `${daysAgo} days ago`;
+      }
+      return {
+        index: email.index,
+        from: email.from,
+        subject: email.subject,
+        bodyPreview: cleanEmailContent(
+          email.body,
+          null,
+          BODY_PREVIEW_LENGTHS.BATCH_PREVIEW,
+        ),
+        receivedAt: receivedAtText,
+        isRecent: daysAgo <= RECENCY_THRESHOLDS.RECENT_DAYS ? " (recent)" : "",
+      };
+    });
+  }
+
+  private parseBatchExplanationJson(
+    jsonStr: string,
+    query: string,
+    emailDetailList: Array<{ index: number; [key: string]: unknown }>,
+  ): Map<number, string> {
+    const explanations = JSON.parse(jsonStr);
+    if (typeof explanations !== "object" || Array.isArray(explanations)) {
+      throw new Error("Response is not a JSON object");
+    }
+    const result = new Map<number, string>();
+    this.logger.debug(
+      `Parsed JSON explanations. Type: ${typeof explanations}, Keys: ${Object.keys(explanations).join(", ")}`,
+    );
+    emailDetailList.forEach((email) => {
+      const explanation =
+        explanations[email.index] ||
+        explanations[String(email.index)] ||
+        explanations[email.index.toString()] ||
+        explanations[`${email.index}`];
+      if (
+        explanation &&
+        typeof explanation === "string" &&
+        explanation.trim().length > 0
+      ) {
+        result.set(email.index, explanation.trim());
+      } else {
+        this.logger.warn(
+          `Missing explanation for email index ${email.index}. Available keys: ${Object.keys(explanations).join(", ")}`,
+        );
+        result.set(
+          email.index,
+          `Relevant to "${query}" based on sender, subject, or content.`,
+        );
+      }
+    });
+    this.logger.debug(
+      `Batch explanation complete. Generated ${result.size} explanations out of ${emailDetailList.length} emails.`,
+    );
+    if (result.size === 0) {
+      this.logger.error(
+        `No explanations generated! JSON keys: ${Object.keys(explanations).join(", ")}, Expected indices: ${emailDetailList.map((e) => e.index).join(", ")}`,
+      );
+    }
+    return result;
+  }
+
   /**
    * Generate explanations for multiple emails in a single batch call (faster than individual calls)
    */
-  // eslint-disable-next-line max-lines-per-function, complexity, max-statements
   async generateSearchRelevanceExplanationsBatch(
     query: string,
     emails: Array<{
@@ -1404,39 +1523,8 @@ export class LLMService {
       return new Map();
     }
 
-    const now = new Date();
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const emailDetails = emails.map((email, idx) => {
-      const receivedDate = new Date(email.receivedAt);
-      const daysAgo = Math.floor(
-        (now.getTime() - receivedDate.getTime()) / (1000 * 60 * 60 * 24),
-      );
-      let receivedAtText: string;
-      if (daysAgo === 0) {
-        receivedAtText = "today";
-      } else if (daysAgo === 1) {
-        receivedAtText = "yesterday";
-      } else {
-        receivedAtText = `${daysAgo} days ago`;
-      }
-      const isRecent = daysAgo <= RECENCY_THRESHOLDS.RECENT_DAYS;
+    const emailDetails = this.buildBatchEmailDetails(emails, new Date());
 
-      return {
-        index: email.index,
-        from: email.from,
-        subject: email.subject,
-        bodyPreview: cleanEmailContent(
-          email.body,
-          null,
-          BODY_PREVIEW_LENGTHS.BATCH_PREVIEW,
-        ),
-        receivedAt: receivedAtText,
-        isRecent: isRecent ? " (recent)" : "",
-      };
-    });
-
-    // Render prompt from file with batch data
-    // Ensure emails array is passed correctly
     if (!Array.isArray(emailDetails) || emailDetails.length === 0) {
       this.logger.warn(
         "generateSearchRelevanceExplanationsBatch called with empty or invalid emails array",
@@ -1520,56 +1608,7 @@ export class LLMService {
 
       if (jsonStr) {
         try {
-          const explanations = JSON.parse(jsonStr);
-
-          if (typeof explanations !== "object" || Array.isArray(explanations)) {
-            throw new Error("Response is not a JSON object");
-          }
-
-          const result = new Map<number, string>();
-
-          this.logger.debug(
-            `Parsed JSON explanations. Type: ${typeof explanations}, Keys: ${Object.keys(explanations).join(", ")}`,
-          );
-
-          // Map explanations by index - try multiple key formats
-          emailDetails.forEach((email) => {
-            // Try: number key, string key, stringified number key
-            const explanation =
-              explanations[email.index] ||
-              explanations[String(email.index)] ||
-              explanations[email.index.toString()] ||
-              explanations[`${email.index}`];
-
-            if (
-              explanation &&
-              typeof explanation === "string" &&
-              explanation.trim().length > 0
-            ) {
-              result.set(email.index, explanation.trim());
-            } else {
-              // Fallback explanation if batch generation missed it
-              this.logger.warn(
-                `Missing explanation for email index ${email.index}. Available keys: ${Object.keys(explanations).join(", ")}`,
-              );
-              result.set(
-                email.index,
-                `Relevant to "${query}" based on sender, subject, or content.`,
-              );
-            }
-          });
-
-          this.logger.debug(
-            `Batch explanation complete. Generated ${result.size} explanations out of ${emails.length} emails.`,
-          );
-
-          if (result.size === 0) {
-            this.logger.error(
-              `No explanations generated! JSON keys: ${Object.keys(explanations).join(", ")}, Expected indices: ${emailDetails.map((e) => e.index).join(", ")}`,
-            );
-          }
-
-          return result;
+          return this.parseBatchExplanationJson(jsonStr, query, emailDetails);
         } catch (parseError) {
           this.logger.error(
             `Failed to parse JSON from batch explanation response:`,
@@ -1622,8 +1661,10 @@ export class LLMService {
         {
           prompt,
           systemPrompt: promptConfig.systemPrompt || "",
-          temperature: 0.1, // Low temperature for consistent output
-          maxTokens: text.length + 100, // Allow some overhead for replacements
+          // Low temperature for consistent output
+          temperature: 0.1,
+          // Allow some overhead for replacements
+          maxTokens: text.length + 100,
         },
         undefined,
         undefined,
@@ -1910,6 +1951,62 @@ export class LLMService {
     return `📁 ${trimmedName}`;
   }
 
+  private parseConsolidatedCategoriesResponse(
+    response: string,
+    autoCount: number,
+  ): Array<{ name: string; description: string; isUserAdded: boolean }> | null {
+    try {
+      const jsonString = response
+        .replace(/^```json\s*/i, "")
+        .replace(/^```\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim();
+      const jsonMatch = jsonString.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        this.logger.warn(
+          `[CATEGORY-CONSOLIDATION] No JSON array found in response`,
+        );
+        return null;
+      }
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        this.logger.warn(
+          `[CATEGORY-CONSOLIDATION] Parsed array is empty or not an array`,
+        );
+        return null;
+      }
+      const consolidated = parsed
+        .filter(
+          (item: { name?: string; description?: string }) =>
+            item.name && item.description,
+        )
+        .map(
+          (item: {
+            name: string;
+            description: string;
+            isUserAdded?: boolean;
+          }) => ({
+            name: String(item.name).trim(),
+            description: String(item.description).trim(),
+            isUserAdded: !!item.isUserAdded,
+          }),
+        );
+      const withEmojis = consolidated.map((c) => ({
+        ...c,
+        name: c.isUserAdded ? c.name : this.ensureCategoryEmoji(c.name),
+      }));
+      this.logger.log(
+        `[CATEGORY-CONSOLIDATION] === SUCCESS === Consolidated ${autoCount} -> ${withEmojis.filter((c) => !c.isUserAdded).length} auto-generated (+ ${withEmojis.filter((c) => c.isUserAdded).length} user-added preserved)`,
+      );
+      return withEmojis;
+    } catch (error) {
+      this.logger.error(
+        `[CATEGORY-CONSOLIDATION] ERROR: Failed to parse LLM response as JSON: ${error}`,
+      );
+      return null;
+    }
+  }
+
   async consolidateEmailCategories(
     autoGeneratedCategories: Array<{ name: string; description: string }>,
     userAddedCategories: Array<{ name: string; description: string }>,
@@ -1921,13 +2018,16 @@ export class LLMService {
     this.logger.log(
       `[CATEGORY-CONSOLIDATION] === START === Input: ${autoGeneratedCategories.length} auto-generated, ${userAddedCategories.length} user-added categories`,
     );
-
-    // Log the input categories for debugging
     if (autoGeneratedCategories.length > 0) {
       this.logger.log(
         `[CATEGORY-CONSOLIDATION] Auto-generated categories:\n${autoGeneratedCategories.map((c) => `  - ${c.name}`).join("\n")}`,
       );
     }
+
+    const fallbackResult = [
+      ...autoGeneratedCategories.map((c) => ({ ...c, isUserAdded: false })),
+      ...userAddedCategories.map((c) => ({ ...c, isUserAdded: true })),
+    ];
 
     if (
       autoGeneratedCategories.length <= 1 &&
@@ -1944,10 +2044,7 @@ export class LLMService {
       this.logger.error(
         "[CATEGORY-CONSOLIDATION] ERROR: consolidate_categories prompt not found in markdown files",
       );
-      return [
-        ...autoGeneratedCategories.map((c) => ({ ...c, isUserAdded: false })),
-        ...userAddedCategories.map((c) => ({ ...c, isUserAdded: true })),
-      ];
+      return fallbackResult;
     }
 
     const categoriesText =
@@ -1956,7 +2053,6 @@ export class LLMService {
             .map((c) => `- ${c.name}: ${c.description}`)
             .join("\n")
         : "None";
-
     const userCategoriesText =
       userAddedCategories.length > 0
         ? userAddedCategories
@@ -1968,7 +2064,6 @@ export class LLMService {
       categories: categoriesText,
       userCategories: userCategoriesText,
     });
-
     this.logger.log(
       `[CATEGORY-CONSOLIDATION] Calling LLM to consolidate ${autoGeneratedCategories.length} auto-generated + ${userAddedCategories.length} user-added categories`,
     );
@@ -1985,91 +2080,66 @@ export class LLMService {
       userId,
       LLM_OP_CONSOLIDATE_CATEGORIES,
     );
-
     this.logger.log(
       `[CATEGORY-CONSOLIDATION] LLM response received (length: ${response.length} chars)`,
     );
-    this.logger.log(
-      `[CATEGORY-CONSOLIDATION] Raw LLM response (first 500 chars): ${response.substring(0, 500)}`,
+
+    const result = this.parseConsolidatedCategoriesResponse(
+      response,
+      autoGeneratedCategories.length,
     );
-
-    try {
-      const jsonString = response
-        .replace(/^```json\s*/i, "")
-        .replace(/^```\s*/i, "")
-        .replace(/\s*```$/i, "")
-        .trim();
-
-      const jsonMatch = jsonString.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        this.logger.log(
-          `[CATEGORY-CONSOLIDATION] Found JSON array in response`,
-        );
-        const parsed = JSON.parse(jsonMatch[0]);
-        this.logger.log(
-          `[CATEGORY-CONSOLIDATION] Parsed ${parsed.length} items from LLM response`,
-        );
-
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const consolidated = parsed
-            .filter(
-              (item: { name?: string; description?: string }) =>
-                item.name && item.description,
-            )
-            .map(
-              (item: {
-                name: string;
-                description: string;
-                isUserAdded?: boolean;
-              }) => ({
-                name: String(item.name).trim(),
-                description: String(item.description).trim(),
-                isUserAdded: !!item.isUserAdded,
-              }),
-            );
-
-          // Ensure each category has an emoji at the start (if not user-added and doesn't already have one)
-          const withEmojis = consolidated.map((c) => ({
-            ...c,
-            name: c.isUserAdded ? c.name : this.ensureCategoryEmoji(c.name),
-          }));
-
-          this.logger.log(
-            `[CATEGORY-CONSOLIDATION] === SUCCESS === Consolidated ${autoGeneratedCategories.length} -> ${withEmojis.filter((c) => !c.isUserAdded).length} auto-generated (+ ${withEmojis.filter((c) => c.isUserAdded).length} user-added preserved)`,
-          );
-          this.logger.log(
-            `[CATEGORY-CONSOLIDATION] Consolidated categories:\n${withEmojis.map((c) => `  - ${c.name} (isUserAdded: ${c.isUserAdded})`).join("\n")}`,
-          );
-          return withEmojis;
-        } else {
-          this.logger.warn(
-            `[CATEGORY-CONSOLIDATION] Parsed array is empty or not an array`,
-          );
-        }
-      } else {
-        this.logger.warn(
-          `[CATEGORY-CONSOLIDATION] No JSON array found in response`,
-        );
-      }
-    } catch (error) {
-      this.logger.error(
-        `[CATEGORY-CONSOLIDATION] ERROR: Failed to parse LLM response as JSON: ${error}`,
-      );
-    }
+    if (result) return result;
 
     this.logger.log(
       `[CATEGORY-CONSOLIDATION] === FALLBACK === Returning original categories without consolidation`,
     );
-    return [
-      ...autoGeneratedCategories.map((c) => ({ ...c, isUserAdded: false })),
-      ...userAddedCategories.map((c) => ({ ...c, isUserAdded: true })),
-    ];
+    return fallbackResult;
   }
 
   /**
    * Generate new categories from emails currently in "Other" category.
    * This analyzes the emails and suggests more specific categories that would better organize them.
    */
+  private parseGeneratedCategoriesResponse(
+    response: string,
+    existingCategories: Array<{ name: string }>,
+  ): Array<{ name: string; description: string }> | null {
+    try {
+      const jsonString = response
+        .replace(/^```json\s*/i, "")
+        .replace(/^```\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim();
+      const jsonMatch = jsonString.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) return null;
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (!Array.isArray(parsed)) return null;
+      const existingNames = new Set(
+        existingCategories.map((c) =>
+          c.name.toLowerCase().replace(/^[^\w]+/, ""),
+        ),
+      );
+      return parsed
+        .filter(
+          (item: { name?: string; description?: string }) =>
+            item.name && item.description,
+        )
+        .map((item: { name: string; description: string }) => ({
+          name: this.ensureCategoryEmoji(String(item.name).trim()),
+          description: String(item.description).trim(),
+        }))
+        .filter(
+          (cat) =>
+            !existingNames.has(cat.name.toLowerCase().replace(/^[^\w]+/, "")),
+        );
+    } catch (error) {
+      this.logger.error(
+        `[GENERATE-CATEGORIES] ERROR: Failed to parse LLM response as JSON: ${error}`,
+      );
+      return null;
+    }
+  }
+
   async generateCategoriesFromOther(
     otherEmails: Array<{
       from: string;
@@ -2100,7 +2170,6 @@ export class LLMService {
       return [];
     }
 
-    // Format existing categories for the prompt
     const existingCategoriesText =
       existingCategories.length > 0
         ? existingCategories
@@ -2108,7 +2177,6 @@ export class LLMService {
             .join("\n")
         : "None";
 
-    // Format emails for the prompt (limit to first 30 for token efficiency)
     const emailsToAnalyze = otherEmails.slice(
       0,
       CONTEXT_ANALYSIS.MAX_EMAILS_FOR_CATEGORY_ANALYSIS,
@@ -2124,7 +2192,6 @@ export class LLMService {
       existingCategories: existingCategoriesText,
       otherEmails: otherEmailsText,
     });
-
     this.logger.log(
       `[GENERATE-CATEGORIES] Calling LLM to analyze ${emailsToAnalyze.length} emails and suggest new categories`,
     );
@@ -2141,61 +2208,20 @@ export class LLMService {
       userId,
       LLM_OP_GENERATE_CATEGORIES_FROM_OTHER,
     );
-
     this.logger.log(
       `[GENERATE-CATEGORIES] LLM response received (length: ${response.length} chars)`,
     );
 
-    try {
-      const jsonString = response
-        .replace(/^```json\s*/i, "")
-        .replace(/^```\s*/i, "")
-        .replace(/\s*```$/i, "")
-        .trim();
-
-      const jsonMatch = jsonString.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-
-        if (Array.isArray(parsed)) {
-          // Filter out any categories that already exist (case-insensitive comparison)
-          const existingNames = new Set(
-            existingCategories.map((c) =>
-              c.name.toLowerCase().replace(/^[^\w]+/, ""),
-            ),
-          );
-
-          const newCategories = parsed
-            .filter(
-              (item: { name?: string; description?: string }) =>
-                item.name && item.description,
-            )
-            .map((item: { name: string; description: string }) => ({
-              name: this.ensureCategoryEmoji(String(item.name).trim()),
-              description: String(item.description).trim(),
-            }))
-            .filter((cat) => {
-              const normalizedName = cat.name
-                .toLowerCase()
-                .replace(/^[^\w]+/, "");
-              return !existingNames.has(normalizedName);
-            });
-
-          this.logger.log(
-            `[GENERATE-CATEGORIES] === SUCCESS === Generated ${newCategories.length} new categories`,
-          );
-          this.logger.log(
-            `[GENERATE-CATEGORIES] New categories:\n${newCategories.map((c) => `  - ${c.name}`).join("\n")}`,
-          );
-          return newCategories;
-        }
-      }
-    } catch (error) {
-      this.logger.error(
-        `[GENERATE-CATEGORIES] ERROR: Failed to parse LLM response as JSON: ${error}`,
+    const newCategories = this.parseGeneratedCategoriesResponse(
+      response,
+      existingCategories,
+    );
+    if (newCategories) {
+      this.logger.log(
+        `[GENERATE-CATEGORIES] === SUCCESS === Generated ${newCategories.length} new categories`,
       );
+      return newCategories;
     }
-
     this.logger.log(
       `[GENERATE-CATEGORIES] === FALLBACK === No new categories generated`,
     );
@@ -2206,6 +2232,59 @@ export class LLMService {
    * Identify custom labels from email scan that could be converted into categories.
    * Filters out system labels and suggests useful category candidates.
    */
+  private parseCustomLabelsResponse(response: string): Array<{
+    label: string;
+    categoryName: string;
+    description: string;
+    confidence: "HIGH" | "MEDIUM" | "LOW";
+  }> | null {
+    try {
+      const jsonString = response
+        .replace(/^```json\s*/i, "")
+        .replace(/^```\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim();
+      const jsonMatch = jsonString.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) return null;
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (!Array.isArray(parsed)) return null;
+      return parsed
+        .filter(
+          (item: {
+            label?: string;
+            categoryName?: string;
+            description?: string;
+            confidence?: string;
+          }) =>
+            item.label &&
+            item.categoryName &&
+            item.description &&
+            item.confidence,
+        )
+        .map(
+          (item: {
+            label: string;
+            categoryName: string;
+            description: string;
+            confidence: string;
+          }) => ({
+            label: String(item.label).trim(),
+            categoryName: String(item.categoryName).trim(),
+            description: String(item.description).trim(),
+            confidence: String(item.confidence).trim() as
+              | "HIGH"
+              | "MEDIUM"
+              | "LOW",
+          }),
+        );
+    } catch (error) {
+      this.logger.error(
+        `[IDENTIFY-CUSTOM-LABELS] === ERROR === Failed to parse LLM response: ${getErrorMessage(error)}`,
+      );
+      return null;
+    }
+  }
+
   async identifyCustomLabels(
     labels: string[],
     provider?: LLMProvider,
@@ -2232,7 +2311,6 @@ export class LLMService {
     const prompt = await renderPrompt("identify_custom_labels", {
       labels: labels.join(", "),
     });
-
     this.logger.log(`[IDENTIFY-CUSTOM-LABELS] Calling LLM to identify labels`);
     const response = await this.generateText(
       {
@@ -2246,71 +2324,20 @@ export class LLMService {
       userId,
       LLM_OP_IDENTIFY_CUSTOM_LABELS,
     );
-
     this.logger.log(
       `[IDENTIFY-CUSTOM-LABELS] LLM response received (length: ${response.length} chars)`,
     );
 
-    try {
-      const jsonString = response
-        .replace(/^```json\s*/i, "")
-        .replace(/^```\s*/i, "")
-        .replace(/\s*```$/i, "")
-        .trim();
-
-      const jsonMatch = jsonString.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-
-        if (Array.isArray(parsed)) {
-          const customLabels = parsed
-            .filter(
-              (item: {
-                label?: string;
-                categoryName?: string;
-                description?: string;
-                confidence?: string;
-              }) =>
-                item.label &&
-                item.categoryName &&
-                item.description &&
-                item.confidence,
-            )
-            .map(
-              (item: {
-                label: string;
-                categoryName: string;
-                description: string;
-                confidence: string;
-              }) => ({
-                label: String(item.label).trim(),
-                categoryName: String(item.categoryName).trim(),
-                description: String(item.description).trim(),
-                confidence: String(item.confidence).trim() as
-                  | "HIGH"
-                  | "MEDIUM"
-                  | "LOW",
-              }),
-            );
-
-          this.logger.log(
-            `[IDENTIFY-CUSTOM-LABELS] === SUCCESS === Identified ${customLabels.length} custom labels`,
-          );
-          this.logger.log(
-            `[IDENTIFY-CUSTOM-LABELS] Labels:\n${customLabels.map((l) => `  - ${l.categoryName} (${l.confidence})`).join("\n")}`,
-          );
-          return customLabels;
-        }
-      }
-    } catch (error) {
-      this.logger.error(
-        `[IDENTIFY-CUSTOM-LABELS] === ERROR === Failed to parse LLM response: ${getErrorMessage(error)}`,
-      );
+    const customLabels = this.parseCustomLabelsResponse(response);
+    if (customLabels) {
       this.logger.log(
-        `[IDENTIFY-CUSTOM-LABELS] Raw response:\n${response.substring(0, 500)}`,
+        `[IDENTIFY-CUSTOM-LABELS] === SUCCESS === Identified ${customLabels.length} custom labels`,
       );
+      return customLabels;
     }
-
+    this.logger.log(
+      `[IDENTIFY-CUSTOM-LABELS] Raw response:\n${response.substring(0, 500)}`,
+    );
     this.logger.log(
       `[IDENTIFY-CUSTOM-LABELS] === FALLBACK === No custom labels identified`,
     );

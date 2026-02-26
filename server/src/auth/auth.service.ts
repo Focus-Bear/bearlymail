@@ -71,14 +71,12 @@ export class AuthService {
           "Your account is pending approval. Please wait for admin approval.",
         );
       }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { password: _password, ...result } = user;
       return result;
     }
     return null;
   }
 
-  // eslint-disable-next-line max-lines-per-function, complexity, max-statements
   async validateGoogleUser(
     profile: GoogleProfile,
     accessToken: string,
@@ -86,190 +84,212 @@ export class AuthService {
   ): Promise<UserWithoutPassword> {
     const email = profile.emails[0].value;
     const isJeremy = email.toLowerCase() === "jeremy@focusbear.io";
-
     let user = await this.usersService.findByEmail(email);
     const isNewUser = !user;
 
-    // Check if refresh token is missing - this is critical for email sync
-    if (!refreshToken) {
-      this.logger.error(
-        `[LOGIN] CRITICAL: Google OAuth did not provide a refresh token for user ${email}`,
-      );
-      writeDebugLog(
-        `[LOGIN] CRITICAL: Google OAuth did not provide a refresh token for user ${email}`,
-      );
-
-      // If this is a new user, we can't proceed without a refresh token
-      if (isNewUser) {
-        throw new Error(
-          "Google OAuth did not provide a refresh token. Please try logging in again. If the issue persists, you may need to revoke app access at https://myaccount.google.com/permissions and try again.",
-        );
-      }
-
-      // For existing users, check if they have a refresh token stored
-      if (user && !user.googleCalendarRefreshToken) {
-        // User has no refresh token stored AND Google didn't provide one
-        // This means email sync will fail - set needsRelogin flag
-        this.logger.error(
-          `[LOGIN] User ${user.id} has no refresh token and Google didn't provide one. Email sync will fail.`,
-        );
-        writeDebugLog(
-          `[LOGIN] User ${user.id} has no refresh token and Google didn't provide one. Email sync will fail.`,
-        );
-
-        // Update user with access token but mark as needing re-login
-        const updates: UserUpdateData = {
-          googleId: profile.id,
-          googleCalendarAccessToken: accessToken,
-          // Mark that user needs to re-authenticate to get refresh token
-          needsRelogin: true,
-        };
-        if (isJeremy) {
-          updates.isApproved = true;
-          updates.isAdmin = true;
-        }
-        await this.usersService.update(user.id, updates);
-        user = await this.usersService.findOne(user.id);
-
-        // Log this as an auth failure so it shows up in auth-failures.log
-        const authLogger = new AuthLogger();
-        authLogger.logAuthFailure(
-          user.id,
-          user.email || null,
-          "LOGIN_MISSING_REFRESH_TOKEN",
-          new Error("Google OAuth did not provide refresh token"),
-          {
-            hasAccessToken: true,
-            hasRefreshToken: false,
-            action:
-              "User logged in but Google did not provide refresh token. Email sync will not work until user re-authenticates.",
-          },
-        );
-
-        // Don't throw error - allow login to proceed but user will see error message
-        this.logger.warn(
-          `[LOGIN] Login allowed but user ${user.id} will need to re-authenticate for email sync to work`,
-        );
-      } else if (user && user.googleCalendarRefreshToken) {
-        // User has existing refresh token - preserve it
-        this.logger.log(
-          `[LOGIN] Preserving existing refresh token since Google didn't provide a new one`,
-        );
-        writeDebugLog(
-          `[LOGIN] Preserving existing refresh token since Google didn't provide a new one`,
-        );
-      }
-    }
+    await this.handleMissingRefreshToken(
+      user,
+      email,
+      isJeremy,
+      accessToken,
+      profile.id,
+      refreshToken,
+    );
 
     if (!user) {
-      // Create new user - but we already checked for refresh token above
-      if (!refreshToken) {
-        // Can't create new user without refresh token - this is critical
-        throw new Error(
-          "Google OAuth did not provide a refresh token. Please try logging in again. If the issue persists, you may need to revoke app access at https://myaccount.google.com/permissions and try again.",
-        );
-      }
-      const guessedName = profile.displayName || guessNameFromEmail(email);
-      user = await this.usersService.create({
+      user = await this.createGoogleUser(
         email,
-        name: guessedName,
-        displayName: guessedName,
-        // No password for Google users
-        password: "",
-        googleId: profile.id,
-        googleCalendarAccessToken: accessToken,
-        googleCalendarRefreshToken: refreshToken,
-        // Auto-approve jeremy
-        isApproved: isJeremy,
-        // Make jeremy admin
-        isAdmin: isJeremy,
-        // New login = no need to relogin
-        needsRelogin: false,
-      });
+        profile,
+        accessToken,
+        refreshToken,
+        isJeremy,
+      );
     } else {
-      // Update tokens for existing user
-      // Also ensure jeremy is approved and admin
+      user = await this.updateGoogleUser(
+        user,
+        profile,
+        accessToken,
+        refreshToken,
+        isJeremy,
+      );
+    }
+
+    user = await this.checkWaitlistApproval(user, email, isJeremy);
+    this.logLoginSuccess(user, isNewUser);
+    this.scheduleSyncJobs(user.id);
+
+    const { password: _password, ...result } = user;
+    return result;
+  }
+
+  private async handleMissingRefreshToken(
+    user: User | null,
+    email: string,
+    isJeremy: boolean,
+    accessToken: string,
+    profileId: string,
+    refreshToken: string,
+  ): Promise<void> {
+    if (refreshToken) return;
+    this.logger.error(
+      `[LOGIN] CRITICAL: Google OAuth did not provide a refresh token for user ${email}`,
+    );
+    writeDebugLog(
+      `[LOGIN] CRITICAL: Google OAuth did not provide a refresh token for user ${email}`,
+    );
+    if (!user) {
+      throw new Error(
+        "Google OAuth did not provide a refresh token. Please try logging in again. If the issue persists, you may need to revoke app access at https://myaccount.google.com/permissions and try again.",
+      );
+    }
+    if (!user.googleCalendarRefreshToken) {
+      this.logger.error(
+        `[LOGIN] User ${user.id} has no refresh token and Google didn't provide one. Email sync will fail.`,
+      );
+      writeDebugLog(
+        `[LOGIN] User ${user.id} has no refresh token and Google didn't provide one. Email sync will fail.`,
+      );
       const updates: UserUpdateData = {
-        googleId: profile.id,
+        googleId: profileId,
         googleCalendarAccessToken: accessToken,
-        // Only update refresh token if we got a new one, otherwise preserve existing
-        ...(refreshToken ? { googleCalendarRefreshToken: refreshToken } : {}),
-        // Only clear if we got refresh token
-        needsRelogin: refreshToken ? false : user.needsRelogin || false,
+        needsRelogin: true,
       };
       if (isJeremy) {
         updates.isApproved = true;
         updates.isAdmin = true;
       }
-      const logMsg1 = `[LOGIN] Updating user ${user.id} with tokens. Current updatedAt: ${user.updatedAt?.toISOString() || "null"}`;
-      this.logger.log(logMsg1);
-      writeDebugLog(logMsg1);
-
-      const logMsg2 = `[LOGIN] Updates to apply: ${JSON.stringify({ ...updates, googleCalendarAccessToken: updates.googleCalendarAccessToken ? "[REDACTED]" : null, googleCalendarRefreshToken: updates.googleCalendarRefreshToken ? "[REDACTED]" : null })}`;
-      this.logger.log(logMsg2);
-      writeDebugLog(logMsg2);
-
-      const updatedUser = await this.usersService.update(user.id, updates);
-
-      const logMsg3 = `[LOGIN] User updated. New updatedAt: ${updatedUser.updatedAt?.toISOString() || "null"}`;
-      this.logger.log(logMsg3);
-      writeDebugLog(logMsg3);
-
-      user = await this.usersService.findOne(user.id);
-
-      const logMsg4 = `[LOGIN] User re-fetched. Final updatedAt: ${user.updatedAt?.toISOString() || "null"}`;
-      this.logger.log(logMsg4);
-      writeDebugLog(logMsg4);
-
-      const logMsg5 = `[LOGIN] Final user state - hasRefreshToken: ${!!user.googleCalendarRefreshToken}, hasAccessToken: ${!!user.googleCalendarAccessToken}`;
-      this.logger.log(logMsg5);
-      writeDebugLog(logMsg5);
-    }
-
-    // Check if user is approved (unless it's jeremy who was just auto-approved)
-    if (!user.isApproved && !isJeremy) {
-      // Check if user is on the waitlist and approved there
-      this.logger.log(
-        `[LOGIN] User ${user.id} (${email}) is not approved, checking waitlist...`,
+      await this.usersService.update(user.id, updates);
+      const refreshedUser = await this.usersService.findOne(user.id);
+      new AuthLogger().logAuthFailure(
+        refreshedUser.id,
+        refreshedUser.email || null,
+        "LOGIN_MISSING_REFRESH_TOKEN",
+        new Error("Google OAuth did not provide refresh token"),
+        {
+          hasAccessToken: true,
+          hasRefreshToken: false,
+          action:
+            "User logged in but Google did not provide refresh token. Email sync will not work until user re-authenticates.",
+        },
       );
-      const waitlistEntry = await this.waitlistService.findByEmail(email);
-      this.logger.log(
-        `[LOGIN] Waitlist lookup result for ${email}: ${waitlistEntry ? `found (approved: ${waitlistEntry.approved})` : "not found"}`,
+      this.logger.warn(
+        `[LOGIN] Login allowed but user ${user.id} will need to re-authenticate for email sync to work`,
       );
-      if (waitlistEntry?.approved) {
-        // User is approved on waitlist - auto-approve them for OAuth login
-        this.logger.log(
-          `[LOGIN] Auto-approving user ${user.id} - approved on waitlist`,
-        );
-        await this.usersService.update(user.id, { isApproved: true });
-        user = await this.usersService.findOne(user.id);
-        this.logger.log(
-          `[LOGIN] User ${user.id} auto-approved successfully, isApproved: ${user.isApproved}`,
-        );
-      } else if (waitlistEntry) {
-        // User is on waitlist but not yet approved
-        this.logger.warn(
-          `[LOGIN] User ${email} is on waitlist but not approved yet`,
-        );
-        throw new Error(
-          "Your account is pending approval. Please wait for admin approval.",
-        );
-      } else {
-        // User is not on the waitlist
-        this.logger.warn(`[LOGIN] User ${email} is not on the waitlist`);
-        throw new Error(
-          "You need to join the waitlist first. Please sign up at our website.",
-        );
-      }
+    } else {
+      this.logger.log(
+        `[LOGIN] Preserving existing refresh token since Google didn't provide a new one`,
+      );
+      writeDebugLog(
+        `[LOGIN] Preserving existing refresh token since Google didn't provide a new one`,
+      );
     }
+  }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password: _password, ...result } = user;
+  private async createGoogleUser(
+    email: string,
+    profile: GoogleProfile,
+    accessToken: string,
+    refreshToken: string,
+    isJeremy: boolean,
+  ): Promise<User> {
+    if (!refreshToken) {
+      throw new Error(
+        "Google OAuth did not provide a refresh token. Please try logging in again. If the issue persists, you may need to revoke app access at https://myaccount.google.com/permissions and try again.",
+      );
+    }
+    const guessedName = profile.displayName || guessNameFromEmail(email);
+    return this.usersService.create({
+      email,
+      name: guessedName,
+      displayName: guessedName,
+      password: "",
+      googleId: profile.id,
+      googleCalendarAccessToken: accessToken,
+      googleCalendarRefreshToken: refreshToken,
+      isApproved: isJeremy,
+      isAdmin: isJeremy,
+      needsRelogin: false,
+    });
+  }
 
-    // Log successful login
+  private async updateGoogleUser(
+    user: User,
+    profile: GoogleProfile,
+    accessToken: string,
+    refreshToken: string,
+    isJeremy: boolean,
+  ): Promise<User> {
+    const updates: UserUpdateData = {
+      googleId: profile.id,
+      googleCalendarAccessToken: accessToken,
+      ...(refreshToken ? { googleCalendarRefreshToken: refreshToken } : {}),
+      needsRelogin: refreshToken ? false : user.needsRelogin || false,
+    };
+    if (isJeremy) {
+      updates.isApproved = true;
+      updates.isAdmin = true;
+    }
+    const logMsg1 = `[LOGIN] Updating user ${user.id} with tokens. Current updatedAt: ${user.updatedAt?.toISOString() || "null"}`;
+    this.logger.log(logMsg1);
+    writeDebugLog(logMsg1);
+    const logMsg2 = `[LOGIN] Updates to apply: ${JSON.stringify({ ...updates, googleCalendarAccessToken: updates.googleCalendarAccessToken ? "[REDACTED]" : null, googleCalendarRefreshToken: updates.googleCalendarRefreshToken ? "[REDACTED]" : null })}`;
+    this.logger.log(logMsg2);
+    writeDebugLog(logMsg2);
+    const updatedUser = await this.usersService.update(user.id, updates);
+    const logMsg3 = `[LOGIN] User updated. New updatedAt: ${updatedUser.updatedAt?.toISOString() || "null"}`;
+    this.logger.log(logMsg3);
+    writeDebugLog(logMsg3);
+    const refreshedUser = await this.usersService.findOne(user.id);
+    const logMsg4 = `[LOGIN] User re-fetched. Final updatedAt: ${refreshedUser.updatedAt?.toISOString() || "null"}`;
+    this.logger.log(logMsg4);
+    writeDebugLog(logMsg4);
+    const logMsg5 = `[LOGIN] Final user state - hasRefreshToken: ${!!refreshedUser.googleCalendarRefreshToken}, hasAccessToken: ${!!refreshedUser.googleCalendarAccessToken}`;
+    this.logger.log(logMsg5);
+    writeDebugLog(logMsg5);
+    return refreshedUser;
+  }
+
+  private async checkWaitlistApproval(
+    user: User,
+    email: string,
+    isJeremy: boolean,
+  ): Promise<User> {
+    if (user.isApproved || isJeremy) return user;
+    this.logger.log(
+      `[LOGIN] User ${user.id} (${email}) is not approved, checking waitlist...`,
+    );
+    const waitlistEntry = await this.waitlistService.findByEmail(email);
+    this.logger.log(
+      `[LOGIN] Waitlist lookup result for ${email}: ${waitlistEntry ? `found (approved: ${waitlistEntry.approved})` : "not found"}`,
+    );
+    if (waitlistEntry?.approved) {
+      this.logger.log(
+        `[LOGIN] Auto-approving user ${user.id} - approved on waitlist`,
+      );
+      await this.usersService.update(user.id, { isApproved: true });
+      const approvedUser = await this.usersService.findOne(user.id);
+      this.logger.log(
+        `[LOGIN] User ${approvedUser.id} auto-approved successfully, isApproved: ${approvedUser.isApproved}`,
+      );
+      return approvedUser;
+    }
+    if (waitlistEntry) {
+      this.logger.warn(
+        `[LOGIN] User ${email} is on waitlist but not approved yet`,
+      );
+      throw new Error(
+        "Your account is pending approval. Please wait for admin approval.",
+      );
+    }
+    this.logger.warn(`[LOGIN] User ${email} is not on the waitlist`);
+    throw new Error(
+      "You need to join the waitlist first. Please sign up at our website.",
+    );
+  }
+
+  private logLoginSuccess(user: User, isNewUser: boolean): void {
     try {
-      const authLogger = new AuthLogger();
-      authLogger.logAuthFailure(
+      new AuthLogger().logAuthFailure(
         user.id,
         user.email || null,
         "LOGIN_SUCCESS",
@@ -281,26 +301,25 @@ export class AuthService {
           action: "User successfully logged in via Google OAuth",
         },
       );
-    } catch (logError) {
+    } catch (loginLogError) {
       logError(
         "Failed to log login success",
-        logError instanceof Error ? logError : new Error(String(logError)),
+        loginLogError instanceof Error
+          ? loginLogError
+          : new Error(String(loginLogError)),
       );
     }
+  }
 
-    // Trigger email sync asynchronously via queue with a small delay to let tokens stabilize
-    // Delay by 2 seconds to ensure tokens are fully saved in DB before sync attempts
-    // Use singletonKey to prevent duplicate sync jobs for the same user
+  private scheduleSyncJobs(userId: string): void {
     setTimeout(() => {
       this.boss
         .send(
           "fetch-user-emails",
-          { userId: user.id },
+          { userId },
           {
-            // Background fetch after login
             priority: getJobPriority("fetch-user-emails", false),
-            singletonKey: `fetch-user-emails-${user.id}`,
-            // Don't allow another fetch for same user within 5 minutes
+            singletonKey: `fetch-user-emails-${userId}`,
             singletonMinutes: 5,
           },
         )
@@ -310,15 +329,11 @@ export class AuthService {
             err instanceof Error ? err : new Error(String(err)),
           ),
         );
-
       this.boss
         .send(
           "sync-contacts",
-          { userId: user.id },
-          {
-            singletonKey: `sync-contacts-${user.id}`,
-            singletonMinutes: 60,
-          },
+          { userId },
+          { singletonKey: `sync-contacts-${userId}`, singletonMinutes: 60 },
         )
         .catch((err) =>
           logError(
@@ -327,8 +342,6 @@ export class AuthService {
           ),
         );
     }, 2000);
-
-    return result;
   }
 
   async validateMicrosoftUser(
@@ -404,7 +417,6 @@ export class AuthService {
       }
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password: _password, ...result } = user;
     return result;
   }
@@ -477,7 +489,6 @@ export class AuthService {
       }
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password: _password, ...result } = user;
     return result;
   }
@@ -519,7 +530,6 @@ export class AuthService {
     };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async register(_email: string, _password: string, _name?: string) {
     // Registration is disabled - users must join waitlist first
     throw new Error(

@@ -23,7 +23,6 @@ import { EncryptionHelper } from "../encryption/encryption.helper";
 @Controller("priority")
 @UseGuards(JwtAuthGuard)
 export class PriorityController {
-  // eslint-disable-next-line max-params
   constructor(
     private readonly triageSuggestionsService: TriageSuggestionsService,
     private readonly priorityService: PriorityService,

@@ -46,6 +46,9 @@ import { AwsModule } from "../aws/aws.module";
 import { ScheduledEmailsModule } from "../scheduled-emails/scheduled-emails.module";
 import { SyncHistoryLog } from "../database/entities/sync-history-log.entity";
 import { SyncHistoryService } from "./sync-history.service";
+import { EmailAdminService } from "./email-admin.service";
+import { EmailDebugCategoryService } from "./email-debug-category.service";
+import { EmailSearchRankingService } from "./email-search-ranking.service";
 
 @Module({
   imports: [
@@ -100,6 +103,9 @@ import { SyncHistoryService } from "./sync-history.service";
     EmailSyncProcessor,
     LLMProcessor,
     ArchiveEmailProcessor,
+    EmailAdminService,
+    EmailDebugCategoryService,
+    EmailSearchRankingService,
   ],
   exports: [
     EmailsService,

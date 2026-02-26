@@ -26,7 +26,8 @@ export class AutoResponderProcessor implements OnModuleInit {
     await this.boss.work(
       "auto-responder",
       {
-        teamConcurrency: 5, // Process up to 5 jobs concurrently
+        // Process up to 5 jobs concurrently
+        teamConcurrency: 5,
         teamSize: 1,
       },
       async (job) => {
@@ -101,8 +102,10 @@ export class AutoResponderProcessor implements OnModuleInit {
           priority: getJobPriority("auto-responder"),
           retryLimit: 2,
           retryDelay: QUEUE_CONFIG.RETRY_DELAY_SECONDS,
-          expireInMinutes: 60, // Expire after 1 hour
-          singletonKey: `auto-responder-${emailThreadId}`, // Prevent duplicate jobs for same thread
+          // Expire after 1 hour
+          expireInMinutes: 60,
+          // Prevent duplicate jobs for same thread
+          singletonKey: `auto-responder-${emailThreadId}`,
         },
       );
 

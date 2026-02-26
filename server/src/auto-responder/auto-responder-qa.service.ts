@@ -11,8 +11,7 @@ import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { QASearchResult } from "./types/auto-responder.types";
 import { RATIOS } from "../constants/percentages";
 import { LLM_CONFIG } from "./auto-responder-constants";
-
-const LLM_OP_GENERATE_QA_ANSWER = "generate_qa_answer";
+import { LLM_OP_GENERATE_QA_ANSWER } from "../llm/llm-operations";
 
 /**
  * Service for generating Q&A answers from user context
@@ -38,43 +37,14 @@ export class AutoResponderQaService {
     minConfidence: number,
   ): Promise<QASearchResult | null> {
     try {
-      // Get Q&A context entries
       const qaContexts = await this.userContextRepository.find({
-        where: {
-          userId,
-          contextKey: ContextKey.Q_AND_A,
-        },
+        where: { userId, contextKey: ContextKey.Q_AND_A },
       });
+      if (qaContexts.length === 0) return null;
 
-      if (qaContexts.length === 0) {
-        return null;
-      }
+      const qaPairs = this.parseQAPairs(qaContexts);
+      if (qaPairs.length === 0) return null;
 
-      // Parse Q&A pairs from context
-      const qaPairs: Array<{ question: string; answer: string }> = [];
-      for (const ctx of qaContexts) {
-        try {
-          const parsed = JSON.parse(ctx.contextValue);
-          if (parsed.question && parsed.answer) {
-            qaPairs.push(parsed);
-          }
-        } catch {
-          // If not JSON, try to parse as "Q: ... A: ..." format
-          const match = ctx.contextValue.match(/Q:\s*(.*?)\s*A:\s*(.*)/is);
-          if (match) {
-            qaPairs.push({
-              question: match[1].trim(),
-              answer: match[2].trim(),
-            });
-          }
-        }
-      }
-
-      if (qaPairs.length === 0) {
-        return null;
-      }
-
-      // Use LLM to find relevant answer
       const promptConfig = getPrompt("generate_qa_answer");
       if (!promptConfig) {
         this.logger.warn("generate_qa_answer prompt not found");
@@ -86,7 +56,6 @@ export class AutoResponderQaService {
         null,
         LLM_CONFIG.MAX_BODY_LENGTH_FOR_QA,
       );
-
       const prompt = renderPrompt(promptConfig.prompt || "", {
         subject,
         body: cleanedBody,
@@ -104,30 +73,55 @@ export class AutoResponderQaService {
         },
         undefined,
         userId,
-        LLM_OP_GENERATE_QA_ANSWER as any,
+        LLM_OP_GENERATE_QA_ANSWER,
       );
 
-      // Parse response
-      try {
-        const jsonMatch = response.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          if (parsed.confidence >= minConfidence && parsed.answer) {
-            return {
-              answer: parsed.answer,
-              confidence: parsed.confidence,
-              sources: parsed.sources || [],
-            };
-          }
-        }
-      } catch (parseError) {
-        this.logger.warn("Failed to parse Q&A response", parseError);
-      }
-
-      return null;
+      return this.parseQALLMResponse(response, minConfidence);
     } catch (error) {
       this.logger.error("Failed to generate Q&A answer", error);
       return null;
     }
+  }
+
+  private parseQAPairs(
+    qaContexts: UserContext[],
+  ): Array<{ question: string; answer: string }> {
+    const qaPairs: Array<{ question: string; answer: string }> = [];
+    for (const ctx of qaContexts) {
+      try {
+        const parsed = JSON.parse(ctx.contextValue);
+        if (parsed.question && parsed.answer) {
+          qaPairs.push(parsed);
+        }
+      } catch {
+        const match = ctx.contextValue.match(/Q:\s*(.*?)\s*A:\s*(.*)/is);
+        if (match) {
+          qaPairs.push({ question: match[1].trim(), answer: match[2].trim() });
+        }
+      }
+    }
+    return qaPairs;
+  }
+
+  private parseQALLMResponse(
+    response: string,
+    minConfidence: number,
+  ): QASearchResult | null {
+    try {
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed.confidence >= minConfidence && parsed.answer) {
+          return {
+            answer: parsed.answer,
+            confidence: parsed.confidence,
+            sources: parsed.sources || [],
+          };
+        }
+      }
+    } catch (parseError) {
+      this.logger.warn("Failed to parse Q&A response", parseError);
+    }
+    return null;
   }
 }

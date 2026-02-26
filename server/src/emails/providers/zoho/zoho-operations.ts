@@ -1,6 +1,7 @@
 import { Logger } from "@nestjs/common";
 import { AxiosInstance } from "axios";
 import { isApiError } from "../../../types/common";
+import { ZohoMailMessage } from "./zoho-message-parser";
 
 const logger = new Logger("ZohoOperations");
 
@@ -117,12 +118,15 @@ function parseRecipientsToZoho(
 export async function sendReplyViaZoho(
   zohoClient: AxiosInstance,
   zohoAccountId: string,
-  to: string,
-  subject: string,
-  htmlBody: string,
-  threadId: string,
-  cc?: string,
+  options: {
+    to: string;
+    subject: string;
+    htmlBody: string;
+    threadId: string;
+    cc?: string;
+  },
 ): Promise<{ messageId: string }> {
+  const { to, subject, htmlBody, threadId, cc } = options;
   const message: Record<string, unknown> = {
     to: parseRecipientsToZoho(to),
     subject: subject.startsWith("Re:") ? subject : `Re: ${subject}`,
@@ -145,6 +149,7 @@ export async function sendReplyViaZoho(
 /**
  * Send a new email via Zoho
  */
+
 export async function sendEmailViaZoho(
   zohoClient: AxiosInstance,
   zohoAccountId: string,
@@ -154,7 +159,18 @@ export async function sendEmailViaZoho(
   cc?: Array<{ email: string; name?: string }>,
   bcc?: Array<{ email: string; name?: string }>,
 ): Promise<{ messageId: string; threadId: string }> {
-  const message: any = {
+  interface ZohoRecipient {
+    address: string;
+    personal?: string;
+  }
+  interface ZohoMessageBody {
+    to: ZohoRecipient[];
+    subject: string;
+    content: { html: string };
+    cc?: ZohoRecipient[];
+    bcc?: ZohoRecipient[];
+  }
+  const message: ZohoMessageBody = {
     to: to.map((r) => ({ address: r.email, personal: r.name })),
     subject,
     content: { html: htmlBody },
@@ -182,7 +198,7 @@ export async function searchEmailsViaZoho(
   zohoAccountId: string,
   query: string,
   maxResults: number,
-): Promise<any[]> {
+): Promise<ZohoMailMessage[]> {
   const response = await zohoClient.get(
     `/accounts/${zohoAccountId}/messages/search`,
     {
@@ -199,6 +215,6 @@ export function isAuthError(error: unknown): boolean {
   const apiError = isApiError(error) ? error : null;
   return (
     apiError?.code === 401 ||
-    (apiError?.response && (apiError.response as any).status === 401)
+    (apiError?.response && apiError.response.status === 401)
   );
 }

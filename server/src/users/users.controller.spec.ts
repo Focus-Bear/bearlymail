@@ -200,7 +200,7 @@ describe("UsersController", () => {
       mockDataImportService.importUserData.mockResolvedValue(mockResult);
 
       const result = await controller.importData(mockRequest, {
-        data: importData,
+        importPayload: importData,
       });
 
       expect(result).toEqual(mockResult);
@@ -251,7 +251,7 @@ describe("UsersController", () => {
       mockDataImportService.importUserData.mockResolvedValue(mockResult);
 
       const result = await controller.importData(mockRequest, {
-        data: importData,
+        importPayload: importData,
         options,
       });
 
@@ -267,7 +267,7 @@ describe("UsersController", () => {
       const mockRequest = { user: { userId: "user-123" } };
 
       await expect(
-        controller.importData(mockRequest, { data: null }),
+        controller.importData(mockRequest, { importPayload: null }),
       ).rejects.toThrow(BadRequestException);
     });
   });

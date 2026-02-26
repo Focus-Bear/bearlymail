@@ -54,17 +54,17 @@ export function logError(
 /**
  * Log a warning to both console and PostHog
  * @param message - The warning message
- * @param data - Optional data or context
+ * @param extraInfo - Optional extra info or context
  * @param context - Optional context for PostHog
  */
 export function logWarn(
   message: string,
-  data?: unknown,
+  extraInfo?: unknown,
   context?: Record<string, unknown>,
 ): void {
   // Always log to console
-  if (data) {
-    console.warn(message, data);
+  if (extraInfo) {
+    console.warn(message, extraInfo);
   } else {
     console.warn(message);
   }
@@ -77,7 +77,7 @@ export function logWarn(
       const syntheticError = new Error(message);
       captureGlobalError(syntheticError, {
         severity: "warning",
-        warning_data: data,
+        warning_data: extraInfo,
         ...(context || {}),
       });
     } catch (captureError) {
@@ -128,7 +128,7 @@ export function createLogger(contextName: string) {
      */
     warn: (
       message: string,
-      data?: unknown,
+      extraInfo?: unknown,
       context?: Record<string, unknown>,
     ) => {
       nestLogger.warn(message);
@@ -137,7 +137,7 @@ export function createLogger(contextName: string) {
         const syntheticError = new Error(message);
         captureGlobalError(syntheticError, {
           severity: "warning",
-          warning_data: data,
+          warning_data: extraInfo,
           context: contextName,
           ...(context || {}),
         });

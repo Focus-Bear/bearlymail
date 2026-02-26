@@ -1,0 +1,199 @@
+import {
+  archiveThreadInOffice365,
+  isAuthError,
+  searchEmailsViaOffice365,
+  sendEmailViaOffice365,
+  sendReplyViaOffice365,
+  unarchiveThreadInOffice365,
+} from "./office365-operations";
+import { parseOffice365Message } from "./office365-message-parser";
+import {
+  EmailAttachmentData,
+  EmailRecipient,
+  RawEmailMessage,
+  SendReplyOptions,
+} from "../../interfaces/email-provider.interface";
+import type { Office365Provider } from "../office365.provider";
+
+export async function sendReply(
+  provider: Office365Provider,
+  userId: string,
+  threadId: string,
+  to: string,
+  subject: string,
+  body: string,
+  options?: SendReplyOptions,
+): Promise<{ messageId: string; threadId: string }> {
+  const { htmlBody, cc } = options ?? {};
+  const primaryAccount =
+    await provider.office365AccountsService.findPrimary(userId);
+  if (!primaryAccount) throw new Error("Office 365 account not connected.");
+
+  let { accessToken } = primaryAccount;
+  const graphClient = provider.client.createGraphClient(accessToken);
+
+  try {
+    const result = await sendReplyViaOffice365(
+      graphClient,
+      to,
+      subject,
+      htmlBody || body,
+      cc,
+    );
+    provider.logger.log(`Reply sent for user ${userId} to ${to}`);
+    return { messageId: result.messageId, threadId };
+  } catch (error: unknown) {
+    if (isAuthError(error)) {
+      accessToken = await provider.client.refreshTokenIfNeeded(
+        userId,
+        primaryAccount.id,
+      );
+      return sendReply(provider, userId, threadId, to, subject, body, options);
+    }
+    throw new Error("Failed to send reply");
+  }
+}
+
+export async function sendEmail(
+  provider: Office365Provider,
+  userId: string,
+  to: EmailRecipient[],
+  subject: string,
+  body: string,
+  cc?: EmailRecipient[],
+  bcc?: EmailRecipient[],
+  _attachments?: EmailAttachmentData[],
+): Promise<{ messageId: string; threadId: string }> {
+  const primaryAccount =
+    await provider.office365AccountsService.findPrimary(userId);
+  if (!primaryAccount) throw new Error("Office 365 account not connected.");
+
+  let { accessToken } = primaryAccount;
+  const graphClient = provider.client.createGraphClient(accessToken);
+
+  try {
+    return await sendEmailViaOffice365(graphClient, to, subject, body, cc, bcc);
+  } catch (error: unknown) {
+    if (isAuthError(error)) {
+      accessToken = await provider.client.refreshTokenIfNeeded(
+        userId,
+        primaryAccount.id,
+      );
+      return sendEmail(provider, userId, to, subject, body, cc, bcc);
+    }
+    throw new Error("Failed to send email");
+  }
+}
+
+export async function searchEmails(
+  provider: Office365Provider,
+  userId: string,
+  query: string,
+  maxResults = 50,
+): Promise<RawEmailMessage[]> {
+  const primaryAccount =
+    await provider.office365AccountsService.findPrimary(userId);
+  if (!primaryAccount) return [];
+
+  let { accessToken } = primaryAccount;
+  const graphClient = provider.client.createGraphClient(accessToken);
+
+  try {
+    const messages = await searchEmailsViaOffice365(
+      graphClient,
+      query,
+      maxResults,
+    );
+    return messages
+      .map((msg) => parseOffice365Message(msg))
+      .filter((msg): msg is RawEmailMessage => msg !== null);
+  } catch (error: unknown) {
+    if (isAuthError(error)) {
+      accessToken = await provider.client.refreshTokenIfNeeded(
+        userId,
+        primaryAccount.id,
+      );
+      return searchEmails(provider, userId, query, maxResults);
+    }
+    return [];
+  }
+}
+
+export async function archiveThread(
+  provider: Office365Provider,
+  userId: string,
+  threadId: string,
+): Promise<void> {
+  provider.logger.log(
+    `[Office365 Archive] Starting: userId=${userId}, threadId=${threadId}`,
+  );
+  const primaryAccount =
+    await provider.office365AccountsService.findPrimary(userId);
+  if (!primaryAccount) throw new Error("Office 365 account not connected");
+
+  let { accessToken } = primaryAccount;
+  const graphClient = provider.client.createGraphClient(accessToken);
+
+  try {
+    await archiveThreadInOffice365(userId, threadId, graphClient);
+    await provider.emailsService.updateThreadArchivedStatus(
+      userId,
+      threadId,
+      true,
+    );
+    provider.logger.log(`[Office365 Archive] Thread archived successfully`);
+  } catch (error: unknown) {
+    if (isAuthError(error)) {
+      accessToken = await provider.client.refreshTokenIfNeeded(
+        userId,
+        primaryAccount.id,
+      );
+      await archiveThread(provider, userId, threadId);
+      return;
+    }
+    throw new Error("Failed to archive thread");
+  }
+}
+
+export async function unarchiveThread(
+  provider: Office365Provider,
+  userId: string,
+  threadId: string,
+): Promise<void> {
+  const primaryAccount =
+    await provider.office365AccountsService.findPrimary(userId);
+  if (!primaryAccount) throw new Error("Office 365 account not connected");
+
+  let { accessToken } = primaryAccount;
+  const graphClient = provider.client.createGraphClient(accessToken);
+
+  try {
+    await unarchiveThreadInOffice365(userId, threadId, graphClient);
+    await provider.emailsService.updateThreadArchivedStatus(
+      userId,
+      threadId,
+      false,
+    );
+  } catch (error: unknown) {
+    if (isAuthError(error)) {
+      accessToken = await provider.client.refreshTokenIfNeeded(
+        userId,
+        primaryAccount.id,
+      );
+      await unarchiveThread(provider, userId, threadId);
+      return;
+    }
+    throw new Error("Failed to unarchive thread");
+  }
+}
+
+export async function trashThread(
+  provider: Office365Provider,
+  userId: string,
+  threadId: string,
+): Promise<void> {
+  provider.logger.debug(
+    `trashThread called for Office365 (using archive instead)`,
+  );
+  await archiveThread(provider, userId, threadId);
+}

@@ -8,10 +8,6 @@ import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 
 describe("SummarizationService", () => {
   let service: SummarizationService;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  let emailsService: EmailsService;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  let llmService: LLMService;
 
   const mockEmailsService = {
     getEmailById: jest.fn(),
@@ -60,8 +56,6 @@ describe("SummarizationService", () => {
     }).compile();
 
     service = module.get<SummarizationService>(SummarizationService);
-    emailsService = module.get<EmailsService>(EmailsService);
-    llmService = module.get<LLMService>(LLMService);
   });
 
   afterEach(() => {

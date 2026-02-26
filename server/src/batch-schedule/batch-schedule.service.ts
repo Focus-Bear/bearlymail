@@ -205,7 +205,8 @@ export class BatchScheduleService {
       typeof day === "string" ? parseInt(day, 10) : day,
     );
 
-    const currentDay = now.weekday % DAYS.WEEK; // Luxon uses 1-7 (Mon-Sun), convert to 0-6 (Sun-Sat)
+    // Luxon uses 1-7 (Mon-Sun), convert to 0-6 (Sun-Sat)
+    const currentDay = now.weekday % DAYS.WEEK;
     const currentTime = now.toFormat("HH:mm");
 
     // Parse delivery times and sort them

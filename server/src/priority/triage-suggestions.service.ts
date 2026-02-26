@@ -176,131 +176,21 @@ export class TriageSuggestionsService {
   /**
    * Generate triage suggestions for a list of emails
    */
-  // eslint-disable-next-line max-lines-per-function
   async generateSuggestions(
     userId: string,
     emailIds: string[],
   ): Promise<TriageSuggestion[]> {
     const perf = new TriagePerformanceTracker(`triage-suggestions-${userId}`);
 
-    // Join with email_threads to get thread-level properties using raw SQL for speed
-    const endEmailQuery = perf.startSpan(
-      "email_query",
-      TRIAGE_PERF_BUDGETS.EMAIL_QUERY,
-    );
-    const rawResult = await this.emailRepository.query(
-      `SELECT
-        email.id,
-        email."userId",
-        email."threadId",
-        email."emailThreadId",
-        email."from",
-        email."fromName",
-        email.subject,
-        thread."priorityExplanation",
-        email."receivedAt",
-        thread."starCount",
-        thread."isArchived"
-      FROM emails email
-      INNER JOIN email_threads thread ON thread.id = email."emailThreadId"
-      WHERE email.id = ANY($1::uuid[]) AND email."userId" = $2`,
-      [emailIds, userId],
-    );
-    endEmailQuery();
-
-    // Map raw results to Email-like objects (Partial<Email> with thread properties)
-    const emails: EmailWithThreadProps[] = (rawResult as EmailQueryRow[]).map(
-      (row) => {
-        // Parse priorityExplanation (stored as encrypted JSON)
-        let priorityExplanation: unknown = null;
-        if (row.priorityExplanation) {
-          try {
-            const decryptedExplanation = EncryptionHelper.decrypt(
-              row.priorityExplanation,
-            );
-            if (decryptedExplanation) {
-              priorityExplanation = JSON.parse(decryptedExplanation);
-            }
-          } catch (error) {
-            this.logger.warn(
-              `Failed to decrypt/parse priorityExplanation for thread (email ${row.id}):`,
-              error,
-            );
-            priorityExplanation = null;
-          }
-        }
-
-        return {
-          id: row.id,
-          userId: row.userId,
-          threadId: row.threadId,
-          emailThreadId: row.emailThreadId,
-          from: EncryptionHelper.decrypt(row.from) ?? "",
-          fromName: EncryptionHelper.decrypt(row.fromName ?? "") ?? null,
-          subject: EncryptionHelper.decrypt(row.subject) ?? "",
-          priorityExplanation,
-          receivedAt: row.receivedAt,
-          starCount: row.starCount ?? 0,
-          isArchived: row.isArchived ?? false,
-        };
-      },
-    );
+    const emails = await this.fetchEmailsWithThreadData(userId, emailIds, perf);
 
     if (emails.length === 0) {
       perf.finish();
       return [];
     }
 
-    // Get user's context for prioritization using raw query for speed
-    const endContextQuery = perf.startSpan(
-      "context_query",
-      TRIAGE_PERF_BUDGETS.CONTEXT_QUERY,
-    );
-    const contexts = (await this.userContextRepository.query(
-      `SELECT "contextId", "userId", "contextKey", "contextValue", priority, explanation
-       FROM user_contexts WHERE "userId" = $1`,
-      [userId],
-    )) as UserContext[];
-    endContextQuery();
-
-    // Get user's email history for pattern analysis using raw SQL for speed
-    const endHistoryQuery = perf.startSpan(
-      "history_query",
-      TRIAGE_PERF_BUDGETS.HISTORY_QUERY,
-    );
-    const historyRaw = await this.emailRepository.query(
-      `SELECT
-        email.id,
-        email."userId",
-        email."threadId",
-        email."from",
-        email."fromName",
-        email.subject,
-        email."receivedAt",
-        thread."starCount",
-        thread."isArchived"
-      FROM emails email
-      INNER JOIN email_threads thread ON thread.id = email."emailThreadId"
-      WHERE email."userId" = $1
-      ORDER BY email."receivedAt" DESC
-      LIMIT 50`,
-      [userId],
-    );
-    endHistoryQuery();
-
-    const recentEmails: EmailWithThreadProps[] = (
-      historyRaw as EmailQueryRow[]
-    ).map((row) => ({
-      id: row.id,
-      userId: row.userId,
-      threadId: row.threadId,
-      from: row.from,
-      fromName: row.fromName,
-      subject: row.subject,
-      receivedAt: row.receivedAt,
-      starCount: row.starCount ?? 0,
-      isArchived: row.isArchived ?? false,
-    }));
+    const contexts = await this.fetchUserContexts(userId, perf);
+    const recentEmails = await this.fetchRecentEmailHistory(userId, perf);
 
     // Analyze patterns from recent behavior
     const endPatternAnalysis = perf.startSpan(
@@ -310,24 +200,13 @@ export class TriageSuggestionsService {
     const senderPatterns = this.analyzeSenderPatterns(recentEmails);
     endPatternAnalysis();
 
-    const suggestions: TriageSuggestion[] = [];
-
-    // Process emails in batches
-    const endSuggestionGen = perf.startSpan(
-      "suggestion_generation",
-      TRIAGE_PERF_BUDGETS.SUGGESTION_GENERATION,
+    const suggestions = await this.generateSuggestionsForBatches(
+      userId,
+      emails,
+      contexts,
+      senderPatterns,
+      perf,
     );
-    const batchSize = 5;
-    for (let i = 0; i < emails.length; i += batchSize) {
-      const batch = emails.slice(i, i + batchSize);
-      const batchSuggestions = await Promise.all(
-        batch.map((email) =>
-          this.suggestForEmail(userId, email, contexts, senderPatterns),
-        ),
-      );
-      suggestions.push(...batchSuggestions);
-    }
-    endSuggestionGen();
 
     perf.finish();
     return suggestions;
@@ -343,81 +222,27 @@ export class TriageSuggestionsService {
     senderPatterns: Map<string, { avgStarCount: number; archiveRate: number }>,
   ): Promise<TriageSuggestion> {
     try {
-      // Get priority explanation from thread
-      let thread = null;
-      if (email.emailThreadId) {
-        thread = await this.emailThreadRepository.findOne({
-          where: { id: email.emailThreadId },
-        });
-      }
+      const priorityScore = await this.getPriorityScoreForEmail(email);
+      const suggestedStarCountFromPriority =
+        this.priorityScoreToStarCount(priorityScore);
 
-      const priorityScore =
-        calculateScoreFromBreakdown(thread?.priorityExplanation) ||
-        TRIAGE_THRESHOLDS.DEFAULT_PRIORITY;
-      let suggestedStarCountFromPriority: number;
-      if (priorityScore >= TRIAGE_THRESHOLDS.PRIORITY_HIGH) {
-        suggestedStarCountFromPriority = STAR_COUNTS.HIGH;
-      } else if (priorityScore >= TRIAGE_THRESHOLDS.PRIORITY_MEDIUM) {
-        suggestedStarCountFromPriority = STAR_COUNTS.MEDIUM;
-      } else if (priorityScore >= TRIAGE_THRESHOLDS.PRIORITY_LOW) {
-        suggestedStarCountFromPriority = STAR_COUNTS.LOW;
-      } else {
-        suggestedStarCountFromPriority = STAR_COUNTS.NONE;
-      }
-
-      // Check if sender is VIP
-      const vipContacts = contexts.filter(
-        (c) => c.contextKey === ContextKey.VIP_CONTACT,
-      );
-      const isVip = vipContacts.some(
-        (vip) =>
-          email.from?.toLowerCase().includes(vip.contextValue.toLowerCase()) ||
-          email.fromName
-            ?.toLowerCase()
-            .includes(vip.contextValue.toLowerCase()),
-      );
-
-      if (isVip) {
+      const vipResult = this.checkVipStatus(email, contexts);
+      if (vipResult) {
         return {
-          emailId: email.id,
+          ...vipResult,
           suggestedStarCount: Math.max(
             STAR_COUNTS.MEDIUM,
             suggestedStarCountFromPriority,
           ),
-          suggestedArchive: false,
-          confidence: TRIAGE_THRESHOLDS.VIP_CONFIDENCE,
-          reasoning: `VIP contact - always prioritize`,
         };
       }
 
-      // Check historical patterns
-      const senderPattern = senderPatterns.get(email.from.toLowerCase());
-
-      if (
-        senderPattern &&
-        senderPattern.avgStarCount >= TRIAGE_THRESHOLDS.HIGH_STAR_AVG
-      ) {
-        return {
-          emailId: email.id,
-          suggestedStarCount: Math.round(senderPattern.avgStarCount),
-          suggestedArchive:
-            senderPattern.archiveRate > TRIAGE_THRESHOLDS.HIGH_ARCHIVE_RATE,
-          confidence: TRIAGE_THRESHOLDS.PATTERN_CONFIDENCE,
-          reasoning: `You typically star emails from this sender`,
-        };
-      }
-
-      if (
-        senderPattern &&
-        senderPattern.archiveRate > TRIAGE_THRESHOLDS.HIGH_ARCHIVE_RATE
-      ) {
-        return {
-          emailId: email.id,
-          suggestedStarCount: STAR_COUNTS.NONE,
-          suggestedArchive: true,
-          confidence: TRIAGE_THRESHOLDS.ARCHIVE_CONFIDENCE,
-          reasoning: `You typically archive emails from this sender`,
-        };
+      const patternResult = this.checkSenderPatternResult(
+        email,
+        senderPatterns,
+      );
+      if (patternResult) {
+        return patternResult;
       }
 
       // Use simple heuristics instead of LLM for performance
@@ -428,19 +253,7 @@ export class TriageSuggestionsService {
         suggestedStarCount: suggestedStarCountFromPriority,
         suggestedArchive: false,
         confidence: TRIAGE_THRESHOLDS.DEFAULT_CONFIDENCE,
-        reasoning: (() => {
-          let priorityLevel: string;
-          if (priorityScore >= TRIAGE_THRESHOLDS.PRIORITY_HIGH) {
-            priorityLevel = "High priority";
-          } else if (priorityScore >= TRIAGE_THRESHOLDS.PRIORITY_MEDIUM) {
-            priorityLevel = "Medium priority";
-          } else if (priorityScore >= TRIAGE_THRESHOLDS.PRIORITY_LOW) {
-            priorityLevel = "Low priority";
-          } else {
-            priorityLevel = "Very low priority";
-          }
-          return `Based on priority score: ${priorityScore.toFixed(1)}. ${priorityLevel}`;
-        })(),
+        reasoning: this.buildPriorityReasoning(priorityScore),
       };
 
       // NOTE: LLM suggestions disabled for performance (14s+ delay)
@@ -623,5 +436,297 @@ Respond with ONLY a JSON object:
     this.logger.log(
       `User overrode suggestion for email ${emailId}: suggested ${suggestion.suggestedStarCount} stars/${suggestion.suggestedArchive} archive, user chose ${userAction.starCount} stars/${userAction.archived} archive`,
     );
+  }
+
+  /**
+   * Fetch the target emails joined with their thread data via raw SQL
+   */
+  private async fetchEmailsWithThreadData(
+    userId: string,
+    emailIds: string[],
+    perf: TriagePerformanceTracker,
+  ): Promise<EmailWithThreadProps[]> {
+    const endEmailQuery = perf.startSpan(
+      "email_query",
+      TRIAGE_PERF_BUDGETS.EMAIL_QUERY,
+    );
+    const rawResult = await this.emailRepository.query(
+      `SELECT
+        email.id,
+        email."userId",
+        email."threadId",
+        email."emailThreadId",
+        email."from",
+        email."fromName",
+        email.subject,
+        thread."priorityExplanation",
+        email."receivedAt",
+        thread."starCount",
+        thread."isArchived"
+      FROM emails email
+      INNER JOIN email_threads thread ON thread.id = email."emailThreadId"
+      WHERE email.id = ANY($1::uuid[]) AND email."userId" = $2`,
+      [emailIds, userId],
+    );
+    endEmailQuery();
+
+    // Map raw results to Email-like objects (Partial<Email> with thread properties)
+    return (rawResult as EmailQueryRow[]).map((row) =>
+      this.mapEmailQueryRowToEmailWithThreadProps(row),
+    );
+  }
+
+  /**
+   * Map a raw SQL email+thread query row to an EmailWithThreadProps object,
+   * decrypting encrypted fields as needed
+   */
+  private mapEmailQueryRowToEmailWithThreadProps(
+    row: EmailQueryRow,
+  ): EmailWithThreadProps {
+    // Parse priorityExplanation (stored as encrypted JSON)
+    let priorityExplanation: unknown = null;
+    if (row.priorityExplanation) {
+      try {
+        const decryptedExplanation = EncryptionHelper.decrypt(
+          row.priorityExplanation,
+        );
+        if (decryptedExplanation) {
+          priorityExplanation = JSON.parse(decryptedExplanation);
+        }
+      } catch (error) {
+        this.logger.warn(
+          `Failed to decrypt/parse priorityExplanation for thread (email ${row.id}):`,
+          error,
+        );
+        priorityExplanation = null;
+      }
+    }
+
+    return {
+      id: row.id,
+      userId: row.userId,
+      threadId: row.threadId,
+      emailThreadId: row.emailThreadId,
+      from: EncryptionHelper.decrypt(row.from) ?? "",
+      fromName: EncryptionHelper.decrypt(row.fromName ?? "") ?? null,
+      subject: EncryptionHelper.decrypt(row.subject) ?? "",
+      priorityExplanation,
+      receivedAt: row.receivedAt,
+      starCount: row.starCount ?? 0,
+      isArchived: row.isArchived ?? false,
+    };
+  }
+
+  /**
+   * Fetch user context entries using raw SQL for speed
+   */
+  private async fetchUserContexts(
+    userId: string,
+    perf: TriagePerformanceTracker,
+  ): Promise<UserContext[]> {
+    const endContextQuery = perf.startSpan(
+      "context_query",
+      TRIAGE_PERF_BUDGETS.CONTEXT_QUERY,
+    );
+    const contexts = (await this.userContextRepository.query(
+      `SELECT "contextId", "userId", "contextKey", "contextValue", priority, explanation
+       FROM user_contexts WHERE "userId" = $1`,
+      [userId],
+    )) as UserContext[];
+    endContextQuery();
+    return contexts;
+  }
+
+  /**
+   * Fetch the 50 most recent emails for the user to analyze sender patterns
+   */
+  private async fetchRecentEmailHistory(
+    userId: string,
+    perf: TriagePerformanceTracker,
+  ): Promise<EmailWithThreadProps[]> {
+    const endHistoryQuery = perf.startSpan(
+      "history_query",
+      TRIAGE_PERF_BUDGETS.HISTORY_QUERY,
+    );
+    const historyRaw = await this.emailRepository.query(
+      `SELECT
+        email.id,
+        email."userId",
+        email."threadId",
+        email."from",
+        email."fromName",
+        email.subject,
+        email."receivedAt",
+        thread."starCount",
+        thread."isArchived"
+      FROM emails email
+      INNER JOIN email_threads thread ON thread.id = email."emailThreadId"
+      WHERE email."userId" = $1
+      ORDER BY email."receivedAt" DESC
+      LIMIT 50`,
+      [userId],
+    );
+    endHistoryQuery();
+
+    return (historyRaw as EmailQueryRow[]).map((row) => ({
+      id: row.id,
+      userId: row.userId,
+      threadId: row.threadId,
+      from: row.from,
+      fromName: row.fromName,
+      subject: row.subject,
+      receivedAt: row.receivedAt,
+      starCount: row.starCount ?? 0,
+      isArchived: row.isArchived ?? false,
+    }));
+  }
+
+  /**
+   * Process emails in batches and collect suggestions
+   */
+  private async generateSuggestionsForBatches(
+    userId: string,
+    emails: EmailWithThreadProps[],
+    contexts: UserContext[],
+    senderPatterns: Map<string, { avgStarCount: number; archiveRate: number }>,
+    perf: TriagePerformanceTracker,
+  ): Promise<TriageSuggestion[]> {
+    const suggestions: TriageSuggestion[] = [];
+    const endSuggestionGen = perf.startSpan(
+      "suggestion_generation",
+      TRIAGE_PERF_BUDGETS.SUGGESTION_GENERATION,
+    );
+    const batchSize = 5;
+    for (let i = 0; i < emails.length; i += batchSize) {
+      const batch = emails.slice(i, i + batchSize);
+      const batchSuggestions = await Promise.all(
+        batch.map((email) =>
+          this.suggestForEmail(userId, email, contexts, senderPatterns),
+        ),
+      );
+      suggestions.push(...batchSuggestions);
+    }
+    endSuggestionGen();
+    return suggestions;
+  }
+
+  /**
+   * Look up the priority score for an email via its thread
+   */
+  private async getPriorityScoreForEmail(
+    email: EmailWithThreadProps,
+  ): Promise<number> {
+    let thread = null;
+    if (email.emailThreadId) {
+      thread = await this.emailThreadRepository.findOne({
+        where: { id: email.emailThreadId },
+      });
+    }
+    return (
+      calculateScoreFromBreakdown(thread?.priorityExplanation) ||
+      TRIAGE_THRESHOLDS.DEFAULT_PRIORITY
+    );
+  }
+
+  /**
+   * Convert a priority score to a recommended star count (0-3)
+   */
+  private priorityScoreToStarCount(priorityScore: number): number {
+    if (priorityScore >= TRIAGE_THRESHOLDS.PRIORITY_HIGH) {
+      return STAR_COUNTS.HIGH;
+    } else if (priorityScore >= TRIAGE_THRESHOLDS.PRIORITY_MEDIUM) {
+      return STAR_COUNTS.MEDIUM;
+    } else if (priorityScore >= TRIAGE_THRESHOLDS.PRIORITY_LOW) {
+      return STAR_COUNTS.LOW;
+    } else {
+      return STAR_COUNTS.NONE;
+    }
+  }
+
+  /**
+   * Check if the email sender is a VIP contact.
+   * Returns a partial TriageSuggestion if VIP (caller fills in suggestedStarCount),
+   * or null if not a VIP.
+   */
+  private checkVipStatus(
+    email: EmailWithThreadProps,
+    contexts: UserContext[],
+  ): Omit<TriageSuggestion, "suggestedStarCount"> | null {
+    const vipContacts = contexts.filter(
+      (c) => c.contextKey === ContextKey.VIP_CONTACT,
+    );
+    const isVip = vipContacts.some(
+      (vip) =>
+        email.from?.toLowerCase().includes(vip.contextValue.toLowerCase()) ||
+        email.fromName?.toLowerCase().includes(vip.contextValue.toLowerCase()),
+    );
+
+    if (!isVip) {
+      return null;
+    }
+
+    return {
+      emailId: email.id,
+      suggestedArchive: false,
+      confidence: TRIAGE_THRESHOLDS.VIP_CONFIDENCE,
+      reasoning: `VIP contact - always prioritize`,
+    };
+  }
+
+  /**
+   * Check sender history patterns and return a suggestion if patterns are strong enough.
+   * Returns null if no sufficient pattern exists.
+   */
+  private checkSenderPatternResult(
+    email: EmailWithThreadProps,
+    senderPatterns: Map<string, { avgStarCount: number; archiveRate: number }>,
+  ): TriageSuggestion | null {
+    const senderPattern = senderPatterns.get(email.from.toLowerCase());
+
+    if (
+      senderPattern &&
+      senderPattern.avgStarCount >= TRIAGE_THRESHOLDS.HIGH_STAR_AVG
+    ) {
+      return {
+        emailId: email.id,
+        suggestedStarCount: Math.round(senderPattern.avgStarCount),
+        suggestedArchive:
+          senderPattern.archiveRate > TRIAGE_THRESHOLDS.HIGH_ARCHIVE_RATE,
+        confidence: TRIAGE_THRESHOLDS.PATTERN_CONFIDENCE,
+        reasoning: `You typically star emails from this sender`,
+      };
+    }
+
+    if (
+      senderPattern &&
+      senderPattern.archiveRate > TRIAGE_THRESHOLDS.HIGH_ARCHIVE_RATE
+    ) {
+      return {
+        emailId: email.id,
+        suggestedStarCount: STAR_COUNTS.NONE,
+        suggestedArchive: true,
+        confidence: TRIAGE_THRESHOLDS.ARCHIVE_CONFIDENCE,
+        reasoning: `You typically archive emails from this sender`,
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Build a human-readable reasoning string from a priority score
+   */
+  private buildPriorityReasoning(priorityScore: number): string {
+    let priorityLevel: string;
+    if (priorityScore >= TRIAGE_THRESHOLDS.PRIORITY_HIGH) {
+      priorityLevel = "High priority";
+    } else if (priorityScore >= TRIAGE_THRESHOLDS.PRIORITY_MEDIUM) {
+      priorityLevel = "Medium priority";
+    } else if (priorityScore >= TRIAGE_THRESHOLDS.PRIORITY_LOW) {
+      priorityLevel = "Low priority";
+    } else {
+      priorityLevel = "Very low priority";
+    }
+    return `Based on priority score: ${priorityScore.toFixed(1)}. ${priorityLevel}`;
   }
 }

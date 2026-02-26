@@ -27,7 +27,6 @@ export async function logZohoAuthFailure(
   error: unknown,
   metadata: Record<string, unknown> = {},
 ): Promise<void> {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { authLogger } = require("../../../auth/auth-logger");
+  const { authLogger } = await import("../../../auth/auth-logger");
   authLogger.logAuthFailure(userId, userEmail, context, error, metadata);
 }

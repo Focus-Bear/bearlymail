@@ -57,15 +57,15 @@ describe("GoogleAccountsService", () => {
       repository.create.mockReturnValue(mockGoogleAccount as GoogleAccount);
       repository.save.mockResolvedValue(mockGoogleAccount);
 
-      const result = await service.create(
-        "user-1",
-        "google-id-1",
-        "user@gmail.com",
-        "Test User",
-        "access-token-1",
-        "refresh-token-1",
-        false,
-      );
+      const result = await service.create({
+        userId: "user-1",
+        googleId: "google-id-1",
+        email: "user@gmail.com",
+        name: "Test User",
+        accessToken: "access-token-1",
+        refreshToken: "refresh-token-1",
+        isPrimary: false,
+      });
 
       expect(repository.create).toHaveBeenCalledWith({
         userId: "user-1",
@@ -88,15 +88,15 @@ describe("GoogleAccountsService", () => {
       repository.create.mockReturnValue(primaryAccount as GoogleAccount);
       repository.save.mockResolvedValue(primaryAccount);
 
-      await service.create(
-        "user-1",
-        "google-id-1",
-        "user@gmail.com",
-        "Test User",
-        "access-token-1",
-        "refresh-token-1",
-        true, // isPrimary
-      );
+      await service.create({
+        userId: "user-1",
+        googleId: "google-id-1",
+        email: "user@gmail.com",
+        name: "Test User",
+        accessToken: "access-token-1",
+        refreshToken: "refresh-token-1",
+        isPrimary: true,
+      });
 
       expect(repository.update).toHaveBeenCalledWith(
         { userId: "user-1", isPrimary: true },
@@ -112,14 +112,14 @@ describe("GoogleAccountsService", () => {
       repository.create.mockReturnValue(mockGoogleAccount as GoogleAccount);
       repository.save.mockResolvedValue(mockGoogleAccount);
 
-      await service.create(
-        "user-1",
-        "google-id-1",
-        "user@gmail.com",
-        "Test User",
-        "access-token-1",
-        "refresh-token-1",
-      );
+      await service.create({
+        userId: "user-1",
+        googleId: "google-id-1",
+        email: "user@gmail.com",
+        name: "Test User",
+        accessToken: "access-token-1",
+        refreshToken: "refresh-token-1",
+      });
 
       expect(repository.create).toHaveBeenCalledWith(
         expect.objectContaining({ isPrimary: false }),

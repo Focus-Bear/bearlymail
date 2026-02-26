@@ -19,6 +19,29 @@ export class ContextPiiRedactionService {
    * Does NOT redact common words like "campaign", "journey", "session" that appear in normal text.
    */
   redactPII(text: string, userEmail?: string): string {
+    let redacted = this.redactStructuredPII(text, userEmail);
+
+    const namesToRedact = this.collectNamesToRedact(redacted);
+
+    // Replace identified names with [Name] placeholder
+    for (const name of namesToRedact) {
+      // Use word boundaries to avoid partial matches
+      const nameRegex = new RegExp(`\\b${name}\\b`, "g");
+      redacted = redacted.replace(nameRegex, "[Name]");
+    }
+
+    // Collapse multiple consecutive [Name] placeholders
+    redacted = redacted.replace(/\[Name\](?:\s*,\s*\[Name\])+/g, "[Name]");
+    redacted = redacted.replace(/\[Name\]\s+\[Name\]/g, "[Name]");
+
+    return redacted;
+  }
+
+  /**
+   * Redact all structured PII patterns (emails, phones, bank details, addresses, etc.)
+   * Returns the text with those patterns replaced by placeholders.
+   */
+  private redactStructuredPII(text: string, userEmail?: string): string {
     let redacted = text;
 
     // 1. Redact email addresses
@@ -103,81 +126,98 @@ export class ContextPiiRedactionService {
       "[ID Number]",
     );
 
-    // Conservative name redaction - only in high-confidence contexts
+    return redacted;
+  }
+
+  /**
+   * Scan text for names that appear in high-confidence contexts and return a set
+   * of names that should be replaced with [Name].
+   *
+   * High-confidence patterns:
+   * - After greetings: "Hi John,", "Hello Sarah,"
+   * - In thank-you closings: "Thanks John", "Ok thanks Donyl"
+   * - Two-part names after greetings: "Hi John Smith,"
+   * - Before action verbs: "John said", "Sarah wrote"
+   * - After [Name] placeholders (two-part names)
+   */
+  private collectNamesToRedact(text: string): Set<string> {
     const namesToRedact = new Set<string>();
 
     // 1. After greetings: "Hi John,", "Hello Sarah,", "Hey Mike,", "Dear Jane,"
-    const greetingPattern = /\b(Hi|Hello|Hey|Dear)\s+([A-Z][a-z]+)(\s*[,:])?/g;
-    let match;
-    while ((match = greetingPattern.exec(redacted)) !== null) {
-      const name = match[2];
-      // Skip if it's a common word that might be capitalized after greeting
-      if (!this.isCommonWord(name)) {
-        namesToRedact.add(name);
-      }
-    }
+    // capture group 1 = greeting keyword, group 2 = name candidate
+    this.extractNamesWithPattern(
+      text,
+      /\b(Hi|Hello|Hey|Dear)\s+([A-Z][a-z]+)(\s*[,:])?/g,
+      2,
+      namesToRedact,
+      false,
+    );
 
-    // 2. In signature contexts: "Best, John", "Thanks, Sarah", "Ok thanks Donyl"
-    // More aggressive - catches thanks anywhere, not just at end
-    const thanksPattern = /\b(?:thanks|thank you|thx|cheers)\s+([A-Z][a-z]+)/gi;
-    while ((match = thanksPattern.exec(redacted)) !== null) {
-      const name = match[1];
-      if (!this.isCommonWord(name) && name.length >= 2) {
-        namesToRedact.add(name);
-      }
-    }
+    // 2. In signature contexts: "Thanks Sarah", "cheers Mike" + "Ok thanks Name"
+    this.extractNamesWithPattern(
+      text,
+      /\b(?:thanks|thank you|thx|cheers)\s+([A-Z][a-z]+)/gi,
+      1,
+      namesToRedact,
+    );
+    this.extractNamesWithPattern(
+      text,
+      /\b(?:ok|okay)\s+(?:thanks|thank you)\s+([A-Z][a-z]+)/gi,
+      1,
+      namesToRedact,
+    );
 
-    // Also catch "Ok thanks Name" pattern
-    const okThanksPattern =
-      /\b(?:ok|okay)\s+(?:thanks|thank you)\s+([A-Z][a-z]+)/gi;
-    while ((match = okThanksPattern.exec(redacted)) !== null) {
-      const name = match[1];
-      if (!this.isCommonWord(name) && name.length >= 2) {
-        namesToRedact.add(name);
-      }
-    }
-
-    // 3. Two-part names after greetings: "Hi John Smith," - catch second name too
-    const twoPartNamePattern =
-      /\b(Hi|Hello|Hey|Dear)\s+[A-Z][a-z]+\s+([A-Z][a-z]+)[,.:]/g;
-    while ((match = twoPartNamePattern.exec(redacted)) !== null) {
-      const name = match[2];
-      if (!this.isCommonWord(name) && name.length >= 2) {
-        namesToRedact.add(name);
-      }
-    }
+    // 3. Two-part names after greetings: "Hi John Smith,"
+    this.extractNamesWithPattern(
+      text,
+      /\b(Hi|Hello|Hey|Dear)\s+[A-Z][a-z]+\s+([A-Z][a-z]+)[,.:]/g,
+      2,
+      namesToRedact,
+    );
 
     // 4. Before verbs: "John said", "Sarah wrote", "Mike from"
-    const verbPattern =
-      /\b([A-Z][a-z]+)\s+(said|wrote|from|replied|mentioned|told|asked|explained)\b/g;
-    while ((match = verbPattern.exec(redacted)) !== null) {
-      const name = match[1];
-      if (!this.isCommonWord(name) && name.length >= 2) {
-        namesToRedact.add(name);
-      }
-    }
+    this.extractNamesWithPattern(
+      text,
+      /\b([A-Z][a-z]+)\s+(said|wrote|from|replied|mentioned|told|asked|explained)\b/g,
+      1,
+      namesToRedact,
+    );
 
     // 5. Names after [Name] placeholder (catches two-part names)
-    const afterPlaceholderPattern = /\[Name\]\s+([A-Z][a-z]+)/g;
-    while ((match = afterPlaceholderPattern.exec(redacted)) !== null) {
-      const name = match[1];
-      if (!this.isCommonWord(name) && name.length >= 2) {
+    this.extractNamesWithPattern(
+      text,
+      /\[Name\]\s+([A-Z][a-z]+)/g,
+      1,
+      namesToRedact,
+    );
+
+    return namesToRedact;
+  }
+
+  /**
+   * Run a regex over text, extract the name from the given capture group index,
+   * filter out common words, and add qualifying names to the provided set.
+   *
+   * @param requireMinLength - when true (default), requires name.length >= 2
+   */
+  private extractNamesWithPattern(
+    text: string,
+    pattern: RegExp,
+    captureGroup: number,
+    namesToRedact: Set<string>,
+    requireMinLength = true,
+  ): void {
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      const name = match[captureGroup];
+      if (
+        name &&
+        !this.isCommonWord(name) &&
+        (!requireMinLength || name.length >= 2)
+      ) {
         namesToRedact.add(name);
       }
     }
-
-    // Replace identified names with [Name] placeholder
-    for (const name of namesToRedact) {
-      // Use word boundaries to avoid partial matches
-      const nameRegex = new RegExp(`\\b${name}\\b`, "g");
-      redacted = redacted.replace(nameRegex, "[Name]");
-    }
-
-    // Collapse multiple consecutive [Name] placeholders
-    redacted = redacted.replace(/\[Name\](?:\s*,\s*\[Name\])+/g, "[Name]");
-    redacted = redacted.replace(/\[Name\]\s+\[Name\]/g, "[Name]");
-
-    return redacted;
   }
 
   /**
@@ -215,7 +255,8 @@ export class ContextPiiRedactionService {
       "Session",
       "Designer",
       "Support",
-      "Mia", // Could be a name, but also common in context - be conservative
+      // Could be a name, but also common in context - be conservative
+      "Mia",
       // Articles and pronouns
       "The",
       "This",

@@ -1537,3 +1537,20 @@ WHERE "userId" = 'user-uuid' AND "lastUserOperationAt" IS NOT NULL;
 - After resolving conflicts, run linting and tests to ensure the merge didn't break anything
 - If the clone is too shallow to merge, `git fetch --unshallow` is required first
 - When conflict resolution is too complex (e.g., large refactors on both sides), explain the situation and let the human developer handle it
+
+#### Multi-Run Tasks (Incremental Commits)
+
+**Context**: Some tasks (e.g., ESLint cleanup, large refactors) span multiple hours and may exceed a single GitHub Action run's time budget.
+
+**Rule**: For long-running tasks, **commit and push after each logical batch of changes**. This ensures:
+- Work is never lost if the GitHub Action run times out
+- Progress is visible in the PR history
+- The next run can resume from where the previous one left off
+
+**Pattern**:
+1. Complete a logical unit of work (e.g., "fix all no-unused-vars in providers")
+2. Commit with a descriptive message: `git commit -m "refactor: fix no-unused-vars in provider files"`
+3. Push immediately: `git push origin HEAD`
+4. Continue to the next batch
+
+**Do not wait** until all changes are done before committing. Prefer many small commits over one large one for long tasks.

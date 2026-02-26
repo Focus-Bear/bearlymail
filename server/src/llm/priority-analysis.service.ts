@@ -23,7 +23,110 @@ export class PriorityAnalysisService {
     private errorTrackingService: ErrorTrackingService,
   ) {}
 
-  // eslint-disable-next-line max-lines-per-function, complexity
+  private buildUserContextTexts(userContext?: {
+    urgentItems?: Array<{ value: string; explanation?: string }>;
+    notUrgentItems?: Array<{ value: string; explanation?: string }>;
+    goals?: Array<{ value: string; priority?: number }>;
+    workingOn?: Array<{ value: string; priority?: number }>;
+    dontCare?: Array<{ value: string }>;
+    emailCategories?: Array<{ name: string; description?: string }>;
+  }): {
+    urgentContextText: string;
+    notUrgentContextText: string;
+    goalsContextText: string;
+    workingOnContextText: string;
+    dontCareContextText: string;
+    emailCategoriesText: string;
+  } {
+    const urgentContextText =
+      userContext?.urgentItems && userContext.urgentItems.length > 0
+        ? userContext.urgentItems
+            .map(
+              (item) =>
+                `- ${item.value}${item.explanation ? ` (${item.explanation})` : ""}`,
+            )
+            .join("\n")
+        : "";
+    const notUrgentContextText =
+      userContext?.notUrgentItems && userContext.notUrgentItems.length > 0
+        ? userContext.notUrgentItems
+            .map(
+              (item) =>
+                `- ${item.value}${item.explanation ? ` (${item.explanation})` : ""}`,
+            )
+            .join("\n")
+        : "";
+    const goalsContextText =
+      userContext?.goals && userContext.goals.length > 0
+        ? userContext.goals
+            .map(
+              (goal) =>
+                `- ${goal.value}${goal.priority ? ` (Priority ${goal.priority})` : ""}`,
+            )
+            .join("\n")
+        : "";
+    const workingOnContextText =
+      userContext?.workingOn && userContext.workingOn.length > 0
+        ? userContext.workingOn
+            .map(
+              (item) =>
+                `- ${item.value}${item.priority ? ` (Priority ${item.priority})` : ""}`,
+            )
+            .join("\n")
+        : "";
+    const dontCareContextText =
+      userContext?.dontCare && userContext.dontCare.length > 0
+        ? userContext.dontCare.map((item) => `- ${item.value}`).join("\n")
+        : "";
+    const emailCategoriesText =
+      userContext?.emailCategories && userContext.emailCategories.length > 0
+        ? userContext.emailCategories
+            .map(
+              (cat) =>
+                `   - "${cat.name}"${cat.description ? `: ${cat.description}` : ""}`,
+            )
+            .join("\n")
+        : "";
+    return {
+      urgentContextText,
+      notUrgentContextText,
+      goalsContextText,
+      workingOnContextText,
+      dontCareContextText,
+      emailCategoriesText,
+    };
+  }
+
+  private buildThreadContextText(
+    threadEmails?: Array<{
+      from: string;
+      fromName?: string;
+      subject: string;
+      body: string;
+      receivedAt: Date;
+    }>,
+  ): string {
+    if (!threadEmails || threadEmails.length === 0) return "";
+
+    const sortedThreadEmails = [...threadEmails].sort(
+      (a, b) => a.receivedAt.getTime() - b.receivedAt.getTime(),
+    );
+    const emailsToInclude = sortedThreadEmails.slice(
+      -DISPLAY_CONSTANTS.MAX_DISPLAY_ITEMS,
+    );
+    const threadMessages = emailsToInclude.map((threadEmail, index) => {
+      const cleanedThreadBody = cleanEmailContent(threadEmail.body, null, 500);
+      const dateStr = threadEmail.receivedAt.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+      const senderName = threadEmail.fromName || threadEmail.from;
+      return `[Message ${index + 1} from ${senderName} on ${dateStr}]:\nSubject: ${threadEmail.subject}\nBody: ${cleanedThreadBody}`;
+    });
+    return `\n\nThread Context (${emailsToInclude.length} previous messages, chronological order):\n${threadMessages.join("\n\n---\n\n")}`;
+  }
+
   async analyzePriority(
     email: {
       from: string;
@@ -91,110 +194,28 @@ export class PriorityAnalysisService {
       throw error;
     }
 
-    // Get current date for urgency calculation (deadlines, time-sensitive requests)
-    const currentDate = new Date();
-    const currentDateStr = currentDate.toLocaleDateString("en-US", {
+    const currentDateStr = new Date().toLocaleDateString("en-US", {
       weekday: "long",
       year: "numeric",
       month: "long",
       day: "numeric",
     });
 
-    // Format user context for prompt
-    const urgentContextText =
-      userContext?.urgentItems && userContext.urgentItems.length > 0
-        ? userContext.urgentItems
-            .map(
-              (item) =>
-                `- ${item.value}${item.explanation ? ` (${item.explanation})` : ""}`,
-            )
-            .join("\n")
-        : "";
-    const notUrgentContextText =
-      userContext?.notUrgentItems && userContext.notUrgentItems.length > 0
-        ? userContext.notUrgentItems
-            .map(
-              (item) =>
-                `- ${item.value}${item.explanation ? ` (${item.explanation})` : ""}`,
-            )
-            .join("\n")
-        : "";
-    const goalsContextText =
-      userContext?.goals && userContext.goals.length > 0
-        ? userContext.goals
-            .map(
-              (goal) =>
-                `- ${goal.value}${goal.priority ? ` (Priority ${goal.priority})` : ""}`,
-            )
-            .join("\n")
-        : "";
-    const workingOnContextText =
-      userContext?.workingOn && userContext.workingOn.length > 0
-        ? userContext.workingOn
-            .map(
-              (item) =>
-                `- ${item.value}${item.priority ? ` (Priority ${item.priority})` : ""}`,
-            )
-            .join("\n")
-        : "";
-    const dontCareContextText =
-      userContext?.dontCare && userContext.dontCare.length > 0
-        ? userContext.dontCare.map((item) => `- ${item.value}`).join("\n")
-        : "";
+    const {
+      urgentContextText,
+      notUrgentContextText,
+      goalsContextText,
+      workingOnContextText,
+      dontCareContextText,
+      emailCategoriesText,
+    } = this.buildUserContextTexts(userContext);
 
-    const emailCategoriesText =
-      userContext?.emailCategories && userContext.emailCategories.length > 0
-        ? userContext.emailCategories
-            .map(
-              (cat) =>
-                `   - "${cat.name}"${cat.description ? `: ${cat.description}` : ""}`,
-            )
-            .join("\n")
-        : "";
-
-    // Format thread info for prompt
     const threadInfoText = threadInfo
       ? `\nThread Information:\n${threadInfo.daysSinceLastReply !== undefined ? `- Days since last reply: ${threadInfo.daysSinceLastReply}` : ""}${threadInfo.userShouldReply !== undefined ? `\n- User should reply: ${threadInfo.userShouldReply ? "Yes" : "No"}` : ""}${threadInfo.lastReplyFrom ? `\n- Last reply from: ${threadInfo.lastReplyFrom}` : ""}`
       : "";
 
-    // Format thread context from thread emails (chronologically, oldest first)
-    let threadContextText = "";
-    if (threadEmails && threadEmails.length > 0) {
-      // Sort by receivedAt ascending (oldest first) for chronological context
-      const sortedThreadEmails = [...threadEmails].sort(
-        (a, b) => a.receivedAt.getTime() - b.receivedAt.getTime(),
-      );
+    const threadContextText = this.buildThreadContextText(threadEmails);
 
-      // Limit to last 10 emails to avoid token limits
-      const emailsToInclude = sortedThreadEmails.slice(
-        -DISPLAY_CONSTANTS.MAX_DISPLAY_ITEMS,
-      );
-
-      const threadMessages = emailsToInclude.map((threadEmail, index) => {
-        const cleanedThreadBody = cleanEmailContent(
-          threadEmail.body,
-          null,
-          500,
-        );
-        const dateStr = threadEmail.receivedAt.toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        });
-        const senderName = threadEmail.fromName || threadEmail.from;
-        return `[Message ${index + 1} from ${senderName} on ${dateStr}]:\nSubject: ${threadEmail.subject}\nBody: ${cleanedThreadBody}`;
-      });
-
-      threadContextText = `\n\nThread Context (${emailsToInclude.length} previous messages, chronological order):\n${threadMessages.join("\n\n---\n\n")}`;
-    }
-
-    // Only show full categories to LLM — NOT proto-categories.
-    // Proto-categories are discovered via the "Other" + protoCategorySuggestion path.
-    // Showing them to the LLM caused it to return proto-category names directly as
-    // `category`, bypassing the proto-category counting/promotion mechanism entirely.
-    const combinedCategoriesText = emailCategoriesText;
-
-    // Render prompt template with variables
     const prompt = renderPrompt(promptConfig.prompt, {
       from: email.fromName || email.from,
       fromName: email.fromName || email.from,
@@ -208,7 +229,7 @@ export class PriorityAnalysisService {
       goalsContext: goalsContextText,
       workingOnContext: workingOnContextText,
       dontCareContext: dontCareContextText,
-      emailCategories: combinedCategoriesText,
+      emailCategories: emailCategoriesText,
       threadInfo: threadInfoText,
       threadContext: threadContextText,
     });
@@ -325,7 +346,51 @@ export class PriorityAnalysisService {
    * Analyze priority for a batch of emails in a single LLM call.
    * Returns results keyed by the email identifier passed in.
    */
-  // eslint-disable-next-line max-lines-per-function
+  private buildBatchContextSummary(userContext?: {
+    urgentItems?: Array<{ value: string; explanation?: string }>;
+    notUrgentItems?: Array<{ value: string; explanation?: string }>;
+    goals?: Array<{ value: string; priority?: number }>;
+    workingOn?: Array<{ value: string; priority?: number }>;
+    dontCare?: Array<{ value: string }>;
+    emailCategories?: Array<{ name: string; description?: string }>;
+  }): { contextParts: string[]; emailCategoriesText: string } {
+    const contextParts: string[] = [];
+    if (userContext?.urgentItems?.length) {
+      contextParts.push(
+        `Urgent items: ${userContext.urgentItems.map((i) => i.value).join(", ")}`,
+      );
+    }
+    if (userContext?.notUrgentItems?.length) {
+      contextParts.push(
+        `Not urgent: ${userContext.notUrgentItems.map((i) => i.value).join(", ")}`,
+      );
+    }
+    if (userContext?.goals?.length) {
+      contextParts.push(
+        `Goals: ${userContext.goals.map((goal) => goal.value).join(", ")}`,
+      );
+    }
+    if (userContext?.workingOn?.length) {
+      contextParts.push(
+        `Working on: ${userContext.workingOn.map((w) => w.value).join(", ")}`,
+      );
+    }
+    if (userContext?.dontCare?.length) {
+      contextParts.push(
+        `Don't care: ${userContext.dontCare.map((item) => item.value).join(", ")}`,
+      );
+    }
+    const emailCategoriesText = userContext?.emailCategories?.length
+      ? userContext.emailCategories
+          .map(
+            (cat) =>
+              `"${cat.name}"${cat.description ? `: ${cat.description}` : ""}`,
+          )
+          .join(", ")
+      : '"Newsletters", "Sales", "Partnerships", "Customer Support", "HR Admin"';
+    return { contextParts, emailCategoriesText };
+  }
+
   async analyzePriorityBatch(
     emails: Array<{
       emailKey: string;
@@ -385,7 +450,6 @@ export class PriorityAnalysisService {
 
     if (emails.length === 0) return results;
 
-    // Build compact email list for the batch prompt
     const emailDescriptions = emails.map((email, index) => {
       const cleanedBody = cleanEmailContent(email.body, null, 500);
       return `--- EMAIL ${index + 1} (key: "${email.emailKey}") ---
@@ -394,42 +458,8 @@ Subject: ${email.subject}
 Body: ${cleanedBody}`;
     });
 
-    // Format user context compactly
-    const contextParts: string[] = [];
-    if (userContext?.urgentItems?.length) {
-      contextParts.push(
-        `Urgent items: ${userContext.urgentItems.map((i) => i.value).join(", ")}`,
-      );
-    }
-    if (userContext?.notUrgentItems?.length) {
-      contextParts.push(
-        `Not urgent: ${userContext.notUrgentItems.map((i) => i.value).join(", ")}`,
-      );
-    }
-    if (userContext?.goals?.length) {
-      contextParts.push(
-        `Goals: ${userContext.goals.map((goal) => goal.value).join(", ")}`,
-      );
-    }
-    if (userContext?.workingOn?.length) {
-      contextParts.push(
-        `Working on: ${userContext.workingOn.map((w) => w.value).join(", ")}`,
-      );
-    }
-    if (userContext?.dontCare?.length) {
-      contextParts.push(
-        `Don't care: ${userContext.dontCare.map((item) => item.value).join(", ")}`,
-      );
-    }
-
-    const emailCategoriesText = userContext?.emailCategories?.length
-      ? userContext.emailCategories
-          .map(
-            (cat) =>
-              `"${cat.name}"${cat.description ? `: ${cat.description}` : ""}`,
-          )
-          .join(", ")
-      : '"Newsletters", "Sales", "Partnerships", "Customer Support", "HR Admin"';
+    const { contextParts, emailCategoriesText } =
+      this.buildBatchContextSummary(userContext);
 
     const currentDateStr = new Date().toLocaleDateString("en-US", {
       weekday: "long",

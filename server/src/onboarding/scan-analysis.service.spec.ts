@@ -223,7 +223,8 @@ describe("ScanAnalysisService", () => {
           messages: [
             {
               id: "msg-1",
-              labelIds: [], // Not in INBOX
+              // Not in INBOX
+              labelIds: [],
               internalDate: String(new Date("2024-01-01").getTime()),
             },
           ],
@@ -246,7 +247,8 @@ describe("ScanAnalysisService", () => {
         from: "vip@example.com",
         fromName: "VIP Sender",
         wasRepliedTo: true,
-        timeToReply: 1, // 1 hour (within 2 hour threshold)
+        // 1 hour (within 2 hour threshold)
+        timeToReply: 1,
       };
 
       // Second quick reply

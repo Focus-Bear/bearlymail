@@ -379,7 +379,8 @@ export class TokenUsageService implements OnModuleInit {
       .addSelect("SUM(tu.totalTokens)::int", "totalTokens")
       .groupBy("DATE(tu.createdAt)")
       .orderBy("DATE(tu.createdAt)", "DESC")
-      .limit(CONTEXT_ANALYSIS.TOKEN_USAGE_DAYS); // Last 30 days
+      // Last 30 days
+      .limit(CONTEXT_ANALYSIS.TOKEN_USAGE_DAYS);
 
     if (options.startDate && options.endDate) {
       queryBuilder.where("tu.createdAt BETWEEN :startDate AND :endDate", {

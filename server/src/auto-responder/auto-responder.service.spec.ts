@@ -8,6 +8,7 @@ import { AutoResponderSuppressionService } from "./auto-responder-suppression.se
 import { AutoResponderQaService } from "./auto-responder-qa.service";
 import { AutoResponderAnalyticsService } from "./auto-responder-analytics.service";
 import { AutoResponderPreviewService } from "./auto-responder-preview.service";
+import { AutoResponderContextService } from "./auto-responder-context.service";
 import { LLMService } from "../llm/llm.service";
 import { User } from "../database/entities/user.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -188,6 +189,34 @@ describe("AutoResponderService", () => {
           provide: AutoResponderQaService,
           useValue: {
             generateQAAnswer: jest.fn().mockResolvedValue(null),
+          },
+        },
+        {
+          provide: AutoResponderContextService,
+          useValue: {
+            getUserContext: jest.fn().mockResolvedValue({
+              vipContacts: [],
+              qaPatterns: [],
+            }),
+            extractQAPatterns: jest.fn().mockResolvedValue([]),
+            hashEmail: jest.fn().mockImplementation((email) => `hash_${email}`),
+            checkSuppression: jest.fn().mockResolvedValue(null),
+            classifyEmail: jest.fn().mockResolvedValue({
+              type: "standard",
+              confidence: 0.9,
+              requiresResponse: false,
+            }),
+            checkCustomExclusionRules: jest.fn().mockResolvedValue(false),
+            getQueueStats: jest.fn().mockResolvedValue({
+              avgResponseTime: "2 hours",
+              actionCount: 37,
+              triageCount: 21,
+            }),
+            getResponseTimeForCategory: jest.fn().mockReturnValue("2 hours"),
+            generateQAAnswer: jest.fn().mockResolvedValue(null),
+            addCooldownSuppression: jest.fn().mockResolvedValue(undefined),
+            addOptOutSuppression: jest.fn().mockResolvedValue(undefined),
+            removeOptOutSuppression: jest.fn().mockResolvedValue(undefined),
           },
         },
         {
@@ -387,8 +416,8 @@ describe("AutoResponderService", () => {
     });
 
     it("should not send to suppressed senders", async () => {
-      const suppressionService = module.get(AutoResponderSuppressionService);
-      jest.spyOn(suppressionService, "checkSuppression").mockResolvedValue({
+      const contextService = module.get(AutoResponderContextService);
+      jest.spyOn(contextService, "checkSuppression").mockResolvedValue({
         id: "suppression-1",
         reason: "opt_out",
       } as any);
@@ -437,8 +466,8 @@ describe("AutoResponderService", () => {
   });
 
   describe("addOptOutSuppression", () => {
-    it("should add opt-out suppression via suppression service", async () => {
-      const suppressionService = module.get(AutoResponderSuppressionService);
+    it("should add opt-out suppression via context service", async () => {
+      const contextService = module.get(AutoResponderContextService);
 
       await service.addOptOutSuppression(
         "user-1",
@@ -446,7 +475,7 @@ describe("AutoResponderService", () => {
         "User requested",
       );
 
-      expect(suppressionService.addOptOutSuppression).toHaveBeenCalledWith(
+      expect(contextService.addOptOutSuppression).toHaveBeenCalledWith(
         "user-1",
         "sender@example.com",
         "User requested",

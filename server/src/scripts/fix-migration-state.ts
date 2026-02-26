@@ -23,17 +23,16 @@ const dataSource = new DataSource({
 async function fixMigrationState() {
   try {
     await dataSource.initialize();
-    // eslint-disable-next-line no-console
+
     console.log("Connected to database");
 
     // Remove the InitialSchema migration record so it can be re-run
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const result = await dataSource.query(
+    await dataSource.query(
       `DELETE FROM migrations WHERE name = 'InitialSchema1735271999999'`,
     );
-    // eslint-disable-next-line no-console
+
     console.log("Removed InitialSchema migration record from migrations table");
-    // eslint-disable-next-line no-console
+
     console.log("You can now run: npm run migration:run");
 
     await dataSource.destroy();
@@ -45,11 +44,10 @@ async function fixMigrationState() {
       isErr &&
       error.message?.includes('relation "migrations" does not exist')
     ) {
-      // eslint-disable-next-line no-console
       console.log(
         "Migrations table does not exist - this is fine, migrations will create it",
       );
-      // eslint-disable-next-line no-console
+
       console.log("You can run: npm run migration:run");
     }
     process.exit(1);

@@ -38,7 +38,6 @@ export class AuthController {
 
   @Post("register")
   async register(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     @Body() _body: { email: string; password: string; name?: string },
   ) {
     // Registration is disabled - users must join waitlist first
@@ -105,7 +104,6 @@ export class AuthController {
 
   @Get("google")
   @UseGuards(GoogleAuthGuard)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async googleAuth(@Request() _req) {}
 
   @Get("google/callback")
@@ -116,115 +114,29 @@ export class AuthController {
     @Query("state") state?: string,
   ) {
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-
-    // Check if there was an auth error (set by GoogleAuthGuard)
     if (req.authError || req.user?.authFailed) {
-      const error = req.authError as Error;
-      const errorMessage = error?.message || "Authentication failed";
-      this.logger.warn(`Google auth error: ${errorMessage}`);
-
-      // Determine error type based on message content
-      let errorType = "auth_error";
-      if (errorMessage.includes("pending approval")) {
-        errorType = "pending_approval";
-      } else if (
-        errorMessage.includes("waitlist") ||
-        errorMessage.includes("join the waitlist")
-      ) {
-        errorType = "not_on_waitlist";
-      }
-
-      // Build redirect URL with error info
-      const errorParams = new URLSearchParams({
-        error: "auth_failed",
-        message: errorMessage,
-        type: errorType,
-      });
-
-      return res.redirect(
-        `${frontendUrl}/auth-error?${errorParams.toString()}`,
+      return this.redirectWithAuthError(
+        req.authError as Error,
+        frontendUrl,
+        res,
+        "Google",
       );
     }
-
-    // Check if this is a connection flow (has state with userId)
     if (state) {
-      try {
-        const stateData = JSON.parse(Buffer.from(state, "base64").toString());
-        if (stateData.action === "connect" && stateData.userId) {
-          // This is a connection flow, not a login
-          const googleUser = req.user as {
-            googleProfile?: {
-              id?: string;
-              emails?: Array<{ value: string }>;
-              displayName?: string;
-            };
-            googleAccessToken?: string;
-            googleRefreshToken?: string;
-            googleId?: string;
-            googleCalendarAccessToken?: string;
-            googleCalendarRefreshToken?: string;
-            email?: string;
-            name?: string;
-          };
-          const profile = googleUser.googleProfile;
-          const accessToken =
-            googleUser.googleAccessToken ||
-            googleUser.googleCalendarAccessToken;
-          const refreshToken =
-            googleUser.googleRefreshToken ||
-            googleUser.googleCalendarRefreshToken;
-          const googleId =
-            googleUser.googleId || profile?.id || googleUser.googleId;
-          const email = profile?.emails?.[0]?.value || googleUser.email;
-          const name = profile?.displayName || googleUser.name || "";
-
-          if (googleId && email && accessToken && refreshToken) {
-            const existingAccounts =
-              await this.googleAccountsService.findAllByUser(stateData.userId);
-            const accountExists = existingAccounts.find(
-              (acc) => acc.googleId === googleId,
-            );
-
-            if (accountExists) {
-              await this.googleAccountsService.updateTokens(
-                accountExists.id,
-                stateData.userId,
-                accessToken,
-                refreshToken,
-              );
-            } else {
-              const isPrimary = existingAccounts.length === 0;
-              await this.googleAccountsService.create(
-                stateData.userId,
-                googleId,
-                email,
-                name,
-                accessToken,
-                refreshToken,
-                isPrimary,
-              );
-            }
-
-            return res.redirect(`${frontendUrl}/settings?googleConnected=true`);
-          }
-        }
-      } catch (e) {
-        // Invalid state, fall through to login flow
-        logError(
-          "Error parsing state in Google callback",
-          e instanceof Error ? e : new Error(String(e)),
-        );
-      }
+      const handled = await this.handleGoogleConnectionState(
+        state,
+        req,
+        res,
+        frontendUrl,
+      );
+      if (handled) return;
     }
-
-    // Regular login flow
     const loginData = await this.authService.login(req.user);
     res.redirect(`${frontendUrl}/login?token=${loginData.access_token}`);
   }
 
   @Get("microsoft")
   @UseGuards(MicrosoftAuthGuard)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async microsoftAuth(@Request() _req) {}
 
   @Get("microsoft/callback")
@@ -235,110 +147,29 @@ export class AuthController {
     @Query("state") state?: string,
   ) {
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-
-    // Check if there was an auth error (set by MicrosoftAuthGuard)
     if (req.authError || req.user?.authFailed) {
-      const error = req.authError as Error;
-      const errorMessage = error?.message || "Authentication failed";
-      this.logger.warn(`Microsoft auth error: ${errorMessage}`);
-
-      // Determine error type based on message content
-      let errorType = "auth_error";
-      if (errorMessage.includes("pending approval")) {
-        errorType = "pending_approval";
-      } else if (
-        errorMessage.includes("waitlist") ||
-        errorMessage.includes("join the waitlist")
-      ) {
-        errorType = "not_on_waitlist";
-      }
-
-      const errorParams = new URLSearchParams({
-        error: "auth_failed",
-        message: errorMessage,
-        type: errorType,
-      });
-
-      return res.redirect(
-        `${frontendUrl}/auth-error?${errorParams.toString()}`,
+      return this.redirectWithAuthError(
+        req.authError as Error,
+        frontendUrl,
+        res,
+        "Microsoft",
       );
     }
-
-    // Check if this is a connection flow (has state with userId)
     if (state) {
-      try {
-        const stateData = JSON.parse(Buffer.from(state, "base64").toString());
-        if (stateData.action === "connect" && stateData.userId) {
-          // This is a connection flow, not a login
-          const microsoftUser = req.user as {
-            microsoftProfile?: {
-              id?: string;
-              mail?: string;
-              userPrincipalName?: string;
-              displayName?: string;
-            };
-            microsoftAccessToken?: string;
-            microsoftRefreshToken?: string;
-            microsoftId?: string;
-          };
-          const profile = microsoftUser.microsoftProfile;
-          const accessToken = microsoftUser.microsoftAccessToken;
-          const refreshToken = microsoftUser.microsoftRefreshToken;
-          const microsoftId = microsoftUser.microsoftId || profile?.id || "";
-          const email = profile?.mail || profile?.userPrincipalName || "";
-          const name = profile?.displayName || "";
-
-          if (microsoftId && email && accessToken && refreshToken) {
-            const existingAccounts =
-              await this.office365AccountsService.findAllByUser(
-                stateData.userId,
-              );
-            const accountExists = existingAccounts.find(
-              (acc) => acc.microsoftId === microsoftId,
-            );
-
-            if (accountExists) {
-              await this.office365AccountsService.updateTokens(
-                accountExists.id,
-                stateData.userId,
-                accessToken,
-                refreshToken,
-              );
-            } else {
-              const isPrimary = existingAccounts.length === 0;
-              await this.office365AccountsService.create(
-                stateData.userId,
-                microsoftId,
-                email,
-                name,
-                accessToken,
-                refreshToken,
-                isPrimary,
-              );
-            }
-
-            return res.redirect(
-              `${frontendUrl}/settings?office365Connected=true`,
-            );
-          }
-        }
-      } catch (e) {
-        // Invalid state, fall through to login flow
-        logError(
-          "Error parsing state in Microsoft callback",
-          e instanceof Error ? e : new Error(String(e)),
-        );
-      }
+      const handled = await this.handleMicrosoftConnectionState(
+        state,
+        req,
+        res,
+        frontendUrl,
+      );
+      if (handled) return;
     }
-
-    // Regular login flow
     const loginData = await this.authService.login(req.user);
     res.redirect(`${frontendUrl}/login?token=${loginData.access_token}`);
   }
 
   @Get("zoho")
   @UseGuards(ZohoAuthGuard)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async zohoAuth(@Request() _req) {}
 
   @Get("zoho/callback")
@@ -349,99 +180,253 @@ export class AuthController {
     @Query("state") state?: string,
   ) {
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-
-    // Check if there was an auth error (set by ZohoAuthGuard)
     if (req.authError || req.user?.authFailed) {
-      const error = req.authError as Error;
-      const errorMessage = error?.message || "Authentication failed";
-      this.logger.warn(`Zoho auth error: ${errorMessage}`);
-
-      // Determine error type based on message content
-      let errorType = "auth_error";
-      if (errorMessage.includes("pending approval")) {
-        errorType = "pending_approval";
-      } else if (
-        errorMessage.includes("waitlist") ||
-        errorMessage.includes("join the waitlist")
-      ) {
-        errorType = "not_on_waitlist";
-      }
-
-      const errorParams = new URLSearchParams({
-        error: "auth_failed",
-        message: errorMessage,
-        type: errorType,
-      });
-
-      return res.redirect(
-        `${frontendUrl}/auth-error?${errorParams.toString()}`,
+      return this.redirectWithAuthError(
+        req.authError as Error,
+        frontendUrl,
+        res,
+        "Zoho",
       );
     }
-
-    // Check if this is a connection flow (has state with userId)
     if (state) {
-      try {
-        const stateData = JSON.parse(Buffer.from(state, "base64").toString());
-        if (stateData.action === "connect" && stateData.userId) {
-          // This is a connection flow, not a login
-          const zohoUser = req.user as {
-            zohoProfile?: {
-              ZUID?: string;
-              Email?: string;
-              Display_Name?: string;
-            };
-            zohoAccessToken?: string;
-            zohoRefreshToken?: string;
-            zohoId?: string;
-          };
-          const profile = zohoUser.zohoProfile;
-          const accessToken = zohoUser.zohoAccessToken;
-          const refreshToken = zohoUser.zohoRefreshToken;
-          const zohoId = zohoUser.zohoId || profile?.ZUID || "";
-          const email = profile?.Email || "";
-          const name = profile?.Display_Name || "";
-
-          if (zohoId && email && accessToken && refreshToken) {
-            const existingAccounts =
-              await this.zohoAccountsService.findAllByUser(stateData.userId);
-            const accountExists = existingAccounts.find(
-              (acc) => acc.zohoId === zohoId,
-            );
-
-            if (accountExists) {
-              await this.zohoAccountsService.updateTokens(
-                accountExists.id,
-                stateData.userId,
-                accessToken,
-                refreshToken,
-              );
-            } else {
-              const isPrimary = existingAccounts.length === 0;
-              await this.zohoAccountsService.create(
-                stateData.userId,
-                zohoId,
-                email,
-                name,
-                accessToken,
-                refreshToken,
-                isPrimary,
-              );
-            }
-
-            return res.redirect(`${frontendUrl}/settings?zohoConnected=true`);
-          }
-        }
-      } catch (e) {
-        // Invalid state, fall through to login flow
-        logError(
-          "Error parsing state in Zoho callback",
-          e instanceof Error ? e : new Error(String(e)),
-        );
-      }
+      const handled = await this.handleZohoConnectionState(
+        state,
+        req,
+        res,
+        frontendUrl,
+      );
+      if (handled) return;
     }
-
-    // Regular login flow
     const loginData = await this.authService.login(req.user);
     res.redirect(`${frontendUrl}/login?token=${loginData.access_token}`);
+  }
+
+  private determineOAuthErrorType(errorMessage: string): string {
+    if (errorMessage.includes("pending approval")) return "pending_approval";
+    if (
+      errorMessage.includes("waitlist") ||
+      errorMessage.includes("join the waitlist")
+    ) {
+      return "not_on_waitlist";
+    }
+    return "auth_error";
+  }
+
+  private redirectWithAuthError(
+    error: Error,
+    frontendUrl: string,
+    res,
+    providerName: string,
+  ) {
+    const errorMessage = error?.message || "Authentication failed";
+    this.logger.warn(`${providerName} auth error: ${errorMessage}`);
+    const errorType = this.determineOAuthErrorType(errorMessage);
+    const errorParams = new URLSearchParams({
+      error: "auth_failed",
+      message: errorMessage,
+      type: errorType,
+    });
+    return res.redirect(`${frontendUrl}/auth-error?${errorParams.toString()}`);
+  }
+
+  private parseOAuthState(
+    state: string,
+  ): { action: string; userId: string } | null {
+    try {
+      return JSON.parse(Buffer.from(state, "base64").toString());
+    } catch {
+      return null;
+    }
+  }
+
+  private async handleGoogleConnectionState(
+    state: string,
+    req,
+    res,
+    frontendUrl: string,
+  ): Promise<boolean> {
+    const stateData = this.parseOAuthState(state);
+    if (!stateData || stateData.action !== "connect" || !stateData.userId)
+      return false;
+    try {
+      const googleUser = req.user as {
+        googleProfile?: {
+          id?: string;
+          emails?: Array<{ value: string }>;
+          displayName?: string;
+        };
+        googleAccessToken?: string;
+        googleRefreshToken?: string;
+        googleId?: string;
+        googleCalendarAccessToken?: string;
+        googleCalendarRefreshToken?: string;
+        email?: string;
+        name?: string;
+      };
+      const profile = googleUser.googleProfile;
+      const accessToken =
+        googleUser.googleAccessToken || googleUser.googleCalendarAccessToken;
+      const refreshToken =
+        googleUser.googleRefreshToken || googleUser.googleCalendarRefreshToken;
+      const googleId = googleUser.googleId || profile?.id;
+      const email = profile?.emails?.[0]?.value || googleUser.email;
+      const name = profile?.displayName || googleUser.name || "";
+      if (!googleId || !email || !accessToken || !refreshToken) return false;
+      const existingAccounts = await this.googleAccountsService.findAllByUser(
+        stateData.userId,
+      );
+      const accountExists = existingAccounts.find(
+        (acc) => acc.googleId === googleId,
+      );
+      if (accountExists) {
+        await this.googleAccountsService.updateTokens(
+          accountExists.id,
+          stateData.userId,
+          accessToken,
+          refreshToken,
+        );
+      } else {
+        const isPrimary = existingAccounts.length === 0;
+        await this.googleAccountsService.create({
+          userId: stateData.userId,
+          googleId,
+          email,
+          name,
+          accessToken,
+          refreshToken,
+          isPrimary,
+        });
+      }
+      res.redirect(`${frontendUrl}/settings?googleConnected=true`);
+      return true;
+    } catch (e) {
+      logError(
+        "Error parsing state in Google callback",
+        e instanceof Error ? e : new Error(String(e)),
+      );
+      return false;
+    }
+  }
+
+  private async handleMicrosoftConnectionState(
+    state: string,
+    req,
+    res,
+    frontendUrl: string,
+  ): Promise<boolean> {
+    const stateData = this.parseOAuthState(state);
+    if (!stateData || stateData.action !== "connect" || !stateData.userId)
+      return false;
+    try {
+      const microsoftUser = req.user as {
+        microsoftProfile?: {
+          id?: string;
+          mail?: string;
+          userPrincipalName?: string;
+          displayName?: string;
+        };
+        microsoftAccessToken?: string;
+        microsoftRefreshToken?: string;
+        microsoftId?: string;
+      };
+      const profile = microsoftUser.microsoftProfile;
+      const accessToken = microsoftUser.microsoftAccessToken;
+      const refreshToken = microsoftUser.microsoftRefreshToken;
+      const microsoftId = microsoftUser.microsoftId || profile?.id || "";
+      const email = profile?.mail || profile?.userPrincipalName || "";
+      const name = profile?.displayName || "";
+      if (!microsoftId || !email || !accessToken || !refreshToken) return false;
+      const existingAccounts =
+        await this.office365AccountsService.findAllByUser(stateData.userId);
+      const accountExists = existingAccounts.find(
+        (acc) => acc.microsoftId === microsoftId,
+      );
+      if (accountExists) {
+        await this.office365AccountsService.updateTokens(
+          accountExists.id,
+          stateData.userId,
+          accessToken,
+          refreshToken,
+        );
+      } else {
+        const isPrimary = existingAccounts.length === 0;
+        await this.office365AccountsService.create(
+          stateData.userId,
+          microsoftId,
+          email,
+          name,
+          accessToken,
+          refreshToken,
+          isPrimary,
+        );
+      }
+      res.redirect(`${frontendUrl}/settings?office365Connected=true`);
+      return true;
+    } catch (e) {
+      logError(
+        "Error parsing state in Microsoft callback",
+        e instanceof Error ? e : new Error(String(e)),
+      );
+      return false;
+    }
+  }
+
+  private async handleZohoConnectionState(
+    state: string,
+    req,
+    res,
+    frontendUrl: string,
+  ): Promise<boolean> {
+    const stateData = this.parseOAuthState(state);
+    if (!stateData || stateData.action !== "connect" || !stateData.userId)
+      return false;
+    try {
+      const zohoUser = req.user as {
+        zohoProfile?: { ZUID?: string; Email?: string; Display_Name?: string };
+        zohoAccessToken?: string;
+        zohoRefreshToken?: string;
+        zohoId?: string;
+      };
+      const profile = zohoUser.zohoProfile;
+      const accessToken = zohoUser.zohoAccessToken;
+      const refreshToken = zohoUser.zohoRefreshToken;
+      const zohoId = zohoUser.zohoId || profile?.ZUID || "";
+      const email = profile?.Email || "";
+      const name = profile?.Display_Name || "";
+      if (!zohoId || !email || !accessToken || !refreshToken) return false;
+      const existingAccounts = await this.zohoAccountsService.findAllByUser(
+        stateData.userId,
+      );
+      const accountExists = existingAccounts.find(
+        (acc) => acc.zohoId === zohoId,
+      );
+      if (accountExists) {
+        await this.zohoAccountsService.updateTokens(
+          accountExists.id,
+          stateData.userId,
+          accessToken,
+          refreshToken,
+        );
+      } else {
+        const isPrimary = existingAccounts.length === 0;
+        await this.zohoAccountsService.create({
+          userId: stateData.userId,
+          zohoId,
+          email,
+          name,
+          accessToken,
+          refreshToken,
+          isPrimary,
+        });
+      }
+      res.redirect(`${frontendUrl}/settings?zohoConnected=true`);
+      return true;
+    } catch (e) {
+      logError(
+        "Error parsing state in Zoho callback",
+        e instanceof Error ? e : new Error(String(e)),
+      );
+      return false;
+    }
   }
 }

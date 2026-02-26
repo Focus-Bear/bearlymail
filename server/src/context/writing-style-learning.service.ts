@@ -67,30 +67,84 @@ export class WritingStyleLearningService {
    * Check if we should learn from new sent emails and do so if needed.
    * Called after email sync detects new sent emails.
    */
+  private extractEmailSnippet(rawBody: string): string | null {
+    const body = this.stripQuotedContent(rawBody.trim());
+    if (!body || body.length < MIN_EMAIL_LENGTH) return null;
+
+    let snippet = body
+      .substring(0, MAX_EMAIL_LENGTH)
+      .replace(/<[^>]+>/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (snippet.length < MIN_EMAIL_LENGTH) return null;
+
+    if (snippet.length === MAX_EMAIL_LENGTH) {
+      const cutPoint = Math.max(
+        snippet.lastIndexOf("."),
+        snippet.lastIndexOf("\n"),
+        snippet.lastIndexOf(" "),
+      );
+      if (cutPoint > MIN_EMAIL_LENGTH) {
+        snippet = snippet.substring(0, cutPoint + 1).trim();
+      }
+      snippet = `${snippet}...`;
+    }
+    return snippet;
+  }
+
+  private async processEmailBodiesForExamples(
+    bodies: string[],
+    userId: string,
+    existingExamples: string[],
+    needCount: number,
+  ): Promise<string[]> {
+    const newExamples: string[] = [];
+    for (const rawBody of bodies) {
+      if (newExamples.length >= needCount) break;
+
+      const snippet = this.extractEmailSnippet(rawBody ?? "");
+      if (!snippet) continue;
+
+      if (this.isObviouslyNotUserWritten(snippet)) {
+        this.logger.debug(
+          `Skipping non-user-written email for user ${userId} (pre-filter)`,
+        );
+        continue;
+      }
+
+      const validated = await this.llmService.validateWritingExample(snippet);
+      if (!validated) {
+        this.logger.debug(`LLM rejected email example for user ${userId}`);
+        continue;
+      }
+
+      const isDuplicate = existingExamples.some((existing: string) =>
+        this.areSimilar(existing.toLowerCase(), validated.toLowerCase()),
+      );
+
+      if (!isDuplicate) {
+        newExamples.push(`Example: ${validated}`);
+      }
+    }
+    return newExamples;
+  }
+
   async learnFromNewSentEmails(
     userId: string,
     newSentEmailIds: string[],
   ): Promise<void> {
-    if (newSentEmailIds.length === 0) {
-      return;
-    }
+    if (newSentEmailIds.length === 0) return;
 
     try {
-      // Get current user and their toneSettings
       const user = await this.usersService.findOne(userId);
-      if (!user) {
-        return;
-      }
+      if (!user) return;
 
       const existingRules = user.toneSettings?.rules || [];
-
-      // Count existing email examples (rules that are not Tone/Style/Common phrase)
-      // This includes both "Example:" prefixed rules and legacy rules without prefix
       const existingExamples = existingRules.filter((rule: string) =>
         isEmailExample(rule),
       );
 
-      // If we already have enough examples, skip
       if (existingExamples.length >= TARGET_EXAMPLE_COUNT) {
         this.logger.debug(
           `User ${userId} already has ${existingExamples.length} examples, skipping learning`,
@@ -98,7 +152,6 @@ export class WritingStyleLearningService {
         return;
       }
 
-      // Calculate how many more we need
       const needCount = Math.min(
         TARGET_EXAMPLE_COUNT - existingExamples.length,
         MAX_EXAMPLES_PER_SYNC,
@@ -108,94 +161,28 @@ export class WritingStyleLearningService {
         `User ${userId} has ${existingExamples.length}/${TARGET_EXAMPLE_COUNT} examples, learning from ${newSentEmailIds.length} new sent emails (max ${needCount})`,
       );
 
-      // Fetch the new sent emails
       const sentEmails = await this.emailRepository.find({
         where: newSentEmailIds.map((id) => ({ id, userId })),
         order: { receivedAt: "DESC" },
-        take: needCount * 2, // Fetch more than needed in case some are filtered
+        take: needCount * 2,
       });
 
-      if (sentEmails.length === 0) {
-        return;
-      }
+      if (sentEmails.length === 0) return;
 
-      // Filter and extract good examples
-      const newExamples: string[] = [];
-      for (const email of sentEmails) {
-        if (newExamples.length >= needCount) {
-          break;
-        }
-
-        const rawBody = email.body?.trim();
-        if (!rawBody || rawBody.length < MIN_EMAIL_LENGTH) {
-          continue;
-        }
-
-        // Strip quoted content to get only the user's own writing
-        const body = this.stripQuotedContent(rawBody);
-        if (!body || body.length < MIN_EMAIL_LENGTH) {
-          continue;
-        }
-
-        // Extract a representative snippet (first part of email)
-        let snippet = body.substring(0, MAX_EMAIL_LENGTH);
-
-        // Clean up the snippet - remove excessive whitespace, HTML artifacts
-        // Remove HTML tags
-        // Normalize whitespace
-        snippet = snippet
-          .replace(/<[^>]+>/g, "")
-          .replace(/\s+/g, " ")
-          .trim();
-
-        if (snippet.length < MIN_EMAIL_LENGTH) {
-          continue;
-        }
-
-        // If snippet was truncated mid-word, try to end at a sentence or word boundary
-        if (snippet.length === MAX_EMAIL_LENGTH) {
-          const lastPeriod = snippet.lastIndexOf(".");
-          const lastNewline = snippet.lastIndexOf("\n");
-          const lastSpace = snippet.lastIndexOf(" ");
-          const cutPoint = Math.max(lastPeriod, lastNewline, lastSpace);
-          if (cutPoint > MIN_EMAIL_LENGTH) {
-            snippet = snippet.substring(0, cutPoint + 1).trim();
-          }
-          snippet = `${snippet}...`;
-        }
-
-        if (this.isObviouslyNotUserWritten(snippet)) {
-          this.logger.debug(
-            `Skipping non-user-written email for user ${userId} (pre-filter)`,
-          );
-          continue;
-        }
-
-        const validated = await this.llmService.validateWritingExample(snippet);
-
-        if (!validated) {
-          this.logger.debug(`LLM rejected email example for user ${userId}`);
-          continue;
-        }
-
-        const isDuplicate = existingExamples.some((existing: string) =>
-          this.areSimilar(existing.toLowerCase(), validated.toLowerCase()),
-        );
-
-        if (!isDuplicate) {
-          newExamples.push(`Example: ${validated}`);
-        }
-      }
+      const newExamples = await this.processEmailBodiesForExamples(
+        sentEmails.map((e) => e.body ?? ""),
+        userId,
+        existingExamples,
+        needCount,
+      );
 
       if (newExamples.length === 0) {
         this.logger.debug(`No new suitable examples found for user ${userId}`);
         return;
       }
 
-      // Add new examples to toneSettings.rules
       const updatedRules = [...existingRules, ...newExamples].slice(
         0,
-        // Keep some buffer for Tone/Style/CommonPhrase entries
         TARGET_EXAMPLE_COUNT + 10,
       );
 
@@ -311,96 +298,32 @@ export class WritingStyleLearningService {
     userId: string,
     emailBodies: string[],
   ): Promise<void> {
-    if (emailBodies.length === 0) {
-      return;
-    }
+    if (emailBodies.length === 0) return;
 
     try {
       const user = await this.usersService.findOne(userId);
-      if (!user) {
-        return;
-      }
+      if (!user) return;
 
       const existingRules = user.toneSettings?.rules || [];
-      // Count existing email examples (rules that are not Tone/Style/Common phrase)
-      // This includes both "Example:" prefixed rules and legacy rules without prefix
       const existingExamples = existingRules.filter((rule: string) =>
         isEmailExample(rule),
       );
 
-      if (existingExamples.length >= TARGET_EXAMPLE_COUNT) {
-        return;
-      }
+      if (existingExamples.length >= TARGET_EXAMPLE_COUNT) return;
 
       const needCount = Math.min(
         TARGET_EXAMPLE_COUNT - existingExamples.length,
         MAX_EXAMPLES_PER_SYNC,
       );
 
-      const newExamples: string[] = [];
-      for (const body of emailBodies) {
-        if (newExamples.length >= needCount) {
-          break;
-        }
+      const newExamples = await this.processEmailBodiesForExamples(
+        emailBodies,
+        userId,
+        existingExamples,
+        needCount,
+      );
 
-        const rawBody = body?.trim();
-        if (!rawBody || rawBody.length < MIN_EMAIL_LENGTH) {
-          continue;
-        }
-
-        // Strip quoted content to get only the user's own writing
-        const trimmed = this.stripQuotedContent(rawBody);
-        if (!trimmed || trimmed.length < MIN_EMAIL_LENGTH) {
-          continue;
-        }
-
-        let snippet = trimmed.substring(0, MAX_EMAIL_LENGTH);
-        snippet = snippet
-          .replace(/<[^>]+>/g, "")
-          .replace(/\s+/g, " ")
-          .trim();
-
-        if (snippet.length < MIN_EMAIL_LENGTH) {
-          continue;
-        }
-
-        if (snippet.length === MAX_EMAIL_LENGTH) {
-          const lastPeriod = snippet.lastIndexOf(".");
-          const lastNewline = snippet.lastIndexOf("\n");
-          const lastSpace = snippet.lastIndexOf(" ");
-          const cutPoint = Math.max(lastPeriod, lastNewline, lastSpace);
-          if (cutPoint > MIN_EMAIL_LENGTH) {
-            snippet = snippet.substring(0, cutPoint + 1).trim();
-          }
-          snippet = `${snippet}...`;
-        }
-
-        if (this.isObviouslyNotUserWritten(snippet)) {
-          this.logger.debug(
-            `Skipping non-user-written email for user ${userId} (pre-filter)`,
-          );
-          continue;
-        }
-
-        const validated = await this.llmService.validateWritingExample(snippet);
-
-        if (!validated) {
-          this.logger.debug(`LLM rejected email example for user ${userId}`);
-          continue;
-        }
-
-        const isDuplicate = existingExamples.some((existing: string) =>
-          this.areSimilar(existing.toLowerCase(), validated.toLowerCase()),
-        );
-
-        if (!isDuplicate) {
-          newExamples.push(`Example: ${validated}`);
-        }
-      }
-
-      if (newExamples.length === 0) {
-        return;
-      }
+      if (newExamples.length === 0) return;
 
       const updatedRules = [...existingRules, ...newExamples].slice(
         0,

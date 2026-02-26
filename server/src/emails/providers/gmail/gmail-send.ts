@@ -69,6 +69,71 @@ export function buildEmailContent(options: {
   return [...headerLines, "", bodyContent].join("\r\n");
 }
 
+function buildBodyParts(
+  body: string,
+  htmlBody: string | undefined,
+  mixedBoundary: string,
+): string[] {
+  const parts: string[] = [];
+
+  if (htmlBody) {
+    const altBoundary = `----=_Alt_${Date.now()}_${Math.random().toString(QUERY_LIMITS.RANDOM_BASE_36).substring(QUERY_LIMITS.RANDOM_STRING_START, QUERY_LIMITS.MESSAGE_ID_SUFFIX)}`;
+    parts.push(
+      `--${mixedBoundary}`,
+      `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
+      "",
+    );
+    parts.push(
+      `--${altBoundary}`,
+      "Content-Type: text/plain; charset=UTF-8",
+      "Content-Transfer-Encoding: 7bit",
+      "",
+      body,
+    );
+    parts.push(
+      `--${altBoundary}`,
+      "Content-Type: text/html; charset=UTF-8",
+      "Content-Transfer-Encoding: 7bit",
+      "",
+      htmlBody,
+    );
+    parts.push(`--${altBoundary}--`);
+  } else {
+    parts.push(
+      `--${mixedBoundary}`,
+      "Content-Type: text/plain; charset=UTF-8",
+      "Content-Transfer-Encoding: 7bit",
+      "",
+      body,
+    );
+  }
+
+  return parts;
+}
+
+function buildAttachmentParts(
+  attachments: EmailAttachmentData[],
+  mixedBoundary: string,
+): string[] {
+  const parts: string[] = [];
+
+  for (const attachment of attachments) {
+    const base64Content = attachment.content.toString("base64");
+    const chunkedContent =
+      base64Content.match(/.{1,76}/g)?.join("\r\n") || base64Content;
+    parts.push(
+      `--${mixedBoundary}`,
+      `Content-Type: ${attachment.mimeType}; name="${attachment.filename}"`,
+      "Content-Transfer-Encoding: base64",
+      `Content-Disposition: attachment; filename="${attachment.filename}"`,
+      "",
+      chunkedContent,
+    );
+  }
+
+  return parts;
+}
+
 function buildMultipartMixedBody(
   options: {
     body: string;
@@ -82,62 +147,14 @@ function buildMultipartMixedBody(
     `Content-Type: multipart/mixed; boundary="${mixedBoundary}"`,
   );
 
-  const parts: string[] = [];
+  const parts = [
+    ...buildBodyParts(options.body, options.htmlBody, mixedBoundary),
+    ...(options.attachments
+      ? buildAttachmentParts(options.attachments, mixedBoundary)
+      : []),
+    `--${mixedBoundary}--`,
+  ];
 
-  if (options.htmlBody) {
-    // Use multipart/alternative for text + HTML
-    const altBoundary = `----=_Alt_${Date.now()}_${Math.random().toString(QUERY_LIMITS.RANDOM_BASE_36).substring(QUERY_LIMITS.RANDOM_STRING_START, QUERY_LIMITS.MESSAGE_ID_SUFFIX)}`;
-    parts.push(`--${mixedBoundary}`);
-    parts.push(
-      `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
-    );
-    parts.push("");
-
-    // Plain text part
-    parts.push(`--${altBoundary}`);
-    parts.push("Content-Type: text/plain; charset=UTF-8");
-    parts.push("Content-Transfer-Encoding: 7bit");
-    parts.push("");
-    parts.push(options.body);
-
-    // HTML part
-    parts.push(`--${altBoundary}`);
-    parts.push("Content-Type: text/html; charset=UTF-8");
-    parts.push("Content-Transfer-Encoding: 7bit");
-    parts.push("");
-    parts.push(options.htmlBody);
-
-    parts.push(`--${altBoundary}--`);
-  } else {
-    // Text body part only
-    parts.push(`--${mixedBoundary}`);
-    parts.push("Content-Type: text/plain; charset=UTF-8");
-    parts.push("Content-Transfer-Encoding: 7bit");
-    parts.push("");
-    parts.push(options.body);
-  }
-
-  // Attachment parts
-  if (options.attachments) {
-    for (const attachment of options.attachments) {
-      parts.push(`--${mixedBoundary}`);
-      parts.push(
-        `Content-Type: ${attachment.mimeType}; name="${attachment.filename}"`,
-      );
-      parts.push("Content-Transfer-Encoding: base64");
-      parts.push(
-        `Content-Disposition: attachment; filename="${attachment.filename}"`,
-      );
-      parts.push("");
-      // Encode attachment content as base64, split into 76-character lines
-      const base64Content = attachment.content.toString("base64");
-      const chunkedContent =
-        base64Content.match(/.{1,76}/g)?.join("\r\n") || base64Content;
-      parts.push(chunkedContent);
-    }
-  }
-
-  parts.push(`--${mixedBoundary}--`);
   return parts.join("\r\n");
 }
 

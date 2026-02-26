@@ -1,13 +1,10 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
 import { NotesService } from "./notes.service";
 import { PrivateNote } from "../database/entities/private-note.entity";
 
 describe("NotesService", () => {
   let service: NotesService;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  let repository: Repository<PrivateNote>;
 
   const mockRepository = {
     findOne: jest.fn(),
@@ -29,9 +26,6 @@ describe("NotesService", () => {
     }).compile();
 
     service = module.get<NotesService>(NotesService);
-    repository = module.get<Repository<PrivateNote>>(
-      getRepositoryToken(PrivateNote),
-    );
   });
 
   afterEach(() => {

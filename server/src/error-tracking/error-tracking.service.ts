@@ -85,8 +85,10 @@ export class ErrorTrackingService {
         this.posthog = new PostHog(apiKey!, {
           host: apiHost,
           // Automatically batch events for performance
-          flushAt: 20, // Flush every 20 events
-          flushInterval: 10000, // Or every 10 seconds
+          // Flush every 20 events
+          flushAt: 20,
+          // Or every 10 seconds
+          flushInterval: 10000,
         });
 
         this.logger.log(
@@ -272,10 +274,14 @@ export class ErrorTrackingService {
     delete sanitized.lastName;
     delete sanitized.phone;
     delete sanitized.address;
-    delete sanitized.query; // Search queries are PII
-    delete sanitized.subject; // Email subjects are PII
-    delete sanitized.body; // Email bodies are PII
-    delete sanitized.message; // May contain PII
+    // Search queries are PII
+    delete sanitized.query;
+    // Email subjects are PII
+    delete sanitized.subject;
+    // Email bodies are PII
+    delete sanitized.body;
+    // May contain PII
+    delete sanitized.message;
 
     return sanitized;
   }

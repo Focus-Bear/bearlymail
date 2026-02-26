@@ -26,7 +26,6 @@ export class PriorityLearningService {
     @InjectRepository(EmailThread)
     private emailThreadRepository: Repository<EmailThread>,
     @InjectRepository(UserContext)
-    // eslint-disable-next-line max-params
     private userContextRepository: Repository<UserContext>,
     private llmService: LLMService,
     private usersService: UsersService,
@@ -67,24 +66,7 @@ export class PriorityLearningService {
       const priorityScore =
         calculateScoreFromBreakdown(thread?.priorityExplanation) ||
         PRIORITY_LEARNING_CONSTANTS.PRIORITY_SCORE_DEFAULT;
-      let predictedStarCount: number;
-      if (priorityScore <= PRIORITY_LEARNING_CONSTANTS.PRIORITY_THRESHOLD_LOW) {
-        // STAR_COUNTS.NONE
-        predictedStarCount = 0;
-      } else if (
-        priorityScore <= PRIORITY_LEARNING_CONSTANTS.PRIORITY_THRESHOLD_MEDIUM
-      ) {
-        // STAR_COUNTS.LOW
-        predictedStarCount = 1;
-      } else if (
-        priorityScore <= PRIORITY_LEARNING_CONSTANTS.PRIORITY_THRESHOLD_HIGH
-      ) {
-        // STAR_COUNTS.MEDIUM
-        predictedStarCount = 2;
-      } else {
-        // STAR_COUNTS.HIGH
-        predictedStarCount = 3;
-      }
+      const predictedStarCount = this.priorityScoreToStarCount(priorityScore);
 
       // Check for significant discrepancy (difference of 2 or more)
       const discrepancy = Math.abs(userStarCount - predictedStarCount);
@@ -146,7 +128,6 @@ export class PriorityLearningService {
         `Stored star feedback for email ${emailId}: ${explanation}`,
       );
     } catch (error) {
-      // eslint-disable-next-line max-lines-per-function
       this.logger.error(
         `Error storing star feedback for email ${emailId}`,
         error,
@@ -154,7 +135,6 @@ export class PriorityLearningService {
     }
   }
 
-  // eslint-disable-next-line max-statements
   /**
    * Learn from user's star selection and potentially add VIP contacts
    * Called when user sets starCount (0-3) on an email
@@ -169,55 +149,17 @@ export class PriorityLearningService {
         where: { id: emailId, userId },
       });
 
-      // eslint-disable-next-line max-params
       if (!email) {
         this.logger.warn(`Email ${emailId} not found for user ${userId}`);
         return;
       }
 
-      // Get user's recent emails from this sender
-      const result = await this.emailRepository
-        .createQueryBuilder("email")
-        .innerJoin("email_threads", "thread", "thread.id = email.emailThreadId")
-        .select([
-          "email.id",
-          "email.userId",
-          "email.threadId",
-          "email.from",
-          "email.fromName",
-          "email.subject",
-          "email.receivedAt",
-        ])
-        .addSelect("thread.starCount", "thread_starCount")
-        .addSelect("thread.isArchived", "thread_isArchived")
-        .where("email.userId = :userId", { userId })
-        .andWhere("email.from = :from", { from: email.from })
-        .orderBy("email.receivedAt", "DESC")
-        .take(QUERY_LIMITS.PRIORITY_LEARNING_MAX_SAMPLES)
-        .getRawAndEntities();
+      const recentEmailsFromSender = await this.fetchRecentEmailsFromSender(
+        userId,
+        email,
+      );
 
-      // Define type for email with joined thread properties
-      interface EmailWithThreadProps extends Email {
-        starCount: number;
-        isArchived: boolean;
-      }
-
-      const recentEmailsFromSender: EmailWithThreadProps[] =
-        result.entities.map((e, index) => {
-          const raw = result.raw[index] as {
-            thread_starCount?: number;
-            thread_isArchived?: boolean;
-          };
-          // Extend email with thread properties from the raw join result
-          return Object.assign(e, {
-            starCount: raw.thread_starCount ?? 0,
-            isArchived: raw.thread_isArchived ?? false,
-          });
-        });
-
-      // Count how many times user starred emails from this sender
       // Count how many times user starred emails from this sender (unused but kept for future use)
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const _starredCount = recentEmailsFromSender.filter(
         (e) => e.starCount > 0,
       ).length;
@@ -288,7 +230,6 @@ export class PriorityLearningService {
    * Process override reason to improve future scoring
    * Analyzes reason text and updates user context rules
    */
-  // eslint-disable-next-line max-lines-per-function
   async processOverrideReason(
     userId: string,
     email: Email,
@@ -321,103 +262,17 @@ export class PriorityLearningService {
         // userId
       );
 
-      // Apply suggested rule updates
-      for (const contextUpdate of analysis.updatedContexts) {
-        // Validate contextKey is a valid ContextKey enum value
-        const validContextKey = Object.values(ContextKey).includes(
-          contextUpdate.contextKey as ContextKey,
-        )
-          ? (contextUpdate.contextKey as ContextKey)
-          : null;
-
-        if (!validContextKey) {
-          this.logger.warn(
-            `Invalid contextKey from LLM: ${contextUpdate.contextKey}`,
-          );
-          continue;
-        }
-
-        // Check if context already exists
-        const existing = await this.userContextRepository.findOne({
-          where: {
-            userId,
-            contextKey: validContextKey,
-            contextValue: contextUpdate.contextValue,
-          },
-        });
-
-        if (!existing) {
-          await this.userContextRepository.save({
-            userId,
-            contextKey: validContextKey,
-            contextValue: contextUpdate.contextValue,
-            source: Source.USER_EDITED,
-            explanation: `Learned from override: ${reasonText}`,
-            priority: contextUpdate.priority,
-          });
-          this.logger.log(
-            `Created new context rule from override: ${validContextKey} = ${contextUpdate.contextValue}`,
-          );
-        }
-      }
-
-      // Handle specific reason types
-      if (reasonType === "wrong_sender_priority") {
-        // If user says sender priority is wrong, adjust VIP status
-        const senderName = email.fromName || email.from;
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const existingVip = await this.userContextRepository.findOne({
-          where: {
-            userId,
-            contextKey: ContextKey.VIP_CONTACT,
-          },
-        });
-
-        // Check if sender is already VIP
-        const allVips = await this.userContextRepository.find({
-          where: { userId, contextKey: ContextKey.VIP_CONTACT },
-        });
-        const isVip = allVips.some(
-          (vip) =>
-            email.from.toLowerCase().includes(vip.contextValue.toLowerCase()) ||
-            vip.contextValue.toLowerCase().includes(email.from.toLowerCase()),
-        );
-
-        // If reason suggests sender should be higher priority, add as VIP
-        if (
-          reasonText.toLowerCase().includes("higher") ||
-          reasonText.toLowerCase().includes("important")
-        ) {
-          if (!isVip) {
-            await this.userContextRepository.save({
-              userId,
-              contextKey: ContextKey.VIP_CONTACT,
-              contextValue: senderName,
-              source: Source.USER_EDITED,
-              explanation: `User override: ${reasonText}`,
-            });
-            this.logger.log(
-              `Added ${senderName} as VIP based on override feedback`,
-            );
-          }
-        }
-      } else if (reasonType === "topic_mismatch") {
-        // Extract topic/keywords from reason text and add to goals or working_on
-        const topicMatch = reasonText.match(
-          /(?:topic|about|regarding|concerning)[\s:]+(.+?)(?:\.|$)/i,
-        );
-        if (topicMatch) {
-          const topic = topicMatch[1].trim();
-          await this.userContextRepository.save({
-            userId,
-            contextKey: ContextKey.MY_GOALS,
-            contextValue: topic,
-            source: Source.USER_EDITED,
-            explanation: `Learned from override: ${reasonText}`,
-          });
-          this.logger.log(`Added topic to goals from override: ${topic}`);
-        }
-      }
+      await this.applyContextUpdates(
+        userId,
+        analysis.updatedContexts,
+        reasonText,
+      );
+      await this.handleReasonTypeSpecificLogic(
+        userId,
+        email,
+        reasonType,
+        reasonText,
+      );
 
       this.logger.log(
         `Processed override reason for email ${email.id}: ${reasonType} - ${reasonText}`,
@@ -442,95 +297,23 @@ export class PriorityLearningService {
   ): Promise<void> {
     try {
       const senderName = email.fromName || email.from;
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const emailText =
-        `${email.subject || ""} ${email.body || ""}`.toLowerCase();
 
-      // Extract patterns from email
-      const patterns: string[] = [];
-
-      // Add sender pattern
-      if (senderName) {
-        patterns.push(`from:${senderName.toLowerCase()}`);
-      }
-
-      // Extract keywords from subject
-      const subjectWords = (email.subject || "")
-        .toLowerCase()
-        .split(/\s+/)
-        .filter((w) => w.length > 3);
-      patterns.push(
-        ...subjectWords.slice(0, QUERY_LIMITS.SUBJECT_WORDS_TOP_COUNT),
+      const patterns = this.buildUrgencyPatterns(email, senderName);
+      const contextValue = this.buildUrgencyContextValue(
+        urgencyScore,
+        senderName,
       );
-      // Top 3 words
 
-      // Create or update URGENT context entry
-      const contextValue =
-        urgencyScore >= PRIORITY_LEARNING_CONSTANTS.URGENCY_HIGH_THRESHOLD
-          ? `High urgency (${urgencyScore}): ${senderName}`
-          : `Urgency ${urgencyScore}: ${senderName}`;
-
-      // Check if similar context already exists
-      const existingContexts = await this.userContextRepository.find({
-        where: {
-          userId,
-          contextKey: ContextKey.URGENT,
-        },
+      await this.upsertUrgencyContext(userId, email, senderName, {
+        urgencyScore,
+        reason,
+        patterns,
+        contextValue,
       });
-
-      // Check if we should update existing or create new
-      const similarContext = existingContexts.find(
-        (c) =>
-          c.contextValue.toLowerCase().includes(senderName.toLowerCase()) ||
-          senderName.toLowerCase().includes(c.contextValue.toLowerCase()),
-      );
-
-      if (similarContext) {
-        // Update existing context
-        similarContext.contextValue = contextValue;
-        similarContext.explanation = `User override: ${reason}. Patterns: ${patterns.join(", ")}`;
-        similarContext.source = Source.USER_EDITED;
-        await this.userContextRepository.save(similarContext);
-        this.logger.log(
-          `Updated urgency context for ${senderName} with score ${urgencyScore}`,
-        );
-      } else {
-        // Create new context
-        await this.userContextRepository.save({
-          userId,
-          contextKey: ContextKey.URGENT,
-          contextValue,
-          source: Source.USER_EDITED,
-          explanation: `User override: ${reason}. Patterns: ${patterns.join(", ")}. Urgency threshold: ${urgencyScore}`,
-        });
-        this.logger.log(
-          `Created urgency context for ${senderName} with score ${urgencyScore}`,
-        );
-      }
 
       // If urgency score is very high (>=90), also consider adding as VIP
       if (urgencyScore >= PRIORITY_LEARNING_CONSTANTS.URGENCY_HIGH_THRESHOLD) {
-        const allVips = await this.userContextRepository.find({
-          where: { userId, contextKey: ContextKey.VIP_CONTACT },
-        });
-        const isVip = allVips.some(
-          (vip) =>
-            email.from.toLowerCase().includes(vip.contextValue.toLowerCase()) ||
-            vip.contextValue.toLowerCase().includes(email.from.toLowerCase()),
-        );
-
-        if (!isVip) {
-          await this.userContextRepository.save({
-            userId,
-            contextKey: ContextKey.VIP_CONTACT,
-            contextValue: senderName,
-            source: Source.USER_EDITED,
-            explanation: `Auto-added based on high urgency override (${urgencyScore})`,
-          });
-          this.logger.log(
-            `Auto-added ${senderName} as VIP based on high urgency override`,
-          );
-        }
+        await this.addVipIfHighUrgency(userId, email, senderName, urgencyScore);
       }
     } catch (error) {
       this.logger.error(
@@ -568,15 +351,7 @@ export class PriorityLearningService {
         `Processing priority feedback for email ${email.id}: "${feedback.substring(0, 100)}..."`,
       );
 
-      // Get current user context
-      const currentContexts = await this.userContextRepository.find({
-        where: { userId },
-      });
-      const contextSummary = currentContexts.slice(0, 10).map((c) => ({
-        contextKey: c.contextKey,
-        contextValue: c.contextValue,
-        priority: c.priority,
-      }));
+      const contextSummary = await this.fetchContextSummary(userId);
 
       // Use LLM to analyze feedback and extract patterns
       const analysis = await this.llmService.analyzeOverrideReason(
@@ -597,63 +372,13 @@ export class PriorityLearningService {
 
       // Update or create context entries based on LLM analysis
       for (const contextUpdate of analysis.updatedContexts) {
-        // Validate contextKey
-        const validContextKey = Object.values(ContextKey).includes(
-          contextUpdate.contextKey as ContextKey,
-        )
-          ? (contextUpdate.contextKey as ContextKey)
-          : null;
-        if (!validContextKey) {
-          this.logger.warn(
-            `Invalid contextKey from LLM: ${contextUpdate.contextKey}`,
-          );
-          continue;
-        }
-
-        // Find existing context or create new one
-        const existing = await this.userContextRepository.findOne({
-          where: {
-            userId,
-            contextKey: validContextKey,
-            contextValue: contextUpdate.contextValue,
-          },
-        });
-
-        if (existing) {
-          // Update existing context
-          existing.priority = contextUpdate.priority || existing.priority;
-          existing.explanation = `Learned from feedback: ${feedback.substring(0, 200)}`;
-          existing.source = Source.USER_EDITED;
-          // User provided feedback
-          await this.userContextRepository.save(existing);
-          updated.push({
-            contextKey: validContextKey,
-            contextValue: contextUpdate.contextValue,
-            action: "updated",
-          });
-          this.logger.log(
-            `Updated context: ${validContextKey} = "${contextUpdate.contextValue}"`,
-          );
-        } else {
-          // Create new context
-          const newContext = this.userContextRepository.create({
-            userId,
-            contextKey: validContextKey,
-            contextValue: contextUpdate.contextValue,
-            priority: contextUpdate.priority || 2,
-            explanation: `Learned from feedback: ${feedback.substring(0, 200)}`,
-            source: Source.USER_EDITED,
-            // User provided feedback
-          });
-          await this.userContextRepository.save(newContext);
-          updated.push({
-            contextKey: validContextKey,
-            contextValue: contextUpdate.contextValue,
-            action: "created",
-          });
-          this.logger.log(
-            `Created new context: ${validContextKey} = "${contextUpdate.contextValue}"`,
-          );
+        const result = await this.applyOrCreateContextEntry(
+          userId,
+          contextUpdate,
+          feedback,
+        );
+        if (result) {
+          updated.push(result);
         }
       }
 
@@ -669,5 +394,412 @@ export class PriorityLearningService {
       );
       throw error;
     }
+  }
+
+  /**
+   * Convert a priority score (0-100) to a star count (0-3)
+   */
+  private priorityScoreToStarCount(priorityScore: number): number {
+    // Maps 0-25 → 0 stars, 26-50 → 1 star, 51-75 → 2 stars, 76-100 → 3 stars
+    if (priorityScore <= PRIORITY_LEARNING_CONSTANTS.PRIORITY_THRESHOLD_LOW) {
+      return STAR_COUNTS.NONE;
+    } else if (
+      priorityScore <= PRIORITY_LEARNING_CONSTANTS.PRIORITY_THRESHOLD_MEDIUM
+    ) {
+      return STAR_COUNTS.LOW;
+    } else if (
+      priorityScore <= PRIORITY_LEARNING_CONSTANTS.PRIORITY_THRESHOLD_HIGH
+    ) {
+      return STAR_COUNTS.MEDIUM;
+    } else {
+      return STAR_COUNTS.HIGH;
+    }
+  }
+
+  /**
+   * Fetch recent emails from the same sender as the given email
+   */
+  private async fetchRecentEmailsFromSender(
+    userId: string,
+    email: Email,
+  ): Promise<Array<Email & { starCount: number; isArchived: boolean }>> {
+    // Define type for email with joined thread properties
+    interface EmailWithThreadProps extends Email {
+      starCount: number;
+      isArchived: boolean;
+    }
+
+    const result = await this.emailRepository
+      .createQueryBuilder("email")
+      .innerJoin("email_threads", "thread", "thread.id = email.emailThreadId")
+      .select([
+        "email.id",
+        "email.userId",
+        "email.threadId",
+        "email.from",
+        "email.fromName",
+        "email.subject",
+        "email.receivedAt",
+      ])
+      .addSelect("thread.starCount", "thread_starCount")
+      .addSelect("thread.isArchived", "thread_isArchived")
+      .where("email.userId = :userId", { userId })
+      .andWhere("email.from = :from", { from: email.from })
+      .orderBy("email.receivedAt", "DESC")
+      .take(QUERY_LIMITS.PRIORITY_LEARNING_MAX_SAMPLES)
+      .getRawAndEntities();
+
+    return result.entities.map((e, index) => {
+      const raw = result.raw[index] as {
+        thread_starCount?: number;
+        thread_isArchived?: boolean;
+      };
+      // Extend email with thread properties from the raw join result
+      return Object.assign(e, {
+        starCount: raw.thread_starCount ?? 0,
+        isArchived: raw.thread_isArchived ?? false,
+      }) as EmailWithThreadProps;
+    });
+  }
+
+  /**
+   * Apply a set of context updates returned from LLM analysis
+   */
+  private async applyContextUpdates(
+    userId: string,
+    updatedContexts: Array<{
+      contextKey: string;
+      contextValue: string;
+      priority?: number;
+    }>,
+    reasonText: string,
+  ): Promise<void> {
+    for (const contextUpdate of updatedContexts) {
+      const validContextKey = this.validateContextKey(contextUpdate.contextKey);
+      if (!validContextKey) {
+        continue;
+      }
+
+      // Check if context already exists
+      const existing = await this.userContextRepository.findOne({
+        where: {
+          userId,
+          contextKey: validContextKey,
+          contextValue: contextUpdate.contextValue,
+        },
+      });
+
+      if (!existing) {
+        await this.userContextRepository.save({
+          userId,
+          contextKey: validContextKey,
+          contextValue: contextUpdate.contextValue,
+          source: Source.USER_EDITED,
+          explanation: `Learned from override: ${reasonText}`,
+          priority: contextUpdate.priority,
+        });
+        this.logger.log(
+          `Created new context rule from override: ${validContextKey} = ${contextUpdate.contextValue}`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Handle logic specific to each override reason type
+   */
+  private async handleReasonTypeSpecificLogic(
+    userId: string,
+    email: Email,
+    reasonType: string,
+    reasonText: string,
+  ): Promise<void> {
+    if (reasonType === "wrong_sender_priority") {
+      await this.handleWrongSenderPriorityReason(userId, email, reasonText);
+    } else if (reasonType === "topic_mismatch") {
+      await this.handleTopicMismatchReason(userId, reasonText);
+    }
+  }
+
+  /**
+   * Handle the "wrong_sender_priority" reason type by adjusting VIP status if needed
+   */
+  private async handleWrongSenderPriorityReason(
+    userId: string,
+    email: Email,
+    reasonText: string,
+  ): Promise<void> {
+    const senderName = email.fromName || email.from;
+
+    // Check if sender is already VIP
+    const allVips = await this.userContextRepository.find({
+      where: { userId, contextKey: ContextKey.VIP_CONTACT },
+    });
+    const isVip = allVips.some(
+      (vip) =>
+        email.from.toLowerCase().includes(vip.contextValue.toLowerCase()) ||
+        vip.contextValue.toLowerCase().includes(email.from.toLowerCase()),
+    );
+
+    // If reason suggests sender should be higher priority, add as VIP
+    const reasonSuggestsHigherPriority =
+      reasonText.toLowerCase().includes("higher") ||
+      reasonText.toLowerCase().includes("important");
+
+    if (reasonSuggestsHigherPriority && !isVip) {
+      await this.userContextRepository.save({
+        userId,
+        contextKey: ContextKey.VIP_CONTACT,
+        contextValue: senderName,
+        source: Source.USER_EDITED,
+        explanation: `User override: ${reasonText}`,
+      });
+      this.logger.log(`Added ${senderName} as VIP based on override feedback`);
+    }
+  }
+
+  /**
+   * Handle the "topic_mismatch" reason type by extracting and saving topic to goals
+   */
+  private async handleTopicMismatchReason(
+    userId: string,
+    reasonText: string,
+  ): Promise<void> {
+    const topicMatch = reasonText.match(
+      /(?:topic|about|regarding|concerning)[\s:]+(.+?)(?:\.|$)/i,
+    );
+    if (topicMatch) {
+      const topic = topicMatch[1].trim();
+      await this.userContextRepository.save({
+        userId,
+        contextKey: ContextKey.MY_GOALS,
+        contextValue: topic,
+        source: Source.USER_EDITED,
+        explanation: `Learned from override: ${reasonText}`,
+      });
+      this.logger.log(`Added topic to goals from override: ${topic}`);
+    }
+  }
+
+  /**
+   * Build urgency patterns from email fields (sender + subject keywords)
+   */
+  private buildUrgencyPatterns(email: Email, senderName: string): string[] {
+    const patterns: string[] = [];
+
+    // Add sender pattern
+    if (senderName) {
+      patterns.push(`from:${senderName.toLowerCase()}`);
+    }
+
+    // Extract keywords from subject
+    const subjectWords = (email.subject || "")
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((w) => w.length > 3);
+    patterns.push(
+      ...subjectWords.slice(0, QUERY_LIMITS.SUBJECT_WORDS_TOP_COUNT),
+    );
+
+    return patterns;
+  }
+
+  /**
+   * Build a human-readable urgency context value string
+   */
+  private buildUrgencyContextValue(
+    urgencyScore: number,
+    senderName: string,
+  ): string {
+    return urgencyScore >= PRIORITY_LEARNING_CONSTANTS.URGENCY_HIGH_THRESHOLD
+      ? `High urgency (${urgencyScore}): ${senderName}`
+      : `Urgency ${urgencyScore}: ${senderName}`;
+  }
+
+  /**
+   * Create or update an URGENT context entry for the given sender
+   */
+  private async upsertUrgencyContext(
+    userId: string,
+    email: Email,
+    senderName: string,
+    opts: {
+      urgencyScore: number;
+      reason: string;
+      patterns: string[];
+      contextValue: string;
+    },
+  ): Promise<void> {
+    const { urgencyScore, reason, patterns, contextValue } = opts;
+
+    // Check if similar context already exists
+    const existingContexts = await this.userContextRepository.find({
+      where: {
+        userId,
+        contextKey: ContextKey.URGENT,
+      },
+    });
+
+    const similarContext = existingContexts.find(
+      (c) =>
+        c.contextValue.toLowerCase().includes(senderName.toLowerCase()) ||
+        senderName.toLowerCase().includes(c.contextValue.toLowerCase()),
+    );
+
+    if (similarContext) {
+      // Update existing context
+      similarContext.contextValue = contextValue;
+      similarContext.explanation = `User override: ${reason}. Patterns: ${patterns.join(", ")}`;
+      similarContext.source = Source.USER_EDITED;
+      await this.userContextRepository.save(similarContext);
+      this.logger.log(
+        `Updated urgency context for ${senderName} with score ${urgencyScore}`,
+      );
+    } else {
+      // Create new context
+      await this.userContextRepository.save({
+        userId,
+        contextKey: ContextKey.URGENT,
+        contextValue,
+        source: Source.USER_EDITED,
+        explanation: `User override: ${reason}. Patterns: ${patterns.join(", ")}. Urgency threshold: ${urgencyScore}`,
+      });
+      this.logger.log(
+        `Created urgency context for ${senderName} with score ${urgencyScore}`,
+      );
+    }
+  }
+
+  /**
+   * Add sender as VIP contact if urgency is high and they are not already VIP
+   */
+  private async addVipIfHighUrgency(
+    userId: string,
+    email: Email,
+    senderName: string,
+    urgencyScore: number,
+  ): Promise<void> {
+    const allVips = await this.userContextRepository.find({
+      where: { userId, contextKey: ContextKey.VIP_CONTACT },
+    });
+    const isVip = allVips.some(
+      (vip) =>
+        email.from.toLowerCase().includes(vip.contextValue.toLowerCase()) ||
+        vip.contextValue.toLowerCase().includes(email.from.toLowerCase()),
+    );
+
+    if (!isVip) {
+      await this.userContextRepository.save({
+        userId,
+        contextKey: ContextKey.VIP_CONTACT,
+        contextValue: senderName,
+        source: Source.USER_EDITED,
+        explanation: `Auto-added based on high urgency override (${urgencyScore})`,
+      });
+      this.logger.log(
+        `Auto-added ${senderName} as VIP based on high urgency override`,
+      );
+    }
+  }
+
+  /**
+   * Fetch a concise summary of the user's current context entries
+   */
+  private async fetchContextSummary(userId: string): Promise<
+    Array<{
+      contextKey: string;
+      contextValue: string;
+      priority: number | undefined;
+    }>
+  > {
+    const currentContexts = await this.userContextRepository.find({
+      where: { userId },
+    });
+    return currentContexts.slice(0, 10).map((c) => ({
+      contextKey: c.contextKey,
+      contextValue: c.contextValue,
+      priority: c.priority,
+    }));
+  }
+
+  /**
+   * Apply or create a single context entry from LLM analysis output
+   * Returns the action taken (created/updated) or null if the key was invalid
+   */
+  private async applyOrCreateContextEntry(
+    userId: string,
+    contextUpdate: {
+      contextKey: string;
+      contextValue: string;
+      priority?: number;
+    },
+    feedback: string,
+  ): Promise<{
+    contextKey: string;
+    contextValue: string;
+    action: "created" | "updated";
+  } | null> {
+    const validContextKey = this.validateContextKey(contextUpdate.contextKey);
+    if (!validContextKey) {
+      return null;
+    }
+
+    // Find existing context or create new one
+    const existing = await this.userContextRepository.findOne({
+      where: {
+        userId,
+        contextKey: validContextKey,
+        contextValue: contextUpdate.contextValue,
+      },
+    });
+
+    if (existing) {
+      existing.priority = contextUpdate.priority || existing.priority;
+      existing.explanation = `Learned from feedback: ${feedback.substring(0, 200)}`;
+      existing.source = Source.USER_EDITED;
+      await this.userContextRepository.save(existing);
+      this.logger.log(
+        `Updated context: ${validContextKey} = "${contextUpdate.contextValue}"`,
+      );
+      return {
+        contextKey: validContextKey,
+        contextValue: contextUpdate.contextValue,
+        action: "updated",
+      };
+    } else {
+      const newContext = this.userContextRepository.create({
+        userId,
+        contextKey: validContextKey,
+        contextValue: contextUpdate.contextValue,
+        priority: contextUpdate.priority || 2,
+        explanation: `Learned from feedback: ${feedback.substring(0, 200)}`,
+        source: Source.USER_EDITED,
+      });
+      await this.userContextRepository.save(newContext);
+      this.logger.log(
+        `Created new context: ${validContextKey} = "${contextUpdate.contextValue}"`,
+      );
+      return {
+        contextKey: validContextKey,
+        contextValue: contextUpdate.contextValue,
+        action: "created",
+      };
+    }
+  }
+
+  /**
+   * Validate that a string is a valid ContextKey enum value
+   * Returns the valid key or null (and logs a warning) if invalid
+   */
+  private validateContextKey(key: string): ContextKey | null {
+    const validKey = Object.values(ContextKey).includes(key as ContextKey)
+      ? (key as ContextKey)
+      : null;
+
+    if (!validKey) {
+      this.logger.warn(`Invalid contextKey from LLM: ${key}`);
+    }
+
+    return validKey;
   }
 }

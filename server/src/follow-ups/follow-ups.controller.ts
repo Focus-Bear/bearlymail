@@ -185,9 +185,6 @@ export class FollowUpsController {
       req.user.userId,
     );
 
-    // Get follow-ups for these threads
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const threadIds = threads.map((t) => t.threadId);
     const followUps = await this.followUpsService.getDueFollowUps(
       req.user.userId,
     );
@@ -228,7 +225,9 @@ export class FollowUpsController {
   @Get(":id")
   async getFollowUp(@Request() req, @Param("id") id: string) {
     return this.followUpsService.getFollowUp(id, req.user.userId);
-  } /**
+  }
+
+  /**
    * Get generation/send status for a follow-up
    */
   @Get(":id/status")

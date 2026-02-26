@@ -23,17 +23,28 @@ export class AutoResponderAnalyticsService {
   /**
    * Log an auto-response
    */
-  async logAutoResponse(
-    userId: string,
-    emailThreadId: string,
-    senderEmailHash: string,
-    priorityLevel: "low" | "medium" | "high",
-    qaResult: QASearchResult | null,
-    templateUsed: string,
-    responseSubject: string,
-    responseBody: string,
-    classification: EmailClassification,
-  ): Promise<void> {
+  async logAutoResponse(params: {
+    userId: string;
+    emailThreadId: string;
+    senderEmailHash: string;
+    priorityLevel: "low" | "medium" | "high";
+    qaResult: QASearchResult | null;
+    templateUsed: string;
+    responseSubject: string;
+    responseBody: string;
+    classification: EmailClassification;
+  }): Promise<void> {
+    const {
+      userId,
+      emailThreadId,
+      senderEmailHash,
+      priorityLevel,
+      qaResult,
+      templateUsed,
+      responseSubject,
+      responseBody,
+      classification,
+    } = params;
     await this.autoResponseLogRepository.save({
       userId,
       emailThreadId,

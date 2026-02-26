@@ -31,8 +31,8 @@ interface ProjectItemsGraphQLResponse {
  */
 interface GraphQLErrorWithData {
   responseData?: ProjectItemsGraphQLResponse;
-  data?: ProjectItemsGraphQLResponse;
-  response?: { data?: ProjectItemsGraphQLResponse };
+  graphqlResponseData?: ProjectItemsGraphQLResponse;
+  response?: { graphqlResponseData?: ProjectItemsGraphQLResponse };
 }
 
 /**
@@ -173,6 +173,130 @@ export class GitHubApiService {
   }
 
   /**
+   * GraphQL query string for fetching project items attached to an issue/PR
+   */
+  private readonly projectItemsQuery = `
+    query($owner: String!, $repo: String!, $issueNumber: Int!) {
+      repository(owner: $owner, name: $repo) {
+        issue(number: $issueNumber) {
+          projectItems(first: 20) {
+            nodes {
+              project {
+                ... on ProjectV2 {
+                  title
+                }
+              }
+              fieldValues(first: 10) {
+                nodes {
+                  ... on ProjectV2ItemFieldSingleSelectValue {
+                    field {
+                      ... on ProjectV2FieldCommon {
+                        name
+                      }
+                    }
+                    name
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  /**
+   * Execute the GraphQL query for project items, recovering partial data from errors
+   * when GitHub returns both errors and data simultaneously.
+   */
+  private async executeProjectItemsQuery(
+    octokit: Octokit,
+    owner: string,
+    repo: string,
+    issueNumber: number,
+  ): Promise<ProjectItemsGraphQLResponse | undefined> {
+    try {
+      return await octokit.graphql<ProjectItemsGraphQLResponse>(
+        this.projectItemsQuery,
+        { owner, repo, issueNumber },
+      );
+    } catch (error: unknown) {
+      const graphqlError = error as GraphQLErrorWithData;
+      if (graphqlError?.responseData) {
+        return graphqlError.responseData;
+      }
+      if (graphqlError?.graphqlResponseData) {
+        return graphqlError.graphqlResponseData;
+      }
+      if (graphqlError?.response?.graphqlResponseData) {
+        return graphqlError.response.graphqlResponseData;
+      }
+      return undefined;
+    }
+  }
+
+  /**
+   * Find the "Status" field value from a project item's field values.
+   */
+  private extractStatusFromFieldValues(
+    fieldValueNodes:
+      | Array<{
+          field?: { name?: string };
+          name?: string;
+        } | null>
+      | undefined,
+  ): string | undefined {
+    if (!fieldValueNodes) return undefined;
+    for (const fieldValue of fieldValueNodes) {
+      if (!fieldValue) continue;
+      const fieldName = fieldValue.field?.name?.toLowerCase();
+      if (fieldName === "status") {
+        return fieldValue.name;
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Convert raw project item nodes into the simplified project list format.
+   */
+  private extractProjectsFromNodes(
+    nodes: Array<{
+      project?: { title?: string };
+      fieldValues?: {
+        nodes?: Array<{
+          field?: { name?: string };
+          name?: string;
+        } | null>;
+      };
+    } | null>,
+    owner: string,
+    repo: string,
+    issueNumber: number,
+  ): Array<{ name: string; status?: string }> {
+    const nullItemCount = nodes.filter((item) => item === null).length;
+    if (nullItemCount > 0 && nodes.length === nullItemCount) {
+      this.logger.warn(
+        `GitHub token may need 'Projects' permission - project items returned as null for ${owner}/${repo}#${issueNumber}`,
+      );
+    }
+
+    const projects: Array<{ name: string; status?: string }> = [];
+    for (const item of nodes) {
+      if (!item) continue;
+      const projectName = item?.project?.title;
+      const status = this.extractStatusFromFieldValues(item.fieldValues?.nodes);
+      if (projectName || status) {
+        projects.push({
+          name: projectName || "Unknown Project",
+          ...(status && { status }),
+        });
+      }
+    }
+    return projects;
+  }
+
+  /**
    * Fetch projects that an issue/PR is part of using GraphQL API
    */
   private async fetchIssueProjects(
@@ -183,111 +307,24 @@ export class GitHubApiService {
   ): Promise<Array<{ name: string; status?: string }>> {
     try {
       const octokit = this.createClient(token);
-
-      const query = `
-        query($owner: String!, $repo: String!, $issueNumber: Int!) {
-          repository(owner: $owner, name: $repo) {
-            issue(number: $issueNumber) {
-              projectItems(first: 20) {
-                nodes {
-                  project {
-                    ... on ProjectV2 {
-                      title
-                    }
-                  }
-                  fieldValues(first: 10) {
-                    nodes {
-                      ... on ProjectV2ItemFieldSingleSelectValue {
-                        field {
-                          ... on ProjectV2FieldCommon {
-                            name
-                          }
-                        }
-                        name
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      `;
-
-      let response: ProjectItemsGraphQLResponse | undefined;
-      try {
-        response = await octokit.graphql<ProjectItemsGraphQLResponse>(query, {
-          owner,
-          repo,
-          issueNumber,
-        });
-      } catch (error: unknown) {
-        // GraphQL can return errors but still have data in the response
-        // Check multiple possible locations for the data
-        const graphqlError = error as GraphQLErrorWithData;
-        if (graphqlError?.responseData) {
-          response = graphqlError.responseData;
-        } else if (graphqlError?.data) {
-          response = graphqlError.data;
-        } else if (graphqlError?.response?.data) {
-          response = graphqlError.response.data;
-        } else {
-          // No data in error - return empty (don't throw to avoid breaking the flow)
-          return [];
-        }
-      }
+      const response = await this.executeProjectItemsQuery(
+        octokit,
+        owner,
+        repo,
+        issueNumber,
+      );
 
       if (!response?.repository?.issue?.projectItems?.nodes) {
         return [];
       }
 
-      const projects: Array<{ name: string; status?: string }> = [];
-
-      // Check if we have null items (indicates permission issue with read:project scope)
-      const nullItemCount = response.repository.issue.projectItems.nodes.filter(
-        (item) => item === null,
-      ).length;
-      if (
-        nullItemCount > 0 &&
-        response.repository.issue.projectItems.nodes.length === nullItemCount
-      ) {
-        // All items are null - token may be missing 'read:project' permission
-        this.logger.warn(
-          `GitHub token may need 'Projects' permission - project items returned as null for ${owner}/${repo}#${issueNumber}`,
-        );
-      }
-
-      for (const item of response.repository.issue.projectItems.nodes) {
-        // Skip null items (GitHub API returns null when token lacks project permissions)
-        if (!item) continue;
-
-        const projectName = item?.project?.title;
-        let status: string | undefined;
-
-        // Find the status field value
-        if (item.fieldValues?.nodes) {
-          for (const fieldValue of item.fieldValues.nodes) {
-            if (!fieldValue) continue;
-            const fieldName = fieldValue.field?.name?.toLowerCase();
-            if (fieldName === "status") {
-              status = fieldValue.name;
-              break;
-            }
-          }
-        }
-
-        // Only add project if we have a name or status
-        if (projectName || status) {
-          projects.push({
-            name: projectName || "Unknown Project",
-            ...(status && { status }),
-          });
-        }
-      }
-
-      return projects;
+      return this.extractProjectsFromNodes(
+        response.repository.issue.projectItems.nodes,
+        owner,
+        repo,
+        issueNumber,
+      );
     } catch (error: unknown) {
-      // Log error but don't throw - we want to continue even if project fetching fails
       const errorMessage = getErrorMessage(error);
       const apiError = isApiError(error) ? error : null;
       const errorStatus = apiError?.status || apiError?.code;
@@ -410,9 +447,104 @@ export class GitHubApiService {
   }
 
   /**
+   * Fetch PR details, reviews and comments in parallel, defaulting reviews/comments to
+   * empty arrays on error so a single failing sub-request does not abort the whole fetch.
+   */
+  private async fetchPRApiData(
+    octokit: Octokit,
+    owner: string,
+    repo: string,
+    prNumber: number,
+  ) {
+    const [prResponse, reviews, comments] = await Promise.all([
+      octokit.rest.pulls.get({ owner, repo, pull_number: prNumber }),
+      octokit.rest.pulls
+        .listReviews({ owner, repo, pull_number: prNumber })
+        .then((resp) => resp.data)
+        .catch(() => [] as never[]),
+      octokit.rest.issues
+        .listComments({ owner, repo, issue_number: prNumber })
+        .then((resp) => resp.data)
+        .catch(() => [] as never[]),
+    ]);
+    return {
+      pr: prResponse.data,
+      reviews,
+      comments,
+    };
+  }
+
+  /**
+   * Determine the overall review status for a PR from its list of individual reviews.
+   * Rules: changes_requested beats approved; pending if there are reviews but none approved/rejected.
+   */
+  private determineReviewStatus(
+    reviews: Array<{
+      state: string;
+      user: { login: string };
+      submitted_at?: string | null;
+    }>,
+  ): "approved" | "changes_requested" | "pending" | null {
+    const latestReviews = new Map<string, string>();
+    for (const review of reviews) {
+      if (review.state === "APPROVED" || review.state === "CHANGES_REQUESTED") {
+        const existing = latestReviews.get(review.user.login);
+        if (
+          !existing ||
+          new Date(review.submitted_at || "") > new Date(existing)
+        ) {
+          latestReviews.set(review.user.login, review.state);
+        }
+      }
+    }
+
+    const states = Array.from(latestReviews.values());
+    const hasApproval = states.some((state) => state === "APPROVED");
+    const hasChangesRequested = states.some(
+      (state) => state === "CHANGES_REQUESTED",
+    );
+
+    if (hasApproval && !hasChangesRequested) return "approved";
+    if (hasChangesRequested) return "changes_requested";
+    if (reviews.length > 0) return "pending";
+    return null;
+  }
+
+  /**
+   * Handle a 404 response when fetching a PR: log context about whether the repo itself
+   * is accessible to help diagnose permission vs. non-existence issues.
+   */
+  private async logPR404Context(
+    token: string,
+    owner: string,
+    repo: string,
+    prNumber: number,
+  ): Promise<void> {
+    try {
+      const repoAccess = await this.checkRepositoryAccess(
+        this.createClient(token),
+        owner,
+        repo,
+      );
+      if (!repoAccess.accessible) {
+        this.logger.warn(
+          `PR ${owner}/${repo}#${prNumber} returned 404. Repository ${owner}/${repo} is not accessible with the current token. This likely means the repository is private and the token lacks access, or the repository doesn't exist.`,
+        );
+      } else {
+        this.logger.warn(
+          `PR ${owner}/${repo}#${prNumber} not found, but repository ${owner}/${repo} is accessible. The PR may not exist or may have been deleted.`,
+        );
+      }
+    } catch (repoCheckError: unknown) {
+      this.logger.warn(
+        `PR ${owner}/${repo}#${prNumber} not found. Could not verify repository access: ${getErrorMessage(repoCheckError)}. Possible reasons: PR doesn't exist, repository is private and token lacks access, or repository/PR was deleted.`,
+      );
+    }
+  }
+
+  /**
    * Fetch pull request details from GitHub API
    */
-  // eslint-disable-next-line max-lines-per-function, complexity, max-statements
   async fetchPRStatus(
     token: string,
     owner: string,
@@ -421,78 +553,15 @@ export class GitHubApiService {
   ): Promise<GitHubPRStatus | null> {
     try {
       const octokit = this.createClient(token);
-
-      // Fetch PR details
-      const [prResponse, reviewsResponse, commentsResponse] = await Promise.all(
-        [
-          octokit.rest.pulls.get({
-            owner,
-            repo,
-            pull_number: prNumber,
-          }),
-          octokit.rest.pulls
-            .listReviews({
-              owner,
-              repo,
-              pull_number: prNumber,
-            })
-            // eslint-disable-next-line id-denylist
-            .catch(() => ({ data: [] })),
-          // Ignore errors, default to empty
-          octokit.rest.issues
-            .listComments({
-              owner,
-              repo,
-              issue_number: prNumber,
-            })
-            // eslint-disable-next-line id-denylist
-            .catch(() => ({ data: [] })),
-          // Ignore errors, default to empty
-        ],
+      const { pr, reviews, comments } = await this.fetchPRApiData(
+        octokit,
+        owner,
+        repo,
+        prNumber,
       );
 
-      const pr = prResponse.data;
-      const reviews = reviewsResponse.data;
-      const comments = commentsResponse.data;
+      const reviewStatus = this.determineReviewStatus(reviews);
 
-      // Determine review status
-      let reviewStatus: "approved" | "changes_requested" | "pending" | null =
-        null;
-      const latestReviews = new Map<string, string>();
-
-      // Get the latest review state for each reviewer
-      for (const review of reviews) {
-        if (
-          review.state === "APPROVED" ||
-          review.state === "CHANGES_REQUESTED"
-        ) {
-          const existing = latestReviews.get(review.user.login);
-          if (
-            !existing ||
-            new Date(review.submitted_at || "") > new Date(existing)
-          ) {
-            latestReviews.set(review.user.login, review.state);
-          }
-        }
-      }
-
-      // Determine overall review status
-      const hasApproval = Array.from(latestReviews.values()).some(
-        (state) => state === "APPROVED",
-      );
-      const hasChangesRequested = Array.from(latestReviews.values()).some(
-        (state) => state === "CHANGES_REQUESTED",
-      );
-
-      if (hasApproval && !hasChangesRequested) {
-        reviewStatus = "approved";
-      } else if (hasChangesRequested) {
-        reviewStatus = "changes_requested";
-      } else if (reviews.length > 0) {
-        reviewStatus = "pending";
-      }
-
-      // Fetch project information using GraphQL (PRs use the same issue endpoint)
       const projects = await this.fetchIssueProjects(
         token,
         owner,
@@ -538,9 +607,7 @@ export class GitHubApiService {
         owner,
         repo,
         prNumber,
-        // Log response details if available
         responseData: errorResponse?.data,
-        // Check if it's a permissions issue
         isPermissionError: errorStatus === 401 || errorStatus === 403,
         isNotFound: errorStatus === 404,
       });
@@ -549,30 +616,8 @@ export class GitHubApiService {
         throw new Error("GitHub token is invalid or expired");
       }
 
-      // Log additional context for 404 errors
       if (errorStatus === 404) {
-        // Try to check if we can access the repository at all
-        try {
-          const repoAccess = await this.checkRepositoryAccess(
-            this.createClient(token),
-            owner,
-            repo,
-          );
-
-          if (!repoAccess.accessible) {
-            this.logger.warn(
-              `PR ${owner}/${repo}#${prNumber} returned 404. Repository ${owner}/${repo} is not accessible with the current token. This likely means the repository is private and the token lacks access, or the repository doesn't exist.`,
-            );
-          } else {
-            this.logger.warn(
-              `PR ${owner}/${repo}#${prNumber} not found, but repository ${owner}/${repo} is accessible. The PR may not exist or may have been deleted.`,
-            );
-          }
-        } catch (repoCheckError: unknown) {
-          this.logger.warn(
-            `PR ${owner}/${repo}#${prNumber} not found. Could not verify repository access: ${getErrorMessage(repoCheckError)}. Possible reasons: PR doesn't exist, repository is private and token lacks access, or repository/PR was deleted.`,
-          );
-        }
+        await this.logPR404Context(token, owner, repo, prNumber);
       }
 
       return null;

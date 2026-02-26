@@ -20,7 +20,6 @@ export class AddEmailCategoryContextEnum1770600000000 implements MigrationInterf
         `);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Note: Removing enum values in PostgreSQL is complex and often not done in down migrations
     // The enum value will remain in the database but won't be used

@@ -258,7 +258,8 @@ export class ContextEmailDataService {
     limit: number = 400,
     onProgress?: (progress: {
       stage: "searching" | "fetching";
-      progress: number; // 0-10 (out of 100 total)
+      // 0-10 (out of 100 total)
+      progress: number;
       threadsFound?: number;
       threadsFetched?: number;
       totalToFetch?: number;
@@ -528,8 +529,10 @@ export class ContextEmailDataService {
       // Use searchEmails to find sent messages (no date filter)
       const sentMessages = await provider.searchEmails(
         userId,
-        `from:${userEmailForSentThreads}`, // Search for emails from user (sent emails)
-        limit * 2, // Get more messages to ensure we have enough threads
+        // Search for emails from user (sent emails)
+        `from:${userEmailForSentThreads}`,
+        // Get more messages to ensure we have enough threads
+        limit * 2,
       );
 
       // Extract thread IDs from sent messages
@@ -708,7 +711,8 @@ export class ContextEmailDataService {
     limit: number = 400,
     onProgress?: (progress: {
       stage: "searching" | "fetching";
-      progress: number; // 0-10 (out of 100 total)
+      // 0-10 (out of 100 total)
+      progress: number;
       threadsFound?: number;
       threadsFetched?: number;
       totalToFetch?: number;
@@ -735,7 +739,8 @@ export class ContextEmailDataService {
     limit: number,
     onProgress?: (progress: {
       stage: "searching" | "fetching";
-      progress: number; // 0-10 (out of 100 total)
+      // 0-10 (out of 100 total)
+      progress: number;
       threadsFound?: number;
       threadsFetched?: number;
       totalToFetch?: number;
@@ -895,11 +900,9 @@ export class ContextEmailDataService {
             let body = "";
             let htmlBody = "";
             const extractBody = (part: {
-              // eslint-disable-next-line id-denylist
               body?: { data?: string };
               mimeType?: string;
               parts?: Array<{
-                // eslint-disable-next-line id-denylist
                 body?: { data?: string };
                 mimeType?: string;
                 parts?: unknown[];
@@ -1003,7 +1006,8 @@ export class ContextEmailDataService {
           Math.floor((threadsInRange.length / allThreadIds.length) * DAYS.WEEK);
         const currentFindings = [
           `Fetched ${threadsInRange.length}/${allThreadIds.length} threads...`,
-          ...interestingSubjects.slice(0, 3), // Show up to 3 interesting subjects
+          // Show up to 3 interesting subjects
+          ...interestingSubjects.slice(0, 3),
         ];
         if (uniqueSenders.size > 5) {
           currentFindings.push(`...and ${uniqueSenders.size - 5} more senders`);
@@ -1199,7 +1203,7 @@ export class ContextEmailDataService {
         const messages = thread.messages || [];
 
         // Extract the user's sent messages from the thread using SENT label only
-        const sentMessages = messages.filter((message: any) => {
+        const sentMessages = messages.filter((message) => {
           const labelIds = message.labelIds || [];
           // Only check for SENT label - most reliable indicator of sent messages
           return labelIds.includes("SENT");

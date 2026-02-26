@@ -5,7 +5,7 @@ import { UserContext } from "../database/entities/user-context.entity";
 import { Email } from "../database/entities/email.entity";
 
 interface CacheEntry<T> {
-  data: T;
+  cachedValue: T;
   timestamp: number;
 }
 
@@ -40,7 +40,7 @@ export class PriorityCacheService {
 
     if (cached && now - cached.timestamp < this.CONTEXTS_TTL) {
       this.logger.debug(`Cache hit for user contexts: ${userId}`);
-      return cached.data;
+      return cached.cachedValue;
     }
 
     // Cache miss - fetch from DB
@@ -51,7 +51,7 @@ export class PriorityCacheService {
 
     // Update cache
     this.contextsCache.set(userId, {
-      data: contexts,
+      cachedValue: contexts,
       timestamp: now,
     });
 
@@ -76,16 +76,18 @@ export class PriorityCacheService {
 
     if (cached && now - cached.timestamp < this.AVG_TIME_TO_REPLY_TTL) {
       this.logger.debug(`Cache hit for avgTimeToReply: ${userId}`);
-      return cached.data;
+      return cached.cachedValue;
     }
 
     // Cache miss - calculate from DB
     this.logger.debug(`Cache miss for avgTimeToReply: ${userId}`);
     const userEmails = await this.emailRepository.find({
       where: { userId },
-      take: 10, // Reduced from 50 to 10 for performance
+      // Reduced from 50 to 10 for performance
+      take: 10,
       order: { receivedAt: "DESC" },
-      select: ["timeToReply"], // Only select what we need
+      // Only select what we need
+      select: ["timeToReply"],
     });
 
     const avgTimeToReply =
@@ -98,7 +100,7 @@ export class PriorityCacheService {
 
     // Update cache
     this.avgTimeToReplyCache.set(userId, {
-      data: avgTimeToReply,
+      cachedValue: avgTimeToReply,
       timestamp: now,
     });
 

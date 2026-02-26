@@ -8,11 +8,17 @@ import { GitHubService } from "../github/github.service";
 import { GitHubApiService } from "../github/github-api.service";
 import { CalendarService } from "../calendar/calendar.service";
 import { ActionItem } from "../database/entities/action-item.entity";
+import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { ActionItemsService } from "../action-items/action-items.service";
 import { GitHubRepoMappingService } from "../github/github-repo-mapping.service";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { EncryptionHelper } from "../encryption/encryption.helper";
+
+type GitHubLinkInfo = {
+  type: string;
+  owner: string;
+  repo: string;
+  number: number;
+};
 
 export interface SuggestedAction {
   type: string;
@@ -26,7 +32,6 @@ export interface SuggestedAction {
 export class SuggestedActionsService {
   private readonly logger = new Logger(SuggestedActionsService.name);
 
-  // eslint-disable-next-line max-params
   constructor(
     private readonly usersService: UsersService,
     private readonly emailsService: EmailsService,
@@ -53,6 +58,112 @@ export class SuggestedActionsService {
     };
   }
 
+  private async getCachedActionsForThread(
+    userId: string,
+    threadId: string,
+  ): Promise<SuggestedAction[] | null> {
+    const existingActions = await this.actionItemRepository.find({
+      where: { userId, emailThreadId: threadId, actionType: Not(IsNull()) },
+    });
+    const threadEmails = await this.emailsService.getThreadEmails(
+      userId,
+      threadId,
+    );
+    const latestEmailId = threadEmails[0]?.id;
+    const llmAction = existingActions.find((action) => action.source === "llm");
+    if (llmAction && llmAction.lastEmailId === latestEmailId) {
+      this.logger.debug(
+        `Returning cached suggested actions for thread ${threadId}`,
+      );
+      return existingActions.map((item) =>
+        this.mapActionItemToSuggestedAction(item),
+      );
+    }
+    return null;
+  }
+
+  private enhanceSingleAction(
+    action: SuggestedAction,
+    githubLinks: GitHubLinkInfo[],
+    defaultRepo: { owner: string; repo: string } | null,
+  ): SuggestedAction {
+    if (
+      (action.type === "github_update_status" ||
+        action.type === "github_add_comment") &&
+      githubLinks.length > 0
+    ) {
+      const link = githubLinks[0];
+      if (link.type === "issue") {
+        return {
+          ...action,
+          metadata: {
+            issueInfo: {
+              owner: link.owner,
+              repo: link.repo,
+              number: link.number,
+            },
+          },
+        };
+      }
+    }
+    if (action.type === "github_create_issue" && defaultRepo) {
+      return {
+        ...action,
+        metadata: {
+          ...action.metadata,
+          defaultRepo: { owner: defaultRepo.owner, repo: defaultRepo.repo },
+        },
+      };
+    }
+    return action;
+  }
+
+  private async saveLLMActionsAndMerge(
+    userId: string,
+    email: Email,
+    threadId: string,
+    enhancedActions: SuggestedAction[],
+  ): Promise<SuggestedAction[]> {
+    const threadEmails = await this.emailsService.getThreadEmails(
+      userId,
+      threadId,
+    );
+    const latestEmailId = threadEmails[0]?.id;
+    await this.actionItemRepository.delete({
+      emailThreadId: threadId,
+      source: "llm",
+      actionType: Not(IsNull()),
+    });
+    const llmEntities = enhancedActions.map((action) =>
+      this.actionItemRepository.create({
+        userId,
+        emailThreadId: threadId,
+        emailId: email.id,
+        description: `${action.type}: ${action.reason}`,
+        actionType: action.type,
+        confidenceScore: action.confidence,
+        reason: action.reason,
+        metadata: action.metadata || undefined,
+        source: "llm",
+        lastEmailId: latestEmailId,
+        isCompleted: false,
+      }),
+    );
+    await this.actionItemRepository.save(llmEntities);
+    const userActions = await this.actionItemRepository.find({
+      where: {
+        userId,
+        emailThreadId: threadId,
+        actionType: Not(IsNull()),
+        source: "user",
+      },
+    });
+    return [
+      ...enhancedActions,
+      ...userActions.map((item) => this.mapActionItemToSuggestedAction(item)),
+    ];
+  }
+
   async detectActions(
     emailId: string,
     userId: string,
@@ -62,57 +173,22 @@ export class SuggestedActionsService {
       if (!email) {
         throw new Error("Email not found");
       }
-
       const threadId = email.emailThreadId;
       if (!threadId) {
         this.logger.warn(
           `Email ${emailId} has no threadId, cannot cache suggested actions`,
         );
-        // Fall through to generate without caching
       } else {
-        // Get all existing suggested actions for thread (LLM + user-created)
-        // actionType IS NOT NULL indicates suggested actions
-        const existingActions = await this.actionItemRepository.find({
-          where: {
-            userId,
-            emailThreadId: threadId,
-            actionType: Not(IsNull()),
-          },
-        });
-
-        // Get latest email in thread
-        const threadEmails = await this.emailsService.getThreadEmails(
-          userId,
-          threadId,
-        );
-        const latestEmailId = threadEmails[0]?.id;
-
-        // Check if LLM-generated actions exist and are still valid
-        const llmActions = existingActions.filter((a) => a.source === "llm");
-        // Check first LLM action for lastEmailId
-        const llmAction = llmActions[0];
-
-        // Return existing actions if LLM cache is valid
-        if (llmAction && llmAction.lastEmailId === latestEmailId) {
-          this.logger.debug(
-            `Returning cached suggested actions for thread ${threadId}`,
-          );
-          return existingActions.map(this.mapActionItemToSuggestedAction);
-        }
+        const cached = await this.getCachedActionsForThread(userId, threadId);
+        if (cached) return cached;
       }
-
-      // Cache invalid or missing, generate new LLM suggestions
       const user = await this.usersService.findOne(userId);
       const hasGithubToken = !!user?.githubToken;
       const hasCalendarToken = !!user?.googleCalendarAccessToken;
-
-      // Parse GitHub links from email if they exist
       const githubLinks = this.githubService.parseGitHubLinks(
         email.body || "",
         email.htmlBody || undefined,
       );
-
-      // Use LLM to detect suggested actions (now with htmlBody)
       const actions = await this.llmService.detectSuggestedActions(
         {
           subject: email.subject,
@@ -132,112 +208,29 @@ export class SuggestedActionsService {
           hasCalendarToken,
           hasGithubToken,
         },
-        // Use default provider
         undefined,
         userId,
       );
-
-      // Get thread category for repo mapping lookup
       const thread = threadId
         ? await this.emailThreadRepository.findOne({
             where: { id: threadId, userId },
           })
         : null;
       const emailCategory = thread?.category || undefined;
-
-      // Get default repo for github_create_issue pre-fill
       const defaultRepo = hasGithubToken
         ? await this.repoMappingService.getRepoForEmail(userId, emailCategory)
         : null;
-
-      // Enhance actions with metadata (e.g., issue info from GitHub links)
-      const enhancedActions = actions.map((action) => {
-        if (
-          action.type === "github_update_status" ||
-          action.type === "github_add_comment"
-        ) {
-          // If there are GitHub links, use the first one as the issue info
-          if (githubLinks.length > 0) {
-            const link = githubLinks[0];
-            if (link.type === "issue") {
-              return {
-                ...action,
-                metadata: {
-                  issueInfo: {
-                    owner: link.owner,
-                    repo: link.repo,
-                    number: link.number,
-                  },
-                },
-              };
-            }
-          }
-        }
-        if (action.type === "github_create_issue" && defaultRepo) {
-          return {
-            ...action,
-            metadata: {
-              ...action.metadata,
-              defaultRepo: {
-                owner: defaultRepo.owner,
-                repo: defaultRepo.repo,
-              },
-            },
-          };
-        }
-        return action;
-      });
-
-      // Save to ActionItem table if we have a threadId
+      const enhancedActions = actions.map((action) =>
+        this.enhanceSingleAction(action, githubLinks, defaultRepo),
+      );
       if (threadId) {
-        // Get latest email in thread for cache tracking
-        const threadEmails = await this.emailsService.getThreadEmails(
+        return await this.saveLLMActionsAndMerge(
           userId,
+          email,
           threadId,
+          enhancedActions,
         );
-        const latestEmailId = threadEmails[0]?.id;
-
-        // Delete old LLM-generated suggested actions
-        await this.actionItemRepository.delete({
-          emailThreadId: threadId,
-          source: "llm",
-          actionType: Not(IsNull()),
-        });
-
-        // Create new ActionItem records for LLM-generated suggested actions
-        const llmEntities = enhancedActions.map((action) =>
-          this.actionItemRepository.create({
-            userId,
-            emailThreadId: threadId,
-            emailId: email.id,
-            description: `${action.type}: ${action.reason}`,
-            actionType: action.type,
-            confidenceScore: action.confidence,
-            reason: action.reason,
-            metadata: action.metadata || undefined,
-            source: "llm",
-            lastEmailId: latestEmailId,
-            isCompleted: false,
-          }),
-        );
-        await this.actionItemRepository.save(llmEntities);
-
-        // Get user-created actions to include in response
-        const userActions = await this.actionItemRepository.find({
-          where: {
-            userId,
-            emailThreadId: threadId,
-            actionType: Not(IsNull()),
-            source: "user",
-          },
-        });
-
-        return [
-          ...enhancedActions,
-          ...userActions.map(this.mapActionItemToSuggestedAction),
-        ];
       }
-
       return enhancedActions;
     } catch (error) {
       this.logger.error(`Error detecting actions for email ${emailId}:`, error);

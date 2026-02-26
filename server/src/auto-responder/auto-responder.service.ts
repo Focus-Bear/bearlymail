@@ -3,12 +3,8 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { User } from "../database/entities/user.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
-import { Email } from "../database/entities/email.entity";
-import { EmailClassifierService } from "./email-classifier.service";
-import { QueueStatsService } from "./queue-stats.service";
+import { AutoResponderContextService } from "./auto-responder-context.service";
 import { AutoResponderTemplateService } from "./auto-responder-template.service";
-import { AutoResponderSuppressionService } from "./auto-responder-suppression.service";
-import { AutoResponderQaService } from "./auto-responder-qa.service";
 import { AutoResponderAnalyticsService } from "./auto-responder-analytics.service";
 import { AutoResponderPreviewService } from "./auto-responder-preview.service";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
@@ -16,12 +12,24 @@ import {
   AutoResponderConfig,
   DEFAULT_AUTO_RESPONDER_CONFIG,
   AutoResponseTemplateVars,
+  EmailClassification,
 } from "./types/auto-responder.types";
 import {
   autoresponderLogger,
   AutoresponderDecisionContext,
 } from "./autoresponder-logger";
 import { PRIORITY_THRESHOLDS } from "./auto-responder-constants";
+
+type PreparedResponse = {
+  senderEmailHash: string;
+  priorityLevel: "low" | "medium" | "high";
+  qaResult: { answer: string; confidence: number } | null;
+  templateUsed: string;
+  responseBody: string;
+  responseSubject: string;
+  responseHtmlBody: string;
+  classification: EmailClassification;
+};
 
 @Injectable()
 export class AutoResponderService {
@@ -32,13 +40,8 @@ export class AutoResponderService {
     private userRepository: Repository<User>,
     @InjectRepository(EmailThread)
     private emailThreadRepository: Repository<EmailThread>,
-    @InjectRepository(Email)
-    private emailRepository: Repository<Email>,
-    private emailClassifierService: EmailClassifierService,
-    private queueStatsService: QueueStatsService,
+    private contextService: AutoResponderContextService,
     private templateService: AutoResponderTemplateService,
-    private suppressionService: AutoResponderSuppressionService,
-    private qaService: AutoResponderQaService,
     private analyticsService: AutoResponderAnalyticsService,
     private previewService: AutoResponderPreviewService,
     @Inject(forwardRef(() => EmailProviderManager))
@@ -96,7 +99,6 @@ export class AutoResponderService {
 
     const config = await this.getConfig(userId);
 
-    // Log config check
     autoresponderLogger.logConfigCheck(logContext, config.enabled, {
       sendForHighPriority: config.sendFor.highPriority,
       sendForStandardPriority: config.sendFor.standardPriority,
@@ -105,17 +107,19 @@ export class AutoResponderService {
       customExclusionRulesCount: config.customExclusionRules?.length || 0,
     });
 
-    // Check if auto-responder is enabled
     if (!config.enabled) {
       const reason = "Auto-responder disabled";
-      autoresponderLogger.logDecision(logContext, {
-        decision: "SKIP",
-        reason,
-      });
+      autoresponderLogger.logDecision(logContext, { decision: "SKIP", reason });
       return { sent: false, reason };
     }
 
-    // Get the email thread with emails
+    const earlySkip = await this.checkEarlySkipConditions(
+      userId,
+      emailThreadId,
+      logContext,
+    );
+    if (earlySkip) return earlySkip;
+
     const thread = await this.emailThreadRepository.findOne({
       where: { id: emailThreadId, userId },
       relations: ["emails"],
@@ -131,17 +135,14 @@ export class AutoResponderService {
       return { sent: false, reason };
     }
 
-    // Get the latest email in the thread (the one that triggered this)
     const latestEmail = thread.emails.sort(
       (a, b) =>
         new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime(),
     )[0];
 
-    // Update log context with email details
     logContext.senderEmail = latestEmail.from;
     logContext.subject = latestEmail.subject;
 
-    // Check if this is a new thread (only one email, no replies)
     const hasUserReplies = await this.threadHasUserReplies(userId, thread);
     if (hasUserReplies) {
       const reason = "Thread already has user replies";
@@ -153,7 +154,43 @@ export class AutoResponderService {
       return { sent: false, reason };
     }
 
-    // Check if we've already sent an auto-response to this thread
+    const { skip: classificationSkip, classification } =
+      await this.checkClassificationSkip(
+        logContext,
+        config,
+        latestEmail,
+        headers,
+        hasUserReplies,
+      );
+    if (classificationSkip) return classificationSkip;
+
+    const prioritySkip = this.checkPrioritySkip(logContext, config, thread);
+    if (prioritySkip) return prioritySkip;
+
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      const reason = "User not found";
+      autoresponderLogger.logDecision(logContext, { decision: "SKIP", reason });
+      return { sent: false, reason };
+    }
+
+    const priorityLevel = this.determinePriorityLevel(thread);
+    return this.buildAndSendResponse(
+      logContext,
+      config,
+      thread,
+      latestEmail,
+      user,
+      emailThreadId,
+      { priorityLevel, classification: classification! },
+    );
+  }
+
+  private async checkEarlySkipConditions(
+    userId: string,
+    emailThreadId: string,
+    logContext: AutoresponderDecisionContext,
+  ): Promise<{ sent: boolean; reason: string } | null> {
     const existingResponse = await this.analyticsService.hasExistingResponse(
       userId,
       emailThreadId,
@@ -167,14 +204,30 @@ export class AutoResponderService {
       });
       return { sent: false, reason };
     }
+    return null;
+  }
 
-    // Check sender suppression (opt-out or cooldown)
-    const senderEmailHash = this.suppressionService.hashEmail(latestEmail.from);
-    const suppression = await this.suppressionService.checkSuppression(
-      userId,
+  private async checkClassificationSkip(
+    logContext: AutoresponderDecisionContext,
+    config: AutoResponderConfig,
+    latestEmail: {
+      from: string;
+      fromName: string | null;
+      subject: string;
+      body: string;
+      htmlBody: string | null;
+    },
+    headers: Record<string, string> | undefined,
+    hasUserReplies: boolean,
+  ): Promise<{
+    skip: { sent: boolean; reason: string } | null;
+    classification: EmailClassification | null;
+  }> {
+    const senderEmailHash = this.contextService.hashEmail(latestEmail.from);
+    const suppression = await this.contextService.checkSuppression(
+      logContext.userId!,
       senderEmailHash,
     );
-
     autoresponderLogger.logSuppressionCheck(
       logContext,
       !!suppression,
@@ -191,11 +244,10 @@ export class AutoResponderService {
           suppressUntil: suppression.suppressUntil,
         },
       });
-      return { sent: false, reason };
+      return { skip: { sent: false, reason }, classification: null };
     }
 
-    // Classify the email
-    const classification = await this.emailClassifierService.classifyEmail(
+    const classification = await this.contextService.classifyEmail(
       {
         from: latestEmail.from,
         fromName: latestEmail.fromName || undefined,
@@ -207,7 +259,6 @@ export class AutoResponderService {
       hasUserReplies,
     );
 
-    // Log classification results
     autoresponderLogger.logClassification(logContext, {
       isAutomated: classification.isAutomated,
       isNewsletter: classification.isNewsletter,
@@ -218,30 +269,32 @@ export class AutoResponderService {
       reasons: classification.reasons,
     });
 
-    // Always exclude bounce and out-of-office emails
     if (classification.isBounce) {
-      const reason = "Bounce email excluded";
       autoresponderLogger.logDecision(logContext, {
         decision: "SKIP",
-        reason,
+        reason: "Bounce email excluded",
         details: { classification: "bounce" },
       });
-      return { sent: false, reason };
+      return {
+        skip: { sent: false, reason: "Bounce email excluded" },
+        classification: null,
+      };
     }
     if (classification.isOutOfOffice) {
-      const reason = "Out-of-office reply excluded";
       autoresponderLogger.logDecision(logContext, {
         decision: "SKIP",
-        reason,
+        reason: "Out-of-office reply excluded",
         details: { classification: "out-of-office" },
       });
-      return { sent: false, reason };
+      return {
+        skip: { sent: false, reason: "Out-of-office reply excluded" },
+        classification: null,
+      };
     }
 
-    // Check custom exclusion rules using AI
     if (config.customExclusionRules && config.customExclusionRules.length > 0) {
       const customExclusionResult =
-        await this.emailClassifierService.checkCustomExclusionRules(
+        await this.contextService.checkCustomExclusionRules(
           {
             from: latestEmail.from,
             fromName: latestEmail.fromName || undefined,
@@ -250,7 +303,6 @@ export class AutoResponderService {
           },
           config.customExclusionRules,
         );
-
       if (customExclusionResult.matched) {
         const reason = `Custom exclusion rule matched: ${customExclusionResult.matchedRule} (${customExclusionResult.reason})`;
         autoresponderLogger.logDecision(logContext, {
@@ -261,14 +313,19 @@ export class AutoResponderService {
             ruleReason: customExclusionResult.reason,
           },
         });
-        return { sent: false, reason };
+        return { skip: { sent: false, reason }, classification: null };
       }
     }
 
-    // Determine priority level from thread
-    const priorityLevel = this.determinePriorityLevel(thread);
+    return { skip: null, classification };
+  }
 
-    // Log priority check
+  private checkPrioritySkip(
+    logContext: AutoresponderDecisionContext,
+    config: AutoResponderConfig,
+    thread: EmailThread,
+  ): { sent: boolean; reason: string } | null {
+    const priorityLevel = this.determinePriorityLevel(thread);
     autoresponderLogger.logPriorityCheck(
       logContext,
       priorityLevel,
@@ -281,70 +338,76 @@ export class AutoResponderService {
       },
     );
 
-    // Check if we should send for this priority level
     if (priorityLevel === "high" && !config.sendFor.highPriority) {
-      const reason = "High priority auto-response disabled";
       autoresponderLogger.logDecision(logContext, {
         decision: "SKIP",
-        reason,
+        reason: "High priority auto-response disabled",
         details: { priorityLevel, configSetting: "sendFor.highPriority=false" },
       });
-      return { sent: false, reason };
+      return { sent: false, reason: "High priority auto-response disabled" };
     }
     if (priorityLevel === "medium" && !config.sendFor.standardPriority) {
-      const reason = "Standard priority auto-response disabled";
       autoresponderLogger.logDecision(logContext, {
         decision: "SKIP",
-        reason,
+        reason: "Standard priority auto-response disabled",
         details: {
           priorityLevel,
           configSetting: "sendFor.standardPriority=false",
         },
       });
-      return { sent: false, reason };
+      return {
+        sent: false,
+        reason: "Standard priority auto-response disabled",
+      };
     }
     if (priorityLevel === "low" && !config.sendFor.lowPriority) {
-      const reason = "Low priority auto-response disabled";
       autoresponderLogger.logDecision(logContext, {
         decision: "SKIP",
-        reason,
+        reason: "Low priority auto-response disabled",
         details: { priorityLevel, configSetting: "sendFor.lowPriority=false" },
       });
-      return { sent: false, reason };
+      return { sent: false, reason: "Low priority auto-response disabled" };
     }
+    return null;
+  }
 
-    // Get user info and queue stats
-    const user = await this.userRepository.findOne({ where: { id: userId } });
-    if (!user) {
-      const reason = "User not found";
-      autoresponderLogger.logDecision(logContext, {
-        decision: "SKIP",
-        reason,
-      });
-      return { sent: false, reason };
-    }
+  private async buildAndSendResponse(
+    logContext: AutoresponderDecisionContext,
+    config: AutoResponderConfig,
+    thread: EmailThread,
+    latestEmail: {
+      from: string;
+      fromName: string | null;
+      subject: string;
+      body: string;
+      htmlBody: string | null;
+      replyTo: string | null;
+    },
+    user: User,
+    emailThreadId: string,
+    priorityAndClassification: {
+      priorityLevel: "low" | "medium" | "high";
+      classification: EmailClassification;
+    },
+  ): Promise<{ sent: boolean; reason: string }> {
+    const { priorityLevel, classification } = priorityAndClassification;
+    const senderEmailHash = this.contextService.hashEmail(latestEmail.from);
+    const queueStats = await this.contextService.getQueueStats(user.id);
+    const categoryResponseTime = this.contextService.getResponseTimeForCategory(
+      queueStats,
+      thread.category,
+    );
 
-    const queueStats = await this.queueStatsService.getQueueStats(userId);
-
-    // Get category-specific response time if available
-    const categoryResponseTime =
-      this.queueStatsService.getResponseTimeForCategory(
-        queueStats,
-        thread.category,
-      );
-
-    // Generate Q&A answer if enabled
     let qaResult = null;
     if (config.qaContextEnabled) {
-      qaResult = await this.qaService.generateQAAnswer(
-        userId,
+      qaResult = await this.contextService.generateQAAnswer(
+        user.id,
         latestEmail.subject,
         latestEmail.body,
         config.qaMinConfidence,
       );
     }
 
-    // Render the response
     const templateVars: AutoResponseTemplateVars = {
       userName: user.name || "the recipient",
       senderName: latestEmail.fromName || latestEmail.from.split("@")[0],
@@ -369,18 +432,55 @@ export class AutoResponderService {
       templateVars,
     );
     const responseSubject = `Re: ${latestEmail.subject} - BearlyMail Auto-Response`;
-
-    // Convert markdown to HTML for proper email formatting
     const responseHtmlBody = this.templateService.markdownToHtml(responseBody);
 
-    // Log send attempt
+    const prepared: PreparedResponse = {
+      senderEmailHash,
+      priorityLevel,
+      qaResult,
+      templateUsed,
+      responseBody,
+      responseSubject,
+      responseHtmlBody,
+      classification,
+    };
+
     autoresponderLogger.logSendAttempt(
       logContext,
       templateUsed,
       responseSubject,
     );
 
-    // Send the auto-response
+    return this.sendAutoResponse(
+      logContext,
+      config,
+      thread,
+      latestEmail,
+      user.id,
+      emailThreadId,
+      prepared,
+    );
+  }
+
+  private async sendAutoResponse(
+    logContext: AutoresponderDecisionContext,
+    config: AutoResponderConfig,
+    thread: EmailThread,
+    latestEmail: { from: string; replyTo: string | null },
+    userId: string,
+    emailThreadId: string,
+    prepared: PreparedResponse,
+  ): Promise<{ sent: boolean; reason: string }> {
+    const {
+      senderEmailHash,
+      priorityLevel,
+      qaResult,
+      templateUsed,
+      responseBody,
+      responseSubject,
+      responseHtmlBody,
+      classification,
+    } = prepared;
     try {
       const provider =
         await this.emailProviderManager.getPrimaryProvider(userId);
@@ -398,40 +498,45 @@ export class AutoResponderService {
         return { sent: false, reason };
       }
 
-      // Use Reply-To address if available, otherwise fall back to From address
       const replyToAddress = latestEmail.replyTo || latestEmail.from;
-
       await provider.sendReply(
         userId,
         thread.threadId,
         replyToAddress,
         responseSubject,
         responseBody,
-        undefined,
-        responseHtmlBody,
+        { htmlBody: responseHtmlBody },
       );
 
-      // Log the auto-response
-      await this.analyticsService.logAutoResponse(
+      await this.analyticsService.logAutoResponse({
         userId,
         emailThreadId,
         senderEmailHash,
         priorityLevel,
-        qaResult,
+        qaResult: qaResult
+          ? {
+              answer: qaResult.answer,
+              confidence: qaResult.confidence,
+              sources:
+                (
+                  qaResult as {
+                    sources?: Array<{ question: string; answer: string }>;
+                  }
+                ).sources || [],
+            }
+          : { answer: "", confidence: 0, sources: [] },
         templateUsed,
         responseSubject,
         responseBody,
         classification,
-      );
+      });
 
-      // Add cooldown suppression for this sender
-      await this.suppressionService.addCooldownSuppression(
+      await this.contextService.addCooldownSuppression(
         userId,
         senderEmailHash,
         config.cooldownPeriodDays,
       );
 
-      // Log success
       autoresponderLogger.logSendSuccess(logContext, templateUsed, !!qaResult);
       autoresponderLogger.logDecision(logContext, {
         decision: "SEND",
@@ -447,7 +552,6 @@ export class AutoResponderService {
       this.logger.log(
         `Auto-response sent for thread ${emailThreadId} to ${latestEmail.from}`,
       );
-
       return { sent: true, reason: "Auto-response sent successfully" };
     } catch (error) {
       autoresponderLogger.logSendError(logContext, error, "send_reply");
@@ -456,7 +560,6 @@ export class AutoResponderService {
         reason: `Send failed: ${(error as Error).message}`,
         details: { error: (error as Error).message },
       });
-
       this.logger.error(
         `Failed to send auto-response for thread ${emailThreadId}`,
         error,
@@ -518,11 +621,7 @@ export class AutoResponderService {
     senderEmail: string,
     notes?: string,
   ): Promise<void> {
-    return this.suppressionService.addOptOutSuppression(
-      userId,
-      senderEmail,
-      notes,
-    );
+    return this.contextService.addOptOutSuppression(userId, senderEmail, notes);
   }
 
   /**
@@ -532,7 +631,7 @@ export class AutoResponderService {
     userId: string,
     senderEmail: string,
   ): Promise<void> {
-    return this.suppressionService.removeOptOutSuppression(userId, senderEmail);
+    return this.contextService.removeOptOutSuppression(userId, senderEmail);
   }
 
   /**

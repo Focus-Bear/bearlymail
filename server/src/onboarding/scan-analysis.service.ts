@@ -75,7 +75,6 @@ export class ScanAnalysisService {
   /**
    * Enrich scan emails with reply time and archive status from Gmail threads
    */
-  // eslint-disable-next-line max-statements
   private async enrichScanEmails(
     userId: string,
     scanEmails: ScanEmail[],
@@ -98,7 +97,6 @@ export class ScanAnalysisService {
 
     const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
-    // Group by thread to analyze replies
     const threadMap = new Map<string, ScanEmail[]>();
     for (const email of scanEmails) {
       if (!threadMap.has(email.threadId)) {
@@ -107,62 +105,55 @@ export class ScanAnalysisService {
       threadMap.get(email.threadId)!.push(email);
     }
 
-    // Analyze each thread
     for (const [threadId, emails] of threadMap.entries()) {
       try {
-        const thread = await gmail.users.threads.get({
-          userId: "me",
-          id: threadId,
-          format: "full",
-        });
-
-        const messages = thread.data.messages || [];
-        const originalEmail = emails[0];
-        // First email in thread
-
-        // Check if user replied (has a SENT label in thread)
-        const userReplied = messages.some((msg: gmail_v1.Schema$Message) => {
-          const labelIds = msg.labelIds || [];
-          return labelIds.includes("SENT");
-        });
-
-        if (userReplied) {
-          // Find user's first reply (message with SENT label)
-          const replyMessage = messages.find((msg: gmail_v1.Schema$Message) => {
-            const labelIds = msg.labelIds || [];
-            return labelIds.includes("SENT");
-          });
-
-          if (replyMessage && originalEmail.receivedAt) {
-            const replyDate = new Date(
-              parseInt(replyMessage.internalDate || "0"),
-            );
-            const receivedDate = originalEmail.receivedAt;
-            const hoursToReply =
-              (replyDate.getTime() - receivedDate.getTime()) / (1000 * 60 * 60);
-            originalEmail.timeToReply = Math.max(0, hoursToReply);
-            originalEmail.wasRepliedTo = true;
-          }
-        }
-
-        // Check if archived (not in INBOX label)
-        const lastMessage = messages[messages.length - 1];
-        const labelIds = lastMessage.labelIds || [];
-        const isArchived = !labelIds.includes("INBOX");
-
-        for (const email of emails) {
-          email.isArchived = isArchived;
-          if (isArchived && !email.archivedAt) {
-            email.archivedAt = email.receivedAt;
-          }
-        }
+        await this.analyzeThreadForEnrichment(threadId, emails, gmail);
       } catch (error) {
         this.logger.warn(`Failed to enrich thread ${threadId}:`, error);
       }
     }
 
-    // Save enriched emails
     await this.scanEmailRepository.save(scanEmails);
+  }
+
+  private async analyzeThreadForEnrichment(
+    threadId: string,
+    emails: ScanEmail[],
+    gmail: ReturnType<typeof google.gmail>,
+  ): Promise<void> {
+    const thread = await gmail.users.threads.get({
+      userId: "me",
+      id: threadId,
+      format: "full",
+    });
+
+    const messages = thread.data.messages || [];
+    const originalEmail = emails[0];
+
+    const replyMessage = messages.find((msg: gmail_v1.Schema$Message) => {
+      const labelIds = msg.labelIds || [];
+      return labelIds.includes("SENT");
+    });
+
+    if (replyMessage && originalEmail.receivedAt) {
+      const replyDate = new Date(parseInt(replyMessage.internalDate || "0"));
+      const receivedDate = originalEmail.receivedAt;
+      const hoursToReply =
+        (replyDate.getTime() - receivedDate.getTime()) / (1000 * 60 * 60);
+      originalEmail.timeToReply = Math.max(0, hoursToReply);
+      originalEmail.wasRepliedTo = true;
+    }
+
+    const lastMessage = messages[messages.length - 1];
+    const lastLabelIds = lastMessage.labelIds || [];
+    const isArchived = !lastLabelIds.includes("INBOX");
+
+    for (const email of emails) {
+      email.isArchived = isArchived;
+      if (isArchived && !email.archivedAt) {
+        email.archivedAt = email.receivedAt;
+      }
+    }
   }
 
   /**

@@ -51,7 +51,7 @@ const downloadAttachment = async (emailId: string, attachmentId: string, filenam
     });
 
     // Decode base64 data
-    const base64Data = response.data.data;
+    const base64Data = response.data.base64Content;
     const binaryString = atob(base64Data);
     const bytes = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {

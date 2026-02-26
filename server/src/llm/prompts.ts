@@ -13,7 +13,116 @@ let promptsCache: Map<string, PromptConfig> | null = null;
 /**
  * Load prompts from markdown files in promptfoo/prompts/ directory
  */
-// eslint-disable-next-line max-lines-per-function, max-statements
+const PROMPT_FILE_MAP: Array<{
+  file: string;
+  key: string;
+  critical?: boolean;
+}> = [
+  { file: "extract-action-items.md", key: "extract_action_items" },
+  { file: "prioritise-email.md", key: "analyze_priority", critical: true },
+  { file: "generate-reply.md", key: "generate_reply" },
+  { file: "analyze-email-patterns.md", key: "analyze_email_patterns" },
+  {
+    file: "search-relevance-explanation.md",
+    key: "search_relevance_explanation",
+  },
+  { file: "generate-multiple-replies.md", key: "generate_multiple_replies" },
+  { file: "generate-meeting-reply.md", key: "generate_meeting_reply" },
+  { file: "generate-follow-up.md", key: "generate_follow_up" },
+  { file: "analyze-priority-feedback.md", key: "analyze_priority_feedback" },
+  { file: "extract-common-questions.md", key: "extract_common_questions" },
+  { file: "summarize-email-tldr.md", key: "summarize_email_tldr" },
+  { file: "summarize-email-bullets.md", key: "summarize_email_bullets" },
+  { file: "summarize-email-actions.md", key: "summarize_email_actions" },
+  { file: "check-tone-style.md", key: "check_tone_style" },
+  { file: "suggest-actions.md", key: "suggest_actions" },
+  { file: "classify-email-type.md", key: "classify_email_type" },
+  { file: "generate-qa-answer.md", key: "generate_qa_answer" },
+  { file: "detect-opt-out.md", key: "detect_opt_out" },
+  { file: "redact-names.md", key: "redact_names" },
+  { file: "validate-writing-example.md", key: "validate_writing_example" },
+  { file: "dispute-tone-check.md", key: "dispute_tone_check" },
+  { file: "consolidate-email-categories.md", key: "consolidate_categories" },
+  {
+    file: "generate-categories-from-other.md",
+    key: "generate_categories_from_other",
+  },
+  { file: "summarize-email-batch.md", key: "summarize_email_batch" },
+];
+
+function loadPromptFile(
+  promptsDir: string,
+  file: string,
+  key: string,
+  cache: Map<string, PromptConfig>,
+  critical?: boolean,
+): void {
+  const filePath = path.join(promptsDir, file);
+  if (fs.existsSync(filePath)) {
+    const content = fs.readFileSync(filePath, "utf-8");
+    cache.set(key, { id: key, prompt: content, systemPrompt: "" });
+    if (critical) {
+      logWarn(`✅ Loaded prompt: ${key} from ${file}`);
+    }
+  } else if (critical) {
+    logError(`❌ CRITICAL: ${file} not found at ${filePath}`, undefined, {
+      promptPath: filePath,
+    });
+  } else {
+    logWarn(`${file} not found at ${filePath}`);
+  }
+}
+
+function findServerDir(): string | null {
+  let currentDir = __dirname;
+  for (let i = 0; i < 5; i++) {
+    const nestCliPath = path.join(currentDir, "nest-cli.json");
+    const packageJsonPath = path.join(currentDir, "package.json");
+    if (fs.existsSync(nestCliPath) || fs.existsSync(packageJsonPath)) {
+      const promptfooPath = path.join(currentDir, "promptfoo");
+      if (fs.existsSync(promptfooPath)) {
+        return currentDir;
+      }
+    }
+    const parentDir = path.dirname(currentDir);
+    if (parentDir === currentDir) break;
+    currentDir = parentDir;
+  }
+  return null;
+}
+
+function resolvePromptsDir(serverDir: string | null): string | null {
+  const possiblePaths: string[] = [];
+  if (serverDir) {
+    possiblePaths.push(path.join(serverDir, "promptfoo/prompts"));
+  }
+  possiblePaths.push(
+    path.join(__dirname, "../../promptfoo/prompts"),
+    path.join(__dirname, "../../../promptfoo/prompts"),
+    path.join(process.cwd(), "promptfoo/prompts"),
+    path.join(process.cwd(), "server/promptfoo/prompts"),
+  );
+
+  for (const possiblePath of possiblePaths) {
+    if (fs.existsSync(possiblePath)) {
+      return possiblePath;
+    }
+  }
+
+  logError(
+    `❌ PROMPTS DIRECTORY NOT FOUND. Tried paths: ${possiblePaths.join(", ")}`,
+    undefined,
+    { __dirname, cwd: process.cwd(), serverDir },
+  );
+  logError(
+    `Current __dirname: ${__dirname}, process.cwd(): ${process.cwd()}, serverDir: ${serverDir}`,
+  );
+  logError(
+    `This will cause "prompt not found" errors. Check that promptfoo/prompts/ exists relative to the server directory.`,
+  );
+  return null;
+}
+
 export function loadPrompts(): Map<string, PromptConfig> {
   if (promptsCache) {
     return promptsCache;
@@ -21,396 +130,18 @@ export function loadPrompts(): Map<string, PromptConfig> {
 
   promptsCache = new Map();
 
-  // Find the server directory by looking for nest-cli.json or package.json
-  // Then construct path to promptfoo/prompts
-  let serverDir: string | null = null;
-  let currentDir = __dirname;
-
-  // Walk up from __dirname to find server directory (contains nest-cli.json or package.json)
-  for (let i = 0; i < 5; i++) {
-    const nestCliPath = path.join(currentDir, "nest-cli.json");
-    const packageJsonPath = path.join(currentDir, "package.json");
-    if (fs.existsSync(nestCliPath) || fs.existsSync(packageJsonPath)) {
-      // Check if this is the server directory by looking for promptfoo
-      const promptfooPath = path.join(currentDir, "promptfoo");
-      if (fs.existsSync(promptfooPath)) {
-        serverDir = currentDir;
-        break;
-      }
-    }
-    const parentDir = path.dirname(currentDir);
-    // Reached filesystem root
-    if (parentDir === currentDir) break;
-    currentDir = parentDir;
-  }
-
-  // Try multiple possible paths to find the prompts directory
-  const possiblePaths: string[] = [];
-
-  if (serverDir) {
-    possiblePaths.push(path.join(serverDir, "promptfoo/prompts"));
-  }
-
-  // Fallback paths
-  possiblePaths.push(
-    // From src/llm (source)
-    path.join(__dirname, "../../promptfoo/prompts"),
-    // From dist/src/llm (compiled)
-    path.join(__dirname, "../../../promptfoo/prompts"),
-    // From project root
-    path.join(process.cwd(), "promptfoo/prompts"),
-    // From workspace root
-    path.join(process.cwd(), "server/promptfoo/prompts"),
-  );
-
-  let promptsDir: string | null = null;
-  for (const possiblePath of possiblePaths) {
-    if (fs.existsSync(possiblePath)) {
-      promptsDir = possiblePath;
-      break;
-    }
-  }
+  const serverDir = findServerDir();
+  const promptsDir = resolvePromptsDir(serverDir);
 
   if (!promptsDir) {
-    logError(
-      `❌ PROMPTS DIRECTORY NOT FOUND. Tried paths: ${possiblePaths.join(", ")}`,
-      undefined,
-      {
-        __dirname,
-        cwd: process.cwd(),
-        serverDir,
-      },
-    );
-    logError(
-      `Current __dirname: ${__dirname}, process.cwd(): ${process.cwd()}, serverDir: ${serverDir}`,
-    );
-    logError(
-      `This will cause "prompt not found" errors. Check that promptfoo/prompts/ exists relative to the server directory.`,
-    );
     return promptsCache;
   }
 
-  console.log(`✅ Prompts directory found at: ${promptsDir}`);
+  logWarn(`✅ Prompts directory found at: ${promptsDir}`);
 
   try {
-    // Load extract-action-items.md
-    const extractActionItemsPath = path.join(
-      promptsDir,
-      "extract-action-items.md",
-    );
-    if (fs.existsSync(extractActionItemsPath)) {
-      const content = fs.readFileSync(extractActionItemsPath, "utf-8");
-      promptsCache.set("extract_action_items", {
-        id: "extract_action_items",
-        prompt: content,
-        systemPrompt: "",
-      });
-    } else {
-      logWarn(`extract-action-items.md not found at ${extractActionItemsPath}`);
-    }
-
-    // Load prioritise-email.md
-    const prioritiseEmailPath = path.join(promptsDir, "prioritise-email.md");
-    if (fs.existsSync(prioritiseEmailPath)) {
-      const content = fs.readFileSync(prioritiseEmailPath, "utf-8");
-      promptsCache.set("analyze_priority", {
-        id: "analyze_priority",
-        prompt: content,
-        systemPrompt: "",
-      });
-      console.log(
-        "✅ Loaded prompt: analyze_priority from prioritise-email.md",
-      );
-    } else {
-      logError(
-        `❌ CRITICAL: prioritise-email.md not found at ${prioritiseEmailPath}`,
-        undefined,
-        { promptPath: prioritiseEmailPath },
-      );
-    }
-
-    // Load generate-reply.md
-    const generateReplyPath = path.join(promptsDir, "generate-reply.md");
-    if (fs.existsSync(generateReplyPath)) {
-      const content = fs.readFileSync(generateReplyPath, "utf-8");
-      promptsCache.set("generate_reply", {
-        id: "generate_reply",
-        prompt: content,
-        systemPrompt: "",
-      });
-    }
-
-    // Load analyze-email-patterns.md
-    const analyzePatternsPath = path.join(
-      promptsDir,
-      "analyze-email-patterns.md",
-    );
-    if (fs.existsSync(analyzePatternsPath)) {
-      const content = fs.readFileSync(analyzePatternsPath, "utf-8");
-      promptsCache.set("analyze_email_patterns", {
-        id: "analyze_email_patterns",
-        prompt: content,
-        systemPrompt: "",
-      });
-    }
-
-    // Load search-relevance-explanation.md
-    const searchRelevancePath = path.join(
-      promptsDir,
-      "search-relevance-explanation.md",
-    );
-    if (fs.existsSync(searchRelevancePath)) {
-      const content = fs.readFileSync(searchRelevancePath, "utf-8");
-      promptsCache.set("search_relevance_explanation", {
-        id: "search_relevance_explanation",
-        prompt: content,
-        systemPrompt: "",
-      });
-    }
-
-    // Load generate-multiple-replies.md
-    const generateMultipleRepliesPath = path.join(
-      promptsDir,
-      "generate-multiple-replies.md",
-    );
-    if (fs.existsSync(generateMultipleRepliesPath)) {
-      const content = fs.readFileSync(generateMultipleRepliesPath, "utf-8");
-      promptsCache.set("generate_multiple_replies", {
-        id: "generate_multiple_replies",
-        prompt: content,
-        systemPrompt: "",
-      });
-    }
-
-    // Load generate-meeting-reply.md
-    const generateMeetingReplyPath = path.join(
-      promptsDir,
-      "generate-meeting-reply.md",
-    );
-    if (fs.existsSync(generateMeetingReplyPath)) {
-      const content = fs.readFileSync(generateMeetingReplyPath, "utf-8");
-      promptsCache.set("generate_meeting_reply", {
-        id: "generate_meeting_reply",
-        prompt: content,
-        systemPrompt: "",
-      });
-    }
-
-    // Load generate-follow-up.md
-    const generateFollowUpPath = path.join(promptsDir, "generate-follow-up.md");
-    if (fs.existsSync(generateFollowUpPath)) {
-      const content = fs.readFileSync(generateFollowUpPath, "utf-8");
-      promptsCache.set("generate_follow_up", {
-        id: "generate_follow_up",
-        prompt: content,
-        systemPrompt: "",
-      });
-    }
-
-    // Load analyze-priority-feedback.md
-    const analyzePriorityFeedbackPath = path.join(
-      promptsDir,
-      "analyze-priority-feedback.md",
-    );
-    if (fs.existsSync(analyzePriorityFeedbackPath)) {
-      const content = fs.readFileSync(analyzePriorityFeedbackPath, "utf-8");
-      promptsCache.set("analyze_priority_feedback", {
-        id: "analyze_priority_feedback",
-        prompt: content,
-        systemPrompt: "",
-      });
-    }
-
-    // Load extract-common-questions.md
-    const extractCommonQuestionsPath = path.join(
-      promptsDir,
-      "extract-common-questions.md",
-    );
-    if (fs.existsSync(extractCommonQuestionsPath)) {
-      const content = fs.readFileSync(extractCommonQuestionsPath, "utf-8");
-      promptsCache.set("extract_common_questions", {
-        id: "extract_common_questions",
-        prompt: content,
-        systemPrompt: "",
-      });
-    }
-
-    // Load summarize-email-tldr.md
-    const summarizeEmailTldrPath = path.join(
-      promptsDir,
-      "summarize-email-tldr.md",
-    );
-    if (fs.existsSync(summarizeEmailTldrPath)) {
-      const content = fs.readFileSync(summarizeEmailTldrPath, "utf-8");
-      promptsCache.set("summarize_email_tldr", {
-        id: "summarize_email_tldr",
-        prompt: content,
-        systemPrompt: "",
-      });
-    }
-
-    // Load summarize-email-bullets.md
-    const summarizeEmailBulletsPath = path.join(
-      promptsDir,
-      "summarize-email-bullets.md",
-    );
-    if (fs.existsSync(summarizeEmailBulletsPath)) {
-      const content = fs.readFileSync(summarizeEmailBulletsPath, "utf-8");
-      promptsCache.set("summarize_email_bullets", {
-        id: "summarize_email_bullets",
-        prompt: content,
-        systemPrompt: "",
-      });
-    }
-
-    // Load summarize-email-actions.md
-    const summarizeEmailActionsPath = path.join(
-      promptsDir,
-      "summarize-email-actions.md",
-    );
-    if (fs.existsSync(summarizeEmailActionsPath)) {
-      const content = fs.readFileSync(summarizeEmailActionsPath, "utf-8");
-      promptsCache.set("summarize_email_actions", {
-        id: "summarize_email_actions",
-        prompt: content,
-        systemPrompt: "",
-      });
-    }
-
-    // Load check-tone-style.md
-    const checkToneStylePath = path.join(promptsDir, "check-tone-style.md");
-    if (fs.existsSync(checkToneStylePath)) {
-      const content = fs.readFileSync(checkToneStylePath, "utf-8");
-      promptsCache.set("check_tone_style", {
-        id: "check_tone_style",
-        prompt: content,
-        systemPrompt: "",
-      });
-    }
-
-    // Load suggest-actions.md
-    const suggestActionsPath = path.join(promptsDir, "suggest-actions.md");
-    if (fs.existsSync(suggestActionsPath)) {
-      const content = fs.readFileSync(suggestActionsPath, "utf-8");
-      promptsCache.set("suggest_actions", {
-        id: "suggest_actions",
-        prompt: content,
-        systemPrompt: "",
-      });
-    }
-
-    // Load classify-email-type.md (auto-responder)
-    const classifyEmailTypePath = path.join(
-      promptsDir,
-      "classify-email-type.md",
-    );
-    if (fs.existsSync(classifyEmailTypePath)) {
-      const content = fs.readFileSync(classifyEmailTypePath, "utf-8");
-      promptsCache.set("classify_email_type", {
-        id: "classify_email_type",
-        prompt: content,
-        systemPrompt: "",
-      });
-    }
-
-    // Load generate-qa-answer.md (auto-responder)
-    const generateQaAnswerPath = path.join(promptsDir, "generate-qa-answer.md");
-    if (fs.existsSync(generateQaAnswerPath)) {
-      const content = fs.readFileSync(generateQaAnswerPath, "utf-8");
-      promptsCache.set("generate_qa_answer", {
-        id: "generate_qa_answer",
-        prompt: content,
-        systemPrompt: "",
-      });
-    }
-
-    // Load detect-opt-out.md (auto-responder)
-    const detectOptOutPath = path.join(promptsDir, "detect-opt-out.md");
-    if (fs.existsSync(detectOptOutPath)) {
-      const content = fs.readFileSync(detectOptOutPath, "utf-8");
-      promptsCache.set("detect_opt_out", {
-        id: "detect_opt_out",
-        prompt: content,
-        systemPrompt: "",
-      });
-    }
-
-    // Load redact-names.md (privacy - name redaction for email examples)
-    const redactNamesPath = path.join(promptsDir, "redact-names.md");
-    if (fs.existsSync(redactNamesPath)) {
-      const content = fs.readFileSync(redactNamesPath, "utf-8");
-      promptsCache.set("redact_names", {
-        id: "redact_names",
-        prompt: content,
-        systemPrompt: "",
-      });
-    }
-
-    // Load validate-writing-example.md (validate and clean writing style examples)
-    const validateWritingExamplePath = path.join(
-      promptsDir,
-      "validate-writing-example.md",
-    );
-    if (fs.existsSync(validateWritingExamplePath)) {
-      const content = fs.readFileSync(validateWritingExamplePath, "utf-8");
-      promptsCache.set("validate_writing_example", {
-        id: "validate_writing_example",
-        prompt: content,
-        systemPrompt: "",
-      });
-    }
-
-    // Load dispute-tone-check.md (tone check dispute feature)
-    const disputeToneCheckPath = path.join(promptsDir, "dispute-tone-check.md");
-    if (fs.existsSync(disputeToneCheckPath)) {
-      const content = fs.readFileSync(disputeToneCheckPath, "utf-8");
-      promptsCache.set("dispute_tone_check", {
-        id: "dispute_tone_check",
-        prompt: content,
-        systemPrompt: "",
-      });
-    }
-
-    // Load consolidate-email-categories.md (category deduplication)
-    const consolidateCategoriesPath = path.join(
-      promptsDir,
-      "consolidate-email-categories.md",
-    );
-    if (fs.existsSync(consolidateCategoriesPath)) {
-      const content = fs.readFileSync(consolidateCategoriesPath, "utf-8");
-      promptsCache.set("consolidate_categories", {
-        id: "consolidate_categories",
-        prompt: content,
-        systemPrompt: "",
-      });
-    }
-
-    // Load generate-categories-from-other.md (generate new categories from Other emails)
-    const generateCategoriesFromOtherPath = path.join(
-      promptsDir,
-      "generate-categories-from-other.md",
-    );
-    if (fs.existsSync(generateCategoriesFromOtherPath)) {
-      const content = fs.readFileSync(generateCategoriesFromOtherPath, "utf-8");
-      promptsCache.set("generate_categories_from_other", {
-        id: "generate_categories_from_other",
-        prompt: content,
-        systemPrompt: "",
-      });
-    }
-
-    // Load summarize-email-batch.md
-    const summarizeEmailBatchPath = path.join(
-      promptsDir,
-      "summarize-email-batch.md",
-    );
-    if (fs.existsSync(summarizeEmailBatchPath)) {
-      const content = fs.readFileSync(summarizeEmailBatchPath, "utf-8");
-      promptsCache.set("summarize_email_batch", {
-        id: "summarize_email_batch",
-        prompt: content,
-        systemPrompt: "",
-      });
+    for (const { file, key, critical } of PROMPT_FILE_MAP) {
+      loadPromptFile(promptsDir, file, key, promptsCache, critical);
     }
   } catch (error) {
     logError(

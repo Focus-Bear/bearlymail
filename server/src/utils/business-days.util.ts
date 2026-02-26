@@ -29,24 +29,16 @@ const US_HOLIDAYS = {
  * Variable names follow the standard Computus algorithm notation
  */
 function calculateEaster(year: number): Date {
-  // eslint-disable-next-line id-length
   const a = year % EASTER_ALGORITHM.METONIC_CYCLE;
-  // eslint-disable-next-line id-length
   const b = Math.floor(year / EASTER_ALGORITHM.CENTURY_DIVISOR);
-  // eslint-disable-next-line id-length
   const c = year % EASTER_ALGORITHM.CENTURY_DIVISOR;
-  // eslint-disable-next-line id-length
   const d = Math.floor(b / 4);
-  // eslint-disable-next-line id-length
   const e = b % 4;
-  // eslint-disable-next-line id-length
   const f = Math.floor(
     (b + EASTER_ALGORITHM.LUNAR_CORRECTION_OFFSET) /
       EASTER_ALGORITHM.LUNAR_CORRECTION_DIVISOR,
   );
-  // eslint-disable-next-line id-length
   const g = Math.floor((b - f + 1) / EASTER_ALGORITHM.SOLAR_CORRECTION_DIVISOR);
-  // eslint-disable-next-line id-length
   const h =
     (EASTER_ALGORITHM.METONIC_CYCLE * a +
       b -
@@ -54,15 +46,11 @@ function calculateEaster(year: number): Date {
       g +
       EASTER_ALGORITHM.PASCHAL_FULL_MOON_OFFSET) %
     EASTER_ALGORITHM.PASCHAL_FULL_MOON_MOD;
-  // eslint-disable-next-line id-length
   const i = Math.floor(c / 4);
-  // eslint-disable-next-line id-length
   const k = c % 4;
-  // eslint-disable-next-line id-length
   const l =
     (EASTER_ALGORITHM.DOMINICAL_OFFSET + 2 * e + 2 * i - h - k) %
     EASTER_ALGORITHM.DOMINICAL_MOD;
-  // eslint-disable-next-line id-length
   const m = Math.floor(
     (a +
       EASTER_ALGORITHM.EPACT_MULTIPLIER_A * h +

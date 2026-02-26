@@ -338,9 +338,11 @@ describe("EmailThreadService", () => {
         id: "uuid-1",
         userId,
         threadId,
-        starCount: 1, // User's specific follow-up priority level
+        // User's specific follow-up priority level
+        starCount: 1,
         isArchived: false,
-        lastUserOperationAt: new Date(), // Set by user action
+        // Set by user action
+        lastUserOperationAt: new Date(),
       };
 
       mockEmailThreadRepository.findOne.mockResolvedValue(existingThread);
@@ -353,7 +355,8 @@ describe("EmailThreadService", () => {
       const result = await service.getOrCreateEmailThread(
         userId,
         threadId,
-        3, // Provider says "starred" (Gmail maps STARRED label to 3)
+        // Provider says "starred" (Gmail maps STARRED label to 3)
+        3,
         false,
       );
 
@@ -377,9 +380,11 @@ describe("EmailThreadService", () => {
         id: "uuid-1",
         userId,
         threadId,
-        starCount: 2, // Previously starred at level 2
+        // Previously starred at level 2
+        starCount: 2,
         isArchived: false,
-        lastUserOperationAt: new Date(), // Set by previous user action
+        // Set by previous user action
+        lastUserOperationAt: new Date(),
       };
 
       mockEmailThreadRepository.findOne.mockResolvedValue(existingThread);
@@ -391,7 +396,8 @@ describe("EmailThreadService", () => {
       const result = await service.getOrCreateEmailThread(
         userId,
         threadId,
-        0, // Provider says "not starred"
+        // Provider says "not starred"
+        0,
         false,
       );
 
@@ -410,7 +416,8 @@ describe("EmailThreadService", () => {
         threadId,
         starCount: 0,
         isArchived: false,
-        lastUserOperationAt: null, // No user protection
+        // No user protection
+        lastUserOperationAt: null,
       };
 
       mockEmailThreadRepository.findOne.mockResolvedValue(existingThread);
@@ -439,7 +446,8 @@ describe("EmailThreadService", () => {
         threadId,
         starCount: 0,
         isArchived: false,
-        lastUserOperationAt: null, // No user protection, no changes needed
+        // No user protection, no changes needed
+        lastUserOperationAt: null,
       };
 
       mockEmailThreadRepository.findOne.mockResolvedValue(existingThread);

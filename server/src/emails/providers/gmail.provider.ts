@@ -1,7 +1,10 @@
 import { Injectable, Inject, forwardRef, Logger } from "@nestjs/common";
 import { google, gmail_v1 } from "googleapis";
 import { UsersService } from "../../users/users.service";
-import { EmailsService } from "../emails.service";
+import {
+  EmailsService,
+  EmailDataWithOptionalThreadProps,
+} from "../emails.service";
 import { ScanEmailService } from "../scan-email.service";
 import { SyncHistoryService } from "../sync-history.service";
 import {
@@ -9,6 +12,7 @@ import {
   RawEmailMessage,
   EmailRecipient,
   EmailAttachmentData,
+  SendReplyOptions,
 } from "../interfaces/email-provider.interface";
 import PgBoss from "pg-boss";
 import { getJobPriority } from "../../queue/job-priorities";
@@ -16,6 +20,7 @@ import { getJobPriority } from "../../queue/job-priorities";
 import { MINUTES, DAYS, MILLISECONDS } from "../../constants/time-constants";
 import { QUERY_LIMITS } from "../../constants/query-limits";
 import { isApiError, formatGaxiosError } from "../../types/common";
+import { User } from "../../database/entities/user.entity";
 import { logErrorToFile } from "../../utils/error-logger";
 import { parseGmailMessage } from "./gmail/gmail-message-parser";
 import {
@@ -34,6 +39,12 @@ import {
   ensureLabelExists,
 } from "./gmail/gmail-operations";
 import { buildEmailContent, encodeEmailForGmail } from "./gmail/gmail-send";
+import {
+  buildGmailUrlIdsToTry,
+  lookupGmailMessageByIds,
+  lookupGmailThreadByIds,
+} from "./gmail/gmail-lookup";
+import { authLogger } from "../../auth/auth-logger";
 
 /**
  * Parse a comma-separated recipient string (supports "Name <email>" format)
@@ -143,7 +154,8 @@ export class GmailProvider implements EmailProvider {
     return {
       email: user.email,
       name: user.name,
-      isPrimary: true, // Legacy implementation - always primary
+      // Legacy implementation - always primary
+      isPrimary: true,
     };
   }
 
@@ -192,8 +204,8 @@ export class GmailProvider implements EmailProvider {
     if (typeof syncWindowHoursOrOptions === "number") {
       syncWindowHours = syncWindowHoursOrOptions;
     } else if (syncWindowHoursOrOptions) {
-      syncWindowHours = syncWindowHoursOrOptions.syncWindowHours;
-      providedThreadIds = syncWindowHoursOrOptions.threadIds;
+      ({ syncWindowHours, threadIds: providedThreadIds } =
+        syncWindowHoursOrOptions);
       isContinuation = syncWindowHoursOrOptions.isContinuation || false;
       noDateFilter = syncWindowHoursOrOptions.noDateFilter || false;
     }
@@ -217,15 +229,12 @@ export class GmailProvider implements EmailProvider {
 
     try {
       const isInitialSync = !user.lastEmailSyncAt;
-      await this.performSync(
-        userId,
-        gmail,
-        isInitialSync,
+      await this.performSync(userId, gmail, isInitialSync, {
         syncWindowHours,
         providedThreadIds,
         isContinuation,
         noDateFilter,
-      );
+      });
       await this.usersService.update(userId, {
         lastEmailSyncAt: new Date(),
       });
@@ -234,7 +243,7 @@ export class GmailProvider implements EmailProvider {
     }
   }
 
-  private isWithinGracePeriod(user: any): boolean {
+  private isWithinGracePeriod(user: User | null): boolean {
     const fiveMinutesAgo = new Date(
       Date.now() - MINUTES.FIVE * MILLISECONDS.MINUTE,
     );
@@ -246,11 +255,10 @@ export class GmailProvider implements EmailProvider {
 
   private async handleMissingRefreshToken(
     userId: string,
-    user: any,
+    user: User | null,
     isRecentLogin: boolean,
   ): Promise<never> {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { authLogger } = require("../../auth/auth-logger");
+    const { authLogger } = await import("../../auth/auth-logger");
     authLogger.logAuthFailure(
       userId,
       user?.email || null,
@@ -264,7 +272,7 @@ export class GmailProvider implements EmailProvider {
     throw new Error("Refresh token missing - please log in again");
   }
 
-  private async validateToken(userId: string, user: any): Promise<void> {
+  private async validateToken(userId: string, user: User): Promise<void> {
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
@@ -279,12 +287,11 @@ export class GmailProvider implements EmailProvider {
 
   private async handleTokenValidationError(
     userId: string,
-    user: any,
+    user: User | null,
     error: unknown,
     isRecentLogin: boolean,
   ): Promise<never> {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { authLogger } = require("../../auth/auth-logger");
+    const { authLogger } = await import("../../auth/auth-logger");
     authLogger.logAuthFailure(
       userId,
       user?.email || null,
@@ -298,78 +305,93 @@ export class GmailProvider implements EmailProvider {
     throw new Error("Token refresh failed - please log in again");
   }
 
+  private async fetchGmailThreadIds(
+    userId: string,
+    gmail: gmail_v1.Gmail,
+    syncWindowHours: number | undefined,
+    noDateFilter: boolean,
+    queries: string[],
+  ): Promise<{ allThreadIds: Set<string>; syncWindowStart: Date | null }> {
+    const user = await this.usersService.findOneWithTokens(userId);
+    const baseQuery = "-label:SnoozedBearlyMail -label:VA-to-action";
+    let syncWindowStart: Date | null = null;
+    let inboxQuery: string;
+    let sentQuery: string;
+
+    if (noDateFilter) {
+      inboxQuery = `in:inbox ${baseQuery}`;
+      sentQuery = `in:sent ${baseQuery} newer_than:2d`;
+      this.logger.log(
+        `[SYNC] noDateFilter=true: fetching all inbox emails without date restriction`,
+      );
+    } else {
+      syncWindowStart = this.calculateSyncWindowStart(user, syncWindowHours);
+      const syncWindowTimestamp = Math.floor(syncWindowStart.getTime() / 1000);
+      const afterQuery = `after:${syncWindowTimestamp}`;
+      inboxQuery = `in:inbox ${baseQuery} ${afterQuery}`;
+      sentQuery = `in:sent ${baseQuery} ${afterQuery}`;
+    }
+
+    const starredQuery = `is:starred in:inbox ${baseQuery}`;
+    queries.push(inboxQuery, starredQuery, sentQuery);
+
+    const [inboxThreads, starredThreads, sentThreads] = await Promise.all([
+      gmail.users.threads.list({
+        userId: "me",
+        maxResults: 500,
+        q: inboxQuery,
+      }),
+      gmail.users.threads.list({
+        userId: "me",
+        maxResults: 500,
+        q: starredQuery,
+      }),
+      gmail.users.threads.list({ userId: "me", maxResults: 100, q: sentQuery }),
+    ]);
+
+    const allThreadIds = new Set([
+      ...(inboxThreads.data.threads || []).map((t) => t.id!),
+      ...(starredThreads.data.threads || []).map((t) => t.id!),
+      ...(sentThreads.data.threads || []).map((t) => t.id!),
+    ]);
+    return { allThreadIds, syncWindowStart };
+  }
+
   private async performSync(
     userId: string,
     gmail: gmail_v1.Gmail,
     isInitialSync: boolean,
-    syncWindowHours?: number,
-    providedThreadIds?: string[],
-    isContinuation = false,
-    noDateFilter = false,
+    options: {
+      syncWindowHours?: number;
+      providedThreadIds?: string[];
+      isContinuation?: boolean;
+      noDateFilter?: boolean;
+    } = {},
   ): Promise<void> {
+    const {
+      syncWindowHours,
+      providedThreadIds,
+      isContinuation = false,
+      noDateFilter = false,
+    } = options;
     const syncStart = Date.now();
     let allThreadIds: Set<string>;
     let syncWindowStart: Date | null = null;
     const queries: string[] = [];
 
-    // If thread IDs are provided (continuation job), skip the fetch phase
     if (providedThreadIds && providedThreadIds.length > 0) {
       this.logger.log(
         `[SYNC] Continuation job: processing ${providedThreadIds.length} provided thread IDs`,
       );
       allThreadIds = new Set(providedThreadIds);
     } else {
-      // Normal sync - fetch thread lists
-      const user = await this.usersService.findOneWithTokens(userId);
-      const baseQuery = "-label:SnoozedBearlyMail -label:VA-to-action";
-
-      // Build inbox query - omit `after:` date filter when noDateFilter is true so we
-      // fetch ALL inbox emails regardless of age (used by the 2-hour extended sync).
-      let inboxQuery: string;
-      let sentQuery: string;
-      if (noDateFilter) {
-        syncWindowStart = null;
-        inboxQuery = `in:inbox ${baseQuery}`;
-        sentQuery = `in:sent ${baseQuery} newer_than:2d`;
-        this.logger.log(
-          `[SYNC] noDateFilter=true: fetching all inbox emails without date restriction`,
-        );
-      } else {
-        syncWindowStart = this.calculateSyncWindowStart(user, syncWindowHours);
-        const syncWindowTimestamp = Math.floor(
-          syncWindowStart.getTime() / 1000,
-        );
-        const afterQuery = `after:${syncWindowTimestamp}`;
-        inboxQuery = `in:inbox ${baseQuery} ${afterQuery}`;
-        sentQuery = `in:sent ${baseQuery} ${afterQuery}`;
-      }
-
-      const starredQuery = `is:starred in:inbox ${baseQuery}`;
-      queries.push(inboxQuery, starredQuery, sentQuery);
-
-      const [inboxThreads, starredThreads, sentThreads] = await Promise.all([
-        gmail.users.threads.list({
-          userId: "me",
-          maxResults: 500,
-          q: inboxQuery,
-        }),
-        gmail.users.threads.list({
-          userId: "me",
-          maxResults: 500,
-          q: starredQuery,
-        }),
-        gmail.users.threads.list({
-          userId: "me",
-          maxResults: 100,
-          q: sentQuery,
-        }),
-      ]);
-
-      allThreadIds = new Set([
-        ...(inboxThreads.data.threads || []).map((t) => t.id!),
-        ...(starredThreads.data.threads || []).map((t) => t.id!),
-        ...(sentThreads.data.threads || []).map((t) => t.id!),
-      ]);
+      ({ allThreadIds, syncWindowStart } = await this.fetchGmailThreadIds(
+        userId,
+        gmail,
+        syncWindowHours,
+        noDateFilter,
+        queries,
+      ));
     }
 
     const existingThreads = await this.emailsService.getThreadsByThreadIds(
@@ -407,7 +429,10 @@ export class GmailProvider implements EmailProvider {
     });
   }
 
-  private calculateSyncWindowStart(user: any, syncWindowHours?: number): Date {
+  private calculateSyncWindowStart(
+    user: User | null,
+    syncWindowHours?: number,
+  ): Date {
     const fourHoursInMs = 4 * 60 * 60 * 1000;
     if (syncWindowHours !== undefined)
       return new Date(Date.now() - syncWindowHours * 60 * 60 * 1000);
@@ -420,11 +445,22 @@ export class GmailProvider implements EmailProvider {
     userId: string,
     threadIds: string[],
     gmail: gmail_v1.Gmail,
-    existingThreadMap: Map<string, any>,
+    existingThreadMap: Map<
+      string,
+      {
+        threadId: string;
+        updatedAt: Date;
+        starCount: number;
+        isArchived: boolean;
+      }
+    >,
     isInitialSync: boolean,
-  ): Promise<{ starUpdates: any[]; archivedUpdates: any[] }> {
-    const starUpdates: any[] = [];
-    const archivedUpdates: any[] = [];
+  ): Promise<{
+    starUpdates: { threadId: string; starCount: number }[];
+    archivedUpdates: { threadId: string; isArchived: boolean }[];
+  }> {
+    const starUpdates: { threadId: string; starCount: number }[] = [];
+    const archivedUpdates: { threadId: string; isArchived: boolean }[] = [];
     const BATCH_SIZE = 5;
     const MAX_THREADS = 500;
 
@@ -507,14 +543,21 @@ export class GmailProvider implements EmailProvider {
 
     await this.emailsService.createEmail(
       userId,
-      { ...rawEmail, starCount, labels: rawEmail.labelIds } as any,
+      {
+        ...rawEmail,
+        starCount,
+        labels: rawEmail.labelIds,
+      } as EmailDataWithOptionalThreadProps,
       { skipBatching: isInitialSync },
     );
   }
 
   private async applyThreadUpdates(
     userId: string,
-    updates: { starUpdates: any[]; archivedUpdates: any[] },
+    updates: {
+      starUpdates: { threadId: string; starCount: number }[];
+      archivedUpdates: { threadId: string; isArchived: boolean }[];
+    },
   ): Promise<void> {
     if (updates.starUpdates.length > 0)
       await this.emailsService.batchUpdateThreadStarCount(
@@ -610,7 +653,7 @@ export class GmailProvider implements EmailProvider {
 
   private async handleSyncError(
     userId: string,
-    user: any,
+    user: User | null,
     error: unknown,
   ): Promise<never> {
     const formattedError = formatGaxiosError(error);
@@ -625,8 +668,6 @@ export class GmailProvider implements EmailProvider {
         .findOneWithTokens(userId)
         .catch(() => user);
       const isRecentLogin = this.isWithinGracePeriod(currentUser);
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { authLogger } = require("../../auth/auth-logger");
       authLogger.logAuthFailure(
         userId,
         currentUser?.email || null,
@@ -822,10 +863,9 @@ export class GmailProvider implements EmailProvider {
     to: string,
     subject: string,
     body: string,
-    attachments?: EmailAttachmentData[],
-    htmlBody?: string,
-    cc?: string,
+    options?: SendReplyOptions,
   ): Promise<{ messageId: string; threadId: string }> {
+    const { attachments, htmlBody, cc } = options ?? {};
     const gmail = await this.createGmailClient(userId);
     if (!gmail) throw new Error("Gmail account not connected.");
 
@@ -999,7 +1039,7 @@ export class GmailProvider implements EmailProvider {
   async snoozeThread(
     userId: string,
     threadId: string,
-    _snoozeUntil: Date, // eslint-disable-line @typescript-eslint/no-unused-vars
+    _snoozeUntil: Date,
   ): Promise<void> {
     const gmail = await this.createGmailClient(userId);
     if (!gmail) throw new Error("User not connected to Gmail");
@@ -1032,7 +1072,7 @@ export class GmailProvider implements EmailProvider {
     attachmentId: string,
     attachmentMetadata?: { filename: string; mimeType: string; size: number },
   ): Promise<{
-    data: Buffer;
+    attachmentBuffer: Buffer;
     filename: string;
     mimeType: string;
     size: number;
@@ -1048,26 +1088,13 @@ export class GmailProvider implements EmailProvider {
     const attachmentBuffer = Buffer.from(response.data.data || "", "base64");
 
     return {
-      data: attachmentBuffer,
+      attachmentBuffer,
       filename: attachmentMetadata?.filename || "attachment",
       mimeType: attachmentMetadata?.mimeType || "application/octet-stream",
       size: attachmentMetadata?.size || attachmentBuffer.length,
     };
   }
 
-  /**
-   * Look up a message by a Gmail URL ID (the base64url-encoded ID from Gmail web interface URLs).
-   *
-   * Gmail web URLs use a different encoding than the Gmail REST API IDs:
-   *   - API message/thread IDs are hexadecimal strings (e.g. "18a12345678abcde")
-   *   - URL IDs are base64url-encoded (e.g. "FMfcgzQfBsphbPMHvCJWcFscclwTDqzk")
-   *
-   * Strategy:
-   *   1. Try the URL ID as-is (in case Gmail API accepts it or the user pasted an API ID)
-   *   2. Decode the URL ID from base64url to hex and retry
-   *
-   * Returns the canonical API message/thread IDs so we can look them up in our DB.
-   */
   async lookupByGmailUrlId(
     userId: string,
     urlId: string,
@@ -1081,79 +1108,11 @@ export class GmailProvider implements EmailProvider {
     const gmail = await this.createGmailClient(userId);
     if (!gmail) return null;
 
-    const idsToTry: string[] = [urlId];
+    const idsToTry = buildGmailUrlIdsToTry(urlId);
 
-    // Also try decoding from base64url → hex (Gmail URL IDs are base64url of the raw internal bytes)
-    try {
-      const base64 = urlId.replace(/-/g, "+").replace(/_/g, "/");
-      const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
-      const hexId = Buffer.from(padded, "base64").toString("hex");
-      if (hexId && hexId !== urlId) {
-        idsToTry.push(hexId);
-      }
-    } catch {
-      // ignore decode errors
-    }
+    const byMessage = await lookupGmailMessageByIds(gmail, idsToTry);
+    if (byMessage) return byMessage;
 
-    for (const id of idsToTry) {
-      try {
-        const response = await gmail.users.messages.get({
-          userId: "me",
-          id,
-          format: "metadata",
-          metadataHeaders: ["Subject", "From", "Date"],
-        });
-        const message = response.data;
-        if (message.id && message.threadId) {
-          const headers = message.payload?.headers || [];
-          const subject =
-            headers.find((h) => h.name === "Subject")?.value || "";
-          const from = headers.find((h) => h.name === "From")?.value || "";
-          const dateStr = headers.find((h) => h.name === "Date")?.value || "";
-          return {
-            messageId: message.id,
-            threadId: message.threadId,
-            subject,
-            from,
-            receivedAt: dateStr ? new Date(dateStr) : null,
-          };
-        }
-      } catch {
-        // Try next ID variant
-      }
-    }
-
-    // Also try as a thread ID directly (some Gmail URLs link to threads, not individual messages)
-    for (const id of idsToTry) {
-      try {
-        const response = await gmail.users.threads.get({
-          userId: "me",
-          id,
-          format: "metadata",
-        });
-        const thread = response.data;
-        if (thread.id) {
-          // Get metadata from the latest message in the thread
-          const latestMsg =
-            thread.messages?.[thread.messages.length - 1] ?? null;
-          const headers = latestMsg?.payload?.headers || [];
-          const subject =
-            headers.find((h) => h.name === "Subject")?.value || "";
-          const from = headers.find((h) => h.name === "From")?.value || "";
-          const dateStr = headers.find((h) => h.name === "Date")?.value || "";
-          return {
-            messageId: latestMsg?.id || thread.id,
-            threadId: thread.id,
-            subject,
-            from,
-            receivedAt: dateStr ? new Date(dateStr) : null,
-          };
-        }
-      } catch {
-        // Try next ID variant
-      }
-    }
-
-    return null;
+    return lookupGmailThreadByIds(gmail, idsToTry);
   }
 }

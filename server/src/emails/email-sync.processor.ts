@@ -48,7 +48,6 @@ export class EmailSyncProcessor implements OnModuleInit {
     );
   }
 
-  // eslint-disable-next-line max-lines-per-function
   async onModuleInit() {
     // Schedule recurring sync for all users every 5 minutes (for urgency checks and status updates)
     await this.boss.schedule("schedule-email-fetch-jobs", "*/5 * * * *");
@@ -62,7 +61,19 @@ export class EmailSyncProcessor implements OnModuleInit {
     // Schedule inbox status verification every 2 hours to detect Gmail-archived emails
     await this.boss.schedule("schedule-verify-inbox-status", "30 */2 * * *");
 
-    // Worker for scheduling email fetch jobs (every 5 minutes) - queues individual fetch-user-emails jobs for each user
+    await this.registerFetchSchedulerWorker();
+    await this.registerFetchUserEmailsWorker();
+    await this.registerExtendedFetchSchedulerWorker();
+    await this.registerExtendedFetchWorker();
+    await this.registerVerifyInboxStatusScheduler();
+    await this.registerVerifyInboxStatusWorker();
+    await this.registerLegacyWorkers();
+    await this.registerScanHistoryWorker();
+    await this.registerScanHistoryEmailWorker();
+  }
+
+  // Worker for scheduling email fetch jobs (every 5 minutes) - queues individual fetch-user-emails jobs for each user
+  private async registerFetchSchedulerWorker(): Promise<void> {
     await this.boss.work("schedule-email-fetch-jobs", async (job) => {
       const workerId = job.id || "unknown";
       const tracker = new JobPerformanceTracker(
@@ -134,8 +145,9 @@ export class EmailSyncProcessor implements OnModuleInit {
         throw error;
       }
     });
+  }
 
-    // Worker for fetching emails for individual user (generic, works with any provider)
+  private async registerFetchUserEmailsWorker(): Promise<void> {
     // Use CPU-based concurrency for parallel fetches
     // Add retry on failure - jobs will be retried automatically
     // Supports continuation jobs with threadIds for processing large mailboxes in chunks
@@ -209,8 +221,10 @@ export class EmailSyncProcessor implements OnModuleInit {
         }
       },
     );
+  }
 
-    // Worker for scheduling extended email fetch jobs (every 2 hours) - fetches ALL inbox emails (no date filter)
+  // Worker for scheduling extended email fetch jobs (every 2 hours) - fetches ALL inbox emails (no date filter)
+  private async registerExtendedFetchSchedulerWorker(): Promise<void> {
     await this.boss.work("schedule-extended-email-fetch-jobs", async (job) => {
       const workerId = job.id || "unknown";
       const tracker = new JobPerformanceTracker(
@@ -272,8 +286,10 @@ export class EmailSyncProcessor implements OnModuleInit {
         throw error;
       }
     });
+  }
 
-    // Worker for extended email fetch (full inbox, no date filter)
+  // Worker for extended email fetch (full inbox, no date filter)
+  private async registerExtendedFetchWorker(): Promise<void> {
     await this.boss.work(
       "fetch-user-emails-extended",
       {
@@ -283,7 +299,8 @@ export class EmailSyncProcessor implements OnModuleInit {
         const { userId, noDateFilter, syncWindowHours } = job.data as {
           userId: string;
           noDateFilter?: boolean;
-          syncWindowHours?: number; // kept for backwards-compat with any in-flight jobs
+          // kept for backwards-compat with any in-flight jobs
+          syncWindowHours?: number;
         };
         const workerId = job.id || "unknown";
         const tracker = new JobPerformanceTracker(
@@ -322,9 +339,11 @@ export class EmailSyncProcessor implements OnModuleInit {
         }
       },
     );
+  }
 
-    // Worker for scheduling inbox status verification (every 2 hours)
-    // Queues individual verify-user-inbox-status jobs per user
+  // Worker for scheduling inbox status verification (every 2 hours)
+  // Queues individual verify-user-inbox-status jobs per user
+  private async registerVerifyInboxStatusScheduler(): Promise<void> {
     await this.boss.work("schedule-verify-inbox-status", async (job) => {
       const workerId = job.id || "unknown";
       const tracker = new JobPerformanceTracker(
@@ -380,9 +399,11 @@ export class EmailSyncProcessor implements OnModuleInit {
         throw error;
       }
     });
+  }
 
-    // Worker for verifying inbox status per user - checks all non-archived BearlyMail threads
-    // against Gmail and archives any that have been archived in Gmail
+  // Worker for verifying inbox status per user - checks all non-archived BearlyMail threads
+  // against Gmail and archives any that have been archived in Gmail
+  private async registerVerifyInboxStatusWorker(): Promise<void> {
     await this.boss.work(
       "verify-user-inbox-status",
       { teamSize: this.syncConcurrency } as { teamSize: number },
@@ -415,7 +436,10 @@ export class EmailSyncProcessor implements OnModuleInit {
         }
       },
     );
+  }
 
+  // Legacy and deprecated job handlers
+  private async registerLegacyWorkers(): Promise<void> {
     // Keep 'sync-gmail' for backwards compatibility, but route to new system
     await this.boss.work("sync-gmail", async (job) => {
       const { userId } = job.data as { userId: string };
@@ -459,8 +483,10 @@ export class EmailSyncProcessor implements OnModuleInit {
       // Don't throw error - just complete the job to remove it from queue
       // The new 'schedule-email-fetch-jobs' job handles this functionality
     });
+  }
 
-    // Worker for historical scan - just queues individual email jobs
+  // Worker for historical scan - just queues individual email jobs
+  private async registerScanHistoryWorker(): Promise<void> {
     await this.boss.work(
       "scan-history",
       { teamSize: this.syncConcurrency },
@@ -501,8 +527,10 @@ export class EmailSyncProcessor implements OnModuleInit {
         }
       },
     );
+  }
 
-    // Worker for processing individual emails during scan - use CPU-based concurrency for fast parallel processing
+  // Worker for processing individual emails during scan - use CPU-based concurrency for fast parallel processing
+  private async registerScanHistoryEmailWorker(): Promise<void> {
     this.logger.log(
       `Registering scan-history-email worker with teamSize: ${this.scanConcurrency}`,
     );

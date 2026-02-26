@@ -83,11 +83,12 @@ export async function verifyThreadStatusesInOffice365(
               isArchived: true,
             });
           } else {
-            const errorMsg = isError(threadError)
-              ? threadError.message
-              : isApiError(threadError)
-                ? threadError.message
-                : "Unknown error";
+            let errorMsg: string;
+            if (isError(threadError) || isApiError(threadError)) {
+              errorMsg = threadError.message;
+            } else {
+              errorMsg = "Unknown error";
+            }
             logger.warn(
               `Error checking thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}...:`,
               errorMsg,
@@ -176,11 +177,12 @@ export async function getExistingThreadUpdates(
           isArchived: true,
         });
       } else {
-        const errorMsg = isError(threadError)
-          ? threadError.message
-          : isApiError(threadError)
-            ? threadError.message
-            : "Unknown error";
+        let errorMsg: string;
+        if (isError(threadError) || isApiError(threadError)) {
+          errorMsg = threadError.message;
+        } else {
+          errorMsg = "Unknown error";
+        }
         logger.warn(
           `Error checking existing thread ${dbThread.threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}...:`,
           errorMsg,

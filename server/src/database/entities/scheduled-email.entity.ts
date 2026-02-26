@@ -22,7 +22,8 @@ export interface EmailRecipient {
 export interface EmailAttachment {
   filename: string;
   mimeType: string;
-  content: string; // base64 encoded
+  // base64 encoded
+  content: string;
 }
 
 @Entity("scheduled_emails")
@@ -35,11 +36,11 @@ export class ScheduledEmail {
   @Column()
   userId: string;
 
+  // Status: pending, sent, cancelled, failed
   @Column({
     type: "varchar",
     length: 20,
     default: "pending",
-    comment: "Status: pending, sent, cancelled, failed",
   })
   status: "pending" | "sent" | "cancelled" | "failed";
 

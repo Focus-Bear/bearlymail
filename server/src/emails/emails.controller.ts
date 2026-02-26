@@ -16,121 +16,67 @@ import {
   forwardRef,
 } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
 import { EmailsService } from "./emails.service";
-import { EmailThread } from "../database/entities/email-thread.entity";
 import { EmailProviderManager } from "./email-provider-manager.service";
-import { ContactsService } from "../contacts/contacts.service";
-import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
 import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
 import { UsersService } from "../users/users.service";
 import { ScheduledEmailsService } from "../scheduled-emails/scheduled-emails.service";
 import PgBoss from "pg-boss";
 import { Email } from "../database/entities/email.entity";
-
-/**
- * Extended pg-boss interface to access internal methods not exposed in types.
- * These are used for advanced job queue operations (resetting stuck jobs, etc.).
- * pg-boss's TypeScript types don't expose these internal APIs.
- */
-interface PgBossWithInternals extends PgBoss {
-  getQueueSize(name: string): Promise<number>;
-  db: {
-    executeSql(
-      sql: string,
-      params?: unknown[],
-    ): Promise<{ rowCount?: number; rows?: unknown[] }>;
-  };
-}
+import {
+  BatchStatusPerformanceTracker,
+  PgBossWithInternals,
+} from "./email-controller.helpers";
+import { EmailAdminService } from "./email-admin.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { GmailRequiredGuard } from "../auth/gmail-required.guard";
 import { AdminGuard } from "../auth/admin.guard";
 import { EmailRecipient } from "./interfaces/email-provider.interface";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
-import * as fs from "fs";
-import * as path from "path";
-import * as crypto from "crypto";
 import { getJobPriority } from "../queue/job-priorities";
 import { QUERY_LIMITS } from "../constants/query-limits";
-
-// Performance budgets for batch-status
-// 500ms
-const BATCH_STATUS_BUDGET = 500;
-
-class BatchStatusPerformanceTracker {
-  private startTime: number;
-  private logger = new Logger("BatchStatusPerformanceTracker");
-  private static logsDir = path.join(process.cwd(), "logs");
-  private logFile = path.join(
-    BatchStatusPerformanceTracker.logsDir,
-    "performance.log",
-  );
-
-  constructor() {
-    this.startTime = Date.now();
-    if (!fs.existsSync(BatchStatusPerformanceTracker.logsDir)) {
-      fs.mkdirSync(BatchStatusPerformanceTracker.logsDir, { recursive: true });
-    }
-  }
-
-  finish(): void {
-    const duration = Date.now() - this.startTime;
-    if (duration > BATCH_STATUS_BUDGET) {
-      const logEntry = {
-        timestamp: new Date().toISOString(),
-        operation: "batch-status",
-        duration,
-        budget: BATCH_STATUS_BUDGET,
-        exceeded: true,
-      };
-
-      const logLine = `${JSON.stringify(logEntry)}\n`;
-      this.logger.warn(
-        `⚠️ PERF ISSUE: batch-status took ${duration}ms (budget: ${BATCH_STATUS_BUDGET}ms)`,
-      );
-
-      try {
-        fs.appendFileSync(this.logFile, logLine);
-      } catch (err) {
-        this.logger.error("Failed to write to performance log file:", err);
-      }
-    }
-  }
-}
 
 @Controller("emails")
 @UseGuards(JwtAuthGuard, GmailRequiredGuard)
 export class EmailsController {
   private readonly logger = new Logger(EmailsController.name);
 
-  // eslint-disable-next-line max-params
   constructor(
     private readonly emailsService: EmailsService,
     private readonly emailProviderManager: EmailProviderManager,
-    private readonly contactsService: ContactsService,
-    private readonly blockedSendersService: BlockedSendersService,
     private readonly batchScheduleService: BatchScheduleService,
     private readonly usersService: UsersService,
     @Inject("PG_BOSS") private readonly boss: PgBoss,
-    @InjectRepository(EmailThread)
-    private readonly emailThreadRepository: Repository<EmailThread>,
     @Inject(forwardRef(() => ScheduledEmailsService))
     private readonly scheduledEmailsService: ScheduledEmailsService,
+    private readonly emailAdminService: EmailAdminService,
   ) {}
 
   @Get("inbox")
   async getInbox(
     @Request() req,
-    @Query("includeBatched") includeBatched?: string,
-    @Query("mode") mode: "triage" | "action" | "follow-up" = "triage",
-    @Query("accounts") accounts?: string,
-    @Query("categories") categories?: string,
-    @Query("minPriority") minPriority?: string,
-    @Query("page") pageParam?: string,
-    @Query("limit") limitParam?: string,
-    @Query("offset") offsetParam?: string,
+    @Query()
+    query: {
+      includeBatched?: string;
+      mode?: "triage" | "action" | "follow-up";
+      accounts?: string;
+      categories?: string;
+      minPriority?: string;
+      page?: string;
+      limit?: string;
+      offset?: string;
+    },
   ) {
+    const {
+      includeBatched,
+      mode = "triage",
+      accounts,
+      categories,
+      minPriority,
+      page: pageParam,
+      limit: limitParam,
+      offset: offsetParam,
+    } = query;
     // Parse filter parameters
     const accountIds = accounts
       ? accounts.split(",").filter(Boolean)
@@ -362,108 +308,12 @@ export class EmailsController {
     const since = new Date();
     since.setDate(since.getDate() - days);
 
-    const emailsPerDay = await this.emailThreadRepository
-      .createQueryBuilder("thread")
-      .innerJoin("thread.emails", "email")
-      .select("DATE(email.receivedAt)", "date")
-      .addSelect("COUNT(DISTINCT email.id)", "count")
-      .addSelect("thread.category", "category")
-      .where("thread.userId = :userId", { userId })
-      .andWhere("email.receivedAt >= :since", { since })
-      .groupBy("DATE(email.receivedAt)")
-      .addGroupBy("thread.category")
-      .orderBy("DATE(email.receivedAt)", "ASC")
-      .getRawMany();
-
-    const replyTimesByCategory = await this.emailThreadRepository
-      .createQueryBuilder("thread")
-      .innerJoin("thread.emails", "email")
-      .select("thread.category", "category")
-      .addSelect("AVG(email.timeToReply)", "avgReplyTimeMinutes")
-      .addSelect("MIN(email.timeToReply)", "minReplyTimeMinutes")
-      .addSelect("MAX(email.timeToReply)", "maxReplyTimeMinutes")
-      .addSelect("COUNT(email.id)", "repliedCount")
-      .where("thread.userId = :userId", { userId })
-      .andWhere("email.timeToReply IS NOT NULL")
-      .andWhere("email.timeToReply > 0")
-      .andWhere("email.receivedAt >= :since", { since })
-      .groupBy("thread.category")
-      .getRawMany();
-
-    const totalByCategory = await this.emailThreadRepository
-      .createQueryBuilder("thread")
-      .innerJoin("thread.emails", "email")
-      .select("thread.category", "category")
-      .addSelect("COUNT(DISTINCT email.id)", "total")
-      .where("thread.userId = :userId", { userId })
-      .andWhere("email.receivedAt >= :since", { since })
-      .groupBy("thread.category")
-      .getRawMany();
+    const stats = await this.emailAdminService.getEmailStats(userId, since);
 
     return {
       days,
-      emailsPerDay,
-      replyTimesByCategory,
-      totalByCategory,
+      ...stats,
     };
-  }
-
-  @Get("recategorize-progress")
-  async getRecategorizeProgress(
-    @Request() req,
-    @Query("batchId") batchId: string,
-  ) {
-    const { userId } = req.user;
-
-    if (!batchId) {
-      return { total: 0, completed: 0, failed: 0, pending: 0 };
-    }
-
-    const { db } = this.boss as unknown as PgBossWithInternals;
-
-    // Query both the active job table and archive table for this batch
-    const result = await db.executeSql(
-      `
-      WITH all_jobs AS (
-        SELECT state::text, data->>'userId' as "userId"
-        FROM pgboss.job
-        WHERE data->>'recategorizeBatchId' = $1
-        UNION ALL
-        SELECT state::text, data->>'userId' as "userId"
-        FROM pgboss.archive
-        WHERE data->>'recategorizeBatchId' = $1
-      )
-      SELECT state, COUNT(*) as count
-      FROM all_jobs
-      WHERE "userId" = $2
-      GROUP BY state
-      `,
-      [batchId, userId],
-    );
-
-    const counts: Record<string, number> = {};
-    if (result?.rows) {
-      (result.rows as { state: string; count: string }[]).forEach((row) => {
-        counts[row.state] = parseInt(row.count, 10);
-      });
-    }
-
-    const completed = counts["completed"] ?? 0;
-    const failed =
-      (counts["failed"] ?? 0) +
-      (counts["expired"] ?? 0) +
-      (counts["cancelled"] ?? 0);
-    const pending =
-      (counts["created"] ?? 0) +
-      (counts["retry"] ?? 0) +
-      (counts["active"] ?? 0);
-    const total = completed + failed + pending;
-
-    this.logger.log(
-      `[Recategorize] Progress for batchId: ${batchId}, userId: ${userId} - total: ${total}, completed: ${completed}, failed: ${failed}, pending: ${pending}`,
-    );
-
-    return { total, completed, failed, pending };
   }
 
   @Get(":id/priority-explanation")
@@ -493,9 +343,10 @@ export class EmailsController {
 
     // Include thread's githubMetadata if available
     if (email.emailThreadId) {
-      const thread = await this.emailThreadRepository.findOne({
-        where: { id: email.emailThreadId, userId: req.user.userId },
-      });
+      const thread = await this.emailAdminService.getEmailThreadById(
+        req.user.userId,
+        email.emailThreadId,
+      );
       if (thread && thread.githubMetadata && thread.githubMetadata.links) {
         // Deduplicate links by URL to prevent duplicate cards in UI
         const seenUrls = new Set<string>();
@@ -544,7 +395,7 @@ export class EmailsController {
 
     // Set appropriate headers for file download
     return {
-      data: attachment.data.toString("base64"),
+      base64Content: attachment.attachmentBuffer.toString("base64"),
       filename: attachment.filename,
       mimeType: attachment.mimeType,
       size: attachment.size,
@@ -655,7 +506,7 @@ export class EmailsController {
     }
 
     // Block the sender
-    await this.blockedSendersService.blockSender(
+    await this.emailAdminService.blockEmailSender(
       req.user.userId,
       email.from,
       email.fromName,
@@ -750,13 +601,8 @@ export class EmailsController {
 
   @Post("debug/reset-stuck-jobs")
   @UseGuards(JwtAuthGuard, AdminGuard)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async resetStuckJobs(@Request() _req) {
     // Reset jobs that are stuck in retry state with future startafter times
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const now = new Date();
-
-    // Get all jobs that are scheduled for the future (stuck in backoff)
     // Cast to extended interface to access internal pg-boss methods
     const bossInternal = this.boss as unknown as PgBossWithInternals;
     const stuckJobs = await bossInternal.getQueueSize("refine-priority");
@@ -765,9 +611,9 @@ export class EmailsController {
 
     // Use raw SQL to reset startafter for stuck jobs
     const result = await bossInternal.db.executeSql(`
-      UPDATE pgboss.job 
-      SET startafter = NOW(), retrycount = 0 
-      WHERE state = 'retry' 
+      UPDATE pgboss.job
+      SET startafter = NOW(), retrycount = 0
+      WHERE state = 'retry'
       AND startafter > NOW()
       AND name IN ('refine-priority', 'generate-summary', 'sync-emails', 'learn-from-star')
     `);
@@ -909,12 +755,7 @@ export class EmailsController {
 
     // Track contact frequency for each recipient
     const allRecipients = [...body.to, ...(body.cc || []), ...(body.bcc || [])];
-    for (const recipient of allRecipients) {
-      await this.contactsService.incrementContactFrequency(
-        userId,
-        recipient.email,
-      );
-    }
+    await this.emailAdminService.trackEmailRecipients(userId, allRecipients);
 
     return {
       success: true,
@@ -944,9 +785,9 @@ export class EmailsController {
 
     // Cancel existing refine-priority jobs for this email
     const priorityCancelResult = await db.executeSql(
-      `UPDATE pgboss.job 
-       SET state = 'cancelled' 
-       WHERE name = 'refine-priority' 
+      `UPDATE pgboss.job
+       SET state = 'cancelled'
+       WHERE name = 'refine-priority'
        AND state IN ('created', 'retry')
        AND data->>'emailId' = $1
        AND data->>'userId' = $2`,
@@ -958,9 +799,9 @@ export class EmailsController {
 
     // Cancel existing generate-summary jobs for this email
     const summaryCancelResult = await db.executeSql(
-      `UPDATE pgboss.job 
-       SET state = 'cancelled' 
-       WHERE name = 'generate-summary' 
+      `UPDATE pgboss.job
+       SET state = 'cancelled'
+       WHERE name = 'generate-summary'
        AND state IN ('created', 'retry')
        AND data->>'emailId' = $1
        AND data->>'userId' = $2`,
@@ -991,9 +832,10 @@ export class EmailsController {
     // Get thread to check isProcessingPriority (priority is thread-level)
     let thread = null;
     if (email.emailThreadId) {
-      thread = await this.emailThreadRepository.findOne({
-        where: { id: email.emailThreadId },
-      });
+      thread = await this.emailAdminService.getEmailThreadById(
+        userId,
+        email.emailThreadId,
+      );
     }
 
     if (
@@ -1024,226 +866,27 @@ export class EmailsController {
     @Request() req,
     @Query("modes") modesParam?: string,
   ) {
+    return this.emailAdminService.queueBulkRecategorization(
+      req.user.userId,
+      modesParam,
+    );
+  }
+
+  @Get("recategorize-progress")
+  async getRecategorizeProgress(
+    @Request() req,
+    @Query("batchId") batchId: string,
+  ) {
     const { userId } = req.user;
-
-    const validModes = ["triage", "action"] as const;
-    type ValidMode = (typeof validModes)[number];
-
-    let modes: ValidMode[] = ["triage", "action"];
-    if (modesParam) {
-      const requestedModes = modesParam.split(",").map((mode) => mode.trim());
-      modes = requestedModes.filter((mode): mode is ValidMode =>
-        validModes.includes(mode as ValidMode),
-      );
-    }
-
-    this.logger.log(
-      `[Recategorize] Recategorize emails request for userId: ${userId}, modes: ${modes.join(", ")}`,
-    );
-
-    const allEmails: Email[] = [];
-    const seenIds = new Set<string>();
-
-    for (const mode of modes) {
-      const result = await this.emailsService.getInbox(userId, false, mode);
-      for (const email of result.emails) {
-        if (!seenIds.has(email.id)) {
-          seenIds.add(email.id);
-          allEmails.push(email);
-        }
-      }
-    }
-
-    if (allEmails.length === 0) {
-      return {
-        message: `No emails to recategorize in ${modes.join(" or ")}`,
-        queued: 0,
-        batchId: null,
-      };
-    }
-
-    const batchId = crypto.randomUUID();
-    let queued = 0;
-    for (const email of allEmails) {
-      // boss.send() returns null when the job is deduplicated (singletonKey already exists).
-      // Only count jobs that were actually created so the frontend knows the real total.
-      const jobId = await this.boss.send(
-        "refine-priority",
-        {
-          userId,
-          emailId: email.id,
-          forceRecalculate: true,
-          recategorizeBatchId: batchId,
-        },
-        {
-          priority: getJobPriority("refine-priority", true),
-          singletonKey: `recategorize-${email.id}`,
-          singletonMinutes: 1,
-        },
-      );
-      if (jobId !== null) {
-        queued++;
-      }
-    }
-
-    if (queued === 0) {
-      return {
-        message: `All ${allEmails.length} emails are already queued for recategorization`,
-        queued: 0,
-        batchId: null,
-      };
-    }
-
-    this.logger.log(
-      `[Recategorize] Queued ${queued} recategorization jobs for userId: ${userId}, batchId: ${batchId}`,
-    );
-
-    return {
-      message: `Queued ${queued} emails for recategorization`,
-      queued,
-      batchId,
-    };
+    return this.emailAdminService.getRecategorizationProgress(userId, batchId);
   }
 
   @Get("admin/job-stats")
   @UseGuards(JwtAuthGuard, AdminGuard)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async getJobStats(
-    @Request() req,
+    @Request() _req,
     @Query("range") range: "24h" | "7d" | "30d" | "all" = "all",
   ) {
-    // Get job queue statistics for admin dashboard
-    // Dynamically fetch all job types from the database instead of hardcoding
-    // Cast to extended interface to access internal pg-boss db methods
-    const { db } = this.boss as unknown as PgBossWithInternals;
-
-    // Calculate date filter based on range
-    let dateFilter = "";
-    if (range !== "all") {
-      const hoursMap: Record<string, number> = {
-        "24h": 24,
-        "7d": 168,
-        "30d": 720,
-      };
-      const hours = hoursMap[range] || 24;
-      dateFilter = `AND createdon >= NOW() - INTERVAL '${hours} hours'`;
-    }
-
-    // Get current queue stats by job type and state (dynamically discovers all job types)
-    const queueStats = await db.executeSql(`
-      SELECT 
-        name as "jobType",
-        state,
-        COUNT(*) as count
-      FROM pgboss.job
-      WHERE state IN ('created', 'retry', 'active', 'failed', 'completed')
-        ${dateFilter}
-      GROUP BY name, state
-      ORDER BY name, state
-    `);
-
-    // Get completed counts and average completion times from archive
-    const archiveStats = await db.executeSql(`
-      SELECT 
-        name as "jobType",
-        COUNT(*) as "completedCount",
-        AVG(EXTRACT(EPOCH FROM (completedon - createdon))) * 1000 as "avgCompletionTimeMs"
-      FROM pgboss.archive
-      WHERE completedon IS NOT NULL
-        AND createdon IS NOT NULL
-        AND completedon > createdon
-        ${dateFilter}
-      GROUP BY name
-      ORDER BY name
-    `);
-
-    // Transform queue stats into a more usable format
-    const statsByJobType: Record<
-      string,
-      {
-        queued: number;
-        active: number;
-        retry: number;
-        failed: number;
-        completed: number;
-        avgCompletionTimeMs: number | null;
-      }
-    > = {};
-
-    // Populate queue stats (this dynamically discovers all job types)
-    if (queueStats?.rows) {
-      queueStats.rows.forEach(
-        (row: { jobType: string; state: string; count: string }) => {
-          const { jobType } = row;
-          const { state } = row;
-          const count = parseInt(row.count, 10);
-
-          if (!statsByJobType[jobType]) {
-            statsByJobType[jobType] = {
-              queued: 0,
-              active: 0,
-              retry: 0,
-              failed: 0,
-              completed: 0,
-              avgCompletionTimeMs: null,
-            };
-          }
-
-          if (state === "created") {
-            statsByJobType[jobType].queued = count;
-          } else if (state === "active") {
-            statsByJobType[jobType].active = count;
-          } else if (state === "retry") {
-            statsByJobType[jobType].retry = count;
-          } else if (state === "failed") {
-            statsByJobType[jobType].failed = count;
-          } else if (state === "completed") {
-            statsByJobType[jobType].completed = count;
-          }
-        },
-      );
-    }
-
-    // Populate completed counts and average completion times from archive
-    if (archiveStats?.rows) {
-      archiveStats.rows.forEach(
-        (row: {
-          jobType: string;
-          completedCount: string;
-          avgCompletionTimeMs: string | null;
-        }) => {
-          const { jobType } = row;
-          if (!statsByJobType[jobType]) {
-            statsByJobType[jobType] = {
-              queued: 0,
-              active: 0,
-              retry: 0,
-              failed: 0,
-              completed: 0,
-              avgCompletionTimeMs: null,
-            };
-          }
-          // Add archived completed count to any completed jobs still in main table
-          statsByJobType[jobType].completed += parseInt(row.completedCount, 10);
-          statsByJobType[jobType].avgCompletionTimeMs = row.avgCompletionTimeMs
-            ? Math.round(parseFloat(row.avgCompletionTimeMs))
-            : null;
-        },
-      );
-    }
-
-    // Convert to array format for easier frontend consumption
-    // Sort by job type name for consistent ordering
-    const statsArray = Object.entries(statsByJobType)
-      .map(([jobType, stats]) => ({
-        jobType,
-        ...stats,
-      }))
-      .sort((a, b) => a.jobType.localeCompare(b.jobType));
-
-    return {
-      stats: statsArray,
-      timestamp: new Date().toISOString(),
-    };
+    return this.emailAdminService.getJobStats(range);
   }
 }

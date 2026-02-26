@@ -5,18 +5,12 @@ import { EmailsService } from "../emails.service";
 import { ScanEmailService } from "../scan-email.service";
 import { Office365AccountsService } from "../../office365-accounts/office365-accounts.service";
 import { ConfigService } from "@nestjs/config";
-import PgBoss from "pg-boss";
-
 describe("Office365Provider", () => {
   let provider: Office365Provider;
   let usersService: jest.Mocked<UsersService>;
   let emailsService: jest.Mocked<EmailsService>;
   let scanEmailService: jest.Mocked<ScanEmailService>;
   let office365AccountsService: jest.Mocked<Office365AccountsService>;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  let configService: jest.Mocked<ConfigService>;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  let boss: jest.Mocked<PgBoss>;
 
   const mockUser = {
     id: "user-123",
@@ -96,8 +90,6 @@ describe("Office365Provider", () => {
     emailsService = module.get(EmailsService);
     scanEmailService = module.get(ScanEmailService);
     office365AccountsService = module.get(Office365AccountsService);
-    configService = module.get(ConfigService);
-    boss = module.get("PG_BOSS");
   });
 
   afterEach(() => {

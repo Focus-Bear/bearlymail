@@ -16,10 +16,6 @@ describe("PriorityLearningService", () => {
   let service: PriorityLearningService;
   let emailRepository: jest.Mocked<Repository<Email>>;
   let userContextRepository: jest.Mocked<Repository<UserContext>>;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  let llmService: jest.Mocked<LLMService>;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  let usersService: jest.Mocked<UsersService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -60,8 +56,6 @@ describe("PriorityLearningService", () => {
     service = module.get<PriorityLearningService>(PriorityLearningService);
     emailRepository = module.get(getRepositoryToken(Email));
     userContextRepository = module.get(getRepositoryToken(UserContext));
-    llmService = module.get(LLMService);
-    usersService = module.get(UsersService);
   });
 
   describe("checkStarDiscrepancy", () => {
@@ -141,7 +135,8 @@ describe("PriorityLearningService", () => {
       const email = {
         id: emailId,
         userId,
-        emailThreadId: null, // No thread, so default score (50) is used
+        // No thread, so default score (50) is used
+        emailThreadId: null,
       } as unknown as Email;
 
       emailRepository.findOne.mockResolvedValue(email);
@@ -194,15 +189,18 @@ describe("PriorityLearningService", () => {
       await service.storeStarFeedback(
         userId,
         emailId,
-        3, // userStarCount
-        1, // predictedStarCount
+        // userStarCount
+        3,
+        // predictedStarCount
+        1,
         "This is important to me",
       );
 
       expect(userContextRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
           userId,
-          contextKey: ContextKey.VIP_CONTACT, // userStarCount === 3
+          // userStarCount === 3
+          contextKey: ContextKey.VIP_CONTACT,
           contextValue: expect.stringContaining(
             "Higher priority than expected",
           ),
@@ -226,14 +224,17 @@ describe("PriorityLearningService", () => {
       await service.storeStarFeedback(
         userId,
         emailId,
-        1, // userStarCount (lower than predicted)
-        3, // predictedStarCount (higher than user selected)
+        // userStarCount (lower than predicted)
+        1,
+        // predictedStarCount (higher than user selected)
+        3,
         "Not as important as AI thought",
       );
 
       expect(userContextRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
-          contextKey: ContextKey.OTHER, // userStarCount !== 3
+          // userStarCount !== 3
+          contextKey: ContextKey.OTHER,
           contextValue: expect.stringContaining("Lower priority than expected"),
         }),
       );

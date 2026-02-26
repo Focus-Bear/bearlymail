@@ -60,6 +60,10 @@ export const LLM_OP_GENERATE_QA_ANSWER = "generate_qa_answer";
 // Auto-responder: opt-out detection
 export const LLM_OP_DETECT_OPT_OUT = "detect_opt_out";
 
+// Auto-responder: check custom exclusion rules
+export const LLM_OP_CHECK_CUSTOM_EXCLUSION_RULES =
+  "check_custom_exclusion_rules";
+
 // Name redaction for privacy
 export const LLM_OP_REDACT_NAMES = "redact_names";
 
@@ -105,6 +109,7 @@ export type LLMOperation =
   | typeof LLM_OP_CLASSIFY_EMAIL
   | typeof LLM_OP_GENERATE_QA_ANSWER
   | typeof LLM_OP_DETECT_OPT_OUT
+  | typeof LLM_OP_CHECK_CUSTOM_EXCLUSION_RULES
   | typeof LLM_OP_REDACT_NAMES
   | typeof LLM_OP_VALIDATE_WRITING_EXAMPLE
   | typeof LLM_OP_DISPUTE_TONE_CHECK
@@ -136,6 +141,7 @@ export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
   [LLM_OP_CLASSIFY_EMAIL]: "Classify Email Type",
   [LLM_OP_GENERATE_QA_ANSWER]: "Generate Q&A Answer",
   [LLM_OP_DETECT_OPT_OUT]: "Detect Opt-Out",
+  [LLM_OP_CHECK_CUSTOM_EXCLUSION_RULES]: "Check Custom Exclusion Rules",
   [LLM_OP_REDACT_NAMES]: "Redact Names",
   [LLM_OP_VALIDATE_WRITING_EXAMPLE]: "Validate Writing Example",
   [LLM_OP_DISPUTE_TONE_CHECK]: "Dispute Tone Check",

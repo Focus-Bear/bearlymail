@@ -8,9 +8,10 @@ import { LLM_CONFIG } from "./auto-responder-constants";
 import { EMAIL_CLASSIFICATION } from "../constants/llm-constants";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { StructuralError } from "../errors/structural-error";
-
-// LLM operation for email classification
-const LLM_OP_CLASSIFY_EMAIL = "classify_email_type";
+import {
+  LLM_OP_CLASSIFY_EMAIL,
+  LLM_OP_CHECK_CUSTOM_EXCLUSION_RULES,
+} from "../llm/llm-operations";
 
 /**
  * Service for classifying emails to determine if auto-response should be sent
@@ -126,46 +127,18 @@ export class EmailClassifierService {
     headers?: Record<string, string>,
     threadHasReplies?: boolean,
   ): Promise<EmailClassification> {
-    const reasons: string[] = [];
-
-    // First, check headers (fast, no LLM call needed)
     const headerClassification = this.classifyByHeaders(headers || {});
-
-    if (headerClassification.isAutomated) {
-      reasons.push("Automated email detected via headers");
-    }
-    if (headerClassification.isNewsletter) {
-      reasons.push("Newsletter detected via headers (List-Unsubscribe)");
-    }
-    if (headerClassification.isBounce) {
-      reasons.push("Bounce/delivery notification detected via headers");
-    }
-    if (headerClassification.isOutOfOffice) {
-      reasons.push("Out-of-office reply detected via headers");
-    }
-
-    // Check by sender pattern
     const senderClassification = this.classifyBySender(email.from);
-    if (senderClassification.isAutomated && !headerClassification.isAutomated) {
-      reasons.push(`Automated sender pattern: ${email.from}`);
-    }
-    if (
-      senderClassification.isNewsletter &&
-      !headerClassification.isNewsletter
-    ) {
-      reasons.push(`Newsletter sender pattern: ${email.from}`);
-    }
-
-    // Check by subject pattern
     const subjectClassification = this.classifyBySubject(email.subject);
-    if (subjectClassification.isAutomated) {
-      reasons.push(`Automated subject pattern: ${email.subject}`);
-    }
-    if (subjectClassification.isOutOfOffice) {
-      reasons.push(`Out-of-office subject pattern: ${email.subject}`);
-    }
 
-    // Combine header and pattern-based results
+    const reasons = this.buildPatternReasons(
+      headerClassification,
+      senderClassification,
+      subjectClassification,
+      email.from,
+      email.subject,
+    );
+
     const isAutomated =
       headerClassification.isAutomated ||
       senderClassification.isAutomated ||
@@ -176,7 +149,6 @@ export class EmailClassifierService {
     const isOutOfOffice =
       headerClassification.isOutOfOffice || subjectClassification.isOutOfOffice;
 
-    // If already classified as automated/newsletter/bounce, skip LLM
     if (isAutomated || isNewsletter || isBounce || isOutOfOffice) {
       return {
         isAutomated,
@@ -191,7 +163,6 @@ export class EmailClassifierService {
       };
     }
 
-    // Check for obvious cold outreach patterns in content
     const coldOutreachScore = this.detectColdOutreachPatterns(email.body);
     if (coldOutreachScore > EMAIL_CLASSIFICATION.COLD_OUTREACH_HIGH) {
       reasons.push("Cold outreach patterns detected in content");
@@ -208,7 +179,6 @@ export class EmailClassifierService {
       };
     }
 
-    // Use LLM for more nuanced classification
     try {
       const llmClassification = await this.classifyWithLLM(email);
       return {
@@ -219,7 +189,6 @@ export class EmailClassifierService {
         reasons: [...reasons, ...llmClassification.reasons],
       };
     } catch (error) {
-      // Log to PostHog and re-throw - no fallback
       const err = error instanceof Error ? error : new Error(String(error));
       this.logger.error("LLM classification failed", err);
       this.errorTrackingService.captureException(err, undefined, {
@@ -228,6 +197,38 @@ export class EmailClassifierService {
       });
       throw err;
     }
+  }
+
+  private buildPatternReasons(
+    headerClassification: {
+      isAutomated: boolean;
+      isNewsletter: boolean;
+      isBounce: boolean;
+      isOutOfOffice: boolean;
+    },
+    senderClassification: { isAutomated: boolean; isNewsletter: boolean },
+    subjectClassification: { isAutomated: boolean; isOutOfOffice: boolean },
+    from: string,
+    subject: string,
+  ): string[] {
+    const reasons: string[] = [];
+    if (headerClassification.isAutomated)
+      reasons.push("Automated email detected via headers");
+    if (headerClassification.isNewsletter)
+      reasons.push("Newsletter detected via headers (List-Unsubscribe)");
+    if (headerClassification.isBounce)
+      reasons.push("Bounce/delivery notification detected via headers");
+    if (headerClassification.isOutOfOffice)
+      reasons.push("Out-of-office reply detected via headers");
+    if (senderClassification.isAutomated && !headerClassification.isAutomated)
+      reasons.push(`Automated sender pattern: ${from}`);
+    if (senderClassification.isNewsletter && !headerClassification.isNewsletter)
+      reasons.push(`Newsletter sender pattern: ${from}`);
+    if (subjectClassification.isAutomated)
+      reasons.push(`Automated subject pattern: ${subject}`);
+    if (subjectClassification.isOutOfOffice)
+      reasons.push(`Out-of-office subject pattern: ${subject}`);
+    return reasons;
   }
 
   /**
@@ -253,7 +254,7 @@ export class EmailClassifierService {
     const hasAutoResponseSuppress = !!autoResponseSuppress;
 
     // Check Precedence header
-    const precedence = normalizedHeaders["precedence"];
+    const { precedence } = normalizedHeaders;
     const isBulkPrecedence =
       precedence &&
       ["bulk", "junk", "list", "auto_reply"].includes(precedence.toLowerCase());
@@ -440,7 +441,7 @@ export class EmailClassifierService {
       },
       LLMProvider.OPENAI,
       undefined,
-      LLM_OP_CLASSIFY_EMAIL as any,
+      LLM_OP_CLASSIFY_EMAIL,
     );
 
     try {
@@ -571,7 +572,7 @@ Respond with a JSON object in this exact format:
         },
         LLMProvider.OPENAI,
         undefined,
-        "check_custom_exclusion_rules" as any,
+        LLM_OP_CHECK_CUSTOM_EXCLUSION_RULES,
       );
 
       // Parse JSON response

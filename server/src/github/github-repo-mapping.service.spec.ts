@@ -75,11 +75,12 @@ describe("GitHubRepoMappingService", () => {
           createdAt: new Date("2024-01-01"),
           updatedAt: new Date("2024-01-02"),
         },
+        // duplicate
         {
           id: "2",
           userId: "user1",
           owner: "org",
-          repo: "repo1", // duplicate
+          repo: "repo1",
           isDefault: false,
           createdAt: new Date("2024-01-02"),
           updatedAt: new Date("2024-01-02"),
@@ -107,8 +108,8 @@ describe("GitHubRepoMappingService", () => {
       expect(ids).toContain("3");
       expect(ids).not.toContain("2");
 
-      // Should schedule deletion of the duplicate
-      await Promise.resolve(); // flush microtasks
+      // Should schedule deletion of the duplicate - flush microtasks first
+      await Promise.resolve();
       expect(mockRepository.delete).toHaveBeenCalledWith(["2"]);
     });
 
@@ -124,11 +125,12 @@ describe("GitHubRepoMappingService", () => {
           createdAt: new Date("2024-01-02"),
           updatedAt: new Date("2024-01-02"),
         },
+        // duplicate, older but not default
         {
           id: "2",
           userId: "user1",
           owner: "org",
-          repo: "repo1", // duplicate, older but not default
+          repo: "repo1",
           isDefault: false,
           createdAt: new Date("2024-01-01"),
           updatedAt: new Date("2024-01-01"),
@@ -155,10 +157,11 @@ describe("GitHubRepoMappingService", () => {
           createdAt: new Date("2024-01-01"),
           updatedAt: new Date("2024-01-01"),
         },
+        // same org, different case
         {
           id: "2",
           userId: "user1",
-          owner: "focus-bear", // same org, different case
+          owner: "focus-bear",
           repo: "bearlymail",
           isDefault: false,
           createdAt: new Date("2024-01-02"),

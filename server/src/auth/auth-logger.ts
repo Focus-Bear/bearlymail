@@ -54,7 +54,7 @@ export class AuthLogger {
   /**
    * Log Google authentication failure with comprehensive details
    */
-  // eslint-disable-next-line complexity
+
   logAuthFailure(
     userId: string,
     userEmail: string | null,
@@ -95,15 +95,17 @@ export class AuthLogger {
         (error && typeof error === "object" && "status" in error
           ? (error as { status?: unknown }).status
           : undefined),
-      // eslint-disable-next-line id-denylist
+
       errorData: (() => {
         if (error && typeof error === "object" && "response" in error) {
-          // eslint-disable-next-line id-denylist
-          return (error as { response?: { data?: unknown } }).response?.data;
+          const errRecord = error as Record<string, unknown>;
+          const response = errRecord["response"] as
+            | Record<string, unknown>
+            | undefined;
+          return response?.["data"];
         }
         if (error && typeof error === "object" && "data" in error) {
-          // eslint-disable-next-line id-denylist
-          return (error as { data?: unknown }).data;
+          return (error as Record<string, unknown>)["data"];
         }
         return undefined;
       })(),
@@ -128,68 +130,91 @@ export class AuthLogger {
     writeToAuthLog(logMessage);
   }
 
-  /**
-   * Determine the likely cause of the auth failure
-   */
+  /** Determine the likely cause of the auth failure */
   private determineCause(error: unknown): string {
     if (!error) return "Unknown error";
-
-    // Type guard helper
-    const hasCode = (e: unknown): e is { code: string | number } =>
-      typeof e === "object" && e !== null && "code" in e;
-
-    const hasResponse = (
-      e: unknown,
-    ): e is { response: { data?: { error?: string }; status?: number } } =>
-      typeof e === "object" &&
-      e !== null &&
-      "response" in e &&
-      typeof (e as { response: unknown }).response === "object";
-
-    const hasMessage = (e: unknown): e is { message: string } =>
-      typeof e === "object" && e !== null && "message" in e;
-
-    // Check for specific error codes
-    if (
-      (hasCode(error) && error.code === "invalid_grant") ||
-      (hasResponse(error) && error.response?.data?.error === "invalid_grant")
-    ) {
-      return "Refresh token is invalid, expired, or revoked. User must re-authenticate.";
-    }
-
-    if (
-      (hasCode(error) && error.code === 401) ||
-      (hasResponse(error) && error.response?.status === 401)
-    ) {
-      return "Unauthorized - access token expired or invalid. Refresh token should have been used.";
-    }
-
-    if (hasMessage(error) && error.message.includes("Refresh token missing")) {
-      return "Refresh token not found in database. User must re-authenticate.";
-    }
-
-    if (hasMessage(error) && error.message.includes("Token refresh failed")) {
-      return "Token refresh attempt failed. Refresh token may be invalid or expired.";
-    }
-
-    if (
-      (hasCode(error) && error.code === "ECONNREFUSED") ||
-      (hasMessage(error) && error.message.includes("ECONNREFUSED"))
-    ) {
-      return "Network error - cannot connect to Google OAuth servers.";
-    }
-
-    if (
-      (hasCode(error) && error.code === "ETIMEDOUT") ||
-      (hasMessage(error) && error.message.includes("timeout"))
-    ) {
-      return "Timeout connecting to Google OAuth servers.";
-    }
-
-    const errorMessage = hasMessage(error)
+    const knownCause = this.findKnownCause(error);
+    if (knownCause) return knownCause;
+    const errorMessage = this.hasMessage(error)
       ? error.message
       : JSON.stringify(error);
     return `Unknown error: ${errorMessage}`;
+  }
+
+  private findKnownCause(error: unknown): string | null {
+    if (this.isInvalidGrant(error)) {
+      return "Refresh token is invalid, expired, or revoked. User must re-authenticate.";
+    }
+    if (this.isUnauthorizedError(error)) {
+      return "Unauthorized - access token expired or invalid. Refresh token should have been used.";
+    }
+    if (
+      this.hasMessage(error) &&
+      error.message.includes("Refresh token missing")
+    ) {
+      return "Refresh token not found in database. User must re-authenticate.";
+    }
+    if (
+      this.hasMessage(error) &&
+      error.message.includes("Token refresh failed")
+    ) {
+      return "Token refresh attempt failed. Refresh token may be invalid or expired.";
+    }
+    if (this.isNetworkConnectionRefused(error)) {
+      return "Network error - cannot connect to Google OAuth servers.";
+    }
+    if (this.isTimeoutError(error)) {
+      return "Timeout connecting to Google OAuth servers.";
+    }
+    return null;
+  }
+
+  private hasCode(e: unknown): e is { code: string | number } {
+    return typeof e === "object" && e !== null && "code" in e;
+  }
+
+  private hasResponse(
+    e: unknown,
+  ): e is { response: { errorBody?: { error?: string }; status?: number } } {
+    return (
+      typeof e === "object" &&
+      e !== null &&
+      "response" in e &&
+      typeof (e as { response: unknown }).response === "object"
+    );
+  }
+
+  private hasMessage(e: unknown): e is { message: string } {
+    return typeof e === "object" && e !== null && "message" in e;
+  }
+
+  private isInvalidGrant(error: unknown): boolean {
+    return (
+      (this.hasCode(error) && error.code === "invalid_grant") ||
+      (this.hasResponse(error) &&
+        error.response?.errorBody?.error === "invalid_grant")
+    );
+  }
+
+  private isUnauthorizedError(error: unknown): boolean {
+    return (
+      (this.hasCode(error) && error.code === 401) ||
+      (this.hasResponse(error) && error.response?.status === 401)
+    );
+  }
+
+  private isNetworkConnectionRefused(error: unknown): boolean {
+    return (
+      (this.hasCode(error) && error.code === "ECONNREFUSED") ||
+      (this.hasMessage(error) && error.message.includes("ECONNREFUSED"))
+    );
+  }
+
+  private isTimeoutError(error: unknown): boolean {
+    return (
+      (this.hasCode(error) && error.code === "ETIMEDOUT") ||
+      (this.hasMessage(error) && error.message.includes("timeout"))
+    );
   }
 }
 

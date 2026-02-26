@@ -4,12 +4,6 @@ import * as path from "path";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
 import { CloudWatchService } from "../aws/cloudwatch.service";
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-interface Phase {
-  name: string;
-  duration: number;
-}
-
 interface JobLogEntry {
   timestamp: string;
   jobName: string;

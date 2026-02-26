@@ -163,8 +163,7 @@ export class RepliesService {
     template: string,
     email: Partial<Email>,
     tone: string,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    phrases: string[],
+    _phrases: string[],
   ): string {
     let reply = template
       .replace("{sender}", email.fromName || email.from || "there")
@@ -187,8 +186,7 @@ export class RepliesService {
   private generateDefaultReply(
     email: Partial<Email>,
     tone: string,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    phrases: string[],
+    _phrases: string[],
   ): string {
     let greeting: string;
     if (tone === "casual") {
@@ -277,128 +275,77 @@ ${closing}`;
    * Appends email signature to the body if user has one configured
    */
   private appendSignature(body: string, signature: string | null): string {
-    if (!signature) {
-      // Use default signature if none is set
-      signature = "Sent from BearlyMail (anti inbox overwhelm system)";
-    }
+    const effectiveSignature =
+      signature ?? "Sent from BearlyMail (anti inbox overwhelm system)";
 
     // Append signature with proper spacing (two line breaks before signature)
-    return `${body}\n\n${signature}`;
+    return `${body}\n\n${effectiveSignature}`;
   }
 
-  async sendReply(
+  private async fetchForwardAttachments(
+    provider: Awaited<ReturnType<EmailProviderManager["getPrimaryProvider"]>>,
     userId: string,
-    emailId: string,
-    body: string,
-    attachments?: Array<{
+    email: Email,
+    forwardAttachmentIds: string[],
+  ): Promise<Array<{ filename: string; mimeType: string; content: Buffer }>> {
+    const result: Array<{
       filename: string;
       mimeType: string;
       content: Buffer;
-    }>,
-    expectedReplyHours?: number,
-    forwardAttachmentIds?: string[],
-    recipients?: string,
-    cc?: string,
-  ): Promise<void> {
-    const email = await this.emailsService.getEmailById(userId, emailId);
-    if (!email) {
-      throw new Error("Email not found");
-    }
+    }> = [];
+    if (!email.attachments) return result;
 
-    // Get user's email address for the "from" field
-    const user = await this.usersService.findOne(userId);
-    if (!user) {
-      throw new Error("User not found");
-    }
-    const userEmail = EncryptionHelper.decrypt(user.email);
-
-    // Append signature to the body
-    const bodyWithSignature = this.appendSignature(body, user.emailSignature);
-
-    // Determine reply subject (add Re: if not already present)
-    let replySubject = email.subject;
-    if (!replySubject.toLowerCase().startsWith("re:")) {
-      replySubject = `Re: ${replySubject}`;
-    }
-
-    // Send reply via email provider (Gmail, Outlook, etc.)
-    const provider = await this.emailProviderManager.getPrimaryProvider(userId);
-    if (!provider) {
-      throw new Error(
-        "No email provider connected. Please connect your email account.",
+    const emailAttachments = email.attachments as Array<{
+      attachmentId: string;
+      filename: string;
+      mimeType: string;
+      size: number;
+    }>;
+    for (const attachmentId of forwardAttachmentIds) {
+      const attachmentMeta = emailAttachments.find(
+        (a) => a.attachmentId === attachmentId,
       );
-    }
-
-    // Use provided recipients if available (reply-all), otherwise fall back to Reply-To or From address
-    const replyToAddress =
-      recipients && recipients.trim()
-        ? recipients
-        : email.replyTo || email.from;
-
-    // Fetch forward attachments if requested
-    const allAttachments = attachments ? [...attachments] : [];
-    if (
-      forwardAttachmentIds &&
-      forwardAttachmentIds.length > 0 &&
-      email.attachments
-    ) {
-      const emailAttachments = email.attachments as Array<{
-        attachmentId: string;
-        filename: string;
-        mimeType: string;
-        size: number;
-      }>;
-
-      for (const attachmentId of forwardAttachmentIds) {
-        const attachmentMeta = emailAttachments.find(
-          (a) => a.attachmentId === attachmentId,
-        );
-        if (attachmentMeta) {
-          try {
-            const attachmentData = await provider.getAttachment(
-              userId,
-              email.messageId,
-              attachmentId,
-              {
-                filename: attachmentMeta.filename,
-                mimeType: attachmentMeta.mimeType,
-                size: attachmentMeta.size,
-              },
-            );
-            allAttachments.push({
-              filename: attachmentData.filename,
-              mimeType: attachmentData.mimeType,
-              content: attachmentData.data,
-            });
-          } catch (error) {
-            this.logger.error(
-              `Failed to fetch attachment ${attachmentId} for forwarding:`,
-              error,
-            );
-            // Continue with other attachments
-          }
+      if (attachmentMeta) {
+        try {
+          const attachmentData = await provider!.getAttachment(
+            userId,
+            email.messageId,
+            attachmentId,
+            {
+              filename: attachmentMeta.filename,
+              mimeType: attachmentMeta.mimeType,
+              size: attachmentMeta.size,
+            },
+          );
+          result.push({
+            filename: attachmentData.filename,
+            mimeType: attachmentData.mimeType,
+            content: attachmentData.attachmentBuffer,
+          });
+        } catch (error) {
+          this.logger.error(
+            `Failed to fetch attachment ${attachmentId} for forwarding:`,
+            error,
+          );
         }
       }
     }
+    return result;
+  }
 
-    const sentMessage = await provider.sendReply(
-      userId,
-      email.threadId,
-      replyToAddress,
-      replySubject,
-      bodyWithSignature,
-      allAttachments.length > 0 ? allAttachments : undefined,
-      bodyWithSignature,
-      cc || undefined,
-    );
-
-    // Store the sent reply in the database so it appears in the thread view
+  private async storeSentReply(
+    userId: string,
+    user: { name?: string | null },
+    email: Email,
+    sentMessage: { messageId: string },
+    replySubject: string,
+    bodyWithSignature: string,
+    userEmail: string,
+  ): Promise<void> {
     try {
-      // Get or find the email thread
       const thread = await this.emailThreadRepository.findOne({
         where: { userId, threadId: email.threadId },
       });
-
       const sentEmail = this.emailRepository.create({
         userId,
         threadId: email.threadId,
@@ -412,24 +359,152 @@ ${closing}`;
         receivedAt: new Date(),
         labels: ["SENT"],
       });
-
       await this.emailRepository.save(sentEmail);
       this.logger.log(
         `Stored sent reply in database: messageId=${sentMessage.messageId}, threadId=${email.threadId}`,
       );
     } catch (storeError) {
-      // Don't fail the send if storing fails - the email was already sent
       this.logger.error("Failed to store sent reply in database:", storeError);
     }
+  }
 
-    // Trigger immediate learning from the sent reply
-    // This will add it to toneSettings.rules if we need more examples
+  private async createFollowUpAfterReply(
+    userId: string,
+    emailId: string,
+    email: Email,
+    provider: Awaited<ReturnType<EmailProviderManager["getPrimaryProvider"]>>,
+    expectedReplyHours: number,
+  ): Promise<void> {
+    await this.snoozeService.snoozeEmail(
+      userId,
+      emailId,
+      `${expectedReplyHours}h`,
+    );
+    const followUpDays = Math.max(1, Math.ceil(expectedReplyHours / 24));
+    await this.followUpsService.createFollowUp(
+      userId,
+      email.threadId,
+      followUpDays,
+      emailId,
+    );
+    await this.emailThreadService.updateThreadStarCount(
+      userId,
+      email.threadId,
+      STAR_COUNTS.LOW,
+    );
+
+    try {
+      if (provider && "syncStarStatusToGmail" in provider) {
+        await provider.syncStarStatusToGmail(
+          userId,
+          email.threadId,
+          STAR_COUNTS.LOW,
+        );
+      }
+    } catch (starSyncError) {
+      this.logger.error(
+        `Failed to sync follow-up star to provider for thread ${email.threadId}:`,
+        starSyncError,
+      );
+    }
+
+    this.logger.log(
+      `Created follow-up for thread ${email.threadId} with ${expectedReplyHours}h expected reply time`,
+    );
+  }
+
+  async sendReply(
+    userId: string,
+    emailId: string,
+    body: string,
+    options: {
+      attachments?: Array<{
+        filename: string;
+        mimeType: string;
+        content: Buffer;
+      }>;
+      expectedReplyHours?: number;
+      forwardAttachmentIds?: string[];
+      recipients?: string;
+      cc?: string;
+    } = {},
+  ): Promise<void> {
+    const {
+      attachments,
+      expectedReplyHours,
+      forwardAttachmentIds,
+      recipients,
+      cc,
+    } = options;
+
+    const email = await this.emailsService.getEmailById(userId, emailId);
+    if (!email) {
+      throw new Error("Email not found");
+    }
+
+    const user = await this.usersService.findOne(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+    const userEmail = EncryptionHelper.decrypt(user.email);
+    const bodyWithSignature = this.appendSignature(body, user.emailSignature);
+
+    let replySubject = email.subject;
+    if (!replySubject.toLowerCase().startsWith("re:")) {
+      replySubject = `Re: ${replySubject}`;
+    }
+
+    const provider = await this.emailProviderManager.getPrimaryProvider(userId);
+    if (!provider) {
+      throw new Error(
+        "No email provider connected. Please connect your email account.",
+      );
+    }
+
+    const replyToAddress =
+      recipients && recipients.trim()
+        ? recipients
+        : email.replyTo || email.from;
+
+    const forwardedAttachments =
+      forwardAttachmentIds && forwardAttachmentIds.length > 0
+        ? await this.fetchForwardAttachments(
+            provider,
+            userId,
+            email,
+            forwardAttachmentIds,
+          )
+        : [];
+    const allAttachments = [...(attachments || []), ...forwardedAttachments];
+
+    const sentMessage = await provider.sendReply(
+      userId,
+      email.threadId,
+      replyToAddress,
+      replySubject,
+      bodyWithSignature,
+      {
+        attachments: allAttachments.length > 0 ? allAttachments : undefined,
+        htmlBody: bodyWithSignature,
+        cc: cc || undefined,
+      },
+    );
+
+    await this.storeSentReply(
+      userId,
+      user,
+      email,
+      sentMessage,
+      replySubject,
+      bodyWithSignature,
+      userEmail,
+    );
+
     try {
       await this.writingStyleLearningService.learnFromSentEmailBodies(userId, [
         body,
       ]);
     } catch (learningError) {
-      // Don't fail the send if learning fails
       logError(
         "Failed to learn from sent reply",
         learningError instanceof Error
@@ -438,59 +513,16 @@ ${closing}`;
       );
     }
 
-    // If expected reply hours is set, snooze the email and create a follow-up
     if (expectedReplyHours && expectedReplyHours > 0) {
       try {
-        // Snooze the email for the expected reply duration
-        await this.snoozeService.snoozeEmail(
+        await this.createFollowUpAfterReply(
           userId,
           emailId,
-          `${expectedReplyHours}h`,
-        );
-
-        // Create a follow-up reminder
-        // Convert hours to days (rounding up to at least 1 day for the follow-up)
-        const followUpDays = Math.max(1, Math.ceil(expectedReplyHours / 24));
-        await this.followUpsService.createFollowUp(
-          userId,
-          email.threadId,
-          followUpDays,
-          emailId,
-        );
-
-        // Set star count to ensure the thread appears in Follow-Up mode
-        // Follow-up mode requires starCount > 0, so set it to LOW (1)
-        await this.emailThreadService.updateThreadStarCount(
-          userId,
-          email.threadId,
-          STAR_COUNTS.LOW,
-        );
-
-        // Sync star to provider immediately so that when email sync runs and calls
-        // getOrCreateEmailThread, it sees the thread as starred (starCount > 0) and
-        // preserves BearlyMail's level-1 value instead of resetting to 0.
-        // Without this, Gmail still shows the thread as unstarred, so the next
-        // sync would reset starCount back to 0 and the thread would fall out of Follow-Up.
-        try {
-          if ("syncStarStatusToGmail" in provider) {
-            await provider.syncStarStatusToGmail(
-              userId,
-              email.threadId,
-              STAR_COUNTS.LOW,
-            );
-          }
-        } catch (starSyncError) {
-          this.logger.error(
-            `Failed to sync follow-up star to provider for thread ${email.threadId}:`,
-            starSyncError,
-          );
-        }
-
-        this.logger.log(
-          `Created follow-up for thread ${email.threadId} with ${expectedReplyHours}h expected reply time`,
+          email,
+          provider,
+          expectedReplyHours,
         );
       } catch (followUpError) {
-        // Don't fail the send if follow-up creation fails
         this.logger.error("Failed to create follow-up:", followUpError);
       }
     }

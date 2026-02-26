@@ -68,7 +68,6 @@ export class MicrosoftStrategy extends PassportStrategy(Strategy, "microsoft") {
   async validate(
     accessToken: string,
     refreshToken: string,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _profile: unknown,
   ): Promise<UserWithMicrosoftData> {
     // NestJS Passport pattern: return user on success, throw error on failure

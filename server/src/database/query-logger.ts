@@ -27,11 +27,8 @@ export class QueryPerformanceLogger implements TypeOrmLogger {
   );
 
   logQuery(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _query: string,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _parameters?: unknown[],
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _queryRunner?: QueryRunner,
   ) {
     // Don't log every query - TypeORM will call logQuerySlow for slow ones
@@ -42,7 +39,6 @@ export class QueryPerformanceLogger implements TypeOrmLogger {
     error: string | Error,
     query: string,
     parameters?: unknown[],
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _queryRunner?: QueryRunner,
   ) {
     const errorMsg = error instanceof Error ? error.message : error;
@@ -57,7 +53,6 @@ export class QueryPerformanceLogger implements TypeOrmLogger {
     time: number,
     query: string,
     parameters?: unknown[],
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _queryRunner?: QueryRunner,
   ) {
     const querySnippet = query.substring(0, 500);
@@ -74,16 +69,11 @@ export class QueryPerformanceLogger implements TypeOrmLogger {
     writeToLogFile(logMessage);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   logSchemaBuild(_message: string, _queryRunner?: QueryRunner) {
     // Don't log schema builds
   }
 
-  logMigration(
-    message: string,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _queryRunner?: QueryRunner,
-  ) {
+  logMigration(message: string, _queryRunner?: QueryRunner) {
     // Only log migrations to file, not console
     writeToLogFile(`Migration: ${message}`);
   }
@@ -91,7 +81,6 @@ export class QueryPerformanceLogger implements TypeOrmLogger {
   log(
     level: "log" | "info" | "warn",
     message: unknown,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _queryRunner?: QueryRunner,
   ) {
     // Only log warnings

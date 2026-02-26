@@ -40,7 +40,8 @@ export class ScheduledEmailsModule implements OnModuleInit {
     // Register cron job to check for scheduled emails every 5 minutes
     await this.boss.schedule(
       "send-scheduled-emails",
-      "*/5 * * * *", // Every 5 minutes
+      // Every 5 minutes
+      "*/5 * * * *",
       {},
       {
         tz: "UTC",

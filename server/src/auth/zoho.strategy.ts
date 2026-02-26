@@ -64,7 +64,6 @@ export class ZohoStrategy extends PassportStrategy(Strategy, "zoho") {
   async validate(
     accessToken: string,
     refreshToken: string,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _profile: unknown,
   ): Promise<UserWithZohoData> {
     // NestJS Passport pattern: return user on success, throw error on failure

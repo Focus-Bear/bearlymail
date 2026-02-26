@@ -120,94 +120,39 @@ function stripHtml(html: string): string {
   return text;
 }
 
+const REPLY_SEPARATOR_PATTERNS: RegExp[] = [
+  /^On .+wrote:\s*$/im,
+  /-{5,}\s*Forwarded message\s*-{5,}/i,
+  /^Begin forwarded message:\s*$/im,
+  /-{5,}Original Message-{5,}/i,
+  /From:.+\nSent:.+\nTo:.+\nSubject:/im,
+  /^On .+ at .+, .+ wrote:\s*$/im,
+  /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\s+\d{1,2}:\d{2}\s*(AM|PM)?\s*.+<.+@.+>:\s*$/im,
+  /-{3,}\s*(Reply|Write|Respond)\s+(above|below)\s+this\s+line\s*-{3,}/i,
+];
+
+const MIN_CONTENT_BEFORE_SEPARATOR = 100;
+
+function truncateAtSeparator(text: string, pattern: RegExp): string {
+  const match = text.match(pattern);
+  if (!match) return text;
+  const index = text.indexOf(match[0]);
+  return index > MIN_CONTENT_BEFORE_SEPARATOR
+    ? text.substring(0, index).trim()
+    : text;
+}
+
 /**
  * Remove quoted reply content - detect reply separators and only keep the last reply
  */
 function removeQuotedReplies(text: string): string {
   let result = text;
 
-  // Gmail-style "On [date], [person] <email> wrote:" or "On [date] [person] wrote:"
-  // Match various formats: "On Jan 1, 2024, John wrote:", "On 1/1/24, John <john@example.com> wrote:"
-  const onWroteMatch = result.match(/^On .+wrote:\s*$/im);
-  if (onWroteMatch) {
-    const index = result.indexOf(onWroteMatch[0]);
-    if (index > 100) {
-      // Only remove if there's meaningful content before
-      result = result.substring(0, index).trim();
-    }
+  for (const pattern of REPLY_SEPARATOR_PATTERNS) {
+    result = truncateAtSeparator(result, pattern);
   }
 
-  // Gmail forwarded message separator
-  const gmailForwardMatch = result.match(/-{5,}\s*Forwarded message\s*-{5,}/i);
-  if (gmailForwardMatch) {
-    const index = result.indexOf(gmailForwardMatch[0]);
-    if (index > 100) {
-      result = result.substring(0, index).trim();
-    }
-  }
-
-  // Apple Mail "Begin forwarded message:" separator
-  const appleForwardMatch = result.match(/^Begin forwarded message:\s*$/im);
-  if (appleForwardMatch) {
-    const index = result.indexOf(appleForwardMatch[0]);
-    if (index > 100) {
-      result = result.substring(0, index).trim();
-    }
-  }
-
-  // Remove lines starting with > (quoted text)
   result = result.replace(/^>+\s*.*$/gm, "");
-
-  // Remove Outlook-style "Original Message" blocks
-  const originalMsgMatch = result.match(/-{5,}Original Message-{5,}/i);
-  if (originalMsgMatch) {
-    const index = result.indexOf(originalMsgMatch[0]);
-    if (index > 100) {
-      result = result.substring(0, index).trim();
-    }
-  }
-
-  // Remove "From: ... Sent: ... To: ... Subject:" blocks (Outlook forwarded headers)
-  const outlookHeaderMatch = result.match(
-    /From:.+\nSent:.+\nTo:.+\nSubject:/im,
-  );
-  if (outlookHeaderMatch) {
-    const index = result.indexOf(outlookHeaderMatch[0]);
-    if (index > 100) {
-      result = result.substring(0, index).trim();
-    }
-  }
-
-  // Remove "On [date] at [time], [person] wrote:" (alternative Gmail format)
-  const onAtWroteMatch = result.match(/^On .+ at .+, .+ wrote:\s*$/im);
-  if (onAtWroteMatch) {
-    const index = result.indexOf(onAtWroteMatch[0]);
-    if (index > 100) {
-      result = result.substring(0, index).trim();
-    }
-  }
-
-  // Remove "[date] [time] [person] <email>:" format (some email clients)
-  const dateTimeEmailMatch = result.match(
-    /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\s+\d{1,2}:\d{2}\s*(AM|PM)?\s*.+<.+@.+>:\s*$/im,
-  );
-  if (dateTimeEmailMatch) {
-    const index = result.indexOf(dateTimeEmailMatch[0]);
-    if (index > 100) {
-      result = result.substring(0, index).trim();
-    }
-  }
-
-  // Remove "---- Reply above this line ----" or similar markers
-  const replyLineMatch = result.match(
-    /-{3,}\s*(Reply|Write|Respond)\s+(above|below)\s+this\s+line\s*-{3,}/i,
-  );
-  if (replyLineMatch) {
-    const index = result.indexOf(replyLineMatch[0]);
-    if (index > 100) {
-      result = result.substring(0, index).trim();
-    }
-  }
 
   return result;
 }

@@ -139,10 +139,9 @@ export class QueueMonitorService implements OnModuleInit {
   /**
    * Collect metrics from all queues
    */
-  // eslint-disable-next-line max-statements
   async collectMetrics(): Promise<void> {
     try {
-      const queueNames = [
+      const monitoredQueues = [
         "fetch-user-emails",
         // Legacy
         "sync-emails",
@@ -157,92 +156,114 @@ export class QueueMonitorService implements OnModuleInit {
         "analyze-context",
       ];
 
-      const queueMetrics: JobMetrics[] = [];
-      let totalPending = 0;
-      let totalActive = 0;
-      let totalCompleted = 0;
-      let totalFailed = 0;
+      const queueMetrics = await this.queryAllQueueMetrics(monitoredQueues);
+      const healthMetrics = this.buildHealthMetrics(queueMetrics);
 
-      for (const queueName of queueNames) {
-        try {
-          // Query pg-boss job table directly for job counts by state
-          // Note: 'archived' is not a valid state - completed jobs may be archived to a separate table
-          const result = await this.dataSource.query(
-            `SELECT 
-              COUNT(*) FILTER (WHERE state = 'created') as pending,
-              COUNT(*) FILTER (WHERE state = 'active') as active,
-              COUNT(*) FILTER (WHERE state = 'completed') as completed,
-              COUNT(*) FILTER (WHERE state = 'failed') as failed
-            FROM pgboss.job
-            WHERE name = $1`,
-            [queueName],
-          );
-
-          const counts = result[0] || {};
-          const metrics: JobMetrics = {
-            queueName,
-            pending: parseInt(counts.pending || "0", 10),
-            active: parseInt(counts.active || "0", 10),
-            completed: parseInt(counts.completed || "0", 10),
-            failed: parseInt(counts.failed || "0", 10),
-            archived: 0,
-            // Archived jobs are in a separate table, not a state
-          };
-
-          queueMetrics.push(metrics);
-          totalPending += metrics.pending;
-          totalActive += metrics.active;
-          totalCompleted += metrics.completed;
-          totalFailed += metrics.failed;
-        } catch (error) {
-          this.logger.warn(
-            `Failed to get metrics for queue ${queueName}:`,
-            error,
-          );
-        }
-      }
-
-      const healthMetrics: QueueHealthMetrics = {
-        timestamp: new Date().toISOString(),
-        queues: queueMetrics,
-        totalPending,
-        totalActive,
-        totalCompleted,
-        totalFailed,
-      };
-
-      // Log to file
-      const logLine = `${JSON.stringify(healthMetrics)}\n`;
-      try {
-        fs.appendFileSync(this.metricsLogFile, logLine);
-      } catch (error) {
-        this.logger.error("Failed to write queue metrics to file:", error);
-      }
-
-      // Log warning if queue depth is high
-      if (totalPending > QUEUE_CONSTANTS.MAX_QUEUE_SIZE) {
-        this.logger.warn(
-          `⚠️ High queue depth: ${totalPending} pending jobs across all queues`,
-        );
-      }
-      if (totalActive > QUERY_LIMITS.MAX_SENT_EMAILS_FOR_STYLE) {
-        this.logger.warn(
-          `⚠️ High active jobs: ${totalActive} jobs currently processing`,
-        );
-      }
-
-      // Log processing time stats for each queue
-      for (const queueName of queueNames) {
-        const stats = this.getProcessingTimeStats(queueName);
-        if (stats && stats.count > 10) {
-          this.logger.debug(
-            `Queue ${queueName} processing times: avg=${Math.round(stats.avg)}ms, ` +
-              `p50=${stats.p50}ms, p95=${stats.p95}ms, p99=${stats.p99}ms (n=${stats.count})`,
-          );
-        }
-      }
+      this.logMetricsToFile(healthMetrics);
+      this.checkThresholds(healthMetrics);
+      this.logProcessingTimeStats(monitoredQueues);
     } catch (error) {
       this.logger.error("Error collecting queue metrics:", error);
+    }
+  }
+
+  private async queryAllQueueMetrics(
+    monitoredQueues: string[],
+  ): Promise<JobMetrics[]> {
+    const queueMetrics: JobMetrics[] = [];
+
+    for (const queueName of monitoredQueues) {
+      try {
+        // Query pg-boss job table directly for job counts by state
+        // Note: 'archived' is not a valid state - completed jobs may be archived to a separate table
+        const result = await this.dataSource.query(
+          `SELECT
+            COUNT(*) FILTER (WHERE state = 'created') as pending,
+            COUNT(*) FILTER (WHERE state = 'active') as active,
+            COUNT(*) FILTER (WHERE state = 'completed') as completed,
+            COUNT(*) FILTER (WHERE state = 'failed') as failed
+          FROM pgboss.job
+          WHERE name = $1`,
+          [queueName],
+        );
+
+        const counts = result[0] || {};
+        const metrics: JobMetrics = {
+          queueName,
+          pending: parseInt(counts.pending || "0", 10),
+          active: parseInt(counts.active || "0", 10),
+          completed: parseInt(counts.completed || "0", 10),
+          failed: parseInt(counts.failed || "0", 10),
+          archived: 0,
+          // Archived jobs are in a separate table, not a state
+        };
+
+        queueMetrics.push(metrics);
+      } catch (error) {
+        this.logger.warn(
+          `Failed to get metrics for queue ${queueName}:`,
+          error,
+        );
+      }
+    }
+
+    return queueMetrics;
+  }
+
+  private buildHealthMetrics(queueMetrics: JobMetrics[]): QueueHealthMetrics {
+    let totalPending = 0;
+    let totalActive = 0;
+    let totalCompleted = 0;
+    let totalFailed = 0;
+
+    for (const metrics of queueMetrics) {
+      totalPending += metrics.pending;
+      totalActive += metrics.active;
+      totalCompleted += metrics.completed;
+      totalFailed += metrics.failed;
+    }
+
+    return {
+      timestamp: new Date().toISOString(),
+      queues: queueMetrics,
+      totalPending,
+      totalActive,
+      totalCompleted,
+      totalFailed,
+    };
+  }
+
+  private logMetricsToFile(metrics: QueueHealthMetrics): void {
+    const logLine = `${JSON.stringify(metrics)}\n`;
+    try {
+      fs.appendFileSync(this.metricsLogFile, logLine);
+    } catch (error) {
+      this.logger.error("Failed to write queue metrics to file:", error);
+    }
+  }
+
+  private checkThresholds(metrics: QueueHealthMetrics): void {
+    if (metrics.totalPending > QUEUE_CONSTANTS.MAX_QUEUE_SIZE) {
+      this.logger.warn(
+        `⚠️ High queue depth: ${metrics.totalPending} pending jobs across all queues`,
+      );
+    }
+    if (metrics.totalActive > QUERY_LIMITS.MAX_SENT_EMAILS_FOR_STYLE) {
+      this.logger.warn(
+        `⚠️ High active jobs: ${metrics.totalActive} jobs currently processing`,
+      );
+    }
+  }
+
+  private logProcessingTimeStats(monitoredQueues: string[]): void {
+    for (const queueName of monitoredQueues) {
+      const stats = this.getProcessingTimeStats(queueName);
+      if (stats && stats.count > 10) {
+        this.logger.debug(
+          `Queue ${queueName} processing times: avg=${Math.round(stats.avg)}ms, ` +
+            `p50=${stats.p50}ms, p95=${stats.p95}ms, p99=${stats.p99}ms (n=${stats.count})`,
+        );
+      }
     }
   }
 

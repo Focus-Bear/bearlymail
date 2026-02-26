@@ -514,9 +514,12 @@ describe("RepliesService", () => {
         email.from,
         "Re: Test Subject",
         "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
-        undefined,
-        "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
-        undefined,
+        {
+          attachments: undefined,
+          cc: undefined,
+          htmlBody:
+            "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
+        },
       );
     });
 
@@ -543,9 +546,12 @@ describe("RepliesService", () => {
         email.from,
         "Re: Test Subject",
         "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
-        undefined,
-        "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
-        undefined,
+        {
+          attachments: undefined,
+          cc: undefined,
+          htmlBody:
+            "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
+        },
       );
     });
 
@@ -558,16 +564,10 @@ describe("RepliesService", () => {
       );
 
       const replyAllRecipients = "sender@example.com, other@example.com";
-      await service.sendReply(
-        userId,
-        emailId,
-        "Reply body",
-        undefined,
-        undefined,
-        undefined,
-        replyAllRecipients,
-        "cc@example.com",
-      );
+      await service.sendReply(userId, emailId, "Reply body", {
+        recipients: replyAllRecipients,
+        cc: "cc@example.com",
+      });
 
       expect(mockProvider.sendReply).toHaveBeenCalledWith(
         userId,
@@ -575,9 +575,12 @@ describe("RepliesService", () => {
         replyAllRecipients,
         "Re: Test Subject",
         "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
-        undefined,
-        "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
-        "cc@example.com",
+        {
+          attachments: undefined,
+          cc: "cc@example.com",
+          htmlBody:
+            "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
+        },
       );
     });
 
@@ -589,15 +592,9 @@ describe("RepliesService", () => {
         mockProvider as any,
       );
 
-      await service.sendReply(
-        userId,
-        emailId,
-        "Reply body",
-        undefined,
-        undefined,
-        undefined,
-        "",
-      );
+      await service.sendReply(userId, emailId, "Reply body", {
+        recipients: "",
+      });
 
       expect(mockProvider.sendReply).toHaveBeenCalledWith(
         userId,
@@ -605,9 +602,12 @@ describe("RepliesService", () => {
         email.from,
         "Re: Test Subject",
         "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
-        undefined,
-        "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
-        undefined,
+        {
+          attachments: undefined,
+          cc: undefined,
+          htmlBody:
+            "Reply body\n\nSent from BearlyMail (anti inbox overwhelm system)",
+        },
       );
     });
 
@@ -636,19 +636,16 @@ describe("RepliesService", () => {
         undefined,
       );
 
-      await service.sendReply(
-        userId,
-        emailId,
-        "Reply body",
-        undefined,
-        48, // expectedReplyHours
-      );
+      await service.sendReply(userId, emailId, "Reply body", {
+        expectedReplyHours: 48,
+      });
 
       // Verify star was synced to provider with starCount=1 (STAR_COUNTS.LOW)
       expect(syncStarStatusToGmail).toHaveBeenCalledWith(
         userId,
         email.threadId,
-        1, // STAR_COUNTS.LOW
+        // STAR_COUNTS.LOW
+        1,
       );
     });
   });

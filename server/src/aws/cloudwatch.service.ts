@@ -142,7 +142,8 @@ export class CloudWatchService {
       // Add any additional metadata as dimensions (limited to 30 dimensions per metric)
       if (metadata) {
         Object.entries(metadata)
-          .slice(0, QUERY_LIMITS.CLOUDWATCH_MAX_DIMENSIONS) // Leave room for the required dimensions
+          // Leave room for the required dimensions
+          .slice(0, QUERY_LIMITS.CLOUDWATCH_MAX_DIMENSIONS)
           .forEach(([key, value]) => {
             if (value) {
               dimensions.push({ Name: key, Value: value });

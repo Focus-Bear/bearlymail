@@ -1,0 +1,423 @@
+import { Injectable, Logger } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { In, Repository } from "typeorm";
+import { EmailThread } from "../database/entities/email-thread.entity";
+import { Email } from "../database/entities/email.entity";
+import { GitHubService, ParsedGitHubLink } from "./github.service";
+import {
+  GitHubApiService,
+  GitHubIssueStatus,
+  GitHubPRStatus,
+} from "./github-api.service";
+import { UsersService } from "../users/users.service";
+import { EmailsService } from "../emails/emails.service";
+import { EncryptionHelper } from "../encryption/encryption.helper";
+
+/**
+ * The shape of a single GitHub link entry stored in thread metadata.
+ * Matches the structure defined on the EmailThread entity's githubMetadata column.
+ */
+export type GitHubMetadataLink = NonNullable<
+  EmailThread["githubMetadata"]
+>["links"][number];
+
+export interface GitHubEmailInfoResult {
+  links: GitHubMetadataLink[];
+  hasToken: boolean;
+}
+
+export interface EmailThreadMetadata {
+  emailId: string;
+  threadId: string | null;
+  links: GitHubMetadataLink[];
+  hasCachedStatus: boolean;
+}
+
+/**
+ * Service that encapsulates all GitHub email/thread operations used by the controller.
+ * Groups together the repository and service dependencies for email GitHub info retrieval,
+ * keeping the controller constructor lean.
+ */
+@Injectable()
+export class GitHubEmailInfoService {
+  private readonly logger = new Logger(GitHubEmailInfoService.name);
+
+  constructor(
+    @InjectRepository(EmailThread)
+    private readonly emailThreadRepository: Repository<EmailThread>,
+    @InjectRepository(Email)
+    private readonly emailRepository: Repository<Email>,
+    private readonly githubService: GitHubService,
+    private readonly githubApiService: GitHubApiService,
+    private readonly usersService: UsersService,
+    private readonly emailsService: EmailsService,
+  ) {}
+
+  /**
+   * Parse unique GitHub links from all emails in a thread.
+   */
+  async parseThreadGitHubLinks(
+    userId: string,
+    emailThreadId: string,
+  ): Promise<ParsedGitHubLink[]> {
+    const threadEmails = await this.emailRepository.find({
+      where: { userId, emailThreadId },
+    });
+
+    const allLinks = new Map<string, ParsedGitHubLink>();
+    for (const threadEmail of threadEmails) {
+      const links = this.githubService.parseGitHubLinks(
+        threadEmail.body || "",
+        threadEmail.htmlBody || undefined,
+      );
+      for (const link of links) {
+        allLinks.set(link.url, link);
+      }
+    }
+    return Array.from(allLinks.values());
+  }
+
+  /**
+   * Build the metadata link objects from unique links and fetched statuses.
+   */
+  buildMetadataLinks(
+    uniqueLinks: ParsedGitHubLink[],
+    statuses: Map<string, GitHubIssueStatus | GitHubPRStatus>,
+  ): GitHubMetadataLink[] {
+    return uniqueLinks.map((link) => {
+      const status = statuses.get(link.url);
+      return {
+        type: link.type,
+        repo: link.repo,
+        owner: link.owner,
+        number: link.number,
+        url: link.url,
+        status: status
+          ? {
+              ...status,
+              fetchedAt: new Date().toISOString(),
+            }
+          : undefined,
+        fetchedAt: status ? new Date().toISOString() : undefined,
+      };
+    });
+  }
+
+  /**
+   * Check if the cached metadata for a thread covers all current links and is fresh (< 1 hour).
+   */
+  private isCacheFresh(
+    thread: EmailThread,
+    uniqueLinks: ParsedGitHubLink[],
+  ): boolean {
+    if (!thread.githubMetadata || thread.githubMetadata.links.length === 0) {
+      return false;
+    }
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const cachedLinksMap = new Map(
+      thread.githubMetadata.links.map((link) => [link.url, link]),
+    );
+    return uniqueLinks.every((link) => {
+      const cachedLink = cachedLinksMap.get(link.url);
+      if (!cachedLink || !cachedLink.status || !cachedLink.fetchedAt) {
+        return false;
+      }
+      return new Date(cachedLink.fetchedAt) > oneHourAgo;
+    });
+  }
+
+  /**
+   * Return the subset of cached links that match the current unique links, deduplicated.
+   */
+  private getCachedLinks(
+    thread: EmailThread,
+    uniqueLinks: ParsedGitHubLink[],
+  ): GitHubMetadataLink[] {
+    const cachedLinksMap = new Map(
+      thread.githubMetadata.links.map((link) => [link.url, link]),
+    );
+    const matched = uniqueLinks
+      .map((link) => cachedLinksMap.get(link.url))
+      .filter((link): link is NonNullable<typeof link> => link !== undefined);
+
+    const seenUrls = new Set<string>();
+    return matched.filter((link) => {
+      const key = link.url || `${link.owner}-${link.repo}-${link.number}`;
+      if (seenUrls.has(key)) return false;
+      seenUrls.add(key);
+      return true;
+    });
+  }
+
+  /**
+   * Fetch and cache fresh GitHub status for all links in a thread's emails.
+   * Returns the metadata links and saves them to the thread.
+   */
+  private async fetchAndCacheStatuses(
+    token: string,
+    thread: EmailThread,
+    uniqueLinks: ParsedGitHubLink[],
+  ): Promise<GitHubMetadataLink[]> {
+    const statuses = await this.githubApiService.fetchMultipleStatuses(
+      token,
+      uniqueLinks,
+    );
+
+    const metadataLinks = this.buildMetadataLinks(uniqueLinks, statuses);
+
+    const updatedThread = thread;
+    updatedThread.githubMetadata = { links: metadataLinks };
+    await this.emailThreadRepository.save(updatedThread);
+
+    return metadataLinks;
+  }
+
+  /**
+   * Get GitHub info for an email (uses cache if fresh, otherwise fetches fresh data).
+   */
+  async getEmailGitHubInfo(
+    userId: string,
+    emailId: string,
+  ): Promise<GitHubEmailInfoResult> {
+    const email = await this.emailsService.getEmailById(userId, emailId);
+    if (!email || !email.emailThreadId) {
+      throw new Error("Email not found");
+    }
+
+    const thread = await this.emailThreadRepository.findOne({
+      where: { id: email.emailThreadId, userId },
+    });
+    if (!thread) {
+      throw new Error("Thread not found");
+    }
+
+    const user = await this.usersService.findOne(userId);
+    if (!user || !user.githubToken) {
+      return { links: [], hasToken: false };
+    }
+
+    const token = EncryptionHelper.decrypt(user.githubToken);
+    const uniqueLinks = await this.parseThreadGitHubLinks(
+      userId,
+      email.emailThreadId,
+    );
+
+    if (uniqueLinks.length === 0) {
+      return { links: [], hasToken: true };
+    }
+
+    if (this.isCacheFresh(thread, uniqueLinks)) {
+      return {
+        links: this.getCachedLinks(thread, uniqueLinks),
+        hasToken: true,
+      };
+    }
+
+    const metadataLinks = await this.fetchAndCacheStatuses(
+      token,
+      thread,
+      uniqueLinks,
+    );
+    return { links: metadataLinks, hasToken: true };
+  }
+
+  /**
+   * Force-refresh GitHub status for all links in an email's thread.
+   */
+  async refreshEmailGitHubInfo(
+    userId: string,
+    emailId: string,
+  ): Promise<{ links: GitHubMetadataLink[]; message: string }> {
+    const email = await this.emailsService.getEmailById(userId, emailId);
+    if (!email || !email.emailThreadId) {
+      throw new Error("Email not found");
+    }
+
+    const thread = await this.emailThreadRepository.findOne({
+      where: { id: email.emailThreadId, userId },
+    });
+    if (!thread) {
+      throw new Error("Thread not found");
+    }
+
+    const user = await this.usersService.findOne(userId);
+    if (!user || !user.githubToken) {
+      throw new Error("GitHub token not configured");
+    }
+
+    const token = EncryptionHelper.decrypt(user.githubToken);
+    const uniqueLinks = await this.parseThreadGitHubLinks(
+      userId,
+      email.emailThreadId,
+    );
+
+    if (uniqueLinks.length === 0) {
+      return { links: [], message: "No GitHub links found in thread" };
+    }
+
+    const metadataLinks = await this.fetchAndCacheStatuses(
+      token,
+      thread,
+      uniqueLinks,
+    );
+    return {
+      links: metadataLinks,
+      message: "GitHub status refreshed successfully",
+    };
+  }
+
+  /**
+   * Decrypt and return the GitHub token for a user, or null if unavailable.
+   */
+  async getUserGitHubToken(userId: string): Promise<string | null> {
+    const user = await this.usersService.findOne(userId);
+    if (!user?.githubToken) return null;
+    const token = EncryptionHelper.decrypt(user.githubToken);
+    return token || null;
+  }
+
+  /**
+   * Process GitHub metadata for a background job: parse links from an email,
+   * fetch statuses, update the thread, and return info for repo auto-discovery.
+   * Returns null if no token or no links found.
+   */
+  async processEmailGitHubMetadataForJob(
+    userId: string,
+    emailId: string,
+    threadId: string,
+  ): Promise<{ links: ParsedGitHubLink[]; category?: string } | null> {
+    const token = await this.getUserGitHubToken(userId);
+    if (!token) {
+      this.logger.debug(`No GitHub token for user ${userId}, skipping`);
+      return null;
+    }
+
+    const links = await this.parseEmailGitHubLinks(userId, emailId);
+    if (links.length === 0) {
+      this.logger.debug(`No GitHub links found in email ${emailId}`);
+      return null;
+    }
+
+    await this.fetchAndMergeThreadMetadata(userId, threadId, token, links);
+
+    const thread = await this.emailThreadRepository.findOne({
+      where: { id: threadId, userId },
+    });
+
+    return { links, category: thread?.category ?? undefined };
+  }
+
+  /**
+   * Parse GitHub links from a single email's body (by emailId), decrypting as needed.
+   */
+  async parseEmailGitHubLinks(
+    userId: string,
+    emailId: string,
+  ): Promise<ParsedGitHubLink[]> {
+    const email = await this.emailRepository.findOne({
+      where: { id: emailId, userId },
+    });
+    if (!email) return [];
+    const body = email.body ? EncryptionHelper.decrypt(email.body) : "";
+    const htmlBody = email.htmlBody
+      ? EncryptionHelper.decrypt(email.htmlBody)
+      : undefined;
+    return this.githubService.parseGitHubLinks(body || "", htmlBody);
+  }
+
+  /**
+   * Fetch GitHub statuses for links and merge them into a thread's existing metadata,
+   * then persist the updated metadata. Returns the resulting metadata links.
+   */
+  async fetchAndMergeThreadMetadata(
+    userId: string,
+    threadId: string,
+    token: string,
+    links: ParsedGitHubLink[],
+  ): Promise<GitHubMetadataLink[]> {
+    const statuses = await this.githubApiService.fetchMultipleStatuses(
+      token,
+      links,
+    );
+
+    const metadataLinks = this.buildMetadataLinks(links, statuses);
+
+    const thread = await this.emailThreadRepository.findOne({
+      where: { id: threadId, userId },
+    });
+    if (!thread) {
+      this.logger.warn(`Thread ${threadId} not found for user ${userId}`);
+      return metadataLinks;
+    }
+
+    await this.emailThreadRepository.update(
+      { id: threadId, userId },
+      { githubMetadata: { links: metadataLinks } },
+    );
+
+    this.logger.debug(
+      `Updated GitHub metadata for thread ${threadId} with ${metadataLinks.length} links`,
+    );
+
+    return metadataLinks;
+  }
+
+  /**
+   * Look up GitHub metadata for a batch of emails.
+   * Returns per-email metadata: the cached links and whether the status is available.
+   */
+  async getThreadMetadataByEmailIds(
+    userId: string,
+    emailIds: string[],
+  ): Promise<EmailThreadMetadata[]> {
+    const emails = await this.emailRepository.find({
+      where: { id: In(emailIds), userId },
+      select: ["id", "emailThreadId"],
+    });
+
+    if (emails.length === 0) return [];
+
+    const threadIds = [
+      ...new Set(
+        emails
+          .map((email) => email.emailThreadId)
+          .filter((id): id is string => !!id),
+      ),
+    ];
+
+    const threads = await this.emailThreadRepository.find({
+      where: { id: In(threadIds), userId },
+    });
+
+    const threadMap = new Map(threads.map((thread) => [thread.id, thread]));
+
+    return emails.map((email) => {
+      if (!email.emailThreadId) {
+        return {
+          emailId: email.id,
+          threadId: null,
+          links: [],
+          hasCachedStatus: false,
+        };
+      }
+      const thread = threadMap.get(email.emailThreadId);
+      if (!thread) {
+        return {
+          emailId: email.id,
+          threadId: email.emailThreadId,
+          links: [],
+          hasCachedStatus: false,
+        };
+      }
+      const hasStatus =
+        (thread.githubMetadata?.links?.length ?? 0) > 0 &&
+        thread.githubMetadata.links.some((link) => link.status);
+      return {
+        emailId: email.id,
+        threadId: email.emailThreadId,
+        links: thread.githubMetadata?.links ?? [],
+        hasCachedStatus: hasStatus,
+      };
+    });
+  }
+}

@@ -1,13 +1,7 @@
 import { Injectable, Logger, Inject, forwardRef } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, IsNull, Not } from "typeorm";
+import { DataSource, IsNull, Not } from "typeorm";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
-import {
-  UserContext,
-  ContextKey,
-} from "../database/entities/user-context.entity";
-import { ProtoCategory } from "../database/entities/proto-category.entity";
 import { EmailProviderManager } from "./email-provider-manager.service";
 import { GmailProvider } from "./providers/gmail.provider";
 import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
@@ -16,7 +10,10 @@ import { isError } from "../types/common";
 import PgBoss from "pg-boss";
 import { getJobPriority } from "../queue/job-priorities";
 import { SyncHistoryService, SyncHistoryEntry } from "./sync-history.service";
-import { cleanEmailContent } from "../llm/email-content-cleaner";
+import {
+  EmailDebugCategoryService,
+  type CategoryDebugData,
+} from "./email-debug-category.service";
 
 export interface ThreadLookupResult {
   found: boolean;
@@ -52,14 +49,7 @@ export class EmailDebugService {
   private readonly logger = new Logger(EmailDebugService.name);
 
   constructor(
-    @InjectRepository(Email)
-    private emailRepository: Repository<Email>,
-    @InjectRepository(EmailThread)
-    private emailThreadRepository: Repository<EmailThread>,
-    @InjectRepository(UserContext)
-    private userContextRepository: Repository<UserContext>,
-    @InjectRepository(ProtoCategory)
-    private protoCategoryRepository: Repository<ProtoCategory>,
+    private dataSource: DataSource,
     @Inject(forwardRef(() => EmailProviderManager))
     private emailProviderManager: EmailProviderManager,
     @Inject(forwardRef(() => GmailProvider))
@@ -67,13 +57,173 @@ export class EmailDebugService {
     @Inject("PG_BOSS") private readonly boss: PgBoss,
     private blockedSendersService: BlockedSendersService,
     private syncHistoryService: SyncHistoryService,
+    private emailDebugCategoryService: EmailDebugCategoryService,
   ) {}
+
+  private get emailRepository() {
+    return this.dataSource.getRepository(Email);
+  }
+
+  private get emailThreadRepository() {
+    return this.dataSource.getRepository(EmailThread);
+  }
+
+  private async analyzeStarredThread(
+    thread: EmailThread,
+    threadEmails: Email[],
+    gmailStarredThreadIds: string[],
+    gmailError: string | undefined,
+    actionTabEmails: Email[],
+  ): Promise<{
+    threadId: string;
+    starCount: number;
+    isArchived: boolean;
+    isSnoozed: boolean;
+    emailCount: number;
+    latestSubject: string;
+    latestFrom: string;
+    issues: string[];
+    inGmail: boolean;
+  }> {
+    const latestEmail = [...threadEmails].sort(
+      (a, b) =>
+        new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime(),
+    )[0];
+
+    const issues: string[] = [];
+    const inGmail = gmailStarredThreadIds.includes(thread.threadId);
+
+    if (thread.isArchived) {
+      issues.push("Thread is ARCHIVED");
+    }
+
+    if (!inGmail && !gmailError) {
+      issues.push("NOT STARRED IN GMAIL (or not in inbox)");
+    }
+
+    const allSnoozed = threadEmails.every(
+      (e) =>
+        e.isSnoozed && e.snoozeUntil && new Date(e.snoozeUntil) > new Date(),
+    );
+    if (allSnoozed && threadEmails.length > 0) {
+      issues.push("All emails in thread are SNOOZED");
+    }
+
+    const inActionTab = actionTabEmails.some(
+      (e) => e.threadId === thread.threadId,
+    );
+    if (!inActionTab && issues.length === 0) {
+      issues.push("NOT IN ACTION TAB (unknown reason)");
+    }
+
+    return {
+      threadId: `${thread.threadId.substring(0, QUERY_LIMITS.THREAD_ID_PREVIEW)}...`,
+      starCount: thread.starCount,
+      isArchived: thread.isArchived,
+      isSnoozed: allSnoozed,
+      emailCount: threadEmails.length,
+      latestSubject:
+        latestEmail?.subject?.substring(
+          0,
+          QUERY_LIMITS.SUBSTRING_PREVIEW_LENGTH,
+        ) || "N/A",
+      latestFrom: latestEmail?.fromName || latestEmail?.from || "N/A",
+      issues,
+      inGmail,
+    };
+  }
+
+  private async buildConditionReasons(
+    thread: EmailThread,
+    emails: Email[],
+    userId: string,
+    latestEmail: Email | undefined,
+  ): Promise<{ reasons: string[]; isBlocked: boolean }> {
+    const reasons: string[] = [];
+
+    if (emails.length === 0) {
+      reasons.push(
+        "Thread exists but has no emails linked to it (orphan thread)",
+      );
+    }
+
+    if (thread.isArchived) {
+      reasons.push(
+        "Thread is ARCHIVED - archived threads don't show in any inbox view",
+      );
+    }
+
+    let isBlocked = false;
+    if (latestEmail) {
+      isBlocked = await this.blockedSendersService.isSenderBlocked(
+        userId,
+        latestEmail.from || "",
+      );
+      if (isBlocked) {
+        reasons.push(`Sender "${latestEmail.from}" is BLOCKED`);
+      }
+
+      if (
+        latestEmail.isSnoozed &&
+        latestEmail.snoozeUntil &&
+        new Date(latestEmail.snoozeUntil) > new Date()
+      ) {
+        reasons.push(
+          `Email is SNOOZED until ${new Date(latestEmail.snoozeUntil).toISOString()}`,
+        );
+      }
+    }
+
+    if (
+      thread.isBatched &&
+      thread.batchReleaseAt &&
+      new Date(thread.batchReleaseAt) > new Date()
+    ) {
+      reasons.push(
+        `Thread is BATCHED and will be released at ${new Date(thread.batchReleaseAt).toISOString()}`,
+      );
+    }
+
+    return { reasons, isBlocked };
+  }
+
+  private buildThreadVisibility(
+    thread: EmailThread,
+    latestEmail: Email | undefined,
+    isBlocked: boolean,
+  ): {
+    wouldShowInTriage: boolean;
+    wouldShowInAction: boolean;
+    wouldShowInFollowUp: boolean;
+    baseConditionsMet: boolean;
+  } {
+    const isNotArchived = !thread.isArchived;
+    const hasNoBlockedSender = !isBlocked;
+    const isNotSnoozed =
+      !latestEmail ||
+      !latestEmail.isSnoozed ||
+      !latestEmail.snoozeUntil ||
+      new Date(latestEmail.snoozeUntil) <= new Date();
+    const isNotBatched =
+      !thread.isBatched ||
+      !thread.batchReleaseAt ||
+      new Date(thread.batchReleaseAt) <= new Date();
+
+    const baseConditionsMet =
+      isNotArchived && hasNoBlockedSender && isNotSnoozed && isNotBatched;
+
+    return {
+      wouldShowInTriage: baseConditionsMet && thread.starCount === 0,
+      wouldShowInAction: baseConditionsMet && thread.starCount > 0,
+      wouldShowInFollowUp: baseConditionsMet && thread.starCount > 0,
+      baseConditionsMet,
+    };
+  }
 
   /**
    * Debug endpoint to find missing starred threads
    * Compares Gmail starred emails with what's in our DB
    */
-  // eslint-disable-next-line max-lines-per-function
   async debugStarredThreads(
     userId: string,
     getInbox: (
@@ -184,62 +334,17 @@ export class EmailDebugService {
 
     // 7. Identify issues for each starred thread
     const threadDetails = await Promise.all(
-      allStarredThreads.map(async (thread) => {
+      allStarredThreads.map((thread) => {
         const threadEmails = emailsInStarredThreads.filter(
           (e) => e.emailThreadId === thread.id,
         );
-        const latestEmail = threadEmails.sort(
-          (a, b) =>
-            new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime(),
-        )[0];
-
-        const issues: string[] = [];
-        const inGmail = gmailStarredThreadIds.includes(thread.threadId);
-
-        // Check if archived
-        if (thread.isArchived) {
-          issues.push("Thread is ARCHIVED");
-        }
-
-        // Check if in Gmail
-        if (!inGmail && !gmailError) {
-          issues.push("NOT STARRED IN GMAIL (or not in inbox)");
-        }
-
-        // Check if all emails are snoozed
-        const allSnoozed = threadEmails.every(
-          (e) =>
-            e.isSnoozed &&
-            e.snoozeUntil &&
-            new Date(e.snoozeUntil) > new Date(),
+        return this.analyzeStarredThread(
+          thread,
+          threadEmails,
+          gmailStarredThreadIds,
+          gmailError,
+          actionTabEmails,
         );
-        if (allSnoozed && threadEmails.length > 0) {
-          issues.push("All emails in thread are SNOOZED");
-        }
-
-        // Check if thread appears in action tab results
-        const inActionTab = actionTabEmails.some(
-          (e) => e.threadId === thread.threadId,
-        );
-        if (!inActionTab && issues.length === 0) {
-          issues.push("NOT IN ACTION TAB (unknown reason)");
-        }
-
-        return {
-          threadId: `${thread.threadId.substring(0, QUERY_LIMITS.THREAD_ID_PREVIEW)}...`,
-          starCount: thread.starCount,
-          isArchived: thread.isArchived,
-          isSnoozed: allSnoozed,
-          emailCount: threadEmails.length,
-          latestSubject:
-            latestEmail?.subject?.substring(
-              0,
-              QUERY_LIMITS.SUBSTRING_PREVIEW_LENGTH,
-            ) || "N/A",
-          latestFrom: latestEmail?.fromName || latestEmail?.from || "N/A",
-          issues,
-          inGmail,
-        };
       }),
     );
 
@@ -535,8 +640,6 @@ export class EmailDebugService {
   ): Promise<ThreadLookupResult> {
     this.logger.log(`Looking up thread ${threadId} for user ${userId}`);
 
-    const reasons: string[] = [];
-
     // 1. Find the thread in the database
     const thread = await this.emailThreadRepository.findOne({
       where: { userId, threadId },
@@ -565,85 +668,25 @@ export class EmailDebugService {
       order: { receivedAt: "DESC" },
     });
 
-    if (emails.length === 0) {
-      reasons.push(
-        "Thread exists but has no emails linked to it (orphan thread)",
-      );
-    }
-
-    // 3. Check thread-level conditions
-    if (thread.isArchived) {
-      reasons.push(
-        "Thread is ARCHIVED - archived threads don't show in any inbox view",
-      );
-    }
-
-    // 4. Check email-level conditions for the latest email
     const latestEmail = emails[0];
-    if (latestEmail) {
-      // Check if sender is blocked
-      const isBlocked = await this.blockedSendersService.isSenderBlocked(
-        userId,
-        latestEmail.from || "",
-      );
-      if (isBlocked) {
-        reasons.push(`Sender "${latestEmail.from}" is BLOCKED`);
-      }
 
-      // Check if snoozed
-      if (
-        latestEmail.isSnoozed &&
-        latestEmail.snoozeUntil &&
-        new Date(latestEmail.snoozeUntil) > new Date()
-      ) {
-        reasons.push(
-          `Email is SNOOZED until ${new Date(latestEmail.snoozeUntil).toISOString()}`,
-        );
-      }
-    }
+    // 3. Check conditions and build reasons
+    const { reasons, isBlocked } = await this.buildConditionReasons(
+      thread,
+      emails,
+      userId,
+      latestEmail,
+    );
 
-    // Check if thread is batched (batch state is now thread-level)
-    if (
-      thread.isBatched &&
-      thread.batchReleaseAt &&
-      new Date(thread.batchReleaseAt) > new Date()
-    ) {
-      reasons.push(
-        `Thread is BATCHED and will be released at ${new Date(thread.batchReleaseAt).toISOString()}`,
-      );
-    }
+    // 4. Determine visibility in each mode
+    const {
+      wouldShowInTriage,
+      wouldShowInAction,
+      wouldShowInFollowUp,
+      baseConditionsMet,
+    } = this.buildThreadVisibility(thread, latestEmail, isBlocked);
 
-    // 5. Determine visibility in each mode
-    const isNotArchived = !thread.isArchived;
-    const hasNoBlockedSender =
-      !latestEmail ||
-      !(await this.blockedSendersService.isSenderBlocked(
-        userId,
-        latestEmail.from || "",
-      ));
-    const isNotSnoozed =
-      !latestEmail ||
-      !latestEmail.isSnoozed ||
-      !latestEmail.snoozeUntil ||
-      new Date(latestEmail.snoozeUntil) <= new Date();
-    const isNotBatched =
-      !thread.isBatched ||
-      !thread.batchReleaseAt ||
-      new Date(thread.batchReleaseAt) <= new Date();
-
-    const baseConditionsMet =
-      isNotArchived && hasNoBlockedSender && isNotSnoozed && isNotBatched;
-
-    // Triage: starCount = 0
-    const wouldShowInTriage = baseConditionsMet && thread.starCount === 0;
-
-    // Action: starCount > 0
-    const wouldShowInAction = baseConditionsMet && thread.starCount > 0;
-
-    // Follow-up: starCount > 0 (additional filtering for user_sent_last happens elsewhere)
-    const wouldShowInFollowUp = baseConditionsMet && thread.starCount > 0;
-
-    // 6. Add mode-specific reasons
+    // 5. Add mode-specific reasons
     if (baseConditionsMet) {
       if (thread.starCount === 0) {
         reasons.push(
@@ -751,6 +794,55 @@ export class EmailDebugService {
    *   4. Looks up the resolved thread ID in our DB
    *   5. Returns a result with Gmail API metadata even if the thread is not yet in our DB
    */
+  private async resolveGmailUrlViaApi(
+    userId: string,
+    urlId: string,
+  ): Promise<{
+    foundInGmailApi: boolean;
+    apiMessageId: string | null;
+    apiThreadId: string | null;
+    subject: string | null;
+    from: string | null;
+    receivedAt: string | null;
+  }> {
+    try {
+      const gmailLookup = await this.gmailProvider.lookupByGmailUrlId(
+        userId,
+        urlId,
+      );
+      if (!gmailLookup) {
+        return {
+          foundInGmailApi: false,
+          apiMessageId: null,
+          apiThreadId: null,
+          subject: null,
+          from: null,
+          receivedAt: null,
+        };
+      }
+      return {
+        foundInGmailApi: true,
+        apiMessageId: gmailLookup.messageId,
+        apiThreadId: gmailLookup.threadId,
+        subject: gmailLookup.subject,
+        from: gmailLookup.from,
+        receivedAt: gmailLookup.receivedAt?.toISOString() ?? null,
+      };
+    } catch (error) {
+      this.logger.warn(
+        `Gmail API lookup failed for URL ID ${urlId}: ${isError(error) ? error.message : "unknown error"}`,
+      );
+      return {
+        foundInGmailApi: false,
+        apiMessageId: null,
+        apiThreadId: null,
+        subject: null,
+        from: null,
+        receivedAt: null,
+      };
+    }
+  }
+
   async lookupByGmailUrl(
     userId: string,
     gmailUrl: string,
@@ -766,116 +858,56 @@ export class EmailDebugService {
       };
     }
   > {
-    // Extract the URL ID — the last path segment after # or /
     const urlParts = gmailUrl.split(/[/#]/);
     const urlId = urlParts[urlParts.length - 1];
-
     this.logger.log(
       `Looking up Gmail URL for user ${userId}, extracted URL ID: ${urlId}`,
     );
 
-    // 1. Try direct DB lookups first (works if the URL ID happens to be the API hex ID)
     const byMessageId = await this.lookupByMessageId(userId, urlId);
-    if (byMessageId.found) {
-      return byMessageId;
-    }
+    if (byMessageId.found) return byMessageId;
 
     const byThreadId = await this.lookupThread(userId, urlId);
-    if (byThreadId.found) {
-      return byThreadId;
-    }
+    if (byThreadId.found) return byThreadId;
 
-    // 2. Call the Gmail API to resolve the URL-format ID to the canonical API thread ID
     this.logger.log(
       `URL ID ${urlId} not found in DB, calling Gmail API to resolve...`,
     );
+    const gmailApiResult = await this.resolveGmailUrlViaApi(userId, urlId);
 
-    let gmailApiResult: {
-      foundInGmailApi: boolean;
-      apiMessageId: string | null;
-      apiThreadId: string | null;
-      subject: string | null;
-      from: string | null;
-      receivedAt: string | null;
-    } = {
-      foundInGmailApi: false,
-      apiMessageId: null,
-      apiThreadId: null,
-      subject: null,
-      from: null,
-      receivedAt: null,
-    };
+    if (gmailApiResult.foundInGmailApi && gmailApiResult.apiThreadId) {
+      const { apiThreadId, apiMessageId } = gmailApiResult;
+      this.logger.log(
+        `Gmail API resolved URL ID ${urlId} → threadId: ${apiThreadId}, messageId: ${apiMessageId}`,
+      );
+      const byResolvedThread = await this.lookupThread(userId, apiThreadId);
+      if (byResolvedThread.found)
+        return { ...byResolvedThread, gmailApiResult };
 
-    try {
-      const gmailLookup = await this.gmailProvider.lookupByGmailUrlId(
+      const byResolvedMessage = await this.lookupByMessageId(
         userId,
-        urlId,
+        apiMessageId ?? urlId,
       );
+      if (byResolvedMessage.found)
+        return { ...byResolvedMessage, gmailApiResult };
 
-      if (gmailLookup) {
-        gmailApiResult = {
-          foundInGmailApi: true,
-          apiMessageId: gmailLookup.messageId,
-          apiThreadId: gmailLookup.threadId,
-          subject: gmailLookup.subject,
-          from: gmailLookup.from,
-          receivedAt: gmailLookup.receivedAt?.toISOString() ?? null,
-        };
-
-        this.logger.log(
-          `Gmail API resolved URL ID ${urlId} → threadId: ${gmailLookup.threadId}, messageId: ${gmailLookup.messageId}`,
-        );
-
-        // 3. Now look up the resolved thread ID in our DB
-        const byResolvedThread = await this.lookupThread(
-          userId,
-          gmailLookup.threadId,
-        );
-        if (byResolvedThread.found) {
-          return { ...byResolvedThread, gmailApiResult };
-        }
-
-        // Also try by the resolved message ID
-        const byResolvedMessage = await this.lookupByMessageId(
-          userId,
-          gmailLookup.messageId,
-        );
-        if (byResolvedMessage.found) {
-          return { ...byResolvedMessage, gmailApiResult };
-        }
-
-        // Thread exists in Gmail but not in our DB
-        return {
-          found: false,
-          threadId: gmailLookup.threadId,
-          thread: null,
-          emails: [],
-          visibility: {
-            wouldShowInTriage: false,
-            wouldShowInAction: false,
-            wouldShowInFollowUp: false,
-          },
-          reasons: [
-            `Thread found in Gmail (threadId: ${gmailLookup.threadId}) but NOT synced to BearlyMail yet. Subject: "${gmailLookup.subject || "unknown"}" from "${gmailLookup.from || "unknown"}". Try triggering a manual sync.`,
-          ],
-          gmailApiResult,
-        };
-      }
-    } catch (error) {
-      this.logger.warn(
-        `Gmail API lookup failed for URL ID ${urlId}: ${isError(error) ? error.message : "unknown error"}`,
-      );
-      gmailApiResult = {
-        foundInGmailApi: false,
-        apiMessageId: null,
-        apiThreadId: null,
-        subject: null,
-        from: null,
-        receivedAt: null,
+      return {
+        found: false,
+        threadId: apiThreadId,
+        thread: null,
+        emails: [],
+        visibility: {
+          wouldShowInTriage: false,
+          wouldShowInAction: false,
+          wouldShowInFollowUp: false,
+        },
+        reasons: [
+          `Thread found in Gmail (threadId: ${apiThreadId}) but NOT synced to BearlyMail yet. Subject: "${gmailApiResult.subject || "unknown"}" from "${gmailApiResult.from || "unknown"}". Try triggering a manual sync.`,
+        ],
+        gmailApiResult,
       };
     }
 
-    // Not found anywhere
     return {
       found: false,
       threadId: urlId,
@@ -893,135 +925,10 @@ export class EmailDebugService {
     };
   }
 
-  /**
-   * Get debug data for the categorization of an email.
-   * Returns the email data, available categories, and user context that would have been
-   * passed to the LLM for categorization — useful for diagnosing incorrect categorizations.
-   */
   async getCategoryDebugData(
     userId: string,
     emailId: string,
-  ): Promise<{
-    email: {
-      from: string;
-      fromName: string;
-      senderJobTitle: string;
-      subject: string;
-      bodyPreview: string;
-    };
-    thread: {
-      category: string | null;
-      categoryExplanation: string | null;
-    };
-    emailCategories: Array<{ name: string; description?: string }>;
-    protoCategories: Array<{ name: string; description?: string }>;
-    userContext: {
-      urgentItems: Array<{ value: string; explanation?: string }>;
-      notUrgentItems: Array<{ value: string; explanation?: string }>;
-      goals: Array<{ value: string; priority?: number }>;
-      workingOn: Array<{ value: string; priority?: number }>;
-      dontCare: Array<{ value: string }>;
-    };
-  }> {
-    // Fetch email and thread
-    const email = await this.emailRepository.findOne({
-      where: { id: emailId, userId },
-    });
-
-    if (!email) {
-      throw new Error(`Email ${emailId} not found for user ${userId}`);
-    }
-
-    const thread = email.emailThreadId
-      ? await this.emailThreadRepository.findOne({
-          where: { id: email.emailThreadId, userId },
-        })
-      : null;
-
-    // Fetch user contexts in parallel with proto categories
-    const [contexts, protoCategories] = await Promise.all([
-      this.userContextRepository.find({ where: { userId } }),
-      this.protoCategoryRepository.find({
-        where: { userId, isPromoted: false },
-        order: { emailCount: "DESC", createdAt: "DESC" },
-      }),
-    ]);
-
-    const emailCategories = this.parseEmailCategories(contexts);
-    const userContext = this.buildUserContext(contexts);
-    const bodyPreview = cleanEmailContent(email.body || "", null, 500);
-
-    return {
-      email: {
-        from: email.from || "",
-        fromName: email.fromName || "",
-        senderJobTitle: email.senderJobTitle || "",
-        subject: email.subject || "",
-        bodyPreview,
-      },
-      thread: {
-        category: thread?.category || null,
-        categoryExplanation: thread?.categoryExplanation || null,
-      },
-      emailCategories,
-      protoCategories: protoCategories.map((pc) => ({
-        name: pc.name,
-        description: pc.description || undefined,
-      })),
-      userContext,
-    };
-  }
-
-  private parseEmailCategories(
-    contexts: UserContext[],
-  ): Array<{ name: string; description?: string }> {
-    return contexts
-      .filter((c) => c.contextKey === ContextKey.EMAIL_CATEGORY)
-      .map((c) => {
-        const parts = c.contextValue.split(" - ");
-        return {
-          name: parts[0].trim(),
-          description:
-            parts.length > 1 ? parts.slice(1).join(" - ").trim() : undefined,
-        };
-      });
-  }
-
-  private buildUserContext(contexts: UserContext[]): {
-    urgentItems: Array<{ value: string; explanation?: string }>;
-    notUrgentItems: Array<{ value: string; explanation?: string }>;
-    goals: Array<{ value: string; priority?: number }>;
-    workingOn: Array<{ value: string; priority?: number }>;
-    dontCare: Array<{ value: string }>;
-  } {
-    return {
-      urgentItems: contexts
-        .filter((c) => c.contextKey === ContextKey.URGENT)
-        .map((c) => ({
-          value: c.contextValue,
-          explanation: c.explanation || undefined,
-        })),
-      notUrgentItems: contexts
-        .filter((c) => c.contextKey === ContextKey.NOT_IMPORTANT)
-        .map((c) => ({
-          value: c.contextValue,
-          explanation: c.explanation || undefined,
-        })),
-      goals: contexts
-        .filter((c) => c.contextKey === ContextKey.MY_GOALS)
-        .map((c) => ({
-          value: c.contextValue,
-          priority: c.priority || undefined,
-        })),
-      workingOn: contexts
-        .filter((c) => c.contextKey === ContextKey.WORKING_ON)
-        .map((c) => ({
-          value: c.contextValue,
-          priority: c.priority || undefined,
-        })),
-      dontCare: contexts
-        .filter((c) => c.contextKey === ContextKey.DONT_CARE)
-        .map((c) => ({ value: c.contextValue })),
-    };
+  ): Promise<CategoryDebugData> {
+    return this.emailDebugCategoryService.getCategoryDebugData(userId, emailId);
   }
 }

@@ -155,108 +155,17 @@ export class DataImportService {
         summarizationRules: 0,
         autoResponderSettings: false,
       },
-      skipped: {
-        blockedSenders: 0,
-        blockedKeywords: 0,
-        contexts: 0,
-      },
+      skipped: { blockedSenders: 0, blockedKeywords: 0, contexts: 0 },
       errors: [],
     };
 
-    // Verify user exists
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException("User not found");
     }
 
     try {
-      // Import profile
-      if (mergedOptions.sections.profile && importData.profile) {
-        await this.importProfile(userId, importData.profile);
-        result.imported.profile = true;
-      }
-
-      // Import batch schedule
-      if (mergedOptions.sections.batchSchedule && importData.batchSchedule) {
-        await this.importBatchSchedule(
-          userId,
-          importData.batchSchedule,
-          mergedOptions.mergeMode,
-        );
-        result.imported.batchSchedule = true;
-      }
-
-      // Import blocked senders
-      if (mergedOptions.sections.blockedSenders && importData.blockedSenders) {
-        const { imported, skipped } = await this.importBlockedSenders(
-          userId,
-          importData.blockedSenders,
-          mergedOptions.mergeMode,
-        );
-        result.imported.blockedSenders = imported;
-        result.skipped.blockedSenders = skipped;
-      }
-
-      // Import blocked keywords
-      if (
-        mergedOptions.sections.blockedKeywords &&
-        importData.blockedKeywords
-      ) {
-        const { imported, skipped } = await this.importBlockedKeywords(
-          userId,
-          importData.blockedKeywords,
-          mergedOptions.mergeMode,
-        );
-        result.imported.blockedKeywords = imported;
-        result.skipped.blockedKeywords = skipped;
-      }
-
-      // Import contexts
-      if (mergedOptions.sections.contexts && importData.contexts) {
-        const { imported, skipped } = await this.importContexts(
-          userId,
-          importData.contexts,
-          mergedOptions.mergeMode,
-        );
-        result.imported.contexts = imported;
-        result.skipped.contexts = skipped;
-      }
-
-      // Import tone rules
-      if (mergedOptions.sections.toneRules && importData.toneRules) {
-        await this.importToneRules(
-          userId,
-          importData.toneRules,
-          mergedOptions.mergeMode,
-        );
-        result.imported.toneRules = importData.toneRules.length;
-      }
-
-      // Import summarization rules
-      if (
-        mergedOptions.sections.summarizationRules &&
-        importData.summarizationRules
-      ) {
-        const imported = await this.importSummarizationRules(
-          userId,
-          importData.summarizationRules,
-          mergedOptions.mergeMode,
-        );
-        result.imported.summarizationRules = imported;
-      }
-
-      // Import auto-responder settings
-      if (
-        mergedOptions.sections.autoResponderSettings &&
-        importData.autoResponderSettings
-      ) {
-        await this.importAutoResponderSettings(
-          userId,
-          importData.autoResponderSettings,
-        );
-        result.imported.autoResponderSettings = true;
-      }
-
+      await this.doImportSections(userId, importData, mergedOptions, result);
       this.logger.log(
         `Successfully imported data for user ${userId}: ${JSON.stringify(result.imported)}`,
       );
@@ -269,6 +178,89 @@ export class DataImportService {
     }
 
     return result;
+  }
+
+  private async doImportSections(
+    userId: string,
+    importData: ExportedUserData,
+    mergedOptions: ImportOptions,
+    result: ImportResult,
+  ): Promise<void> {
+    if (mergedOptions.sections.profile && importData.profile) {
+      await this.importProfile(userId, importData.profile);
+      result.imported.profile = true;
+    }
+
+    if (mergedOptions.sections.batchSchedule && importData.batchSchedule) {
+      await this.importBatchSchedule(
+        userId,
+        importData.batchSchedule,
+        mergedOptions.mergeMode,
+      );
+      result.imported.batchSchedule = true;
+    }
+
+    if (mergedOptions.sections.blockedSenders && importData.blockedSenders) {
+      const { imported, skipped } = await this.importBlockedSenders(
+        userId,
+        importData.blockedSenders,
+        mergedOptions.mergeMode,
+      );
+      result.imported.blockedSenders = imported;
+      result.skipped.blockedSenders = skipped;
+    }
+
+    if (mergedOptions.sections.blockedKeywords && importData.blockedKeywords) {
+      const { imported, skipped } = await this.importBlockedKeywords(
+        userId,
+        importData.blockedKeywords,
+        mergedOptions.mergeMode,
+      );
+      result.imported.blockedKeywords = imported;
+      result.skipped.blockedKeywords = skipped;
+    }
+
+    if (mergedOptions.sections.contexts && importData.contexts) {
+      const { imported, skipped } = await this.importContexts(
+        userId,
+        importData.contexts,
+        mergedOptions.mergeMode,
+      );
+      result.imported.contexts = imported;
+      result.skipped.contexts = skipped;
+    }
+
+    if (mergedOptions.sections.toneRules && importData.toneRules) {
+      await this.importToneRules(
+        userId,
+        importData.toneRules,
+        mergedOptions.mergeMode,
+      );
+      result.imported.toneRules = importData.toneRules.length;
+    }
+
+    if (
+      mergedOptions.sections.summarizationRules &&
+      importData.summarizationRules
+    ) {
+      const imported = await this.importSummarizationRules(
+        userId,
+        importData.summarizationRules,
+        mergedOptions.mergeMode,
+      );
+      result.imported.summarizationRules = imported;
+    }
+
+    if (
+      mergedOptions.sections.autoResponderSettings &&
+      importData.autoResponderSettings
+    ) {
+      await this.importAutoResponderSettings(
+        userId,
+        importData.autoResponderSettings,
+      );
+      result.imported.autoResponderSettings = true;
+    }
   }
 
   private async importProfile(

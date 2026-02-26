@@ -49,7 +49,8 @@ export class CalendarBooking {
   description: string;
 
   @Column({ default: "active" })
-  status: string; // active, cancelled, rescheduled
+  // active, cancelled, rescheduled
+  status: string;
 
   @CreateDateColumn()
   createdAt: Date;

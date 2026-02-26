@@ -153,8 +153,14 @@ export class LLMCoreService {
       const { response } = result;
 
       // Log token usage from Gemini response
-      // Cast to any to access usageMetadata which may not be in type definitions
-      const { usageMetadata } = response as any;
+      // usageMetadata may not be fully typed in older SDK versions
+      const { usageMetadata } = response as {
+        usageMetadata?: {
+          promptTokenCount?: number;
+          candidatesTokenCount?: number;
+          totalTokenCount?: number;
+        };
+      };
       if (usageMetadata) {
         await this.tokenUsageService.logUsage({
           userId: userId || null,
@@ -176,11 +182,128 @@ export class LLMCoreService {
     });
   }
 
+  private async generateWithOpenAIReasoningModel(
+    openaiClient: OpenAI,
+    request: LLMRequest,
+    model: string,
+    reasoningEffort: string,
+    userId: string | undefined,
+    startTime: number,
+  ): Promise<string> {
+    if (
+      !openaiClient.responses ||
+      typeof openaiClient.responses.create !== "function"
+    ) {
+      const sdkError = new Error(
+        `OpenAI SDK does not support responses.create() - the Responses API requires openai SDK v4.87.0+. ` +
+          `Current model ${model} requires this API for reasoning support. ` +
+          `Consider upgrading the openai package or switching to a non-reasoning model.`,
+      );
+      this.logger.error(sdkError.message);
+      throw sdkError;
+    }
+
+    const responseParams: {
+      model: string;
+      reasoning: { effort: "low" | "medium" | "high" };
+      input: Array<{ role: "user" | "assistant" | "system"; content: string }>;
+      max_output_tokens: number;
+      text?: { format: { type: "json_object" } };
+      instructions?: string;
+    } = {
+      model,
+      reasoning: { effort: reasoningEffort as "low" | "medium" | "high" },
+      input: [{ role: "user" as const, content: request.prompt }],
+      max_output_tokens: request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
+      ...(request.jsonMode && {
+        text: { format: { type: "json_object" as const } },
+      }),
+    };
+
+    if (request.systemPrompt) {
+      responseParams.instructions = request.systemPrompt;
+    }
+
+    const response = await openaiClient.responses.create(responseParams);
+    const durationMs = Date.now() - startTime;
+
+    if (response.usage) {
+      await this.tokenUsageService.logUsage({
+        userId: userId || null,
+        operation: request.operation || LLM_OP_UNKNOWN,
+        provider: LLMProvider.OPENAI,
+        model,
+        promptTokens: response.usage.input_tokens || 0,
+        completionTokens: response.usage.output_tokens || 0,
+        totalTokens: response.usage.total_tokens || 0,
+        durationMs,
+        promptText: request.prompt,
+        systemPromptText: request.systemPrompt,
+        emailIds: request.metadata?.emailIds,
+      });
+    }
+    return response.output_text || "";
+  }
+
+  private async generateWithOpenAIStandardModel(
+    openaiClient: OpenAI,
+    request: LLMRequest,
+    model: string,
+    userId: string | undefined,
+    startTime: number,
+  ): Promise<string> {
+    const messages: Array<{
+      role: "system" | "user" | "assistant";
+      content: string;
+    }> = [];
+    if (request.systemPrompt) {
+      messages.push({ role: "system", content: request.systemPrompt });
+    }
+    messages.push({ role: "user", content: request.prompt });
+
+    const completionParams: {
+      model: string;
+      messages: typeof messages;
+      temperature: number;
+      max_completion_tokens: number;
+      response_format?: { type: "json_object" };
+    } = {
+      model,
+      messages,
+      temperature: request.temperature || RATIOS.SEVENTY_PERCENT,
+      max_completion_tokens:
+        request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
+      ...(request.jsonMode && {
+        response_format: { type: "json_object" as const },
+      }),
+    };
+
+    const completion =
+      await openaiClient.chat.completions.create(completionParams);
+    const durationMs = Date.now() - startTime;
+
+    if (completion.usage) {
+      await this.tokenUsageService.logUsage({
+        userId: userId || null,
+        operation: request.operation || LLM_OP_UNKNOWN,
+        provider: LLMProvider.OPENAI,
+        model,
+        promptTokens: completion.usage.prompt_tokens || 0,
+        completionTokens: completion.usage.completion_tokens || 0,
+        totalTokens: completion.usage.total_tokens || 0,
+        durationMs,
+        promptText: request.prompt,
+        systemPromptText: request.systemPrompt,
+        emailIds: request.metadata?.emailIds,
+      });
+    }
+    return completion.choices[0]?.message?.content || "";
+  }
+
   private async generateWithOpenAI(
     request: LLMRequest,
     userId?: string,
   ): Promise<string> {
-    // Try to get user's API key if userId is provided
     let { openaiClient } = this;
     let apiKeySource = "system";
 
@@ -188,7 +311,6 @@ export class LLMCoreService {
       try {
         const user = await this.usersService.findOneWithApiKey(userId);
         if (user?.openAiApiKey) {
-          // User has their own API key - create a client with it
           openaiClient = new OpenAI({ apiKey: user.openAiApiKey });
           apiKeySource = "user";
           this.logger.debug(`Using user's OpenAI API key for user ${userId}`);
@@ -210,129 +332,31 @@ export class LLMCoreService {
     const reasoningEffort =
       this.configService.get<string>("OPENAI_REASONING_EFFORT") || "low";
     const isReasoningModel = supportsReasoningEffort(model);
+    const capturedClient = openaiClient;
 
     return this.retryOperation(async () => {
       const startTime = Date.now();
-
       this.logger.debug(
         `Generating text with OpenAI model: ${model} using ${apiKeySource} API key${request.userId ? ` (userId: ${request.userId})` : ""}`,
       );
 
       if (isReasoningModel) {
-        // Use the Responses API for reasoning models (gpt-5+, o1, o3)
-        // The Responses API uses reasoning: { effort: "..." } and input/instructions
-        // instead of messages. Temperature is not supported for reasoning models.
-        // See: https://platform.openai.com/docs/guides/reasoning
-
-        // Safety check: verify Responses API is available in the installed SDK version
-        if (
-          !openaiClient.responses ||
-          typeof openaiClient.responses.create !== "function"
-        ) {
-          const sdkError = new Error(
-            `OpenAI SDK does not support responses.create() - the Responses API requires openai SDK v4.87.0+. ` +
-              `Current model ${model} requires this API for reasoning support. ` +
-              `Consider upgrading the openai package or switching to a non-reasoning model.`,
-          );
-          this.logger.error(sdkError.message);
-          console.error(
-            `[OPENAI] Responses API not available:`,
-            sdkError.message,
-          );
-          throw sdkError;
-        }
-
-        const responseParams: any = {
+        return this.generateWithOpenAIReasoningModel(
+          capturedClient,
+          request,
           model,
-          reasoning: { effort: reasoningEffort as "low" | "medium" | "high" },
-          input: [{ role: "user", content: request.prompt }],
-          max_output_tokens:
-            request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
-          ...(request.jsonMode && {
-            text: { format: { type: "json_object" } },
-          }),
-        };
-
-        if (request.systemPrompt) {
-          // System prompts go in instructions for the Responses API
-          responseParams.instructions = request.systemPrompt;
-        }
-
-        this.logger.debug(
-          `OpenAI Responses API params: ${JSON.stringify({ model, reasoning: responseParams.reasoning, max_output_tokens: responseParams.max_output_tokens, hasInstructions: !!request.systemPrompt })}`,
+          reasoningEffort,
+          userId,
+          startTime,
         );
-
-        const response = await openaiClient.responses.create(responseParams);
-
-        const durationMs = Date.now() - startTime;
-
-        if (response.usage) {
-          await this.tokenUsageService.logUsage({
-            userId: userId || null,
-            operation: request.operation || LLM_OP_UNKNOWN,
-            provider: LLMProvider.OPENAI,
-            model,
-            // Responses API uses input_tokens/output_tokens instead of prompt/completion tokens
-            promptTokens: response.usage.input_tokens || 0,
-            completionTokens: response.usage.output_tokens || 0,
-            totalTokens: response.usage.total_tokens || 0,
-            durationMs,
-            promptText: request.prompt,
-            systemPromptText: request.systemPrompt,
-            emailIds: request.metadata?.emailIds,
-          });
-        }
-
-        return response.output_text || "";
-      } else {
-        // Use Chat Completions API for standard (non-reasoning) models
-        const messages: Array<{
-          role: "system" | "user" | "assistant";
-          content: string;
-        }> = [];
-        if (request.systemPrompt) {
-          messages.push({ role: "system", content: request.systemPrompt });
-        }
-        messages.push({ role: "user", content: request.prompt });
-
-        const completionParams: any = {
-          model,
-          messages: messages as any,
-          temperature: request.temperature || RATIOS.SEVENTY_PERCENT,
-          max_completion_tokens:
-            request.maxTokens || QUERY_LIMITS.LLM_CONTEXT_WINDOW,
-          ...(request.jsonMode && {
-            response_format: { type: "json_object" },
-          }),
-        };
-
-        this.logger.debug(
-          `OpenAI Chat Completions params: ${JSON.stringify({ model, temperature: completionParams.temperature, max_completion_tokens: completionParams.max_completion_tokens })}`,
-        );
-
-        const completion =
-          await openaiClient!.chat.completions.create(completionParams);
-
-        const durationMs = Date.now() - startTime;
-
-        if (completion.usage) {
-          await this.tokenUsageService.logUsage({
-            userId: userId || null,
-            operation: request.operation || LLM_OP_UNKNOWN,
-            provider: LLMProvider.OPENAI,
-            model,
-            promptTokens: completion.usage.prompt_tokens || 0,
-            completionTokens: completion.usage.completion_tokens || 0,
-            totalTokens: completion.usage.total_tokens || 0,
-            durationMs,
-            promptText: request.prompt,
-            systemPromptText: request.systemPrompt,
-            emailIds: request.metadata?.emailIds,
-          });
-        }
-
-        return completion.choices[0]?.message?.content || "";
       }
+      return this.generateWithOpenAIStandardModel(
+        capturedClient,
+        request,
+        model,
+        userId,
+        startTime,
+      );
     });
   }
 

@@ -22,7 +22,10 @@ import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { ContextPiiRedactionService } from "./context-pii-redaction.service";
 import { ContextGmailDataService } from "./context-gmail-data.service";
 import { ContextQaExtractionService } from "./context-qa-extraction.service";
-import { ContextCrudService } from "./context-crud.service";
+import {
+  ContextCrudService,
+  CreateContextOptions,
+} from "./context-crud.service";
 import { ContextCategoryService } from "./context-category.service";
 import { ContextAnalysisProgressService } from "./context-analysis-progress.service";
 import { writeAnalysisLog } from "./context-analysis-logger";
@@ -31,13 +34,11 @@ import { Inject } from "@nestjs/common";
 import PgBoss from "pg-boss";
 import { getJobPriority } from "../queue/job-priorities";
 
-// eslint-disable-next-line max-lines
 @Injectable()
 export class ContextService {
   private readonly logger = new Logger(ContextService.name);
   // Removed in-memory caches - now using database fields (analysisThreadCount, analysisAnalyzedCount, analysisStats)
 
-  // eslint-disable-next-line max-params
   constructor(
     @InjectRepository(UserContext)
     private contextRepository: Repository<UserContext>,
@@ -68,7 +69,8 @@ export class ContextService {
    */
   async getAnalysisProgress(
     userId: string,
-    analysisId?: string, // Add optional analysis ID parameter
+    // Add optional analysis ID parameter
+    analysisId?: string,
   ): Promise<{
     threadCount?: number;
     analyzedCount?: number;
@@ -551,14 +553,11 @@ export class ContextService {
     };
   }
 
-  // eslint-disable-next-line max-lines-per-function, complexity, max-statements
   async analyzeAndLearnFromEmails(
     userId: string,
-    analysisId?: string, // Optional - if provided, use that analysis record
+    // Optional - if provided, use that analysis record
+    analysisId?: string,
   ): Promise<void> {
-    // eslint-disable-next-line max-lines
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const startTime = Date.now();
     this.logger.log(
       `[CONTEXT-ANALYSIS] ===== Starting deep email analysis for user ${userId}${analysisId ? ` with analysis ID ${analysisId}` : ""} =====`,
     );
@@ -712,7 +711,8 @@ export class ContextService {
           userId,
           twelveDaysAgo,
           fiveDaysAgo,
-          QUERY_LIMITS.CONTEXT_RECENT_EMAILS, // Limit to 300 threads
+          // Limit to 300 threads
+          QUERY_LIMITS.CONTEXT_RECENT_EMAILS,
         );
 
       // Update progress with general threads count (use separate columns)
@@ -734,7 +734,8 @@ export class ContextService {
       try {
         sentThreadIds = await this.gmailDataService.getSentThreadIds(
           userId,
-          QUERY_LIMITS.CONTEXT_SENT_EMAILS, // Fetch 150 to ensure ~100 unique after dedup with general threads
+          // Fetch 150 to ensure ~100 unique after dedup with general threads
+          QUERY_LIMITS.CONTEXT_SENT_EMAILS,
         );
 
         // Update progress with sent threads count
@@ -818,7 +819,8 @@ export class ContextService {
 
       // Reset progress to 0 when starting new analysis (prevents showing old progress like 48%)
       await this.usersService.update(userId, {
-        scanProgress: 0, // Start at 0, not 10
+        // Start at 0, not 10
+        scanProgress: 0,
         scanTotal: 100,
       });
       this.logger.log(
@@ -883,7 +885,8 @@ export class ContextService {
           userEmail || "",
           ninetyDaysAgo,
           today,
-          100, // Target 100 sent threads
+          // Target 100 sent threads
+          100,
         );
 
       this.logger.log(
@@ -1149,8 +1152,10 @@ export class ContextService {
                 {
                   userId,
                   batchIndex: batchNum,
-                  batch: batchPayload, // Pass pre-processed batch payloads (no Gmail API calls needed)
-                  sentPayload: batchNum === 0 ? sentPayload : [], // Only send sent emails with first batch
+                  // Pass pre-processed batch payloads (no Gmail API calls needed)
+                  batch: batchPayload,
+                  // Only send sent emails with first batch
+                  sentPayload: batchNum === 0 ? sentPayload : [],
                   userEmail: userEmail || undefined,
                   currentContextForPrompt,
                   analysisRecordId: analysisRecord.id,
@@ -1393,8 +1398,10 @@ export class ContextService {
         analysisRecord.stats = {
           ...analysisRecord.stats,
           totalBatches,
-          batchJobIds, // Store job IDs for debugging and retry logic
-          batchPayloadsForRetry, // Store batch payloads so we can retry expired jobs
+          // Store job IDs for debugging and retry logic
+          batchJobIds,
+          // Store batch payloads so we can retry expired jobs
+          batchPayloadsForRetry,
         };
       } else {
         // Initialize stats with required fields if it doesn't exist
@@ -1405,8 +1412,10 @@ export class ContextService {
           threadsReadButNotReplied: 0,
           vipContactsEvaluated: 0,
           totalBatches,
-          batchJobIds, // Store job IDs for debugging and retry logic
-          batchPayloadsForRetry, // Store batch payloads so we can retry expired jobs
+          // Store job IDs for debugging and retry logic
+          batchJobIds,
+          // Store batch payloads so we can retry expired jobs
+          batchPayloadsForRetry,
         };
       }
 
@@ -1433,7 +1442,8 @@ export class ContextService {
       ) {
         analysisRecord.stats = {
           ...analysisRecord.stats,
-          totalBatches, // Force update totalBatches
+          // Force update totalBatches
+          totalBatches,
         };
         this.logger.log(
           `[CONTEXT-ANALYSIS] Updated totalBatches in stats from ${totalBatchesBeforeSave} to ${totalBatches}`,
@@ -1604,18 +1614,14 @@ export class ContextService {
     contextKey: ContextKey,
     contextValue: string,
     source: Source,
-    priority?: number,
-    explanation?: string,
-    sourceThreadIds?: string[],
+    options: CreateContextOptions = {},
   ): Promise<UserContext> {
     return this.crudService.createOrUpdateContext(
       userId,
       contextKey,
       contextValue,
       source,
-      priority,
-      explanation,
-      sourceThreadIds,
+      options,
     );
   }
 
@@ -1642,7 +1648,6 @@ export class ContextService {
    * Extract common Q&A pairs from user's sent emails (from Gmail)
    * Analyzes what questions the user is answering in their outbound emails
    */
-  // eslint-disable-next-line max-lines-per-function, max-statements
   private async extractQAndAFromSentEmails(
     userId: string,
     sentEmailsData: Array<{
@@ -1804,8 +1809,7 @@ export class ContextService {
             ContextKey.Q_AND_A,
             qaValue,
             Source.AUTOGENERATED,
-            undefined,
-            explanation,
+            { explanation },
           );
 
           this.logger.log(
@@ -2015,10 +2019,12 @@ export class ContextService {
                 userId,
                 batchIndex,
                 batch: batchPayload,
-                sentPayload: [], // Don't resend sent payload on retry
+                // Don't resend sent payload on retry
+                sentPayload: [],
                 userEmail: userEmail || undefined,
                 currentContextForPrompt,
-                isRetry: true, // Mark this as a retry for logging
+                // Mark this as a retry for logging
+                isRetry: true,
                 analysisRecordId: analysis.id,
                 totalBatches,
               },
@@ -2271,7 +2277,8 @@ export class ContextService {
                       userId,
                       batchIndex,
                       batch: batchPayload,
-                      sentPayload: [], // Don't resend sent payload on retry
+                      // Don't resend sent payload on retry
+                      sentPayload: [],
                       userEmail: userEmail || undefined,
                       currentContextForPrompt,
                       analysisRecordId,
@@ -2383,7 +2390,6 @@ export class ContextService {
    * Finalize context analysis after all batches are complete
    * This method does the post-processing: combines results, saves context, etc.
    */
-  // eslint-disable-next-line max-lines-per-function, max-statements, complexity
   async finalizeContextAnalysis(
     userId: string,
     analysisRecordId: string,
@@ -2944,8 +2950,7 @@ export class ContextService {
         ContextKey.VIP_CONTACT,
         displayName,
         Source.AUTOGENERATED,
-        undefined,
-        explanation,
+        { explanation },
       );
       addedVipContactsThisRun.push(displayName);
       vipCount++;
@@ -3260,9 +3265,12 @@ export class ContextService {
           key,
           valueStr,
           Source.AUTOGENERATED,
-          priority,
-          explanationStr,
-          item.sourceThreadIds, // Pass source thread IDs for fact-checking
+          {
+            priority,
+            explanation: explanationStr,
+            // Pass source thread IDs for fact-checking
+            sourceThreadIds: item.sourceThreadIds,
+          },
         );
         this.logger.log(
           `[CONTEXT-ANALYSIS] Added context: ${key} - ${valueStr.substring(0, QUERY_LIMITS.SUBSTRING_PREVIEW_LENGTH)}...`,

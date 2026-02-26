@@ -1,6 +1,8 @@
 import * as fs from "fs";
 import * as path from "path";
-import { logError, logWarn } from "../utils/logger";
+import { createLogger, logError, logWarn } from "../utils/logger";
+
+const logger = createLogger("ContextAnalysisLogger");
 
 // Ensure logs directory exists
 const LOGS_DIR = path.join(process.cwd(), "logs");
@@ -25,20 +27,16 @@ export function writeAnalysisLog(
   const consoleMessage = `${logPrefix} ${message}`;
   switch (level) {
     case "error":
-      // eslint-disable-next-line no-console
       logError(consoleMessage);
       break;
     case "warn":
-      // eslint-disable-next-line no-console
       logWarn(consoleMessage);
       break;
     case "debug":
-      // eslint-disable-next-line no-console
-      console.debug(consoleMessage);
+      logger.debug(consoleMessage);
       break;
     default:
-      // eslint-disable-next-line no-console
-      console.log(consoleMessage);
+      logger.log(consoleMessage);
   }
 
   // Only log to file in local development

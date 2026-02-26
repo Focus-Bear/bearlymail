@@ -10,6 +10,7 @@ import { AutoResponderSuppressionService } from "./auto-responder-suppression.se
 import { AutoResponderQaService } from "./auto-responder-qa.service";
 import { AutoResponderAnalyticsService } from "./auto-responder-analytics.service";
 import { AutoResponderPreviewService } from "./auto-responder-preview.service";
+import { AutoResponderContextService } from "./auto-responder-context.service";
 import { User } from "../database/entities/user.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -38,6 +39,7 @@ import { QueueModule } from "../queue/queue.module";
   providers: [
     AutoResponderService,
     AutoResponderProcessor,
+    AutoResponderContextService,
     EmailClassifierService,
     QueueStatsService,
     AutoResponderTemplateService,
@@ -49,6 +51,7 @@ import { QueueModule } from "../queue/queue.module";
   exports: [
     AutoResponderService,
     AutoResponderProcessor,
+    AutoResponderContextService,
     EmailClassifierService,
     QueueStatsService,
     AutoResponderSuppressionService,

@@ -1,9 +1,9 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
 import { EmailsController } from "./emails.controller";
 import { EmailsService } from "./emails.service";
 import { EmailProviderManager } from "./email-provider-manager.service";
+import { EmailAdminService } from "./email-admin.service";
 import { ContactsService } from "../contacts/contacts.service";
 import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
 import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
@@ -16,7 +16,6 @@ import { ScheduledEmailsService } from "../scheduled-emails/scheduled-emails.ser
 describe("EmailsController", () => {
   let controller: EmailsController;
   let emailsService: EmailsService;
-  let emailThreadRepository: Repository<EmailThread>;
 
   const mockEmailsService = {
     getInbox: jest.fn(),
@@ -77,6 +76,12 @@ describe("EmailsController", () => {
     cancelScheduledEmail: jest.fn(),
   };
 
+  const mockEmailAdminService = {
+    getSystemStats: jest.fn(),
+    getUserEmailStats: jest.fn(),
+    getEmailThreadById: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [EmailsController],
@@ -121,14 +126,15 @@ describe("EmailsController", () => {
           provide: ScheduledEmailsService,
           useValue: mockScheduledEmailsService,
         },
+        {
+          provide: EmailAdminService,
+          useValue: mockEmailAdminService,
+        },
       ],
     }).compile();
 
     controller = module.get<EmailsController>(EmailsController);
     emailsService = module.get<EmailsService>(EmailsService);
-    emailThreadRepository = module.get<Repository<EmailThread>>(
-      getRepositoryToken(EmailThread),
-    );
   });
 
   afterEach(() => {
@@ -147,11 +153,9 @@ describe("EmailsController", () => {
         hasMore: false,
       });
 
-      const result = await controller.getInbox(
-        mockRequest,
-        undefined,
-        "triage",
-      );
+      const result = await controller.getInbox(mockRequest, {
+        mode: "triage",
+      });
 
       expect(result).toEqual({
         emails: mockEmails,
@@ -183,7 +187,10 @@ describe("EmailsController", () => {
         hasMore: false,
       });
 
-      await controller.getInbox(mockRequest, "true", "action");
+      await controller.getInbox(mockRequest, {
+        includeBatched: "true",
+        mode: "action",
+      });
 
       expect(emailsService.getInbox).toHaveBeenCalledWith(
         userId,
@@ -208,7 +215,7 @@ describe("EmailsController", () => {
         hasMore: false,
       });
 
-      await controller.getInbox(mockRequest);
+      await controller.getInbox(mockRequest, {});
 
       expect(emailsService.getInbox).toHaveBeenCalledWith(
         userId,
@@ -230,9 +237,12 @@ describe("EmailsController", () => {
       const mockRequest = { user: { userId } };
 
       mockEmailsService.getInboxSummary
-        .mockResolvedValueOnce({ total: 10, categories: [] }) // triage
-        .mockResolvedValueOnce({ total: 5, categories: [] }) // action
-        .mockResolvedValueOnce({ total: 2, categories: [] }); // follow-up
+        // triage
+        .mockResolvedValueOnce({ total: 10, categories: [] })
+        // action
+        .mockResolvedValueOnce({ total: 5, categories: [] })
+        // follow-up
+        .mockResolvedValueOnce({ total: 2, categories: [] });
 
       const result = await controller.getTabCounts(mockRequest);
 
@@ -326,7 +336,7 @@ describe("EmailsController", () => {
       };
 
       mockEmailsService.getEmailById.mockResolvedValue(mockEmail);
-      mockEmailThreadRepository.findOne.mockResolvedValue(mockThread);
+      mockEmailAdminService.getEmailThreadById.mockResolvedValue(mockThread);
 
       const result = await controller.getEmail(mockRequest, emailId);
 
@@ -343,9 +353,10 @@ describe("EmailsController", () => {
           ],
         },
       });
-      expect(emailThreadRepository.findOne).toHaveBeenCalledWith({
-        where: { id: threadId, userId },
-      });
+      expect(mockEmailAdminService.getEmailThreadById).toHaveBeenCalledWith(
+        userId,
+        threadId,
+      );
     });
 
     it("should throw error when email not found", async () => {

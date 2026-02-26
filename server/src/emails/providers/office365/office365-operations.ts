@@ -2,6 +2,7 @@ import { Logger } from "@nestjs/common";
 import { AxiosInstance } from "axios";
 import { isApiError } from "../../../types/common";
 import { QUERY_LIMITS } from "../../../constants/query-limits";
+import { MicrosoftGraphMessage } from "./office365-message-parser";
 
 const logger = new Logger("Office365Operations");
 
@@ -172,7 +173,17 @@ export async function sendEmailViaOffice365(
   cc?: Array<{ email: string; name?: string }>,
   bcc?: Array<{ email: string; name?: string }>,
 ): Promise<{ messageId: string; threadId: string }> {
-  const message: any = {
+  interface Office365Recipient {
+    emailAddress: { address: string; name?: string };
+  }
+  interface Office365MessageBody {
+    subject: string;
+    body: { contentType: string; content: string };
+    toRecipients: Office365Recipient[];
+    ccRecipients?: Office365Recipient[];
+    bccRecipients?: Office365Recipient[];
+  }
+  const message: Office365MessageBody = {
     subject,
     body: {
       contentType: "HTML",
@@ -210,7 +221,8 @@ export async function sendEmailViaOffice365(
 
   // Microsoft Graph doesn't return messageId directly, so we'll use a generated one
   const messageId = `msg-${Date.now()}-${Math.random().toString(QUERY_LIMITS.RANDOM_BASE_36).substr(QUERY_LIMITS.RANDOM_STRING_START, QUERY_LIMITS.RANDOM_STRING_LENGTH)}`;
-  const threadId = messageId; // Microsoft uses conversationId, but we'll use messageId as fallback
+  // Microsoft uses conversationId, but we'll use messageId as fallback
+  const threadId = messageId;
 
   return { messageId, threadId };
 }
@@ -222,7 +234,7 @@ export async function searchEmailsViaOffice365(
   graphClient: AxiosInstance,
   query: string,
   maxResults: number,
-): Promise<any[]> {
+): Promise<MicrosoftGraphMessage[]> {
   // Microsoft Graph search syntax
   const searchQuery =
     query.includes("from:") || query.includes("subject:")
@@ -248,6 +260,6 @@ export function isAuthError(error: unknown): boolean {
   const apiError = isApiError(error) ? error : null;
   return (
     apiError?.code === 401 ||
-    (apiError?.response && (apiError.response as any).status === 401)
+    (apiError?.response && apiError.response.status === 401)
   );
 }

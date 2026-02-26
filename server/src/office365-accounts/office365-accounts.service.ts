@@ -14,7 +14,6 @@ export class Office365AccountsService {
     private usersService: UsersService,
   ) {}
 
-  // eslint-disable-next-line max-params
   async create(
     userId: string,
     microsoftId: string,

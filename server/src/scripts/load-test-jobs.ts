@@ -91,7 +91,6 @@ async function createBoss(): Promise<PgBoss> {
 }
 
 async function testConcurrentSyncs(boss: PgBoss): Promise<LoadTestResult> {
-  // eslint-disable-next-line no-console
   console.log("\n=== Testing Concurrent Email Syncs ===");
   const result: LoadTestResult = {
     scenario: "concurrent-syncs",
@@ -132,13 +131,10 @@ async function testConcurrentSyncs(boss: PgBoss): Promise<LoadTestResult> {
   result.endTime = Date.now();
   result.duration = result.endTime - result.startTime;
 
-  // eslint-disable-next-line no-console
   console.log(`Queued ${result.jobsQueued} sync jobs in ${result.duration}ms`);
   if (result.errors.length > 0) {
-    // eslint-disable-next-line no-console
     console.log(`Errors: ${result.errors.length}`);
     result.errors.forEach((err) => {
-      // eslint-disable-next-line no-console
       console.error(`  - ${err}`);
     });
   }
@@ -147,7 +143,6 @@ async function testConcurrentSyncs(boss: PgBoss): Promise<LoadTestResult> {
 }
 
 async function testPriorityBurst(boss: PgBoss): Promise<LoadTestResult> {
-  // eslint-disable-next-line no-console
   console.log("\n=== Testing Priority Refinement Burst ===");
   const result: LoadTestResult = {
     scenario: "priority-burst",
@@ -190,15 +185,12 @@ async function testPriorityBurst(boss: PgBoss): Promise<LoadTestResult> {
   result.endTime = Date.now();
   result.duration = result.endTime - result.startTime;
 
-  // eslint-disable-next-line no-console
   console.log(
     `Queued ${result.jobsQueued} priority refinement jobs in ${result.duration}ms`,
   );
   if (result.errors.length > 0) {
-    // eslint-disable-next-line no-console
     console.log(`Errors: ${result.errors.length}`);
     result.errors.forEach((err) => {
-      // eslint-disable-next-line no-console
       console.error(`  - ${err}`);
     });
   }
@@ -207,7 +199,6 @@ async function testPriorityBurst(boss: PgBoss): Promise<LoadTestResult> {
 }
 
 async function testMixedWorkload(boss: PgBoss): Promise<LoadTestResult> {
-  // eslint-disable-next-line no-console
   console.log("\n=== Testing Mixed Workload ===");
   const result: LoadTestResult = {
     scenario: "mixed-workload",
@@ -326,15 +317,12 @@ async function testMixedWorkload(boss: PgBoss): Promise<LoadTestResult> {
   result.endTime = Date.now();
   result.duration = result.endTime - result.startTime;
 
-  // eslint-disable-next-line no-console
   console.log(
     `Queued ${result.jobsQueued} mixed workload jobs in ${result.duration}ms`,
   );
   if (result.errors.length > 0) {
-    // eslint-disable-next-line no-console
     console.log(`Errors: ${result.errors.length}`);
     result.errors.forEach((err) => {
-      // eslint-disable-next-line no-console
       console.error(`  - ${err}`);
     });
   }
@@ -343,7 +331,6 @@ async function testMixedWorkload(boss: PgBoss): Promise<LoadTestResult> {
 }
 
 async function getQueueStats(boss: PgBoss): Promise<void> {
-  // eslint-disable-next-line no-console
   console.log("\n=== Current Queue Statistics ===");
 
   const queueNames = [
@@ -368,20 +355,20 @@ async function getQueueStats(boss: PgBoss): Promise<void> {
           }>;
         }
       ).getJobCounts?.(queueName);
-      // eslint-disable-next-line no-console
+
       console.log(`${queueName}:`);
-      // eslint-disable-next-line no-console
+
       console.log(`  Pending: ${counts?.pending || 0}`);
-      // eslint-disable-next-line no-console
+
       console.log(`  Active: ${counts?.active || 0}`);
-      // eslint-disable-next-line no-console
+
       console.log(`  Completed: ${counts?.completed || 0}`);
-      // eslint-disable-next-line no-console
+
       console.log(`  Failed: ${counts?.failed || 0}`);
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
-      // eslint-disable-next-line no-console
+
       console.error(`Failed to get stats for ${queueName}:`, errorMessage);
     }
   }
@@ -392,9 +379,8 @@ async function main() {
   const boss = await createBoss();
 
   try {
-    // eslint-disable-next-line no-console
     console.log("Starting load tests...");
-    // eslint-disable-next-line no-console
+
     console.log(`Scenario: ${scenario}`);
 
     // Get initial queue stats
@@ -415,7 +401,7 @@ async function main() {
     }
 
     // Wait a bit for jobs to process
-    // eslint-disable-next-line no-console
+
     console.log(
       `\nWaiting ${LOAD_TEST_CONFIG.JOB_PROCESSING_WAIT_MS / 1000} seconds for jobs to start processing...`,
     );
@@ -427,22 +413,20 @@ async function main() {
     await getQueueStats(boss);
 
     // Print summary
-    // eslint-disable-next-line no-console
+
     console.log("\n=== Test Summary ===");
     results.forEach((result) => {
-      // eslint-disable-next-line no-console
       console.log(`\n${result.scenario}:`);
-      // eslint-disable-next-line no-console
+
       console.log(`  Jobs queued: ${result.jobsQueued}`);
-      // eslint-disable-next-line no-console
+
       console.log(`  Duration: ${result.duration}ms`);
-      // eslint-disable-next-line no-console
+
       console.log(`  Errors: ${result.errors.length}`);
     });
 
-    // eslint-disable-next-line no-console
     console.log("\n✅ Load tests completed!");
-    // eslint-disable-next-line no-console
+
     console.log(
       "\nNote: Check queue-metrics.log and resource-metrics.log for detailed metrics.",
     );

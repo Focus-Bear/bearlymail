@@ -33,10 +33,9 @@ export class ContactsService {
   /**
    * Sync contacts from all connected providers
    */
-  // eslint-disable-next-line max-lines-per-function, max-statements
+
   async syncContacts(
     userId: string,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _fullSync: boolean = false,
   ): Promise<{ synced: number; provider: string }[]> {
     const results: { synced: number; provider: string }[] = [];

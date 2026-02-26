@@ -24,10 +24,13 @@ export class SnoozeProcessor implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    // Schedule snooze check every minute
     await this.boss.schedule("check-expired-snoozes", "* * * * *");
+    await this.registerSnoozeCheckWorker();
+    await this.registerUnsnoozeThreadWorker();
+    this.logger.log("Snooze processor initialized - checking every minute");
+  }
 
-    // Worker for checking and processing expired snoozes
+  private async registerSnoozeCheckWorker() {
     await this.boss.work("check-expired-snoozes", async (job) => {
       const workerId = job.id || "unknown";
       const tracker = new JobPerformanceTracker(
@@ -41,7 +44,6 @@ export class SnoozeProcessor implements OnModuleInit {
         tracker.startPhase("findExpiredSnoozes");
         const now = new Date();
 
-        // Find all threads with expired snoozes
         const expiredThreads = await this.emailThreadRepository.find({
           where: {
             isSnoozed: true,
@@ -59,7 +61,6 @@ export class SnoozeProcessor implements OnModuleInit {
         let jobsQueued = 0;
         for (const thread of expiredThreads) {
           try {
-            // Queue an unsnooze job for each expired thread
             await this.boss.send(
               "unsnooze-thread",
               { userId: thread.userId, threadId: thread.threadId },
@@ -90,8 +91,9 @@ export class SnoozeProcessor implements OnModuleInit {
         throw error;
       }
     });
+  }
 
-    // Worker for unsnoozing individual threads
+  private async registerUnsnoozeThreadWorker() {
     await this.boss.work("unsnooze-thread", { teamSize: 3 }, async (job) => {
       const { userId, threadId } = job.data as {
         userId: string;
@@ -112,7 +114,6 @@ export class SnoozeProcessor implements OnModuleInit {
       try {
         tracker.startPhase("unsnoozeInProvider");
 
-        // Unsnooze in the email provider (Gmail, etc.)
         const provider =
           await this.emailProviderManager.getPrimaryProvider(userId);
         if (provider) {
@@ -129,13 +130,11 @@ export class SnoozeProcessor implements OnModuleInit {
         tracker.endPhase("unsnoozeInProvider");
         tracker.startPhase("updateDatabase");
 
-        // Update the thread in the database
         await this.emailThreadRepository.update(
           { userId, threadId },
           { isSnoozed: false, snoozeUntil: null },
         );
 
-        // Also update emails for backward compatibility
         await this.emailRepository.update(
           { userId, threadId },
           { isSnoozed: false, snoozeUntil: null },
@@ -156,7 +155,5 @@ export class SnoozeProcessor implements OnModuleInit {
         throw error;
       }
     });
-
-    this.logger.log("Snooze processor initialized - checking every minute");
   }
 }

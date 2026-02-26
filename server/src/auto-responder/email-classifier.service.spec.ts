@@ -3,6 +3,10 @@ import { EmailClassifierService } from "./email-classifier.service";
 import { LLMService } from "../llm/llm.service";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 
+function hasReasonMatching(reasons: string[], pattern: string): boolean {
+  return reasons.some((r) => r.includes(pattern));
+}
+
 describe("EmailClassifierService", () => {
   let service: EmailClassifierService;
   let llmService: jest.Mocked<LLMService>;
@@ -113,7 +117,7 @@ describe("EmailClassifierService", () => {
 
         expect(result.isAutomated).toBe(true);
         expect(
-          result.reasons.some((r) => r.includes("Automated sender pattern")),
+          hasReasonMatching(result.reasons, "Automated sender pattern"),
         ).toBe(true);
       });
 
@@ -157,7 +161,7 @@ describe("EmailClassifierService", () => {
 
         expect(result.isAutomated).toBe(true);
         expect(
-          result.reasons.some((r) => r.includes("Automated subject pattern")),
+          hasReasonMatching(result.reasons, "Automated subject pattern"),
         ).toBe(true);
       });
 
@@ -226,7 +230,8 @@ Sales Person`,
 
         const result = await service.classifyEmail(
           {
-            from: "salesrep@company.com", // Not a newsletter sender pattern
+            // Not a newsletter sender pattern
+            from: "salesrep@company.com",
             subject: "Special offer for {{COMPANY_NAME}}",
             body: `Hello {FIRST_NAME},
 

@@ -61,7 +61,6 @@ export class SubscriptionsController {
 
   @Get("all-users")
   @UseGuards(JwtAuthGuard, AdminGuard)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async getAllUsers(@Request() _req) {
     return this.subscriptionsService.getAllUsersWithSubscriptions();
   }

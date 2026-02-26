@@ -194,14 +194,12 @@ export class ScheduledEmailsService {
   ): Promise<void> {
     const { userId } = scheduledEmail;
 
-    // Get user to append signature
     const user = await this.usersService.findOne(userId);
     const signature =
       user?.emailSignature ||
       "Sent from BearlyMail (anti inbox overwhelm system)";
     const bodyWithSignature = `${scheduledEmail.body}\n\n${signature}`;
 
-    // Convert base64 attachments back to buffers
     const attachments = scheduledEmail.attachments?.map((att) => ({
       filename: att.filename,
       mimeType: att.mimeType,
@@ -209,107 +207,21 @@ export class ScheduledEmailsService {
     }));
 
     if (scheduledEmail.emailType === "reply") {
-      // This is a reply to an existing email
-      if (!scheduledEmail.emailId || !scheduledEmail.threadId) {
-        throw new Error(
-          "emailId and threadId are required for reply type emails",
-        );
-      }
-
-      const email = await this.emailsService.getEmailById(
+      await this.sendScheduledReply(
+        scheduledEmail,
         userId,
-        scheduledEmail.emailId,
-      );
-      if (!email) {
-        throw new Error(
-          `Email ${scheduledEmail.emailId} not found for scheduled reply`,
-        );
-      }
-
-      // Get forward attachments if needed
-      const forwardAttachments: Array<{
-        filename: string;
-        mimeType: string;
-        content: Buffer;
-      }> = [];
-      if (
-        scheduledEmail.forwardAttachmentIds &&
-        scheduledEmail.forwardAttachmentIds.length > 0
-      ) {
-        for (const attachmentId of scheduledEmail.forwardAttachmentIds) {
-          try {
-            const attachment = await this.emailsService.getAttachment(
-              userId,
-              scheduledEmail.emailId,
-              attachmentId,
-            );
-            forwardAttachments.push({
-              filename: attachment.filename,
-              mimeType: attachment.mimeType,
-              content: attachment.data,
-            });
-          } catch (error) {
-            this.logger.warn(
-              `Failed to get forward attachment ${attachmentId}:`,
-              error,
-            );
-          }
-        }
-      }
-
-      // Combine attachments - all should be EmailAttachmentData format
-      const allAttachments = [...(attachments || []), ...forwardAttachments];
-
-      // Send reply via provider
-      const provider =
-        await this.emailProviderManager.getPrimaryProvider(userId);
-      if (!provider) {
-        throw new Error("No email provider connected");
-      }
-
-      // Extract first recipient email for provider API (expects string, not array)
-      const recipientEmail = scheduledEmail.to[0]?.email;
-      if (!recipientEmail) {
-        throw new Error("No recipient email found in scheduled email");
-      }
-
-      await provider.sendReply(
-        userId,
-        scheduledEmail.threadId,
-        recipientEmail,
-        scheduledEmail.subject,
         bodyWithSignature,
-        allAttachments.length > 0 ? allAttachments : undefined,
+        attachments,
       );
-
-      // Track follow-up if expectedReplyHours is set
-      if (scheduledEmail.expectedReplyHours) {
-        // This would integrate with the follow-ups service
-        // For now, we'll just log it
-        this.logger.log(
-          `Expected reply in ${scheduledEmail.expectedReplyHours} hours for scheduled email ${scheduledEmail.id}`,
-        );
-      }
     } else {
-      // This is a new email
-      const provider =
-        await this.emailProviderManager.getPrimaryProvider(userId);
-      if (!provider) {
-        throw new Error("No email provider connected");
-      }
-
-      await provider.sendEmail(
+      await this.sendScheduledNewEmail(
+        scheduledEmail,
         userId,
-        scheduledEmail.to,
-        scheduledEmail.subject,
         bodyWithSignature,
-        scheduledEmail.cc || undefined,
-        scheduledEmail.bcc || undefined,
         attachments,
       );
     }
 
-    // Track contact frequency for all recipients
     const allRecipients = [
       ...scheduledEmail.to,
       ...(scheduledEmail.cc || []),
@@ -322,12 +234,117 @@ export class ScheduledEmailsService {
       );
     }
 
-    // Mark as sent
     scheduledEmail.status = "sent";
     scheduledEmail.sentAt = new Date();
     await this.scheduledEmailRepository.save(scheduledEmail);
 
     this.logger.log(`Successfully sent scheduled email ${scheduledEmail.id}`);
+  }
+
+  private async sendScheduledReply(
+    scheduledEmail: ScheduledEmail,
+    userId: string,
+    bodyWithSignature: string,
+    attachments:
+      | Array<{ filename: string; mimeType: string; content: Buffer }>
+      | undefined,
+  ): Promise<void> {
+    if (!scheduledEmail.emailId || !scheduledEmail.threadId) {
+      throw new Error(
+        "emailId and threadId are required for reply type emails",
+      );
+    }
+
+    const email = await this.emailsService.getEmailById(
+      userId,
+      scheduledEmail.emailId,
+    );
+    if (!email) {
+      throw new Error(
+        `Email ${scheduledEmail.emailId} not found for scheduled reply`,
+      );
+    }
+
+    const forwardAttachments: Array<{
+      filename: string;
+      mimeType: string;
+      content: Buffer;
+    }> = [];
+
+    if (
+      scheduledEmail.forwardAttachmentIds &&
+      scheduledEmail.forwardAttachmentIds.length > 0
+    ) {
+      for (const attachmentId of scheduledEmail.forwardAttachmentIds) {
+        try {
+          const attachment = await this.emailsService.getAttachment(
+            userId,
+            scheduledEmail.emailId,
+            attachmentId,
+          );
+          forwardAttachments.push({
+            filename: attachment.filename,
+            mimeType: attachment.mimeType,
+            content: attachment.attachmentBuffer,
+          });
+        } catch (error) {
+          this.logger.warn(
+            `Failed to get forward attachment ${attachmentId}:`,
+            error,
+          );
+        }
+      }
+    }
+
+    const allAttachments = [...(attachments || []), ...forwardAttachments];
+    const provider = await this.emailProviderManager.getPrimaryProvider(userId);
+    if (!provider) {
+      throw new Error("No email provider connected");
+    }
+
+    const recipientEmail = scheduledEmail.to[0]?.email;
+    if (!recipientEmail) {
+      throw new Error("No recipient email found in scheduled email");
+    }
+
+    await provider.sendReply(
+      userId,
+      scheduledEmail.threadId,
+      recipientEmail,
+      scheduledEmail.subject,
+      bodyWithSignature,
+      { attachments: allAttachments.length > 0 ? allAttachments : undefined },
+    );
+
+    if (scheduledEmail.expectedReplyHours) {
+      this.logger.log(
+        `Expected reply in ${scheduledEmail.expectedReplyHours} hours for scheduled email ${scheduledEmail.id}`,
+      );
+    }
+  }
+
+  private async sendScheduledNewEmail(
+    scheduledEmail: ScheduledEmail,
+    userId: string,
+    bodyWithSignature: string,
+    attachments:
+      | Array<{ filename: string; mimeType: string; content: Buffer }>
+      | undefined,
+  ): Promise<void> {
+    const provider = await this.emailProviderManager.getPrimaryProvider(userId);
+    if (!provider) {
+      throw new Error("No email provider connected");
+    }
+
+    await provider.sendEmail(
+      userId,
+      scheduledEmail.to,
+      scheduledEmail.subject,
+      bodyWithSignature,
+      scheduledEmail.cc || undefined,
+      scheduledEmail.bcc || undefined,
+      attachments,
+    );
   }
 
   /**
@@ -351,7 +368,8 @@ export class ScheduledEmailsService {
 
     // Get current hour in user's timezone
     const currentHour = now.hour;
-    const currentDay = now.weekday % DAYS_IN_WEEK; // Convert ISO weekday (1=Mon) to JS weekday (0=Sun)
+    // Convert ISO weekday (1=Mon) to JS weekday (0=Sun)
+    const currentDay = now.weekday % DAYS_IN_WEEK;
 
     // Check if it's the weekend (Saturday or Sunday)
     const isWeekend = currentDay === SUNDAY || currentDay === SATURDAY;
@@ -453,7 +471,8 @@ export class ScheduledEmailsService {
     const sendTime = DateTime.fromJSDate(scheduledSendAt).setZone(timezone);
 
     const { hour } = sendTime;
-    const day = sendTime.weekday % DAYS_IN_WEEK; // Convert ISO weekday to JS weekday
+    // Convert ISO weekday to JS weekday
+    const day = sendTime.weekday % DAYS_IN_WEEK;
 
     const isWeekend = day === SUNDAY || day === SATURDAY;
     const isAfterHours =

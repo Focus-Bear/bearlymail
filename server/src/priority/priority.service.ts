@@ -67,238 +67,170 @@ export class PriorityService {
   /**
    * Calculate priority score with explanations
    */
-  // eslint-disable-next-line max-lines-per-function, complexity, max-statements
   calculatePriorityWithExplanation(
     email: Partial<Email>,
     contexts: UserContext[],
     daysSinceLastEmail?: number,
   ): PriorityExplanation {
-    let baseScore = 0;
+    const { baseScore, factors } = this.collectPriorityFactors(
+      email,
+      contexts,
+      daysSinceLastEmail,
+    );
+    const finalScore = this.applyUserPriorityOverride(
+      baseScore,
+      email.userPriorityOverride,
+      factors,
+    );
+    return this.buildPriorityExplanation(finalScore, factors, email);
+  }
+
+  private addFactorToScore(
+    baseScore: number,
+    factors: Array<{ type: string; description: string; contribution: number }>,
+    type: string,
+    result: { score: number; explanation: string },
+    shouldAdd: boolean,
+  ): number {
+    if (shouldAdd) {
+      factors.push({
+        type,
+        description: result.explanation,
+        contribution: result.score,
+      });
+      return baseScore + result.score;
+    }
+    return baseScore;
+  }
+
+  private collectPriorityFactors(
+    email: Partial<Email>,
+    contexts: UserContext[],
+    daysSinceLastEmail?: number,
+  ): {
+    baseScore: number;
+    factors: Array<{ type: string; description: string; contribution: number }>;
+  } {
     const factors: Array<{
       type: string;
       description: string;
       contribution: number;
     }> = [];
 
-    // VIP Contact boost
-    const vipContacts = contexts.filter(
-      (c) => c.contextKey === ContextKey.VIP_CONTACT,
+    const vipResult = this.calculateVipBoost(
+      email.from || "",
+      email.fromName || "",
+      contexts,
     );
-    const matchingVip = vipContacts.find(
-      (vip) =>
-        email.from?.toLowerCase().includes(vip.contextValue.toLowerCase()) ||
-        email.fromName?.toLowerCase().includes(vip.contextValue.toLowerCase()),
-    );
-    if (matchingVip) {
-      baseScore += PRIORITY_BOOSTS.VIP_CONTACT;
-      factors.push({
-        type: PRIORITY_FACTOR_TYPES.VIP_CONTACT,
-        description: `From VIP contact: ${matchingVip.contextValue}`,
-        contribution: PRIORITY_BOOSTS.VIP_CONTACT,
-      });
-    }
-
-    // Goal alignment - PRIMARY FACTOR (40% weight)
-    // Calculate explicit goal alignment score (0-100)
-    const goals = contexts.filter((c) => c.contextKey === ContextKey.MY_GOALS);
-    const emailText =
-      `${email.subject || ""} ${email.body || ""}`.toLowerCase();
-    const matchingGoals: string[] = [];
-    let goalAlignmentScore = 0;
-
-    if (goals.length > 0) {
-      for (const goal of goals) {
-        const keywords = goal.contextValue
-          .toLowerCase()
-          .split(/[,;]/)
-          .map((k) => k.trim())
-          .filter(Boolean);
-        if (keywords.some((keyword) => emailText.includes(keyword))) {
-          matchingGoals.push(goal.contextValue);
-        }
-      }
-      // Calculate goal alignment as percentage (0-100)
-      goalAlignmentScore =
-        goals.length > 0
-          ? Math.min(
-              100,
-              Math.round((matchingGoals.length / goals.length) * 100),
-            )
-          : 0;
-    }
-
-    // Apply weight to goal alignment
-    const goalAlignmentContribution = Math.round(
-      goalAlignmentScore * PRIORITY_WEIGHTS.GOAL_ALIGNMENT,
-    );
-    if (goalAlignmentContribution > 0) {
-      baseScore += goalAlignmentContribution;
-      factors.push({
-        type: PRIORITY_FACTOR_TYPES.GOAL_ALIGNMENT,
-        description:
-          matchingGoals.length > 0
-            ? `Aligned with goals: ${matchingGoals.join(", ")}`
-            : "No goal alignment",
-        contribution: goalAlignmentContribution,
-      });
-    }
-
-    // Working on / Current projects boost (weighted by priority)
-    const workingOn = contexts.filter(
-      (c) => c.contextKey === ContextKey.WORKING_ON,
-    );
-    for (const project of workingOn) {
-      const keywords = project.contextValue
-        .toLowerCase()
-        .split(/[,;]/)
-        .map((k) => k.trim())
-        .filter(Boolean);
-      if (keywords.some((keyword) => emailText.includes(keyword))) {
-        // Priority 1 = +15, Priority 2 = +10, Priority 3 = +5
-        let priorityBoost: number;
-        if (project.priority === 1) {
-          priorityBoost = PRIORITY_BOOSTS.PROJECT_PRIORITY_1;
-        } else if (project.priority === 2) {
-          priorityBoost = PRIORITY_BOOSTS.PROJECT_PRIORITY_2;
-        } else {
-          priorityBoost = PRIORITY_BOOSTS.PROJECT_PRIORITY_3;
-        }
-        baseScore += priorityBoost;
-        factors.push({
-          type: PRIORITY_FACTOR_TYPES.CURRENT_PROJECT,
-          description: `Related to current work: ${project.contextValue}`,
-          contribution: priorityBoost,
-        });
-        break;
-        // Only count one project match
-      }
-    }
-
-    // Don't care penalty
-    const dontCare = contexts.filter(
-      (c) => c.contextKey === ContextKey.DONT_CARE,
-    );
-    for (const item of dontCare) {
-      const keywords = item.contextValue
-        .toLowerCase()
-        .split(/[,;]/)
-        .map((k) => k.trim())
-        .filter(Boolean);
-      if (keywords.some((keyword) => emailText.includes(keyword))) {
-        baseScore += PRIORITY_BOOSTS.DONT_CARE_PENALTY;
-        factors.push({
-          type: PRIORITY_FACTOR_TYPES.NOT_IMPORTANT,
-          description: `Not important: ${item.contextValue}`,
-          contribution: PRIORITY_BOOSTS.DONT_CARE_PENALTY,
-        });
-        break;
-      }
-    }
-
-    // Sentiment analysis - PRIMARY FACTOR (30% weight)
-    // Use stored sentimentScore from email if available, otherwise analyze
-    let { sentimentScore } = email;
-    if (sentimentScore === undefined || sentimentScore === null) {
-      // Fallback to rule-based sentiment if not analyzed by LLM yet
-      sentimentScore = this.analyzeSentiment(email.body || "");
-    }
-
-    // Convert sentiment score (-1 to 1) to 0-100 scale
-    // Negative sentiment = high priority (higher score), positive = lower priority
-    // Map: -1 (very negative) -> 100, 0 (neutral) -> 50, 1 (very positive) -> 0
-    const sentimentScoreNormalized = Math.max(
-      PRIORITY_SCORES.MIN,
-      Math.min(
-        PRIORITY_SCORES.MAX,
-        PRIORITY_SCORES.NEUTRAL - sentimentScore * PRIORITY_SCORES.NEUTRAL,
-      ),
+    let baseScore = this.addFactorToScore(
+      0,
+      factors,
+      PRIORITY_FACTOR_TYPES.VIP_CONTACT,
+      vipResult,
+      vipResult.score !== 0,
     );
 
-    // Apply weight to sentiment
-    const sentimentContribution = Math.round(
-      sentimentScoreNormalized * PRIORITY_WEIGHTS.SENTIMENT,
+    const goalResult = this.calculateGoalAlignment(
+      email.subject || "",
+      email.body || "",
+      contexts,
     );
-    // Neutral sentiment contributes 15, so adjust to make neutral = 0 contribution
-    const sentimentAdjustment =
-      sentimentContribution - SENTIMENT_THRESHOLDS.NEUTRAL_CONTRIBUTION;
-    if (Math.abs(sentimentAdjustment) > 1) {
-      // Only show if significantly different from neutral
-      baseScore += sentimentAdjustment;
-      factors.push({
-        type: PRIORITY_FACTOR_TYPES.SENTIMENT,
-        description: (() => {
-          if (sentimentScore < SENTIMENT_THRESHOLDS.NEGATIVE) {
-            return `Negative/urgent sentiment (${sentimentScore.toFixed(2)})`;
-          } else if (sentimentScore < 0) {
-            return `Slightly negative sentiment (${sentimentScore.toFixed(2)})`;
-          } else if (sentimentScore > SENTIMENT_THRESHOLDS.POSITIVE) {
-            return `Positive sentiment (${sentimentScore.toFixed(2)})`;
-          } else {
-            return "Neutral sentiment";
-          }
-        })(),
-        contribution: Math.round(sentimentAdjustment),
-      });
-    }
+    baseScore = this.addFactorToScore(
+      baseScore,
+      factors,
+      PRIORITY_FACTOR_TYPES.GOAL_ALIGNMENT,
+      goalResult,
+      goalResult.score > 0,
+    );
 
-    // Job title score
-    const jobTitleScore = this.calculateJobTitleScore(
+    const projectResult = this.calculateProjectBoost(
+      email.subject || "",
+      email.body || "",
+      contexts,
+    );
+    baseScore = this.addFactorToScore(
+      baseScore,
+      factors,
+      PRIORITY_FACTOR_TYPES.CURRENT_PROJECT,
+      projectResult,
+      projectResult.score !== 0,
+    );
+
+    const dontCareResult = this.calculateDontCarePenalty(
+      email.subject || "",
+      email.body || "",
+      contexts,
+    );
+    baseScore = this.addFactorToScore(
+      baseScore,
+      factors,
+      PRIORITY_FACTOR_TYPES.NOT_IMPORTANT,
+      dontCareResult,
+      dontCareResult.score !== 0,
+    );
+
+    const sentimentResult = this.calculateSentimentScore(email);
+    baseScore = this.addFactorToScore(
+      baseScore,
+      factors,
+      PRIORITY_FACTOR_TYPES.SENTIMENT,
+      sentimentResult,
+      sentimentResult.score !== 0,
+    );
+
+    const jobTitleResult = this.calculateJobTitleBoost(
       email.senderJobTitle || "",
     );
-    if (jobTitleScore > 0) {
-      const jobBoost = jobTitleScore * PRIORITY_BOOSTS.JOB_TITLE_MULTIPLIER;
-      baseScore += jobBoost;
-      factors.push({
-        type: PRIORITY_FACTOR_TYPES.SENDER_ROLE,
-        description: `From ${email.senderJobTitle || "important role"}`,
-        contribution: Math.round(jobBoost),
-      });
-    }
+    baseScore = this.addFactorToScore(
+      baseScore,
+      factors,
+      PRIORITY_FACTOR_TYPES.SENDER_ROLE,
+      jobTitleResult,
+      jobTitleResult.score !== 0,
+    );
 
-    // Days since last email - exponential increase in priority
-    if (daysSinceLastEmail !== undefined && daysSinceLastEmail > 0) {
-      const daysBoost = Math.min(
-        PRIORITY_BOOSTS.MAX_DAYS_BOOST,
-        PRIORITY_WEIGHTS.DAYS_MULTIPLIER *
-          Math.pow(daysSinceLastEmail, PRIORITY_WEIGHTS.DAYS_EXPONENT),
-      );
-      baseScore += daysBoost;
-      if (daysBoost > PRIORITY_BOOSTS.PROJECT_PRIORITY_3) {
-        factors.push({
-          type: PRIORITY_FACTOR_TYPES.RECENCY,
-          description: `${Math.round(daysSinceLastEmail)} days since last email`,
-          contribution: Math.round(daysBoost),
-        });
-      }
-    }
+    const recencyResult = this.calculateRecencyBoost(daysSinceLastEmail);
+    baseScore = this.addFactorToScore(
+      baseScore,
+      factors,
+      PRIORITY_FACTOR_TYPES.RECENCY,
+      recencyResult,
+      recencyResult.score !== 0,
+    );
 
-    // Urgency is now determined by LLM and stored on EmailThread, not calculated here
+    return { baseScore, factors };
+  }
 
-    // Ensure score is between 0-100
-    let finalScore = Math.max(0, Math.min(100, baseScore));
-
-    // Factor in user override if present
-    if (
-      email.userPriorityOverride !== null &&
-      email.userPriorityOverride !== undefined
-    ) {
-      // If user has overridden, use their override but still show the calculated factors
-      // This allows the system to learn while respecting user's explicit choice
-      // Clamp the override to 0-100 range for safety
-      finalScore = Math.max(0, Math.min(100, email.userPriorityOverride));
+  private applyUserPriorityOverride(
+    baseScore: number,
+    userPriorityOverride: number | null | undefined,
+    factors: Array<{ type: string; description: string; contribution: number }>,
+  ): number {
+    const clampedBase = Math.max(0, Math.min(100, baseScore));
+    if (userPriorityOverride !== null && userPriorityOverride !== undefined) {
+      const finalScore = Math.max(0, Math.min(100, userPriorityOverride));
       factors.push({
         type: PRIORITY_FACTOR_TYPES.USER_OVERRIDE,
         description: "User manually set priority",
-        contribution: email.userPriorityOverride - baseScore,
+        contribution: userPriorityOverride - baseScore,
       });
+      return finalScore;
     }
+    return clampedBase;
+  }
 
+  private buildPriorityExplanation(
+    finalScore: number,
+    factors: Array<{ type: string; description: string; contribution: number }>,
+    email: Partial<Email>,
+  ): PriorityExplanation {
     // Build breakdown format for UI compatibility
     const breakdown: Array<{
       factor: string;
       value: number;
       description: string;
     }> = [];
+
     // Get sentiment score and type for dimensions
     const emailSentimentScore = email.sentimentScore ?? 0;
     let sentimentType: "negative" | "positive" | "neutral";
@@ -366,6 +298,230 @@ export class PriorityService {
       breakdown,
       // Show all breakdown items so they add up to the score
       dimensions,
+    };
+  }
+
+  private calculateVipBoost(
+    fromEmail: string,
+    fromName: string,
+    contexts: UserContext[],
+  ): { score: number; explanation: string } {
+    const vipContacts = contexts.filter(
+      (c) => c.contextKey === ContextKey.VIP_CONTACT,
+    );
+    const matchingVip = vipContacts.find(
+      (vip) =>
+        fromEmail.toLowerCase().includes(vip.contextValue.toLowerCase()) ||
+        fromName.toLowerCase().includes(vip.contextValue.toLowerCase()),
+    );
+    if (matchingVip) {
+      return {
+        score: PRIORITY_BOOSTS.VIP_CONTACT,
+        explanation: `From VIP contact: ${matchingVip.contextValue}`,
+      };
+    }
+    return { score: 0, explanation: "" };
+  }
+
+  private calculateGoalAlignment(
+    subject: string,
+    body: string,
+    contexts: UserContext[],
+  ): { score: number; explanation: string } {
+    const goals = contexts.filter((c) => c.contextKey === ContextKey.MY_GOALS);
+    if (goals.length === 0) {
+      return { score: 0, explanation: "" };
+    }
+
+    const emailText = `${subject} ${body}`.toLowerCase();
+    const matchingGoals: string[] = [];
+
+    for (const goal of goals) {
+      const keywords = goal.contextValue
+        .toLowerCase()
+        .split(/[,;]/)
+        .map((k) => k.trim())
+        .filter(Boolean);
+      if (keywords.some((keyword) => emailText.includes(keyword))) {
+        matchingGoals.push(goal.contextValue);
+      }
+    }
+
+    // Calculate goal alignment as percentage (0-100)
+    const goalAlignmentScore = Math.min(
+      100,
+      Math.round((matchingGoals.length / goals.length) * 100),
+    );
+
+    // Apply weight to goal alignment
+    const contribution = Math.round(
+      goalAlignmentScore * PRIORITY_WEIGHTS.GOAL_ALIGNMENT,
+    );
+    if (contribution <= 0) {
+      return { score: 0, explanation: "" };
+    }
+
+    const explanation =
+      matchingGoals.length > 0
+        ? `Aligned with goals: ${matchingGoals.join(", ")}`
+        : "No goal alignment";
+
+    return { score: contribution, explanation };
+  }
+
+  private calculateProjectBoost(
+    subject: string,
+    body: string,
+    contexts: UserContext[],
+  ): { score: number; explanation: string } {
+    const workingOn = contexts.filter(
+      (c) => c.contextKey === ContextKey.WORKING_ON,
+    );
+    const emailText = `${subject} ${body}`.toLowerCase();
+
+    for (const project of workingOn) {
+      const keywords = project.contextValue
+        .toLowerCase()
+        .split(/[,;]/)
+        .map((k) => k.trim())
+        .filter(Boolean);
+      if (keywords.some((keyword) => emailText.includes(keyword))) {
+        // Priority 1 = +15, Priority 2 = +10, Priority 3 = +5
+        let priorityBoost: number;
+        if (project.priority === 1) {
+          priorityBoost = PRIORITY_BOOSTS.PROJECT_PRIORITY_1;
+        } else if (project.priority === 2) {
+          priorityBoost = PRIORITY_BOOSTS.PROJECT_PRIORITY_2;
+        } else {
+          priorityBoost = PRIORITY_BOOSTS.PROJECT_PRIORITY_3;
+        }
+        return {
+          score: priorityBoost,
+          explanation: `Related to current work: ${project.contextValue}`,
+        };
+        // Only count one project match
+      }
+    }
+
+    return { score: 0, explanation: "" };
+  }
+
+  private calculateDontCarePenalty(
+    subject: string,
+    body: string,
+    contexts: UserContext[],
+  ): { score: number; explanation: string } {
+    const dontCare = contexts.filter(
+      (c) => c.contextKey === ContextKey.DONT_CARE,
+    );
+    const emailText = `${subject} ${body}`.toLowerCase();
+
+    for (const item of dontCare) {
+      const keywords = item.contextValue
+        .toLowerCase()
+        .split(/[,;]/)
+        .map((k) => k.trim())
+        .filter(Boolean);
+      if (keywords.some((keyword) => emailText.includes(keyword))) {
+        return {
+          score: PRIORITY_BOOSTS.DONT_CARE_PENALTY,
+          explanation: `Not important: ${item.contextValue}`,
+        };
+      }
+    }
+
+    return { score: 0, explanation: "" };
+  }
+
+  private calculateSentimentScore(email: Partial<Email>): {
+    score: number;
+    explanation: string;
+  } {
+    // Sentiment analysis - PRIMARY FACTOR (30% weight)
+    // Use stored sentimentScore from email if available, otherwise analyze
+    let { sentimentScore } = email;
+    if (sentimentScore === undefined || sentimentScore === null) {
+      // Fallback to rule-based sentiment if not analyzed by LLM yet
+      sentimentScore = this.analyzeSentiment(email.body || "");
+    }
+
+    // Convert sentiment score (-1 to 1) to 0-100 scale
+    // Negative sentiment = high priority (higher score), positive = lower priority
+    // Map: -1 (very negative) -> 100, 0 (neutral) -> 50, 1 (very positive) -> 0
+    const sentimentScoreNormalized = Math.max(
+      PRIORITY_SCORES.MIN,
+      Math.min(
+        PRIORITY_SCORES.MAX,
+        PRIORITY_SCORES.NEUTRAL - sentimentScore * PRIORITY_SCORES.NEUTRAL,
+      ),
+    );
+
+    // Apply weight to sentiment
+    const sentimentContribution = Math.round(
+      sentimentScoreNormalized * PRIORITY_WEIGHTS.SENTIMENT,
+    );
+    // Neutral sentiment contributes 15, so adjust to make neutral = 0 contribution
+    const sentimentAdjustment =
+      sentimentContribution - SENTIMENT_THRESHOLDS.NEUTRAL_CONTRIBUTION;
+
+    if (Math.abs(sentimentAdjustment) <= 1) {
+      // Only show if significantly different from neutral
+      return { score: 0, explanation: "" };
+    }
+
+    let explanation: string;
+    if (sentimentScore < SENTIMENT_THRESHOLDS.NEGATIVE) {
+      explanation = `Negative/urgent sentiment (${sentimentScore.toFixed(2)})`;
+    } else if (sentimentScore < 0) {
+      explanation = `Slightly negative sentiment (${sentimentScore.toFixed(2)})`;
+    } else if (sentimentScore > SENTIMENT_THRESHOLDS.POSITIVE) {
+      explanation = `Positive sentiment (${sentimentScore.toFixed(2)})`;
+    } else {
+      explanation = "Neutral sentiment";
+    }
+
+    return { score: Math.round(sentimentAdjustment), explanation };
+  }
+
+  private calculateJobTitleBoost(senderJobTitle: string): {
+    score: number;
+    explanation: string;
+  } {
+    const jobTitleScore = this.calculateJobTitleScore(senderJobTitle);
+    if (jobTitleScore <= 0) {
+      return { score: 0, explanation: "" };
+    }
+    const jobBoost = Math.round(
+      jobTitleScore * PRIORITY_BOOSTS.JOB_TITLE_MULTIPLIER,
+    );
+    return {
+      score: jobBoost,
+      explanation: `From ${senderJobTitle || "important role"}`,
+    };
+  }
+
+  private calculateRecencyBoost(daysSinceLastEmail?: number): {
+    score: number;
+    explanation: string;
+  } {
+    if (daysSinceLastEmail === undefined || daysSinceLastEmail <= 0) {
+      return { score: 0, explanation: "" };
+    }
+
+    // Days since last email - exponential increase in priority
+    const daysBoost = Math.min(
+      PRIORITY_BOOSTS.MAX_DAYS_BOOST,
+      PRIORITY_WEIGHTS.DAYS_MULTIPLIER *
+        Math.pow(daysSinceLastEmail, PRIORITY_WEIGHTS.DAYS_EXPONENT),
+    );
+
+    if (daysBoost <= PRIORITY_BOOSTS.PROJECT_PRIORITY_3) {
+      return { score: 0, explanation: "" };
+    }
+
+    return {
+      score: Math.round(daysBoost),
+      explanation: `${Math.round(daysSinceLastEmail)} days since last email`,
     };
   }
 

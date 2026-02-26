@@ -6,6 +6,7 @@ import { GitHubService } from "./github.service";
 import { GitHubApiService } from "./github-api.service";
 import { GitHubAppService } from "./github-app.service";
 import { GitHubRepoMappingService } from "./github-repo-mapping.service";
+import { GitHubEmailInfoService } from "./github-email-info.service";
 import { UsersService } from "../users/users.service";
 import { EmailsService } from "../emails/emails.service";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -68,6 +69,12 @@ describe("GitHubController - getAdminDebugInfo", () => {
     getDefaultForUser: jest.fn(),
   };
 
+  const mockGitHubEmailInfoService = {
+    getEmailGitHubInfo: jest.fn(),
+    refreshEmailGitHubInfo: jest.fn(),
+    getThreadMetadataByEmailIds: jest.fn(),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -92,6 +99,10 @@ describe("GitHubController - getAdminDebugInfo", () => {
           provide: GitHubRepoMappingService,
           useValue: mockRepoMappingService,
         },
+        {
+          provide: GitHubEmailInfoService,
+          useValue: mockGitHubEmailInfoService,
+        },
       ],
     }).compile();
 
@@ -108,12 +119,18 @@ describe("GitHubController - getAdminDebugInfo", () => {
     recentThreadRows: unknown[] = [],
   ) => {
     mockExecuteSql
-      .mockResolvedValueOnce({ rows: [{ count: usersCount }] }) // users with token
-      .mockResolvedValueOnce({ rows: [{ count: threadsCount }] }) // threads with metadata
-      .mockResolvedValueOnce({ rows: jobStatsRows }) // job stats
-      .mockResolvedValueOnce({ rows: failedJobRows }) // recent failed jobs
-      .mockResolvedValueOnce({ rows: [{ completedCount }] }) // archive stats
-      .mockResolvedValueOnce({ rows: recentThreadRows }); // recent threads for silent failures
+      // users with token
+      .mockResolvedValueOnce({ rows: [{ count: usersCount }] })
+      // threads with metadata
+      .mockResolvedValueOnce({ rows: [{ count: threadsCount }] })
+      // job stats
+      .mockResolvedValueOnce({ rows: jobStatsRows })
+      // recent failed jobs
+      .mockResolvedValueOnce({ rows: failedJobRows })
+      // archive stats
+      .mockResolvedValueOnce({ rows: [{ completedCount }] })
+      // recent threads for silent failures
+      .mockResolvedValueOnce({ rows: recentThreadRows });
   };
 
   it("should return debug info with correct structure", async () => {
@@ -148,7 +165,7 @@ describe("GitHubController - getAdminDebugInfo", () => {
   it("should include failed job details in recentFailedJobs", async () => {
     const mockFailedJob = {
       id: "job-uuid-1234-5678",
-      data: { userId: "user-1", emailId: "email-1", threadId: "thread-1" },
+      job_data: { userId: "user-1", emailId: "email-1", threadId: "thread-1" },
       output: { message: "GitHub token is invalid or expired" },
       createdon: "2026-02-20T10:00:00Z",
       completedon: null,
@@ -308,6 +325,11 @@ describe("GitHubController - testUserToken", () => {
     remove: jest.fn(),
     getDefaultForUser: jest.fn(),
   };
+  const mockGitHubEmailInfoService = {
+    getEmailGitHubInfo: jest.fn(),
+    refreshEmailGitHubInfo: jest.fn(),
+    getThreadMetadataByEmailIds: jest.fn(),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -327,6 +349,10 @@ describe("GitHubController - testUserToken", () => {
         { provide: GitHubApiService, useValue: mockGitHubApiService },
         { provide: GitHubAppService, useValue: mockGitHubAppService },
         { provide: GitHubRepoMappingService, useValue: mockRepoMappingService },
+        {
+          provide: GitHubEmailInfoService,
+          useValue: mockGitHubEmailInfoService,
+        },
       ],
     }).compile();
 
@@ -460,6 +486,11 @@ describe("GitHubController - getMyConnectionStatus", () => {
     remove: jest.fn(),
     getDefaultForUser: jest.fn(),
   };
+  const mockGitHubEmailInfoService = {
+    getEmailGitHubInfo: jest.fn(),
+    refreshEmailGitHubInfo: jest.fn(),
+    getThreadMetadataByEmailIds: jest.fn(),
+  };
 
   const mockReq = { user: { userId: "user-1" } };
 
@@ -481,6 +512,10 @@ describe("GitHubController - getMyConnectionStatus", () => {
         { provide: GitHubApiService, useValue: mockGitHubApiService },
         { provide: GitHubAppService, useValue: mockGitHubAppService },
         { provide: GitHubRepoMappingService, useValue: mockRepoMappingService },
+        {
+          provide: GitHubEmailInfoService,
+          useValue: mockGitHubEmailInfoService,
+        },
       ],
     }).compile();
 
@@ -666,6 +701,11 @@ describe("GitHubController - createConnectToken", () => {
     remove: jest.fn(),
     getDefaultForUser: jest.fn(),
   };
+  const mockGitHubEmailInfoService = {
+    getEmailGitHubInfo: jest.fn(),
+    refreshEmailGitHubInfo: jest.fn(),
+    getThreadMetadataByEmailIds: jest.fn(),
+  };
 
   const mockReq = { user: { userId: "user-1" } };
 
@@ -688,6 +728,10 @@ describe("GitHubController - createConnectToken", () => {
         { provide: GitHubApiService, useValue: mockGitHubApiService },
         { provide: GitHubAppService, useValue: mockGitHubAppService },
         { provide: GitHubRepoMappingService, useValue: mockRepoMappingService },
+        {
+          provide: GitHubEmailInfoService,
+          useValue: mockGitHubEmailInfoService,
+        },
       ],
     }).compile();
 

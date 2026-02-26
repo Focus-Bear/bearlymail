@@ -83,14 +83,14 @@ export class EmailProviderManager {
     userId: string,
     syncWindowHoursOrOptions?: number | SyncEmailsOptions,
   ): Promise<void> {
-    const label =
-      typeof syncWindowHoursOrOptions === "number"
-        ? `${syncWindowHoursOrOptions}h window`
-        : syncWindowHoursOrOptions?.noDateFilter
-          ? "no date filter"
-          : syncWindowHoursOrOptions?.syncWindowHours
-            ? `${syncWindowHoursOrOptions.syncWindowHours}h window`
-            : "";
+    let label = "";
+    if (typeof syncWindowHoursOrOptions === "number") {
+      label = `${syncWindowHoursOrOptions}h window`;
+    } else if (syncWindowHoursOrOptions?.noDateFilter) {
+      label = "no date filter";
+    } else if (syncWindowHoursOrOptions?.syncWindowHours) {
+      label = `${syncWindowHoursOrOptions.syncWindowHours}h window`;
+    }
     for (const [providerType, provider] of this.providers.entries()) {
       if (await provider.isConnected(userId)) {
         try {

@@ -96,7 +96,6 @@ export class UsersController {
   @Get("me")
   async getProfile(@Request() req) {
     const user = await this.usersService.findOne(req.user.userId);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password: _password, ...result } = user;
     return result;
   }
@@ -155,15 +154,15 @@ export class UsersController {
   @Post("me/import")
   async importData(
     @Request() req,
-    @Body() body: { data: unknown; options?: Partial<ImportOptions> },
+    @Body() body: { importPayload: unknown; options?: Partial<ImportOptions> },
   ) {
-    if (!body.data) {
+    if (!body.importPayload) {
       throw new BadRequestException("Missing import data");
     }
 
     const result = await this.dataImportService.importUserData(
       req.user.userId,
-      body.data,
+      body.importPayload,
       body.options,
     );
 

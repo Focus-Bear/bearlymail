@@ -262,7 +262,8 @@ describe("PriorityService", () => {
       const email: Partial<Email> = {
         subject: "Urgent issue",
         body: "We have a critical problem that needs immediate attention",
-        sentimentScore: -0.5, // Negative sentiment
+        // Negative sentiment
+        sentimentScore: -0.5,
       };
       const contexts: UserContext[] = [];
 
@@ -279,7 +280,8 @@ describe("PriorityService", () => {
       const email: Partial<Email> = {
         subject: "Great news",
         body: "Everything is going well!",
-        sentimentScore: 0.5, // Positive sentiment
+        // Positive sentiment
+        sentimentScore: 0.5,
       };
       const contexts: UserContext[] = [];
 
@@ -292,7 +294,8 @@ describe("PriorityService", () => {
       const email: Partial<Email> = {
         subject: "Update",
         body: "Here is an update",
-        sentimentScore: 0, // Neutral
+        // Neutral
+        sentimentScore: 0,
       };
       const contexts: UserContext[] = [];
 
@@ -339,7 +342,8 @@ describe("PriorityService", () => {
       const email: Partial<Email> = {
         subject: "Test",
         body: "Test body",
-        userPriorityOverride: 150, // Over 100
+        // Over 100
+        userPriorityOverride: 150,
       };
       const contexts: UserContext[] = [];
 

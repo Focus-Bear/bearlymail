@@ -82,6 +82,7 @@ describe("WaitlistService", () => {
     emailService = module.get(EmailService);
     configService = module.get(ConfigService);
     jest.clearAllMocks();
+
     mockedAxios.post.mockResolvedValue({ data: {} });
   });
 

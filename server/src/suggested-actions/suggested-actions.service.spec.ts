@@ -18,8 +18,6 @@ describe("SuggestedActionsService", () => {
   let emailsService: EmailsService;
   let usersService: UsersService;
   let llmService: LLMService;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  let githubService: GitHubService;
 
   const mockEmailsService = {
     getEmailById: jest.fn(),
@@ -118,7 +116,6 @@ describe("SuggestedActionsService", () => {
     emailsService = module.get<EmailsService>(EmailsService);
     usersService = module.get<UsersService>(UsersService);
     llmService = module.get<LLMService>(LLMService);
-    githubService = module.get<GitHubService>(GitHubService);
   });
 
   afterEach(() => {

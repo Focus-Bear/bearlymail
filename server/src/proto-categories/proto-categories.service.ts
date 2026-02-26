@@ -182,7 +182,8 @@ export class ProtoCategoriesService {
       {
         category: protoCategory.name,
         categoryExplanation: `Promoted from proto category: ${protoCategory.description || "No description"}`,
-        protoCategoryId: null, // Clear proto category reference
+        // Clear proto category reference
+        protoCategoryId: null,
       },
     );
 

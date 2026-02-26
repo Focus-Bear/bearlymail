@@ -7,6 +7,7 @@ import {
   RawEmailMessage,
   EmailRecipient,
   EmailAttachmentData,
+  SendReplyOptions,
 } from "../interfaces/email-provider.interface";
 import PgBoss from "pg-boss";
 import { getJobPriority } from "../../queue/job-priorities";
@@ -14,6 +15,9 @@ import { QUERY_LIMITS } from "../../constants/query-limits";
 import { BODY_PREVIEW_LENGTHS } from "../../constants/llm-constants";
 import { DAYS } from "../../constants/time-constants";
 import { isApiError, isError } from "../../types/common";
+import { User } from "../../database/entities/user.entity";
+import { Office365Account } from "../../database/entities/office365-account.entity";
+import { AxiosInstance } from "axios";
 import { Office365AccountsService } from "../../office365-accounts/office365-accounts.service";
 import { ConfigService } from "@nestjs/config";
 import {
@@ -30,27 +34,28 @@ import {
   getExistingThreadUpdates,
 } from "./office365/office365-sync";
 import {
-  archiveThreadInOffice365,
-  unarchiveThreadInOffice365,
-  sendReplyViaOffice365,
-  sendEmailViaOffice365,
-  searchEmailsViaOffice365,
-  isAuthError,
-} from "./office365/office365-operations";
+  archiveThread,
+  searchEmails,
+  sendEmail,
+  sendReply,
+  trashThread,
+  unarchiveThread,
+} from "./office365/office365-actions.service";
+import { isAuthError } from "./office365/office365-operations";
 
 @Injectable()
 export class Office365Provider implements EmailProvider {
-  private readonly logger = new Logger(Office365Provider.name);
+  public readonly logger = new Logger(Office365Provider.name);
   private readonly progressUpdateCounters = new Map<string, number>();
-  private readonly client: Office365Client;
+  public readonly client: Office365Client;
 
   constructor(
     private usersService: UsersService,
     @Inject(forwardRef(() => EmailsService))
-    private emailsService: EmailsService,
+    public emailsService: EmailsService,
     private scanEmailService: ScanEmailService,
     @Inject("PG_BOSS") private readonly boss: PgBoss,
-    private office365AccountsService: Office365AccountsService,
+    public office365AccountsService: Office365AccountsService,
     private configService: ConfigService,
   ) {
     this.client = new Office365Client(office365AccountsService, configService);
@@ -133,8 +138,8 @@ export class Office365Provider implements EmailProvider {
 
   private async handleMissingRefreshToken(
     userId: string,
-    user: any,
-    primaryAccount: any,
+    user: User,
+    primaryAccount: Office365Account,
     isRecentLogin: boolean,
   ): Promise<never> {
     await logAuthFailure(
@@ -170,11 +175,11 @@ export class Office365Provider implements EmailProvider {
 
   private async handleTokenValidationError(
     userId: string,
-    user: any,
-    primaryAccount: any,
+    user: User,
+    primaryAccount: Office365Account,
     refreshError: unknown,
   ): Promise<never> {
-    let currentAccount = primaryAccount;
+    let currentAccount: Office365Account | null = primaryAccount;
     try {
       currentAccount = await this.office365AccountsService.findPrimary(userId);
     } catch (accountError) {
@@ -184,6 +189,7 @@ export class Office365Provider implements EmailProvider {
       );
     }
 
+    const resolvedAccount = currentAccount || primaryAccount;
     const isRecentLoginNow = isWithinGracePeriod(user);
     await logAuthFailure(
       userId,
@@ -191,8 +197,8 @@ export class Office365Provider implements EmailProvider {
       "syncEmails-tokenValidation",
       refreshError,
       {
-        hasRefreshToken: !!currentAccount?.refreshToken,
-        hasAccessToken: !!currentAccount?.accessToken,
+        hasRefreshToken: !!resolvedAccount?.refreshToken,
+        hasAccessToken: !!resolvedAccount?.accessToken,
         isRecentLogin: isRecentLoginNow,
         gracePeriodActive: isRecentLoginNow,
       },
@@ -200,9 +206,9 @@ export class Office365Provider implements EmailProvider {
 
     if (!isRecentLoginNow) {
       await this.office365AccountsService.updateTokens(
-        currentAccount.id,
+        resolvedAccount.id,
         userId,
-        currentAccount.accessToken,
+        resolvedAccount.accessToken,
         undefined,
       );
       throw new Error("Token validation failed - please log in again");
@@ -214,7 +220,7 @@ export class Office365Provider implements EmailProvider {
 
   private async performSync(
     userId: string,
-    graphClient: any,
+    graphClient: AxiosInstance,
     isInitialSync: boolean,
   ): Promise<void> {
     const [inboxResponse, importantResponse] = await Promise.all([
@@ -275,8 +281,8 @@ export class Office365Provider implements EmailProvider {
   private async processConversations(
     userId: string,
     conversationMap: Map<string, MicrosoftGraphMessage[]>,
-    inboxMessages: any[],
-    graphClient: any,
+    inboxMessages: MicrosoftGraphMessage[],
+    graphClient: AxiosInstance,
     isInitialSync: boolean,
   ): Promise<{
     starUpdates: { threadId: string; starCount: number }[];
@@ -332,9 +338,9 @@ export class Office365Provider implements EmailProvider {
 
   private async processMessage(
     userId: string,
-    message: any,
+    message: MicrosoftGraphMessage,
     conversationId: string,
-    graphClient: any,
+    graphClient: AxiosInstance,
     starCount: number,
     isInitialSync: boolean,
   ): Promise<void> {
@@ -378,11 +384,8 @@ export class Office365Provider implements EmailProvider {
         `Conversation ${conversationId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... not found`,
       );
     } else {
-      const errorMsg = isError(error)
-        ? error.message
-        : isApiError(error)
-          ? error.message
-          : "Unknown error";
+      const errorMsg =
+        isError(error) || isApiError(error) ? error.message : "Unknown error";
       this.logger.warn(
         `Error processing conversation ${conversationId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}...`,
         errorMsg,
@@ -413,8 +416,8 @@ export class Office365Provider implements EmailProvider {
 
   private async checkExistingStarredThreads(
     userId: string,
-    conversationMap: Map<string, any>,
-    graphClient: any,
+    conversationMap: Map<string, MicrosoftGraphMessage[]>,
+    graphClient: AxiosInstance,
   ): Promise<void> {
     const existingStarredThreads =
       await this.emailsService.getExistingStarredThreads(userId);
@@ -446,8 +449,8 @@ export class Office365Provider implements EmailProvider {
 
   private async checkNonArchivedThreads(
     userId: string,
-    conversationMap: Map<string, any>,
-    graphClient: any,
+    conversationMap: Map<string, MicrosoftGraphMessage[]>,
+    graphClient: AxiosInstance,
   ): Promise<void> {
     const threadsNeedingCheck =
       await this.emailsService.getNonArchivedThreadsNeedingCheck(
@@ -490,24 +493,24 @@ export class Office365Provider implements EmailProvider {
 
   private async handleSyncError(
     userId: string,
-    user: any,
-    primaryAccount: any,
+    user: User,
+    primaryAccount: Office365Account,
     error: unknown,
   ): Promise<never> {
     const apiError = isApiError(error) ? error : null;
     const errorMsg = isError(error) ? error.message : apiError?.message || "";
     const isAuthErrorFlag =
       apiError?.code === 401 ||
-      (apiError?.response && (apiError.response as any).status === 401) ||
+      (apiError?.response && apiError.response.status === 401) ||
       errorMsg.includes("Token refresh failed");
 
     if (isAuthErrorFlag) {
-      let currentUser = user;
+      let currentUser: User | null = user;
       try {
         currentUser = await this.usersService.findOne(userId);
       } catch {}
 
-      const isRecentLogin = isWithinGracePeriod(currentUser);
+      const isRecentLogin = isWithinGracePeriod(currentUser || user);
       await logAuthFailure(
         userId,
         currentUser?.email || null,
@@ -699,46 +702,9 @@ export class Office365Provider implements EmailProvider {
     to: string,
     subject: string,
     body: string,
-    attachments?: EmailAttachmentData[],
-    htmlBody?: string,
-    cc?: string,
+    options?: SendReplyOptions,
   ): Promise<{ messageId: string; threadId: string }> {
-    const primaryAccount =
-      await this.office365AccountsService.findPrimary(userId);
-    if (!primaryAccount) throw new Error("Office 365 account not connected.");
-
-    let { accessToken } = primaryAccount;
-    const graphClient = this.client.createGraphClient(accessToken);
-
-    try {
-      const result = await sendReplyViaOffice365(
-        graphClient,
-        to,
-        subject,
-        htmlBody || body,
-        cc,
-      );
-      this.logger.log(`Reply sent for user ${userId} to ${to}`);
-      return { messageId: result.messageId, threadId };
-    } catch (error: unknown) {
-      if (isAuthError(error)) {
-        accessToken = await this.client.refreshTokenIfNeeded(
-          userId,
-          primaryAccount.id,
-        );
-        return this.sendReply(
-          userId,
-          threadId,
-          to,
-          subject,
-          body,
-          attachments,
-          htmlBody,
-          cc,
-        );
-      }
-      throw new Error("Failed to send reply");
-    }
+    return sendReply(this, userId, threadId, to, subject, body, options);
   }
 
   async sendEmail(
@@ -748,34 +714,9 @@ export class Office365Provider implements EmailProvider {
     body: string,
     cc?: EmailRecipient[],
     bcc?: EmailRecipient[],
-    _attachments?: EmailAttachmentData[], // eslint-disable-line @typescript-eslint/no-unused-vars
+    _attachments?: EmailAttachmentData[],
   ): Promise<{ messageId: string; threadId: string }> {
-    const primaryAccount =
-      await this.office365AccountsService.findPrimary(userId);
-    if (!primaryAccount) throw new Error("Office 365 account not connected.");
-
-    let { accessToken } = primaryAccount;
-    const graphClient = this.client.createGraphClient(accessToken);
-
-    try {
-      return await sendEmailViaOffice365(
-        graphClient,
-        to,
-        subject,
-        body,
-        cc,
-        bcc,
-      );
-    } catch (error: unknown) {
-      if (isAuthError(error)) {
-        accessToken = await this.client.refreshTokenIfNeeded(
-          userId,
-          primaryAccount.id,
-        );
-        return this.sendEmail(userId, to, subject, body, cc, bcc);
-      }
-      throw new Error("Failed to send email");
-    }
+    return sendEmail(this, userId, to, subject, body, cc, bcc, _attachments);
   }
 
   async searchEmails(
@@ -783,98 +724,21 @@ export class Office365Provider implements EmailProvider {
     query: string,
     maxResults = 50,
   ): Promise<RawEmailMessage[]> {
-    const primaryAccount =
-      await this.office365AccountsService.findPrimary(userId);
-    if (!primaryAccount) return [];
-
-    let { accessToken } = primaryAccount;
-    const graphClient = this.client.createGraphClient(accessToken);
-
-    try {
-      const messages = await searchEmailsViaOffice365(
-        graphClient,
-        query,
-        maxResults,
-      );
-      return messages
-        .map((msg) => parseOffice365Message(msg))
-        .filter((msg): msg is RawEmailMessage => msg !== null);
-    } catch (error: unknown) {
-      if (isAuthError(error)) {
-        accessToken = await this.client.refreshTokenIfNeeded(
-          userId,
-          primaryAccount.id,
-        );
-        return this.searchEmails(userId, query, maxResults);
-      }
-      return [];
-    }
+    return searchEmails(this, userId, query, maxResults);
   }
 
   async archiveThread(userId: string, threadId: string): Promise<void> {
-    this.logger.log(
-      `[Office365 Archive] Starting: userId=${userId}, threadId=${threadId}`,
-    );
-    const primaryAccount =
-      await this.office365AccountsService.findPrimary(userId);
-    if (!primaryAccount) throw new Error("Office 365 account not connected");
-
-    let { accessToken } = primaryAccount;
-    const graphClient = this.client.createGraphClient(accessToken);
-
-    try {
-      await archiveThreadInOffice365(userId, threadId, graphClient);
-      await this.emailsService.updateThreadArchivedStatus(
-        userId,
-        threadId,
-        true,
-      );
-      this.logger.log(`[Office365 Archive] Thread archived successfully`);
-    } catch (error: unknown) {
-      if (isAuthError(error)) {
-        accessToken = await this.client.refreshTokenIfNeeded(
-          userId,
-          primaryAccount.id,
-        );
-        await this.archiveThread(userId, threadId);
-        return;
-      }
-      throw new Error("Failed to archive thread");
-    }
+    return archiveThread(this, userId, threadId);
   }
 
   async unarchiveThread(userId: string, threadId: string): Promise<void> {
-    const primaryAccount =
-      await this.office365AccountsService.findPrimary(userId);
-    if (!primaryAccount) throw new Error("Office 365 account not connected");
-
-    let { accessToken } = primaryAccount;
-    const graphClient = this.client.createGraphClient(accessToken);
-
-    try {
-      await unarchiveThreadInOffice365(userId, threadId, graphClient);
-      await this.emailsService.updateThreadArchivedStatus(
-        userId,
-        threadId,
-        false,
-      );
-    } catch (error: unknown) {
-      if (isAuthError(error)) {
-        accessToken = await this.client.refreshTokenIfNeeded(
-          userId,
-          primaryAccount.id,
-        );
-        await this.unarchiveThread(userId, threadId);
-        return;
-      }
-      throw new Error("Failed to unarchive thread");
-    }
+    return unarchiveThread(this, userId, threadId);
   }
 
   async syncStarStatusToGmail(
-    _userId: string, // eslint-disable-line @typescript-eslint/no-unused-vars
+    _userId: string,
     threadId: string,
-    _starCount: number, // eslint-disable-line @typescript-eslint/no-unused-vars
+    _starCount: number,
   ): Promise<void> {
     this.logger.debug(
       `syncStarStatusToGmail called for Office365 (not implemented): ${threadId}`,
@@ -882,9 +746,9 @@ export class Office365Provider implements EmailProvider {
   }
 
   async snoozeThread(
-    _userId: string, // eslint-disable-line @typescript-eslint/no-unused-vars
+    _userId: string,
     threadId: string,
-    _snoozeUntil: Date, // eslint-disable-line @typescript-eslint/no-unused-vars
+    _snoozeUntil: Date,
   ): Promise<void> {
     this.logger.warn(
       `snoozeThread called for Office365 (not implemented): ${threadId}`,
@@ -898,12 +762,12 @@ export class Office365Provider implements EmailProvider {
   }
 
   async getAttachment(
-    _userId: string, // eslint-disable-line @typescript-eslint/no-unused-vars
-    _messageId: string, // eslint-disable-line @typescript-eslint/no-unused-vars
-    _attachmentId: string, // eslint-disable-line @typescript-eslint/no-unused-vars
-    _attachmentMetadata?: { filename: string; mimeType: string; size: number }, // eslint-disable-line @typescript-eslint/no-unused-vars
+    _userId: string,
+    _messageId: string,
+    _attachmentId: string,
+    _attachmentMetadata?: { filename: string; mimeType: string; size: number },
   ): Promise<{
-    data: Buffer;
+    attachmentBuffer: Buffer;
     filename: string;
     mimeType: string;
     size: number;
@@ -912,7 +776,7 @@ export class Office365Provider implements EmailProvider {
   }
 
   async addLabelToThread(
-    _userId: string, // eslint-disable-line @typescript-eslint/no-unused-vars
+    _userId: string,
     threadId: string,
     labelName: string,
   ): Promise<void> {
@@ -922,9 +786,6 @@ export class Office365Provider implements EmailProvider {
   }
 
   async trashThread(userId: string, threadId: string): Promise<void> {
-    this.logger.debug(
-      `trashThread called for Office365 (using archive instead)`,
-    );
-    await this.archiveThread(userId, threadId);
+    return trashThread(this, userId, threadId);
   }
 }

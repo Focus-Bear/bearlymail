@@ -1,6 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { DataSource, Repository } from "typeorm";
 import { EmailDebugService } from "./email-debug.service";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -13,6 +12,7 @@ import { EmailProviderManager } from "./email-provider-manager.service";
 import { GmailProvider } from "./providers/gmail.provider";
 import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
 import { SyncHistoryService } from "./sync-history.service";
+import { EmailDebugCategoryService } from "./email-debug-category.service";
 
 describe("EmailDebugService", () => {
   let service: EmailDebugService;
@@ -58,24 +58,22 @@ describe("EmailDebugService", () => {
       isSenderBlocked: jest.fn().mockResolvedValue(false),
     };
 
+    const mockDataSource = {
+      getRepository: jest.fn().mockImplementation((entity: unknown) => {
+        if (entity === Email) return mockEmailRepository;
+        if (entity === EmailThread) return mockEmailThreadRepository;
+        if (entity === UserContext) return mockUserContextRepository;
+        if (entity === ProtoCategory) return mockProtoCategoryRepository;
+        return {};
+      }),
+    } as unknown as DataSource;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         EmailDebugService,
         {
-          provide: getRepositoryToken(Email),
-          useValue: mockEmailRepository,
-        },
-        {
-          provide: getRepositoryToken(EmailThread),
-          useValue: mockEmailThreadRepository,
-        },
-        {
-          provide: getRepositoryToken(UserContext),
-          useValue: mockUserContextRepository,
-        },
-        {
-          provide: getRepositoryToken(ProtoCategory),
-          useValue: mockProtoCategoryRepository,
+          provide: DataSource,
+          useValue: mockDataSource,
         },
         {
           provide: EmailProviderManager,
@@ -100,6 +98,7 @@ describe("EmailDebugService", () => {
             logSyncAttempt: jest.fn().mockResolvedValue(undefined),
           },
         },
+        EmailDebugCategoryService,
       ],
     }).compile();
 

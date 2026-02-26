@@ -65,7 +65,8 @@ describe("GmailRequiredGuard", () => {
       mockGoogleAccountsService.hasConnectedGmail.mockResolvedValue(true);
       mockUsersService.findOneWithTokens.mockResolvedValue({
         id: userId,
-        googleCalendarAccessToken: null, // No legacy token
+        // No legacy token
+        googleCalendarAccessToken: null,
       });
 
       const result = await guard.canActivate(mockExecutionContext);
@@ -212,7 +213,8 @@ describe("GmailRequiredGuard", () => {
       mockGoogleAccountsService.hasConnectedGmail.mockResolvedValue(false);
       mockUsersService.findOneWithTokens.mockResolvedValue({
         id: userId,
-        googleCalendarAccessToken: null, // No legacy token
+        // No legacy token
+        googleCalendarAccessToken: null,
       });
 
       await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(

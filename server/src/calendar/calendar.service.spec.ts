@@ -237,6 +237,7 @@ describe("CalendarService", () => {
       };
 
       usersService.findOne.mockResolvedValue(mockUser as any);
+
       mockCalendar.events.insert.mockResolvedValue({ data: mockEvent });
 
       const result = await service.createEvent(
@@ -274,6 +275,7 @@ describe("CalendarService", () => {
     it("should include reschedule and cancel links in description", async () => {
       const mockEvent = { id: "event-1" };
       usersService.findOne.mockResolvedValue(mockUser as any);
+
       mockCalendar.events.insert.mockResolvedValue({ data: mockEvent });
 
       await service.createEvent(
@@ -295,6 +297,7 @@ describe("CalendarService", () => {
     it("should use default title when not provided", async () => {
       const mockEvent = { id: "event-1" };
       usersService.findOne.mockResolvedValue(mockUser as any);
+
       mockCalendar.events.insert.mockResolvedValue({ data: mockEvent });
 
       await service.createEvent(
@@ -578,7 +581,8 @@ describe("CalendarService", () => {
 
     it("should limit results to 10 slots", () => {
       const start = new Date("2024-01-15T09:00:00Z");
-      const end = new Date("2024-01-20T17:00:00Z"); // Multiple days
+      // Multiple days
+      const end = new Date("2024-01-20T17:00:00Z");
       const busy: Array<{ start: string; end: string }> = [];
 
       const result = (service as any).calculateFreeSlots(start, end, busy);
@@ -726,11 +730,16 @@ describe("CalendarService", () => {
     it("should handle different hour values correctly", () => {
       // Test various hours to ensure they all parse correctly
       const testCases = [
-        new Date("2024-01-15T00:00:00Z"), // Midnight
-        new Date("2024-01-15T06:00:00Z"), // Morning
-        new Date("2024-01-15T12:00:00Z"), // Noon
-        new Date("2024-01-15T18:00:00Z"), // Evening
-        new Date("2024-01-15T23:59:59Z"), // End of day
+        // Midnight
+        new Date("2024-01-15T00:00:00Z"),
+        // Morning
+        new Date("2024-01-15T06:00:00Z"),
+        // Noon
+        new Date("2024-01-15T12:00:00Z"),
+        // Evening
+        new Date("2024-01-15T18:00:00Z"),
+        // End of day
+        new Date("2024-01-15T23:59:59Z"),
       ];
 
       testCases.forEach((date) => {
@@ -868,6 +877,7 @@ describe("CalendarService", () => {
         ...mockBooking,
       });
       usersService.findOne.mockResolvedValue(mockUser as any);
+
       mockCalendar.events.patch.mockResolvedValue({ data: mockEvent });
 
       const result = await service.rescheduleBooking(

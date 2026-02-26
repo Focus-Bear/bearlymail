@@ -163,7 +163,7 @@ describe("SubscriptionsService", () => {
         subscriptionStatus: "active",
       };
       repository.findOne.mockResolvedValue(revenueCatUser);
-      (mockedAxios as unknown as jest.Mock).mockResolvedValue({
+      mockedAxios.get.mockResolvedValue({
         data: {
           subscriber: {
             entitlements: {
@@ -179,15 +179,15 @@ describe("SubscriptionsService", () => {
 
       const result = await service.checkSubscriptionStatus("user-1");
 
-      expect(mockedAxios).toHaveBeenCalledWith({
-        method: "GET",
-        url: "https://api.revenuecat.com/v1/subscribers/rc-user-123",
-        headers: {
-          Authorization: "Bearer test-api-key",
-          "Content-Type": "application/json",
+      expect(mockedAxios.get).toHaveBeenCalledWith(
+        "https://api.revenuecat.com/v1/subscribers/rc-user-123",
+        {
+          headers: {
+            Authorization: "Bearer test-api-key",
+            "Content-Type": "application/json",
+          },
         },
-        data: undefined,
-      });
+      );
       expect(result.isActive).toBe(true);
     });
 
@@ -250,13 +250,14 @@ describe("SubscriptionsService", () => {
     beforeEach(() => {
       configService.get.mockReturnValue("test-api-key");
       // Reset axios mock for each test
-      (mockedAxios as unknown as jest.Mock).mockReset();
+      mockedAxios.get.mockReset();
+      mockedAxios.post.mockReset();
     });
 
     it("should handle INITIAL_PURCHASE event", async () => {
       const user = { ...mockUser, revenueCatUserId: "rc-user-123" };
       repository.findOne.mockResolvedValue(user);
-      (mockedAxios as unknown as jest.Mock).mockResolvedValue({
+      mockedAxios.get.mockResolvedValue({
         data: {
           subscriber: {
             entitlements: {

@@ -63,7 +63,7 @@ export type LLMProvider = "gemini" | "openai" | undefined;
  * Google API response types
  */
 export interface GoogleApiResponse<T = unknown> {
-  data: T;
+  responseBody: T;
   status?: number;
   statusText?: string;
   headers?: Record<string, string>;
@@ -170,6 +170,7 @@ export interface ApiError {
   status?: number;
   statusText?: string;
   response?: {
+    status?: number;
     statusText?: string;
     data?: unknown;
   };

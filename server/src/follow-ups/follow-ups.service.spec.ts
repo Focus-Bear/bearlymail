@@ -17,7 +17,7 @@ import PgBoss from "pg-boss";
 jest.mock("../encryption/encryption.helper", () => ({
   // Simple mock - returns as-is
   EncryptionHelper: {
-    decrypt: jest.fn((str: string) => str),
+    decrypt: jest.fn((encryptedValue: string) => encryptedValue),
   },
 }));
 

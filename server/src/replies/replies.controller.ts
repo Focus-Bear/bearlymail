@@ -118,7 +118,7 @@ export class RepliesController {
           forwardAttachmentIds = [body.forwardAttachmentIds];
         }
       } else {
-        forwardAttachmentIds = body.forwardAttachmentIds;
+        ({ forwardAttachmentIds } = body);
       }
     }
 
@@ -184,16 +184,15 @@ export class RepliesController {
     }
 
     // Otherwise send immediately
-    await this.repliesService.sendReply(
-      req.user.userId,
-      id,
-      body.reply,
+    await this.repliesService.sendReply(req.user.userId, id, body.reply, {
       attachments,
-      isNaN(expectedReplyHours as number) ? undefined : expectedReplyHours,
+      expectedReplyHours: isNaN(expectedReplyHours as number)
+        ? undefined
+        : expectedReplyHours,
       forwardAttachmentIds,
-      body.recipients || undefined,
-      body.cc || undefined,
-    );
+      recipients: body.recipients || undefined,
+      cc: body.cc || undefined,
+    });
     return { message: "Reply sent successfully" };
   }
 }

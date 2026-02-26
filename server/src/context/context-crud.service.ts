@@ -10,6 +10,12 @@ import { getErrorMessage } from "../types/common";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { ContextPiiRedactionService } from "./context-pii-redaction.service";
 
+export interface CreateContextOptions {
+  priority?: number;
+  explanation?: string;
+  sourceThreadIds?: string[];
+}
+
 /**
  * Service for managing user context CRUD operations.
  * Handles creating, reading, updating, and deleting user context items.
@@ -42,10 +48,10 @@ export class ContextCrudService {
     contextKey: ContextKey,
     contextValue: string,
     source: Source,
-    priority?: number,
-    explanation?: string,
-    sourceThreadIds?: string[],
+    options: CreateContextOptions = {},
   ): Promise<UserContext> {
+    const { priority, explanation, sourceThreadIds } = options;
+
     const existing = await this.contextRepository.findOne({
       where: { userId, contextKey, contextValue },
     });
@@ -87,7 +93,8 @@ export class ContextCrudService {
     const newContext = this.contextRepository.create({
       userId,
       contextKey,
-      contextValue: redactedValue, // Use PII-redacted value
+      // Use PII-redacted value
+      contextValue: redactedValue,
       source,
       priority,
       explanation,
@@ -145,8 +152,7 @@ export class ContextCrudService {
       let duplicatesRemoved = 0;
       const toDelete: string[] = [];
 
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      for (const [key, contexts] of grouped.entries()) {
+      for (const [_key, contexts] of grouped.entries()) {
         if (contexts.length <= 1) continue;
 
         // Sort by lastModified (keep newest)

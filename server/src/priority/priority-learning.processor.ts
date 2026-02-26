@@ -1,11 +1,4 @@
-import {
-  Injectable,
-  OnModuleInit,
-  Logger,
-  Inject,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  forwardRef,
-} from "@nestjs/common";
+import { Injectable, OnModuleInit, Logger, Inject } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as os from "os";
 import PgBoss from "pg-boss";

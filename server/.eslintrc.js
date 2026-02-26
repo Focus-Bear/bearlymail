@@ -22,7 +22,7 @@ module.exports = {
     // ===========================================
     // Flag files with more than 800 lines
     'max-lines': [
-      'warn',
+      'error',
       {
         max: 800,
         skipBlankLines: true,
@@ -35,7 +35,7 @@ module.exports = {
     // ===========================================
     // Flag functions with more than 100 lines
     'max-lines-per-function': [
-      'warn',
+      'error',
       {
         max: 100,
         skipBlankLines: true,
@@ -45,34 +45,38 @@ module.exports = {
     ],
 
     // Flag functions with more than 30 statements
-    'max-statements': ['warn', 30, { ignoreTopLevelFunctions: true }],
+    'max-statements': ['error', 30, { ignoreTopLevelFunctions: true }],
 
     // Limit callback nesting depth (helps with readability)
-    'max-nested-callbacks': ['warn', 4],
+    'max-nested-callbacks': ['error', 4],
 
     // Limit function parameters (too many suggests function does too much)
-    'max-params': ['warn', 6],
+    // Set to 13 to accommodate NestJS DI constructors which commonly have many injected services
+    // ESLint v8 only supports numeric max-params config here (no ignoreConstructors option)
+    'max-params': ['error', 13],
 
     // Limit cyclomatic complexity (number of independent paths through code)
-    complexity: ['warn', 20],
+    complexity: ['error', 20],
 
     // ===========================================
     // CLEAN CODE - NAMING CONVENTIONS
     // ===========================================
     // Enforce minimum identifier length (avoid single-letter variables except loops)
     'id-length': [
-      'warn',
+      'error',
       {
         min: 2,
         // Common acceptable short names in various contexts
-        exceptions: ['i', 'j', 'k', 'x', 'y', 'z', 'e', 't', '_', 'a', 'b', 'c', 'n', 'r', 'w', 'h'],
+        // Standard math/loop variables, plus single-letter variables used in well-known algorithms
+        // (e.g., a-m are used in the Computus Easter algorithm with standard mathematical notation)
+        exceptions: ['i', 'j', 'k', 'x', 'y', 'z', 'e', 't', '_', 'a', 'b', 'c', 'n', 'r', 'w', 'h', 'd', 'f', 'g', 'l', 'm', 'p', 'q', 's', 'u', 'v'],
         properties: 'never', // Don't check object properties
       },
     ],
 
     // Disallow specific identifiers that are too generic
     'id-denylist': [
-      'warn',
+      'error',
       'data', // Too generic - what kind of data?
       'temp', // Should describe what it temporarily holds
       'tmp',
@@ -90,7 +94,7 @@ module.exports = {
     // ===========================================
     // Warn about TODO comments (should be tracked in issue tracker)
     'no-warning-comments': [
-      'warn',
+      'error',
       {
         terms: ['fixme', 'hack', 'xxx'], // Removed 'todo' - it's often acceptable
         location: 'start',
@@ -99,7 +103,7 @@ module.exports = {
 
     // Enforce consistent comment spacing
     'spaced-comment': [
-      'warn',
+      'error',
       'always',
       {
         line: {
@@ -115,7 +119,7 @@ module.exports = {
     ],
 
     // Disallow inline comments (encourages meaningful comments)
-    'no-inline-comments': 'warn',
+    'no-inline-comments': 'error',
 
     // ===========================================
     // CLEAN CODE - CODE QUALITY
@@ -137,23 +141,23 @@ module.exports = {
     ],
 
     // Require const for variables that are never reassigned
-    'prefer-const': 'warn',
+    'prefer-const': 'error',
 
     // Disallow var (use let or const)
     'no-var': 'error',
 
     // Prefer template literals over string concatenation
-    'prefer-template': 'warn',
+    'prefer-template': 'error',
 
     // Disallow nested ternary expressions (hard to read)
-    'no-nested-ternary': 'warn',
+    'no-nested-ternary': 'error',
 
     // Disallow reassigning function parameters
-    'no-param-reassign': ['warn', { props: false }],
+    'no-param-reassign': ['error', { props: false }],
 
     // Prefer destructuring from arrays and objects
     'prefer-destructuring': [
-      'warn',
+      'error',
       {
         array: false, // Allow array[index] for clarity
         object: true,
@@ -164,25 +168,25 @@ module.exports = {
     ],
 
     // Prefer arrow functions as callbacks
-    'prefer-arrow-callback': 'warn',
+    'prefer-arrow-callback': 'error',
 
     // Enforce consistent arrow function body style
-    'arrow-body-style': ['warn', 'as-needed'],
+    'arrow-body-style': ['error', 'as-needed'],
 
     // Disallow console statements (use logger instead)
-    'no-console': ['warn', { allow: ['warn', 'error'] }],
+    'no-console': ['error', { allow: ['warn', 'error'] }],
 
     // Disallow debugger statements
-    'no-debugger': 'warn',
+    'no-debugger': 'error',
 
     // Prefer object shorthand
-    'object-shorthand': ['warn', 'always'],
+    'object-shorthand': ['error', 'always'],
 
     // Prefer spread operator over Object.assign
-    'prefer-spread': 'warn',
+    'prefer-spread': 'error',
 
     // Prefer rest parameters over arguments
-    'prefer-rest-params': 'warn',
+    'prefer-rest-params': 'error',
 
     // Require curly braces for all control statements (off - too strict)
     curly: 'off',
@@ -196,7 +200,18 @@ module.exports = {
     '@typescript-eslint/interface-name-prefix': 'off',
     '@typescript-eslint/explicit-function-return-type': 'off',
     '@typescript-eslint/explicit-module-boundary-types': 'off',
-    '@typescript-eslint/no-explicit-any': 'warn',
+    '@typescript-eslint/no-explicit-any': 'error',
+
+    // Allow _-prefixed variables/params to be declared but unused
+    // (common for interface implementations where params must be present for the signature)
+    '@typescript-eslint/no-unused-vars': [
+      'error',
+      {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+      },
+    ],
   },
   overrides: [
     {
@@ -205,8 +220,19 @@ module.exports = {
       rules: {
         'max-lines-per-function': 'off',
         'max-lines': 'off',
+        'max-statements': 'off',
         '@typescript-eslint/no-explicit-any': 'off',
         '@typescript-eslint/no-magic-numbers': 'off',
+        // Test data variables often use generic names like 'data', which is acceptable in tests
+        'id-denylist': 'off',
+        '@typescript-eslint/no-unused-vars': [
+          'error',
+          {
+            argsIgnorePattern: '^_',
+            varsIgnorePattern: '^_',
+            caughtErrorsIgnorePattern: '^_',
+          },
+        ],
       },
     },
     {
@@ -228,17 +254,65 @@ module.exports = {
       },
     },
     {
-      // Relax rules for script files
+      // Scripts are CLI tools that legitimately use console.log for output
       files: ['**/scripts/**/*.ts'],
       rules: {
         'max-lines': 'off',
-        'max-lines-per-function': ['warn', { max: 200, skipBlankLines: true, skipComments: true }],
+        'max-lines-per-function': ['error', { max: 200, skipBlankLines: true, skipComments: true }],
+        'max-statements': ['error', 100, { ignoreTopLevelFunctions: true }],
+        'no-console': 'off',
+      },
+    },
+    {
+      // Type definition files that mirror external API shapes (e.g. Google, Axios) may use
+      // property names like 'data' that are defined by the external API contract.
+      files: ['**/types/**/*.ts'],
+      rules: {
+        'id-denylist': 'off',
+      },
+    },
+    {
+      // Legacy services/providers are actively being decomposed; keep strict lint elsewhere while
+      // allowing these modules to pass without inline eslint-disable comments.
+      files: [
+        'src/emails/llm-processor.ts',
+        'src/emails/providers/gmail.provider.ts',
+        'src/emails/providers/office365.provider.ts',
+        'src/emails/providers/zoho.provider.ts',
+        'src/context/context.service.ts',
+        'src/context/context-gmail-data.service.ts',
+        'src/calendar/calendar.service.ts',
+      ],
+      rules: {
+        'max-lines': ['error', { max: 4000, skipBlankLines: true, skipComments: true }],
+        'max-lines-per-function': ['error', { max: 1200, skipBlankLines: true, skipComments: true, IIFEs: true }],
+        'max-statements': ['error', 400, { ignoreTopLevelFunctions: true }],
+        complexity: ['error', 250],
+        'id-denylist': 'off',
+      },
+    },
+
+    {
+      // Additional large legacy modules pending decomposition.
+      files: [
+        'src/auto-responder/auto-responder.service.ts',
+        'src/context/context-batch-analysis.processor.ts',
+        'src/context/context-error-handler.ts',
+        'src/emails/email-debug.service.ts',
+        'src/emails/email-search.service.ts',
+        'src/emails/emails.service.ts',
+        'src/follow-ups/follow-ups.processor.ts',
+        'src/llm/llm.service.ts',
+        'src/llm/priority-analysis.service.ts',
+        'src/replies/replies.service.ts',
+      ],
+      rules: {
+        'max-lines': ['error', { max: 4000, skipBlankLines: true, skipComments: true }],
+        'max-lines-per-function': ['error', { max: 1200, skipBlankLines: true, skipComments: true, IIFEs: true }],
+        'max-statements': ['error', 400, { ignoreTopLevelFunctions: true }],
+        complexity: ['error', 250],
+        'max-params': ['error', 30],
       },
     },
   ],
 };
-
-
-
-
-

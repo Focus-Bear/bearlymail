@@ -57,12 +57,9 @@ export class ContextQaExtractionService {
         );
         return;
       }
-
       this.logger.log(
         `[CONTEXT-ANALYSIS-QA] Analyzing ${sentEmailsData.length} sent emails for common Q&A patterns...`,
       );
-
-      // Extract Q&A pairs using LLM - analyze what questions the user is answering
       const qaPayload = sentEmailsData.map((email) => ({
         subject: email.subject,
         body: cleanEmailContent(
@@ -70,162 +67,25 @@ export class ContextQaExtractionService {
           email.htmlBody,
           PERFORMANCE_BUDGETS.PRIORITY_EXPLANATION,
         ),
-        // Longer body to see full context
         receivedAt: email.receivedAt.toISOString(),
-        // Use receivedAt to match LLM service signature (sentAt renamed)
       }));
-
-      // Call LLM to extract common Q&A from sent emails
       const qaAnalysis = await this.llmService.extractQAndA(qaPayload, userId);
-
       if (qaAnalysis && qaAnalysis.length > 0) {
         this.logger.log(
           `[CONTEXT-ANALYSIS] Found ${qaAnalysis.length} common Q&A pairs`,
         );
-
-        // Get all existing Q&A from database first for better deduplication
         const existingQAs = await this.contextRepository
           .createQueryBuilder("context")
           .where("context.userId = :userId", { userId })
           .andWhere("context.contextKey = :key", { key: ContextKey.Q_AND_A })
           .getMany();
-
         this.logger.log(
           `[CONTEXT-ANALYSIS] Found ${existingQAs.length} existing Q&A pairs in database for deduplication`,
         );
-
-        // Extract existing questions and answers from database
-        const existingQuestions = new Set<string>();
-        const existingAnswers = new Set<string>();
-        for (const existingQA of existingQAs) {
-          // Parse "Q: question | A: answer" format
-          const qaMatch = existingQA.contextValue.match(
-            /^Q:\s*(.+?)\s*\|\s*A:\s*(.+)$/,
-          );
-          if (qaMatch) {
-            existingQuestions.add(qaMatch[1].toLowerCase().trim());
-            existingAnswers.add(qaMatch[2].toLowerCase().trim());
-          }
-        }
-
-        // Deduplicate Q&A before saving
-        const seenQuestions = new Set<string>();
-        const seenAnswers = new Set<string>();
-
-        for (const qa of qaAnalysis) {
-          if (!qa.question || !qa.answer) continue;
-
-          // Skip if frequency is too low (should be 3+ but double-check)
-          if (qa.frequency < 3) continue;
-
-          // Normalize question and answer for deduplication
-          const normalizedQuestion = qa.question.toLowerCase().trim();
-          const normalizedAnswer = qa.answer.toLowerCase().trim();
-
-          // Check for similar questions (using word overlap) in current batch
-          let isDuplicate = false;
-          for (const seenQ of seenQuestions) {
-            if (
-              this.piiRedactionService.areContextValuesSimilar(
-                normalizedQuestion,
-                seenQ,
-              )
-            ) {
-              isDuplicate = true;
-              break;
-            }
-          }
-
-          // Check for similar answers in current batch
-          if (!isDuplicate) {
-            for (const seenA of seenAnswers) {
-              if (
-                this.piiRedactionService.areContextValuesSimilar(
-                  normalizedAnswer,
-                  seenA,
-                )
-              ) {
-                isDuplicate = true;
-                break;
-              }
-            }
-          }
-
-          // Check against existing database Q&A using similarity matching
-          if (!isDuplicate) {
-            for (const existingQ of existingQuestions) {
-              if (
-                this.piiRedactionService.areContextValuesSimilar(
-                  normalizedQuestion,
-                  existingQ,
-                )
-              ) {
-                isDuplicate = true;
-                break;
-              }
-            }
-          }
-
-          if (!isDuplicate) {
-            for (const existingA of existingAnswers) {
-              if (
-                this.piiRedactionService.areContextValuesSimilar(
-                  normalizedAnswer,
-                  existingA,
-                )
-              ) {
-                isDuplicate = true;
-                break;
-              }
-            }
-          }
-
-          if (isDuplicate) {
-            this.logger.log(
-              `[CONTEXT-ANALYSIS] Skipping duplicate Q&A: ${qa.question.substring(0, DISPLAY_CONSTANTS.LOG_PREVIEW_LENGTH)}...`,
-            );
-            continue;
-          }
-
-          seenQuestions.add(normalizedQuestion);
-          seenAnswers.add(normalizedAnswer);
-
-          // Store Q&A as "Q: question | A: answer"
-          const qaValue = `Q: ${qa.question} | A: ${qa.answer}`;
-          const explanation = qa.frequency
-            ? `Appeared ${qa.frequency} times in your replies`
-            : undefined;
-
-          // Create or update context (same logic as createOrUpdateContext but inline)
-          const existing = await this.contextRepository.findOne({
-            where: {
-              userId,
-              contextKey: ContextKey.Q_AND_A,
-              contextValue: qaValue,
-            },
-          });
-
-          if (existing) {
-            existing.lastModified = new Date();
-            await this.contextRepository.save(existing);
-          } else {
-            const context = this.contextRepository.create({
-              userId,
-              contextKey: ContextKey.Q_AND_A,
-              contextValue: qaValue,
-              source: Source.AUTOGENERATED,
-              explanation,
-            });
-            await this.contextRepository.save(context);
-          }
-
-          this.logger.log(
-            `[CONTEXT-ANALYSIS] Added Q&A: ${qa.question.substring(0, DISPLAY_CONSTANTS.LOG_PREVIEW_LENGTH)}...`,
-          );
-        }
+        await this.deduplicateAndSaveQAs(userId, qaAnalysis, existingQAs);
       }
       this.logger.log(
-        `[CONTEXT-ANALYSIS-QA] Q&A extraction completed successfully`,
+        "[CONTEXT-ANALYSIS-QA] Q&A extraction completed successfully",
       );
     } catch (error) {
       const errorMessage =
@@ -242,9 +102,99 @@ export class ContextQaExtractionService {
         `[QA] Error stack: ${errorStack || "No stack trace"}`,
         "error",
       );
-      // Don't fail the entire analysis if Q&A extraction fails
-      // Re-throw so caller can handle it
       throw error;
     }
+  }
+
+  private async deduplicateAndSaveQAs(
+    userId: string,
+    qaAnalysis: Array<{ question: string; answer: string; frequency: number }>,
+    existingQAs: UserContext[],
+  ): Promise<void> {
+    const existingQuestions = new Set<string>();
+    const existingAnswers = new Set<string>();
+    for (const existingQA of existingQAs) {
+      const qaMatch = existingQA.contextValue.match(
+        /^Q:\s*(.+?)\s*\|\s*A:\s*(.+)$/,
+      );
+      if (qaMatch) {
+        existingQuestions.add(qaMatch[1].toLowerCase().trim());
+        existingAnswers.add(qaMatch[2].toLowerCase().trim());
+      }
+    }
+
+    const seenQuestions = new Set<string>();
+    const seenAnswers = new Set<string>();
+
+    for (const qa of qaAnalysis) {
+      if (!qa.question || !qa.answer || qa.frequency < 3) continue;
+      const normalizedQuestion = qa.question.toLowerCase().trim();
+      const normalizedAnswer = qa.answer.toLowerCase().trim();
+      if (
+        this.isQADuplicate(
+          normalizedQuestion,
+          normalizedAnswer,
+          seenQuestions,
+          seenAnswers,
+          existingQuestions,
+          existingAnswers,
+        )
+      ) {
+        this.logger.log(
+          `[CONTEXT-ANALYSIS] Skipping duplicate Q&A: ${qa.question.substring(0, DISPLAY_CONSTANTS.LOG_PREVIEW_LENGTH)}...`,
+        );
+        continue;
+      }
+      seenQuestions.add(normalizedQuestion);
+      seenAnswers.add(normalizedAnswer);
+      await this.saveQAPair(userId, qa);
+    }
+  }
+
+  private isQADuplicate(
+    normalizedQuestion: string,
+    normalizedAnswer: string,
+    seenQuestions: Set<string>,
+    seenAnswers: Set<string>,
+    existingQuestions: Set<string>,
+    existingAnswers: Set<string>,
+  ): boolean {
+    const similar = (a: string, b: string) =>
+      this.piiRedactionService.areContextValuesSimilar(a, b);
+    return (
+      [...seenQuestions].some((q) => similar(normalizedQuestion, q)) ||
+      [...seenAnswers].some((a) => similar(normalizedAnswer, a)) ||
+      [...existingQuestions].some((q) => similar(normalizedQuestion, q)) ||
+      [...existingAnswers].some((a) => similar(normalizedAnswer, a))
+    );
+  }
+
+  private async saveQAPair(
+    userId: string,
+    qa: { question: string; answer: string; frequency: number },
+  ): Promise<void> {
+    const qaValue = `Q: ${qa.question} | A: ${qa.answer}`;
+    const explanation = qa.frequency
+      ? `Appeared ${qa.frequency} times in your replies`
+      : undefined;
+    const existing = await this.contextRepository.findOne({
+      where: { userId, contextKey: ContextKey.Q_AND_A, contextValue: qaValue },
+    });
+    if (existing) {
+      existing.lastModified = new Date();
+      await this.contextRepository.save(existing);
+    } else {
+      const context = this.contextRepository.create({
+        userId,
+        contextKey: ContextKey.Q_AND_A,
+        contextValue: qaValue,
+        source: Source.AUTOGENERATED,
+        explanation,
+      });
+      await this.contextRepository.save(context);
+    }
+    this.logger.log(
+      `[CONTEXT-ANALYSIS] Added Q&A: ${qa.question.substring(0, DISPLAY_CONSTANTS.LOG_PREVIEW_LENGTH)}...`,
+    );
   }
 }

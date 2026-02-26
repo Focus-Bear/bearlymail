@@ -5,6 +5,7 @@ import { User } from "../database/entities/user.entity";
 import { ConfigService } from "@nestjs/config";
 import axios from "axios";
 import { TOKEN_CONSTANTS } from "../constants/service-constants";
+import { ApiError } from "../types/common";
 
 /**
  * RevenueCat webhook event payload structure
@@ -60,28 +61,21 @@ export class SubscriptionsService {
       throw new Error("RevenueCat API key not configured");
     }
 
+    const headers = {
+      Authorization: `Bearer ${this.apiKey}`,
+      "Content-Type": "application/json",
+    };
+    const url = `${this.baseUrl}${endpoint}`;
     try {
-      const response = await axios({
-        method,
-        url: `${this.baseUrl}${endpoint}`,
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          "Content-Type": "application/json",
-        },
-        // eslint-disable-next-line id-denylist
-        data: requestData,
-      });
+      const response =
+        method === "POST"
+          ? await axios.post(url, requestData, { headers })
+          : await axios.get(url, { headers });
       return response.data;
     } catch (error: unknown) {
       const isErr = error instanceof Error;
       const errorMessage = isErr ? error.message : "Unknown error";
-      const isApiErr =
-        typeof error === "object" && error !== null && "response" in error;
-      const responseData =
-        isApiErr && "response" in error
-          ? // eslint-disable-next-line id-denylist
-            (error as { response?: { data?: unknown } }).response?.data
-          : undefined;
+      const responseData = (error as ApiError).response?.data;
       this.logger.error(`RevenueCat API error: ${errorMessage}`, responseData);
       throw error;
     }
@@ -220,8 +214,7 @@ export class SubscriptionsService {
 
     try {
       const { event } = payload;
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { app_user_id, product_id } = event;
+      const { app_user_id } = event;
 
       // Find user by RevenueCat ID
       const user = await this.userRepository.findOne({

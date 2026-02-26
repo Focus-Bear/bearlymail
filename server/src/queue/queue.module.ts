@@ -68,7 +68,6 @@ import { logErrorToFile } from "../utils/error-logger";
         });
 
         // Handle worker errors - these are logged but don't crash the app
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         boss.on("monitor-states", (_monitor) => {
           // Monitor is running, connection is healthy
         });

@@ -29,6 +29,26 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
 
+type ProgressStage =
+  | "starting"
+  | "fetching"
+  | "analyzing"
+  | "summarizing"
+  | "complete";
+
+interface ProgressInfo {
+  status?: string;
+  errorMessage?: string;
+  completedBatches?: number;
+  totalBatches?: number;
+  fetchedGeneral?: number;
+  fetchedSent?: number;
+  threadCount?: number;
+  analyzedCount?: number;
+  stats?: Record<string, unknown>;
+  insights?: unknown;
+}
+
 @Controller("context")
 @UseGuards(JwtAuthGuard)
 export class ContextController {
@@ -48,7 +68,6 @@ export class ContextController {
   }
 
   @Get("analyze-progress")
-  // eslint-disable-next-line complexity, max-statements
   async getAnalyzeProgress(
     @Request() req,
     @Query("analysisId") analysisId?: string,
@@ -61,7 +80,8 @@ export class ContextController {
     // Get progress info - filter by analysis ID if provided
     const progressInfo = await this.contextService.getAnalysisProgress(
       req.user.userId,
-      analysisId, // Pass analysis ID to filter
+      // Pass analysis ID to filter
+      analysisId,
     );
 
     // Check and sync jobs between DB and PgBoss for active analyses
@@ -86,96 +106,19 @@ export class ContextController {
       };
     }
 
-    // Calculate displayed progress percentage based on analysis STAGE (not just batch completion)
-    // Expected flow:
-    // - Starting/Fetching: 0-10% (before batches are created)
-    // - Analyzing: 10-70% (during batch processing)
-    // - Summarizing/Creating: 70-99% (after all batches complete, during finalization)
-    // - Complete: 100% (status == completed)
+    const { percent, stage } = this.calculateProgressPercent(
+      progressInfo,
+      user,
+    );
 
-    let percent = 0;
-    let stage:
-      | "starting"
-      | "fetching"
-      | "analyzing"
-      | "summarizing"
-      | "complete" = "starting";
-    const isStillRunning =
-      progressInfo.status === "running" || progressInfo.status === "pending";
-
-    if (progressInfo.status === "completed") {
-      // Analysis is fully complete
-      percent = 100;
-      stage = "complete";
-    } else if (isStillRunning) {
-      const { completedBatches, totalBatches, fetchedGeneral, fetchedSent } =
-        progressInfo;
-
-      // Check if any batches have completed - if so, we're in analyzing stage
-      const hasCompletedBatches =
-        completedBatches !== undefined && completedBatches > 0;
-
-      if (
-        (totalBatches === undefined || totalBatches === 0) &&
-        !hasCompletedBatches
-      ) {
-        // Batches not created yet AND none completed - still in fetching stage (0-10%)
-        // Calculate fetch progress based on fetched thread counts
-        if (fetchedGeneral !== undefined || fetchedSent !== undefined) {
-          // Show progress based on what's been fetched (target: 300 general + 150 sent = 450 threads)
-          const totalFetched = (fetchedGeneral || 0) + (fetchedSent || 0);
-          // 0-10% range
-          const fetchPercent = Math.min(
-            (totalFetched / CONTEXT_ANALYSIS.CONTEXT_TIMEOUT_SECONDS) * 10,
-            10,
-          );
-          // Minimum 1% to show progress, never 0%
-          percent = Math.max(1, Math.floor(fetchPercent));
-        } else {
-          // Minimum 1% while starting (not 0% or 5%)
-          percent = 1;
-        }
-        stage = "fetching";
-      } else if (
-        totalBatches > 0 &&
-        completedBatches !== undefined &&
-        completedBatches >= totalBatches &&
-        completedBatches > 0
-      ) {
-        // All batches complete but analysis not finished - summarizing stage (70-99%)
-        // Show 85% while finalizing
-        percent = CONTEXT_ANALYSIS.PROGRESS_THRESHOLD;
-        stage = "summarizing";
-      } else {
-        // Batches are processing - analyzing stage (10-70%)
-        const completed = completedBatches !== undefined ? completedBatches : 0;
-        const batchPercent = totalBatches > 0 ? completed / totalBatches : 0;
-        // Map batch completion (0-100%) to displayed range (10-70%)
-        percent = Math.floor(10 + batchPercent * 60);
-        stage = "analyzing";
-      }
-
-      this.logger.log(
-        `[PROGRESS-CALC] Stage: ${stage}, percent: ${percent}%, batches: ${progressInfo.completedBatches || 0}/${progressInfo.totalBatches || "unknown"}, fetched: general=${fetchedGeneral || 0}, sent=${fetchedSent || 0}, status=${progressInfo.status}`,
-      );
-    } else if (user.scanProgress !== null && user.scanTotal !== null) {
-      // For completed/failed analyses that slipped through, use user.scanProgress
-      percent = Math.floor((user.scanProgress / user.scanTotal) * 100);
-      stage = percent >= 100 ? "complete" : "summarizing";
-    }
-
-    // Only show complete if status is actually "completed"
-    const isActuallyComplete = progressInfo.status === "completed";
-
-    let messageKey = "";
-    let messageValues: Record<string, unknown> = {};
-
-    const { threadCount } = progressInfo;
-    const { analyzedCount } = progressInfo;
-    const { stats } = progressInfo;
-    const { completedBatches, totalBatches, fetchedGeneral, fetchedSent } =
-      progressInfo;
-    const { insights } = progressInfo;
+    const {
+      threadCount,
+      analyzedCount,
+      stats,
+      completedBatches,
+      totalBatches,
+      insights,
+    } = progressInfo;
 
     // Debug logging
     if (percent >= PERCENTAGES.TWENTY_FIVE && percent < PERCENTAGES.SEVENTY) {
@@ -184,62 +127,17 @@ export class ContextController {
       );
     }
 
-    // Determine message based on the analysis stage (calculated above)
-    // This is much simpler and follows the expected flow
-    switch (stage) {
-      case "starting":
-        messageKey = "settings.analysis.progress.starting";
-        break;
-
-      case "fetching":
-        messageKey = "settings.analysis.progress.fetching";
-        messageValues = {
-          generalCount: fetchedGeneral || 0,
-          sentCount: fetchedSent || 0,
-        };
-        break;
-
-      case "analyzing":
-        messageKey = "settings.analysis.progress.analyzing";
-        messageValues = {
-          analyzed: analyzedCount || 0,
-          total: threadCount || 0,
-          completedBatches: completedBatches || 0,
-          totalBatches: totalBatches || 0,
-        };
-        break;
-
-      case "summarizing":
-        messageKey = "settings.analysis.progress.finalizing";
-        break;
-
-      case "complete":
-        if (stats) {
-          const vipCount = (stats.vipContactsEvaluated as number) || 0;
-          messageKey = "settings.analysis.progress.complete";
-          messageValues = {
-            threads: (stats.totalThreads as number) || threadCount || 0,
-            outbound: (stats.outboundEmails as number) || 0,
-            unopened: (stats.threadsNeverOpened as number) || 0,
-            readNotReplied: (stats.threadsReadButNotReplied as number) || 0,
-            vipCount,
-          };
-        } else {
-          messageKey = "settings.analysis.progress.completeSimple";
-          messageValues = { count: threadCount || 0 };
-        }
-        break;
-
-      default:
-        // Fallback - shouldn't happen
-        messageKey = "settings.analysis.progress.starting";
-    }
+    const { messageKey, messageValues } = this.buildProgressMessage(
+      stage,
+      progressInfo,
+    );
 
     // Always include stats if available (not just at 100%)
     // This ensures the frontend can display the summary even if isComplete check fails
     const finalStats = stats || progressInfo.stats;
 
     // Log for debugging
+    const isActuallyComplete = progressInfo.status === "completed";
     if (percent >= 100) {
       this.logger.log(
         `[PROGRESS-DEBUG] Completion check: userId=${req.user.userId}, percent=${percent}, status=${progressInfo.status}, isActuallyComplete=${isActuallyComplete}, stats=${finalStats ? "YES" : "NO"}, threadCount=${threadCount}, analyzedCount=${analyzedCount}`,
@@ -251,8 +149,10 @@ export class ContextController {
 
     return {
       progress: {
-        current: percent, // Use calculated percent, not user.scanProgress
-        total: 100, // Total is always 100 for percentage
+        // Use calculated percent, not user.scanProgress
+        current: percent,
+        // Total is always 100 for percentage
+        total: 100,
         messageKey,
         messageValues,
         threadCount,
@@ -273,6 +173,196 @@ export class ContextController {
       },
       error: null,
     };
+  }
+
+  /**
+   * Calculate the displayed progress percentage and stage label from the current analysis state.
+   *
+   * Expected flow:
+   * - Starting/Fetching: 0-10%  (before batches are created)
+   * - Analyzing:        10-70%  (during batch processing)
+   * - Summarizing:      70-99%  (after all batches complete, during finalization)
+   * - Complete:         100%    (status == "completed")
+   */
+  private calculateProgressPercent(
+    progressInfo: ProgressInfo,
+    user: { scanProgress?: number | null; scanTotal?: number | null },
+  ): { percent: number; stage: ProgressStage } {
+    if (progressInfo.status === "completed") {
+      return { percent: 100, stage: "complete" };
+    }
+
+    const isStillRunning =
+      progressInfo.status === "running" || progressInfo.status === "pending";
+
+    if (isStillRunning) {
+      return this.calcRunningPercent(progressInfo);
+    }
+
+    if (
+      user.scanProgress !== null &&
+      user.scanProgress !== undefined &&
+      user.scanTotal !== null &&
+      user.scanTotal !== undefined
+    ) {
+      // For completed/failed analyses that slipped through, use user.scanProgress
+      const percent = Math.floor((user.scanProgress / user.scanTotal) * 100);
+      return { percent, stage: percent >= 100 ? "complete" : "summarizing" };
+    }
+
+    return { percent: 0, stage: "starting" };
+  }
+
+  /**
+   * Calculate percent/stage when the analysis is currently running or pending.
+   * Covers the fetching (0-10%), analyzing (10-70%), and summarizing (70-99%) sub-stages.
+   */
+  private calcRunningPercent(progressInfo: ProgressInfo): {
+    percent: number;
+    stage: ProgressStage;
+  } {
+    const { completedBatches, totalBatches, fetchedGeneral, fetchedSent } =
+      progressInfo;
+    const hasCompletedBatches =
+      completedBatches !== undefined && completedBatches > 0;
+
+    if (
+      (totalBatches === undefined || totalBatches === 0) &&
+      !hasCompletedBatches
+    ) {
+      return this.calcFetchingPercent(fetchedGeneral, fetchedSent);
+    }
+
+    if (
+      totalBatches !== undefined &&
+      totalBatches > 0 &&
+      completedBatches !== undefined &&
+      completedBatches >= totalBatches &&
+      completedBatches > 0
+    ) {
+      // All batches complete but analysis not finished - summarizing stage (70-99%)
+      return {
+        percent: CONTEXT_ANALYSIS.PROGRESS_THRESHOLD,
+        stage: "summarizing",
+      };
+    }
+
+    // Batches are processing - analyzing stage (10-70%)
+    const completed = completedBatches !== undefined ? completedBatches : 0;
+    const batchPercent =
+      totalBatches !== undefined && totalBatches > 0
+        ? completed / totalBatches
+        : 0;
+    // Map batch completion (0-100%) to displayed range (10-70%)
+    const percent = Math.floor(10 + batchPercent * 60);
+
+    this.logger.log(
+      `[PROGRESS-CALC] Stage: analyzing, percent: ${percent}%, batches: ${completedBatches || 0}/${totalBatches || "unknown"}, fetched: general=${fetchedGeneral || 0}, sent=${fetchedSent || 0}, status=${progressInfo.status}`,
+    );
+
+    return { percent, stage: "analyzing" };
+  }
+
+  /**
+   * Calculate percent for the fetching sub-stage (0-10%), based on how many emails have been fetched.
+   */
+  private calcFetchingPercent(
+    fetchedGeneral: number | undefined,
+    fetchedSent: number | undefined,
+  ): { percent: number; stage: ProgressStage } {
+    if (fetchedGeneral !== undefined || fetchedSent !== undefined) {
+      const totalFetched = (fetchedGeneral || 0) + (fetchedSent || 0);
+      // 0-10% range
+      const fetchPercent = Math.min(
+        (totalFetched / CONTEXT_ANALYSIS.CONTEXT_TIMEOUT_SECONDS) * 10,
+        10,
+      );
+      // Minimum 1% to show progress, never 0%
+      return {
+        percent: Math.max(1, Math.floor(fetchPercent)),
+        stage: "fetching",
+      };
+    }
+    // Minimum 1% while starting (not 0% or 5%)
+    return { percent: 1, stage: "fetching" };
+  }
+
+  /**
+   * Build the i18n message key and interpolation values for the given progress stage.
+   */
+  private buildProgressMessage(
+    stage: ProgressStage,
+    progressInfo: ProgressInfo,
+  ): { messageKey: string; messageValues: Record<string, unknown> } {
+    const {
+      completedBatches,
+      totalBatches,
+      fetchedGeneral,
+      fetchedSent,
+      threadCount,
+      analyzedCount,
+      stats,
+    } = progressInfo;
+
+    switch (stage) {
+      case "starting":
+        return {
+          messageKey: "settings.analysis.progress.starting",
+          messageValues: {},
+        };
+
+      case "fetching":
+        return {
+          messageKey: "settings.analysis.progress.fetching",
+          messageValues: {
+            generalCount: fetchedGeneral || 0,
+            sentCount: fetchedSent || 0,
+          },
+        };
+
+      case "analyzing":
+        return {
+          messageKey: "settings.analysis.progress.analyzing",
+          messageValues: {
+            analyzed: analyzedCount || 0,
+            total: threadCount || 0,
+            completedBatches: completedBatches || 0,
+            totalBatches: totalBatches || 0,
+          },
+        };
+
+      case "summarizing":
+        return {
+          messageKey: "settings.analysis.progress.finalizing",
+          messageValues: {},
+        };
+
+      case "complete":
+        if (stats) {
+          const vipCount = (stats.vipContactsEvaluated as number) || 0;
+          return {
+            messageKey: "settings.analysis.progress.complete",
+            messageValues: {
+              threads: (stats.totalThreads as number) || threadCount || 0,
+              outbound: (stats.outboundEmails as number) || 0,
+              unopened: (stats.threadsNeverOpened as number) || 0,
+              readNotReplied: (stats.threadsReadButNotReplied as number) || 0,
+              vipCount,
+            },
+          };
+        }
+        return {
+          messageKey: "settings.analysis.progress.completeSimple",
+          messageValues: { count: threadCount || 0 },
+        };
+
+      default:
+        // Fallback - shouldn't happen
+        return {
+          messageKey: "settings.analysis.progress.starting",
+          messageValues: {},
+        };
+    }
   }
 
   @Post("analyze")
@@ -306,7 +396,8 @@ export class ContextController {
         threadsNeverOpened: 0,
         threadsReadButNotReplied: 0,
         vipContactsEvaluated: 0,
-        batchResults: {}, // Explicitly empty - no insights from previous runs
+        // Explicitly empty - no insights from previous runs
+        batchResults: {},
         batchJobIds: {},
         batchPayloadsForRetry: {},
       },
@@ -382,8 +473,7 @@ export class ContextController {
       contextKey,
       contextValue,
       body.source || Source.AUTOGENERATED,
-      body.priority,
-      body.explanation,
+      { priority: body.priority, explanation: body.explanation },
     );
   }
 
@@ -400,7 +490,8 @@ export class ContextController {
   ) {
     const updates: Partial<UserContext> = {
       contextValue: body.value,
-      source: Source.USER_EDITED, // Mark as user-edited when updated
+      // Mark as user-edited when updated
+      source: Source.USER_EDITED,
     };
     if (body.priority !== undefined) {
       updates.priority = body.priority;

@@ -41,11 +41,13 @@ export class GitHubRepoMappingService {
       this.logger.warn(
         `Found ${toDelete.length} duplicate repo mapping(s) for user ${userId}, cleaning up`,
       );
-      this.repoMappingRepository.delete(toDelete).catch((err) =>
-        this.logger.error(
-          `Failed to clean up duplicate repo mappings: ${err}`,
-        ),
-      );
+      this.repoMappingRepository
+        .delete(toDelete)
+        .catch((err) =>
+          this.logger.error(
+            `Failed to clean up duplicate repo mappings: ${err}`,
+          ),
+        );
     }
 
     // Return deduplicated results sorted by isDefault DESC, updatedAt DESC

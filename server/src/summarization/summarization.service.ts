@@ -12,6 +12,22 @@ import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { logError, logWarn } from "../utils/logger";
 
+interface ThreadData {
+  emailId: string;
+  email: {
+    body: string;
+    subject?: string;
+    from?: string;
+    fromName?: string;
+    threadId: string;
+    receivedAt: Date | string;
+  };
+  threadText: string;
+  isThread: boolean;
+  messageCount: number;
+  matchedRule: SummarizationRuleEntity | null;
+}
+
 export interface SummarizationRule {
   type: "bullet-points" | "action-items" | "sender-request" | "tldr" | "custom";
   customPrompt?: string;
@@ -42,6 +58,190 @@ export class SummarizationService {
     private errorTrackingService: ErrorTrackingService,
   ) {}
 
+  private buildThreadText(
+    messagesToSummarize: Array<{
+      body: string;
+      fromName?: string;
+      from?: string;
+      receivedAt: Date | string;
+    }>,
+    allThreadEmails: Array<unknown>,
+  ): string {
+    return messagesToSummarize
+      .map((e, idx) => {
+        const emailWithHtml = e as EmailWithHtmlBody;
+        const sender =
+          (e as { fromName?: string; from?: string }).fromName ||
+          (e as { from?: string }).from;
+        const date = new Date(
+          (e as { receivedAt: Date | string }).receivedAt,
+        ).toLocaleString();
+        const cleanedBody = cleanEmailForThread(e.body, emailWithHtml.htmlBody);
+        const messageLabel =
+          idx === 0 && allThreadEmails.length > 4
+            ? "Original"
+            : `Message ${idx + 1}`;
+        return `[${messageLabel} from ${sender} on ${date}]:\n${cleanedBody}`;
+      })
+      .join("\n\n---\n\n");
+  }
+
+  private async generateLLMSummary(
+    email: EmailWithHtmlBody & { subject?: string },
+    subject: string,
+    threadText: string,
+    messagesToSummarize: Array<unknown>,
+    allThreadEmails: Array<unknown>,
+    rule: SummarizationRule,
+    userId: string,
+    _emailId: string,
+  ): Promise<string> {
+    let llmProvider: LLMProvider | undefined;
+    if (rule.provider) {
+      llmProvider =
+        rule.provider === "gemini" ? LLMProvider.GEMINI : LLMProvider.OPENAI;
+    }
+
+    const cleanedBody = cleanEmailContent(email.body, email.htmlBody);
+
+    if (rule.type === "custom" && rule.customPrompt) {
+      const prompt =
+        messagesToSummarize.length > 1
+          ? `Email Thread Subject: ${subject}\n\nThis thread contains ${allThreadEmails.length} messages. Here are the key messages (first + last 3):\n\n${threadText}\n\n${rule.customPrompt}`
+          : `Email Subject: ${subject}\n\nEmail Body:\n${cleanedBody}\n\n${rule.customPrompt}`;
+
+      return this.llmService.generateText(
+        {
+          prompt,
+          systemPrompt:
+            "You are a helpful assistant that summarizes email threads according to user instructions.",
+          temperature: 0.5,
+          maxTokens: 500,
+          userId,
+        },
+        llmProvider,
+        userId,
+      );
+    }
+
+    if (messagesToSummarize.length > 1) {
+      return this.llmService.summarizeEmail(
+        threadText,
+        subject,
+        rule.type,
+        llmProvider,
+        userId,
+      );
+    }
+    return this.llmService.summarizeEmail(
+      cleanedBody,
+      subject,
+      rule.type,
+      llmProvider,
+      userId,
+    );
+  }
+
+  private async prepareThreadDataEntry(
+    email: NonNullable<Awaited<ReturnType<EmailsService["getEmailById"]>>>,
+    emailId: string,
+    userId: string,
+    userRules: SummarizationRuleEntity[],
+  ): Promise<ThreadData> {
+    const allThreadEmails = await this.emailsService.getThreadEmails(
+      userId,
+      email.threadId,
+      { limit: 20, order: "ASC" },
+    );
+
+    let messagesToSummarize: typeof allThreadEmails;
+    if (allThreadEmails.length <= 4) {
+      messagesToSummarize = allThreadEmails;
+    } else {
+      const firstEmail = allThreadEmails[0];
+      const last3Emails = allThreadEmails.slice(
+        CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE,
+      );
+      messagesToSummarize = [firstEmail, ...last3Emails];
+    }
+
+    const threadText = this.buildThreadText(
+      messagesToSummarize,
+      allThreadEmails,
+    );
+    const matchedRule = this.matchRuleFast(
+      { from: email.from, subject: email.subject },
+      userRules,
+    );
+
+    return {
+      emailId,
+      email,
+      threadText:
+        threadText ||
+        cleanEmailContent(email.body, (email as EmailWithHtmlBody).htmlBody),
+      isThread: messagesToSummarize.length > 1,
+      messageCount: messagesToSummarize.length,
+      matchedRule,
+    };
+  }
+
+  private async processBatchRuleGroup(
+    ruleKey: string | null,
+    threads: ThreadData[],
+    userId: string,
+  ): Promise<Map<string, string>> {
+    const result = new Map<string, string>();
+    const rule = threads[0].matchedRule;
+    const batchData = threads.map((item, idx) => ({
+      index: idx,
+      subject: item.email.subject || "",
+      body: item.threadText,
+      isThread: item.isThread,
+      messageCount: item.messageCount,
+    }));
+
+    try {
+      const threadEmailIds = threads.map((item) => item.emailId);
+      const summaryMap = await this.llmService.summarizeThreads(
+        batchData,
+        undefined,
+        userId,
+        rule?.howToSummarize,
+        threadEmailIds,
+      );
+      threads.forEach((item, idx) => {
+        const summary = summaryMap.get(idx);
+        if (summary) {
+          result.set(item.emailId, summary);
+        }
+      });
+    } catch (error) {
+      logError(
+        `Thread summarization failed for rule ${ruleKey || "default"}, falling back to individual calls`,
+        error instanceof Error ? error : new Error(String(error)),
+      );
+      for (const item of threads) {
+        try {
+          const summary = await this.summarizeEmail(userId, item.emailId, {
+            type: rule ? "custom" : "tldr",
+            customPrompt: rule?.howToSummarize,
+          });
+          result.set(item.emailId, summary);
+        } catch (summaryError) {
+          logError(
+            `Failed to summarize thread for email ${item.emailId}`,
+            summaryError instanceof Error
+              ? summaryError
+              : new Error(String(summaryError)),
+          );
+        }
+      }
+    }
+
+    return result;
+  }
+
   async summarizeEmail(
     userId: string,
     emailId: string,
@@ -55,22 +255,16 @@ export class SummarizationService {
       throw new Error("Email not found");
     }
 
-    // For thread summaries, get the first email (for context) + last 3 messages (current state)
-    // Fetch all emails in ASC order to get first email, then determine which to include
-    // ASC to get oldest first
     const allThreadEmails = await this.emailsService.getThreadEmails(
       userId,
       email.threadId,
       { limit: 20, order: "ASC" },
     );
 
-    // Build the messages to summarize: first email + last 3
-    // If thread has 4 or fewer emails, just use all of them
     let messagesToSummarize: typeof allThreadEmails;
     if (allThreadEmails.length <= 4) {
       messagesToSummarize = allThreadEmails;
     } else {
-      // First email + last 3 (skip middle ones)
       const firstEmail = allThreadEmails[0];
       const last3Emails = allThreadEmails.slice(
         CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE,
@@ -78,88 +272,25 @@ export class SummarizationService {
       messagesToSummarize = [firstEmail, ...last3Emails];
     }
 
-    // Combine messages for thread context (clean each message)
-    const threadText = messagesToSummarize
-      .map((e, idx) => {
-        // Cast to EmailWithHtmlBody to access htmlBody which exists on the entity
-        const emailWithHtml = e as EmailWithHtmlBody;
-        const sender = e.fromName || e.from;
-        const date = new Date(e.receivedAt).toLocaleString();
-        // Clean each message: strip HTML, remove signatures, limit to 800 chars per message
-        const cleanedBody = cleanEmailForThread(e.body, emailWithHtml.htmlBody);
-        // Indicate if this is the original email vs recent messages
-        const messageLabel =
-          idx === 0 && allThreadEmails.length > 4
-            ? "Original"
-            : `Message ${idx + 1}`;
-        return `[${messageLabel} from ${sender} on ${date}]:\n${cleanedBody}`;
-      })
-      .join("\n\n---\n\n");
-
-    // Cast to EmailWithHtmlBody to access htmlBody which exists on the entity
+    const threadText = this.buildThreadText(
+      messagesToSummarize,
+      allThreadEmails,
+    );
     const emailWithHtml = email as EmailWithHtmlBody;
     const subject = email.subject || "";
 
-    // Use LLM for all summarization types
     try {
-      // Convert string provider to LLMProvider enum
-      let llmProvider: LLMProvider | undefined;
-      if (rule.provider) {
-        llmProvider =
-          rule.provider === "gemini" ? LLMProvider.GEMINI : LLMProvider.OPENAI;
-      }
-
-      if (rule.type === "custom" && rule.customPrompt) {
-        // Custom prompt using LLM - use cleaned content
-        const cleanedBody = cleanEmailContent(
-          email.body,
-          emailWithHtml.htmlBody,
-        );
-        const prompt =
-          messagesToSummarize.length > 1
-            ? `Email Thread Subject: ${subject}\n\nThis thread contains ${allThreadEmails.length} messages. Here are the key messages (first + last 3):\n\n${threadText}\n\n${rule.customPrompt}`
-            : `Email Subject: ${subject}\n\nEmail Body:\n${cleanedBody}\n\n${rule.customPrompt}`;
-
-        return await this.llmService.generateText(
-          {
-            prompt,
-            systemPrompt:
-              "You are a helpful assistant that summarizes email threads according to user instructions.",
-            temperature: 0.5,
-            maxTokens: 500,
-            userId,
-          },
-          llmProvider,
-          userId,
-        );
-      }
-
-      // Use LLM for standard summarization types
-      if (messagesToSummarize.length > 1) {
-        // Thread summary - use specialized prompt (already cleaned above)
-        return await this.llmService.summarizeEmail(
-          threadText,
-          subject,
-          rule.type,
-          llmProvider,
-          userId,
-        );
-      } else {
-        // Single email summary - clean the content
-        const cleanedBody = cleanEmailContent(
-          email.body,
-          emailWithHtml.htmlBody,
-        );
-        return await this.llmService.summarizeEmail(
-          cleanedBody,
-          subject,
-          rule.type,
-          llmProvider,
-          userId,
-        );
-      }
+      return await this.generateLLMSummary(
+        { ...emailWithHtml, subject },
+        subject,
+        threadText,
+        messagesToSummarize,
+        allThreadEmails,
+        rule,
+        userId,
+        emailId,
+      );
     } catch (error) {
-      // Log to PostHog and re-throw - no fallback
       const err = error instanceof Error ? error : new Error(String(error));
       this.errorTrackingService.captureException(err, userId, {
         operation: "summarize_email",
@@ -196,85 +327,23 @@ export class SummarizationService {
     // Get user's summarization rules once (shared across all threads)
     const userRules = await this.getSummarizationRules(userId);
 
-    // Prepare thread data for summarization
-    interface ThreadData {
-      // The email ID that triggered this thread summarization
-      emailId: string;
-      email: NonNullable<(typeof emails)[0]>;
-      // Combined text of all messages in thread
-      threadText: string;
-      // Whether this has multiple messages
-      isThread: boolean;
-      // Number of messages included in summary
-      messageCount: number;
-      matchedRule: SummarizationRuleEntity | null;
-    }
     const threadsToSummarize: ThreadData[] = [];
 
     // Fetch all messages in each thread and match summarization rules
     const threadPromises = emails.map(async (email, idx) => {
       if (!email) return null;
-
-      // Get first email + last 3 messages in the thread (same logic as single summarization)
-      const allThreadEmails = await this.emailsService.getThreadEmails(
+      return this.prepareThreadDataEntry(
+        email,
+        emailIds[idx],
         userId,
-        email.threadId,
-        { limit: 20, order: "ASC" },
-      );
-
-      // Build the messages to summarize: first email + last 3
-      let messagesToSummarize: typeof allThreadEmails;
-      if (allThreadEmails.length <= 4) {
-        messagesToSummarize = allThreadEmails;
-      } else {
-        const firstEmail = allThreadEmails[0];
-        const last3Emails = allThreadEmails.slice(
-          CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE,
-        );
-        messagesToSummarize = [firstEmail, ...last3Emails];
-      }
-
-      // Build thread text
-      const threadText = messagesToSummarize
-        .map((e, msgIdx) => {
-          const sender = e.fromName || e.from;
-          const date = new Date(e.receivedAt).toLocaleString();
-          const cleanedBody = cleanEmailForThread(
-            e.body,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (e as any).htmlBody,
-          );
-          const messageLabel =
-            msgIdx === 0 && allThreadEmails.length > 4
-              ? "Original"
-              : `Message ${msgIdx + 1}`;
-          return `[${messageLabel} from ${sender} on ${date}]:\n${cleanedBody}`;
-        })
-        .join("\n\n---\n\n");
-
-      // Match summarization rule for this email using fast domain/keyword matching
-      const matchedRule = this.matchRuleFast(
-        { from: email.from, subject: email.subject },
         userRules,
       );
-
-      return {
-        emailId: emailIds[idx],
-        email,
-        threadText:
-          threadText ||
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          cleanEmailContent(email.body, (email as any).htmlBody),
-        isThread: messagesToSummarize.length > 1,
-        messageCount: messagesToSummarize.length,
-        matchedRule,
-      };
     });
 
     const threadResults = await Promise.all(threadPromises);
-    for (const result of threadResults) {
-      if (result) {
-        threadsToSummarize.push(result);
+    for (const threadResult of threadResults) {
+      if (threadResult) {
+        threadsToSummarize.push(threadResult);
       }
     }
 
@@ -296,63 +365,13 @@ export class SummarizationService {
 
     // Process each rule group separately
     for (const [ruleKey, threads] of threadsByRule) {
-      const rule = threads[0].matchedRule;
-
-      // Prepare thread data for LLM
-      const batchData = threads.map((item, idx) => ({
-        index: idx,
-        subject: item.email.subject || "",
-        // Full thread content (first + last 3 messages)
-        body: item.threadText,
-        isThread: item.isThread,
-        messageCount: item.messageCount,
-      }));
-
-      try {
-        // Extract email IDs for tracking
-        const threadEmailIds = threads.map((item) => item.emailId);
-
-        // Call thread summarization with the rule's instructions
-        // Pass custom summarization instructions if available
-        // Pass email IDs for tracking
-        const summaryMap = await this.llmService.summarizeThreads(
-          batchData,
-          undefined,
-          userId,
-          rule?.howToSummarize,
-          threadEmailIds,
-        );
-
-        // Map summaries back to email IDs
-        threads.forEach((item, idx) => {
-          const summary = summaryMap.get(idx);
-          if (summary) {
-            result.set(item.emailId, summary);
-          }
-        });
-      } catch (error) {
-        logError(
-          `Thread summarization failed for rule ${ruleKey || "default"}, falling back to individual calls`,
-          error instanceof Error ? error : new Error(String(error)),
-        );
-
-        // Fallback: summarize each thread individually
-        for (const item of threads) {
-          try {
-            const summary = await this.summarizeEmail(userId, item.emailId, {
-              type: rule ? "custom" : "tldr",
-              customPrompt: rule?.howToSummarize,
-            });
-            result.set(item.emailId, summary);
-          } catch (summaryError) {
-            logError(
-              `Failed to summarize thread for email ${item.emailId}`,
-              summaryError instanceof Error
-                ? summaryError
-                : new Error(String(summaryError)),
-            );
-          }
-        }
+      const groupResult = await this.processBatchRuleGroup(
+        ruleKey,
+        threads,
+        userId,
+      );
+      for (const [emailId, summary] of groupResult) {
+        result.set(emailId, summary);
       }
     }
 
@@ -487,57 +506,19 @@ export class SummarizationService {
     await this.summarizationRuleRepository.delete({ ruleId, userId });
   }
 
-  async matchRuleForEmail(
+  private async matchRuleWithLLM(
+    email: { subject?: string; from?: string; fromName?: string },
+    cleanedBody: string,
+    rules: SummarizationRuleEntity[],
     userId: string,
-    emailId: string,
-  ): Promise<SummarizationRuleEntity | null> {
-    const email = await this.emailsService.getEmailById(userId, emailId);
-    if (!email) {
-      return null;
-    }
+  ): Promise<SummarizationRuleEntity | null | undefined> {
+    const emailPreview = cleanedBody.substring(0, 2000);
+    const emailText = `Subject: ${email.subject || "(no subject)"}\nFrom: ${email.fromName || email.from || "(unknown sender)"} <${email.from || ""}>\n\nEmail Body:\n${emailPreview}${cleanedBody.length > 2000 ? "\n\n[... email continues ...]" : ""}`;
+    const ruleDescriptions = rules
+      .map((rule, index) => `Rule ${index + 1}: "${rule.whenToUse}"`)
+      .join("\n");
 
-    const rules = await this.getSummarizationRules(userId);
-    if (rules.length === 0) {
-      return null;
-    }
-
-    // Clean email content for matching
-    // Cast to EmailWithHtmlBody to access htmlBody which exists on the entity
-    const emailWithHtml = email as EmailWithHtmlBody;
-    const cleanedBody = cleanEmailContent(email.body, emailWithHtml.htmlBody);
-
-    // Fast path: Check for exact domain matches (e.g., "emails from @company.com")
-    // This is a simple optimization for obvious cases, but we still use LLM for semantic matching
-    const fromLower = (email.from || "").toLowerCase();
-    for (const rule of rules) {
-      const whenToUseLower = rule.whenToUse.toLowerCase();
-      const domainMatch = whenToUseLower.match(/@([a-z0-9.-]+)/i);
-      if (domainMatch) {
-        const domain = domainMatch[1].toLowerCase();
-        // Extract domain from email address
-        const emailDomain = fromLower
-          .match(/@([a-z0-9.-]+)/i)?.[1]
-          ?.toLowerCase();
-        if (emailDomain === domain) {
-          // Exact domain match - this is reliable enough to use without LLM
-          return rule;
-        }
-      }
-    }
-
-    // Primary method: Use LLM to evaluate which rule matches based on whenToUse criteria
-    try {
-      // Prepare email context (use more content for better matching)
-      // Increased from 1000 for better context
-      const emailPreview = cleanedBody.substring(0, 2000);
-      const emailText = `Subject: ${email.subject || "(no subject)"}\nFrom: ${email.fromName || email.from || "(unknown sender)"} <${email.from || ""}>\n\nEmail Body:\n${emailPreview}${cleanedBody.length > 2000 ? "\n\n[... email continues ...]" : ""}`;
-
-      // Format rules with their whenToUse criteria
-      const ruleDescriptions = rules
-        .map((rule, index) => `Rule ${index + 1}: "${rule.whenToUse}"`)
-        .join("\n");
-
-      const prompt = `You are evaluating which summarization rule should be applied to an email based on the "whenToUse" criteria for each rule.
+    const prompt = `You are evaluating which summarization rule should be applied to an email based on the "whenToUse" criteria for each rule.
 
 Email to evaluate:
 ${emailText}
@@ -559,50 +540,86 @@ Examples:
 
 Respond with ONLY the rule number (1-${rules.length}) or "0" if no match. Do not include any explanation or other text.`;
 
-      // Lower temperature for more consistent matching
-      // Just need a number
-      const response = await this.llmService.generateText(
-        {
-          prompt,
-          systemPrompt:
-            "You are a precise assistant that evaluates whether emails match rule criteria. You respond with only a number: the rule number (1-N) if a match is found, or 0 if no rule matches.",
-          temperature: 0.1,
-          maxTokens: 5,
-          userId,
-        },
-        undefined,
+    const response = await this.llmService.generateText(
+      {
+        prompt,
+        systemPrompt:
+          "You are a precise assistant that evaluates whether emails match rule criteria. You respond with only a number: the rule number (1-N) if a match is found, or 0 if no rule matches.",
+        temperature: 0.1,
+        maxTokens: 5,
+        userId,
+      },
+      undefined,
+      userId,
+    );
+
+    const cleanedResponse = response.trim().replace(/[^0-9]/g, "");
+    const ruleIndex = parseInt(cleanedResponse, 10) - 1;
+
+    if (ruleIndex >= 0 && ruleIndex < rules.length) {
+      return rules[ruleIndex];
+    }
+    if (cleanedResponse === "0") {
+      return null;
+    }
+
+    logWarn(
+      `LLM returned invalid rule index: "${response.trim()}", parsed as: ${ruleIndex}`,
+    );
+    // signals fallback needed
+    return undefined;
+  }
+
+  async matchRuleForEmail(
+    userId: string,
+    emailId: string,
+  ): Promise<SummarizationRuleEntity | null> {
+    const email = await this.emailsService.getEmailById(userId, emailId);
+    if (!email) {
+      return null;
+    }
+
+    const rules = await this.getSummarizationRules(userId);
+    if (rules.length === 0) {
+      return null;
+    }
+
+    const emailWithHtml = email as EmailWithHtmlBody;
+    const cleanedBody = cleanEmailContent(email.body, emailWithHtml.htmlBody);
+
+    // Fast path: Check for exact domain matches
+    const fromLower = (email.from || "").toLowerCase();
+    for (const rule of rules) {
+      const domainMatch = rule.whenToUse.toLowerCase().match(/@([a-z0-9.-]+)/i);
+      if (domainMatch) {
+        const emailDomain = fromLower
+          .match(/@([a-z0-9.-]+)/i)?.[1]
+          ?.toLowerCase();
+        if (emailDomain === domainMatch[1].toLowerCase()) {
+          return rule;
+        }
+      }
+    }
+
+    // LLM-based matching
+    try {
+      const llmResult = await this.matchRuleWithLLM(
+        email,
+        cleanedBody,
+        rules,
         userId,
       );
-
-      // Parse response - handle various formats the LLM might return
-      // Extract only digits
-      const cleanedResponse = response.trim().replace(/[^0-9]/g, "");
-      const ruleIndex = parseInt(cleanedResponse, 10) - 1;
-
-      if (ruleIndex >= 0 && ruleIndex < rules.length) {
-        return rules[ruleIndex];
+      if (llmResult !== undefined) {
+        return llmResult;
       }
-
-      // If LLM returned 0 or invalid response, no rule matches
-      if (cleanedResponse === "0") {
-        // No matching rule found
-        return null;
-      }
-
-      // If response is invalid, log and fall through to fallback
-      logWarn(
-        `LLM returned invalid rule index: "${response.trim()}", parsed as: ${ruleIndex}`,
-      );
     } catch (error) {
       logError(
         "LLM rule matching failed",
         error instanceof Error ? error : new Error(String(error)),
       );
-      // Fall through to fallback
     }
 
-    // Fallback: If LLM fails or returns invalid response, return first rule
-    // This ensures the system still works even if LLM is unavailable
+    // Fallback: return first rule
     return rules[0];
   }
 

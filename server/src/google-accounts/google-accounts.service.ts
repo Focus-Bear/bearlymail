@@ -4,6 +4,16 @@ import { Repository } from "typeorm";
 import { GoogleAccount } from "../database/entities/google-account.entity";
 import { UsersService } from "../users/users.service";
 
+export interface CreateGoogleAccountOptions {
+  userId: string;
+  googleId: string;
+  email: string;
+  name: string;
+  accessToken: string;
+  refreshToken: string;
+  isPrimary?: boolean;
+}
+
 @Injectable()
 export class GoogleAccountsService {
   private readonly logger = new Logger(GoogleAccountsService.name);
@@ -14,16 +24,17 @@ export class GoogleAccountsService {
     private usersService: UsersService,
   ) {}
 
-  // eslint-disable-next-line max-params
-  async create(
-    userId: string,
-    googleId: string,
-    email: string,
-    name: string,
-    accessToken: string,
-    refreshToken: string,
-    isPrimary: boolean = false,
-  ): Promise<GoogleAccount> {
+  async create(options: CreateGoogleAccountOptions): Promise<GoogleAccount> {
+    const {
+      userId,
+      googleId,
+      email,
+      name,
+      accessToken,
+      refreshToken,
+      isPrimary = false,
+    } = options;
+
     // If this is set as primary, unset other primary accounts
     if (isPrimary) {
       await this.googleAccountRepository.update(

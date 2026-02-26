@@ -7,6 +7,7 @@ import {
   RawEmailMessage,
   EmailRecipient,
   EmailAttachmentData,
+  SendReplyOptions,
 } from "../interfaces/email-provider.interface";
 import PgBoss from "pg-boss";
 import { getJobPriority } from "../../queue/job-priorities";
@@ -14,6 +15,9 @@ import { QUERY_LIMITS } from "../../constants/query-limits";
 import { BODY_PREVIEW_LENGTHS } from "../../constants/llm-constants";
 import { DAYS } from "../../constants/time-constants";
 import { isApiError, isError } from "../../types/common";
+import { User } from "../../database/entities/user.entity";
+import { ZohoAccount } from "../../database/entities/zoho-account.entity";
+import { AxiosInstance } from "axios";
 import { ZohoAccountsService } from "../../zoho-accounts/zoho-accounts.service";
 import { ConfigService } from "@nestjs/config";
 import { parseZohoMessage, ZohoMailMessage } from "./zoho/zoho-message-parser";
@@ -27,27 +31,28 @@ import {
   getExistingThreadUpdates,
 } from "./zoho/zoho-sync";
 import {
-  archiveThreadInZoho,
-  unarchiveThreadInZoho,
-  sendReplyViaZoho,
-  sendEmailViaZoho,
-  searchEmailsViaZoho,
-  isAuthError,
-} from "./zoho/zoho-operations";
+  archiveThread,
+  searchEmails,
+  sendEmail,
+  sendReply,
+  trashThread,
+  unarchiveThread,
+} from "./zoho/zoho-actions.service";
+import { isAuthError } from "./zoho/zoho-operations";
 
 @Injectable()
 export class ZohoProvider implements EmailProvider {
-  private readonly logger = new Logger(ZohoProvider.name);
+  public readonly logger = new Logger(ZohoProvider.name);
   private readonly progressUpdateCounters = new Map<string, number>();
-  private readonly client: ZohoClient;
+  public readonly client: ZohoClient;
 
   constructor(
     private usersService: UsersService,
     @Inject(forwardRef(() => EmailsService))
-    private emailsService: EmailsService,
+    public emailsService: EmailsService,
     private scanEmailService: ScanEmailService,
     @Inject("PG_BOSS") private readonly boss: PgBoss,
-    private zohoAccountsService: ZohoAccountsService,
+    public zohoAccountsService: ZohoAccountsService,
     private configService: ConfigService,
   ) {
     this.client = new ZohoClient(zohoAccountsService, configService);
@@ -127,8 +132,8 @@ export class ZohoProvider implements EmailProvider {
 
   private async handleMissingRefreshToken(
     userId: string,
-    user: any,
-    primaryAccount: any,
+    user: User,
+    primaryAccount: ZohoAccount,
     isRecentLogin: boolean,
   ): Promise<never> {
     await logAuthFailure(
@@ -157,8 +162,8 @@ export class ZohoProvider implements EmailProvider {
 
   private async handleTokenValidationError(
     userId: string,
-    user: any,
-    primaryAccount: any,
+    user: User,
+    primaryAccount: ZohoAccount,
     refreshError: unknown,
   ): Promise<never> {
     let currentAccount = primaryAccount;
@@ -195,7 +200,7 @@ export class ZohoProvider implements EmailProvider {
 
   private async performSync(
     userId: string,
-    zohoClient: any,
+    zohoClient: AxiosInstance,
     zohoAccountId: string,
     isInitialSync: boolean,
   ): Promise<void> {
@@ -260,13 +265,16 @@ export class ZohoProvider implements EmailProvider {
   private async processThreads(
     userId: string,
     threadMap: Map<string, ZohoMailMessage[]>,
-    inboxMessages: any[],
-    zohoClient: any,
+    inboxMessages: ZohoMailMessage[],
+    zohoClient: AxiosInstance,
     zohoAccountId: string,
     isInitialSync: boolean,
-  ): Promise<{ starUpdates: any[]; archivedUpdates: any[] }> {
-    const starUpdates: any[] = [];
-    const archivedUpdates: any[] = [];
+  ): Promise<{
+    starUpdates: { threadId: string; starCount: number }[];
+    archivedUpdates: { threadId: string; isArchived: boolean }[];
+  }> {
+    const starUpdates: { threadId: string; starCount: number }[] = [];
+    const archivedUpdates: { threadId: string; isArchived: boolean }[] = [];
 
     for (const [threadId, messages] of threadMap.entries()) {
       if (!threadId || messages.length === 0) continue;
@@ -306,9 +314,9 @@ export class ZohoProvider implements EmailProvider {
 
   private async processMessage(
     userId: string,
-    message: any,
+    message: ZohoMailMessage,
     threadId: string,
-    zohoClient: any,
+    zohoClient: AxiosInstance,
     zohoAccountId: string,
     starCount: number,
     isInitialSync: boolean,
@@ -346,11 +354,8 @@ export class ZohoProvider implements EmailProvider {
         `Thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... not found`,
       );
     } else {
-      const errorMsg = isError(error)
-        ? error.message
-        : isApiError(error)
-          ? error.message
-          : "Unknown";
+      const errorMsg =
+        isError(error) || isApiError(error) ? error.message : "Unknown";
       this.logger.warn(
         `Error processing thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}...`,
         errorMsg,
@@ -360,7 +365,10 @@ export class ZohoProvider implements EmailProvider {
 
   private async applyThreadUpdates(
     userId: string,
-    updates: { starUpdates: any[]; archivedUpdates: any[] },
+    updates: {
+      starUpdates: { threadId: string; starCount: number }[];
+      archivedUpdates: { threadId: string; isArchived: boolean }[];
+    },
   ): Promise<void> {
     if (updates.starUpdates.length > 0)
       await this.emailsService.batchUpdateThreadStarCount(
@@ -376,8 +384,8 @@ export class ZohoProvider implements EmailProvider {
 
   private async checkExistingStarredThreads(
     userId: string,
-    threadMap: Map<string, any>,
-    zohoClient: any,
+    threadMap: Map<string, ZohoMailMessage[]>,
+    zohoClient: AxiosInstance,
     zohoAccountId: string,
   ): Promise<void> {
     const existingStarredThreads =
@@ -411,8 +419,8 @@ export class ZohoProvider implements EmailProvider {
 
   private async checkNonArchivedThreads(
     userId: string,
-    threadMap: Map<string, any>,
-    zohoClient: any,
+    threadMap: Map<string, ZohoMailMessage[]>,
+    zohoClient: AxiosInstance,
     zohoAccountId: string,
   ): Promise<void> {
     const threadsNeedingCheck =
@@ -456,23 +464,23 @@ export class ZohoProvider implements EmailProvider {
 
   private async handleSyncError(
     userId: string,
-    user: any,
-    primaryAccount: any,
+    user: User,
+    primaryAccount: ZohoAccount,
     error: unknown,
   ): Promise<never> {
     const apiError = isApiError(error) ? error : null;
     const errorMsg = isError(error) ? error.message : apiError?.message || "";
     const isAuthErrorFlag =
       apiError?.code === 401 ||
-      (apiError?.response && (apiError.response as any).status === 401) ||
+      (apiError?.response && apiError.response.status === 401) ||
       errorMsg.includes("Token refresh failed");
 
     if (isAuthErrorFlag) {
-      let currentUser = user;
+      let currentUser: User | null = user;
       try {
         currentUser = await this.usersService.findOne(userId);
       } catch {}
-      const isRecentLogin = isWithinGracePeriod(currentUser);
+      const isRecentLogin = isWithinGracePeriod(currentUser || user);
       await logAuthFailure(
         userId,
         currentUser?.email || null,
@@ -601,8 +609,8 @@ export class ZohoProvider implements EmailProvider {
       const inboxMessages = inboxResponse.data.data || [];
       const trashMessages = trashResponse.data.data || [];
       const allMessages = [...inboxMessages, ...trashMessages];
-      const filteredMessages = allMessages.filter(
-        (msg: any) => msg.receivedTime >= sevenDaysAgoTimestamp,
+      const filteredMessages = (allMessages as ZohoMailMessage[]).filter(
+        (msg) => (msg.receivedTime ?? 0) >= sevenDaysAgoTimestamp,
       );
       const total = Math.min(
         filteredMessages.length,
@@ -657,48 +665,9 @@ export class ZohoProvider implements EmailProvider {
     to: string,
     subject: string,
     body: string,
-    attachments?: EmailAttachmentData[],
-    htmlBody?: string,
-    cc?: string,
+    options?: SendReplyOptions,
   ): Promise<{ messageId: string; threadId: string }> {
-    const primaryAccount = await this.zohoAccountsService.findPrimary(userId);
-    if (!primaryAccount) throw new Error("Zoho Mail account not connected.");
-
-    let { accessToken } = primaryAccount;
-    const zohoClient = this.client.createZohoClient(accessToken);
-
-    try {
-      const zohoAccountId = await this.client.getAccountId(userId, accessToken);
-      const result = await sendReplyViaZoho(
-        zohoClient,
-        zohoAccountId,
-        to,
-        subject,
-        htmlBody || body,
-        threadId,
-        cc,
-      );
-      this.logger.log(`Reply sent for user ${userId} to ${to}`);
-      return { messageId: result.messageId, threadId };
-    } catch (error: unknown) {
-      if (isAuthError(error)) {
-        accessToken = await this.client.refreshTokenIfNeeded(
-          userId,
-          primaryAccount.id,
-        );
-        return this.sendReply(
-          userId,
-          threadId,
-          to,
-          subject,
-          body,
-          attachments,
-          htmlBody,
-          cc,
-        );
-      }
-      throw new Error("Failed to send reply");
-    }
+    return sendReply(this, userId, threadId, to, subject, body, options);
   }
 
   async sendEmail(
@@ -708,35 +677,9 @@ export class ZohoProvider implements EmailProvider {
     body: string,
     cc?: EmailRecipient[],
     bcc?: EmailRecipient[],
-    _attachments?: EmailAttachmentData[], // eslint-disable-line @typescript-eslint/no-unused-vars
+    _attachments?: EmailAttachmentData[],
   ): Promise<{ messageId: string; threadId: string }> {
-    const primaryAccount = await this.zohoAccountsService.findPrimary(userId);
-    if (!primaryAccount) throw new Error("Zoho Mail account not connected.");
-
-    let { accessToken } = primaryAccount;
-    const zohoClient = this.client.createZohoClient(accessToken);
-
-    try {
-      const zohoAccountId = await this.client.getAccountId(userId, accessToken);
-      return await sendEmailViaZoho(
-        zohoClient,
-        zohoAccountId,
-        to,
-        subject,
-        body,
-        cc,
-        bcc,
-      );
-    } catch (error: unknown) {
-      if (isAuthError(error)) {
-        accessToken = await this.client.refreshTokenIfNeeded(
-          userId,
-          primaryAccount.id,
-        );
-        return this.sendEmail(userId, to, subject, body, cc, bcc);
-      }
-      throw new Error("Failed to send email");
-    }
+    return sendEmail(this, userId, to, subject, body, cc, bcc, _attachments);
   }
 
   async searchEmails(
@@ -744,99 +687,21 @@ export class ZohoProvider implements EmailProvider {
     query: string,
     maxResults = 50,
   ): Promise<RawEmailMessage[]> {
-    const primaryAccount = await this.zohoAccountsService.findPrimary(userId);
-    if (!primaryAccount) return [];
-
-    let { accessToken } = primaryAccount;
-    const zohoClient = this.client.createZohoClient(accessToken);
-
-    try {
-      const zohoAccountId = await this.client.getAccountId(userId, accessToken);
-      const messages = await searchEmailsViaZoho(
-        zohoClient,
-        zohoAccountId,
-        query,
-        maxResults,
-      );
-      return messages
-        .map((msg) => parseZohoMessage(msg))
-        .filter((msg): msg is RawEmailMessage => msg !== null);
-    } catch (error: unknown) {
-      if (isAuthError(error)) {
-        accessToken = await this.client.refreshTokenIfNeeded(
-          userId,
-          primaryAccount.id,
-        );
-        return this.searchEmails(userId, query, maxResults);
-      }
-      return [];
-    }
+    return searchEmails(this, userId, query, maxResults);
   }
 
   async archiveThread(userId: string, threadId: string): Promise<void> {
-    this.logger.log(
-      `[Zoho Archive] Starting: userId=${userId}, threadId=${threadId}`,
-    );
-    const primaryAccount = await this.zohoAccountsService.findPrimary(userId);
-    if (!primaryAccount) throw new Error("Zoho Mail account not connected");
-
-    let { accessToken } = primaryAccount;
-    const zohoClient = this.client.createZohoClient(accessToken);
-
-    try {
-      const zohoAccountId = await this.client.getAccountId(userId, accessToken);
-      await archiveThreadInZoho(userId, threadId, zohoClient, zohoAccountId);
-      await this.emailsService.updateThreadArchivedStatus(
-        userId,
-        threadId,
-        true,
-      );
-      this.logger.log(`[Zoho Archive] Thread archived successfully`);
-    } catch (error: unknown) {
-      if (isAuthError(error)) {
-        accessToken = await this.client.refreshTokenIfNeeded(
-          userId,
-          primaryAccount.id,
-        );
-        await this.archiveThread(userId, threadId);
-        return;
-      }
-      throw new Error("Failed to archive thread");
-    }
+    return archiveThread(this, userId, threadId);
   }
 
   async unarchiveThread(userId: string, threadId: string): Promise<void> {
-    const primaryAccount = await this.zohoAccountsService.findPrimary(userId);
-    if (!primaryAccount) throw new Error("Zoho Mail account not connected");
-
-    let { accessToken } = primaryAccount;
-    const zohoClient = this.client.createZohoClient(accessToken);
-
-    try {
-      const zohoAccountId = await this.client.getAccountId(userId, accessToken);
-      await unarchiveThreadInZoho(userId, threadId, zohoClient, zohoAccountId);
-      await this.emailsService.updateThreadArchivedStatus(
-        userId,
-        threadId,
-        false,
-      );
-    } catch (error: unknown) {
-      if (isAuthError(error)) {
-        accessToken = await this.client.refreshTokenIfNeeded(
-          userId,
-          primaryAccount.id,
-        );
-        await this.unarchiveThread(userId, threadId);
-        return;
-      }
-      throw new Error("Failed to unarchive thread");
-    }
+    return unarchiveThread(this, userId, threadId);
   }
 
   async syncStarStatusToGmail(
-    _userId: string, // eslint-disable-line @typescript-eslint/no-unused-vars
+    _userId: string,
     threadId: string,
-    _starCount: number, // eslint-disable-line @typescript-eslint/no-unused-vars
+    _starCount: number,
   ): Promise<void> {
     this.logger.debug(
       `syncStarStatusToGmail called for Zoho (not implemented): ${threadId}`,
@@ -844,9 +709,9 @@ export class ZohoProvider implements EmailProvider {
   }
 
   async snoozeThread(
-    _userId: string, // eslint-disable-line @typescript-eslint/no-unused-vars
+    _userId: string,
     threadId: string,
-    _snoozeUntil: Date, // eslint-disable-line @typescript-eslint/no-unused-vars
+    _snoozeUntil: Date,
   ): Promise<void> {
     this.logger.warn(
       `snoozeThread called for Zoho (not implemented): ${threadId}`,
@@ -860,12 +725,12 @@ export class ZohoProvider implements EmailProvider {
   }
 
   async getAttachment(
-    _userId: string, // eslint-disable-line @typescript-eslint/no-unused-vars
-    _messageId: string, // eslint-disable-line @typescript-eslint/no-unused-vars
-    _attachmentId: string, // eslint-disable-line @typescript-eslint/no-unused-vars
-    _attachmentMetadata?: { filename: string; mimeType: string; size: number }, // eslint-disable-line @typescript-eslint/no-unused-vars
+    _userId: string,
+    _messageId: string,
+    _attachmentId: string,
+    _attachmentMetadata?: { filename: string; mimeType: string; size: number },
   ): Promise<{
-    data: Buffer;
+    attachmentBuffer: Buffer;
     filename: string;
     mimeType: string;
     size: number;
@@ -874,7 +739,7 @@ export class ZohoProvider implements EmailProvider {
   }
 
   async addLabelToThread(
-    _userId: string, // eslint-disable-line @typescript-eslint/no-unused-vars
+    _userId: string,
     threadId: string,
     labelName: string,
   ): Promise<void> {
@@ -884,7 +749,6 @@ export class ZohoProvider implements EmailProvider {
   }
 
   async trashThread(userId: string, threadId: string): Promise<void> {
-    this.logger.debug(`trashThread called for Zoho (using archive instead)`);
-    await this.archiveThread(userId, threadId);
+    return trashThread(this, userId, threadId);
   }
 }

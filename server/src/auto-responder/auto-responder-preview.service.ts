@@ -16,6 +16,16 @@ import {
   PREVIEW_DEFAULTS,
 } from "./auto-responder-constants";
 
+function getPriorityLevel(templateType: string): "low" | "medium" | "high" {
+  if (templateType === "highPriority") {
+    return "high";
+  }
+  if (templateType === "lowPriority") {
+    return "low";
+  }
+  return "medium";
+}
+
 /**
  * Service for previewing auto-responses
  */
@@ -78,12 +88,7 @@ export class AutoResponderPreviewService {
       userName: user?.name || "Your Name",
       senderName: "John Smith",
       originalSubject: "Question about your project",
-      priorityLevel:
-        templateType === "highPriority"
-          ? "high"
-          : templateType === "lowPriority"
-            ? "low"
-            : "medium",
+      priorityLevel: getPriorityLevel(templateType),
       actionCount:
         queueStats.actionCount || PREVIEW_DEFAULTS.SAMPLE_ACTION_COUNT,
       triageCount:

@@ -1,6 +1,3 @@
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { Email } from "../../database/entities/email.entity";
-
 /**
  * Email attachment metadata
  */
@@ -49,6 +46,15 @@ export interface EmailAttachmentData {
   filename: string;
   mimeType: string;
   content: Buffer;
+}
+
+/**
+ * Optional parameters for sendReply
+ */
+export interface SendReplyOptions {
+  attachments?: EmailAttachmentData[];
+  htmlBody?: string;
+  cc?: string;
 }
 
 /**
@@ -104,8 +110,9 @@ export interface EmailProvider {
   /**
    * Send a reply email (continues an existing thread)
    * @param to - Comma-separated list of recipient email addresses (supports "Name <email>" format)
-   * @param cc - Optional comma-separated list of CC recipient email addresses
-   * @param htmlBody - Optional HTML version of the body for rich formatting
+   * @param options.cc - Optional comma-separated list of CC recipient email addresses
+   * @param options.htmlBody - Optional HTML version of the body for rich formatting
+   * @param options.attachments - Optional email attachments
    */
   sendReply(
     userId: string,
@@ -113,9 +120,7 @@ export interface EmailProvider {
     to: string,
     subject: string,
     body: string,
-    attachments?: EmailAttachmentData[],
-    htmlBody?: string,
-    cc?: string,
+    options?: SendReplyOptions,
   ): Promise<{ messageId: string; threadId: string }>;
 
   /**
@@ -228,7 +233,7 @@ export interface EmailProvider {
       size: number;
     },
   ): Promise<{
-    data: Buffer;
+    attachmentBuffer: Buffer;
     filename: string;
     mimeType: string;
     size: number;

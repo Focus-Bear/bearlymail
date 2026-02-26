@@ -112,7 +112,8 @@ export class AutoResponderSuppressionService {
       userId,
       senderEmailHash,
       reason: SuppressionReason.OPT_OUT,
-      suppressUntil: null, // Permanent
+      // Permanent
+      suppressUntil: null,
       notes: notes || "User requested opt-out",
     });
   }

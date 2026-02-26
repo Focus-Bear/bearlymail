@@ -1,7 +1,5 @@
 import {
   Injectable,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  Inject,
   Logger,
   OnModuleInit,
   OnModuleDestroy,
@@ -64,19 +62,8 @@ export class QueueAutoscalingService implements OnModuleInit, OnModuleDestroy {
     );
   }
 
-  // eslint-disable-next-line max-lines-per-function
   async onModuleInit() {
-    // Only run autoscaling in web service, not in worker tasks
-    const workerMode = this.configService.get<string>("WORKER_MODE");
-    if (workerMode === "true") {
-      this.logger.log("Autoscaling service disabled (running in worker mode)");
-      return;
-    }
-
-    if (!this.enabled) {
-      this.logger.log(
-        "Autoscaling service disabled (AUTOSCALING_ENABLED=false)",
-      );
+    if (!this.validateWorkerModeAndAutoscaling()) {
       return;
     }
 
@@ -84,6 +71,27 @@ export class QueueAutoscalingService implements OnModuleInit, OnModuleDestroy {
       `Queue autoscaling service starting (interval: ${this.checkIntervalSeconds}s, min: ${this.minWorkers}, max: ${this.maxWorkers}, jobs/worker: ${this.queueDepthPerWorker})`,
     );
 
+    await this.startMetricsCollection();
+  }
+
+  private validateWorkerModeAndAutoscaling(): boolean {
+    const workerMode = this.configService.get<string>("WORKER_MODE");
+    if (workerMode === "true") {
+      this.logger.log("Autoscaling service disabled (running in worker mode)");
+      return false;
+    }
+
+    if (!this.enabled) {
+      this.logger.log(
+        "Autoscaling service disabled (AUTOSCALING_ENABLED=false)",
+      );
+      return false;
+    }
+
+    return true;
+  }
+
+  private async startMetricsCollection(): Promise<void> {
     // Start monitoring immediately
     await this.checkAndPublishMetrics();
 

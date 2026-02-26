@@ -108,7 +108,8 @@ describe("BatchScheduleService", () => {
     it("should normalize string delivery days to numbers when creating", async () => {
       const userId = "user-123";
       const scheduleData = {
-        deliveryDays: ["1", "2", "3"] as any, // strings as would come from DB round-trip
+        // strings as would come from DB round-trip
+        deliveryDays: ["1", "2", "3"] as any,
         deliveryTimes: ["09:00"],
         timezone: "UTC",
         isEnabled: true,
@@ -176,7 +177,8 @@ describe("BatchScheduleService", () => {
     it("should filter out invalid delivery day values", async () => {
       const userId = "user-123";
       const scheduleData = {
-        deliveryDays: [1, 2, 7, -1, 8, 3] as any, // 7, -1, 8 are invalid (0-6 only)
+        // 7, -1, 8 are invalid (0-6 only)
+        deliveryDays: [1, 2, 7, -1, 8, 3] as any,
         deliveryTimes: ["09:00"],
         timezone: "UTC",
         isEnabled: true,
@@ -314,7 +316,8 @@ describe("BatchScheduleService", () => {
       expect(mockEmailThreadRepository.query).toHaveBeenCalledWith(
         expect.stringContaining("UPDATE email_threads"),
         expect.arrayContaining([
-          expect.any(Date), // newReleaseTime
+          // newReleaseTime
+          expect.any(Date),
           expect.stringContaining("Schedule updated"),
           userId,
         ]),
@@ -461,7 +464,8 @@ describe("BatchScheduleService", () => {
 
       const schedule = {
         isEnabled: true,
-        deliveryDays: ["1", "2", "3", "4", "5"] as any, // Strings from DB
+        // Strings from DB
+        deliveryDays: ["1", "2", "3", "4", "5"] as any,
         deliveryTimes: ["09:00"],
         timezone: "UTC",
       } as BatchSchedule;
@@ -480,7 +484,8 @@ describe("BatchScheduleService", () => {
 
       const schedule = {
         isEnabled: true,
-        deliveryDays: ["1", "2", "3", "4", "5"] as any, // Mon-Fri as strings
+        // Mon-Fri as strings
+        deliveryDays: ["1", "2", "3", "4", "5"] as any,
         deliveryTimes: ["09:00"],
         timezone: "UTC",
       } as BatchSchedule;
@@ -843,8 +848,10 @@ describe("BatchScheduleService", () => {
 
       const schedule = {
         isEnabled: true,
-        deliveryDays: [1, 2, 3, 4, 5], // Monday-Friday (0=Sun, 1=Mon, ..., 5=Fri)
-        deliveryTimes: ["11:00", "15:00"], // 11am and 3pm AEDT
+        // Monday-Friday (0=Sun, 1=Mon, ..., 5=Fri)
+        deliveryDays: [1, 2, 3, 4, 5],
+        // 11am and 3pm AEDT
+        deliveryTimes: ["11:00", "15:00"],
         timezone: "Australia/Melbourne",
         urgentBypassSchedule: false,
       } as BatchSchedule;
@@ -864,7 +871,8 @@ describe("BatchScheduleService", () => {
 
       const schedule = {
         isEnabled: true,
-        deliveryDays: ["1", "2", "3", "4", "5"] as any, // Stored as strings in DB
+        // Stored as strings in DB
+        deliveryDays: ["1", "2", "3", "4", "5"] as any,
         deliveryTimes: ["09:00", "15:00"],
         timezone: "UTC",
         urgentBypassSchedule: false,
@@ -884,7 +892,8 @@ describe("BatchScheduleService", () => {
 
       const schedule = {
         isEnabled: true,
-        deliveryDays: [1, "2", 3, "4", 5] as any, // Mixed types
+        // Mixed types
+        deliveryDays: [1, "2", 3, "4", 5] as any,
         deliveryTimes: ["09:00", "15:00"],
         timezone: "UTC",
         urgentBypassSchedule: false,

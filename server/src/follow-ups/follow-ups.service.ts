@@ -20,7 +20,6 @@ import { EncryptionHelper } from "../encryption/encryption.helper";
 export class FollowUpsService {
   private readonly logger = new Logger(FollowUpsService.name);
 
-  // eslint-disable-next-line max-params
   constructor(
     @InjectRepository(FollowUp)
     private followUpRepository: Repository<FollowUp>,

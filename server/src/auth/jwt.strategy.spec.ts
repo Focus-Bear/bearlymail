@@ -6,9 +6,7 @@ import { UsersService } from "../users/users.service";
 
 describe("JwtStrategy", () => {
   let strategy: JwtStrategy;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let _usersService: UsersService;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let _configService: ConfigService;
 
   const mockUsersService = {

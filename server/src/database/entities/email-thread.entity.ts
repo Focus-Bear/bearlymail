@@ -96,7 +96,8 @@ export class EmailThread {
       sentiment: { score: number; type: string; reasons: string[] };
     };
     breakdown: Array<{ factor: string; value: number; description: string }>;
-    calculatedAt?: string; // ISO timestamp when priority was last calculated
+    // ISO timestamp when priority was last calculated
+    calculatedAt?: string;
   } | null;
 
   @Column({
@@ -106,6 +107,7 @@ export class EmailThread {
   })
   isProcessingPriority: boolean;
 
+  // GitHub issue/PR metadata
   @Column("text", { nullable: true, transformer: encryptedJsonTransformer })
   githubMetadata: {
     links: Array<{
@@ -127,7 +129,6 @@ export class EmailThread {
       };
       fetchedAt?: string;
     }>;
-    // GitHub issue/PR metadata
   } | null;
 
   @CreateDateColumn()

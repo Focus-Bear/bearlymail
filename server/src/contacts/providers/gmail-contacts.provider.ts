@@ -21,10 +21,46 @@ export class GmailContactsProvider implements ContactProvider {
     return !!user?.googleCalendarAccessToken;
   }
 
-  // eslint-disable-next-line max-lines-per-function, max-statements
+  private extractRawContact(
+    // people API person schema
+    person: Parameters<typeof google.people>[0] extends unknown
+      ? {
+          resourceName?: string | null;
+          names?: Array<{
+            displayName?: string | null;
+            givenName?: string | null;
+            familyName?: string | null;
+          }> | null;
+          emailAddresses?: Array<{ value?: string | null }> | null;
+          phoneNumbers?: Array<{ value?: string | null }> | null;
+          organizations?: Array<{
+            name?: string | null;
+            title?: string | null;
+          }> | null;
+          photos?: Array<{ url?: string | null }> | null;
+        }
+      : never,
+  ): RawContact | null {
+    const email = person.emailAddresses?.[0]?.value;
+    if (!email) return null;
+    const name = person.names?.[0];
+    const org = person.organizations?.[0];
+    const photo = person.photos?.[0];
+    return {
+      providerId: person.resourceName || "",
+      email: email.toLowerCase().trim(),
+      name: name?.displayName ?? undefined,
+      firstName: name?.givenName ?? undefined,
+      lastName: name?.familyName ?? undefined,
+      phone: person.phoneNumbers?.[0]?.value ?? undefined,
+      company: org?.name ?? undefined,
+      jobTitle: org?.title ?? undefined,
+      photoUrl: photo?.url ?? undefined,
+    };
+  }
+
   async syncContacts(
     userId: string,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _fullSync: boolean = false,
   ): Promise<number> {
     const user = await this.usersService.findOne(userId);
@@ -40,13 +76,10 @@ export class GmailContactsProvider implements ContactProvider {
       process.env.GOOGLE_CLIENT_SECRET,
       process.env.GOOGLE_REDIRECT_URI,
     );
-
     oauth2Client.setCredentials({
       access_token: user.googleCalendarAccessToken,
       refresh_token: user.googleCalendarRefreshToken,
     });
-
-    // Handle token refresh
     oauth2Client.on("tokens", async (tokens) => {
       if (tokens.access_token) {
         await this.usersService.update(userId, {
@@ -61,71 +94,17 @@ export class GmailContactsProvider implements ContactProvider {
     const people = google.people({ version: "v1", auth: oauth2Client });
 
     try {
-      const contacts: RawContact[] = [];
-      let nextPageToken: string | undefined;
-      let totalSynced = 0;
-
-      do {
-        const response = await people.people.connections.list({
-          resourceName: "people/me",
-          pageSize: 1000,
-          personFields:
-            "names,emailAddresses,phoneNumbers,organizations,photos",
-          pageToken: nextPageToken,
-        });
-
-        const connections = response.data.connections || [];
-
-        for (const person of connections) {
-          const email = person.emailAddresses?.[0]?.value;
-          // Skip contacts without email
-          if (!email) continue;
-
-          const name = person.names?.[0];
-          const org = person.organizations?.[0];
-          const photo = person.photos?.[0];
-
-          contacts.push({
-            providerId: person.resourceName || "",
-            email: email.toLowerCase().trim(),
-            name: name?.displayName,
-            firstName: name?.givenName,
-            lastName: name?.familyName,
-            phone: person.phoneNumbers?.[0]?.value,
-            company: org?.name,
-            jobTitle: org?.title,
-            photoUrl: photo?.url,
-          });
-        }
-
-        nextPageToken = response.data.nextPageToken || undefined;
-        totalSynced = contacts.length;
-
-        // Limit to prevent excessive API calls
-        if (contacts.length >= 5000) {
-          this.logger.log(`Contact sync limit reached for user ${userId}`);
-          break;
-        }
-      } while (nextPageToken);
-
-      this.logger.log(
-        `Fetched ${contacts.length} contacts from Gmail for user ${userId}`,
-      );
-
-      // Return raw contacts - the service will handle storing them
-      // The ContactsService will call this and then store them
-      return totalSynced;
+      return await this.fetchAndSyncContacts(people, userId);
     } catch (error: unknown) {
       logError(
         `Error syncing contacts for user ${userId}`,
         error instanceof Error ? error : new Error(String(error)),
       );
-
       const errorCode =
         typeof error === "object" && error !== null && "code" in error
           ? (error as { code?: number | string }).code
           : undefined;
-      let errorMessage: string;
+      let errorMessage = "";
       if (error instanceof Error) {
         errorMessage = error.message;
       } else if (
@@ -134,10 +113,7 @@ export class GmailContactsProvider implements ContactProvider {
         "message" in error
       ) {
         errorMessage = String((error as { message?: unknown }).message);
-      } else {
-        errorMessage = "";
       }
-
       if (
         errorCode === 401 ||
         errorCode === 403 ||
@@ -145,9 +121,42 @@ export class GmailContactsProvider implements ContactProvider {
       ) {
         await this.usersService.update(userId, { needsRelogin: true });
       }
-
       throw error;
     }
+  }
+
+  private async fetchAndSyncContacts(
+    people: ReturnType<typeof google.people>,
+    userId: string,
+  ): Promise<number> {
+    const contacts: RawContact[] = [];
+    let nextPageToken: string | undefined;
+
+    do {
+      const response = await people.people.connections.list({
+        resourceName: "people/me",
+        pageSize: 1000,
+        personFields: "names,emailAddresses,phoneNumbers,organizations,photos",
+        pageToken: nextPageToken,
+      });
+
+      for (const person of response.data.connections || []) {
+        const contact = this.extractRawContact(person);
+        if (contact) contacts.push(contact);
+      }
+
+      nextPageToken = response.data.nextPageToken || undefined;
+
+      if (contacts.length >= 5000) {
+        this.logger.log(`Contact sync limit reached for user ${userId}`);
+        break;
+      }
+    } while (nextPageToken);
+
+    this.logger.log(
+      `Fetched ${contacts.length} contacts from Gmail for user ${userId}`,
+    );
+    return contacts.length;
   }
 
   async searchContacts(
@@ -185,28 +194,9 @@ export class GmailContactsProvider implements ContactProvider {
       for (const result of response.data.results || []) {
         const { person } = result;
         if (!person) continue;
-
-        const email = person.emailAddresses?.[0]?.value;
-        if (!email) continue;
-
-        const emailKey = email.toLowerCase().trim();
-        if (resultsMap.has(emailKey)) continue;
-
-        const name = person.names?.[0];
-        const org = person.organizations?.[0];
-        const photo = person.photos?.[0];
-
-        resultsMap.set(emailKey, {
-          providerId: person.resourceName || "",
-          email: emailKey,
-          name: name?.displayName,
-          firstName: name?.givenName,
-          lastName: name?.familyName,
-          phone: person.phoneNumbers?.[0]?.value,
-          company: org?.name,
-          jobTitle: org?.title,
-          photoUrl: photo?.url,
-        });
+        const contact = this.extractRawContact(person);
+        if (!contact || resultsMap.has(contact.email)) continue;
+        resultsMap.set(contact.email, contact);
       }
     } catch (error: unknown) {
       this.logger.error(
@@ -225,28 +215,9 @@ export class GmailContactsProvider implements ContactProvider {
       for (const result of otherResponse.data.results || []) {
         const { person } = result;
         if (!person) continue;
-
-        const email = person.emailAddresses?.[0]?.value;
-        if (!email) continue;
-
-        const emailKey = email.toLowerCase().trim();
-        if (resultsMap.has(emailKey)) continue;
-
-        const name = person.names?.[0];
-        const org = person.organizations?.[0];
-        const photo = person.photos?.[0];
-
-        resultsMap.set(emailKey, {
-          providerId: person.resourceName || "",
-          email: emailKey,
-          name: name?.displayName,
-          firstName: name?.givenName,
-          lastName: name?.familyName,
-          phone: person.phoneNumbers?.[0]?.value,
-          company: org?.name,
-          jobTitle: org?.title,
-          photoUrl: photo?.url,
-        });
+        const contact = this.extractRawContact(person);
+        if (!contact || resultsMap.has(contact.email)) continue;
+        resultsMap.set(contact.email, contact);
       }
     } catch (error: unknown) {
       this.logger.warn(
@@ -263,7 +234,6 @@ export class GmailContactsProvider implements ContactProvider {
     providerId: string,
   ): Promise<RawContact | null> {
     const user = await this.usersService.findOne(userId);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     if (!user?.googleCalendarAccessToken) {
       return null;
     }
@@ -280,7 +250,6 @@ export class GmailContactsProvider implements ContactProvider {
     });
 
     const people = google.people({ version: "v1", auth: oauth2Client });
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     try {
       const response = await people.people.get({
         resourceName: providerId,
@@ -293,8 +262,6 @@ export class GmailContactsProvider implements ContactProvider {
 
       const name = person.names?.[0];
       const org = person.organizations?.[0];
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const photo = person.photos?.[0];
 
       return {
         providerId: person.resourceName || "",
@@ -305,7 +272,7 @@ export class GmailContactsProvider implements ContactProvider {
         phone: person.phoneNumbers?.[0]?.value,
         company: org?.name,
         jobTitle: org?.title,
-        photoUrl: photo?.url,
+        photoUrl: person.photos?.[0]?.url,
       };
     } catch (error) {
       logError(
@@ -322,7 +289,7 @@ export class GmailContactsProvider implements ContactProvider {
    * Fetches from both "connections" (explicitly added contacts) and
    * "otherContacts" (auto-created from interactions like emails)
    */
-  // eslint-disable-next-line max-statements, max-lines-per-function
+
   async fetchAllContacts(userId: string): Promise<RawContact[]> {
     const user = await this.usersService.findOne(userId);
     if (!user?.googleCalendarAccessToken) {

@@ -53,7 +53,8 @@ export class EmailThreadService {
         "email.isRead",
         "email.summary",
         "email.receivedAt",
-        "email.labels", // Include labels field
+        // Include labels field
+        "email.labels",
         // Only include body/htmlBody if explicitly needed - they're large and encrypted
         // For thread view, we can fetch them separately for expanded emails
         "email.body",

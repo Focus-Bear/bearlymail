@@ -44,7 +44,14 @@ export function parseZohoMessage(
   const subject = messageData.subject || "(No Subject)";
   const { threadId } = messageData;
   const importance = messageData.importance || "normal";
-  const starCount = importance === "high" ? 3 : importance === "low" ? 1 : 0;
+  let starCount: number;
+  if (importance === "high") {
+    starCount = 3;
+  } else if (importance === "low") {
+    starCount = 1;
+  } else {
+    starCount = 0;
+  }
 
   // Extract body content
   const htmlBody = messageData.content?.html || messageData.body || "";

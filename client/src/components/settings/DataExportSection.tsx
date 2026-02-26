@@ -138,7 +138,7 @@ export const DataExportSection: React.FC = () => {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ data }),
+        body: JSON.stringify({ importPayload: data }),
       });
 
       if (!response.ok) {

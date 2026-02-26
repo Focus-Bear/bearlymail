@@ -2,7 +2,6 @@ import {
   MigrationInterface,
   QueryRunner,
   Table,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   TableColumn,
   TableForeignKey,
   TableIndex,

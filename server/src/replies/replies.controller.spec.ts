@@ -230,11 +230,13 @@ describe("RepliesController", () => {
         userId,
         emailId,
         body.reply,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
+        {
+          attachments: undefined,
+          cc: undefined,
+          expectedReplyHours: undefined,
+          forwardAttachmentIds: undefined,
+          recipients: undefined,
+        },
       );
     });
 
@@ -265,17 +267,19 @@ describe("RepliesController", () => {
         userId,
         emailId,
         body.reply,
-        [
-          {
-            filename: "test.pdf",
-            mimeType: "application/pdf",
-            content: Buffer.from("test content"),
-          },
-        ],
-        undefined,
-        undefined,
-        undefined,
-        undefined,
+        {
+          attachments: [
+            {
+              filename: "test.pdf",
+              mimeType: "application/pdf",
+              content: Buffer.from("test content"),
+            },
+          ],
+          cc: undefined,
+          expectedReplyHours: undefined,
+          forwardAttachmentIds: undefined,
+          recipients: undefined,
+        },
       );
     });
 
@@ -297,11 +301,13 @@ describe("RepliesController", () => {
         userId,
         emailId,
         body.reply,
-        undefined,
-        undefined,
-        ["attach-1", "attach-2"],
-        undefined,
-        undefined,
+        {
+          attachments: undefined,
+          cc: undefined,
+          expectedReplyHours: undefined,
+          forwardAttachmentIds: ["attach-1", "attach-2"],
+          recipients: undefined,
+        },
       );
     });
 
@@ -323,11 +329,13 @@ describe("RepliesController", () => {
         userId,
         emailId,
         body.reply,
-        undefined,
-        24,
-        undefined,
-        undefined,
-        undefined,
+        {
+          attachments: undefined,
+          cc: undefined,
+          expectedReplyHours: 24,
+          forwardAttachmentIds: undefined,
+          recipients: undefined,
+        },
       );
     });
 
@@ -350,11 +358,13 @@ describe("RepliesController", () => {
         userId,
         emailId,
         body.reply,
-        undefined,
-        undefined,
-        undefined,
-        "sender@example.com, other@example.com",
-        "cc@example.com",
+        {
+          attachments: undefined,
+          cc: "cc@example.com",
+          expectedReplyHours: undefined,
+          forwardAttachmentIds: undefined,
+          recipients: "sender@example.com, other@example.com",
+        },
       );
     });
   });

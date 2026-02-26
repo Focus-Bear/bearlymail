@@ -5,18 +5,12 @@ import { EmailsService } from "../emails.service";
 import { ScanEmailService } from "../scan-email.service";
 import { ZohoAccountsService } from "../../zoho-accounts/zoho-accounts.service";
 import { ConfigService } from "@nestjs/config";
-import PgBoss from "pg-boss";
-
 describe("ZohoProvider", () => {
   let provider: ZohoProvider;
   let usersService: jest.Mocked<UsersService>;
   let emailsService: jest.Mocked<EmailsService>;
   let scanEmailService: jest.Mocked<ScanEmailService>;
   let zohoAccountsService: jest.Mocked<ZohoAccountsService>;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  let configService: jest.Mocked<ConfigService>;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  let boss: jest.Mocked<PgBoss>;
 
   const mockUser = {
     id: "user-123",
@@ -96,8 +90,6 @@ describe("ZohoProvider", () => {
     emailsService = module.get(EmailsService);
     scanEmailService = module.get(ScanEmailService);
     zohoAccountsService = module.get(ZohoAccountsService);
-    configService = module.get(ConfigService);
-    boss = module.get("PG_BOSS");
   });
 
   afterEach(() => {

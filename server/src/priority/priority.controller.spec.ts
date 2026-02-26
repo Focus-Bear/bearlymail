@@ -357,7 +357,8 @@ describe("PriorityController", () => {
       const threadId = "thread-123";
       const mockRequest = { user: { userId } };
       const body = {
-        urgencyScore: 150, // Over 100
+        // Over 100
+        urgencyScore: 150,
         reason: "Test",
       };
       const mockThread = {
@@ -375,7 +376,8 @@ describe("PriorityController", () => {
 
       expect(mockEmailThreadRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
-          urgencyScore: 100, // Clamped to 100
+          // Clamped to 100
+          urgencyScore: 100,
         }),
       );
     });

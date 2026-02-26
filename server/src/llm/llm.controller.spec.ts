@@ -227,7 +227,8 @@ describe("LLMController (Integration)", () => {
           name: "Test User",
           email: "test@example.com",
         },
-        true, // isUserSender should be true
+        // isUserSender should be true
+        true,
       );
     });
   });

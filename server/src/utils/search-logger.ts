@@ -17,6 +17,19 @@ function writeToLogFile(message: string) {
   fs.appendFileSync(SEARCH_LOG_FILE, logLine, "utf8");
 }
 
+export interface EmailScoreDetails {
+  userId: string;
+  originalQuery: string;
+  emailIndex: number;
+  from: string;
+  subject: string;
+  baseScore: number;
+  recencyAdjustment: number;
+  finalScore: number;
+  included: boolean;
+  rejectionReason?: string;
+}
+
 /**
  * Dedicated logger for search operations
  * Writes all search-related logs to logs/search-system.log
@@ -155,19 +168,19 @@ export class SearchLogger {
   /**
    * Log individual email score
    */
-  // eslint-disable-next-line max-params
-  logEmailScore(
-    userId: string,
-    originalQuery: string,
-    emailIndex: number,
-    from: string,
-    subject: string,
-    baseScore: number,
-    recencyAdjustment: number,
-    finalScore: number,
-    included: boolean,
-    rejectionReason?: string,
-  ) {
+  logEmailScore(details: EmailScoreDetails) {
+    const {
+      userId,
+      originalQuery,
+      emailIndex,
+      from,
+      subject,
+      baseScore,
+      recencyAdjustment,
+      finalScore,
+      included,
+      rejectionReason,
+    } = details;
     const status = included ? "Included" : "Rejected";
     const reason = rejectionReason ? ` | Reason: ${rejectionReason}` : "";
     const message = `[SEARCH] User: ${userId} | Query: "${originalQuery}" | Email ${emailIndex} (${from}: "${subject}"): baseScore=${baseScore}, recencyAdj=${recencyAdjustment >= 0 ? "+" : ""}${recencyAdjustment}, finalScore=${finalScore} | ${status}${reason}`;

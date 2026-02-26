@@ -4,6 +4,16 @@ import { Repository } from "typeorm";
 import { ZohoAccount } from "../database/entities/zoho-account.entity";
 import { UsersService } from "../users/users.service";
 
+export interface CreateZohoAccountOptions {
+  userId: string;
+  zohoId: string;
+  email: string;
+  name: string;
+  accessToken: string;
+  refreshToken: string;
+  isPrimary?: boolean;
+}
+
 @Injectable()
 export class ZohoAccountsService {
   private readonly logger = new Logger(ZohoAccountsService.name);
@@ -14,16 +24,17 @@ export class ZohoAccountsService {
     private usersService: UsersService,
   ) {}
 
-  // eslint-disable-next-line max-params
-  async create(
-    userId: string,
-    zohoId: string,
-    email: string,
-    name: string,
-    accessToken: string,
-    refreshToken: string,
-    isPrimary: boolean = false,
-  ): Promise<ZohoAccount> {
+  async create(options: CreateZohoAccountOptions): Promise<ZohoAccount> {
+    const {
+      userId,
+      zohoId,
+      email,
+      name,
+      accessToken,
+      refreshToken,
+      isPrimary = false,
+    } = options;
+
     // If this is set as primary, unset other primary accounts
     if (isPrimary) {
       await this.zohoAccountRepository.update(

@@ -284,7 +284,7 @@ describe("EncryptionHelper", () => {
       const testObject = {
         key: "value",
         number: 123,
-        nested: { data: "test" },
+        nested: { nestedValue: "test" },
       };
       const encrypted = encryptedJsonTransformer.to(testObject);
       expect(encrypted).toBeTruthy();

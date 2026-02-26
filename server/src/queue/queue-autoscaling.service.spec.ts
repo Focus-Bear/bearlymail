@@ -198,12 +198,14 @@ describe("QueueAutoscalingService", () => {
       expect(cloudWatchService.putMetrics).toHaveBeenCalledWith([
         {
           name: "QueueDepth",
-          value: 550, // 11 queues * 50 pending each
+          // 11 queues * 50 pending each
+          value: 550,
           unit: StandardUnit.Count,
         },
         {
           name: "DesiredWorkers",
-          value: 10, // Math.ceil(550 / 50) = 11, capped at maxWorkers = 10
+          // Math.ceil(550 / 50) = 11, capped at maxWorkers = 10
+          value: 10,
           unit: StandardUnit.Count,
         },
       ]);

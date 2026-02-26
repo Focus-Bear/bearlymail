@@ -1,68 +1,8 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PostHog } from "posthog-node";
+import { createPosthogExceptionPayload } from "./error-tracking.utils";
 
 const API_KEY_PREVIEW_LENGTH = 8;
-
-interface ExceptionFrame {
-  filename: string;
-  function: string;
-  lineno: number;
-  colno: number;
-  in_app: boolean;
-}
-
-/**
- * Parse a Node.js Error.stack string into an array of frame objects.
- * PostHog Error Tracking requires stacktrace.frames to be an array,
- * not a raw string, in order to display and group errors correctly.
- */
-function parseStackTrace(stack: string): ExceptionFrame[] {
-  if (!stack) return [];
-
-  const frames: ExceptionFrame[] = [];
-
-  for (const line of stack.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed.startsWith("at ")) continue;
-
-    // "at FunctionName (filename:line:col)" or "at async FunctionName (...)"
-    const withName = trimmed.match(
-      /^at\s+(?:async\s+)?(.+?)\s+\((.+?):(\d+):(\d+)\)$/,
-    );
-    if (withName) {
-      const filename = withName[2];
-      frames.push({
-        function: withName[1],
-        filename,
-        lineno: parseInt(withName[3], 10),
-        colno: parseInt(withName[4], 10),
-        in_app:
-          !filename.includes("node_modules") &&
-          !filename.startsWith("node:") &&
-          !filename.startsWith("internal/"),
-      });
-      continue;
-    }
-
-    // "at filename:line:col" (anonymous)
-    const anonymous = trimmed.match(/^at\s+(?:async\s+)?(.+?):(\d+):(\d+)$/);
-    if (anonymous) {
-      const filename = anonymous[1];
-      frames.push({
-        function: "<anonymous>",
-        filename,
-        lineno: parseInt(anonymous[2], 10),
-        colno: parseInt(anonymous[3], 10),
-        in_app:
-          !filename.includes("node_modules") &&
-          !filename.startsWith("node:") &&
-          !filename.startsWith("internal/"),
-      });
-    }
-  }
-
-  return frames;
-}
 
 /**
  * Service for tracking errors and events to PostHog
@@ -84,10 +24,7 @@ export class ErrorTrackingService {
       try {
         this.posthog = new PostHog(apiKey!, {
           host: apiHost,
-          // Automatically batch events for performance
-          // Flush every 20 events
           flushAt: 20,
-          // Or every 10 seconds
           flushInterval: 10000,
         });
 
@@ -121,7 +58,8 @@ export class ErrorTrackingService {
   }
 
   /**
-   * Capture an exception/error to PostHog
+   * Capture an exception/error to PostHog.
+   * These are handled (caught) errors explicitly captured by application code.
    * @param error - The error object
    * @param userId - Optional user ID (NO PII - use UUID)
    * @param additionalContext - Additional context (NO PII)
@@ -142,27 +80,15 @@ export class ErrorTrackingService {
     }
 
     try {
-      // Build properties using PostHog's $exception_list format, which is
-      // required by the Error Tracking dashboard for grouping and display.
-      // frames must be an array of {filename, function, lineno, colno} objects.
       const properties: Record<string, unknown> = {
         $exception_type: error.name,
         $exception_message: error.message,
-        $exception_list: [
-          {
-            type: error.name,
-            value: error.message,
-            stacktrace: {
-              frames: parseStackTrace(error.stack || ""),
-            },
-          },
-        ],
+        $exception_list: [createPosthogExceptionPayload(error, true)],
         environment: process.env.NODE_ENV,
         service: "backend",
         ...this.sanitizeProperties(additionalContext || {}),
       };
 
-      // Use userId as distinct_id if provided, otherwise use a generic backend identifier
       const distinctId = userId || "backend-errors";
 
       this.posthog.capture({
@@ -175,7 +101,6 @@ export class ErrorTrackingService {
         `Captured exception to PostHog: ${error.name} - ${error.message} (distinctId: ${distinctId})`,
       );
     } catch (captureError) {
-      // Don't throw errors when trying to capture errors
       this.logger.error("Failed to capture exception to PostHog", captureError);
       console.error(
         `POSTHOG: Failed to capture exception "${error.name}: ${error.message}":`,
@@ -267,20 +192,15 @@ export class ErrorTrackingService {
   ): Record<string, unknown> {
     const sanitized = { ...properties };
 
-    // Remove common PII fields
     delete sanitized.email;
     delete sanitized.name;
     delete sanitized.firstName;
     delete sanitized.lastName;
     delete sanitized.phone;
     delete sanitized.address;
-    // Search queries are PII
     delete sanitized.query;
-    // Email subjects are PII
     delete sanitized.subject;
-    // Email bodies are PII
     delete sanitized.body;
-    // May contain PII
     delete sanitized.message;
 
     return sanitized;

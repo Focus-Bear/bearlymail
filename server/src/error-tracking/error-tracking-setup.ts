@@ -1,68 +1,8 @@
 import { PostHog } from "posthog-node";
 import { Logger } from "@nestjs/common";
+import { createPosthogExceptionPayload } from "./error-tracking.utils";
 
 const API_KEY_PREVIEW_LENGTH = 8;
-
-interface ExceptionFrame {
-  filename: string;
-  function: string;
-  lineno: number;
-  colno: number;
-  in_app: boolean;
-}
-
-/**
- * Parse a Node.js Error.stack string into an array of frame objects.
- * PostHog Error Tracking requires stacktrace.frames to be an array,
- * not a raw string, in order to display and group errors correctly.
- */
-function parseStackTrace(stack: string): ExceptionFrame[] {
-  if (!stack) return [];
-
-  const frames: ExceptionFrame[] = [];
-
-  for (const line of stack.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed.startsWith("at ")) continue;
-
-    // "at FunctionName (filename:line:col)" or "at async FunctionName (...)"
-    const withName = trimmed.match(
-      /^at\s+(?:async\s+)?(.+?)\s+\((.+?):(\d+):(\d+)\)$/,
-    );
-    if (withName) {
-      const filename = withName[2];
-      frames.push({
-        function: withName[1],
-        filename,
-        lineno: parseInt(withName[3], 10),
-        colno: parseInt(withName[4], 10),
-        in_app:
-          !filename.includes("node_modules") &&
-          !filename.startsWith("node:") &&
-          !filename.startsWith("internal/"),
-      });
-      continue;
-    }
-
-    // "at filename:line:col" (anonymous)
-    const anonymous = trimmed.match(/^at\s+(?:async\s+)?(.+?):(\d+):(\d+)$/);
-    if (anonymous) {
-      const filename = anonymous[1];
-      frames.push({
-        function: "<anonymous>",
-        filename,
-        lineno: parseInt(anonymous[2], 10),
-        colno: parseInt(anonymous[3], 10),
-        in_app:
-          !filename.includes("node_modules") &&
-          !filename.startsWith("node:") &&
-          !filename.startsWith("internal/"),
-      });
-    }
-  }
-
-  return frames;
-}
 
 let posthogClient: PostHog | null = null;
 const logger = new Logger("ErrorTrackingSetup");
@@ -107,7 +47,9 @@ export function initializeGlobalErrorTracking(): void {
 }
 
 /**
- * Capture an error to PostHog from global handlers
+ * Capture an error to PostHog from global handlers.
+ * These are unhandled errors (uncaughtException, unhandledRejection),
+ * so handled is set to false.
  */
 export function captureGlobalError(
   error: Error,
@@ -130,15 +72,7 @@ export function captureGlobalError(
       properties: {
         $exception_type: error.name,
         $exception_message: error.message,
-        $exception_list: [
-          {
-            type: error.name,
-            value: error.message,
-            stacktrace: {
-              frames: parseStackTrace(error.stack || ""),
-            },
-          },
-        ],
+        $exception_list: [createPosthogExceptionPayload(error, false)],
         environment: process.env.NODE_ENV,
         service: "backend",
         ...context,

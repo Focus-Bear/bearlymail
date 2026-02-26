@@ -38,7 +38,9 @@ export class ArchiveEmailProcessor implements OnModuleInit {
     );
   }
 
-  private async handleArchiveEmail(jobData: ArchiveEmailJobData) {
+  private async handleArchiveEmail(
+    jobData: ArchiveEmailJobData,
+  ): Promise<void> {
     const { userId, emailId, isBlocked } = jobData;
     this.logger.log(
       `[Archive Job] Processing archive job: userId=${userId}, emailId=${emailId}, isBlocked=${!!isBlocked}`,
@@ -67,7 +69,10 @@ export class ArchiveEmailProcessor implements OnModuleInit {
     }
   }
 
-  private async addBlockedLabel(userId: string, emailId: string) {
+  private async addBlockedLabel(
+    userId: string,
+    emailId: string,
+  ): Promise<void> {
     try {
       const email = await this.emailsService.getEmailById(userId, emailId);
       if (email?.threadId) {
@@ -92,7 +97,9 @@ export class ArchiveEmailProcessor implements OnModuleInit {
     }
   }
 
-  private async handleArchiveProviderSync(jobData: ArchiveProviderSyncJobData) {
+  private async handleArchiveProviderSync(
+    jobData: ArchiveProviderSyncJobData,
+  ): Promise<void> {
     const { userId, threadId, wasStarred } = jobData;
     this.logger.log(
       `[Archive Provider Sync] Processing: userId=${userId}, threadId=${threadId}, wasStarred=${!!wasStarred}`,
@@ -143,7 +150,7 @@ export class ArchiveEmailProcessor implements OnModuleInit {
     },
     userId: string,
     threadId: string,
-  ) {
+  ): Promise<void> {
     try {
       await provider.syncStarStatusToGmail(userId, threadId, 0);
       this.logger.log(

@@ -11,6 +11,7 @@ import { PriorityService } from "../priority/priority.service";
 import { PriorityCacheService } from "../priority/priority-cache.service";
 import { SummarizationService } from "../summarization/summarization.service";
 import { PriorityAnalysisService } from "../llm/priority-analysis.service";
+import { IncrementalAnalysisService } from "../llm/incremental-analysis.service";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { ContextKey } from "../database/entities/user-context.entity";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
@@ -100,6 +101,7 @@ export class LLMProcessor implements OnModuleInit {
     private priorityCacheService: PriorityCacheService,
     private summarizationService: SummarizationService,
     private priorityAnalysisService: PriorityAnalysisService,
+    private incrementalAnalysisService: IncrementalAnalysisService,
     private configService: ConfigService,
     private protoCategoriesService: ProtoCategoriesService,
     private cloudWatchService: CloudWatchService,
@@ -223,6 +225,17 @@ export class LLMProcessor implements OnModuleInit {
         emailId,
       );
       if (shouldSkip) return;
+
+      // Try incremental analysis for new emails in threads with existing valid data
+      const incrementalResult = await this.tryIncrementalAnalysis(
+        thread,
+        email,
+        forceRecalculate,
+        userId,
+        workerId,
+        tracker,
+      );
+      if (incrementalResult.handled) return;
 
       if (email.emailThreadId && thread) {
         await this.emailThreadRepository.update(
@@ -1325,5 +1338,207 @@ export class LLMProcessor implements OnModuleInit {
       return `Positive sentiment (${score.toFixed(2)})`;
     }
     return "Neutral sentiment";
+  }
+
+  /**
+   * Try to handle priority update incrementally for new emails in existing threads.
+   * Returns { handled: true } if incremental update was sufficient, false otherwise.
+   */
+  private async tryIncrementalAnalysis(
+    thread: EmailThread | null,
+    email: Email,
+    forceRecalculate: boolean | undefined,
+    userId: string,
+    workerId: string,
+    tracker: JobPerformanceTracker,
+  ): Promise<{ handled: boolean }> {
+    if (!thread || forceRecalculate) {
+      return { handled: false };
+    }
+
+    const threadPriorityExplanation = thread.priorityExplanation;
+    const existingBreakdown = threadPriorityExplanation?.breakdown || [];
+    const hasValidBreakdown =
+      existingBreakdown.length > 0 &&
+      existingBreakdown.some(
+        (item) => item.value !== 0 && item.value !== undefined,
+      );
+    const hasOldStructure =
+      threadPriorityExplanation?.breakdown?.some(
+        (item) =>
+          item.factor === "Base Score" ||
+          item.factor === "🤖 AI Analysis" ||
+          item.factor === "AI Analysis",
+      ) ?? false;
+    const hasCalculatingItems = existingBreakdown.some(
+      (item) =>
+        item.description === "Calculating..." ||
+        item.description?.includes("Calculating..."),
+    );
+
+    const canUseIncremental =
+      hasValidBreakdown &&
+      !hasOldStructure &&
+      !hasCalculatingItems &&
+      thread.category &&
+      threadPriorityExplanation?.score !== undefined;
+
+    if (!canUseIncremental) {
+      return { handled: false };
+    }
+
+    const existingSummary = await this.getThreadSummary(email.emailThreadId);
+    if (!existingSummary) {
+      return { handled: false };
+    }
+
+    const existingState = {
+      priorityScore: threadPriorityExplanation?.score || 0,
+      urgencyScore: thread.urgencyScore || 0,
+      category: thread.category || null,
+      summary: existingSummary,
+    };
+
+    const newEmailData = {
+      from: email.from || "",
+      fromName: email.fromName,
+      subject: email.subject || "",
+      body: email.body || "",
+      htmlBody: email.htmlBody,
+      receivedAt: email.receivedAt || new Date(),
+    };
+
+    const recentThreadEmails = await this.emailsService.getThreadEmails(
+      userId,
+      email.threadId,
+      { limit: 3, order: "DESC" },
+    );
+    const threadContext =
+      this.incrementalAnalysisService.formatThreadContextForIncremental(
+        recentThreadEmails
+          .filter((e) => e.id !== email.id)
+          .map((e) => ({
+            from: e.from || "",
+            fromName: e.fromName,
+            subject: e.subject || "",
+            body: e.body || "",
+            receivedAt: e.receivedAt || new Date(),
+          })),
+      );
+
+    tracker.startPhase("incrementalCheck");
+    const incrementalResult =
+      await this.incrementalAnalysisService.checkIfRecalcNeeded(
+        existingState,
+        newEmailData,
+        threadContext,
+        undefined,
+        userId,
+      );
+    tracker.endPhase("incrementalCheck");
+
+    if (incrementalResult.needsFullRecalc) {
+      this.logger.log(
+        `[Worker ${workerId}] Incremental check: full recalc needed for thread ${email.emailThreadId} - ${incrementalResult.reason}`,
+      );
+      return { handled: false };
+    }
+
+    this.logger.log(
+      `[Worker ${workerId}] Incremental check: skipping full recalc for thread ${email.emailThreadId} - ${incrementalResult.reason}`,
+    );
+
+    if (
+      incrementalResult.suggestedUrgencyDelta !== 0 &&
+      email.emailThreadId
+    ) {
+      const newUrgencyScore = Math.max(
+        0,
+        Math.min(
+          100,
+          (thread.urgencyScore || 0) + incrementalResult.suggestedUrgencyDelta,
+        ),
+      );
+      await this.emailThreadRepository.update(
+        { id: email.emailThreadId },
+        {
+          urgencyScore: newUrgencyScore,
+          isProcessingPriority: false,
+        },
+      );
+      this.logger.log(
+        `[Worker ${workerId}] Applied incremental urgency delta: ${incrementalResult.suggestedUrgencyDelta} (new score: ${newUrgencyScore})`,
+      );
+    }
+
+    await this.updateSummaryIncrementally(email, existingSummary, userId);
+    tracker.finish();
+    return { handled: true };
+  }
+
+  /**
+   * Get the summary for a thread from any email in the thread.
+   */
+  private async getThreadSummary(
+    emailThreadId: string | undefined,
+  ): Promise<string | null> {
+    if (!emailThreadId) {
+      return null;
+    }
+    const emailWithSummary = await this.emailRepository.findOne({
+      where: { emailThreadId, summary: Not(IsNull()) },
+      select: ["summary"],
+    });
+    return emailWithSummary?.summary || null;
+  }
+
+  /**
+   * Update the thread summary incrementally using the new email.
+   */
+  private async updateSummaryIncrementally(
+    email: Email,
+    existingSummary: string,
+    userId: string,
+  ): Promise<void> {
+    try {
+      const newEmailData = {
+        from: email.from || "",
+        fromName: email.fromName,
+        subject: email.subject || "",
+        body: email.body || "",
+        htmlBody: email.htmlBody,
+        receivedAt: email.receivedAt || new Date(),
+      };
+
+      const result =
+        await this.incrementalAnalysisService.updateSummaryIncrementally(
+          existingSummary,
+          newEmailData,
+          false,
+          undefined,
+          userId,
+        );
+
+      if (result.updatedSummary && result.updatedSummary !== existingSummary) {
+        if (email.emailThreadId) {
+          const threadEmails = await this.emailRepository.find({
+            where: { emailThreadId: email.emailThreadId },
+            select: ["id"],
+          });
+          const threadEmailIds = threadEmails.map((e) => e.id);
+
+          await this.emailRepository.update(
+            { id: In(threadEmailIds) },
+            { summary: result.updatedSummary, isProcessingSummary: false },
+          );
+
+          this.logger.log(
+            `Updated summary incrementally for thread ${email.emailThreadId} (${threadEmailIds.length} emails)`,
+          );
+        }
+      }
+    } catch (error) {
+      this.logger.warn("Failed to update summary incrementally:", error);
+    }
   }
 }

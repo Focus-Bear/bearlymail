@@ -5,6 +5,7 @@ import { LLMService } from "./llm.service";
 import { LLMController } from "./llm.controller";
 import { LLMCoreService } from "./llm-core.service";
 import { PriorityAnalysisService } from "./priority-analysis.service";
+import { IncrementalAnalysisService } from "./incremental-analysis.service";
 import { TokenUsageService } from "./token-usage.service";
 import { TokenUsageController } from "./token-usage.controller";
 import { TokenUsage } from "../database/entities/token-usage.entity";
@@ -24,12 +25,14 @@ import { AuthModule } from "../auth/auth.module";
     LLMService,
     LLMCoreService,
     PriorityAnalysisService,
+    IncrementalAnalysisService,
     TokenUsageService,
   ],
   exports: [
     LLMService,
     LLMCoreService,
     PriorityAnalysisService,
+    IncrementalAnalysisService,
     TokenUsageService,
   ],
 })

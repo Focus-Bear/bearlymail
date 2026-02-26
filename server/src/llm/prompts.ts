@@ -143,6 +143,34 @@ export function loadPrompts(): Map<string, PromptConfig> {
     for (const { file, key, critical } of PROMPT_FILE_MAP) {
       loadPromptFile(promptsDir, file, key, promptsCache, critical);
     }
+
+    // Load incremental-priority-check.md (incremental priority/category assessment)
+    const incrementalPriorityCheckPath = path.join(
+      promptsDir,
+      "incremental-priority-check.md",
+    );
+    if (fs.existsSync(incrementalPriorityCheckPath)) {
+      const content = fs.readFileSync(incrementalPriorityCheckPath, "utf-8");
+      promptsCache.set("incremental_priority_check", {
+        id: "incremental_priority_check",
+        prompt: content,
+        systemPrompt: "",
+      });
+    }
+
+    // Load incremental-summary.md (incremental summary update)
+    const incrementalSummaryPath = path.join(
+      promptsDir,
+      "incremental-summary.md",
+    );
+    if (fs.existsSync(incrementalSummaryPath)) {
+      const content = fs.readFileSync(incrementalSummaryPath, "utf-8");
+      promptsCache.set("incremental_summary", {
+        id: "incremental_summary",
+        prompt: content,
+        systemPrompt: "",
+      });
+    }
   } catch (error) {
     logError(
       "Failed to load prompts from markdown files",

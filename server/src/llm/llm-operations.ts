@@ -83,6 +83,12 @@ export const LLM_OP_GENERATE_CATEGORIES_FROM_OTHER =
 // Identify custom labels for category generation
 export const LLM_OP_IDENTIFY_CUSTOM_LABELS = "identify_custom_labels";
 
+// Incremental priority check (assesses if full recalc needed)
+export const LLM_OP_INCREMENTAL_PRIORITY_CHECK = "incremental_priority_check";
+
+// Incremental summary update (updates summary with new message)
+export const LLM_OP_INCREMENTAL_SUMMARY = "incremental_summary";
+
 // Generic/unknown operation (fallback)
 export const LLM_OP_UNKNOWN = "unknown";
 
@@ -116,6 +122,8 @@ export type LLMOperation =
   | typeof LLM_OP_CONSOLIDATE_CATEGORIES
   | typeof LLM_OP_GENERATE_CATEGORIES_FROM_OTHER
   | typeof LLM_OP_IDENTIFY_CUSTOM_LABELS
+  | typeof LLM_OP_INCREMENTAL_PRIORITY_CHECK
+  | typeof LLM_OP_INCREMENTAL_SUMMARY
   | typeof LLM_OP_UNKNOWN;
 
 /**
@@ -148,5 +156,7 @@ export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
   [LLM_OP_CONSOLIDATE_CATEGORIES]: "Consolidate Categories",
   [LLM_OP_GENERATE_CATEGORIES_FROM_OTHER]: "Generate Categories from Other",
   [LLM_OP_IDENTIFY_CUSTOM_LABELS]: "Identify Custom Labels",
+  [LLM_OP_INCREMENTAL_PRIORITY_CHECK]: "Incremental Priority Check",
+  [LLM_OP_INCREMENTAL_SUMMARY]: "Incremental Summary Update",
   [LLM_OP_UNKNOWN]: "Unknown Operation",
 };

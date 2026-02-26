@@ -1,0 +1,200 @@
+description: "Incremental summary update prompts for BearlyMail - updates summaries with new messages"
+
+providers:
+  - id: openai:gpt-5-mini
+    config:
+      reasoning_effort: low
+      temperature: 0
+
+prompts:
+  - file://prompts/incremental-summary.md
+
+tests:
+  - vars:
+      existingSummary: "Customer inquiring about enterprise pricing options for their team of 50 users."
+      newEmailFrom: "sales@company.com"
+      newEmailFromName: "Sales Team"
+      newEmailSubject: "Re: Enterprise Pricing"
+      newEmailBody: "Thanks for your interest! I've attached our enterprise pricing guide. For 50 users, we recommend our Growth plan at $15/user/month."
+      newEmailReceivedAt: "2026-02-26T10:00:00Z"
+      isResolution: false
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const result = typeof output === 'string' ? JSON.parse(output) : output;
+          const data = result.result || result;
+          // Should have updated summary
+          if (!data.updatedSummary || data.updatedSummary.length < 20) {
+            throw new Error(`Expected updated summary, got: ${data.updatedSummary}`);
+          }
+          // Should include new information about pricing
+          const lower = data.updatedSummary.toLowerCase();
+          const hasPricingInfo = lower.includes('pricing') || lower.includes('$15') || lower.includes('growth') || lower.includes('guide');
+          if (!hasPricingInfo) {
+            throw new Error(`Expected pricing information in updated summary. Got: ${data.updatedSummary}`);
+          }
+          return true;
+    description: "Should incorporate new pricing information into summary"
+
+  - vars:
+      existingSummary: "Bug report: Login page throws 500 error when using SSO. Engineering team is investigating."
+      newEmailFrom: "engineering@company.com"
+      newEmailFromName: "Engineering Team"
+      newEmailSubject: "Re: Login Bug - SSO Issue"
+      newEmailBody: "Fixed! The SSO bug has been resolved and deployed to production. All users should now be able to log in normally."
+      newEmailReceivedAt: "2026-02-26T14:00:00Z"
+      isResolution: true
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const result = typeof output === 'string' ? JSON.parse(output) : output;
+          const data = result.result || result;
+          // Should reflect the resolution
+          const lower = data.updatedSummary.toLowerCase();
+          const hasResolution = lower.includes('fixed') || lower.includes('resolved') || lower.includes('deployed');
+          if (!hasResolution) {
+            throw new Error(`Expected resolution in summary. Got: ${data.updatedSummary}`);
+          }
+          // Should mark as significant change
+          if (data.significantChange !== true) {
+            throw new Error(`Expected significantChange=true for resolution, got ${data.significantChange}`);
+          }
+          return true;
+    description: "Should reflect bug resolution and mark as significant change"
+
+  - vars:
+      existingSummary: "Partnership proposal from TechCorp for joint marketing campaign targeting enterprise customers."
+      newEmailFrom: "partner@techcorp.com"
+      newEmailFromName: "John from TechCorp"
+      newEmailSubject: "Re: Partnership Proposal"
+      newEmailBody: "Thanks for considering our proposal. Let me know if you have any questions!"
+      newEmailReceivedAt: "2026-02-26T11:00:00Z"
+      isResolution: false
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const result = typeof output === 'string' ? JSON.parse(output) : output;
+          const data = result.result || result;
+          // Summary should still reference partnership
+          const lower = data.updatedSummary.toLowerCase();
+          const hasPartnership = lower.includes('partnership') || lower.includes('proposal') || lower.includes('techcorp');
+          if (!hasPartnership) {
+            throw new Error(`Expected partnership context preserved. Got: ${data.updatedSummary}`);
+          }
+          // Simple follow-up should NOT be significant
+          if (data.significantChange === true) {
+            throw new Error(`Expected significantChange=false for simple follow-up, got true`);
+          }
+          return true;
+    description: "Simple follow-up should preserve context and NOT be significant"
+
+  - vars:
+      existingSummary: "Meeting scheduled for Friday at 2pm to discuss Q4 roadmap."
+      newEmailFrom: "colleague@company.com"
+      newEmailFromName: "Sarah"
+      newEmailSubject: "Re: Q4 Roadmap Meeting"
+      newEmailBody: "Sorry, I need to reschedule. Can we move it to Monday at 10am instead?"
+      newEmailReceivedAt: "2026-02-26T09:00:00Z"
+      isResolution: false
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const result = typeof output === 'string' ? JSON.parse(output) : output;
+          const data = result.result || result;
+          // Should reflect the rescheduling
+          const lower = data.updatedSummary.toLowerCase();
+          const hasReschedule = lower.includes('monday') || lower.includes('reschedul') || lower.includes('10am') || lower.includes('move');
+          if (!hasReschedule) {
+            throw new Error(`Expected rescheduling info in summary. Got: ${data.updatedSummary}`);
+          }
+          // Rescheduling is a meaningful change
+          if (data.significantChange !== true) {
+            throw new Error(`Expected significantChange=true for rescheduling, got ${data.significantChange}`);
+          }
+          return true;
+    description: "Should reflect meeting rescheduling as significant change"
+
+  - vars:
+      existingSummary: "Customer support ticket: User unable to export data to CSV format."
+      newEmailFrom: "customer@example.com"
+      newEmailFromName: "Frustrated User"
+      newEmailSubject: "Re: CSV Export Issue"
+      newEmailBody: "This is still not working! I've tried everything you suggested. I've been a paying customer for 3 years and this is unacceptable. Please escalate this immediately!"
+      newEmailReceivedAt: "2026-02-26T16:00:00Z"
+      isResolution: false
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const result = typeof output === 'string' ? JSON.parse(output) : output;
+          const data = result.result || result;
+          // Should reflect the escalation/frustration
+          const lower = data.updatedSummary.toLowerCase();
+          const hasEscalation = lower.includes('escalat') || lower.includes('frustrat') || lower.includes('not working') || lower.includes('ongoing');
+          if (!hasEscalation) {
+            throw new Error(`Expected escalation reflected in summary. Got: ${data.updatedSummary}`);
+          }
+          // Escalation is significant
+          if (data.significantChange !== true) {
+            throw new Error(`Expected significantChange=true for escalation, got ${data.significantChange}`);
+          }
+          return true;
+    description: "Should reflect customer escalation as significant change"
+
+  - vars:
+      existingSummary: "Weekly status update: Project Alpha at 60% completion, on track for March delivery."
+      newEmailFrom: "pm@company.com"
+      newEmailFromName: "Project Manager"
+      newEmailSubject: "Re: Weekly Status"
+      newEmailBody: "Quick update: We're now at 65% completion. Everything still on track."
+      newEmailReceivedAt: "2026-02-26T17:00:00Z"
+      isResolution: false
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const result = typeof output === 'string' ? JSON.parse(output) : output;
+          const data = result.result || result;
+          // Should update the percentage
+          const lower = data.updatedSummary.toLowerCase();
+          const hasProgress = lower.includes('65%') || lower.includes('progress');
+          if (!hasProgress) {
+            throw new Error(`Expected updated progress in summary. Got: ${data.updatedSummary}`);
+          }
+          // Minor progress update is NOT significant
+          if (data.significantChange === true) {
+            throw new Error(`Expected significantChange=false for minor progress update, got true`);
+          }
+          return true;
+    description: "Minor progress update should NOT be marked as significant"
+
+  - vars:
+      existingSummary: "Interview scheduling for Senior Developer position. Candidate John Doe available next week."
+      newEmailFrom: "hr@company.com"
+      newEmailFromName: "HR Team"
+      newEmailSubject: "Re: Interview - John Doe"
+      newEmailBody: "Unfortunately, John Doe has withdrawn his application. He accepted another offer. We'll need to continue with other candidates."
+      newEmailReceivedAt: "2026-02-26T12:00:00Z"
+      isResolution: true
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const result = typeof output === 'string' ? JSON.parse(output) : output;
+          const data = result.result || result;
+          // Should reflect the withdrawal
+          const lower = data.updatedSummary.toLowerCase();
+          const hasWithdrawal = lower.includes('withdraw') || lower.includes('declined') || lower.includes('another offer') || lower.includes('cancelled');
+          if (!hasWithdrawal) {
+            throw new Error(`Expected withdrawal reflected in summary. Got: ${data.updatedSummary}`);
+          }
+          // Candidate withdrawal is significant
+          if (data.significantChange !== true) {
+            throw new Error(`Expected significantChange=true for candidate withdrawal, got ${data.significantChange}`);
+          }
+          return true;
+    description: "Candidate withdrawal should be reflected and marked as significant"

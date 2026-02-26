@@ -10,7 +10,6 @@ import { ReplyComposerAttachments } from 'components/email-detail-inline/ReplyCo
 import { ReplyGenerationDebugInfo } from 'hooks/useReplyDraftGeneration';
 import { useAuth } from 'contexts/AuthContext';
 
-const REPLY_OPTION_LABEL_CUSTOM = 'Custom';
 const EMPTY_ATTACHMENTS: EmailAttachment[] = [];
 const DRAG_OVERLAY_OPACITY = 0.95;
 const DEBUG_PANEL_LINE_HEIGHT = 1.6;
@@ -184,12 +183,6 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
 
   const handleDraftChange = (newDraft: string) => {
     onDraftChange(newDraft);
-    if (replyOptions && selectedReplyOption !== replyOptions.length - 1) {
-      const customIdx = replyOptions.findIndex(opt => opt.label === REPLY_OPTION_LABEL_CUSTOM);
-      if (customIdx >= 0) {
-        // This will be handled by parent
-      }
-    }
   };
 
   const handleSend = (expectedReplyHours?: number, draftOverride?: string) => {

@@ -2,6 +2,9 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { API_URL } from 'config/api';
 import { plainTextToHtml } from 'utils/emailUtils';
+import { sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
+
+const CUSTOM_ONLY_OPTIONS = [{ label: 'Custom', text: '' }];
 
 interface Email {
   id: string;
@@ -171,18 +174,16 @@ export function useReplyDraftGeneration(
       if (generatedOptions && generatedOptions.length > 0) {
         const htmlOptions = generatedOptions.map(opt => ({
           ...opt,
-          text: plainTextToHtml(opt.text),
+          text: sanitizeAndProcessHtml(plainTextToHtml(opt.text)),
         }));
         const optionsWithCustom = [
+          { label: 'Custom', text: '' },
           ...htmlOptions,
-          { label: 'Custom', text: '' }
         ];
         setReplyOptions(optionsWithCustom);
-        setDraft(htmlOptions[0].text);
         setSelectedReplyOption(0);
       } else {
-        setReplyOptions([{ label: 'Custom', text: '' }]);
-        setDraft('');
+        setReplyOptions(CUSTOM_ONLY_OPTIONS);
         setSelectedReplyOption(0);
       }
       lastGeneratedEmailId.current = emailId;
@@ -191,8 +192,7 @@ export function useReplyDraftGeneration(
         return;
       }
       console.error('Error generating draft:', error);
-      setReplyOptions([{ label: 'Custom', text: '' }]);
-      setDraft('');
+      setReplyOptions(CUSTOM_ONLY_OPTIONS);
       setSelectedReplyOption(0);
     } finally {
       if (currentGenerationEmailIdRef.current === currentEmailId) {

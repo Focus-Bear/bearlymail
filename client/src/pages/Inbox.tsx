@@ -221,6 +221,10 @@ const Inbox: React.FC = () => {
             threadLookupResult={debugPanel.threadLookupResult}
             loadingThreadLookup={debugPanel.loadingThreadLookup}
             onLookupThread={debugPanel.lookupThread}
+            categorySummary={categorySummary}
+            loadedCategoryNames={loadedCategoryNames}
+            loadingCategoryNames={loadingCategoryNames}
+            expandedCategories={expandedCategories}
           />
         )}
 

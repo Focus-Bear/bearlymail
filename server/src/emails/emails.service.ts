@@ -264,6 +264,7 @@ export class EmailsService {
       categoryIds?: string[];
       minPriority?: number;
       includeThreadIds?: boolean;
+      accountIds?: string[];
     },
   ): Promise<{
     total: number;
@@ -288,15 +289,31 @@ export class EmailsService {
       queryParams.push(filters.minPriority);
     }
 
+    // Filter by account IDs if specified (check if any email in the thread belongs to the accounts)
+    if (filters?.accountIds && filters.accountIds.length > 0) {
+      const accountPlaceholders = filters.accountIds
+        .map(() => `$${paramIndex++}`)
+        .join(", ");
+      additionalFilters += ` AND EXISTS (
+        SELECT 1 FROM emails e
+        WHERE e."emailThreadId" = thread.id
+          AND (e."googleAccountId" IN (${accountPlaceholders})
+               OR e."office365AccountId" IN (${accountPlaceholders})
+               OR e."zohoAccountId" IN (${accountPlaceholders}))
+      )`;
+      queryParams.push(
+        ...filters.accountIds,
+        ...filters.accountIds,
+        ...filters.accountIds,
+      );
+    }
+
     // For action/follow-up modes we need the latest email's "from" to filter
     // threads where the user sent the last message (action excludes, follow-up includes).
     const needsLatestFrom = mode === "action" || mode === "follow-up";
 
     const selectParts: string[] = ["thread.category"];
-    if (
-      filters?.includeThreadIds &&
-      (mode === "action" || mode === "follow-up")
-    ) {
+    if (filters?.includeThreadIds) {
       selectParts.push('thread."threadId"');
     }
     if (needsLatestFrom) {
@@ -419,8 +436,7 @@ export class EmailsService {
       id: categoryNameToId.get(name) || null,
       name,
       count: categoryCounts[name] || 0,
-      ...(filters?.includeThreadIds &&
-      (mode === "action" || mode === "follow-up")
+      ...(filters?.includeThreadIds
         ? { threadIds: categoryThreadIds[name] || [] }
         : {}),
     }));

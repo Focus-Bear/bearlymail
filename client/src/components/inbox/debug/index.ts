@@ -4,6 +4,7 @@ export { DebugOrphanSection } from 'components/inbox/debug/DebugOrphanSection';
 export { DebugThreadLookupSection } from 'components/inbox/debug/DebugThreadLookupSection';
 export { DebugEmailList } from 'components/inbox/debug/DebugEmailList';
 export { DebugSyncHistorySection } from 'components/inbox/debug/DebugSyncHistorySection';
+export { DebugCategorySummarySection } from 'components/inbox/debug/DebugCategorySummarySection';
 export { OrphanStatsGrid } from 'components/inbox/debug/OrphanStatsGrid';
 export { OrphanEmailList } from 'components/inbox/debug/OrphanEmailList';
 export { ThreadsWithoutEmailsList } from 'components/inbox/debug/ThreadsWithoutEmailsList';

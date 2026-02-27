@@ -12,9 +12,11 @@ import {
   DebugThreadLookupSection,
   DebugEmailList,
   DebugSyncHistorySection,
+  DebugCategorySummarySection,
 } from 'components/inbox/debug';
 import { ThreadLookupResult } from 'hooks/useDebugPanel';
 import { SyncHistoryEntry } from 'components/inbox/debug/DebugSyncHistorySection';
+import { CategorySummaryItem } from 'store/slices/emailSlice';
 
 interface DebugStarredData {
   lastSyncTime: string | null;
@@ -107,6 +109,10 @@ interface DebugPanelProps {
   threadLookupResult: ThreadLookupResult | null;
   loadingThreadLookup: boolean;
   onLookupThread: (threadId: string) => void;
+  categorySummary?: CategorySummaryItem[] | null;
+  loadedCategoryNames?: string[];
+  loadingCategoryNames?: string[];
+  expandedCategories?: Set<string>;
 }
 
 export const DebugPanel: React.FC<DebugPanelProps> = ({
@@ -133,6 +139,10 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
   threadLookupResult,
   loadingThreadLookup,
   onLookupThread,
+  categorySummary,
+  loadedCategoryNames,
+  loadingCategoryNames,
+  expandedCategories,
 }) => {
   const { t } = useTranslation();
   const threadCount = (() => {
@@ -207,6 +217,14 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
             syncHistory={syncHistory}
             loadingSyncHistory={loadingSyncHistory}
             onFetchSyncHistory={onFetchSyncHistory}
+          />
+
+          <DebugCategorySummarySection
+            categorySummary={categorySummary ?? null}
+            loadedCategoryNames={loadedCategoryNames ?? []}
+            loadingCategoryNames={loadingCategoryNames ?? []}
+            expandedCategories={expandedCategories ?? new Set()}
+            emails={emails}
           />
 
           <DebugStarredSection

@@ -429,6 +429,29 @@
       "threads": "{{count}} hilos",
       "windowStart": "Inicio de ventana",
       "queries": "Consultas"
+    },
+    "categorySummary": {
+      "title": "Resumen de Categorías",
+      "noSummary": "No hay resumen de categorías disponible. La bandeja de entrada puede estar cargando.",
+      "totalCategories": "Categorías totales",
+      "loadedEmails": "Correos cargados",
+      "category": "Categoría",
+      "summaryCount": "Cantidad en Resumen",
+      "loadedCount": "Cantidad Cargada",
+      "status": "Estado",
+      "expanded": "Expandido",
+      "details": "Detalles",
+      "mismatch": "¡Discrepancia!",
+      "showDetails": "Mostrar",
+      "hideDetails": "Ocultar",
+      "categoryId": "ID de Categoría",
+      "summaryThreadIds": "IDs de Hilo del Resumen",
+      "loadedThreadIds": "IDs de Hilo de Correos Cargados",
+      "noThreadIds": "No hay IDs de hilo en el resumen",
+      "noLoadedEmails": "¡No se cargaron correos a pesar de que el resumen muestra cantidad > 0!",
+      "mismatchExplanation": "Discrepancia de Cantidad Detectada",
+      "summaryShows": "El resumen muestra",
+      "emailsButLoaded": "correos pero se cargaron"
     }
   },
   "email": {

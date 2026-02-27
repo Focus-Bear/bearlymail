@@ -1256,6 +1256,29 @@
       "threads": "{{count}} threads",
       "windowStart": "Window start",
       "queries": "Queries"
+    },
+    "categorySummary": {
+      "title": "Category Summary",
+      "noSummary": "No category summary available. Inbox may still be loading.",
+      "totalCategories": "Total categories",
+      "loadedEmails": "Loaded emails",
+      "category": "Category",
+      "summaryCount": "Summary Count",
+      "loadedCount": "Loaded Count",
+      "status": "Status",
+      "expanded": "Expanded",
+      "details": "Details",
+      "mismatch": "Mismatch!",
+      "showDetails": "Show",
+      "hideDetails": "Hide",
+      "categoryId": "Category ID",
+      "summaryThreadIds": "Thread IDs from Summary",
+      "loadedThreadIds": "Loaded Email Thread IDs",
+      "noThreadIds": "No thread IDs in summary",
+      "noLoadedEmails": "No emails loaded despite summary showing count > 0!",
+      "mismatchExplanation": "Count Mismatch Detected",
+      "summaryShows": "Summary shows",
+      "emailsButLoaded": "emails but loaded"
     }
   },
   "search": {

@@ -144,6 +144,7 @@ export class EmailsController {
     @Query("categoryIds") categoryIds?: string,
     @Query("minPriority") minPriority?: string,
     @Query("includeThreadIds") includeThreadIds?: string,
+    @Query("accounts") accounts?: string,
   ) {
     const categoryList = categories
       ? categories.split(",").filter(Boolean)
@@ -153,12 +154,16 @@ export class EmailsController {
       : undefined;
     const minPriorityValue = minPriority ? parseFloat(minPriority) : undefined;
     const shouldIncludeThreadIds = includeThreadIds === "true";
+    const accountIds = accounts
+      ? accounts.split(",").filter(Boolean)
+      : undefined;
 
     return this.emailsService.getInboxSummary(req.user.userId, mode, {
       categories: categoryList,
       categoryIds: categoryIdList,
       minPriority: minPriorityValue,
       includeThreadIds: shouldIncludeThreadIds,
+      accountIds,
     });
   }
 

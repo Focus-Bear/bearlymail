@@ -60,10 +60,8 @@ export function useEmailFetching({
     const params = new URLSearchParams();
     params.append('mode', mode);
 
-    // Include thread IDs for action and follow-up modes
-    if (mode === 'action' || mode === 'follow-up') {
-      params.append('includeThreadIds', 'true');
-    }
+    // Include thread IDs for all modes to support category debug view
+    params.append('includeThreadIds', 'true');
 
     if (filters) {
       if (filters.categories && filters.categories.length > 0) {
@@ -71,6 +69,10 @@ export function useEmailFetching({
       }
       if (filters.minPriority !== null && filters.minPriority !== undefined) {
         params.append('minPriority', filters.minPriority.toString());
+      }
+      // Include account filter to ensure summary counts match category fetches
+      if (filters.accountIds && filters.accountIds.length > 0) {
+        params.append('accounts', filters.accountIds.join(','));
       }
     }
 

@@ -6,14 +6,14 @@ import tsconfigPaths from 'vite-tsconfig-paths';
 export default defineConfig({
   plugins: [react(), tsconfigPaths()],
   server: {
-    port: 3000,
-    open: true,
+    host: '0.0.0.0',
+    port: 5173,
+    allowedHosts: true,
+    open: false,
   },
   build: {
     outDir: 'build',
     sourcemap: true,
   },
-  // Environment variables prefixed with VITE_ are exposed to the client
   envPrefix: 'VITE_',
 });
-

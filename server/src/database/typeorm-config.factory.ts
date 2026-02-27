@@ -17,7 +17,9 @@ export function createTypeOrmConfig(
   const dbHost = configService.get<string>("DB_HOST");
   const isLocal = dbHost === "localhost" || dbHost === "127.0.0.1";
   const sslEnabled = configService.get<string>("DB_SSL") === "true";
-  const useSsl = !isLocal || sslEnabled ? { rejectUnauthorized: false } : false;
+  const sslDisabled = configService.get<string>("DB_SSL") === "false";
+  const sslRequired = sslEnabled || (!isLocal && !sslDisabled);
+  const useSsl = sslRequired ? { rejectUnauthorized: false } : false;
   const poolSize = parseInt(
     configService.get<string>("DB_POOL_SIZE") || "10",
     10,

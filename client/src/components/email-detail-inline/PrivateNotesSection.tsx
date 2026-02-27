@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { FiFileText } from 'react-icons/fi';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
-import { MS_PER_SECOND, SECONDS_PER_MINUTE, MINUTES_PER_HOUR } from 'constants/numbers';
+import { MS_PER_SECOND, SECONDS_PER_MINUTE, MINUTES_PER_HOUR, NOTES_PREVIEW_MAX_CHARS } from 'constants/numbers';
+import { CollapsibleSection } from 'components/common/CollapsibleSection';
 
 const DEBOUNCE_MS = 1000;
 const SAVED_STATUS_UPDATE_INTERVAL_MS = 10000;
@@ -77,80 +79,60 @@ export const PrivateNotesSection: React.FC<PrivateNotesSectionProps> = ({
     return () => clearInterval(interval);
   }, [lastSavedAt]);
 
+  const preview = noteContent
+    ? noteContent.slice(0, NOTES_PREVIEW_MAX_CHARS) + (noteContent.length > NOTES_PREVIEW_MAX_CHARS ? '…' : '')
+    : t('emailDetail.privateNotesPlaceholder');
+
   return (
-    <div style={{
-      backgroundColor: theme.colors.background.paper,
-      borderRadius: theme.borderRadius.xl,
-      padding: theme.spacing.lg,
-      boxShadow: theme.shadows.sm,
-      marginBottom: theme.spacing.md,
-      border: `1px solid ${theme.colors.border.light}`,
-    }}>
-      <div 
-        onClick={() => {
-          captureEvent('private_notes_toggled', { collapsed: !notesCollapsed });
-          onToggleCollapsed();
-        }}
+    <CollapsibleSection
+      icon={<FiFileText size={18} />}
+      title={t('emailDetail.privateNotes')}
+      isCollapsed={notesCollapsed}
+      onToggle={() => {
+        captureEvent('private_notes_toggled', { collapsed: !notesCollapsed });
+        onToggleCollapsed();
+      }}
+      accentColor={theme.colors.section.notes.accent}
+      backgroundColor={theme.colors.section.notes.background}
+      preview={preview}
+    >
+      <textarea
+        value={noteContent}
+        onChange={(e) => onNoteContentChange(e.target.value)}
+        placeholder={t('emailDetail.privateNotesPlaceholder')}
         style={{
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          cursor: 'pointer',
+          width: '100%',
+          minHeight: '100px',
+          padding: theme.spacing.md,
+          border: `1px solid ${theme.colors.border.medium}`,
+          borderRadius: theme.borderRadius.md,
+          fontSize: theme.typography.fontSize.base,
+          fontFamily: theme.typography.fontFamily,
+          resize: 'vertical',
+          boxSizing: 'border-box',
+          backgroundColor: 'white',
         }}
-      >
-        <h3 style={{
-          color: theme.colors.text.primary,
-          margin: 0,
-          fontSize: theme.typography.fontSize.lg,
-          fontWeight: theme.typography.fontWeight.semibold,
-          display: 'flex',
-          alignItems: 'center',
-          gap: theme.spacing.sm,
+      />
+      {/* eslint-disable i18next/no-literal-string */}
+      {lastSavedAt && (
+        <div style={{
+          fontSize: theme.typography.fontSize.xs,
+          color: theme.colors.text.tertiary,
+          marginTop: theme.spacing.xs,
         }}>
-          📝 {t('emailDetail.privateNotes')}
-        </h3>
-        <span style={{ color: theme.colors.text.secondary }}>
-          {notesCollapsed ? '▼' : '▲'}
-        </span>
-      </div>
-      
-      {!notesCollapsed && (
-        <div className="animate-fade-in" style={{ marginTop: theme.spacing.md }}>
-          <textarea
-            value={noteContent}
-            onChange={(e) => onNoteContentChange(e.target.value)}
-            placeholder={t('emailDetail.privateNotesPlaceholder')}
-            style={{
-              width: '100%',
-              minHeight: '100px',
-              padding: theme.spacing.md,
-              border: `1px solid ${theme.colors.border.medium}`,
-              borderRadius: theme.borderRadius.md,
-              fontSize: theme.typography.fontSize.base,
-              fontFamily: theme.typography.fontFamily,
-              marginBottom: theme.spacing.sm,
-              resize: 'vertical',
-            }}
-          />
-          {/* eslint-disable i18next/no-literal-string */}
-          {lastSavedAt && (
-            <div style={{
-              fontSize: theme.typography.fontSize.xs,
-              color: theme.colors.text.tertiary,
-              textAlign: 'right',
-            }}>
-              Automatically saved {humanizeDuration(Date.now() - lastSavedAt)}
-            </div>
-          )}
-          {/* eslint-enable i18next/no-literal-string */}
+          Only visible to you · Saved {humanizeDuration(Date.now() - lastSavedAt)}
         </div>
       )}
-    </div>
+      {!lastSavedAt && (
+        <div style={{
+          fontSize: theme.typography.fontSize.xs,
+          color: theme.colors.text.tertiary,
+          marginTop: theme.spacing.xs,
+        }}>
+          Only visible to you
+        </div>
+      )}
+      {/* eslint-enable i18next/no-literal-string */}
+    </CollapsibleSection>
   );
 };
-
-
-
-
-
-

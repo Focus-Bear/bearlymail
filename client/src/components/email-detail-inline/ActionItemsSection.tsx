@@ -1,8 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { FiList } from 'react-icons/fi';
 import { theme } from 'theme/theme';
-import { ActionItemsHeader } from 'components/email-detail-inline/ActionItemsHeader';
+import { useTranslation } from 'react-i18next';
 import { ActionItemList } from 'components/email-detail-inline/ActionItemList';
 import { ActionItemInput } from 'components/email-detail-inline/ActionItemInput';
+import { CollapsibleSection } from 'components/common/CollapsibleSection';
+import { captureEvent } from 'utils/posthog';
+import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
+
+const ACTION_ITEMS_ACCENT = '#16A34A';
+const ACTION_ITEMS_BG = '#F0FDF4';
+const ACTION_ITEM_SOURCE_LLM = 'llm';
 
 interface ActionItem {
   id?: string;
@@ -34,21 +42,70 @@ export const ActionItemsSection: React.FC<ActionItemsSectionProps> = ({
   onExtractActions,
   onRegenerateActionItems,
 }) => {
+  const { t } = useTranslation();
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  const completedCount = actionItems.filter(i => i.isCompleted).length;
+  const preview = actionItems.length > 0
+    ? `${completedCount}/${actionItems.length} ${t('emailDetail.actionItems').toLowerCase()}`
+    : t('emailDetail.noActionItems') || 'No action items';
+
+  const controls = (
+    <div style={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center' }}>
+      {actionItems.some(item => item.source === ACTION_ITEM_SOURCE_LLM) && onRegenerateActionItems && (
+        <button
+          onClick={() => {
+            captureEvent('action_items_regenerate_clicked');
+            onRegenerateActionItems();
+          }}
+          disabled={isGeneratingSummary}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: theme.colors.text.secondary,
+            cursor: isGeneratingSummary ? 'not-allowed' : 'pointer',
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.medium,
+            opacity: isGeneratingSummary ? OPACITY_DISABLED : OPACITY_FULL,
+          }}
+          title={t('emailDetail.regenerateActions')}
+        >
+          🔄
+        </button>
+      )}
+      <button
+        onClick={() => {
+          captureEvent('action_items_suggest_clicked');
+          onExtractActions();
+        }}
+        disabled={isGeneratingSummary}
+        style={{
+          background: 'transparent',
+          border: 'none',
+          color: ACTION_ITEMS_ACCENT,
+          cursor: isGeneratingSummary ? 'not-allowed' : 'pointer',
+          fontSize: theme.typography.fontSize.sm,
+          fontWeight: theme.typography.fontWeight.medium,
+          opacity: isGeneratingSummary ? OPACITY_DISABLED : OPACITY_FULL,
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {isGeneratingSummary ? t('emailDetail.extracting') : `✨ ${t('emailDetail.suggestActions')}`}
+      </button>
+    </div>
+  );
+
   return (
-    <div style={{
-      backgroundColor: theme.colors.background.paper,
-      borderRadius: theme.borderRadius.xl,
-      padding: theme.spacing.lg,
-      boxShadow: theme.shadows.sm,
-      marginBottom: theme.spacing.md,
-      border: `1px solid ${theme.colors.border.light}`,
-    }}>
-      <ActionItemsHeader
-        actionItems={actionItems}
-        isGeneratingSummary={isGeneratingSummary}
-        onExtractActions={onExtractActions}
-        onRegenerateActionItems={onRegenerateActionItems}
-      />
+    <CollapsibleSection
+      icon={<FiList size={18} />}
+      title={t('emailDetail.actionItems')}
+      isCollapsed={isCollapsed}
+      onToggle={() => setIsCollapsed(!isCollapsed)}
+      accentColor={ACTION_ITEMS_ACCENT}
+      backgroundColor={ACTION_ITEMS_BG}
+      preview={preview}
+      controls={controls}
+    >
       <ActionItemList
         actionItems={actionItems}
         onToggleActionItem={onToggleActionItem}
@@ -59,7 +116,6 @@ export const ActionItemsSection: React.FC<ActionItemsSectionProps> = ({
         onNewActionItemChange={onNewActionItemChange}
         onAddActionItem={onAddActionItem}
       />
-    </div>
+    </CollapsibleSection>
   );
 };
-

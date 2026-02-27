@@ -11,6 +11,11 @@ const configService = new ConfigService();
 const dbHost = configService.get<string>("DB_HOST") || "localhost";
 const isLocal = dbHost === "localhost" || dbHost === "127.0.0.1";
 const sslEnabled = configService.get<string>("DB_SSL") === "true";
+const sslDisabled = configService.get<string>("DB_SSL") === "false";
+
+// Use SSL if explicitly enabled, or if not local and not explicitly disabled
+const sslRequired = sslEnabled || (!isLocal && !sslDisabled);
+const useSsl = sslRequired ? { rejectUnauthorized: false } : false;
 
 export default new DataSource({
   type: "postgres",
@@ -24,6 +29,6 @@ export default new DataSource({
   migrations: [`${__dirname}/database/migrations/*{.ts,.js}`],
   // NEVER use synchronize in production - always use migrations
   synchronize: false,
-  ssl: !isLocal || sslEnabled ? { rejectUnauthorized: false } : false,
+  ssl: useSsl,
   logging: ["error", "warn", "migration"],
 });

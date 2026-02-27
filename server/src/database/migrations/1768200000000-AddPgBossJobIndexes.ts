@@ -4,16 +4,24 @@ export class AddPgBossJobIndexes1768200000000 implements MigrationInterface {
   name = "AddPgBossJobIndexes1768200000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Add composite index on name and state for faster COUNT aggregations
-    // This speeds up queries like:
-    // SELECT COUNT(*) FILTER (WHERE state = 'created') FROM pgboss.job WHERE name = $1
+    // Check if pgboss schema exists before trying to create indexes
+    // The pgboss schema is created when the server starts with pg-boss
+    const schemaExists = await queryRunner.query(`
+      SELECT EXISTS (
+        SELECT 1 FROM information_schema.schemata WHERE schema_name = 'pgboss'
+      )
+    `);
+
+    if (!schemaExists[0]?.exists) {
+      // pgboss schema not yet created - indexes will be added on next migration after server starts
+      return;
+    }
+
     await queryRunner.query(`
             CREATE INDEX IF NOT EXISTS idx_pgboss_job_name_state 
             ON pgboss.job (name, state)
         `);
 
-    // Add index on singletonkey for faster singleton lookups
-    // Note: PgBoss uses camelCase column names without underscores
     await queryRunner.query(`
             CREATE INDEX IF NOT EXISTS idx_pgboss_job_singletonkey 
             ON pgboss.job (singletonkey) 

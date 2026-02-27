@@ -293,5 +293,15 @@ module.exports = {
         'i18next/no-literal-string': 'off',
       },
     },
+    {
+      // Relax rules for Storybook story files - these are developer tools, not user-facing
+      files: ['**/*.stories.tsx', '**/*.stories.ts', '**/*.story.tsx', '**/*.story.ts'],
+      rules: {
+        'i18next/no-literal-string': 'off',
+        'no-magic-numbers': 'off',
+        'max-lines-per-function': 'off',
+        'max-lines': 'off',
+      },
+    },
   ],
 };

@@ -297,6 +297,7 @@
     "actionItems": "Action Items",
     "suggestActions": "Suggest Actions",
     "extracting": "Extracting...",
+    "noActionItems": "No action items yet.",
     "aiBadge": "AI",
     "addTaskPlaceholder": "Add a task...",
     "priorityScore": "Priority Score: {{score}}",

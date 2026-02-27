@@ -57,6 +57,8 @@ export const URGENCY_LOW = 30;
 export const TOOLTIP_PREVIEW_MAX_CHARS = 1000;
 export const TEXT_TRUNCATE_LENGTH = 150;
 export const MESSAGE_ID_PREVIEW_LENGTH = 20;
+export const NOTES_PREVIEW_MAX_CHARS = 60;
+export const SUMMARY_PREVIEW_MAX_CHARS = 80;
 
 // Z-index values
 export const Z_INDEX_MODAL_OVERLAY = 10000;

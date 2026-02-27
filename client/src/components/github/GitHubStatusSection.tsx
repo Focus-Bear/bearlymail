@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { FiGithub } from 'react-icons/fi';
 import { theme } from 'theme/theme';
 import { GitHubLink } from 'types/email';
 import { GitHubStatusHeader } from 'components/github/GitHubStatusHeader';
@@ -6,6 +7,10 @@ import { GitHubStatusLoading } from 'components/github/GitHubStatusLoading';
 import { GitHubLinksList } from 'components/github/GitHubLinksList';
 import { GitHubConnectionPrompt } from 'components/github/GitHubConnectionPrompt';
 import { emailMentionsGitHub } from 'utils/githubUtils';
+import { CollapsibleSection } from 'components/common/CollapsibleSection';
+
+const GITHUB_ACCENT = '#1F2937';
+const GITHUB_BG = '#F9FAFB';
 
 interface GitHubStatusSectionProps {
   links: GitHubLink[];
@@ -26,39 +31,59 @@ export const GitHubStatusSection: React.FC<GitHubStatusSectionProps> = ({
   emailBody,
   emailHtmlBody,
 }) => {
-  // Instant keyword check - if email doesn't mention GitHub, don't show section at all
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
   if (!emailMentionsGitHub(emailSubject, emailBody, emailHtmlBody)) {
     return null;
   }
 
-  // If user doesn't have GitHub connected but email mentions GitHub, show connection prompt
   if (!hasToken) {
     return <GitHubConnectionPrompt />;
   }
 
-  // Hide section completely if no links and not loading
-  // Only show if we have links or are actively loading (for legacy emails without cached metadata)
   if (!loading && links.length === 0) {
     return null;
   }
 
+  const preview = loading
+    ? 'Loading...'
+    : `${links.length} link${links.length !== 1 ? 's' : ''}`;
+
+  const controls = (
+    <button
+      onClick={(e) => { e.stopPropagation(); onRefresh(); }}
+      style={{
+        background: 'transparent',
+        border: 'none',
+        color: theme.colors.text.secondary,
+        cursor: 'pointer',
+        fontSize: theme.typography.fontSize.sm,
+        padding: theme.spacing.xs,
+        display: 'flex',
+        alignItems: 'center',
+      }}
+      title="Refresh"
+    >
+      🔄
+    </button>
+  );
+
   return (
-    <div style={{
-      backgroundColor: theme.colors.background.paper,
-      borderRadius: theme.borderRadius.xl,
-      padding: theme.spacing.lg,
-      boxShadow: theme.shadows.sm,
-      border: `1px solid ${theme.colors.border.light}`,
-    }}>
-      <GitHubStatusHeader loading={loading} onRefresh={onRefresh} />
+    <CollapsibleSection
+      icon={<FiGithub size={18} />}
+      title="GitHub"
+      isCollapsed={isCollapsed}
+      onToggle={() => setIsCollapsed(!isCollapsed)}
+      accentColor={GITHUB_ACCENT}
+      backgroundColor={GITHUB_BG}
+      preview={preview}
+      controls={controls}
+    >
       {loading ? (
         <GitHubStatusLoading />
       ) : (
         <GitHubLinksList links={links} />
       )}
-    </div>
+    </CollapsibleSection>
   );
 };
-
-
-

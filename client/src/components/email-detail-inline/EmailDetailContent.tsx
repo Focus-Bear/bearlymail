@@ -1,18 +1,26 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
+import { FiArchive, FiClock, FiCornerUpLeft, FiCornerUpRight } from 'react-icons/fi';
 import { theme } from 'theme/theme';
 import { GitHubStatusSection } from 'components/github/GitHubStatusSection';
 import { EmailDetailBody, EmailThreadList } from 'components/email-detail';
 import { EmailAttachments } from 'components/email-detail/EmailAttachments';
 import { PrivateNotesSection } from 'components/email-detail-inline/PrivateNotesSection';
 import { ActionItemsSection } from 'components/email-detail-inline/ActionItemsSection';
-import { EMOJI_ARCHIVE, EMOJI_REPLY, EMOJI_FORWARD, EMOJI_BLOCK, EMOJI_LINK, EMOJI_STAR } from 'constants/emojis';
+import { SnoozeInputForm } from 'components/inbox/actions/SnoozeInputForm';
+import { EMOJI_BLOCK, EMOJI_LINK } from 'constants/emojis';
 import { extractUnsubscribeLink } from 'utils/unsubscribeUtils';
 import { API_URL } from 'config/api';
 import { captureEvent } from 'utils/posthog';
-import { OPACITY_DISABLED, MESSAGE_ID_PREVIEW_LENGTH } from 'constants/numbers';
+import { OPACITY_DISABLED } from 'constants/numbers';
 import { useAuth } from 'contexts/AuthContext';
+
+const PRIORITY_OPTIONS = [
+  { label: 'Can wait', emoji: '😊', value: 1 },
+  { label: 'Get on it', emoji: '😀', value: 2 },
+  { label: 'Oh sh$t', emoji: '🤯', value: 3 },
+];
 
 interface Email {
   id: string;
@@ -60,8 +68,10 @@ interface EmailDetailContentProps {
   onSetStarCount?: (emailId: string, starCount: number, e?: React.MouseEvent) => void;
   onOpenReplyComposer?: (mode: 'reply' | 'replyAll' | 'forward') => void;
   onBlockSender?: (emailId: string) => void;
+  onSnooze?: (duration: string) => void;
 }
 
+// eslint-disable-next-line max-lines-per-function
 export const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
   email,
   emailId,
@@ -89,20 +99,20 @@ export const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
   onSetStarCount,
   onOpenReplyComposer,
   onBlockSender,
+  onSnooze,
 }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const emailWithStarCount = email as any;
   const starCount = emailWithStarCount?.starCount ?? 0;
-  
-  // Fetch Gmail star status for debugging
+  const [showSnoozeInput, setShowSnoozeInput] = useState(false);
+  const [snoozeValue, setSnoozeValue] = useState('');
+
   const [gmailStarStatus, setGmailStarStatus] = useState<any>(null);
   const [loadingStarStatus, setLoadingStarStatus] = useState(false);
-  
-  // Fetch Gmail labels for debugging
   const [gmailLabels, setGmailLabels] = useState<any>(null);
   const [loadingLabels, setLoadingLabels] = useState(false);
-  
+
   useEffect(() => {
     if (user?.isAdmin && emailId) {
       setLoadingStarStatus(true);
@@ -116,7 +126,7 @@ export const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
           setGmailStarStatus({ error: error.message });
           setLoadingStarStatus(false);
         });
-      
+
       setLoadingLabels(true);
       axios.get(`${API_URL}/emails/${emailId}/gmail-labels`)
         .then(response => {
@@ -131,7 +141,6 @@ export const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
     }
   }, [user?.isAdmin, emailId]);
 
-  // Extract unsubscribe link from email
   const unsubscribeLink = useMemo(() => {
     const htmlBody = emailWithStarCount?.htmlBody;
     return extractUnsubscribeLink(htmlBody, email.body);
@@ -150,237 +159,264 @@ export const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
     if (onBlockSender) {
       onBlockSender(emailId);
     } else {
-      // Fallback: implement block sender directly if prop not provided
       captureEvent('email_block_sender_clicked', { email_id: emailId });
       try {
         await axios.post(`${API_URL}/emails/${emailId}/block-sender`);
-        // Optionally refresh or show success message
       } catch (error) {
         console.error('Error blocking sender:', error);
       }
     }
   };
 
+  const hasActions = onSetStarCount || onOpenReplyComposer || onArchive || onBlockSender || unsubscribeLink || onSnooze;
+
   return (
     <div style={{ padding: theme.spacing.xl, height: '100%', overflowY: 'auto' }}>
-      {/* Actions Cards */}
-      {(onSetStarCount || onOpenReplyComposer || onArchive || onBlockSender || unsubscribeLink) && (
-        <div style={{
-          display: 'flex',
-          flexDirection: 'row',
-          gap: theme.spacing.md,
-          marginBottom: theme.spacing.lg,
-          paddingBottom: theme.spacing.md,
-          borderBottom: `1px solid ${theme.colors.border.light}`,
-          alignItems: 'flex-start',
-        }}>
-          {/* Prioritise Card */}
-          {onSetStarCount && (
-            <div style={{
-              backgroundColor: theme.colors.background.paper,
-              borderRadius: theme.borderRadius.md,
-              border: `1px solid ${theme.colors.border.light}`,
-              padding: theme.spacing.md,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: theme.spacing.sm,
-              flexShrink: 0,
-            }}>
+
+      {hasActions && (
+        <div style={{ marginBottom: theme.spacing.lg }}>
+          {/* Primary action row */}
+          <div style={{
+            display: 'flex',
+            gap: theme.spacing.sm,
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            marginBottom: theme.spacing.md,
+          }}>
+            {/* Reply All */}
+            {onOpenReplyComposer && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onOpenReplyComposer('replyAll'); }}
+                style={{
+                  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                  backgroundColor: theme.colors.text.primary,
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: theme.borderRadius.md,
+                  fontWeight: theme.typography.fontWeight.semibold,
+                  cursor: 'pointer',
+                  fontSize: theme.typography.fontSize.sm,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: theme.spacing.xs,
+                }}
+              >
+                <FiCornerUpLeft size={15} />
+                {t('emailDetail.replyAll')}
+              </button>
+            )}
+
+            {/* Forward */}
+            {onOpenReplyComposer && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onOpenReplyComposer('forward'); }}
+                style={{
+                  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                  backgroundColor: 'transparent',
+                  color: theme.colors.text.secondary,
+                  border: `1px solid ${theme.colors.border.medium}`,
+                  borderRadius: theme.borderRadius.md,
+                  fontWeight: theme.typography.fontWeight.medium,
+                  cursor: 'pointer',
+                  fontSize: theme.typography.fontSize.sm,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: theme.spacing.xs,
+                }}
+              >
+                <FiCornerUpRight size={15} />
+                {t('emailDetail.forward')}
+              </button>
+            )}
+
+            {/* Separator */}
+            {(onArchive || onSnooze) && (onOpenReplyComposer) && (
               <div style={{
-                fontSize: theme.typography.fontSize.xs,
-                color: theme.colors.text.tertiary,
-                fontWeight: theme.typography.fontWeight.medium,
-                marginBottom: theme.spacing.xs,
-              }}>
-                {t('inbox.prioritise') || 'Prioritise'}:
-              </div>
-              <div style={{ 
-                display: 'flex', 
-                gap: theme.spacing.xs, 
-                alignItems: 'center' 
-              }}>
-                {[1, 2, 3].map((count) => (
-                  <button
-                    key={count}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const newCount = starCount === count ? 0 : count;
-                      onSetStarCount(emailId, newCount, e);
-                    }}
-                    style={{
-                      padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                      backgroundColor: starCount === count ? theme.colors.primary.main : 'transparent',
-                      color: starCount === count ? 'white' : theme.colors.text.secondary,
-                      border: `1px solid ${starCount === count ? theme.colors.primary.main : theme.colors.border.medium}`,
-                      borderRadius: theme.borderRadius.sm,
-                      cursor: 'pointer',
-                      fontSize: theme.typography.fontSize.sm,
-                      fontWeight: theme.typography.fontWeight.medium,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: theme.spacing.xs,
-                    }}
-                  >
-                    {/* eslint-disable-next-line i18next/no-literal-string */}
-                    <span>{EMOJI_STAR}</span>
-                  </button>
-                ))}
-              </div>
+                width: '1px',
+                height: '28px',
+                backgroundColor: theme.colors.border.light,
+                flexShrink: 0,
+              }} />
+            )}
+
+            {/* Archive */}
+            {onArchive && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onArchive(emailId, e); }}
+                style={{
+                  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                  backgroundColor: 'transparent',
+                  color: theme.colors.text.secondary,
+                  border: 'none',
+                  borderRadius: theme.borderRadius.md,
+                  fontWeight: theme.typography.fontWeight.medium,
+                  cursor: 'pointer',
+                  fontSize: theme.typography.fontSize.sm,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: theme.spacing.xs,
+                }}
+              >
+                <FiArchive size={15} />
+                {t('emailDetail.archive')}
+              </button>
+            )}
+
+            {/* Snooze */}
+            {onSnooze && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  captureEvent('email_snooze_clicked', { email_id: emailId });
+                  setShowSnoozeInput(!showSnoozeInput);
+                }}
+                style={{
+                  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                  backgroundColor: showSnoozeInput ? theme.colors.primary.light : 'transparent',
+                  color: theme.colors.text.secondary,
+                  border: showSnoozeInput ? `1px solid ${theme.colors.primary.main}` : 'none',
+                  borderRadius: theme.borderRadius.md,
+                  fontWeight: theme.typography.fontWeight.medium,
+                  cursor: 'pointer',
+                  fontSize: theme.typography.fontSize.sm,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: theme.spacing.xs,
+                }}
+              >
+                <FiClock size={15} />
+                {t('emailDetail.snooze')}
+              </button>
+            )}
+
+            {/* Unsubscribe / Block Sender (secondary) */}
+            {unsubscribeLink ? (
+              <button
+                onClick={handleUnsubscribeClick}
+                title={t('inbox.unsubscribe')}
+                style={{
+                  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                  backgroundColor: 'transparent',
+                  color: theme.colors.text.secondary,
+                  border: 'none',
+                  borderRadius: theme.borderRadius.md,
+                  fontWeight: theme.typography.fontWeight.medium,
+                  cursor: 'pointer',
+                  fontSize: theme.typography.fontSize.sm,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: theme.spacing.xs,
+                  opacity: OPACITY_DISABLED,
+                  marginLeft: 'auto',
+                }}
+              >
+                {/* eslint-disable-next-line i18next/no-literal-string */}
+                <span>{EMOJI_LINK}</span>
+                <span>{t('inbox.unsubscribe')}</span>
+              </button>
+            ) : (onBlockSender && (
+              <button
+                onClick={handleBlockSenderClick}
+                title={t('inbox.blockSender')}
+                style={{
+                  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                  backgroundColor: 'transparent',
+                  color: theme.colors.text.secondary,
+                  border: 'none',
+                  borderRadius: theme.borderRadius.md,
+                  fontWeight: theme.typography.fontWeight.medium,
+                  cursor: 'pointer',
+                  fontSize: theme.typography.fontSize.sm,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: theme.spacing.xs,
+                  opacity: OPACITY_DISABLED,
+                  marginLeft: 'auto',
+                }}
+              >
+                {/* eslint-disable-next-line i18next/no-literal-string */}
+                <span>{EMOJI_BLOCK}</span>
+                <span>{t('inbox.blockSender')}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Snooze input */}
+          {showSnoozeInput && onSnooze && (
+            <div style={{
+              borderTop: `1px solid ${theme.colors.border.light}`,
+              paddingTop: theme.spacing.sm,
+              marginBottom: theme.spacing.sm,
+            }}>
+              <SnoozeInputForm
+                email={email as any}
+                snoozeValue={snoozeValue}
+                onValueChange={setSnoozeValue}
+                onConfirm={() => {
+                  onSnooze(snoozeValue);
+                  setShowSnoozeInput(false);
+                  setSnoozeValue('');
+                }}
+                onCancel={() => {
+                  setShowSnoozeInput(false);
+                  setSnoozeValue('');
+                }}
+              />
             </div>
           )}
 
-          {/* Other Actions Card */}
-          {(onOpenReplyComposer || onArchive || onBlockSender || unsubscribeLink) && (
+          {/* PRIORITIZE row */}
+          {onSetStarCount && (
             <div style={{
-              backgroundColor: theme.colors.background.paper,
-              borderRadius: theme.borderRadius.md,
-              border: `1px solid ${theme.colors.border.light}`,
-              padding: theme.spacing.md,
               display: 'flex',
-              flexDirection: 'column',
-              gap: theme.spacing.sm,
-              flex: 1,
-              minWidth: 0,
+              alignItems: 'center',
+              gap: theme.spacing.md,
+              paddingTop: theme.spacing.sm,
+              borderTop: `1px solid ${theme.colors.border.light}`,
             }}>
-              <div style={{
+              <span style={{
                 fontSize: theme.typography.fontSize.xs,
                 color: theme.colors.text.tertiary,
-                fontWeight: theme.typography.fontWeight.medium,
-                marginBottom: theme.spacing.xs,
+                fontWeight: theme.typography.fontWeight.semibold,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                flexShrink: 0,
               }}>
-                {t('inbox.otherActions') || 'Other actions'}:
-              </div>
-              <div style={{ 
-                display: 'flex', 
-                gap: theme.spacing.sm, 
-                alignItems: 'center',
-                flexWrap: 'wrap',
-              }}>
-                {onOpenReplyComposer && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onOpenReplyComposer('reply');
-                    }}
-                    style={{
-                      padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                      backgroundColor: theme.colors.primary.main,
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: theme.borderRadius.md,
-                      fontWeight: theme.typography.fontWeight.semibold,
-                      cursor: 'pointer',
-                      fontSize: theme.typography.fontSize.sm,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: theme.spacing.xs,
-                    }}
-                  >
-                    {/* eslint-disable-next-line i18next/no-literal-string */}
-                    <span>{EMOJI_REPLY}</span>
-                    {t('emailDetail.reply')}
-                  </button>
-                )}
-
-                {onOpenReplyComposer && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onOpenReplyComposer('forward');
-                    }}
-                    style={{
-                      padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                      backgroundColor: 'transparent',
-                      color: theme.colors.text.secondary,
-                      border: `1px solid ${theme.colors.border.medium}`,
-                      borderRadius: theme.borderRadius.md,
-                      fontWeight: theme.typography.fontWeight.medium,
-                      cursor: 'pointer',
-                      fontSize: theme.typography.fontSize.sm,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: theme.spacing.xs,
-                    }}
-                  >
-                    {/* eslint-disable-next-line i18next/no-literal-string */}
-                    <span>{EMOJI_FORWARD}</span>
-                    {t('emailDetail.forward')}
-                  </button>
-                )}
-
-                {onArchive && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onArchive(emailId, e);
-                    }}
-                    style={{
-                      padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                      backgroundColor: 'transparent',
-                      color: theme.colors.text.secondary,
-                      border: `1px solid ${theme.colors.border.medium}`,
-                      borderRadius: theme.borderRadius.md,
-                      fontWeight: theme.typography.fontWeight.medium,
-                      cursor: 'pointer',
-                      fontSize: theme.typography.fontSize.sm,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: theme.spacing.xs,
-                    }}
-                  >
-                    {/* eslint-disable-next-line i18next/no-literal-string */}
-                    <span>{EMOJI_ARCHIVE}</span>
-                    {t('emailDetail.archive')}
-                  </button>
-                )}
-
-                {unsubscribeLink ? (
-                  <button
-                    onClick={handleUnsubscribeClick}
-                    title={t('inbox.unsubscribe')}
-                    style={{
-                      padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                      backgroundColor: 'transparent',
-                      color: theme.colors.text.secondary,
-                      border: `1px solid ${theme.colors.border.medium}`,
-                      borderRadius: theme.borderRadius.md,
-                      fontWeight: theme.typography.fontWeight.medium,
-                      cursor: 'pointer',
-                      fontSize: theme.typography.fontSize.sm,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: theme.spacing.xs,
-                      opacity: OPACITY_DISABLED,
-                    }}
-                  >
-                    {/* eslint-disable-next-line i18next/no-literal-string */}
-                    <span>{EMOJI_LINK}</span>
-                    <span>{t('inbox.unsubscribe')}</span>
-                  </button>
-                ) : (onBlockSender && (
-                  <button
-                    onClick={handleBlockSenderClick}
-                    title={t('inbox.blockSender')}
-                    style={{
-                      padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                      backgroundColor: 'transparent',
-                      color: theme.colors.text.secondary,
-                      border: `1px solid ${theme.colors.border.medium}`,
-                      borderRadius: theme.borderRadius.md,
-                      fontWeight: theme.typography.fontWeight.medium,
-                      cursor: 'pointer',
-                      fontSize: theme.typography.fontSize.sm,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: theme.spacing.xs,
-                      opacity: OPACITY_DISABLED,
-                    }}
-                  >
-                    {/* eslint-disable-next-line i18next/no-literal-string */}
-                    <span>{EMOJI_BLOCK}</span>
-                    <span>{t('inbox.blockSender')}</span>
-                  </button>
-                ))}
+                {t('inbox.prioritise')}
+              </span>
+              <div style={{ display: 'flex', gap: theme.spacing.xs, flexWrap: 'wrap' }}>
+                {PRIORITY_OPTIONS.map(({ label, emoji, value }) => {
+                  const isActive = starCount === value;
+                  return (
+                    <button
+                      key={value}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const newCount = starCount === value ? 0 : value;
+                        onSetStarCount(emailId, newCount, e);
+                      }}
+                      style={{
+                        padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+                        backgroundColor: isActive ? theme.colors.text.primary : 'transparent',
+                        color: isActive ? 'white' : theme.colors.text.secondary,
+                        border: `1px solid ${isActive ? theme.colors.text.primary : theme.colors.border.medium}`,
+                        borderRadius: theme.borderRadius.full || '999px',
+                        cursor: 'pointer',
+                        fontSize: theme.typography.fontSize.sm,
+                        fontWeight: theme.typography.fontWeight.medium,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        whiteSpace: 'nowrap',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <span>{emoji}</span>
+                      {/* eslint-disable-next-line i18next/no-literal-string */}
+                      <span>{label}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -419,8 +455,6 @@ export const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
           />
         )}
       </div>
-
-      {/* EmailDetailHeader requires full Email object with priority explanation - skipping for inline view */}
 
       <EmailThreadList
         threadEmails={threadEmails}
@@ -473,7 +507,7 @@ export const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
                 <div style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs }}>
                   <div><strong>Email ID (for reference):</strong> {emailData.id}</div>
                   <div><strong>Message ID (for Gmail lookup):</strong> {emailData.messageId || 'N/A'}</div>
-                  
+
                   <div style={{ marginTop: theme.spacing.xs }}>
                     <strong>DB Labels:</strong>
                     <div style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs }}>
@@ -510,11 +544,11 @@ export const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
                         <div style={{ color: '#d32f2f' }}><strong>Gmail Error:</strong> {gmailLabels.gmailLabels.error}</div>
                       )}
 
-                      <div style={{ 
+                      <div style={{
                         marginTop: theme.spacing.xs,
                         padding: theme.spacing.xs,
                         backgroundColor: JSON.stringify(gmailLabels.dbLabels?.names || emailData.labels || []) === JSON.stringify(gmailLabels.gmailLabels.labelNames || [])
-                          ? '#e8f5e9' 
+                          ? '#e8f5e9'
                           : '#ffebee',
                         borderRadius: theme.borderRadius.sm,
                       }}>
@@ -539,124 +573,8 @@ export const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
               <div style={{ marginTop: theme.spacing.md, paddingTop: theme.spacing.md, borderTop: `1px solid ${theme.colors.border.light}` }}>
                 <strong>Star Status:</strong>
                 <div style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs }}>
-                  <div><strong>DB Star Count (from thread):</strong> {gmailStarStatus?.dbStarCount ?? 'loading...'}</div>
-                  <div><strong>Email Star Count (from email object):</strong> {emailData.starCount || 0}</div>
-                  {loadingStarStatus && <div>Loading Gmail data...</div>}
-                  {gmailStarStatus?.gmailStarStatus && (
-                    <>
-                      <div><strong>Gmail Latest Message Is Starred:</strong> {gmailStarStatus.gmailStarStatus.isStarred ? 'true' : 'false'}</div>
-                      <div><strong>Gmail Latest Message Star Count:</strong> {gmailStarStatus.gmailStarStatus.starCount}</div>
-                      <div><strong>Gmail Thread ID:</strong> {gmailStarStatus.gmailStarStatus.threadId}</div>
-                      <div><strong>Gmail Latest Message Labels:</strong> {gmailStarStatus.gmailStarStatus.latestMessageLabelIds ? JSON.stringify(gmailStarStatus.gmailStarStatus.latestMessageLabelIds) : '[]'}</div>
-                      <div style={{ marginTop: theme.spacing.xs }}>
-                        <strong>All Messages in Thread:</strong>
-                        <div style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs }}>
-                          <div><strong>Any Message Starred:</strong> {gmailStarStatus.gmailStarStatus.isAnyStarred ? 'true' : 'false'}</div>
-                          <div><strong>Starred Message Count:</strong> {gmailStarStatus.gmailStarStatus.starredMessageCount} / {gmailStarStatus.gmailStarStatus.messageStarStatuses?.length || 0}</div>
-                          {gmailStarStatus.gmailStarStatus.messageStarStatuses && gmailStarStatus.gmailStarStatus.messageStarStatuses.length > 0 && (
-                            <div style={{ marginTop: theme.spacing.xs }}>
-                              {gmailStarStatus.gmailStarStatus.messageStarStatuses.map((msg: any, idx: number) => (
-                                <div key={idx} style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs, fontSize: theme.typography.fontSize.xs }}>
-                                  [{msg.messageIndex}] Message ID: {msg.messageId.substring(0, MESSAGE_ID_PREVIEW_LENGTH)}... | Starred: {msg.isStarred ? '✓' : '✗'} | Labels: {JSON.stringify(msg.labelIds)}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      {gmailStarStatus.gmailStarStatus.error && (
-                        <div style={{ color: '#d32f2f' }}><strong>Gmail Error:</strong> {gmailStarStatus.gmailStarStatus.error}</div>
-                      )}
-                      <div style={{ 
-                        marginTop: theme.spacing.xs,
-                        padding: theme.spacing.xs,
-                        backgroundColor: gmailStarStatus.dbStarCount === gmailStarStatus.gmailStarStatus.starCount 
-                          ? '#e8f5e9' 
-                          : '#ffebee',
-                        borderRadius: theme.borderRadius.sm,
-                      }}>
-                        <strong>Match Status:</strong> {gmailStarStatus.dbStarCount === gmailStarStatus.gmailStarStatus.starCount ? '✓ MATCH' : '✗ MISMATCH'}
-                        <div style={{ marginTop: theme.spacing.xs, fontSize: theme.typography.fontSize.xs }}>
-                          DB expects: {gmailStarStatus.dbStarCount > 0 ? 'Starred' : 'Not Starred'} | Gmail shows: {gmailStarStatus.gmailStarStatus.isAnyStarred ? 'Starred' : 'Not Starred'} ({gmailStarStatus.gmailStarStatus.starredMessageCount} message{gmailStarStatus.gmailStarStatus.starredMessageCount !== 1 ? 's' : ''} starred)
-                        </div>
-                      </div>
-                    </>
-                  )}
-                  {gmailStarStatus?.error && (
-                    <div style={{ color: '#d32f2f' }}><strong>Error:</strong> {gmailStarStatus.error}</div>
-                  )}
-                </div>
-              </div>
-              <div style={{ marginTop: theme.spacing.md, paddingTop: theme.spacing.md, borderTop: `1px solid ${theme.colors.border.light}` }}>
-                <strong>Labels:</strong>
-                <div style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs }}>
-                  <div><strong>DB Labels (from email):</strong> {emailData.labels ? JSON.stringify(emailData.labels) : '[]'}</div>
-                  {loadingLabels && <div>Loading Gmail labels...</div>}
-                  {gmailLabels && (
-                    <>
-                      <div><strong>DB Labels (decrypted):</strong> {gmailLabels.dbLabels ? JSON.stringify(gmailLabels.dbLabels) : 'null'}</div>
-                      <div><strong>Gmail Labels (from API):</strong> {gmailLabels.gmailLabels?.labelIds ? JSON.stringify(gmailLabels.gmailLabels.labelIds) : '[]'}</div>
-                      <div><strong>Gmail Message ID:</strong> {gmailLabels.gmailLabels?.messageId || 'N/A'}</div>
-                      {gmailLabels.gmailLabels?.error && (
-                        <div style={{ color: '#d32f2f' }}><strong>Gmail Error:</strong> {gmailLabels.gmailLabels.error}</div>
-                      )}
-                      <div style={{ 
-                        marginTop: theme.spacing.xs,
-                        padding: theme.spacing.xs,
-                        backgroundColor: JSON.stringify(gmailLabels.dbLabels || []) === JSON.stringify(gmailLabels.gmailLabels?.labelIds || [])
-                          ? '#e8f5e9' 
-                          : '#ffebee',
-                        borderRadius: theme.borderRadius.sm,
-                      }}>
-                        <strong>Match Status:</strong> {JSON.stringify(gmailLabels.dbLabels || []) === JSON.stringify(gmailLabels.gmailLabels?.labelIds || []) ? '✓ MATCH' : '✗ MISMATCH'}
-                      </div>
-                    </>
-                  )}
-                  {gmailLabels?.error && (
-                    <div style={{ color: '#d32f2f' }}><strong>Error:</strong> {gmailLabels.error}</div>
-                  )}
-                </div>
-              </div>
-              {threadEmails && threadEmails.length > 0 && (
-                <div style={{ marginTop: theme.spacing.md }}>
-                  <strong>Thread Emails ({threadEmails.length}):</strong>
-                  {threadEmails.map((threadEmail, idx) => {
-                    const threadEmailData = threadEmail as any;
-                    return (
-                      <div key={threadEmail.id} style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs }}>
-                        [{idx}] ID: {threadEmailData.id} | Labels: {threadEmailData.labels ? JSON.stringify(threadEmailData.labels) : '[]'} | Received: {threadEmailData.receivedAt}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              <div style={{ marginTop: theme.spacing.md, paddingTop: theme.spacing.md, borderTop: `1px solid ${theme.colors.border.light}` }}>
-                <strong>Attachments:</strong>
-                <div style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs }}>
-                  <div><strong>Has Attachments Property:</strong> {emailData.attachments !== undefined ? 'true' : 'false'}</div>
-                  <div><strong>Attachments Count:</strong> {emailData.attachments?.length ?? 0}</div>
-                  <div><strong>Raw Attachments Data:</strong> {emailData.attachments ? JSON.stringify(emailData.attachments) : 'null/undefined'}</div>
-                  {emailData.attachments && emailData.attachments.length > 0 && (
-                    <div style={{ marginTop: theme.spacing.xs }}>
-                      <strong>Attachment Details:</strong>
-                      {emailData.attachments.map((attachment: any, idx: number) => (
-                        <div key={attachment.attachmentId || idx} style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs }}>
-                          [{idx}] ID: {attachment.attachmentId || 'N/A'} | Filename: {attachment.filename || 'N/A'} | MIME: {attachment.mimeType || 'N/A'} | Size: {attachment.size ?? 'N/A'} bytes
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {(!emailData.attachments || emailData.attachments.length === 0) && (
-                    <div style={{ 
-                      marginTop: theme.spacing.xs,
-                      padding: theme.spacing.xs,
-                      backgroundColor: '#ffebee',
-                      borderRadius: theme.borderRadius.sm,
-                      color: '#d32f2f',
-                    }}>
-                      No attachments found on email object. Check if attachments are being fetched from Gmail API and stored in database.
-                    </div>
-                  )}
+                  <div><strong>DB Star Count (from thread):</strong> {gmailStarStatus?.dbStarCount ?? (loadingStarStatus ? 'loading...' : 'N/A')}</div>
+                  <div><strong>Star Count:</strong> {emailData.starCount || 0}</div>
                 </div>
               </div>
             </div>
@@ -667,6 +585,3 @@ export const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
     </div>
   );
 };
-
-
-

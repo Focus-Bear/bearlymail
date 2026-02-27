@@ -60,6 +60,10 @@ export class EmailStarService {
     // Ensure starCount is between 0-3
     const newStarCount = Math.max(0, Math.min(3, starCount));
     await updateThreadStarCount(userId, email.threadId, newStarCount);
+    await this.emailThreadRepository.update(
+      { userId, threadId: email.threadId },
+      { syncStatus: "unsynced", syncStatusUpdatedAt: new Date() },
+    );
 
     // Sync star status to Gmail
     try {
@@ -70,6 +74,10 @@ export class EmailStarService {
           userId,
           email.threadId,
           newStarCount,
+        );
+        await this.emailThreadRepository.update(
+          { userId, threadId: email.threadId },
+          { syncStatus: "synced", syncStatusUpdatedAt: new Date() },
         );
       }
     } catch (error) {
@@ -144,6 +152,10 @@ export class EmailStarService {
     const currentStarCount = thread?.starCount ?? 0;
     const newStarCount = currentStarCount > 0 ? 0 : 3;
     await updateThreadStarCount(userId, email.threadId, newStarCount);
+    await this.emailThreadRepository.update(
+      { userId, threadId: email.threadId },
+      { syncStatus: "unsynced", syncStatusUpdatedAt: new Date() },
+    );
 
     // Sync star status to Gmail
     try {
@@ -154,6 +166,10 @@ export class EmailStarService {
           userId,
           email.threadId,
           newStarCount,
+        );
+        await this.emailThreadRepository.update(
+          { userId, threadId: email.threadId },
+          { syncStatus: "synced", syncStatusUpdatedAt: new Date() },
         );
       }
     } catch (error) {

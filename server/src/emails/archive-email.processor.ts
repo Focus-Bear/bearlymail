@@ -121,6 +121,11 @@ export class ArchiveEmailProcessor implements OnModuleInit {
         this.logger.log(
           `[Archive Provider Sync] Completed: userId=${userId}, threadId=${threadId}`,
         );
+        await this.emailsService.markThreadSyncStatus(
+          userId,
+          threadId,
+          "synced",
+        );
       } else {
         this.logger.warn(
           `[Archive Provider Sync] No provider available: userId=${userId}`,

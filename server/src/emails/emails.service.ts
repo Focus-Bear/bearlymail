@@ -1366,14 +1366,22 @@ export class EmailsService {
    * Get ALL threads for sync comparison (returns threadId, isArchived, starCount)
    * Used by email provider sync to compare with provider search results
    */
-  async getAllThreadsForSync(
-    userId: string,
-  ): Promise<
-    Array<{ threadId: string; isArchived: boolean; starCount: number }>
+  async getAllThreadsForSync(userId: string): Promise<
+    Array<{
+      threadId: string;
+      isArchived: boolean;
+      starCount: number;
+      syncStatus: "synced" | "unsynced";
+    }>
   > {
     const results = await this.emailThreadRepository
       .createQueryBuilder("thread")
-      .select(["thread.threadId", "thread.isArchived", "thread.starCount"])
+      .select([
+        "thread.threadId",
+        "thread.isArchived",
+        "thread.starCount",
+        "thread.syncStatus",
+      ])
       .where("thread.userId = :userId", { userId })
       // Reasonable limit for sync
       .limit(QUERY_LIMITS.INBOX_TOTAL)
@@ -1385,6 +1393,7 @@ export class EmailsService {
           threadId: t.threadId,
           isArchived: t.isArchived,
           starCount: t.starCount,
+          syncStatus: t.syncStatus,
         }))
         // Filter out any null/undefined threadIds
         .filter((t) => t.threadId)
@@ -2175,7 +2184,12 @@ export class EmailsService {
     const now = new Date();
     await this.emailThreadRepository.update(
       { userId, threadId: In(threadIds) },
-      { isArchived: true, lastUserOperationAt: now },
+      {
+        isArchived: true,
+        lastUserOperationAt: now,
+        syncStatus: "unsynced",
+        syncStatusUpdatedAt: now,
+      },
     );
     this.logger.log(
       `[Archive] DB update completed: userId=${userId}, ${threadIds.length} threads archived`,
@@ -3033,11 +3047,26 @@ export class EmailsService {
       latestFrom: string;
       issues: string[];
       inGmail: boolean;
+      syncStatus: "synced" | "unsynced";
     }>;
     missingFromProcessTab: Array<{
       threadId: string;
       reason: string;
       details: Record<string, unknown>;
+    }>;
+    gmailVisibilityChecks: Array<{
+      threadId: string;
+      inDatabase: boolean;
+      visibleInAction: boolean;
+      syncStatus: "synced" | "unsynced" | "missing";
+      reasons: string[];
+    }>;
+    staleUnsyncedThreads: Array<{
+      threadId: string;
+      syncStatusUpdatedAt: Date | null;
+      minutesUnsynced: number;
+      isArchived: boolean;
+      starCount: number;
     }>;
   }> {
     return this.emailDebugService.debugStarredThreads(
@@ -3277,6 +3306,25 @@ export class EmailsService {
     updates: { threadId: string; starCount: number }[],
   ): Promise<void> {
     await this.emailThreadService.batchUpdateThreadStarCount(userId, updates);
+  }
+
+  async markThreadSyncStatus(
+    userId: string,
+    threadId: string,
+    syncStatus: "synced" | "unsynced",
+  ): Promise<void> {
+    return this.emailThreadService.markThreadSyncStatus(
+      userId,
+      threadId,
+      syncStatus,
+    );
+  }
+
+  async markThreadsUnsynced(
+    userId: string,
+    threadIds: string[],
+  ): Promise<void> {
+    return this.emailThreadService.markThreadsUnsynced(userId, threadIds);
   }
 
   /**

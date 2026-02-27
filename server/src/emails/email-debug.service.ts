@@ -1,5 +1,5 @@
 import { Injectable, Logger, Inject, forwardRef } from "@nestjs/common";
-import { DataSource, IsNull, Not } from "typeorm";
+import { DataSource, In, IsNull, Not } from "typeorm";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { EmailProviderManager } from "./email-provider-manager.service";
@@ -87,6 +87,7 @@ export class EmailDebugService {
     latestFrom: string;
     issues: string[];
     inGmail: boolean;
+    syncStatus: "synced" | "unsynced";
   }> {
     const latestEmail = [...threadEmails].sort(
       (a, b) =>
@@ -133,6 +134,7 @@ export class EmailDebugService {
       latestFrom: latestEmail?.fromName || latestEmail?.from || "N/A",
       issues,
       inGmail,
+      syncStatus: thread.syncStatus,
     };
   }
 
@@ -260,6 +262,21 @@ export class EmailDebugService {
       latestFrom: string;
       issues: string[];
       inGmail: boolean;
+      syncStatus: "synced" | "unsynced";
+    }>;
+    gmailVisibilityChecks: Array<{
+      threadId: string;
+      inDatabase: boolean;
+      visibleInAction: boolean;
+      syncStatus: "synced" | "unsynced" | "missing";
+      reasons: string[];
+    }>;
+    staleUnsyncedThreads: Array<{
+      threadId: string;
+      syncStatusUpdatedAt: Date | null;
+      minutesUnsynced: number;
+      isArchived: boolean;
+      starCount: number;
     }>;
     missingFromProcessTab: Array<{
       threadId: string;
@@ -299,7 +316,13 @@ export class EmailDebugService {
     // 2. Get all starred threads from email_threads table
     const allStarredThreads = await this.emailThreadRepository
       .createQueryBuilder("thread")
-      .select(["thread.threadId", "thread.starCount", "thread.isArchived"])
+      .select([
+        "thread.id",
+        "thread.threadId",
+        "thread.starCount",
+        "thread.isArchived",
+        "thread.syncStatus",
+      ])
       .where("thread.userId = :userId", { userId })
       .andWhere("thread.starCount > 0")
       .getMany();
@@ -368,6 +391,99 @@ export class EmailDebugService {
         },
       }));
 
+    const gmailThreadsInDb =
+      gmailStarredThreadIds.length > 0
+        ? await this.emailThreadRepository.find({
+            where: { userId, threadId: In(gmailStarredThreadIds) },
+            select: ["id", "threadId", "isArchived", "starCount", "syncStatus"],
+          })
+        : [];
+    const gmailThreadsInDbIds = gmailThreadsInDb.map((thread) => thread.id);
+    const emailsInGmailStarredThreads: Email[] =
+      gmailThreadsInDbIds.length > 0
+        ? await this.emailRepository
+            .createQueryBuilder("email")
+            .where("email.userId = :userId", { userId })
+            .andWhere('email."emailThreadId" IN (:...threadIds)', {
+              threadIds: gmailThreadsInDbIds,
+            })
+            .getMany()
+        : [];
+    const gmailThreadMap = new Map(
+      gmailThreadsInDb.map((thread) => [thread.threadId, thread]),
+    );
+
+    const gmailVisibilityChecks = await Promise.all(
+      gmailStarredThreadIds.map(async (gmailThreadId) => {
+        const thread = gmailThreadMap.get(gmailThreadId);
+        if (!thread) {
+          return {
+            threadId: `${gmailThreadId.substring(0, QUERY_LIMITS.THREAD_ID_PREVIEW)}...`,
+            inDatabase: false,
+            visibleInAction: false,
+            syncStatus: "missing" as const,
+            reasons: ["Thread not found in BearlyMail database"],
+          };
+        }
+
+        const threadEmails = emailsInGmailStarredThreads.filter(
+          (email) => email.emailThreadId === thread.id,
+        );
+        const latestEmail = [...threadEmails].sort(
+          (a, b) =>
+            new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime(),
+        )[0];
+        const { reasons, isBlocked } = await this.buildConditionReasons(
+          thread,
+          threadEmails,
+          userId,
+          latestEmail,
+        );
+        const visibility = this.buildThreadVisibility(
+          thread,
+          latestEmail,
+          isBlocked,
+        );
+
+        let visibilityReasons = ["Filtered by action tab conditions"];
+        if (visibility.wouldShowInAction) {
+          visibilityReasons = ["Visible in action tab"];
+        } else if (reasons.length > 0) {
+          visibilityReasons = reasons;
+        }
+
+        return {
+          threadId: `${gmailThreadId.substring(0, QUERY_LIMITS.THREAD_ID_PREVIEW)}...`,
+          inDatabase: true,
+          visibleInAction: visibility.wouldShowInAction,
+          syncStatus: thread.syncStatus,
+          reasons: visibilityReasons,
+        };
+      }),
+    );
+
+    const fiveMinutesAgo = new Date(Date.now() - 5 * MILLISECONDS.MINUTE);
+    const staleUnsyncedEntities = await this.emailThreadRepository.find({
+      where: { userId, syncStatus: "unsynced" },
+      select: ["threadId", "syncStatusUpdatedAt", "isArchived", "starCount"],
+    });
+    const staleUnsyncedThreads = staleUnsyncedEntities
+      .filter(
+        (thread) =>
+          thread.syncStatusUpdatedAt &&
+          thread.syncStatusUpdatedAt < fiveMinutesAgo,
+      )
+      .map((thread) => ({
+        threadId: `${thread.threadId.substring(0, QUERY_LIMITS.THREAD_ID_PREVIEW)}...`,
+        syncStatusUpdatedAt: thread.syncStatusUpdatedAt,
+        minutesUnsynced: Math.floor(
+          (Date.now() - new Date(thread.syncStatusUpdatedAt || 0).getTime()) /
+            MILLISECONDS.MINUTE,
+        ),
+        isArchived: thread.isArchived,
+        starCount: thread.starCount,
+      }));
+
     return {
       gmail: {
         starredThreadCount: gmailStarredThreadIds.length,
@@ -394,6 +510,8 @@ export class EmailDebugService {
       },
       starredThreads: threadDetails,
       missingFromProcessTab,
+      gmailVisibilityChecks,
+      staleUnsyncedThreads,
     };
   }
 

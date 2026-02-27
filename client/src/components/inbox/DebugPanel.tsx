@@ -45,12 +45,27 @@ interface DebugStarredData {
     latestFrom: string;
     issues: string[];
     inGmail: boolean;
+    syncStatus: 'synced' | 'unsynced';
     lastCheckedAt: string | null;
   }>;
   missingFromProcessTab: Array<{
     threadId: string;
     reason: string;
     details: any;
+  }>;
+  gmailVisibilityChecks: Array<{
+    threadId: string;
+    inDatabase: boolean;
+    visibleInAction: boolean;
+    syncStatus: 'synced' | 'unsynced' | 'missing';
+    reasons: string[];
+  }>;
+  staleUnsyncedThreads: Array<{
+    threadId: string;
+    syncStatusUpdatedAt: string | null;
+    minutesUnsynced: number;
+    isArchived: boolean;
+    starCount: number;
   }>;
 }
 
@@ -100,7 +115,7 @@ interface DebugPanelProps {
   onFetchSyncHistory: () => void;
   debugStarredData: DebugStarredData | null;
   loadingDebugData: boolean;
-  onFetchDebugStarred: () => void;
+  onFetchDebugStarred: () => Promise<void>;
   debugOrphanData: DebugOrphanData | null;
   loadingOrphanData: boolean;
   onFetchDebugOrphan: () => void;

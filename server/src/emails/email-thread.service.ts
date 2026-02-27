@@ -145,14 +145,22 @@ export class EmailThreadService {
    * Get ALL threads for sync comparison (returns threadId, isArchived, starCount)
    * Used by Gmail sync to compare with Gmail search results
    */
-  async getAllThreadsForSync(
-    userId: string,
-  ): Promise<
-    Array<{ threadId: string; isArchived: boolean; starCount: number }>
+  async getAllThreadsForSync(userId: string): Promise<
+    Array<{
+      threadId: string;
+      isArchived: boolean;
+      starCount: number;
+      syncStatus: "synced" | "unsynced";
+    }>
   > {
     const results = await this.emailThreadRepository
       .createQueryBuilder("thread")
-      .select(["thread.threadId", "thread.isArchived", "thread.starCount"])
+      .select([
+        "thread.threadId",
+        "thread.isArchived",
+        "thread.starCount",
+        "thread.syncStatus",
+      ])
       .where("thread.userId = :userId", { userId })
       .limit(QUERY_LIMITS.INBOX_TOTAL)
       // Reasonable limit for sync
@@ -163,6 +171,7 @@ export class EmailThreadService {
         threadId: t.threadId,
         isArchived: t.isArchived,
         starCount: t.starCount,
+        syncStatus: t.syncStatus,
       }))
       .filter((t) => t.threadId);
     // Filter out any null/undefined threadIds
@@ -190,6 +199,8 @@ export class EmailThreadService {
         thread.isArchived = isArchived;
         if (setLastUserOperation) {
           thread.lastUserOperationAt = new Date();
+          thread.syncStatus = "unsynced";
+          thread.syncStatusUpdatedAt = new Date();
         }
         await this.emailThreadRepository.save(thread);
         this.logger.debug(
@@ -235,45 +246,7 @@ export class EmailThreadService {
 
     const now = new Date();
 
-    // Get all threads that might be updated to check lastUserOperationAt
-    const threadIds = updates.map((update) => update.threadId);
-    const existingThreads = await this.emailThreadRepository.find({
-      where: { userId, threadId: In(threadIds) },
-      select: ["id", "threadId", "isArchived", "lastUserOperationAt"],
-    });
-    const existingThreadMap = new Map(
-      existingThreads.map((t) => [t.threadId, t]),
-    );
-
-    // Filter out updates that would override a recent user operation
-    // A user operation should be respected unless there's a new email (which would be handled separately)
-    const filteredUpdates = updates.filter((update) => {
-      const existingThread = existingThreadMap.get(update.threadId);
-      if (!existingThread) {
-        // New thread, allow update
-        return true;
-      }
-
-      // If user recently performed an operation, don't override their action
-      // The sync should only update if the status in Gmail matches what we expect
-      // If user archived in BearlyMail but Gmail shows unarchived, we should NOT unarchive
-      if (existingThread.lastUserOperationAt) {
-        // Skip this update - user's action takes precedence
-        this.logger.debug(
-          `Skipping sync update for thread ${update.threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... - user operation at ${existingThread.lastUserOperationAt.toISOString()} takes precedence`,
-        );
-        return false;
-      }
-
-      return true;
-    });
-
-    if (filteredUpdates.length === 0) {
-      this.logger.debug(
-        `All ${updates.length} thread updates skipped due to recent user operations`,
-      );
-      return;
-    }
+    const filteredUpdates = updates;
 
     // Group by status for more efficient updates
     const archivedThreadIds = filteredUpdates
@@ -293,7 +266,7 @@ export class EmailThreadService {
         .andWhere("threadId IN (:...threadIds)", {
           threadIds: archivedThreadIds,
         })
-        .andWhere("lastUserOperationAt IS NULL")
+        .andWhere('"syncStatus" = :syncStatus', { syncStatus: "synced" })
         .execute();
     }
 
@@ -307,7 +280,7 @@ export class EmailThreadService {
         .andWhere("threadId IN (:...threadIds)", {
           threadIds: unarchivedThreadIds,
         })
-        .andWhere("lastUserOperationAt IS NULL")
+        .andWhere('"syncStatus" = :syncStatus', { syncStatus: "synced" })
         .execute();
     }
 
@@ -513,6 +486,7 @@ export class EmailThreadService {
             .set({ isArchived: true })
             .where("userId = :userId", { userId })
             .andWhere("threadId IN (:...threadIds)", { threadIds: archivedIds })
+            .andWhere('"syncStatus" = :syncStatus', { syncStatus: "synced" })
             .execute();
         }
 
@@ -525,6 +499,7 @@ export class EmailThreadService {
             .set({ starCount: 3 })
             .where("userId = :userId", { userId })
             .andWhere("threadId IN (:...threadIds)", { threadIds: starredIds })
+            .andWhere('"syncStatus" = :syncStatus', { syncStatus: "synced" })
             .execute();
         }
 
@@ -541,6 +516,7 @@ export class EmailThreadService {
             .andWhere("threadId IN (:...threadIds)", {
               threadIds: unstarredIds,
             })
+            .andWhere('"syncStatus" = :syncStatus', { syncStatus: "synced" })
             .execute();
         }
       }
@@ -555,9 +531,32 @@ export class EmailThreadService {
           .andWhere("threadId IN (:...threadIds)", {
             threadIds: deletedThreadIds,
           })
+          .andWhere('"syncStatus" = :syncStatus', { syncStatus: "synced" })
           .execute();
       }
     });
+  }
+
+  async markThreadSyncStatus(
+    userId: string,
+    threadId: string,
+    syncStatus: "synced" | "unsynced",
+  ): Promise<void> {
+    await this.emailThreadRepository.update(
+      { userId, threadId },
+      { syncStatus, syncStatusUpdatedAt: new Date() },
+    );
+  }
+
+  async markThreadsUnsynced(
+    userId: string,
+    threadIds: string[],
+  ): Promise<void> {
+    if (threadIds.length === 0) return;
+    await this.emailThreadRepository.update(
+      { userId, threadId: In(threadIds) },
+      { syncStatus: "unsynced", syncStatusUpdatedAt: new Date() },
+    );
   }
 
   /**
@@ -624,14 +623,10 @@ export class EmailThreadService {
 
     // Update if values changed
     if (thread) {
-      // If this is an existing thread and a new email is being added,
-      // clear lastUserOperationAt so sync can update the thread status again.
-      // This ensures that if user archived a thread and a new email arrives,
-      // the sync process can unarchive it based on Gmail's current state.
       const shouldClearUserOperation =
         isExistingThread && thread.lastUserOperationAt !== null;
 
-      // When a new email arrives in a user-protected thread (shouldClearUserOperation=true):
+      // When a new email arrives in a user-protected thread:
       // ALWAYS preserve the existing BearlyMail starCount.
       //
       // Rationale:
@@ -660,6 +655,8 @@ export class EmailThreadService {
             `Clearing lastUserOperationAt for thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... - new email arrived (effectiveStarCount=${effectiveStarCount})`,
           );
           thread.lastUserOperationAt = null;
+          thread.syncStatus = "synced";
+          thread.syncStatusUpdatedAt = new Date();
         }
         thread = await this.emailThreadRepository.save(thread);
         this.logger.debug(

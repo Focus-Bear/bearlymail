@@ -35,6 +35,7 @@ interface DebugStarredData {
     latestFrom: string;
     issues: string[];
     inGmail: boolean;
+    syncStatus: 'synced' | 'unsynced';
     lastCheckedAt?: string | null;
   }>;
   missingFromProcessTab: Array<{
@@ -42,12 +43,26 @@ interface DebugStarredData {
     reason: string;
     details: any;
   }>;
+  gmailVisibilityChecks: Array<{
+    threadId: string;
+    inDatabase: boolean;
+    visibleInAction: boolean;
+    syncStatus: 'synced' | 'unsynced' | 'missing';
+    reasons: string[];
+  }>;
+  staleUnsyncedThreads: Array<{
+    threadId: string;
+    syncStatusUpdatedAt: string | null;
+    minutesUnsynced: number;
+    isArchived: boolean;
+    starCount: number;
+  }>;
 }
 
 interface DebugStarredSectionProps {
   debugStarredData: DebugStarredData | null;
   loadingDebugData: boolean;
-  onFetchDebugStarred: () => void;
+  onFetchDebugStarred: () => Promise<void>;
 }
 
 /**
@@ -60,6 +75,12 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
   onFetchDebugStarred,
 }) => {
   const { t } = useTranslation();
+  const [showSyncPopup, setShowSyncPopup] = React.useState(false);
+
+  const handleCheckStarredSync = async () => {
+    await onFetchDebugStarred();
+    setShowSyncPopup(true);
+  };
 
   return (
     <div
@@ -81,7 +102,7 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
         {/* eslint-disable-next-line i18next/no-literal-string */}
         <h4 style={{ margin: 0 }}>{EMOJI_SEARCH} {t('debug.starred.title')}</h4>
         <button
-          onClick={onFetchDebugStarred}
+          onClick={handleCheckStarredSync}
           disabled={loadingDebugData}
           style={{
             padding: `${theme.spacing.xs} ${theme.spacing.md}`,
@@ -93,7 +114,7 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
             opacity: loadingDebugData ? OPACITY_DISABLED : OPACITY_FULL,
           }}
         >
-          {loadingDebugData ? t('common.loading') : t('debug.starred.fetchButton')}
+          {loadingDebugData ? t('common.loading') : 'Check starred sync'}
         </button>
       </div>
 
@@ -112,7 +133,76 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
           <StarredThreadsList threads={debugStarredData.starredThreads} />
         </div>
       )}
+
+      {showSyncPopup && debugStarredData && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.4)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1000,
+          }}
+          onClick={() => setShowSyncPopup(false)}
+        >
+          <div
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: theme.borderRadius.md,
+              padding: theme.spacing.md,
+              maxWidth: 900,
+              width: '90%',
+              maxHeight: '80vh',
+              overflowY: 'auto',
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h4 style={{ marginTop: 0 }}>Starred Sync Check Results</h4>
+            <p style={{ marginTop: 0 }}>
+              Gmail starred threads scanned: {debugStarredData.gmail.starredThreadCount}
+            </p>
+            {debugStarredData.gmailVisibilityChecks?.map((item) => (
+              <div key={item.threadId} style={{ marginBottom: theme.spacing.sm }}>
+                <strong>{item.threadId}</strong> — {item.visibleInAction ? 'Visible' : 'Hidden'} ({item.syncStatus})
+                <ul style={{ margin: `${theme.spacing.xs} 0` }}>
+                  {item.reasons.map((reason) => (
+                    <li key={`${item.threadId}-${reason}`}>{reason}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+
+            <h5>Unsynced for more than 5 minutes</h5>
+            {debugStarredData.staleUnsyncedThreads?.length ? (
+              <ul>
+                {debugStarredData.staleUnsyncedThreads.map((thread) => (
+                  <li key={thread.threadId}>
+                    {thread.threadId} — {thread.minutesUnsynced} min (archived: {String(thread.isArchived)}, starCount: {thread.starCount})
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p>No stale unsynced threads found.</p>
+            )}
+
+            <button
+              onClick={() => setShowSyncPopup(false)}
+              style={{
+                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+                backgroundColor: theme.colors.primary.main,
+                color: '#fff',
+                border: 'none',
+                borderRadius: theme.borderRadius.sm,
+                cursor: 'pointer',
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
-

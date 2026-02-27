@@ -645,6 +645,7 @@ export class GmailProvider implements EmailProvider {
       const dbThreads = await this.emailsService.getAllThreadsForSync(userId);
 
       const updates = dbThreads
+        .filter((t) => t.syncStatus === "synced")
         .filter(
           (t) =>
             t.isArchived !== !inboxThreadIds.has(t.threadId) ||

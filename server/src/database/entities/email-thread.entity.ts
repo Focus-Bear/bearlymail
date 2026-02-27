@@ -30,6 +30,7 @@ import {
 @Index(["userId", "priorityScore"])
 // For batch-status queries
 @Index(["userId", "isBatched", "batchReleaseAt"])
+@Index(["userId", "syncStatus", "syncStatusUpdatedAt"])
 export class EmailThread {
   @PrimaryGeneratedColumn("uuid")
   id: string;
@@ -187,6 +188,21 @@ export class EmailThread {
       "Used to prevent sync from overriding user actions - sync should only update status if new emails arrived after this timestamp.",
   })
   lastUserOperationAt: Date | null;
+
+  @Column({
+    type: "varchar",
+    default: "synced",
+    comment:
+      "Sync state for local thread changes. 'unsynced' means a recent user action has not yet been confirmed in the provider; during this window local state is authoritative.",
+  })
+  syncStatus: "synced" | "unsynced";
+
+  @Column({
+    type: "timestamp",
+    nullable: true,
+    comment: "When syncStatus was last changed",
+  })
+  syncStatusUpdatedAt: Date | null;
 
   @Column("text", {
     nullable: true,

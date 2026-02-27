@@ -3,6 +3,7 @@ import { gmail_v1 } from "googleapis";
 import { QUERY_LIMITS } from "../../../constants/query-limits";
 import { isApiError, isError } from "../../../types/common";
 import { logErrorToFile } from "../../../utils/error-logger";
+import { HTTP_STATUS } from "../../../constants/http-status";
 
 const logger = new Logger("GmailSync");
 
@@ -77,7 +78,10 @@ export async function verifyThreadStatusesInGmail(
             isArchived: !latestLabelIds.includes("INBOX"),
           });
         } catch (threadError: unknown) {
-          if (isApiError(threadError) && threadError.code === 404) {
+          if (
+            isApiError(threadError) &&
+            threadError.code === HTTP_STATUS.NOT_FOUND
+          ) {
             logger.debug(
               `Thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... not found in Gmail (may be deleted)`,
             );
@@ -163,7 +167,10 @@ export async function getExistingThreadUpdates(
         isArchived: !latestLabelIds.includes("INBOX"),
       });
     } catch (threadError: unknown) {
-      if (isApiError(threadError) && threadError.code === 404) {
+      if (
+        isApiError(threadError) &&
+        threadError.code === HTTP_STATUS.NOT_FOUND
+      ) {
         logger.debug(
           `Existing thread ${dbThread.threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... not found in Gmail`,
         );
@@ -202,8 +209,9 @@ export function isGmailAuthError(error: unknown): boolean {
   const apiError = isApiError(error) ? error : null;
   const errorMsg = isError(error) ? error.message : apiError?.message || "";
   return (
-    apiError?.code === 401 ||
-    (apiError?.response && apiError.response.status === 401) ||
+    apiError?.code === HTTP_STATUS.UNAUTHORIZED ||
+    (apiError?.response &&
+      apiError.response.status === HTTP_STATUS.UNAUTHORIZED) ||
     (errorMsg && errorMsg.includes("invalid_grant"))
   );
 }

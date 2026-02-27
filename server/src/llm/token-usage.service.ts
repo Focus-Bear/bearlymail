@@ -6,6 +6,8 @@ import { PromptExampleEntity } from "../database/entities/prompt-example.entity"
 import { LLMOperation, LLM_OP_UNKNOWN } from "./llm-operations";
 import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
 
+const SYSTEM_PROMPT_PREVIEW_LENGTH = 5000;
+
 export interface TokenUsageLogData {
   userId?: string | null;
   operation: LLMOperation;
@@ -173,7 +175,10 @@ export class TokenUsageService implements OnModuleInit {
         operation,
         promptTokens,
         promptText: truncatedPrompt,
-        systemPromptText: systemPromptText?.substring(0, 5000),
+        systemPromptText: systemPromptText?.substring(
+          0,
+          SYSTEM_PROMPT_PREVIEW_LENGTH,
+        ),
         containsHtml: this.detectHtml(fullPromptText),
         capturedAt: new Date(),
         provider,

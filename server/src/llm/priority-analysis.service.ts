@@ -10,7 +10,10 @@ import { cleanEmailContent } from "./email-content-cleaner";
 import { getPrompt, renderPrompt } from "./prompts";
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
-import { PRIORITY_ANALYSIS_FALLBACK } from "../constants/llm-constants";
+import {
+  BODY_PREVIEW_LENGTHS,
+  PRIORITY_ANALYSIS_FALLBACK,
+} from "../constants/llm-constants";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { StructuralError } from "../errors/structural-error";
 
@@ -115,7 +118,11 @@ export class PriorityAnalysisService {
       -DISPLAY_CONSTANTS.MAX_DISPLAY_ITEMS,
     );
     const threadMessages = emailsToInclude.map((threadEmail, index) => {
-      const cleanedThreadBody = cleanEmailContent(threadEmail.body, null, 500);
+      const cleanedThreadBody = cleanEmailContent(
+        threadEmail.body,
+        null,
+        BODY_PREVIEW_LENGTHS.SINGLE_PREVIEW,
+      );
       const dateStr = threadEmail.receivedAt.toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
@@ -178,7 +185,11 @@ export class PriorityAnalysisService {
     };
   }> {
     // Defensive cleaning in case body wasn't pre-cleaned by caller
-    const cleanedBody = cleanEmailContent(email.body, null, 1000);
+    const cleanedBody = cleanEmailContent(
+      email.body,
+      null,
+      BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
+    );
 
     // Load prompt from markdown file
     const promptConfig = getPrompt("analyze_priority");
@@ -451,7 +462,11 @@ export class PriorityAnalysisService {
     if (emails.length === 0) return results;
 
     const emailDescriptions = emails.map((email, index) => {
-      const cleanedBody = cleanEmailContent(email.body, null, 500);
+      const cleanedBody = cleanEmailContent(
+        email.body,
+        null,
+        BODY_PREVIEW_LENGTHS.SINGLE_PREVIEW,
+      );
       return `--- EMAIL ${index + 1} (key: "${email.emailKey}") ---
 From: ${email.fromName || email.from}${email.senderJobTitle ? ` (${email.senderJobTitle})` : ""}
 Subject: ${email.subject}
@@ -500,7 +515,7 @@ IMPORTANT: Return ONLY the JSON array, no other text.`;
         {
           prompt: batchPrompt,
           temperature: RATIOS.THIRTY_PERCENT,
-          maxTokens: emails.length * 200,
+          maxTokens: emails.length * QUERY_LIMITS.LLM_MAX_TOKENS_EXPLANATION,
           userId,
           operation: LLM_OP_ANALYZE_PRIORITY_BATCH,
           jsonMode: true,

@@ -2,17 +2,18 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
+import { MS_PER_SECOND, SECONDS_PER_MINUTE, MINUTES_PER_HOUR } from 'constants/numbers';
 
 const DEBOUNCE_MS = 1000;
 const SAVED_STATUS_UPDATE_INTERVAL_MS = 10000;
 
 function humanizeDuration(ms: number): string {
-  const seconds = Math.floor(ms / 1000);
+  const seconds = Math.floor(ms / MS_PER_SECOND);
   if (seconds < 5) return 'just now';
-  if (seconds < 60) return `${seconds}s ago`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
+  if (seconds < SECONDS_PER_MINUTE) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / SECONDS_PER_MINUTE);
+  if (minutes < MINUTES_PER_HOUR) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / MINUTES_PER_HOUR);
   return `${hours}h ago`;
 }
 

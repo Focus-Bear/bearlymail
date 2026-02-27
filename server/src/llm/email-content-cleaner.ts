@@ -7,7 +7,10 @@
  * - Limits character count to avoid token waste
  */
 
-import { CONTENT_CLEANER } from "../constants/llm-constants";
+import {
+  CONTENT_CLEANER,
+  BODY_PREVIEW_LENGTHS,
+} from "../constants/llm-constants";
 
 // Common signature markers
 const SIGNATURE_PATTERNS = [
@@ -49,7 +52,7 @@ const HTML_PATTERNS = {
 export function cleanEmailContent(
   body: string | null | undefined,
   htmlBody?: string | null,
-  maxLength: number = 1000,
+  maxLength: number = BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
 ): string {
   let content = "";
 
@@ -213,8 +216,10 @@ function smartTruncate(text: string, maxLength: number): string {
     return text;
   }
 
-  // Try to find a sentence end within the last 200 chars of the limit
-  const searchStart = Math.max(0, maxLength - 200);
+  const searchStart = Math.max(
+    0,
+    maxLength - CONTENT_CLEANER.SENTENCE_BOUNDARY_SEARCH_REGION,
+  );
   const searchEnd = maxLength;
   const searchRegion = text.substring(searchStart, searchEnd);
 
@@ -243,7 +248,7 @@ function smartTruncate(text: string, maxLength: number): string {
 export function cleanEmailForThread(
   body: string | null | undefined,
   htmlBody?: string | null,
-  maxLengthPerMessage: number = 500,
+  maxLengthPerMessage: number = BODY_PREVIEW_LENGTHS.SINGLE_PREVIEW,
 ): string {
   return cleanEmailContent(body, htmlBody, maxLengthPerMessage);
 }
@@ -254,7 +259,7 @@ export function cleanEmailForThread(
 export function getEmailPreview(
   body: string | null | undefined,
   htmlBody?: string | null,
-  maxLength: number = 150,
+  maxLength: number = CONTENT_CLEANER.EMAIL_PREVIEW_MAX,
 ): string {
   const cleaned = cleanEmailContent(
     body,

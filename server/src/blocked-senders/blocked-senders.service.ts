@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { BlockedSender } from "../database/entities/blocked-sender.entity";
 import { SearchIndexHelper } from "../contacts/search-index.helper";
+import { MILLISECONDS } from "../constants/time-constants";
 
 export interface BlockedSenderInfo {
   id: string;
@@ -19,7 +20,7 @@ export class BlockedSendersService {
   private blockedDomainCache = new Map<string, Set<string>>();
   private cacheExpiry = new Map<string, number>();
   // 5 minutes
-  private readonly CACHE_TTL = 5 * 60 * 1000;
+  private readonly CACHE_TTL = 5 * MILLISECONDS.MINUTE;
 
   constructor(
     @InjectRepository(BlockedSender)

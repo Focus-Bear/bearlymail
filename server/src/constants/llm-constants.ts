@@ -45,6 +45,8 @@ export const CONTENT_CLEANER = {
   WORD_BOUNDARY_THRESHOLD: 50,
   // Extra buffer for preview length calculations
   PREVIEW_BUFFER: 50,
+  // Default max length for short email previews/snippets
+  EMAIL_PREVIEW_MAX: 150,
 } as const;
 
 // Priority analysis fallback values

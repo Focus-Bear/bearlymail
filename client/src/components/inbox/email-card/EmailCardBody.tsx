@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { MAX_PREVIEW_LENGTH } from 'components/inbox/constants';
+import { TOOLTIP_PREVIEW_MAX_CHARS } from 'constants/numbers';
 
 interface EmailCardBodyProps {
   subject: string;
@@ -85,7 +86,7 @@ export const EmailCardBody: React.FC<EmailCardBodyProps> = ({
           }
           return (
             <span
-              title={body.substring(0, 1000).replace(/[\r\n]+/g, ' ')}
+              title={body.substring(0, TOOLTIP_PREVIEW_MAX_CHARS).replace(/[\r\n]+/g, ' ')}
               style={{ cursor: 'help' }}
             >
               {extractPreview(body)}

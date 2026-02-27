@@ -130,13 +130,14 @@ module.exports = {
     '@typescript-eslint/no-magic-numbers': [
       'error',
       {
-        ignore: [0, 1, -1, 2, 3, 4, 5, 10, 24, 60, 100, 200, 404, 401, 403, 500, 1000, 2000, 5000],
+        ignore: [0, 1, -1, 2, 3, 4, 5, 10, 100],
         ignoreArrayIndexes: true,
         ignoreDefaultValues: true,
         ignoreNumericLiteralTypes: true,
         ignoreEnums: true,
         ignoreReadonlyClassProperties: true,
         ignoreTypeIndexes: true,
+        enforceConst: true,
       },
     ],
 

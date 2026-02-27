@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { UserContext } from "../database/entities/user-context.entity";
 import { Email } from "../database/entities/email.entity";
+import { MILLISECONDS } from "../constants/time-constants";
 
 interface CacheEntry<T> {
   cachedValue: T;
@@ -18,11 +19,8 @@ export class PriorityCacheService {
     CacheEntry<number | undefined>
   >();
 
-  // TTL in milliseconds
-  // 5 minutes
-  private readonly CONTEXTS_TTL = 5 * 60 * 1000;
-  // 1 hour
-  private readonly AVG_TIME_TO_REPLY_TTL = 60 * 60 * 1000;
+  private readonly CONTEXTS_TTL = 5 * MILLISECONDS.MINUTE;
+  private readonly AVG_TIME_TO_REPLY_TTL = MILLISECONDS.HOUR;
 
   constructor(
     @InjectRepository(UserContext)

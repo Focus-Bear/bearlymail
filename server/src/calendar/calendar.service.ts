@@ -6,7 +6,12 @@ import { OAuth2Client } from "google-auth-library";
 import { UsersService } from "../users/users.service";
 import { LLMService } from "../llm/llm.service";
 import { EmailsService } from "../emails/emails.service";
-import { MINUTES, HOURS } from "../constants/time-constants";
+import {
+  MINUTES,
+  HOURS,
+  MILLISECONDS,
+  MINUTES_PER_HOUR,
+} from "../constants/time-constants";
 import { logError } from "../utils/logger";
 import {
   respondToInvitation,
@@ -78,7 +83,7 @@ export class CalendarService {
       auth: this.oauth2Client,
     });
     const now = new Date();
-    const endDate = new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000);
+    const endDate = new Date(now.getTime() + daysAhead * MILLISECONDS.DAY);
 
     try {
       const response = await calendar.freebusy.query({
@@ -205,19 +210,25 @@ export class CalendarService {
     const meetingMinutesPerDay = new Map<string, number>();
 
     while (current < end) {
-      const slotEnd = new Date(current.getTime() + slotDuration * 60 * 1000);
+      const slotEnd = new Date(
+        current.getTime() + slotDuration * MILLISECONDS.MINUTE,
+      );
       const tzDate = this.toTzDate(current, tz);
       const dayKey = this.toDayKey(current, tz);
       const dayOfWeek = tzDate.getDay();
       const hourInTz = tzDate.getHours();
 
       if (!availDays.includes(dayOfWeek)) {
-        current = new Date(current.getTime() + slotDuration * 60 * 1000);
+        current = new Date(
+          current.getTime() + slotDuration * MILLISECONDS.MINUTE,
+        );
         continue;
       }
 
       if (hourInTz < startHour || hourInTz >= endHour) {
-        current = new Date(current.getTime() + slotDuration * 60 * 1000);
+        current = new Date(
+          current.getTime() + slotDuration * MILLISECONDS.MINUTE,
+        );
         continue;
       }
 
@@ -232,14 +243,16 @@ export class CalendarService {
       });
 
       if (isBusy) {
-        current = new Date(current.getTime() + slotDuration * 60 * 1000);
+        current = new Date(
+          current.getTime() + slotDuration * MILLISECONDS.MINUTE,
+        );
         continue;
       }
 
       const isTooCloseToMeeting = busy.some((b) => {
         const busyEnd = new Date(b.end);
         const busyStart = new Date(b.start);
-        const gapMs = gapMinutes * 60 * 1000;
+        const gapMs = gapMinutes * MILLISECONDS.MINUTE;
         const tooCloseAfter =
           current.getTime() >= busyEnd.getTime() &&
           current.getTime() < busyEnd.getTime() + gapMs;
@@ -250,11 +263,13 @@ export class CalendarService {
       });
 
       if (isTooCloseToMeeting) {
-        current = new Date(current.getTime() + slotDuration * 60 * 1000);
+        current = new Date(
+          current.getTime() + slotDuration * MILLISECONDS.MINUTE,
+        );
         continue;
       }
 
-      const totalAvailMinutes = (endHour - startHour) * 60;
+      const totalAvailMinutes = (endHour - startHour) * MINUTES_PER_HOUR;
       const existingMeetingMinutes = this.getMeetingMinutesForDay(
         dayKey,
         busy,
@@ -264,11 +279,13 @@ export class CalendarService {
       );
       const bookedSlotMinutes = meetingMinutesPerDay.get(dayKey) || 0;
       const totalBooked = existingMeetingMinutes + bookedSlotMinutes;
-      const deepWorkMinutes = deepWorkHours * 60;
+      const deepWorkMinutes = deepWorkHours * MINUTES_PER_HOUR;
       const maxBookableMinutes = totalAvailMinutes - deepWorkMinutes;
 
       if (totalBooked + slotDuration > maxBookableMinutes) {
-        current = new Date(current.getTime() + slotDuration * 60 * 1000);
+        current = new Date(
+          current.getTime() + slotDuration * MILLISECONDS.MINUTE,
+        );
         continue;
       }
 
@@ -280,7 +297,9 @@ export class CalendarService {
       });
       meetingMinutesPerDay.set(dayKey, bookedSlotMinutes + slotDuration);
 
-      current = new Date(current.getTime() + slotDuration * 60 * 1000);
+      current = new Date(
+        current.getTime() + slotDuration * MILLISECONDS.MINUTE,
+      );
     }
 
     return slots.slice(0, 10);
@@ -310,7 +329,8 @@ export class CalendarService {
           : this.toTzDate(busyEnd, tz);
       if (effectiveEnd > effectiveStart) {
         total +=
-          (effectiveEnd.getTime() - effectiveStart.getTime()) / (60 * 1000);
+          (effectiveEnd.getTime() - effectiveStart.getTime()) /
+          MILLISECONDS.MINUTE;
       }
     }
     return total;
@@ -340,7 +360,9 @@ export class CalendarService {
       auth: this.oauth2Client,
     });
     const start = new Date(startTime);
-    const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
+    const end = new Date(
+      start.getTime() + durationMinutes * MILLISECONDS.MINUTE,
+    );
 
     // Generate booking token for reschedule/cancel links
     const bookingToken = this.generateBookingToken();
@@ -438,7 +460,7 @@ Manage this booking:
 
     const newStart = new Date(newStartTime);
     const newEnd = new Date(
-      newStart.getTime() + booking.durationMinutes * 60 * 1000,
+      newStart.getTime() + booking.durationMinutes * MILLISECONDS.MINUTE,
     );
 
     try {
@@ -551,8 +573,8 @@ Manage this booking:
     });
 
     const now = new Date();
-    const timeMin = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000);
-    const timeMax = new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000);
+    const timeMin = new Date(now.getTime() - daysBack * MILLISECONDS.DAY);
+    const timeMax = new Date(now.getTime() + daysAhead * MILLISECONDS.DAY);
 
     try {
       const response = await calendar.events.list({

@@ -10,11 +10,20 @@ import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { getErrorMessage } from "../types/common";
 import { GMAIL_LABELS } from "../constants/email-labels";
-import { DAYS } from "../constants/time-constants";
+import {
+  DAYS,
+  MILLISECONDS,
+  MS_PER_SECOND,
+  MINUTES_PER_HOUR,
+  MINUTES,
+} from "../constants/time-constants";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
 import { DISPLAY_CONSTANTS } from "../constants/service-constants";
-import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
+import {
+  CONTEXT_ANALYSIS,
+  BODY_PREVIEW_LENGTHS,
+} from "../constants/llm-constants";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
 import { LLMService } from "../llm/llm.service";
 import { UsersService } from "../users/users.service";
@@ -102,7 +111,7 @@ export class ContextService {
     } else {
       // Fall back to most recent running/pending analysis (backward compatibility)
       // IMPORTANT: Only get analyses from the last hour to avoid picking up stale/corrupted analyses
-      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      const oneHourAgo = new Date(Date.now() - MILLISECONDS.HOUR);
       analysis = await this.contextAnalysisRepository.findOne({
         where: [
           { userId, status: "running", createdAt: MoreThan(oneHourAgo) },
@@ -134,7 +143,7 @@ export class ContextService {
       // Only return completed analysis if it was completed very recently (< 5 min ago)
       if (recentCompleted && recentCompleted.updatedAt) {
         const completedAgo = Date.now() - recentCompleted.updatedAt.getTime();
-        if (completedAgo < 5 * 60 * 1000) {
+        if (completedAgo < 5 * MILLISECONDS.MINUTE) {
           // 5 minutes
           // Return completed analysis for completion message
           const completedAnalysis = recentCompleted;
@@ -322,7 +331,7 @@ export class ContextService {
 
       if (recentFailed && recentFailed.updatedAt) {
         const failedAgo = Date.now() - recentFailed.updatedAt.getTime();
-        if (failedAgo < 5 * 60 * 1000) {
+        if (failedAgo < 5 * MILLISECONDS.MINUTE) {
           // 5 minutes
           return {
             threadCount: recentFailed.threadCount ?? undefined,
@@ -901,7 +910,11 @@ export class ContextService {
         emailId: email.id,
         to: "recipient@example.com",
         subject: email.subject,
-        body: cleanEmailContent(email.body, email.htmlBody, 1000),
+        body: cleanEmailContent(
+          email.body,
+          email.htmlBody,
+          BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
+        ),
         sentAt: email.receivedAt.toISOString(),
       }));
 
@@ -982,7 +995,7 @@ export class ContextService {
         const fetchBatchDuration = Date.now() - fetchBatchStartTime;
 
         this.logger.log(
-          `[CONTEXT-ANALYSIS] ✅ Fetched batch ${Math.floor(fetchBatchStart / FETCH_BATCH_SIZE) + 1}: ${fetchedThreads.length}/${fetchBatchThreadIds.length} threads in ${Math.round(fetchBatchDuration / 1000)}s`,
+          `[CONTEXT-ANALYSIS] ✅ Fetched batch ${Math.floor(fetchBatchStart / FETCH_BATCH_SIZE) + 1}: ${fetchedThreads.length}/${fetchBatchThreadIds.length} threads in ${Math.round(fetchBatchDuration / MS_PER_SECOND)}s`,
         );
 
         if (fetchedThreads.length === 0) {
@@ -1068,10 +1081,10 @@ export class ContextService {
                   const firstSent = sentEmails[0].receivedAt;
                   const replyTimeHours =
                     (firstSent.getTime() - firstReceived.getTime()) /
-                    (1000 * 60 * 60);
+                    MILLISECONDS.HOUR;
                   if (replyTimeHours >= 0) {
                     // Convert to minutes
-                    quickestReply = replyTimeHours * 60;
+                    quickestReply = replyTimeHours * MINUTES_PER_HOUR;
                   }
                 }
               }
@@ -1084,7 +1097,7 @@ export class ContextService {
                 body: cleanEmailContent(
                   firstEmail.body,
                   firstEmail.htmlBody,
-                  1000,
+                  BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
                 ),
                 receivedAt: firstEmail.receivedAt.toISOString(),
                 isRead: firstEmail.isRead,
@@ -1169,7 +1182,7 @@ export class ContextService {
                 {
                   priority: getJobPriority("analyze-context-batch", false),
                   singletonKey,
-                  singletonMinutes: 60,
+                  singletonMinutes: MINUTES.HOUR,
                 },
               );
 
@@ -1291,7 +1304,7 @@ export class ContextService {
       }
 
       // Wait a moment for jobs to be fully registered in the queue before checking
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, MS_PER_SECOND));
 
       // Verify jobs are in queue
       const queuedCount = await this.boss.getQueueSize("analyze-context-batch");
@@ -1523,8 +1536,7 @@ export class ContextService {
           {
             priority: getJobPriority("finalize-context-analysis", false),
             singletonKey: `finalize-context-analysis-${analysisRecord.id}`,
-            singletonMinutes: 60,
-            // Start after 60 seconds to give batches time to process
+            singletonMinutes: MINUTES.HOUR,
             startAfter: new Date(
               Date.now() + CONTEXT_ANALYSIS.BATCH_TIMEOUT_MS,
             ),
@@ -1584,7 +1596,10 @@ export class ContextService {
           analysisRecord.status = "failed";
           // Use error classifier to generate user-friendly message
           const userFriendlyMessage = classifyContextAnalysisError(error);
-          analysisRecord.errorMessage = userFriendlyMessage.substring(0, 500);
+          analysisRecord.errorMessage = userFriendlyMessage.substring(
+            0,
+            QUERY_LIMITS.SUBSTRING_BODY_PREVIEW,
+          );
           await this.contextAnalysisRepository.save(analysisRecord);
         }
 
@@ -2031,7 +2046,7 @@ export class ContextService {
               {
                 priority: getJobPriority("analyze-context-batch", false),
                 singletonKey,
-                singletonMinutes: 60,
+                singletonMinutes: MINUTES.HOUR,
               },
             );
 
@@ -2224,7 +2239,7 @@ export class ContextService {
             // For now, we'll use a timeout heuristic: if job was created > 15 minutes ago and no result, it's likely expired
             const jobCreatedTime = analysisRecord.createdAt.getTime();
             const now = Date.now();
-            const jobAgeMinutes = (now - jobCreatedTime) / (1000 * 60);
+            const jobAgeMinutes = (now - jobCreatedTime) / MILLISECONDS.MINUTE;
 
             if (jobAgeMinutes > CONTEXT_ANALYSIS.LEARNING_MIN_SAMPLE) {
               // Job is older than 15 minutes (expireInMinutes limit) and has no result
@@ -2287,7 +2302,7 @@ export class ContextService {
                     {
                       priority: getJobPriority("analyze-context-batch", false),
                       singletonKey,
-                      singletonMinutes: 60,
+                      singletonMinutes: MINUTES.HOUR,
                     },
                   );
 
@@ -2836,7 +2851,7 @@ export class ContextService {
     await this.deduplicateExistingContext(userId);
     const dedupDuration = Date.now() - dedupStartTime;
     writeAnalysisLog(
-      `[FINALIZATION] ✅ Step 4/6: Deduplication completed in ${Math.round(dedupDuration / 1000)}s`,
+      `[FINALIZATION] ✅ Step 4/6: Deduplication completed in ${Math.round(dedupDuration / MS_PER_SECOND)}s`,
       "log",
     );
 
@@ -2964,7 +2979,7 @@ export class ContextService {
     );
     const vipDuration = Date.now() - vipStartTime;
     writeAnalysisLog(
-      `[FINALIZATION] ✅ Step 5/6: Saved ${vipCount} VIP contacts in ${Math.round(vipDuration / 1000)}s`,
+      `[FINALIZATION] ✅ Step 5/6: Saved ${vipCount} VIP contacts in ${Math.round(vipDuration / MS_PER_SECOND)}s`,
       "log",
     );
 
@@ -3283,7 +3298,7 @@ export class ContextService {
       });
       const contextDuration = Date.now() - contextStartTime;
       writeAnalysisLog(
-        `[FINALIZATION] ✅ Step 6/6: Processed ${contextProcessed} context items in ${Math.round(contextDuration / 1000)}s`,
+        `[FINALIZATION] ✅ Step 6/6: Processed ${contextProcessed} context items in ${Math.round(contextDuration / MS_PER_SECOND)}s`,
         "log",
       );
     }
@@ -3463,7 +3478,7 @@ export class ContextService {
     );
     if (sampleThread) {
       this.logger.log(
-        `[FINALIZATION] Sample thread: ${JSON.stringify(sampleThread).substring(0, 500)}`,
+        `[FINALIZATION] Sample thread: ${JSON.stringify(sampleThread).substring(0, QUERY_LIMITS.SUBSTRING_BODY_PREVIEW)}`,
       );
     } else {
       this.logger.warn(
@@ -3531,7 +3546,7 @@ export class ContextService {
         scanProgress: null,
         scanTotal: null,
       });
-    }, 5000);
+    }, 5 * MS_PER_SECOND);
   }
 
   /**

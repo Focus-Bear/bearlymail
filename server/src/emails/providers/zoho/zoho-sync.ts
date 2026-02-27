@@ -2,6 +2,7 @@ import { Logger } from "@nestjs/common";
 import { AxiosInstance } from "axios";
 import { QUERY_LIMITS } from "../../../constants/query-limits";
 import { isApiError, isError } from "../../../types/common";
+import { HTTP_STATUS } from "../../../constants/http-status";
 
 const logger = new Logger("ZohoSync");
 
@@ -60,7 +61,10 @@ export async function verifyThreadStatusesInZoho(
             isArchived: !isInInbox,
           });
         } catch (threadError: unknown) {
-          if (isApiError(threadError) && threadError.code === 404) {
+          if (
+            isApiError(threadError) &&
+            threadError.code === HTTP_STATUS.NOT_FOUND
+          ) {
             logger.debug(
               `Thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... not found in Zoho`,
             );
@@ -134,7 +138,10 @@ export async function getExistingThreadUpdates(
         isArchived: latestMessage.folderId !== "inbox",
       });
     } catch (threadError: unknown) {
-      if (isApiError(threadError) && threadError.code === 404) {
+      if (
+        isApiError(threadError) &&
+        threadError.code === HTTP_STATUS.NOT_FOUND
+      ) {
         updates.push({
           threadId: dbThread.threadId,
           starCount: 0,

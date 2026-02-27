@@ -1,4 +1,4 @@
-import { DAYS_PER_YEAR, DAYS_IN_MONTH_30, MONTHS_IN_YEAR } from 'constants/numbers';
+import { DAYS_PER_YEAR, DAYS_IN_MONTH_30, MONTHS_IN_YEAR, MS_PER_SECOND, SECONDS_PER_MINUTE, MINUTES_PER_HOUR, HOURS_PER_DAY } from 'constants/numbers';
 
 /**
  * Humanizes a date to relative time (e.g., "2 hours ago", "yesterday", "3 days ago")
@@ -14,20 +14,20 @@ export function humanizeTimestamp(date: Date | string): string {
   
   // Calculate difference in various units
   const diffMs = now.getTime() - timestamp.getTime();
-  const diffSeconds = Math.floor(diffMs / 1000);
-  const diffMinutes = Math.floor(diffSeconds / 60);
-  const diffHours = Math.floor(diffMinutes / 60);
-  const diffDays = Math.floor(diffHours / 24);
+  const diffSeconds = Math.floor(diffMs / MS_PER_SECOND);
+  const diffMinutes = Math.floor(diffSeconds / SECONDS_PER_MINUTE);
+  const diffHours = Math.floor(diffMinutes / MINUTES_PER_HOUR);
+  const diffDays = Math.floor(diffHours / HOURS_PER_DAY);
   const diffWeeks = Math.floor(diffDays / 7);
   const diffMonths = Math.floor(diffDays / DAYS_IN_MONTH_30);
   const diffYears = Math.floor(diffDays / DAYS_PER_YEAR);
 
   // Humanize based on time difference
-  if (diffSeconds < 60) {
+  if (diffSeconds < SECONDS_PER_MINUTE) {
     return 'Just now';
-  } else if (diffMinutes < 60) {
+  } else if (diffMinutes < MINUTES_PER_HOUR) {
     return `${diffMinutes} ${diffMinutes === 1 ? 'minute' : 'minutes'} ago`;
-  } else if (diffHours < 24) {
+  } else if (diffHours < HOURS_PER_DAY) {
     return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
   } else if (diffDays === 1) {
     return 'Yesterday';

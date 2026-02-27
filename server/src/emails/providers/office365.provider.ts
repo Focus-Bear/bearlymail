@@ -14,6 +14,7 @@ import { getJobPriority } from "../../queue/job-priorities";
 import { QUERY_LIMITS } from "../../constants/query-limits";
 import { BODY_PREVIEW_LENGTHS } from "../../constants/llm-constants";
 import { DAYS } from "../../constants/time-constants";
+import { HTTP_STATUS } from "../../constants/http-status";
 import { isApiError, isError } from "../../types/common";
 import { User } from "../../database/entities/user.entity";
 import { Office365Account } from "../../database/entities/office365-account.entity";
@@ -379,7 +380,7 @@ export class Office365Provider implements EmailProvider {
     conversationId: string,
     error: unknown,
   ): void {
-    if (isApiError(error) && error.code === 404) {
+    if (isApiError(error) && error.code === HTTP_STATUS.NOT_FOUND) {
       this.logger.debug(
         `Conversation ${conversationId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... not found`,
       );
@@ -500,8 +501,9 @@ export class Office365Provider implements EmailProvider {
     const apiError = isApiError(error) ? error : null;
     const errorMsg = isError(error) ? error.message : apiError?.message || "";
     const isAuthErrorFlag =
-      apiError?.code === 401 ||
-      (apiError?.response && apiError.response.status === 401) ||
+      apiError?.code === HTTP_STATUS.UNAUTHORIZED ||
+      (apiError?.response &&
+        apiError.response.status === HTTP_STATUS.UNAUTHORIZED) ||
       errorMsg.includes("Token refresh failed");
 
     if (isAuthErrorFlag) {
@@ -722,7 +724,7 @@ export class Office365Provider implements EmailProvider {
   async searchEmails(
     userId: string,
     query: string,
-    maxResults = 50,
+    maxResults = QUERY_LIMITS.SEARCH_DEFAULT_RESULTS,
   ): Promise<RawEmailMessage[]> {
     return searchEmails(this, userId, query, maxResults);
   }

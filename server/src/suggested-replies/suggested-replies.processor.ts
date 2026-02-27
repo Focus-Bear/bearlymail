@@ -8,6 +8,7 @@ import { LLMService } from "../llm/llm.service";
 import { UsersService } from "../users/users.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import { MILLISECONDS } from "../constants/time-constants";
 import { CloudWatchService } from "../aws/cloudwatch.service";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { StructuralError } from "../errors/structural-error";
@@ -230,7 +231,7 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
     const now = new Date();
     const daysSinceLastEmail = Math.floor(
       (now.getTime() - new Date(latestEmail.receivedAt).getTime()) /
-        (1000 * 60 * 60 * 24),
+        MILLISECONDS.DAY,
     );
 
     const threadMessages = threadEmails.map((e) => ({

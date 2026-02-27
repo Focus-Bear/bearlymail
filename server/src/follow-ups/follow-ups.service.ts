@@ -8,6 +8,7 @@ import {
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { Email } from "../database/entities/email.entity";
 import { LLMService } from "../llm/llm.service";
+import { QUERY_LIMITS } from "../constants/query-limits";
 import { UsersService } from "../users/users.service";
 import { ContextService } from "../context/context.service";
 import { ContextKey } from "../database/entities/user-context.entity";
@@ -81,10 +82,16 @@ export class FollowUpsService {
       status: FollowUpStatus.AWAITING_REPLY,
       followUpDueAt,
       followUpDays,
-      lastTheirReply: lastTheirEmail?.body?.substring(0, 2000),
+      lastTheirReply: lastTheirEmail?.body?.substring(
+        0,
+        QUERY_LIMITS.LLM_BODY_PREVIEW_LENGTH,
+      ),
       lastTheirReplyFrom: lastTheirEmail?.fromName || lastTheirEmail?.from,
       lastTheirReplyAt: lastTheirEmail?.receivedAt,
-      lastMyReply: lastMyEmail?.body?.substring(0, 2000),
+      lastMyReply: lastMyEmail?.body?.substring(
+        0,
+        QUERY_LIMITS.LLM_BODY_PREVIEW_LENGTH,
+      ),
       lastMyReplyAt: lastMyEmail?.receivedAt,
       subject: emails[0]?.subject,
     });

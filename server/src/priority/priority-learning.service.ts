@@ -755,7 +755,7 @@ export class PriorityLearningService {
 
     if (existing) {
       existing.priority = contextUpdate.priority || existing.priority;
-      existing.explanation = `Learned from feedback: ${feedback.substring(0, 200)}`;
+      existing.explanation = `Learned from feedback: ${feedback.substring(0, QUERY_LIMITS.SUBSTRING_SNIPPET_LENGTH)}`;
       existing.source = Source.USER_EDITED;
       await this.userContextRepository.save(existing);
       this.logger.log(
@@ -772,7 +772,7 @@ export class PriorityLearningService {
         contextKey: validContextKey,
         contextValue: contextUpdate.contextValue,
         priority: contextUpdate.priority || 2,
-        explanation: `Learned from feedback: ${feedback.substring(0, 200)}`,
+        explanation: `Learned from feedback: ${feedback.substring(0, QUERY_LIMITS.SUBSTRING_SNIPPET_LENGTH)}`,
         source: Source.USER_EDITED,
       });
       await this.userContextRepository.save(newContext);

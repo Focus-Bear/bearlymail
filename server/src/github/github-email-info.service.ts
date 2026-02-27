@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
 import { GitHubService, ParsedGitHubLink } from "./github.service";
 import {
@@ -113,7 +114,7 @@ export class GitHubEmailInfoService {
     if (!thread.githubMetadata || thread.githubMetadata.links.length === 0) {
       return false;
     }
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const oneHourAgo = new Date(Date.now() - MILLISECONDS.HOUR);
     const cachedLinksMap = new Map(
       thread.githubMetadata.links.map((link) => [link.url, link]),
     );

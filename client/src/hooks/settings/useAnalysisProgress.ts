@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
-import { LONG_TIMEOUT_MS, POLLING_INTERVAL_MS, PROGRESS_THRESHOLD_30, PROGRESS_THRESHOLD_40, PROGRESS_THRESHOLD_75, PROGRESS_THRESHOLD_85, PROGRESS_THRESHOLD_95, MAX_RETRIES_POLLING, POLLING_DELAY_MS } from 'constants/numbers';
+import { LONG_TIMEOUT_MS, POLLING_INTERVAL_MS, PROGRESS_THRESHOLD_30, PROGRESS_THRESHOLD_40, PROGRESS_THRESHOLD_75, PROGRESS_THRESHOLD_85, PROGRESS_THRESHOLD_95, MAX_RETRIES_POLLING, POLLING_DELAY_MS, DELAY_1_SECOND_MS } from 'constants/numbers';
 import { devLog, devError, devDebug } from 'utils/dev-logger';
 import { API_URL } from 'config/api';
 
@@ -217,7 +217,7 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
         }
         setAnalyzing(false);
         setAnalysisId(null); // Clear analysis ID when complete
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, DELAY_1_SECOND_MS));
         if (onComplete) {
           await onComplete();
         }

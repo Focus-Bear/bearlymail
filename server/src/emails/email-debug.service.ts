@@ -7,6 +7,9 @@ import { GmailProvider } from "./providers/gmail.provider";
 import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { isError } from "../types/common";
+import { MILLISECONDS } from "../constants/time-constants";
+
+const SYNC_HISTORY_DEFAULT_LIMIT: number = QUERY_LIMITS.MAX_RESULTS_DEFAULT;
 import PgBoss from "pg-boss";
 import { getJobPriority } from "../queue/job-priorities";
 import { SyncHistoryService, SyncHistoryEntry } from "./sync-history.service";
@@ -568,7 +571,7 @@ export class EmailDebugService {
       const hasBreakdown =
         thread.priorityExplanation?.breakdown &&
         thread.priorityExplanation.breakdown.length > 0;
-      return threadAge > 10 * 60 * 1000 || !hasBreakdown;
+      return threadAge > 10 * MILLISECONDS.MINUTE || !hasBreakdown;
     });
 
     this.logger.log(
@@ -738,7 +741,7 @@ export class EmailDebugService {
    */
   async getSyncHistory(
     userId: string,
-    limit = 20,
+    limit = SYNC_HISTORY_DEFAULT_LIMIT,
   ): Promise<SyncHistoryEntry[]> {
     return this.syncHistoryService.getSyncHistory(userId, limit);
   }

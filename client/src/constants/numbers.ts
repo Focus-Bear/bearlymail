@@ -1,5 +1,14 @@
 // Common numeric constants to avoid magic numbers
 
+// Time unit conversions
+export const MS_PER_SECOND = 1000;
+export const SECONDS_PER_MINUTE = 60;
+export const MINUTES_PER_HOUR = 60;
+export const HOURS_PER_DAY = 24;
+export const MS_PER_MINUTE = SECONDS_PER_MINUTE * MS_PER_SECOND;
+export const MS_PER_HOUR = MINUTES_PER_HOUR * MS_PER_MINUTE;
+export const MS_PER_DAY = HOURS_PER_DAY * MS_PER_HOUR;
+
 // Opacity values
 export const OPACITY_DISABLED = 0.6;
 export const OPACITY_DISABLED_ALT = 0.7;
@@ -45,6 +54,7 @@ export const URGENCY_MEDIUM = 40;
 export const URGENCY_LOW = 30;
 
 // Text truncation
+export const TOOLTIP_PREVIEW_MAX_CHARS = 1000;
 export const TEXT_TRUNCATE_LENGTH = 150;
 export const MESSAGE_ID_PREVIEW_LENGTH = 20;
 
@@ -144,6 +154,7 @@ export const HOURS_12_HOUR_FORMAT = 12; // Used for 12-hour time format conversi
 export const PADDING_START_2 = 2; // Padding length for time formatting
 
 // Number formatting thresholds
+export const NUMBER_FORMAT_THOUSAND = 1000;
 export const NUMBER_FORMAT_MILLION = 1000000;
 
 // Animation/transition durations

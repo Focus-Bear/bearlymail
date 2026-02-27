@@ -4,7 +4,7 @@ import { Repository } from "typeorm";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { PRIORITY_SCORES } from "../constants/priority-constants";
-import { DAYS, MINUTES } from "../constants/time-constants";
+import { DAYS, MINUTES, MINUTES_PER_HOUR } from "../constants/time-constants";
 import { DateTime } from "luxon";
 
 @Injectable()
@@ -276,9 +276,9 @@ export class BatchScheduleService {
     // Check if current time is within 30 minutes of a delivery time
     for (const deliveryTime of schedule.deliveryTimes) {
       const [dHours, dMinutes] = deliveryTime.split(":").map(Number);
-      const deliveryMinutes = dHours * 60 + dMinutes;
+      const deliveryMinutes = dHours * MINUTES_PER_HOUR + dMinutes;
       const [cHours, cMinutes] = currentTime.split(":").map(Number);
-      const currentMinutes = cHours * 60 + cMinutes;
+      const currentMinutes = cHours * MINUTES_PER_HOUR + cMinutes;
 
       // Within 30 minutes after delivery time
       if (

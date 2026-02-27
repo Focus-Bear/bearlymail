@@ -8,6 +8,7 @@ import {
 } from "../database/entities/user-context.entity";
 import { ProtoCategory } from "../database/entities/proto-category.entity";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
+import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
 
 export interface CategoryDebugData {
   email: {
@@ -80,7 +81,11 @@ export class EmailDebugCategoryService {
 
     const emailCategories = this.parseEmailCategories(contexts);
     const userContext = this.buildUserContext(contexts);
-    const bodyPreview = cleanEmailContent(email.body || "", null, 500);
+    const bodyPreview = cleanEmailContent(
+      email.body || "",
+      null,
+      BODY_PREVIEW_LENGTHS.SINGLE_PREVIEW,
+    );
 
     return {
       email: {

@@ -10,6 +10,7 @@ import { EmailThread } from "../database/entities/email-thread.entity";
 import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
 import { ContactsService } from "../contacts/contacts.service";
 import { EmailRecipient } from "./interfaces/email-provider.interface";
+import { HOURS_PER_DAY, HOURS, DAYS } from "../constants/time-constants";
 
 type ValidMode = "triage" | "action";
 
@@ -108,11 +109,11 @@ export class EmailAdminService {
   buildJobStatsDateFilter(range: string): string {
     if (range === "all") return "";
     const hoursMap: Record<string, number> = {
-      "24h": 24,
-      "7d": 168,
-      "30d": 720,
+      "24h": HOURS_PER_DAY,
+      "7d": HOURS.WEEK,
+      "30d": DAYS.MONTH * HOURS_PER_DAY,
     };
-    const hours = hoursMap[range] || 24;
+    const hours = hoursMap[range] || HOURS_PER_DAY;
     return `AND createdon >= NOW() - INTERVAL '${hours} hours'`;
   }
 

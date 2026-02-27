@@ -2,6 +2,7 @@ import { Injectable, Inject, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import PgBoss from "pg-boss";
+import { MILLISECONDS } from "../constants/time-constants";
 import { ScanEmail } from "../database/entities/scan-email.entity";
 import { ScanEmailService } from "../emails/scan-email.service";
 import { ContextService } from "../context/context.service";
@@ -139,7 +140,7 @@ export class ScanAnalysisService {
       const replyDate = new Date(parseInt(replyMessage.internalDate || "0"));
       const receivedDate = originalEmail.receivedAt;
       const hoursToReply =
-        (replyDate.getTime() - receivedDate.getTime()) / (1000 * 60 * 60);
+        (replyDate.getTime() - receivedDate.getTime()) / MILLISECONDS.HOUR;
       originalEmail.timeToReply = Math.max(0, hoursToReply);
       originalEmail.wasRepliedTo = true;
     }

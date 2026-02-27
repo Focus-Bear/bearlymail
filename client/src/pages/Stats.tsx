@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { STATS_PERIOD_14_DAYS, DAYS_IN_MONTH_30, MONTHS_IN_YEAR, CHART_BAR_MAX_WIDTH, CHART_BAR_HEIGHT_OFFSET, DAYS_IN_MONTH_MAX, CALENDAR_DAYS_AHEAD } from 'constants/numbers';
+import { STATS_PERIOD_14_DAYS, DAYS_IN_MONTH_30, MONTHS_IN_YEAR, CHART_BAR_MAX_WIDTH, CHART_BAR_HEIGHT_OFFSET, DAYS_IN_MONTH_MAX, CALENDAR_DAYS_AHEAD, MINUTES_PER_HOUR, HOURS_PER_DAY } from 'constants/numbers';
 import { useAuth } from 'contexts/AuthContext';
 import { Sidebar } from 'components/inbox/Sidebar';
 import { useEmailStats, CategoryStats } from 'hooks/useEmailStats';
@@ -9,20 +9,20 @@ import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import { useSidebarState } from 'hooks/useSidebarState';
 import { EMOJI_MENU } from 'constants/emojis';
 
-const PERIOD_OPTIONS = [7, STATS_PERIOD_14_DAYS, DAYS_IN_MONTH_30, 60, CALENDAR_DAYS_AHEAD] as const;
+const PERIOD_OPTIONS = [7, STATS_PERIOD_14_DAYS, DAYS_IN_MONTH_30, MINUTES_PER_HOUR, CALENDAR_DAYS_AHEAD] as const;
 
 function formatReplyTime(minutes: number | null): string {
   if (minutes === null) {
     return '-';
   }
-  if (minutes < 60) {
+  if (minutes < MINUTES_PER_HOUR) {
     return `${Math.round(minutes)}m`;
   }
-  const hours = minutes / 60;
-  if (hours < 24) {
+  const hours = minutes / MINUTES_PER_HOUR;
+  if (hours < HOURS_PER_DAY) {
     return `${Math.round(hours * 10) / 10}h`;
   }
-  const days = hours / 24;
+  const days = hours / HOURS_PER_DAY;
   return `${Math.round(days * 10) / 10}d`;
 }
 

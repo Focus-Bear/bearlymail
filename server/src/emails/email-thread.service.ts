@@ -5,6 +5,9 @@ import { EmailThread } from "../database/entities/email-thread.entity";
 import { Email } from "../database/entities/email.entity";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { isError, isDatabaseError } from "../types/common";
+import { MILLISECONDS, DAYS_PER_WEEK } from "../constants/time-constants";
+
+const PER_THREAD_BUDGET_MS = 200;
 
 /**
  * Service for managing email threads
@@ -82,9 +85,9 @@ export class EmailThreadService {
    */
   async getRecentNonArchivedThreadIds(
     userId: string,
-    days: number = 7,
+    days: number = DAYS_PER_WEEK,
   ): Promise<string[]> {
-    const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const cutoffDate = new Date(Date.now() - days * MILLISECONDS.DAY);
     const results = await this.emailThreadRepository
       .createQueryBuilder("thread")
       .select("thread.threadId", "threadId")
@@ -120,7 +123,7 @@ export class EmailThreadService {
    */
   async getNonArchivedThreadsNeedingCheck(
     userId: string,
-    limit: number = 50,
+    limit: number = QUERY_LIMITS.INBOX_PAGE_SIZE,
   ): Promise<string[]> {
     const results = await this.emailThreadRepository
       .createQueryBuilder("thread")
@@ -151,7 +154,7 @@ export class EmailThreadService {
       .createQueryBuilder("thread")
       .select(["thread.threadId", "thread.isArchived", "thread.starCount"])
       .where("thread.userId = :userId", { userId })
-      .limit(500)
+      .limit(QUERY_LIMITS.INBOX_TOTAL)
       // Reasonable limit for sync
       .getMany();
 
@@ -417,9 +420,9 @@ export class EmailThreadService {
         `batchUpdateThreadStarCount: Updated ${filteredUpdates.length} threads, skipped ${skippedCount} unchanged (${duration}ms)`,
       );
     }
-    if (perThreadTime > 200) {
+    if (perThreadTime > PER_THREAD_BUDGET_MS) {
       this.logger.warn(
-        `batchUpdateThreadStarCount took ${duration}ms for ${filteredUpdates.length} threads (${perThreadTime.toFixed(1)}ms/thread, budget: 200ms)`,
+        `batchUpdateThreadStarCount took ${duration}ms for ${filteredUpdates.length} threads (${perThreadTime.toFixed(1)}ms/thread, budget: ${PER_THREAD_BUDGET_MS}ms)`,
       );
     } else {
       this.logger.debug(

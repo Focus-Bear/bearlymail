@@ -22,6 +22,7 @@ import {
   PRIORITY_THRESHOLDS,
   EMAIL_AGE_CONFIG,
 } from "./auto-responder-constants";
+import { MILLISECONDS } from "../constants/time-constants";
 
 type PreparedResponse = {
   senderEmailHash: string;
@@ -391,7 +392,7 @@ export class AutoResponderService {
   ): { sent: boolean; reason: string } | null {
     const now = new Date();
     const ageInHours =
-      (now.getTime() - receivedAt.getTime()) / (1000 * 60 * 60);
+      (now.getTime() - receivedAt.getTime()) / MILLISECONDS.HOUR;
 
     if (ageInHours > EMAIL_AGE_CONFIG.MAX_EMAIL_AGE_HOURS) {
       const roundedAge = Math.round(ageInHours * 10) / 10;

@@ -1,11 +1,14 @@
 import { Injectable, Inject, Logger, OnModuleInit } from "@nestjs/common";
 import { DataSource } from "typeorm";
 import PgBoss from "pg-boss";
+import { MS_PER_SECOND } from "../constants/time-constants";
 import * as fs from "fs";
 import * as path from "path";
 import { QUEUE_CONSTANTS } from "../constants/queue-constants";
 import { RESOURCE_MONITOR_CONSTANTS } from "../constants/resource-monitor-constants";
 import { QUERY_LIMITS } from "../constants/query-limits";
+
+const MAX_PROCESSING_TIMES_HISTORY = 1000;
 
 interface JobMetrics {
   queueName: string;
@@ -56,7 +59,7 @@ export class QueueMonitorService implements OnModuleInit {
       this.collectMetrics().catch((err) => {
         this.logger.error("Error collecting queue metrics:", err);
       });
-    }, intervalSeconds * 1000);
+    }, intervalSeconds * MS_PER_SECOND);
 
     // Collect initial metrics
     await this.collectMetrics();
@@ -95,8 +98,7 @@ export class QueueMonitorService implements OnModuleInit {
       const times = this.processingTimes.get(queueName)!;
       times.push(processingTime);
 
-      // Keep only last 1000 processing times per queue
-      if (times.length > 1000) {
+      if (times.length > MAX_PROCESSING_TIMES_HISTORY) {
         times.shift();
       }
 

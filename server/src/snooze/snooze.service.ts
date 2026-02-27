@@ -6,6 +6,7 @@ import { EmailThread } from "../database/entities/email-thread.entity";
 import * as chrono from "chrono-node";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { SNOOZE_CONSTANTS } from "../constants/snooze-constants";
+import { MILLISECONDS } from "../constants/time-constants";
 
 @Injectable()
 export class SnoozeService {
@@ -126,16 +127,16 @@ export class SnoozeService {
       switch (unit) {
         case "m":
         case "min":
-          return new Date(now.getTime() + value * 60 * 1000);
+          return new Date(now.getTime() + value * MILLISECONDS.MINUTE);
         case "h":
         case "hr":
-          return new Date(now.getTime() + value * 60 * 60 * 1000);
+          return new Date(now.getTime() + value * MILLISECONDS.HOUR);
         case "d":
-          return new Date(now.getTime() + value * 24 * 60 * 60 * 1000);
+          return new Date(now.getTime() + value * MILLISECONDS.DAY);
         case "w":
           return new Date(
             now.getTime() +
-              value * SNOOZE_CONSTANTS.DAYS_IN_WEEK * 24 * 60 * 60 * 1000,
+              value * SNOOZE_CONSTANTS.DAYS_IN_WEEK * MILLISECONDS.DAY,
           );
       }
     }
@@ -170,7 +171,7 @@ export class SnoozeService {
     }
 
     // Default to 1 hour if parsing fails
-    return new Date(now.getTime() + 60 * 60 * 1000);
+    return new Date(now.getTime() + MILLISECONDS.HOUR);
   }
 
   async unsnoozeEmail(userId: string, emailId: string): Promise<Email> {

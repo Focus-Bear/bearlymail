@@ -1,11 +1,12 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { API_URL } from 'config/api';
+import { MS_PER_MINUTE } from 'constants/numbers';
 
 const BATCH_STATUS_CACHE_KEY = 'batchStatusCache';
 const BATCH_STATUS_CACHE_TTL = 30000; // 30 seconds
 const LAST_URGENT_CHECK_KEY = 'lastUrgentCheckTime';
-const URGENT_CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const URGENT_CHECK_INTERVAL_MS = 5 * MS_PER_MINUTE;
 
 interface CacheEntry {
   nextDelivery: string | null;

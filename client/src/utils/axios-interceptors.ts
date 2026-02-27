@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { HTTP_UNAUTHORIZED } from 'constants/numbers';
+import { HTTP_UNAUTHORIZED, MS_PER_SECOND } from 'constants/numbers';
 import { API_ENDPOINT_USERS_ME, HTTP_METHOD_GET } from 'constants/strings';
 
 let interceptorsSetup = false;
@@ -12,7 +12,7 @@ export const resetInterceptorsForTesting = () => {
 const isTokenExpired = (token: string): boolean => {
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));
-    const now = Math.floor(Date.now() / 1000);
+    const now = Math.floor(Date.now() / MS_PER_SECOND);
     return payload.exp ? payload.exp < now : false;
   } catch {
     return true; // If we can't decode it, consider it invalid

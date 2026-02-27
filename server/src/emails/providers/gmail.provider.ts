@@ -17,7 +17,13 @@ import {
 import PgBoss from "pg-boss";
 import { getJobPriority } from "../../queue/job-priorities";
 // QUERY_LIMITS used in helper modules
-import { MINUTES, DAYS, MILLISECONDS } from "../../constants/time-constants";
+import {
+  MINUTES,
+  DAYS,
+  MILLISECONDS,
+  MS_PER_SECOND,
+} from "../../constants/time-constants";
+import { HTTP_STATUS } from "../../constants/http-status";
 import { QUERY_LIMITS } from "../../constants/query-limits";
 import { isApiError, formatGaxiosError } from "../../types/common";
 import { User } from "../../database/entities/user.entity";
@@ -327,7 +333,9 @@ export class GmailProvider implements EmailProvider {
       );
     } else {
       syncWindowStart = this.calculateSyncWindowStart(user, syncWindowHours);
-      const syncWindowTimestamp = Math.floor(syncWindowStart.getTime() / 1000);
+      const syncWindowTimestamp = Math.floor(
+        syncWindowStart.getTime() / MS_PER_SECOND,
+      );
       const afterQuery = `after:${syncWindowTimestamp}`;
       inboxQuery = `in:inbox ${baseQuery} ${afterQuery}`;
       sentQuery = `in:sent ${baseQuery} ${afterQuery}`;
@@ -434,9 +442,9 @@ export class GmailProvider implements EmailProvider {
     user: User | null,
     syncWindowHours?: number,
   ): Date {
-    const fourHoursInMs = 4 * 60 * 60 * 1000;
+    const fourHoursInMs = 4 * MILLISECONDS.HOUR;
     if (syncWindowHours !== undefined)
-      return new Date(Date.now() - syncWindowHours * 60 * 60 * 1000);
+      return new Date(Date.now() - syncWindowHours * MILLISECONDS.HOUR);
     if (user?.lastEmailSyncAt)
       return new Date(user.lastEmailSyncAt.getTime() - fourHoursInMs);
     return new Date(Date.now() - DAYS.WEEK * MILLISECONDS.DAY);
@@ -510,7 +518,7 @@ export class GmailProvider implements EmailProvider {
               );
             }
           } catch (error) {
-            if (isApiError(error) && error.code === 404) {
+            if (isApiError(error) && error.code === HTTP_STATUS.NOT_FOUND) {
               this.logger.debug(
                 `Thread ${threadId.substring(0, 10)}... not found`,
               );
@@ -757,7 +765,7 @@ export class GmailProvider implements EmailProvider {
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - DAYS.WEEK);
       // Include TRASH to capture deleted emails (treat as archived)
-      const query = `after:${Math.floor(sevenDaysAgo.getTime() / 1000)} (label:INBOX OR label:SENT OR label:TRASH)`;
+      const query = `after:${Math.floor(sevenDaysAgo.getTime() / MS_PER_SECOND)} (label:INBOX OR label:SENT OR label:TRASH)`;
       const response = await gmail.users.messages.list({
         userId: "me",
         maxResults: 300,
@@ -945,7 +953,7 @@ export class GmailProvider implements EmailProvider {
   async searchEmails(
     userId: string,
     query: string,
-    maxResults = 50,
+    maxResults = QUERY_LIMITS.SEARCH_DEFAULT_RESULTS,
   ): Promise<RawEmailMessage[]> {
     const gmail = await this.createGmailClient(userId);
     if (!gmail) return [];

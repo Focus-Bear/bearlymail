@@ -2,7 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
-import { MAX_PREVIEW_LENGTH } from 'constants/numbers';
+import { MAX_PREVIEW_LENGTH, TOOLTIP_PREVIEW_MAX_CHARS } from 'constants/numbers';
 import { stripHtmlTags } from 'utils/emailBodyUtils';
 
 interface EmailPreviewProps {
@@ -54,7 +54,7 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({ email }) => {
           if (plainText) {
             return (
               <span
-                title={plainText.substring(0, 1000)}
+                title={plainText.substring(0, TOOLTIP_PREVIEW_MAX_CHARS)}
                 style={{ cursor: 'help' }}
               >
                 {(() => {

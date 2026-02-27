@@ -22,6 +22,7 @@ export const QUERY_LIMITS = {
   THREAD_QUERY: 100,
   EMAIL_QUERY: 100,
   MAX_CONTACTS: 5000,
+  CONTACTS_API_PAGE_SIZE: 1000,
   MAX_SENT_EMAILS: 150,
   MAX_SENT_EMAILS_FOR_STYLE: 50,
   MAX_THREADS_FOR_ANALYSIS: 200,
@@ -82,4 +83,6 @@ export const QUERY_LIMITS = {
   RANDOM_STRING_LENGTH: 9,
   // LLM response preview length for error logging
   LLM_RESPONSE_PREVIEW_LENGTH: 300,
+  // Default max results for email search across providers
+  SEARCH_DEFAULT_RESULTS: 50,
 } as const;

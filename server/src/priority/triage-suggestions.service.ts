@@ -8,6 +8,7 @@ import {
   ContextKey,
 } from "../database/entities/user-context.entity";
 import { LLMService } from "../llm/llm.service";
+import { QUERY_LIMITS } from "../constants/query-limits";
 import { PriorityService } from "./priority.service";
 import { EmailsService } from "../emails/emails.service";
 import { calculateScoreFromBreakdown } from "../utils/priority.utils";
@@ -302,7 +303,7 @@ export class TriageSuggestionsService {
 
 Email from: ${email.fromName || email.from}
 Subject: ${email.subject || "(no subject)"}
-Body preview: ${(email.body || "").substring(0, 500)}${patternContext}
+Body preview: ${(email.body || "").substring(0, QUERY_LIMITS.SUBSTRING_BODY_PREVIEW)}${patternContext}
 
 IMPORTANT: This email has a priority score of ${priorityScore.toFixed(1)} (on a scale of 0-100).
 Based on the priority score, it should have approximately ${priorityBasedStars} star(s):

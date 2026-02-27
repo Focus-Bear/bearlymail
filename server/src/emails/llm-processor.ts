@@ -25,7 +25,9 @@ import {
 import {
   EMAIL_CLASSIFICATION,
   SUGGESTED_REPLIES,
+  BODY_PREVIEW_LENGTHS,
 } from "../constants/llm-constants";
+import { MILLISECONDS } from "../constants/time-constants";
 
 type SummaryJobEntry = {
   job: PgBoss.Job<unknown>;
@@ -271,7 +273,11 @@ export class LLMProcessor implements OnModuleInit {
       );
 
       // Clean email body: strip HTML, remove signatures, limit to 1000 chars
-      const cleanedBody = cleanEmailContent(email.body, email.htmlBody, 1000);
+      const cleanedBody = cleanEmailContent(
+        email.body,
+        email.htmlBody,
+        BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
+      );
 
       // Format thread emails for LLM (exclude current email, already in chronological order)
       const threadEmailsForLLM = threadEmails
@@ -398,7 +404,11 @@ export class LLMProcessor implements OnModuleInit {
         fromName: email.fromName,
         senderJobTitle: email.senderJobTitle,
         subject: email.subject || "",
-        body: cleanEmailContent(email.body, email.htmlBody, 1000),
+        body: cleanEmailContent(
+          email.body,
+          email.htmlBody,
+          BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
+        ),
       }));
 
       tracker.endPhase("processing");
@@ -662,7 +672,7 @@ export class LLMProcessor implements OnModuleInit {
         if (userLastEmail && userLastEmail.receivedAt) {
           const daysDiff =
             (email.receivedAt.getTime() - userLastEmail.receivedAt.getTime()) /
-            (1000 * 60 * 60 * 24);
+            MILLISECONDS.DAY;
           daysSinceLastReply = Math.max(0, Math.round(daysDiff * 10) / 10);
           lastReplyFrom = userLastEmail.from || undefined;
         }

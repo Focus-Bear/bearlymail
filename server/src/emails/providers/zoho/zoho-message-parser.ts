@@ -1,4 +1,5 @@
 import { RawEmailMessage } from "../../interfaces/email-provider.interface";
+import { MS_PER_SECOND } from "../../../constants/time-constants";
 
 /**
  * Zoho Mail API message interface
@@ -72,7 +73,7 @@ export function parseZohoMessage(
     htmlBody: htmlBody || undefined,
     starCount,
     receivedAt: messageData.receivedTime
-      ? new Date(messageData.receivedTime * 1000)
+      ? new Date(messageData.receivedTime * MS_PER_SECOND)
       : new Date(),
     isRead: messageData.isRead || false,
   };

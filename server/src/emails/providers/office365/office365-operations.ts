@@ -2,6 +2,7 @@ import { Logger } from "@nestjs/common";
 import { AxiosInstance } from "axios";
 import { isApiError } from "../../../types/common";
 import { QUERY_LIMITS } from "../../../constants/query-limits";
+import { HTTP_STATUS } from "../../../constants/http-status";
 import { MicrosoftGraphMessage } from "./office365-message-parser";
 
 const logger = new Logger("Office365Operations");
@@ -259,7 +260,8 @@ export async function searchEmailsViaOffice365(
 export function isAuthError(error: unknown): boolean {
   const apiError = isApiError(error) ? error : null;
   return (
-    apiError?.code === 401 ||
-    (apiError?.response && apiError.response.status === 401)
+    apiError?.code === HTTP_STATUS.UNAUTHORIZED ||
+    (apiError?.response &&
+      apiError.response.status === HTTP_STATUS.UNAUTHORIZED)
   );
 }

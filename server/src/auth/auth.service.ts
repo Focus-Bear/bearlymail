@@ -14,7 +14,10 @@ import { writeDebugLog, AuthLogger } from "./auth-logger";
 import { getJobPriority } from "../queue/job-priorities";
 import { User } from "../database/entities/user.entity";
 import { AUTH_CONSTANTS } from "../constants/auth-constants";
+import { MINUTES_PER_HOUR } from "../constants/time-constants";
 import { logError } from "../utils/logger";
+
+const INITIAL_SYNC_DELAY_MS = 2000;
 
 interface GoogleProfile {
   id: string;
@@ -333,7 +336,10 @@ export class AuthService {
         .send(
           "sync-contacts",
           { userId },
-          { singletonKey: `sync-contacts-${userId}`, singletonMinutes: 60 },
+          {
+            singletonKey: `sync-contacts-${userId}`,
+            singletonMinutes: MINUTES_PER_HOUR,
+          },
         )
         .catch((err) =>
           logError(
@@ -341,7 +347,7 @@ export class AuthService {
             err instanceof Error ? err : new Error(String(err)),
           ),
         );
-    }, 2000);
+    }, INITIAL_SYNC_DELAY_MS);
   }
 
   async validateMicrosoftUser(

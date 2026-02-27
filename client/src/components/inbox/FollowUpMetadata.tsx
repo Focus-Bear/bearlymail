@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
+import { MS_PER_DAY } from 'constants/numbers';
 
 interface FollowUpMetadataProps {
   email: Email & {
@@ -19,7 +20,7 @@ export const FollowUpMetadata: React.FC<FollowUpMetadataProps> = ({ email }) => 
   }
 
   const daysSinceTheirReply = email.lastTheirReplyAt 
-    ? Math.floor((new Date().getTime() - new Date(email.lastTheirReplyAt).getTime()) / (1000 * 60 * 60 * 24))
+    ? Math.floor((new Date().getTime() - new Date(email.lastTheirReplyAt).getTime()) / MS_PER_DAY)
     : null;
 
   return (

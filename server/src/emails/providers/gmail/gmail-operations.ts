@@ -178,8 +178,9 @@ export async function syncReadStatusToGmail(
     const apiError = isApiError(error) ? error : null;
     const errorMsg = isError(error) ? error.message : apiError?.message || "";
     const isPermissionError =
-      apiError?.code === 403 ||
-      (apiError?.response && apiError.response.status === 403) ||
+      apiError?.code === HTTP_STATUS.FORBIDDEN ||
+      (apiError?.response &&
+        apiError.response.status === HTTP_STATUS.FORBIDDEN) ||
       errorMsg?.includes("Insufficient Permission");
 
     if (isPermissionError) {

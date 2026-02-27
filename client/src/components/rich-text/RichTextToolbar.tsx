@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Editor } from '@tiptap/react';
 import { theme } from 'theme/theme';
+
 import { FONT_WEIGHT_BOLD_INLINE, FONT_WEIGHT_NORMAL_INLINE, OPACITY_HALF, Z_INDEX_POPUP } from 'constants/numbers';
+
 import { EmojiPicker } from 'components/rich-text/EmojiPicker';
 
 interface RichTextToolbarProps {

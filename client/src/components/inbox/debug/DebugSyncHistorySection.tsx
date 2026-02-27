@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { MS_PER_SECOND, MS_PER_MINUTE, MINUTES_PER_HOUR, HOURS_PER_DAY } from 'constants/numbers';
 
 export interface SyncHistoryEntry {
   id: string;
@@ -54,21 +55,17 @@ const errorBadgeStyle: React.CSSProperties = {
 
 function formatDuration(ms: number | null): string {
   if (ms === null) return '—';
-  if (ms < 1000) return `${ms}ms`;
-  return `${(ms / 1000).toFixed(1)}s`;
+  if (ms < MS_PER_SECOND) return `${ms}ms`;
+  return `${(ms / MS_PER_SECOND).toFixed(1)}s`;
 }
-
-const MS_PER_MINUTE = 60 * 1000;
-const MINS_PER_HOUR = 60;
-const HOURS_PER_DAY = 24;
 
 function formatRelative(dateStr: string): string {
   const date = new Date(dateStr);
   const diffMs = Date.now() - date.getTime();
   const diffMins = Math.floor(diffMs / MS_PER_MINUTE);
   if (diffMins < 1) return 'just now';
-  if (diffMins < MINS_PER_HOUR) return `${diffMins}m ago`;
-  const diffHours = Math.floor(diffMins / MINS_PER_HOUR);
+  if (diffMins < MINUTES_PER_HOUR) return `${diffMins}m ago`;
+  const diffHours = Math.floor(diffMins / MINUTES_PER_HOUR);
   if (diffHours < HOURS_PER_DAY) return `${diffHours}h ago`;
   const diffDays = Math.floor(diffHours / HOURS_PER_DAY);
   return `${diffDays}d ago`;

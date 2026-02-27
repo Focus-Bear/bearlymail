@@ -7,7 +7,12 @@ const RATE_LIMIT_MSG = "Too many requests. Please try again in a few minutes.";
 
 function classifyApiError(error: ApiError): string {
   const status = error.response?.status || error.status || error.code;
-  if (status === 401 || status === 403 || status === "401" || status === "403")
+  if (
+    status === HTTP_STATUS.UNAUTHORIZED ||
+    status === HTTP_STATUS.FORBIDDEN ||
+    status === "401" ||
+    status === "403"
+  )
     return AUTH_ERROR_MSG;
   if (status === HTTP_STATUS.TOO_MANY_REQUESTS || status === "429")
     return RATE_LIMIT_MSG;

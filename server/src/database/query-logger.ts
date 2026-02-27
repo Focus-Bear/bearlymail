@@ -10,6 +10,7 @@ if (!fs.existsSync(LOGS_DIR)) {
 }
 
 const SLOW_QUERY_LOG_FILE = path.join(LOGS_DIR, "slow-queries.log");
+const QUERY_SNIPPET_LENGTH = 500;
 
 // Helper to write to log file
 function writeToLogFile(message: string) {
@@ -42,7 +43,7 @@ export class QueryPerformanceLogger implements TypeOrmLogger {
     _queryRunner?: QueryRunner,
   ) {
     const errorMsg = error instanceof Error ? error.message : error;
-    const querySnippet = query.substring(0, 500);
+    const querySnippet = query.substring(0, QUERY_SNIPPET_LENGTH);
     const logMessage = `❌ Query Error: ${errorMsg}\nQuery: ${querySnippet}${parameters && parameters.length > 0 ? `\nParameters: ${JSON.stringify(parameters)}` : ""}`;
 
     this.logger.error(logMessage);
@@ -55,7 +56,7 @@ export class QueryPerformanceLogger implements TypeOrmLogger {
     parameters?: unknown[],
     _queryRunner?: QueryRunner,
   ) {
-    const querySnippet = query.substring(0, 500);
+    const querySnippet = query.substring(0, QUERY_SNIPPET_LENGTH);
     const paramsStr =
       parameters && parameters.length > 0
         ? `\nParameters: ${JSON.stringify(parameters)}`

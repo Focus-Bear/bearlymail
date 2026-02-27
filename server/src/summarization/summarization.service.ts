@@ -9,6 +9,7 @@ import {
   cleanEmailForThread,
 } from "../llm/email-content-cleaner";
 import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
+import { QUERY_LIMITS } from "../constants/query-limits";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { logError, logWarn } from "../utils/logger";
 import { UsersService } from "../users/users.service";
@@ -557,8 +558,11 @@ export class SummarizationService {
     rules: SummarizationRuleEntity[],
     userId: string,
   ): Promise<SummarizationRuleEntity | null | undefined> {
-    const emailPreview = cleanedBody.substring(0, 2000);
-    const emailText = `Subject: ${email.subject || "(no subject)"}\nFrom: ${email.fromName || email.from || "(unknown sender)"} <${email.from || ""}>\n\nEmail Body:\n"""\n${emailPreview}${cleanedBody.length > 2000 ? "\n\n[... email continues ...]" : ""}\n"""`;
+    const emailPreview = cleanedBody.substring(
+      0,
+      QUERY_LIMITS.LLM_BODY_PREVIEW_LENGTH,
+    );
+    const emailText = `Subject: ${email.subject || "(no subject)"}\nFrom: ${email.fromName || email.from || "(unknown sender)"} <${email.from || ""}>\n\nEmail Body:\n"""\n${emailPreview}${cleanedBody.length > QUERY_LIMITS.LLM_BODY_PREVIEW_LENGTH ? "\n\n[... email continues ...]" : ""}\n"""`;
     const ruleDescriptions = rules
       .map((rule, index) => `Rule ${index + 1}: "${rule.whenToUse}"`)
       .join("\n");
@@ -711,8 +715,9 @@ Respond with ONLY the rule number (1-${rules.length}) or "0" if no match. Do not
       case "tldr":
       default:
         const summary =
-          sentences[0]?.substring(0, 200) || text.substring(0, 200);
-        return `TL;DR: ${summary}${summary.length >= 200 ? "..." : ""}`;
+          sentences[0]?.substring(0, QUERY_LIMITS.SUBSTRING_SNIPPET_LENGTH) ||
+          text.substring(0, QUERY_LIMITS.SUBSTRING_SNIPPET_LENGTH);
+        return `TL;DR: ${summary}${summary.length >= QUERY_LIMITS.SUBSTRING_SNIPPET_LENGTH ? "..." : ""}`;
     }
   }
 }

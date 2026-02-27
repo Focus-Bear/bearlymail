@@ -7,7 +7,7 @@ import {
   PRIORITY_BOOSTS,
   PRIORITY_SCORES,
 } from "../constants/priority-constants";
-import { DAYS } from "../constants/time-constants";
+import { DAYS, MILLISECONDS } from "../constants/time-constants";
 
 export type EmailWithRankingMetadata = Email & {
   searchExplanation?: string;
@@ -130,7 +130,7 @@ Format: ["alternative query 1", "alternative query 2"]`;
           systemPrompt:
             "You are an email search assistant. Return only a JSON array of strings, no other text.",
           temperature: 0.5,
-          maxTokens: 200,
+          maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_EXPLANATION,
         },
         undefined,
         userId,
@@ -170,7 +170,7 @@ Format: ["alternative query 1", "alternative query 2"]`;
       emails.map(async (email) => {
         const receivedDate = new Date(email.receivedAt);
         const daysAgo = Math.floor(
-          (now.getTime() - receivedDate.getTime()) / (1000 * 60 * 60 * 24),
+          (now.getTime() - receivedDate.getTime()) / MILLISECONDS.DAY,
         );
         const daysSinceLastEmail = calculateDaysSinceLastEmail
           ? await calculateDaysSinceLastEmail(userId, email)
@@ -179,7 +179,9 @@ Format: ["alternative query 1", "alternative query 2"]`;
           index: emails.indexOf(email),
           from: email.fromName || email.from || "",
           subject: email.subject || "",
-          snippet: email.body?.substring(0, 200) || "",
+          snippet:
+            email.body?.substring(0, QUERY_LIMITS.SUBSTRING_SNIPPET_LENGTH) ||
+            "",
           daysAgo,
           isRecent: daysAgo <= DAYS.WEEK,
           daysSinceLastEmail,

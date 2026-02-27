@@ -6,7 +6,9 @@ import {
   RawEmailMessage,
 } from "../emails/interfaces/email-provider.interface";
 import { QUERY_LIMITS } from "../constants/query-limits";
-import { DAYS } from "../constants/time-constants";
+import { DAYS, MS_PER_SECOND } from "../constants/time-constants";
+
+const EMAIL_FETCH_LIMIT = 400;
 import { GmailProvider } from "../emails/providers/gmail.provider";
 import { GMAIL_LABELS } from "../constants/email-labels";
 import {
@@ -105,7 +107,7 @@ export class ContextEmailDataService {
    * Format date for Zoho search (Unix timestamp in seconds)
    */
   private formatZohoDate(date: Date): string {
-    return Math.floor(date.getTime() / 1000).toString();
+    return Math.floor(date.getTime() / MS_PER_SECOND).toString();
   }
 
   /**
@@ -255,7 +257,7 @@ export class ContextEmailDataService {
     userId: string,
     after: Date,
     before: Date,
-    limit: number = 400,
+    limit: number = EMAIL_FETCH_LIMIT,
     onProgress?: (progress: {
       stage: "searching" | "fetching";
       // 0-10 (out of 100 total)
@@ -330,7 +332,7 @@ export class ContextEmailDataService {
     userId: string,
     after: Date,
     before: Date,
-    limit: number = 400,
+    limit: number = EMAIL_FETCH_LIMIT,
   ): Promise<string[]> {
     const user = await this.usersService.findOne(userId);
     if (!user?.googleCalendarAccessToken || !user?.googleCalendarRefreshToken) {
@@ -708,7 +710,7 @@ export class ContextEmailDataService {
     userId: string,
     after: Date,
     before: Date,
-    limit: number = 400,
+    limit: number = EMAIL_FETCH_LIMIT,
     onProgress?: (progress: {
       stage: "searching" | "fetching";
       // 0-10 (out of 100 total)

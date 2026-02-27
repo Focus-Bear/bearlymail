@@ -19,6 +19,7 @@
 import PgBoss = require("pg-boss");
 import * as dotenv from "dotenv";
 import * as path from "path";
+import { MS_PER_SECOND } from "../constants/time-constants";
 
 // Load environment variables
 dotenv.config({ path: path.join(__dirname, "../../.env") });
@@ -403,7 +404,7 @@ async function main() {
     // Wait a bit for jobs to process
 
     console.log(
-      `\nWaiting ${LOAD_TEST_CONFIG.JOB_PROCESSING_WAIT_MS / 1000} seconds for jobs to start processing...`,
+      `\nWaiting ${LOAD_TEST_CONFIG.JOB_PROCESSING_WAIT_MS / MS_PER_SECOND} seconds for jobs to start processing...`,
     );
     await new Promise((resolve) =>
       setTimeout(resolve, LOAD_TEST_CONFIG.JOB_PROCESSING_WAIT_MS),

@@ -8,6 +8,7 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import PgBoss from "pg-boss";
+import { MS_PER_SECOND } from "../constants/time-constants";
 import {
   FollowUp,
   FollowUpStatus,
@@ -255,7 +256,7 @@ export class FollowUpsProcessor implements OnModuleInit {
               `Rate limit hit for follow-up ${followUp.id}, retrying in ${backoffSeconds}s (attempt ${retries}/${maxRetries})`,
             );
             await new Promise((resolve) =>
-              setTimeout(resolve, backoffSeconds * 1000),
+              setTimeout(resolve, backoffSeconds * MS_PER_SECOND),
             );
             continue;
           }

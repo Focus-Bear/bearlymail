@@ -10,7 +10,7 @@ import {
   PRIORITY_BOOSTS,
   PRIORITY_SCORES,
 } from "../constants/priority-constants";
-import { DAYS } from "../constants/time-constants";
+import { DAYS, MILLISECONDS } from "../constants/time-constants";
 import { EmailSearchRankingService } from "./email-search-ranking.service";
 
 // Type for emails with search metadata
@@ -464,7 +464,7 @@ export class EmailSearchService {
       allRawEmails: rawEmails.map((rawEmail, index) => {
         const receivedDate = new Date(rawEmail.receivedAt);
         const daysAgo = Math.floor(
-          (now.getTime() - receivedDate.getTime()) / (1000 * 60 * 60 * 24),
+          (now.getTime() - receivedDate.getTime()) / MILLISECONDS.DAY,
         );
         return {
           index,
@@ -516,7 +516,7 @@ export class EmailSearchService {
       matchedEmails.map(async (email) => {
         const receivedDate = new Date(email.receivedAt);
         const daysAgo = Math.floor(
-          (now.getTime() - receivedDate.getTime()) / (1000 * 60 * 60 * 24),
+          (now.getTime() - receivedDate.getTime()) / MILLISECONDS.DAY,
         );
         const daysSince = calculateDaysSinceLastEmail
           ? await calculateDaysSinceLastEmail(userId, email)
@@ -525,7 +525,9 @@ export class EmailSearchService {
           index: matchedEmails.indexOf(email),
           from: email.fromName || email.from || "",
           subject: email.subject || "",
-          snippet: email.body?.substring(0, 200) || "",
+          snippet:
+            email.body?.substring(0, QUERY_LIMITS.SUBSTRING_SNIPPET_LENGTH) ||
+            "",
           daysAgo,
           isRecent: daysAgo <= DAYS.WEEK,
           daysSinceLastEmail: daysSince,
@@ -936,7 +938,7 @@ Return ONLY the Gmail search query, nothing else.`;
           systemPrompt:
             "You are a helpful assistant that converts natural language to Gmail search syntax. Return only the search query.",
           temperature: 0.3,
-          maxTokens: 200,
+          maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_EXPLANATION,
         },
         undefined,
         userId,
@@ -950,7 +952,10 @@ Return ONLY the Gmail search query, nothing else.`;
         .trim();
 
       // If the response looks valid, use it; otherwise fall back to simple keyword search
-      if (cleaned.length > 0 && cleaned.length < 500) {
+      if (
+        cleaned.length > 0 &&
+        cleaned.length < QUERY_LIMITS.SUBSTRING_BODY_PREVIEW
+      ) {
         return cleaned;
       }
     } catch (error) {

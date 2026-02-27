@@ -5,7 +5,10 @@ import { EmailClassification } from "./types/auto-responder.types";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { RATIOS } from "../constants/percentages";
 import { LLM_CONFIG } from "./auto-responder-constants";
-import { EMAIL_CLASSIFICATION } from "../constants/llm-constants";
+import {
+  EMAIL_CLASSIFICATION,
+  BODY_PREVIEW_LENGTHS,
+} from "../constants/llm-constants";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { StructuralError } from "../errors/structural-error";
 import {
@@ -423,7 +426,11 @@ export class EmailClassifierService {
     }
 
     // Clean and truncate body for LLM
-    const cleanedBody = cleanEmailContent(email.body, null, 1000);
+    const cleanedBody = cleanEmailContent(
+      email.body,
+      null,
+      BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
+    );
 
     const prompt = renderPrompt(promptConfig.prompt || "", {
       from: email.from,
@@ -532,7 +539,11 @@ export class EmailClassifierService {
     }
 
     try {
-      const cleanedBody = cleanEmailContent(email.body, null, 1000);
+      const cleanedBody = cleanEmailContent(
+        email.body,
+        null,
+        BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
+      );
 
       const rulesText = customRules
         .map((rule, index) => `${index + 1}. ${rule}`)

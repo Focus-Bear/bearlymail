@@ -7,6 +7,7 @@ import {
 } from "../interfaces/contact-provider.interface";
 import { isApiError } from "../../types/common";
 import { QUERY_LIMITS } from "../../constants/query-limits";
+import { HTTP_STATUS } from "../../constants/http-status";
 import { logError } from "../../utils/logger";
 
 @Injectable()
@@ -115,8 +116,8 @@ export class GmailContactsProvider implements ContactProvider {
         errorMessage = String((error as { message?: unknown }).message);
       }
       if (
-        errorCode === 401 ||
-        errorCode === 403 ||
+        errorCode === HTTP_STATUS.UNAUTHORIZED ||
+        errorCode === HTTP_STATUS.FORBIDDEN ||
         errorMessage.includes("invalid_grant")
       ) {
         await this.usersService.update(userId, { needsRelogin: true });
@@ -135,7 +136,7 @@ export class GmailContactsProvider implements ContactProvider {
     do {
       const response = await people.people.connections.list({
         resourceName: "people/me",
-        pageSize: 1000,
+        pageSize: QUERY_LIMITS.CONTACTS_API_PAGE_SIZE,
         personFields: "names,emailAddresses,phoneNumbers,organizations,photos",
         pageToken: nextPageToken,
       });
@@ -147,7 +148,7 @@ export class GmailContactsProvider implements ContactProvider {
 
       nextPageToken = response.data.nextPageToken || undefined;
 
-      if (contacts.length >= 5000) {
+      if (contacts.length >= QUERY_LIMITS.MAX_CONTACTS) {
         this.logger.log(`Contact sync limit reached for user ${userId}`);
         break;
       }
@@ -352,7 +353,7 @@ export class GmailContactsProvider implements ContactProvider {
       do {
         const response = await people.people.connections.list({
           resourceName: "people/me",
-          pageSize: 1000,
+          pageSize: QUERY_LIMITS.CONTACTS_API_PAGE_SIZE,
           personFields:
             "names,emailAddresses,phoneNumbers,organizations,photos",
           pageToken: nextPageToken,
@@ -389,7 +390,7 @@ export class GmailContactsProvider implements ContactProvider {
 
         nextPageToken = response.data.nextPageToken || undefined;
 
-        if (contactsMap.size >= 5000) {
+        if (contactsMap.size >= QUERY_LIMITS.MAX_CONTACTS) {
           this.logger.log(`Contact limit reached for user ${userId}`);
           return;
         }
@@ -418,7 +419,7 @@ export class GmailContactsProvider implements ContactProvider {
     try {
       do {
         const response = await people.otherContacts.list({
-          pageSize: 1000,
+          pageSize: QUERY_LIMITS.CONTACTS_API_PAGE_SIZE,
           readMask: "names,emailAddresses,phoneNumbers,photos",
           pageToken: nextPageToken,
         });
@@ -455,7 +456,7 @@ export class GmailContactsProvider implements ContactProvider {
 
         nextPageToken = response.data.nextPageToken || undefined;
 
-        if (contactsMap.size >= 5000) {
+        if (contactsMap.size >= QUERY_LIMITS.MAX_CONTACTS) {
           this.logger.log(`Contact limit reached for user ${userId}`);
           return;
         }
@@ -488,7 +489,10 @@ export class GmailContactsProvider implements ContactProvider {
     } else {
       errorMessage = "";
     }
-    if (errorCode === 401 || errorMessage.includes("invalid_grant")) {
+    if (
+      errorCode === HTTP_STATUS.UNAUTHORIZED ||
+      errorMessage.includes("invalid_grant")
+    ) {
       await this.usersService.update(userId, { needsRelogin: true });
     }
   }

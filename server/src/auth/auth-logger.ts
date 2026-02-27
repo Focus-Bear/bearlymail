@@ -1,4 +1,5 @@
 import { Logger } from "@nestjs/common";
+import { HTTP_STATUS } from "../constants/http-status";
 import * as fs from "fs";
 import * as path from "path";
 import { logError } from "../utils/logger";
@@ -198,8 +199,9 @@ export class AuthLogger {
 
   private isUnauthorizedError(error: unknown): boolean {
     return (
-      (this.hasCode(error) && error.code === 401) ||
-      (this.hasResponse(error) && error.response?.status === 401)
+      (this.hasCode(error) && error.code === HTTP_STATUS.UNAUTHORIZED) ||
+      (this.hasResponse(error) &&
+        error.response?.status === HTTP_STATUS.UNAUTHORIZED)
     );
   }
 

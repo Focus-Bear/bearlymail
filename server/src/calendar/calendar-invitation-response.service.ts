@@ -2,6 +2,7 @@ import { google, calendar_v3 } from "googleapis";
 import { LLMProvider } from "../llm/llm.types";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { logError } from "../utils/logger";
+import { MILLISECONDS } from "../constants/time-constants";
 import type { CalendarService } from "./calendar.service";
 
 const ICAL_DATE_MIN_LENGTH = 8;
@@ -110,14 +111,14 @@ async function findEventIdForInvitation(
   try {
     const timeMin = eventDate
       ? new Date(
-          eventDate.getTime() - DAYS_AROUND_EXACT_MATCH * 24 * 60 * 60 * 1000,
+          eventDate.getTime() - DAYS_AROUND_EXACT_MATCH * MILLISECONDS.DAY,
         )
-      : new Date(Date.now() - DAYS_BACK_FOR_EVENT_MATCH * 24 * 60 * 60 * 1000);
+      : new Date(Date.now() - DAYS_BACK_FOR_EVENT_MATCH * MILLISECONDS.DAY);
     const timeMax = eventDate
       ? new Date(
-          eventDate.getTime() + DAYS_BACK_FOR_EVENT_MATCH * 24 * 60 * 60 * 1000,
+          eventDate.getTime() + DAYS_BACK_FOR_EVENT_MATCH * MILLISECONDS.DAY,
         )
-      : new Date(Date.now() + DAYS_AHEAD_FOR_EVENT_MATCH * 24 * 60 * 60 * 1000);
+      : new Date(Date.now() + DAYS_AHEAD_FOR_EVENT_MATCH * MILLISECONDS.DAY);
 
     const response = await calendar.events.list({
       calendarId: "primary",
@@ -145,10 +146,10 @@ async function findEventIdForInvitation(
 
   try {
     const timeMin = new Date(
-      Date.now() - DAYS_BACK_FOR_EVENT_MATCH * 24 * 60 * 60 * 1000,
+      Date.now() - DAYS_BACK_FOR_EVENT_MATCH * MILLISECONDS.DAY,
     );
     const timeMax = new Date(
-      Date.now() + DAYS_AHEAD_FOR_EVENT_MATCH * 24 * 60 * 60 * 1000,
+      Date.now() + DAYS_AHEAD_FOR_EVENT_MATCH * MILLISECONDS.DAY,
     );
     const pendingResponse = await calendar.events.list({
       calendarId: "primary",

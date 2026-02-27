@@ -3,12 +3,12 @@
  * Use these instead of magic numbers for time calculations
  */
 
-// Base time units - these are fundamental and not "magic"
-const SECONDS_PER_MINUTE = 60;
-const MINUTES_PER_HOUR = 60;
-const HOURS_PER_DAY = 24;
-const DAYS_PER_WEEK = 7;
-const MS_PER_SECOND = 1000;
+// Base time units - exported for individual use
+export const SECONDS_PER_MINUTE = 60;
+export const MINUTES_PER_HOUR = 60;
+export const HOURS_PER_DAY = 24;
+export const DAYS_PER_WEEK = 7;
+export const MS_PER_SECOND = 1000;
 const THIRTY = 30;
 
 // Milliseconds

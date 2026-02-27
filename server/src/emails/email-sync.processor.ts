@@ -6,7 +6,13 @@ import { EmailProviderManager } from "./email-provider-manager.service";
 import { UsersService } from "../users/users.service";
 import { GmailProvider } from "./providers/gmail.provider";
 import { getJobPriority } from "../queue/job-priorities";
-import { DAYS, HOURS } from "../constants/time-constants";
+import {
+  DAYS,
+  HOURS,
+  MILLISECONDS,
+  MS_PER_SECOND,
+  MINUTES,
+} from "../constants/time-constants";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { CloudWatchService } from "../aws/cloudwatch.service";
 
@@ -89,7 +95,7 @@ export class EmailSyncProcessor implements OnModuleInit {
         tracker.endPhase("fetchUsers");
         tracker.startPhase("queueJobs");
 
-        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+        const fiveMinutesAgo = new Date(Date.now() - 5 * MILLISECONDS.MINUTE);
         let jobsQueued = 0;
         let jobsSkipped = 0;
 
@@ -98,7 +104,7 @@ export class EmailSyncProcessor implements OnModuleInit {
             // Check if user was synced recently - skip if within 5 minutes
             if (user.lastEmailSyncAt && user.lastEmailSyncAt > fiveMinutesAgo) {
               const secondsSinceSync = Math.round(
-                (Date.now() - user.lastEmailSyncAt.getTime()) / 1000,
+                (Date.now() - user.lastEmailSyncAt.getTime()) / MS_PER_SECOND,
               );
               this.logger.debug(
                 `Skipping user ${user.id} - last sync was ${secondsSinceSync}s ago (< 5 minutes)`,
@@ -259,7 +265,7 @@ export class EmailSyncProcessor implements OnModuleInit {
                   priority: getJobPriority("fetch-user-emails", false),
                   singletonKey: `fetch-user-emails-extended-${user.id}`,
                   // Don't allow another extended fetch for same user within 2 hours
-                  singletonMinutes: 120,
+                  singletonMinutes: 2 * MINUTES.HOUR,
                 },
               );
               jobsQueued++;
@@ -375,7 +381,7 @@ export class EmailSyncProcessor implements OnModuleInit {
                 {
                   priority: getJobPriority("fetch-user-emails", false),
                   singletonKey: `verify-user-inbox-status-${user.id}`,
-                  singletonMinutes: 120,
+                  singletonMinutes: 2 * MINUTES.HOUR,
                 },
               );
               jobsQueued++;

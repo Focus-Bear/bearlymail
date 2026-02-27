@@ -4,6 +4,7 @@ import { UsersService } from "../users/users.service";
 import { EmailsService } from "./emails.service";
 import { RawEmailMessage } from "./interfaces/email-provider.interface";
 import { logError } from "../utils/logger";
+import { HTTP_STATUS } from "../constants/http-status";
 import { GmailPayload, GmailPayloadPart } from "./types/gmail.types";
 
 @Injectable()
@@ -272,8 +273,9 @@ export class GmailService {
         message?: string;
       };
       if (
-        errorObj.code === 401 ||
-        (errorObj.response && errorObj.response.status === 401) ||
+        errorObj.code === HTTP_STATUS.UNAUTHORIZED ||
+        (errorObj.response &&
+          errorObj.response.status === HTTP_STATUS.UNAUTHORIZED) ||
         (errorObj.message && errorObj.message.includes("invalid_grant"))
       ) {
         this.logger.log(
@@ -358,8 +360,9 @@ export class GmailService {
         message?: string;
       };
       if (
-        apiError.code === 401 ||
-        (apiError.response && apiError.response.status === 401) ||
+        apiError.code === HTTP_STATUS.UNAUTHORIZED ||
+        (apiError.response &&
+          apiError.response.status === HTTP_STATUS.UNAUTHORIZED) ||
         (apiError.message && apiError.message.includes("invalid_grant"))
       ) {
         await this.usersService.update(userId, { needsRelogin: true });

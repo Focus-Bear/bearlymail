@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { theme } from 'theme/theme';
 import { EMOJI_INFO } from 'constants/emojis';
+import { MS_PER_MINUTE, SECONDS_PER_MINUTE, MINUTES_PER_HOUR } from 'constants/numbers';
 
 interface BatchInfoBarProps {
   nextDelivery: Date | null;
@@ -21,12 +22,12 @@ export const BatchInfoBar: React.FC<BatchInfoBarProps> = ({
     if (!nextDelivery) return null;
     const now = new Date();
     const diffMs = nextDelivery.getTime() - now.getTime();
-    const diffMins = Math.round(diffMs / (1000 * 60));
+    const diffMins = Math.round(diffMs / MS_PER_MINUTE);
     if (diffMins <= 0) return null;
 
-    const diffHours = Math.floor(diffMins / 60);
-    const remainingMins = diffMins % 60;
-    if (diffMins < 60) {
+    const diffHours = Math.floor(diffMins / MINUTES_PER_HOUR);
+    const remainingMins = diffMins % MINUTES_PER_HOUR;
+    if (diffMins < MINUTES_PER_HOUR) {
       return `${diffMins}m`;
     }
     if (remainingMins === 0) {
@@ -39,13 +40,13 @@ export const BatchInfoBar: React.FC<BatchInfoBarProps> = ({
     if (!lastUrgentCheck) return t('inbox.batchInfo.neverChecked');
     const now = new Date();
     const diffMs = now.getTime() - lastUrgentCheck.getTime();
-    const diffMins = Math.round(diffMs / (1000 * 60));
+    const diffMins = Math.round(diffMs / MS_PER_MINUTE);
     
     if (diffMins < 1) return t('inbox.batchInfo.justNow');
     if (diffMins === 1) return t('inbox.batchInfo.oneMinuteAgo');
-    if (diffMins < 60) return t('inbox.batchInfo.minutesAgo', { count: diffMins });
+    if (diffMins < MINUTES_PER_HOUR) return t('inbox.batchInfo.minutesAgo', { count: diffMins });
     
-    const diffHours = Math.floor(diffMins / 60);
+    const diffHours = Math.floor(diffMins / MINUTES_PER_HOUR);
     if (diffHours === 1) return t('inbox.batchInfo.oneHourAgo');
     return t('inbox.batchInfo.hoursAgo', { count: diffHours });
   };

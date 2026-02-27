@@ -13,6 +13,12 @@ import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { GMAIL_LABELS } from "../constants/email-labels";
 import { UsersService } from "../users/users.service";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
+import {
+  MILLISECONDS,
+  MS_PER_SECOND,
+  MINUTES_PER_HOUR,
+} from "../constants/time-constants";
+import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
 import { logError, logWarn } from "../utils/logger";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { PERCENTAGES } from "../constants/percentages";
@@ -262,10 +268,10 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
             });
 
           this.logger.log(
-            `[Worker ${workerId}] ✅ Fetched ${threads.length} threads in ${Math.round(fetchDuration / 1000)}s (budget: ${PERFORMANCE_BUDGETS.BATCH_FETCH_THREADS / 1000}s)${fetchExceeded ? " ⚠️ OVER BUDGET" : ""}`,
+            `[Worker ${workerId}] ✅ Fetched ${threads.length} threads in ${Math.round(fetchDuration / MS_PER_SECOND)}s (budget: ${PERFORMANCE_BUDGETS.BATCH_FETCH_THREADS / MS_PER_SECOND}s)${fetchExceeded ? " ⚠️ OVER BUDGET" : ""}`,
           );
           writeAnalysisLog(
-            `[Worker ${workerId}] ✅ Fetched ${threads.length} threads in ${Math.round(fetchDuration / 1000)}s`,
+            `[Worker ${workerId}] ✅ Fetched ${threads.length} threads in ${Math.round(fetchDuration / MS_PER_SECOND)}s`,
             "log",
           );
 
@@ -312,7 +318,7 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
                   const firstSent = sentEmails[0].receivedAt;
                   const replyTimeHours =
                     (firstSent.getTime() - firstReceived.getTime()) /
-                    (1000 * 60 * 60);
+                    MILLISECONDS.HOUR;
                   if (replyTimeHours >= 0) {
                     quickestReply = replyTimeHours;
                   }
@@ -327,11 +333,13 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
                 body: cleanEmailContent(
                   firstEmail.body,
                   firstEmail.htmlBody,
-                  1000,
+                  BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
                 ),
                 receivedAt: firstEmail.receivedAt.toISOString(),
                 isRead: firstEmail.isRead,
-                timeToReply: quickestReply ? quickestReply * 60 : null,
+                timeToReply: quickestReply
+                  ? quickestReply * MINUTES_PER_HOUR
+                  : null,
                 starCount: thread.starCount || 0,
                 isArchived: thread.isArchived || false,
                 userReplied,
@@ -379,10 +387,10 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
             });
 
           this.logger.log(
-            `[Worker ${workerId}] ✅ Processed ${batch.length} threads into payloads in ${Math.round(processDuration / 1000)}s (budget: ${PERFORMANCE_BUDGETS.BATCH_PROCESS_THREADS / 1000}s)${processExceeded ? " ⚠️ OVER BUDGET" : ""}`,
+            `[Worker ${workerId}] ✅ Processed ${batch.length} threads into payloads in ${Math.round(processDuration / MS_PER_SECOND)}s (budget: ${PERFORMANCE_BUDGETS.BATCH_PROCESS_THREADS / MS_PER_SECOND}s)${processExceeded ? " ⚠️ OVER BUDGET" : ""}`,
           );
           writeAnalysisLog(
-            `[Worker ${workerId}] ✅ Processed ${batch.length} threads into payloads in ${Math.round(processDuration / 1000)}s`,
+            `[Worker ${workerId}] ✅ Processed ${batch.length} threads into payloads in ${Math.round(processDuration / MS_PER_SECOND)}s`,
             "log",
           );
         } else if (legacyBatch) {
@@ -442,10 +450,10 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
           });
 
         this.logger.log(
-          `[Worker ${workerId}] ✅ LLM analysis completed in ${Math.round(llmDuration / 1000)}s (budget: ${PERFORMANCE_BUDGETS.BATCH_LLM_ANALYSIS / 1000}s)${llmExceeded ? " ⚠️ OVER BUDGET" : ""}`,
+          `[Worker ${workerId}] ✅ LLM analysis completed in ${Math.round(llmDuration / MS_PER_SECOND)}s (budget: ${PERFORMANCE_BUDGETS.BATCH_LLM_ANALYSIS / MS_PER_SECOND}s)${llmExceeded ? " ⚠️ OVER BUDGET" : ""}`,
         );
         writeAnalysisLog(
-          `[Worker ${workerId}] ✅ LLM analysis completed in ${Math.round(llmDuration / 1000)}s`,
+          `[Worker ${workerId}] ✅ LLM analysis completed in ${Math.round(llmDuration / MS_PER_SECOND)}s`,
           "log",
         );
 
@@ -561,10 +569,10 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
           });
 
         this.logger.log(
-          `[Worker ${workerId}] ✅ Saved batch results in ${Math.round(saveDuration / 1000)}s (find: ${Math.round(findRecordDuration / 1000)}s, save: ${Math.round(saveDbDuration / 1000)}s, budget: ${PERFORMANCE_BUDGETS.BATCH_SAVE_RESULTS / 1000}s)${saveExceeded ? " ⚠️ OVER BUDGET" : ""}`,
+          `[Worker ${workerId}] ✅ Saved batch results in ${Math.round(saveDuration / MS_PER_SECOND)}s (find: ${Math.round(findRecordDuration / MS_PER_SECOND)}s, save: ${Math.round(saveDbDuration / MS_PER_SECOND)}s, budget: ${PERFORMANCE_BUDGETS.BATCH_SAVE_RESULTS / MS_PER_SECOND}s)${saveExceeded ? " ⚠️ OVER BUDGET" : ""}`,
         );
         writeAnalysisLog(
-          `[Worker ${workerId}] ✅ Saved batch results in ${Math.round(saveDuration / 1000)}s`,
+          `[Worker ${workerId}] ✅ Saved batch results in ${Math.round(saveDuration / MS_PER_SECOND)}s`,
           "log",
         );
 
@@ -597,7 +605,7 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
 
         if (totalExceeded) {
           this.logger.warn(
-            `[Worker ${workerId}] ⚠️ BATCH OVER TOTAL BUDGET: ${Math.round(totalTimeSoFar / 1000)}s (budget: ${PERFORMANCE_BUDGETS.BATCH_TOTAL / 1000}s). Breakdown: fetch=${Math.round(fetchDuration / 1000)}s, process=${Math.round(processDuration / 1000)}s, llm=${Math.round(llmDuration / 1000)}s, save=${Math.round(saveDuration / 1000)}s`,
+            `[Worker ${workerId}] ⚠️ BATCH OVER TOTAL BUDGET: ${Math.round(totalTimeSoFar / MS_PER_SECOND)}s (budget: ${PERFORMANCE_BUDGETS.BATCH_TOTAL / MS_PER_SECOND}s). Breakdown: fetch=${Math.round(fetchDuration / MS_PER_SECOND)}s, process=${Math.round(processDuration / MS_PER_SECOND)}s, llm=${Math.round(llmDuration / MS_PER_SECOND)}s, save=${Math.round(saveDuration / MS_PER_SECOND)}s`,
           );
         }
 
@@ -625,7 +633,9 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
           // Don't fail the batch if progress update fails
         }
 
-        const duration = Math.round((Date.now() - tracker.startTime) / 1000);
+        const duration = Math.round(
+          (Date.now() - tracker.startTime) / MS_PER_SECOND,
+        );
         this.logger.log(
           `[Worker ${workerId}] ✅ COMPLETED batch ${batchIndex + 1}/${totalBatches} in ${duration}s. Analyzed ${batchSize} threads.`,
         );

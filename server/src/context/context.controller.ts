@@ -13,6 +13,7 @@ import {
   Query,
 } from "@nestjs/common";
 import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
+import { MINUTES_PER_HOUR } from "../constants/time-constants";
 import { ContextService } from "./context.service";
 import {
   UserContext,
@@ -258,7 +259,7 @@ export class ContextController {
         ? completed / totalBatches
         : 0;
     // Map batch completion (0-100%) to displayed range (10-70%)
-    const percent = Math.floor(10 + batchPercent * 60);
+    const percent = Math.floor(10 + batchPercent * MINUTES_PER_HOUR);
 
     this.logger.log(
       `[PROGRESS-CALC] Stage: analyzing, percent: ${percent}%, batches: ${completedBatches || 0}/${totalBatches || "unknown"}, fetched: general=${fetchedGeneral || 0}, sent=${fetchedSent || 0}, status=${progressInfo.status}`,

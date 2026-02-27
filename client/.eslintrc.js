@@ -92,13 +92,12 @@ module.exports = {
       'error',
       {
         ignore: [
-          0, 1, -1, // Common zero/one values
-          2, 3, 4, 5, 6, 7, 8, 9, 10, // Common small numbers
-          100, 1000, // Common percentage/scale values
-          24, 60, 3600, // Time-related (hours, minutes, seconds)
+          0, 1, -1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 100,
         ],
         ignoreArrayIndexes: true,
         ignoreDefaultValues: true,
+        enforceConst: true,
+        detectObjects: false,
       },
     ],
 

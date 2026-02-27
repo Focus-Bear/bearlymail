@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
-import { SCHEDULING_GAP_15_MIN, SCHEDULING_GAP_45_MIN, SAVE_CONFIRMATION_DURATION_MS, HOURS_12_HOUR_FORMAT, DAYS_IN_MONTH_30, SHORT_TIMEOUT_MS } from 'constants/numbers';
+import { SCHEDULING_GAP_15_MIN, SCHEDULING_GAP_45_MIN, SAVE_CONFIRMATION_DURATION_MS, HOURS_12_HOUR_FORMAT, DAYS_IN_MONTH_30, SHORT_TIMEOUT_MS, MINUTES_PER_HOUR } from 'constants/numbers';
 import { API_URL } from 'config/api';
 import { EMOJI_CALENDAR } from 'constants/emojis';
 import { TimezoneAutocomplete } from 'components/common/TimezoneAutocomplete';
@@ -24,11 +24,11 @@ const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => i);
 
-const GAP_OPTIONS = [0, SCHEDULING_GAP_15_MIN, DAYS_IN_MONTH_30, SCHEDULING_GAP_45_MIN, 60];
+const GAP_OPTIONS = [0, SCHEDULING_GAP_15_MIN, DAYS_IN_MONTH_30, SCHEDULING_GAP_45_MIN, MINUTES_PER_HOUR];
 
 const DEEP_WORK_OPTIONS = [0, 1, 2, 3, 4];
 
-const SLOT_DURATION_OPTIONS = [SCHEDULING_GAP_15_MIN, DAYS_IN_MONTH_30, SCHEDULING_GAP_45_MIN, 60];
+const SLOT_DURATION_OPTIONS = [SCHEDULING_GAP_15_MIN, DAYS_IN_MONTH_30, SCHEDULING_GAP_45_MIN, MINUTES_PER_HOUR];
 
 export const SchedulingPreferencesSection: React.FC = () => {
   const { t } = useTranslation();

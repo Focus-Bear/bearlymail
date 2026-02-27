@@ -62,7 +62,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     };
 
     // Log 5xx errors (server errors) to file in development, and always to console (CloudWatch in production)
-    if (status >= 500) {
+    if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
       logErrorToFile(
         `HTTP ${status} ${request.method} ${request.url}`,
         errorDetails,
@@ -110,7 +110,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     })();
 
     const sanitizedMessage =
-      isProduction && status >= 500
+      isProduction && status >= HttpStatus.INTERNAL_SERVER_ERROR
         ? "An internal server error occurred. Please try again later."
         : clientMessage;
 

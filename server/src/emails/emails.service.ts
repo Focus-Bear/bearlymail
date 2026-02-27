@@ -22,7 +22,12 @@ import { logError } from "../utils/logger";
 import { GitHubService } from "../github/github.service";
 import { GitHubApiService } from "../github/github-api.service";
 import { RATIOS } from "../constants/percentages";
-import { DAYS } from "../constants/time-constants";
+import {
+  DAYS,
+  MILLISECONDS,
+  MS_PER_SECOND,
+  MINUTES,
+} from "../constants/time-constants";
 import { QUERY_LIMITS, INBOX_MODES } from "../constants/query-limits";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
 import { STAR_COUNTS } from "../constants/priority-constants";
@@ -123,7 +128,7 @@ export class EmailsService {
     { emailIds: string[]; timer: ReturnType<typeof setTimeout> | null }
   >();
   // Wait 2s to collect more emails before flushing
-  private readonly BATCH_FLUSH_DELAY_MS = 2000;
+  private readonly BATCH_FLUSH_DELAY_MS = 2 * MS_PER_SECOND;
   // Max emails per batch LLM call
   private readonly BATCH_MAX_SIZE = 5;
 
@@ -1349,7 +1354,7 @@ export class EmailsService {
    */
   async getNonArchivedThreadsNeedingCheck(
     userId: string,
-    limit: number = 50,
+    limit: number = QUERY_LIMITS.INBOX_PAGE_SIZE,
   ): Promise<string[]> {
     return this.emailThreadService.getNonArchivedThreadsNeedingCheck(
       userId,
@@ -1838,7 +1843,7 @@ export class EmailsService {
           {
             priority: getJobPriority("generate-summary-background", false),
             singletonKey: `github-metadata-${savedEmail.emailThreadId}`,
-            singletonMinutes: 60,
+            singletonMinutes: MINUTES.HOUR,
           },
         )
         .catch((err) => {
@@ -1856,7 +1861,7 @@ export class EmailsService {
             priority: getJobPriority("auto-responder"),
             retryLimit: 2,
             retryDelay: 30,
-            expireInMinutes: 60,
+            expireInMinutes: MINUTES.HOUR,
             singletonKey: `auto-responder-${savedEmail.emailThreadId}`,
           },
         )
@@ -2404,7 +2409,7 @@ export class EmailsService {
             // Calculate days difference
             const daysDiff =
               (email.receivedAt.getTime() - lastEmail.receivedAt.getTime()) /
-              (1000 * 60 * 60 * 24);
+              MILLISECONDS.DAY;
             resultMap.set(
               email.id,
               Math.max(0, Math.round(daysDiff * 10) / 10),
@@ -2470,7 +2475,7 @@ export class EmailsService {
       // Calculate days difference
       const daysDiff =
         (email.receivedAt.getTime() - lastEmail.receivedAt.getTime()) /
-        (1000 * 60 * 60 * 24);
+        MILLISECONDS.DAY;
       // Round to 1 decimal place
       return Math.max(0, Math.round(daysDiff * 10) / 10);
     } catch (error) {
@@ -2506,7 +2511,10 @@ export class EmailsService {
     );
 
     try {
-      const endEmailQuery = perf.startSpan("email-query", 200);
+      const endEmailQuery = perf.startSpan(
+        "email-query",
+        PERFORMANCE_BUDGETS.PRIORITY_CALC,
+      );
       const email = await this.getEmailById(userId, emailId);
       endEmailQuery();
 
@@ -2569,13 +2577,19 @@ export class EmailsService {
 
       // Fallback: compute explanation on demand if not precomputed (for legacy emails)
       // Get user context for prioritization
-      const endContextQuery = perf.startSpan("context-query", 200);
+      const endContextQuery = perf.startSpan(
+        "context-query",
+        PERFORMANCE_BUDGETS.PRIORITY_CALC,
+      );
       const contexts = await this.userContextRepository.find({
         where: { userId },
       });
       endContextQuery();
 
-      const endDaysCalc = perf.startSpan("days-since-last-email", 500);
+      const endDaysCalc = perf.startSpan(
+        "days-since-last-email",
+        PERFORMANCE_BUDGETS.INBOX_TOTAL,
+      );
       await this.calculateDaysSinceLastEmail(userId, email);
       endDaysCalc();
 
@@ -2707,7 +2721,10 @@ export class EmailsService {
         Math.min(100, dimensions.vipContact.score),
       );
 
-      const endComputation = perf.startSpan("explanation-computation", 1000);
+      const endComputation = perf.startSpan(
+        "explanation-computation",
+        PERFORMANCE_BUDGETS.SLOW_QUERY_THRESHOLD,
+      );
       const explanation = {
         score: actualScore,
         dimensions,
@@ -2719,7 +2736,10 @@ export class EmailsService {
       // Priority explanation is now thread-level, not email-level
       // Also save denormalized priorityScore for efficient SQL sorting
       if (email.emailThreadId) {
-        const endSave = perf.startSpan("save-explanation", 500);
+        const endSave = perf.startSpan(
+          "save-explanation",
+          PERFORMANCE_BUDGETS.INBOX_TOTAL,
+        );
         const priorityScore =
           this.calculateScoreFromBreakdown(explanation) ?? 0;
         this.emailThreadRepository
@@ -2834,10 +2854,10 @@ export class EmailsService {
   ): Promise<void> {
     if (hasCalculatingItems && thread.isProcessingPriority) {
       const processingTime = Date.now() - new Date(thread.updatedAt).getTime();
-      const tenMinutes = 10 * 60 * 1000;
+      const tenMinutes = 10 * MILLISECONDS.MINUTE;
       if (processingTime > tenMinutes) {
         this.logger.warn(
-          `Thread ${thread.id} stuck in "Calculating..." for ${Math.round(processingTime / 1000 / 60)} minutes, resetting flag and requeuing`,
+          `Thread ${thread.id} stuck in "Calculating..." for ${Math.round(processingTime / MILLISECONDS.MINUTE)} minutes, resetting flag and requeuing`,
         );
         await this.emailThreadRepository.update(
           { id: thread.id },

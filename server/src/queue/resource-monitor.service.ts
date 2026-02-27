@@ -5,6 +5,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { RESOURCE_MONITOR_CONSTANTS } from "../constants/resource-monitor-constants";
 import { BYTE_CONVERSIONS } from "../constants/service-constants";
+import { MS_PER_SECOND } from "../constants/time-constants";
 
 interface ResourceMetrics {
   timestamp: string;
@@ -55,7 +56,7 @@ export class ResourceMonitorService implements OnModuleInit {
       this.collectMetrics().catch((err) => {
         this.logger.error("Error collecting resource metrics:", err);
       });
-    }, intervalSeconds * 1000);
+    }, intervalSeconds * MS_PER_SECOND);
 
     // Collect initial metrics
     await this.collectMetrics();

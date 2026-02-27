@@ -8,7 +8,11 @@ import { QueueStats, CategoryReplyTime } from "./types/auto-responder.types";
 import { DISPLAY_LIMITS, STATS_CONFIG } from "./auto-responder-constants";
 import { LEARNING_THRESHOLDS } from "../constants/service-constants";
 import { RATIOS } from "../constants/percentages";
-import { DAYS } from "../constants/time-constants";
+import {
+  DAYS,
+  MINUTES_PER_HOUR,
+  HOURS_PER_DAY,
+} from "../constants/time-constants";
 
 // Default response times when no data is available (calculated from typical patterns)
 const DEFAULT_RESPONSE_TIMES = {
@@ -222,19 +226,19 @@ export class QueueStatsService {
    * Format response time in human-readable format
    */
   private formatResponseTime(minutes: number): string {
-    if (minutes < 60) {
+    if (minutes < MINUTES_PER_HOUR) {
       return `~${Math.round(minutes)} minutes`;
     }
 
-    const hours = minutes / 60;
-    if (hours < 24) {
+    const hours = minutes / MINUTES_PER_HOUR;
+    if (hours < HOURS_PER_DAY) {
       if (hours < 2) {
         return "~1 hour";
       }
       return `~${Math.round(hours)} hours`;
     }
 
-    const days = hours / 24;
+    const days = hours / HOURS_PER_DAY;
     if (days < RATIOS.ONE_POINT_FIVE) {
       return "~1 day";
     }

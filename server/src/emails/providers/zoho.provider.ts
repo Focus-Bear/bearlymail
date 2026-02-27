@@ -13,7 +13,8 @@ import PgBoss from "pg-boss";
 import { getJobPriority } from "../../queue/job-priorities";
 import { QUERY_LIMITS } from "../../constants/query-limits";
 import { BODY_PREVIEW_LENGTHS } from "../../constants/llm-constants";
-import { DAYS } from "../../constants/time-constants";
+import { DAYS, MS_PER_SECOND } from "../../constants/time-constants";
+import { HTTP_STATUS } from "../../constants/http-status";
 import { isApiError, isError } from "../../types/common";
 import { User } from "../../database/entities/user.entity";
 import { ZohoAccount } from "../../database/entities/zoho-account.entity";
@@ -349,7 +350,7 @@ export class ZohoProvider implements EmailProvider {
   }
 
   private handleThreadProcessingError(threadId: string, error: unknown): void {
-    if (isApiError(error) && error.code === 404) {
+    if (isApiError(error) && error.code === HTTP_STATUS.NOT_FOUND) {
       this.logger.debug(
         `Thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... not found`,
       );
@@ -471,8 +472,9 @@ export class ZohoProvider implements EmailProvider {
     const apiError = isApiError(error) ? error : null;
     const errorMsg = isError(error) ? error.message : apiError?.message || "";
     const isAuthErrorFlag =
-      apiError?.code === 401 ||
-      (apiError?.response && apiError.response.status === 401) ||
+      apiError?.code === HTTP_STATUS.UNAUTHORIZED ||
+      (apiError?.response &&
+        apiError.response.status === HTTP_STATUS.UNAUTHORIZED) ||
       errorMsg.includes("Token refresh failed");
 
     if (isAuthErrorFlag) {
@@ -584,7 +586,9 @@ export class ZohoProvider implements EmailProvider {
       const zohoAccountId = await this.client.getAccountId(userId, accessToken);
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - DAYS.WEEK);
-      const sevenDaysAgoTimestamp = Math.floor(sevenDaysAgo.getTime() / 1000);
+      const sevenDaysAgoTimestamp = Math.floor(
+        sevenDaysAgo.getTime() / MS_PER_SECOND,
+      );
 
       // Fetch from both inbox and trash
       const [inboxResponse, trashResponse] = await Promise.all([
@@ -685,7 +689,7 @@ export class ZohoProvider implements EmailProvider {
   async searchEmails(
     userId: string,
     query: string,
-    maxResults = 50,
+    maxResults = QUERY_LIMITS.SEARCH_DEFAULT_RESULTS,
   ): Promise<RawEmailMessage[]> {
     return searchEmails(this, userId, query, maxResults);
   }

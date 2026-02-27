@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { calculateTimeAgo, calculateNextDelivery, formatDeliverySchedule, DeliverySchedule } from 'components/inbox/debug/DebugStatsUtils';
 import { EMOJI_WARNING } from 'constants/emojis';
+import { MS_PER_MINUTE } from 'constants/numbers';
 
 interface SyncStatus {
   lastSyncTime: string | null;
@@ -41,7 +42,7 @@ export const DebugStatsSection: React.FC<DebugStatsSectionProps> = ({
   const lastSync = new Date(syncStatus.lastSyncTime);
   const now = new Date();
   const diffMs = now.getTime() - lastSync.getTime();
-  const minsSinceSync = diffMs / (1000 * 60);
+  const minsSinceSync = diffMs / MS_PER_MINUTE;
   const syncFrequencyMins = 5;
   const isStale = minsSinceSync > syncFrequencyMins * 2;
 

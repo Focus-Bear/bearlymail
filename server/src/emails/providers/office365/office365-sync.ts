@@ -2,6 +2,7 @@ import { Logger } from "@nestjs/common";
 import { AxiosInstance } from "axios";
 import { QUERY_LIMITS } from "../../../constants/query-limits";
 import { isApiError, isError } from "../../../types/common";
+import { HTTP_STATUS } from "../../../constants/http-status";
 
 const logger = new Logger("Office365Sync");
 
@@ -73,7 +74,10 @@ export async function verifyThreadStatusesInOffice365(
           });
         } catch (threadError: unknown) {
           // Thread not found (404) or other error - mark as archived
-          if (isApiError(threadError) && threadError.code === 404) {
+          if (
+            isApiError(threadError) &&
+            threadError.code === HTTP_STATUS.NOT_FOUND
+          ) {
             logger.debug(
               `Thread ${threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... not found in Office365 (may be deleted)`,
             );
@@ -167,7 +171,10 @@ export async function getExistingThreadUpdates(
       });
     } catch (threadError: unknown) {
       // Thread not found (404) or other error - mark as archived
-      if (isApiError(threadError) && threadError.code === 404) {
+      if (
+        isApiError(threadError) &&
+        threadError.code === HTTP_STATUS.NOT_FOUND
+      ) {
         logger.debug(
           `Existing thread ${dbThread.threadId.substring(0, QUERY_LIMITS.THREAD_ID_SHORT)}... not found in Office365 (may be deleted)`,
         );

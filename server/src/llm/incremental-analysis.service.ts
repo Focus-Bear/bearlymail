@@ -7,6 +7,7 @@ import {
   LLM_OP_INCREMENTAL_SUMMARY,
 } from "./llm-operations";
 import { cleanEmailContent } from "./email-content-cleaner";
+import { QUERY_LIMITS } from "../constants/query-limits";
 
 export interface IncrementalPriorityCheckResult {
   needsFullRecalc: boolean;
@@ -227,7 +228,11 @@ export class IncrementalAnalysisService {
     for (const email of recentEmails) {
       const sender = email.fromName || email.from;
       const dateStr = email.receivedAt.toISOString().split("T")[0];
-      const bodyPreview = cleanEmailContent(email.body, undefined, 200);
+      const bodyPreview = cleanEmailContent(
+        email.body,
+        undefined,
+        QUERY_LIMITS.SUBSTRING_SNIPPET_LENGTH,
+      );
       const entry = `[${sender} on ${dateStr}]: ${bodyPreview}\n\n`;
 
       if (

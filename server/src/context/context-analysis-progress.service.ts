@@ -5,6 +5,7 @@ import { ContextAnalysis } from "../database/entities/context-analysis.entity";
 import { getErrorMessage } from "../types/common";
 import { writeAnalysisLog } from "./context-analysis-logger";
 import { getJobPriority } from "../queue/job-priorities";
+import { MILLISECONDS } from "../constants/time-constants";
 import PgBoss from "pg-boss";
 
 /**
@@ -63,7 +64,7 @@ export class ContextAnalysisProgressService {
     }
 
     // Fall back to most recent running/pending analysis
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const oneHourAgo = new Date(Date.now() - MILLISECONDS.HOUR);
     let analysis = await this.contextAnalysisRepository.findOne({
       where: [
         { userId, status: "running", createdAt: MoreThan(oneHourAgo) },
@@ -99,7 +100,7 @@ export class ContextAnalysisProgressService {
 
     if (recentCompleted && recentCompleted.updatedAt) {
       const completedAgo = Date.now() - recentCompleted.updatedAt.getTime();
-      if (completedAgo < maxAgeMinutes * 60 * 1000) {
+      if (completedAgo < maxAgeMinutes * MILLISECONDS.MINUTE) {
         return recentCompleted;
       }
     }

@@ -28,7 +28,11 @@ import {
 import { getErrorMessage } from "../types/common";
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
-import { MINUTES, MILLISECONDS } from "../constants/time-constants";
+import {
+  MINUTES,
+  MILLISECONDS,
+  MS_PER_SECOND,
+} from "../constants/time-constants";
 import {
   TIME_FORMATTING,
   RECENCY_THRESHOLDS,
@@ -299,7 +303,7 @@ export class LLMService {
     );
     const llmCallDuration = Date.now() - llmCallStart;
     this.logger.log(
-      `[CONTEXT-ANALYSIS] [LLM] generateText() completed in ${llmCallDuration}ms (${(llmCallDuration / 1000).toFixed(2)}s)`,
+      `[CONTEXT-ANALYSIS] [LLM] generateText() completed in ${llmCallDuration}ms (${(llmCallDuration / MS_PER_SECOND).toFixed(2)}s)`,
     );
     this.logger.log(
       `[CONTEXT-ANALYSIS] [LLM] Response length: ${response.length} chars`,
@@ -573,7 +577,8 @@ export class LLMService {
           temperature: RATIOS.HALF,
           maxTokens: Math.min(
             QUERY_LIMITS.LLM_BODY_PREVIEW_LENGTH * 2,
-            threads.length * QUERY_LIMITS.LLM_MAX_TOKENS_VERY_SMALL + 200,
+            threads.length * QUERY_LIMITS.LLM_MAX_TOKENS_VERY_SMALL +
+              QUERY_LIMITS.LLM_MAX_TOKENS_EXPLANATION,
           ),
           userId,
           metadata: emailIds?.length ? { emailIds } : undefined,
@@ -819,8 +824,7 @@ export class LLMService {
     const cleanedBody = cleanEmailContent(
       emailContent.body,
       emailContent.htmlBody || null,
-      // Reduced from 2000 to save tokens
-      1000,
+      BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
     );
 
     const promptConfig = getPrompt("suggest_actions");
@@ -884,8 +888,11 @@ export class LLMService {
     provider?: LLMProvider,
     userId?: string,
   ): Promise<Array<{ label: string; text: string }>> {
-    // Clean email body: strip HTML, remove signatures, limit to 1000 chars
-    const cleanedBody = cleanEmailContent(originalEmail.body, null, 1000);
+    const cleanedBody = cleanEmailContent(
+      originalEmail.body,
+      null,
+      BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
+    );
 
     const promptConfig = getPrompt("generate_multiple_replies");
     if (!promptConfig) {
@@ -975,8 +982,11 @@ export class LLMService {
     provider?: LLMProvider,
     userId?: string,
   ): Promise<string> {
-    // Clean email body: strip HTML, remove signatures, limit to 1000 chars
-    const cleanedBody = cleanEmailContent(originalEmail.body, null, 1000);
+    const cleanedBody = cleanEmailContent(
+      originalEmail.body,
+      null,
+      BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
+    );
 
     const promptConfig = getPrompt("generate_reply");
     if (!promptConfig) {
@@ -1040,8 +1050,11 @@ export class LLMService {
     provider?: LLMProvider,
     userId?: string,
   ): Promise<string> {
-    // Clean email body: strip HTML, remove signatures, limit to 1000 chars
-    const cleanedBody = cleanEmailContent(originalEmail.body, null, 1000);
+    const cleanedBody = cleanEmailContent(
+      originalEmail.body,
+      null,
+      BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
+    );
 
     const promptConfig = getPrompt("generate_meeting_reply");
     if (!promptConfig) {
@@ -1129,7 +1142,10 @@ export class LLMService {
       .map((msg, idx) => {
         const sender = msg.isFromUser ? "You" : msg.fromName || msg.from;
         const date = new Date(msg.receivedAt).toLocaleDateString();
-        const cleanedBody = cleanEmailContent(msg.body, "").substring(0, 500);
+        const cleanedBody = cleanEmailContent(msg.body, "").substring(
+          0,
+          QUERY_LIMITS.SUBSTRING_BODY_PREVIEW,
+        );
         return `[Message ${idx + 1} from ${sender} on ${date}]:\n${cleanedBody}`;
       })
       .join("\n\n---\n\n");
@@ -1198,7 +1214,11 @@ export class LLMService {
       priority?: number;
     }>;
   }> {
-    const cleanedBody = cleanEmailContent(email.body || "", null, 1000);
+    const cleanedBody = cleanEmailContent(
+      email.body || "",
+      null,
+      BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
+    );
 
     const _contextSummary = currentContext
       .slice(0, 10)
@@ -1216,7 +1236,7 @@ export class LLMService {
     const prompt = renderPrompt(promptConfig.prompt || "", {
       fromName: email.fromName || email.from,
       subject: email.subject,
-      body: cleanedBody.substring(0, 500),
+      body: cleanedBody.substring(0, QUERY_LIMITS.SUBSTRING_BODY_PREVIEW),
       reasonType,
       reason: reasonText,
     });
@@ -1313,7 +1333,11 @@ export class LLMService {
 
     // Remove quoted/replied content from user's emails to focus on their actual responses
     const cleanReplies = userReplies.map((e) => {
-      const body = cleanEmailContent(e.body, null, 1000);
+      const body = cleanEmailContent(
+        e.body,
+        null,
+        BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
+      );
       return `Subject: ${e.subject}\nBody: ${body}`;
     });
 
@@ -1377,7 +1401,7 @@ export class LLMService {
     const receivedDate = new Date(email.receivedAt);
     const now = new Date();
     const daysAgo = Math.floor(
-      (now.getTime() - receivedDate.getTime()) / (1000 * 60 * 60 * 24),
+      (now.getTime() - receivedDate.getTime()) / MILLISECONDS.DAY,
     );
     const isRecent = daysAgo <= RECENCY_THRESHOLDS.RECENT_DAYS;
     let receivedAtText: string;
@@ -1394,7 +1418,11 @@ export class LLMService {
       query,
       from: email.from,
       subject: email.subject,
-      bodyPreview: cleanEmailContent(email.body, null, 500),
+      bodyPreview: cleanEmailContent(
+        email.body,
+        null,
+        BODY_PREVIEW_LENGTHS.SINGLE_PREVIEW,
+      ),
       receivedAt: receivedAtText,
       isRecent: isRecent ? " (recent)" : "",
     });
@@ -1436,7 +1464,7 @@ export class LLMService {
     return emails.map((email) => {
       const receivedDate = new Date(email.receivedAt);
       const daysAgo = Math.floor(
-        (now.getTime() - receivedDate.getTime()) / (1000 * 60 * 60 * 24),
+        (now.getTime() - receivedDate.getTime()) / MILLISECONDS.DAY,
       );
       let receivedAtText: string;
       if (daysAgo === 0) {
@@ -1625,12 +1653,12 @@ export class LLMService {
             parseError,
           );
           this.logger.error(
-            `JSON string that failed to parse: ${jsonStr.substring(0, 500)}`,
+            `JSON string that failed to parse: ${jsonStr.substring(0, QUERY_LIMITS.SUBSTRING_BODY_PREVIEW)}`,
           );
         }
       } else {
         this.logger.error(
-          `Failed to find JSON in batch explanation response. Full response (first 1000 chars):\n${response.substring(0, 1000)}`,
+          `Failed to find JSON in batch explanation response. Full response (first ${BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW} chars):\n${response.substring(0, BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW)}`,
         );
       }
     } catch (error) {
@@ -1716,7 +1744,7 @@ export class LLMService {
           prompt,
           systemPrompt: promptConfig.systemPrompt || "",
           temperature: 0.1,
-          maxTokens: text.length + 200,
+          maxTokens: text.length + QUERY_LIMITS.LLM_MAX_TOKENS_EXPLANATION,
         },
         undefined,
         undefined,
@@ -2194,7 +2222,7 @@ export class LLMService {
     const otherEmailsText = emailsToAnalyze
       .map(
         (e, i) =>
-          `[Email ${i + 1}]\nFrom: ${e.fromName || e.from}\nSubject: ${e.subject}\nBody preview: ${cleanEmailContent(e.body || "", null, 200)}`,
+          `[Email ${i + 1}]\nFrom: ${e.fromName || e.from}\nSubject: ${e.subject}\nBody preview: ${cleanEmailContent(e.body || "", null, QUERY_LIMITS.SUBSTRING_SNIPPET_LENGTH)}`,
       )
       .join("\n\n");
 
@@ -2346,7 +2374,7 @@ export class LLMService {
       return customLabels;
     }
     this.logger.log(
-      `[IDENTIFY-CUSTOM-LABELS] Raw response:\n${response.substring(0, 500)}`,
+      `[IDENTIFY-CUSTOM-LABELS] Raw response:\n${response.substring(0, QUERY_LIMITS.SUBSTRING_BODY_PREVIEW)}`,
     );
     this.logger.log(
       `[IDENTIFY-CUSTOM-LABELS] === FALLBACK === No custom labels identified`,

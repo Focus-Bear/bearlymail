@@ -7,6 +7,7 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { DataSource } from "typeorm";
 import { CloudWatchService } from "../aws/cloudwatch.service";
+import { MS_PER_SECOND } from "../constants/time-constants";
 import { StandardUnit } from "@aws-sdk/client-cloudwatch";
 
 @Injectable()
@@ -100,7 +101,7 @@ export class QueueAutoscalingService implements OnModuleInit, OnModuleDestroy {
       this.checkAndPublishMetrics().catch((err) => {
         this.logger.error("Error in autoscaling check:", err);
       });
-    }, this.checkIntervalSeconds * 1000);
+    }, this.checkIntervalSeconds * MS_PER_SECOND);
   }
 
   async onModuleDestroy() {

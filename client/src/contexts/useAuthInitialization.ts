@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import axios from 'axios';
-import { HTTP_UNAUTHORIZED } from 'constants/numbers';
+import { HTTP_UNAUTHORIZED, MS_PER_SECOND } from 'constants/numbers';
 import { identifyUser } from 'utils/posthog';
 import { setupAxiosInterceptors } from 'utils/axios-interceptors';
 import { API_URL } from 'config/api';
@@ -30,7 +30,7 @@ export const useAuthInitialization = (
   const isTokenExpired = (token: string): boolean => {
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
-      const now = Math.floor(Date.now() / 1000);
+      const now = Math.floor(Date.now() / MS_PER_SECOND);
       return payload.exp ? payload.exp < now : false;
     } catch {
       return true;

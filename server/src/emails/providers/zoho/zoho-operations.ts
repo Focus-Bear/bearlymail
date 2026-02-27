@@ -1,6 +1,7 @@
 import { Logger } from "@nestjs/common";
 import { AxiosInstance } from "axios";
 import { isApiError } from "../../../types/common";
+import { HTTP_STATUS } from "../../../constants/http-status";
 import { ZohoMailMessage } from "./zoho-message-parser";
 
 const logger = new Logger("ZohoOperations");
@@ -214,7 +215,8 @@ export async function searchEmailsViaZoho(
 export function isAuthError(error: unknown): boolean {
   const apiError = isApiError(error) ? error : null;
   return (
-    apiError?.code === 401 ||
-    (apiError?.response && apiError.response.status === 401)
+    apiError?.code === HTTP_STATUS.UNAUTHORIZED ||
+    (apiError?.response &&
+      apiError.response.status === HTTP_STATUS.UNAUTHORIZED)
   );
 }

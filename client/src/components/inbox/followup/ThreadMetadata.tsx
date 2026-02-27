@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { ThreadWithFollowUp } from 'hooks/useFollowUps';
+import { MS_PER_DAY } from 'constants/numbers';
 
 interface ThreadMetadataProps {
   thread: ThreadWithFollowUp;
@@ -13,7 +14,7 @@ const calculateDaysSinceLastResponse = (thread: ThreadWithFollowUp): number | nu
     return null;
   }
   const days = Math.floor(
-    (new Date().getTime() - new Date(lastTheirReplyAt).getTime()) / (1000 * 60 * 60 * 24)
+    (new Date().getTime() - new Date(lastTheirReplyAt).getTime()) / MS_PER_DAY
   );
   return days;
 };

@@ -4,7 +4,7 @@ import { theme } from 'theme/theme';
 import axios from 'axios';
 
 import { API_URL } from 'config/api';
-import { NUMBER_FORMAT_MILLION, OPACITY_DISABLED_ALT, REFRESH_INTERVAL_30_SEC_MS, DAYS_IN_MONTH_30 } from 'constants/numbers';
+import { NUMBER_FORMAT_MILLION, NUMBER_FORMAT_THOUSAND, OPACITY_DISABLED_ALT, REFRESH_INTERVAL_30_SEC_MS, DAYS_IN_MONTH_30, MS_PER_DAY } from 'constants/numbers';
 
 interface UsageByOperation {
   operation: string;
@@ -73,11 +73,11 @@ export const TokenUsageSection: React.FC = () => {
     const now = new Date();
     switch (dateRange) {
       case '24h':
-        return { startDate: new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString() };
+        return { startDate: new Date(now.getTime() - MS_PER_DAY).toISOString() };
       case '7d':
-        return { startDate: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString() };
+        return { startDate: new Date(now.getTime() - 7 * MS_PER_DAY).toISOString() };
       case '30d':
-        return { startDate: new Date(now.getTime() - DAYS_IN_MONTH_30 * 24 * 60 * 60 * 1000).toISOString() };
+        return { startDate: new Date(now.getTime() - DAYS_IN_MONTH_30 * MS_PER_DAY).toISOString() };
       case 'all':
       default:
         return {};
@@ -145,8 +145,8 @@ export const TokenUsageSection: React.FC = () => {
     if (num >= NUMBER_FORMAT_MILLION) {
       return `${(num / NUMBER_FORMAT_MILLION).toFixed(2)}M`;
     }
-    if (num >= 1000) {
-      return `${(num / 1000).toFixed(1)}K`;
+    if (num >= NUMBER_FORMAT_THOUSAND) {
+      return `${(num / NUMBER_FORMAT_THOUSAND).toFixed(1)}K`;
     }
     return num.toLocaleString();
   };

@@ -13,6 +13,7 @@ import { ContextKey } from "../database/entities/user-context.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { SnoozeService } from "../snooze/snooze.service";
+import { HOURS_PER_DAY } from "../constants/time-constants";
 import { FollowUpsService } from "../follow-ups/follow-ups.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { STAR_COUNTS } from "../constants/priority-constants";
@@ -380,7 +381,10 @@ ${closing}`;
       emailId,
       `${expectedReplyHours}h`,
     );
-    const followUpDays = Math.max(1, Math.ceil(expectedReplyHours / 24));
+    const followUpDays = Math.max(
+      1,
+      Math.ceil(expectedReplyHours / HOURS_PER_DAY),
+    );
     await this.followUpsService.createFollowUp(
       userId,
       email.threadId,

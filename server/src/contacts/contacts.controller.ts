@@ -24,10 +24,6 @@ export class ContactsController {
     @Inject("PG_BOSS") private readonly boss: PgBoss,
   ) {}
 
-  /**
-   * Search contacts with autocomplete support
-   * Uses blind indexing for searchable encryption
-   */
   @Get("search")
   async searchContacts(
     @Request() req,
@@ -44,9 +40,6 @@ export class ContactsController {
     );
   }
 
-  /**
-   * Get frequently contacted contacts (for empty state in compose)
-   */
   @Get("frequent")
   async getFrequentContacts(
     @Request() req,
@@ -58,17 +51,160 @@ export class ContactsController {
     return this.contactsService.getFrequentContacts(req.user.userId, maxLimit);
   }
 
-  /**
-   * Get all contacts
-   */
+  @Get("types")
+  async getContactTypes(@Request() req) {
+    return this.contactsService.getContactTypes(req.user.userId);
+  }
+
+  @Post("types")
+  async createContactType(
+    @Request() req,
+    @Body()
+    body: { name: string; label: string; color?: string; icon?: string },
+  ) {
+    return this.contactsService.createContactType(req.user.userId, body);
+  }
+
+  @Put("types/:id")
+  async updateContactType(
+    @Request() req,
+    @Param("id") id: string,
+    @Body() body: { label?: string; color?: string; icon?: string },
+  ) {
+    return this.contactsService.updateContactType(req.user.userId, id, body);
+  }
+
+  @Delete("types/:id")
+  async deleteContactType(@Request() req, @Param("id") id: string) {
+    await this.contactsService.deleteContactType(req.user.userId, id);
+    return { success: true };
+  }
+
+  @Get("custom-fields")
+  async getCustomFields(@Request() req) {
+    return this.contactsService.getCustomFieldDefinitions(req.user.userId);
+  }
+
+  @Post("custom-fields")
+  async createCustomField(
+    @Request() req,
+    @Body()
+    body: { fieldName: string; fieldType?: string; options?: string[] },
+  ) {
+    return this.contactsService.createCustomField(req.user.userId, body);
+  }
+
+  @Put("custom-fields/:id")
+  async updateCustomField(
+    @Request() req,
+    @Param("id") id: string,
+    @Body()
+    body: { fieldName?: string; fieldType?: string; options?: string[] },
+  ) {
+    return this.contactsService.updateCustomField(req.user.userId, id, body);
+  }
+
+  @Delete("custom-fields/:id")
+  async deleteCustomField(@Request() req, @Param("id") id: string) {
+    await this.contactsService.deleteCustomField(req.user.userId, id);
+    return { success: true };
+  }
+
+  @Get("contact-types-by-emails")
+  async getContactTypesByEmails(
+    @Request() req,
+    @Query("emails") emails: string,
+  ) {
+    const emailList = emails ? emails.split(",").map((e) => e.trim()) : [];
+    return this.contactsService.getContactTypesByEmails(
+      req.user.userId,
+      emailList,
+    );
+  }
+
+  @Get(":id")
+  async getContactDetail(@Request() req, @Param("id") id: string) {
+    return this.contactsService.getContactDetail(req.user.userId, id);
+  }
+
+  @Put(":id")
+  async updateContact(
+    @Request() req,
+    @Param("id") id: string,
+    @Body()
+    body: {
+      name?: string;
+      firstName?: string;
+      lastName?: string;
+      company?: string;
+      jobTitle?: string;
+      phone?: string;
+      contactType?: string;
+      followUpDate?: string | null;
+    },
+  ) {
+    return this.contactsService.updateContact(req.user.userId, id, body);
+  }
+
+  @Post(":id/notes")
+  async addNote(
+    @Request() req,
+    @Param("id") id: string,
+    @Body() body: { content: string },
+  ) {
+    return this.contactsService.addContactNote(
+      req.user.userId,
+      id,
+      body.content,
+    );
+  }
+
+  @Put(":id/notes/:noteId")
+  async updateNote(
+    @Request() req,
+    @Param("id") id: string,
+    @Param("noteId") noteId: string,
+    @Body() body: { content: string },
+  ) {
+    return this.contactsService.updateContactNote(
+      req.user.userId,
+      id,
+      noteId,
+      body.content,
+    );
+  }
+
+  @Delete(":id/notes/:noteId")
+  async deleteNote(
+    @Request() req,
+    @Param("id") id: string,
+    @Param("noteId") noteId: string,
+  ) {
+    await this.contactsService.deleteContactNote(req.user.userId, id, noteId);
+    return { success: true };
+  }
+
+  @Put(":id/custom-fields/:fieldId")
+  async setCustomFieldValue(
+    @Request() req,
+    @Param("id") id: string,
+    @Param("fieldId") fieldId: string,
+    @Body() body: { value: string },
+  ) {
+    await this.contactsService.setCustomFieldValue(
+      req.user.userId,
+      id,
+      fieldId,
+      body.value,
+    );
+    return { success: true };
+  }
+
   @Get()
   async getAllContacts(@Request() req): Promise<ContactSearchResult[]> {
     return this.contactsService.getAllContacts(req.user.userId);
   }
 
-  /**
-   * Sync contacts from all connected providers
-   */
   @Post("sync")
   async syncContacts(@Request() req): Promise<{ message: string }> {
     await this.boss.send(
@@ -82,9 +218,6 @@ export class ContactsController {
     return { message: "Contact sync started in the background." };
   }
 
-  /**
-   * Create a new manual contact
-   */
   @Post()
   async createContact(
     @Request() req,
@@ -96,22 +229,19 @@ export class ContactsController {
       lastName?: string;
       company?: string;
       jobTitle?: string;
+      phone?: string;
+      contactType?: string;
+      followUpDate?: string;
     },
   ) {
     return this.contactsService.createContact(req.user.userId, body);
   }
 
-  /**
-   * Toggle favorite status
-   */
   @Put(":id/favorite")
   async toggleFavorite(@Request() req, @Param("id") id: string) {
     return this.contactsService.toggleFavorite(req.user.userId, id);
   }
 
-  /**
-   * Delete a contact
-   */
   @Delete(":id")
   async deleteContact(@Request() req, @Param("id") id: string) {
     await this.contactsService.deleteContact(req.user.userId, id);

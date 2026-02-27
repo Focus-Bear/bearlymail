@@ -5,12 +5,13 @@ import axios from 'axios';
 import { theme } from 'theme/theme';
 import { DEBOUNCE_DELAY_MS, MILLISECONDS_PER_MINUTE, OPACITY_DISABLED, OPACITY_FULL, TOAST_DURATION_MS } from 'constants/numbers';
 import { captureEvent } from 'utils/posthog';
-import { Contact } from 'types/contact';
+import { Contact, ContactTypeConfig } from 'types/contact';
 import { useAuth } from 'contexts/AuthContext';
 import { getPusherInstance } from 'config/pusher';
 import { Sidebar } from 'components/inbox/Sidebar';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import { useSidebarState } from 'hooks/useSidebarState';
+import { ContactTypeBadge } from 'components/crm/ContactTypeBadge';
 
 import { API_URL } from 'config/api';
 import { EMOJI_MENU } from 'constants/emojis';
@@ -29,6 +30,7 @@ const Contacts: React.FC = () => {
     closeMobileMenu,
   } = useSidebarState();
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [contactTypes, setContactTypes] = useState<ContactTypeConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -51,10 +53,20 @@ const Contacts: React.FC = () => {
     }
   }, [t]);
 
+  const fetchContactTypes = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API_URL}/contacts/types`);
+      setContactTypes(response.data);
+    } catch (err) {
+      console.error('Failed to fetch contact types:', err);
+    }
+  }, []);
+
   useEffect(() => {
     captureEvent('contacts_viewed');
     fetchContacts();
-  }, [fetchContacts]);
+    fetchContactTypes();
+  }, [fetchContacts, fetchContactTypes]);
 
   const handleSync = async () => {
     captureEvent('contacts_sync_clicked');
@@ -150,6 +162,11 @@ const Contacts: React.FC = () => {
   }, [searchQuery]);
 
   const filteredContacts = searchResults !== null ? searchResults : contacts;
+
+  const getContactTypeConfig = (typeName: string | null | undefined): ContactTypeConfig | undefined => {
+    if (!typeName) return undefined;
+    return contactTypes.find(ct => ct.name === typeName);
+  };
 
   return (
     <div style={{
@@ -342,73 +359,108 @@ const Contacts: React.FC = () => {
               {t('contacts.totalContacts', { count: filteredContacts.length })}
             </div>
             <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
-              {filteredContacts.map((contact, index) => (
-                <div
-                  key={contact.id || contact.email}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: theme.spacing.md,
-                    borderBottom: index < filteredContacts.length - 1 
-                      ? `1px solid ${theme.colors.border.light}` 
-                      : 'none',
-                    gap: theme.spacing.md,
-                  }}
-                >
-                  {contact.photoUrl ? (
-                    <img
-                      src={contact.photoUrl}
-                      alt=""
-                      style={{
-                        width: '40px',
-                        height: '40px',
-                        borderRadius: '50%',
-                        objectFit: 'cover',
-                      }}
-                    />
-                  ) : (
-                    <div
-                      style={{
-                        width: '40px',
-                        height: '40px',
-                        borderRadius: '50%',
-                        backgroundColor: theme.colors.primary.subtle,
+              {filteredContacts.map((contact, index) => {
+                const typeConfig = getContactTypeConfig(contact.contactType);
+                return (
+                  <div
+                    key={contact.id || contact.email}
+                    onClick={() => contact.id && navigate(`/crm/contacts/${contact.id}`)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: theme.spacing.md,
+                      borderBottom: index < filteredContacts.length - 1
+                        ? `1px solid ${theme.colors.border.light}`
+                        : 'none',
+                      gap: theme.spacing.md,
+                      cursor: contact.id ? 'pointer' : 'default',
+                      transition: theme.transitions.fast,
+                    }}
+                    onMouseEnter={(e) => {
+                      if (contact.id) e.currentTarget.style.backgroundColor = theme.colors.background.default;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    {contact.photoUrl ? (
+                      <img
+                        src={contact.photoUrl}
+                        alt=""
+                        style={{
+                          width: '40px',
+                          height: '40px',
+                          borderRadius: '50%',
+                          objectFit: 'cover',
+                        }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: '40px',
+                          height: '40px',
+                          borderRadius: '50%',
+                          backgroundColor: theme.colors.primary.subtle,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: theme.colors.primary.main,
+                          fontSize: theme.typography.fontSize.lg,
+                          fontWeight: theme.typography.fontWeight.semibold,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {(contact.name || contact.email)[0].toUpperCase()}
+                      </div>
+                    )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        color: theme.colors.primary.main,
-                        fontSize: theme.typography.fontSize.lg,
-                        fontWeight: theme.typography.fontWeight.semibold,
-                      }}
-                    >
-                      {(contact.name || contact.email)[0].toUpperCase()}
+                        gap: theme.spacing.sm,
+                      }}>
+                        <span style={{
+                          color: theme.colors.text.primary,
+                          fontSize: theme.typography.fontSize.base,
+                          fontWeight: theme.typography.fontWeight.medium,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {contact.name || contact.email}
+                        </span>
+                        {typeConfig && (
+                          <ContactTypeBadge
+                            label={typeConfig.label}
+                            color={typeConfig.color}
+                            icon={typeConfig.icon}
+                          />
+                        )}
+                      </div>
+                      {contact.name && (
+                        <div style={{
+                          color: theme.colors.text.secondary,
+                          fontSize: theme.typography.fontSize.sm,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {contact.email}
+                        </div>
+                      )}
                     </div>
-                  )}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{
-                      color: theme.colors.text.primary,
-                      fontSize: theme.typography.fontSize.base,
-                      fontWeight: theme.typography.fontWeight.medium,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}>
-                      {contact.name || contact.email}
-                    </div>
-                    {contact.name && (
+                    {contact.company && (
                       <div style={{
-                        color: theme.colors.text.secondary,
+                        color: theme.colors.text.tertiary,
                         fontSize: theme.typography.fontSize.sm,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
                       }}>
-                        {contact.email}
+                        {contact.company}
                       </div>
                     )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

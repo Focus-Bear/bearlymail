@@ -81,6 +81,8 @@ export interface Email {
   // Correspondent info for display (the other person in the conversation)
   correspondentEmail?: string | null;
   correspondentName?: string | null;
+  // CRM contact type for the correspondent (loaded asynchronously)
+  contactType?: string | null;
 }
 
 export interface TriageSuggestion {

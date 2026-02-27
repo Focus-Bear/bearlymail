@@ -1,0 +1,206 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import axios from 'axios';
+import { theme } from 'theme/theme';
+import { Deal, DealStage, KanbanBoard } from 'types/deal';
+import { Contact } from 'types/contact';
+import { useAuth } from 'contexts/AuthContext';
+import { Sidebar } from 'components/inbox/Sidebar';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { useSidebarState } from 'hooks/useSidebarState';
+import { KanbanColumn } from 'components/crm/KanbanColumn';
+import { DealFormModal } from 'components/crm/DealFormModal';
+import { API_URL } from 'config/api';
+import { EMOJI_MENU } from 'constants/emojis';
+
+const Deals: React.FC = () => {
+  const { t } = useTranslation();
+  const { user, logout } = useAuth();
+  const { isMobile, isTablet } = useResponsiveBreakpoints();
+  const isNarrow = isMobile || isTablet;
+  const { isCollapsed, isMobileMenuOpen, toggleCollapse, openMobileMenu, closeMobileMenu } = useSidebarState();
+
+  const [kanban, setKanban] = useState<KanbanBoard | null>(null);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showDealForm, setShowDealForm] = useState(false);
+  const [editingDeal, setEditingDeal] = useState<Deal | null>(null);
+  const [draggedDeal, setDraggedDeal] = useState<Deal | null>(null);
+
+  const fetchKanban = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API_URL}/deals/kanban`);
+      setKanban(response.data);
+    } catch (err) {
+      console.error('Failed to fetch kanban:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const fetchContacts = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API_URL}/contacts`);
+      setContacts(response.data);
+    } catch (err) {
+      console.error('Failed to fetch contacts:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchKanban();
+    fetchContacts();
+  }, [fetchKanban, fetchContacts]);
+
+  const handleCreateDeal = async (data: {
+    title: string;
+    details?: string;
+    value?: number;
+    currency?: string;
+    stageId?: string;
+    contactId?: string;
+    expectedCloseDate?: string;
+  }) => {
+    try {
+      await axios.post(`${API_URL}/deals`, data);
+      setShowDealForm(false);
+      fetchKanban();
+    } catch (err) {
+      console.error('Failed to create deal:', err);
+    }
+  };
+
+  const handleUpdateDeal = async (dealId: string, data: Partial<Deal>) => {
+    try {
+      await axios.put(`${API_URL}/deals/${dealId}`, data);
+      setEditingDeal(null);
+      fetchKanban();
+    } catch (err) {
+      console.error('Failed to update deal:', err);
+    }
+  };
+
+  const handleDeleteDeal = async (dealId: string) => {
+    if (!window.confirm(t('deals.deleteConfirm'))) return;
+    try {
+      await axios.delete(`${API_URL}/deals/${dealId}`);
+      fetchKanban();
+    } catch (err) {
+      console.error('Failed to delete deal:', err);
+    }
+  };
+
+  const handleMoveDeal = async (dealId: string, stageId: string) => {
+    try {
+      await axios.put(`${API_URL}/deals/${dealId}/move`, { stageId });
+      fetchKanban();
+    } catch (err) {
+      console.error('Failed to move deal:', err);
+    }
+  };
+
+  const handleDragStart = (deal: Deal) => {
+    setDraggedDeal(deal);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedDeal(null);
+  };
+
+  const handleDrop = (stageId: string) => {
+    if (draggedDeal && draggedDeal.stageId !== stageId) {
+      handleMoveDeal(draggedDeal.id, stageId);
+    }
+    setDraggedDeal(null);
+  };
+
+  const formatCurrency = (value: number, currency?: string | null) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency || 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+
+  return (
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+      <Sidebar user={user} logout={logout} isCollapsed={isCollapsed} onToggleCollapse={toggleCollapse} isMobileMenuOpen={isMobileMenuOpen} onCloseMobileMenu={closeMobileMenu} />
+
+      <div style={{ flex: 1, overflowY: 'auto', backgroundColor: theme.colors.background.default, padding: isNarrow ? `70px ${theme.spacing.sm} ${theme.spacing.md}` : theme.spacing.lg }}>
+        {isNarrow && (
+          <button onClick={openMobileMenu} style={{ position: 'fixed', top: theme.spacing.md, left: theme.spacing.md, width: '48px', height: '48px', borderRadius: '50%', border: `1px solid ${theme.colors.border.medium}`, backgroundColor: theme.colors.background.paper, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', boxShadow: theme.shadows.md, zIndex: 100 }} aria-label="Open navigation menu">
+            {EMOJI_MENU}
+          </button>
+        )}
+
+        <div style={{ maxWidth: '100%', margin: '0 auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.lg }}>
+            <h1 style={{ ...theme.typography.heading.h4, color: theme.colors.text.primary, margin: 0 }}>
+              {t('deals.title')}
+            </h1>
+            <button
+              onClick={() => { setEditingDeal(null); setShowDealForm(true); }}
+              style={{ padding: `${theme.spacing.sm} ${theme.spacing.md}`, backgroundColor: theme.colors.primary.main, color: 'white', border: 'none', borderRadius: theme.borderRadius.md, cursor: 'pointer', fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium }}
+            >
+              {t('deals.addDeal')}
+            </button>
+          </div>
+
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: theme.spacing.xl, color: theme.colors.text.secondary }}>
+              {t('deals.loading')}
+            </div>
+          ) : !kanban || kanban.stages.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: theme.spacing.xl, backgroundColor: theme.colors.background.paper, borderRadius: theme.borderRadius.lg, boxShadow: theme.shadows.sm }}>
+              <div style={{ fontSize: '48px', marginBottom: theme.spacing.md }}>🤝</div>
+              <h3 style={{ color: theme.colors.text.primary, fontSize: theme.typography.fontSize.lg, fontWeight: theme.typography.fontWeight.semibold, marginBottom: theme.spacing.sm }}>
+                {t('deals.noDeals')}
+              </h3>
+              <p style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.base, marginBottom: theme.spacing.lg }}>
+                {t('deals.createFirstDeal')}
+              </p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: theme.spacing.md, overflowX: 'auto', paddingBottom: theme.spacing.md, minHeight: '400px' }}>
+              {kanban.stages.map(stage => (
+                <KanbanColumn
+                  key={stage.id}
+                  stage={stage}
+                  deals={kanban.deals[stage.id] || []}
+                  total={kanban.totals[stage.id] || 0}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                  onDrop={() => handleDrop(stage.id)}
+                  onEditDeal={(deal) => { setEditingDeal(deal); setShowDealForm(true); }}
+                  onDeleteDeal={handleDeleteDeal}
+                  formatCurrency={formatCurrency}
+                  isDragOver={draggedDeal !== null && draggedDeal.stageId !== stage.id}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {showDealForm && (
+        <DealFormModal
+          deal={editingDeal}
+          stages={kanban?.stages || []}
+          contacts={contacts}
+          onSave={(data) => {
+            if (editingDeal) {
+              handleUpdateDeal(editingDeal.id, data);
+            } else {
+              handleCreateDeal(data);
+            }
+          }}
+          onClose={() => { setShowDealForm(false); setEditingDeal(null); }}
+        />
+      )}
+    </div>
+  );
+};
+
+export default Deals;

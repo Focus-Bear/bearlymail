@@ -1,10 +1,11 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
 import { Contact } from "../database/entities/contact.entity";
 import { RawContact } from "./interfaces/contact-provider.interface";
 import { SearchIndexHelper } from "./search-index.helper";
 import { GmailContactsProvider } from "./providers/gmail-contacts.provider";
+import { ContactCrmService } from "./contact-crm.service";
 import { logError } from "../utils/logger";
 
 export interface ContactSearchResult {
@@ -18,6 +19,31 @@ export interface ContactSearchResult {
   photoUrl?: string;
   isFavorite: boolean;
   contactFrequency: number;
+  contactType?: string | null;
+  followUpDate?: string | null;
+  phone?: string | null;
+}
+
+export interface ContactDetailResult extends ContactSearchResult {
+  notes: {
+    id: string;
+    content: string;
+    createdAt: string;
+    updatedAt: string;
+  }[];
+  customFields: {
+    fieldId: string;
+    fieldName: string;
+    fieldType: string;
+    value: string | null;
+    options?: string[];
+  }[];
+  deals: {
+    id: string;
+    title: string;
+    value: number | null;
+    stageName: string | null;
+  }[];
 }
 
 @Injectable()
@@ -28,6 +54,7 @@ export class ContactsService {
     @InjectRepository(Contact)
     private contactRepository: Repository<Contact>,
     private gmailContactsProvider: GmailContactsProvider,
+    private contactCrmService: ContactCrmService,
   ) {}
 
   /**
@@ -365,11 +392,13 @@ export class ContactsService {
       lastName?: string;
       company?: string;
       jobTitle?: string;
+      phone?: string;
+      contactType?: string;
+      followUpDate?: string;
     },
   ): Promise<Contact> {
     const emailHash = SearchIndexHelper.hashExact(contactData.email);
 
-    // Check if contact already exists
     const existing = await this.contactRepository.findOne({
       where: { userId, emailHash },
     });
@@ -384,7 +413,6 @@ export class ContactsService {
     );
 
     if (existing) {
-      // Update existing
       await this.contactRepository.update(existing.id, {
         email: contactData.email,
         name: contactData.name,
@@ -392,6 +420,11 @@ export class ContactsService {
         lastName: contactData.lastName,
         company: contactData.company,
         jobTitle: contactData.jobTitle,
+        phone: contactData.phone,
+        contactType: contactData.contactType,
+        followUpDate: contactData.followUpDate
+          ? new Date(contactData.followUpDate)
+          : undefined,
         searchTokens: JSON.stringify(searchTokens),
       });
       return this.contactRepository.findOneOrFail({
@@ -399,7 +432,6 @@ export class ContactsService {
       });
     }
 
-    // Create new
     return this.contactRepository.save({
       userId,
       provider: "manual",
@@ -411,8 +443,221 @@ export class ContactsService {
       lastName: contactData.lastName,
       company: contactData.company,
       jobTitle: contactData.jobTitle,
+      phone: contactData.phone,
+      contactType: contactData.contactType || null,
+      followUpDate: contactData.followUpDate
+        ? new Date(contactData.followUpDate)
+        : null,
       searchTokens: JSON.stringify(searchTokens),
     });
+  }
+
+  // ─── CRM Delegation Methods ──────────────────────────────────────
+
+  async getContactDetail(userId: string, contactId: string) {
+    const contact = await this.contactRepository.findOne({
+      where: { id: contactId, userId },
+    });
+    if (!contact) throw new NotFoundException("Contact not found");
+
+    const notes = await this.contactCrmService.getContactNotes(contactId);
+    const customFields = await this.contactCrmService.getContactCustomFields(
+      userId,
+      contactId,
+    );
+
+    const dealsRaw = await this.contactRepository.manager.query(
+      `SELECT d.id, d.title, d.value, ds.name as "stageName"
+       FROM deals d
+       LEFT JOIN deal_stages ds ON d."stageId" = ds.id
+       WHERE d."contactId" = $1 AND d."userId" = $2
+       ORDER BY d."createdAt" DESC`,
+      [contactId, userId],
+    );
+
+    return {
+      ...this.toSearchResult(contact),
+      notes,
+      customFields,
+      deals: dealsRaw.map(
+        (d: {
+          id: string;
+          title: string;
+          value: number;
+          stageName: string;
+        }) => ({
+          id: d.id,
+          title: d.title,
+          value: d.value ? Number(d.value) : null,
+          stageName: d.stageName || null,
+        }),
+      ),
+    };
+  }
+
+  async updateContact(
+    userId: string,
+    contactId: string,
+    updates: {
+      name?: string;
+      firstName?: string;
+      lastName?: string;
+      company?: string;
+      jobTitle?: string;
+      phone?: string;
+      contactType?: string;
+      followUpDate?: string | null;
+    },
+  ): Promise<ContactSearchResult> {
+    const contact = await this.contactRepository.findOne({
+      where: { id: contactId, userId },
+    });
+    if (!contact) throw new NotFoundException("Contact not found");
+
+    const partial: Partial<Contact> = {};
+    if (updates.name !== undefined) partial.name = updates.name;
+    if (updates.firstName !== undefined) partial.firstName = updates.firstName;
+    if (updates.lastName !== undefined) partial.lastName = updates.lastName;
+    if (updates.company !== undefined) partial.company = updates.company;
+    if (updates.jobTitle !== undefined) partial.jobTitle = updates.jobTitle;
+    if (updates.phone !== undefined) partial.phone = updates.phone;
+    if (updates.contactType !== undefined) {
+      partial.contactType = updates.contactType;
+      partial.contactTypeAutoDetected = false;
+    }
+    if (updates.followUpDate !== undefined) {
+      partial.followUpDate = updates.followUpDate
+        ? new Date(updates.followUpDate)
+        : null;
+    }
+
+    if (
+      updates.name !== undefined ||
+      updates.firstName !== undefined ||
+      updates.lastName !== undefined ||
+      updates.company !== undefined
+    ) {
+      const searchTokens = SearchIndexHelper.generateSearchTokens(
+        updates.name ?? contact.name,
+        updates.firstName ?? contact.firstName,
+        updates.lastName ?? contact.lastName,
+        updates.company ?? contact.company,
+        SearchIndexHelper.extractEmailLocalPart(contact.email),
+        SearchIndexHelper.extractEmailDomain(contact.email),
+      );
+      partial.searchTokens = JSON.stringify(searchTokens);
+    }
+
+    await this.contactRepository.update(contactId, partial);
+    const updated = await this.contactRepository.findOneOrFail({
+      where: { id: contactId },
+    });
+    return this.toSearchResult(updated);
+  }
+
+  addContactNote(userId: string, contactId: string, content: string) {
+    return this.contactCrmService.addContactNote(userId, contactId, content);
+  }
+
+  updateContactNote(
+    userId: string,
+    contactId: string,
+    noteId: string,
+    content: string,
+  ) {
+    return this.contactCrmService.updateContactNote(
+      userId,
+      contactId,
+      noteId,
+      content,
+    );
+  }
+
+  deleteContactNote(userId: string, contactId: string, noteId: string) {
+    return this.contactCrmService.deleteContactNote(userId, contactId, noteId);
+  }
+
+  getContactTypes(userId: string) {
+    return this.contactCrmService.getContactTypes(userId);
+  }
+
+  createContactType(
+    userId: string,
+    input: { name: string; label: string; color?: string; icon?: string },
+  ) {
+    return this.contactCrmService.createContactType(userId, input);
+  }
+
+  updateContactType(
+    userId: string,
+    typeId: string,
+    input: { label?: string; color?: string; icon?: string },
+  ) {
+    return this.contactCrmService.updateContactType(userId, typeId, input);
+  }
+
+  deleteContactType(userId: string, typeId: string) {
+    return this.contactCrmService.deleteContactType(userId, typeId);
+  }
+
+  getCustomFieldDefinitions(userId: string) {
+    return this.contactCrmService.getCustomFieldDefinitions(userId);
+  }
+
+  createCustomField(
+    userId: string,
+    input: { fieldName: string; fieldType?: string; options?: string[] },
+  ) {
+    return this.contactCrmService.createCustomField(userId, input);
+  }
+
+  updateCustomField(
+    userId: string,
+    fieldId: string,
+    input: { fieldName?: string; fieldType?: string; options?: string[] },
+  ) {
+    return this.contactCrmService.updateCustomField(userId, fieldId, input);
+  }
+
+  deleteCustomField(userId: string, fieldId: string) {
+    return this.contactCrmService.deleteCustomField(userId, fieldId);
+  }
+
+  setCustomFieldValue(
+    userId: string,
+    contactId: string,
+    fieldId: string,
+    value: string,
+  ) {
+    return this.contactCrmService.setCustomFieldValue(
+      userId,
+      contactId,
+      fieldId,
+      value,
+    );
+  }
+
+  async getContactTypesByEmails(
+    userId: string,
+    emails: string[],
+  ): Promise<Record<string, string>> {
+    if (emails.length === 0) return {};
+
+    const emailHashes = emails.map((email) =>
+      SearchIndexHelper.hashExact(email),
+    );
+    const contacts = await this.contactRepository.find({
+      where: { userId, emailHash: In(emailHashes) },
+      select: ["contactType", "email"],
+    });
+
+    const result: Record<string, string> = {};
+    for (const contact of contacts) {
+      if (contact.contactType) {
+        result[contact.email.toLowerCase()] = contact.contactType;
+      }
+    }
+    return result;
   }
 
   /**
@@ -454,6 +699,11 @@ export class ContactsService {
       photoUrl: contact.photoUrl,
       isFavorite: contact.isFavorite,
       contactFrequency: contact.contactFrequency,
+      contactType: contact.contactType || null,
+      followUpDate: contact.followUpDate
+        ? contact.followUpDate.toISOString()
+        : null,
+      phone: contact.phone || null,
     };
   }
 }

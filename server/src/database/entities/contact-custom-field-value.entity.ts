@@ -1,0 +1,49 @@
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
+  Index,
+} from "typeorm";
+import { Contact } from "./contact.entity";
+import { ContactCustomField } from "./contact-custom-field.entity";
+import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
+
+@Entity("contact_custom_field_values")
+@Index(["contactId", "fieldId"], { unique: true })
+export class ContactCustomFieldValue {
+  @PrimaryGeneratedColumn("uuid")
+  id: string;
+
+  @Column()
+  contactId: string;
+
+  @Column()
+  fieldId: string;
+
+  @Column({
+    type: "text",
+    nullable: true,
+    transformer: encryptedColumnTransformer,
+  })
+  value: string;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+
+  @ManyToOne(() => Contact, (contact) => contact.customFieldValueEntries, {
+    onDelete: "CASCADE",
+  })
+  @JoinColumn({ name: "contactId" })
+  contact: Contact;
+
+  @ManyToOne(() => ContactCustomField, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "fieldId" })
+  field: ContactCustomField;
+}

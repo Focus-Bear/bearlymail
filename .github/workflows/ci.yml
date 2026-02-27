@@ -299,6 +299,20 @@ jobs:
           fi
 
           kill $WORKER_PID 2>/dev/null || true
+
+          # Avoid hanging indefinitely if the worker ignores SIGTERM.
+          for _ in $(seq 1 10); do
+            if ! kill -0 $WORKER_PID 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+
+          if kill -0 $WORKER_PID 2>/dev/null; then
+            echo "Worker did not stop after SIGTERM, sending SIGKILL"
+            kill -9 $WORKER_PID 2>/dev/null || true
+          fi
+
           wait $WORKER_PID 2>/dev/null || true
           echo "Worker startup check passed!"
 

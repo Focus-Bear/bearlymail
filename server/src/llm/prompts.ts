@@ -48,6 +48,7 @@ const PROMPT_FILE_MAP: Array<{
     key: "generate_categories_from_other",
   },
   { file: "summarize-email-batch.md", key: "summarize_email_batch" },
+  { file: "classify-contact-type.md", key: "classify_contact_type" },
 ];
 
 function loadPromptFile(

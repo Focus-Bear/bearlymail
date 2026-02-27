@@ -3,6 +3,7 @@ import { theme } from 'theme/theme';
 import { Email } from 'types/email';
 import { PriorityBadge } from 'components/inbox/header/PriorityBadge';
 import { EmailLabels } from 'components/inbox/header/EmailLabels';
+import { InboxContactTypeBadge } from 'components/crm/InboxContactTypeBadge';
 
 interface EmailHeaderLeftProps {
   email: Email;
@@ -34,6 +35,8 @@ export const EmailHeaderLeft: React.FC<EmailHeaderLeftProps> = ({
         {email.correspondentName || email.correspondentEmail || email.fromName || email.from}
       </strong>
       
+      <InboxContactTypeBadge senderEmail={email.correspondentEmail || email.from} />
+
       <PriorityBadge
         email={email}
         priorityTooltip={priorityTooltip}

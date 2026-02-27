@@ -25,7 +25,8 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ label, path, icon, active, on
   const handleClick = () => {
     if (path === '/inbox') captureEvent('sidebar_inbox_clicked');
     else if (path === '/search') captureEvent('sidebar_search_clicked');
-    else if (path === '/contacts') captureEvent('sidebar_contacts_clicked');
+    else if (path === '/crm/contacts') captureEvent('sidebar_contacts_clicked');
+    else if (path === '/crm/deals') captureEvent('sidebar_deals_clicked');
     else if (path === '/stats') captureEvent('sidebar_stats_clicked');
     else if (path === '/settings') captureEvent('sidebar_settings_clicked');
     else if (path === '/admin') captureEvent('sidebar_admin_clicked');
@@ -295,13 +296,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onNavigationClick={handleNavigationClick}
           />
           <SidebarItem
-            label={t('contacts.title')}
-            path="/contacts"
-            icon="👤"
-            active={location.pathname === '/contacts'}
+            label={t('crm.title')}
+            path="/crm/contacts"
+            icon="💼"
+            active={location.pathname.startsWith('/crm')}
             isCollapsed={isCollapsed}
-            onNavigationClick={handleNavigationClick}
+            onNavigationClick={isCollapsed ? handleNavigationClick : undefined}
           />
+          {!isCollapsed && location.pathname.startsWith('/crm') && (
+            <div style={{ marginLeft: theme.spacing.lg, marginBottom: theme.spacing.xs }}>
+              <SidebarItem
+                label={t('crm.contacts')}
+                path="/crm/contacts"
+                icon="👤"
+                active={location.pathname === '/crm/contacts' || location.pathname.startsWith('/crm/contacts/')}
+                isCollapsed={false}
+                onNavigationClick={handleNavigationClick}
+              />
+              <SidebarItem
+                label={t('crm.deals')}
+                path="/crm/deals"
+                icon="🤝"
+                active={location.pathname === '/crm/deals'}
+                isCollapsed={false}
+                onNavigationClick={handleNavigationClick}
+              />
+            </div>
+          )}
           <SidebarItem
             label={t('stats.title')}
             path="/stats"

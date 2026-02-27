@@ -7,9 +7,26 @@ import {
   ManyToOne,
   JoinColumn,
   Index,
+  OneToMany,
 } from "typeorm";
 import { User } from "./user.entity";
 import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
+import { ContactNote } from "./contact-note.entity";
+import { ContactCustomFieldValue } from "./contact-custom-field-value.entity";
+import { Deal } from "./deal.entity";
+
+export const DEFAULT_CONTACT_TYPES = [
+  "lead",
+  "customer",
+  "team_member",
+  "advisor",
+  "stranger",
+  "bot",
+  "partner",
+  "spammer",
+] as const;
+
+export type DefaultContactType = (typeof DEFAULT_CONTACT_TYPES)[number];
 
 /**
  * Contact entity with searchable encryption using blind indexing.
@@ -25,10 +42,9 @@ import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
  * - Only decrypt the matching contacts for display
  */
 @Entity("contacts")
-// Fast lookup by email
 @Index(["userId", "emailHash"])
-// Prevent duplicates from same provider
 @Index(["userId", "provider", "providerId"], { unique: true })
+@Index(["userId", "contactType"])
 export class Contact {
   @PrimaryGeneratedColumn("uuid")
   id: string;
@@ -36,7 +52,6 @@ export class Contact {
   @Column()
   userId: string;
 
-  // Provider information (for sync tracking)
   @Column({ default: "manual", comment: "'gmail', 'outlook', 'manual', etc." })
   provider: string;
 
@@ -46,7 +61,6 @@ export class Contact {
   })
   providerId: string;
 
-  // Encrypted fields
   @Column({ transformer: encryptedColumnTransformer })
   email: string;
 
@@ -71,18 +85,13 @@ export class Contact {
   @Column({ nullable: true, transformer: encryptedColumnTransformer })
   photoUrl: string;
 
-  // Blind index for email (SHA-256 hash) - enables exact email lookups
   @Column()
   @Index()
   emailHash: string;
 
-  // Search tokens - hashed trigrams and normalized tokens for fuzzy search
-  // Stored as JSON array of hashes: ["abc123...", "def456...", ...]
-  // Generated from: email domain, name parts, company name
   @Column("text", { nullable: true, comment: "JSON array of hashed tokens" })
   searchTokens: string;
 
-  // Metadata
   @Column({ default: false })
   isFavorite: boolean;
 
@@ -91,6 +100,22 @@ export class Contact {
 
   @Column({ default: 0, comment: "How often user emails this contact" })
   contactFrequency: number;
+
+  @Column({
+    nullable: true,
+    comment:
+      "Contact type: lead, customer, team_member, advisor, stranger, bot, partner, spammer, or custom",
+  })
+  contactType: string;
+
+  @Column({
+    default: false,
+    comment: "Whether contactType was set by LLM auto-detection",
+  })
+  contactTypeAutoDetected: boolean;
+
+  @Column({ nullable: true, comment: "Follow-up date for CRM tracking" })
+  followUpDate: Date;
 
   @CreateDateColumn()
   createdAt: Date;
@@ -104,4 +129,13 @@ export class Contact {
   @ManyToOne(() => User, { onDelete: "CASCADE" })
   @JoinColumn({ name: "userId" })
   user: User;
+
+  @OneToMany(() => ContactNote, (note) => note.contact)
+  notes: ContactNote[];
+
+  @OneToMany(() => ContactCustomFieldValue, (cfv) => cfv.contact)
+  customFieldValueEntries: ContactCustomFieldValue[];
+
+  @OneToMany(() => Deal, (deal) => deal.contact)
+  deals: Deal[];
 }

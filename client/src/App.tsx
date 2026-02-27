@@ -21,6 +21,8 @@ import TermsOfUse from 'pages/TermsOfUse';
 import Search from 'pages/Search';
 import Compose from 'pages/Compose';
 import Contacts from 'pages/Contacts';
+import ContactDetail from 'pages/ContactDetail';
+import Deals from 'pages/Deals';
 import Stats from 'pages/Stats';
 import SetupPassword from 'pages/SetupPassword';
 import AuthError from 'pages/AuthError';
@@ -213,9 +215,29 @@ function App() {
               />
               <Route
                 path="/contacts"
+                element={<Navigate to="/crm/contacts" />}
+              />
+              <Route
+                path="/crm/contacts"
                 element={
                   <PrivateRoute>
                     <Contacts />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/crm/contacts/:contactId"
+                element={
+                  <PrivateRoute>
+                    <ContactDetail />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/crm/deals"
+                element={
+                  <PrivateRoute>
+                    <Deals />
                   </PrivateRoute>
                 }
               />

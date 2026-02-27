@@ -1,6 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { ContactsService } from "./contacts.service";
+import { ContactCrmService } from "./contact-crm.service";
 import { Contact } from "../database/entities/contact.entity";
 import { GmailContactsProvider } from "./providers/gmail-contacts.provider";
 import { SearchIndexHelper } from "./search-index.helper";
@@ -25,6 +26,24 @@ describe("ContactsService", () => {
     searchContacts: jest.fn(),
   };
 
+  const mockContactCrmService = {
+    getContactNotes: jest.fn().mockResolvedValue([]),
+    getContactCustomFields: jest.fn().mockResolvedValue([]),
+    addContactNote: jest.fn(),
+    updateContactNote: jest.fn(),
+    deleteContactNote: jest.fn(),
+    getContactTypes: jest.fn().mockResolvedValue([]),
+    ensureDefaultContactTypes: jest.fn().mockResolvedValue([]),
+    createContactType: jest.fn(),
+    updateContactType: jest.fn(),
+    deleteContactType: jest.fn(),
+    getCustomFieldDefinitions: jest.fn().mockResolvedValue([]),
+    createCustomField: jest.fn(),
+    updateCustomField: jest.fn(),
+    deleteCustomField: jest.fn(),
+    setCustomFieldValue: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -36,6 +55,10 @@ describe("ContactsService", () => {
         {
           provide: GmailContactsProvider,
           useValue: mockGmailContactsProvider,
+        },
+        {
+          provide: ContactCrmService,
+          useValue: mockContactCrmService,
         },
       ],
     }).compile();

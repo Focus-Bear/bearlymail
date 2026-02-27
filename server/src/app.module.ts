@@ -26,6 +26,7 @@ import { ActionItemsModule } from "./action-items/action-items.module";
 import { BatchScheduleModule } from "./batch-schedule/batch-schedule.module";
 import { FollowUpsModule } from "./follow-ups/follow-ups.module";
 import { ContactsModule } from "./contacts/contacts.module";
+import { CrmModule } from "./crm/crm.module";
 import { BlockedSendersModule } from "./blocked-senders/blocked-senders.module";
 import { BlockedKeywordsModule } from "./blocked-keywords/blocked-keywords.module";
 import { EmailModule } from "./email/email.module";
@@ -84,6 +85,7 @@ import { ProtoCategoriesModule } from "./proto-categories/proto-categories.modul
     BatchScheduleModule,
     FollowUpsModule,
     ContactsModule,
+    CrmModule,
     BlockedSendersModule,
     BlockedKeywordsModule,
     EmailModule,

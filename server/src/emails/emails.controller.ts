@@ -203,6 +203,15 @@ export class EmailsController {
     }
   }
 
+  @Get("recategorize-progress")
+  async getRecategorizeProgress(
+    @Request() req,
+    @Query("batchId") batchId: string,
+  ) {
+    const { userId } = req.user;
+    return this.emailAdminService.getRecategorizationProgress(userId, batchId);
+  }
+
   @Get("tab-counts")
   async getTabCounts(@Request() req) {
     const { userId } = req.user;
@@ -889,15 +898,6 @@ export class EmailsController {
       req.user.userId,
       modesParam,
     );
-  }
-
-  @Get("recategorize-progress")
-  async getRecategorizeProgress(
-    @Request() req,
-    @Query("batchId") batchId: string,
-  ) {
-    const { userId } = req.user;
-    return this.emailAdminService.getRecategorizationProgress(userId, batchId);
   }
 
   @Get("admin/job-stats")

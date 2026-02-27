@@ -115,6 +115,18 @@ export const colors = {
     medium: '#CCCCCC',     // 400
     dark: '#999999',       // 500
   },
+
+  // Section-specific accents used by collapsible cards
+  section: {
+    summary: {
+      accent: '#E9902C',
+      background: '#FCEFE0',
+    },
+    notes: {
+      accent: '#666666',
+      background: '#FCF8F0',
+    },
+  },
   
   // Button States - Primary Button
   button: {

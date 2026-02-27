@@ -131,26 +131,58 @@ export class EmailSearchService {
         ];
       }
 
-      // Step 1: Convert query to Gmail search syntax
-      onProgress?.("converting", "Crafting search query for Gmail...");
-      const gmailQueries = await this.buildGmailQueriesFromNaturalLanguage(
-        userId,
-        originalQuery,
-      );
-
-      // Step 2: Search across all selected providers
+      // Step 1: Search immediately using the user's original query
       onProgress?.(
         "searching",
         `Searching for emails across ${providersToSearch.length} account(s)...`,
       );
 
-      const providerSearchResult = await this.searchAllProviders(
+      const {
+        rawEmails: directRawEmails,
+        successfulQuery: directSuccessfulQuery,
+        queriesTried: directQueriesTried,
+      } = await this.searchAllProviders(
         userId,
-        gmailQueries,
+        [originalQuery],
         providersToSearch,
       );
-      const { rawEmails, successfulQuery } = providerSearchResult;
-      queriesTried.push(...providerSearchResult.queriesTried);
+
+      let rawEmails = directRawEmails;
+      let successfulQuery = directSuccessfulQuery;
+      let gmailQueries = [originalQuery];
+      queriesTried.push(...directQueriesTried);
+
+      // Step 2: If no direct matches, use AI to craft alternative query terms
+      if (rawEmails.length === 0) {
+        onProgress?.("converting", "Crafting alternative search queries...");
+        const aiQueries = await this.buildGmailQueriesFromNaturalLanguage(
+          userId,
+          originalQuery,
+        );
+        gmailQueries = [
+          originalQuery,
+          ...aiQueries.filter(
+            (generatedQuery) => generatedQuery !== originalQuery,
+          ),
+        ];
+
+        onProgress?.(
+          "searching",
+          `Searching for emails across ${providersToSearch.length} account(s)...`,
+        );
+        const {
+          rawEmails: fallbackRawEmails,
+          successfulQuery: fallbackSuccessfulQuery,
+          queriesTried: fallbackQueriesTried,
+        } = await this.searchAllProviders(
+          userId,
+          gmailQueries.slice(1),
+          providersToSearch,
+        );
+        rawEmails = fallbackRawEmails;
+        successfulQuery = fallbackSuccessfulQuery;
+        queriesTried.push(...fallbackQueriesTried);
+      }
 
       if (rawEmails.length === 0) {
         searchLogger.logSearchComplete(

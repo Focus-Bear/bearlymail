@@ -158,12 +158,8 @@ describe('useSearch', () => {
       await act(async () => {
         jest.advanceTimersByTime(100);
       });
-      expect(result.current.progressStep).toBe('Crafting search query...');
-
-      await act(async () => {
-        jest.advanceTimersByTime(900);
-      });
       expect(result.current.progressStep).toBe('Searching for emails...');
+
     });
 
     it('should handle empty results', async () => {

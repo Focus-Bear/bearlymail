@@ -59,8 +59,7 @@ export const useSearch = () => {
     setQueriesTried([]);
 
     const steps = [
-      { delay: 0, message: 'Crafting search query...' },
-      { delay: 800, message: 'Searching for emails...' },
+      { delay: 0, message: 'Searching for emails...' },
     ];
 
     const startTime = Date.now();

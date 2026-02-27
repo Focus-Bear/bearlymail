@@ -14,6 +14,7 @@ export interface ExceptionFrame {
 export interface PosthogExceptionPayload {
   type: string;
   value: string;
+  platform: string;
   mechanism: {
     handled: boolean;
     synthetic: boolean;
@@ -92,6 +93,7 @@ export function createPosthogExceptionPayload(
   return {
     type: error.name,
     value: error.message,
+    platform: "node",
     mechanism: {
       handled,
       synthetic: false,

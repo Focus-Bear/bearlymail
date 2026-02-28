@@ -733,11 +733,12 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
           draft_count: response.data.length,
         });
         const optionsWithCustom = [
+          { label: 'Custom', text: '' },
           ...response.data,
-          { label: 'Custom', text: '' }
         ];
         setReplyOptions(optionsWithCustom);
-        setDraft(response.data[0].text);
+        // Don't auto-populate draft - let user choose or start typing
+        setDraft('');
         setSelectedReplyOption(0);
       } else {
         setReplyOptions([{ label: 'Custom', text: '' }]);
@@ -846,13 +847,13 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
       }
     }
     // Only generate suggestions if we don't already have them (they may have been pre-generated in background)
-    // Also don't clear draft if we have pre-generated suggestions
     if (!replyOptions || replyOptions.length === 0) {
       setDraft('');
       handleGenerateDraft();
-    } else if (replyOptions.length > 0 && !draft) {
-      // If we have suggestions but no draft selected, select the first one
-      setDraft(replyOptions[0].text);
+    } else {
+      // If we have suggestions, start with empty draft (Custom option)
+      // Don't auto-populate - let user choose or start typing
+      setDraft('');
     }
   }, [id, email, threadEmails, draft, replyOptions, user?.email, setReplyMode, setShowReplyComposer, setDraft, setToneCheckResult, setReplyRecipients, setReplyCc, setReplyBcc, setShowCc, setShowBcc, handleGenerateDraft]);
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Deal, DealStage } from 'types/deal';
@@ -35,9 +35,115 @@ export const DealFormModal: React.FC<DealFormModalProps> = ({
   const [currency, setCurrency] = useState(deal?.currency || 'USD');
   const [stageId, setStageId] = useState(deal?.stageId || (stages[0]?.id || ''));
   const [contactId, setContactId] = useState(deal?.contactId || '');
+  const [contactSearchTerm, setContactSearchTerm] = useState('');
+  const [isContactDropdownOpen, setIsContactDropdownOpen] = useState(false);
+  const [highlightedContactIndex, setHighlightedContactIndex] = useState(-1);
+  const contactDropdownRef = useRef<HTMLDivElement>(null);
+  const contactSearchInputRef = useRef<HTMLInputElement>(null);
   const [expectedCloseDate, setExpectedCloseDate] = useState(
     deal?.expectedCloseDate ? deal.expectedCloseDate.split('T')[0] : ''
   );
+
+  const selectableContacts = useMemo(
+    () => contacts.filter((contact): contact is Contact & { id: string } => Boolean(contact.id)),
+    [contacts]
+  );
+
+  const filteredContacts = useMemo(() => {
+    const normalizedSearch = contactSearchTerm.trim().toLowerCase();
+    if (!normalizedSearch) return selectableContacts;
+
+    return selectableContacts.filter((contact) => {
+      const contactName = (contact.name || '').toLowerCase();
+      const contactEmail = (contact.email || '').toLowerCase();
+      return contactName.includes(normalizedSearch) || contactEmail.includes(normalizedSearch);
+    });
+  }, [selectableContacts, contactSearchTerm]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (contactDropdownRef.current && !contactDropdownRef.current.contains(event.target as Node)) {
+        setIsContactDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (isContactDropdownOpen && contactSearchInputRef.current) {
+      contactSearchInputRef.current.focus();
+    }
+  }, [isContactDropdownOpen]);
+
+  useEffect(() => {
+    setHighlightedContactIndex(-1);
+  }, [contactSearchTerm, isContactDropdownOpen]);
+
+  const contactLabelById = useMemo(
+    () => new Map(selectableContacts.map((contact) => [contact.id, contact.name || contact.email])),
+    [selectableContacts]
+  );
+
+  const selectedContactLabel = contactId ? contactLabelById.get(contactId) || '' : '';
+
+  const closeContactDropdown = () => {
+    setIsContactDropdownOpen(false);
+    setContactSearchTerm('');
+    setHighlightedContactIndex(-1);
+  };
+
+  const toggleContactDropdown = () => {
+    setIsContactDropdownOpen((prevOpen) => {
+      const isOpening = !prevOpen;
+      if (!isOpening) {
+        setContactSearchTerm('');
+        setHighlightedContactIndex(-1);
+      }
+      return isOpening;
+    });
+  };
+
+  const handleContactSelect = (selectedId: string) => {
+    setContactId(selectedId);
+    closeContactDropdown();
+  };
+
+  const handleContactSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    const maxIndex = filteredContacts.length;
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeContactDropdown();
+      return;
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setHighlightedContactIndex((prevIndex) => (prevIndex >= maxIndex ? 0 : prevIndex + 1));
+      return;
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setHighlightedContactIndex((prevIndex) => (prevIndex <= 0 ? maxIndex : prevIndex - 1));
+      return;
+    }
+
+    if (event.key === 'Enter' && highlightedContactIndex >= 0) {
+      event.preventDefault();
+      if (highlightedContactIndex === 0) {
+        handleContactSelect('');
+        return;
+      }
+
+      const selectedContact = filteredContacts[highlightedContactIndex - 1];
+      if (selectedContact) {
+        handleContactSelect(selectedContact.id);
+      }
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,20 +244,123 @@ export const DealFormModal: React.FC<DealFormModalProps> = ({
             <div>
               <label style={labelStyle}>{t('deals.dealStage')}</label>
               <select value={stageId} onChange={(e) => setStageId(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
-                {stages.map(s => (
+                {stages.map((s) => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
             </div>
 
-            <div>
+            <div ref={contactDropdownRef}>
               <label style={labelStyle}>{t('deals.contact')}</label>
-              <select value={contactId} onChange={(e) => setContactId(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
-                <option value="">--</option>
-                {contacts.map(c => (
-                  <option key={c.id} value={c.id}>{c.name || c.email}</option>
-                ))}
-              </select>
+              <button
+                type="button"
+                onClick={toggleContactDropdown}
+                style={{
+                  ...inputStyle,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+                aria-label={t('deals.contact')}
+                aria-haspopup="listbox"
+                aria-controls="deal-contact-listbox"
+                aria-expanded={isContactDropdownOpen}
+              >
+                <span style={{ color: selectedContactLabel ? theme.colors.text.primary : theme.colors.text.tertiary }}>
+                  {selectedContactLabel || '--'}
+                </span>
+                <span style={{ color: theme.colors.text.tertiary }}>{isContactDropdownOpen ? '▲' : '▼'}</span>
+              </button>
+
+              {isContactDropdownOpen && (
+                <div
+                  style={{
+                    marginTop: theme.spacing.xs,
+                    border: `1px solid ${theme.colors.border.medium}`,
+                    borderRadius: theme.borderRadius.md,
+                    backgroundColor: theme.colors.background.paper,
+                    boxShadow: theme.shadows.lg,
+                    overflow: 'hidden',
+                    position: 'relative',
+                    zIndex: 20,
+                  }}
+                >
+                  <div style={{ padding: theme.spacing.sm, borderBottom: `1px solid ${theme.colors.border.light}` }}>
+                    <input
+                      ref={contactSearchInputRef}
+                      value={contactSearchTerm}
+                      onChange={(e) => setContactSearchTerm(e.target.value)}
+                      onKeyDown={handleContactSearchKeyDown}
+                      aria-label={t('deals.searchContacts')}
+                      placeholder={t('deals.searchContacts')}
+                      style={inputStyle}
+                    />
+                  </div>
+
+                  <div id="deal-contact-listbox" style={{ maxHeight: '220px', overflowY: 'auto' }} role="listbox">
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={contactId === ''}
+                      onMouseEnter={() => setHighlightedContactIndex(0)}
+                      onClick={() => handleContactSelect('')}
+                      style={{
+                        width: '100%',
+                        border: 'none',
+                        backgroundColor: highlightedContactIndex === 0 || contactId === ''
+                          ? theme.colors.background.subtle
+                          : 'transparent',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                        fontSize: theme.typography.fontSize.base,
+                        color: theme.colors.text.primary,
+                      }}
+                    >
+                      --
+                    </button>
+
+                    {filteredContacts.map((contact, index) => {
+                      const optionIndex = index + 1;
+                      const isHighlighted = highlightedContactIndex === optionIndex;
+                      const isSelected = contact.id === contactId;
+
+                      return (
+                        <button
+                          key={contact.id}
+                          type="button"
+                          role="option"
+                          aria-selected={isSelected}
+                          onMouseEnter={() => setHighlightedContactIndex(optionIndex)}
+                          onClick={() => handleContactSelect(contact.id)}
+                          style={{
+                            width: '100%',
+                            border: 'none',
+                            backgroundColor: isHighlighted || isSelected
+                              ? theme.colors.background.subtle
+                              : 'transparent',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                            fontSize: theme.typography.fontSize.base,
+                            color: theme.colors.text.primary,
+                          }}
+                        >
+                          {contact.name || contact.email}
+                        </button>
+                      );
+                    })}
+
+                    {filteredContacts.length === 0 && (
+                      <div style={{ padding: theme.spacing.md, color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.sm }}>
+                        {t('deals.noContactsFound')}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>

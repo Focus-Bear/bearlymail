@@ -657,6 +657,8 @@
     "dealStage": "Etapa",
     "expectedClose": "Cierre Esperado",
     "contact": "Contacto",
+    "searchContacts": "Buscar contactos...",
+    "noContactsFound": "No se encontraron contactos",
     "currency": "Moneda",
     "noDeals": "Aún no hay negocios",
     "createFirstDeal": "Crea tu primer negocio para comenzar a rastrear oportunidades.",

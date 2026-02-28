@@ -16,7 +16,7 @@ interface SidebarItemProps {
   active?: boolean;
   onClick?: () => void;
   isCollapsed?: boolean;
-  onNavigationClick?: () => void;
+  onNavigationClick?: (path: string) => void;
 }
 
 const SidebarItem: React.FC<SidebarItemProps> = ({ label, path, icon, active, onClick, isCollapsed, onNavigationClick }) => {
@@ -37,7 +37,7 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ label, path, icon, active, on
     }
     // Call navigation click handler (for closing mobile menu)
     if (onNavigationClick) {
-      onNavigationClick();
+      onNavigationClick(path);
     }
   };
 
@@ -226,11 +226,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const isNarrow = isMobile || isTablet;
 
   // On narrow screens, clicking a navigation item should close the menu
-  const handleNavigationClick = () => {
-    if (isNarrow && onCloseMobileMenu) {
+  const handleNavigationClick = (path: string) => {
+    const shouldKeepOpen = path === '/settings';
+    if (isNarrow && onCloseMobileMenu && !shouldKeepOpen) {
       onCloseMobileMenu();
     }
   };
+
+  const effectiveIsCollapsed = isCollapsed && !isNarrow;
 
   return (
     <>
@@ -252,10 +255,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar */}
       <div style={{
-        width: isCollapsed ? '80px' : '280px',
+        width: effectiveIsCollapsed ? '80px' : '280px',
         backgroundColor: theme.colors.background.paper,
         borderRight: `1px solid ${theme.colors.border.light}`,
-        padding: isCollapsed ? theme.spacing.sm : `${theme.spacing.sm} ${theme.spacing.md}`,
+        padding: effectiveIsCollapsed ? theme.spacing.sm : `${theme.spacing.sm} ${theme.spacing.md}`,
         display: 'flex',
         flexDirection: 'column',
         height: '100vh',
@@ -271,7 +274,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           padding: `${theme.spacing.sm} ${theme.spacing.sm}`,
         }),
       }}>
-        <SidebarHeader isCollapsed={isCollapsed} />
+        <SidebarHeader isCollapsed={effectiveIsCollapsed} />
 
         <nav style={{
           flex: 1,
@@ -284,7 +287,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             path="/inbox"
             icon="📥"
             active={location.pathname === '/inbox'}
-            isCollapsed={isCollapsed}
+            isCollapsed={effectiveIsCollapsed}
             onNavigationClick={handleNavigationClick}
           />
           <SidebarItem
@@ -292,7 +295,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             path="/search"
             icon="🔍"
             active={location.pathname === '/search'}
-            isCollapsed={isCollapsed}
+            isCollapsed={effectiveIsCollapsed}
             onNavigationClick={handleNavigationClick}
           />
           <SidebarItem
@@ -300,7 +303,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             path="/crm/contacts"
             icon="💼"
             active={location.pathname.startsWith('/crm')}
-            isCollapsed={isCollapsed}
+            isCollapsed={effectiveIsCollapsed}
             onNavigationClick={isCollapsed ? handleNavigationClick : undefined}
           />
           {!isCollapsed && location.pathname.startsWith('/crm') && (
@@ -328,30 +331,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
             path="/stats"
             icon="📊"
             active={location.pathname === '/stats'}
-            isCollapsed={isCollapsed}
+            isCollapsed={effectiveIsCollapsed}
             onNavigationClick={handleNavigationClick}
           />
-          {!isCollapsed && (
+          {!effectiveIsCollapsed && (
             <div style={{ marginTop: theme.spacing.xs }}>
               <SidebarItem
                 label={t('settings.title')}
                 path="/settings"
                 icon="⚙️"
                 active={isSettingsPage}
-                isCollapsed={isCollapsed}
+                isCollapsed={effectiveIsCollapsed}
                 onNavigationClick={handleNavigationClick}
               />
               {isSettingsPage && <SettingsSubNav hash={location.hash} />}
             </div>
           )}
-          {isCollapsed && (
+          {effectiveIsCollapsed && (
             <div style={{ marginTop: theme.spacing.xs }}>
               <SidebarItem
                 label={t('settings.title')}
                 path="/settings"
                 icon="⚙️"
                 active={isSettingsPage}
-                isCollapsed={isCollapsed}
+                isCollapsed={effectiveIsCollapsed}
                 onNavigationClick={handleNavigationClick}
               />
             </div>
@@ -363,16 +366,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 path="/admin"
                 icon="🛠️"
                 active={location.pathname === '/admin'}
-                isCollapsed={isCollapsed}
+                isCollapsed={effectiveIsCollapsed}
                 onNavigationClick={handleNavigationClick}
               />
             </div>
           )}
         </nav>
 
-        <SidebarFooter userEmail={user?.email} onLogout={logout} isCollapsed={isCollapsed} onToggleCollapse={onToggleCollapse} />
+        <SidebarFooter userEmail={user?.email} onLogout={logout} isCollapsed={effectiveIsCollapsed} onToggleCollapse={onToggleCollapse} />
       </div>
     </>
   );
 };
-

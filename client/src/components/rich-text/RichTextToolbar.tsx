@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
 import { Editor } from '@tiptap/react';
+import { createPortal } from 'react-dom';
 import { theme } from 'theme/theme';
 
 import { FONT_WEIGHT_BOLD_INLINE, FONT_WEIGHT_NORMAL_INLINE, OPACITY_HALF, Z_INDEX_POPUP } from 'constants/numbers';
@@ -90,6 +91,36 @@ export const RichTextToolbar: React.FC<RichTextToolbarProps> = ({
   const linkInputRef = useRef<HTMLInputElement>(null);
   const emojiButtonRef = useRef<HTMLDivElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
+  const [emojiPickerPosition, setEmojiPickerPosition] = useState<{ top: number; left: number } | null>(null);
+
+  const updateEmojiPickerPosition = useCallback(() => {
+    if (!emojiButtonRef.current) return;
+
+    const triggerRect = emojiButtonRef.current.getBoundingClientRect();
+    const pickerRect = emojiPickerRef.current?.getBoundingClientRect();
+
+    const viewportPadding = 12;
+    const pickerOffset = 8;
+    const fallbackPickerWidth = 352;
+    const fallbackPickerHeight = 435;
+    const pickerWidth = pickerRect?.width || fallbackPickerWidth;
+    const pickerHeight = pickerRect?.height || fallbackPickerHeight;
+    const availableBottomSpace = window.innerHeight - triggerRect.bottom;
+    const shouldOpenAbove = availableBottomSpace < pickerHeight + pickerOffset;
+
+    const maxLeft = Math.max(viewportPadding, window.innerWidth - pickerWidth - viewportPadding);
+    const nextLeft = Math.max(viewportPadding, Math.min(triggerRect.right - pickerWidth, maxLeft));
+    const preferredTop = shouldOpenAbove ? triggerRect.top - pickerHeight - pickerOffset : triggerRect.bottom + pickerOffset;
+    const maxTop = Math.max(viewportPadding, window.innerHeight - pickerHeight - viewportPadding);
+    const nextTop = Math.max(viewportPadding, Math.min(preferredTop, maxTop));
+
+    setEmojiPickerPosition((previousPosition) => {
+      if (previousPosition?.top === nextTop && previousPosition?.left === nextLeft) {
+        return previousPosition;
+      }
+      return { top: nextTop, left: nextLeft };
+    });
+  }, []);
 
   useEffect(() => {
     if (linkDialogOpen && !showLinkInput) {
@@ -126,6 +157,24 @@ export const RichTextToolbar: React.FC<RichTextToolbarProps> = ({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showEmojiPicker]);
+
+  useLayoutEffect(() => {
+    if (!showEmojiPicker) {
+      setEmojiPickerPosition(null);
+      return;
+    }
+
+    updateEmojiPickerPosition();
+    const animationFrameId = window.requestAnimationFrame(updateEmojiPickerPosition);
+
+    window.addEventListener('resize', updateEmojiPickerPosition);
+    window.addEventListener('scroll', updateEmojiPickerPosition, true);
+    return () => {
+      window.cancelAnimationFrame(animationFrameId);
+      window.removeEventListener('resize', updateEmojiPickerPosition);
+      window.removeEventListener('scroll', updateEmojiPickerPosition, true);
+    };
+  }, [showEmojiPicker, updateEmojiPickerPosition]);
 
   const handleLinkSubmit = useCallback(() => {
     if (!editor || !linkUrl) return;
@@ -349,25 +398,27 @@ export const RichTextToolbar: React.FC<RichTextToolbarProps> = ({
           {/* eslint-disable-next-line i18next/no-literal-string */}
           <span style={{ fontSize: '14px' }}>😊</span>
         </ToolbarButton>
-        {showEmojiPicker && (
-          <div
-            ref={emojiPickerRef}
-            style={{
-              position: 'absolute',
-              top: '100%',
-              right: 0,
-              zIndex: Z_INDEX_POPUP,
-              marginTop: theme.spacing.xs,
-            }}
-          >
-            <EmojiPicker
-              onSelect={(emoji) => {
-                onInsertEmoji(emoji);
-                setShowEmojiPicker(false);
+        {showEmojiPicker &&
+          createPortal(
+            <div
+              ref={emojiPickerRef}
+              style={{
+                position: 'fixed',
+                top: `${emojiPickerPosition?.top ?? 0}px`,
+                left: `${emojiPickerPosition?.left ?? 0}px`,
+                zIndex: Z_INDEX_POPUP,
+                visibility: emojiPickerPosition ? 'visible' : 'hidden',
               }}
-            />
-          </div>
-        )}
+            >
+              <EmojiPicker
+                onSelect={(emoji) => {
+                  onInsertEmoji(emoji);
+                  setShowEmojiPicker(false);
+                }}
+              />
+            </div>,
+            document.body,
+          )}
       </div>
 
       <ToolbarDivider />

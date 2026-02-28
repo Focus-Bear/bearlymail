@@ -61,6 +61,7 @@ interface ReplyComposerProps {
   currentEmailId?: string;
   currentEmailObjectId?: string;
   currentEmailThreadId?: string;
+  scheduledSendAt?: Date | null;
   onReplyRecipientsChange: (recipients: string) => void;
   onCcChange: (cc: string) => void;
   onBccChange: (bcc: string) => void;
@@ -69,7 +70,7 @@ interface ReplyComposerProps {
   onDraftChange: (draft: string) => void;
   onReplyOptionSelect: (index: number, text: string) => void;
   onClose: () => void;
-  onSend: (files: File[], expectedReplyHours?: number, forwardAttachmentIds?: string[], draftOverride?: string) => void;
+  onSend: (files: File[], expectedReplyHours?: number, forwardAttachmentIds?: string[], draftOverride?: string, scheduledSendAt?: Date) => void;
   onUseRevisedText: (text: string) => void;
   textareaRef?: React.RefObject<HTMLTextAreaElement>;
   onDispute?: (emailText: string, suggestions: string[], argument: string) => Promise<DisputeResult | null>;
@@ -98,6 +99,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
   currentEmailId,
   currentEmailObjectId,
   currentEmailThreadId,
+  scheduledSendAt,
   onReplyRecipientsChange,
   onCcChange,
   onBccChange,
@@ -185,8 +187,8 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
     onDraftChange(newDraft);
   };
 
-  const handleSend = (expectedReplyHours?: number, draftOverride?: string) => {
-    onSend(files, expectedReplyHours, forwardAttachmentIds.length > 0 ? forwardAttachmentIds : undefined, draftOverride);
+  const handleSend = (expectedReplyHours?: number, draftOverride?: string, scheduledSendAt?: Date) => {
+    onSend(files, expectedReplyHours, forwardAttachmentIds.length > 0 ? forwardAttachmentIds : undefined, draftOverride, scheduledSendAt);
     setFiles([]);
     setForwardAttachmentIds([]);
   };
@@ -430,6 +432,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
         sending={sending}
         checkingTone={checkingTone}
         draft={draft}
+        scheduledSendAt={scheduledSendAt}
         onClose={handleClose}
         onSend={handleSend}
         onSchedule={onSchedule}

@@ -34,7 +34,7 @@ describe('ReplyComposerFooter', () => {
 
       fireEvent.click(screen.getByText('emailDetail.send'));
 
-      expect(defaultProps.onSend).toHaveBeenCalledWith(48);
+      expect(defaultProps.onSend).toHaveBeenCalledWith(48, undefined, undefined);
     });
 
     it('sends 0 when "None" is selected', () => {
@@ -45,8 +45,8 @@ describe('ReplyComposerFooter', () => {
       fireEvent.click(screen.getByText('emailDetail.send'));
 
       // Must pass 0 (not undefined) so archive branch is reached
-      expect(defaultProps.onSend).toHaveBeenCalledWith(0);
-      expect(defaultProps.onSend).not.toHaveBeenCalledWith(undefined);
+      expect(defaultProps.onSend).toHaveBeenCalledWith(0, undefined, undefined);
+      expect(defaultProps.onSend).not.toHaveBeenCalledWith(undefined, undefined, undefined);
     });
 
     it('sends 24 when 24h option is selected', () => {
@@ -55,7 +55,7 @@ describe('ReplyComposerFooter', () => {
       fireEvent.click(screen.getByText('emailDetail.expectedReply.hours {"count":24}'));
       fireEvent.click(screen.getByText('emailDetail.send'));
 
-      expect(defaultProps.onSend).toHaveBeenCalledWith(24);
+      expect(defaultProps.onSend).toHaveBeenCalledWith(24, undefined, undefined);
     });
 
     it('sends 72 when 3d option is selected', () => {
@@ -64,7 +64,7 @@ describe('ReplyComposerFooter', () => {
       fireEvent.click(screen.getByText('emailDetail.expectedReply.days {"count":3}'));
       fireEvent.click(screen.getByText('emailDetail.send'));
 
-      expect(defaultProps.onSend).toHaveBeenCalledWith(72);
+      expect(defaultProps.onSend).toHaveBeenCalledWith(72, undefined, undefined);
     });
 
     it('sends 168 when 7d option is selected', () => {
@@ -73,7 +73,26 @@ describe('ReplyComposerFooter', () => {
       fireEvent.click(screen.getByText('emailDetail.expectedReply.days {"count":7}'));
       fireEvent.click(screen.getByText('emailDetail.send'));
 
-      expect(defaultProps.onSend).toHaveBeenCalledWith(168);
+      expect(defaultProps.onSend).toHaveBeenCalledWith(168, undefined, undefined);
+    });
+  });
+
+  describe('scheduledSendAt parameter', () => {
+    it('sends scheduledSendAt when provided', () => {
+      const scheduledTime = new Date('2024-03-01T10:00:00Z');
+      render(<ReplyComposerFooter {...defaultProps} scheduledSendAt={scheduledTime} />);
+
+      fireEvent.click(screen.getByText('emailDetail.send'));
+
+      expect(defaultProps.onSend).toHaveBeenCalledWith(48, undefined, scheduledTime);
+    });
+
+    it('sends undefined for scheduledSendAt when not provided', () => {
+      render(<ReplyComposerFooter {...defaultProps} scheduledSendAt={null} />);
+
+      fireEvent.click(screen.getByText('emailDetail.send'));
+
+      expect(defaultProps.onSend).toHaveBeenCalledWith(48, undefined, undefined);
     });
   });
 

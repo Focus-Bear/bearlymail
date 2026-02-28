@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useImperativeHandle, forwardRef, useRef } from 'react';
+import React, { useState, useEffect, useImperativeHandle, forwardRef, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
@@ -20,9 +20,11 @@ import { EmailDetailHeader } from 'components/email-detail/EmailDetailHeader';
 import { EmailDetailActions } from 'components/email-detail/EmailDetailActions';
 import { EmailThreadView } from 'components/email-detail/EmailThreadView';
 import { CustomRuleModal } from 'components/email-detail/CustomRuleModal';
+import { TimePicker } from 'components/compose/TimePicker';
 import { Email } from 'types/email';
 import { ACTION_TYPE_CUSTOM, SUMMARY_TYPE_CUSTOM, SUMMARY_TYPE_CUSTOM_PREFIX } from 'constants/strings';
 import { AUTO_SAVE_INTERVAL_MS } from 'constants/numbers';
+import { useScheduledEmails } from 'hooks/useScheduledEmails';
 
 interface EmailDetailProps {
   emailId?: string;
@@ -52,6 +54,16 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
   const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
   const replyComposerRef = useRef<HTMLDivElement>(null);
   const [activeSideTab, setActiveSideTab] = useState<'notes' | 'actions' | 'github' | null>(null);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [scheduledSendAt, setScheduledSendAt] = useState<Date | null>(null);
+  const [timeWarning, setTimeWarning] = useState<string | undefined>();
+  const [suggestedTime, setSuggestedTime] = useState<Date | undefined>();
+
+  const {
+    timeSuggestions,
+    checkSendTime,
+    fetchTimeSuggestions,
+  } = useScheduledEmails();
 
   const state = useEmailDetailState();
   const operations = useEmailDetailOperations(id, state, { onArchiveComplete, onSnoozeComplete });
@@ -220,6 +232,33 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
       return (email as any)?.starCount ?? 0;
     },
   }), [handleOpenReplyComposer, handleArchive, handleSnooze, handleSetStarCount, email]);
+
+  // Scheduling handlers
+  const handleOpenTimePicker = useCallback(() => {
+    fetchTimeSuggestions();
+    setTimeWarning(undefined);
+    setSuggestedTime(undefined);
+    setShowTimePicker(true);
+  }, [fetchTimeSuggestions]);
+
+  const handleTimeSelect = useCallback(async (time: Date) => {
+    const checkResult = await checkSendTime(time);
+    if (!checkResult.isAppropriate) {
+      setTimeWarning(checkResult.warning);
+      setSuggestedTime(checkResult.suggestion ? new Date(checkResult.suggestion) : undefined);
+    } else {
+      setTimeWarning(undefined);
+      setSuggestedTime(undefined);
+      setScheduledSendAt(time);
+      setShowTimePicker(false);
+    }
+  }, [checkSendTime]);
+
+  const handleCancelTimePicker = useCallback(() => {
+    setTimeWarning(undefined);
+    setSuggestedTime(undefined);
+    setShowTimePicker(false);
+  }, []);
 
   useEffect(() => {
     if (id && email) {
@@ -460,6 +499,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
               toneCheckResult={toneCheckResult}
               sending={sending}
               textareaRef={replyTextareaRef}
+              scheduledSendAt={scheduledSendAt}
               onReplyRecipientsChange={setReplyRecipients}
               onCcChange={setReplyCc}
               onBccChange={setReplyBcc}
@@ -483,7 +523,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
                 setReplyOptions(null);
                 setToneCheckResult(null);
               }}
-              onSend={(files, expectedReplyHours, _forwardAttachmentIds, draftOverride) => handleSendReply(files, expectedReplyHours, draftOverride)}
+              onSend={(files, expectedReplyHours, _forwardAttachmentIds, draftOverride, scheduledSendAt) => handleSendReply(files, expectedReplyHours, draftOverride, scheduledSendAt)}
               onUseRevisedText={(text) => {
                 setDraft(text);
                 setToneCheckResult(null);
@@ -491,6 +531,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
               onDispute={disputeToneCheck}
               disputing={disputing}
               disputeResult={disputeResult}
+              onSchedule={handleOpenTimePicker}
               currentEmailId={id}
               currentEmailObjectId={email?.id}
               currentEmailThreadId={(email as any)?.emailThreadId}
@@ -704,6 +745,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
                   toneCheckResult={toneCheckResult}
                   sending={sending}
                   textareaRef={replyTextareaRef}
+                  scheduledSendAt={scheduledSendAt}
                   onReplyRecipientsChange={setReplyRecipients}
                   onCcChange={setReplyCc}
                   onBccChange={setReplyBcc}
@@ -727,7 +769,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
                     setReplyOptions(null);
                     setToneCheckResult(null);
                   }}
-                  onSend={(files, expectedReplyHours, _forwardAttachmentIds, draftOverride) => handleSendReply(files, expectedReplyHours, draftOverride)}
+                  onSend={(files, expectedReplyHours, _forwardAttachmentIds, draftOverride, scheduledSendAt) => handleSendReply(files, expectedReplyHours, draftOverride, scheduledSendAt)}
                   onUseRevisedText={(text) => {
                     setDraft(text);
                     setToneCheckResult(null);
@@ -735,6 +777,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
                   onDispute={disputeToneCheck}
                   disputing={disputing}
                   disputeResult={disputeResult}
+                  onSchedule={handleOpenTimePicker}
                   currentEmailId={id}
                   currentEmailObjectId={email?.id}
                   currentEmailThreadId={(email as any)?.emailThreadId}
@@ -994,6 +1037,17 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
         }}
         onCreate={handleCreateCustomRule}
       />
+
+      {showTimePicker && (
+        <TimePicker
+          selectedTime={scheduledSendAt}
+          suggestions={timeSuggestions}
+          warning={timeWarning}
+          suggestedTime={suggestedTime}
+          onTimeSelect={handleTimeSelect}
+          onCancel={handleCancelTimePicker}
+        />
+      )}
     </>
   );
 });

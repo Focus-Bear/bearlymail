@@ -907,7 +907,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     });
   }, [id, emails, dispatch, options, navigate, getInboxPath]);
 
-  const handleSendReply = useCallback(async (files: File[] = [], expectedReplyHours?: number, draftOverride?: string) => {
+  const handleSendReply = useCallback(async (files: File[] = [], expectedReplyHours?: number, draftOverride?: string, scheduledSendAt?: Date) => {
     const draftToSend = draftOverride || draft;
     if (!id || !draftToSend) return;
 
@@ -955,6 +955,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
           if (currentReplyCc) formData.append('cc', currentReplyCc);
           if (currentReplyBcc) formData.append('bcc', currentReplyBcc);
           if (expectedReplyHours !== undefined) formData.append('expectedReplyHours', String(expectedReplyHours));
+          if (scheduledSendAt) formData.append('scheduledSendAt', scheduledSendAt.toISOString());
           files.forEach((file) => {
             formData.append('files', file);
           });
@@ -972,11 +973,16 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
             bcc: currentReplyBcc || undefined,
             replyAll: currentReplyMode === REPLY_MODE_REPLY_ALL,
             expectedReplyHours,
+            scheduledSendAt: scheduledSendAt?.toISOString(),
           });
         }
         setDraft(null);
         deleteDraft();
-        showSuccess(t('emailDetail.replySentSuccess'));
+        
+        const successMessage = scheduledSendAt 
+          ? t('emailDetail.replyScheduledSuccess')
+          : t('emailDetail.replySentSuccess');
+        showSuccess(successMessage);
 
         if (expectedReplyHours !== undefined) {
           if (expectedReplyHours === 0) {

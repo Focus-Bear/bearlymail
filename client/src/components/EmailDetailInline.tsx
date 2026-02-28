@@ -35,13 +35,22 @@ const useEmailDetailInlineHandlers = (
   const { showSuccess } = useNotifications();
   const hookData = useEmailDetailInline(emailId, { autoGenerateReplies });
 
-  const handleSendReplyWithClose = async (files: File[], expectedReplyHours?: number, forwardAttachmentIds?: string[], draftOverride?: string) => {
+  const handleSendReplyWithClose = async (
+    files: File[], 
+    expectedReplyHours?: number, 
+    forwardAttachmentIds?: string[], 
+    draftOverride?: string,
+    scheduledSendAt?: Date
+  ) => {
     try {
-      await hookData.handleSendReply(files, expectedReplyHours, forwardAttachmentIds, undefined, draftOverride);
+      await hookData.handleSendReply(files, expectedReplyHours, forwardAttachmentIds, undefined, draftOverride, scheduledSendAt);
       // Refresh thread emails to show the sent reply
       await hookData.fetchThreadEmails();
       if (onClose) {
-        showSuccess(t('emailDetail.replySentSuccess'));
+        const successMessage = scheduledSendAt 
+          ? t('emailDetail.replyScheduledSuccess') 
+          : t('emailDetail.replySentSuccess');
+        showSuccess(successMessage);
         onClose();
       }
     } catch (error) {
@@ -264,6 +273,7 @@ export const EmailDetailInline: React.FC<EmailDetailInlineProps> = ({
         currentEmailId={emailId}
         currentEmailObjectId={email?.id}
         currentEmailThreadId={(email as any)?.emailThreadId}
+        scheduledSendAt={scheduledSendAt}
         onReplyRecipientsChange={setReplyRecipients}
         onCcChange={setReplyCc}
         onBccChange={setReplyBcc}

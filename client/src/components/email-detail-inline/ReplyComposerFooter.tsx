@@ -21,8 +21,9 @@ interface ReplyComposerFooterProps {
   sending: boolean;
   checkingTone: boolean;
   draft: string | null;
+  scheduledSendAt?: Date | null;
   onClose: () => void;
-  onSend: (expectedReplyHours?: number, scheduledSendAt?: Date) => void;
+  onSend: (expectedReplyHours?: number, draftOverride?: string, scheduledSendAt?: Date) => void;
   onSchedule?: () => void;
 }
 
@@ -30,6 +31,7 @@ export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = ({
   sending,
   checkingTone,
   draft,
+  scheduledSendAt,
   onClose,
   onSend,
   onSchedule,
@@ -47,7 +49,7 @@ export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = ({
 
   const handleSend = () => {
     captureEvent('reply_sent', { expected_reply_hours: expectedReplyHours > 0 ? expectedReplyHours : null });
-    onSend(expectedReplyHours);
+    onSend(expectedReplyHours, undefined, scheduledSendAt || undefined);
   };
 
   const getOptionLabel = (option: typeof EXPECTED_REPLY_OPTIONS[0]): string => {

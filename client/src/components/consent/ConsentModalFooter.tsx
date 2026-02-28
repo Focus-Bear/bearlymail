@@ -50,7 +50,7 @@ export const ConsentModalFooter: React.FC<ConsentModalFooterProps> = ({
         style={{
           padding: `${theme.spacing.md} ${theme.spacing.xl}`,
           backgroundColor: getButtonBackgroundColor(),
-          color: '#FFFFFF',
+          color: theme.colors.background.paper,
           border: 'none',
           borderRadius: theme.borderRadius.md,
           fontSize: theme.typography.fontSize.base,

@@ -13,6 +13,9 @@ interface CalendarInviteActionsProps {
   loading?: boolean;
 }
 
+const RESPONSE_STATUS_ACCEPTED = 'accepted' as const;
+const RESPONSE_STATUS_DECLINED = 'declined' as const;
+
 export const CalendarInviteActions: React.FC<CalendarInviteActionsProps> = ({
   email,
   onAccept,
@@ -21,7 +24,7 @@ export const CalendarInviteActions: React.FC<CalendarInviteActionsProps> = ({
 }) => {
   const { t } = useTranslation();
   const [responding, setResponding] = useState(false);
-  const [responseStatus, setResponseStatus] = useState<'accepted' | 'declined' | null>(null);
+  const [responseStatus, setResponseStatus] = useState<typeof RESPONSE_STATUS_ACCEPTED | typeof RESPONSE_STATUS_DECLINED | null>(null);
 
   const handleAccept = async () => {
     setResponding(true);
@@ -29,7 +32,7 @@ export const CalendarInviteActions: React.FC<CalendarInviteActionsProps> = ({
     captureEvent('calendar_invite_accept_clicked', { email_id: email.id });
     try {
       await onAccept();
-      setResponseStatus('accepted');
+      setResponseStatus(RESPONSE_STATUS_ACCEPTED);
     } catch (error) {
       console.error('Error accepting invitation:', error);
       alert(t('emailDetail.calendarInvite.acceptError') || 'Failed to accept invitation');
@@ -44,7 +47,7 @@ export const CalendarInviteActions: React.FC<CalendarInviteActionsProps> = ({
     captureEvent('calendar_invite_decline_clicked', { email_id: email.id });
     try {
       await onDecline();
-      setResponseStatus('declined');
+      setResponseStatus(RESPONSE_STATUS_DECLINED);
     } catch (error) {
       console.error('Error declining invitation:', error);
       alert(t('emailDetail.calendarInvite.declineError') || 'Failed to decline invitation');
@@ -90,13 +93,13 @@ export const CalendarInviteActions: React.FC<CalendarInviteActionsProps> = ({
       }}>
         <button
           onClick={handleAccept}
-          disabled={isDisabled || responseStatus === 'accepted'}
+          disabled={isDisabled || responseStatus === RESPONSE_STATUS_ACCEPTED}
           style={{
             flex: 1,
             minWidth: '120px',
             padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-            backgroundColor: responseStatus === 'accepted'
-              ? theme.colors.accent.success || '#5CB85C'
+            backgroundColor: responseStatus === RESPONSE_STATUS_ACCEPTED
+              ? theme.colors.success.main
               : isDisabled
                 ? theme.colors.border.medium
                 : theme.colors.primary.main,
@@ -104,18 +107,18 @@ export const CalendarInviteActions: React.FC<CalendarInviteActionsProps> = ({
             border: 'none',
             borderRadius: theme.borderRadius.md,
             fontWeight: theme.typography.fontWeight.semibold,
-            cursor: isDisabled || responseStatus === 'accepted' ? 'not-allowed' : 'pointer',
+            cursor: isDisabled || responseStatus === RESPONSE_STATUS_ACCEPTED ? 'not-allowed' : 'pointer',
             fontSize: theme.typography.fontSize.sm,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: theme.spacing.xs,
-            opacity: responseStatus === 'declined' ? OPACITY_HALF : 1,
+            opacity: responseStatus === RESPONSE_STATUS_DECLINED ? OPACITY_HALF : 1,
           }}
         >
-          {responding && responseStatus !== 'accepted' ? (
+          {responding && responseStatus !== RESPONSE_STATUS_ACCEPTED ? (
             t('emailDetail.calendarInvite.accepting') || 'Accepting...'
-          ) : responseStatus === 'accepted' ? (
+          ) : responseStatus === RESPONSE_STATUS_ACCEPTED ? (
             t('emailDetail.calendarInvite.accepted') || 'Accepted'
           ) : (
             t('emailDetail.calendarInvite.accept') || 'Accept'
@@ -124,32 +127,32 @@ export const CalendarInviteActions: React.FC<CalendarInviteActionsProps> = ({
 
         <button
           onClick={handleDecline}
-          disabled={isDisabled || responseStatus === 'declined'}
+          disabled={isDisabled || responseStatus === RESPONSE_STATUS_DECLINED}
           style={{
             flex: 1,
             minWidth: '120px',
             padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-            backgroundColor: responseStatus === 'declined'
+            backgroundColor: responseStatus === RESPONSE_STATUS_DECLINED
               ? theme.colors.text.secondary
               : isDisabled
                 ? theme.colors.border.medium
                 : 'transparent',
-            color: responseStatus === 'declined' ? 'white' : theme.colors.text.secondary,
-            border: `1px solid ${responseStatus === 'declined' ? 'transparent' : theme.colors.border.medium}`,
+            color: responseStatus === RESPONSE_STATUS_DECLINED ? 'white' : theme.colors.text.secondary,
+            border: `1px solid ${responseStatus === RESPONSE_STATUS_DECLINED ? 'transparent' : theme.colors.border.medium}`,
             borderRadius: theme.borderRadius.md,
             fontWeight: theme.typography.fontWeight.semibold,
-            cursor: isDisabled || responseStatus === 'declined' ? 'not-allowed' : 'pointer',
+            cursor: isDisabled || responseStatus === RESPONSE_STATUS_DECLINED ? 'not-allowed' : 'pointer',
             fontSize: theme.typography.fontSize.sm,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: theme.spacing.xs,
-            opacity: responseStatus === 'accepted' ? OPACITY_HALF : 1,
+            opacity: responseStatus === RESPONSE_STATUS_ACCEPTED ? OPACITY_HALF : 1,
           }}
         >
-          {responding && responseStatus !== 'declined' ? (
+          {responding && responseStatus !== RESPONSE_STATUS_DECLINED ? (
             t('emailDetail.calendarInvite.declining') || 'Declining...'
-          ) : responseStatus === 'declined' ? (
+          ) : responseStatus === RESPONSE_STATUS_DECLINED ? (
             t('emailDetail.calendarInvite.declined') || 'Declined'
           ) : (
             t('emailDetail.calendarInvite.decline') || 'Decline'

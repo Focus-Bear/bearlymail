@@ -40,7 +40,7 @@ export const PriorityFeedbackActions: React.FC<PriorityFeedbackActionsProps> = (
         style={{
           padding: `${theme.spacing.sm} ${theme.spacing.md}`,
           backgroundColor: isDisabled ? theme.colors.background.subtle : theme.colors.primary.main,
-          color: '#fff',
+          color: theme.colors.background.paper,
           border: 'none',
           borderRadius: theme.borderRadius.sm,
           cursor: isDisabled ? 'not-allowed' : 'pointer',

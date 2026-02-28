@@ -20,6 +20,13 @@ interface ErrorFallbackProps {
   isNetworkErr: boolean;
 }
 
+const ERROR_FALLBACK_STYLES = {
+  secondaryText: '#666',
+  tertiaryText: '#999',
+  actionBackground: '#007bff',
+  actionTextColor: 'white',
+};
+
 /**
  * Fallback UI rendered when an error is caught.
  * Functional component so it can use hooks (useTranslation).
@@ -42,10 +49,10 @@ const ErrorFallback: React.FC<ErrorFallbackProps> = ({ correlationId, isNetworkE
       <h1 style={{ fontSize: '2rem', marginBottom: '1rem' }}>
         {isNetworkErr ? t('errorBoundary.networkTitle') : t('errorBoundary.title')}
       </h1>
-      <p style={{ marginBottom: '1rem', color: '#666' }}>
+      <p style={{ marginBottom: '1rem', color: ERROR_FALLBACK_STYLES.secondaryText }}>
         {isNetworkErr ? t('errorBoundary.networkMessage') : t('errorBoundary.message')}
       </p>
-      <p style={{ marginBottom: '1.5rem', color: '#999', fontSize: '0.875rem' }}>
+      <p style={{ marginBottom: '1.5rem', color: ERROR_FALLBACK_STYLES.tertiaryText, fontSize: '0.875rem' }}>
         {t('errorBoundary.correlationId', { id: correlationId })}
       </p>
       <button
@@ -53,8 +60,8 @@ const ErrorFallback: React.FC<ErrorFallbackProps> = ({ correlationId, isNetworkE
         style={{
           padding: '0.75rem 1.5rem',
           fontSize: '1rem',
-          backgroundColor: '#007bff',
-          color: 'white',
+          backgroundColor: ERROR_FALLBACK_STYLES.actionBackground,
+          color: ERROR_FALLBACK_STYLES.actionTextColor,
           border: 'none',
           borderRadius: '4px',
           cursor: 'pointer',

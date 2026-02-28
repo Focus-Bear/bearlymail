@@ -467,7 +467,7 @@ export const TokenUsageSection: React.FC = () => {
             style={{
               padding: `${theme.spacing.sm} ${theme.spacing.md}`,
               backgroundColor: examples.length === 0 ? theme.colors.background.default : theme.colors.accent.error,
-              color: examples.length === 0 ? theme.colors.text.disabled : '#fff',
+              color: examples.length === 0 ? theme.colors.text.disabled : theme.colors.background.paper,
               border: 'none',
               borderRadius: theme.borderRadius.sm,
               cursor: examples.length === 0 ? 'not-allowed' : 'pointer',
@@ -525,7 +525,7 @@ export const TokenUsageSection: React.FC = () => {
                       <span style={{
                         padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
                         backgroundColor: theme.colors.accent.warning,
-                        color: '#fff',
+                        color: theme.colors.background.paper,
                         borderRadius: theme.borderRadius.sm,
                         fontSize: theme.typography.fontSize.xs,
                         fontWeight: theme.typography.fontWeight.bold,

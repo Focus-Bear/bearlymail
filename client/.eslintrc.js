@@ -145,12 +145,24 @@ module.exports = {
     'no-restricted-syntax': [
       'warn',
       {
-        selector: 'BinaryExpression[operator=/^(===|!==|==|!=)$/] > Literal[value=/^[a-zA-Z_][a-zA-Z0-9_]*$/]',
+        selector: 'BinaryExpression[operator=/^(===|!==|==|!=)$/] > Literal[value=/[a-zA-Z]/]',
         message: 'Avoid magic strings in comparisons. Define them as constants instead.',
       },
       {
-        selector: 'CallExpression[callee.name=/^(includes|indexOf|startsWith|endsWith)$/] > Literal[value=/^[a-zA-Z_][a-zA-Z0-9_]*$/]',
+        selector: 'CallExpression[callee.name=/^(includes|indexOf|startsWith|endsWith)$/] > Literal[value=/[a-zA-Z]/]',
         message: 'Avoid magic strings in string methods. Define them as constants instead.',
+      },
+      {
+        selector: 'SwitchCase > Literal[value=/[a-zA-Z]/]',
+        message: 'Avoid magic strings in switch cases. Define them as constants instead.',
+      },
+      {
+        selector: "JSXAttribute[name.name='style'] Property[key.name=/^(color|backgroundColor|borderColor)$/] > Literal[value=/^(#([0-9a-fA-F]{3,8})|red|green|blue|yellow|orange|purple|white|black|gray|grey|transparent)$/i]",
+        message: 'Avoid inline color magic strings in style props. Use a named constant or theme token instead.',
+      },
+      {
+        selector: "AssignmentExpression[left.property.name=/^(color|backgroundColor|borderColor)$/] > Literal[value=/^(#([0-9a-fA-F]{3,8})|red|green|blue|yellow|orange|purple|white|black|gray|grey|transparent)$/i]",
+        message: 'Avoid inline color magic strings in style assignments. Use a named constant or theme token instead.',
       },
     ],
 
@@ -266,9 +278,10 @@ module.exports = {
     },
     {
       // Disable i18n for debug files - these are developer tools, not user-facing
-      files: ['**/debug/**/*.tsx', '**/debug/**/*.ts', '**/Debug*.tsx', '**/Debug*.ts'],
+      files: ['**/debug/**/*.tsx', '**/debug/**/*.ts', '**/*Debug*.tsx', '**/*Debug*.ts'],
       rules: {
         'i18next/no-literal-string': 'off',
+        'no-restricted-syntax': 'off',
       },
     },
     {
@@ -301,6 +314,7 @@ module.exports = {
         'no-magic-numbers': 'off',
         'max-lines-per-function': 'off',
         'max-lines': 'off',
+        'no-restricted-syntax': 'off',
       },
     },
   ],

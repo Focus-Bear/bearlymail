@@ -106,6 +106,7 @@ export const colors = {
   // Error colors - For error messages
   error: {
     main: '#EF4444',       // Error red
+    dark: '#DC2626',       // Darker red for hover states
     light: '#FEE2E2',      // Light error background
   },
   

@@ -100,7 +100,7 @@ export const AccountDeletionSection: React.FC = () => {
             transition: theme.transitions.default,
           }}
           onMouseOver={(e) => {
-            e.currentTarget.style.backgroundColor = '#DC2626';
+            e.currentTarget.style.backgroundColor = theme.colors.error.dark;
           }}
           onMouseOut={(e) => {
             e.currentTarget.style.backgroundColor = theme.colors.error.main;

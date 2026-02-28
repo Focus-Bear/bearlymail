@@ -25,7 +25,7 @@ export const UrgencyIndicator: React.FC<UrgencyIndicatorProps> = ({
         fontSize: theme.typography.fontSize.xs,
         padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
         backgroundColor: theme.colors.accent.error,
-        color: '#fff',
+        color: theme.colors.background.paper,
         borderRadius: theme.borderRadius.full,
         fontWeight: theme.typography.fontWeight.semibold,
         display: 'inline-flex',

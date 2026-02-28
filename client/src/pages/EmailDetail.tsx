@@ -599,7 +599,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
                               padding: '2px 8px',
                               fontSize: '11px',
                               backgroundColor: '#1976d2',
-                              color: 'white',
+                              color: theme.colors.background.paper,
                               border: 'none',
                               borderRadius: '4px',
                               cursor: 'pointer',

@@ -48,7 +48,7 @@ export const ConfirmModalFooter: React.FC<ConfirmModalFooterProps> = ({
         style={{
           padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
           backgroundColor: confirmColor,
-          color: '#fff',
+          color: theme.colors.background.paper,
           border: 'none',
           borderRadius: theme.borderRadius.md,
           fontSize: theme.typography.fontSize.sm,

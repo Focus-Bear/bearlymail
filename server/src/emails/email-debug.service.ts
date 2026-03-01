@@ -10,6 +10,8 @@ import { isError } from "../types/common";
 import { MILLISECONDS } from "../constants/time-constants";
 
 const SYNC_HISTORY_DEFAULT_LIMIT: number = QUERY_LIMITS.MAX_RESULTS_DEFAULT;
+// Fallback duration when syncStatusUpdatedAt is null (we don't know when it was last updated)
+const UNKNOWN_DURATION_MINUTES = 999;
 import PgBoss from "pg-boss";
 import { getJobPriority } from "../queue/job-priorities";
 import { SyncHistoryService, SyncHistoryEntry } from "./sync-history.service";
@@ -149,6 +151,25 @@ export class EmailDebugService {
     if (emails.length === 0) {
       reasons.push(
         "Thread exists but has no emails linked to it (orphan thread)",
+      );
+    }
+
+    // Check sync status first - if unsynced, Gmail state is not yet reflected
+    if (thread.syncStatus === "unsynced") {
+      const minutesSinceUpdate = thread.syncStatusUpdatedAt
+        ? Math.floor(
+            (Date.now() - new Date(thread.syncStatusUpdatedAt).getTime()) /
+              MILLISECONDS.MINUTE,
+          )
+        : UNKNOWN_DURATION_MINUTES;
+      reasons.push(
+        `Thread has UNSYNCED changes (${minutesSinceUpdate} min ago) - local state may differ from Gmail`,
+      );
+    }
+
+    if (thread.starCount === 0) {
+      reasons.push(
+        "Thread starCount is 0 in BearlyMail - will appear in Triage, not Action tab",
       );
     }
 
@@ -294,7 +315,8 @@ export class EmailDebugService {
       const provider =
         await this.emailProviderManager.getPrimaryProvider(userId);
       if (provider) {
-        // Search for starred emails in inbox
+        // Use the same query as the actual sync to get starred emails in inbox
+        // (archived starred emails should not be synced)
         const starredEmails = await provider.searchEmails(
           userId,
           "is:starred is:inbox",
@@ -325,6 +347,9 @@ export class EmailDebugService {
         "thread.starCount",
         "thread.isArchived",
         "thread.syncStatus",
+        "thread.syncStatusUpdatedAt",
+        "thread.isBatched",
+        "thread.batchReleaseAt",
       ])
       .where("thread.userId = :userId", { userId })
       .andWhere("thread.starCount > 0")
@@ -398,7 +423,16 @@ export class EmailDebugService {
       gmailStarredThreadIds.length > 0
         ? await this.emailThreadRepository.find({
             where: { userId, threadId: In(gmailStarredThreadIds) },
-            select: ["id", "threadId", "isArchived", "starCount", "syncStatus"],
+            select: [
+              "id",
+              "threadId",
+              "isArchived",
+              "starCount",
+              "syncStatus",
+              "syncStatusUpdatedAt",
+              "isBatched",
+              "batchReleaseAt",
+            ],
           })
         : [];
     const gmailThreadsInDbIds = gmailThreadsInDb.map((thread) => thread.id);
@@ -1056,5 +1090,55 @@ export class EmailDebugService {
   ): Promise<CategoryDebugData> {
     return this.emailDebugCategoryService.getCategoryDebugData(userId, emailId);
   }
-}
 
+  /**
+   * Fix stale unsynced threads by marking them as synced
+   * This is useful when threads get stuck in unsynced state for more than 5 minutes
+   */
+  async fixStaleUnsyncedThreads(userId: string): Promise<{
+    fixed: number;
+    threadIds: string[];
+  }> {
+    const fiveMinutesAgo = new Date(Date.now() - 5 * MILLISECONDS.MINUTE);
+
+    // Find all threads stuck in unsynced state for more than 5 minutes
+    const staleThreads = await this.emailThreadRepository.find({
+      where: {
+        userId,
+        syncStatus: "unsynced",
+      },
+      select: ["id", "threadId", "syncStatusUpdatedAt"],
+    });
+
+    const actuallyStale = staleThreads.filter(
+      (thread) =>
+        thread.syncStatusUpdatedAt &&
+        thread.syncStatusUpdatedAt < fiveMinutesAgo,
+    );
+
+    this.logger.log(
+      `Found ${actuallyStale.length} stale unsynced threads for user ${userId}`,
+    );
+
+    // Mark them as synced
+    if (actuallyStale.length > 0) {
+      await this.emailThreadRepository.update(
+        {
+          userId,
+          id: In(actuallyStale.map((t) => t.id)),
+        },
+        {
+          syncStatus: "synced",
+          syncStatusUpdatedAt: new Date(),
+        },
+      );
+    }
+
+    return {
+      fixed: actuallyStale.length,
+      threadIds: actuallyStale.map((t) =>
+        t.threadId.substring(0, QUERY_LIMITS.THREAD_ID_PREVIEW),
+      ),
+    };
+  }
+}

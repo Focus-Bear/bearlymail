@@ -628,7 +628,7 @@ export class GmailProvider implements EmailProvider {
         gmail.users.threads.list({
           userId: "me",
           maxResults: 500,
-          q: "is:starred -label:SnoozedBearlyMail -label:VA-to-action",
+          q: "is:starred is:inbox -label:SnoozedBearlyMail -label:VA-to-action",
         }),
       ]);
 

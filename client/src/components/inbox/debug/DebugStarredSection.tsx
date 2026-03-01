@@ -127,13 +127,48 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
 
             <h5>Unsynced for more than 5 minutes</h5>
             {debugStarredData.staleUnsyncedThreads?.length ? (
-              <ul>
-                {debugStarredData.staleUnsyncedThreads.map((thread) => (
-                  <li key={thread.threadId}>
-                    {thread.threadId} — {thread.minutesUnsynced} min (archived: {String(thread.isArchived)}, starCount: {thread.starCount})
-                  </li>
-                ))}
-              </ul>
+              <>
+                <ul>
+                  {debugStarredData.staleUnsyncedThreads.map((thread) => (
+                    <li key={thread.threadId}>
+                      {thread.threadId} — {thread.minutesUnsynced} min (archived: {String(thread.isArchived)}, starCount: {thread.starCount})
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  onClick={async () => {
+                    try {
+                      const response = await fetch(`${import.meta.env.REACT_APP_API_URL || 'http://localhost:3001'}/emails/debug/fix-stale-unsynced`, {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                      });
+                      if (response.ok) {
+                        const result = await response.json();
+                        alert(`Fixed ${result.fixed} stale unsynced threads`);
+                        await onFetchDebugStarred(); // Refresh the data
+                      } else {
+                        alert('Failed to fix stale unsynced threads');
+                      }
+                    } catch (error) {
+                      alert('Error fixing stale unsynced threads: ' + error);
+                    }
+                  }}
+                  style={{
+                    padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+                    backgroundColor: theme.colors.warning?.main || '#ff9800',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: theme.borderRadius.sm,
+                    cursor: 'pointer',
+                    marginBottom: theme.spacing.sm,
+                  }}
+                >
+                  Fix Stale Unsynced Threads
+                </button>
+              </>
             ) : (
               <p>No stale unsynced threads found.</p>
             )}

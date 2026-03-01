@@ -3128,6 +3128,16 @@ export class EmailsService {
   }
 
   /**
+   * Fix threads stuck in "unsynced" status for more than 5 minutes
+   * Delegates to EmailDebugService
+   */
+  async fixStaleUnsyncedThreads(
+    userId: string,
+  ): Promise<{ fixed: number; threadIds: string[] }> {
+    return this.emailDebugService.fixStaleUnsyncedThreads(userId);
+  }
+
+  /**
    * Look up a thread by its Gmail threadId and explain why it may not be showing
    * Delegates to EmailDebugService
    */

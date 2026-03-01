@@ -663,6 +663,12 @@ export class EmailsController {
     return this.emailsService.fixStuckCalculatingThreads(req.user.userId);
   }
 
+  @Post("debug/fix-stale-unsynced")
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async fixStaleUnsynced(@Request() req) {
+    return this.emailsService.fixStaleUnsyncedThreads(req.user.userId);
+  }
+
   @Get("debug/thread-lookup/:threadId")
   @UseGuards(JwtAuthGuard, AdminGuard)
   async lookupThread(@Request() req, @Param("threadId") threadId: string) {

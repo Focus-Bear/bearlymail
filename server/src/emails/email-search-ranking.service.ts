@@ -260,7 +260,7 @@ RELEVANCE SCORING (base score before recency adjustment):
 
 Then apply the recency bonus/penalty above. Final score = base score + recency adjustment (capped at 0-100).
 
-STRICT FILTERING: Only include emails with final score >= ${PRIORITY_BOOSTS.RELEVANCE_THRESHOLD} in the top results. Emails scoring below ${PRIORITY_BOOSTS.RELEVANCE_THRESHOLD} should be excluded even if they're recent.
+IMPORTANT: Score ALL ${emailSummaries.length} emails, even if they have low relevance. The user will see the scores and can decide which results to review.
 
 Return a JSON array of objects with index and relevanceScore for ALL ${emailSummaries.length} emails, sorted by relevanceScore (highest first).
 
@@ -278,7 +278,6 @@ Return ONLY a JSON array of objects.`;
     maxResults: number,
     allScores: Map<number, number>,
   ): Email[] {
-    const FALLBACK_RESULT_COUNT = 3;
     try {
       const jsonMatch = rankingResponse.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
       if (!jsonMatch) return emails.slice(0, maxResults);
@@ -291,32 +290,16 @@ Return ONLY a JSON array of objects.`;
         allScores.set(rank.index, rank.relevanceScore),
       );
 
-      let filteredEmails = emails.filter(
-        (_, index) =>
-          (allScores.get(index) ?? 0) >= PRIORITY_BOOSTS.RELEVANCE_THRESHOLD,
-      );
-      filteredEmails.sort((a, b) => {
-        const scoreA = allScores.get(emails.indexOf(a)) ?? 0;
-        const scoreB = allScores.get(emails.indexOf(b)) ?? 0;
-        return scoreB - scoreA;
-      });
-      filteredEmails = filteredEmails.slice(0, maxResults);
+      // Sort all emails by relevance score (no filtering by threshold)
+      // This allows users to see why low-scoring results were included
+      const rankedEmails = emails.map((email, idx) => ({
+        email,
+        score: allScores.get(idx) ?? 0,
+      }));
+      rankedEmails.sort((a, b) => b.score - a.score);
 
-      if (filteredEmails.length === 0 && emails.length > 0) {
-        this.logger.warn(
-          `All ${emails.length} results filtered below threshold - showing top ${FALLBACK_RESULT_COUNT} as fallback`,
-        );
-        const emailsWithScores = emails.map((e, idx) => ({
-          email: e,
-          score: allScores.get(idx) ?? 0,
-        }));
-        emailsWithScores.sort((a, b) => b.score - a.score);
-        return emailsWithScores
-          .slice(0, FALLBACK_RESULT_COUNT)
-          .map((e) => e.email);
-      }
-
-      return filteredEmails;
+      // Return top N results, regardless of score
+      return rankedEmails.slice(0, maxResults).map((e) => e.email);
     } catch (parseError) {
       this.logger.warn("Failed to parse AI ranking response:", parseError);
       return emails.slice(0, maxResults);

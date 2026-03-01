@@ -130,12 +130,10 @@ export const useSearch = () => {
 
       // Phase 2: Async LLM ranking – only if we have real results to refine
       const isNoResults = responseData.length === 1 && responseData[0]?.id === SEARCH_RESULT_NO_RESULTS;
-      let rankedEmailIds: string[] = [];
       if (!isNoResults) {
         const emailIds = responseData
           .filter((e: Email) => e.id !== SEARCH_RESULT_NO_RESULTS)
           .map((e: Email) => e.id);
-        rankedEmailIds = emailIds;
 
         if (emailIds.length > 0) {
           setIsRefining(true);
@@ -151,7 +149,6 @@ export const useSearch = () => {
               const rankedData = rankResponse.data;
               if (rankedData && rankedData.length > 0) {
                 setSearchResults(rankedData);
-                rankedEmailIds = rankedData.map((e: Email) => e.id);
               }
               captureEvent('search_performed', {
                 query_length: query.trim().length,
@@ -172,17 +169,16 @@ export const useSearch = () => {
         }
       }
 
-      // Phase 3: If LLM filtered everything out (or initial search found nothing),
-      // try alternative/broader queries and add new results to the display
-      const currentResults = isNoResults ? [] : rankedEmailIds;
-      const shouldExpand = isNoResults || currentResults.length === 0;
+      // Phase 3: If initial search found nothing, try alternative/broader queries
+      // Note: We no longer expand if LLM ranking returns low-scoring results - we show them with scores
+      const shouldExpand = isNoResults;
       if (shouldExpand && currentSession === searchSessionRef.current) {
         setIsRefining(true);
         setProgressStep('Searching with alternative queries...');
         try {
           const expandResponse = await axios.post(`${API_URL}/emails/search/expand`, {
             query,
-            existingEmailIds: currentResults,
+            existingEmailIds: [],  // No existing results when expanding from no results
           });
 
           if (currentSession === searchSessionRef.current) {

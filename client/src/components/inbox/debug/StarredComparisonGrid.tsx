@@ -6,6 +6,7 @@ import { EMOJI_EMAIL, EMOJI_DATABASE } from 'constants/emojis';
 interface StarredComparisonGridProps {
   gmail: {
     starredThreadCount: number;
+    starredEmailCount: number;
     error?: string;
   };
   database: {
@@ -41,9 +42,14 @@ export const StarredComparisonGrid: React.FC<StarredComparisonGridProps> = ({
         {gmail.error ? (
           <div style={{ color: 'red' }}>{t('common.error')}: {gmail.error}</div>
         ) : (
-          <div>
-            <strong>{gmail.starredThreadCount}</strong> {t('debug.starred.starredThreads')}
-          </div>
+          <>
+            <div>
+              <strong>{gmail.starredThreadCount}</strong> {t('debug.starred.starredThreads')}
+            </div>
+            <div>
+              <strong>{gmail.starredEmailCount}</strong> {t('debug.starred.starredEmails')}
+            </div>
+          </>
         )}
       </div>
       <div
@@ -65,5 +71,6 @@ export const StarredComparisonGrid: React.FC<StarredComparisonGridProps> = ({
     </div>
   );
 };
+
 
 

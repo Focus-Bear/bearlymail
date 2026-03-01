@@ -7,57 +7,8 @@ import { ComparisonResultsGrid } from 'components/inbox/debug/ComparisonResultsG
 import { MissingFromProcessTabList } from 'components/inbox/debug/MissingFromProcessTabList';
 import { StarredThreadsList } from 'components/inbox/debug/StarredThreadsList';
 import { EMOJI_SEARCH } from 'constants/emojis';
+import { DebugStarredData } from 'components/inbox/debug/types';
 
-interface DebugStarredData {
-  lastSyncTime: string | null;
-  gmail: {
-    starredThreadCount: number;
-    starredThreadIds: string[];
-    error?: string;
-  };
-  database: {
-    starredThreadCount: number;
-    starredEmailCount: number;
-  };
-  actionTabResults: number;
-  comparison: {
-    inGmailNotInDb: string[];
-    inDbNotInGmail: string[];
-    inDbButArchived: string[];
-  };
-  starredThreads: Array<{
-    threadId: string;
-    starCount: number;
-    isArchived: boolean;
-    isSnoozed: boolean;
-    emailCount: number;
-    latestSubject: string;
-    latestFrom: string;
-    issues: string[];
-    inGmail: boolean;
-    syncStatus: 'synced' | 'unsynced';
-    lastCheckedAt?: string | null;
-  }>;
-  missingFromProcessTab: Array<{
-    threadId: string;
-    reason: string;
-    details: any;
-  }>;
-  gmailVisibilityChecks: Array<{
-    threadId: string;
-    inDatabase: boolean;
-    visibleInAction: boolean;
-    syncStatus: 'synced' | 'unsynced' | 'missing';
-    reasons: string[];
-  }>;
-  staleUnsyncedThreads: Array<{
-    threadId: string;
-    syncStatusUpdatedAt: string | null;
-    minutesUnsynced: number;
-    isArchived: boolean;
-    starCount: number;
-  }>;
-}
 
 interface DebugStarredSectionProps {
   debugStarredData: DebugStarredData | null;
@@ -161,7 +112,7 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
           >
             <h4 style={{ marginTop: 0 }}>Starred Sync Check Results</h4>
             <p style={{ marginTop: 0 }}>
-              Gmail starred threads scanned: {debugStarredData.gmail.starredThreadCount}
+              Gmail search matched {debugStarredData.gmail.starredEmailCount} starred emails across {debugStarredData.gmail.starredThreadCount} threads.
             </p>
             {debugStarredData.gmailVisibilityChecks?.map((item) => (
               <div key={item.threadId} style={{ marginBottom: theme.spacing.sm }}>
@@ -206,3 +157,4 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
     </div>
   );
 };
+

@@ -239,6 +239,7 @@ export class EmailDebugService {
   ): Promise<{
     gmail: {
       starredThreadCount: number;
+      starredEmailCount: number;
       starredThreadIds: string[];
       error?: string;
     };
@@ -285,6 +286,7 @@ export class EmailDebugService {
     }>;
   }> {
     // 1. Search Gmail for starred emails in inbox
+    let gmailStarredEmailCount = 0;
     let gmailStarredThreadIds: string[] = [];
     let gmailError: string | undefined;
 
@@ -296,9 +298,10 @@ export class EmailDebugService {
         const starredEmails = await provider.searchEmails(
           userId,
           "is:starred is:inbox",
-          100,
+          QUERY_LIMITS.INBOX_TOTAL,
         );
         // Get unique thread IDs
+        gmailStarredEmailCount = starredEmails.length;
         gmailStarredThreadIds = [
           ...new Set(starredEmails.map((e) => e.threadId)),
         ];
@@ -487,6 +490,7 @@ export class EmailDebugService {
     return {
       gmail: {
         starredThreadCount: gmailStarredThreadIds.length,
+        starredEmailCount: gmailStarredEmailCount,
         starredThreadIds: gmailStarredThreadIds.map(
           (id) => `${id.substring(0, QUERY_LIMITS.THREAD_ID_PREVIEW)}...`,
         ),
@@ -1053,3 +1057,4 @@ export class EmailDebugService {
     return this.emailDebugCategoryService.getCategoryDebugData(userId, emailId);
   }
 }
+

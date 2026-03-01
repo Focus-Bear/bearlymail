@@ -681,7 +681,39 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
   if (compactMode) {
     return (
       <div style={{ display: 'flex', height: '100%', overflow: 'hidden', position: 'relative' }}>
-        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: theme.spacing.sm, paddingBottom: 0 }}>
+        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: theme.spacing.sm }}>
+          <div style={{ marginBottom: theme.spacing.sm }}>
+            <PrivateNotesSection
+              noteContent={noteContent}
+              notesCollapsed={notesCollapsed}
+              onNoteContentChange={setNoteContent}
+              onToggleCollapsed={() => setNotesCollapsed(!notesCollapsed)}
+              onSaveNote={handleSaveNote}
+            />
+
+            <ActionItemsSection
+              actionItems={actionItems}
+              newActionItem={newActionItem}
+              isGeneratingSummary={isGeneratingSummary}
+              onNewActionItemChange={setNewActionItem}
+              onAddActionItem={handleAddActionItem}
+              onToggleActionItem={handleToggleActionItem}
+              onDeleteActionItem={handleDeleteActionItem}
+              onExtractActions={handleExtractActions}
+              onRegenerateActionItems={handleRegenerateActionItems}
+            />
+
+            <GitHubStatusSection
+              links={githubLinks}
+              loading={loadingGithub}
+              hasToken={hasGithubToken}
+              onRefresh={refreshGithubInfo}
+              emailSubject={email?.subject}
+              emailBody={email?.body}
+              emailHtmlBody={email?.htmlBody}
+            />
+          </div>
+
           <div style={{
             backgroundColor: theme.colors.background.paper,
             borderRadius: 0,
@@ -822,37 +854,6 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
             />
           </div>
 
-          <div style={{ marginTop: theme.spacing.sm }}>
-            <PrivateNotesSection
-              noteContent={noteContent}
-              notesCollapsed={notesCollapsed}
-              onNoteContentChange={setNoteContent}
-              onToggleCollapsed={() => setNotesCollapsed(!notesCollapsed)}
-              onSaveNote={handleSaveNote}
-            />
-
-            <ActionItemsSection
-              actionItems={actionItems}
-              newActionItem={newActionItem}
-              isGeneratingSummary={isGeneratingSummary}
-              onNewActionItemChange={setNewActionItem}
-              onAddActionItem={handleAddActionItem}
-              onToggleActionItem={handleToggleActionItem}
-              onDeleteActionItem={handleDeleteActionItem}
-              onExtractActions={handleExtractActions}
-              onRegenerateActionItems={handleRegenerateActionItems}
-            />
-
-            <GitHubStatusSection
-              links={githubLinks}
-              loading={loadingGithub}
-              hasToken={hasGithubToken}
-              onRefresh={refreshGithubInfo}
-              emailSubject={email?.subject}
-              emailBody={email?.body}
-              emailHtmlBody={email?.htmlBody}
-            />
-          </div>
         </div>
 
         <CustomRuleModal

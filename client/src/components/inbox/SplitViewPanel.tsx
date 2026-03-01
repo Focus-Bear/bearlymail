@@ -4,10 +4,15 @@ import { FiArchive, FiClock, FiCornerUpLeft, FiCornerUpRight, FiMaximize2, FiX }
 import { theme } from 'theme/theme';
 import EmailDetail, { EmailDetailRef } from 'pages/EmailDetail';
 import { SnoozeInputForm } from 'components/inbox/actions/SnoozeInputForm';
-import { PrioritySlider } from 'components/inbox/actions/PrioritySlider';
 import { InboxMode, Email } from 'types/email';
 import { MODE_ACTION } from 'constants/strings';
 import { captureEvent } from 'utils/posthog';
+
+const PRIORITY_OPTIONS = [
+  { label: 'Can wait', emoji: '\u{1F60A}', value: 1 },
+  { label: 'Get on it', emoji: '\u{1F600}', value: 2 },
+  { label: 'Oh sh$t', emoji: '\u{1F92F}', value: 3 },
+] as const;
 
 interface SelectedEmail {
   subject: string;
@@ -76,7 +81,7 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
     emailDetailComponentRef.current?.archive();
   };
 
-  // Adapter for PrioritySlider: receives the already-computed new count (0 = unset, 1/2/3 = set)
+  // Priority handler: receives the already-computed new count (0 = unset, 1/2/3 = set)
   const handleSetStarCountForSlider = useCallback(async (_emailId: string, newCount: number): Promise<void> => {
     // In triage mode, setting star > 0 moves email to Action tab — delegate to parent
     // which triggers the exit animation on the list item and navigates to the next email
@@ -224,13 +229,6 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
           gap: theme.spacing.xs,
           padding: `0 ${theme.spacing.md} ${theme.spacing.sm}`,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs }}>
-            <PrioritySlider
-              email={{ id: selectedEmailId, starCount } as unknown as Email}
-              onSetStarCount={handleSetStarCountForSlider}
-            />
-          </div>
-
           <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
             <button
               onClick={handleReplyClick}
@@ -322,6 +320,58 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
               <FiClock size={15} />
               {t('emailDetail.snooze')}
             </button>
+          </div>
+
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: theme.spacing.md,
+            paddingTop: theme.spacing.sm,
+            borderTop: `1px solid ${theme.colors.border.light}`,
+          }}>
+            <span style={{
+              fontSize: theme.typography.fontSize.xs,
+              color: theme.colors.text.tertiary,
+              fontWeight: theme.typography.fontWeight.semibold,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              flexShrink: 0,
+            }}>
+              {t('inbox.prioritise')}
+            </span>
+            <div style={{ display: 'flex', gap: theme.spacing.xs, flexWrap: 'wrap' }}>
+              {PRIORITY_OPTIONS.map(({ label, emoji, value }) => {
+                const isActive = starCount === value;
+                return (
+                  <button
+                    key={value}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const newCount = starCount === value ? 0 : value;
+                      handleSetStarCountForSlider(selectedEmailId, newCount);
+                    }}
+                    style={{
+                      padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+                      backgroundColor: isActive ? theme.colors.text.primary : 'transparent',
+                      color: isActive ? theme.colors.background.paper : theme.colors.text.secondary,
+                      border: `1px solid ${isActive ? theme.colors.text.primary : theme.colors.border.medium}`,
+                      borderRadius: theme.borderRadius.full || '999px',
+                      cursor: 'pointer',
+                      fontSize: theme.typography.fontSize.sm,
+                      fontWeight: theme.typography.fontWeight.medium,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <span>{emoji}</span>
+                    <span>{label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>

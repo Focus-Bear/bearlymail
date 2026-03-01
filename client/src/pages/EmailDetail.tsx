@@ -26,11 +26,6 @@ import { ACTION_TYPE_CUSTOM, SUMMARY_TYPE_CUSTOM, SUMMARY_TYPE_CUSTOM_PREFIX } f
 import { AUTO_SAVE_INTERVAL_MS } from 'constants/numbers';
 import { useScheduledEmails } from 'hooks/useScheduledEmails';
 
-const SIDE_TAB_NOTES = 'notes' as const;
-const SIDE_TAB_ACTIONS = 'actions' as const;
-const SIDE_TAB_GITHUB = 'github' as const;
-
-
 interface EmailDetailProps {
   emailId?: string;
   compactMode?: boolean; // When true, renders without sidebar, overlay, and full-page layout for use in split view
@@ -58,7 +53,6 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
   const { isMobile } = useResponsiveBreakpoints();
   const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
   const replyComposerRef = useRef<HTMLDivElement>(null);
-  const [activeSideTab, setActiveSideTab] = useState<typeof SIDE_TAB_NOTES | typeof SIDE_TAB_ACTIONS | typeof SIDE_TAB_GITHUB | null>(null);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [scheduledSendAt, setScheduledSendAt] = useState<Date | null>(null);
   const [timeWarning, setTimeWarning] = useState<string | undefined>();
@@ -683,11 +677,10 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
       </>
     );
 
-  // In compact mode, render with side tabs for Notes, Actions, GitHub
+  // In compact mode, render inline sections (no side tabs)
   if (compactMode) {
     return (
       <div style={{ display: 'flex', height: '100%', overflow: 'hidden', position: 'relative' }}>
-        {/* Main scrollable content */}
         <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: theme.spacing.sm, paddingBottom: 0 }}>
           <div style={{
             backgroundColor: theme.colors.background.paper,
@@ -829,167 +822,37 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
             />
           </div>
 
-          {/* Admin attachment debug section in compact mode */}
-          {user?.isAdmin && email && (() => {
-            const emailData = email as any;
-            return (
-              /* eslint-disable i18next/no-literal-string */
-              <div style={{
-                marginTop: theme.spacing.md,
-                padding: theme.spacing.md,
-                backgroundColor: theme.colors.background.subtle,
-                borderRadius: theme.borderRadius.md,
-                border: `1px solid ${theme.colors.border.light}`,
-              }}>
-                <h4 style={{
-                  marginTop: 0,
-                  marginBottom: theme.spacing.sm,
-                  fontSize: theme.typography.fontSize.xs,
-                  fontWeight: 600,
-                  color: theme.colors.text.primary,
-                }}>
-                  Attachment Debug (Admin Only)
-                </h4>
-                <div style={{
-                  fontFamily: 'monospace',
-                  fontSize: theme.typography.fontSize.xs,
-                  color: theme.colors.text.secondary,
-                  lineHeight: 1.5,
-                }}>
-                  <div><strong>Gmail Message ID:</strong> {emailData.messageId || 'N/A'}</div>
-                  <div><strong>Gmail Thread ID:</strong> {emailData.threadId || 'N/A'}</div>
-                  <div><strong>Has attachments prop:</strong> {emailData.attachments !== undefined ? 'true' : 'false'}</div>
-                  <div><strong>Attachments count:</strong> {emailData.attachments?.length ?? 0}</div>
-                  <div><strong>Raw attachments:</strong> {emailData.attachments ? JSON.stringify(emailData.attachments) : 'null/undefined'}</div>
-                  {emailData.attachments && emailData.attachments.length > 0 && (
-                    <div style={{ marginTop: theme.spacing.xs }}>
-                      <strong>Details:</strong>
-                      {emailData.attachments.map((att: any, idx: number) => (
-                        <div key={att.attachmentId || idx} style={{ marginLeft: theme.spacing.sm, marginTop: theme.spacing.xs }}>
-                          [{idx}] ID: {att.attachmentId || 'N/A'} | File: {att.filename || 'N/A'} | MIME: {att.mimeType || 'N/A'} | Size: {att.size ?? 'N/A'}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {(!emailData.attachments || emailData.attachments.length === 0) && (
-                    <div style={{
-                      marginTop: theme.spacing.xs,
-                      padding: theme.spacing.xs,
-                      backgroundColor: theme.colors.error.light,
-                      borderRadius: theme.borderRadius.sm,
-                      color: theme.colors.error.main,
-                    }}>
-                      No attachments on email object. Check Gmail API fetch and DB storage.
-                    </div>
-                  )}
-                  {emailData.attachments && emailData.attachments.length > 0 && (
-                    <div style={{ marginTop: theme.spacing.sm, paddingTop: theme.spacing.sm, borderTop: `1px solid ${theme.colors.border.light}` }}>
-                      <strong>Thread emails attachments ({threadEmails.length} emails):</strong>
-                      {threadEmails.map((te, idx) => {
-                        const teData = te as any;
-                        return (
-                          <div key={te.id} style={{ marginLeft: theme.spacing.sm, marginTop: theme.spacing.xs }}>
-                            [{idx}] {teData.attachments?.length ?? 0} attachments {teData.attachments?.length > 0 ? `(${teData.attachments.map((a: any) => a.filename).join(', ')})` : ''}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-              /* eslint-enable i18next/no-literal-string */
-            );
-          })()}
-        </div>
+          <div style={{ marginTop: theme.spacing.sm }}>
+            <PrivateNotesSection
+              noteContent={noteContent}
+              notesCollapsed={notesCollapsed}
+              onNoteContentChange={setNoteContent}
+              onToggleCollapsed={() => setNotesCollapsed(!notesCollapsed)}
+              onSaveNote={handleSaveNote}
+            />
 
-        {/* Side panel - expanded when a tab is active */}
-        {activeSideTab && (
-          <div style={{
-            width: '260px',
-            borderLeft: `1px solid ${theme.colors.border.light}`,
-            overflowY: 'auto',
-            overflowX: 'hidden',
-            padding: theme.spacing.sm,
-            backgroundColor: theme.colors.background.paper,
-            flexShrink: 0,
-          }}>
-            {activeSideTab === SIDE_TAB_NOTES && (
-              <PrivateNotesSection
-                noteContent={noteContent}
-                notesCollapsed={notesCollapsed}
-                onNoteContentChange={setNoteContent}
-                onToggleCollapsed={() => setNotesCollapsed(!notesCollapsed)}
-                onSaveNote={handleSaveNote}
-              />
-            )}
-            {activeSideTab === SIDE_TAB_ACTIONS && (
-              <ActionItemsSection
-                actionItems={actionItems}
-                newActionItem={newActionItem}
-                isGeneratingSummary={isGeneratingSummary}
-                onNewActionItemChange={setNewActionItem}
-                onAddActionItem={handleAddActionItem}
-                onToggleActionItem={handleToggleActionItem}
-                onDeleteActionItem={handleDeleteActionItem}
-                onExtractActions={handleExtractActions}
-                onRegenerateActionItems={handleRegenerateActionItems}
-              />
-            )}
-            {activeSideTab === SIDE_TAB_GITHUB && (
-              <GitHubStatusSection
-                links={githubLinks}
-                loading={loadingGithub}
-                hasToken={hasGithubToken}
-                onRefresh={refreshGithubInfo}
-                emailSubject={email?.subject}
-                emailBody={email?.body}
-                emailHtmlBody={email?.htmlBody}
-              />
-            )}
+            <ActionItemsSection
+              actionItems={actionItems}
+              newActionItem={newActionItem}
+              isGeneratingSummary={isGeneratingSummary}
+              onNewActionItemChange={setNewActionItem}
+              onAddActionItem={handleAddActionItem}
+              onToggleActionItem={handleToggleActionItem}
+              onDeleteActionItem={handleDeleteActionItem}
+              onExtractActions={handleExtractActions}
+              onRegenerateActionItems={handleRegenerateActionItems}
+            />
+
+            <GitHubStatusSection
+              links={githubLinks}
+              loading={loadingGithub}
+              hasToken={hasGithubToken}
+              onRefresh={refreshGithubInfo}
+              emailSubject={email?.subject}
+              emailBody={email?.body}
+              emailHtmlBody={email?.htmlBody}
+            />
           </div>
-        )}
-
-        {/* Vertical tab strip */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          borderLeft: `1px solid ${theme.colors.border.light}`,
-          backgroundColor: theme.colors.background.subtle,
-          flexShrink: 0,
-        }}>
-          {([
-            { key: SIDE_TAB_NOTES, label: `📝 ${t('emailDetail.privateNotes')}` },
-            { key: SIDE_TAB_ACTIONS, label: `✅ ${t('emailDetail.actionItems')}` },
-            { key: SIDE_TAB_GITHUB, label: '🐙 GitHub' },
-          ] as const).map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => {
-                setActiveSideTab(prev => prev === tab.key ? null : tab.key);
-                // Auto-expand notes when Notes tab is clicked
-                if (tab.key === SIDE_TAB_NOTES) {
-                  setNotesCollapsed(false);
-                }
-              }}
-              style={{
-                writingMode: 'vertical-rl',
-                textOrientation: 'mixed',
-                transform: 'rotate(180deg)',
-                padding: `${theme.spacing.md} ${theme.spacing.sm}`,
-                border: 'none',
-                borderTop: `1px solid ${theme.colors.border.light}`,
-                cursor: 'pointer',
-                backgroundColor: activeSideTab === tab.key ? theme.colors.primary.subtle : 'transparent',
-                color: activeSideTab === tab.key ? theme.colors.primary.main : theme.colors.text.secondary,
-                fontSize: theme.typography.fontSize.lg,
-                fontWeight: activeSideTab === tab.key ? theme.typography.fontWeight.semibold : theme.typography.fontWeight.normal,
-                whiteSpace: 'nowrap',
-                transition: theme.transitions.fast,
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
         </div>
 
         <CustomRuleModal

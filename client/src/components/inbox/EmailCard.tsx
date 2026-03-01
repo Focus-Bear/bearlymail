@@ -72,7 +72,7 @@ export const EmailCard: React.FC<EmailCardProps> = ({
             left: 0,
             right: 0,
             background: `linear-gradient(90deg, ${theme.colors.warning.main} 0%, ${theme.colors.warning.light} 100%)`,
-            color: '#92400E',
+            color: theme.colors.warning.main,
             fontSize: theme.typography.fontSize.xs,
             fontWeight: 600,
             textAlign: 'center',

@@ -37,6 +37,11 @@ interface PromptExample {
 
 type DateRange = '24h' | '7d' | '30d' | 'all';
 
+const DATE_RANGE_24H: DateRange = '24h';
+const DATE_RANGE_7D: DateRange = '7d';
+const DATE_RANGE_30D: DateRange = '30d';
+const DATE_RANGE_ALL: DateRange = 'all';
+
 const REFRESH_INTERVAL_MS = REFRESH_INTERVAL_30_SEC_MS;
 
 const OPERATION_LABELS: Record<string, string> = {
@@ -66,19 +71,19 @@ export const TokenUsageSection: React.FC = () => {
   const [examplesLoading, setExamplesLoading] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [dateRange, setDateRange] = useState<DateRange>('7d');
+  const [dateRange, setDateRange] = useState<DateRange>(DATE_RANGE_7D);
   const [expandedExample, setExpandedExample] = useState<string | null>(null);
 
   const getDateRangeParams = useCallback((): { startDate?: string } => {
     const now = new Date();
     switch (dateRange) {
-      case '24h':
+      case DATE_RANGE_24H:
         return { startDate: new Date(now.getTime() - MS_PER_DAY).toISOString() };
-      case '7d':
+      case DATE_RANGE_7D:
         return { startDate: new Date(now.getTime() - 7 * MS_PER_DAY).toISOString() };
-      case '30d':
+      case DATE_RANGE_30D:
         return { startDate: new Date(now.getTime() - DAYS_IN_MONTH_30 * MS_PER_DAY).toISOString() };
-      case 'all':
+      case DATE_RANGE_ALL:
       default:
         return {};
     }

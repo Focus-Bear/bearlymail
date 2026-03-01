@@ -43,21 +43,22 @@ function getChangedPromptFiles() {
   try {
     // Try multiple git diff strategies in order of preference.
     // This avoids hard-failing when origin/<base> is unavailable in CI shallow clones.
+    const baseRefs = [];
+    if (process.env.GITHUB_BASE_SHA) baseRefs.push(process.env.GITHUB_BASE_SHA);
+    if (process.env.GITHUB_BASE_REF) {
+      baseRefs.push(`origin/${process.env.GITHUB_BASE_REF}`);
+      baseRefs.push(process.env.GITHUB_BASE_REF);
+    }
+    baseRefs.push('main', 'origin/main', 'HEAD~1');
+
+    // Build candidate strategies: three-dot (merge-base), then direct tree diff (no dots)
     const candidateRefs = [];
-    if (process.env.GITHUB_BASE_SHA) candidateRefs.push({ ref: process.env.GITHUB_BASE_SHA, useTwoDot: true });
-    if (process.env.GITHUB_BASE_REF) {
-      candidateRefs.push({ ref: `origin/${process.env.GITHUB_BASE_REF}`, useTwoDot: false });
-      candidateRefs.push({ ref: process.env.GITHUB_BASE_REF, useTwoDot: false });
+    for (const ref of baseRefs) {
+      candidateRefs.push({ ref, diffMode: 'three-dot' });
     }
-    candidateRefs.push({ ref: 'main', useTwoDot: false });
-    candidateRefs.push({ ref: 'origin/main', useTwoDot: false });
-    // Two-dot fallbacks for shallow clones where merge-base can't be computed
-    if (process.env.GITHUB_BASE_REF) {
-      candidateRefs.push({ ref: `origin/${process.env.GITHUB_BASE_REF}`, useTwoDot: true });
+    for (const ref of baseRefs) {
+      candidateRefs.push({ ref, diffMode: 'direct' });
     }
-    candidateRefs.push({ ref: 'main', useTwoDot: true });
-    candidateRefs.push({ ref: 'origin/main', useTwoDot: true });
-    candidateRefs.push({ ref: 'HEAD~1', useTwoDot: true });
 
     // In CI shallow clones, refs like origin/main may not exist.
     // Try to fetch the base ref if we're in a shallow clone.
@@ -82,28 +83,25 @@ function getChangedPromptFiles() {
     let selectedRef = null;
     const refErrors = [];
     for (const candidate of candidateRefs) {
-      const ref = typeof candidate === 'string' ? candidate : candidate.ref;
-      const useTwoDot = typeof candidate === 'string' ? false : candidate.useTwoDot;
-      const diffSpec = useTwoDot ? `${ref}..HEAD` : `${ref}...HEAD`;
+      const { ref, diffMode } = candidate;
+      // three-dot: uses merge-base (needs full history)
+      // direct: compares trees directly (works in shallow clones)
+      const diffArgs = diffMode === 'three-dot'
+        ? ['diff', '--name-only', `${ref}...HEAD`, '--', 'server/promptfoo/']
+        : ['diff', '--name-only', ref, 'HEAD', '--', 'server/promptfoo/'];
       try {
-        result = execFileSync('git', [
-          'diff',
-          '--name-only',
-          diffSpec,
-          '--',
-          'server/promptfoo/',
-        ], { encoding: 'utf-8' });
-        selectedRef = ref;
+        result = execFileSync('git', diffArgs, { encoding: 'utf-8' });
+        selectedRef = `${ref} (${diffMode})`;
         break;
       } catch (error) {
-        const refLabel = typeof candidate === 'string' ? candidate : `${candidate.ref}(${candidate.useTwoDot ? '..' : '...'})`;
+        const refLabel = `${candidate.ref}(${candidate.diffMode})`;
         const stderr = error.stderr ? error.stderr.toString().trim() : '';
         refErrors.push(`${refLabel}: ${error.message}${stderr ? ' | stderr: ' + stderr : ''}`);
       }
     }
 
     if (!selectedRef) {
-      const refLabels = candidateRefs.map(c => typeof c === 'string' ? c : `${c.ref}(${c.useTwoDot ? '..' : '...'})`)
+      const refLabels = candidateRefs.map(c => `${c.ref}(${c.diffMode})`);
       throw new Error(`Unable to diff against any candidate refs: ${refLabels.join(', ')}.\nDetailed errors:\n${refErrors.map((e, i) => '  ' + (i+1) + '. ' + e).join('\n')}`);
     }
 

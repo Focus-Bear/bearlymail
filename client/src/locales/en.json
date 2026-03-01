@@ -1126,6 +1126,8 @@
     "dealStage": "Stage",
     "expectedClose": "Expected Close",
     "contact": "Contact",
+    "searchContacts": "Search contacts...",
+    "noContactsFound": "No contacts found",
     "currency": "Currency",
     "noDeals": "No deals yet",
     "createFirstDeal": "Create your first deal to start tracking opportunities.",

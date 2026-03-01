@@ -51,7 +51,7 @@ export const ArchiveConfirmationToast: React.FC<ArchiveConfirmationToastProps> =
           onClick={onConfirm}
           style={{
             backgroundColor: theme.colors.accent.error,
-            color: '#fff',
+            color: 'white',
             border: 'none',
             borderRadius: theme.borderRadius.sm,
             padding: `${theme.spacing.xs} ${theme.spacing.md}`,

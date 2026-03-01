@@ -21,6 +21,7 @@ interface PriorityExplanation {
 }
 
 const COPY_ICON = '⧉';
+const SENTIMENT_KEYWORD = 'sentiment';
 
 interface EmailDetailHeaderProps {
   email: Email;
@@ -229,7 +230,7 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
               )}
               {priorityExplanation.breakdown && (() => {
                 const sentimentItem = priorityExplanation.breakdown.find(item => 
-                  item.factor.toLowerCase().includes('sentiment') || item.description.toLowerCase().includes('sentiment')
+                  item.factor.toLowerCase().includes(SENTIMENT_KEYWORD) || item.description.toLowerCase().includes(SENTIMENT_KEYWORD)
                 );
                 if (sentimentItem) {
                   const sentimentLabel = getSentimentLabel(sentimentItem.value);
@@ -311,7 +312,7 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
               <div style={{ marginBottom: theme.spacing.md }}>
                 {priorityExplanation.breakdown && priorityExplanation.breakdown.map((item) => (
                   <div key={`${item.factor}-${item.value}`} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: theme.spacing.xs, fontSize: theme.typography.fontSize.sm }}>
-                    <span title={item.description} style={{ cursor: 'help', borderBottom: '1px dotted #ccc' }}>
+                    <span title={item.description} style={{ cursor: 'help', borderBottom: `1px dotted ${theme.colors.border.medium}` }}>
                       {item.factor}
                     </span>
                     <span style={{ fontWeight: item.value > 0 ? 'bold' : 'normal', color: item.value > 0 ? theme.colors.accent.success || 'green' : 'inherit' }}>

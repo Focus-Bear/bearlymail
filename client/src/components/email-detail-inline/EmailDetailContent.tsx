@@ -541,15 +541,15 @@ export const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
                       )}
 
                       {gmailLabels.gmailLabels.error && (
-                        <div style={{ color: '#d32f2f' }}><strong>Gmail Error:</strong> {gmailLabels.gmailLabels.error}</div>
+                        <div style={{ color: theme.colors.error.main }}><strong>Gmail Error:</strong> {gmailLabels.gmailLabels.error}</div>
                       )}
 
                       <div style={{
                         marginTop: theme.spacing.xs,
                         padding: theme.spacing.xs,
                         backgroundColor: JSON.stringify(gmailLabels.dbLabels?.names || emailData.labels || []) === JSON.stringify(gmailLabels.gmailLabels.labelNames || [])
-                          ? '#e8f5e9'
-                          : '#ffebee',
+                          ? theme.colors.success.light
+                          : theme.colors.error.light,
                         borderRadius: theme.borderRadius.sm,
                       }}>
                         <strong>Match Status:</strong> {JSON.stringify(gmailLabels.dbLabels?.names || emailData.labels || []) === JSON.stringify(gmailLabels.gmailLabels.labelNames || []) ? '✓ MATCH' : '✗ MISMATCH'}
@@ -563,7 +563,7 @@ export const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
                     </>
                   )}
                   {gmailLabels?.error && (
-                    <div style={{ color: '#d32f2f' }}><strong>Error:</strong> {gmailLabels.error}</div>
+                    <div style={{ color: theme.colors.error.main }}><strong>Error:</strong> {gmailLabels.error}</div>
                   )}
                 </div>
               </div>

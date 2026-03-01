@@ -26,6 +26,11 @@ import { ACTION_TYPE_CUSTOM, SUMMARY_TYPE_CUSTOM, SUMMARY_TYPE_CUSTOM_PREFIX } f
 import { AUTO_SAVE_INTERVAL_MS } from 'constants/numbers';
 import { useScheduledEmails } from 'hooks/useScheduledEmails';
 
+const SIDE_TAB_NOTES = 'notes' as const;
+const SIDE_TAB_ACTIONS = 'actions' as const;
+const SIDE_TAB_GITHUB = 'github' as const;
+
+
 interface EmailDetailProps {
   emailId?: string;
   compactMode?: boolean; // When true, renders without sidebar, overlay, and full-page layout for use in split view
@@ -53,7 +58,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
   const { isMobile } = useResponsiveBreakpoints();
   const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
   const replyComposerRef = useRef<HTMLDivElement>(null);
-  const [activeSideTab, setActiveSideTab] = useState<'notes' | 'actions' | 'github' | null>(null);
+  const [activeSideTab, setActiveSideTab] = useState<typeof SIDE_TAB_NOTES | typeof SIDE_TAB_ACTIONS | typeof SIDE_TAB_GITHUB | null>(null);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [scheduledSendAt, setScheduledSendAt] = useState<Date | null>(null);
   const [timeWarning, setTimeWarning] = useState<string | undefined>();
@@ -623,7 +628,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <strong>Gmail Thread ID:</strong>
                         <code style={{
-                          backgroundColor: '#e3f2fd',
+                          backgroundColor: theme.colors.primary.subtle,
                           padding: '2px 6px',
                           borderRadius: '4px',
                           fontFamily: 'monospace',
@@ -639,7 +644,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
                             style={{
                               padding: '2px 8px',
                               fontSize: '11px',
-                              backgroundColor: '#1976d2',
+                              backgroundColor: theme.colors.primary.main,
                               color: theme.colors.background.paper,
                               border: 'none',
                               borderRadius: '4px',
@@ -870,9 +875,9 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
                     <div style={{
                       marginTop: theme.spacing.xs,
                       padding: theme.spacing.xs,
-                      backgroundColor: '#ffebee',
+                      backgroundColor: theme.colors.error.light,
                       borderRadius: theme.borderRadius.sm,
-                      color: '#d32f2f',
+                      color: theme.colors.error.main,
                     }}>
                       No attachments on email object. Check Gmail API fetch and DB storage.
                     </div>
@@ -908,7 +913,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
             backgroundColor: theme.colors.background.paper,
             flexShrink: 0,
           }}>
-            {activeSideTab === 'notes' && (
+            {activeSideTab === SIDE_TAB_NOTES && (
               <PrivateNotesSection
                 noteContent={noteContent}
                 notesCollapsed={notesCollapsed}
@@ -917,7 +922,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
                 onSaveNote={handleSaveNote}
               />
             )}
-            {activeSideTab === 'actions' && (
+            {activeSideTab === SIDE_TAB_ACTIONS && (
               <ActionItemsSection
                 actionItems={actionItems}
                 newActionItem={newActionItem}
@@ -930,7 +935,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
                 onRegenerateActionItems={handleRegenerateActionItems}
               />
             )}
-            {activeSideTab === 'github' && (
+            {activeSideTab === SIDE_TAB_GITHUB && (
               <GitHubStatusSection
                 links={githubLinks}
                 loading={loadingGithub}
@@ -953,16 +958,16 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
           flexShrink: 0,
         }}>
           {([
-            { key: 'notes' as const, label: `📝 ${t('emailDetail.privateNotes')}` },
-            { key: 'actions' as const, label: `✅ ${t('emailDetail.actionItems')}` },
-            { key: 'github' as const, label: '🐙 GitHub' },
+            { key: SIDE_TAB_NOTES, label: `📝 ${t('emailDetail.privateNotes')}` },
+            { key: SIDE_TAB_ACTIONS, label: `✅ ${t('emailDetail.actionItems')}` },
+            { key: SIDE_TAB_GITHUB, label: '🐙 GitHub' },
           ] as const).map(tab => (
             <button
               key={tab.key}
               onClick={() => {
                 setActiveSideTab(prev => prev === tab.key ? null : tab.key);
                 // Auto-expand notes when Notes tab is clicked
-                if (tab.key === 'notes') {
+                if (tab.key === SIDE_TAB_NOTES) {
                   setNotesCollapsed(false);
                 }
               }}

@@ -77,7 +77,7 @@ export const ActionItemList: React.FC<ActionItemListProps> = ({
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.opacity = '1';
-                e.currentTarget.style.color = theme.colors.error?.main || '#ef4444';
+                e.currentTarget.style.color = theme.colors.error?.main || theme.colors.accent.error;
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.opacity = '0.6';

@@ -38,9 +38,9 @@ export const InboxHeaderActions: React.FC<InboxHeaderActionsProps> = ({
             fontSize: theme.typography.fontSize.base,
             borderRadius: theme.borderRadius.md,
             border: debugViewOpen
-              ? `1px solid #FFC107`
+              ? `1px solid ${theme.colors.warning.main}`
               : `1px solid ${theme.colors.border.medium}`,
-            backgroundColor: debugViewOpen ? '#FFF8E1' : theme.colors.background.paper,
+            backgroundColor: debugViewOpen ? theme.colors.warning.light : theme.colors.background.paper,
             color: theme.colors.text.primary,
             cursor: 'pointer',
             display: 'flex',

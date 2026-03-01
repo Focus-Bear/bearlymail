@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { theme } from 'theme/theme';
 
 interface EmailBodyIframeProps {
   html: string;
@@ -17,6 +18,10 @@ export const EmailBodyIframe: React.FC<EmailBodyIframeProps> = ({
   const [height, setHeight] = useState(minHeight);
   const [contentWidth, setContentWidth] = useState<number | null>(null);
 
+  const {
+    colors: { text, primary, border, greyscale },
+  } = theme;
+
   // Base styles to apply inside the iframe for readability
   const baseStyles = `
     <style>
@@ -29,7 +34,7 @@ export const EmailBodyIframe: React.FC<EmailBodyIframeProps> = ({
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         font-size: 16px;
         line-height: 1.6;
-        color: #333;
+        color: ${text.secondary};
         background: transparent;
         word-wrap: break-word;
         overflow-wrap: break-word;
@@ -38,7 +43,7 @@ export const EmailBodyIframe: React.FC<EmailBodyIframeProps> = ({
         padding: 0;
       }
       a {
-        color: #E9902C;
+        color: ${primary.main};
         text-decoration: none;
       }
       a:hover {
@@ -55,12 +60,12 @@ export const EmailBodyIframe: React.FC<EmailBodyIframeProps> = ({
       blockquote {
         margin: 1em 0;
         padding-left: 1em;
-        border-left: 3px solid #ddd;
-        color: #666;
+        border-left: 3px solid ${border.light};
+        color: ${text.tertiary};
       }
       pre, code {
         font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, monospace;
-        background: #f5f5f5;
+        background: ${greyscale.grey050};
         border-radius: 4px;
       }
       pre {

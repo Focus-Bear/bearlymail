@@ -369,13 +369,13 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
         <div style={{
           marginTop: theme.spacing.md,
           padding: theme.spacing.md,
-          backgroundColor: '#fff3e0',
-          border: '1px solid #ffb74d',
+          backgroundColor: theme.colors.warning.light,
+          border: `1px solid ${theme.colors.warning.main}`,
           borderRadius: theme.borderRadius.md,
           fontSize: theme.typography.fontSize.xs,
           fontFamily: 'monospace',
         }}>
-          <div style={{ fontWeight: 'bold', marginBottom: theme.spacing.xs, color: '#e65100' }}>
+          <div style={{ fontWeight: 'bold', marginBottom: theme.spacing.xs, color: theme.colors.warning.main }}>
             Reply Generation Debug (Admin Only)
           </div>
           <div style={{ color: theme.colors.text.secondary, lineHeight: DEBUG_PANEL_LINE_HEIGHT }}>
@@ -385,7 +385,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
               <div>Email object ID: {currentEmailObjectId || 'N/A'}</div>
               <div>Email threadId: {currentEmailThreadId || 'N/A'}</div>
               <div style={{
-                backgroundColor: currentEmailId === currentEmailObjectId ? '#e8f5e9' : '#ffebee',
+                backgroundColor: currentEmailId === currentEmailObjectId ? theme.colors.success.light : theme.colors.error.light,
                 padding: '2px 4px',
                 borderRadius: '2px',
                 display: 'inline-block',
@@ -403,7 +403,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
                   <div>Last generated for: {debugInfo.lastGeneratedForEmailId || 'N/A'}</div>
                   <div>Timestamp: {debugInfo.timestamp}</div>
                   <div style={{
-                    backgroundColor: debugInfo.propEmailId === currentEmailId ? '#e8f5e9' : '#ffebee',
+                    backgroundColor: debugInfo.propEmailId === currentEmailId ? theme.colors.success.light : theme.colors.error.light,
                     padding: '2px 4px',
                     borderRadius: '2px',
                     display: 'inline-block',

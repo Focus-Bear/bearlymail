@@ -12,6 +12,13 @@ interface GitHubProjectBadgesProps {
   skipFetch?: boolean;
 }
 
+const GITHUB_STATE_MERGED = 'merged';
+const GITHUB_STATE_CLOSED = 'closed';
+const GITHUB_STATE_OPEN = 'open';
+const GITHUB_TYPE_PR = 'pr';
+const REVIEW_STATUS_APPROVED = 'approved';
+const REVIEW_STATUS_CHANGES_REQUESTED = 'changes_requested';
+
 // State colors for GitHub issues/PRs
 const stateColors: Record<string, { bg: string; text: string; border: string }> = {
   open: { bg: '#dafbe1', text: '#1a7f37', border: '#1a7f37' },
@@ -84,23 +91,23 @@ export const GitHubProjectBadges: React.FC<GitHubProjectBadgesProps> = ({
 
   // Get display state (merged takes precedence)
   const getDisplayState = (link: GitHubLink): string => {
-    if (link.status?.merged) return 'merged';
-    return link.status?.state || 'open';
+    if (link.status?.merged) return GITHUB_STATE_MERGED;
+    return link.status?.state || GITHUB_STATE_OPEN;
   };
 
   // Get state text for display
   const getStateText = (link: GitHubLink): string => {
     const state = getDisplayState(link);
-    if (state === 'merged') return t('github.merged', 'Merged');
-    if (state === 'closed') return t('github.closed', 'Closed');
+    if (state === GITHUB_STATE_MERGED) return t('github.merged', 'Merged');
+    if (state === GITHUB_STATE_CLOSED) return t('github.closed', 'Closed');
     return t('github.open', 'Open');
   };
 
   // Get review status text for PRs
   const getReviewStatusText = (link: GitHubLink): string | null => {
-    if (link.type !== 'pr' || !link.status?.reviewStatus) return null;
-    if (link.status.reviewStatus === 'approved') return t('github.approved');
-    if (link.status.reviewStatus === 'changes_requested') return t('github.changesRequested');
+    if (link.type !== GITHUB_TYPE_PR || !link.status?.reviewStatus) return null;
+    if (link.status.reviewStatus === REVIEW_STATUS_APPROVED) return t('github.approved');
+    if (link.status.reviewStatus === REVIEW_STATUS_CHANGES_REQUESTED) return t('github.changesRequested');
     return null;
   };
 
@@ -144,8 +151,8 @@ export const GitHubProjectBadges: React.FC<GitHubProjectBadgesProps> = ({
       }}>
         {uniqueLinks.slice(0, 2).map((link) => {
           const displayState = getDisplayState(link);
-          const stateColor = stateColors[displayState] || stateColors.open;
-          const isPR = link.type === 'pr';
+          const stateColor = stateColors[displayState] || stateColors[GITHUB_STATE_OPEN];
+          const isPR = link.type === GITHUB_TYPE_PR;
           const reviewStatus = getReviewStatusText(link);
           
           return (
@@ -196,9 +203,9 @@ export const GitHubProjectBadges: React.FC<GitHubProjectBadgesProps> = ({
               {reviewStatus && (
                 <span style={{
                   fontSize: '10px',
-                  color: link.status?.reviewStatus === 'approved' 
-                    ? (theme.colors.accent.success || '#10b981')
-                    : (theme.colors.accent.warning || '#f59e0b'),
+                  color: link.status?.reviewStatus === REVIEW_STATUS_APPROVED
+                    ? theme.colors.accent.success
+                    : theme.colors.accent.warning,
                   fontWeight: theme.typography.fontWeight.medium,
                   paddingLeft: theme.spacing.sm,
                 }}>

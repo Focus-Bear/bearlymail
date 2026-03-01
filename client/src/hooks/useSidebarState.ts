@@ -31,10 +31,11 @@ export function useSidebarState(options: UseSidebarStateOptions = {}): UseSideba
   }, [manuallyExpanded]);
 
   const toggleCollapse = useCallback(() => {
-    if (splitViewActive) {
+    // Toggle should work on Settings page and when split view is active
+    if (splitViewActive || isSettingsPage) {
       setManuallyExpanded(prev => !prev);
     }
-  }, [splitViewActive]);
+  }, [splitViewActive, isSettingsPage]);
 
   const openMobileMenu = useCallback(() => {
     setIsMobileMenuOpen(true);
@@ -44,7 +45,12 @@ export function useSidebarState(options: UseSidebarStateOptions = {}): UseSideba
     setIsMobileMenuOpen(false);
   }, []);
 
-  const isCollapsed = splitViewActive && !isSettingsPage ? !manuallyExpanded : false;
+  // Sidebar should respect manual collapse state when:
+  // 1. Split view is active on Inbox page, OR
+  // 2. User is on Settings page
+  // Otherwise, sidebar is always expanded
+  const shouldRespectCollapseState = splitViewActive || isSettingsPage;
+  const isCollapsed = shouldRespectCollapseState ? !manuallyExpanded : false;
 
   return {
     isCollapsed,

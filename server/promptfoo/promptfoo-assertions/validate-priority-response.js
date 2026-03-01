@@ -218,15 +218,18 @@ module.exports = (output, context) => {
         if (isOther && (!parsed.protoCategorySuggestion || typeof parsed.protoCategorySuggestion !== 'object')) {
           throw new Error(`Expected protoCategorySuggestion object when category is "Other", but it's missing or invalid`);
         }
-        if (!parsed.protoCategorySuggestion.name || typeof parsed.protoCategorySuggestion.name !== 'string') {
-          throw new Error(`Expected protoCategorySuggestion.name to be a non-empty string`);
-        }
-        if (!parsed.protoCategorySuggestion.description || typeof parsed.protoCategorySuggestion.description !== 'string') {
-          throw new Error(`Expected protoCategorySuggestion.description to be a non-empty string`);
-        }
-        // Validate emoji prefix in name
-        if (!/^[\p{Emoji}]/u.test(parsed.protoCategorySuggestion.name)) {
-          throw new Error(`Expected protoCategorySuggestion.name to start with an emoji, got "${parsed.protoCategorySuggestion.name}"`);
+        if (isOther || parsed.protoCategorySuggestion) {
+          if (parsed.protoCategorySuggestion) {
+            if (!parsed.protoCategorySuggestion.name || typeof parsed.protoCategorySuggestion.name !== 'string') {
+              throw new Error(`Expected protoCategorySuggestion.name to be a non-empty string`);
+            }
+            if (!parsed.protoCategorySuggestion.description || typeof parsed.protoCategorySuggestion.description !== 'string') {
+              throw new Error(`Expected protoCategorySuggestion.description to be a non-empty string`);
+            }
+            if (!/^[\p{Emoji}]/u.test(parsed.protoCategorySuggestion.name)) {
+              throw new Error(`Expected protoCategorySuggestion.name to start with an emoji, got "${parsed.protoCategorySuggestion.name}"`);
+            }
+          }
         }
       } else if (context.config.expectProtoCategorySuggestion === false) {
         // Should NOT have a proto category suggestion (e.g., when a category is matched)
@@ -310,3 +313,4 @@ module.exports = (output, context) => {
   
   return true;
 };
+

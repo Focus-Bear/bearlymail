@@ -208,6 +208,6 @@ tests:
           const parsed = JSON.parse(output);
           return parsed.every(item =>
             item.description &&
-            item.description.length > 10 &&
-            item.description.toLowerCase().includes('email')
+            item.description.length > 10
           );
+

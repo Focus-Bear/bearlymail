@@ -26,71 +26,71 @@
     "deselectAll": "Deselect all",
     "saved": "✓ Saved"
   },
-    "auth": {
-      "loginTitle": "Welcome Back",
-      "registerTitle": "Create Account",
-      "continueWithGoogle": "Continue with Google",
-      "or": "OR",
-      "email": "Email",
-      "password": "Password",
-      "name": "Name",
-      "signIn": "Sign In",
-      "signUp": "Sign Up",
-      "haveAccount": "Already have an account? Sign in",
-      "noAccount": "Don't have an account? Sign up",
-      "reloginRequired": "Action Required: Please log in again to restore email synchronization.",
-      "logout": "Log Out",
-      "reloginLink": "log in again",
-      "authenticationFailed": "Authentication failed",
-      "setupAccountTitle": "Set Up Your Account",
-      "setupAccountDescription": "Welcome! Please create a password to complete your account setup.",
-      "invalidSetupLink": "Invalid setup link. Please check your email for the correct link.",
-      "passwordTooShort": "Password must be at least 8 characters long.",
-      "passwordsDoNotMatch": "Passwords do not match.",
-      "passwordMinLength": "Must be at least 8 characters long",
-      "confirmPassword": "Confirm Password",
-      "settingUp": "Setting up...",
-      "setUpAccount": "Set Up Account",
-      "setupPasswordError": "Failed to set up password. The link may have expired.",
-      "joinWaitlist": "Join Waitlist",
-      "backToLogin": "Back to Login",
-      "goToHomepage": "Go to Homepage",
-      "permissions": {
-        "title": "Permissions Explained",
-        "intro": "BearlyMail needs the following permissions to help you manage your email effectively. We take your privacy seriously and only request what's necessary.",
-        "gmail": {
-          "title": "Gmail Access",
-          "description": "Read, organize, and send emails on your behalf. This allows BearlyMail to prioritize your inbox, archive emails, and send replies."
-        },
-        "calendar": {
-          "title": "Calendar Events",
-          "description": "View your availability and create meeting invitations. BearlyMail only manages calendar events, not your calendars themselves."
-        },
-        "contacts": {
-          "title": "Contacts",
-          "description": "Read your contacts to identify important people and personalize your email experience."
-        },
-        "security": "🔒 All your data is encrypted and stored securely. We never share your information with third parties.",
-        "continue": "Continue to Google"
+  "auth": {
+    "loginTitle": "Welcome Back",
+    "registerTitle": "Create Account",
+    "continueWithGoogle": "Continue with Google",
+    "or": "OR",
+    "email": "Email",
+    "password": "Password",
+    "name": "Name",
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "haveAccount": "Already have an account? Sign in",
+    "noAccount": "Don't have an account? Sign up",
+    "reloginRequired": "Action Required: Please log in again to restore email synchronization.",
+    "logout": "Log Out",
+    "reloginLink": "log in again",
+    "authenticationFailed": "Authentication failed",
+    "setupAccountTitle": "Set Up Your Account",
+    "setupAccountDescription": "Welcome! Please create a password to complete your account setup.",
+    "invalidSetupLink": "Invalid setup link. Please check your email for the correct link.",
+    "passwordTooShort": "Password must be at least 8 characters long.",
+    "passwordsDoNotMatch": "Passwords do not match.",
+    "passwordMinLength": "Must be at least 8 characters long",
+    "confirmPassword": "Confirm Password",
+    "settingUp": "Setting up...",
+    "setUpAccount": "Set Up Account",
+    "setupPasswordError": "Failed to set up password. The link may have expired.",
+    "joinWaitlist": "Join Waitlist",
+    "backToLogin": "Back to Login",
+    "goToHomepage": "Go to Homepage",
+    "permissions": {
+      "title": "Permissions Explained",
+      "intro": "BearlyMail needs the following permissions to help you manage your email effectively. We take your privacy seriously and only request what's necessary.",
+      "gmail": {
+        "title": "Gmail Access",
+        "description": "Read, organize, and send emails on your behalf. This allows BearlyMail to prioritize your inbox, archive emails, and send replies."
       },
-      "errors": {
-        "waitlistSubmitted": {
-          "title": "You're on the waitlist!",
-          "description": "We've received your request. You'll receive an email when your account is approved."
-        },
-        "pendingApproval": {
-          "title": "Account Pending Approval",
-          "description": "Your account is on the waitlist and pending approval. We'll notify you by email once your account is approved."
-        },
-        "notOnWaitlist": {
-          "title": "Join the Waitlist",
-          "description": "You need to join our waitlist first before you can sign in. Sign up below to get early access to BearlyMail."
-        },
-        "generic": {
-          "title": "Authentication Error"
-        }
-      }
+      "calendar": {
+        "title": "Calendar Events",
+        "description": "View your availability and create meeting invitations. BearlyMail only manages calendar events, not your calendars themselves."
+      },
+      "contacts": {
+        "title": "Contacts",
+        "description": "Read your contacts to identify important people and personalize your email experience."
+      },
+      "security": "🔒 All your data is encrypted and stored securely. We never share your information with third parties.",
+      "continue": "Continue to Google"
     },
+    "errors": {
+      "waitlistSubmitted": {
+        "title": "You're on the waitlist!",
+        "description": "We've received your request. You'll receive an email when your account is approved."
+      },
+      "pendingApproval": {
+        "title": "Account Pending Approval",
+        "description": "Your account is on the waitlist and pending approval. We'll notify you by email once your account is approved."
+      },
+      "notOnWaitlist": {
+        "title": "Join the Waitlist",
+        "description": "You need to join our waitlist first before you can sign in. Sign up below to get early access to BearlyMail."
+      },
+      "generic": {
+        "title": "Authentication Error"
+      }
+    }
+  },
   "email": {
     "waitlistApproval": {
       "subject": "Welcome to BearlyMail - Set Up Your Account",
@@ -202,15 +202,15 @@
     "confirmBulkSend": "Send {{count}} follow-up emails?",
     "sending": "Sending...",
     "sent": "Sent",
-        "followUpDetails": {
-          "with": "With",
-          "daysSinceResponse": "Days since their last response",
-          "day": "day",
-          "day_plural": "days",
-          "status": "Status",
-          "noReplyReceived": "No reply received",
-          "youSentLast": "You sent the last"
-        },
+    "followUpDetails": {
+      "with": "With",
+      "daysSinceResponse": "Days since their last response",
+      "day": "day",
+      "day_plural": "days",
+      "status": "Status",
+      "noReplyReceived": "No reply received",
+      "youSentLast": "You sent the last"
+    },
     "sendResults": "Send Results",
     "andMore": "and {{count}} more",
     "error": "Error",
@@ -288,10 +288,10 @@
       "clearAll": "Clear Filters"
     }
   },
-      "emailDetail": {
-        "attachments": "Attachments ({{count}})",
-        "attachFiles": "Attach files",
-        "privateNotes": "Private Notes",
+  "emailDetail": {
+    "attachments": "Attachments ({{count}})",
+    "attachFiles": "Attach files",
+    "privateNotes": "Private Notes",
     "privateNotesPlaceholder": "Add thoughts, context, or reminders about this thread... (Only visible to you)",
     "saveNote": "Save Note",
     "actionItems": "Action Items",
@@ -425,7 +425,10 @@
     "saveApiKey": "Save API Key",
     "removeKey": "Remove Key",
     "getKey": "Get API Key →",
-    "emailBatching": "Email Batching",
+    "emailBatching": {
+      "title": "Email Batching",
+      "description": "Non-urgent emails will be batched and delivered at these scheduled times. Urgent emails always arrive immediately."
+    },
     "hideNonUrgent": "Hide non-urgent emails for (hours):",
     "summarizationRules": "Summarization Rules",
     "summarizationRulesDesc": "Create custom rules for how emails should be summarized. For example, extract only action items from meeting requests, or summarize newsletters in bullet points.",
@@ -442,6 +445,8 @@
     "noContext": "No context learned yet. Click \"Analyze Emails\" to learn from your email history.",
     "source": "Source: {{source}}",
     "batchHoursUpdated": "Batch hours updated successfully",
+    "batchScheduleUpdated": "Batch schedule updated successfully",
+    "batchScheduleError": "Failed to update batch schedule",
     "batchHoursError": "Failed to update batch hours",
     "toneRulesError": "Failed to update tone rules",
     "enterApiKey": "Please enter an OpenAI API key",
@@ -472,21 +477,121 @@
       "notImportant": "Add Not Important Item",
       "placeholder": "Enter value..."
     },
-        "contextExplanations": {
-          "vipContactStarredExplanation": "You've starred {{count}} email{{plural}} from this contact"
-        },
-        "profile": {
-          "title": "Your Profile",
-          "description": "This information is used in auto-responses and email replies.",
-          "displayNameLabel": "Display Name (used in auto-responses)",
-          "displayNamePlaceholder": "e.g., Jeremy",
-          "jobTitleLabel": "Job Title (provides context for AI)",
-          "jobTitlePlaceholder": "e.g., Software Engineer, Product Manager",
-          "notSet": "Not set"
-        },
-        "confirmRemoveGithubToken":"Are you sure you want to disconnect your GitHub account?",
-    "githubTokenRemoved": "GitHub disconnected successfully",
-    "githubTokenRemoveError": "Failed to disconnect GitHub",
+    "contextTypes": {
+      "tooltip": {
+        "vip": "Contacts whose emails should always be prioritized highly",
+        "userInfo": "Information about yourself that helps the AI understand your context",
+        "projects": "Current projects and topics you're working on",
+        "urgent": "Keywords or patterns that indicate an email is urgent to you",
+        "notImportant": "Keywords or patterns that indicate an email is not important to you",
+        "emailCategories": "Custom categories to organize your emails. Learn more: https://docs.focusbear.io/bearlymail/email-categories",
+        "qanda": "Common questions and answers that the auto-responder can use"
+      }
+    },
+    "emailCategories": {
+      "recategorize": "Recategorise emails in Inbox",
+      "recategorizing": "Recategorising...",
+      "consolidate": "Consolidate Categories",
+      "consolidating": "Consolidating...",
+      "recategorizeProgress": {
+        "inProgress": "Recategorising emails...",
+        "complete": "Recategorisation complete",
+        "status": "{{processed}} of {{total}} emails processed",
+        "statusWithFailed": "{{processed}} of {{total}} emails processed ({{failed}} failed)",
+        "remaining": "· {{pending}} remaining",
+        "dismiss": "Dismiss recategorisation progress"
+      }
+    },
+    "protoCategories": {
+      "viewButton": "View AI suggested categories",
+      "title": "AI Suggested Categories",
+      "description": "These categories were suggested by AI based on your emails. Promote ones you want to keep, or delete ones that aren't relevant.",
+      "empty": "No AI suggested categories yet. As you receive emails that don't fit existing categories, AI will suggest new ones here.",
+      "progress": "{{count}}/{{threshold}} emails",
+      "nameLabel": "Category name",
+      "saveName": "Save",
+      "savingName": "Saving...",
+      "nameRequired": "Category name is required",
+      "renameSuccess": "Category name updated",
+      "renameError": "Failed to update category name",
+      "promote": "Promote",
+      "promoting": "Promoting...",
+      "promotedSuccess": "Category promoted",
+      "promoteError": "Failed to promote category",
+      "delete": "Delete",
+      "deleting": "Deleting...",
+      "deletedSuccess": "Category deleted",
+      "deleteError": "Failed to delete category"
+    },
+    "contextExplanations": {
+      "vipContactStarredExplanation": "You've starred {{count}} email{{plural}} from this contact"
+    },
+    "profile": {
+      "title": "Your Profile",
+      "description": "This information is used in auto-responses and email replies.",
+      "displayNameLabel": "Display Name (used in auto-responses)",
+      "displayNamePlaceholder": "e.g., Jeremy",
+      "jobTitleLabel": "Job Title (provides context for AI)",
+      "jobTitlePlaceholder": "e.g., Software Engineer, Product Manager",
+      "notSet": "Not set"
+    },
+    "emailSignature": {
+      "title": "Email Signature",
+      "description": "Customize the signature that appears at the bottom of your emails.",
+      "label": "Signature",
+      "placeholder": "Sent from BearlyMail (anti inbox overwhelm system)",
+      "save": "Save Signature",
+      "saving": "Saving..."
+    },
+    "nav": {
+      "emailDelivery": "Email Delivery",
+      "googleAccounts": "Google Accounts",
+      "emailBatching": "Email Batching",
+      "blockedSenders": "Blocked Senders",
+      "guideOurAI": "Guide Our AI",
+      "emailCategories": "Email Categories",
+      "toneSettings": "Tone Settings",
+      "summarization": "Summarization",
+      "autoResponder": "Auto-Responder",
+      "integrations": "Integrations",
+      "openAiApiKey": "OpenAI API Key",
+      "githubIntegration": "GitHub Integration",
+      "schedulingPreferences": "Scheduling",
+      "schedulingAvailability": "Availability",
+      "schedulingMeetingGap": "Meeting Gap",
+      "schedulingDeepWork": "Deep Work",
+      "schedulingSlotDuration": "Slot Duration"
+    },
+    "schedulingPreferences": {
+      "title": "Scheduling Preferences",
+      "description": "Configure your availability for meeting scheduling. These settings control the time slots shown in your scheduling link.",
+      "availabilityHours": "Availability Hours",
+      "startHour": "Start",
+      "endHour": "End",
+      "availabilityDays": "Available Days",
+      "meetingGap": "Gap Between Meetings",
+      "meetingGapMinutes": "{{count}} minutes",
+      "deepWork": "Preserve Deep Work",
+      "deepWorkHours": "{{count}} hours per day with no meetings",
+      "slotDuration": "Meeting Slot Duration",
+      "slotDurationMinutes": "{{count}} minutes",
+      "timezone": "Timezone",
+      "bookingLink": "Your Booking Link",
+      "bookingLinkDescription": "Share this link so others can book time with you based on your availability.",
+      "copyLink": "Copy Link",
+      "linkCopied": "Copied!",
+      "saved": "Preferences saved",
+      "saveError": "Failed to save preferences",
+      "days": {
+        "sun": "Sun",
+        "mon": "Mon",
+        "tue": "Tue",
+        "wed": "Wed",
+        "thu": "Thu",
+        "fri": "Fri",
+        "sat": "Sat"
+      }
+    },
     "autoResponder": {
       "title": "Auto-Responder",
       "description": "Automatically respond to new emails with queue status and helpful information. The auto-responder can even answer common questions based on the Q&A in your context. Responses are sent as replies to the original email, keeping the conversation thread intact.",
@@ -571,6 +676,203 @@
       "importSuccessDetails": "Imported: {{details}}",
       "selectFile": "Select a JSON file exported from BearlyMail",
       "invalidFile": "Invalid file. Please select a valid BearlyMail export JSON file."
+    },
+    "confirmRemoveGithubToken": "Are you sure you want to disconnect your GitHub account?",
+    "githubTokenRemoved": "GitHub disconnected successfully",
+    "githubTokenRemoveError": "Failed to disconnect GitHub",
+    "githubConnectError": "Cannot connect GitHub: please log in first",
+    "setPassword": {
+      "title": "Password Login",
+      "description": "Set a password to enable login with email and password in addition to SSO. This is useful if you travel to regions where your SSO provider may be blocked.",
+      "descriptionHasPassword": "You have a password set. You can update it below if needed.",
+      "passwordLabel": "Password",
+      "newPasswordLabel": "New Password",
+      "passwordPlaceholder": "Enter password",
+      "confirmPasswordLabel": "Confirm Password",
+      "confirmPasswordPlaceholder": "Confirm password",
+      "passwordHint": "Must be at least 8 characters long",
+      "passwordTooShort": "Password must be at least 8 characters long",
+      "passwordsDoNotMatch": "Passwords do not match",
+      "setButton": "Set Password",
+      "updateButton": "Update Password",
+      "success": "Password set successfully! You can now log in with your email and password.",
+      "error": "Failed to set password. Please try again."
+    },
+    "analysis": {
+      "failed": "Analysis failed",
+      "complete": "Analysis complete",
+      "summary": "Summary",
+      "whatWereLearning": "What we're learning:",
+      "stats": {
+        "threadsAnalyzed_one": "{{count}} thread analyzed",
+        "threadsAnalyzed_other": "{{count}} threads analyzed",
+        "outboundAnalyzed_one": "{{count}} outbound email analyzed",
+        "outboundAnalyzed_other": "{{count}} outbound emails analyzed",
+        "neverOpened_one": "{{count}} thread never opened",
+        "neverOpened_other": "{{count}} threads never opened",
+        "readNotReplied_one": "{{count}} thread read but not replied",
+        "readNotReplied_other": "{{count}} threads read but not replied",
+        "vipContacts_one": "{{count}} VIP contact evaluated",
+        "vipContacts_other": "{{count}} VIP contacts evaluated"
+      },
+      "progress": {
+        "starting": "Starting analysis...",
+        "searching": "Searching your inbox...",
+        "fetching": "Fetching emails from Gmail ({{generalCount}} inbox + {{sentCount}} sent so far)...",
+        "preparing": "Found {{count}} threads, preparing for analysis...",
+        "identifyingVip": "Identifying VIP contacts from {{count}} threads...",
+        "analyzing": "Analyzing email patterns with AI ({{analyzed}}/{{total}} threads analyzed)...",
+        "analyzingGeneric": "Analyzing email patterns with AI (this may take 30-60 seconds)...",
+        "processingResults": "Processing analysis results...",
+        "savingInsights": "Saving insights to your context...",
+        "finalizing": "Finalizing analysis...",
+        "complete": "Analysis complete! Analyzed {{threads}} threads, {{outbound}} outbound emails. Found {{unopened}} unopened threads, {{readNotReplied}} read but not replied, {{vipCount}} contacts evaluated.",
+        "completeSimple": "Analysis complete! Analyzed {{count}} threads."
+      }
+    },
+    "delivery": {
+      "timezone": "Timezone",
+      "days": {
+        "sun": "Sunday",
+        "mon": "Monday",
+        "tue": "Tuesday",
+        "wed": "Wednesday",
+        "thu": "Thursday",
+        "fri": "Friday",
+        "sat": "Saturday",
+        "label": "Delivery Days",
+        "description": "Select which days of the week emails should be delivered"
+      },
+      "times": {
+        "label": "Delivery Times",
+        "removeTime": "Remove time",
+        "addTime": "Add Time"
+      }
+    },
+    "emailAccounts": {
+      "title": "Email Accounts",
+      "noAccounts": "No email accounts connected",
+      "connect": "Connect Account",
+      "connectAnother": "Connect Another",
+      "providers": {
+        "gmail": {
+          "description": "Connect your Gmail account"
+        },
+        "office365": {
+          "description": "Connect your Office 365 account"
+        },
+        "zoho": {
+          "description": "Connect your Zoho account"
+        }
+      },
+      "selectProvider": "Select Email Provider"
+    },
+    "gmail": {
+      "primary": "Primary",
+      "ssoLogin": "SSO Login",
+      "setPrimary": "Set as Primary",
+      "disconnect": "Disconnect",
+      "confirmDisconnect": "Are you sure you want to disconnect this Gmail account?",
+      "accounts": "Gmail Accounts",
+      "connectAnother": "Connect Another Gmail Account",
+      "emptyState": "No Gmail accounts connected",
+      "connectAccount": "Connect Gmail Account"
+    },
+    "office365": {
+      "confirmDisconnect": "Are you sure you want to disconnect this Office 365 account?",
+      "accounts": "Office 365 Accounts",
+      "noAccounts": "No Office 365 accounts connected",
+      "connect": "Connect Office 365",
+      "connectAnother": "Connect Another Office 365 Account"
+    },
+    "zoho": {
+      "confirmDisconnect": "Are you sure you want to disconnect this Zoho account?",
+      "accounts": "Zoho Accounts",
+      "noAccounts": "No Zoho accounts connected",
+      "connect": "Connect Zoho",
+      "connectAnother": "Connect Another Zoho Account"
+    },
+    "blockedSenders": {
+      "title": "Blocked Senders",
+      "description": "Emails from these senders will be automatically archived",
+      "emptyState": "No blocked senders",
+      "reason": "Reason",
+      "blocked": "Blocked",
+      "unblock": "Unblock"
+    },
+    "blockedKeywords": {
+      "title": "Blocked Keywords",
+      "description": "Emails with these keywords in the subject line will be automatically archived",
+      "emptyState": "No blocked keywords",
+      "reason": "Reason",
+      "blocked": "Blocked",
+      "unblock": "Unblock",
+      "exactMatch": "Exact",
+      "exactMatchLabel": "Exact phrase match",
+      "placeholder": "Enter keyword to block...",
+      "addKeyword": "Add Keyword"
+    },
+    "contextAboutMe": {
+      "description1": "Help BearlyMail understand your priorities by providing information about yourself and your work.",
+      "learnMore": "Learn more",
+      "description2": "This helps the AI prioritize emails and generate better summaries and replies.",
+      "impactTitle": "How Context Improves Your Experience",
+      "impactDescription": "When you provide context, BearlyMail can better understand which emails are important to you, prioritize them correctly, and generate more relevant summaries and replies."
+    },
+    "context": {
+      "noItems": "No items yet",
+      "question": "Question",
+      "answer": "Answer",
+      "compress": "Compress context",
+      "compressing": "Compressing…"
+    },
+    "guideAI": {
+      "title": "Guide Our AI",
+      "description": "Customize how BearlyMail understands and processes your emails"
+    },
+    "tone": {
+      "viewEmail": "View email"
+    },
+    "github": {
+      "title": "GitHub Integration",
+      "description": "Connect your GitHub account to see PR and issue status directly in your emails.",
+      "oauthDescription": "Click 'Connect GitHub' to authorize the app through GitHub OAuth. No manual token setup required.",
+      "orgProjectNote": "Note: To access organization-level projects (ProjectV2), an organization admin must install the GitHub App on your organization. Personal installation only accesses your user repositories.",
+      "connect": "Connect GitHub",
+      "disconnect": "Disconnect GitHub",
+      "connected": "GitHub connected",
+      "tokenConfigured": "GitHub token configured",
+      "repoMappings": {
+        "title": "GitHub Repository Mappings",
+        "description": "Map GitHub repositories to email categories so issues are created in the right repo. Repositories are auto-discovered from GitHub notification emails.",
+        "noMappings": "No repository mappings yet. They will be auto-discovered from your GitHub notification emails, or you can add them manually.",
+        "addRepo": "Add Repository",
+        "emailCategories": "Email Categories",
+        "categoriesPlaceholder": "e.g., Engineering, Bug Reports (comma-separated)",
+        "contextLabel": "Context",
+        "contextPlaceholder": "e.g., Use for frontend bug reports",
+        "default": "Default",
+        "autoDiscovered": "Auto-discovered",
+        "setDefault": "Set as Default",
+        "confirmDelete": "Are you sure you want to remove this repository mapping?"
+      },
+      "connectionStatus": {
+        "title": "GitHub Connection Status",
+        "refresh": "Refresh",
+        "checkedAt": "Checked at",
+        "tokenValid": "Token valid",
+        "tokenInvalid": "Token invalid or expired",
+        "scopes": "Permissions",
+        "reposTitle": "Repository Access",
+        "noReposMapped": "No repositories mapped yet. Add them in the Repository Mappings section below.",
+        "private": "private",
+        "noAccess": "No access",
+        "issuesFound": "Access issues detected",
+        "privateRepoHint": "One or more repositories could not be accessed. Private repositories require the 'repo' permission. Click below to reconnect and grant access to your private repos.",
+        "tokenExpiredHint": "Your GitHub token appears to be invalid or expired. Reconnect GitHub to fix this.",
+        "reconnect": "Reconnect GitHub",
+        "reconnectWithRepoAccess": "Grant private repo access"
+      }
     }
   },
   "admin": {
@@ -597,13 +899,13 @@
       "expires": "Expires",
       "joined": "Joined",
       "extendTrial": "Extend Trial",
-            "approve": "Approve",
-            "pendingApproval": "Pending Approval",
-            "approved": "Approved",
-            "noPendingRequests": "No pending requests",
-            "noApprovedEntries": "No approved entries",
-            "emailSystem": "Email System",
-            "decline": "Decline"
+      "approve": "Approve",
+      "pendingApproval": "Pending Approval",
+      "approved": "Approved",
+      "noPendingRequests": "No pending requests",
+      "noApprovedEntries": "No approved entries",
+      "emailSystem": "Email System",
+      "decline": "Decline"
     },
     "jobs": {
       "title": "Job Queue Statistics",
@@ -824,8 +1126,6 @@
     "dealStage": "Stage",
     "expectedClose": "Expected Close",
     "contact": "Contact",
-    "searchContacts": "Search contacts...",
-    "noContactsFound": "No contacts found",
     "currency": "Currency",
     "noDeals": "No deals yet",
     "createFirstDeal": "Create your first deal to start tracking opportunities.",
@@ -845,7 +1145,9 @@
     "closedWon": "Won",
     "closedLost": "Lost",
     "deleteConfirm": "Are you sure you want to delete this deal?",
-    "deleteStageConfirm": "Are you sure you want to delete this stage? Deals will be unassigned."
+    "deleteStageConfirm": "Are you sure you want to delete this stage? Deals will be unassigned.",
+    "searchContacts": "Search contacts",
+    "noContactsFound": "No contacts found"
   },
   "contactTypes": {
     "lead": "Lead",
@@ -879,6 +1181,8 @@
       "triageContent": "This is where new emails land. Quickly decide to reply, archive, or snooze them.",
       "processTitle": "Process Tab",
       "processContent": "Star an email to move it here. This is your focused workspace for emails that need action.",
+      "actionTitle": "Action Tab",
+      "actionContent": "Star an email to move it here. This is your focused workspace for emails that need action.",
       "deliveryTitle": "Scheduled Delivery",
       "deliveryContent": "New emails are batched and delivered every few hours to prevent distractions. Use 'Deliver Now' if you need to check urgently.",
       "skip": "Skip",
@@ -897,42 +1201,42 @@
       "progress": "{{current}} of {{total}} emails processed"
     }
   },
-    "github": {
-      "status": "GitHub Status",
-      "refresh": "Refresh",
-      "refreshing": "Refreshing...",
-      "assignedTo": "Assigned to",
-      "statusNoLinks": "No GitHub links found in this email",
-      "open": "Open",
-      "closed": "Closed",
-      "merged": "Merged",
-      "approved": "Approved",
-      "changesRequested": "Changes Requested",
-      "comments": "{{count}} comment",
-      "comments_plural": "{{count}} comments",
-      "readyToMerge": "Ready to Merge",
-      "saveToken": "Save Token",
-      "removeToken": "Remove Token",
-      "howToCreateToken": "How to create a GitHub token",
-      "pr": "PR",
-      "issue": "Issue",
-      "repositoryOwner": "Repository Owner",
-      "repositoryOwnerPlaceholder": "e.g., facebook",
-      "repositoryName": "Repository Name",
-      "repositoryNamePlaceholder": "e.g., react",
-      "issueTitle": "Issue Title",
-      "issueDescription": "Issue Description",
-      "labels": "Labels",
-      "labelsPlaceholder": "e.g., bug, enhancement (comma-separated)",
-      "project": "Project",
-      "more": "+{{count}} more",
-      "statusUnavailable": "Status unavailable — check GitHub token permissions or repository access",
-      "connectionPrompt": {
-        "title": "Connect GitHub for Enhanced Insights",
-        "description": "This email mentions GitHub. Connect your GitHub account to see PR and issue status, assignees, and more directly in your emails.",
-        "connectButton": "Connect GitHub",
-        "connecting": "Connecting..."
-      }
+  "github": {
+    "status": "GitHub Status",
+    "refresh": "Refresh",
+    "refreshing": "Refreshing...",
+    "assignedTo": "Assigned to",
+    "statusNoLinks": "No GitHub links found in this email",
+    "open": "Open",
+    "closed": "Closed",
+    "merged": "Merged",
+    "approved": "Approved",
+    "changesRequested": "Changes Requested",
+    "comments": "{{count}} comment",
+    "comments_plural": "{{count}} comments",
+    "readyToMerge": "Ready to Merge",
+    "saveToken": "Save Token",
+    "removeToken": "Remove Token",
+    "howToCreateToken": "How to create a GitHub token",
+    "pr": "PR",
+    "issue": "Issue",
+    "repositoryOwner": "Repository Owner",
+    "repositoryOwnerPlaceholder": "e.g., facebook",
+    "repositoryName": "Repository Name",
+    "repositoryNamePlaceholder": "e.g., react",
+    "issueTitle": "Issue Title",
+    "issueDescription": "Issue Description",
+    "labels": "Labels",
+    "labelsPlaceholder": "e.g., bug, enhancement (comma-separated)",
+    "project": "Project",
+    "more": "+{{count}} more",
+    "statusUnavailable": "Status unavailable — check GitHub token permissions or repository access",
+    "connectionPrompt": {
+      "title": "Connect GitHub for Enhanced Insights",
+      "description": "This email mentions GitHub. Connect your GitHub account to see PR and issue status, assignees, and more directly in your emails.",
+      "connectButton": "Connect GitHub",
+      "connecting": "Connecting..."
+    }
   },
   "gmail": {
     "connectTitle": "Connect Your Gmail Account",
@@ -1510,502 +1814,6 @@
       "commentLabel": "Comment"
     }
   },
-  "settings": {
-    "title": "Settings",
-    "backToInbox": "Back to Inbox",
-    "contextAboutMeTitle": "Context About Me",
-    "howIWrite": "How I write emails",
-    "toneConfig": "Configure rules for the tone checker to enforce when drafting replies. This is learned from your sent emails.",
-    "addRulePlaceholder": "Add a new rule (e.g., 'Be professional')",
-    "addRule": "Add Rule",
-    "openAiTitle": "OpenAI API Key (Optional)",
-    "openAiDesc": "Use your own OpenAI API key for AI features. If not provided, the system default key will be used. Your key is encrypted and stored securely.",
-    "hide": "Hide",
-    "show": "Show",
-    "saved": "✓ Saved",
-    "saveApiKey": "Save API Key",
-    "removeKey": "Remove Key",
-    "getKey": "Get API Key →",
-    "emailBatching": {
-      "title": "Email Batching",
-      "description": "Non-urgent emails will be batched and delivered at these scheduled times. Urgent emails always arrive immediately."
-    },
-    "hideNonUrgent": "Hide non-urgent emails for (hours):",
-    "summarizationRules": "Summarization Rules",
-    "summarizationRulesDesc": "Create custom rules for how emails should be summarized. For example, extract only action items from meeting requests, or summarize newsletters in bullet points.",
-    "addSummarizationRule": "Add New Rule",
-    "whenToUse": "When should this rule apply?",
-    "whenToUsePlaceholder": "e.g., For emails from my manager, For meeting requests...",
-    "howToSummarize": "How should the email be summarized?",
-    "howToSummarizePlaceholder": "e.g., Extract only action items and deadlines, Summarize in 3 bullet points...",
-    "noSummarizationRules": "No summarization rules yet. Add rules to customize how emails are summarized.",
-    "created": "Created {{date}}",
-    "learnedContext": "Learned Context",
-    "analyzeEmails": "Analyze Emails",
-    "analyzing": "Analyzing...",
-    "noContext": "No context learned yet. Click \"Analyze Emails\" to learn from your email history.",
-    "source": "Source: {{source}}",
-    "batchHoursUpdated": "Batch hours updated successfully",
-    "batchScheduleUpdated": "Batch schedule updated successfully",
-    "batchScheduleError": "Failed to update batch schedule",
-    "batchHoursError": "Failed to update batch hours",
-    "toneRulesError": "Failed to update tone rules",
-    "enterApiKey": "Please enter an OpenAI API key",
-    "apiKeyError": "Failed to save API key",
-    "confirmRemoveKey": "Are you sure you want to remove your OpenAI API key? You will use the system default key.",
-    "keyRemoved": "API key removed successfully",
-    "keyRemoveError": "Failed to remove API key",
-    "ruleUpdateError": "Failed to update rule",
-    "confirmDeleteRule": "Are you sure you want to delete this priority rule?",
-    "ruleDeleteError": "Failed to delete rule",
-    "emailsFrom": "Emails from {{value}}",
-    "emailsSubject": "Emails with subject containing \"{{value}}\"",
-    "contextSections": {
-      "vip": "VIP Contacts",
-      "userInfo": "Info About Me",
-      "projects": "Current Projects & Topics",
-      "urgent": "What I Consider Urgent",
-      "notImportant": "What I Don't Consider Important",
-      "emailCategories": "Email Categories",
-      "other": "Other Context"
-    },
-    "addContext": {
-      "vip": "Add VIP Contact",
-      "userInfo": "Add Personal Info",
-      "emailCategories": "Add Email Category",
-      "projects": "Add Topic/Project",
-      "urgent": "Add Urgent Item",
-      "notImportant": "Add Not Important Item",
-      "placeholder": "Enter value..."
-    },
-    "contextTypes": {
-      "tooltip": {
-        "vip": "Contacts whose emails should always be prioritized highly",
-        "userInfo": "Information about yourself that helps the AI understand your context",
-        "projects": "Current projects and topics you're working on",
-        "urgent": "Keywords or patterns that indicate an email is urgent to you",
-        "notImportant": "Keywords or patterns that indicate an email is not important to you",
-        "emailCategories": "Custom categories to organize your emails. Learn more: https://docs.focusbear.io/bearlymail/email-categories",
-        "qanda": "Common questions and answers that the auto-responder can use"
-      }
-    },
-    "emailCategories": {
-      "recategorize": "Recategorise emails in Inbox",
-      "recategorizing": "Recategorising...",
-      "consolidate": "Consolidate Categories",
-      "consolidating": "Consolidating...",
-      "recategorizeProgress": {
-        "inProgress": "Recategorising emails...",
-        "complete": "Recategorisation complete",
-        "status": "{{processed}} of {{total}} emails processed",
-        "statusWithFailed": "{{processed}} of {{total}} emails processed ({{failed}} failed)",
-        "remaining": "· {{pending}} remaining",
-        "dismiss": "Dismiss recategorisation progress"
-      }
-    },
-    "protoCategories": {
-      "viewButton": "View AI suggested categories",
-      "title": "AI Suggested Categories",
-      "description": "These categories were suggested by AI based on your emails. Promote ones you want to keep, or delete ones that aren't relevant.",
-      "empty": "No AI suggested categories yet. As you receive emails that don't fit existing categories, AI will suggest new ones here.",
-      "progress": "{{count}}/{{threshold}} emails",
-      "nameLabel": "Category name",
-      "saveName": "Save",
-      "savingName": "Saving...",
-      "nameRequired": "Category name is required",
-      "renameSuccess": "Category name updated",
-      "renameError": "Failed to update category name",
-      "promote": "Promote",
-      "promoting": "Promoting...",
-      "promotedSuccess": "Category promoted",
-      "promoteError": "Failed to promote category",
-      "delete": "Delete",
-      "deleting": "Deleting...",
-      "deletedSuccess": "Category deleted",
-      "deleteError": "Failed to delete category"
-    },
-    "contextExplanations": {
-      "vipContactStarredExplanation": "You've starred {{count}} email{{plural}} from this contact"
-    },
-    "profile": {
-      "title": "Your Profile",
-      "description": "This information is used in auto-responses and email replies.",
-      "displayNameLabel": "Display Name (used in auto-responses)",
-      "displayNamePlaceholder": "e.g., Jeremy",
-      "jobTitleLabel": "Job Title (provides context for AI)",
-      "jobTitlePlaceholder": "e.g., Software Engineer, Product Manager",
-      "notSet": "Not set"
-    },
-    "emailSignature": {
-      "title": "Email Signature",
-      "description": "Customize the signature that appears at the bottom of your emails.",
-      "label": "Signature",
-      "placeholder": "Sent from BearlyMail (anti inbox overwhelm system)",
-      "save": "Save Signature",
-      "saving": "Saving..."
-    },
-    "nav": {
-      "emailDelivery": "Email Delivery",
-      "googleAccounts": "Google Accounts",
-      "emailBatching": "Email Batching",
-      "blockedSenders": "Blocked Senders",
-      "guideOurAI": "Guide Our AI",
-      "emailCategories": "Email Categories",
-      "toneSettings": "Tone Settings",
-      "summarization": "Summarization",
-      "autoResponder": "Auto-Responder",
-      "integrations": "Integrations",
-      "openAiApiKey": "OpenAI API Key",
-      "githubIntegration": "GitHub Integration",
-      "schedulingPreferences": "Scheduling",
-      "schedulingAvailability": "Availability",
-      "schedulingMeetingGap": "Meeting Gap",
-      "schedulingDeepWork": "Deep Work",
-      "schedulingSlotDuration": "Slot Duration"
-    },
-    "schedulingPreferences": {
-      "title": "Scheduling Preferences",
-      "description": "Configure your availability for meeting scheduling. These settings control the time slots shown in your scheduling link.",
-      "availabilityHours": "Availability Hours",
-      "startHour": "Start",
-      "endHour": "End",
-      "availabilityDays": "Available Days",
-      "meetingGap": "Gap Between Meetings",
-      "meetingGapMinutes": "{{count}} minutes",
-      "deepWork": "Preserve Deep Work",
-      "deepWorkHours": "{{count}} hours per day with no meetings",
-      "slotDuration": "Meeting Slot Duration",
-      "slotDurationMinutes": "{{count}} minutes",
-      "timezone": "Timezone",
-      "bookingLink": "Your Booking Link",
-      "bookingLinkDescription": "Share this link so people can book time with you",
-      "copyLink": "Copy Link",
-      "linkCopied": "Copied!",
-      "saved": "Preferences saved",
-      "saveError": "Failed to save preferences",
-      "bookingLink": "Your Booking Link",
-      "bookingLinkDescription": "Share this link so others can book time with you based on your availability.",
-      "copyLink": "Copy Link",
-      "linkCopied": "Copied!",
-      "days": {
-        "sun": "Sun",
-        "mon": "Mon",
-        "tue": "Tue",
-        "wed": "Wed",
-        "thu": "Thu",
-        "fri": "Fri",
-        "sat": "Sat"
-      }
-    },
-    "autoResponder": {
-      "title": "Auto-Responder",
-      "description": "Automatically respond to new emails with queue status and helpful information. The auto-responder can even answer common questions based on the Q&A in your context. Responses are sent as replies to the original email, keeping the conversation thread intact.",
-      "learnMore": "Learn more",
-      "preview": {
-        "title": "Preview Auto-Responses",
-        "description": "See what your auto-response messages will look like",
-        "subject": "Subject:",
-        "subjectPlaceholder": "Re: [Original email subject]",
-        "subjectNote": "The auto-responder replies to the original email, keeping the subject line unchanged.",
-        "note": "Note: The actual response will use your real queue statistics and may include AI-generated answers if enabled and relevant."
-      },
-      "templates": {
-        "title": "Edit Auto-Response Templates",
-        "description": "Customize the messages sent for each priority level",
-        "edit": "Edit Template",
-        "mergeTags": "Insert Variable",
-        "mergeTagsHelp": "Click a variable to insert it at the cursor position:",
-        "placeholder": "Enter your template here. Use merge tags like {{userName}} to personalize the message.",
-        "noTemplate": "No template configured. Click 'Edit Template' to create one.",
-        "livePreview": "Live Preview"
-      },
-          "emailPreview": {
-            "title": "Preview with Real Email",
-            "description": "See exactly what auto-response would be sent for a recent email",
-            "selectEmail": "Select a recent email to preview:",
-            "selectPlaceholder": "Choose an email...",
-            "noEmails": "No recent emails found",
-            "generating": "Generating preview...",
-            "templateUsed": "Using {{template}} template",
-            "hint": "Select an email above to see the exact auto-response that would be sent"
-          },
-          "exclusion": {
-            "title": "Don't Send To",
-            "noRules": "No exclusion rules added yet",
-            "addRule": "Add exclusion rule",
-            "aiInterpretNote": "AI will interpret these rules to determine which emails should not receive auto-responses."
-          },
-          "analytics": {
-            "title": "Analytics",
-            "noData": "No analytics data available yet.",
-            "loadAnalytics": "Load Analytics",
-            "refresh": "Refresh",
-            "responsesByPriority": "Responses by Priority",
-            "templateUsage": "Template Usage"
-          },
-          "qa": {
-            "title": "AI-Powered Answers",
-            "description": "When enabled, the auto-responder will try to answer common questions based on the Q&A in your context.",
-            "includeAiAnswers": "Include AI-generated answers in responses",
-            "confidenceThreshold": "Minimum Confidence Threshold",
-            "moreAnswers": "More answers (less accurate)",
-            "fewerAnswers": "Fewer answers (more accurate)",
-            "confidenceNote": "Only answers with confidence above this threshold will be included. All AI answers include a disclaimer that the user will confirm."
-          },
-          "priority": {
-            "title": "Send Auto-Responses For"
-          }
-        },
-        "accountDeletion": {
-          "title": "Delete Account",
-          "description": "Permanently delete your account and all associated data. This action cannot be undone.",
-          "deleteButton": "Delete My Account",
-          "warningTitle": "Are you absolutely sure?",
-          "warningDescription": "This will permanently delete your account and all your data, including emails, contacts, settings, and any other information associated with your account. This action cannot be undone.",
-          "confirmationPrompt": "To confirm, please type \"{{text}}\" below:",
-          "confirmationMismatch": "The confirmation text does not match. Please type exactly \"delete all my data\".",
-          "confirmDelete": "Permanently Delete Account",
-          "deleting": "Deleting...",
-          "deletionError": "Failed to delete account. Please try again or contact support."
-        },
-        "dataExport": {
-          "title": "Export & Import Data",
-          "description": "Download all your settings as a JSON file or import settings from another account. This includes your batch schedule, blocked senders, blocked keywords, AI context, tone rules, summarization rules, and auto-responder settings. Emails are not included as they remain in your email provider.",
-          "exportButton": "Export Data",
-          "exporting": "Exporting...",
-          "exportError": "Failed to export data. Please try again.",
-          "importButton": "Import Data",
-          "importing": "Importing...",
-          "importError": "Failed to import data. Please check the file format and try again.",
-          "importSuccess": "Successfully imported your settings!",
-          "importSuccessDetails": "Imported: {{details}}",
-          "selectFile": "Select a JSON file exported from BearlyMail",
-          "invalidFile": "Invalid file. Please select a valid BearlyMail export JSON file."
-        },
-        "confirmRemoveGithubToken":"Are you sure you want to disconnect your GitHub account?",
-        "githubTokenRemoved": "GitHub disconnected successfully",
-        "githubTokenRemoveError": "Failed to disconnect GitHub",
-        "githubConnectError": "Cannot connect GitHub: please log in first",
-        "setPassword": {
-          "title": "Password Login",
-          "description": "Set a password to enable login with email and password in addition to SSO. This is useful if you travel to regions where your SSO provider may be blocked.",
-          "descriptionHasPassword": "You have a password set. You can update it below if needed.",
-          "passwordLabel": "Password",
-          "newPasswordLabel": "New Password",
-          "passwordPlaceholder": "Enter password",
-          "confirmPasswordLabel": "Confirm Password",
-          "confirmPasswordPlaceholder": "Confirm password",
-          "passwordHint": "Must be at least 8 characters long",
-          "passwordTooShort": "Password must be at least 8 characters long",
-          "passwordsDoNotMatch": "Passwords do not match",
-          "setButton": "Set Password",
-          "updateButton": "Update Password",
-          "success": "Password set successfully! You can now log in with your email and password.",
-          "error": "Failed to set password. Please try again."
-        },
-        "analysis": {
-      "failed": "Analysis failed",
-      "complete": "Analysis complete",
-      "summary": "Summary",
-      "whatWereLearning": "What we're learning:",
-      "stats": {
-        "threadsAnalyzed_one": "{{count}} thread analyzed",
-        "threadsAnalyzed_other": "{{count}} threads analyzed",
-        "outboundAnalyzed_one": "{{count}} outbound email analyzed",
-        "outboundAnalyzed_other": "{{count}} outbound emails analyzed",
-        "neverOpened_one": "{{count}} thread never opened",
-        "neverOpened_other": "{{count}} threads never opened",
-        "readNotReplied_one": "{{count}} thread read but not replied",
-        "readNotReplied_other": "{{count}} threads read but not replied",
-        "vipContacts_one": "{{count}} VIP contact evaluated",
-        "vipContacts_other": "{{count}} VIP contacts evaluated"
-      },
-      "progress": {
-        "starting": "Starting analysis...",
-        "searching": "Searching your inbox...",
-        "fetching": "Fetching emails from Gmail ({{generalCount}} inbox + {{sentCount}} sent so far)...",
-        "preparing": "Found {{count}} threads, preparing for analysis...",
-        "identifyingVip": "Identifying VIP contacts from {{count}} threads...",
-        "analyzing": "Analyzing email patterns with AI ({{analyzed}}/{{total}} threads analyzed)...",
-        "analyzingGeneric": "Analyzing email patterns with AI (this may take 30-60 seconds)...",
-        "processingResults": "Processing analysis results...",
-        "savingInsights": "Saving insights to your context...",
-        "finalizing": "Finalizing analysis...",
-        "complete": "Analysis complete! Analyzed {{threads}} threads, {{outbound}} outbound emails. Found {{unopened}} unopened threads, {{readNotReplied}} read but not replied, {{vipCount}} contacts evaluated.",
-        "completeSimple": "Analysis complete! Analyzed {{count}} threads."
-      }
-    },
-    "delivery": {
-      "timezone": "Timezone",
-      "days": {
-        "sun": "Sunday",
-        "mon": "Monday",
-        "tue": "Tuesday",
-        "wed": "Wednesday",
-        "thu": "Thursday",
-        "fri": "Friday",
-        "sat": "Saturday",
-        "label": "Delivery Days",
-        "description": "Select which days of the week emails should be delivered"
-      },
-      "times": {
-        "label": "Delivery Times",
-        "removeTime": "Remove time",
-        "addTime": "Add Time"
-      }
-    },
-    "emailAccounts": {
-      "title": "Email Accounts",
-      "noAccounts": "No email accounts connected",
-      "connect": "Connect Account",
-      "connectAnother": "Connect Another",
-      "providers": {
-        "gmail": {
-          "description": "Connect your Gmail account"
-        },
-        "office365": {
-          "description": "Connect your Office 365 account"
-        },
-        "zoho": {
-          "description": "Connect your Zoho account"
-        }
-      },
-      "selectProvider": "Select Email Provider"
-    },
-    "gmail": {
-      "primary": "Primary",
-      "ssoLogin": "SSO Login",
-      "setPrimary": "Set as Primary",
-      "disconnect": "Disconnect",
-      "confirmDisconnect": "Are you sure you want to disconnect this Gmail account?",
-      "accounts": "Gmail Accounts",
-      "connectAnother": "Connect Another Gmail Account",
-      "emptyState": "No Gmail accounts connected",
-      "connectAccount": "Connect Gmail Account"
-    },
-    "office365": {
-      "confirmDisconnect": "Are you sure you want to disconnect this Office 365 account?",
-      "accounts": "Office 365 Accounts",
-      "noAccounts": "No Office 365 accounts connected",
-      "connect": "Connect Office 365",
-      "connectAnother": "Connect Another Office 365 Account"
-    },
-    "zoho": {
-      "confirmDisconnect": "Are you sure you want to disconnect this Zoho account?",
-      "accounts": "Zoho Accounts",
-      "noAccounts": "No Zoho accounts connected",
-      "connect": "Connect Zoho",
-      "connectAnother": "Connect Another Zoho Account"
-    },
-    "blockedSenders": {
-      "title": "Blocked Senders",
-      "description": "Emails from these senders will be automatically archived",
-      "emptyState": "No blocked senders",
-      "reason": "Reason",
-      "blocked": "Blocked",
-      "unblock": "Unblock"
-    },
-    "blockedKeywords": {
-      "title": "Blocked Keywords",
-      "description": "Emails with these keywords in the subject line will be automatically archived",
-      "emptyState": "No blocked keywords",
-      "reason": "Reason",
-      "blocked": "Blocked",
-      "unblock": "Unblock",
-      "exactMatch": "Exact",
-      "exactMatchLabel": "Exact phrase match",
-      "placeholder": "Enter keyword to block...",
-      "addKeyword": "Add Keyword"
-    },
-    "contextAboutMe": {
-      "description1": "Help BearlyMail understand your priorities by providing information about yourself and your work.",
-      "learnMore": "Learn more",
-      "description2": "This helps the AI prioritize emails and generate better summaries and replies.",
-      "impactTitle": "How Context Improves Your Experience",
-      "impactDescription": "When you provide context, BearlyMail can better understand which emails are important to you, prioritize them correctly, and generate more relevant summaries and replies."
-    },
-    "context": {
-      "noItems": "No items yet",
-      "question": "Question",
-      "answer": "Answer"
-    },
-    "guideAI": {
-      "title": "Guide Our AI",
-      "description": "Customize how BearlyMail understands and processes your emails"
-    },
-    "tone": {
-      "viewEmail": "View email"
-    },
-    "github": {
-      "title": "GitHub Integration",
-      "description": "Connect your GitHub account to see PR and issue status directly in your emails.",
-      "oauthDescription": "Click 'Connect GitHub' to authorize the app through GitHub OAuth. No manual token setup required.",
-      "orgProjectNote": "Note: To access organization-level projects (ProjectV2), an organization admin must install the GitHub App on your organization. Personal installation only accesses your user repositories.",
-      "connect": "Connect GitHub",
-      "disconnect": "Disconnect GitHub",
-      "connected": "GitHub connected",
-      "tokenConfigured": "GitHub token configured",
-      "repoMappings": {
-        "title": "GitHub Repository Mappings",
-        "description": "Map GitHub repositories to email categories so issues are created in the right repo. Repositories are auto-discovered from GitHub notification emails.",
-        "noMappings": "No repository mappings yet. They will be auto-discovered from your GitHub notification emails, or you can add them manually.",
-        "addRepo": "Add Repository",
-        "emailCategories": "Email Categories",
-        "categoriesPlaceholder": "e.g., Engineering, Bug Reports (comma-separated)",
-        "contextLabel": "Context",
-        "contextPlaceholder": "e.g., Use for frontend bug reports",
-        "default": "Default",
-        "autoDiscovered": "Auto-discovered",
-        "setDefault": "Set as Default",
-        "confirmDelete": "Are you sure you want to remove this repository mapping?"
-      },
-      "connectionStatus": {
-        "title": "GitHub Connection Status",
-        "refresh": "Refresh",
-        "checkedAt": "Checked at",
-        "tokenValid": "Token valid",
-        "tokenInvalid": "Token invalid or expired",
-        "scopes": "Permissions",
-        "reposTitle": "Repository Access",
-        "noReposMapped": "No repositories mapped yet. Add them in the Repository Mappings section below.",
-        "private": "private",
-        "noAccess": "No access",
-        "issuesFound": "Access issues detected",
-        "privateRepoHint": "One or more repositories could not be accessed. Private repositories require the 'repo' permission. Click below to reconnect and grant access to your private repos.",
-        "tokenExpiredHint": "Your GitHub token appears to be invalid or expired. Reconnect GitHub to fix this.",
-        "reconnect": "Reconnect GitHub",
-        "reconnectWithRepoAccess": "Grant private repo access"
-      }
-    }
-  },
-  "onboarding": {
-    "tour": {
-      "welcome": "Welcome to BearlyMail!",
-      "welcomeContent": "Let's take a quick tour to help you get started with your new focused email experience.",
-      "triageTitle": "Triage Tab",
-      "triageContent": "This is where new emails land. Quickly decide to reply, archive, or snooze them.",
-      "processTitle": "Process Tab",
-      "processContent": "Star an email to move it here. This is your focused workspace for emails that need action.",
-      "actionTitle": "Action Tab",
-      "actionContent": "Star an email to move it here. This is your focused workspace for emails that need action.",
-      "deliveryTitle": "Scheduled Delivery",
-      "deliveryContent": "New emails are batched and delivered every few hours to prevent distractions. Use 'Deliver Now' if you need to check urgently.",
-      "skip": "Skip",
-      "next": "Next",
-      "finish": "Finish",
-      "stepProgress": "{{current}} of {{total}}"
-    },
-    "scan": {
-      "title": "Personalize Your Experience",
-      "content": "To help BearlyMail learn your priorities and writing style, we can scan your recent email history. This data stays private and is only used to train your personal model.",
-      "permission": "Allow scanning of last 7 days of emails",
-      "startScan": "Start Scan",
-      "skip": "Skip for now",
-      "scanning": "Scanning your history...",
-      "analyzing": "Analyzing your emails...",
-      "progress": "{{current}} of {{total}} emails processed"
-    }
-  },
   "setupWizard": {
     "welcome": {
       "title": "Welcome to BearlyMail!",
@@ -2196,23 +2004,23 @@
         "paragraph3": "No spam, no commitment. Just your email address to reserve your spot."
       }
     },
-      "waitlist": {
-        "heading": "Join the Waitlist",
-        "description": "Get early access to BearlyMail and help shape the future of email.",
-        "success": {
-          "heading": "You're on the list!",
-          "description": "We'll send you an email when your spot is ready. In the meantime, check out our blog for updates.",
-          "goToLogin": "Go to Login"
-        },
-        "emailSystemLabel": "Which email system do you use?",
-        "emailSystemPlaceholder": "Select your email system",
-        "emailSystemGmail": "Gmail/Google Workspace",
-        "emailSystemOutlook": "Outlook/Office365",
-        "emailSystemZoho": "Zoho Mail",
-        "emailSystemOther": "Other",
-        "emailSystemOtherLabel": "Please specify your email system"
-      }
-    },
+    "waitlist": {
+      "heading": "Join the Waitlist",
+      "description": "Get early access to BearlyMail and help shape the future of email.",
+      "success": {
+        "heading": "You're on the list!",
+        "description": "We'll send you an email when your spot is ready. In the meantime, check out our blog for updates.",
+        "goToLogin": "Go to Login"
+      },
+      "emailSystemLabel": "Which email system do you use?",
+      "emailSystemPlaceholder": "Select your email system",
+      "emailSystemGmail": "Gmail/Google Workspace",
+      "emailSystemOutlook": "Outlook/Office365",
+      "emailSystemZoho": "Zoho Mail",
+      "emailSystemOther": "Other",
+      "emailSystemOtherLabel": "Please specify your email system"
+    }
+  },
   "keyboard": {
     "archiveConfirmSingle": "Archive this email?",
     "archiveConfirmMultiple": "Archive {{count}} emails?",

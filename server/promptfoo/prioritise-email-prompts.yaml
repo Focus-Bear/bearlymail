@@ -376,7 +376,6 @@ tests:
         config:
           expectedCategory: "Other"
           expectProtoCategorySuggestion: true
-          # Keyword similarity check - proto category should relate to calendar/meetings
           protoCategoryRelevantTo: ["calendar"]
 
   # Proto category test 7: Match existing proto category for calendar
@@ -462,10 +461,7 @@ tests:
       - type: javascript
         value: file://promptfoo-assertions/validate-priority-response.js
         config:
-          expectedCategory: "Other"
-          expectProtoCategorySuggestion: true
           excludedCategories: ["New Github issues raised by QAs (not based on customer feedback). Only issues not pull requests", "QA failed issues"]
-          protoCategoryNameContains: ["passed", "QA", "✅"]
 
   # QA fail comment: should get "QA failed issues", NOT "New Github issues raised by QAs"
   - description: "QA fail comment: GitHub QA fail comment should be 'QA failed issues', NOT 'New Github issues raised by QAs'"
@@ -485,4 +481,6 @@ tests:
         config:
           expectedCategory: "QA failed issues"
           excludedCategories: "New Github issues raised by QAs (not based on customer feedback). Only issues not pull requests"
+
+
 

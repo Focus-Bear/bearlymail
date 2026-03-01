@@ -24,6 +24,7 @@ import {
   LLM_OP_CONSOLIDATE_CATEGORIES,
   LLM_OP_GENERATE_CATEGORIES_FROM_OTHER,
   LLM_OP_IDENTIFY_CUSTOM_LABELS,
+  LLM_OP_COMPRESS_CONTEXT,
 } from "./llm-operations";
 import { getErrorMessage } from "../types/common";
 import { RATIOS } from "../constants/percentages";
@@ -2381,4 +2382,116 @@ export class LLMService {
     );
     return [];
   }
+
+  async compressUserContext(
+    items: Array<{
+      key: string;
+      value: string;
+      priority?: number;
+      explanation?: string;
+    }>,
+    maxItemsPerKey: number,
+    provider?: LLMProvider,
+    userId?: string,
+  ): Promise<{
+    items: Array<{
+      key: string;
+      value: string;
+      priority?: number;
+      explanation?: string;
+    }>;
+    notes?: string;
+  }> {
+    this.logger.log(
+      `[CONTEXT-COMPRESSION] Compressing ${items.length} context items (max ${maxItemsPerKey} per key)`,
+    );
+
+    const fallback = { items, notes: "Compression skipped - using originals" };
+
+    const promptConfig = getPrompt("compress_user_context");
+    if (!promptConfig) {
+      this.logger.warn(
+        "compress_user_context prompt not found - returning original items",
+      );
+      return fallback;
+    }
+
+    const contextItemsText = items
+      .map(
+        (item) =>
+          `- Key: ${item.key}, Value: ${item.value}, Priority: ${item.priority ?? 0}, Explanation: ${item.explanation ?? ""}`,
+      )
+      .join("\n");
+
+    const prompt = renderPrompt(promptConfig.prompt || "", {
+      contextItems: contextItemsText,
+      maxItemsPerKey: String(maxItemsPerKey),
+    });
+
+    try {
+      const response = await this.generateText(
+        {
+          prompt,
+          systemPrompt: promptConfig.systemPrompt || "",
+          temperature: RATIOS.THIRTY_PERCENT,
+          maxTokens: QUERY_LIMITS.LLM_MAX_TOKENS_LARGE,
+          userId,
+        },
+        provider,
+        userId,
+        LLM_OP_COMPRESS_CONTEXT,
+      );
+
+      if (!response) {
+        this.logger.warn("[CONTEXT-COMPRESSION] Empty response from LLM");
+        return fallback;
+      }
+
+      let jsonString = response.trim();
+      jsonString = jsonString
+        .replace(/^```json\s*/i, "")
+        .replace(/^```\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim();
+
+      const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
+      if (jsonMatch) jsonString = jsonMatch[0];
+
+      const parsed = JSON.parse(jsonString);
+      const result =
+        parsed.result && typeof parsed.result === "object"
+          ? parsed.result
+          : parsed;
+
+      if (!Array.isArray(result.items)) {
+        this.logger.warn(
+          "[CONTEXT-COMPRESSION] Invalid response structure - no items array",
+        );
+        return fallback;
+      }
+
+      const validItems = result.items.filter(
+        (item: { key?: string; value?: string }) =>
+          item.key &&
+          typeof item.key === "string" &&
+          item.value &&
+          typeof item.value === "string",
+      );
+
+      this.logger.log(
+        `[CONTEXT-COMPRESSION] Compressed ${items.length} items to ${validItems.length}`,
+      );
+
+      return {
+        items: validItems,
+        notes: result.notes || undefined,
+      };
+    } catch (error) {
+      this.logger.error(
+        `[CONTEXT-COMPRESSION] Error: ${getErrorMessage(error)}`,
+      );
+      return fallback;
+    }
+  }
+
 }

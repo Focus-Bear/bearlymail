@@ -70,6 +70,7 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
   const { t } = useTranslation();
   const [isRecategorizing, setIsRecategorizing] = useState(false);
   const [isConsolidating, setIsConsolidating] = useState(false);
+  const [isCompressing, setIsCompressing] = useState(false);
   const [showProtoCategoriesModal, setShowProtoCategoriesModal] = useState(false);
   const [consolidationResult, setConsolidationResult] = useState<{
     originalCount: number;
@@ -111,6 +112,18 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
     }
   };
 
+
+  const handleCompressContext = async () => {
+    setIsCompressing(true);
+    try {
+      await axios.post(`${API_URL}/context/compress`);
+    } catch (error) {
+      console.error('Failed to compress context:', error);
+    } finally {
+      setIsCompressing(false);
+    }
+  };
+
   const commonProps = {
     contexts,
     addingContextType,
@@ -141,6 +154,21 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
           }}
         >
           {t('settings.protoCategories.viewButton')}
+        </button>
+        <button
+          onClick={handleCompressContext}
+          disabled={isCompressing}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: theme.colors.primary.main,
+            cursor: 'pointer',
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.medium,
+            opacity: isCompressing ? OPACITY_DISABLED : 1,
+          }}
+        >
+          {isCompressing ? t('settings.context.compressing') : t('settings.context.compress')}
         </button>
         <button
           onClick={handleConsolidateCategories}
@@ -213,4 +241,5 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
     </>
   );
 };
+
 

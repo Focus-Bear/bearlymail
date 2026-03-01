@@ -21,15 +21,15 @@
       "pendingApproval": "Pendiente de aprobación",
       "status": "Estado",
       "subscriptions": "Suscripciones",
-          "title": "Panel de administración",
-          "tokenUsage": "Uso de tokens",
-          "queueDashboard": "Panel de colas",
-          "githubDebug": "Debug de GitHub",
-          "contextAnalysis": "Fallos de Análisis",
-          "waitlist": "Lista de espera",
-          "emailSystem": "Sistema de correo",
-          "decline": "Rechazar"
-        },
+      "title": "Panel de administración",
+      "tokenUsage": "Uso de tokens",
+      "queueDashboard": "Panel de colas",
+      "githubDebug": "Debug de GitHub",
+      "contextAnalysis": "Fallos de Análisis",
+      "waitlist": "Lista de espera",
+      "emailSystem": "Sistema de correo",
+      "decline": "Rechazar"
+    },
     "jobs": {
       "active": "Activo",
       "avgCompletionTime": "Tiempo promedio de finalización",
@@ -159,71 +159,71 @@
       }
     }
   },
-    "auth": {
-      "authenticationFailed": "Error de autenticación",
-      "confirmPassword": "Confirmar contraseña",
-      "continueWithGoogle": "Continuar con Google",
-      "email": "Correo electrónico",
-      "haveAccount": "¿Ya tienes una cuenta? Inicia sesión",
-      "invalidSetupLink": "Enlace de configuración inválido. Por favor, verifica tu correo electrónico para el enlace correcto.",
-      "loginTitle": "Bienvenido de nuevo",
-      "logout": "Cerrar sesión",
-      "name": "Nombre",
-      "noAccount": "¿No tienes una cuenta? Regístrate",
-      "or": "O",
-      "password": "Contraseña",
-      "passwordMinLength": "Debe tener al menos 8 caracteres",
-      "passwordTooShort": "La contraseña debe tener al menos 8 caracteres.",
-      "passwordsDoNotMatch": "Las contraseñas no coinciden.",
-      "registerTitle": "Crear cuenta",
-      "reloginLink": "inicia sesión nuevamente",
-      "reloginRequired": "Acción requerida: Por favor, inicia sesión nuevamente para restaurar la sincronización de correo electrónico.",
-      "setUpAccount": "Configurar cuenta",
-      "settingUp": "Configurando...",
-      "setupAccountDescription": "¡Bienvenido! Por favor, crea una contraseña para completar la configuración de tu cuenta.",
-      "setupAccountTitle": "Configurar tu cuenta",
-      "setupPasswordError": "Error al configurar la contraseña. El enlace puede haber expirado.",
-      "signIn": "Iniciar sesión",
-      "signUp": "Registrarse",
-      "joinWaitlist": "Unirse a la lista de espera",
-      "backToLogin": "Volver al inicio de sesión",
-      "goToHomepage": "Ir a la página principal",
-      "permissions": {
-        "title": "Permisos explicados",
-        "intro": "BearlyMail necesita los siguientes permisos para ayudarte a gestionar tu correo electrónico de manera efectiva. Nos tomamos tu privacidad en serio y solo solicitamos lo necesario.",
-        "gmail": {
-          "title": "Acceso a Gmail",
-          "description": "Leer, organizar y enviar correos electrónicos en tu nombre. Esto permite a BearlyMail priorizar tu bandeja de entrada, archivar correos y enviar respuestas."
-        },
-        "calendar": {
-          "title": "Eventos del calendario",
-          "description": "Ver tu disponibilidad y crear invitaciones de reuniones. BearlyMail solo gestiona eventos de calendario, no tus calendarios en sí."
-        },
-        "contacts": {
-          "title": "Contactos",
-          "description": "Leer tus contactos para identificar personas importantes y personalizar tu experiencia de correo electrónico."
-        },
-        "security": "🔒 Todos tus datos están encriptados y almacenados de forma segura. Nunca compartimos tu información con terceros.",
-        "continue": "Continuar a Google"
+  "auth": {
+    "authenticationFailed": "Error de autenticación",
+    "confirmPassword": "Confirmar contraseña",
+    "continueWithGoogle": "Continuar con Google",
+    "email": "Correo electrónico",
+    "haveAccount": "¿Ya tienes una cuenta? Inicia sesión",
+    "invalidSetupLink": "Enlace de configuración inválido. Por favor, verifica tu correo electrónico para el enlace correcto.",
+    "loginTitle": "Bienvenido de nuevo",
+    "logout": "Cerrar sesión",
+    "name": "Nombre",
+    "noAccount": "¿No tienes una cuenta? Regístrate",
+    "or": "O",
+    "password": "Contraseña",
+    "passwordMinLength": "Debe tener al menos 8 caracteres",
+    "passwordTooShort": "La contraseña debe tener al menos 8 caracteres.",
+    "passwordsDoNotMatch": "Las contraseñas no coinciden.",
+    "registerTitle": "Crear cuenta",
+    "reloginLink": "inicia sesión nuevamente",
+    "reloginRequired": "Acción requerida: Por favor, inicia sesión nuevamente para restaurar la sincronización de correo electrónico.",
+    "setUpAccount": "Configurar cuenta",
+    "settingUp": "Configurando...",
+    "setupAccountDescription": "¡Bienvenido! Por favor, crea una contraseña para completar la configuración de tu cuenta.",
+    "setupAccountTitle": "Configurar tu cuenta",
+    "setupPasswordError": "Error al configurar la contraseña. El enlace puede haber expirado.",
+    "signIn": "Iniciar sesión",
+    "signUp": "Registrarse",
+    "joinWaitlist": "Unirse a la lista de espera",
+    "backToLogin": "Volver al inicio de sesión",
+    "goToHomepage": "Ir a la página principal",
+    "permissions": {
+      "title": "Permisos explicados",
+      "intro": "BearlyMail necesita los siguientes permisos para ayudarte a gestionar tu correo electrónico de manera efectiva. Nos tomamos tu privacidad en serio y solo solicitamos lo necesario.",
+      "gmail": {
+        "title": "Acceso a Gmail",
+        "description": "Leer, organizar y enviar correos electrónicos en tu nombre. Esto permite a BearlyMail priorizar tu bandeja de entrada, archivar correos y enviar respuestas."
       },
-      "errors": {
-        "waitlistSubmitted": {
-          "title": "¡Estás en la lista de espera!",
-          "description": "Hemos recibido tu solicitud. Recibirás un correo electrónico cuando tu cuenta sea aprobada."
-        },
-        "pendingApproval": {
-          "title": "Cuenta pendiente de aprobación",
-          "description": "Tu cuenta está en la lista de espera y pendiente de aprobación. Te notificaremos por correo electrónico una vez que tu cuenta sea aprobada."
-        },
-        "notOnWaitlist": {
-          "title": "Unirse a la lista de espera",
-          "description": "Necesitas unirte a nuestra lista de espera primero antes de poder iniciar sesión. Regístrate a continuación para obtener acceso anticipado a BearlyMail."
-        },
-        "generic": {
-          "title": "Error de autenticación"
-        }
-      }
+      "calendar": {
+        "title": "Eventos del calendario",
+        "description": "Ver tu disponibilidad y crear invitaciones de reuniones. BearlyMail solo gestiona eventos de calendario, no tus calendarios en sí."
+      },
+      "contacts": {
+        "title": "Contactos",
+        "description": "Leer tus contactos para identificar personas importantes y personalizar tu experiencia de correo electrónico."
+      },
+      "security": "🔒 Todos tus datos están encriptados y almacenados de forma segura. Nunca compartimos tu información con terceros.",
+      "continue": "Continuar a Google"
     },
+    "errors": {
+      "waitlistSubmitted": {
+        "title": "¡Estás en la lista de espera!",
+        "description": "Hemos recibido tu solicitud. Recibirás un correo electrónico cuando tu cuenta sea aprobada."
+      },
+      "pendingApproval": {
+        "title": "Cuenta pendiente de aprobación",
+        "description": "Tu cuenta está en la lista de espera y pendiente de aprobación. Te notificaremos por correo electrónico una vez que tu cuenta sea aprobada."
+      },
+      "notOnWaitlist": {
+        "title": "Unirse a la lista de espera",
+        "description": "Necesitas unirte a nuestra lista de espera primero antes de poder iniciar sesión. Regístrate a continuación para obtener acceso anticipado a BearlyMail."
+      },
+      "generic": {
+        "title": "Error de autenticación"
+      }
+    }
+  },
   "booking": {
     "availableTimes": "Horarios disponibles",
     "booking": "Reserva...",
@@ -657,8 +657,6 @@
     "dealStage": "Etapa",
     "expectedClose": "Cierre Esperado",
     "contact": "Contacto",
-    "searchContacts": "Buscar contactos...",
-    "noContactsFound": "No se encontraron contactos",
     "currency": "Moneda",
     "noDeals": "Aún no hay negocios",
     "createFirstDeal": "Crea tu primer negocio para comenzar a rastrear oportunidades.",
@@ -678,7 +676,9 @@
     "closedWon": "Ganado",
     "closedLost": "Perdido",
     "deleteConfirm": "¿Estás seguro de que deseas eliminar este negocio?",
-    "deleteStageConfirm": "¿Estás seguro de que deseas eliminar esta etapa? Los negocios quedarán sin asignar."
+    "deleteStageConfirm": "¿Estás seguro de que deseas eliminar esta etapa? Los negocios quedarán sin asignar.",
+    "searchContacts": "Buscar contactos",
+    "noContactsFound": "No se encontraron contactos"
   },
   "contactTypes": {
     "lead": "Prospecto",
@@ -704,43 +704,43 @@
     "madeBy": "Hecho por",
     "copyright": "© {{year}} Focus Bear"
   },
-    "github": {
-      "open": "Abierto",
-      "closed": "Cerrado",
-      "merged": "Fusionado",
-      "approved": "Aprobado",
-      "assignedTo": "Asignado a",
-      "changesRequested": "Cambios solicitados",
-      "comments": "{{count}} comentario",
-      "comments_plural": "{{count}} comentarios",
-      "howToCreateToken": "Cómo crear un token de GitHub",
-      "issue": "Problema",
-      "issueDescription": "Descripción del problema",
-      "issueTitle": "Título del problema",
-      "labels": "Etiquetas",
-      "labelsPlaceholder": "ej., bug, mejora (separadas por comas)",
-      "more": "+{{count}} más",
-      "pr": "PR",
-      "project": "Proyecto",
-      "readyToMerge": "Listo para fusionar",
-      "refresh": "Actualizar",
-      "refreshing": "Actualizando...",
-      "removeToken": "Eliminar token",
-      "repositoryName": "Nombre del repositorio",
-      "repositoryNamePlaceholder": "ej., react",
-      "repositoryOwner": "Propietario del repositorio",
-      "repositoryOwnerPlaceholder": "ej., facebook",
-      "saveToken": "Guardar token",
-      "status": "Estado de GitHub",
-      "statusNoLinks": "No se encontraron enlaces de GitHub en este correo",
-      "statusUnavailable": "Estado no disponible — verifica los permisos del token de GitHub o el acceso al repositorio",
-      "connectionPrompt": {
-        "title": "Conectar GitHub para obtener información mejorada",
-        "description": "Este correo menciona GitHub. Conecta tu cuenta de GitHub para ver el estado de PR y problemas, asignados y más directamente en tus correos.",
-        "connectButton": "Conectar GitHub",
-        "connecting": "Conectando..."
-      }
-    },
+  "github": {
+    "open": "Abierto",
+    "closed": "Cerrado",
+    "merged": "Fusionado",
+    "approved": "Aprobado",
+    "assignedTo": "Asignado a",
+    "changesRequested": "Cambios solicitados",
+    "comments": "{{count}} comentario",
+    "comments_plural": "{{count}} comentarios",
+    "howToCreateToken": "Cómo crear un token de GitHub",
+    "issue": "Problema",
+    "issueDescription": "Descripción del problema",
+    "issueTitle": "Título del problema",
+    "labels": "Etiquetas",
+    "labelsPlaceholder": "ej., bug, mejora (separadas por comas)",
+    "more": "+{{count}} más",
+    "pr": "PR",
+    "project": "Proyecto",
+    "readyToMerge": "Listo para fusionar",
+    "refresh": "Actualizar",
+    "refreshing": "Actualizando...",
+    "removeToken": "Eliminar token",
+    "repositoryName": "Nombre del repositorio",
+    "repositoryNamePlaceholder": "ej., react",
+    "repositoryOwner": "Propietario del repositorio",
+    "repositoryOwnerPlaceholder": "ej., facebook",
+    "saveToken": "Guardar token",
+    "status": "Estado de GitHub",
+    "statusNoLinks": "No se encontraron enlaces de GitHub en este correo",
+    "statusUnavailable": "Estado no disponible — verifica los permisos del token de GitHub o el acceso al repositorio",
+    "connectionPrompt": {
+      "title": "Conectar GitHub para obtener información mejorada",
+      "description": "Este correo menciona GitHub. Conecta tu cuenta de GitHub para ver el estado de PR y problemas, asignados y más directamente en tus correos.",
+      "connectButton": "Conectar GitHub",
+      "connecting": "Conectando..."
+    }
+  },
   "gmail": {
     "connectButton": "Conectar Gmail",
     "connectDescription": "Para comenzar con BearlyMail, conecte su cuenta de Gmail. Sincronizaremos sus correos electrónicos de forma segura y lo ayudaremos a administrarlos de manera más efectiva.",
@@ -1099,19 +1099,19 @@
     "debugSchedule": "Horario de lotes",
     "error": "Error",
     "errorLoadingEmails": "Error al cargar correos electrónicos",
-        "expandToFullWidth": "Expandir a ancho completo",
-        "failedToGenerateDraft": "Error al generar borrador",
-        "followUp": "Seguimiento",
-        "openInNewTab": "Abrir en nueva pestaña",
-        "followUpDetails": {
-          "day": "día",
-          "day_plural": "días",
-          "daysSinceResponse": "Días desde su última respuesta",
-          "noReplyReceived": "No se recibió respuesta",
-          "status": "Estado",
-          "with": "Con",
-          "youSentLast": "Tú enviaste el último"
-        },
+    "expandToFullWidth": "Expandir a ancho completo",
+    "failedToGenerateDraft": "Error al generar borrador",
+    "followUp": "Seguimiento",
+    "openInNewTab": "Abrir en nueva pestaña",
+    "followUpDetails": {
+      "day": "día",
+      "day_plural": "días",
+      "daysSinceResponse": "Días desde su última respuesta",
+      "noReplyReceived": "No se recibió respuesta",
+      "status": "Estado",
+      "with": "Con",
+      "youSentLast": "Tú enviaste el último"
+    },
     "followUpCaughtUp": "Todos tus correos enviados han sido respondidos.",
     "followUpTab": "Seguimiento",
     "followUps": "seguimientos",
@@ -1323,22 +1323,22 @@
         }
       }
     },
-        "waitlist": {
-          "description": "Obtenga acceso temprano a BearlyMail y ayude a dar forma al futuro del correo electrónico.",
-          "heading": "Únase a la lista de espera",
-          "success": {
-            "description": "Te enviaremos un correo electrónico cuando tu lugar esté listo. Mientras tanto, consulte nuestro blog para obtener actualizaciones.",
-            "goToLogin": "Ir a Iniciar sesión",
-            "heading": "¡Estás en la lista!"
-          },
-          "emailSystemLabel": "¿Qué sistema de correo electrónico usas?",
-          "emailSystemPlaceholder": "Selecciona tu sistema de correo",
-          "emailSystemGmail": "Gmail/Google Workspace",
-          "emailSystemOutlook": "Outlook/Office365",
-          "emailSystemZoho": "Zoho Mail",
-          "emailSystemOther": "Otro",
-          "emailSystemOtherLabel": "Por favor especifica tu sistema de correo"
-        },
+    "waitlist": {
+      "description": "Obtenga acceso temprano a BearlyMail y ayude a dar forma al futuro del correo electrónico.",
+      "heading": "Únase a la lista de espera",
+      "success": {
+        "description": "Te enviaremos un correo electrónico cuando tu lugar esté listo. Mientras tanto, consulte nuestro blog para obtener actualizaciones.",
+        "goToLogin": "Ir a Iniciar sesión",
+        "heading": "¡Estás en la lista!"
+      },
+      "emailSystemLabel": "¿Qué sistema de correo electrónico usas?",
+      "emailSystemPlaceholder": "Selecciona tu sistema de correo",
+      "emailSystemGmail": "Gmail/Google Workspace",
+      "emailSystemOutlook": "Outlook/Office365",
+      "emailSystemZoho": "Zoho Mail",
+      "emailSystemOther": "Otro",
+      "emailSystemOtherLabel": "Por favor especifica tu sistema de correo"
+    },
     "sidebar": {
       "expand": "Expandir barra lateral"
     }
@@ -1636,7 +1636,9 @@
     "context": {
       "answer": "Respuesta",
       "noItems": "Aún no hay artículos",
-      "question": "Pregunta"
+      "question": "Pregunta",
+      "compress": "Comprimir contexto",
+      "compressing": "Comprimiendo…"
     },
     "contextAboutMe": {
       "description1": "Ayude a BearlyMail a comprender sus prioridades brindándole información sobre usted y su trabajo.",
@@ -1865,15 +1867,11 @@
       "slotDurationMinutes": "{{count}} minutos",
       "timezone": "Zona horaria",
       "bookingLink": "Tu enlace de reserva",
-      "bookingLinkDescription": "Comparte este enlace para que las personas puedan reservar tiempo contigo",
+      "bookingLinkDescription": "Comparte este enlace para que otros puedan reservar tiempo contigo según tu disponibilidad.",
       "copyLink": "Copiar enlace",
       "linkCopied": "¡Copiado!",
       "saved": "Preferencias guardadas",
       "saveError": "No se pudieron guardar las preferencias",
-      "bookingLink": "Tu enlace de reserva",
-      "bookingLinkDescription": "Comparte este enlace para que otros puedan reservar tiempo contigo según tu disponibilidad.",
-      "copyLink": "Copiar enlace",
-      "linkCopied": "¡Copiado!",
       "days": {
         "sun": "Dom",
         "mon": "Lun",
@@ -1884,113 +1882,113 @@
         "sat": "Sáb"
       }
     },
-        "autoResponder": {
-          "title": "Respuesta automática",
-          "description": "Responda automáticamente a nuevos correos electrónicos con el estado de la cola e información útil. El respondedor automático incluso puede responder preguntas comunes basándose en las preguntas y respuestas de su contexto. Las respuestas se envían como respuestas al correo electrónico original, manteniendo intacto el hilo de conversación.",
-          "learnMore": "Más información",
-          "preview": {
-            "title": "Vista previa de respuestas automáticas",
-            "description": "Vea cómo se verán sus mensajes de respuesta automática",
-            "subject": "Asunto:",
-            "subjectPlaceholder": "Re: [Asunto del correo original]",
-            "subjectNote": "El respondedor automático responde al correo electrónico original, manteniendo la línea de asunto sin cambios.",
-            "note": "Nota: La respuesta real utilizará las estadísticas reales de su cola y puede incluir respuestas generadas por IA si están habilitadas y son relevantes."
-          },
-          "templates": {
-            "title": "Editar plantillas de respuesta automática",
-            "description": "Personalice los mensajes enviados para cada nivel de prioridad",
-            "edit": "Editar plantilla",
-            "mergeTags": "Insertar variable",
-            "mergeTagsHelp": "Haga clic en una variable para insertarla en la posición del cursor:",
-            "placeholder": "Ingrese su plantilla aquí. Use etiquetas de combinación como {{userName}} para personalizar el mensaje.",
-            "noTemplate": "No hay plantilla configurada. Haga clic en 'Editar plantilla' para crear una.",
-            "livePreview": "Vista previa en vivo"
-          },
-          "emailPreview": {
-            "title": "Vista previa con correo real",
-            "description": "Vea exactamente qué respuesta automática se enviaría para un correo reciente",
-            "selectEmail": "Seleccione un correo reciente para previsualizar:",
-            "selectPlaceholder": "Elija un correo...",
-            "noEmails": "No se encontraron correos recientes",
-            "generating": "Generando vista previa...",
-            "templateUsed": "Usando plantilla {{template}}",
-            "hint": "Seleccione un correo arriba para ver la respuesta automática exacta que se enviaría"
-          },
-          "exclusion": {
-            "title": "No enviar a",
-            "noRules": "Aún no se han agregado reglas de exclusión",
-            "addRule": "Agregar regla de exclusión",
-            "aiInterpretNote": "La IA interpretará estas reglas para determinar qué correos electrónicos no deben recibir respuestas automáticas."
-          },
-          "analytics": {
-            "title": "Analíticas",
-            "noData": "Aún no hay datos de analíticas disponibles.",
-            "loadAnalytics": "Cargar analíticas",
-            "refresh": "Actualizar",
-            "responsesByPriority": "Respuestas por prioridad",
-            "templateUsage": "Uso de plantillas"
-          },
-          "qa": {
-            "title": "Respuestas impulsadas por IA",
-            "description": "Cuando está habilitado, el respondedor automático intentará responder preguntas comunes basándose en el contexto de preguntas y respuestas que haya proporcionado.",
-            "includeAiAnswers": "Incluir respuestas generadas por IA en las respuestas",
-            "confidenceThreshold": "Umbral mínimo de confianza",
-            "moreAnswers": "Más respuestas (menos precisas)",
-            "fewerAnswers": "Menos respuestas (más precisas)",
-            "confidenceNote": "Solo las respuestas con confianza por encima de este umbral se incluirán en las respuestas automáticas."
-          },
-          "priority": {
-            "title": "Enviar respuestas automáticas para"
-          }
-        },
-        "accountDeletion": {
-          "title": "Eliminar cuenta",
-          "description": "Eliminar permanentemente tu cuenta y todos los datos asociados.",
-          "deleteButton": "Eliminar mi cuenta",
-          "warningTitle": "¿Estás absolutamente seguro?",
-          "warningDescription": "Esto eliminará permanentemente tu cuenta y todos los datos asociados. Esta acción no se puede deshacer.",
-          "confirmationPrompt": "Para confirmar, escribe \"{{text}}\" a continuación:",
-          "confirmationMismatch": "El texto de confirmación no coincide. Por favor escribe exactamente lo que se indica.",
-          "confirmDelete": "Eliminar cuenta permanentemente",
-          "deleting": "Eliminando...",
-          "deletionError": "No se pudo eliminar la cuenta. Por favor intenta de nuevo o contacta soporte."
-        },
-        "dataExport": {
-          "title": "Exportar e Importar Datos",
-          "description": "Descarga todas tus configuraciones como un archivo JSON o importa configuraciones de otra cuenta. Esto incluye tu horario de lotes, remitentes bloqueados, palabras clave bloqueadas, contexto de IA, reglas de tono, reglas de resumen y configuración del respondedor automático. Los correos electrónicos no están incluidos ya que permanecen en tu proveedor de correo.",
-          "exportButton": "Exportar datos",
-          "exporting": "Exportando...",
-          "exportError": "No se pudieron exportar los datos. Por favor intenta de nuevo.",
-          "importButton": "Importar datos",
-          "importing": "Importando...",
-          "importError": "No se pudieron importar los datos. Por favor verifica el formato del archivo e intenta de nuevo.",
-          "importSuccess": "¡Configuraciones importadas exitosamente!",
-          "importSuccessDetails": "Importado: {{details}}",
-          "selectFile": "Selecciona un archivo JSON exportado de BearlyMail",
-          "invalidFile": "Archivo inválido. Por favor selecciona un archivo JSON de exportación de BearlyMail válido."
-        },
-        "confirmRemoveGithubToken":"¿Estás seguro de que deseas desconectar tu cuenta de GitHub? Esto eliminará el acceso a la integración de GitHub.",
-        "githubTokenRemoved": "GitHub desconectado exitosamente",
-        "githubTokenRemoveError": "No se pudo desconectar GitHub. Por favor intenta de nuevo.",
-        "githubConnectError": "No se puede conectar GitHub: por favor inicia sesión primero",
-        "setPassword": {
-          "title": "Inicio de sesión con contraseña",
-          "description": "Establece una contraseña para habilitar el inicio de sesión con correo electrónico y contraseña además de SSO. Esto es útil si viajas a regiones donde tu proveedor SSO puede estar bloqueado.",
-          "descriptionHasPassword": "Tienes una contraseña establecida. Puedes actualizarla a continuación si es necesario.",
-          "passwordLabel": "Contraseña",
-          "newPasswordLabel": "Nueva contraseña",
-          "passwordPlaceholder": "Ingresa la contraseña",
-          "confirmPasswordLabel": "Confirmar contraseña",
-          "confirmPasswordPlaceholder": "Confirma la contraseña",
-          "passwordHint": "Debe tener al menos 8 caracteres",
-          "passwordTooShort": "La contraseña debe tener al menos 8 caracteres",
-          "passwordsDoNotMatch": "Las contraseñas no coinciden",
-          "setButton": "Establecer contraseña",
-          "updateButton": "Actualizar contraseña",
-          "success": "¡Contraseña establecida correctamente! Ahora puedes iniciar sesión con tu correo electrónico y contraseña.",
-          "error": "Error al establecer la contraseña. Por favor intenta de nuevo."
-        },
-    "noContext":"Aún no se ha aprendido ningún contexto.Haga clic en \"Analizar correos electrónicos\" para conocer su historial de correo electrónico.",
+    "autoResponder": {
+      "title": "Respuesta automática",
+      "description": "Responda automáticamente a nuevos correos electrónicos con el estado de la cola e información útil. El respondedor automático incluso puede responder preguntas comunes basándose en las preguntas y respuestas de su contexto. Las respuestas se envían como respuestas al correo electrónico original, manteniendo intacto el hilo de conversación.",
+      "learnMore": "Más información",
+      "preview": {
+        "title": "Vista previa de respuestas automáticas",
+        "description": "Vea cómo se verán sus mensajes de respuesta automática",
+        "subject": "Asunto:",
+        "subjectPlaceholder": "Re: [Asunto del correo original]",
+        "subjectNote": "El respondedor automático responde al correo electrónico original, manteniendo la línea de asunto sin cambios.",
+        "note": "Nota: La respuesta real utilizará las estadísticas reales de su cola y puede incluir respuestas generadas por IA si están habilitadas y son relevantes."
+      },
+      "templates": {
+        "title": "Editar plantillas de respuesta automática",
+        "description": "Personalice los mensajes enviados para cada nivel de prioridad",
+        "edit": "Editar plantilla",
+        "mergeTags": "Insertar variable",
+        "mergeTagsHelp": "Haga clic en una variable para insertarla en la posición del cursor:",
+        "placeholder": "Ingrese su plantilla aquí. Use etiquetas de combinación como {{userName}} para personalizar el mensaje.",
+        "noTemplate": "No hay plantilla configurada. Haga clic en 'Editar plantilla' para crear una.",
+        "livePreview": "Vista previa en vivo"
+      },
+      "emailPreview": {
+        "title": "Vista previa con correo real",
+        "description": "Vea exactamente qué respuesta automática se enviaría para un correo reciente",
+        "selectEmail": "Seleccione un correo reciente para previsualizar:",
+        "selectPlaceholder": "Elija un correo...",
+        "noEmails": "No se encontraron correos recientes",
+        "generating": "Generando vista previa...",
+        "templateUsed": "Usando plantilla {{template}}",
+        "hint": "Seleccione un correo arriba para ver la respuesta automática exacta que se enviaría"
+      },
+      "exclusion": {
+        "title": "No enviar a",
+        "noRules": "Aún no se han agregado reglas de exclusión",
+        "addRule": "Agregar regla de exclusión",
+        "aiInterpretNote": "La IA interpretará estas reglas para determinar qué correos electrónicos no deben recibir respuestas automáticas."
+      },
+      "analytics": {
+        "title": "Analíticas",
+        "noData": "Aún no hay datos de analíticas disponibles.",
+        "loadAnalytics": "Cargar analíticas",
+        "refresh": "Actualizar",
+        "responsesByPriority": "Respuestas por prioridad",
+        "templateUsage": "Uso de plantillas"
+      },
+      "qa": {
+        "title": "Respuestas impulsadas por IA",
+        "description": "Cuando está habilitado, el respondedor automático intentará responder preguntas comunes basándose en el contexto de preguntas y respuestas que haya proporcionado.",
+        "includeAiAnswers": "Incluir respuestas generadas por IA en las respuestas",
+        "confidenceThreshold": "Umbral mínimo de confianza",
+        "moreAnswers": "Más respuestas (menos precisas)",
+        "fewerAnswers": "Menos respuestas (más precisas)",
+        "confidenceNote": "Solo las respuestas con confianza por encima de este umbral se incluirán en las respuestas automáticas."
+      },
+      "priority": {
+        "title": "Enviar respuestas automáticas para"
+      }
+    },
+    "accountDeletion": {
+      "title": "Eliminar cuenta",
+      "description": "Eliminar permanentemente tu cuenta y todos los datos asociados.",
+      "deleteButton": "Eliminar mi cuenta",
+      "warningTitle": "¿Estás absolutamente seguro?",
+      "warningDescription": "Esto eliminará permanentemente tu cuenta y todos los datos asociados. Esta acción no se puede deshacer.",
+      "confirmationPrompt": "Para confirmar, escribe \"{{text}}\" a continuación:",
+      "confirmationMismatch": "El texto de confirmación no coincide. Por favor escribe exactamente lo que se indica.",
+      "confirmDelete": "Eliminar cuenta permanentemente",
+      "deleting": "Eliminando...",
+      "deletionError": "No se pudo eliminar la cuenta. Por favor intenta de nuevo o contacta soporte."
+    },
+    "dataExport": {
+      "title": "Exportar e Importar Datos",
+      "description": "Descarga todas tus configuraciones como un archivo JSON o importa configuraciones de otra cuenta. Esto incluye tu horario de lotes, remitentes bloqueados, palabras clave bloqueadas, contexto de IA, reglas de tono, reglas de resumen y configuración del respondedor automático. Los correos electrónicos no están incluidos ya que permanecen en tu proveedor de correo.",
+      "exportButton": "Exportar datos",
+      "exporting": "Exportando...",
+      "exportError": "No se pudieron exportar los datos. Por favor intenta de nuevo.",
+      "importButton": "Importar datos",
+      "importing": "Importando...",
+      "importError": "No se pudieron importar los datos. Por favor verifica el formato del archivo e intenta de nuevo.",
+      "importSuccess": "¡Configuraciones importadas exitosamente!",
+      "importSuccessDetails": "Importado: {{details}}",
+      "selectFile": "Selecciona un archivo JSON exportado de BearlyMail",
+      "invalidFile": "Archivo inválido. Por favor selecciona un archivo JSON de exportación de BearlyMail válido."
+    },
+    "confirmRemoveGithubToken": "¿Estás seguro de que deseas desconectar tu cuenta de GitHub? Esto eliminará el acceso a la integración de GitHub.",
+    "githubTokenRemoved": "GitHub desconectado exitosamente",
+    "githubTokenRemoveError": "No se pudo desconectar GitHub. Por favor intenta de nuevo.",
+    "githubConnectError": "No se puede conectar GitHub: por favor inicia sesión primero",
+    "setPassword": {
+      "title": "Inicio de sesión con contraseña",
+      "description": "Establece una contraseña para habilitar el inicio de sesión con correo electrónico y contraseña además de SSO. Esto es útil si viajas a regiones donde tu proveedor SSO puede estar bloqueado.",
+      "descriptionHasPassword": "Tienes una contraseña establecida. Puedes actualizarla a continuación si es necesario.",
+      "passwordLabel": "Contraseña",
+      "newPasswordLabel": "Nueva contraseña",
+      "passwordPlaceholder": "Ingresa la contraseña",
+      "confirmPasswordLabel": "Confirmar contraseña",
+      "confirmPasswordPlaceholder": "Confirma la contraseña",
+      "passwordHint": "Debe tener al menos 8 caracteres",
+      "passwordTooShort": "La contraseña debe tener al menos 8 caracteres",
+      "passwordsDoNotMatch": "Las contraseñas no coinciden",
+      "setButton": "Establecer contraseña",
+      "updateButton": "Actualizar contraseña",
+      "success": "¡Contraseña establecida correctamente! Ahora puedes iniciar sesión con tu correo electrónico y contraseña.",
+      "error": "Error al establecer la contraseña. Por favor intenta de nuevo."
+    },
+    "noContext": "Aún no se ha aprendido ningún contexto.Haga clic en \"Analizar correos electrónicos\" para conocer su historial de correo electrónico.",
     "noSummarizationRules": "Aún no hay reglas de resumen. Agregue reglas para personalizar cómo se resumen los correos electrónicos.",
     "office365": {
       "accounts": "Cuentas de Office 365",

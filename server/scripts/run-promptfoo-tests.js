@@ -10,11 +10,11 @@
  */
 
 const { spawn } = require('child_process');
+const { execSync, execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
 const PROMPTFOO_DIR = path.join(__dirname, '..', 'promptfoo');
-const PROMPTS_DIR = path.join(PROMPTFOO_DIR, 'prompts');
 
 // ANSI color codes
 const colors = {
@@ -37,34 +37,95 @@ function log(message, color = '') {
  */
 function getChangedPromptFiles() {
   const changedFiles = new Set();
+  const changedYamlConfigs = new Set();
+  let diffFailed = false;
 
   try {
-    // Get changed files between base branch and current HEAD
-    // For PRs, GitHub sets GITHUB_BASE_REF and we can use origin/${GITHUB_BASE_REF}
-    // For local testing, fallback to comparing with main
-    const baseBranch = process.env.GITHUB_BASE_REF || 'main';
-    const compareRef = process.env.GITHUB_BASE_REF ? `origin/${baseBranch}` : baseBranch;
+    // Try multiple git diff strategies in order of preference.
+    // This avoids hard-failing when origin/<base> is unavailable in CI shallow clones.
+    const candidateRefs = [];
+    if (process.env.GITHUB_BASE_SHA) candidateRefs.push({ ref: process.env.GITHUB_BASE_SHA, useTwoDot: true });
+    if (process.env.GITHUB_BASE_REF) {
+      candidateRefs.push({ ref: `origin/${process.env.GITHUB_BASE_REF}`, useTwoDot: false });
+      candidateRefs.push({ ref: process.env.GITHUB_BASE_REF, useTwoDot: false });
+    }
+    candidateRefs.push({ ref: 'main', useTwoDot: false });
+    candidateRefs.push({ ref: 'origin/main', useTwoDot: false });
+    // Two-dot fallbacks for shallow clones where merge-base can't be computed
+    if (process.env.GITHUB_BASE_REF) {
+      candidateRefs.push({ ref: `origin/${process.env.GITHUB_BASE_REF}`, useTwoDot: true });
+    }
+    candidateRefs.push({ ref: 'main', useTwoDot: true });
+    candidateRefs.push({ ref: 'origin/main', useTwoDot: true });
+    candidateRefs.push({ ref: 'HEAD~1', useTwoDot: true });
 
-    const result = require('child_process').execSync(
-      `git diff --name-only ${compareRef}...HEAD -- server/promptfoo/prompts/`,
-      { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] }
-    );
+    // In CI shallow clones, refs like origin/main may not exist.
+    // Try to fetch the base ref if we're in a shallow clone.
+    try {
+      execFileSync('git', ['rev-parse', '--is-shallow-repository'], { encoding: 'utf-8' });
+      const isShallow = execFileSync('git', ['rev-parse', '--is-shallow-repository'], { encoding: 'utf-8' }).trim();
+      if (isShallow === 'true') {
+        const baseRef = process.env.GITHUB_BASE_REF || 'main';
+        log(`Shallow clone detected, fetching ${baseRef}...`, colors.cyan);
+        try {
+          execFileSync('git', ['fetch', 'origin', baseRef, '--depth=1'], { encoding: 'utf-8' });
+          log(`Fetched origin/${baseRef} for diff comparison`, colors.cyan);
+        } catch (fetchErr) {
+          log(`Warning: Could not fetch ${baseRef}: ${fetchErr.message}`, colors.yellow);
+        }
+      }
+    } catch (e) {
+      // git rev-parse not available, skip
+    }
+
+    let result = '';
+    let selectedRef = null;
+    const refErrors = [];
+    for (const candidate of candidateRefs) {
+      const ref = typeof candidate === 'string' ? candidate : candidate.ref;
+      const useTwoDot = typeof candidate === 'string' ? false : candidate.useTwoDot;
+      const diffSpec = useTwoDot ? `${ref}..HEAD` : `${ref}...HEAD`;
+      try {
+        result = execFileSync('git', [
+          'diff',
+          '--name-only',
+          diffSpec,
+          '--',
+          'server/promptfoo/',
+        ], { encoding: 'utf-8' });
+        selectedRef = ref;
+        break;
+      } catch (error) {
+        const refLabel = typeof candidate === 'string' ? candidate : `${candidate.ref}(${candidate.useTwoDot ? '..' : '...'})`;
+        const stderr = error.stderr ? error.stderr.toString().trim() : '';
+        refErrors.push(`${refLabel}: ${error.message}${stderr ? ' | stderr: ' + stderr : ''}`);
+      }
+    }
+
+    if (!selectedRef) {
+      const refLabels = candidateRefs.map(c => typeof c === 'string' ? c : `${c.ref}(${c.useTwoDot ? '..' : '...'})`)
+      throw new Error(`Unable to diff against any candidate refs: ${refLabels.join(', ')}.\nDetailed errors:\n${refErrors.map((e, i) => '  ' + (i+1) + '. ' + e).join('\n')}`);
+    }
+
+    log(`Using git diff base ref: ${selectedRef}`, colors.cyan);
 
     const files = result.trim().split('\n').filter(Boolean);
     for (const file of files) {
       const basename = path.basename(file);
-      if (basename.endsWith('.md')) {
+      if (file.startsWith('server/promptfoo/') && basename.endsWith('.yaml') && basename !== 'promptfoo.yaml') {
+        changedYamlConfigs.add(path.join(PROMPTFOO_DIR, basename));
+      } else if (basename.endsWith('.md')) {
         changedFiles.add(basename);
       }
     }
   } catch (error) {
-    // If git diff fails (e.g., no base branch, new repo), return empty set
-    // This will cause all tests to run (safer default)
+    // If all diff strategies fail, tell caller to run all tests
+    diffFailed = true;
     log(`Warning: Could not determine changed files: ${error.message}`, colors.yellow);
     log(`Falling back to running all tests`, colors.yellow);
   }
 
-  return changedFiles;
+  return { changedFiles, changedYamlConfigs, diffFailed };
 }
 
 /**
@@ -106,16 +167,36 @@ function findYamlFiles(changedPromptsOnly = false) {
   }
 
   // New behavior: only return YAML files for changed prompts
-  const changedPrompts = getChangedPromptFiles();
+  const {
+    changedFiles: changedPrompts,
+    changedYamlConfigs,
+    diffFailed,
+  } = getChangedPromptFiles();
 
-  if (changedPrompts.size === 0) {
+  if (diffFailed) {
+    const files = fs.readdirSync(PROMPTFOO_DIR);
+    return files
+      .filter(f => f.endsWith('.yaml') && f !== 'promptfoo.yaml')
+      .sort()
+      .map(f => path.join(PROMPTFOO_DIR, f));
+  }
+
+  if (changedPrompts.size === 0 && changedYamlConfigs.size === 0) {
     log('No prompt files changed in this PR', colors.cyan);
     return [];
   }
 
-  log(`Changed prompt files: ${Array.from(changedPrompts).join(', ')}`, colors.cyan);
+  if (changedPrompts.size > 0) {
+    log(`Changed prompt files: ${Array.from(changedPrompts).join(', ')}`, colors.cyan);
+  }
+  if (changedYamlConfigs.size > 0) {
+    log(
+      `Changed prompt config files: ${Array.from(changedYamlConfigs).map((c) => path.basename(c)).join(', ')}`,
+      colors.cyan,
+    );
+  }
 
-  const yamlFiles = new Set();
+  const yamlFiles = new Set(changedYamlConfigs);
   for (const promptFile of changedPrompts) {
     const configs = findYamlConfigsForPrompt(promptFile);
     configs.forEach(c => yamlFiles.add(c));
@@ -310,6 +391,14 @@ async function main() {
 
   const yamlFiles = findYamlFiles(changedPromptsOnly);
 
+  if (process.env.PROMPTFOO_LIST_ONLY === 'true') {
+    log(`List-only mode: ${yamlFiles.length} config(s) selected`, colors.cyan);
+    for (const yaml of yamlFiles) {
+      log(` - ${path.basename(yaml)}`);
+    }
+    process.exit(0);
+  }
+
   if (yamlFiles.length === 0) {
     if (changedPromptsOnly) {
       log('No prompt files changed - skipping all tests', colors.green);
@@ -337,3 +426,5 @@ main().catch(err => {
   console.error('Error running promptfoo tests:', err);
   process.exit(1);
 });
+
+

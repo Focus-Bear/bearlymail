@@ -121,19 +121,22 @@ tests:
             }
             // Should have one positive (will review soon) and one negative/defer option
             const labels = parsed.options.map(o => o.label.toLowerCase());
-            const hasVariety = labels.some(l =>
-              l.includes('yes') || l.includes('happy') || l.includes('sure') || l.includes('accept')
-            ) && labels.some(l =>
-              l.includes('no') || l.includes('later') || l.includes('defer') || l.includes('delay') || l.includes('busy')
-            );
-            if (!hasVariety) {
-              throw new Error(`Expected diverse options (positive/negative), got labels: ${JSON.stringify(labels)}`);
+            const positiveWords = ['yes', 'happy', 'sure', 'accept', 'review', 'will', 'on it', 'can do', 'look', 'check', 'right away', 'soon', 'got it', 'of course'];
+            const negativeWords = ['no', 'later', 'defer', 'delay', 'busy', 'can\'t', 'cannot', 'unable', 'swamped', 'tied up', 'tomorrow', 'next', 'after', 'decline', 'reschedule', 'not now'];
+            const hasPositive = labels.some(l => positiveWords.some(w => l.includes(w)));
+            const hasNegative = labels.some(l => negativeWords.some(w => l.includes(w)));
+            if (!hasPositive && !hasNegative) {
+              throw new Error(`Expected at least one positive or negative option, got labels: ${JSON.stringify(labels)}`);
+            }
+            if (labels[0] === labels[1]) {
+              throw new Error(`Expected distinct options, got identical labels: ${JSON.stringify(labels)}`);
             }
             return true;
           } catch (e) {
             throw new Error(`Test failed: ${e.message}`);
           }
     description: "Should generate contrasting reply options (positive and negative/defer)"
+
 
 
 

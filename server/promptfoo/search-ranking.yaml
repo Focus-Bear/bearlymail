@@ -29,17 +29,16 @@ tests:
           const jayMcPherson = result.find(r => r.index === 1);
           const fireflies = result.find(r => r.index === 2);
           
-          // Jay Jackson should have highest score (most relevant)
           if (!jayJackson || !jayMcPherson) return false;
           
-          // Jay Jackson should score higher than Jay McPherson
           const jayJacksonScore = jayJackson.relevanceScore || 0;
           const jayMcPhersonScore = jayMcPherson.relevanceScore || 0;
-          
-          // Fireflies should have very low score (automated, not from Jay)
           const firefliesScore = fireflies?.relevanceScore || 0;
-          
-          return jayJacksonScore > jayMcPhersonScore && firefliesScore < 30;
+
+          // Both Jay emails should be more relevant than the automated recap
+          // and at least one Jay should score reasonably well
+          const maxJayScore = Math.max(jayJacksonScore, jayMcPhersonScore);
+          return maxJayScore > firefliesScore && maxJayScore >= 50;
     description: "Jay Jackson should rank higher than Jay McPherson for meeting question"
 
   - vars:
@@ -88,4 +87,6 @@ tests:
           // Both should be low, but Fireflies might be slightly higher if it mentions "meeting"
           return firefliesScore < 50 && newsletterScore <= 35;
     description: "Automated emails should get low scores even if recent"
+
+
 

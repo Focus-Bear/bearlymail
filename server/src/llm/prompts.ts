@@ -49,6 +49,7 @@ const PROMPT_FILE_MAP: Array<{
   },
   { file: "summarize-email-batch.md", key: "summarize_email_batch" },
   { file: "classify-contact-type.md", key: "classify_contact_type" },
+  { file: "compress-user-context.md", key: "compress_user_context" },
 ];
 
 function loadPromptFile(
@@ -260,3 +261,4 @@ export function renderPrompt(
 
   return result;
 }
+

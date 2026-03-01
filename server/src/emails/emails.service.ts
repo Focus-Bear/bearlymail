@@ -313,26 +313,24 @@ export class EmailsService {
       );
     }
 
-    // For action/follow-up modes we need the latest email's "from" to filter
-    // threads where the user sent the last message (action excludes, follow-up includes).
-    const needsLatestFrom = mode === "action" || mode === "follow-up";
+    // We always need the latest email's "from" field to:
+    // 1. Filter blocked senders (all modes)
+    // 2. Filter threads where user sent last (action excludes, follow-up includes)
+    const needsUserSentLastFilter = mode === "action" || mode === "follow-up";
 
     const selectParts: string[] = ["thread.category"];
     if (filters?.includeThreadIds) {
       selectParts.push('thread."threadId"');
     }
-    if (needsLatestFrom) {
-      selectParts.push('latest_email."latestFrom"');
-    }
+    // Always fetch latestFrom for blocked sender filtering
+    selectParts.push('latest_email."latestFrom"');
     const selectFields = selectParts.join(", ");
 
-    const lateralJoin = needsLatestFrom
-      ? `LEFT JOIN LATERAL (
+    const lateralJoin = `LEFT JOIN LATERAL (
            SELECT e."from" AS "latestFrom" FROM emails e
            WHERE e."emailThreadId" = thread.id
            ORDER BY e."receivedAt" DESC LIMIT 1
-         ) latest_email ON true`
-      : "";
+         ) latest_email ON true`;
 
     const rows = await this.emailThreadRepository.query(
       `SELECT ${selectFields}
@@ -349,7 +347,7 @@ export class EmailsService {
 
     // Resolve the user's email for action/follow-up "sent last" filtering
     let userEmailLower: string | null = null;
-    if (needsLatestFrom) {
+    if (needsUserSentLastFilter) {
       try {
         const summaryUser = await this.usersService.findOne(userId);
         if (summaryUser) {
@@ -381,6 +379,10 @@ export class EmailsService {
       categoryNameToId.set(categoryName, ctx.contextId);
     }
 
+    // Pre-warm the blocked senders cache before the loop.
+    // This ensures all subsequent isSenderBlocked calls use in-memory lookups.
+    await this.blockedSendersService.getBlockedEmailHashes(userId);
+
     // Decrypt categories in-memory (AES-GCM random IVs prevent SQL DISTINCT)
     const categoryOrder: string[] = [];
     const categoryCounts: Record<string, number> = {};
@@ -391,9 +393,24 @@ export class EmailsService {
       threadId?: string;
       latestFrom?: string;
     }[]) {
+      // Skip threads from blocked senders (applies to all modes).
+      // Note: isSenderBlocked uses a cached lookup after the cache is warmed above.
+      if (row.latestFrom) {
+        try {
+          const fromEmail = EncryptionHelper.decrypt(row.latestFrom) || "";
+          const isBlocked = await this.blockedSendersService.isSenderBlocked(
+            userId,
+            fromEmail,
+          );
+          if (isBlocked) continue;
+        } catch {
+          // Decryption failed — include the row to avoid silently hiding emails
+        }
+      }
+
       // In action mode, skip threads where the user sent the last email (they
       // belong in follow-up). In follow-up mode, only include such threads.
-      if (needsLatestFrom && userEmailLower && row.latestFrom) {
+      if (needsUserSentLastFilter && userEmailLower && row.latestFrom) {
         try {
           const fromLower =
             EncryptionHelper.decrypt(row.latestFrom)?.toLowerCase() || "";

@@ -1114,7 +1114,13 @@
   "crm": {
     "title": "CRM",
     "contacts": "Contacts",
-    "deals": "Deals"
+    "deals": "Deals",
+    "deal": "deal",
+    "noDeals": "No deals",
+    "noDealsWithContact": "No deals with this contact yet",
+    "createDeal": "Create Deal",
+    "errorLoadingDeals": "Error loading deals",
+    "expectedClose": "Expected close"
   },
   "deals": {
     "title": "Deals",

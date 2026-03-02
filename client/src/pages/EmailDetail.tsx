@@ -4,9 +4,10 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import { captureEvent } from 'utils/posthog';
-import { getCorrespondent } from 'utils/emailUtils';
+import { getCorrespondent, extractEmailAddress } from 'utils/emailUtils';
 import { useAuth } from 'contexts/AuthContext';
 import { GitHubStatusSection } from 'components/github/GitHubStatusSection';
+import { CRMDealsSection } from 'components/crm/CRMDealsSection';
 import { useEmailDetailState } from 'hooks/useEmailDetailState';
 import { useEmailDetailOperations } from 'hooks/useEmailDetailOperations';
 import { useEmailDetailInitialization } from 'hooks/useEmailDetailInitialization';
@@ -551,6 +552,14 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
           />
         </div>
 
+        {/* CRM Deals Section - shows deals associated with the email sender */}
+        <div style={{ marginBottom: theme.spacing.xl }}>
+          <CRMDealsSection
+            senderEmail={extractEmailAddress(email?.from)}
+            emailSubject={email?.subject}
+          />
+        </div>
+
         <SummarySection
           summary={summary}
           summaryType={summaryType}
@@ -711,6 +720,11 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
               emailSubject={email?.subject}
               emailBody={email?.body}
               emailHtmlBody={email?.htmlBody}
+            />
+
+            <CRMDealsSection
+              senderEmail={extractEmailAddress(email?.from)}
+              emailSubject={email?.subject}
             />
           </div>
 

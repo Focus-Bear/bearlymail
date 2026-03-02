@@ -65,6 +65,17 @@ export const getCorrespondent = (
 };
 
 /**
+ * Extract email address from a "from" field.
+ * Handles formats like "Name <email@example.com>" or just "email@example.com"
+ */
+export const extractEmailAddress = (from: string | undefined): string => {
+  if (!from) return '';
+  const match = from.match(/<([^>]+)>/);
+  if (match) return match[1].toLowerCase().trim();
+  return from.toLowerCase().trim();
+};
+
+/**
  * Removes email signatures from text
  */
 export const removeSignature = (text: string): string => {

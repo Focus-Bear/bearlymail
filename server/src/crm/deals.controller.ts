@@ -68,6 +68,22 @@ export class DealsController {
     return this.dealsService.getDeals(req.user.userId);
   }
 
+  @Get("by-contact/:contactId")
+  async getDealsForContact(
+    @Request() req,
+    @Param("contactId") contactId: string,
+  ) {
+    return this.dealsService.getDealsForContact(req.user.userId, contactId);
+  }
+
+  @Get("by-email/:email")
+  async getDealsForContactByEmail(
+    @Request() req,
+    @Param("email") email: string,
+  ) {
+    return this.dealsService.getDealsForContactByEmail(req.user.userId, email);
+  }
+
   @Get(":id")
   async getDeal(@Request() req, @Param("id") id: string) {
     return this.dealsService.getDeal(req.user.userId, id);

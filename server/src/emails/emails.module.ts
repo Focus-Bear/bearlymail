@@ -26,6 +26,7 @@ import { ActionItem } from "../database/entities/action-item.entity";
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { CategoryOverride } from "../database/entities/category-override.entity";
 import { ProtoCategory } from "../database/entities/proto-category.entity";
+import { Contact } from "../database/entities/contact.entity";
 import { PriorityModule } from "../priority/priority.module";
 import { SummarizationModule } from "../summarization/summarization.module";
 import { UsersModule } from "../users/users.module";
@@ -33,6 +34,7 @@ import { QueueModule } from "../queue/queue.module";
 import { LLMModule } from "../llm/llm.module";
 import { ContextModule } from "../context/context.module";
 import { ContactsModule } from "../contacts/contacts.module";
+import { CrmModule } from "../crm/crm.module";
 import { BlockedSendersModule } from "../blocked-senders/blocked-senders.module";
 import { BlockedKeywordsModule } from "../blocked-keywords/blocked-keywords.module";
 import { BatchScheduleModule } from "../batch-schedule/batch-schedule.module";
@@ -62,6 +64,7 @@ import { EmailSearchRankingService } from "./email-search-ranking.service";
       CategoryOverride,
       ProtoCategory,
       SyncHistoryLog,
+      Contact,
     ]),
     PriorityModule,
     forwardRef(() => SummarizationModule),
@@ -70,6 +73,7 @@ import { EmailSearchRankingService } from "./email-search-ranking.service";
     LLMModule,
     ContextModule,
     forwardRef(() => ContactsModule),
+    CrmModule,
     BlockedSendersModule,
     BlockedKeywordsModule,
     BatchScheduleModule,

@@ -4,6 +4,7 @@ import axios from 'axios';
 import { FiArchive, FiClock, FiCornerUpLeft, FiCornerUpRight } from 'react-icons/fi';
 import { theme } from 'theme/theme';
 import { GitHubStatusSection } from 'components/github/GitHubStatusSection';
+import { CRMDealsSection } from 'components/crm/CRMDealsSection';
 import { EmailDetailBody, EmailThreadList } from 'components/email-detail';
 import { EmailAttachments } from 'components/email-detail/EmailAttachments';
 import { PrivateNotesSection } from 'components/email-detail-inline/PrivateNotesSection';
@@ -11,6 +12,7 @@ import { ActionItemsSection } from 'components/email-detail-inline/ActionItemsSe
 import { SnoozeInputForm } from 'components/inbox/actions/SnoozeInputForm';
 import { EMOJI_BLOCK, EMOJI_LINK } from 'constants/emojis';
 import { extractUnsubscribeLink } from 'utils/unsubscribeUtils';
+import { extractEmailAddress } from 'utils/emailUtils';
 import { API_URL } from 'config/api';
 import { captureEvent } from 'utils/posthog';
 import { OPACITY_DISABLED } from 'constants/numbers';
@@ -454,6 +456,11 @@ export const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
             emailHtmlBody={email.htmlBody}
           />
         )}
+
+        <CRMDealsSection
+          senderEmail={extractEmailAddress(email.from)}
+          emailSubject={email.subject}
+        />
       </div>
 
       <EmailThreadList

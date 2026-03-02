@@ -401,4 +401,46 @@ export class DealsService {
       updatedAt: deal.updatedAt.toISOString(),
     };
   }
+
+  /**
+   * Get deals associated with a specific contact.
+   * Used for showing deals in email split view when viewing emails from a contact.
+   */
+  async getDealsForContact(
+    userId: string,
+    contactId: string,
+  ): Promise<DealResponse[]> {
+    const deals = await this.dealRepository.find({
+      where: { userId, contactId },
+      relations: ["stage", "contact"],
+      order: { sortOrder: "ASC", createdAt: "DESC" },
+    });
+
+    return deals.map((d) => this.toDealResponse(d));
+  }
+
+  /**
+   * Get deals associated with a contact by email address.
+   * Used for showing deals in email split view when we only know the sender email.
+   */
+  async getDealsForContactByEmail(
+    userId: string,
+    email: string,
+  ): Promise<DealResponse[]> {
+    // First find the contact by email hash
+    const { SearchIndexHelper } =
+      await import("../contacts/search-index.helper");
+    const emailHash = SearchIndexHelper.hashExact(email);
+
+    const contact = await this.contactRepository.findOne({
+      where: { userId, emailHash },
+      select: ["id"],
+    });
+
+    if (!contact) {
+      return [];
+    }
+
+    return this.getDealsForContact(userId, contact.id);
+  }
 }

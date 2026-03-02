@@ -6,17 +6,23 @@ import * as os from "os";
 import PgBoss from "pg-boss";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import {
+  Contact,
+  DEFAULT_CONTACT_TYPES,
+} from "../database/entities/contact.entity";
 import { EmailsService } from "./emails.service";
 import { PriorityService } from "../priority/priority.service";
 import { PriorityCacheService } from "../priority/priority-cache.service";
 import { SummarizationService } from "../summarization/summarization.service";
 import { PriorityAnalysisService } from "../llm/priority-analysis.service";
 import { IncrementalAnalysisService } from "../llm/incremental-analysis.service";
+import { ContactTypeClassifierService } from "../crm/contact-type-classifier.service";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
 import { ContextKey } from "../database/entities/user-context.entity";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { ProtoCategoriesService } from "../proto-categories/proto-categories.service";
 import { CloudWatchService } from "../aws/cloudwatch.service";
+import { SearchIndexHelper } from "../contacts/search-index.helper";
 import {
   SENTIMENT_THRESHOLDS,
   PRIORITY_SCORES,
@@ -84,6 +90,8 @@ const LLM_PROCESSOR_CONSTANTS = {
   MAX_SCORE: 100,
   // Fetch last 15 emails for thread context in priority calculation
   THREAD_EMAILS_LIMIT: 15,
+  // Minimum confidence for auto-classifying contact type
+  CONTACT_TYPE_CONFIDENCE_THRESHOLD: 0.6,
 } as const;
 
 @Injectable()
@@ -92,18 +100,22 @@ export class LLMProcessor implements OnModuleInit {
   private readonly priorityConcurrency: number;
   private readonly summaryConcurrency: number;
 
+  // eslint-disable-next-line max-params
   constructor(
     @Inject("PG_BOSS") private boss: PgBoss,
     @InjectRepository(Email)
     private emailRepository: Repository<Email>,
     @InjectRepository(EmailThread)
     private emailThreadRepository: Repository<EmailThread>,
+    @InjectRepository(Contact)
+    private contactRepository: Repository<Contact>,
     private emailsService: EmailsService,
     private priorityService: PriorityService,
     private priorityCacheService: PriorityCacheService,
     private summarizationService: SummarizationService,
     private priorityAnalysisService: PriorityAnalysisService,
     private incrementalAnalysisService: IncrementalAnalysisService,
+    private contactTypeClassifierService: ContactTypeClassifierService,
     private configService: ConfigService,
     private protoCategoriesService: ProtoCategoriesService,
     private cloudWatchService: CloudWatchService,
@@ -897,6 +909,27 @@ export class LLMProcessor implements OnModuleInit {
             { summary, isProcessingSummary: false },
           );
 
+          // Auto-classify contact type during initial summary generation
+          const senderEmail = this.extractEmailAddress(email.from || "");
+          if (senderEmail) {
+            try {
+              await this.contactTypeClassifierService.autoClassifyIfNeeded(
+                jobEntry.userId,
+                senderEmail,
+                {
+                  from: email.from || "",
+                  fromName: email.fromName || "",
+                  subject: email.subject || "",
+                  body: email.body || "",
+                },
+              );
+            } catch (classificationError) {
+              this.logger.warn(
+                `[Worker ${batchId}] Contact type auto-classification failed for ${senderEmail}: ${classificationError}`,
+              );
+            }
+          }
+
           this.logger.debug(
             `[Worker ${batchId}] Updated thread ${email.threadId?.substring(0, LLM_PROCESSOR_CONSTANTS.SUBSTRING_PREVIEW_LENGTH)}... (${threadEmailIds.length} emails)`,
           );
@@ -1501,6 +1534,7 @@ export class LLMProcessor implements OnModuleInit {
 
   /**
    * Update the thread summary incrementally using the new email.
+   * Also guesses contact type if the sender's contact type is not set.
    */
   private async updateSummaryIncrementally(
     email: Email,
@@ -1508,6 +1542,27 @@ export class LLMProcessor implements OnModuleInit {
     userId: string,
   ): Promise<void> {
     try {
+      // Check if we need to guess contact type for the sender
+      const senderEmail = this.extractEmailAddress(email.from || "");
+      let needsContactTypeGuess = false;
+      let contact: Contact | null = null;
+
+      if (senderEmail) {
+        const emailHash = SearchIndexHelper.hashExact(senderEmail);
+        contact = await this.contactRepository.findOne({
+          where: { userId, emailHash },
+          select: ["id", "contactType", "contactTypeAutoDetected"],
+        });
+
+        // Only guess if contact exists but has no type set, or was auto-detected previously
+        if (
+          contact &&
+          (!contact.contactType || contact.contactTypeAutoDetected)
+        ) {
+          needsContactTypeGuess = true;
+        }
+      }
+
       const newEmailData = {
         from: email.from || "",
         fromName: email.fromName,
@@ -1524,8 +1579,10 @@ export class LLMProcessor implements OnModuleInit {
           false,
           undefined,
           userId,
+          needsContactTypeGuess,
         );
 
+      // Update summary if changed
       if (result.updatedSummary && result.updatedSummary !== existingSummary) {
         if (email.emailThreadId) {
           const threadEmails = await this.emailRepository.find({
@@ -1544,8 +1601,42 @@ export class LLMProcessor implements OnModuleInit {
           );
         }
       }
+
+      // Update contact type if guessed
+      if (
+        needsContactTypeGuess &&
+        contact &&
+        result.suggestedContactType &&
+        (result.contactTypeConfidence ?? 0) >=
+          LLM_PROCESSOR_CONSTANTS.CONTACT_TYPE_CONFIDENCE_THRESHOLD
+      ) {
+        if (
+          DEFAULT_CONTACT_TYPES.includes(
+            result.suggestedContactType as (typeof DEFAULT_CONTACT_TYPES)[number],
+          )
+        ) {
+          await this.contactRepository.update(contact.id, {
+            contactType: result.suggestedContactType,
+            contactTypeAutoDetected: true,
+          });
+          this.logger.log(
+            `Auto-classified contact ${senderEmail} as ${result.suggestedContactType} (confidence: ${result.contactTypeConfidence})`,
+          );
+        }
+      }
     } catch (error) {
       this.logger.warn("Failed to update summary incrementally:", error);
     }
+  }
+
+  /**
+   * Extract email address from a "from" field.
+   * Handles formats like "Name <email@example.com>" or just "email@example.com"
+   */
+  private extractEmailAddress(from: string): string {
+    if (!from) return "";
+    const match = from.match(/<([^>]+)>/);
+    if (match) return match[1].toLowerCase().trim();
+    return from.toLowerCase().trim();
   }
 }

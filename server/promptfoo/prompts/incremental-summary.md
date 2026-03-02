@@ -34,13 +34,31 @@ Received: {{newEmailReceivedAt}}
 Note: This message appears to resolve or conclude the thread.
 {% endif %}
 
+{% if needsContactTypeGuess %}
+## Contact Type Classification
+
+Since the sender's contact type is not yet set, also classify them based on the email content.
+
+Available types:
+- **lead** - Potential customer showing interest in products/services
+- **customer** - Existing customer discussing orders, support, or account matters
+- **team_member** - Internal colleague or coworker
+- **advisor** - Mentor, consultant, or professional advisor
+- **stranger** - Unknown person with no clear relationship
+- **bot** - Automated system or no-reply address
+- **partner** - Business partner, vendor, or supplier
+- **spammer** - Unsolicited bulk email or spam
+
+{% endif %}
 ## Response Format
 
 Return a JSON object with a top-level "result" key:
 {
   "result": {
     "updatedSummary": string (the new summary incorporating the latest message),
-    "significantChange": boolean (true if the new message substantially changes the thread's nature)
+    "significantChange": boolean (true if the new message substantially changes the thread's nature){% if needsContactTypeGuess %},
+    "suggestedContactType": string | null (one of: lead, customer, team_member, advisor, stranger, bot, partner, spammer),
+    "contactTypeConfidence": number (0.0-1.0, how confident you are in this classification){% endif %}
   }
 }
 

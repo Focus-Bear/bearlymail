@@ -645,7 +645,13 @@
   "crm": {
     "title": "CRM",
     "contacts": "Contactos",
-    "deals": "Negocios"
+    "deals": "Negocios",
+    "deal": "negocio",
+    "noDeals": "Sin negocios",
+    "noDealsWithContact": "Aún no hay negocios con este contacto",
+    "createDeal": "Crear Negocio",
+    "errorLoadingDeals": "Error al cargar negocios",
+    "expectedClose": "Cierre esperado"
   },
   "deals": {
     "title": "Negocios",

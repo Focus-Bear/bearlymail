@@ -198,3 +198,142 @@ tests:
           }
           return true;
     description: "Candidate withdrawal should be reflected and marked as significant"
+
+  # Contact Type Guessing Tests
+  - vars:
+      existingSummary: "Inquiry about pricing and features for team collaboration software."
+      newEmailFrom: "sales@acmecorp.com"
+      newEmailFromName: "Alex from Sales"
+      newEmailSubject: "Re: Interested in your product"
+      newEmailBody: "Hi, we'd love to schedule a demo to show you our enterprise features. We have packages starting at $99/month. When would be a good time?"
+      newEmailReceivedAt: "2026-02-26T10:00:00Z"
+      isResolution: false
+      needsContactTypeGuess: true
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const result = typeof output === 'string' ? JSON.parse(output) : output;
+          const data = result.result || result;
+          // Should have updated summary
+          if (!data.updatedSummary || data.updatedSummary.length < 20) {
+            throw new Error(`Expected updated summary, got: ${data.updatedSummary}`);
+          }
+          // Should guess contact type as lead or customer (sales inquiry)
+          if (!data.suggestedContactType) {
+            throw new Error('Expected suggestedContactType field');
+          }
+          const validTypes = ['lead', 'customer', 'partner'];
+          if (!validTypes.includes(data.suggestedContactType)) {
+            throw new Error(`Expected lead/customer/partner for sales inquiry, got: ${data.suggestedContactType}`);
+          }
+          // Should have confidence score
+          if (typeof data.contactTypeConfidence !== 'number') {
+            throw new Error('Expected contactTypeConfidence to be a number');
+          }
+          return true;
+    description: "Should guess contact type as lead/customer for sales inquiry"
+
+  - vars:
+      existingSummary: "GitHub notification about a pull request review."
+      newEmailFrom: "noreply@github.com"
+      newEmailFromName: "GitHub"
+      newEmailSubject: "Re: [repo/project] PR #123: Fix bug"
+      newEmailBody: "Your pull request has been approved and merged. View on GitHub: https://github.com/..."
+      newEmailReceivedAt: "2026-02-26T11:00:00Z"
+      isResolution: true
+      needsContactTypeGuess: true
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const result = typeof output === 'string' ? JSON.parse(output) : output;
+          const data = result.result || result;
+          // Should guess contact type as bot (automated notification)
+          if (!data.suggestedContactType) {
+            throw new Error('Expected suggestedContactType field');
+          }
+          if (data.suggestedContactType !== 'bot') {
+            throw new Error(`Expected bot for noreply@github.com, got: ${data.suggestedContactType}`);
+          }
+          // High confidence for obvious bot
+          if (data.contactTypeConfidence < 0.7) {
+            throw new Error(`Expected high confidence for bot, got: ${data.contactTypeConfidence}`);
+          }
+          return true;
+    description: "Should guess contact type as bot for noreply automated emails"
+
+  - vars:
+      existingSummary: "Colleague asking about project timeline."
+      newEmailFrom: "jane.doe@company.com"
+      newEmailFromName: "Jane Doe"
+      newEmailSubject: "Re: Q1 Sprint Planning"
+      newEmailBody: "Hey team, just checking in on the sprint. Can we sync up tomorrow to discuss blockers? I'll book a meeting room."
+      newEmailReceivedAt: "2026-02-26T09:00:00Z"
+      isResolution: false
+      needsContactTypeGuess: true
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const result = typeof output === 'string' ? JSON.parse(output) : output;
+          const data = result.result || result;
+          // Should guess contact type as team_member (internal communication)
+          if (!data.suggestedContactType) {
+            throw new Error('Expected suggestedContactType field');
+          }
+          if (data.suggestedContactType !== 'team_member') {
+            throw new Error(`Expected team_member for internal colleague, got: ${data.suggestedContactType}`);
+          }
+          return true;
+    description: "Should guess contact type as team_member for internal communications"
+
+  - vars:
+      existingSummary: "Discussion about investment opportunity."
+      newEmailFrom: "advisor@vcfund.com"
+      newEmailFromName: "Sarah Chen"
+      newEmailSubject: "Re: Advisory Board Meeting"
+      newEmailBody: "I've reviewed your growth strategy. My recommendation would be to focus on enterprise customers first. Let's discuss this in our next board meeting. I can also connect you with some potential clients in my network."
+      newEmailReceivedAt: "2026-02-26T14:00:00Z"
+      isResolution: false
+      needsContactTypeGuess: true
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const result = typeof output === 'string' ? JSON.parse(output) : output;
+          const data = result.result || result;
+          // Should guess contact type as advisor (strategic advice, board meeting)
+          if (!data.suggestedContactType) {
+            throw new Error('Expected suggestedContactType field');
+          }
+          if (data.suggestedContactType !== 'advisor') {
+            throw new Error(`Expected advisor for board/strategic advice, got: ${data.suggestedContactType}`);
+          }
+          return true;
+    description: "Should guess contact type as advisor for strategic advice and board communications"
+
+  - vars:
+      existingSummary: "Unsolicited email about SEO services."
+      newEmailFrom: "marketing@spammy-seo.biz"
+      newEmailFromName: "SEO Expert"
+      newEmailSubject: "URGENT: Your website needs SEO optimization!!!"
+      newEmailBody: "Dear business owner, I noticed your website is not ranking well on Google. We can guarantee first page results for only $299! Limited time offer! Click here to claim your FREE audit!!!"
+      newEmailReceivedAt: "2026-02-26T08:00:00Z"
+      isResolution: false
+      needsContactTypeGuess: true
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const result = typeof output === 'string' ? JSON.parse(output) : output;
+          const data = result.result || result;
+          // Should guess contact type as spammer (unsolicited bulk email)
+          if (!data.suggestedContactType) {
+            throw new Error('Expected suggestedContactType field');
+          }
+          if (data.suggestedContactType !== 'spammer') {
+            throw new Error(`Expected spammer for unsolicited bulk email, got: ${data.suggestedContactType}`);
+          }
+          return true;
+    description: "Should guess contact type as spammer for unsolicited bulk emails"

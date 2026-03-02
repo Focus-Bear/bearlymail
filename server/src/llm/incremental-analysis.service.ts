@@ -19,6 +19,8 @@ export interface IncrementalPriorityCheckResult {
 export interface IncrementalSummaryResult {
   updatedSummary: string;
   significantChange: boolean;
+  suggestedContactType?: string | null;
+  contactTypeConfidence?: number;
 }
 
 export interface ExistingThreadState {
@@ -135,6 +137,7 @@ export class IncrementalAnalysisService {
   /**
    * Update a thread's summary incrementally based on a new message.
    * Much faster and cheaper than regenerating the full summary.
+   * @param needsContactTypeGuess If true, the LLM will also guess the sender's contact type
    */
   async updateSummaryIncrementally(
     existingSummary: string,
@@ -142,6 +145,7 @@ export class IncrementalAnalysisService {
     isResolution?: boolean,
     provider?: LLMProvider,
     userId?: string,
+    needsContactTypeGuess?: boolean,
   ): Promise<IncrementalSummaryResult> {
     const promptConfig = getPrompt("incremental_summary");
     if (!promptConfig) {
@@ -166,6 +170,7 @@ export class IncrementalAnalysisService {
       newEmailBody: cleanedBody,
       newEmailReceivedAt: newEmail.receivedAt.toISOString(),
       isResolution: isResolution || false,
+      needsContactTypeGuess: needsContactTypeGuess || false,
     });
 
     try {
@@ -184,7 +189,11 @@ export class IncrementalAnalysisService {
 
       if (parsed?.result?.updatedSummary) {
         this.logger.log(
-          `Incremental summary update: significantChange=${parsed.result.significantChange}`,
+          `Incremental summary update: significantChange=${parsed.result.significantChange}${
+            needsContactTypeGuess
+              ? `, suggestedContactType=${parsed.result.suggestedContactType}`
+              : ""
+          }`,
         );
         return parsed.result;
       }

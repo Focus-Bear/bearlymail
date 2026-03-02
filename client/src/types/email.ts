@@ -102,7 +102,7 @@ export interface PriorityExplanation {
   breakdown: Array<{ factor: string; value: number; description: string }>;
 }
 
-export type InboxMode = 'triage' | 'action' | 'follow-up';
+export type InboxMode = 'triage' | 'action' | 'follow-up' | 'blocked';
 
 /**
  * Calculate priority score from breakdown array

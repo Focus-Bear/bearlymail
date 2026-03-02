@@ -1022,6 +1022,8 @@
     "actionItems_plural": "{{count}} elementos de acción",
     "actionTab": "Acción",
     "toggleDebug": "Alternar panel de depuración",
+    "moreInboxActions": "Más acciones de la bandeja de entrada",
+    "viewBlockedEmails": "Ver correos bloqueados",
     "andMore": "y {{count}} más",
     "archive": "Archivar",
     "archiveOrPressDelete": "Archivar (o presiona Eliminar)",

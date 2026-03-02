@@ -180,6 +180,7 @@ const Inbox: React.FC = () => {
           isAdmin={user?.isAdmin}
           debugViewOpen={debugPanel.debugViewOpen}
           onToggleDebug={() => debugPanel.setDebugViewOpen(!debugPanel.debugViewOpen)}
+          onViewBlockedEmails={() => setMode('blocked')}
         />
 
         <InboxFilters

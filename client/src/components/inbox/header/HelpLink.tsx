@@ -13,6 +13,7 @@ interface HelpLinkProps {
 const getHelpLink = (mode: InboxMode): string => {
   if (mode === MODE_TRIAGE) return '/help/triage';
   if (mode === MODE_ACTION) return '/help/process';
+  if (mode === 'blocked') return '/help/triage';
   return '/help/follow-up';
 };
 

@@ -64,7 +64,7 @@ export class PerformanceTracker {
     };
   }
 
-  finish(mode?: "triage" | "action" | "follow-up"): void {
+  finish(mode?: "triage" | "action" | "follow-up" | "blocked"): void {
     const totalDuration = Date.now() - this.startTime;
     const exceededSpans = this.spans.filter((span) => span.exceeded);
     let budget: number;

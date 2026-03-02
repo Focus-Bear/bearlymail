@@ -54,6 +54,13 @@ import { CloudWatchService } from "../aws/cloudwatch.service";
 // Performance budgets in milliseconds
 // Use PERFORMANCE_BUDGETS and QUERY_LIMITS constants directly instead of local PERF_BUDGETS
 
+const BLOCKED_MODE_THREAD_FILTER = `AND thread."isArchived" = true AND EXISTS (
+  SELECT 1 FROM emails em2
+  WHERE em2."emailThreadId" = thread.id
+    AND em2."userId" = $1
+    AND 'BearlyMail-Blocked' = ANY(COALESCE(em2.labels, ARRAY[]::text[]))
+)`;
+
 interface RawEmailRow {
   id: string;
   labels?: string;
@@ -263,7 +270,7 @@ export class EmailsService {
    */
   async getInboxSummary(
     userId: string,
-    mode: "triage" | "action" | "follow-up" = "triage",
+    mode: "triage" | "action" | "follow-up" | "blocked" = "triage",
     filters?: {
       categories?: string[];
       categoryIds?: string[];
@@ -280,10 +287,15 @@ export class EmailsService {
       threadIds?: string[];
     }[];
   }> {
-    const threadFilter =
-      mode === "action" || mode === "follow-up"
-        ? 'AND thread."isArchived" = false AND thread."starCount" > 0'
-        : 'AND thread."isArchived" = false AND thread."starCount" = 0';
+    let threadFilter =
+      'AND thread."isArchived" = false AND thread."starCount" = 0';
+
+    if (mode === "action" || mode === "follow-up") {
+      threadFilter =
+        'AND thread."isArchived" = false AND thread."starCount" > 0';
+    } else if (mode === "blocked") {
+      threadFilter = BLOCKED_MODE_THREAD_FILTER;
+    }
 
     let additionalFilters = "";
     const queryParams: unknown[] = [userId];
@@ -393,9 +405,9 @@ export class EmailsService {
       threadId?: string;
       latestFrom?: string;
     }[]) {
-      // Skip threads from blocked senders (applies to all modes).
-      // Note: isSenderBlocked uses a cached lookup after the cache is warmed above.
-      if (row.latestFrom) {
+      // Skip threads from blocked senders for normal inbox modes.
+      // Blocked mode intentionally shows these threads.
+      if (mode !== "blocked" && row.latestFrom) {
         try {
           const fromEmail = EncryptionHelper.decrypt(row.latestFrom) || "";
           const isBlocked = await this.blockedSendersService.isSenderBlocked(
@@ -543,7 +555,7 @@ export class EmailsService {
   async getInbox(
     userId: string,
     _includeBatched: boolean = false,
-    mode: "triage" | "action" | "follow-up" = "triage",
+    mode: "triage" | "action" | "follow-up" | "blocked" = "triage",
     filters?: {
       accountIds?: string[];
       categories?: string[];
@@ -635,10 +647,15 @@ export class EmailsService {
       minPriority?: number;
     },
   ): Promise<RawEmailRow[]> {
-    const threadFilter =
-      mode === "triage"
-        ? 'AND thread."isArchived" = false AND thread."starCount" = 0'
-        : 'AND thread."isArchived" = false AND thread."starCount" > 0';
+    let threadFilter =
+      'AND thread."isArchived" = false AND thread."starCount" > 0';
+
+    if (mode === "triage") {
+      threadFilter =
+        'AND thread."isArchived" = false AND thread."starCount" = 0';
+    } else if (mode === "blocked") {
+      threadFilter = BLOCKED_MODE_THREAD_FILTER;
+    }
 
     const queryParams: string[] = [userId];
     let additionalFilters = "";
@@ -728,12 +745,15 @@ export class EmailsService {
       QUERY_LIMITS.MAX_RESULTS_DEFAULT,
     );
     const blockedEmailIds =
-      await this.blockedSendersService.filterBlockedEmails(
-        userId,
-        emails.map((e) => ({ id: e.id, from: e.from })),
-      );
+      mode === "blocked"
+        ? []
+        : await this.blockedSendersService.filterBlockedEmails(
+            userId,
+            emails.map((e) => ({ id: e.id, from: e.from })),
+          );
     const blockedSet = new Set(blockedEmailIds);
-    let filteredEmails = emails.filter((e) => !blockedSet.has(e.id));
+    let filteredEmails =
+      mode === "blocked" ? emails : emails.filter((e) => !blockedSet.has(e.id));
     endBlockedFilter();
 
     if (blockedEmailIds.length > 0) {

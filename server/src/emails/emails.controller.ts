@@ -58,7 +58,7 @@ export class EmailsController {
     @Query()
     query: {
       includeBatched?: string;
-      mode?: "triage" | "action" | "follow-up";
+      mode?: "triage" | "action" | "follow-up" | "blocked";
       accounts?: string;
       categories?: string;
       categoryIds?: string;
@@ -139,7 +139,8 @@ export class EmailsController {
   @Get("inbox-summary")
   async getInboxSummary(
     @Request() req,
-    @Query("mode") mode: "triage" | "action" | "follow-up" = "triage",
+    @Query("mode")
+    mode: "triage" | "action" | "follow-up" | "blocked" = "triage",
     @Query("categories") categories?: string,
     @Query("categoryIds") categoryIds?: string,
     @Query("minPriority") minPriority?: string,

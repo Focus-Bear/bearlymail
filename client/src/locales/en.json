@@ -180,6 +180,8 @@
     "actionTab": "Action",
     "followUpTab": "Follow Up",
     "toggleDebug": "Toggle debug panel",
+    "moreInboxActions": "More inbox actions",
+    "viewBlockedEmails": "View blocked emails",
     "emailDetails": "Email Details",
     "showSplitView": "Show split view",
     "expandToFullWidth": "Expand to full width",

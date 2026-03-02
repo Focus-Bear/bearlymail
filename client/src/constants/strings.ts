@@ -4,8 +4,9 @@
 export const MODE_TRIAGE = 'triage' as const;
 export const MODE_ACTION = 'action' as const;
 export const MODE_FOLLOW_UP = 'follow-up' as const;
+export const MODE_BLOCKED = 'blocked' as const;
 
-export type InboxModeType = typeof MODE_TRIAGE | typeof MODE_ACTION | typeof MODE_FOLLOW_UP;
+export type InboxModeType = typeof MODE_TRIAGE | typeof MODE_ACTION | typeof MODE_FOLLOW_UP | typeof MODE_BLOCKED;
 
 // Reply modes
 export const REPLY_MODE_REPLY = 'reply' as const;

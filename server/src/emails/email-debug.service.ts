@@ -319,7 +319,7 @@ export class EmailDebugService {
         // (archived starred emails should not be synced)
         const starredEmails = await provider.searchEmails(
           userId,
-          "is:starred is:inbox",
+          "is:starred in:inbox -label:SnoozedBearlyMail -label:VA-to-action",
           QUERY_LIMITS.INBOX_TOTAL,
         );
         // Get unique thread IDs

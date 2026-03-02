@@ -312,6 +312,40 @@ export class GmailProvider implements EmailProvider {
     throw new Error("Token refresh failed - please log in again");
   }
 
+  /**
+   * Fetch all thread IDs from Gmail using pagination.
+   * Gmail API returns max 100 results per page, so we need to paginate.
+   */
+  private async fetchAllThreadsWithPagination(
+    gmail: gmail_v1.Gmail,
+    query: string,
+    maxResults: number,
+  ): Promise<string[]> {
+    const allThreadIds: string[] = [];
+    let pageToken: string | undefined;
+    // Safety limit to prevent infinite loops
+    const MAX_PAGES = 10;
+    let pageCount = 0;
+
+    while (allThreadIds.length < maxResults && pageCount < MAX_PAGES) {
+      const response = await gmail.users.threads.list({
+        userId: "me",
+        maxResults: Math.min(100, maxResults - allThreadIds.length),
+        q: query,
+        pageToken,
+      });
+
+      const threads = response.data.threads || [];
+      allThreadIds.push(...threads.map((t) => t.id!).filter(Boolean));
+
+      pageToken = response.data.nextPageToken || undefined;
+      pageCount++;
+      if (!pageToken || threads.length === 0) break;
+    }
+
+    return allThreadIds;
+  }
+
   private async fetchGmailThreadIds(
     userId: string,
     gmail: gmail_v1.Gmail,
@@ -344,24 +378,31 @@ export class GmailProvider implements EmailProvider {
     const starredQuery = `is:starred in:inbox ${baseQuery}`;
     queries.push(inboxQuery, starredQuery, sentQuery);
 
-    const [inboxThreads, starredThreads, sentThreads] = await Promise.all([
-      gmail.users.threads.list({
-        userId: "me",
-        maxResults: 500,
-        q: inboxQuery,
-      }),
-      gmail.users.threads.list({
-        userId: "me",
-        maxResults: 500,
-        q: starredQuery,
-      }),
-      gmail.users.threads.list({ userId: "me", maxResults: 100, q: sentQuery }),
-    ]);
+    // Use pagination to fetch all threads (Gmail API returns max 100 per page)
+    const [inboxThreadIds, starredThreadIds, sentThreadIds] = await Promise.all(
+      [
+        this.fetchAllThreadsWithPagination(
+          gmail,
+          inboxQuery,
+          QUERY_LIMITS.INBOX_TOTAL,
+        ),
+        this.fetchAllThreadsWithPagination(
+          gmail,
+          starredQuery,
+          QUERY_LIMITS.INBOX_TOTAL,
+        ),
+        this.fetchAllThreadsWithPagination(
+          gmail,
+          sentQuery,
+          QUERY_LIMITS.THREAD_QUERY,
+        ),
+      ],
+    );
 
     const allThreadIds = new Set([
-      ...(inboxThreads.data.threads || []).map((t) => t.id!),
-      ...(starredThreads.data.threads || []).map((t) => t.id!),
-      ...(sentThreads.data.threads || []).map((t) => t.id!),
+      ...inboxThreadIds,
+      ...starredThreadIds,
+      ...sentThreadIds,
     ]);
     return { allThreadIds, syncWindowStart };
   }
@@ -960,15 +1001,32 @@ export class GmailProvider implements EmailProvider {
     if (!gmail) return [];
 
     try {
-      const response = await gmail.users.messages.list({
-        userId: "me",
-        maxResults,
-        q: query,
-      });
-      const messages = response.data.messages || [];
+      // Gmail API returns max 100 results per page, so we need to paginate
+      const allMessages: gmail_v1.Schema$Message[] = [];
+      let pageToken: string | undefined;
+      // Safety limit to prevent infinite loops
+      const MAX_PAGES = 10;
+      let pageCount = 0;
+
+      while (allMessages.length < maxResults && pageCount < MAX_PAGES) {
+        const response = await gmail.users.messages.list({
+          userId: "me",
+          maxResults: Math.min(100, maxResults - allMessages.length),
+          q: query,
+          pageToken,
+        });
+
+        const messages = response.data.messages || [];
+        allMessages.push(...messages);
+
+        pageToken = response.data.nextPageToken || undefined;
+        pageCount++;
+        if (!pageToken || messages.length === 0) break;
+      }
+
       const results: RawEmailMessage[] = [];
 
-      for (const msg of messages.slice(0, QUERY_LIMITS.MAX_RESULTS_DEFAULT)) {
+      for (const msg of allMessages) {
         if (!msg.id) continue;
         const fullMsg = await gmail.users.messages.get({
           userId: "me",

@@ -261,4 +261,3 @@ export function renderPrompt(
 
   return result;
 }
-

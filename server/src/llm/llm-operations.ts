@@ -170,4 +170,3 @@ export const LLM_OPERATION_LABELS: Record<LLMOperation, string> = {
   [LLM_OP_COMPRESS_CONTEXT]: "Compress Context",
   [LLM_OP_UNKNOWN]: "Unknown Operation",
 };
-

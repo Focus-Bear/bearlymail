@@ -5,6 +5,8 @@ import {
   PRIORITY_RANGES,
 } from 'hooks/useInboxFilters';
 import type { InboxFilter, ConnectedAccount } from 'hooks/useInboxFilters';
+import { FILTER_ALL } from 'constants/strings';
+import { COLOR_TRANSPARENT } from 'constants/colors';
 
 interface InboxFiltersProps {
   onFilterChange?: () => void;
@@ -81,12 +83,11 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   };
 
   const selectedCount = selectedIds.length;
-  const displayText =
-    selectedCount === 0
-      ? placeholder
-      : selectedCount === 1
-      ? options.find((opt) => opt.id === selectedIds[0])?.label || placeholder
-      : `${selectedCount} selected`;
+  const displayText = (() => {
+    if (selectedCount === 0) return placeholder;
+    if (selectedCount === 1) return options.find((opt) => opt.id === selectedIds[0])?.label || placeholder;
+    return `${selectedCount} selected`;
+  })();
 
   return (
     <div ref={dropdownRef} style={{ position: 'relative', minWidth: '200px', flex: '1' }}>
@@ -197,7 +198,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
                     }}
                     onMouseLeave={(e) => {
                       if (!isSelected) {
-                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.backgroundColor = COLOR_TRANSPARENT;
                       }
                     }}
                   >
@@ -327,7 +328,7 @@ const SingleSelectDropdown: React.FC<SingleSelectDropdownProps> = ({
               <div
                 key={String(option.value)}
                 onClick={() => {
-                  onChange(option.value === 'all' ? null : Number(option.value));
+                  onChange(option.value === FILTER_ALL ? null : Number(option.value));
                   setIsOpen(false);
                 }}
                 style={{
@@ -345,7 +346,7 @@ const SingleSelectDropdown: React.FC<SingleSelectDropdownProps> = ({
                 }}
                 onMouseLeave={(e) => {
                   if (!isSelected) {
-                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.backgroundColor = COLOR_TRANSPARENT;
                   }
                 }}
               >
@@ -439,7 +440,7 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
           selectedIds={filters.categories}
           onChange={handleCategoryChange}
           placeholder={t('inbox.filters.allCategories')}
-          searchable={true}
+          searchable
           emptyMessage={t('inbox.filters.noCategories')}
         />
       )}

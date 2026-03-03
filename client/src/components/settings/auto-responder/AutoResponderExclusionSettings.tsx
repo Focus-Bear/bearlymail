@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { OPACITY_HALF } from 'constants/numbers';
+import { KEY_ENTER, KEY_ESCAPE, STRING_NONE } from 'constants/strings';
+import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 
 interface AutoResponderExclusionSettingsProps {
   customExclusionRules: string[];
@@ -69,9 +71,9 @@ export const AutoResponderExclusionSettings: React.FC<AutoResponderExclusionSett
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
         {customExclusionRules.length > 0 ? (
-          customExclusionRules.map((rule, index) => (
+          customExclusionRules.map((rule) => (
             <div
-              key={index}
+              key={rule}
               style={{
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -95,8 +97,8 @@ export const AutoResponderExclusionSettings: React.FC<AutoResponderExclusionSett
                       border: `1px solid ${theme.colors.border.medium}`,
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleSaveEdit();
-                      if (e.key === 'Escape') handleCancelEdit();
+                      if (e.key === KEY_ENTER) handleSaveEdit();
+                      if (e.key === KEY_ESCAPE) handleCancelEdit();
                     }}
                     autoFocus
                   />
@@ -105,8 +107,8 @@ export const AutoResponderExclusionSettings: React.FC<AutoResponderExclusionSett
                     style={{
                       cursor: 'pointer',
                       color: theme.colors.primary.main,
-                      border: 'none',
-                      background: 'none',
+                      border: STRING_NONE,
+                      background: STRING_NONE,
                     }}
                   >
                     {t('common.save')}
@@ -116,8 +118,8 @@ export const AutoResponderExclusionSettings: React.FC<AutoResponderExclusionSett
                     style={{
                       cursor: 'pointer',
                       color: theme.colors.text.secondary,
-                      border: 'none',
-                      background: 'none',
+                      border: STRING_NONE,
+                      background: STRING_NONE,
                     }}
                   >
                     {t('common.cancel')}
@@ -137,8 +139,8 @@ export const AutoResponderExclusionSettings: React.FC<AutoResponderExclusionSett
                       style={{
                         cursor: 'pointer',
                         color: theme.colors.primary.main,
-                        border: 'none',
-                        background: 'none',
+                        border: STRING_NONE,
+                        background: STRING_NONE,
                         fontSize: theme.typography.fontSize.sm,
                       }}
                     >
@@ -149,8 +151,8 @@ export const AutoResponderExclusionSettings: React.FC<AutoResponderExclusionSett
                       style={{
                         cursor: 'pointer',
                         color: theme.colors.accent.error,
-                        border: 'none',
-                        background: 'none',
+                        border: STRING_NONE,
+                        background: STRING_NONE,
                         fontSize: theme.typography.fontSize.sm,
                       }}
                     >
@@ -186,8 +188,8 @@ export const AutoResponderExclusionSettings: React.FC<AutoResponderExclusionSett
                 border: `1px solid ${theme.colors.primary.main}`,
               }}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') handleAddRule();
-                if (e.key === 'Escape') {
+                if (e.key === KEY_ENTER) handleAddRule();
+                if (e.key === KEY_ESCAPE) {
                   setIsAdding(false);
                   setNewRule('');
                 }
@@ -199,8 +201,8 @@ export const AutoResponderExclusionSettings: React.FC<AutoResponderExclusionSett
               style={{
                 padding: `${theme.spacing.xs} ${theme.spacing.md}`,
                 backgroundColor: theme.colors.primary.main,
-                color: 'white',
-                border: 'none',
+                color: COLOR_NAMED_WHITE,
+                border: STRING_NONE,
                 borderRadius: theme.borderRadius.md,
                 cursor: newRule.trim() ? 'pointer' : 'not-allowed',
                 opacity: newRule.trim() ? 1 : OPACITY_HALF,
@@ -215,9 +217,9 @@ export const AutoResponderExclusionSettings: React.FC<AutoResponderExclusionSett
               }}
               style={{
                 padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                backgroundColor: 'transparent',
+                backgroundColor: COLOR_TRANSPARENT,
                 color: theme.colors.text.secondary,
-                border: 'none',
+                border: STRING_NONE,
                 cursor: 'pointer',
               }}
             >

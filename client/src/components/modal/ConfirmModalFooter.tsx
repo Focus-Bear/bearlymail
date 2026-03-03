@@ -1,5 +1,7 @@
 import React from 'react';
 import { theme } from 'theme/theme';
+import { COLOR_TRANSPARENT } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface ConfirmModalFooterProps {
   confirmLabel: string;
@@ -31,7 +33,7 @@ export const ConfirmModalFooter: React.FC<ConfirmModalFooterProps> = ({
         onClick={onCancel}
         style={{
           padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-          backgroundColor: 'transparent',
+          backgroundColor: COLOR_TRANSPARENT,
           color: theme.colors.text.secondary,
           border: `1px solid ${theme.colors.border.medium}`,
           borderRadius: theme.borderRadius.md,
@@ -49,7 +51,7 @@ export const ConfirmModalFooter: React.FC<ConfirmModalFooterProps> = ({
           padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
           backgroundColor: confirmColor,
           color: theme.colors.background.paper,
-          border: 'none',
+          border: STRING_NONE,
           borderRadius: theme.borderRadius.md,
           fontSize: theme.typography.fontSize.sm,
           fontWeight: theme.typography.fontWeight.medium,

@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { API_URL } from 'config/api';
+import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 const DISABLED_OPACITY = 0.5;
 
@@ -195,7 +197,7 @@ export const GitHubRepoMappingsSection: React.FC<GitHubRepoMappingsSectionProps>
               {mapping.isDefault && (
                 <span style={{
                   backgroundColor: theme.colors.primary.main,
-                  color: 'white',
+                  color: COLOR_NAMED_WHITE,
                   padding: `2px ${theme.spacing.sm}`,
                   borderRadius: theme.borderRadius.sm,
                   fontSize: theme.typography.fontSize.xs,
@@ -224,7 +226,7 @@ export const GitHubRepoMappingsSection: React.FC<GitHubRepoMappingsSectionProps>
                     padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
                     border: `1px solid ${theme.colors.border.medium}`,
                     borderRadius: theme.borderRadius.sm,
-                    backgroundColor: 'transparent',
+                    backgroundColor: COLOR_TRANSPARENT,
                     cursor: 'pointer',
                     fontSize: theme.typography.fontSize.xs,
                     color: theme.colors.text.secondary,
@@ -239,7 +241,7 @@ export const GitHubRepoMappingsSection: React.FC<GitHubRepoMappingsSectionProps>
                   padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
                   border: `1px solid ${theme.colors.border.medium}`,
                   borderRadius: theme.borderRadius.sm,
-                  backgroundColor: 'transparent',
+                  backgroundColor: COLOR_TRANSPARENT,
                   cursor: 'pointer',
                   fontSize: theme.typography.fontSize.xs,
                   color: theme.colors.text.secondary,
@@ -253,7 +255,7 @@ export const GitHubRepoMappingsSection: React.FC<GitHubRepoMappingsSectionProps>
                   padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
                   border: `1px solid ${theme.colors.accent.error}`,
                   borderRadius: theme.borderRadius.sm,
-                  backgroundColor: 'transparent',
+                  backgroundColor: COLOR_TRANSPARENT,
                   cursor: 'pointer',
                   fontSize: theme.typography.fontSize.xs,
                   color: theme.colors.accent.error,
@@ -292,8 +294,8 @@ export const GitHubRepoMappingsSection: React.FC<GitHubRepoMappingsSectionProps>
                   style={{
                     padding: `${theme.spacing.xs} ${theme.spacing.md}`,
                     backgroundColor: theme.colors.primary.main,
-                    color: 'white',
-                    border: 'none',
+                    color: COLOR_NAMED_WHITE,
+                    border: STRING_NONE,
                     borderRadius: theme.borderRadius.sm,
                     cursor: 'pointer',
                     fontSize: theme.typography.fontSize.sm,
@@ -305,7 +307,7 @@ export const GitHubRepoMappingsSection: React.FC<GitHubRepoMappingsSectionProps>
                   onClick={() => setEditingId(null)}
                   style={{
                     padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                    backgroundColor: 'transparent',
+                    backgroundColor: COLOR_TRANSPARENT,
                     color: theme.colors.text.secondary,
                     border: `1px solid ${theme.colors.border.medium}`,
                     borderRadius: theme.borderRadius.sm,
@@ -393,8 +395,8 @@ export const GitHubRepoMappingsSection: React.FC<GitHubRepoMappingsSectionProps>
               style={{
                 padding: `${theme.spacing.sm} ${theme.spacing.md}`,
                 backgroundColor: theme.colors.primary.main,
-                color: 'white',
-                border: 'none',
+                color: COLOR_NAMED_WHITE,
+                border: STRING_NONE,
                 borderRadius: theme.borderRadius.md,
                 cursor: 'pointer',
                 fontSize: theme.typography.fontSize.sm,
@@ -408,7 +410,7 @@ export const GitHubRepoMappingsSection: React.FC<GitHubRepoMappingsSectionProps>
               onClick={() => { setShowAddForm(false); setNewOwner(''); setNewRepo(''); setNewCategories(''); setNewContext(''); }}
               style={{
                 padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                backgroundColor: 'transparent',
+                backgroundColor: COLOR_TRANSPARENT,
                 color: theme.colors.text.secondary,
                 border: `1px solid ${theme.colors.border.medium}`,
                 borderRadius: theme.borderRadius.md,
@@ -425,7 +427,7 @@ export const GitHubRepoMappingsSection: React.FC<GitHubRepoMappingsSectionProps>
           onClick={() => setShowAddForm(true)}
           style={{
             padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-            backgroundColor: 'transparent',
+            backgroundColor: COLOR_TRANSPARENT,
             color: theme.colors.primary.main,
             border: `1px dashed ${theme.colors.primary.main}`,
             borderRadius: theme.borderRadius.md,

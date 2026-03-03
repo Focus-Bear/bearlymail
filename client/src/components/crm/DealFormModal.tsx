@@ -4,12 +4,14 @@ import { theme } from 'theme/theme';
 import { Deal, DealStage } from 'types/deal';
 import { Contact } from 'types/contact';
 import { OPACITY_HALF, OPACITY_FULL } from 'constants/numbers';
+import { KEY_ARROW_DOWN, KEY_ARROW_UP, KEY_ENTER, KEY_ESCAPE, STRING_NONE } from 'constants/strings';
+import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 
 interface DealFormModalProps {
   deal: Deal | null;
   stages: DealStage[];
   contacts: Contact[];
-  onSave: (data: {
+  onSave: (payload: {
     title: string;
     details?: string;
     value?: number;
@@ -113,25 +115,25 @@ export const DealFormModal: React.FC<DealFormModalProps> = ({
   const handleContactSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     const maxIndex = filteredContacts.length;
 
-    if (event.key === 'Escape') {
+    if (event.key === KEY_ESCAPE) {
       event.preventDefault();
       closeContactDropdown();
       return;
     }
 
-    if (event.key === 'ArrowDown') {
+    if (event.key === KEY_ARROW_DOWN) {
       event.preventDefault();
       setHighlightedContactIndex((prevIndex) => (prevIndex >= maxIndex ? 0 : prevIndex + 1));
       return;
     }
 
-    if (event.key === 'ArrowUp') {
+    if (event.key === KEY_ARROW_UP) {
       event.preventDefault();
       setHighlightedContactIndex((prevIndex) => (prevIndex <= 0 ? maxIndex : prevIndex - 1));
       return;
     }
 
-    if (event.key === 'Enter' && highlightedContactIndex >= 0) {
+    if (event.key === KEY_ENTER && highlightedContactIndex >= 0) {
       event.preventDefault();
       if (highlightedContactIndex === 0) {
         handleContactSelect('');
@@ -244,8 +246,8 @@ export const DealFormModal: React.FC<DealFormModalProps> = ({
             <div>
               <label style={labelStyle}>{t('deals.dealStage')}</label>
               <select value={stageId} onChange={(e) => setStageId(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
-                {stages.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
+                {stages.map((stage) => (
+                  <option key={stage.id} value={stage.id}>{stage.name}</option>
                 ))}
               </select>
             </div>
@@ -308,7 +310,7 @@ export const DealFormModal: React.FC<DealFormModalProps> = ({
                       onClick={() => handleContactSelect('')}
                       style={{
                         width: '100%',
-                        border: 'none',
+                        border: STRING_NONE,
                         backgroundColor: highlightedContactIndex === 0 || contactId === ''
                           ? theme.colors.background.subtle
                           : 'transparent',
@@ -337,7 +339,7 @@ export const DealFormModal: React.FC<DealFormModalProps> = ({
                           onClick={() => handleContactSelect(contact.id)}
                           style={{
                             width: '100%',
-                            border: 'none',
+                            border: STRING_NONE,
                             backgroundColor: isHighlighted || isSelected
                               ? theme.colors.background.subtle
                               : 'transparent',
@@ -375,7 +377,7 @@ export const DealFormModal: React.FC<DealFormModalProps> = ({
               onClick={onClose}
               style={{
                 padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-                backgroundColor: 'transparent',
+                backgroundColor: COLOR_TRANSPARENT,
                 color: theme.colors.text.secondary,
                 border: `1px solid ${theme.colors.border.medium}`,
                 borderRadius: theme.borderRadius.md,
@@ -391,8 +393,8 @@ export const DealFormModal: React.FC<DealFormModalProps> = ({
               style={{
                 padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
                 backgroundColor: theme.colors.primary.main,
-                color: 'white',
-                border: 'none',
+                color: COLOR_NAMED_WHITE,
+                border: STRING_NONE,
                 borderRadius: theme.borderRadius.md,
                 cursor: title.trim() ? 'pointer' : 'not-allowed',
                 fontSize: theme.typography.fontSize.base,

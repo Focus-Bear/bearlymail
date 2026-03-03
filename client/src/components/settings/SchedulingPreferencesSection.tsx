@@ -5,8 +5,10 @@ import { theme } from 'theme/theme';
 import { SCHEDULING_GAP_15_MIN, SCHEDULING_GAP_45_MIN, SAVE_CONFIRMATION_DURATION_MS, HOURS_12_HOUR_FORMAT, DAYS_IN_MONTH_30, SHORT_TIMEOUT_MS, MINUTES_PER_HOUR } from 'constants/numbers';
 import { API_URL } from 'config/api';
 import { EMOJI_CALENDAR } from 'constants/emojis';
+import { STRING_NONE, STRING_UTC } from 'constants/strings';
 import { TimezoneAutocomplete } from 'components/common/TimezoneAutocomplete';
 import { useAuth } from 'contexts/AuthContext';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
 
 const DEBOUNCE_MS = 600;
 
@@ -52,9 +54,9 @@ export const SchedulingPreferencesSection: React.FC = () => {
   useEffect(() => {
     axios.get(`${API_URL}/scheduling-preferences`)
       .then((res) => {
-        const data = res.data;
-        if (data.timezone === 'UTC' && browserTimezone !== 'UTC') {
-          const updated = { ...data, timezone: browserTimezone };
+        const responseData = res.data;
+        if (responseData.timezone === STRING_UTC && browserTimezone !== STRING_UTC) {
+          const updated = { ...responseData, timezone: browserTimezone };
           setPrefs(updated);
           latestPrefs.current = updated;
           axios.put(`${API_URL}/scheduling-preferences`, updated)
@@ -64,8 +66,8 @@ export const SchedulingPreferencesSection: React.FC = () => {
             })
             .catch(() => {});
         } else {
-          setPrefs(data);
-          latestPrefs.current = data;
+          setPrefs(responseData);
+          latestPrefs.current = responseData;
         }
       })
       .catch(() => {});
@@ -102,7 +104,7 @@ export const SchedulingPreferencesSection: React.FC = () => {
 
   const toggleDay = useCallback((day: number) => {
     const days = prefs.availabilityDays.includes(day)
-      ? prefs.availabilityDays.filter((d) => d !== day)
+      ? prefs.availabilityDays.filter((dayItem) => dayItem !== day)
       : [...prefs.availabilityDays, day].sort();
     savePrefs({ availabilityDays: days });
   }, [prefs.availabilityDays, savePrefs]);
@@ -252,8 +254,8 @@ export const SchedulingPreferencesSection: React.FC = () => {
             onChange={(e) => savePrefs({ meetingGapMinutes: Number(e.target.value) })}
             style={selectStyle}
           >
-            {GAP_OPTIONS.map((m) => (
-              <option key={m} value={m}>
+            {GAP_OPTIONS.map((minuteValue) => (
+              <option key={minuteValue} value={minuteValue}>
                 {t('settings.schedulingPreferences.meetingGapMinutes', { count: m })}
               </option>
             ))}
@@ -282,9 +284,9 @@ export const SchedulingPreferencesSection: React.FC = () => {
             onChange={(e) => savePrefs({ slotDurationMinutes: Number(e.target.value) })}
             style={selectStyle}
           >
-            {SLOT_DURATION_OPTIONS.map((m) => (
-              <option key={m} value={m}>
-                {t('settings.schedulingPreferences.slotDurationMinutes', { count: m })}
+            {SLOT_DURATION_OPTIONS.map((slotMinute) => (
+              <option key={slotMinute} value={slotMinute}>
+                {t('settings.schedulingPreferences.slotDurationMinutes', { count: slotMinute })}
               </option>
             ))}
           </select>
@@ -335,11 +337,11 @@ export const SchedulingPreferencesSection: React.FC = () => {
                 style={{
                   padding: `${theme.spacing.xs} ${theme.spacing.md}`,
                   borderRadius: theme.borderRadius.sm,
-                  border: 'none',
+                  border: STRING_NONE,
                   backgroundColor: linkCopied
                     ? theme.colors.accent.success
                     : theme.colors.primary.main,
-                  color: 'white',
+                  color: COLOR_NAMED_WHITE,
                   fontSize: theme.typography.fontSize.sm,
                   fontWeight: theme.typography.fontWeight.medium,
                   cursor: 'pointer',

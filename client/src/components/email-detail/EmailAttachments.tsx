@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { API_URL } from 'config/api';
 import axios from 'axios';
+import { FONT_WEIGHT_MEDIUM, FONT_WEIGHT_SEMIBOLD } from 'constants/numbers';
 
 interface EmailAttachment {
   attachmentId: string;
@@ -24,7 +25,7 @@ const formatFileSize = (bytes: number): string => {
   const k = 1024;
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+  return `${Math.round((bytes / Math.pow(k, i)) * 100) / 100} ${sizes[i]}`;
 };
 
 /**
@@ -98,7 +99,7 @@ export const EmailAttachments: React.FC<EmailAttachmentsProps> = ({ emailId, att
       <div
         style={{
           fontSize: theme.typography.fontSize.sm,
-          fontWeight: 600,
+          fontWeight: FONT_WEIGHT_SEMIBOLD,
           color: theme.colors.text.secondary,
           marginBottom: theme.spacing.sm,
         }}
@@ -139,7 +140,7 @@ export const EmailAttachments: React.FC<EmailAttachmentsProps> = ({ emailId, att
               <div
                 style={{
                   fontSize: theme.typography.fontSize.sm,
-                  fontWeight: 500,
+                  fontWeight: FONT_WEIGHT_MEDIUM,
                   color: theme.colors.text.primary,
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',

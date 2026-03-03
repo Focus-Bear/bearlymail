@@ -8,6 +8,7 @@ import { useRecategorizeProgress } from 'hooks/settings/useRecategorizeProgress'
 import { theme } from 'theme/theme';
 import { OPACITY_DISABLED } from 'constants/numbers';
 import { API_URL } from 'config/api';
+import { CONTEXT_KEY_EMAIL_CATEGORY, STRING_NONE } from 'constants/strings';
 
 interface UserContext {
   contextId: string;
@@ -72,10 +73,7 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
   const [isConsolidating, setIsConsolidating] = useState(false);
   const [isCompressing, setIsCompressing] = useState(false);
   const [showProtoCategoriesModal, setShowProtoCategoriesModal] = useState(false);
-  const [consolidationResult, setConsolidationResult] = useState<{
-    originalCount: number;
-    consolidatedCount: number;
-  } | null>(null);
+
   const { progress: recategorizeProgress, startTracking, dismiss: dismissProgress } = useRecategorizeProgress();
 
   const handleRecategorize = async () => {
@@ -95,14 +93,8 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
 
   const handleConsolidateCategories = async () => {
     setIsConsolidating(true);
-    setConsolidationResult(null);
     try {
-      const response = await axios.post(`${API_URL}/context/consolidate-categories`);
-      const result = response.data;
-      setConsolidationResult({
-        originalCount: result.originalCount,
-        consolidatedCount: result.consolidatedCount,
-      });
+      await axios.post(`${API_URL}/context/consolidate-categories`);
       // Reload the page to show updated categories
       window.location.reload();
     } catch (error) {
@@ -146,7 +138,7 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
           onClick={() => setShowProtoCategoriesModal(true)}
           style={{
             background: 'transparent',
-            border: 'none',
+            border: STRING_NONE,
             color: theme.colors.primary.main,
             cursor: 'pointer',
             fontSize: theme.typography.fontSize.sm,
@@ -160,7 +152,7 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
           disabled={isCompressing}
           style={{
             background: 'transparent',
-            border: 'none',
+            border: STRING_NONE,
             color: theme.colors.primary.main,
             cursor: 'pointer',
             fontSize: theme.typography.fontSize.sm,
@@ -175,7 +167,7 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
           disabled={isConsolidating}
           style={{
             background: 'transparent',
-            border: 'none',
+            border: STRING_NONE,
             color: theme.colors.primary.main,
             cursor: isConsolidating ? 'not-allowed' : 'pointer',
             fontSize: theme.typography.fontSize.sm,
@@ -190,7 +182,7 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
           disabled={isRecategorizing}
           style={{
             background: 'transparent',
-            border: 'none',
+            border: STRING_NONE,
             color: theme.colors.accent.warning,
             cursor: isRecategorizing ? 'not-allowed' : 'pointer',
             fontSize: theme.typography.fontSize.sm,
@@ -217,7 +209,7 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
           ? config.contextKey.join('-') 
           : config.contextKey;
         const key = `context-section-${contextKeyStr}`;
-        const isEmailCategory = contextKeyStr === 'EMAIL_CATEGORY';
+        const isEmailCategory = contextKeyStr === CONTEXT_KEY_EMAIL_CATEGORY;
         const sectionElement = (
           <ContextSection
             key={key}

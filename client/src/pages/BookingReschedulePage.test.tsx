@@ -57,8 +57,10 @@ describe('BookingReschedulePage', () => {
   it('should display booking details and slots after loading', async () => {
     mockedAxios.get.mockImplementation((url: string) => {
       if (url.includes('/booking/')) {
+        // eslint-disable-next-line id-denylist
         return Promise.resolve({ data: mockBooking });
       }
+      // eslint-disable-next-line id-denylist
       return Promise.resolve({ data: mockSlots });
     });
 
@@ -72,8 +74,10 @@ describe('BookingReschedulePage', () => {
   it('should show error for cancelled booking', async () => {
     mockedAxios.get.mockImplementation((url: string) => {
       if (url.includes('/booking/')) {
+        // eslint-disable-next-line id-denylist
         return Promise.resolve({ data: { ...mockBooking, status: 'cancelled' } });
       }
+      // eslint-disable-next-line id-denylist
       return Promise.resolve({ data: mockSlots });
     });
 
@@ -97,10 +101,13 @@ describe('BookingReschedulePage', () => {
   it('should show success state after rescheduling', async () => {
     mockedAxios.get.mockImplementation((url: string) => {
       if (url.includes('/booking/')) {
+        // eslint-disable-next-line id-denylist
         return Promise.resolve({ data: mockBooking });
       }
+      // eslint-disable-next-line id-denylist
       return Promise.resolve({ data: mockSlots });
     });
+    // eslint-disable-next-line id-denylist
     mockedAxios.post.mockResolvedValue({ data: { id: 'event-1' } });
 
     renderWithRouter('test-token');

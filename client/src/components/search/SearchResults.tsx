@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { MAX_SEARCH_RESULT_LENGTH } from 'constants/numbers';
-import { SEARCH_RESULT_NO_RESULTS } from 'constants/strings';
+import { SEARCH_RESULT_NO_RESULTS, STRING_NA } from 'constants/strings';
 import { captureEvent } from 'utils/posthog';
 import { Email, getEmailPriorityScore } from 'types/email';
 import { humanizeTimestamp } from 'utils/dateUtils';
@@ -86,9 +86,9 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
         )}
         {(() => {
           // Use queriesTried from debugInfo if available, otherwise fall back to prop
-          const triedQueries = (noResultsDebugInfo?.queriesTried && noResultsDebugInfo.queriesTried.length > 0)
-            ? noResultsDebugInfo.queriesTried
-            : (queriesTried && queriesTried.length > 0 ? queriesTried : null);
+          const hasDebugQueries = noResultsDebugInfo?.queriesTried && noResultsDebugInfo.queriesTried.length > 0;
+          const fallbackQueries = queriesTried && queriesTried.length > 0 ? queriesTried : null;
+          const triedQueries = hasDebugQueries ? noResultsDebugInfo!.queriesTried : fallbackQueries;
           if (!triedQueries) return null;
           return (
             <div style={{
@@ -112,23 +112,23 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                 color: theme.colors.text.tertiary,
                 fontSize: theme.typography.fontSize.xs,
               }}>
-                {triedQueries.map((q: { query: string; resultCount: number; accountType?: string }, idx: number) => (
-                  <li key={idx} style={{ marginBottom: theme.spacing.xs }}>
+                {triedQueries.map((queryItem: { query: string; resultCount: number; accountType?: string }) => (
+                  <li key={queryStr} style={{ marginBottom: theme.spacing.xs }}>
                     <code style={{
                       backgroundColor: theme.colors.background.paper,
                       padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
                       borderRadius: theme.borderRadius.sm,
                       fontFamily: 'monospace',
                     }}>
-                      {q.query}
+                      {queryItem.query}
                     </code>
-                    {q.accountType && (
+                    {queryItem.accountType && (
                       <span style={{ marginLeft: theme.spacing.sm, color: theme.colors.text.tertiary }}>
-                        [{q.accountType}]
+                        [{queryItem.accountType}]
                       </span>
                     )}
                     <span style={{ marginLeft: theme.spacing.sm, color: theme.colors.text.tertiary }}>
-                      ({q.resultCount} {t('search.results')})
+                      ({queryItem.resultCount} {t('search.results')})
                     </span>
                   </li>
                 ))}
@@ -189,24 +189,16 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
             {t('search.queriesUsed')} ({queriesTried.length})
           </summary>
           <ul style={{ margin: `${theme.spacing.xs} 0 0`, paddingLeft: theme.spacing.lg }}>
-            {queriesTried.map((q, idx) => (
-              <li key={idx} style={{ marginTop: theme.spacing.xs }}>
+            {queriesTried.map((queryStr) => (
+              <li key={queryStr} style={{ marginTop: theme.spacing.xs }}>
                 <code style={{
                   backgroundColor: theme.colors.background.paper,
                   padding: `1px ${theme.spacing.xs}`,
                   borderRadius: theme.borderRadius.sm,
                   fontFamily: 'monospace',
                 }}>
-                  {q.query}
+                  {queryStr}
                 </code>
-                {q.accountType && (
-                  <span style={{ marginLeft: theme.spacing.xs, color: theme.colors.text.tertiary }}>
-                    [{q.accountType}]
-                  </span>
-                )}
-                <span style={{ marginLeft: theme.spacing.xs }}>
-                  — {q.resultCount} {t('search.results')}
-                </span>
               </li>
             ))}
           </ul>
@@ -276,7 +268,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                     {t('search.relevance', { score: searchEmail.relevanceScore })}
                   </span>
                 )}
-                {searchEmail.priorityExplanation && emailPriorityScore !== undefined && !searchEmail.relevanceScore && priority && priority.label !== 'N/A' && (
+                {searchEmail.priorityExplanation && emailPriorityScore !== undefined && !searchEmail.relevanceScore && priority && priority.label !== STRING_NA && (
                   <span style={{
                     fontSize: theme.typography.fontSize.xs,
                     padding: `${theme.spacing.xs} ${theme.spacing.sm}`,

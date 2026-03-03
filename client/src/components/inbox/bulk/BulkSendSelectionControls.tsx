@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { ThreadWithFollowUp } from 'hooks/useFollowUps';
+import { COLOR_TRANSPARENT } from 'constants/colors';
 
 interface BulkSendSelectionControlsProps {
   selectedCount: number;
@@ -29,7 +30,7 @@ export const BulkSendSelectionControls: React.FC<BulkSendSelectionControlsProps>
           onClick={allSelected ? onDeselectAll : onSelectAll}
           style={{
             padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            backgroundColor: 'transparent',
+            backgroundColor: COLOR_TRANSPARENT,
             color: theme.colors.primary.main,
             border: `1px solid ${theme.colors.primary.main}`,
             borderRadius: theme.borderRadius.sm,

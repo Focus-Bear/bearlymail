@@ -1,5 +1,12 @@
 // Focus Bear Brand Colors - Official brand palette
 export const colors = {
+    // Common
+  common: {
+    white: '#FFFFFF',
+    black: '#000000',
+    transparent: 'transparent',
+  },
+  
   // Primary Logo Colors
   primary: {
     main: '#E9902C',      // Sunray - Primary accent/orange
@@ -60,6 +67,15 @@ export const colors = {
     subtle: '#FCF8F0',     // Secondary White Lace for sections
     overlay: 'rgba(255, 252, 246, 0.8)', // Glassmorphism effect
     disabled: '#EFEFEF',   // Disabled state background (300 greyscale)
+  },
+  
+  // Overlay colors - For modals, backdrops, and overlays
+  overlay: {
+    dark: 'rgba(0, 0, 0, 0.5)',        // Standard dark overlay (modals)
+    darkLight: 'rgba(0, 0, 0, 0.4)',   // Lighter dark overlay
+    darkHeavy: 'rgba(0, 0, 0, 0.6)',   // Heavier dark overlay
+    whiteLight: 'rgba(255, 255, 255, 0.2)', // Light white overlay (glass effects)
+    blueTint: 'rgba(59, 130, 246, 0.3)',    // Blue tinted overlay (highlights)
   },
   
   // Text colors - Using Rich Black and greyscale

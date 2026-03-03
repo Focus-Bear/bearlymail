@@ -33,7 +33,7 @@ export function isCalendarInvitation(email: Email): boolean {
     combinedText.includes('method:request') ||
     combinedText.includes('content-type:text/calendar') ||
     combinedText.includes('content-type: text/calendar') ||
-    combinedText.includes('attachment; filename="') && combinedText.includes('.ics');
+    (combinedText.includes('attachment; filename="') && combinedText.includes('.ics'));
 
   // Check for iCal-specific headers (strict patterns)
   const hasICalHeaders =
@@ -41,7 +41,7 @@ export function isCalendarInvitation(email: Email): boolean {
     combinedText.includes('dtend:') ||
     combinedText.includes('organizer:mailto:') ||
     combinedText.includes('attendee:mailto:') ||
-    combinedText.includes('uid:') && combinedText.includes('@');
+    (combinedText.includes('uid:') && combinedText.includes('@'));
 
   // Only return true if we have strong indicators
   // Require either invitation keyword in subject OR iCal patterns

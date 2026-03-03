@@ -8,6 +8,8 @@ import { SidebarFooter } from 'components/inbox/sidebar/SidebarFooter';
 import { SettingsSubNavGroup as SettingsSubNavGroupComponent } from 'components/inbox/sidebar/SettingsSubNavGroup';
 import { SettingsSubNavItem as SettingsSubNavItemComponent } from 'components/inbox/sidebar/SettingsSubNavItem';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { COLOR_TRANSPARENT } from 'constants/colors';
+import { ROUTE_ADMIN, ROUTE_CRM_CONTACTS, ROUTE_CRM_DEALS, ROUTE_INBOX, ROUTE_SEARCH, ROUTE_SETTINGS, ROUTE_STATS, STRING_NONE } from 'constants/strings';
 
 interface SidebarItemProps {
   label: string;
@@ -23,13 +25,13 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ label, path, icon, active, on
   const navigate = useNavigate();
 
   const handleClick = () => {
-    if (path === '/inbox') captureEvent('sidebar_inbox_clicked');
-    else if (path === '/search') captureEvent('sidebar_search_clicked');
-    else if (path === '/crm/contacts') captureEvent('sidebar_contacts_clicked');
-    else if (path === '/crm/deals') captureEvent('sidebar_deals_clicked');
-    else if (path === '/stats') captureEvent('sidebar_stats_clicked');
-    else if (path === '/settings') captureEvent('sidebar_settings_clicked');
-    else if (path === '/admin') captureEvent('sidebar_admin_clicked');
+    if (path === ROUTE_INBOX) captureEvent('sidebar_inbox_clicked');
+    else if (path === ROUTE_SEARCH) captureEvent('sidebar_search_clicked');
+    else if (path === ROUTE_CRM_CONTACTS) captureEvent('sidebar_contacts_clicked');
+    else if (path === ROUTE_CRM_DEALS) captureEvent('sidebar_deals_clicked');
+    else if (path === ROUTE_STATS) captureEvent('sidebar_stats_clicked');
+    else if (path === ROUTE_SETTINGS) captureEvent('sidebar_settings_clicked');
+    else if (path === ROUTE_ADMIN) captureEvent('sidebar_admin_clicked');
     if (onClick) {
       onClick();
     } else {
@@ -51,7 +53,7 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ label, path, icon, active, on
         marginBottom: theme.spacing.xs,
         backgroundColor: active ? theme.colors.primary.main : 'transparent',
         color: active ? 'white' : theme.colors.text.secondary,
-        border: 'none',
+        border: STRING_NONE,
         borderRadius: theme.borderRadius.md,
         cursor: 'pointer',
         fontSize: theme.typography.fontSize.base,
@@ -72,7 +74,7 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ label, path, icon, active, on
       }}
       onMouseLeave={(e) => {
         if (!active) {
-          e.currentTarget.style.backgroundColor = 'transparent';
+          e.currentTarget.style.backgroundColor = COLOR_TRANSPARENT;
           e.currentTarget.style.color = theme.colors.text.secondary;
         }
       }}
@@ -220,14 +222,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { t } = useTranslation();
   const location = useLocation();
-  const isSettingsPage = location.pathname === '/settings';
+  const isSettingsPage = location.pathname === ROUTE_SETTINGS;
   const { isMobile, isTablet } = useResponsiveBreakpoints();
   // Use overlay mode for any non-desktop viewport (mobile + tablet)
   const isNarrow = isMobile || isTablet;
 
   // On narrow screens, clicking a navigation item should close the menu
   const handleNavigationClick = (path: string) => {
-    const shouldKeepOpen = path === '/settings';
+    const shouldKeepOpen = path === ROUTE_SETTINGS;
     if (isNarrow && onCloseMobileMenu && !shouldKeepOpen) {
       onCloseMobileMenu();
     }
@@ -284,23 +286,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
         }}>
           <SidebarItem
             label={t('inbox.title')}
-            path="/inbox"
+            path={ROUTE_INBOX}
             icon="📥"
-            active={location.pathname === '/inbox'}
+            active={location.pathname === ROUTE_INBOX}
             isCollapsed={effectiveIsCollapsed}
             onNavigationClick={handleNavigationClick}
           />
           <SidebarItem
             label="Search"
-            path="/search"
+            path={ROUTE_SEARCH}
             icon="🔍"
-            active={location.pathname === '/search'}
+            active={location.pathname === ROUTE_SEARCH}
             isCollapsed={effectiveIsCollapsed}
             onNavigationClick={handleNavigationClick}
           />
           <SidebarItem
             label={t('crm.title')}
-            path="/crm/contacts"
+            path={ROUTE_CRM_CONTACTS}
             icon="💼"
             active={location.pathname.startsWith('/crm')}
             isCollapsed={effectiveIsCollapsed}
@@ -310,17 +312,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div style={{ marginLeft: theme.spacing.lg, marginBottom: theme.spacing.xs }}>
               <SidebarItem
                 label={t('crm.contacts')}
-                path="/crm/contacts"
+                path={ROUTE_CRM_CONTACTS}
                 icon="👤"
-                active={location.pathname === '/crm/contacts' || location.pathname.startsWith('/crm/contacts/')}
+                active={location.pathname === ROUTE_CRM_CONTACTS || location.pathname.startsWith(`${ROUTE_CRM_CONTACTS}/`)}
                 isCollapsed={false}
                 onNavigationClick={handleNavigationClick}
               />
               <SidebarItem
                 label={t('crm.deals')}
-                path="/crm/deals"
+                path={ROUTE_CRM_DEALS}
                 icon="🤝"
-                active={location.pathname === '/crm/deals'}
+                active={location.pathname === ROUTE_CRM_DEALS}
                 isCollapsed={false}
                 onNavigationClick={handleNavigationClick}
               />
@@ -328,9 +330,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
           <SidebarItem
             label={t('stats.title')}
-            path="/stats"
+            path={ROUTE_STATS}
             icon="📊"
-            active={location.pathname === '/stats'}
+            active={location.pathname === ROUTE_STATS}
             isCollapsed={effectiveIsCollapsed}
             onNavigationClick={handleNavigationClick}
           />
@@ -338,7 +340,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div style={{ marginTop: theme.spacing.xs }}>
               <SidebarItem
                 label={t('settings.title')}
-                path="/settings"
+                path={ROUTE_SETTINGS}
                 icon="⚙️"
                 active={isSettingsPage}
                 isCollapsed={effectiveIsCollapsed}
@@ -351,7 +353,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div style={{ marginTop: theme.spacing.xs }}>
               <SidebarItem
                 label={t('settings.title')}
-                path="/settings"
+                path={ROUTE_SETTINGS}
                 icon="⚙️"
                 active={isSettingsPage}
                 isCollapsed={effectiveIsCollapsed}
@@ -363,9 +365,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div style={{ marginTop: theme.spacing.sm }}>
               <SidebarItem
                 label={t('admin.title')}
-                path="/admin"
+                path={ROUTE_ADMIN}
                 icon="🛠️"
-                active={location.pathname === '/admin'}
+                active={location.pathname === ROUTE_ADMIN}
                 isCollapsed={effectiveIsCollapsed}
                 onNavigationClick={handleNavigationClick}
               />

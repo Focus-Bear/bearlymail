@@ -8,6 +8,8 @@ import { EMOJI_CALENDAR } from 'constants/emojis';
 import { API_URL } from 'config/api';
 import { captureEvent } from 'utils/posthog';
 import { useAuth } from 'contexts/AuthContext';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface SchedulingRequestCardProps {
   email: Email;
@@ -100,8 +102,8 @@ export const SchedulingRequestCard: React.FC<SchedulingRequestCardProps> = ({
             backgroundColor: linkCopied
               ? theme.colors.accent.success
               : theme.colors.primary.main,
-            color: 'white',
-            border: 'none',
+            color: COLOR_NAMED_WHITE,
+            border: STRING_NONE,
             borderRadius: theme.borderRadius.md,
             fontWeight: theme.typography.fontWeight.semibold,
             cursor: 'pointer',

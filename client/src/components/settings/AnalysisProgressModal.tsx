@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 import { ANALYSIS_RECENT_INSIGHTS_COUNT, Z_INDEX_POPUP } from 'constants/numbers';
 import { AnalyzeProgress } from 'hooks/useSettingsData';
 import { EMOJI_WARNING } from 'constants/emojis';
+import { STRING_NONE } from 'constants/strings';
 
 interface AnalysisProgressModalProps {
   analyzeProgress: AnalyzeProgress;
@@ -141,9 +142,9 @@ export const AnalysisProgressModal: React.FC<AnalysisProgressModalProps> = ({
                         flexDirection: 'column', 
                         gap: theme.spacing.xs,
                       }}>
-                        {analyzeProgress.progress.insights.slice(-ANALYSIS_RECENT_INSIGHTS_COUNT).reverse().map((insight, index) => (
+                        {analyzeProgress.progress.insights.slice(-ANALYSIS_RECENT_INSIGHTS_COUNT).reverse().map((insight) => (
                           <div 
-                            key={index}
+                            key={insight}
                             style={{
                               fontSize: theme.typography.fontSize.xs,
                               color: theme.colors.text.secondary,
@@ -189,8 +190,8 @@ export const AnalysisProgressModal: React.FC<AnalysisProgressModalProps> = ({
         <button
           onClick={onDismiss}
           style={{
-            background: 'none',
-            border: 'none',
+            background: STRING_NONE,
+            border: STRING_NONE,
             fontSize: '20px',
             color: theme.colors.text.secondary,
             cursor: 'pointer',

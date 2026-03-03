@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import axios from 'axios';
 import { API_URL } from 'config/api';
+import { PRIORITY_STATUS_CALCULATING } from 'constants/strings';
 
 interface PriorityExplanation {
   score: number;
@@ -98,8 +99,8 @@ export function usePriorityTooltip(): UsePriorityTooltipReturn {
           // Check if breakdown still has "Calculating..." items
           const hasCalculatingItems = explanation?.breakdown?.some(
             (item: { description?: string }) => 
-              item.description === 'Calculating...' || 
-              item.description?.includes('Calculating...')
+              item.description === PRIORITY_STATUS_CALCULATING || 
+              item.description?.includes(PRIORITY_STATUS_CALCULATING)
           );
           
           // If no calculating items, we're done

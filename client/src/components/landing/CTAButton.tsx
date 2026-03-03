@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { theme } from 'theme/theme';
-import { BUTTON_VARIANT_PRIMARY, BUTTON_VARIANT_SECONDARY } from 'constants/strings';
+import { BUTTON_VARIANT_PRIMARY, BUTTON_VARIANT_SECONDARY, STRING_NONE } from 'constants/strings';
 import { captureEvent } from 'utils/posthog';
+import { COLOR_WHITE_FULL } from 'constants/colors';
 
 interface CTAButtonProps {
   /**
@@ -77,7 +78,7 @@ export const CTAButton: React.FC<CTAButtonProps> = ({
   const getButtonStyles = () => {
     const baseStyles: React.CSSProperties = {
       padding: `${theme.spacing.md} ${theme.spacing.xl}`,
-      border: 'none',
+      border: STRING_NONE,
       borderRadius: theme.borderRadius.md,
       fontSize: theme.typography.fontSize.base,
       fontWeight: theme.typography.fontWeight.semibold,
@@ -91,7 +92,7 @@ export const CTAButton: React.FC<CTAButtonProps> = ({
       return {
         ...baseStyles,
         backgroundColor: getPrimaryBackgroundColor(),
-        color: '#FFFFFF',
+        color: COLOR_WHITE_FULL,
       };
     } else if (variant === BUTTON_VARIANT_SECONDARY) {
       return {

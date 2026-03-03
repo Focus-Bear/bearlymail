@@ -2,6 +2,8 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { OPACITY_DISABLED_ALT, Z_INDEX_MODAL_OVERLAY } from 'constants/numbers';
+import { KEY_ESCAPE } from 'constants/strings';
+import { COLOR_ERROR_DARK_ALT, COLOR_ERROR_GOOGLE, COLOR_INFO_BLUE, COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 
 interface ProviderSelectionModalProps {
   isOpen: boolean;
@@ -23,19 +25,19 @@ export const ProviderSelectionModal: React.FC<ProviderSelectionModalProps> = ({
       id: 'gmail' as const,
       name: 'Gmail',
       description: t('settings.emailAccounts.providers.gmail.description'),
-      color: '#EA4335',
+      color: COLOR_ERROR_GOOGLE,
     },
     {
       id: 'office365' as const,
       name: 'Office 365',
       description: t('settings.emailAccounts.providers.office365.description'),
-      color: '#0078D4',
+      color: COLOR_INFO_BLUE,
     },
     {
       id: 'zoho' as const,
       name: 'Zoho Mail',
       description: t('settings.emailAccounts.providers.zoho.description'),
-      color: '#C8202F',
+      color: COLOR_ERROR_DARK_ALT,
     },
   ];
 
@@ -51,7 +53,7 @@ export const ProviderSelectionModal: React.FC<ProviderSelectionModalProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
+    if (e.key === KEY_ESCAPE) {
       onClose();
     }
   };
@@ -137,7 +139,7 @@ export const ProviderSelectionModal: React.FC<ProviderSelectionModalProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: 'white',
+                  color: COLOR_NAMED_WHITE,
                   fontSize: theme.typography.fontSize.lg,
                   fontWeight: theme.typography.fontWeight.bold,
                   flexShrink: 0,
@@ -174,7 +176,7 @@ export const ProviderSelectionModal: React.FC<ProviderSelectionModalProps> = ({
           style={{
             marginTop: theme.spacing.xl,
             padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-            backgroundColor: 'transparent',
+            backgroundColor: COLOR_TRANSPARENT,
             color: theme.colors.text.secondary,
             border: `1px solid ${theme.colors.border.medium}`,
             borderRadius: theme.borderRadius.md,
@@ -186,7 +188,7 @@ export const ProviderSelectionModal: React.FC<ProviderSelectionModalProps> = ({
             e.currentTarget.style.backgroundColor = theme.colors.background.default;
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent';
+            e.currentTarget.style.backgroundColor = COLOR_TRANSPARENT;
           }}
         >
           {t('common.cancel')}

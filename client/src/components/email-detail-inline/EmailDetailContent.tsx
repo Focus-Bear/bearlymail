@@ -15,8 +15,10 @@ import { extractUnsubscribeLink } from 'utils/unsubscribeUtils';
 import { extractEmailAddress } from 'utils/emailUtils';
 import { API_URL } from 'config/api';
 import { captureEvent } from 'utils/posthog';
-import { OPACITY_DISABLED } from 'constants/numbers';
+import { FONT_WEIGHT_SEMIBOLD, OPACITY_DISABLED } from 'constants/numbers';
 import { useAuth } from 'contexts/AuthContext';
+import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
+import { LETTER_SPACING_WIDER, STRING_NONE } from 'constants/strings';
 
 const PRIORITY_OPTIONS = [
   { label: 'Can wait', emoji: '😊', value: 1 },
@@ -192,8 +194,8 @@ export const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
                 style={{
                   padding: `${theme.spacing.sm} ${theme.spacing.md}`,
                   backgroundColor: theme.colors.text.primary,
-                  color: 'white',
-                  border: 'none',
+                  color: COLOR_NAMED_WHITE,
+                  border: STRING_NONE,
                   borderRadius: theme.borderRadius.md,
                   fontWeight: theme.typography.fontWeight.semibold,
                   cursor: 'pointer',
@@ -214,7 +216,7 @@ export const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
                 onClick={(e) => { e.stopPropagation(); onOpenReplyComposer('forward'); }}
                 style={{
                   padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                  backgroundColor: 'transparent',
+                  backgroundColor: COLOR_TRANSPARENT,
                   color: theme.colors.text.secondary,
                   border: `1px solid ${theme.colors.border.medium}`,
                   borderRadius: theme.borderRadius.md,
@@ -247,9 +249,9 @@ export const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
                 onClick={(e) => { e.stopPropagation(); onArchive(emailId, e); }}
                 style={{
                   padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                  backgroundColor: 'transparent',
+                  backgroundColor: COLOR_TRANSPARENT,
                   color: theme.colors.text.secondary,
-                  border: 'none',
+                  border: STRING_NONE,
                   borderRadius: theme.borderRadius.md,
                   fontWeight: theme.typography.fontWeight.medium,
                   cursor: 'pointer',
@@ -298,9 +300,9 @@ export const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
                 title={t('inbox.unsubscribe')}
                 style={{
                   padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                  backgroundColor: 'transparent',
+                  backgroundColor: COLOR_TRANSPARENT,
                   color: theme.colors.text.secondary,
-                  border: 'none',
+                  border: STRING_NONE,
                   borderRadius: theme.borderRadius.md,
                   fontWeight: theme.typography.fontWeight.medium,
                   cursor: 'pointer',
@@ -322,9 +324,9 @@ export const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
                 title={t('inbox.blockSender')}
                 style={{
                   padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                  backgroundColor: 'transparent',
+                  backgroundColor: COLOR_TRANSPARENT,
                   color: theme.colors.text.secondary,
-                  border: 'none',
+                  border: STRING_NONE,
                   borderRadius: theme.borderRadius.md,
                   fontWeight: theme.typography.fontWeight.medium,
                   cursor: 'pointer',
@@ -380,7 +382,7 @@ export const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
                 fontSize: theme.typography.fontSize.xs,
                 color: theme.colors.text.tertiary,
                 fontWeight: theme.typography.fontWeight.semibold,
-                letterSpacing: '0.08em',
+                letterSpacing: LETTER_SPACING_WIDER,
                 textTransform: 'uppercase',
                 flexShrink: 0,
               }}>
@@ -494,7 +496,7 @@ export const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
               marginTop: 0,
               marginBottom: theme.spacing.md,
               fontSize: theme.typography.fontSize.sm,
-              fontWeight: 600,
+              fontWeight: FONT_WEIGHT_SEMIBOLD,
               color: theme.colors.text.primary,
             }}>
               Debug Information (Admin Only)
@@ -518,8 +520,8 @@ export const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
                   <div style={{ marginTop: theme.spacing.xs }}>
                     <strong>DB Labels:</strong>
                     <div style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs }}>
-                      <div><strong>Raw (stored in DB):</strong> {gmailLabels?.dbLabels?.raw ? JSON.stringify(gmailLabels.dbLabels.raw) : (emailData.labels ? JSON.stringify(emailData.labels) : '[]')}</div>
-                      <div><strong>Names (converted):</strong> {gmailLabels?.dbLabels?.names ? JSON.stringify(gmailLabels.dbLabels.names) : (emailData.labels ? JSON.stringify(emailData.labels) : '[]')}</div>
+                      <div><strong>Raw (stored in DB):</strong> {gmailLabels?.dbLabels?.raw ? JSON.stringify(gmailLabels.dbLabels.raw) : JSON.stringify(emailData.labels ?? [])}</div>
+                      <div><strong>Names (converted):</strong> {gmailLabels?.dbLabels?.names ? JSON.stringify(gmailLabels.dbLabels.names) : JSON.stringify(emailData.labels ?? [])}</div>
                       <div><strong>Count:</strong> {gmailLabels?.dbLabels?.names?.length || emailData.labels?.length || 0}</div>
                     </div>
                   </div>
@@ -540,8 +542,8 @@ export const EmailDetailContent: React.FC<EmailDetailContentProps> = ({
                         <div style={{ marginTop: theme.spacing.xs }}>
                           <strong>Label Mapping (ID → Name):</strong>
                           <div style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs, fontSize: theme.typography.fontSize.xs }}>
-                            {gmailLabels.labelMapping.map((mapping: any, idx: number) => (
-                              <div key={idx}>{mapping.id} → {mapping.name}</div>
+                            {gmailLabels.labelMapping.map((mapping: any) => (
+                              <div key={mapping.id}>{mapping.id} → {mapping.name}</div>
                             ))}
                           </div>
                         </div>

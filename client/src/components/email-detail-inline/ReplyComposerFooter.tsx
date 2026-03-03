@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
+import { COLOR_TRANSPARENT } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 const DEFAULT_EXPECTED_REPLY_HOURS = 48;
 
@@ -106,7 +108,7 @@ export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = ({
           disabled={sending || checkingTone}
           style={{
             padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-            backgroundColor: 'transparent',
+            backgroundColor: COLOR_TRANSPARENT,
             color: theme.colors.text.secondary,
             border: `1px solid ${theme.colors.border.medium}`,
             borderRadius: theme.borderRadius.md,
@@ -122,7 +124,7 @@ export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = ({
             disabled={isDisabled}
             style={{
               padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-              backgroundColor: 'transparent',
+              backgroundColor: COLOR_TRANSPARENT,
               color: isDisabled ? theme.colors.text.tertiary : theme.colors.primary.main,
               border: `1px solid ${isDisabled ? theme.colors.border.light : theme.colors.primary.main}`,
               borderRadius: theme.borderRadius.md,
@@ -141,7 +143,7 @@ export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = ({
             padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
             backgroundColor: isDisabled ? theme.colors.background.subtle : theme.colors.primary.main,
             color: isDisabled ? theme.colors.text.tertiary : 'white',
-            border: 'none',
+            border: STRING_NONE,
             borderRadius: theme.borderRadius.md,
             cursor: isDisabled ? 'not-allowed' : 'pointer',
             fontSize: theme.typography.fontSize.sm,

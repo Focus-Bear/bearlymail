@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import { getResponsiveFontSize, getResponsiveSpacing } from 'components/landing/utils';
+import { COLOR_TRANSPARENT } from 'constants/colors';
 
 /**
  * Landing page header component
@@ -87,7 +88,7 @@ export const LandingHeader: React.FC = () => {
           onClick={() => navigate('/login')}
           style={{
             padding: `${theme.spacing.xs} ${buttonPadding}`,
-            backgroundColor: 'transparent',
+            backgroundColor: COLOR_TRANSPARENT,
             color: theme.colors.primary.main,
             border: `1px solid ${theme.colors.primary.main}`,
             borderRadius: theme.borderRadius.md,

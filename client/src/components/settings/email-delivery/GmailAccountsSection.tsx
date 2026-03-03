@@ -5,6 +5,7 @@ import { GmailEmptyState } from 'components/settings/email-delivery/GmailEmptySt
 import { GmailAccountItem } from 'components/settings/email-delivery/GmailAccountItem';
 
 import { API_URL } from 'config/api';
+import { COLOR_TRANSPARENT } from 'constants/colors';
 
 interface GoogleAccount {
   id: string;
@@ -56,7 +57,7 @@ export const GmailAccountsSection: React.FC<GmailAccountsSectionProps> = ({
             style={{
               marginTop: theme.spacing.md,
               padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-              backgroundColor: 'transparent',
+              backgroundColor: COLOR_TRANSPARENT,
               color: theme.colors.primary.main,
               border: `1px solid ${theme.colors.primary.main}`,
               borderRadius: theme.borderRadius.md,

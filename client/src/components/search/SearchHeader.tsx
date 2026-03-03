@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
+import { COLOR_TRANSPARENT } from 'constants/colors';
 
 
 export const SearchHeader: React.FC = () => {
@@ -58,7 +59,7 @@ export const SearchHeader: React.FC = () => {
           }}
           style={{
             padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-            backgroundColor: 'transparent',
+            backgroundColor: COLOR_TRANSPARENT,
             color: theme.colors.text.secondary,
             border: `1px solid ${theme.colors.border.medium}`,
             borderRadius: theme.borderRadius.md,

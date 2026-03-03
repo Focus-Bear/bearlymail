@@ -1,6 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface TourStep {
   title: string;
@@ -58,7 +60,7 @@ export const TourModalContent: React.FC<TourModalContentProps> = ({
           onClick={onSkipTour}
           style={{
             padding: `${theme.spacing.md} ${theme.spacing.lg}`,
-            backgroundColor: 'transparent',
+            backgroundColor: COLOR_TRANSPARENT,
             color: theme.colors.text.secondary,
             border: `1px solid ${theme.colors.border.medium}`,
             borderRadius: theme.borderRadius.md,
@@ -72,8 +74,8 @@ export const TourModalContent: React.FC<TourModalContentProps> = ({
           style={{
             padding: `${theme.spacing.md} ${theme.spacing.lg}`,
             backgroundColor: theme.colors.primary.main,
-            color: 'white',
-            border: 'none',
+            color: COLOR_NAMED_WHITE,
+            border: STRING_NONE,
             borderRadius: theme.borderRadius.md,
             cursor: 'pointer',
             fontWeight: theme.typography.fontWeight.semibold,

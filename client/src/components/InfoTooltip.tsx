@@ -45,7 +45,7 @@ export const InfoTooltip: React.FC<InfoTooltipProps> = ({ content, children }) =
           height: '16px',
           borderRadius: '50%',
           backgroundColor: theme.colors.accent.info,
-          color: 'white',
+          color: theme.colors.common.white,
           fontSize: '10px',
           fontWeight: theme.typography.fontWeight.bold,
           marginLeft: theme.spacing.xs,

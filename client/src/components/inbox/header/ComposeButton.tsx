@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 export const ComposeButton: React.FC = () => {
   const { t } = useTranslation();
@@ -17,8 +19,8 @@ export const ComposeButton: React.FC = () => {
       style={{
         padding: `${theme.spacing.xs} ${theme.spacing.md}`,
         backgroundColor: theme.colors.secondary.main,
-        color: 'white',
-        border: 'none',
+        color: COLOR_NAMED_WHITE,
+        border: STRING_NONE,
         borderRadius: theme.borderRadius.md,
         cursor: 'pointer',
         fontSize: theme.typography.fontSize.xs,

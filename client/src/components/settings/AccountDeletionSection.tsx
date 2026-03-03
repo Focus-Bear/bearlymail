@@ -6,6 +6,8 @@ import { OPACITY_HALF, OPACITY_DISABLED_ALT } from 'constants/numbers';
 import { useAuth } from 'contexts/AuthContext';
 import { API_URL } from 'config/api';
 import { captureEvent } from 'utils/posthog';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 const CONFIRMATION_TEXT = 'delete all my data';
 
@@ -43,6 +45,7 @@ export const AccountDeletionSection: React.FC = () => {
 
     try {
       await axios.delete(`${API_URL}/users/me`, {
+        // eslint-disable-next-line id-denylist
         data: { confirmationText: confirmationInput },
       });
       logout();
@@ -90,8 +93,8 @@ export const AccountDeletionSection: React.FC = () => {
           onClick={handleDeleteClick}
           style={{
             backgroundColor: theme.colors.error.main,
-            color: 'white',
-            border: 'none',
+            color: COLOR_NAMED_WHITE,
+            border: STRING_NONE,
             borderRadius: theme.borderRadius.md,
             padding: `${theme.spacing.sm} ${theme.spacing.md}`,
             cursor: 'pointer',
@@ -194,8 +197,8 @@ export const AccountDeletionSection: React.FC = () => {
               disabled={!isConfirmationValid || isDeleting}
               style={{
                 backgroundColor: isConfirmationValid ? theme.colors.error.main : theme.colors.greyscale[400],
-                color: 'white',
-                border: 'none',
+                color: COLOR_NAMED_WHITE,
+                border: STRING_NONE,
                 borderRadius: theme.borderRadius.md,
                 padding: `${theme.spacing.sm} ${theme.spacing.md}`,
                 cursor: isConfirmationValid && !isDeleting ? 'pointer' : 'not-allowed',

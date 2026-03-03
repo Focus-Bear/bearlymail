@@ -1,5 +1,7 @@
 import React from 'react';
 import { theme } from 'theme/theme';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface AutoResponderToggleProps {
   enabled: boolean;
@@ -47,7 +49,7 @@ export const AutoResponderToggle: React.FC<AutoResponderToggleProps> = ({
           height: '28px',
           backgroundColor: enabled ? theme.colors.success.main : theme.colors.greyscale[400],
           borderRadius: theme.borderRadius.full,
-          border: 'none',
+          border: STRING_NONE,
           cursor: 'pointer',
           transition: theme.transitions.default,
           flexShrink: 0,
@@ -61,7 +63,7 @@ export const AutoResponderToggle: React.FC<AutoResponderToggleProps> = ({
             left: enabled ? '30px' : '2px',
             width: '24px',
             height: '24px',
-            backgroundColor: 'white',
+            backgroundColor: COLOR_NAMED_WHITE,
             borderRadius: '50%',
             transition: theme.transitions.default,
             boxShadow: theme.shadows.sm,

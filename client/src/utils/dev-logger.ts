@@ -4,6 +4,7 @@
  */
 
 import { API_URL } from 'config/api';
+import { STRING_LOCALHOST, STRING_NA, TYPEOF_UNDEFINED } from 'constants/strings';
 
 // Immediate log when module loads - this should ALWAYS show
 console.log('[dev-logger] ===== MODULE LOADED =====');
@@ -13,14 +14,14 @@ console.log('[dev-logger] Logger utility is being imported');
  * Check if we're running in localhost/development mode
  */
 function isLocalhost(): boolean {
-  if (typeof window === 'undefined') {
+  if (typeof window === TYPEOF_UNDEFINED) {
     return false;
   }
   
   const hostname = window.location.hostname;
   
   return (
-    hostname === 'localhost' ||
+    hostname === STRING_LOCALHOST ||
     hostname === '127.0.0.1' ||
     hostname === '[::1]' ||
     API_URL.includes('localhost') ||
@@ -35,7 +36,7 @@ export function devLog(message: string, ...args: any[]): void {
   const isLocal = isLocalhost();
   // Always log the first call to verify logger is working
   if (!devLog._initialized) {
-    console.log(`[DEV LOGGER] Initialized. isLocalhost: ${isLocal}, hostname: ${typeof window !== 'undefined' ? window.location.hostname : 'N/A'}`);
+    console.log(`[DEV LOGGER] Initialized. isLocalhost: ${isLocal}, hostname: ${typeof window !== TYPEOF_UNDEFINED ? window.location.hostname : STRING_NA}`);
     devLog._initialized = true;
   }
   if (isLocal) {

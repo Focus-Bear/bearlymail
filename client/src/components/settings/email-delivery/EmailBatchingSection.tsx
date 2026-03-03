@@ -7,6 +7,8 @@ import { DeliveryDaysSelector } from 'components/settings/email-delivery/Deliver
 import { DeliveryTimesManager } from 'components/settings/email-delivery/DeliveryTimesManager';
 
 import { API_URL } from 'config/api';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 const TIMEZONE_OPTIONS: string[] = (() => {
   try {
@@ -152,8 +154,8 @@ export const EmailBatchingSection: React.FC<EmailBatchingSectionProps> = ({
         style={{
           padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
           backgroundColor: theme.colors.primary.main,
-          color: 'white',
-          border: 'none',
+          color: COLOR_NAMED_WHITE,
+          border: STRING_NONE,
           borderRadius: theme.borderRadius.md,
           cursor: 'pointer',
           fontWeight: theme.typography.fontWeight.medium,

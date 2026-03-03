@@ -2,7 +2,8 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
-import { KEY_ENTER, KEY_ESCAPE } from 'constants/strings';
+import { KEY_ENTER, KEY_ESCAPE, STRING_NONE } from 'constants/strings';
+import { COLOR_TRANSPARENT } from 'constants/colors';
 
 interface EmailCardSnoozeInputProps {
   snoozeInput: string;
@@ -77,7 +78,7 @@ export const EmailCardSnoozeInput: React.FC<EmailCardSnoozeInputProps> = ({
           borderRadius: theme.borderRadius.sm,
           backgroundColor: getButtonBackgroundColor(),
           color: getButtonColor(),
-          border: 'none',
+          border: STRING_NONE,
           cursor: isButtonDisabled() ? 'not-allowed' : 'pointer',
           fontSize: theme.typography.fontSize.xs,
           fontWeight: theme.typography.fontWeight.medium,
@@ -91,9 +92,9 @@ export const EmailCardSnoozeInput: React.FC<EmailCardSnoozeInputProps> = ({
         style={{
           padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
           borderRadius: theme.borderRadius.sm,
-          backgroundColor: 'transparent',
+          backgroundColor: COLOR_TRANSPARENT,
           color: theme.colors.text.secondary,
-          border: 'none',
+          border: STRING_NONE,
           cursor: 'pointer',
           fontSize: theme.typography.fontSize.xs,
         }}

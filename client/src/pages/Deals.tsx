@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
-import { Deal, DealStage, KanbanBoard } from 'types/deal';
+import { Deal, KanbanBoard } from 'types/deal';
 import { Contact } from 'types/contact';
 import { useAuth } from 'contexts/AuthContext';
 import { Sidebar } from 'components/inbox/Sidebar';
@@ -12,6 +12,7 @@ import { KanbanColumn } from 'components/crm/KanbanColumn';
 import { DealFormModal } from 'components/crm/DealFormModal';
 import { API_URL } from 'config/api';
 import { EMOJI_MENU } from 'constants/emojis';
+import { STRING_FLEX, STRING_HIDDEN, STRING_FIXED, STRING_POINTER, STRING_CENTER, STRING_AUTO, STRING_NONE, STRING_WHITE, STRING_CURRENCY, STRING_USD, STRING_EN_US } from 'constants/strings';
 
 const Deals: React.FC = () => {
   const { t } = useTranslation();
@@ -53,7 +54,7 @@ const Deals: React.FC = () => {
     fetchContacts();
   }, [fetchKanban, fetchContacts]);
 
-  const handleCreateDeal = async (data: {
+  const handleCreateDeal = async (dealData: {
     title: string;
     details?: string;
     value?: number;
@@ -63,7 +64,7 @@ const Deals: React.FC = () => {
     expectedCloseDate?: string;
   }) => {
     try {
-      await axios.post(`${API_URL}/deals`, data);
+      await axios.post(`${API_URL}/deals`, dealData);
       setShowDealForm(false);
       fetchKanban();
     } catch (err) {
@@ -71,9 +72,9 @@ const Deals: React.FC = () => {
     }
   };
 
-  const handleUpdateDeal = async (dealId: string, data: Partial<Deal>) => {
+  const handleUpdateDeal = async (dealId: string, dealUpdate: Partial<Deal>) => {
     try {
-      await axios.put(`${API_URL}/deals/${dealId}`, data);
+      await axios.put(`${API_URL}/deals/${dealId}`, dealUpdate);
       setEditingDeal(null);
       fetchKanban();
     } catch (err) {
@@ -116,44 +117,46 @@ const Deals: React.FC = () => {
   };
 
   const formatCurrency = (value: number, currency?: string | null) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency || 'USD',
+    return new Intl.NumberFormat(STRING_EN_US, {
+      style: STRING_CURRENCY,
+      currency: currency || STRING_USD,
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(value);
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+    <div style={{ display: STRING_FLEX, height: '100vh', overflow: STRING_HIDDEN }}>
       <Sidebar user={user} logout={logout} isCollapsed={isCollapsed} onToggleCollapse={toggleCollapse} isMobileMenuOpen={isMobileMenuOpen} onCloseMobileMenu={closeMobileMenu} />
 
       <div style={{ flex: 1, overflowY: 'auto', backgroundColor: theme.colors.background.default, padding: isNarrow ? `70px ${theme.spacing.sm} ${theme.spacing.md}` : theme.spacing.lg }}>
         {isNarrow && (
-          <button onClick={openMobileMenu} style={{ position: 'fixed', top: theme.spacing.md, left: theme.spacing.md, width: '48px', height: '48px', borderRadius: '50%', border: `1px solid ${theme.colors.border.medium}`, backgroundColor: theme.colors.background.paper, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', boxShadow: theme.shadows.md, zIndex: 100 }} aria-label="Open navigation menu">
+          <button onClick={openMobileMenu} style={{ position: STRING_FIXED, top: theme.spacing.md, left: theme.spacing.md, width: '48px', height: '48px', borderRadius: '50%', border: `1px solid ${theme.colors.border.medium}`, backgroundColor: theme.colors.background.paper, cursor: STRING_POINTER, display: STRING_FLEX, alignItems: STRING_CENTER, justifyContent: STRING_CENTER, fontSize: '1.5rem', boxShadow: theme.shadows.md, zIndex: 100 }} aria-label="Open navigation menu">
             {EMOJI_MENU}
           </button>
         )}
 
-        <div style={{ maxWidth: '100%', margin: '0 auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.lg }}>
+        <div style={{ maxWidth: '100%', margin: STRING_AUTO }}>
+          <div style={{ display: STRING_FLEX, justifyContent: 'space-between', alignItems: STRING_CENTER, marginBottom: theme.spacing.lg }}>
             <h1 style={{ ...theme.typography.heading.h4, color: theme.colors.text.primary, margin: 0 }}>
               {t('deals.title')}
             </h1>
             <button
               onClick={() => { setEditingDeal(null); setShowDealForm(true); }}
-              style={{ padding: `${theme.spacing.sm} ${theme.spacing.md}`, backgroundColor: theme.colors.primary.main, color: 'white', border: 'none', borderRadius: theme.borderRadius.md, cursor: 'pointer', fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium }}
+              style={{ padding: `${theme.spacing.sm} ${theme.spacing.md}`, backgroundColor: theme.colors.primary.main, color: STRING_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.md, cursor: STRING_POINTER, fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium }}
             >
               {t('deals.addDeal')}
             </button>
           </div>
 
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: theme.spacing.xl, color: theme.colors.text.secondary }}>
+          {(() => {
+            if (loading) return (
+            <div style={{ textAlign: STRING_CENTER, padding: theme.spacing.xl, color: theme.colors.text.secondary }}>
               {t('deals.loading')}
             </div>
-          ) : !kanban || kanban.stages.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: theme.spacing.xl, backgroundColor: theme.colors.background.paper, borderRadius: theme.borderRadius.lg, boxShadow: theme.shadows.sm }}>
+          );
+            if (!kanban || kanban.stages.length === 0) return (
+            <div style={{ textAlign: STRING_CENTER, padding: theme.spacing.xl, backgroundColor: theme.colors.background.paper, borderRadius: theme.borderRadius.lg, boxShadow: theme.shadows.sm }}>
               <div style={{ fontSize: '48px', marginBottom: theme.spacing.md }}>🤝</div>
               <h3 style={{ color: theme.colors.text.primary, fontSize: theme.typography.fontSize.lg, fontWeight: theme.typography.fontWeight.semibold, marginBottom: theme.spacing.sm }}>
                 {t('deals.noDeals')}
@@ -162,8 +165,9 @@ const Deals: React.FC = () => {
                 {t('deals.createFirstDeal')}
               </p>
             </div>
-          ) : (
-            <div style={{ display: 'flex', gap: theme.spacing.md, overflowX: 'auto', paddingBottom: theme.spacing.md, minHeight: '400px' }}>
+          );
+            return (
+            <div style={{ display: STRING_FLEX, gap: theme.spacing.md, overflowX: 'auto', paddingBottom: theme.spacing.md, minHeight: '400px' }}>
               {kanban.stages.map(stage => (
                 <KanbanColumn
                   key={stage.id}
@@ -180,7 +184,8 @@ const Deals: React.FC = () => {
                 />
               ))}
             </div>
-          )}
+          );
+          })()}
         </div>
       </div>
 
@@ -189,11 +194,11 @@ const Deals: React.FC = () => {
           deal={editingDeal}
           stages={kanban?.stages || []}
           contacts={contacts}
-          onSave={(data) => {
+          onSave={(dealPayload) => {
             if (editingDeal) {
-              handleUpdateDeal(editingDeal.id, data);
+              handleUpdateDeal(editingDeal.id, dealPayload);
             } else {
-              handleCreateDeal(data);
+              handleCreateDeal(dealPayload);
             }
           }}
           onClose={() => { setShowDealForm(false); setEditingDeal(null); }}

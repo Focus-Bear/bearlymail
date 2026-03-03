@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { QueueStats } from './types';
+import { COLOR_TRANSPARENT } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 const renderFormattedText = (text: string): React.ReactNode => {
   const parts: React.ReactNode[] = [];
@@ -152,8 +154,8 @@ If this is actually urgent, just reply and let me know—I'll bump it up!
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: theme.spacing.md,
-          backgroundColor: 'transparent',
-          border: 'none',
+          backgroundColor: COLOR_TRANSPARENT,
+          border: STRING_NONE,
           cursor: 'pointer',
           textAlign: 'left',
         }}

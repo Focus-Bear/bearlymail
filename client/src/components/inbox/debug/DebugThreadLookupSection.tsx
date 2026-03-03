@@ -4,6 +4,8 @@ import { theme } from 'theme/theme';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 import { EMOJI_SEARCH } from 'constants/emojis';
 import { ThreadLookupResult } from 'hooks/useDebugPanel';
+import { COLOR_BG_NEUTRAL, COLOR_BG_WARNING, COLOR_ERROR_DARK, COLOR_GREY_MED, COLOR_INFO_VIOLET, COLOR_NAMED_WHITE, COLOR_SUCCESS_DARK, COLOR_WARNING_DARK, COLOR_WHITE } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface DebugThreadLookupSectionProps {
   threadLookupResult: ThreadLookupResult | null;
@@ -31,7 +33,7 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
       style={{
         marginBottom: theme.spacing.lg,
         padding: theme.spacing.md,
-        backgroundColor: '#fff',
+        backgroundColor: COLOR_WHITE,
         borderRadius: theme.borderRadius.md,
       }}
     >
@@ -69,8 +71,8 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
             style={{
               padding: `${theme.spacing.sm} ${theme.spacing.md}`,
               backgroundColor: theme.colors.primary.main,
-              color: 'white',
-              border: 'none',
+              color: COLOR_NAMED_WHITE,
+              border: STRING_NONE,
               borderRadius: theme.borderRadius.sm,
               cursor: loadingThreadLookup || !threadIdInput.trim() ? 'not-allowed' : 'pointer',
               opacity: loadingThreadLookup || !threadIdInput.trim() ? OPACITY_DISABLED : OPACITY_FULL,
@@ -93,7 +95,7 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
           <div style={{ marginBottom: theme.spacing.md }}>
             {/* eslint-disable-next-line i18next/no-literal-string */}
             <strong>{t('debug.threadLookup.threadId')}:</strong>{' '}
-            <code style={{ backgroundColor: '#f5f5f5', padding: '2px 4px', borderRadius: '3px' }}>
+            <code style={{ backgroundColor: COLOR_BG_NEUTRAL, padding: '2px 4px', borderRadius: '3px' }}>
               {threadLookupResult.threadId}
             </code>
           </div>
@@ -102,9 +104,9 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
             {/* eslint-disable-next-line i18next/no-literal-string */}
             <strong>{t('debug.threadLookup.status')}:</strong>{' '}
             {threadLookupResult.found ? (
-              <span style={{ color: '#2E7D32' }}>{t('debug.threadLookup.found')}</span>
+              <span style={{ color: COLOR_SUCCESS_DARK }}>{t('debug.threadLookup.found')}</span>
             ) : (
-              <span style={{ color: '#C62828' }}>{t('debug.threadLookup.notFound')}</span>
+              <span style={{ color: COLOR_ERROR_DARK }}>{t('debug.threadLookup.notFound')}</span>
             )}
           </div>
 
@@ -113,7 +115,7 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
               style={{
                 marginBottom: theme.spacing.md,
                 padding: theme.spacing.sm,
-                backgroundColor: '#f5f5f5',
+                backgroundColor: COLOR_BG_NEUTRAL,
                 borderRadius: theme.borderRadius.sm,
               }}
             >
@@ -158,13 +160,13 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
               style={{
                 margin: `${theme.spacing.xs} 0 0 0`,
                 paddingLeft: theme.spacing.lg,
-                backgroundColor: '#FFF3E0',
+                backgroundColor: COLOR_BG_WARNING,
                 padding: theme.spacing.sm,
                 borderRadius: theme.borderRadius.sm,
               }}
             >
-              {threadLookupResult.reasons.map((reason, index) => (
-                <li key={index} style={{ marginBottom: theme.spacing.xs }}>
+              {threadLookupResult.reasons.map((reason) => (
+                <li key={reason} style={{ marginBottom: theme.spacing.xs }}>
                   {reason}
                 </li>
               ))}
@@ -188,7 +190,7 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
                     key={email.id}
                     style={{
                       padding: theme.spacing.xs,
-                      backgroundColor: '#f5f5f5',
+                      backgroundColor: COLOR_BG_NEUTRAL,
                       marginBottom: theme.spacing.xs,
                       borderRadius: theme.borderRadius.sm,
                     }}
@@ -206,13 +208,13 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
                       <strong>Received:</strong> {new Date(email.receivedAt).toLocaleString()}
                     </div>
                     {email.isSnoozed && (
-                      <div style={{ color: '#F57C00' }}>
+                      <div style={{ color: COLOR_WARNING_DARK }}>
                         {/* eslint-disable-next-line i18next/no-literal-string */}
                         Snoozed until: {email.snoozeUntil ? new Date(email.snoozeUntil).toLocaleString() : 'N/A'}
                       </div>
                     )}
                     {email.isBatched && (
-                      <div style={{ color: '#7B1FA2' }}>
+                      <div style={{ color: COLOR_INFO_VIOLET }}>
                         {/* eslint-disable-next-line i18next/no-literal-string */}
                         Batched until: {email.batchReleaseAt ? new Date(email.batchReleaseAt).toLocaleString() : 'N/A'}
                       </div>
@@ -239,9 +241,9 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
               {threadLookupResult.gmailApiResult.foundInGmailApi ? (
                 <ul style={{ margin: `${theme.spacing.xs} 0 0 0`, paddingLeft: theme.spacing.lg }}>
                   {/* eslint-disable-next-line i18next/no-literal-string */}
-                  <li><strong>Gmail API Thread ID:</strong> <code style={{ backgroundColor: '#f5f5f5', padding: '1px 3px', borderRadius: '2px' }}>{threadLookupResult.gmailApiResult.apiThreadId}</code></li>
+                  <li><strong>Gmail API Thread ID:</strong> <code style={{ backgroundColor: COLOR_BG_NEUTRAL, padding: '1px 3px', borderRadius: '2px' }}>{threadLookupResult.gmailApiResult.apiThreadId}</code></li>
                   {/* eslint-disable-next-line i18next/no-literal-string */}
-                  <li><strong>Gmail API Message ID:</strong> <code style={{ backgroundColor: '#f5f5f5', padding: '1px 3px', borderRadius: '2px' }}>{threadLookupResult.gmailApiResult.apiMessageId}</code></li>
+                  <li><strong>Gmail API Message ID:</strong> <code style={{ backgroundColor: COLOR_BG_NEUTRAL, padding: '1px 3px', borderRadius: '2px' }}>{threadLookupResult.gmailApiResult.apiMessageId}</code></li>
                   {/* eslint-disable-next-line i18next/no-literal-string */}
                   {threadLookupResult.gmailApiResult.subject && <li><strong>Subject:</strong> {threadLookupResult.gmailApiResult.subject}</li>}
                   {/* eslint-disable-next-line i18next/no-literal-string */}
@@ -250,7 +252,7 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
                   {threadLookupResult.gmailApiResult.receivedAt && <li><strong>Date:</strong> {new Date(threadLookupResult.gmailApiResult.receivedAt).toLocaleString()}</li>}
                 </ul>
               ) : (
-                <span style={{ color: '#757575', marginLeft: theme.spacing.xs }}>
+                <span style={{ color: COLOR_GREY_MED, marginLeft: theme.spacing.xs }}>
                   {t('debug.threadLookup.gmailApiNotFound')}
                 </span>
               )}

@@ -8,6 +8,8 @@ import { captureEvent } from 'utils/posthog';
 import { devLog } from 'utils/dev-logger';
 import { API_URL } from 'config/api';
 import { PermissionsExplanation } from 'components/auth/PermissionsExplanation';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 const PERMISSIONS_SEEN_KEY = 'bearlymail_permissions_explanation_seen';
 
@@ -225,8 +227,8 @@ const Login: React.FC = () => {
               width: '100%',
               padding: theme.spacing.md,
               backgroundColor: theme.colors.primary.main,
-              color: 'white',
-              border: 'none',
+              color: COLOR_NAMED_WHITE,
+              border: STRING_NONE,
               borderRadius: theme.borderRadius.md,
               fontSize: theme.typography.fontSize.base,
               fontWeight: theme.typography.fontWeight.semibold,

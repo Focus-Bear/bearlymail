@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { EMOJI_EMAIL, EMOJI_DATABASE } from 'constants/emojis';
+import { COLOR_INFO_BLUE_LIGHT, COLOR_NAMED_RED } from 'constants/colors';
 
 interface StarredComparisonGridProps {
   gmail: {
@@ -33,14 +34,14 @@ export const StarredComparisonGrid: React.FC<StarredComparisonGridProps> = ({
       <div
         style={{
           padding: theme.spacing.sm,
-          backgroundColor: '#E8F4FD',
+          backgroundColor: COLOR_INFO_BLUE_LIGHT,
           borderRadius: theme.borderRadius.sm,
         }}
       >
         {/* eslint-disable-next-line i18next/no-literal-string */}
         <h5 style={{ margin: `0 0 ${theme.spacing.xs} 0` }}>{EMOJI_EMAIL} {t('debug.starred.gmailTitle')}</h5>
         {gmail.error ? (
-          <div style={{ color: 'red' }}>{t('common.error')}: {gmail.error}</div>
+          <div style={{ color: COLOR_NAMED_RED }}>{t('common.error')}: {gmail.error}</div>
         ) : (
           <>
             <div>
@@ -55,7 +56,7 @@ export const StarredComparisonGrid: React.FC<StarredComparisonGridProps> = ({
       <div
         style={{
           padding: theme.spacing.sm,
-          backgroundColor: '#E8F4FD',
+          backgroundColor: COLOR_INFO_BLUE_LIGHT,
           borderRadius: theme.borderRadius.sm,
         }}
       >

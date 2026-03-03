@@ -1,8 +1,9 @@
 import { useCallback, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { DEFAULT_PRIORITY_SCORE, PRIORITY_MEDIUM_THRESHOLD } from 'constants/numbers';
+import { MODE_TRIAGE, MODE_ACTION, MODE_FOLLOW_UP } from 'constants/strings';
 import axios from 'axios';
-import { Email, getEmailPriorityScore } from 'types/email';
+import { getEmailPriorityScore } from 'types/email';
 import { API_URL } from 'config/api';
 import { AppDispatch } from 'store/store';
 import { removeEmail, updateEmail, restoreEmail, addOptimisticArchive, removeOptimisticArchive, addOptimisticSnooze, removeOptimisticSnooze, addAnimatingOut, removeAnimatingOut, decrementCategorySummaryCount, incrementCategorySummaryCount } from 'store/slices/emailSlice';
@@ -50,7 +51,7 @@ export function useEmailActionsBase({
 
     // In Triage mode, starring an email (starCount > 0) should remove it from the list
     // since starred emails belong in the Action tab
-    if (mode === 'triage' && starCount > 0) {
+    if (mode === MODE_TRIAGE && starCount > 0) {
       // Animate the email out with 🏗️ overlay before removing it
       dispatch(addAnimatingOut({ id: emailId, type: 'priority' }));
       onSuggestionRemove?.(emailId);
@@ -65,7 +66,7 @@ export function useEmailActionsBase({
         priorityAnimationTimeouts.current.delete(emailId);
       }, EMAIL_EXIT_ANIMATION_DURATION_MS);
       priorityAnimationTimeouts.current.set(emailId, priorityTimeoutId);
-    } else if (mode === 'action' && starCount === 0) {
+    } else if (mode === MODE_ACTION && starCount === 0) {
       // In Action mode, unstarring an email (starCount = 0) should remove it from the list
       // since unstarred emails belong in the Triage tab
       dispatch(removeEmail(emailId));
@@ -94,7 +95,7 @@ export function useEmailActionsBase({
       .catch((error) => {
         console.error('Error setting star count:', error);
         // Revert optimistic update on error - restore email to list or star count
-        if (mode === 'triage' && starCount > 0 && email) {
+        if (mode === MODE_TRIAGE && starCount > 0 && email) {
           const pendingTimeout = priorityAnimationTimeouts.current.get(emailId);
           if (pendingTimeout !== undefined) {
             // Animation hasn't finished yet — cancel it and stop the animation
@@ -110,7 +111,7 @@ export function useEmailActionsBase({
           if (onTabCountsUpdateOptimistically) {
             onTabCountsUpdateOptimistically({ triage: 1, action: -1 });
           }
-        } else if (mode === 'action' && starCount === 0 && email) {
+        } else if (mode === MODE_ACTION && starCount === 0 && email) {
           dispatch(restoreEmail(email));
           // Revert tab count changes
           if (onTabCountsUpdateOptimistically) {
@@ -167,11 +168,11 @@ export function useEmailActionsBase({
     // Optimistically update tab counts based on current mode
     // Archive removes the email from the current tab
     if (onTabCountsUpdateOptimistically) {
-      if (mode === 'triage') {
+      if (mode === MODE_TRIAGE) {
         onTabCountsUpdateOptimistically({ triage: -1 });
-      } else if (mode === 'action') {
+      } else if (mode === MODE_ACTION) {
         onTabCountsUpdateOptimistically({ action: -1 });
-      } else if (mode === 'follow-up') {
+      } else if (mode === MODE_FOLLOW_UP) {
         onTabCountsUpdateOptimistically({ followUp: -1 });
       }
     }
@@ -208,11 +209,11 @@ export function useEmailActionsBase({
         dispatch(incrementCategorySummaryCount(categoryName));
         // Revert tab count changes
         if (onTabCountsUpdateOptimistically) {
-          if (mode === 'triage') {
+          if (mode === MODE_TRIAGE) {
             onTabCountsUpdateOptimistically({ triage: 1 });
-          } else if (mode === 'action') {
+          } else if (mode === MODE_ACTION) {
             onTabCountsUpdateOptimistically({ action: 1 });
-          } else if (mode === 'follow-up') {
+          } else if (mode === MODE_FOLLOW_UP) {
             onTabCountsUpdateOptimistically({ followUp: 1 });
           }
         }
@@ -243,11 +244,11 @@ export function useEmailActionsBase({
     // Optimistically update tab counts based on current mode
     // Snooze removes the email from the current tab
     if (onTabCountsUpdateOptimistically) {
-      if (mode === 'triage') {
+      if (mode === MODE_TRIAGE) {
         onTabCountsUpdateOptimistically({ triage: -1 });
-      } else if (mode === 'action') {
+      } else if (mode === MODE_ACTION) {
         onTabCountsUpdateOptimistically({ action: -1 });
-      } else if (mode === 'follow-up') {
+      } else if (mode === MODE_FOLLOW_UP) {
         onTabCountsUpdateOptimistically({ followUp: -1 });
       }
     }
@@ -271,11 +272,11 @@ export function useEmailActionsBase({
         dispatch(removeOptimisticSnooze(emailId));
         // Revert tab count changes
         if (onTabCountsUpdateOptimistically) {
-          if (mode === 'triage') {
+          if (mode === MODE_TRIAGE) {
             onTabCountsUpdateOptimistically({ triage: 1 });
-          } else if (mode === 'action') {
+          } else if (mode === MODE_ACTION) {
             onTabCountsUpdateOptimistically({ action: 1 });
-          } else if (mode === 'follow-up') {
+          } else if (mode === MODE_FOLLOW_UP) {
             onTabCountsUpdateOptimistically({ followUp: 1 });
           }
         }

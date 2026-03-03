@@ -8,6 +8,8 @@ import { MissingFromProcessTabList } from 'components/inbox/debug/MissingFromPro
 import { StarredThreadsList } from 'components/inbox/debug/StarredThreadsList';
 import { EMOJI_SEARCH } from 'constants/emojis';
 import { DebugStarredData } from 'components/inbox/debug/types';
+import { COLOR_NAMED_WHITE, COLOR_WHITE } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 
 interface DebugStarredSectionProps {
@@ -38,7 +40,7 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
       style={{
         marginBottom: theme.spacing.lg,
         padding: theme.spacing.md,
-        backgroundColor: '#fff',
+        backgroundColor: COLOR_WHITE,
         borderRadius: theme.borderRadius.md,
       }}
     >
@@ -58,8 +60,8 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
           style={{
             padding: `${theme.spacing.xs} ${theme.spacing.md}`,
             backgroundColor: theme.colors.primary.main,
-            color: 'white',
-            border: 'none',
+            color: COLOR_NAMED_WHITE,
+            border: STRING_NONE,
             borderRadius: theme.borderRadius.sm,
             cursor: loadingDebugData ? 'not-allowed' : 'pointer',
             opacity: loadingDebugData ? OPACITY_DISABLED : OPACITY_FULL,
@@ -90,7 +92,7 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.4)',
+            backgroundColor: theme.colors.overlay.darkLight,
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
@@ -100,7 +102,7 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
         >
           <div
             style={{
-              backgroundColor: '#fff',
+              backgroundColor: COLOR_WHITE,
               borderRadius: theme.borderRadius.md,
               padding: theme.spacing.md,
               maxWidth: 900,
@@ -153,14 +155,14 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
                         alert('Failed to fix stale unsynced threads');
                       }
                     } catch (error) {
-                      alert('Error fixing stale unsynced threads: ' + error);
+                      alert(`Error fixing stale unsynced threads: ${error}`);
                     }
                   }}
                   style={{
                     padding: `${theme.spacing.xs} ${theme.spacing.md}`,
                     backgroundColor: theme.colors.warning?.main || '#ff9800',
-                    color: '#fff',
-                    border: 'none',
+                    color: COLOR_WHITE,
+                    border: STRING_NONE,
                     borderRadius: theme.borderRadius.sm,
                     cursor: 'pointer',
                     marginBottom: theme.spacing.sm,
@@ -178,8 +180,8 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
               style={{
                 padding: `${theme.spacing.xs} ${theme.spacing.md}`,
                 backgroundColor: theme.colors.primary.main,
-                color: '#fff',
-                border: 'none',
+                color: COLOR_WHITE,
+                border: STRING_NONE,
                 borderRadius: theme.borderRadius.sm,
                 cursor: 'pointer',
               }}

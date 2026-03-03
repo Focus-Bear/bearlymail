@@ -112,7 +112,7 @@ export const plainTextToHtml = (text: string): string => {
   }
   const paragraphs = text.split(/\n\n+/);
   return paragraphs
-    .map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`)
+    .map(para => `<p>${para.replace(/\n/g, '<br>')}</p>`)
     .join('');
 };
 

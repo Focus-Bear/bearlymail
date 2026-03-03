@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 import { BulkActionButton } from 'components/inbox/bulk/BulkActionButton';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
 
 interface BulkOperationsBarProps {
   selectedCount: number;
@@ -24,7 +25,7 @@ export const BulkOperationsBar: React.FC<BulkOperationsBarProps> = ({
       top: 0,
       zIndex: 100,
       backgroundColor: theme.colors.secondary.dark,
-      color: 'white',
+      color: COLOR_NAMED_WHITE,
       padding: theme.spacing.md,
       borderRadius: theme.borderRadius.md,
       margin: theme.spacing.md,

@@ -53,7 +53,8 @@ export const LandingFooter: React.FC = () => {
           flexWrap: 'wrap',
         }}
       >
-        <a
+        <button
+          type='button'
           onClick={() => navigate('/privacy')}
           style={linkStyle}
           onMouseEnter={(e) => {
@@ -64,9 +65,10 @@ export const LandingFooter: React.FC = () => {
           }}
         >
           {t('consent.privacyPolicy')}
-        </a>
+        </button>
         <span style={{ color: theme.colors.text.secondary, fontSize }}>•</span>
-        <a
+        <button
+          type='button'
           onClick={() => navigate('/terms')}
           style={linkStyle}
           onMouseEnter={(e) => {
@@ -77,7 +79,7 @@ export const LandingFooter: React.FC = () => {
           }}
         >
           {t('consent.termsOfUse')}
-        </a>
+        </button>
       </div>
     </footer>
   );

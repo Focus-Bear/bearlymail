@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { SUBJECT_PREVIEW_LENGTH } from 'constants/numbers';
 import { API_URL } from 'config/api';
+import { COLOR_TRANSPARENT } from 'constants/colors';
+import { PRIORITY_LEVEL_HIGH, PRIORITY_LEVEL_LOW, STRING_NONE } from 'constants/strings';
 
 interface RecentEmail {
   id: string;
@@ -66,9 +68,9 @@ const renderFormattedText = (text: string): React.ReactNode => {
 
 const getPriorityLabel = (priorityLevel: string): { label: string; emoji: string; color: string } => {
   switch (priorityLevel) {
-    case 'high':
+    case PRIORITY_LEVEL_HIGH:
       return { label: 'High Priority', emoji: '🔥', color: theme.colors.error.main };
-    case 'low':
+    case PRIORITY_LEVEL_LOW:
       return { label: 'Low Priority', emoji: '📭', color: theme.colors.text.tertiary };
     default:
       return { label: 'Standard Priority', emoji: '📬', color: theme.colors.primary.main };
@@ -103,8 +105,8 @@ export const AutoResponderEmailPreview: React.FC = () => {
         throw new Error('Failed to fetch recent emails');
       }
       
-      const data = await response.json();
-      setRecentEmails(data.emails || []);
+      const responseJson = await response.json();
+      setRecentEmails(responseJson.emails || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch recent emails');
     } finally {
@@ -133,8 +135,8 @@ export const AutoResponderEmailPreview: React.FC = () => {
         throw new Error('Failed to generate preview');
       }
       
-      const data = await response.json();
-      setPreview(data.preview);
+      const previewJson = await response.json();
+      setPreview(previewJson.preview);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate preview');
       setPreview(null);
@@ -169,6 +171,159 @@ export const AutoResponderEmailPreview: React.FC = () => {
 
   const priorityInfo = preview ? getPriorityLabel(preview.priorityLevel) : null;
 
+  const renderPreviewContent = () => {
+    if (isLoadingPreview) {
+      return (
+        <div style={{
+          padding: theme.spacing.lg,
+          textAlign: 'center',
+        }}>
+          <p style={{
+            ...theme.typography.body.medium,
+            color: theme.colors.text.tertiary,
+          }}>
+            {t('settings.autoResponder.emailPreview.generating')}
+          </p>
+        </div>
+      );
+    }
+    if (error) {
+      return (
+        <div style={{
+          padding: theme.spacing.lg,
+          textAlign: 'center',
+        }}>
+          <p style={{
+            ...theme.typography.body.medium,
+            color: theme.colors.error.main,
+          }}>
+            {error}
+          </p>
+        </div>
+      );
+    }
+    if (!preview) {
+      return null;
+    }
+    return (
+      <>
+        {/* Priority badge */}
+        {priorityInfo && (
+          <div style={{
+            padding: theme.spacing.sm,
+            backgroundColor: theme.colors.greyscale[300],
+            borderBottom: `1px solid ${theme.colors.border.light}`,
+            display: 'flex',
+            alignItems: 'center',
+            gap: theme.spacing.sm,
+          }}>
+            <span style={{
+              ...theme.typography.body.medium,
+              fontWeight: theme.typography.fontWeight.medium,
+              color: priorityInfo.color,
+            }}>
+              {priorityInfo.emoji} {priorityInfo.label}
+            </span>
+            <span style={{
+              ...theme.typography.body.small,
+              color: theme.colors.text.tertiary,
+            }}>
+              {t('settings.autoResponder.emailPreview.templateUsed', { template: preview.templateUsed })}
+            </span>
+          </div>
+        )}
+
+        {/* Subject line */}
+        <div style={{
+          padding: theme.spacing.md,
+          borderBottom: `1px solid ${theme.colors.border.light}`,
+          backgroundColor: theme.colors.greyscale[300],
+        }}>
+          <div style={{
+            ...theme.typography.body.medium,
+            color: theme.colors.text.tertiary,
+          }}>
+            {t('settings.autoResponder.preview.subject')}
+          </div>
+          <div style={{
+            ...theme.typography.body.xLarge,
+            fontWeight: theme.typography.fontWeight.medium,
+            color: theme.colors.text.primary,
+            padding: theme.spacing.xs,
+          }}>
+            {preview.subject}
+          </div>
+        </div>
+
+        {/* Email body */}
+        <div style={{
+          padding: theme.spacing.md,
+          whiteSpace: 'pre-wrap',
+          ...theme.typography.body.large,
+          color: theme.colors.text.primary,
+          lineHeight: 1.6,
+        }}>
+          {renderFormattedText(preview.body)}
+        </div>
+      </>
+    );
+  };
+
+  const renderEmailSelector = () => {
+    if (isLoadingEmails) {
+      return (
+        <p style={{
+          ...theme.typography.body.medium,
+          color: theme.colors.text.tertiary,
+        }}>
+          {t('common.loading')}
+        </p>
+      );
+    }
+    if (error && recentEmails.length === 0) {
+      return (
+        <p style={{
+          ...theme.typography.body.medium,
+          color: theme.colors.error.main,
+        }}>
+          {error}
+        </p>
+      );
+    }
+    if (recentEmails.length === 0) {
+      return (
+        <p style={{
+          ...theme.typography.body.medium,
+          color: theme.colors.text.tertiary,
+        }}>
+          {t('settings.autoResponder.emailPreview.noEmails')}
+        </p>
+      );
+    }
+    return (
+      <select
+        value={selectedEmailId || ''}
+        onChange={(e) => setSelectedEmailId(e.target.value || null)}
+        style={{
+          width: '100%',
+          padding: theme.spacing.sm,
+          borderRadius: theme.borderRadius.sm,
+          border: `1px solid ${theme.colors.border.medium}`,
+          backgroundColor: theme.colors.background.paper,
+          ...theme.typography.body.medium,
+          cursor: 'pointer',
+        }}
+      >
+        <option value="">{t('settings.autoResponder.emailPreview.selectPlaceholder')}</option>
+        {recentEmails.map((email) => (
+          <option key={email.id} value={email.id}>
+            {email.fromName || email.from} - {email.subject.slice(0, SUBJECT_PREVIEW_LENGTH)}{email.subject.length > SUBJECT_PREVIEW_LENGTH ? '...' : ''} ({formatDate(email.receivedAt)})
+          </option>
+        ))}
+      </select>
+    );
+  };
+
   return (
     <div style={{
       marginTop: theme.spacing.lg,
@@ -184,8 +339,8 @@ export const AutoResponderEmailPreview: React.FC = () => {
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: theme.spacing.md,
-          backgroundColor: 'transparent',
-          border: 'none',
+          backgroundColor: COLOR_TRANSPARENT,
+          border: STRING_NONE,
           cursor: 'pointer',
           textAlign: 'left',
         }}
@@ -226,49 +381,7 @@ export const AutoResponderEmailPreview: React.FC = () => {
               {t('settings.autoResponder.emailPreview.selectEmail')}
             </label>
             
-            {isLoadingEmails ? (
-              <p style={{
-                ...theme.typography.body.medium,
-                color: theme.colors.text.tertiary,
-              }}>
-                {t('common.loading')}
-              </p>
-            ) : error && recentEmails.length === 0 ? (
-              <p style={{
-                ...theme.typography.body.medium,
-                color: theme.colors.error.main,
-              }}>
-                {error}
-              </p>
-            ) : recentEmails.length === 0 ? (
-              <p style={{
-                ...theme.typography.body.medium,
-                color: theme.colors.text.tertiary,
-              }}>
-                {t('settings.autoResponder.emailPreview.noEmails')}
-              </p>
-            ) : (
-              <select
-                value={selectedEmailId || ''}
-                onChange={(e) => setSelectedEmailId(e.target.value || null)}
-                style={{
-                  width: '100%',
-                  padding: theme.spacing.sm,
-                  borderRadius: theme.borderRadius.sm,
-                  border: `1px solid ${theme.colors.border.medium}`,
-                  backgroundColor: theme.colors.background.paper,
-                  ...theme.typography.body.medium,
-                  cursor: 'pointer',
-                }}
-              >
-                <option value="">{t('settings.autoResponder.emailPreview.selectPlaceholder')}</option>
-                {recentEmails.map((email) => (
-                  <option key={email.id} value={email.id}>
-                    {email.fromName || email.from} - {email.subject.slice(0, SUBJECT_PREVIEW_LENGTH)}{email.subject.length > SUBJECT_PREVIEW_LENGTH ? '...' : ''} ({formatDate(email.receivedAt)})
-                  </option>
-                ))}
-              </select>
-            )}
+            {renderEmailSelector()}
           </div>
 
           {/* Preview result */}
@@ -279,92 +392,7 @@ export const AutoResponderEmailPreview: React.FC = () => {
               border: `1px solid ${theme.colors.border.light}`,
               overflow: 'hidden',
             }}>
-              {isLoadingPreview ? (
-                <div style={{
-                  padding: theme.spacing.lg,
-                  textAlign: 'center',
-                }}>
-                  <p style={{
-                    ...theme.typography.body.medium,
-                    color: theme.colors.text.tertiary,
-                  }}>
-                    {t('settings.autoResponder.emailPreview.generating')}
-                  </p>
-                </div>
-              ) : error ? (
-                <div style={{
-                  padding: theme.spacing.lg,
-                  textAlign: 'center',
-                }}>
-                  <p style={{
-                    ...theme.typography.body.medium,
-                    color: theme.colors.error.main,
-                  }}>
-                    {error}
-                  </p>
-                </div>
-              ) : preview ? (
-                <>
-                  {/* Priority badge */}
-                  {priorityInfo && (
-                    <div style={{
-                      padding: theme.spacing.sm,
-                      backgroundColor: theme.colors.greyscale[300],
-                      borderBottom: `1px solid ${theme.colors.border.light}`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: theme.spacing.sm,
-                    }}>
-                      <span style={{
-                        ...theme.typography.body.medium,
-                        fontWeight: theme.typography.fontWeight.medium,
-                        color: priorityInfo.color,
-                      }}>
-                        {priorityInfo.emoji} {priorityInfo.label}
-                      </span>
-                      <span style={{
-                        ...theme.typography.body.small,
-                        color: theme.colors.text.tertiary,
-                      }}>
-                        {t('settings.autoResponder.emailPreview.templateUsed', { template: preview.templateUsed })}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Subject line */}
-                  <div style={{
-                    padding: theme.spacing.md,
-                    borderBottom: `1px solid ${theme.colors.border.light}`,
-                    backgroundColor: theme.colors.greyscale[300],
-                  }}>
-                    <div style={{
-                      ...theme.typography.body.medium,
-                      color: theme.colors.text.tertiary,
-                    }}>
-                      {t('settings.autoResponder.preview.subject')}
-                    </div>
-                    <div style={{
-                      ...theme.typography.body.xLarge,
-                      fontWeight: theme.typography.fontWeight.medium,
-                      color: theme.colors.text.primary,
-                      padding: theme.spacing.xs,
-                    }}>
-                      {preview.subject}
-                    </div>
-                  </div>
-
-                  {/* Email body */}
-                  <div style={{
-                    padding: theme.spacing.md,
-                    whiteSpace: 'pre-wrap',
-                    ...theme.typography.body.large,
-                    color: theme.colors.text.primary,
-                    lineHeight: 1.6,
-                  }}>
-                    {renderFormattedText(preview.body)}
-                  </div>
-                </>
-              ) : null}
+              {renderPreviewContent()}
             </div>
           )}
 

@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { EMOJI_WRENCH, EMOJI_WARNING } from 'constants/emojis';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
+import { COLOR_BG_ERROR_ALT, COLOR_NAMED_RED, COLOR_NAMED_WHITE, COLOR_SUCCESS_WEB } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface OrphanEmail {
   id: string;
@@ -45,15 +47,15 @@ export const OrphanEmailList: React.FC<OrphanEmailListProps> = ({
         }}
       >
         {/* eslint-disable-next-line i18next/no-literal-string */}
-        <h5 style={{ margin: 0, color: 'red' }}>{EMOJI_WARNING} {t('debug.orphan.title')}</h5>
+        <h5 style={{ margin: 0, color: COLOR_NAMED_RED }}>{EMOJI_WARNING} {t('debug.orphan.title')}</h5>
         <button
           onClick={onFixOrphans}
           disabled={fixingOrphans}
           style={{
             padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-            backgroundColor: '#28a745',
-            color: 'white',
-            border: 'none',
+            backgroundColor: COLOR_SUCCESS_WEB,
+            color: COLOR_NAMED_WHITE,
+            border: STRING_NONE,
             borderRadius: theme.borderRadius.sm,
             cursor: fixingOrphans ? 'not-allowed' : 'pointer',
             opacity: fixingOrphans ? OPACITY_DISABLED : OPACITY_FULL,
@@ -68,7 +70,7 @@ export const OrphanEmailList: React.FC<OrphanEmailListProps> = ({
           key={getOrphanEmailKey(email, index)}
           style={{
             padding: theme.spacing.sm,
-            backgroundColor: '#FFE6E6',
+            backgroundColor: COLOR_BG_ERROR_ALT,
             border: '1px solid #F5C6CB',
             borderRadius: theme.borderRadius.sm,
             marginBottom: theme.spacing.xs,

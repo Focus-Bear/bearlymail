@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
 import { OPACITY_DISABLED } from 'constants/numbers';
+import { CATEGORY_OTHER, KEY_ESCAPE, KEY_Y, STRING_NONE } from 'constants/strings';
 import { Email, getEmailPriorityScore } from 'types/email';
 import { ArchiveConfirmationToast } from 'components/inbox/ArchiveConfirmationToast';
 
@@ -78,7 +79,7 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
   // Use summary count when available (shows accurate count even before emails are loaded)
   const emailCount = count !== undefined ? count : emails.length;
   const emailIds = emails.map(e => e.id);
-  const isOtherCategory = category === 'Other';
+  const isOtherCategory = category === CATEGORY_OTHER;
 
   const handleEditCategoryClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -114,10 +115,10 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
     if (!showArchiveConfirmation) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'y' || e.key === 'Y') {
+      if (e.key.toLowerCase() === KEY_Y) {
         e.stopPropagation();
         handleConfirmArchive();
-      } else if (e.key === 'Escape') {
+      } else if (e.key === KEY_ESCAPE) {
         e.stopPropagation();
         handleCancelArchive();
       }
@@ -195,7 +196,7 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
             style={{
               padding: theme.spacing.xs,
               borderRadius: theme.borderRadius.sm,
-              border: 'none',
+              border: STRING_NONE,
               backgroundColor: isPencilHovered ? theme.colors.interactive.hover : 'transparent',
               color: theme.colors.text.secondary,
               fontSize: theme.typography.fontSize.sm,
@@ -218,7 +219,7 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
               style={{
                 padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
                 borderRadius: theme.borderRadius.sm,
-                border: 'none',
+                border: STRING_NONE,
                 backgroundColor: isReanalyseHovered ? theme.colors.interactive.hover : 'transparent',
                 color: isReanalysingOther ? theme.colors.text.disabled : theme.colors.text.tertiary,
                 fontSize: theme.typography.fontSize.sm,
@@ -250,7 +251,7 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
               style={{
                 padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
                 borderRadius: theme.borderRadius.sm,
-                border: 'none',
+                border: STRING_NONE,
                 backgroundColor: isArchiveAllHovered ? theme.colors.interactive.hover : 'transparent',
                 color: theme.colors.text.tertiary,
                 fontSize: theme.typography.fontSize.sm,
@@ -323,7 +324,7 @@ export const groupEmailsByCategory = (emails: Email[]): CategoryGroup[] => {
   const categoryMap = new Map<string, Email[]>();
 
   emails.forEach(email => {
-    const category = email.category || 'Other';
+    const category = email.category || CATEGORY_OTHER;
     if (!categoryMap.has(category)) {
       categoryMap.set(category, []);
     }

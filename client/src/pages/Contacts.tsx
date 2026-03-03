@@ -15,6 +15,7 @@ import { ContactTypeBadge } from 'components/crm/ContactTypeBadge';
 
 import { API_URL } from 'config/api';
 import { EMOJI_MENU } from 'constants/emojis';
+import { STRING_CENTER, STRING_FLEX, STRING_FIXED, STRING_COVER, STRING_SPACE_BETWEEN, STRING_HIDDEN, STRING_AUTO, STRING_TRANSPARENT, STRING_WHITE, STRING_NONE, STRING_POINTER, STRING_DEFAULT, STRING_NOWRAP, STRING_ELLIPSIS } from 'constants/strings';
 
 const Contacts: React.FC = () => {
   const navigate = useNavigate();
@@ -118,9 +119,9 @@ const Contacts: React.FC = () => {
       fetchContacts();
     });
 
-    channel.bind('contacts-sync-failed', (data: { error: string }) => {
+    channel.bind('contacts-sync-failed', (eventData: { error: string }) => {
       setSyncing(false);
-      setError(data.error);
+      setError(eventData.error);
     });
 
     return () => {
@@ -170,9 +171,9 @@ const Contacts: React.FC = () => {
 
   return (
     <div style={{
-      display: 'flex',
+      display: STRING_FLEX,
       height: '100vh',
-      overflow: 'hidden',
+      overflow: STRING_HIDDEN,
     }}>
       <Sidebar
         user={user}
@@ -193,7 +194,7 @@ const Contacts: React.FC = () => {
           <button
             onClick={openMobileMenu}
             style={{
-              position: 'fixed',
+              position: STRING_FIXED,
               top: theme.spacing.md,
               left: theme.spacing.md,
               width: '48px',
@@ -201,10 +202,10 @@ const Contacts: React.FC = () => {
               borderRadius: '50%',
               border: `1px solid ${theme.colors.border.medium}`,
               backgroundColor: theme.colors.background.paper,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              cursor: STRING_POINTER,
+              display: STRING_FLEX,
+              alignItems: STRING_CENTER,
+              justifyContent: STRING_CENTER,
               fontSize: '1.5rem',
               transition: theme.transitions.fast,
               boxShadow: theme.shadows.md,
@@ -218,12 +219,12 @@ const Contacts: React.FC = () => {
 
         <div style={{
           maxWidth: '900px',
-          margin: '0 auto',
+          margin: STRING_AUTO,
         }}>
           <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
+            display: STRING_FLEX,
+            justifyContent: STRING_SPACE_BETWEEN,
+            alignItems: STRING_CENTER,
             marginBottom: theme.spacing.lg,
           }}>
             <h1 style={{
@@ -240,10 +241,10 @@ const Contacts: React.FC = () => {
               style={{
                 padding: `${theme.spacing.sm} ${theme.spacing.md}`,
                 backgroundColor: theme.colors.primary.main,
-                color: 'white',
-                border: 'none',
+                color: STRING_WHITE,
+                border: STRING_NONE,
                 borderRadius: theme.borderRadius.md,
-                cursor: syncing ? 'not-allowed' : 'pointer',
+                cursor: syncing ? 'not-allowed' : STRING_POINTER,
                 fontSize: theme.typography.fontSize.sm,
                 fontWeight: theme.typography.fontWeight.medium,
                 opacity: syncing ? OPACITY_DISABLED : OPACITY_FULL,
@@ -268,7 +269,7 @@ const Contacts: React.FC = () => {
               border: `1px solid ${theme.colors.border.medium}`,
               borderRadius: theme.borderRadius.md,
               fontSize: theme.typography.fontSize.base,
-              outline: 'none',
+              outline: STRING_NONE,
               backgroundColor: theme.colors.background.paper,
             }}
           />
@@ -277,7 +278,7 @@ const Contacts: React.FC = () => {
         {error && (
           <div style={{
             padding: theme.spacing.md,
-            backgroundColor: theme.colors.accent.error + '20',
+            backgroundColor: `${theme.colors.accent.error}20`,
             borderRadius: theme.borderRadius.md,
             color: theme.colors.accent.error,
             marginBottom: theme.spacing.lg,
@@ -286,17 +287,19 @@ const Contacts: React.FC = () => {
           </div>
         )}
 
-        {loading || searching ? (
+        {(() => {
+          if (loading || searching) return (
           <div style={{
-            textAlign: 'center',
+            textAlign: STRING_CENTER,
             padding: theme.spacing.xl,
             color: theme.colors.text.secondary,
           }}>
             {t('contacts.loading')}
           </div>
-        ) : filteredContacts.length === 0 ? (
+          );
+          if (filteredContacts.length === 0) return (
           <div style={{
-            textAlign: 'center',
+            textAlign: STRING_CENTER,
             padding: theme.spacing.xl,
             backgroundColor: theme.colors.background.paper,
             borderRadius: theme.borderRadius.lg,
@@ -330,10 +333,10 @@ const Contacts: React.FC = () => {
                 style={{
                   padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
                   backgroundColor: theme.colors.primary.main,
-                  color: 'white',
-                  border: 'none',
+                  color: STRING_WHITE,
+                  border: STRING_NONE,
                   borderRadius: theme.borderRadius.md,
-                  cursor: syncing ? 'not-allowed' : 'pointer',
+                  cursor: syncing ? 'not-allowed' : STRING_POINTER,
                   fontSize: theme.typography.fontSize.base,
                   fontWeight: theme.typography.fontWeight.medium,
                   opacity: syncing ? OPACITY_DISABLED : OPACITY_FULL,
@@ -343,7 +346,8 @@ const Contacts: React.FC = () => {
               </button>
             )}
           </div>
-        ) : (
+          );
+          return (
           <div style={{
             backgroundColor: theme.colors.background.paper,
             borderRadius: theme.borderRadius.lg,
@@ -366,21 +370,21 @@ const Contacts: React.FC = () => {
                     key={contact.id || contact.email}
                     onClick={() => contact.id && navigate(`/crm/contacts/${contact.id}`)}
                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
+                      display: STRING_FLEX,
+                      alignItems: STRING_CENTER,
                       padding: theme.spacing.md,
                       borderBottom: index < filteredContacts.length - 1
                         ? `1px solid ${theme.colors.border.light}`
-                        : 'none',
+                        : STRING_NONE,
                       gap: theme.spacing.md,
-                      cursor: contact.id ? 'pointer' : 'default',
+                      cursor: contact.id ? STRING_POINTER : STRING_DEFAULT,
                       transition: theme.transitions.fast,
                     }}
                     onMouseEnter={(e) => {
                       if (contact.id) e.currentTarget.style.backgroundColor = theme.colors.background.default;
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = 'transparent';
+                      e.currentTarget.style.backgroundColor = STRING_TRANSPARENT;
                     }}
                   >
                     {contact.photoUrl ? (
@@ -391,7 +395,7 @@ const Contacts: React.FC = () => {
                           width: '40px',
                           height: '40px',
                           borderRadius: '50%',
-                          objectFit: 'cover',
+                          objectFit: STRING_COVER,
                         }}
                       />
                     ) : (
@@ -401,9 +405,9 @@ const Contacts: React.FC = () => {
                           height: '40px',
                           borderRadius: '50%',
                           backgroundColor: theme.colors.primary.subtle,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
+                          display: STRING_FLEX,
+                          alignItems: STRING_CENTER,
+                          justifyContent: STRING_CENTER,
                           color: theme.colors.primary.main,
                           fontSize: theme.typography.fontSize.lg,
                           fontWeight: theme.typography.fontWeight.semibold,
@@ -415,17 +419,17 @@ const Contacts: React.FC = () => {
                     )}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
+                        display: STRING_FLEX,
+                        alignItems: STRING_CENTER,
                         gap: theme.spacing.sm,
                       }}>
                         <span style={{
                           color: theme.colors.text.primary,
                           fontSize: theme.typography.fontSize.base,
                           fontWeight: theme.typography.fontWeight.medium,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
+                          overflow: STRING_HIDDEN,
+                          textOverflow: STRING_ELLIPSIS,
+                          whiteSpace: STRING_NOWRAP,
                         }}>
                           {contact.name || contact.email}
                         </span>
@@ -441,9 +445,9 @@ const Contacts: React.FC = () => {
                         <div style={{
                           color: theme.colors.text.secondary,
                           fontSize: theme.typography.fontSize.sm,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
+                          overflow: STRING_HIDDEN,
+                          textOverflow: STRING_ELLIPSIS,
+                          whiteSpace: STRING_NOWRAP,
                         }}>
                           {contact.email}
                         </div>
@@ -453,7 +457,7 @@ const Contacts: React.FC = () => {
                       <div style={{
                         color: theme.colors.text.tertiary,
                         fontSize: theme.typography.fontSize.sm,
-                        whiteSpace: 'nowrap',
+                        whiteSpace: STRING_NOWRAP,
                       }}>
                         {contact.company}
                       </div>
@@ -463,7 +467,8 @@ const Contacts: React.FC = () => {
               })}
             </div>
           </div>
-        )}
+            );
+          })()}
         </div>
       </div>
     </div>

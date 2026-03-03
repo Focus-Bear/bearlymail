@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 import axios from 'axios';
 
 import { API_URL } from 'config/api';
+import { SORT_ASC, SORT_DESC, TYPEOF_STRING } from 'constants/strings';
 
 interface JobStat {
   jobType: string;
@@ -82,10 +83,10 @@ export const JobsSection: React.FC = () => {
 
   const handleSort = (column: SortColumn) => {
     if (sortColumn === column) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+      setSortDirection(sortDirection === SORT_ASC ? SORT_DESC : SORT_ASC);
     } else {
       setSortColumn(column);
-      setSortDirection('asc');
+      setSortDirection(SORT_ASC);
     }
   };
 
@@ -94,16 +95,16 @@ export const JobsSection: React.FC = () => {
       let aValue: string | number | null = a[sortColumn];
       let bValue: string | number | null = b[sortColumn];
 
-      if (aValue === null) aValue = sortDirection === 'asc' ? Infinity : -Infinity;
-      if (bValue === null) bValue = sortDirection === 'asc' ? Infinity : -Infinity;
+      if (aValue === null) aValue = sortDirection === SORT_ASC ? Infinity : -Infinity;
+      if (bValue === null) bValue = sortDirection === SORT_ASC ? Infinity : -Infinity;
 
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return sortDirection === 'asc'
+      if (typeof aValue === TYPEOF_STRING && typeof bValue === TYPEOF_STRING) {
+        return sortDirection === SORT_ASC
           ? aValue.localeCompare(bValue)
           : bValue.localeCompare(aValue);
       }
 
-      if (sortDirection === 'asc') {
+      if (sortDirection === SORT_ASC) {
         return (aValue as number) - (bValue as number);
       }
       return (bValue as number) - (aValue as number);
@@ -112,7 +113,7 @@ export const JobsSection: React.FC = () => {
 
   const getSortIndicator = (column: SortColumn): string => {
     if (sortColumn !== column) return '';
-    return sortDirection === 'asc' ? ' ▲' : ' ▼';
+    return sortDirection === SORT_ASC ? ' ▲' : ' ▼';
   };
 
   const headerStyle = (isFirst: boolean, isLast: boolean): React.CSSProperties => ({

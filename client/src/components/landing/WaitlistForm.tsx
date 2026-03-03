@@ -8,6 +8,8 @@ import { WaitlistFormHeader } from 'components/landing/WaitlistFormHeader';
 import { WaitlistFormField } from 'components/landing/WaitlistFormField';
 import { captureEvent } from 'utils/posthog';
 import { API_URL } from 'config/api';
+import { PROVIDER_GMAIL, PROVIDER_OTHER, PROVIDER_OUTLOOK, PROVIDER_ZOHO, STRING_NONE } from 'constants/strings';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
 
 interface WaitlistFormProps {
   /**
@@ -33,10 +35,10 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
 
   const emailSystemOptions = [
     { value: '', label: t('landing.waitlist.emailSystemPlaceholder') },
-    { value: 'gmail', label: t('landing.waitlist.emailSystemGmail') },
-    { value: 'outlook', label: t('landing.waitlist.emailSystemOutlook') },
-    { value: 'zoho', label: t('landing.waitlist.emailSystemZoho') },
-    { value: 'other', label: t('landing.waitlist.emailSystemOther') },
+    { value: PROVIDER_GMAIL, label: t('landing.waitlist.emailSystemGmail') },
+    { value: PROVIDER_OUTLOOK, label: t('landing.waitlist.emailSystemOutlook') },
+    { value: PROVIDER_ZOHO, label: t('landing.waitlist.emailSystemZoho') },
+    { value: PROVIDER_OTHER, label: t('landing.waitlist.emailSystemOther') },
   ];
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -50,7 +52,7 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
         firstName,
         reason,
         emailSystem,
-        emailSystemOther: emailSystem === 'other' ? emailSystemOther : undefined,
+        emailSystemOther: emailSystem === PROVIDER_OTHER ? emailSystemOther : undefined,
       });
       captureEvent('wait-list-submitted');
       onSuccess();
@@ -65,8 +67,8 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
     width: '100%',
     padding: isMobile ? theme.spacing.md : theme.spacing.lg,
     backgroundColor: submitting ? theme.colors.border.dark : theme.colors.primary.main,
-    color: 'white',
-    border: 'none',
+    color: COLOR_NAMED_WHITE,
+    border: STRING_NONE,
     borderRadius: theme.borderRadius.md,
     fontSize: theme.typography.fontSize.base,
     fontWeight: theme.typography.fontWeight.semibold,
@@ -147,7 +149,7 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
                                         fontSize: theme.typography.fontSize.base,
                                         boxSizing: 'border-box',
                                         fontFamily: theme.typography.fontFamily,
-                                        backgroundColor: 'white',
+                                        backgroundColor: COLOR_NAMED_WHITE,
                                       }}
                                     >
                                       {emailSystemOptions.map((option) => (
@@ -158,7 +160,7 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
                                     </select>
                 </div>
 
-                                {emailSystem === 'other' && (
+                                 {emailSystem === PROVIDER_OTHER && (
                                   <WaitlistFormField
                                     label={t('landing.waitlist.emailSystemOtherLabel')}
                                     type="text"

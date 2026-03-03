@@ -2,6 +2,8 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { EmailCardSnoozeInput } from 'components/inbox/email-card/EmailCardSnoozeInput';
+import { COLOR_TRANSPARENT } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface EmailCardActionsProps {
   isStarred?: boolean;
@@ -39,7 +41,7 @@ export const EmailCardActions: React.FC<EmailCardActionsProps> = ({
         title={t('emailActions.toggleStar')}
         style={{
           background: 'transparent',
-          border: 'none',
+          border: STRING_NONE,
           cursor: 'pointer',
           fontSize: '1.2rem',
           padding: '0 4px',
@@ -53,7 +55,7 @@ export const EmailCardActions: React.FC<EmailCardActionsProps> = ({
         title={t('emailActions.archive')}
         style={{
           background: 'transparent',
-          border: 'none',
+          border: STRING_NONE,
           cursor: 'pointer',
           fontSize: '1.2rem',
           padding: '0 4px',
@@ -75,8 +77,8 @@ export const EmailCardActions: React.FC<EmailCardActionsProps> = ({
           onClick={onShowSnoozeInput}
           style={{
             color: theme.colors.text.tertiary,
-            backgroundColor: 'transparent',
-            border: 'none',
+            backgroundColor: COLOR_TRANSPARENT,
+            border: STRING_NONE,
             cursor: 'pointer',
             fontSize: theme.typography.fontSize.xs,
             fontWeight: theme.typography.fontWeight.medium,

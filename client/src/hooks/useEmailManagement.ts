@@ -10,6 +10,7 @@ import { AppDispatch } from 'store/store';
 import { updateEmail, setRefreshing, setEmails as setEmailsAction, setLoadingModeSwitch as setLoadingModeSwitchAction } from 'store/slices/emailSlice';
 import { selectVisibleEmails, selectLoading, selectDecrypting, selectRefreshing, selectLoadingModeSwitch, selectFetchError, selectHasMore, selectCategorySummary, selectLoadedCategoryNames, selectLoadingCategoryNames } from 'store/selectors/emailSelectors';
 import { CategorySummaryItem } from 'store/slices/emailSlice';
+import { TYPEOF_FUNCTION } from 'constants/strings';
 
 interface TabCountChanges {
   triage?: number;
@@ -151,7 +152,7 @@ export function useEmailManagement({ mode, onSuggestionRemove, onTabCountsUpdate
 
   // setEmails is kept for backward compatibility but now dispatches to Redux
   const setEmails = useCallback((action: React.SetStateAction<Email[]>) => {
-    if (typeof action === 'function') {
+    if (typeof action === TYPEOF_FUNCTION) {
       const newEmails = action(emails);
       dispatch(setEmailsAction(newEmails));
     } else {
@@ -161,7 +162,7 @@ export function useEmailManagement({ mode, onSuggestionRemove, onTabCountsUpdate
 
   // setLoadingModeSwitch is kept for backward compatibility
   const setLoadingModeSwitch = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
-    if (typeof value === 'function') {
+    if (typeof value === TYPEOF_FUNCTION) {
       dispatch(setLoadingModeSwitchAction(value(loadingModeSwitch)));
     } else {
       dispatch(setLoadingModeSwitchAction(value));

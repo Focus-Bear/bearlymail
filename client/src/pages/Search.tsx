@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { PERCENTAGE_80, PRIORITY_HIGH_THRESHOLD, PRIORITY_MEDIUM_THRESHOLD } from 'constants/numbers';
+import { PRIORITY_HIGH_THRESHOLD, PRIORITY_MEDIUM_THRESHOLD } from 'constants/numbers';
 import { captureEvent } from 'utils/posthog';
 import { Email } from 'types/email';
 import { useSearch } from 'hooks/useSearch';
@@ -9,6 +9,8 @@ import { SearchHeader } from 'components/search/SearchHeader';
 import { SearchForm } from 'components/search/SearchForm';
 import { SearchProgress } from 'components/search/SearchProgress';
 import { SearchResults } from 'components/search/SearchResults';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface SearchEmail extends Email {
   starCount?: number;
@@ -179,7 +181,7 @@ const Search: React.FC = () => {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            backgroundColor: theme.colors.overlay.dark,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -273,8 +275,8 @@ const Search: React.FC = () => {
                 marginTop: theme.spacing.lg,
                 padding: `${theme.spacing.sm} ${theme.spacing.md}`,
                 backgroundColor: theme.colors.primary.main,
-                color: 'white',
-                border: 'none',
+                color: COLOR_NAMED_WHITE,
+                border: STRING_NONE,
                 borderRadius: theme.borderRadius.md,
                 cursor: 'pointer',
                 fontSize: theme.typography.fontSize.base,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { MODE_ACTION, MODE_FOLLOW_UP } from 'constants/strings';
+import { MODE_ACTION, MODE_FOLLOW_UP, STRING_NONE } from 'constants/strings';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
@@ -18,6 +18,7 @@ import { ThreadLookupResult } from 'hooks/useDebugPanel';
 import { SyncHistoryEntry } from 'components/inbox/debug/DebugSyncHistorySection';
 import { CategorySummaryItem } from 'store/slices/emailSlice';
 import { DebugStarredData } from 'components/inbox/debug/types';
+import { COLOR_BG_INFO, COLOR_INFO_BLUE_LIGHT, COLOR_NAMED_WHITE } from 'constants/colors';
 
 interface DebugOrphanData {
   totalEmailsInDb: number;
@@ -132,7 +133,7 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
           width: '100%',
           padding: theme.spacing.md,
           backgroundColor: theme.colors.sunray.light3,
-          border: 'none',
+          border: STRING_NONE,
           textAlign: 'left',
           cursor: 'pointer',
           fontWeight: theme.typography.fontWeight.bold,
@@ -165,7 +166,7 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
             style={{
               marginBottom: theme.spacing.md,
               padding: theme.spacing.sm,
-              backgroundColor: '#E8F4FD',
+              backgroundColor: COLOR_INFO_BLUE_LIGHT,
               borderRadius: theme.borderRadius.sm,
               border: '1px solid #BEE5EB',
             }}
@@ -216,7 +217,7 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
             style={{
               marginBottom: theme.spacing.md,
               padding: theme.spacing.sm,
-              backgroundColor: '#FFF8E1',
+              backgroundColor: COLOR_BG_INFO,
               borderRadius: theme.borderRadius.sm,
               border: '1px solid #FFE082',
             }}
@@ -231,8 +232,8 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
                 style={{
                   padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
                   backgroundColor: theme.colors.primary.main,
-                  color: 'white',
-                  border: 'none',
+                  color: COLOR_NAMED_WHITE,
+                  border: STRING_NONE,
                   borderRadius: theme.borderRadius.sm,
                   cursor: loadingAllEmails ? 'not-allowed' : 'pointer',
                   opacity: loadingAllEmails ? OPACITY_DISABLED : OPACITY_FULL,

@@ -3,6 +3,21 @@ import { theme } from 'theme/theme';
 import { GitHubLink } from 'types/email';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
+import {
+  GITHUB_STATUS_MERGED,
+  GITHUB_STATUS_CLOSED,
+  GITHUB_STATUS_OPEN,
+  GITHUB_REVIEW_STATUS_APPROVED,
+  GITHUB_REVIEW_STATUS_CHANGES_REQUESTED,
+} from 'constants/strings';
+import {
+  COLOR_GITHUB_OPEN_BG,
+  COLOR_GITHUB_OPEN_FG,
+  COLOR_GITHUB_CLOSED_BG,
+  COLOR_GITHUB_CLOSED_FG,
+  COLOR_GITHUB_MERGED_BG,
+  COLOR_GITHUB_MERGED_FG,
+} from 'constants/colors';
 
 import { API_URL } from 'config/api';
 
@@ -12,18 +27,13 @@ interface GitHubProjectBadgesProps {
   skipFetch?: boolean;
 }
 
-const GITHUB_STATE_MERGED = 'merged';
-const GITHUB_STATE_CLOSED = 'closed';
-const GITHUB_STATE_OPEN = 'open';
 const GITHUB_TYPE_PR = 'pr';
-const REVIEW_STATUS_APPROVED = 'approved';
-const REVIEW_STATUS_CHANGES_REQUESTED = 'changes_requested';
 
 // State colors for GitHub issues/PRs
 const stateColors: Record<string, { bg: string; text: string; border: string }> = {
-  open: { bg: '#dafbe1', text: '#1a7f37', border: '#1a7f37' },
-  closed: { bg: '#ffebe9', text: '#cf222e', border: '#cf222e' },
-  merged: { bg: '#fbefff', text: '#8250df', border: '#8250df' },
+  [GITHUB_STATUS_OPEN]: { bg: COLOR_GITHUB_OPEN_BG, text: COLOR_GITHUB_OPEN_FG, border: COLOR_GITHUB_OPEN_FG },
+  [GITHUB_STATUS_CLOSED]: { bg: COLOR_GITHUB_CLOSED_BG, text: COLOR_GITHUB_CLOSED_FG, border: COLOR_GITHUB_CLOSED_FG },
+  [GITHUB_STATUS_MERGED]: { bg: COLOR_GITHUB_MERGED_BG, text: COLOR_GITHUB_MERGED_FG, border: COLOR_GITHUB_MERGED_FG },
 };
 
 // Dedupe key based on owner/repo/number (most reliable identifier)
@@ -91,23 +101,23 @@ export const GitHubProjectBadges: React.FC<GitHubProjectBadgesProps> = ({
 
   // Get display state (merged takes precedence)
   const getDisplayState = (link: GitHubLink): string => {
-    if (link.status?.merged) return GITHUB_STATE_MERGED;
-    return link.status?.state || GITHUB_STATE_OPEN;
+    if (link.status?.merged) return GITHUB_STATUS_MERGED;
+    return link.status?.state || GITHUB_STATUS_OPEN;
   };
 
   // Get state text for display
   const getStateText = (link: GitHubLink): string => {
     const state = getDisplayState(link);
-    if (state === GITHUB_STATE_MERGED) return t('github.merged', 'Merged');
-    if (state === GITHUB_STATE_CLOSED) return t('github.closed', 'Closed');
+    if (state === GITHUB_STATUS_MERGED) return t('github.merged', 'Merged');
+    if (state === GITHUB_STATUS_CLOSED) return t('github.closed', 'Closed');
     return t('github.open', 'Open');
   };
 
   // Get review status text for PRs
   const getReviewStatusText = (link: GitHubLink): string | null => {
     if (link.type !== GITHUB_TYPE_PR || !link.status?.reviewStatus) return null;
-    if (link.status.reviewStatus === REVIEW_STATUS_APPROVED) return t('github.approved');
-    if (link.status.reviewStatus === REVIEW_STATUS_CHANGES_REQUESTED) return t('github.changesRequested');
+    if (link.status.reviewStatus === GITHUB_REVIEW_STATUS_APPROVED) return t('github.approved');
+    if (link.status.reviewStatus === GITHUB_REVIEW_STATUS_CHANGES_REQUESTED) return t('github.changesRequested');
     return null;
   };
 
@@ -151,7 +161,7 @@ export const GitHubProjectBadges: React.FC<GitHubProjectBadgesProps> = ({
       }}>
         {uniqueLinks.slice(0, 2).map((link) => {
           const displayState = getDisplayState(link);
-          const stateColor = stateColors[displayState] || stateColors[GITHUB_STATE_OPEN];
+          const stateColor = stateColors[displayState] || stateColors[GITHUB_STATUS_OPEN];
           const isPR = link.type === GITHUB_TYPE_PR;
           const reviewStatus = getReviewStatusText(link);
           
@@ -203,7 +213,7 @@ export const GitHubProjectBadges: React.FC<GitHubProjectBadgesProps> = ({
               {reviewStatus && (
                 <span style={{
                   fontSize: '10px',
-                  color: link.status?.reviewStatus === REVIEW_STATUS_APPROVED
+                  color: link.status?.reviewStatus === GITHUB_REVIEW_STATUS_APPROVED
                     ? theme.colors.accent.success
                     : theme.colors.accent.warning,
                   fontWeight: theme.typography.fontWeight.medium,
@@ -238,7 +248,7 @@ export const GitHubProjectBadges: React.FC<GitHubProjectBadgesProps> = ({
             .slice(0, 2)
             .map((project, index) => (
               <div
-                key={`project-${project.name}-${index}`}
+                key={`project-${project.name}`}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',

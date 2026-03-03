@@ -271,11 +271,11 @@ export const InboxContent: React.FC<InboxContentProps> = ({
       const categoryGroups = groupEmailsByCategory(filteredEmails);
       if (categoryGroups.length > 0) {
         if (stableCategoryOrder.length === 0) {
-          onUpdateStableCategoryOrder(categoryGroups.map(g => g.category));
+          onUpdateStableCategoryOrder(categoryGroups.map(grp => grp.category));
         } else {
           const newCategories = categoryGroups
-            .filter(g => !stableCategoryOrder.includes(g.category))
-            .map(g => g.category);
+            .filter(grp => !stableCategoryOrder.includes(grp.category))
+            .map(grp => grp.category);
           if (newCategories.length > 0) {
             onUpdateStableCategoryOrder([...stableCategoryOrder, ...newCategories]);
           }
@@ -289,9 +289,9 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   // Order follows stableCategoryOrder, with new categories appended.
   // Empty categories (count=0) are excluded so they disappear after archiving all emails.
   const displayCategories = useMemo((): Array<{ name: string; count: number }> => {
-    const source = summaryCategories ?? groupEmailsByCategory(filteredEmails).map(g => ({
-      name: g.category,
-      count: g.emails.length,
+    const source = summaryCategories ?? groupEmailsByCategory(filteredEmails).map(grp => ({
+      name: grp.category,
+      count: grp.emails.length,
     }));
 
     // Filter out categories with count=0 from the source.

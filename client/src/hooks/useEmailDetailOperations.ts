@@ -164,7 +164,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     setShowCc,
     setShowBcc,
     setLoadingReplies,
-    setSending,
+
     setToneCheckResult,
     setCheckingTone,
     disputeResult,

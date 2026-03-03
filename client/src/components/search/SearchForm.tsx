@@ -1,6 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface SearchFormProps {
   query: string;
@@ -45,8 +47,8 @@ export const SearchForm: React.FC<SearchFormProps> = ({
           style={{
             padding: `${theme.spacing.md} ${theme.spacing.xl}`,
             backgroundColor: loading || !query.trim() ? theme.colors.text.tertiary : theme.colors.primary.main,
-            color: 'white',
-            border: 'none',
+            color: COLOR_NAMED_WHITE,
+            border: STRING_NONE,
             borderRadius: theme.borderRadius.md,
             cursor: loading || !query.trim() ? 'not-allowed' : 'pointer',
             fontSize: theme.typography.fontSize.base,

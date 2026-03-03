@@ -1,10 +1,8 @@
 import React, { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-
-interface FileWithPreview extends File {
-  preview?: string;
-}
+import { COLOR_TRANSPARENT } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface ReplyComposerAttachmentsProps {
   files: File[];
@@ -19,7 +17,7 @@ const formatFileSize = (bytes: number): string => {
   const k = 1024;
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+  return `${Math.round((bytes / Math.pow(k, i)) * 100) / 100} ${sizes[i]}`;
 };
 
 /**
@@ -68,7 +66,7 @@ export const ReplyComposerAttachments: React.FC<ReplyComposerAttachmentsProps> =
         onClick={handleAttachClick}
         style={{
           padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-          backgroundColor: 'transparent',
+          backgroundColor: COLOR_TRANSPARENT,
           color: theme.colors.primary.main,
           border: `1px solid ${theme.colors.primary.light}`,
           borderRadius: theme.borderRadius.sm,
@@ -86,9 +84,9 @@ export const ReplyComposerAttachments: React.FC<ReplyComposerAttachmentsProps> =
 
       {files.length > 0 && (
         <div style={{ marginTop: theme.spacing.sm, display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}>
-          {files.map((file, index) => (
+          {files.map((file) => (
             <div
-              key={index}
+              key={file.name}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -129,9 +127,9 @@ export const ReplyComposerAttachments: React.FC<ReplyComposerAttachmentsProps> =
                 onClick={() => handleRemoveFile(index)}
                 style={{
                   padding: `${theme.spacing.xs} ${theme.spacing.xs}`,
-                  backgroundColor: 'transparent',
+                  backgroundColor: COLOR_TRANSPARENT,
                   color: theme.colors.text.secondary,
-                  border: 'none',
+                  border: STRING_NONE,
                   borderRadius: theme.borderRadius.sm,
                   cursor: 'pointer',
                   fontSize: theme.typography.fontSize.sm,

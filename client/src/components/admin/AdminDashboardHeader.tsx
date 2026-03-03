@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { STRING_NONE } from 'constants/strings';
 
 interface AdminDashboardHeaderProps {
   onLogout: () => void;
@@ -36,7 +37,7 @@ export const AdminDashboardHeader: React.FC<AdminDashboardHeaderProps> = ({ onLo
           onClick={() => navigate('/inbox')}
           style={{
             padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-            backgroundColor: 'transparent',
+            backgroundColor: theme.colors.common.transparent,
             color: theme.colors.text.secondary,
             border: `1px solid ${theme.colors.border.medium}`,
             borderRadius: theme.borderRadius.md,
@@ -50,8 +51,8 @@ export const AdminDashboardHeader: React.FC<AdminDashboardHeaderProps> = ({ onLo
           style={{
             padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
             backgroundColor: theme.colors.accent.error,
-            color: 'white',
-            border: 'none',
+            color: theme.colors.common.white,
+            border: STRING_NONE,
             borderRadius: theme.borderRadius.md,
             cursor: 'pointer',
           }}

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { TimeSuggestion } from 'hooks/useScheduledEmails';
+import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 const OPACITY_DISABLED = 0.5;
 const WARNING_ICON = '⚠️';
@@ -108,8 +110,8 @@ export const TimePicker: React.FC<TimePickerProps> = ({
                   marginTop: theme.spacing.sm,
                   padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
                   backgroundColor: theme.colors.primary.main,
-                  color: 'white',
-                  border: 'none',
+                  color: COLOR_NAMED_WHITE,
+                  border: STRING_NONE,
                   borderRadius: theme.borderRadius.sm,
                   cursor: 'pointer',
                   fontSize: theme.typography.fontSize.sm,
@@ -163,7 +165,7 @@ export const TimePicker: React.FC<TimePickerProps> = ({
             onClick={() => setShowCustom(!showCustom)}
             style={{
               padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-              backgroundColor: 'transparent',
+              backgroundColor: COLOR_TRANSPARENT,
               border: `1px solid ${theme.colors.border.medium}`,
               borderRadius: theme.borderRadius.md,
               cursor: 'pointer',
@@ -214,8 +216,8 @@ export const TimePicker: React.FC<TimePickerProps> = ({
               style={{
                 padding: `${theme.spacing.sm} ${theme.spacing.md}`,
                 backgroundColor: theme.colors.primary.main,
-                color: 'white',
-                border: 'none',
+                color: COLOR_NAMED_WHITE,
+                border: STRING_NONE,
                 borderRadius: theme.borderRadius.md,
                 cursor: customDate && customTime ? 'pointer' : 'not-allowed',
                 opacity: customDate && customTime ? 1 : OPACITY_DISABLED,

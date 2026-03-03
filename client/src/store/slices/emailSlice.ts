@@ -1,12 +1,13 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { Email, getEmailPriorityScore } from 'types/email';
+import { ANIMATION_TYPE_ARCHIVE, ANIMATION_TYPE_PRIORITY, CATEGORY_OTHER, TYPEOF_STRING } from 'constants/strings';
 
 // Threshold for considering priority scores "equal" (matches backend RATIOS.TINY)
 const PRIORITY_SCORE_TINY_THRESHOLD = 0.01;
 
 export interface AnimatingOutItem {
   id: string;
-  type: 'archive' | 'priority';
+  type: typeof ANIMATION_TYPE_ARCHIVE | typeof ANIMATION_TYPE_PRIORITY;
 }
 
 export interface CategorySummaryItem {
@@ -75,7 +76,7 @@ const emailSlice = createSlice({
      */
     updateCategoryEmails: (state, action: PayloadAction<{ categoryName: string; emails: Email[] }>) => {
       const { categoryName, emails } = action.payload;
-      const isOther = categoryName === 'Other';
+      const isOther = categoryName === CATEGORY_OTHER;
       const incomingIds = new Set(emails.map(e => e.id));
       // Remove emails that previously belonged to this category AND any emails
       // whose ID matches an incoming email (they may have been loaded under a
@@ -83,7 +84,7 @@ const emailSlice = createSlice({
       state.emails = state.emails.filter(e => {
         if (incomingIds.has(e.id)) return false;
         if (isOther) {
-          return e.category !== null && e.category !== undefined && e.category !== '' && e.category !== 'Other';
+          return e.category !== null && e.category !== undefined && e.category !== '' && e.category !== CATEGORY_OTHER;
         }
         return e.category !== categoryName;
       });
@@ -197,7 +198,7 @@ const emailSlice = createSlice({
       state.loadingCategoryNames = [];
     },
     decrementCategorySummaryCount: (state, action: PayloadAction<string | { categoryName: string; count: number }>) => {
-      const { categoryName, count } = typeof action.payload === 'string'
+      const { categoryName, count } = typeof action.payload === TYPEOF_STRING
         ? { categoryName: action.payload, count: 1 }
         : action.payload;
       if (state.categorySummary) {
@@ -208,7 +209,7 @@ const emailSlice = createSlice({
       }
     },
     incrementCategorySummaryCount: (state, action: PayloadAction<string | { categoryName: string; count: number }>) => {
-      const { categoryName, count } = typeof action.payload === 'string'
+      const { categoryName, count } = typeof action.payload === TYPEOF_STRING
         ? { categoryName: action.payload, count: 1 }
         : action.payload;
       if (state.categorySummary) {

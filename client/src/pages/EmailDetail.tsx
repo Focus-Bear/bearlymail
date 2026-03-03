@@ -23,8 +23,48 @@ import { EmailThreadView } from 'components/email-detail/EmailThreadView';
 import { CustomRuleModal } from 'components/email-detail/CustomRuleModal';
 import { TimePicker } from 'components/compose/TimePicker';
 import { Email } from 'types/email';
-import { ACTION_TYPE_CUSTOM, SUMMARY_TYPE_CUSTOM, SUMMARY_TYPE_CUSTOM_PREFIX } from 'constants/strings';
-import { AUTO_SAVE_INTERVAL_MS } from 'constants/numbers';
+import {
+  ACTION_TYPE_CUSTOM,
+  SUMMARY_TYPE_CUSTOM,
+  SUMMARY_TYPE_CUSTOM_PREFIX,
+  ALERT_THREAD_ID_COPIED,
+  DEBUG_INFO_TITLE,
+  DEBUG_LABEL_GMAIL_MESSAGE_ID,
+  DEBUG_LABEL_GMAIL_THREAD_ID,
+  DEBUG_LABEL_LABELS,
+  DEBUG_LABEL_LABELS_COUNT,
+  DEBUG_LABEL_RECEIVED_AT,
+  DEBUG_LABEL_IS_READ,
+  DEBUG_LABEL_IS_ARCHIVED,
+  DEBUG_LABEL_STAR_COUNT,
+  DEBUG_LABEL_THREAD_EMAILS,
+  DEBUG_LABEL_MSG_ID,
+  DEBUG_LABEL_RECEIVED,
+  STRING_NA,
+  STRING_COPY,
+  STRING_EMPTY_ARRAY,
+  EVENT_EMAIL_DETAIL_VIEWED,
+  PROP_EMAIL_ID,
+  STYLE_100VH,
+  STRING_HIDDEN,
+  STYLE_GAP_8PX,
+  STYLE_PADDING_2PX_6PX,
+  STYLE_PADDING_2PX_8PX,
+  STYLE_FONT_SIZE_11PX,
+  STYLE_RADIUS_4PX,
+  STRING_TRUE_TEXT,
+  STRING_FALSE_TEXT,
+  STRING_RELATIVE,
+  STYLE_MAX_WIDTH_900PX,
+  STYLE_MARGIN_0_AUTO,
+  STRING_SMOOTH,
+  STRING_START,
+  STRING_REPLY,
+  STRING_REPLY_ALL,
+  STRING_FORWARD,
+  STRING_MONOSPACE,
+} from 'constants/strings';
+import { AUTO_SAVE_INTERVAL_MS, FONT_WEIGHT_SEMIBOLD } from 'constants/numbers';
 import { useScheduledEmails } from 'hooks/useScheduledEmails';
 
 interface EmailDetailProps {
@@ -38,7 +78,7 @@ interface EmailDetailProps {
 
 // Methods exposed via ref for external control (e.g., from SplitViewPanel header)
 export interface EmailDetailRef {
-  openReplyComposer: (mode?: 'reply' | 'replyAll' | 'forward') => void;
+  openReplyComposer: (mode?: typeof STRING_REPLY | typeof STRING_REPLY_ALL | typeof STRING_FORWARD) => void;
   archive: () => void;
   snooze: (duration: string) => void;
   setStarCount: (count: number) => void;
@@ -99,8 +139,6 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
     checkingTone,
     disputing,
     disputeResult,
-    snoozeInput,
-    showSnoozeInput,
     priorityExplanation,
     showPriorityExplanation,
     githubLinks,
@@ -134,8 +172,6 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
     setShowCc,
     setShowBcc,
     setToneCheckResult,
-    setSnoozeInput,
-    setShowSnoozeInput,
     setShowPriorityExplanation,
     setShowQuickActionsMenu,
     setSelectedAction,
@@ -209,11 +245,11 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
 
   // Expose methods via ref for external control (e.g., SplitViewPanel header actions)
   useImperativeHandle(ref, () => ({
-    openReplyComposer: (mode: 'reply' | 'replyAll' | 'forward' = 'reply') => {
+    openReplyComposer: (mode: typeof STRING_REPLY | typeof STRING_REPLY_ALL | typeof STRING_FORWARD = STRING_REPLY) => {
       handleOpenReplyComposer(mode);
       // Scroll to reply composer and focus the textarea after a short delay to ensure it's mounted
       setTimeout(() => {
-        replyComposerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        replyComposerRef.current?.scrollIntoView({ behavior: STRING_SMOOTH, block: STRING_START });
         replyTextareaRef.current?.focus();
       }, 100);
     },
@@ -262,7 +298,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
 
   useEffect(() => {
     if (id && email) {
-      captureEvent('email_detail_viewed', { email_id: id });
+      captureEvent(EVENT_EMAIL_DETAIL_VIEWED, { [PROP_EMAIL_ID]: id });
     }
   }, [id, email]);
 
@@ -396,7 +432,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        height: '100vh',
+        height: STYLE_100VH,
         backgroundColor: theme.colors.background.default,
         color: theme.colors.text.secondary,
       }}>
@@ -436,15 +472,15 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
       
       <div style={{
         backgroundColor: theme.colors.background.paper,
-        borderRadius: compactMode ? 0 : (isMobile ? theme.borderRadius.md : theme.borderRadius.xl),
-        padding: compactMode
-          ? `${theme.spacing.xs} ${theme.spacing.sm}`
-          : isMobile
-            ? `${theme.spacing.md} ${theme.spacing.sm}`
-            : theme.spacing['2xl'],
-        paddingTop: compactMode ? theme.spacing.xs : (isMobile ? theme.spacing.md : theme.spacing['2xl']),
+        borderRadius: (() => { if (compactMode) return 0; return isMobile ? theme.borderRadius.md : theme.borderRadius.xl; })(),
+        padding: (() => {
+          if (compactMode) return `${theme.spacing.xs} ${theme.spacing.sm}`;
+          if (isMobile) return `${theme.spacing.md} ${theme.spacing.sm}`;
+          return theme.spacing['2xl'];
+        })(),
+        paddingTop: (() => { if (compactMode) return theme.spacing.xs; return isMobile ? theme.spacing.md : theme.spacing['2xl']; })(),
         boxShadow: compactMode ? 'none' : theme.shadows.md,
-        marginBottom: compactMode ? theme.spacing.xs : (isMobile ? theme.spacing.sm : theme.spacing.xl),
+        marginBottom: (() => { if (compactMode) return theme.spacing.xs; return isMobile ? theme.spacing.sm : theme.spacing.xl; })(),
       }}>
         <div style={{ marginBottom: theme.spacing.xl }}>
           <EmailDetailHeader
@@ -616,62 +652,62 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
                       marginTop: 0,
                       marginBottom: theme.spacing.md,
                       fontSize: theme.typography.fontSize.sm,
-                      fontWeight: 600,
+                      fontWeight: FONT_WEIGHT_SEMIBOLD,
                       color: theme.colors.text.primary,
                     }}>
-                      Debug Information (Admin Only)
+                      {DEBUG_INFO_TITLE}
                     </h3>
                     <div style={{
-                      fontFamily: 'monospace',
+                      fontFamily: STRING_MONOSPACE,
                       fontSize: theme.typography.fontSize.xs,
                       color: theme.colors.text.secondary,
                       lineHeight: 1.6,
                     }}>
-                      <div><strong>Gmail Message ID:</strong> {emailData.messageId || 'N/A'}</div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <strong>Gmail Thread ID:</strong>
+                      <div><strong>{DEBUG_LABEL_GMAIL_MESSAGE_ID}</strong> {emailData.messageId || STRING_NA}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: STYLE_GAP_8PX }}>
+                        <strong>{DEBUG_LABEL_GMAIL_THREAD_ID}</strong>
                         <code style={{
                           backgroundColor: theme.colors.primary.subtle,
-                          padding: '2px 6px',
-                          borderRadius: '4px',
-                          fontFamily: 'monospace',
+                          padding: STYLE_PADDING_2PX_6PX,
+                          borderRadius: STYLE_RADIUS_4PX,
+                          fontFamily: STRING_MONOSPACE,
                         }}>
-                          {emailData.threadId || 'N/A'}
+                          {emailData.threadId || STRING_NA}
                         </code>
                         {emailData.threadId && (
                           <button
                             onClick={() => {
                               navigator.clipboard.writeText(emailData.threadId);
-                              alert('Thread ID copied to clipboard!');
+                              alert(ALERT_THREAD_ID_COPIED);
                             }}
                             style={{
-                              padding: '2px 8px',
-                              fontSize: '11px',
+                              padding: STYLE_PADDING_2PX_8PX,
+                              fontSize: STYLE_FONT_SIZE_11PX,
                               backgroundColor: theme.colors.primary.main,
                               color: theme.colors.background.paper,
-                              border: 'none',
-                              borderRadius: '4px',
+                              border: STRING_NONE,
+                              borderRadius: STYLE_RADIUS_4PX,
                               cursor: 'pointer',
                             }}
                           >
-                            Copy
+                            {STRING_COPY}
                           </button>
                         )}
                       </div>
-                      <div><strong>Labels:</strong> {emailData.labels ? JSON.stringify(emailData.labels) : '[]'}</div>
-                      <div><strong>Labels Count:</strong> {emailData.labels?.length || 0}</div>
-                      <div><strong>Received At:</strong> {emailData.receivedAt}</div>
-                      <div><strong>Is Read:</strong> {emailData.isRead ? 'true' : 'false'}</div>
-                      <div><strong>Is Archived:</strong> {emailData.isArchived ? 'true' : 'false'}</div>
-                      <div><strong>Star Count:</strong> {emailData.starCount || 0}</div>
+                      <div><strong>{DEBUG_LABEL_LABELS}</strong> {emailData.labels ? JSON.stringify(emailData.labels) : STRING_EMPTY_ARRAY}</div>
+                      <div><strong>{DEBUG_LABEL_LABELS_COUNT}</strong> {emailData.labels?.length || 0}</div>
+                      <div><strong>{DEBUG_LABEL_RECEIVED_AT}</strong> {emailData.receivedAt}</div>
+                      <div><strong>{DEBUG_LABEL_IS_READ}</strong> {emailData.isRead ? STRING_TRUE_TEXT : STRING_FALSE_TEXT}</div>
+                      <div><strong>{DEBUG_LABEL_IS_ARCHIVED}</strong> {emailData.isArchived ? STRING_TRUE_TEXT : STRING_FALSE_TEXT}</div>
+                      <div><strong>{DEBUG_LABEL_STAR_COUNT}</strong> {emailData.starCount || 0}</div>
                       {threadEmails && threadEmails.length > 0 && (
                         <div style={{ marginTop: theme.spacing.md }}>
-                          <strong>Thread Emails ({threadEmails.length}):</strong>
+                          <strong>{DEBUG_LABEL_THREAD_EMAILS} ({threadEmails.length}):</strong>
                           {threadEmails.map((threadEmail, idx) => {
                             const threadEmailData = threadEmail as any;
                             return (
                               <div key={threadEmail.id} style={{ marginLeft: theme.spacing.md, marginTop: theme.spacing.xs }}>
-                                [{idx}] MsgID: {threadEmailData.messageId || 'N/A'} | Labels: {threadEmailData.labels ? JSON.stringify(threadEmailData.labels) : '[]'} | Received: {threadEmailData.receivedAt}
+                                [{idx}] {DEBUG_LABEL_MSG_ID} {threadEmailData.messageId || STRING_NA} | {DEBUG_LABEL_LABELS} {threadEmailData.labels ? JSON.stringify(threadEmailData.labels) : STRING_EMPTY_ARRAY} | {DEBUG_LABEL_RECEIVED} {threadEmailData.receivedAt}
                               </div>
                             );
                           })}
@@ -768,7 +804,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
                 setDraft(replyDraft);
                 setShowReplyComposer(true);
               }}
-              hideActionButtons={true}
+              hideActionButtons
             />
 
             {showReplyComposer && (
@@ -891,10 +927,10 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
       <EmailDetailSidebar />
 
       <div style={{
-        height: '100vh',
+        height: STYLE_100VH,
         backgroundColor: theme.colors.background.default,
-        overflow: 'hidden',
-        position: 'relative',
+        overflow: STRING_HIDDEN,
+        position: STRING_RELATIVE,
       }}>
         <div style={{
           height: '100%',
@@ -904,7 +940,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
             ? `70px ${theme.spacing.xs} ${theme.spacing.md}`
             : theme.spacing['2xl'],
         }}>
-          <div style={{ maxWidth: isMobile ? '100%' : '900px', margin: '0 auto' }}>
+          <div style={{ maxWidth: isMobile ? '100%' : STYLE_MAX_WIDTH_900PX, margin: STYLE_MARGIN_0_AUTO }}>
             {emailContent}
           </div>
         </div>

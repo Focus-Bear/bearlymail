@@ -5,6 +5,8 @@ import { theme } from 'theme/theme';
 import { InboxMode } from 'types/email';
 import { InboxHeaderTabs, InboxHeaderActions } from 'components/inbox/header';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 const HAMBURGER_ICON = '\u2630'; // ☰
 
@@ -84,8 +86,8 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
           <button
             onClick={onToggleMobileMenu}
             style={{
-              background: 'none',
-              border: 'none',
+              background: STRING_NONE,
+              border: STRING_NONE,
               cursor: 'pointer',
               padding: theme.spacing.xs,
               display: 'flex',
@@ -119,11 +121,11 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
             fontSize: theme.typography.fontSize.base,
             borderRadius: theme.borderRadius.md,
             border: hasActiveFilters ? 'none' : `1px solid ${theme.colors.border.medium}`,
-            backgroundColor: hasActiveFilters
-              ? theme.colors.primary.main
-              : isFilterBarVisible
-              ? theme.colors.background.subtle
-              : theme.colors.background.paper,
+            backgroundColor: (() => {
+              if (hasActiveFilters) return theme.colors.primary.main;
+              if (isFilterBarVisible) return theme.colors.background.subtle;
+              return theme.colors.background.paper;
+            })(),
             color: hasActiveFilters ? 'white' : theme.colors.text.primary,
             cursor: 'pointer',
             display: 'flex',
@@ -149,7 +151,7 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
           {hasActiveFilters && (
             <span
               style={{
-                backgroundColor: 'white',
+                backgroundColor: COLOR_NAMED_WHITE,
                 color: theme.colors.primary.main,
                 borderRadius: theme.borderRadius.full,
                 padding: `0 ${theme.spacing.xs}`,
@@ -171,8 +173,8 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
             style={{
               padding: `${theme.spacing.xs} ${theme.spacing.xs}`,
               fontSize: theme.typography.fontSize.sm,
-              border: 'none',
-              backgroundColor: 'transparent',
+              border: STRING_NONE,
+              backgroundColor: COLOR_TRANSPARENT,
               color: theme.colors.primary.main,
               cursor: 'pointer',
               textDecoration: 'underline',

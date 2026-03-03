@@ -18,6 +18,24 @@ import { useSettingsData } from 'hooks/useSettingsData';
 import { useAutoResponder } from 'hooks/useAutoResponder';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import { useSidebarState } from 'hooks/useSidebarState';
+import {
+  CONNECTION_STATUS_CONNECTED,
+  ALERT_GITHUB_CONNECTED,
+  ALERT_GITHUB_CONNECT_FAILED,
+  LOADING_TEXT,
+  STRING_TRUE_TEXT,
+  STRING_SMOOTH,
+  STRING_START,
+  STRING_GITHUB_PARAM,
+  STRING_ERROR,
+  STRING_AUTO_ANALYZE,
+  ERROR_UPDATING_HISTORY,
+  STYLE_100VH,
+  STRING_HIDDEN,
+  STYLE_48PX,
+  STYLE_1_5REM,
+  ARIA_LABEL_OPEN_NAV,
+} from 'constants/strings';
 
 import { API_URL } from 'config/api';
 import { EMOJI_MENU } from 'constants/emojis';
@@ -40,19 +58,19 @@ const Settings: React.FC = () => {
   // Handle OAuth callback
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const github = params.get('github');
-    if (github === 'connected') {
+    const github = params.get(STRING_GITHUB_PARAM);
+    if (github === CONNECTION_STATUS_CONNECTED) {
       // Refresh GitHub token status
       settingsData.fetchApiKeys();
       // Remove query parameter from URL
       window.history.replaceState({}, '', window.location.pathname + window.location.hash);
       // Show success message
-      alert('GitHub connected successfully!');
-    } else if (github === 'error') {
+      alert(ALERT_GITHUB_CONNECTED);
+    } else if (github === STRING_ERROR) {
       // Remove query parameter from URL
       window.history.replaceState({}, '', window.location.pathname + window.location.hash);
       // Show error message
-      alert('Failed to connect GitHub. Please try again.');
+      alert(ALERT_GITHUB_CONNECT_FAILED);
     }
   }, [settingsData]);
 
@@ -61,16 +79,16 @@ const Settings: React.FC = () => {
     if (settingsData.loading || hasTriggeredAutoAnalyze.current) return;
     
     const params = new URLSearchParams(window.location.search);
-    const autoAnalyze = params.get('autoAnalyze');
+    const autoAnalyze = params.get(STRING_AUTO_ANALYZE);
     
-    if (autoAnalyze === 'true') {
+    if (autoAnalyze === STRING_TRUE_TEXT) {
       hasTriggeredAutoAnalyze.current = true;
       // Remove query parameter from URL but keep the hash
       window.history.replaceState({}, '', window.location.pathname + window.location.hash);
       // Mark user as having scanned history (so modal doesn't show again)
       axios.put(`${API_URL}/users/me`, { hasScannedHistory: true })
         .then(() => refreshUser())
-        .catch((error) => console.error('Error updating hasScannedHistory:', error));
+        .catch((error) => console.error(ERROR_UPDATING_HISTORY, error));
       // Auto-trigger context analysis
       settingsData.handleAnalyzeContext();
     }
@@ -84,7 +102,7 @@ const Settings: React.FC = () => {
         setTimeout(() => {
           const element = document.getElementById(hash.substring(1));
           if (element) {
-            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            element.scrollIntoView({ behavior: STRING_SMOOTH, block: STRING_START });
           }
         }, 100);
       }
@@ -96,11 +114,11 @@ const Settings: React.FC = () => {
   }, [settingsData.loading]);
 
   if (settingsData.loading) {
-    return <div>Loading...</div>;
+    return <div>{LOADING_TEXT}</div>;
   }
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', height: STYLE_100VH, overflow: STRING_HIDDEN }}>
       <Sidebar
         user={user}
         logout={logout}
@@ -117,8 +135,8 @@ const Settings: React.FC = () => {
               position: 'fixed',
               top: theme.spacing.md,
               left: theme.spacing.md,
-              width: '48px',
-              height: '48px',
+              width: STYLE_48PX,
+              height: STYLE_48PX,
               borderRadius: '50%',
               border: `1px solid ${theme.colors.border.medium}`,
               backgroundColor: theme.colors.background.paper,
@@ -126,12 +144,12 @@ const Settings: React.FC = () => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '1.5rem',
+              fontSize: STYLE_1_5REM,
               transition: theme.transitions.fast,
               boxShadow: theme.shadows.md,
               zIndex: 100,
             }}
-            aria-label="Open navigation menu"
+            aria-label={ARIA_LABEL_OPEN_NAV}
           >
             {EMOJI_MENU}
           </button>

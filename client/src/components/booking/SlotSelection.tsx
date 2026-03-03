@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { EMOJI_SELECTED } from 'constants/emojis';
 import { OPACITY_DISABLED } from 'constants/numbers';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
 
 interface TimeSlot {
   start: string;
@@ -119,7 +120,7 @@ export const SlotSelection: React.FC<SlotSelectionProps> = ({
                       onMouseLeave={(e) => {
                         if (!isSelected) {
                           e.currentTarget.style.borderColor = theme.colors.border.medium;
-                          e.currentTarget.style.backgroundColor = 'white';
+                          e.currentTarget.style.backgroundColor = COLOR_NAMED_WHITE;
                         }
                       }}
                     >
@@ -153,7 +154,7 @@ export const SlotSelection: React.FC<SlotSelectionProps> = ({
               style={{
                 padding: theme.spacing.md,
                 border: `1px solid ${theme.colors.border.medium}`,
-                backgroundColor: 'white',
+                backgroundColor: COLOR_NAMED_WHITE,
                 borderRadius: theme.borderRadius.md,
                 cursor: loadingMore ? 'not-allowed' : 'pointer',
                 color: theme.colors.primary.main,

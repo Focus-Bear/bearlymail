@@ -2,6 +2,8 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { MS_PER_SECOND, MS_PER_MINUTE, MINUTES_PER_HOUR, HOURS_PER_DAY } from 'constants/numbers';
+import { COLOR_ERROR_WEB, COLOR_WHITE } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 export interface SyncHistoryEntry {
   id: string;
@@ -49,7 +51,7 @@ const errorBadgeStyle: React.CSSProperties = {
   border: '1px solid #f5c6cb',
   borderRadius: '3px',
   padding: '1px 4px',
-  color: '#dc3545',
+  color: COLOR_ERROR_WEB,
   fontSize: '0.6rem',
 };
 
@@ -86,7 +88,7 @@ export const DebugSyncHistorySection: React.FC<DebugSyncHistorySectionProps> = (
       style={{
         marginBottom: theme.spacing.md,
         padding: theme.spacing.sm,
-        backgroundColor: '#fff',
+        backgroundColor: COLOR_WHITE,
         borderRadius: theme.borderRadius.sm,
         border: '1px solid #dee2e6',
       }}
@@ -102,8 +104,8 @@ export const DebugSyncHistorySection: React.FC<DebugSyncHistorySectionProps> = (
           style={{
             padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
             background: theme.colors.primary,
-            color: '#fff',
-            border: 'none',
+            color: COLOR_WHITE,
+            border: STRING_NONE,
             borderRadius: theme.borderRadius.sm,
             cursor: 'pointer',
             fontSize: theme.typography.fontSize.xs,
@@ -190,9 +192,8 @@ export const DebugSyncHistorySection: React.FC<DebugSyncHistorySectionProps> = (
                     {t('debug.syncHistory.queries')}:
                   </span>
                   <div>
-                    {entry.queries.map((q, i) => (
-                      // eslint-disable-next-line react/no-array-index-key
-                      <span key={i} style={queryBadgeStyle}>{q}</span>
+                    {entry.queries.map((query) => (
+                      <span key={query} style={queryBadgeStyle}>{query}</span>
                     ))}
                   </div>
                 </div>

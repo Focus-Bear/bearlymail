@@ -1,6 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface ComposeActionsProps {
   sending: boolean;
@@ -36,7 +38,7 @@ export const ComposeActions: React.FC<ComposeActionsProps> = ({
         onClick={onDiscard}
         style={{
           padding: '10px 20px',
-          backgroundColor: 'transparent',
+          backgroundColor: COLOR_TRANSPARENT,
           border: `1px solid ${theme.colors.border.medium}`,
           borderRadius: theme.borderRadius.md,
           cursor: 'pointer',
@@ -54,7 +56,7 @@ export const ComposeActions: React.FC<ComposeActionsProps> = ({
           disabled={sending || sendSuccess || checkingTone}
           style={{
             padding: '10px 20px',
-            backgroundColor: 'transparent',
+            backgroundColor: COLOR_TRANSPARENT,
             border: `1px solid ${sending || sendSuccess || checkingTone ? theme.colors.border.light : theme.colors.primary.main}`,
             borderRadius: theme.borderRadius.md,
             cursor: sending || sendSuccess || checkingTone ? 'not-allowed' : 'pointer',
@@ -73,12 +75,12 @@ export const ComposeActions: React.FC<ComposeActionsProps> = ({
         style={{
           padding: '10px 24px',
           backgroundColor: sending || sendSuccess || checkingTone ? theme.colors.primary.light : theme.colors.primary.main,
-          border: 'none',
+          border: STRING_NONE,
           borderRadius: theme.borderRadius.md,
           cursor: sending || sendSuccess || checkingTone ? 'not-allowed' : 'pointer',
           fontSize: theme.typography.fontSize.sm,
           fontWeight: theme.typography.fontWeight.semibold,
-          color: 'white',
+          color: COLOR_NAMED_WHITE,
           transition: theme.transitions.default,
           display: 'flex',
           alignItems: 'center',

@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 import { Email } from 'types/email';
 import { MAX_PREVIEW_LENGTH, TOOLTIP_PREVIEW_MAX_CHARS } from 'constants/numbers';
 import { stripHtmlTags } from 'utils/emailBodyUtils';
+import { CATEGORY_OTHER } from 'constants/strings';
 
 interface EmailPreviewProps {
   email: Email;
@@ -11,7 +12,7 @@ interface EmailPreviewProps {
 
 export const EmailPreview: React.FC<EmailPreviewProps> = ({ email }) => {
   const { t } = useTranslation();
-  const isOtherCategory = email.category === 'Other';
+  const isOtherCategory = email.category === CATEGORY_OTHER;
   const hasCategoryExplanation = isOtherCategory && email.categoryExplanation;
 
   return (

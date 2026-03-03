@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 const SAVING_OPACITY = 0.7;
 
@@ -68,8 +70,8 @@ export const ProfileSettingsSection: React.FC<ProfileSettingsSectionProps> = ({
           <button
             onClick={() => setIsEditing(true)}
             style={{
-              background: 'none',
-              border: 'none',
+              background: STRING_NONE,
+              border: STRING_NONE,
               color: theme.colors.primary.main,
               cursor: 'pointer',
               fontSize: theme.typography.fontSize.sm,
@@ -166,8 +168,8 @@ export const ProfileSettingsSection: React.FC<ProfileSettingsSectionProps> = ({
               style={{
                 padding: `${theme.spacing.sm} ${theme.spacing.md}`,
                 backgroundColor: theme.colors.primary.main,
-                color: 'white',
-                border: 'none',
+                color: COLOR_NAMED_WHITE,
+                border: STRING_NONE,
                 borderRadius: theme.borderRadius.md,
                 cursor: isSaving ? 'not-allowed' : 'pointer',
                 opacity: isSaving ? SAVING_OPACITY : 1,
@@ -181,7 +183,7 @@ export const ProfileSettingsSection: React.FC<ProfileSettingsSectionProps> = ({
               disabled={isSaving}
               style={{
                 padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                backgroundColor: 'transparent',
+                backgroundColor: COLOR_TRANSPARENT,
                 color: theme.colors.text.secondary,
                 border: `1px solid ${theme.colors.border.medium}`,
                 borderRadius: theme.borderRadius.md,

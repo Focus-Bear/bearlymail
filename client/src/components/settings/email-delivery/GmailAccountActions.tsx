@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { API_URL } from 'config/api';
+import { COLOR_TRANSPARENT } from 'constants/colors';
 
 interface GoogleAccount {
   id: string;
@@ -54,7 +55,7 @@ export const GmailAccountActions: React.FC<GmailAccountActionsProps> = ({
           onClick={handleSetPrimary}
           style={{
             padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            backgroundColor: 'transparent',
+            backgroundColor: COLOR_TRANSPARENT,
             color: theme.colors.primary.main,
             border: `1px solid ${theme.colors.primary.main}`,
             borderRadius: theme.borderRadius.sm,
@@ -69,7 +70,7 @@ export const GmailAccountActions: React.FC<GmailAccountActionsProps> = ({
         onClick={handleDisconnect}
         style={{
           padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-          backgroundColor: 'transparent',
+          backgroundColor: COLOR_TRANSPARENT,
           color: theme.colors.accent.error,
           border: `1px solid ${theme.colors.accent.error}`,
           borderRadius: theme.borderRadius.sm,

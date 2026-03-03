@@ -4,7 +4,8 @@ import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 import { Email } from 'types/email';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
-import { KEY_ENTER, KEY_ESCAPE } from 'constants/strings';
+import { KEY_ENTER, KEY_ESCAPE, STRING_NONE } from 'constants/strings';
+import { COLOR_TRANSPARENT } from 'constants/colors';
 
 interface SnoozeInputFormProps {
   email: Email;
@@ -77,7 +78,7 @@ export const SnoozeInputForm: React.FC<SnoozeInputFormProps> = ({
           borderRadius: theme.borderRadius.sm,
           backgroundColor: hasValue ? theme.colors.primary.main : theme.colors.background.subtle,
           color: hasValue ? 'white' : theme.colors.text.tertiary,
-          border: 'none',
+          border: STRING_NONE,
           cursor: hasValue ? 'pointer' : 'not-allowed',
           fontSize: theme.typography.fontSize.xs,
           fontWeight: theme.typography.fontWeight.medium,
@@ -94,9 +95,9 @@ export const SnoozeInputForm: React.FC<SnoozeInputFormProps> = ({
         style={{
           padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
           borderRadius: theme.borderRadius.sm,
-          backgroundColor: 'transparent',
+          backgroundColor: COLOR_TRANSPARENT,
           color: theme.colors.text.secondary,
-          border: 'none',
+          border: STRING_NONE,
           cursor: 'pointer',
           fontSize: theme.typography.fontSize.xs,
         }}

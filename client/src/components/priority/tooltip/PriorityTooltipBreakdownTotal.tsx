@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { PRIORITY_STATUS_CALCULATING } from 'constants/strings';
 
 interface PriorityTooltipBreakdownTotalProps {
   breakdown: Array<{ factor?: string; value: number; description?: string }>;
@@ -16,7 +17,7 @@ export const PriorityTooltipBreakdownTotal: React.FC<PriorityTooltipBreakdownTot
   
   // Check if still calculating (has items with "Calculating..." description and total is 0)
   const isCalculating = breakdown.some(
-    item => item.description === 'Calculating...' || item.description?.includes('Calculating...')
+    item => item.description === PRIORITY_STATUS_CALCULATING || item.description?.includes(PRIORITY_STATUS_CALCULATING)
   ) && breakdownTotal === 0;
 
   return (
@@ -31,7 +32,10 @@ export const PriorityTooltipBreakdownTotal: React.FC<PriorityTooltipBreakdownTot
         <span>{t('emailDetail.totalScore')}:</span>
         <span 
           style={{ 
-            color: isCalculating ? theme.colors.text.secondary : (breakdownTotal >= 0 ? theme.colors.accent.success : theme.colors.accent.error),
+            color: (() => {
+              if (isCalculating) return theme.colors.text.secondary;
+              return breakdownTotal >= 0 ? theme.colors.accent.success : theme.colors.accent.error;
+            })(),
             cursor: isCalculating && onExpedite ? 'pointer' : 'default',
             textDecoration: isCalculating && onExpedite ? 'underline' : 'none',
           }}

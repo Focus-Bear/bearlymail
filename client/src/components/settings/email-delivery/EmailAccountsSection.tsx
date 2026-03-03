@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { PROVIDER_GMAIL, PROVIDER_GOOGLE, PROVIDER_OFFICE365, PROVIDER_ZOHO, STRING_NONE } from 'constants/strings';
 import axios from 'axios';
 import { ProviderSelectionModal } from './ProviderSelectionModal';
 
 import { API_URL } from 'config/api';
+import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 
 interface EmailAccount {
   id: string;
   email: string;
   name?: string;
   isPrimary?: boolean;
-  provider: 'gmail' | 'office365' | 'zoho';
+  provider: typeof PROVIDER_GMAIL | typeof PROVIDER_OFFICE365 | typeof PROVIDER_ZOHO;
   isSSO?: boolean; // Gmail specific
 }
 
@@ -49,14 +51,14 @@ export const EmailAccountsSection: React.FC<EmailAccountsSectionProps> = ({
 
   // Combine all accounts with provider info
   const allAccounts: EmailAccount[] = [
-    ...googleAccounts.map((acc) => ({ ...acc, provider: 'gmail' as const })),
-    ...office365Accounts.map((acc) => ({ ...acc, provider: 'office365' as const })),
-    ...zohoAccounts.map((acc) => ({ ...acc, provider: 'zoho' as const })),
+    ...googleAccounts.map((acc) => ({ ...acc, provider: PROVIDER_GMAIL as const })),
+    ...office365Accounts.map((acc) => ({ ...acc, provider: PROVIDER_OFFICE365 as const })),
+    ...zohoAccounts.map((acc) => ({ ...acc, provider: PROVIDER_ZOHO as const })),
   ];
 
-  const handleConnectProvider = async (provider: 'gmail' | 'office365' | 'zoho') => {
+  const handleConnectProvider = async (provider: typeof PROVIDER_GMAIL | typeof PROVIDER_OFFICE365 | typeof PROVIDER_ZOHO) => {
     try {
-      const response = await axios.get(`${API_URL}/${provider === 'gmail' ? 'google' : provider}-accounts/connect-url`);
+      const response = await axios.get(`${API_URL}/${provider === PROVIDER_GMAIL ? PROVIDER_GOOGLE : provider}-accounts/connect-url`);
       window.location.href = response.data.url;
     } catch (error) {
       console.error(`Error connecting ${provider} account:`, error);
@@ -64,17 +66,17 @@ export const EmailAccountsSection: React.FC<EmailAccountsSectionProps> = ({
     }
   };
 
-  const handleDisconnect = async (id: string, provider: 'gmail' | 'office365' | 'zoho') => {
-    const providerName = provider === 'gmail' ? 'Gmail' : provider === 'office365' ? 'Office 365' : 'Zoho Mail';
-    const confirmKey = provider === 'gmail' 
-      ? 'settings.gmail.confirmDisconnect'
-      : provider === 'office365'
-      ? 'settings.office365.confirmDisconnect'
-      : 'settings.zoho.confirmDisconnect';
+  const handleDisconnect = async (id: string, provider: typeof PROVIDER_GMAIL | typeof PROVIDER_OFFICE365 | typeof PROVIDER_ZOHO) => {
+    const getConfirmKey = () => {
+      if (provider === PROVIDER_GMAIL) return 'settings.gmail.confirmDisconnect';
+      if (provider === PROVIDER_OFFICE365) return 'settings.office365.confirmDisconnect';
+      return 'settings.zoho.confirmDisconnect';
+    };
+    const confirmKey = getConfirmKey();
     
     if (window.confirm(t(confirmKey))) {
       try {
-        const endpoint = provider === 'gmail' ? 'google' : provider;
+        const endpoint = provider === PROVIDER_GMAIL ? PROVIDER_GOOGLE : provider;
         await axios.delete(`${API_URL}/${endpoint}-accounts/${id}`);
         await onFetchData();
       } catch (error) {
@@ -83,9 +85,9 @@ export const EmailAccountsSection: React.FC<EmailAccountsSectionProps> = ({
     }
   };
 
-  const handleSetPrimary = async (id: string, provider: 'gmail' | 'office365' | 'zoho') => {
+  const handleSetPrimary = async (id: string, provider: typeof PROVIDER_GMAIL | typeof PROVIDER_OFFICE365 | typeof PROVIDER_ZOHO) => {
     try {
-      const endpoint = provider === 'gmail' ? 'google' : provider;
+      const endpoint = provider === PROVIDER_GMAIL ? PROVIDER_GOOGLE : provider;
       await axios.post(`${API_URL}/${endpoint}-accounts/${id}/set-primary`);
       await onFetchData();
     } catch (error) {
@@ -93,26 +95,26 @@ export const EmailAccountsSection: React.FC<EmailAccountsSectionProps> = ({
     }
   };
 
-  const getProviderColor = (provider: 'gmail' | 'office365' | 'zoho'): string => {
+  const getProviderColor = (provider: typeof PROVIDER_GMAIL | typeof PROVIDER_OFFICE365 | typeof PROVIDER_ZOHO): string => {
     switch (provider) {
-      case 'gmail':
+      case PROVIDER_GMAIL:
         return '#EA4335';
-      case 'office365':
+      case PROVIDER_OFFICE365:
         return '#0078D4';
-      case 'zoho':
+      case PROVIDER_ZOHO:
         return '#C8202F';
       default:
         return theme.colors.primary.main;
     }
   };
 
-  const getProviderName = (provider: 'gmail' | 'office365' | 'zoho'): string => {
+  const getProviderName = (provider: typeof PROVIDER_GMAIL | typeof PROVIDER_OFFICE365 | typeof PROVIDER_ZOHO): string => {
     switch (provider) {
-      case 'gmail':
+      case PROVIDER_GMAIL:
         return 'Gmail';
-      case 'office365':
+      case PROVIDER_OFFICE365:
         return 'Office 365';
-      case 'zoho':
+      case PROVIDER_ZOHO:
         return 'Zoho Mail';
       default:
         return provider;
@@ -147,8 +149,8 @@ export const EmailAccountsSection: React.FC<EmailAccountsSectionProps> = ({
               style={{
                 padding: `${theme.spacing.sm} ${theme.spacing.md}`,
                 backgroundColor: theme.colors.primary.main,
-                color: 'white',
-                border: 'none',
+                color: COLOR_NAMED_WHITE,
+                border: STRING_NONE,
                 borderRadius: theme.borderRadius.md,
                 fontSize: theme.typography.fontSize.sm,
                 cursor: 'pointer',
@@ -177,7 +179,7 @@ export const EmailAccountsSection: React.FC<EmailAccountsSectionProps> = ({
                     <span
                       style={{
                         fontSize: theme.typography.fontSize.xs,
-                        color: 'white',
+                        color: COLOR_NAMED_WHITE,
                         backgroundColor: getProviderColor(account.provider),
                         padding: '2px 8px',
                         borderRadius: theme.borderRadius.sm,
@@ -225,7 +227,7 @@ export const EmailAccountsSection: React.FC<EmailAccountsSectionProps> = ({
                       style={{
                         marginRight: theme.spacing.sm,
                         padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                        backgroundColor: 'transparent',
+                        backgroundColor: COLOR_TRANSPARENT,
                         color: theme.colors.primary.main,
                         border: `1px solid ${theme.colors.primary.main}`,
                         borderRadius: theme.borderRadius.sm,
@@ -241,7 +243,7 @@ export const EmailAccountsSection: React.FC<EmailAccountsSectionProps> = ({
                       onClick={() => handleDisconnect(account.id, account.provider)}
                       style={{
                         padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                        backgroundColor: 'transparent',
+                        backgroundColor: COLOR_TRANSPARENT,
                         color: theme.colors.accent.error,
                         border: `1px solid ${theme.colors.accent.error}`,
                         borderRadius: theme.borderRadius.sm,
@@ -260,7 +262,7 @@ export const EmailAccountsSection: React.FC<EmailAccountsSectionProps> = ({
               style={{
                 marginTop: theme.spacing.md,
                 padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                backgroundColor: 'transparent',
+                backgroundColor: COLOR_TRANSPARENT,
                 color: theme.colors.primary.main,
                 border: `1px solid ${theme.colors.primary.main}`,
                 borderRadius: theme.borderRadius.md,

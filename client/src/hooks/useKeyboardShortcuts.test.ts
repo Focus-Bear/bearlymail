@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
-import { KEY_ARROW_DOWN, KEY_ARROW_UP, KEY_J, KEY_K, KEY_DELETE, KEY_BACKSPACE, KEY_E, KEY_Y, KEY_ESCAPE, KEY_N, EVENT_KEYDOWN } from 'constants/strings';
+import { KEY_ARROW_DOWN, KEY_ARROW_UP, KEY_J, KEY_K, KEY_DELETE, KEY_BACKSPACE, KEY_E, KEY_Y, KEY_ESCAPE, KEY_N, EVENT_KEYDOWN, TYPEOF_FUNCTION } from 'constants/strings';
 
 describe('useKeyboardShortcuts', () => {
   const mockEmails = [
@@ -27,7 +27,7 @@ describe('useKeyboardShortcuts', () => {
 
     // Mock window.addEventListener to capture the handler
     window.addEventListener = jest.fn((event: string, handler: EventListenerOrEventListenerObject) => {
-      if (event === EVENT_KEYDOWN && typeof handler === 'function') {
+      if (event === EVENT_KEYDOWN && typeof handler === TYPEOF_FUNCTION) {
         capturedKeydownHandler = handler as (event: KeyboardEvent) => void;
       }
     });

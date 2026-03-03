@@ -2,6 +2,8 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { OPACITY_DISABLED_ALT, VIEWPORT_HEIGHT_90, Z_INDEX_MODAL_OVERLAY } from 'constants/numbers';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface PermissionsExplanationProps {
   onContinue: () => void;
@@ -243,8 +245,8 @@ export const PermissionsExplanation: React.FC<PermissionsExplanationProps> = ({
             style={{
               padding: `${theme.spacing.md} ${theme.spacing.lg}`,
               backgroundColor: theme.colors.primary.main,
-              color: 'white',
-              border: 'none',
+              color: COLOR_NAMED_WHITE,
+              border: STRING_NONE,
               borderRadius: theme.borderRadius.md,
               fontSize: theme.typography.fontSize.base,
               fontWeight: theme.typography.fontWeight.semibold,

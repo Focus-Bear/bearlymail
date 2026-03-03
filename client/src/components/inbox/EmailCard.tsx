@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 import { Email, InboxMode } from 'types/email';
 import { MODE_TRIAGE } from 'constants/strings';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { FONT_WEIGHT_SEMIBOLD } from 'constants/numbers';
 
 interface EmailCardProps {
   email: Email;
@@ -32,9 +33,8 @@ export const EmailCard: React.FC<EmailCardProps> = ({
   const wasDeliveredEarly = email.wasDeliveredEarly ?? false;
   const showEmergencyRibbon = wasDeliveredEarly && mode === MODE_TRIAGE;
   const cardPadding = isMobile ? theme.spacing.sm : theme.spacing.lg;
-  const cardPaddingTop = showEmergencyRibbon
-    ? (isMobile ? theme.spacing.lg : theme.spacing.xl)
-    : cardPadding;
+  const emergencyPadding = isMobile ? theme.spacing.lg : theme.spacing.xl;
+  const cardPaddingTop = showEmergencyRibbon ? emergencyPadding : cardPadding;
 
   return (
     <div
@@ -74,7 +74,7 @@ export const EmailCard: React.FC<EmailCardProps> = ({
             background: `linear-gradient(90deg, ${theme.colors.warning.main} 0%, ${theme.colors.warning.light} 100%)`,
             color: theme.colors.warning.main,
             fontSize: theme.typography.fontSize.xs,
-            fontWeight: 600,
+            fontWeight: FONT_WEIGHT_SEMIBOLD,
             textAlign: 'center',
             padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
             textTransform: 'uppercase',

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
 
 interface UrgentEmail {
   subject: string;
@@ -27,7 +28,7 @@ export const UrgentEmailList: React.FC<UrgentEmailListProps> = ({ emails, count 
           key={getEmailKey(email, index)}
           style={{
             padding: theme.spacing.sm,
-            backgroundColor: 'white',
+            backgroundColor: COLOR_NAMED_WHITE,
             borderRadius: theme.borderRadius.sm,
             marginBottom: theme.spacing.xs,
             border: `1px solid ${theme.colors.border.light}`,

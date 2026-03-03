@@ -1,6 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface ArchiveConfirmationToastProps {
   emailCount: number;
@@ -51,8 +53,8 @@ export const ArchiveConfirmationToast: React.FC<ArchiveConfirmationToastProps> =
           onClick={onConfirm}
           style={{
             backgroundColor: theme.colors.accent.error,
-            color: 'white',
-            border: 'none',
+            color: COLOR_NAMED_WHITE,
+            border: STRING_NONE,
             borderRadius: theme.borderRadius.sm,
             padding: `${theme.spacing.xs} ${theme.spacing.md}`,
             fontSize: theme.typography.fontSize.sm,
@@ -74,7 +76,7 @@ export const ArchiveConfirmationToast: React.FC<ArchiveConfirmationToastProps> =
         <button
           onClick={onCancel}
           style={{
-            backgroundColor: 'transparent',
+            backgroundColor: COLOR_TRANSPARENT,
             color: theme.colors.text.secondary,
             border: `1px solid ${theme.colors.border.medium}`,
             borderRadius: theme.borderRadius.sm,

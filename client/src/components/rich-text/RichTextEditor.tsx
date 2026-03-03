@@ -14,6 +14,7 @@ import Image from '@tiptap/extension-image';
 import { RichTextToolbar } from 'components/rich-text/RichTextToolbar';
 import { theme } from 'theme/theme';
 import { OPACITY_DISABLED } from 'constants/numbers';
+import { TAG_EMPTY_PARAGRAPH, TYPEOF_STRING } from 'constants/strings';
 
 interface RichTextEditorProps {
   content: string | null;
@@ -24,6 +25,8 @@ interface RichTextEditorProps {
   onPasteFiles?: (files: File[]) => void;
   minHeight?: string;
 }
+
+const FILE_KIND = 'file' as const;
 
 const createLinkShortcut = (onTrigger: () => void) =>
   Extension.create({
@@ -111,7 +114,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         const imageFiles: File[] = [];
         for (let i = 0; i < items.length; i++) {
           const item = items[i];
-          if (item.kind === 'file') {
+          if (item.kind === FILE_KIND) {
             const file = item.getAsFile();
             if (file) {
               if (file.type.startsWith('image/')) {
@@ -129,7 +132,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
             const reader = new FileReader();
             reader.onload = () => {
               const result = reader.result;
-              if (typeof result === 'string') {
+              if (typeof result === TYPEOF_STRING) {
                 _view.dispatch(
                   _view.state.tr.replaceSelectionWith(
                     _view.state.schema.nodes.image.create({ src: result })
@@ -157,7 +160,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       const currentContent = editor.getHTML();
       const newContent = content || '';
       const editorIsEmpty = editor.isEmpty;
-      const contentIsEmpty = !newContent || newContent === '<p></p>';
+      const contentIsEmpty = !newContent || newContent === TAG_EMPTY_PARAGRAPH;
 
       if (editorIsEmpty && contentIsEmpty) return;
       if (currentContent !== newContent) {

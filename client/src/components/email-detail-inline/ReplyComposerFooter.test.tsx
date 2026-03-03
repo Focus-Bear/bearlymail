@@ -105,7 +105,7 @@ describe('ReplyComposerFooter', () => {
     });
 
     it('disables Send button while sending', () => {
-      render(<ReplyComposerFooter {...defaultProps} sending={true} />);
+      render(<ReplyComposerFooter {...defaultProps} sending />);
 
       // Send button shows "sending" text when sending
       const sendButton = screen.getByText('emailDetail.sending');

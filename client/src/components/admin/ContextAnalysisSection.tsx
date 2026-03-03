@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import axios from 'axios';
 import { API_URL } from 'config/api';
+import { FILTER_ALL, STATUS_COMPLETED, STATUS_FAILED, STATUS_PENDING, STATUS_RUNNING, STRING_NONE, STRING_TRANSPARENT } from 'constants/strings';
 
 interface FailureDetail {
   batchIndex: number;
@@ -49,7 +50,7 @@ export const ContextAnalysisSection: React.FC = () => {
   const fetchAnalyses = useCallback(async () => {
     try {
       const params: Record<string, string> = { limit: '100' };
-      if (statusFilter !== 'all') {
+      if (statusFilter !== FILTER_ALL) {
         params.status = statusFilter;
       }
       const response = await axios.get<ContextAnalysisResponse>(`${API_URL}/context/admin/analyses`, {
@@ -101,13 +102,13 @@ export const ContextAnalysisSection: React.FC = () => {
 
   const getStatusColor = (status: string): string => {
     switch (status) {
-      case 'failed':
+      case STATUS_FAILED:
         return theme.colors.accent.error;
-      case 'running':
+      case STATUS_RUNNING:
         return theme.colors.accent.info;
-      case 'completed':
+      case STATUS_COMPLETED:
         return theme.colors.accent.success;
-      case 'pending':
+      case STATUS_PENDING:
         return theme.colors.accent.warning;
       default:
         return theme.colors.text.secondary;
@@ -212,7 +213,7 @@ export const ContextAnalysisSection: React.FC = () => {
               style={{
                 backgroundColor: theme.colors.background.paper,
                 borderRadius: theme.borderRadius.md,
-                border: `1px solid ${analysis.status === 'failed' ? theme.colors.accent.error : theme.colors.border.light}`,
+                border: `1px solid ${analysis.status === STATUS_FAILED ? theme.colors.accent.error : theme.colors.border.light}`,
                 overflow: 'hidden',
               }}
             >
@@ -223,7 +224,7 @@ export const ContextAnalysisSection: React.FC = () => {
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   cursor: analysis.failedBatches > 0 || analysis.errorMessage ? 'pointer' : 'default',
-                  backgroundColor: analysis.status === 'failed' ? `${theme.colors.accent.error}10` : 'transparent',
+                  backgroundColor: analysis.status === STATUS_FAILED ? `${theme.colors.accent.error}10` : STRING_TRANSPARENT,
                 }}
                 onClick={() => {
                   if (analysis.failedBatches > 0 || analysis.errorMessage) {
@@ -265,7 +266,7 @@ export const ContextAnalysisSection: React.FC = () => {
                           copyToClipboard(analysis.correlationId!, analysis.id);
                         }}
                         style={{
-                          background: 'none',
+                          background: STRING_NONE,
                           border: `1px solid ${theme.colors.border.medium}`,
                           borderRadius: theme.borderRadius.sm,
                           padding: `${theme.spacing.xs} ${theme.spacing.sm}`,

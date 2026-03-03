@@ -2,6 +2,8 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { INPUT_WIDTH_PX } from 'constants/numbers';
+import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface SummarizationRuleEditFormProps {
   editSummarizationWhen: string;
@@ -73,8 +75,8 @@ export const SummarizationRuleEditForm: React.FC<SummarizationRuleEditFormProps>
             style={{
               padding: `${theme.spacing.sm} ${theme.spacing.md}`,
               backgroundColor: theme.colors.primary.main,
-              color: 'white',
-              border: 'none',
+              color: COLOR_NAMED_WHITE,
+              border: STRING_NONE,
               borderRadius: theme.borderRadius.md,
               cursor: 'pointer',
               fontSize: theme.typography.fontSize.sm,
@@ -86,7 +88,7 @@ export const SummarizationRuleEditForm: React.FC<SummarizationRuleEditFormProps>
             onClick={onCancel}
             style={{
               padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-              backgroundColor: 'transparent',
+              backgroundColor: COLOR_TRANSPARENT,
               color: theme.colors.text.secondary,
               border: `1px solid ${theme.colors.border.medium}`,
               borderRadius: theme.borderRadius.md,

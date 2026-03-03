@@ -4,6 +4,8 @@ import { theme } from 'theme/theme';
 import axios from 'axios';
 
 import { API_URL } from 'config/api';
+import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface ZohoAccount {
   id: string;
@@ -72,8 +74,8 @@ export const ZohoAccountsSection: React.FC<ZohoAccountsSectionProps> = ({
             style={{
               padding: `${theme.spacing.sm} ${theme.spacing.md}`,
               backgroundColor: theme.colors.primary.main,
-              color: 'white',
-              border: 'none',
+              color: COLOR_NAMED_WHITE,
+              border: STRING_NONE,
               borderRadius: theme.borderRadius.md,
               fontSize: theme.typography.fontSize.sm,
               cursor: 'pointer',
@@ -123,7 +125,7 @@ export const ZohoAccountsSection: React.FC<ZohoAccountsSectionProps> = ({
                     style={{
                       marginRight: theme.spacing.sm,
                       padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                      backgroundColor: 'transparent',
+                      backgroundColor: COLOR_TRANSPARENT,
                       color: theme.colors.primary.main,
                       border: `1px solid ${theme.colors.primary.main}`,
                       borderRadius: theme.borderRadius.sm,
@@ -138,7 +140,7 @@ export const ZohoAccountsSection: React.FC<ZohoAccountsSectionProps> = ({
                   onClick={() => handleDisconnect(account.id)}
                   style={{
                     padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                    backgroundColor: 'transparent',
+                    backgroundColor: COLOR_TRANSPARENT,
                     color: theme.colors.accent.error,
                     border: `1px solid ${theme.colors.accent.error}`,
                     borderRadius: theme.borderRadius.sm,
@@ -158,7 +160,7 @@ export const ZohoAccountsSection: React.FC<ZohoAccountsSectionProps> = ({
             style={{
               marginTop: theme.spacing.md,
               padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-              backgroundColor: 'transparent',
+              backgroundColor: COLOR_TRANSPARENT,
               color: theme.colors.primary.main,
               border: `1px solid ${theme.colors.primary.main}`,
               borderRadius: theme.borderRadius.md,

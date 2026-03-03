@@ -1,6 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface GitHubTokenActionsProps {
   githubToken: string;
@@ -27,8 +29,8 @@ export const GitHubTokenActions: React.FC<GitHubTokenActionsProps> = ({
         style={{
           padding: `${theme.spacing.sm} ${theme.spacing.md}`,
           backgroundColor: githubToken.trim() ? theme.colors.primary.main : theme.colors.text.tertiary,
-          color: 'white',
-          border: 'none',
+          color: COLOR_NAMED_WHITE,
+          border: STRING_NONE,
           borderRadius: theme.borderRadius.md,
           cursor: githubToken.trim() ? 'pointer' : 'not-allowed',
         }}
@@ -41,8 +43,8 @@ export const GitHubTokenActions: React.FC<GitHubTokenActionsProps> = ({
           style={{
             padding: `${theme.spacing.sm} ${theme.spacing.md}`,
             backgroundColor: theme.colors.accent.error,
-            color: 'white',
-            border: 'none',
+            color: COLOR_NAMED_WHITE,
+            border: STRING_NONE,
             borderRadius: theme.borderRadius.md,
             cursor: 'pointer',
           }}

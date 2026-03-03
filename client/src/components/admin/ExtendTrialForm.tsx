@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { INPUT_WIDTH_PX } from 'constants/numbers';
+import { STRING_NONE, STRING_TRANSPARENT, STRING_WHITE } from 'constants/strings';
 
 const DEFAULT_EXTEND_DAYS = 7;
 
@@ -40,8 +41,8 @@ export const ExtendTrialForm: React.FC<ExtendTrialFormProps> = ({
         style={{
           padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
           backgroundColor: theme.colors.primary.main,
-          color: 'white',
-          border: 'none',
+          color: STRING_WHITE,
+          border: STRING_NONE,
           borderRadius: theme.borderRadius.sm,
           cursor: 'pointer',
           fontSize: theme.typography.fontSize.sm,
@@ -53,7 +54,7 @@ export const ExtendTrialForm: React.FC<ExtendTrialFormProps> = ({
         onClick={onCancel}
         style={{
           padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-          backgroundColor: 'transparent',
+          backgroundColor: STRING_TRANSPARENT,
           color: theme.colors.text.secondary,
           border: `1px solid ${theme.colors.border.medium}`,
           borderRadius: theme.borderRadius.sm,

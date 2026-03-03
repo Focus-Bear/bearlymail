@@ -1,5 +1,6 @@
 import React from 'react';
 import { theme } from 'theme/theme';
+import { COLOR_NAMED_RED } from 'constants/colors';
 
 interface StarredThread {
   threadId: string;
@@ -89,7 +90,7 @@ export const StarredThreadsList: React.FC<StarredThreadsListProps> = ({
             {thread.latestFrom}: {thread.latestSubject}
           </div>
           {thread.issues.length > 0 && (
-            <div style={{ color: 'red', marginTop: '4px' }}>
+            <div style={{ color: COLOR_NAMED_RED, marginTop: '4px' }}>
               <strong>Issues:</strong> {thread.issues.join(', ')}
             </div>
           )}

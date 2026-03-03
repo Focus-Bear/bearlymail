@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { KEY_ENTER, KEY_ESCAPE } from 'constants/strings';
+import { KEY_ENTER, KEY_ESCAPE, STRING_NONE } from 'constants/strings';
 import { captureEvent } from 'utils/posthog';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
 
 interface ToneRuleItemProps {
   rule: string;
@@ -63,8 +64,8 @@ export const ToneRuleItem: React.FC<ToneRuleItemProps> = ({ rule, index, onRemov
           disabled={!editValue.trim()}
           style={{
             background: theme.colors.primary.main,
-            color: 'white',
-            border: 'none',
+            color: COLOR_NAMED_WHITE,
+            border: STRING_NONE,
             padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
             borderRadius: theme.borderRadius.sm,
             cursor: editValue.trim() ? 'pointer' : 'not-allowed',
@@ -126,7 +127,7 @@ export const ToneRuleItem: React.FC<ToneRuleItemProps> = ({ rule, index, onRemov
             onClick={() => setIsEditing(true)}
             style={{
               background: 'transparent',
-              border: 'none',
+              border: STRING_NONE,
               color: theme.colors.primary.main,
               cursor: 'pointer',
             }}
@@ -141,7 +142,7 @@ export const ToneRuleItem: React.FC<ToneRuleItemProps> = ({ rule, index, onRemov
           }}
           style={{
             background: 'transparent',
-            border: 'none',
+            border: STRING_NONE,
             color: theme.colors.accent.error,
             cursor: 'pointer',
           }}

@@ -31,9 +31,9 @@ const loadFromStorage = (): StoredProgress | null => {
   }
 };
 
-const saveToStorage = (data: StoredProgress) => {
+const saveToStorage = (progressData: StoredProgress) => {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(progressData));
   } catch {
     // ignore
   }

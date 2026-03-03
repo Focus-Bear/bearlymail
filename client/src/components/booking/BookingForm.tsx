@@ -1,6 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 const BOOKING_STATUS_SUBMITTING = 'submitting';
 
@@ -91,8 +93,8 @@ export const BookingForm: React.FC<BookingFormProps> = ({
             width: '100%',
             padding: theme.spacing.lg,
             backgroundColor: selectedSlot ? theme.colors.primary.main : theme.colors.border.dark,
-            color: 'white',
-            border: 'none',
+            color: COLOR_NAMED_WHITE,
+            border: STRING_NONE,
             borderRadius: theme.borderRadius.md,
             cursor: selectedSlot ? 'pointer' : 'not-allowed',
             fontSize: theme.typography.fontSize.base,

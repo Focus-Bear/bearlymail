@@ -2,6 +2,8 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface OpenAIApiKeyActionsProps {
   openAiApiKey: string;
@@ -29,8 +31,8 @@ export const OpenAIApiKeyActions: React.FC<OpenAIApiKeyActionsProps> = ({
         style={{
           padding: `${theme.spacing.sm} ${theme.spacing.md}`,
           backgroundColor: openAiApiKey.trim() ? theme.colors.primary.main : theme.colors.text.tertiary,
-          color: 'white',
-          border: 'none',
+          color: COLOR_NAMED_WHITE,
+          border: STRING_NONE,
           borderRadius: theme.borderRadius.md,
           cursor: openAiApiKey.trim() ? 'pointer' : 'not-allowed',
         }}
@@ -45,8 +47,8 @@ export const OpenAIApiKeyActions: React.FC<OpenAIApiKeyActionsProps> = ({
         style={{
           padding: `${theme.spacing.sm} ${theme.spacing.md}`,
           backgroundColor: theme.colors.accent.error,
-          color: 'white',
-          border: 'none',
+          color: COLOR_NAMED_WHITE,
+          border: STRING_NONE,
           borderRadius: theme.borderRadius.md,
           cursor: 'pointer',
         }}

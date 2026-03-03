@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
+import { COLOR_TRANSPARENT } from 'constants/colors';
 
 interface SidebarFooterProps {
   userEmail?: string;
@@ -46,7 +47,7 @@ export const SidebarFooter: React.FC<SidebarFooterProps> = ({ userEmail, onLogou
             title={t('sidebar.expand')}
             style={{
               padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-              backgroundColor: 'transparent',
+              backgroundColor: COLOR_TRANSPARENT,
               color: theme.colors.text.secondary,
               border: `1px solid ${theme.colors.border.medium}`,
               borderRadius: theme.borderRadius.md,
@@ -80,7 +81,7 @@ export const SidebarFooter: React.FC<SidebarFooterProps> = ({ userEmail, onLogou
             title={isCollapsed ? t('auth.logout') : undefined}
             style={{
               padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-              backgroundColor: 'transparent',
+              backgroundColor: COLOR_TRANSPARENT,
               color: theme.colors.text.secondary,
               border: `1px solid ${theme.colors.border.medium}`,
               borderRadius: theme.borderRadius.md,

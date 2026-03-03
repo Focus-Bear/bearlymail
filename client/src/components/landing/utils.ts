@@ -10,6 +10,15 @@ interface ResponsiveBreakpoints {
   isTablet: boolean;
 }
 
+const HEADING_LEVEL_H1 = 'h1';
+const HEADING_LEVEL_H2 = 'h2';
+const HEADING_LEVEL_H3 = 'h3';
+
+type HeadingLevel =
+  | typeof HEADING_LEVEL_H1
+  | typeof HEADING_LEVEL_H2
+  | typeof HEADING_LEVEL_H3;
+
 /**
  * Gets responsive font size based on breakpoints
  */
@@ -65,15 +74,15 @@ export const getHeroPaddingTop = (breakpoints: ResponsiveBreakpoints): string =>
  */
 export const getHeadingFontSize = (
   breakpoints: ResponsiveBreakpoints,
-  level: 'h1' | 'h2' | 'h3'
+  level: HeadingLevel
 ): string => {
   if (breakpoints.isMobile) {
     switch (level) {
-      case 'h1':
+      case HEADING_LEVEL_H1:
         return theme.typography.fontSize.xl;
-      case 'h2':
+      case HEADING_LEVEL_H2:
         return theme.typography.fontSize.xl;
-      case 'h3':
+      case HEADING_LEVEL_H3:
         return theme.typography.fontSize.base;
       default:
         return theme.typography.fontSize.base;
@@ -81,22 +90,22 @@ export const getHeadingFontSize = (
   }
   if (breakpoints.isTablet) {
     switch (level) {
-      case 'h1':
+      case HEADING_LEVEL_H1:
         return theme.typography.fontSize['2xl'];
-      case 'h2':
+      case HEADING_LEVEL_H2:
         return theme.typography.fontSize['2xl'];
-      case 'h3':
+      case HEADING_LEVEL_H3:
         return theme.typography.fontSize.lg;
       default:
         return theme.typography.fontSize.lg;
     }
   }
   switch (level) {
-    case 'h1':
+    case HEADING_LEVEL_H1:
       return theme.typography.fontSize['4xl'];
-    case 'h2':
+    case HEADING_LEVEL_H2:
       return theme.typography.fontSize['3xl'];
-    case 'h3':
+    case HEADING_LEVEL_H3:
       return theme.typography.fontSize['2xl'];
     default:
       return theme.typography.fontSize['2xl'];

@@ -2,8 +2,10 @@ import React, { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { OPACITY_DISABLED_ALT } from 'constants/numbers';
+import { STRING_NONE, TYPEOF_OBJECT } from 'constants/strings';
 import { API_URL } from 'config/api';
 import { captureEvent } from 'utils/posthog';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
 
 interface ImportResult {
   success: boolean;
@@ -117,16 +119,16 @@ export const DataExportSection: React.FC = () => {
     try {
       // Read and parse the file
       const text = await file.text();
-      let data: unknown;
+      let importData: unknown;
       
       try {
-        data = JSON.parse(text);
+        importData = JSON.parse(text);
       } catch {
         throw new Error(t('settings.dataExport.invalidFile'));
       }
 
       // Validate it's a BearlyMail export
-      if (!data || typeof data !== 'object' || !('version' in data) || !('exportedAt' in data)) {
+      if (!importData || typeof importData !== TYPEOF_OBJECT || !('version' in importData) || !('exportedAt' in importData)) {
         throw new Error(t('settings.dataExport.invalidFile'));
       }
 
@@ -138,7 +140,7 @@ export const DataExportSection: React.FC = () => {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ importPayload: data }),
+        body: JSON.stringify({ importPayload: importData }),
       });
 
       if (!response.ok) {
@@ -231,8 +233,8 @@ export const DataExportSection: React.FC = () => {
               isExportHovered && !isExporting && !isImporting
                 ? theme.colors.primary.dark
                 : theme.colors.primary.main,
-            color: 'white',
-            border: 'none',
+            color: COLOR_NAMED_WHITE,
+            border: STRING_NONE,
             borderRadius: theme.borderRadius.md,
             padding: `${theme.spacing.sm} ${theme.spacing.md}`,
             cursor: isExporting || isImporting ? 'not-allowed' : 'pointer',

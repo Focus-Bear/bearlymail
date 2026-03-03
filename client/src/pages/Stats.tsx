@@ -8,6 +8,8 @@ import { useEmailStats, CategoryStats } from 'hooks/useEmailStats';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import { useSidebarState } from 'hooks/useSidebarState';
 import { EMOJI_MENU } from 'constants/emojis';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { STRING_NONE, STRING_UPPERCASE } from 'constants/strings';
 
 const PERIOD_OPTIONS = [7, STATS_PERIOD_14_DAYS, DAYS_IN_MONTH_30, MINUTES_PER_HOUR, CALENDAR_DAYS_AHEAD] as const;
 
@@ -145,7 +147,7 @@ const CategoryRow: React.FC<{
 const DailyChart: React.FC<{
   dailyCounts: Array<{ date: string; total: number }>;
 }> = ({ dailyCounts }) => {
-  const maxCount = Math.max(...dailyCounts.map(d => d.total), 1);
+  const maxCount = Math.max(...dailyCounts.map(day => day.total), 1);
   const CHART_HEIGHT = 160;
   const BAR_GAP = 2;
   const barWidth = dailyCounts.length > 0
@@ -327,8 +329,8 @@ const Stats: React.FC = () => {
               style={{
                 padding: `${theme.spacing.sm} ${theme.spacing.md}`,
                 backgroundColor: theme.colors.primary.main,
-                color: 'white',
-                border: 'none',
+                color: COLOR_NAMED_WHITE,
+                border: STRING_NONE,
                 borderRadius: theme.borderRadius.md,
                 cursor: 'pointer',
               }}
@@ -428,7 +430,7 @@ const Stats: React.FC = () => {
                   ...theme.typography.body.medium,
                   fontWeight: theme.typography.fontWeight.semibold,
                   color: theme.colors.text.tertiary,
-                  textTransform: 'uppercase' as const,
+                  textTransform: STRING_UPPERCASE,
                 }}>
                   {t('stats.categoryHeader')}
                 </div>
@@ -437,7 +439,7 @@ const Stats: React.FC = () => {
                   ...theme.typography.body.medium,
                   fontWeight: theme.typography.fontWeight.semibold,
                   color: theme.colors.text.tertiary,
-                  textTransform: 'uppercase' as const,
+                  textTransform: STRING_UPPERCASE,
                 }}>
                   {t('stats.emailsHeader')}
                 </div>
@@ -447,7 +449,7 @@ const Stats: React.FC = () => {
                   ...theme.typography.body.medium,
                   fontWeight: theme.typography.fontWeight.semibold,
                   color: theme.colors.text.tertiary,
-                  textTransform: 'uppercase' as const,
+                  textTransform: STRING_UPPERCASE,
                   flexShrink: 0,
                 }}>
                   {t('stats.avgReplyHeader')}
@@ -458,7 +460,7 @@ const Stats: React.FC = () => {
                   ...theme.typography.body.medium,
                   fontWeight: theme.typography.fontWeight.semibold,
                   color: theme.colors.text.tertiary,
-                  textTransform: 'uppercase' as const,
+                  textTransform: STRING_UPPERCASE,
                   flexShrink: 0,
                 }}>
                   {t('stats.repliedHeader')}

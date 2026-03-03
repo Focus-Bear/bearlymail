@@ -5,6 +5,7 @@ import { theme } from 'theme/theme';
 import { OPACITY_DISABLED, Z_INDEX_POPUP } from 'constants/numbers';
 import { API_URL } from 'config/api';
 import { useNotifications } from 'contexts/NotificationContext';
+import { STRING_NONE } from 'constants/strings';
 
 const PROTO_CATEGORY_PROMOTION_THRESHOLD = 5;
 
@@ -128,7 +129,7 @@ export const ProtoCategoriesModal: React.FC<ProtoCategoriesModalProps> = ({
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.4)',
+          backgroundColor: theme.colors.overlay.darkLight,
           zIndex: 1999,
         }}
       />
@@ -176,8 +177,8 @@ export const ProtoCategoriesModal: React.FC<ProtoCategoriesModalProps> = ({
           <button
             onClick={onClose}
             style={{
-              background: 'none',
-              border: 'none',
+              background: STRING_NONE,
+              border: STRING_NONE,
               fontSize: '20px',
               color: theme.colors.text.secondary,
               cursor: 'pointer',
@@ -197,26 +198,29 @@ export const ProtoCategoriesModal: React.FC<ProtoCategoriesModalProps> = ({
           overflowY: 'auto',
           flex: 1,
         }}>
-          {isLoading ? (
-            <div style={{
-              display: 'flex',
-              justifyContent: 'center',
-              padding: theme.spacing.xl,
-              color: theme.colors.text.secondary,
-              fontSize: theme.typography.fontSize.sm,
-            }}>
-              {t('common.loading')}
-            </div>
-          ) : categories.length === 0 ? (
-            <div style={{
-              padding: theme.spacing.lg,
-              textAlign: 'center',
-              color: theme.colors.text.secondary,
-              fontSize: theme.typography.fontSize.sm,
-            }}>
-              {t('settings.protoCategories.empty')}
-            </div>
-          ) : (
+          {(() => {
+            if (isLoading) return (
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                padding: theme.spacing.xl,
+                color: theme.colors.text.secondary,
+                fontSize: theme.typography.fontSize.sm,
+              }}>
+                {t('common.loading')}
+              </div>
+            );
+            if (categories.length === 0) return (
+              <div style={{
+                padding: theme.spacing.lg,
+                textAlign: 'center',
+                color: theme.colors.text.secondary,
+                fontSize: theme.typography.fontSize.sm,
+              }}>
+                {t('settings.protoCategories.empty')}
+              </div>
+            );
+            return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
               {categories.map((category) => {
                 const isPromoting = promotingId === category.id;
@@ -364,7 +368,8 @@ export const ProtoCategoriesModal: React.FC<ProtoCategoriesModalProps> = ({
                 );
               })}
             </div>
-          )}
+            );
+          })()}
         </div>
       </div>
     </>

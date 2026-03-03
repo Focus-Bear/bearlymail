@@ -5,8 +5,9 @@ import { theme } from 'theme/theme';
 import EmailDetail, { EmailDetailRef } from 'pages/EmailDetail';
 import { SnoozeInputForm } from 'components/inbox/actions/SnoozeInputForm';
 import { InboxMode, Email } from 'types/email';
-import { MODE_ACTION } from 'constants/strings';
+import { LETTER_SPACING_WIDER, MODE_ACTION, MODE_TRIAGE, STRING_NONE } from 'constants/strings';
 import { captureEvent } from 'utils/posthog';
+import { COLOR_TRANSPARENT } from 'constants/colors';
 
 const PRIORITY_OPTIONS = [
   { label: 'Can wait', emoji: '\u{1F60A}', value: 1 },
@@ -85,7 +86,7 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
   const handleSetStarCountForSlider = useCallback(async (_emailId: string, newCount: number): Promise<void> => {
     // In triage mode, setting star > 0 moves email to Action tab — delegate to parent
     // which triggers the exit animation on the list item and navigates to the next email
-    if (mode === 'triage' && newCount > 0 && onPrioritySet) {
+    if (mode === MODE_TRIAGE && newCount > 0 && onPrioritySet) {
       onPrioritySet(selectedEmailId, newCount);
       return;
     }
@@ -192,8 +193,8 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
               }}
               style={{
                 padding: theme.spacing.xs,
-                backgroundColor: 'transparent',
-                border: 'none',
+                backgroundColor: COLOR_TRANSPARENT,
+                border: STRING_NONE,
                 borderRadius: theme.borderRadius.sm,
                 cursor: 'pointer',
                 color: theme.colors.text.secondary,
@@ -208,8 +209,8 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
               onClick={onClose}
               style={{
                 padding: theme.spacing.xs,
-                backgroundColor: 'transparent',
-                border: 'none',
+                backgroundColor: COLOR_TRANSPARENT,
+                border: STRING_NONE,
                 borderRadius: theme.borderRadius.sm,
                 cursor: 'pointer',
                 color: theme.colors.text.secondary,
@@ -236,7 +237,7 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
                 padding: `${theme.spacing.sm} ${theme.spacing.md}`,
                 backgroundColor: theme.colors.text.primary,
                 color: theme.colors.background.paper,
-                border: 'none',
+                border: STRING_NONE,
                 borderRadius: theme.borderRadius.md,
                 fontWeight: theme.typography.fontWeight.semibold,
                 cursor: 'pointer',
@@ -255,7 +256,7 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
               onClick={handleForwardClick}
               style={{
                 padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                backgroundColor: 'transparent',
+                backgroundColor: COLOR_TRANSPARENT,
                 color: theme.colors.text.secondary,
                 border: `1px solid ${theme.colors.border.medium}`,
                 borderRadius: theme.borderRadius.md,
@@ -283,9 +284,9 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
               onClick={handleArchiveClick}
               style={{
                 padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                backgroundColor: 'transparent',
+                backgroundColor: COLOR_TRANSPARENT,
                 color: theme.colors.text.secondary,
-                border: 'none',
+                border: STRING_NONE,
                 borderRadius: theme.borderRadius.md,
                 fontWeight: theme.typography.fontWeight.medium,
                 cursor: 'pointer',
@@ -333,7 +334,7 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
               fontSize: theme.typography.fontSize.xs,
               color: theme.colors.text.tertiary,
               fontWeight: theme.typography.fontWeight.semibold,
-              letterSpacing: '0.08em',
+              letterSpacing: LETTER_SPACING_WIDER,
               textTransform: 'uppercase',
               flexShrink: 0,
             }}>
@@ -395,7 +396,7 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
       
       {/* EmailDetail component */}
       <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
-        <EmailDetail ref={emailDetailComponentRef} emailId={selectedEmailId} compactMode={true} onArchiveComplete={onArchiveComplete} onSnoozeComplete={onSnoozeComplete} autoGenerateReplies={mode === MODE_ACTION} onCorrespondentChange={handleCorrespondentChange} />
+        <EmailDetail ref={emailDetailComponentRef} emailId={selectedEmailId} compactMode onArchiveComplete={onArchiveComplete} onSnoozeComplete={onSnoozeComplete} autoGenerateReplies={mode === MODE_ACTION} onCorrespondentChange={handleCorrespondentChange} />
       </div>
     </div>
   );

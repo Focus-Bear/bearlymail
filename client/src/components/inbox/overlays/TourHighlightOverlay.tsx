@@ -18,7 +18,7 @@ export const TourHighlightOverlay: React.FC<TourHighlightOverlayProps> = ({ targ
         height: rect.height + 8,
         border: `3px solid ${theme.colors.primary.main}`,
         borderRadius: theme.borderRadius.full,
-        boxShadow: `0 0 0 4px rgba(59, 130, 246, 0.3)`,
+        boxShadow: `0 0 0 4px ${theme.colors.overlay.blueTint}`,
         pointerEvents: 'none',
         zIndex: 1001,
       }}

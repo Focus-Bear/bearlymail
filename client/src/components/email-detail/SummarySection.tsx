@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 import { SUMMARY_TYPE_CUSTOM, SUMMARY_TYPE_CUSTOM_PREFIX } from 'constants/strings';
 import { SUMMARY_PREVIEW_MAX_CHARS } from 'constants/numbers';
 import { CollapsibleSection } from 'components/common/CollapsibleSection';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
 
 interface SummarySectionProps {
   summary: string | null;
@@ -64,7 +65,7 @@ export const SummarySection: React.FC<SummarySectionProps> = ({
           border: `1px solid ${theme.colors.border.medium}`,
           borderRadius: theme.borderRadius.md,
           fontSize: theme.typography.fontSize.sm,
-          backgroundColor: 'white',
+          backgroundColor: COLOR_NAMED_WHITE,
           cursor: isGeneratingSummary ? 'wait' : 'pointer',
         }}
       >

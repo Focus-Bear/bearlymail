@@ -32,19 +32,19 @@ function scheduleBatch() {
       const response = await axios.get(`${API_URL}/contacts/contact-types-by-emails`, {
         params: { emails: emails.join(',') },
       });
-      const data: Record<string, string> = response.data;
+      const contactTypeMap: Record<string, string> = response.data;
 
       for (const email of emails) {
-        const typeName = data[email] || null;
+        const typeName = contactTypeMap[email] || null;
         typeCache.set(email, typeName);
-        const cbs = listeners.get(email);
-        if (cbs) cbs.forEach(cb => cb(typeName));
+        const callbacks = listeners.get(email);
+        if (callbacks) callbacks.forEach(callback => callback(typeName));
       }
     } catch {
       for (const email of emails) {
         typeCache.set(email, null);
-        const cbs = listeners.get(email);
-        if (cbs) cbs.forEach(cb => cb(null));
+        const callbacks = listeners.get(email);
+        if (callbacks) callbacks.forEach(callback => callback(null));
       }
     }
   }, BATCH_DELAY_MS);

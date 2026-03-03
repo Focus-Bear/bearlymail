@@ -5,6 +5,7 @@ import axios from 'axios';
 
 import { API_URL } from 'config/api';
 import { NUMBER_FORMAT_MILLION, NUMBER_FORMAT_THOUSAND, OPACITY_DISABLED_ALT, REFRESH_INTERVAL_30_SEC_MS, DAYS_IN_MONTH_30, MS_PER_DAY } from 'constants/numbers';
+import { STRING_NONE } from 'constants/strings';
 
 interface UsageByOperation {
   operation: string;
@@ -146,14 +147,14 @@ export const TokenUsageSection: React.FC = () => {
     return () => clearInterval(interval);
   }, [dateRange, fetchUsageData, fetchExamples]);
 
-  const formatNumber = (num: number): string => {
-    if (num >= NUMBER_FORMAT_MILLION) {
-      return `${(num / NUMBER_FORMAT_MILLION).toFixed(2)}M`;
+  const formatNumber = (value: number): string => {
+    if (value >= NUMBER_FORMAT_MILLION) {
+      return `${(value / NUMBER_FORMAT_MILLION).toFixed(2)}M`;
     }
-    if (num >= NUMBER_FORMAT_THOUSAND) {
-      return `${(num / NUMBER_FORMAT_THOUSAND).toFixed(1)}K`;
+    if (value >= NUMBER_FORMAT_THOUSAND) {
+      return `${(value / NUMBER_FORMAT_THOUSAND).toFixed(1)}K`;
     }
-    return num.toLocaleString();
+    return value.toLocaleString();
   };
 
   const formatDuration = (ms: number | null): string => {
@@ -473,7 +474,7 @@ export const TokenUsageSection: React.FC = () => {
               padding: `${theme.spacing.sm} ${theme.spacing.md}`,
               backgroundColor: examples.length === 0 ? theme.colors.background.default : theme.colors.accent.error,
               color: examples.length === 0 ? theme.colors.text.disabled : theme.colors.background.paper,
-              border: 'none',
+              border: STRING_NONE,
               borderRadius: theme.borderRadius.sm,
               cursor: examples.length === 0 ? 'not-allowed' : 'pointer',
               fontSize: theme.typography.fontSize.sm,

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import type { Meta, StoryObj } from '@storybook/react';
+import type { StoryObj } from '@storybook/react';
+import { COLOR_WHITE, COLOR_WHITE_FULL } from 'constants/colors';
 
-const T = {
+const Th = {
   border: '#E5E7EB', text: '#111827', textSec: '#6B7280',
   sp: { xs: '4px', sm: '8px', md: '16px' },
   r: { sm: '4px', md: '8px' },
@@ -37,34 +38,38 @@ const ActionsSection = ({ initialItems = [], loading = false }: ActionsProps) =>
   const done = items.filter(i => i.isCompleted).length;
 
   return (
-    <div style={{ maxWidth: 640, borderRadius: T.r.md, border: `1px solid ${T.border}`, overflow: 'hidden', marginBottom: T.sp.md }}>
-      <button onClick={() => setCollapsed(!collapsed)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: T.sp.sm, padding: `${T.sp.sm} ${T.sp.md}`, backgroundColor: ACCENT_BG, border: 'none', borderLeft: `3px solid ${ACCENT}`, cursor: 'pointer', textAlign: 'left' as const }}>
+    <div style={{ maxWidth: 640, borderRadius: Th.r.md, border: `1px solid ${Th.border}`, overflow: 'hidden', marginBottom: Th.sp.md }}>
+      <button onClick={() => setCollapsed(!collapsed)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: Th.sp.sm, padding: `${Th.sp.sm} ${Th.sp.md}`, backgroundColor: ACCENT_BG, border: 'none', borderLeft: `3px solid ${ACCENT}`, cursor: 'pointer', textAlign: 'left' as const }}>
         <span style={{ fontSize: '16px' }}>✅</span>
-        <span style={{ flex: 1, fontSize: T.f.sm, fontWeight: 600, color: T.text, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Action Items</span>
-        {items.length > 0 && <span style={{ fontSize: T.f.xs, color: T.textSec }}>{done}/{items.length} done</span>}
-        <span style={{ fontSize: T.f.xs, color: T.textSec, transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)', transition: 'transform 0.2s', flexShrink: 0 }}>▼</span>
+        <span style={{ flex: 1, fontSize: Th.f.sm, fontWeight: 600, color: Th.text, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Action Items</span>
+        {items.length > 0 && <span style={{ fontSize: Th.f.xs, color: Th.textSec }}>{done}/{items.length} done</span>}
+        <span style={{ fontSize: Th.f.xs, color: Th.textSec, transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)', transition: 'transform 0.2s', flexShrink: 0 }}>▼</span>
       </button>
       {!collapsed && (
-        <div style={{ padding: T.sp.md, backgroundColor: '#FFFFFF' }}>
-          {loading ? (
-            <div style={{ color: T.textSec, fontSize: T.f.sm }}>⏳ Extracting action items…</div>
-          ) : items.length === 0 ? (
-            <div style={{ color: T.textSec, fontSize: T.f.sm, marginBottom: T.sp.md }}>No action items yet. <button onClick={() => alert('Extract!')} style={{ background: 'none', border: 'none', color: ACCENT, cursor: 'pointer', fontWeight: 600, fontSize: T.f.sm }}>Extract from email →</button></div>
-          ) : (
+        <div style={{ padding: Th.sp.md, backgroundColor: COLOR_WHITE_FULL }}>
+          {(() => {
+            if (loading) return (
+            <div style={{ color: Th.textSec, fontSize: Th.f.sm }}>⏳ Extracting action items…</div>
+          );
+            if (items.length === 0) return (
+            <div style={{ color: Th.textSec, fontSize: Th.f.sm, marginBottom: Th.sp.md }}>No action items yet. <button onClick={() => { /* extract action placeholder */ }} style={{ background: 'none', border: 'none', color: ACCENT, cursor: 'pointer', fontWeight: 600, fontSize: Th.f.sm }}>Extract from email →</button></div>
+          );
+            return (
             <ul style={{ margin: '0 0 12px', padding: 0, listStyle: 'none' }}>
               {items.map(item => (
-                <li key={item.id} style={{ display: 'flex', alignItems: 'flex-start', gap: T.sp.sm, padding: `${T.sp.xs} 0`, borderBottom: `1px solid ${T.border}` }}>
+                <li key={item.id} style={{ display: 'flex', alignItems: 'flex-start', gap: Th.sp.sm, padding: `${Th.sp.xs} 0`, borderBottom: `1px solid ${Th.border}` }}>
                   <input type="checkbox" checked={item.isCompleted} onChange={e => toggle(item.id, e.target.checked)} style={{ cursor: 'pointer', marginTop: 3, accentColor: ACCENT }} />
-                  <span style={{ flex: 1, fontSize: T.f.base, color: item.isCompleted ? T.textSec : T.text, textDecoration: item.isCompleted ? 'line-through' : 'none', lineHeight: 1.5 }}>{item.description}</span>
-                  <span style={{ fontSize: T.f.xs, color: item.source === 'llm' ? '#7C3AED' : T.textSec, flexShrink: 0 }}>{item.source === 'llm' ? '🤖' : '👤'}</span>
-                  <button onClick={() => del(item.id)} style={{ background: 'none', border: 'none', color: T.textSec, cursor: 'pointer', padding: 0, fontSize: 14, flexShrink: 0 }}>✕</button>
+                  <span style={{ flex: 1, fontSize: Th.f.base, color: item.isCompleted ? Th.textSec : Th.text, textDecoration: item.isCompleted ? 'line-through' : 'none', lineHeight: 1.5 }}>{item.description}</span>
+                  <span style={{ fontSize: Th.f.xs, color: item.source === 'llm' ? '#7C3AED' : Th.textSec, flexShrink: 0 }}>{item.source === 'llm' ? '🤖' : '👤'}</span>
+                  <button onClick={() => del(item.id)} style={{ background: 'none', border: 'none', color: Th.textSec, cursor: 'pointer', padding: 0, fontSize: 14, flexShrink: 0 }}>✕</button>
                 </li>
               ))}
             </ul>
-          )}
-          <div style={{ display: 'flex', gap: T.sp.sm }}>
-            <input value={newItem} onChange={e => setNewItem(e.target.value)} onKeyDown={e => e.key === 'Enter' && add()} placeholder="Add action item…" style={{ flex: 1, padding: `${T.sp.xs} ${T.sp.sm}`, border: `1px solid ${T.border}`, borderRadius: T.r.sm, fontSize: T.f.base, color: T.text, fontFamily: 'inherit' }} />
-            <button onClick={add} style={{ padding: `${T.sp.xs} ${T.sp.md}`, backgroundColor: ACCENT, color: '#fff', border: 'none', borderRadius: T.r.sm, cursor: 'pointer', fontSize: T.f.sm, fontWeight: 600 }}>Add</button>
+            );
+          })()}
+          <div style={{ display: 'flex', gap: Th.sp.sm }}>
+            <input value={newItem} onChange={e => setNewItem(e.target.value)} onKeyDown={e => e.key === 'Enter' && add()} placeholder="Add action item…" style={{ flex: 1, padding: `${Th.sp.xs} ${Th.sp.sm}`, border: `1px solid ${Th.border}`, borderRadius: Th.r.sm, fontSize: Th.f.base, color: Th.text, fontFamily: 'inherit' }} />
+            <button onClick={add} style={{ padding: `${Th.sp.xs} ${Th.sp.md}`, backgroundColor: ACCENT, color: COLOR_WHITE, border: 'none', borderRadius: Th.r.sm, cursor: 'pointer', fontSize: Th.f.sm, fontWeight: 600 }}>Add</button>
           </div>
         </div>
       )}

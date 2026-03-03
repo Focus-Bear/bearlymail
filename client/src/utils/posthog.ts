@@ -1,5 +1,5 @@
 import posthog from 'posthog-js';
-import { ENV_DEVELOPMENT, TYPEOF_UNDEFINED } from 'constants/strings';
+import { TYPEOF_UNDEFINED } from 'constants/strings';
 
 // Initialize PostHog if API key is provided
 export const initPostHog = () => {

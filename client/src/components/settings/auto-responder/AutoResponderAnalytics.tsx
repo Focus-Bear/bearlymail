@@ -2,6 +2,8 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { AutoResponderAnalytics as AnalyticsData } from './types';
+import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface AutoResponderAnalyticsProps {
   analytics: AnalyticsData | null;
@@ -35,8 +37,8 @@ export const AutoResponderAnalytics: React.FC<AutoResponderAnalyticsProps> = ({
           style={{
             padding: `${theme.spacing.sm} ${theme.spacing.md}`,
             backgroundColor: theme.colors.primary.main,
-            color: 'white',
-            border: 'none',
+            color: COLOR_NAMED_WHITE,
+            border: STRING_NONE,
             borderRadius: theme.borderRadius.md,
             cursor: 'pointer',
             ...theme.typography.body.large,
@@ -75,7 +77,7 @@ export const AutoResponderAnalytics: React.FC<AutoResponderAnalyticsProps> = ({
             onClick={onRefresh}
             style={{
               padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-              backgroundColor: 'transparent',
+              backgroundColor: COLOR_TRANSPARENT,
               color: theme.colors.primary.main,
               border: `1px solid ${theme.colors.primary.main}`,
               borderRadius: theme.borderRadius.sm,

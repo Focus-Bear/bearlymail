@@ -2,14 +2,54 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { ADMIN_TAB_WAITLIST, ADMIN_TAB_SUBSCRIPTIONS, ADMIN_TAB_JOBS, ADMIN_TAB_TOKEN_USAGE, ADMIN_TAB_QUEUE_DASHBOARD, ADMIN_TAB_GITHUB_DEBUG, ADMIN_TAB_CONTEXT_ANALYSIS, AdminTab } from 'constants/adminTabs';
+import { STRING_NONE, FONT_WEIGHT_NORMAL } from 'constants/strings';
+import { MARGIN_BOTTOM_NEG_2PX } from 'constants/numbers';
 
 interface AdminTabsProps {
   activeTab: AdminTab;
   onTabChange: (tab: AdminTab) => void;
 }
 
+interface TabButtonProps {
+  tab: AdminTab;
+  activeTab: AdminTab;
+  label: string;
+  onClick: (tab: AdminTab) => void;
+}
+
+const TabButton: React.FC<TabButtonProps> = ({ tab, activeTab, label, onClick }) => {
+  const isActive = activeTab === tab;
+  return (
+    <button
+      onClick={() => onClick(tab)}
+      style={{
+        padding: `${theme.spacing.md} ${theme.spacing.lg}`,
+        backgroundColor: theme.colors.common.transparent,
+        color: isActive ? theme.colors.primary.main : theme.colors.text.secondary,
+        border: STRING_NONE,
+        borderBottom: isActive ? `2px solid ${theme.colors.primary.main}` : `2px solid ${theme.colors.common.transparent}`,
+        cursor: 'pointer',
+        fontWeight: isActive ? theme.typography.fontWeight.semibold : FONT_WEIGHT_NORMAL,
+        marginBottom: MARGIN_BOTTOM_NEG_2PX,
+      }}
+    >
+      {label}
+    </button>
+  );
+};
+
 export const AdminTabs: React.FC<AdminTabsProps> = ({ activeTab, onTabChange }) => {
   const { t } = useTranslation();
+
+  const tabs = [
+    { id: ADMIN_TAB_WAITLIST, label: t('admin.dashboard.waitlist') },
+    { id: ADMIN_TAB_SUBSCRIPTIONS, label: t('admin.dashboard.subscriptions') },
+    { id: ADMIN_TAB_JOBS, label: t('admin.dashboard.jobs') },
+    { id: ADMIN_TAB_TOKEN_USAGE, label: t('admin.dashboard.tokenUsage') },
+    { id: ADMIN_TAB_QUEUE_DASHBOARD, label: t('admin.dashboard.queueDashboard') },
+    { id: ADMIN_TAB_GITHUB_DEBUG, label: t('admin.dashboard.githubDebug') },
+    { id: ADMIN_TAB_CONTEXT_ANALYSIS, label: t('admin.dashboard.contextAnalysis') },
+  ];
 
   return (
     <div style={{
@@ -18,112 +58,15 @@ export const AdminTabs: React.FC<AdminTabsProps> = ({ activeTab, onTabChange }) 
       marginBottom: theme.spacing.xl,
       borderBottom: `2px solid ${theme.colors.border.light}`,
     }}>
-      <button
-        onClick={() => onTabChange(ADMIN_TAB_WAITLIST)}
-        style={{
-          padding: `${theme.spacing.md} ${theme.spacing.lg}`,
-          backgroundColor: 'transparent',
-          color: activeTab === ADMIN_TAB_WAITLIST ? theme.colors.primary.main : theme.colors.text.secondary,
-          border: 'none',
-          borderBottom: activeTab === ADMIN_TAB_WAITLIST ? `2px solid ${theme.colors.primary.main}` : '2px solid transparent',
-          cursor: 'pointer',
-          fontWeight: activeTab === ADMIN_TAB_WAITLIST ? theme.typography.fontWeight.semibold : 'normal',
-          marginBottom: '-2px',
-        }}
-      >
-        {t('admin.dashboard.waitlist')}
-      </button>
-      <button
-        onClick={() => onTabChange(ADMIN_TAB_SUBSCRIPTIONS)}
-        style={{
-          padding: `${theme.spacing.md} ${theme.spacing.lg}`,
-          backgroundColor: 'transparent',
-          color: activeTab === ADMIN_TAB_SUBSCRIPTIONS ? theme.colors.primary.main : theme.colors.text.secondary,
-          border: 'none',
-          borderBottom: activeTab === ADMIN_TAB_SUBSCRIPTIONS ? `2px solid ${theme.colors.primary.main}` : '2px solid transparent',
-          cursor: 'pointer',
-          fontWeight: activeTab === ADMIN_TAB_SUBSCRIPTIONS ? theme.typography.fontWeight.semibold : 'normal',
-          marginBottom: '-2px',
-        }}
-      >
-        {t('admin.dashboard.subscriptions')}
-      </button>
-      <button
-        onClick={() => onTabChange(ADMIN_TAB_JOBS)}
-        style={{
-          padding: `${theme.spacing.md} ${theme.spacing.lg}`,
-          backgroundColor: 'transparent',
-          color: activeTab === ADMIN_TAB_JOBS ? theme.colors.primary.main : theme.colors.text.secondary,
-          border: 'none',
-          borderBottom: activeTab === ADMIN_TAB_JOBS ? `2px solid ${theme.colors.primary.main}` : '2px solid transparent',
-          cursor: 'pointer',
-          fontWeight: activeTab === ADMIN_TAB_JOBS ? theme.typography.fontWeight.semibold : 'normal',
-          marginBottom: '-2px',
-        }}
-      >
-        {t('admin.dashboard.jobs')}
-      </button>
-      <button
-        onClick={() => onTabChange(ADMIN_TAB_TOKEN_USAGE)}
-        style={{
-          padding: `${theme.spacing.md} ${theme.spacing.lg}`,
-          backgroundColor: 'transparent',
-          color: activeTab === ADMIN_TAB_TOKEN_USAGE ? theme.colors.primary.main : theme.colors.text.secondary,
-          border: 'none',
-          borderBottom: activeTab === ADMIN_TAB_TOKEN_USAGE ? `2px solid ${theme.colors.primary.main}` : '2px solid transparent',
-          cursor: 'pointer',
-          fontWeight: activeTab === ADMIN_TAB_TOKEN_USAGE ? theme.typography.fontWeight.semibold : 'normal',
-          marginBottom: '-2px',
-        }}
-      >
-        {t('admin.dashboard.tokenUsage')}
-      </button>
-      <button
-        onClick={() => onTabChange(ADMIN_TAB_QUEUE_DASHBOARD)}
-        style={{
-          padding: `${theme.spacing.md} ${theme.spacing.lg}`,
-          backgroundColor: 'transparent',
-          color: activeTab === ADMIN_TAB_QUEUE_DASHBOARD ? theme.colors.primary.main : theme.colors.text.secondary,
-          border: 'none',
-          borderBottom: activeTab === ADMIN_TAB_QUEUE_DASHBOARD ? `2px solid ${theme.colors.primary.main}` : '2px solid transparent',
-          cursor: 'pointer',
-          fontWeight: activeTab === ADMIN_TAB_QUEUE_DASHBOARD ? theme.typography.fontWeight.semibold : 'normal',
-          marginBottom: '-2px',
-        }}
-      >
-        {t('admin.dashboard.queueDashboard')}
-      </button>
-      <button
-        onClick={() => onTabChange(ADMIN_TAB_GITHUB_DEBUG)}
-        style={{
-          padding: `${theme.spacing.md} ${theme.spacing.lg}`,
-          backgroundColor: 'transparent',
-          color: activeTab === ADMIN_TAB_GITHUB_DEBUG ? theme.colors.primary.main : theme.colors.text.secondary,
-          border: 'none',
-          borderBottom: activeTab === ADMIN_TAB_GITHUB_DEBUG ? `2px solid ${theme.colors.primary.main}` : '2px solid transparent',
-          cursor: 'pointer',
-          fontWeight: activeTab === ADMIN_TAB_GITHUB_DEBUG ? theme.typography.fontWeight.semibold : 'normal',
-          marginBottom: '-2px',
-        }}
-      >
-        {t('admin.dashboard.githubDebug')}
-      </button>
-      <button
-        onClick={() => onTabChange(ADMIN_TAB_CONTEXT_ANALYSIS)}
-        style={{
-          padding: `${theme.spacing.md} ${theme.spacing.lg}`,
-          backgroundColor: 'transparent',
-          color: activeTab === ADMIN_TAB_CONTEXT_ANALYSIS ? theme.colors.primary.main : theme.colors.text.secondary,
-          border: 'none',
-          borderBottom: activeTab === ADMIN_TAB_CONTEXT_ANALYSIS ? `2px solid ${theme.colors.primary.main}` : '2px solid transparent',
-          cursor: 'pointer',
-          fontWeight: activeTab === ADMIN_TAB_CONTEXT_ANALYSIS ? theme.typography.fontWeight.semibold : 'normal',
-          marginBottom: '-2px',
-        }}
-      >
-        {t('admin.dashboard.contextAnalysis')}
-      </button>
+      {tabs.map((tab) => (
+        <TabButton
+          key={tab.id}
+          tab={tab.id}
+          activeTab={activeTab}
+          label={tab.label}
+          onClick={onTabChange}
+        />
+      ))}
     </div>
   );
 };
-

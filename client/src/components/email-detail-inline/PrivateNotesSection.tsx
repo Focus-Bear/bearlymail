@@ -5,6 +5,7 @@ import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 import { MS_PER_SECOND, SECONDS_PER_MINUTE, MINUTES_PER_HOUR, NOTES_PREVIEW_MAX_CHARS } from 'constants/numbers';
 import { CollapsibleSection } from 'components/common/CollapsibleSection';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
 
 const DEBOUNCE_MS = 1000;
 const SAVED_STATUS_UPDATE_INTERVAL_MS = 10000;
@@ -110,7 +111,7 @@ export const PrivateNotesSection: React.FC<PrivateNotesSectionProps> = ({
           fontFamily: theme.typography.fontFamily,
           resize: 'vertical',
           boxSizing: 'border-box',
-          backgroundColor: 'white',
+          backgroundColor: COLOR_NAMED_WHITE,
         }}
       />
       {/* eslint-disable i18next/no-literal-string */}

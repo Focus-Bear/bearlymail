@@ -5,8 +5,8 @@ import axios from 'axios';
 import { theme } from 'theme/theme';
 import { BookingLoadingState } from 'components/booking/BookingLoadingState';
 import { EMOJI_CHECK } from 'constants/emojis';
-import { BOOKING_STATUS_SUCCESS, BOOKING_STATUS_SUBMITTING, BOOKING_STATUS_CANCELLED } from 'constants/strings';
-import { OPACITY_DISABLED_ALT, OPACITY_FULL } from 'constants/numbers';
+import { BOOKING_STATUS_SUCCESS, BOOKING_STATUS_CANCELLED, BOOKING_IDLE, BOOKING_SUBMITTING, BOOKING_SUCCESS, BOOKING_ERROR, STRING_WHITE, STRING_CENTER, STRING_AUTO, STRING_HIDDEN, STRING_LONG, STRING_NUMERIC, STRING_2_DIGIT, STRING_NONE, STRING_NOT_ALLOWED, STRING_POINTER } from 'constants/strings';
+import { OPACITY_DISABLED_ALT, OPACITY_FULL, WIDTH_FULL_PX, MAX_WIDTH_500_PX, MAX_WIDTH_600_PX, OPACITY_90_PERCENT } from 'constants/numbers';
 import { API_URL } from 'config/api';
 
 interface BookingData {
@@ -26,7 +26,7 @@ const BookingCancelPage: React.FC = () => {
   const { t } = useTranslation();
   const [booking, setBooking] = useState<BookingData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [status, setStatus] = useState<typeof BOOKING_IDLE | typeof BOOKING_SUBMITTING | typeof BOOKING_SUCCESS | typeof BOOKING_ERROR>(BOOKING_IDLE);
   const [error, setError] = useState('');
 
   const fetchBooking = useCallback(async () => {
@@ -49,12 +49,12 @@ const BookingCancelPage: React.FC = () => {
   const handleCancel = async () => {
     if (!token) return;
 
-    setStatus('submitting');
+    setStatus(BOOKING_SUBMITTING);
     try {
       await axios.post(`${API_URL}/public/calendar/booking/${token}/cancel`);
-      setStatus('success');
+      setStatus(BOOKING_SUCCESS);
     } catch {
-      setStatus('error');
+      setStatus(BOOKING_ERROR);
       setError(t('booking.cancel.failedToCancel'));
     }
   };
@@ -67,8 +67,8 @@ const BookingCancelPage: React.FC = () => {
     return (
       <div style={{
         display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
+        justifyContent: STRING_CENTER,
+        alignItems: STRING_CENTER,
         height: '100vh',
         backgroundColor: theme.colors.background.default,
         fontFamily: theme.typography.fontFamily,
@@ -78,8 +78,8 @@ const BookingCancelPage: React.FC = () => {
           padding: theme.spacing['2xl'],
           borderRadius: theme.borderRadius.lg,
           boxShadow: theme.shadows.md,
-          textAlign: 'center',
-          maxWidth: '500px',
+          textAlign: STRING_CENTER,
+          maxWidth: `${MAX_WIDTH_500_PX}px`,
         }}>
           {/* eslint-disable-next-line i18next/no-literal-string */}
           <div style={{
@@ -107,22 +107,22 @@ const BookingCancelPage: React.FC = () => {
       padding: theme.spacing.xl,
     }}>
       <div style={{
-        maxWidth: '600px',
-        margin: '0 auto',
+        maxWidth: `${MAX_WIDTH_600_PX}px`,
+        margin: STRING_AUTO,
         backgroundColor: theme.colors.background.paper,
         borderRadius: theme.borderRadius.lg,
         boxShadow: theme.shadows.lg,
-        overflow: 'hidden',
+        overflow: STRING_HIDDEN,
       }}>
         <div style={{
           padding: theme.spacing.xl,
           backgroundColor: theme.colors.accent.error,
-          color: 'white',
+          color: STRING_WHITE,
         }}>
           <h1 style={{ margin: 0, fontSize: theme.typography.fontSize['2xl'] }}>
             {t('booking.cancel.title')}
           </h1>
-          <p style={{ marginTop: theme.spacing.sm, opacity: 0.9 }}>
+          <p style={{ marginTop: theme.spacing.sm, opacity: OPACITY_90_PERCENT }}>
             {t('booking.cancel.subtitle')}
           </p>
         </div>
@@ -142,7 +142,7 @@ const BookingCancelPage: React.FC = () => {
 
           {booking && booking.status === BOOKING_STATUS_CANCELLED && (
             <div style={{
-              textAlign: 'center',
+              textAlign: STRING_CENTER,
               padding: theme.spacing.xl,
               color: theme.colors.text.secondary,
             }}>
@@ -173,7 +173,7 @@ const BookingCancelPage: React.FC = () => {
                   fontSize: theme.typography.fontSize.lg,
                 }}>
                   {new Date(booking.startTime).toLocaleDateString(undefined, {
-                    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+                    weekday: STRING_LONG, month: STRING_LONG, day: STRING_NUMERIC, year: STRING_NUMERIC,
                   })}
                 </p>
                 <p style={{
@@ -181,11 +181,11 @@ const BookingCancelPage: React.FC = () => {
                   color: theme.colors.text.primary,
                 }}>
                   {new Date(booking.startTime).toLocaleTimeString(undefined, {
-                    hour: '2-digit', minute: '2-digit',
+                    hour: STRING_2_DIGIT, minute: STRING_2_DIGIT,
                   })}
                   {' - '}
                   {new Date(booking.endTime).toLocaleTimeString(undefined, {
-                    hour: '2-digit', minute: '2-digit',
+                    hour: STRING_2_DIGIT, minute: STRING_2_DIGIT,
                   })}
                 </p>
                 {booking.title && (
@@ -201,28 +201,28 @@ const BookingCancelPage: React.FC = () => {
               <p style={{
                 color: theme.colors.text.secondary,
                 marginBottom: theme.spacing.lg,
-                textAlign: 'center',
+                textAlign: STRING_CENTER,
               }}>
                 {t('booking.cancel.confirmMessage')}
               </p>
 
               <button
                 onClick={handleCancel}
-                disabled={status === BOOKING_STATUS_SUBMITTING}
+                disabled={status === BOOKING_SUBMITTING}
                 style={{
-                  width: '100%',
+                  width: WIDTH_FULL_PX,
                   padding: theme.spacing.lg,
                   backgroundColor: theme.colors.accent.error,
-                  color: 'white',
-                  border: 'none',
+                  color: STRING_WHITE,
+                  border: STRING_NONE,
                   borderRadius: theme.borderRadius.md,
-                  cursor: status === BOOKING_STATUS_SUBMITTING ? 'not-allowed' : 'pointer',
+                  cursor: status === BOOKING_SUBMITTING ? STRING_NOT_ALLOWED : STRING_POINTER,
                   fontSize: theme.typography.fontSize.base,
                   fontWeight: theme.typography.fontWeight.semibold,
-                  opacity: status === BOOKING_STATUS_SUBMITTING ? OPACITY_DISABLED_ALT : OPACITY_FULL,
+                  opacity: status === BOOKING_SUBMITTING ? OPACITY_DISABLED_ALT : OPACITY_FULL,
                 }}
               >
-                {status === BOOKING_STATUS_SUBMITTING
+                {status === BOOKING_SUBMITTING
                   ? t('booking.cancel.cancelling')
                   : t('booking.cancel.confirmCancel')}
               </button>

@@ -1,6 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface ReloginBannerProps {
   onLogout: () => void;
@@ -16,7 +18,7 @@ export const ReloginBanner: React.FC<ReloginBannerProps> = ({ onLogout }) => {
     <div
       style={{
         backgroundColor: theme.colors.accent.error,
-        color: 'white',
+        color: COLOR_NAMED_WHITE,
         padding: `${theme.spacing.sm} ${theme.spacing.md}`,
         textAlign: 'center',
         fontWeight: theme.typography.fontWeight.medium,
@@ -31,9 +33,9 @@ export const ReloginBanner: React.FC<ReloginBannerProps> = ({ onLogout }) => {
       <button
         onClick={onLogout}
         style={{
-          backgroundColor: 'white',
+          backgroundColor: COLOR_NAMED_WHITE,
           color: theme.colors.accent.error,
-          border: 'none',
+          border: STRING_NONE,
           borderRadius: theme.borderRadius.sm,
           padding: `${theme.spacing.xs} ${theme.spacing.md}`,
           fontWeight: theme.typography.fontWeight.semibold,

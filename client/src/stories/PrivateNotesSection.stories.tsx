@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import type { Meta, StoryObj } from '@storybook/react';
+import type { StoryObj } from '@storybook/react';
+import { COLOR_WHITE, COLOR_WHITE_FULL } from 'constants/colors';
 
-const T = {
+const Th = {
   border: '#E5E7EB', text: '#111827', textSec: '#6B7280',
   sp: { xs: '4px', sm: '8px', md: '16px' },
   r: { sm: '4px', md: '8px' },
@@ -24,23 +25,23 @@ const NotesSection = ({ initialContent = '', defaultCollapsed = false }: NotesPr
   };
 
   return (
-    <div style={{ maxWidth: 640, borderRadius: T.r.md, border: `1px solid ${T.border}`, overflow: 'hidden', marginBottom: T.sp.md }}>
-      <button onClick={() => setCollapsed(!collapsed)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: T.sp.sm, padding: `${T.sp.sm} ${T.sp.md}`, backgroundColor: ACCENT_BG, border: 'none', borderLeft: `3px solid ${ACCENT}`, cursor: 'pointer', textAlign: 'left' as const }}>
+    <div style={{ maxWidth: 640, borderRadius: Th.r.md, border: `1px solid ${Th.border}`, overflow: 'hidden', marginBottom: Th.sp.md }}>
+      <button onClick={() => setCollapsed(!collapsed)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: Th.sp.sm, padding: `${Th.sp.sm} ${Th.sp.md}`, backgroundColor: ACCENT_BG, border: 'none', borderLeft: `3px solid ${ACCENT}`, cursor: 'pointer', textAlign: 'left' as const }}>
         <span style={{ fontSize: '16px' }}>📝</span>
-        <span style={{ flex: 1, fontSize: T.f.sm, fontWeight: 600, color: T.text, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Private Notes</span>
-        {collapsed && content && <span style={{ fontSize: T.f.xs, color: T.textSec, maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{content}</span>}
-        <span style={{ fontSize: T.f.xs, color: T.textSec, transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)', transition: 'transform 0.2s', flexShrink: 0 }}>▼</span>
+        <span style={{ flex: 1, fontSize: Th.f.sm, fontWeight: 600, color: Th.text, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Private Notes</span>
+        {collapsed && content && <span style={{ fontSize: Th.f.xs, color: Th.textSec, maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{content}</span>}
+        <span style={{ fontSize: Th.f.xs, color: Th.textSec, transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)', transition: 'transform 0.2s', flexShrink: 0 }}>▼</span>
       </button>
       {!collapsed && (
-        <div style={{ padding: T.sp.md, backgroundColor: '#FFFFFF' }}>
+        <div style={{ padding: Th.sp.md, backgroundColor: COLOR_WHITE_FULL }}>
           <textarea
             value={content}
             onChange={e => setContent(e.target.value)}
             placeholder="Add a private note… only you can see this."
-            style={{ width: '100%', minHeight: 100, padding: T.sp.sm, border: `1px solid ${T.border}`, borderRadius: T.r.sm, fontSize: T.f.base, color: T.text, resize: 'vertical', boxSizing: 'border-box' as const, fontFamily: 'inherit', lineHeight: 1.6 }}
+            style={{ width: '100%', minHeight: 100, padding: Th.sp.sm, border: `1px solid ${Th.border}`, borderRadius: Th.r.sm, fontSize: Th.f.base, color: Th.text, resize: 'vertical', boxSizing: 'border-box' as const, fontFamily: 'inherit', lineHeight: 1.6 }}
           />
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: T.sp.sm }}>
-            <button onClick={handleSave} style={{ padding: `${T.sp.xs} ${T.sp.md}`, backgroundColor: ACCENT, color: '#fff', border: 'none', borderRadius: T.r.sm, cursor: 'pointer', fontSize: T.f.sm, fontWeight: 600 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: Th.sp.sm }}>
+            <button onClick={handleSave} style={{ padding: `${Th.sp.xs} ${Th.sp.md}`, backgroundColor: ACCENT, color: COLOR_WHITE, border: 'none', borderRadius: Th.r.sm, cursor: 'pointer', fontSize: Th.f.sm, fontWeight: 600 }}>
               {saved ? '✓ Saved' : 'Save note'}
             </button>
           </div>

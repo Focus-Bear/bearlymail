@@ -4,8 +4,10 @@ import axios from 'axios';
 import { theme } from 'theme/theme';
 import { Contact } from 'types/contact';
 import { DEBOUNCE_DELAY_200_MS } from 'constants/numbers';
+import { EMAIL_FIELD_BCC, EMAIL_FIELD_CC, EMAIL_FIELD_TO, KEY_ARROW_DOWN, KEY_ARROW_UP, KEY_BACKSPACE, KEY_ENTER, KEY_ESCAPE, STRING_NONE } from 'constants/strings';
 
 import { API_URL } from 'config/api';
+import { COLOR_TRANSPARENT } from 'constants/colors';
 
 interface ReplyRecipientsInputProps {
   replyRecipients: string;
@@ -20,7 +22,7 @@ interface ReplyRecipientsInputProps {
   onShowBcc: () => void;
 }
 
-type FieldType = 'to' | 'cc' | 'bcc';
+type FieldType = typeof EMAIL_FIELD_TO | typeof EMAIL_FIELD_CC | typeof EMAIL_FIELD_BCC;
 
 const parseEmailsToTags = (value: string): string[] => {
   return value
@@ -51,7 +53,7 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
   const [activeField, setActiveField] = useState<FieldType | null>(null);
   const [searchResults, setSearchResults] = useState<Contact[]>([]);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
-  const [inputValues, setInputValues] = useState<Record<FieldType, string>>({ to: '', cc: '', bcc: '' });
+  const [inputValues, setInputValues] = useState<Record<FieldType, string>>({ [EMAIL_FIELD_TO]: '', [EMAIL_FIELD_CC]: '', [EMAIL_FIELD_BCC]: '' });
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -77,8 +79,8 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
 
   const handleRemoveTag = useCallback((index: number, field: FieldType) => {
     const getTags = () => {
-      if (field === 'to') return toTags;
-      if (field === 'cc') return ccTags;
+      if (field === EMAIL_FIELD_TO) return toTags;
+      if (field === EMAIL_FIELD_CC) return ccTags;
       return bccTags;
     };
 
@@ -86,8 +88,8 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
     const newTags = tags.filter((_, i) => i !== index);
     const newValue = newTags.join(', ');
 
-    if (field === 'to') onRecipientsChange(newValue);
-    else if (field === 'cc') onCcChange(newValue);
+    if (field === EMAIL_FIELD_TO) onRecipientsChange(newValue);
+    else if (field === EMAIL_FIELD_CC) onCcChange(newValue);
     else onBccChange(newValue);
   }, [toTags, ccTags, bccTags, onRecipientsChange, onCcChange, onBccChange]);
 
@@ -106,8 +108,8 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
 
       if (newEmails.length > 0) {
         const getTags = () => {
-          if (field === 'to') return toTags;
-          if (field === 'cc') return ccTags;
+          if (field === EMAIL_FIELD_TO) return toTags;
+          if (field === EMAIL_FIELD_CC) return ccTags;
           return bccTags;
         };
 
@@ -115,8 +117,8 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
         const allTags = [...currentTags, ...newEmails];
         const newValue = allTags.join(', ');
 
-        if (field === 'to') onRecipientsChange(newValue);
-        else if (field === 'cc') onCcChange(newValue);
+        if (field === EMAIL_FIELD_TO) onRecipientsChange(newValue);
+        else if (field === EMAIL_FIELD_CC) onCcChange(newValue);
         else onBccChange(newValue);
 
         setInputValues(prev => ({ ...prev, [field]: remaining.trim() }));
@@ -131,8 +133,8 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
 
   const handleSelectContact = useCallback((contact: Contact, field: FieldType) => {
     const getTags = () => {
-      if (field === 'to') return toTags;
-      if (field === 'cc') return ccTags;
+      if (field === EMAIL_FIELD_TO) return toTags;
+      if (field === EMAIL_FIELD_CC) return ccTags;
       return bccTags;
     };
 
@@ -141,8 +143,8 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
     const newTags = [...currentTags, contactDisplay];
     const newValue = newTags.join(', ');
 
-    if (field === 'to') onRecipientsChange(newValue);
-    else if (field === 'cc') onCcChange(newValue);
+    if (field === EMAIL_FIELD_TO) onRecipientsChange(newValue);
+    else if (field === EMAIL_FIELD_CC) onCcChange(newValue);
     else onBccChange(newValue);
 
     setInputValues(prev => ({ ...prev, [field]: '' }));
@@ -153,10 +155,10 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
   const handleKeyDown = useCallback((e: React.KeyboardEvent, field: FieldType) => {
     const inputValue = inputValues[field];
 
-    if (e.key === 'Backspace' && inputValue === '') {
+    if (e.key === KEY_BACKSPACE && inputValue === '') {
       const getTags = () => {
-        if (field === 'to') return toTags;
-        if (field === 'cc') return ccTags;
+        if (field === EMAIL_FIELD_TO) return toTags;
+        if (field === EMAIL_FIELD_CC) return ccTags;
         return bccTags;
       };
       const tags = getTags();
@@ -166,22 +168,22 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
       return;
     }
 
-    if (e.key === 'Enter' && inputValue.trim() && !/[\r\n]/.test(inputValue.trim()) && isValidEmail(inputValue.trim())) {
+    if (e.key === KEY_ENTER && inputValue.trim() && !/[\r\n]/.test(inputValue.trim()) && isValidEmail(inputValue.trim())) {
       e.preventDefault();
       if (selectedSuggestionIndex >= 0 && searchResults.length > 0) {
         handleSelectContact(searchResults[selectedSuggestionIndex], field);
       } else {
         const getTags = () => {
-          if (field === 'to') return toTags;
-          if (field === 'cc') return ccTags;
+          if (field === EMAIL_FIELD_TO) return toTags;
+          if (field === EMAIL_FIELD_CC) return ccTags;
           return bccTags;
         };
         const currentTags = getTags();
         const newTags = [...currentTags, inputValue.trim()];
         const newValue = newTags.join(', ');
 
-        if (field === 'to') onRecipientsChange(newValue);
-        else if (field === 'cc') onCcChange(newValue);
+        if (field === EMAIL_FIELD_TO) onRecipientsChange(newValue);
+        else if (field === EMAIL_FIELD_CC) onCcChange(newValue);
         else onBccChange(newValue);
 
         setInputValues(prev => ({ ...prev, [field]: '' }));
@@ -192,18 +194,18 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
 
     if (searchResults.length === 0) return;
 
-    if (e.key === 'ArrowDown') {
+    if (e.key === KEY_ARROW_DOWN) {
       e.preventDefault();
       setSelectedSuggestionIndex(prev => 
         prev < searchResults.length - 1 ? prev + 1 : prev
       );
-    } else if (e.key === 'ArrowUp') {
+    } else if (e.key === KEY_ARROW_UP) {
       e.preventDefault();
       setSelectedSuggestionIndex(prev => prev > 0 ? prev - 1 : -1);
-    } else if (e.key === 'Enter' && selectedSuggestionIndex >= 0) {
+    } else if (e.key === KEY_ENTER && selectedSuggestionIndex >= 0) {
       e.preventDefault();
       handleSelectContact(searchResults[selectedSuggestionIndex], field);
-    } else if (e.key === 'Escape') {
+    } else if (e.key === KEY_ESCAPE) {
       setSearchResults([]);
       setActiveField(null);
     }
@@ -212,12 +214,16 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
   const handleBlur = useCallback((field: FieldType) => {
     const inputValue = inputValues[field]?.trim();
     if (inputValue && !/[\r\n]/.test(inputValue) && isValidEmail(inputValue)) {
-      const currentTags = field === 'to' ? toTags : field === 'cc' ? ccTags : bccTags;
+      const currentTags = (() => {
+        if (field === EMAIL_FIELD_TO) return toTags;
+        if (field === EMAIL_FIELD_CC) return ccTags;
+        return bccTags;
+      })();
       const newTags = [...currentTags, inputValue];
       const newValue = newTags.join(', ');
 
-      if (field === 'to') onRecipientsChange(newValue);
-      else if (field === 'cc') onCcChange(newValue);
+      if (field === EMAIL_FIELD_TO) onRecipientsChange(newValue);
+      else if (field === EMAIL_FIELD_CC) onCcChange(newValue);
       else onBccChange(newValue);
 
       setInputValues(prev => ({ ...prev, [field]: '' }));
@@ -273,7 +279,7 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
       >
         {tags.map((tag, index) => (
           <span
-            key={`${tag}-${index}`}
+            key={tag}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -296,8 +302,8 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
                 handleRemoveTag(index, field);
               }}
               style={{
-                background: 'none',
-                border: 'none',
+                background: STRING_NONE,
+                border: STRING_NONE,
                 padding: 0,
                 cursor: 'pointer',
                 color: theme.colors.primary.main,
@@ -321,7 +327,7 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
           style={{
             flex: 1,
             minWidth: '120px',
-            border: 'none',
+            border: STRING_NONE,
             outline: 'none',
             fontSize: theme.typography.fontSize.sm,
             padding: '4px 0',
@@ -370,7 +376,7 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
               }}
               onMouseLeave={(e) => {
                 if (index !== selectedSuggestionIndex) {
-                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.backgroundColor = COLOR_TRANSPARENT;
                 }
               }}
             >
@@ -421,10 +427,10 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
 
   return (
     <div style={{ marginBottom: theme.spacing.md }}>
-      {renderField(t('compose.to'), toTags, 'to')}
+      {renderField(t('compose.to'), toTags, EMAIL_FIELD_TO)}
       
-      {showCc && renderField(t('compose.cc'), ccTags, 'cc')}
-      {showBcc && renderField(t('compose.bcc'), bccTags, 'bcc')}
+      {showCc && renderField(t('compose.cc'), ccTags, EMAIL_FIELD_CC)}
+      {showBcc && renderField(t('compose.bcc'), bccTags, EMAIL_FIELD_BCC)}
       
       <div style={{ display: 'flex', gap: theme.spacing.sm }}>
         {!showCc && (
@@ -432,8 +438,8 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
             onClick={onShowCc}
             type="button"
             style={{
-              background: 'none',
-              border: 'none',
+              background: STRING_NONE,
+              border: STRING_NONE,
               color: theme.colors.text.secondary,
               cursor: 'pointer',
               fontSize: theme.typography.fontSize.sm,
@@ -448,8 +454,8 @@ export const ReplyRecipientsInput: React.FC<ReplyRecipientsInputProps> = ({
             onClick={onShowBcc}
             type="button"
             style={{
-              background: 'none',
-              border: 'none',
+              background: STRING_NONE,
+              border: STRING_NONE,
               color: theme.colors.text.secondary,
               cursor: 'pointer',
               fontSize: theme.typography.fontSize.sm,

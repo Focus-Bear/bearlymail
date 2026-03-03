@@ -4,8 +4,10 @@ import { createPortal } from 'react-dom';
 import { theme } from 'theme/theme';
 
 import { FONT_WEIGHT_BOLD_INLINE, FONT_WEIGHT_NORMAL_INLINE, OPACITY_HALF, Z_INDEX_POPUP } from 'constants/numbers';
+import { KEY_ENTER, KEY_ESCAPE, STRING_NONE } from 'constants/strings';
 
 import { EmojiPicker } from 'components/rich-text/EmojiPicker';
+import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 
 interface RichTextToolbarProps {
   editor: Editor | null;
@@ -47,13 +49,13 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({
         width: '28px',
         height: '28px',
         padding: 0,
-        border: 'none',
+        border: STRING_NONE,
         borderRadius: theme.borderRadius.sm,
-        backgroundColor: isActive
-          ? theme.colors.primary.subtle
-          : isHovered
-            ? theme.colors.interactive.hover
-            : 'transparent',
+        backgroundColor: (() => {
+          if (isActive) return theme.colors.primary.subtle;
+          if (isHovered) return theme.colors.interactive.hover;
+          return 'transparent';
+        })(),
         color: isActive ? theme.colors.primary.main : theme.colors.text.secondary,
         cursor: disabled ? 'not-allowed' : 'pointer',
         fontSize: '14px',
@@ -285,10 +287,10 @@ export const RichTextToolbar: React.FC<RichTextToolbarProps> = ({
           width: '20px',
           height: '20px',
           padding: 0,
-          border: 'none',
+          border: STRING_NONE,
           borderRadius: '2px',
           cursor: disabled ? 'not-allowed' : 'pointer',
-          backgroundColor: 'transparent',
+          backgroundColor: COLOR_TRANSPARENT,
         }}
       />
 
@@ -473,11 +475,11 @@ export const RichTextToolbar: React.FC<RichTextToolbarProps> = ({
             value={linkUrl}
             onChange={(e) => setLinkUrl(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') {
+              if (e.key === KEY_ENTER) {
                 e.preventDefault();
                 handleLinkSubmit();
               }
-              if (e.key === 'Escape') {
+              if (e.key === KEY_ESCAPE) {
                 setShowLinkInput(false);
               }
             }}
@@ -498,8 +500,8 @@ export const RichTextToolbar: React.FC<RichTextToolbarProps> = ({
             style={{
               padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
               backgroundColor: theme.colors.primary.main,
-              color: 'white',
-              border: 'none',
+              color: COLOR_NAMED_WHITE,
+              border: STRING_NONE,
               borderRadius: theme.borderRadius.sm,
               cursor: 'pointer',
               fontSize: theme.typography.fontSize.sm,
@@ -513,7 +515,7 @@ export const RichTextToolbar: React.FC<RichTextToolbarProps> = ({
             onClick={() => setShowLinkInput(false)}
             style={{
               padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-              backgroundColor: 'transparent',
+              backgroundColor: COLOR_TRANSPARENT,
               color: theme.colors.text.secondary,
               border: `1px solid ${theme.colors.border.light}`,
               borderRadius: theme.borderRadius.sm,

@@ -6,6 +6,8 @@ import { OrphanStatsGrid } from 'components/inbox/debug/OrphanStatsGrid';
 import { OrphanEmailList } from 'components/inbox/debug/OrphanEmailList';
 import { ThreadsWithoutEmailsList } from 'components/inbox/debug/ThreadsWithoutEmailsList';
 import { EMOJI_LINK } from 'constants/emojis';
+import { COLOR_NAMED_WHITE, COLOR_WHITE } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface DebugOrphanData {
   totalEmailsInDb: number;
@@ -54,7 +56,7 @@ export const DebugOrphanSection: React.FC<DebugOrphanSectionProps> = ({
       style={{
         marginBottom: theme.spacing.lg,
         padding: theme.spacing.md,
-        backgroundColor: '#fff',
+        backgroundColor: COLOR_WHITE,
         borderRadius: theme.borderRadius.md,
       }}
     >
@@ -74,8 +76,8 @@ export const DebugOrphanSection: React.FC<DebugOrphanSectionProps> = ({
           style={{
             padding: `${theme.spacing.xs} ${theme.spacing.md}`,
             backgroundColor: theme.colors.primary.main,
-            color: 'white',
-            border: 'none',
+            color: COLOR_NAMED_WHITE,
+            border: STRING_NONE,
             borderRadius: theme.borderRadius.sm,
             cursor: loadingOrphanData ? 'not-allowed' : 'pointer',
             opacity: loadingOrphanData ? OPACITY_DISABLED : OPACITY_FULL,

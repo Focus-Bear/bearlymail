@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import type { Meta, StoryObj } from '@storybook/react';
+import type { StoryObj } from '@storybook/react';
+import { COLOR_TRANSPARENT, COLOR_WHITE, COLOR_WHITE_FULL } from 'constants/colors';
 
-const T = {
+const Th = {
   border: '#E5E7EB', text: '#111827', textSec: '#6B7280',
   sp: { xs: '4px', sm: '8px', md: '16px' },
   r: { sm: '4px', md: '8px', full: '999px' },
@@ -32,49 +33,49 @@ const ActionBar = ({ initialPriority = 0, showSnooze: initSnooze = false }: Acti
 
   return (
     <div style={{ maxWidth: 720 }}>
-      <div style={{ backgroundColor: '#FFFFFF', borderRadius: T.r.md, border: `1px solid ${T.border}`, padding: T.sp.md, display: 'flex', flexDirection: 'column' as const, gap: T.sp.md }}>
-        <div style={{ display: 'flex', gap: T.sp.sm, alignItems: 'center', flexWrap: 'wrap' as const }}>
-          <button style={{ padding: `${T.sp.sm} ${T.sp.md}`, backgroundColor: T.text, color: '#fff', border: 'none', borderRadius: T.r.md, fontWeight: 600, cursor: 'pointer', fontSize: T.f.sm }}>
+      <div style={{ backgroundColor: COLOR_WHITE_FULL, borderRadius: Th.r.md, border: `1px solid ${Th.border}`, padding: Th.sp.md, display: 'flex', flexDirection: 'column' as const, gap: Th.sp.md }}>
+        <div style={{ display: 'flex', gap: Th.sp.sm, alignItems: 'center', flexWrap: 'wrap' as const }}>
+          <button style={{ padding: `${Th.sp.sm} ${Th.sp.md}`, backgroundColor: Th.text, color: COLOR_WHITE, border: 'none', borderRadius: Th.r.md, fontWeight: 600, cursor: 'pointer', fontSize: Th.f.sm }}>
             ↩ Reply All
           </button>
-          <button style={{ padding: `${T.sp.sm} ${T.sp.md}`, backgroundColor: 'transparent', color: T.textSec, border: `1px solid ${T.border}`, borderRadius: T.r.md, fontWeight: 500, cursor: 'pointer', fontSize: T.f.sm }}>
+          <button style={{ padding: `${Th.sp.sm} ${Th.sp.md}`, backgroundColor: COLOR_TRANSPARENT, color: Th.textSec, border: `1px solid ${Th.border}`, borderRadius: Th.r.md, fontWeight: 500, cursor: 'pointer', fontSize: Th.f.sm }}>
             ↪ Forward
           </button>
-          <div style={{ width: 1, height: 28, backgroundColor: T.border, flexShrink: 0 }} />
-          <button onClick={() => alert('Archived!')} style={{ padding: `${T.sp.sm} ${T.sp.md}`, backgroundColor: 'transparent', color: T.textSec, border: 'none', borderRadius: T.r.md, cursor: 'pointer', fontSize: T.f.sm }}>
+          <div style={{ width: 1, height: 28, backgroundColor: Th.border, flexShrink: 0 }} />
+          <button onClick={() => { /* archive action placeholder */ }} style={{ padding: `${Th.sp.sm} ${Th.sp.md}`, backgroundColor: COLOR_TRANSPARENT, color: Th.textSec, border: 'none', borderRadius: Th.r.md, cursor: 'pointer', fontSize: Th.f.sm }}>
             📦 Archive
           </button>
-          <button onClick={() => setShowSnooze(!showSnooze)} style={{ padding: `${T.sp.sm} ${T.sp.md}`, backgroundColor: showSnooze ? '#FFF7ED' : 'transparent', color: showSnooze ? PRIMARY : T.textSec, border: showSnooze ? `1px solid ${PRIMARY}` : 'none', borderRadius: T.r.md, cursor: 'pointer', fontSize: T.f.sm }}>
+          <button onClick={() => setShowSnooze(!showSnooze)} style={{ padding: `${Th.sp.sm} ${Th.sp.md}`, backgroundColor: showSnooze ? '#FFF7ED' : 'transparent', color: showSnooze ? PRIMARY : Th.textSec, border: showSnooze ? `1px solid ${PRIMARY}` : 'none', borderRadius: Th.r.md, cursor: 'pointer', fontSize: Th.f.sm }}>
             🕐 Snooze
           </button>
         </div>
 
         {showSnooze && (
-          <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: T.sp.md }}>
-            <div style={{ fontSize: T.f.xs, color: T.textSec, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: T.sp.sm }}>Snooze until</div>
-            <div style={{ display: 'flex', gap: T.sp.sm, flexWrap: 'wrap' as const }}>
+          <div style={{ borderTop: `1px solid ${Th.border}`, paddingTop: Th.sp.md }}>
+            <div style={{ fontSize: Th.f.xs, color: Th.textSec, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: Th.sp.sm }}>Snooze until</div>
+            <div style={{ display: 'flex', gap: Th.sp.sm, flexWrap: 'wrap' as const }}>
               {SNOOZE_OPTIONS.map(({ label, value }) => (
-                <button key={value} onClick={() => setSnoozePick(value)} style={{ padding: `${T.sp.xs} ${T.sp.md}`, backgroundColor: snoozePick === value ? '#FFF7ED' : 'transparent', color: snoozePick === value ? PRIMARY : T.textSec, border: `1px solid ${snoozePick === value ? PRIMARY : T.border}`, borderRadius: T.r.full, cursor: 'pointer', fontSize: T.f.sm, fontWeight: 500 }}>
+                <button key={value} onClick={() => setSnoozePick(value)} style={{ padding: `${Th.sp.xs} ${Th.sp.md}`, backgroundColor: snoozePick === value ? '#FFF7ED' : 'transparent', color: snoozePick === value ? PRIMARY : Th.textSec, border: `1px solid ${snoozePick === value ? PRIMARY : Th.border}`, borderRadius: Th.r.full, cursor: 'pointer', fontSize: Th.f.sm, fontWeight: 500 }}>
                   {label}
                 </button>
               ))}
             </div>
             {snoozePick && (
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: T.sp.sm, marginTop: T.sp.sm }}>
-                <button onClick={() => { setShowSnooze(false); setSnoozePick(''); }} style={{ padding: `${T.sp.xs} ${T.sp.md}`, background: 'none', border: `1px solid ${T.border}`, borderRadius: T.r.sm, cursor: 'pointer', fontSize: T.f.sm, color: T.textSec }}>Cancel</button>
-                <button onClick={() => { alert(`Snoozed: ${snoozePick}`); setShowSnooze(false); setSnoozePick(''); }} style={{ padding: `${T.sp.xs} ${T.sp.md}`, backgroundColor: PRIMARY, color: '#fff', border: 'none', borderRadius: T.r.sm, cursor: 'pointer', fontSize: T.f.sm, fontWeight: 600 }}>Confirm snooze</button>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: Th.sp.sm, marginTop: Th.sp.sm }}>
+                <button onClick={() => { setShowSnooze(false); setSnoozePick(''); }} style={{ padding: `${Th.sp.xs} ${Th.sp.md}`, background: 'none', border: `1px solid ${Th.border}`, borderRadius: Th.r.sm, cursor: 'pointer', fontSize: Th.f.sm, color: Th.textSec }}>Cancel</button>
+                <button onClick={() => { setShowSnooze(false); setSnoozePick(''); }} style={{ padding: `${Th.sp.xs} ${Th.sp.md}`, backgroundColor: PRIMARY, color: COLOR_WHITE, border: 'none', borderRadius: Th.r.sm, cursor: 'pointer', fontSize: Th.f.sm, fontWeight: 600 }}>Confirm snooze</button>
               </div>
             )}
           </div>
         )}
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: T.sp.md, paddingTop: T.sp.sm, borderTop: `1px solid ${T.border}` }}>
-          <span style={{ fontSize: T.f.xs, color: T.textSec, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' as const, flexShrink: 0 }}>Prioritize</span>
-          <div style={{ display: 'flex', gap: T.sp.xs }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: Th.sp.md, paddingTop: Th.sp.sm, borderTop: `1px solid ${Th.border}` }}>
+          <span style={{ fontSize: Th.f.xs, color: Th.textSec, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' as const, flexShrink: 0 }}>Prioritize</span>
+          <div style={{ display: 'flex', gap: Th.sp.xs }}>
             {PRIORITY_OPTIONS.map(({ label, emoji, value }) => {
               const active = starCount === value;
               return (
-                <button key={value} onClick={() => setStarCount(starCount === value ? 0 : value)} style={{ padding: `${T.sp.xs} ${T.sp.md}`, backgroundColor: active ? T.text : 'transparent', color: active ? '#fff' : T.textSec, border: `1px solid ${active ? T.text : T.border}`, borderRadius: T.r.full, cursor: 'pointer', fontSize: T.f.sm, fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button key={value} onClick={() => setStarCount(starCount === value ? 0 : value)} style={{ padding: `${Th.sp.xs} ${Th.sp.md}`, backgroundColor: active ? Th.text : 'transparent', color: active ? '#fff' : Th.textSec, border: `1px solid ${active ? Th.text : Th.border}`, borderRadius: Th.r.full, cursor: 'pointer', fontSize: Th.f.sm, fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span>{emoji}</span><span>{label}</span>
                 </button>
               );

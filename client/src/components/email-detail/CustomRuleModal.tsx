@@ -2,6 +2,8 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Z_INDEX_POPUP } from 'constants/numbers';
+import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface CustomRule {
   whenToUse: string;
@@ -111,7 +113,7 @@ export const CustomRuleModal: React.FC<CustomRuleModalProps> = ({
             onClick={onClose}
             style={{
               padding: `${theme.spacing.md} ${theme.spacing.lg}`,
-              backgroundColor: 'transparent',
+              backgroundColor: COLOR_TRANSPARENT,
               color: theme.colors.text.secondary,
               border: `1px solid ${theme.colors.border.medium}`,
               borderRadius: theme.borderRadius.md,
@@ -126,8 +128,8 @@ export const CustomRuleModal: React.FC<CustomRuleModalProps> = ({
             style={{
               padding: `${theme.spacing.md} ${theme.spacing.lg}`,
               backgroundColor: customRule.whenToUse && customRule.howToSummarize ? theme.colors.primary.main : theme.colors.border.dark,
-              color: 'white',
-              border: 'none',
+              color: COLOR_NAMED_WHITE,
+              border: STRING_NONE,
               borderRadius: theme.borderRadius.md,
               cursor: customRule.whenToUse && customRule.howToSummarize ? 'pointer' : 'not-allowed',
               fontWeight: theme.typography.fontWeight.semibold,

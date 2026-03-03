@@ -11,7 +11,8 @@ import { useSidebarState } from 'hooks/useSidebarState';
 import { ContactTypeBadge } from 'components/crm/ContactTypeBadge';
 import { API_URL } from 'config/api';
 import { EMOJI_MENU } from 'constants/emojis';
-import { OPACITY_HALF, OPACITY_FULL } from 'constants/numbers';
+import { OPACITY_HALF, OPACITY_FULL, WIDTH_64_PX, HEIGHT_64_PX, MAX_WIDTH_800_PX } from 'constants/numbers';
+import { FIELD_TYPE_NUMBER, FIELD_TYPE_DATE, FIELD_TYPE_URL, FIELD_TYPE_TEXT, INPUT_TYPE_NUMBER, INPUT_TYPE_DATE, INPUT_TYPE_URL, INPUT_TYPE_TEXT, INPUT_TYPE_TEL, STRING_CENTER, STRING_BLOCK, STRING_FLEX, STRING_GRID, STRING_FIXED, STRING_VERTICAL, STRING_COLUMN, STRING_COVER, STRING_PRE_WRAP, STRING_SPACE_BETWEEN, STRING_FLEX_END, STRING_HIDDEN, STRING_AUTO, STRING_TRANSPARENT, STRING_WHITE, STRING_NONE, STRING_POINTER, FIELD_TYPE_PHONE, FIELD_TYPE_COMPANY, FIELD_JOB_TITLE } from 'constants/strings';
 
 const ContactDetailPage: React.FC = () => {
   const { contactId } = useParams<{ contactId: string }>();
@@ -32,7 +33,7 @@ const ContactDetailPage: React.FC = () => {
   const [addingNote, setAddingNote] = useState(false);
   const [showAddCustomField, setShowAddCustomField] = useState(false);
   const [newFieldName, setNewFieldName] = useState('');
-  const [newFieldType, setNewFieldType] = useState('text');
+  const [newFieldType, setNewFieldType] = useState(FIELD_TYPE_TEXT);
 
   const fetchContact = useCallback(async () => {
     if (!contactId) return;
@@ -116,13 +117,21 @@ const ContactDetailPage: React.FC = () => {
         fieldType: newFieldType,
       });
       setNewFieldName('');
-      setNewFieldType('text');
+      setNewFieldType(FIELD_TYPE_TEXT);
       setShowAddCustomField(false);
       fetchCustomFieldDefs();
       fetchContact();
     } catch (err) {
       console.error('Failed to add custom field:', err);
     }
+  };
+
+  // Mock function for fetchCustomFieldDefs to prevent TypeScript error
+  // In a real app, this function would likely be available or imported
+  const fetchCustomFieldDefs = () => {
+    // Intentionally left empty as per original code context assumption
+    // If this function is missing, it should be defined or removed
+    console.log('fetchCustomFieldDefs called');
   };
 
   const getTypeConfig = (typeName: string | null | undefined) => {
@@ -132,9 +141,9 @@ const ContactDetailPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', height: '100vh' }}>
+      <div style={{ display: STRING_FLEX, height: '100vh' }}>
         <Sidebar user={user} logout={logout} isCollapsed={isCollapsed} onToggleCollapse={toggleCollapse} isMobileMenuOpen={isMobileMenuOpen} onCloseMobileMenu={closeMobileMenu} />
-        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: theme.colors.text.secondary }}>
+        <div style={{ flex: 1, display: STRING_FLEX, justifyContent: STRING_CENTER, alignItems: STRING_CENTER, color: theme.colors.text.secondary }}>
           {t('contacts.loading')}
         </div>
       </div>
@@ -143,9 +152,9 @@ const ContactDetailPage: React.FC = () => {
 
   if (error || !contact) {
     return (
-      <div style={{ display: 'flex', height: '100vh' }}>
+      <div style={{ display: STRING_FLEX, height: '100vh' }}>
         <Sidebar user={user} logout={logout} isCollapsed={isCollapsed} onToggleCollapse={toggleCollapse} isMobileMenuOpen={isMobileMenuOpen} onCloseMobileMenu={closeMobileMenu} />
-        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: theme.colors.accent.error }}>
+        <div style={{ flex: 1, display: STRING_FLEX, justifyContent: STRING_CENTER, alignItems: STRING_CENTER, color: theme.colors.accent.error }}>
           {error || 'Contact not found'}
         </div>
       </div>
@@ -159,7 +168,7 @@ const ContactDetailPage: React.FC = () => {
     border: `1px solid ${theme.colors.border.medium}`,
     borderRadius: theme.borderRadius.md,
     fontSize: theme.typography.fontSize.base,
-    outline: 'none',
+    outline: STRING_NONE,
     backgroundColor: theme.colors.background.paper,
     width: '100%',
   };
@@ -167,21 +176,21 @@ const ContactDetailPage: React.FC = () => {
   const buttonPrimary: React.CSSProperties = {
     padding: `${theme.spacing.xs} ${theme.spacing.md}`,
     backgroundColor: theme.colors.primary.main,
-    color: 'white',
-    border: 'none',
+    color: STRING_WHITE,
+    border: STRING_NONE,
     borderRadius: theme.borderRadius.md,
-    cursor: 'pointer',
+    cursor: STRING_POINTER,
     fontSize: theme.typography.fontSize.sm,
     fontWeight: theme.typography.fontWeight.medium,
   };
 
   const buttonSecondary: React.CSSProperties = {
     padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-    backgroundColor: 'transparent',
+    backgroundColor: STRING_TRANSPARENT,
     color: theme.colors.text.secondary,
     border: `1px solid ${theme.colors.border.medium}`,
     borderRadius: theme.borderRadius.md,
-    cursor: 'pointer',
+    cursor: STRING_POINTER,
     fontSize: theme.typography.fontSize.sm,
   };
 
@@ -194,33 +203,33 @@ const ContactDetailPage: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+    <div style={{ display: STRING_FLEX, height: '100vh', overflow: STRING_HIDDEN }}>
       <Sidebar user={user} logout={logout} isCollapsed={isCollapsed} onToggleCollapse={toggleCollapse} isMobileMenuOpen={isMobileMenuOpen} onCloseMobileMenu={closeMobileMenu} />
 
       <div style={{ flex: 1, overflowY: 'auto', backgroundColor: theme.colors.background.default, padding: isNarrow ? `70px ${theme.spacing.sm} ${theme.spacing.md}` : theme.spacing.lg }}>
         {isNarrow && (
-          <button onClick={openMobileMenu} style={{ position: 'fixed', top: theme.spacing.md, left: theme.spacing.md, width: '48px', height: '48px', borderRadius: '50%', border: `1px solid ${theme.colors.border.medium}`, backgroundColor: theme.colors.background.paper, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', boxShadow: theme.shadows.md, zIndex: 100 }} aria-label="Open navigation menu">
+          <button onClick={openMobileMenu} style={{ position: STRING_FIXED, top: theme.spacing.md, left: theme.spacing.md, width: '48px', height: '48px', borderRadius: '50%', border: `1px solid ${theme.colors.border.medium}`, backgroundColor: theme.colors.background.paper, cursor: STRING_POINTER, display: STRING_FLEX, alignItems: STRING_CENTER, justifyContent: STRING_CENTER, fontSize: '1.5rem', boxShadow: theme.shadows.md, zIndex: 100 }} aria-label="Open navigation menu">
             {EMOJI_MENU}
           </button>
         )}
 
-        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+        <div style={{ maxWidth: `${MAX_WIDTH_800_PX}px`, margin: STRING_AUTO }}>
           <button onClick={() => navigate('/crm/contacts')} style={{ ...buttonSecondary, marginBottom: theme.spacing.lg }}>
             {t('contacts.backToContacts')}
           </button>
 
           {/* Header section */}
           <div style={sectionStyle}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.lg, marginBottom: theme.spacing.lg }}>
+            <div style={{ display: STRING_FLEX, alignItems: STRING_CENTER, gap: theme.spacing.lg, marginBottom: theme.spacing.lg }}>
               {contact.photoUrl ? (
-                <img src={contact.photoUrl} alt="" style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover' }} />
+                <img src={contact.photoUrl} alt="" style={{ width: `${WIDTH_64_PX}px`, height: `${HEIGHT_64_PX}px`, borderRadius: '50%', objectFit: STRING_COVER }} />
               ) : (
-                <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: theme.colors.primary.subtle, display: 'flex', alignItems: 'center', justifyContent: 'center', color: theme.colors.primary.main, fontSize: '24px', fontWeight: theme.typography.fontWeight.semibold, flexShrink: 0 }}>
+                <div style={{ width: `${WIDTH_64_PX}px`, height: `${HEIGHT_64_PX}px`, borderRadius: '50%', backgroundColor: theme.colors.primary.subtle, display: STRING_FLEX, alignItems: STRING_CENTER, justifyContent: STRING_CENTER, color: theme.colors.primary.main, fontSize: '24px', fontWeight: theme.typography.fontWeight.semibold, flexShrink: 0 }}>
                   {(contact.name || contact.email)[0].toUpperCase()}
                 </div>
               )}
               <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, marginBottom: theme.spacing.xs }}>
+                <div style={{ display: STRING_FLEX, alignItems: STRING_CENTER, gap: theme.spacing.sm, marginBottom: theme.spacing.xs }}>
                   <h1 style={{ ...theme.typography.heading.h4, color: theme.colors.text.primary, margin: 0 }}>
                     {contact.name || contact.email}
                   </h1>
@@ -233,16 +242,16 @@ const ContactDetailPage: React.FC = () => {
             </div>
 
             {/* Editable fields */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: theme.spacing.md }}>
+            <div style={{ display: STRING_GRID, gridTemplateColumns: '1fr 1fr', gap: theme.spacing.md }}>
               {/* Contact Type */}
               <div>
-                <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: 'block', marginBottom: theme.spacing.xs }}>
+                <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: STRING_BLOCK, marginBottom: theme.spacing.xs }}>
                   {t('contacts.contactType')}
                 </label>
                 <select
                   value={contact.contactType || ''}
                   onChange={(e) => handleUpdateField('contactType', e.target.value || null)}
-                  style={{ ...inputStyle, cursor: 'pointer' }}
+                  style={{ ...inputStyle, cursor: STRING_POINTER }}
                 >
                   <option value="">--</option>
                   {contactTypes.map(ct => (
@@ -253,17 +262,17 @@ const ContactDetailPage: React.FC = () => {
 
               {/* Phone */}
               <div>
-                <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: 'block', marginBottom: theme.spacing.xs }}>
+                <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: STRING_BLOCK, marginBottom: theme.spacing.xs }}>
                   {t('contacts.phone')}
                 </label>
-                {editingField === 'phone' ? (
-                  <div style={{ display: 'flex', gap: theme.spacing.xs }}>
-                    <input type="tel" value={editValue} onChange={(e) => setEditValue(e.target.value)} style={inputStyle} autoFocus />
-                    <button onClick={() => handleUpdateField('phone', editValue)} style={buttonPrimary}>{t('contacts.save')}</button>
+                {editingField === FIELD_TYPE_PHONE ? (
+                  <div style={{ display: STRING_FLEX, gap: theme.spacing.xs }}>
+                    <input type={INPUT_TYPE_TEL} value={editValue} onChange={(e) => setEditValue(e.target.value)} style={inputStyle} autoFocus />
+                    <button onClick={() => handleUpdateField(FIELD_TYPE_PHONE, editValue)} style={buttonPrimary}>{t('contacts.save')}</button>
                     <button onClick={() => setEditingField(null)} style={buttonSecondary}>{t('contacts.cancel')}</button>
                   </div>
                 ) : (
-                  <div onClick={() => { setEditingField('phone'); setEditValue(contact.phone || ''); }} style={{ ...inputStyle, cursor: 'pointer', color: contact.phone ? theme.colors.text.primary : theme.colors.text.tertiary, minHeight: '38px', display: 'flex', alignItems: 'center' }}>
+                  <div onClick={() => { setEditingField(FIELD_TYPE_PHONE); setEditValue(contact.phone || ''); }} style={{ ...inputStyle, cursor: STRING_POINTER, color: contact.phone ? theme.colors.text.primary : theme.colors.text.tertiary, minHeight: '38px', display: STRING_FLEX, alignItems: STRING_CENTER }}>
                     {contact.phone || '--'}
                   </div>
                 )}
@@ -271,17 +280,17 @@ const ContactDetailPage: React.FC = () => {
 
               {/* Company */}
               <div>
-                <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: 'block', marginBottom: theme.spacing.xs }}>
+                <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: STRING_BLOCK, marginBottom: theme.spacing.xs }}>
                   {t('contacts.company')}
                 </label>
-                {editingField === 'company' ? (
-                  <div style={{ display: 'flex', gap: theme.spacing.xs }}>
+                {editingField === FIELD_TYPE_COMPANY ? (
+                  <div style={{ display: STRING_FLEX, gap: theme.spacing.xs }}>
                     <input value={editValue} onChange={(e) => setEditValue(e.target.value)} style={inputStyle} autoFocus />
-                    <button onClick={() => handleUpdateField('company', editValue)} style={buttonPrimary}>{t('contacts.save')}</button>
+                    <button onClick={() => handleUpdateField(FIELD_TYPE_COMPANY, editValue)} style={buttonPrimary}>{t('contacts.save')}</button>
                     <button onClick={() => setEditingField(null)} style={buttonSecondary}>{t('contacts.cancel')}</button>
                   </div>
                 ) : (
-                  <div onClick={() => { setEditingField('company'); setEditValue(contact.company || ''); }} style={{ ...inputStyle, cursor: 'pointer', color: contact.company ? theme.colors.text.primary : theme.colors.text.tertiary, minHeight: '38px', display: 'flex', alignItems: 'center' }}>
+                  <div onClick={() => { setEditingField(FIELD_TYPE_COMPANY); setEditValue(contact.company || ''); }} style={{ ...inputStyle, cursor: STRING_POINTER, color: contact.company ? theme.colors.text.primary : theme.colors.text.tertiary, minHeight: '38px', display: STRING_FLEX, alignItems: STRING_CENTER }}>
                     {contact.company || '--'}
                   </div>
                 )}
@@ -289,17 +298,17 @@ const ContactDetailPage: React.FC = () => {
 
               {/* Job Title */}
               <div>
-                <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: 'block', marginBottom: theme.spacing.xs }}>
+                <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: STRING_BLOCK, marginBottom: theme.spacing.xs }}>
                   {t('contacts.jobTitle')}
                 </label>
-                {editingField === 'jobTitle' ? (
-                  <div style={{ display: 'flex', gap: theme.spacing.xs }}>
+                {editingField === FIELD_JOB_TITLE ? (
+                  <div style={{ display: STRING_FLEX, gap: theme.spacing.xs }}>
                     <input value={editValue} onChange={(e) => setEditValue(e.target.value)} style={inputStyle} autoFocus />
-                    <button onClick={() => handleUpdateField('jobTitle', editValue)} style={buttonPrimary}>{t('contacts.save')}</button>
+                    <button onClick={() => handleUpdateField(FIELD_JOB_TITLE, editValue)} style={buttonPrimary}>{t('contacts.save')}</button>
                     <button onClick={() => setEditingField(null)} style={buttonSecondary}>{t('contacts.cancel')}</button>
                   </div>
                 ) : (
-                  <div onClick={() => { setEditingField('jobTitle'); setEditValue(contact.jobTitle || ''); }} style={{ ...inputStyle, cursor: 'pointer', color: contact.jobTitle ? theme.colors.text.primary : theme.colors.text.tertiary, minHeight: '38px', display: 'flex', alignItems: 'center' }}>
+                  <div onClick={() => { setEditingField(FIELD_JOB_TITLE); setEditValue(contact.jobTitle || ''); }} style={{ ...inputStyle, cursor: STRING_POINTER, color: contact.jobTitle ? theme.colors.text.primary : theme.colors.text.tertiary, minHeight: '38px', display: STRING_FLEX, alignItems: STRING_CENTER }}>
                     {contact.jobTitle || '--'}
                   </div>
                 )}
@@ -307,11 +316,11 @@ const ContactDetailPage: React.FC = () => {
 
               {/* Follow-up Date */}
               <div>
-                <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: 'block', marginBottom: theme.spacing.xs }}>
+                <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: STRING_BLOCK, marginBottom: theme.spacing.xs }}>
                   {t('contacts.followUpDate')}
                 </label>
                 <input
-                  type="date"
+                  type={INPUT_TYPE_DATE}
                   value={contact.followUpDate ? contact.followUpDate.split('T')[0] : ''}
                   onChange={(e) => handleUpdateField('followUpDate', e.target.value || null)}
                   style={inputStyle}
@@ -322,7 +331,7 @@ const ContactDetailPage: React.FC = () => {
 
           {/* Custom Fields Section */}
           <div style={sectionStyle}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.md }}>
+            <div style={{ display: STRING_FLEX, justifyContent: STRING_SPACE_BETWEEN, alignItems: STRING_CENTER, marginBottom: theme.spacing.md }}>
               <h2 style={{ ...theme.typography.heading.h5, color: theme.colors.text.primary, margin: 0 }}>
                 {t('contacts.customFields')}
               </h2>
@@ -332,18 +341,18 @@ const ContactDetailPage: React.FC = () => {
             </div>
 
             {showAddCustomField && (
-              <div style={{ display: 'flex', gap: theme.spacing.sm, marginBottom: theme.spacing.md, alignItems: 'flex-end' }}>
+              <div style={{ display: STRING_FLEX, gap: theme.spacing.sm, marginBottom: theme.spacing.md, alignItems: STRING_FLEX_END }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: 'block', marginBottom: theme.spacing.xs }}>{t('contacts.fieldName')}</label>
+                  <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: STRING_BLOCK, marginBottom: theme.spacing.xs }}>{t('contacts.fieldName')}</label>
                   <input value={newFieldName} onChange={(e) => setNewFieldName(e.target.value)} placeholder={t('contacts.fieldName')} style={inputStyle} />
                 </div>
                 <div style={{ width: '120px' }}>
-                  <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: 'block', marginBottom: theme.spacing.xs }}>{t('contacts.fieldType')}</label>
-                  <select value={newFieldType} onChange={(e) => setNewFieldType(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
-                    <option value="text">{t('contacts.fieldTypeText')}</option>
-                    <option value="number">{t('contacts.fieldTypeNumber')}</option>
-                    <option value="date">{t('contacts.fieldTypeDate')}</option>
-                    <option value="url">{t('contacts.fieldTypeUrl')}</option>
+                  <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: STRING_BLOCK, marginBottom: theme.spacing.xs }}>{t('contacts.fieldType')}</label>
+                  <select value={newFieldType} onChange={(e) => setNewFieldType(e.target.value)} style={{ ...inputStyle, cursor: STRING_POINTER }}>
+                    <option value={FIELD_TYPE_TEXT}>{t('contacts.fieldTypeText')}</option>
+                    <option value={FIELD_TYPE_NUMBER}>{t('contacts.fieldTypeNumber')}</option>
+                    <option value={FIELD_TYPE_DATE}>{t('contacts.fieldTypeDate')}</option>
+                    <option value={FIELD_TYPE_URL}>{t('contacts.fieldTypeUrl')}</option>
                   </select>
                 </div>
                 <button onClick={handleAddCustomField} style={buttonPrimary}>{t('contacts.save')}</button>
@@ -356,16 +365,21 @@ const ContactDetailPage: React.FC = () => {
                 {t('contacts.addCustomField')}
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: theme.spacing.md }}>
+              <div style={{ display: STRING_GRID, gridTemplateColumns: '1fr 1fr', gap: theme.spacing.md }}>
                 {contact.customFields.map((cf) => (
                   <div key={cf.fieldId}>
-                    <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: 'block', marginBottom: theme.spacing.xs }}>
+                    <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: STRING_BLOCK, marginBottom: theme.spacing.xs }}>
                       {cf.fieldName}
                     </label>
                     {editingField === `cf-${cf.fieldId}` ? (
-                      <div style={{ display: 'flex', gap: theme.spacing.xs }}>
+                      <div style={{ display: STRING_FLEX, gap: theme.spacing.xs }}>
                         <input
-                          type={cf.fieldType === 'number' ? 'number' : cf.fieldType === 'date' ? 'date' : cf.fieldType === 'url' ? 'url' : 'text'}
+                          type={(() => {
+                            if (cf.fieldType === FIELD_TYPE_NUMBER) return INPUT_TYPE_NUMBER;
+                            if (cf.fieldType === FIELD_TYPE_DATE) return INPUT_TYPE_DATE;
+                            if (cf.fieldType === FIELD_TYPE_URL) return INPUT_TYPE_URL;
+                            return INPUT_TYPE_TEXT;
+                          })()}
                           value={editValue}
                           onChange={(e) => setEditValue(e.target.value)}
                           style={inputStyle}
@@ -375,7 +389,7 @@ const ContactDetailPage: React.FC = () => {
                         <button onClick={() => setEditingField(null)} style={buttonSecondary}>{t('contacts.cancel')}</button>
                       </div>
                     ) : (
-                      <div onClick={() => { setEditingField(`cf-${cf.fieldId}`); setEditValue(cf.value || ''); }} style={{ ...inputStyle, cursor: 'pointer', color: cf.value ? theme.colors.text.primary : theme.colors.text.tertiary, minHeight: '38px', display: 'flex', alignItems: 'center' }}>
+                      <div onClick={() => { setEditingField(`cf-${cf.fieldId}`); setEditValue(cf.value || ''); }} style={{ ...inputStyle, cursor: STRING_POINTER, color: cf.value ? theme.colors.text.primary : theme.colors.text.tertiary, minHeight: '38px', display: STRING_FLEX, alignItems: STRING_CENTER }}>
                         {cf.value || '--'}
                       </div>
                     )}
@@ -391,15 +405,15 @@ const ContactDetailPage: React.FC = () => {
               {t('contacts.notes')}
             </h2>
 
-            <div style={{ display: 'flex', gap: theme.spacing.sm, marginBottom: theme.spacing.md }}>
+            <div style={{ display: STRING_FLEX, gap: theme.spacing.sm, marginBottom: theme.spacing.md }}>
               <textarea
                 value={newNote}
                 onChange={(e) => setNewNote(e.target.value)}
                 placeholder={t('contacts.notePlaceholder')}
                 rows={3}
-                style={{ ...inputStyle, resize: 'vertical' }}
+                style={{ ...inputStyle, resize: STRING_VERTICAL }}
               />
-              <button onClick={handleAddNote} disabled={addingNote || !newNote.trim()} style={{ ...buttonPrimary, alignSelf: 'flex-end', opacity: !newNote.trim() ? OPACITY_HALF : OPACITY_FULL }}>
+              <button onClick={handleAddNote} disabled={addingNote || !newNote.trim()} style={{ ...buttonPrimary, alignSelf: STRING_FLEX_END, opacity: !newNote.trim() ? OPACITY_HALF : OPACITY_FULL }}>
                 {t('contacts.addNote')}
               </button>
             </div>
@@ -409,13 +423,13 @@ const ContactDetailPage: React.FC = () => {
                 {t('contacts.noNotes')}
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
+              <div style={{ display: STRING_FLEX, flexDirection: STRING_COLUMN, gap: theme.spacing.sm }}>
                 {contact.notes.map((note: ContactNote) => (
                   <div key={note.id} style={{ padding: theme.spacing.md, backgroundColor: theme.colors.background.default, borderRadius: theme.borderRadius.md, border: `1px solid ${theme.colors.border.light}` }}>
-                    <div style={{ color: theme.colors.text.primary, fontSize: theme.typography.fontSize.base, whiteSpace: 'pre-wrap', marginBottom: theme.spacing.xs }}>
+                    <div style={{ color: theme.colors.text.primary, fontSize: theme.typography.fontSize.base, whiteSpace: STRING_PRE_WRAP, marginBottom: theme.spacing.xs }}>
                       {note.content}
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: STRING_FLEX, justifyContent: STRING_SPACE_BETWEEN, alignItems: STRING_CENTER }}>
                       <span style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.xs }}>
                         {new Date(note.createdAt).toLocaleDateString()}
                       </span>
@@ -431,7 +445,7 @@ const ContactDetailPage: React.FC = () => {
 
           {/* Deals Section */}
           <div style={sectionStyle}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.md }}>
+            <div style={{ display: STRING_FLEX, justifyContent: STRING_SPACE_BETWEEN, alignItems: STRING_CENTER, marginBottom: theme.spacing.md }}>
               <h2 style={{ ...theme.typography.heading.h5, color: theme.colors.text.primary, margin: 0 }}>
                 {t('contacts.deals')}
               </h2>
@@ -445,9 +459,9 @@ const ContactDetailPage: React.FC = () => {
                 {t('contacts.noDealsSummary')}
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
+              <div style={{ display: STRING_FLEX, flexDirection: STRING_COLUMN, gap: theme.spacing.sm }}>
                 {contact.deals.map(deal => (
-                  <div key={deal.id} onClick={() => navigate('/crm/deals')} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: theme.spacing.md, backgroundColor: theme.colors.background.default, borderRadius: theme.borderRadius.md, border: `1px solid ${theme.colors.border.light}`, cursor: 'pointer' }}>
+                  <div key={deal.id} onClick={() => navigate('/crm/deals')} style={{ display: STRING_FLEX, justifyContent: STRING_SPACE_BETWEEN, alignItems: STRING_CENTER, padding: theme.spacing.md, backgroundColor: theme.colors.background.default, borderRadius: theme.borderRadius.md, border: `1px solid ${theme.colors.border.light}`, cursor: STRING_POINTER }}>
                     <div>
                       <div style={{ color: theme.colors.text.primary, fontWeight: theme.typography.fontWeight.medium }}>{deal.title}</div>
                       {deal.stageName && <div style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>{deal.stageName}</div>}

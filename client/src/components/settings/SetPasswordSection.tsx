@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { API_URL } from 'config/api';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface PasswordInputProps {
   label: string;
@@ -70,8 +72,8 @@ const PasswordInput: React.FC<PasswordInputProps> = ({
               right: '8px',
               top: '50%',
               transform: 'translateY(-50%)',
-              background: 'none',
-              border: 'none',
+              background: STRING_NONE,
+              border: STRING_NONE,
               cursor: 'pointer',
               color: theme.colors.text.secondary,
               fontSize: theme.typography.fontSize.sm,
@@ -146,8 +148,8 @@ const PasswordForm: React.FC<PasswordFormProps> = ({ hasPassword, onSuccess }) =
 
   const buttonStyle = useMemo(() => ({
     backgroundColor: isFormDisabled ? theme.colors.greyscale[400] : theme.colors.primary.main,
-    color: 'white',
-    border: 'none',
+    color: COLOR_NAMED_WHITE,
+    border: STRING_NONE,
     borderRadius: theme.borderRadius.md,
     padding: `${theme.spacing.sm} ${theme.spacing.md}`,
     cursor: isFormDisabled ? 'not-allowed' : 'pointer',

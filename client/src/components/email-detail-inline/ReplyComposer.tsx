@@ -9,6 +9,9 @@ import { ReplyComposerFooter } from 'components/email-detail-inline/ReplyCompose
 import { ReplyComposerAttachments } from 'components/email-detail-inline/ReplyComposerAttachments';
 import { ReplyGenerationDebugInfo } from 'hooks/useReplyDraftGeneration';
 import { useAuth } from 'contexts/AuthContext';
+import { COLOR_TRANSPARENT } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
+import { FONT_WEIGHT_SEMIBOLD } from 'constants/numbers';
 
 const EMPTY_ATTACHMENTS: EmailAttachment[] = [];
 const DRAG_OVERLAY_OPACITY = 0.95;
@@ -251,7 +254,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
             {/* eslint-disable-next-line i18next/no-literal-string */}
             <div style={{ fontSize: '2rem', marginBottom: theme.spacing.sm }}>📎</div>
             {/* eslint-disable-next-line i18next/no-literal-string */}
-            <div style={{ fontSize: theme.typography.fontSize.lg, fontWeight: 600, color: theme.colors.primary.main }}>
+            <div style={{ fontSize: theme.typography.fontSize.lg, fontWeight: FONT_WEIGHT_SEMIBOLD, color: theme.colors.primary.main }}>
               Drop files to attach
             </div>
           </div>
@@ -331,9 +334,9 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
                   onClick={() => handleRemoveForwardAttachment(attachment.attachmentId)}
                   style={{
                     padding: theme.spacing.xs,
-                    backgroundColor: 'transparent',
+                    backgroundColor: COLOR_TRANSPARENT,
                     color: theme.colors.text.secondary,
-                    border: 'none',
+                    border: STRING_NONE,
                     borderRadius: theme.borderRadius.sm,
                     cursor: 'pointer',
                     fontSize: theme.typography.fontSize.sm,

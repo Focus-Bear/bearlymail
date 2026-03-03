@@ -1,9 +1,11 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { INPUT_WIDTH_PX } from 'constants/numbers';
+import { FONT_WEIGHT_MEDIUM, INPUT_WIDTH_PX } from 'constants/numbers';
 import { EMOJI_CHECK } from 'constants/emojis';
 import { captureEvent } from 'utils/posthog';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface GitHubIntegrationSectionProps {
   hasGithubToken: boolean;
@@ -74,12 +76,12 @@ export const GitHubIntegrationSection: React.FC<GitHubIntegrationSectionProps> =
               style={{
                 padding: `${theme.spacing.md} ${theme.spacing.lg}`,
                 backgroundColor: theme.colors.primary.main,
-                color: 'white',
-                border: 'none',
+                color: COLOR_NAMED_WHITE,
+                border: STRING_NONE,
                 borderRadius: theme.borderRadius.md,
                 cursor: 'pointer',
                 fontSize: theme.typography.fontSize.base,
-                fontWeight: 500,
+                fontWeight: FONT_WEIGHT_MEDIUM,
               }}
             >
               {t('settings.github.connect')}
@@ -93,12 +95,12 @@ export const GitHubIntegrationSection: React.FC<GitHubIntegrationSectionProps> =
               style={{
                 padding: `${theme.spacing.md} ${theme.spacing.lg}`,
                 backgroundColor: theme.colors.accent.error,
-                color: 'white',
-                border: 'none',
+                color: COLOR_NAMED_WHITE,
+                border: STRING_NONE,
                 borderRadius: theme.borderRadius.md,
                 cursor: 'pointer',
                 fontSize: theme.typography.fontSize.base,
-                fontWeight: 500,
+                fontWeight: FONT_WEIGHT_MEDIUM,
               }}
             >
               {t('settings.github.disconnect')}

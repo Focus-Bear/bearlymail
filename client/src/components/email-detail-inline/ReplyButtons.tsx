@@ -2,6 +2,8 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { EMOJI_REPLY, EMOJI_REPLY_ALL } from 'constants/emojis';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface ReplyButtonsProps {
   onReply: () => void;
@@ -21,8 +23,8 @@ export const ReplyButtons: React.FC<ReplyButtonsProps> = ({
         style={{
           padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
           backgroundColor: theme.colors.primary.main,
-          color: 'white',
-          border: 'none',
+          color: COLOR_NAMED_WHITE,
+          border: STRING_NONE,
           borderRadius: theme.borderRadius.md,
           fontWeight: theme.typography.fontWeight.medium,
           cursor: 'pointer',

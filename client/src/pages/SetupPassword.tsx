@@ -7,6 +7,8 @@ import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 const SetupPassword: React.FC = () => {
   const { t } = useTranslation();
@@ -192,8 +194,8 @@ const SetupPassword: React.FC = () => {
               width: '100%',
               padding: theme.spacing.md,
               backgroundColor: loading || !token ? theme.colors.border.medium : theme.colors.primary.main,
-              color: 'white',
-              border: 'none',
+              color: COLOR_NAMED_WHITE,
+              border: STRING_NONE,
               borderRadius: theme.borderRadius.md,
               fontSize: theme.typography.fontSize.base,
               fontWeight: theme.typography.fontWeight.semibold,

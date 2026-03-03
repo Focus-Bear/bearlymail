@@ -9,10 +9,11 @@ import { SchedulingRequestCard } from 'components/email-detail/SchedulingRequest
 import { SnoozeInputForm } from 'components/inbox/actions/SnoozeInputForm';
 import { EMOJI_BLOCK, EMOJI_LINK } from 'constants/emojis';
 import { OPACITY_DISABLED } from 'constants/numbers';
-import { REPLY_MODE_FORWARD, ACTION_TYPE_SCHEDULING_REQUEST } from 'constants/strings';
+import { ACTION_TYPE_SCHEDULING_REQUEST, LETTER_SPACING_WIDER, REPLY_MODE_FORWARD, STRING_NONE } from 'constants/strings';
 import { extractUnsubscribeLink } from 'utils/unsubscribeUtils';
 import { captureEvent } from 'utils/posthog';
 import { isCalendarInvitation } from 'utils/calendarUtils';
+import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 
 const PRIORITY_OPTIONS = [
   { label: 'Can wait', emoji: '😊', value: 1 },
@@ -145,8 +146,8 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
               style={{
                 padding: `${theme.spacing.sm} ${theme.spacing.md}`,
                 backgroundColor: theme.colors.text.primary,
-                color: 'white',
-                border: 'none',
+                color: COLOR_NAMED_WHITE,
+                border: STRING_NONE,
                 borderRadius: theme.borderRadius.md,
                 fontWeight: theme.typography.fontWeight.semibold,
                 cursor: 'pointer',
@@ -165,7 +166,7 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
               onClick={() => onOpenReplyComposer(REPLY_MODE_FORWARD)}
               style={{
                 padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                backgroundColor: 'transparent',
+                backgroundColor: COLOR_TRANSPARENT,
                 color: theme.colors.text.secondary,
                 border: `1px solid ${theme.colors.border.medium}`,
                 borderRadius: theme.borderRadius.md,
@@ -197,9 +198,9 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
               }}
               style={{
                 padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                backgroundColor: 'transparent',
+                backgroundColor: COLOR_TRANSPARENT,
                 color: theme.colors.text.secondary,
-                border: 'none',
+                border: STRING_NONE,
                 borderRadius: theme.borderRadius.md,
                 fontWeight: theme.typography.fontWeight.medium,
                 cursor: 'pointer',
@@ -245,9 +246,9 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
                 title={t('inbox.unsubscribe')}
                 style={{
                   padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                  backgroundColor: 'transparent',
+                  backgroundColor: COLOR_TRANSPARENT,
                   color: theme.colors.text.secondary,
-                  border: 'none',
+                  border: STRING_NONE,
                   borderRadius: theme.borderRadius.md,
                   fontWeight: theme.typography.fontWeight.medium,
                   cursor: 'pointer',
@@ -269,9 +270,9 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
                 title={t('inbox.blockSender')}
                 style={{
                   padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                  backgroundColor: 'transparent',
+                  backgroundColor: COLOR_TRANSPARENT,
                   color: theme.colors.text.secondary,
-                  border: 'none',
+                  border: STRING_NONE,
                   borderRadius: theme.borderRadius.md,
                   fontWeight: theme.typography.fontWeight.medium,
                   cursor: 'pointer',
@@ -325,7 +326,7 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
               fontSize: theme.typography.fontSize.xs,
               color: theme.colors.text.tertiary,
               fontWeight: theme.typography.fontWeight.semibold,
-              letterSpacing: '0.08em',
+              letterSpacing: LETTER_SPACING_WIDER,
               textTransform: 'uppercase',
               flexShrink: 0,
             }}>

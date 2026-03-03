@@ -1,5 +1,6 @@
 import React from 'react';
 import { theme } from 'theme/theme';
+import { COLOR_BG_ERROR_ALT, COLOR_NAMED_RED } from 'constants/colors';
 
 interface MissingItem {
   threadId: string;
@@ -29,7 +30,7 @@ export const MissingFromProcessTabList: React.FC<MissingFromProcessTabListProps>
 
   return (
     <div style={{ marginBottom: theme.spacing.md }}>
-      <h5 style={{ margin: `0 0 ${theme.spacing.sm} 0`, color: 'red' }}>
+      <h5 style={{ margin: `0 0 ${theme.spacing.sm} 0`, color: COLOR_NAMED_RED }}>
         ⚠️ Missing from Action Tab:
       </h5>
       {missingItems.map((item, index) => (
@@ -37,7 +38,7 @@ export const MissingFromProcessTabList: React.FC<MissingFromProcessTabListProps>
           key={getMissingItemKey(item, index)}
           style={{
             padding: theme.spacing.sm,
-            backgroundColor: '#FFE6E6',
+            backgroundColor: COLOR_BG_ERROR_ALT,
             border: '1px solid #F5C6CB',
             borderRadius: theme.borderRadius.sm,
             marginBottom: theme.spacing.xs,
@@ -47,7 +48,7 @@ export const MissingFromProcessTabList: React.FC<MissingFromProcessTabListProps>
             <strong>Thread:</strong> {item.threadId}
           </div>
           <div>
-            <strong>Reason:</strong> <span style={{ color: 'red' }}>{item.reason}</span>
+            <strong>Reason:</strong> <span style={{ color: COLOR_NAMED_RED }}>{item.reason}</span>
           </div>
           <div>
             <strong>Details:</strong> Stars: {item.details.starCount} | Emails:{' '}

@@ -1,5 +1,6 @@
 import React from 'react';
 import { theme } from 'theme/theme';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
 
 interface BulkActionButtonProps {
   onClick: () => void;
@@ -12,8 +13,8 @@ export const BulkActionButton: React.FC<BulkActionButtonProps> = ({ onClick, chi
       onClick={onClick}
       style={{
         padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
-        color: 'white',
+        backgroundColor: theme.colors.overlay.whiteLight,
+        color: COLOR_NAMED_WHITE,
         border: '1px solid rgba(255, 255, 255, 0.3)',
         borderRadius: theme.borderRadius.sm,
         cursor: 'pointer',

@@ -1,6 +1,7 @@
 import React from 'react';
 import { theme } from 'theme/theme';
 import { GitHubLink } from 'types/email';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
 
 interface GitHubLinkHeaderProps {
   link: GitHubLink;
@@ -73,7 +74,7 @@ export const GitHubLinkHeader: React.FC<GitHubLinkHeaderProps> = ({
       <div style={{
         padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
         backgroundColor: getStatusBadgeColor(),
-        color: 'white',
+        color: COLOR_NAMED_WHITE,
         borderRadius: theme.borderRadius.sm,
         fontSize: theme.typography.fontSize.xs,
         fontWeight: theme.typography.fontWeight.semibold,

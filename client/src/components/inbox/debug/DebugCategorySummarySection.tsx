@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { CategorySummaryItem } from 'store/slices/emailSlice';
 import { Email } from 'types/email';
+import { COLOR_BG_ERROR, COLOR_BG_LIGHT_GRAY, COLOR_BG_NEUTRAL, COLOR_BG_NEUTRAL_ALT, COLOR_BG_WARNING, COLOR_ERROR_DARK, COLOR_ERROR_MED, COLOR_GREY_LIGHT, COLOR_GREY_MID, COLOR_WHITE } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface DebugCategorySummaryProps {
   categorySummary: CategorySummaryItem[] | null;
@@ -57,7 +59,7 @@ export const DebugCategorySummarySection: React.FC<DebugCategorySummaryProps> = 
       style={{
         marginBottom: theme.spacing.md,
         padding: theme.spacing.sm,
-        backgroundColor: '#FFF3E0',
+        backgroundColor: COLOR_BG_WARNING,
         borderRadius: theme.borderRadius.sm,
         border: '1px solid #FFB74D',
       }}
@@ -80,7 +82,7 @@ export const DebugCategorySummarySection: React.FC<DebugCategorySummaryProps> = 
           }}>
             <div style={{
               padding: theme.spacing.sm,
-              backgroundColor: '#fff',
+              backgroundColor: COLOR_WHITE,
               borderRadius: theme.borderRadius.sm,
               border: '1px solid #E0E0E0',
             }}>
@@ -88,7 +90,7 @@ export const DebugCategorySummarySection: React.FC<DebugCategorySummaryProps> = 
             </div>
             <div style={{
               padding: theme.spacing.sm,
-              backgroundColor: '#fff',
+              backgroundColor: COLOR_WHITE,
               borderRadius: theme.borderRadius.sm,
               border: '1px solid #E0E0E0',
             }}>
@@ -99,12 +101,12 @@ export const DebugCategorySummarySection: React.FC<DebugCategorySummaryProps> = 
           <table style={{ 
             width: '100%', 
             borderCollapse: 'collapse', 
-            backgroundColor: '#fff',
+            backgroundColor: COLOR_WHITE,
             borderRadius: theme.borderRadius.sm,
             overflow: 'hidden',
           }}>
             <thead>
-              <tr style={{ backgroundColor: '#f5f5f5' }}>
+              <tr style={{ backgroundColor: COLOR_BG_NEUTRAL }}>
                 <th style={{ padding: theme.spacing.sm, textAlign: 'left', borderBottom: '1px solid #e0e0e0' }}>
                   {t('debug.categorySummary.category')}
                 </th>
@@ -145,7 +147,7 @@ export const DebugCategorySummarySection: React.FC<DebugCategorySummaryProps> = 
                         {hasMismatch && (
                           <span style={{ 
                             marginLeft: theme.spacing.xs, 
-                            color: '#D32F2F',
+                            color: COLOR_ERROR_MED,
                             fontSize: theme.typography.fontSize.xs,
                           }}>
                             ⚠️ {t('debug.categorySummary.mismatch')}
@@ -193,7 +195,7 @@ export const DebugCategorySummarySection: React.FC<DebugCategorySummaryProps> = 
                             padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
                             backgroundColor: showDetails ? theme.colors.primary.main : '#f5f5f5',
                             color: showDetails ? '#fff' : theme.colors.text.primary,
-                            border: 'none',
+                            border: STRING_NONE,
                             borderRadius: theme.borderRadius.sm,
                             cursor: 'pointer',
                             fontSize: theme.typography.fontSize.xs,
@@ -207,14 +209,14 @@ export const DebugCategorySummarySection: React.FC<DebugCategorySummaryProps> = 
                       <tr>
                         <td colSpan={6} style={{ 
                           padding: theme.spacing.md, 
-                          backgroundColor: '#FAFAFA',
+                          backgroundColor: COLOR_BG_NEUTRAL_ALT,
                           borderBottom: '1px solid #e0e0e0',
                         }}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
                             <div>
                               <strong>{t('debug.categorySummary.categoryId')}:</strong>{' '}
                               <code style={{ 
-                                backgroundColor: '#E8E8E8', 
+                                backgroundColor: COLOR_BG_LIGHT_GRAY, 
                                 padding: '2px 6px', 
                                 borderRadius: '4px',
                                 fontSize: theme.typography.fontSize.xs,
@@ -230,7 +232,7 @@ export const DebugCategorySummarySection: React.FC<DebugCategorySummaryProps> = 
                                   maxHeight: '150px', 
                                   overflowY: 'auto', 
                                   marginTop: theme.spacing.xs,
-                                  backgroundColor: '#fff',
+                                  backgroundColor: COLOR_WHITE,
                                   padding: theme.spacing.xs,
                                   borderRadius: theme.borderRadius.sm,
                                   border: '1px solid #E0E0E0',
@@ -263,7 +265,7 @@ export const DebugCategorySummarySection: React.FC<DebugCategorySummaryProps> = 
                                     maxHeight: '150px', 
                                     overflowY: 'auto', 
                                     marginTop: theme.spacing.xs,
-                                    backgroundColor: '#fff',
+                                    backgroundColor: COLOR_WHITE,
                                     padding: theme.spacing.xs,
                                     borderRadius: theme.borderRadius.sm,
                                     border: '1px solid #E0E0E0',
@@ -276,8 +278,8 @@ export const DebugCategorySummarySection: React.FC<DebugCategorySummaryProps> = 
                                         display: 'flex',
                                         gap: theme.spacing.sm,
                                       }}>
-                                        <span style={{ color: '#666' }}>{email.threadId}</span>
-                                        <span style={{ color: '#999' }}>|</span>
+                                        <span style={{ color: COLOR_GREY_MID }}>{email.threadId}</span>
+                                        <span style={{ color: COLOR_GREY_LIGHT }}>|</span>
                                         <span style={{ 
                                           overflow: 'hidden', 
                                           textOverflow: 'ellipsis', 
@@ -291,7 +293,7 @@ export const DebugCategorySummarySection: React.FC<DebugCategorySummaryProps> = 
                                   </div>
                                 ) : (
                                   <span style={{ 
-                                    color: '#D32F2F',
+                                    color: COLOR_ERROR_MED,
                                     marginLeft: theme.spacing.xs,
                                     fontWeight: 'bold',
                                   }}>
@@ -304,10 +306,10 @@ export const DebugCategorySummarySection: React.FC<DebugCategorySummaryProps> = 
                             {hasMismatch && (
                               <div style={{
                                 padding: theme.spacing.sm,
-                                backgroundColor: '#FFEBEE',
+                                backgroundColor: COLOR_BG_ERROR,
                                 borderRadius: theme.borderRadius.sm,
                                 border: '1px solid #FFCDD2',
-                                color: '#C62828',
+                                color: COLOR_ERROR_DARK,
                               }}>
                                 <strong>⚠️ {t('debug.categorySummary.mismatchExplanation')}:</strong>
                                 <br />

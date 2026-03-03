@@ -2,6 +2,7 @@ import React, { RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
+import { MODE_ACTION, MODE_FOLLOW_UP, MODE_TRIAGE, STRING_NONE } from 'constants/strings';
 import { InboxMode } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
@@ -56,7 +57,7 @@ export const InboxHeaderTabs: React.FC<InboxHeaderTabsProps> = ({
         : `${theme.spacing.sm} ${theme.spacing.lg}`,
       backgroundColor: isActive ? theme.colors.primary.subtle : 'transparent',
       color: isActive ? theme.colors.primary.main : theme.colors.text.secondary,
-      border: 'none',
+      border: STRING_NONE,
       borderRadius: theme.borderRadius.full,
       cursor: loadingModeSwitch ? 'wait' : 'pointer',
       fontWeight: theme.typography.fontWeight.semibold,
@@ -72,15 +73,15 @@ export const InboxHeaderTabs: React.FC<InboxHeaderTabsProps> = ({
     let label = '';
     let count: number | undefined;
     switch (tabMode) {
-      case 'triage':
+      case MODE_TRIAGE:
         label = t('inbox.triageTab');
         count = tabCounts?.triage;
         break;
-      case 'action':
+      case MODE_ACTION:
         label = t('inbox.actionTab');
         count = tabCounts?.action;
         break;
-      case 'follow-up':
+      case MODE_FOLLOW_UP:
         label = t('inbox.followUpTab');
         count = tabCounts?.followUp;
         break;

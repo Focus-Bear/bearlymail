@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { BOOKING_STATUS_SUCCESS } from 'constants/strings';
-import { DAYS_IN_MONTH_30 } from 'constants/numbers';
+import { BOOKING_STATUS_SUCCESS, BOOKING_IDLE, BOOKING_SUBMITTING, BOOKING_SUCCESS, BOOKING_ERROR, STRING_WHITE, STRING_AUTO, STRING_HIDDEN } from 'constants/strings';
+import { DAYS_IN_MONTH_30, MAX_WIDTH_600_PX, OPACITY_90_PERCENT } from 'constants/numbers';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { BookingLoadingState } from 'components/booking/BookingLoadingState';
@@ -29,7 +29,7 @@ const BookingPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [daysAhead, setDaysAhead] = useState(DAYS_IN_MONTH_30);
-  const [bookingStatus, setBookingStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [bookingStatus, setBookingStatus] = useState<typeof BOOKING_IDLE | typeof BOOKING_SUBMITTING | typeof BOOKING_SUCCESS | typeof BOOKING_ERROR>(BOOKING_IDLE);
   const [error, setError] = useState('');
 
   const fetchSlots = async (days: number, append = false) => {
@@ -74,7 +74,7 @@ const BookingPage: React.FC = () => {
     e.preventDefault();
     if (!selectedSlot || !guestEmail || !userId) return;
 
-    setBookingStatus('submitting');
+    setBookingStatus(BOOKING_SUBMITTING);
     try {
       await axios.post(`${API_URL}/public/calendar/${userId}/book`, {
         startTime: selectedSlot.start,
@@ -82,10 +82,10 @@ const BookingPage: React.FC = () => {
         guestName,
         duration: selectedSlot.duration,
       });
-      setBookingStatus('success');
+      setBookingStatus(BOOKING_SUCCESS);
     } catch (error) {
       console.error('Error booking slot:', error);
-      setBookingStatus('error');
+      setBookingStatus(BOOKING_ERROR);
       setError(t('booking.failedToBook'));
     }
   };
@@ -106,20 +106,20 @@ const BookingPage: React.FC = () => {
       padding: theme.spacing.xl,
     }}>
       <div style={{
-        maxWidth: '800px',
-        margin: '0 auto',
+        maxWidth: `${MAX_WIDTH_600_PX}px`,
+        margin: STRING_AUTO,
         backgroundColor: theme.colors.background.paper,
         borderRadius: theme.borderRadius.lg,
         boxShadow: theme.shadows.lg,
-        overflow: 'hidden',
+        overflow: STRING_HIDDEN,
       }}>
         <div style={{
           padding: theme.spacing.xl,
           backgroundColor: theme.colors.primary.main,
-          color: 'white',
+          color: STRING_WHITE,
         }}>
           <h1 style={{ margin: 0, fontSize: theme.typography.fontSize['2xl'] }}>{t('booking.title')}</h1>
-          <p style={{ marginTop: theme.spacing.sm, opacity: 0.9 }}>{t('booking.subtitle')}</p>
+          <p style={{ marginTop: theme.spacing.sm, opacity: OPACITY_90_PERCENT }}>{t('booking.subtitle')}</p>
         </div>
 
         <div style={{ padding: theme.spacing.xl }}>
@@ -162,4 +162,5 @@ const BookingPage: React.FC = () => {
 };
 
 export default BookingPage;
+
 

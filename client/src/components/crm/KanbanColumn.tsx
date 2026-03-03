@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { theme } from 'theme/theme';
 import { Deal, DealStage } from 'types/deal';
+import { STRING_NONE } from 'constants/strings';
 
 interface KanbanColumnProps {
   stage: DealStage;
@@ -61,7 +62,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
               {stage.name}
             </span>
             <span style={{
-              backgroundColor: stageColor + '20',
+              backgroundColor: `${stageColor}20`,
               color: stageColor,
               padding: `1px ${theme.spacing.xs}`,
               borderRadius: theme.borderRadius.sm,
@@ -164,8 +165,8 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
               <button
                 onClick={(e) => { e.stopPropagation(); onDeleteDeal(deal.id); }}
                 style={{
-                  background: 'none',
-                  border: 'none',
+                  background: STRING_NONE,
+                  border: STRING_NONE,
                   color: theme.colors.text.tertiary,
                   cursor: 'pointer',
                   fontSize: theme.typography.fontSize.xs,

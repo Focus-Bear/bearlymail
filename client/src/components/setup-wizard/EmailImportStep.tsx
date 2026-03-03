@@ -4,6 +4,8 @@ import { theme } from 'theme/theme';
 import axios from 'axios';
 import { API_URL } from 'config/api';
 import { POLLING_INTERVAL_MS } from 'constants/numbers';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface EmailImportStepProps {
   onComplete: () => void;
@@ -118,8 +120,8 @@ export const EmailImportStep: React.FC<EmailImportStepProps> = ({ onComplete, is
               style={{
                 padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
                 backgroundColor: theme.colors.primary.main,
-                color: 'white',
-                border: 'none',
+                color: COLOR_NAMED_WHITE,
+                border: STRING_NONE,
                 borderRadius: theme.borderRadius.md,
                 fontSize: theme.typography.fontSize.sm,
                 fontWeight: theme.typography.fontWeight.semibold,
@@ -203,7 +205,7 @@ export const EmailImportStep: React.FC<EmailImportStepProps> = ({ onComplete, is
           padding: theme.spacing.lg,
           backgroundColor: progress.isReady ? theme.colors.primary.main : theme.colors.border.light,
           color: progress.isReady ? 'white' : theme.colors.text.disabled,
-          border: 'none',
+          border: STRING_NONE,
           borderRadius: theme.borderRadius.md,
           fontSize: theme.typography.fontSize.base,
           fontWeight: theme.typography.fontWeight.semibold,

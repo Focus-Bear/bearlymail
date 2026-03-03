@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { OPACITY_DISABLED_ALT } from 'constants/numbers';
 import { AutoResponderConfig, QueueStats } from './types';
+import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface AutoResponderTemplateEditorProps {
   config: AutoResponderConfig;
@@ -198,8 +200,8 @@ export const AutoResponderTemplateEditor: React.FC<AutoResponderTemplateEditorPr
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: theme.spacing.md,
-          backgroundColor: 'transparent',
-          border: 'none',
+          backgroundColor: COLOR_TRANSPARENT,
+          border: STRING_NONE,
           cursor: 'pointer',
           textAlign: 'left',
         }}
@@ -312,8 +314,8 @@ export const AutoResponderTemplateEditor: React.FC<AutoResponderTemplateEditorPr
                     style={{
                       padding: `${theme.spacing.xs} ${theme.spacing.md}`,
                       backgroundColor: theme.colors.primary.main,
-                      color: 'white',
-                      border: 'none',
+                      color: COLOR_NAMED_WHITE,
+                      border: STRING_NONE,
                       borderRadius: theme.borderRadius.sm,
                       cursor: isSaving ? 'not-allowed' : 'pointer',
                       opacity: isSaving ? OPACITY_DISABLED_ALT : 1,
@@ -328,7 +330,7 @@ export const AutoResponderTemplateEditor: React.FC<AutoResponderTemplateEditorPr
                     disabled={isSaving}
                     style={{
                       padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                      backgroundColor: 'transparent',
+                      backgroundColor: COLOR_TRANSPARENT,
                       color: theme.colors.text.secondary,
                       border: `1px solid ${theme.colors.border.medium}`,
                       borderRadius: theme.borderRadius.sm,
@@ -389,7 +391,7 @@ export const AutoResponderTemplateEditor: React.FC<AutoResponderTemplateEditorPr
                       padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
                       backgroundColor: theme.colors.greyscale[300],
                       color: theme.colors.text.primary,
-                      border: 'none',
+                      border: STRING_NONE,
                       borderRadius: theme.borderRadius.sm,
                       cursor: 'pointer',
                       fontFamily: 'monospace',
@@ -450,7 +452,7 @@ export const AutoResponderTemplateEditor: React.FC<AutoResponderTemplateEditorPr
                   width: '100%',
                   minHeight: '400px',
                   padding: theme.spacing.md,
-                  border: 'none',
+                  border: STRING_NONE,
                   resize: 'vertical',
                   fontFamily: 'monospace',
                   ...theme.typography.body.medium,

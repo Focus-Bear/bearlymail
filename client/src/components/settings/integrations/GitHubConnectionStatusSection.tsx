@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { API_URL } from 'config/api';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface RepoStatus {
   id: string;
@@ -186,7 +188,7 @@ export const GitHubConnectionStatusSection: React.FC<GitHubConnectionStatusSecti
                         {repo.isDefault && (
                           <span style={{
                             backgroundColor: theme.colors.primary.main,
-                            color: 'white',
+                            color: COLOR_NAMED_WHITE,
                             padding: `1px ${theme.spacing.sm}`,
                             borderRadius: theme.borderRadius.sm,
                             fontSize: theme.typography.fontSize.xs,
@@ -247,8 +249,8 @@ export const GitHubConnectionStatusSection: React.FC<GitHubConnectionStatusSecti
                   style={{
                     padding: `${theme.spacing.sm} ${theme.spacing.md}`,
                     backgroundColor: theme.colors.primary.main,
-                    color: 'white',
-                    border: 'none',
+                    color: COLOR_NAMED_WHITE,
+                    border: STRING_NONE,
                     borderRadius: theme.borderRadius.md,
                     cursor: 'pointer',
                     fontSize: theme.typography.fontSize.sm,
@@ -263,8 +265,8 @@ export const GitHubConnectionStatusSection: React.FC<GitHubConnectionStatusSecti
                   style={{
                     padding: `${theme.spacing.sm} ${theme.spacing.md}`,
                     backgroundColor: theme.colors.primary.main,
-                    color: 'white',
-                    border: 'none',
+                    color: COLOR_NAMED_WHITE,
+                    border: STRING_NONE,
                     borderRadius: theme.borderRadius.md,
                     cursor: 'pointer',
                     fontSize: theme.typography.fontSize.sm,

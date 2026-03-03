@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { EMOJI_BACK } from 'constants/emojis';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { COLOR_TRANSPARENT } from 'constants/colors';
 
 export const EmailDetailSidebar: React.FC = () => {
   const navigate = useNavigate();
@@ -61,7 +62,7 @@ export const EmailDetailSidebar: React.FC = () => {
           height: '48px',
           borderRadius: '50%',
           border: `1px solid ${theme.colors.border.medium}`,
-          backgroundColor: 'transparent',
+          backgroundColor: COLOR_TRANSPARENT,
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
@@ -70,7 +71,7 @@ export const EmailDetailSidebar: React.FC = () => {
           transition: theme.transitions.fast,
         }}
         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.colors.background.default}
-        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = COLOR_TRANSPARENT}
         title={t('emailDetail.backToInbox')}
       >
         {/* eslint-disable-next-line i18next/no-literal-string */}

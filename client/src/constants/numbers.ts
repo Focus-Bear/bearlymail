@@ -102,6 +102,23 @@ export const AVATAR_SIZE_SMALL_PX = 24;
 export const MAX_BULK_SEND_COUNT = 20;
 export const DEBOUNCE_DELAY_SHORT_MS = 300;
 
+// Dimensions
+export const WIDTH_FULL_PX = '100%' as const;
+export const MARGIN_BOTTOM_NEG_2PX = '-2px' as const;
+export const WIDTH_64_PX = 64;
+export const HEIGHT_64_PX = 64;
+export const WIDTH_32_PX = 32;
+export const HEIGHT_32_PX = 32;
+export const MAX_WIDTH_500_PX = 500;
+export const MAX_WIDTH_600_PX = 600;
+export const MAX_WIDTH_800_PX = 800;
+
+// Opacity
+export const OPACITY_90_PERCENT = 0.9;
+export const OPACITY_20_PERCENT = 0.2;
+export const OPACITY_10_PERCENT = 0.1;
+export const OPACITY_30_PERCENT = 0.3;
+
 // Responsive breakpoints (in pixels)
 export const BREAKPOINT_TABLET = 640;
 export const BREAKPOINT_DESKTOP = 1280;
@@ -173,6 +190,8 @@ export const SCHEDULING_GAP_45_MIN = 45;
 // Font weight values for inline styles
 export const FONT_WEIGHT_BOLD_INLINE = 700;
 export const FONT_WEIGHT_NORMAL_INLINE = 400;
+export const FONT_WEIGHT_SEMIBOLD = 600;
+export const FONT_WEIGHT_MEDIUM = 500;
 
 // Date/time constants
 export const ANALYSIS_RECENT_INSIGHTS_COUNT = 7;

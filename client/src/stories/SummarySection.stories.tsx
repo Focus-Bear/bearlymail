@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import type { Meta, StoryObj } from '@storybook/react';
+import type { StoryObj } from '@storybook/react';
+import { COLOR_WHITE_FULL } from 'constants/colors';
 
-const T = {
+const Th = {
   border: '#E5E7EB', text: '#111827', textSec: '#6B7280', textTer: '#9CA3AF',
   sp: { xs: '4px', sm: '8px', md: '16px' },
   r: { sm: '4px', md: '8px' },
@@ -24,36 +25,41 @@ const SumSection = ({ summary, loading, processing, defaultCollapsed = false }: 
   const [type, setType] = useState('tldr');
 
   return (
-    <div style={{ maxWidth: 640, borderRadius: T.r.md, border: `1px solid ${T.border}`, overflow: 'hidden', marginBottom: T.sp.md }}>
-      <button onClick={() => setCollapsed(!collapsed)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: T.sp.sm, padding: `${T.sp.sm} ${T.sp.md}`, backgroundColor: ACCENT_BG, border: 'none', borderLeft: `3px solid ${ACCENT}`, cursor: 'pointer', textAlign: 'left' as const }}>
+    <div style={{ maxWidth: 640, borderRadius: Th.r.md, border: `1px solid ${Th.border}`, overflow: 'hidden', marginBottom: Th.sp.md }}>
+      <button onClick={() => setCollapsed(!collapsed)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: Th.sp.sm, padding: `${Th.sp.sm} ${Th.sp.md}`, backgroundColor: ACCENT_BG, border: 'none', borderLeft: `3px solid ${ACCENT}`, cursor: 'pointer', textAlign: 'left' as const }}>
         <span style={{ fontSize: '16px' }}>📋</span>
-        <span style={{ flex: 1, fontSize: T.f.sm, fontWeight: 600, color: T.text, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>AI Summary</span>
+        <span style={{ flex: 1, fontSize: Th.f.sm, fontWeight: 600, color: Th.text, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>AI Summary</span>
         {!loading && !processing && summary && (
-          <span style={{ fontSize: T.f.xs, color: T.textSec, display: 'flex', gap: T.sp.xs }}>
+          <span style={{ fontSize: Th.f.xs, color: Th.textSec, display: 'flex', gap: Th.sp.xs }}>
             {['tldr', 'bullets', 'action-focused'].map(t => (
-              <span key={t} onClick={(e) => { e.stopPropagation(); setType(t); }} style={{ padding: '2px 8px', borderRadius: 999, backgroundColor: type === t ? ACCENT : 'transparent', color: type === t ? '#fff' : T.textSec, cursor: 'pointer', fontSize: T.f.xs, fontWeight: 500 }}>
-                {t === 'tldr' ? 'TL;DR' : t === 'bullets' ? 'Bullets' : 'Actions'}
+              <span key={t} onClick={(e) => { e.stopPropagation(); setType(t); }} style={{ padding: '2px 8px', borderRadius: 999, backgroundColor: type === t ? ACCENT : 'transparent', color: type === t ? '#fff' : Th.textSec, cursor: 'pointer', fontSize: Th.f.xs, fontWeight: 500 }}>
+                {(() => { if (t === 'tldr') return 'TL;DR'; if (t === 'bullets') return 'Bullets'; return 'Actions'; })()}
               </span>
             ))}
           </span>
         )}
-        <span style={{ fontSize: T.f.xs, color: T.textSec, transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)', transition: 'transform 0.2s', flexShrink: 0 }}>▼</span>
+        <span style={{ fontSize: Th.f.xs, color: Th.textSec, transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)', transition: 'transform 0.2s', flexShrink: 0 }}>▼</span>
       </button>
       {!collapsed && (
-        <div style={{ padding: T.sp.md, backgroundColor: '#FFFFFF' }}>
-          {loading ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: T.sp.sm, color: T.textSec, fontSize: T.f.sm }}>
-              <span>⏳</span> Generating summary…
-            </div>
-          ) : processing ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: T.sp.sm, color: T.textSec, fontSize: T.f.sm }}>
-              <span>⚙️</span> Processing email…
-            </div>
-          ) : summary ? (
-            <p style={{ margin: 0, fontSize: T.f.base, color: T.text, lineHeight: 1.7, whiteSpace: 'pre-wrap' as const }}>{summary}</p>
-          ) : (
-            <div style={{ color: T.textSec, fontSize: T.f.sm }}>No summary available. <button style={{ background: 'none', border: 'none', color: ACCENT, cursor: 'pointer', fontWeight: 600 }}>Generate one →</button></div>
-          )}
+        <div style={{ padding: Th.sp.md, backgroundColor: COLOR_WHITE_FULL }}>
+          {(() => {
+            if (loading) return (
+              <div style={{ display: 'flex', alignItems: 'center', gap: Th.sp.sm, color: Th.textSec, fontSize: Th.f.sm }}>
+                <span>⏳</span> Generating summary…
+              </div>
+            );
+            if (processing) return (
+              <div style={{ display: 'flex', alignItems: 'center', gap: Th.sp.sm, color: Th.textSec, fontSize: Th.f.sm }}>
+                <span>⚙️</span> Processing email…
+              </div>
+            );
+            if (summary) return (
+              <p style={{ margin: 0, fontSize: Th.f.base, color: Th.text, lineHeight: 1.7, whiteSpace: 'pre-wrap' as const }}>{summary}</p>
+            );
+            return (
+            <div style={{ color: Th.textSec, fontSize: Th.f.sm }}>No summary available. <button style={{ background: 'none', border: 'none', color: ACCENT, cursor: 'pointer', fontWeight: 600 }}>Generate one →</button></div>
+            );
+          })()}
         </div>
       )}
     </div>

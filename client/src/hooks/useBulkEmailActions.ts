@@ -7,6 +7,7 @@ import { AppDispatch } from 'store/store';
 import { removeEmail, restoreEmail, addOptimisticArchive, removeOptimisticArchive, decrementCategorySummaryCount, incrementCategorySummaryCount } from 'store/slices/emailSlice';
 import { selectEmails } from 'store/selectors/emailSelectors';
 import { Email } from 'types/email';
+import { MODE_TRIAGE, MODE_ACTION, MODE_FOLLOW_UP } from 'constants/strings';
 
 interface UseBulkEmailActionsProps {
   selectedEmailIds: Set<string>;
@@ -75,11 +76,11 @@ export function useBulkEmailActions({
 
     // Optimistically update tab counts
     if (onTabCountsUpdateOptimistically) {
-      if (mode === 'triage') {
+      if (mode === MODE_TRIAGE) {
         onTabCountsUpdateOptimistically({ triage: -emailIdsToArchive.length });
-      } else if (mode === 'action') {
+      } else if (mode === MODE_ACTION) {
         onTabCountsUpdateOptimistically({ action: -emailIdsToArchive.length });
-      } else if (mode === 'follow-up') {
+      } else if (mode === MODE_FOLLOW_UP) {
         onTabCountsUpdateOptimistically({ followUp: -emailIdsToArchive.length });
       }
     }
@@ -101,11 +102,11 @@ export function useBulkEmailActions({
       });
       // Revert tab count changes
       if (onTabCountsUpdateOptimistically) {
-        if (mode === 'triage') {
+        if (mode === MODE_TRIAGE) {
           onTabCountsUpdateOptimistically({ triage: emailIdsToArchive.length });
-        } else if (mode === 'action') {
+        } else if (mode === MODE_ACTION) {
           onTabCountsUpdateOptimistically({ action: emailIdsToArchive.length });
-        } else if (mode === 'follow-up') {
+        } else if (mode === MODE_FOLLOW_UP) {
           onTabCountsUpdateOptimistically({ followUp: emailIdsToArchive.length });
         }
       }

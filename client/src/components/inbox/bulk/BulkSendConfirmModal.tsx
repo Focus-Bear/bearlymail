@@ -4,6 +4,8 @@ import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 import { ThreadWithFollowUp } from 'hooks/useFollowUps';
 import { FollowUpPreviewList } from 'components/inbox/bulk/FollowUpPreviewList';
+import { COLOR_TRANSPARENT } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface BulkSendConfirmModalProps {
   selectedCount: number;
@@ -75,7 +77,7 @@ export const BulkSendConfirmModal: React.FC<BulkSendConfirmModalProps> = ({
             }}
             style={{
               padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-              backgroundColor: 'transparent',
+              backgroundColor: COLOR_TRANSPARENT,
               color: theme.colors.text.secondary,
               border: `1px solid ${theme.colors.border.light}`,
               borderRadius: theme.borderRadius.md,
@@ -94,7 +96,7 @@ export const BulkSendConfirmModal: React.FC<BulkSendConfirmModalProps> = ({
               padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
               backgroundColor: theme.colors.primary.main,
               color: theme.colors.background.paper,
-              border: 'none',
+              border: STRING_NONE,
               borderRadius: theme.borderRadius.md,
               cursor: isSending ? 'wait' : 'pointer',
             }}

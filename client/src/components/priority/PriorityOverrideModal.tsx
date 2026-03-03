@@ -8,6 +8,7 @@ import { ReasonTypeSelector } from 'components/priority/override/ReasonTypeSelec
 import { OverrideReasonType } from 'components/priority/types';
 
 import { API_URL } from 'config/api';
+import { CONTEXT_ARCHIVE, CONTEXT_MANUAL } from 'constants/strings';
 
 interface PriorityOverrideModalProps {
   emailId: string;
@@ -15,7 +16,7 @@ interface PriorityOverrideModalProps {
   newPriorityScore: number;
   onClose: () => void;
   onSubmitted?: () => void;
-  context?: 'archive' | 'star' | 'manual'; // Context for why we're asking
+  context?: typeof CONTEXT_ARCHIVE | 'star' | typeof CONTEXT_MANUAL; // Context for why we're asking
 }
 
 export const PriorityOverrideModal: React.FC<PriorityOverrideModalProps> = ({
@@ -24,7 +25,7 @@ export const PriorityOverrideModal: React.FC<PriorityOverrideModalProps> = ({
   newPriorityScore,
   onClose,
   onSubmitted,
-  context = 'manual',
+  context = CONTEXT_MANUAL,
 }) => {
   const { t } = useTranslation();
   const [selectedReason, setSelectedReason] = useState<OverrideReasonType | ''>('');
@@ -32,11 +33,12 @@ export const PriorityOverrideModal: React.FC<PriorityOverrideModalProps> = ({
   const [submitting, setSubmitting] = useState(false);
 
   const isHighPriority = originalPriorityScore > PRIORITY_MEDIUM_THRESHOLD;
-  const priorityLabel = isHighPriority 
-    ? t('priority.high') 
-    : originalPriorityScore >= 0 
-      ? t('priority.low') 
-      : t('priority.veryLow');
+  const getPriorityLabel = () => {
+    if (isHighPriority) return t('priority.high');
+    if (originalPriorityScore >= 0) return t('priority.low');
+    return t('priority.veryLow');
+  };
+  const priorityLabel = getPriorityLabel();
 
   const handleSubmit = async () => {
     if (!selectedReason) return;
@@ -63,7 +65,7 @@ export const PriorityOverrideModal: React.FC<PriorityOverrideModalProps> = ({
 
   // Get context-specific description
   const getDescription = () => {
-    if (context === 'archive') {
+    if (context === CONTEXT_ARCHIVE) {
       if (isHighPriority) {
         return t('priority.override.archiveHighPriority', { 
           score: originalPriorityScore.toFixed(0),

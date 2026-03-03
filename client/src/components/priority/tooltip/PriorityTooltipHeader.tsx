@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { EMOJI_CLOSE } from 'constants/emojis';
+import { PRIORITY_STATUS_CALCULATING, STRING_NONE } from 'constants/strings';
 
 interface PriorityTooltipHeaderProps {
   score: number;
@@ -23,7 +24,7 @@ export const PriorityTooltipHeader: React.FC<PriorityTooltipHeaderProps> = ({
   
   // Check if still calculating (has items with "Calculating..." description)
   const isCalculating = breakdown?.some(
-    item => item.description === 'Calculating...' || item.description?.includes('Calculating...')
+    item => item.description === PRIORITY_STATUS_CALCULATING || item.description?.includes(PRIORITY_STATUS_CALCULATING)
   ) && calculatedScore === 0;
   
   // Use calculated score from breakdown if available, otherwise fall back to stored score
@@ -59,7 +60,7 @@ export const PriorityTooltipHeader: React.FC<PriorityTooltipHeaderProps> = ({
         onClick={onClose}
         style={{
           background: 'transparent',
-          border: 'none',
+          border: STRING_NONE,
           cursor: 'pointer',
           fontSize: theme.typography.fontSize.xl,
           color: theme.colors.text.tertiary,

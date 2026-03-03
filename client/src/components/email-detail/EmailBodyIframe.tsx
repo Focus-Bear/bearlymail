@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { theme } from 'theme/theme';
+import { COLOR_TRANSPARENT } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface EmailBodyIframeProps {
   html: string;
@@ -186,9 +188,9 @@ export const EmailBodyIframe: React.FC<EmailBodyIframeProps> = ({
           width: contentWidth ? `${contentWidth}px` : '100%',
           minWidth: '100%',
           height: `${height}px`,
-          border: 'none',
+          border: STRING_NONE,
           display: 'block',
-          backgroundColor: 'transparent',
+          backgroundColor: COLOR_TRANSPARENT,
         }}
       />
     </div>

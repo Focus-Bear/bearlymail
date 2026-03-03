@@ -5,6 +5,8 @@ import { Email } from 'types/email';
 import { EMOJI_CALENDAR } from 'constants/emojis';
 import { OPACITY_HALF } from 'constants/numbers';
 import { captureEvent } from 'utils/posthog';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface CalendarInviteActionsProps {
   email: Email;
@@ -98,13 +100,13 @@ export const CalendarInviteActions: React.FC<CalendarInviteActionsProps> = ({
             flex: 1,
             minWidth: '120px',
             padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-            backgroundColor: responseStatus === RESPONSE_STATUS_ACCEPTED
-              ? theme.colors.success.main
-              : isDisabled
-                ? theme.colors.border.medium
-                : theme.colors.primary.main,
-            color: 'white',
-            border: 'none',
+            backgroundColor: (() => {
+              if (responseStatus === RESPONSE_STATUS_ACCEPTED) return theme.colors.success.main;
+              if (isDisabled) return theme.colors.border.medium;
+              return theme.colors.primary.main;
+            })(),
+            color: COLOR_NAMED_WHITE,
+            border: STRING_NONE,
             borderRadius: theme.borderRadius.md,
             fontWeight: theme.typography.fontWeight.semibold,
             cursor: isDisabled || responseStatus === RESPONSE_STATUS_ACCEPTED ? 'not-allowed' : 'pointer',
@@ -116,13 +118,11 @@ export const CalendarInviteActions: React.FC<CalendarInviteActionsProps> = ({
             opacity: responseStatus === RESPONSE_STATUS_DECLINED ? OPACITY_HALF : 1,
           }}
         >
-          {responding && responseStatus !== RESPONSE_STATUS_ACCEPTED ? (
-            t('emailDetail.calendarInvite.accepting') || 'Accepting...'
-          ) : responseStatus === RESPONSE_STATUS_ACCEPTED ? (
-            t('emailDetail.calendarInvite.accepted') || 'Accepted'
-          ) : (
-            t('emailDetail.calendarInvite.accept') || 'Accept'
-          )}
+          {(() => {
+            if (responding && responseStatus !== RESPONSE_STATUS_ACCEPTED) return t('emailDetail.calendarInvite.accepting') || 'Accepting...';
+            if (responseStatus === RESPONSE_STATUS_ACCEPTED) return t('emailDetail.calendarInvite.accepted') || 'Accepted';
+            return t('emailDetail.calendarInvite.accept') || 'Accept';
+          })()}
         </button>
 
         <button
@@ -132,11 +132,11 @@ export const CalendarInviteActions: React.FC<CalendarInviteActionsProps> = ({
             flex: 1,
             minWidth: '120px',
             padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-            backgroundColor: responseStatus === RESPONSE_STATUS_DECLINED
-              ? theme.colors.text.secondary
-              : isDisabled
-                ? theme.colors.border.medium
-                : 'transparent',
+            backgroundColor: (() => {
+              if (responseStatus === RESPONSE_STATUS_DECLINED) return theme.colors.text.secondary;
+              if (isDisabled) return theme.colors.border.medium;
+              return 'transparent';
+            })(),
             color: responseStatus === RESPONSE_STATUS_DECLINED ? 'white' : theme.colors.text.secondary,
             border: `1px solid ${responseStatus === RESPONSE_STATUS_DECLINED ? 'transparent' : theme.colors.border.medium}`,
             borderRadius: theme.borderRadius.md,
@@ -150,13 +150,11 @@ export const CalendarInviteActions: React.FC<CalendarInviteActionsProps> = ({
             opacity: responseStatus === RESPONSE_STATUS_ACCEPTED ? OPACITY_HALF : 1,
           }}
         >
-          {responding && responseStatus !== RESPONSE_STATUS_DECLINED ? (
-            t('emailDetail.calendarInvite.declining') || 'Declining...'
-          ) : responseStatus === RESPONSE_STATUS_DECLINED ? (
-            t('emailDetail.calendarInvite.declined') || 'Declined'
-          ) : (
-            t('emailDetail.calendarInvite.decline') || 'Decline'
-          )}
+          {(() => {
+            if (responding && responseStatus !== RESPONSE_STATUS_DECLINED) return t('emailDetail.calendarInvite.declining') || 'Declining...';
+            if (responseStatus === RESPONSE_STATUS_DECLINED) return t('emailDetail.calendarInvite.declined') || 'Declined';
+            return t('emailDetail.calendarInvite.decline') || 'Decline';
+          })()}
         </button>
       </div>
     </div>

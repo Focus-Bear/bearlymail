@@ -1,4 +1,5 @@
 import React from 'react';
+import { theme } from 'theme/theme';
 
 interface ModalBackdropProps {
   onClose: () => void;
@@ -19,7 +20,7 @@ export const ModalBackdrop: React.FC<ModalBackdropProps> = ({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: theme.colors.overlay.dark,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { OPACITY_DISABLED } from 'constants/numbers';
 import { ArchiveConfirmationToast } from 'components/inbox/ArchiveConfirmationToast';
+import { KEY_ESCAPE, KEY_Y, KEY_Y_UPPERCASE, STRING_NONE } from 'constants/strings';
 
 const ARCHIVE_ALL_ICON = '🗄️';
 
@@ -59,10 +60,10 @@ export const ProtoCategorySubAccordion: React.FC<ProtoCategorySubAccordionProps>
     if (!showArchiveConfirmation) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'y' || e.key === 'Y') {
+      if (e.key === KEY_Y || e.key === KEY_Y_UPPERCASE) {
         e.stopPropagation();
         handleConfirmArchive();
-      } else if (e.key === 'Escape') {
+      } else if (e.key === KEY_ESCAPE) {
         e.stopPropagation();
         handleCancelArchive();
       }
@@ -156,7 +157,7 @@ export const ProtoCategorySubAccordion: React.FC<ProtoCategorySubAccordionProps>
               disabled={isBusy}
               style={{
                 background: isArchiveAllHovered ? theme.colors.interactive.hover : 'transparent',
-                border: 'none',
+                border: STRING_NONE,
                 color: theme.colors.text.tertiary,
                 cursor: isBusy ? 'not-allowed' : 'pointer',
                 fontSize: theme.typography.fontSize.xs,

@@ -2,6 +2,8 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { RichTextEditor } from 'components/rich-text/RichTextEditor';
+import { COLOR_TRANSPARENT } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface ComposeBodyProps {
   subject: string;
@@ -47,12 +49,12 @@ export const ComposeBody: React.FC<ComposeBodyProps> = ({
           placeholder={t('compose.subjectPlaceholder')}
           style={{
             flex: 1,
-            border: 'none',
+            border: STRING_NONE,
             outline: 'none',
             padding: '6px 0',
             fontSize: theme.typography.fontSize.base,
             fontFamily: theme.typography.fontFamily,
-            backgroundColor: 'transparent',
+            backgroundColor: COLOR_TRANSPARENT,
           }}
         />
       </div>

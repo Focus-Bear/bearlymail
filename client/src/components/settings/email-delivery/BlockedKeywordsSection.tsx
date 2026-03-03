@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { INPUT_WIDTH_PX, OPACITY_HALF } from 'constants/numbers';
+import { KEY_ENTER, STRING_NONE } from 'constants/strings';
 import { BlockedKeywordItem } from 'components/settings/email-delivery/BlockedKeywordItem';
 import { EMOJI_BLOCK } from 'constants/emojis';
 import { captureEvent } from 'utils/posthog';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
 
 interface BlockedKeyword {
   id: string;
@@ -49,7 +51,7 @@ export const BlockedKeywordsSection: React.FC<BlockedKeywordsSectionProps> = ({
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !isAdding) {
+    if (e.key === KEY_ENTER && !isAdding) {
       handleAddKeyword();
     }
   };
@@ -162,8 +164,8 @@ export const BlockedKeywordsSection: React.FC<BlockedKeywordsSectionProps> = ({
               style={{
                 padding: `${theme.spacing.sm} ${theme.spacing.md}`,
                 backgroundColor: theme.colors.primary.main,
-                color: 'white',
-                border: 'none',
+                color: COLOR_NAMED_WHITE,
+                border: STRING_NONE,
                 borderRadius: theme.borderRadius.md,
                 cursor: newKeyword.trim() && !isAdding ? 'pointer' : 'not-allowed',
                 fontSize: theme.typography.fontSize.sm,

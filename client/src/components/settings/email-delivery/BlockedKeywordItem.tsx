@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
+import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 
 interface BlockedKeyword {
   id: string;
@@ -48,7 +49,7 @@ export const BlockedKeywordItem: React.FC<BlockedKeywordItemProps> = ({
             <span style={{
               fontSize: theme.typography.fontSize.xs,
               backgroundColor: theme.colors.primary.main,
-              color: 'white',
+              color: COLOR_NAMED_WHITE,
               padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
               borderRadius: theme.borderRadius.sm,
             }}>
@@ -80,7 +81,7 @@ export const BlockedKeywordItem: React.FC<BlockedKeywordItemProps> = ({
         }}
         style={{
           padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-          backgroundColor: 'transparent',
+          backgroundColor: COLOR_TRANSPARENT,
           color: theme.colors.accent.error,
           border: `1px solid ${theme.colors.accent.error}`,
           borderRadius: theme.borderRadius.md,

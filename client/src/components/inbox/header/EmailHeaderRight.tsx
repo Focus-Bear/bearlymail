@@ -30,7 +30,7 @@ export const EmailHeaderRight: React.FC<EmailHeaderRightProps> = ({ email }) => 
 
   const priorityScore = getEmailPriorityScore(email);
   const wasDeliveredEarly = email.wasDeliveredEarly ?? false;
-  const yesNo = (val: boolean) => val ? t('inbox.debugYes') : t('inbox.debugNo');
+  const yesNo = (value: boolean) => value ? t('inbox.debugYes') : t('inbox.debugNo');
 
   return (
     <span

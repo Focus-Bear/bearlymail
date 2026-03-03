@@ -4,6 +4,8 @@ import { theme } from 'theme/theme';
 import { EMOJI_CHECK, EMOJI_WARNING } from 'constants/emojis';
 import { OPACITY_DISABLED } from 'constants/numbers';
 import { captureEvent } from 'utils/posthog';
+import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface DisputeResult {
   accepted: boolean;
@@ -109,8 +111,8 @@ export const ToneCheckResult: React.FC<ToneCheckResultProps> = ({
               marginTop: theme.spacing.sm,
               padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
               backgroundColor: theme.colors.primary.main,
-              color: 'white',
-              border: 'none',
+              color: COLOR_NAMED_WHITE,
+              border: STRING_NONE,
               borderRadius: theme.borderRadius.sm,
               cursor: 'pointer',
               fontSize: theme.typography.fontSize.sm,
@@ -172,7 +174,7 @@ export const ToneCheckResult: React.FC<ToneCheckResultProps> = ({
               }}
               style={{
                 padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                backgroundColor: 'transparent',
+                backgroundColor: COLOR_TRANSPARENT,
                 color: theme.colors.text.secondary,
                 border: `1px solid ${theme.colors.border.medium}`,
                 borderRadius: theme.borderRadius.sm,
@@ -215,8 +217,8 @@ export const ToneCheckResult: React.FC<ToneCheckResultProps> = ({
                   style={{
                     padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
                     backgroundColor: theme.colors.secondary.main,
-                    color: 'white',
-                    border: 'none',
+                    color: COLOR_NAMED_WHITE,
+                    border: STRING_NONE,
                     borderRadius: theme.borderRadius.sm,
                     cursor: disputeArgument.trim() && !disputing ? 'pointer' : 'not-allowed',
                     fontSize: theme.typography.fontSize.sm,
@@ -232,7 +234,7 @@ export const ToneCheckResult: React.FC<ToneCheckResultProps> = ({
                   }}
                   style={{
                     padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                    backgroundColor: 'transparent',
+                    backgroundColor: COLOR_TRANSPARENT,
                     color: theme.colors.text.secondary,
                     border: `1px solid ${theme.colors.border.medium}`,
                     borderRadius: theme.borderRadius.sm,

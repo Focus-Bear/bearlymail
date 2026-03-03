@@ -1,30 +1,30 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
+import React, { useState, useCallback } from 'react';
 import { theme } from 'theme/theme';
 import { WelcomeStep } from './WelcomeStep';
 import { ContextAnalysisStep } from './ContextAnalysisStep';
 import { EmailImportStep } from './EmailImportStep';
 import axios from 'axios';
 import { API_URL } from 'config/api';
+import { SETUP_STEP_WELCOME, SETUP_STEP_CONTEXT_ANALYSIS, SETUP_STEP_EMAIL_IMPORT } from 'constants/strings';
 
 interface SetupWizardProps {
   onComplete: () => void;
   refreshUser: () => Promise<void>;
 }
 
-type WizardStep = 'welcome' | 'context-analysis' | 'email-import';
+type WizardStep = typeof SETUP_STEP_WELCOME | typeof SETUP_STEP_CONTEXT_ANALYSIS | typeof SETUP_STEP_EMAIL_IMPORT;
 
 export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete, refreshUser }) => {
-  const { t } = useTranslation();
-  const [currentStep, setCurrentStep] = useState<WizardStep>('welcome');
+
+  const [currentStep, setCurrentStep] = useState<WizardStep>(SETUP_STEP_WELCOME);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleWelcomeComplete = useCallback(async () => {
-    setCurrentStep('context-analysis');
+    setCurrentStep(SETUP_STEP_CONTEXT_ANALYSIS);
   }, []);
 
   const handleContextAnalysisComplete = useCallback(async () => {
-    setCurrentStep('email-import');
+    setCurrentStep(SETUP_STEP_EMAIL_IMPORT);
   }, []);
 
   const handleEmailImportComplete = useCallback(async () => {
@@ -42,11 +42,11 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete, refreshUse
 
   const getStepNumber = (): number => {
     switch (currentStep) {
-      case 'welcome':
+      case SETUP_STEP_WELCOME:
         return 1;
-      case 'context-analysis':
+      case SETUP_STEP_CONTEXT_ANALYSIS:
         return 2;
-      case 'email-import':
+      case SETUP_STEP_EMAIL_IMPORT:
         return 3;
       default:
         return 1;
@@ -128,15 +128,15 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete, refreshUse
           </div>
         </div>
 
-        {currentStep === 'welcome' && (
+        {currentStep === SETUP_STEP_WELCOME && (
           <WelcomeStep onComplete={handleWelcomeComplete} refreshUser={refreshUser} />
         )}
 
-        {currentStep === 'context-analysis' && (
+        {currentStep === SETUP_STEP_CONTEXT_ANALYSIS && (
           <ContextAnalysisStep onComplete={handleContextAnalysisComplete} />
         )}
 
-        {currentStep === 'email-import' && (
+        {currentStep === SETUP_STEP_EMAIL_IMPORT && (
           <EmailImportStep onComplete={handleEmailImportComplete} isLoading={isLoading} />
         )}
       </div>

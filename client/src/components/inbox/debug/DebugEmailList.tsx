@@ -1,6 +1,7 @@
 import React from 'react';
 import { theme } from 'theme/theme';
 import { Email, getEmailPriorityScore } from 'types/email';
+import { COLOR_NAMED_RED } from 'constants/colors';
 
 interface DebugEmailListProps {
   emails: Email[];
@@ -81,10 +82,10 @@ export const DebugEmailList: React.FC<DebugEmailListProps> = ({ emails, mode }) 
                     </>
                   )}
                   {isArchived && (
-                    <span style={{ color: 'red', fontWeight: 'bold' }}> ⚠️ ARCHIVED!</span>
+                    <span style={{ color: COLOR_NAMED_RED, fontWeight: 'bold' }}> ⚠️ ARCHIVED!</span>
                   )}
                   {isInWrongTab && !isArchived && (
-                    <span style={{ color: 'red', fontWeight: 'bold' }}> ❌ WRONG TAB!</span>
+                    <span style={{ color: COLOR_NAMED_RED, fontWeight: 'bold' }}> ❌ WRONG TAB!</span>
                   )}
                 </span>
                 <span

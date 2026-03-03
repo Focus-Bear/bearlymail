@@ -2,7 +2,8 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
-import { FOLLOW_UP_SEND_STATUS_SENT, FOLLOW_UP_SEND_STATUS_SENDING, FOLLOW_UP_SEND_STATUS_FAILED } from 'constants/strings';
+import { FOLLOW_UP_SEND_STATUS_FAILED, FOLLOW_UP_SEND_STATUS_SENDING, FOLLOW_UP_SEND_STATUS_SENT, STRING_NONE } from 'constants/strings';
+import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 
 interface DraftDisplayProps {
   draftFollowUp: string;
@@ -54,7 +55,7 @@ export const DraftDisplay: React.FC<DraftDisplayProps> = ({
           }}
           style={{
             padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            backgroundColor: 'transparent',
+            backgroundColor: COLOR_TRANSPARENT,
             color: theme.colors.primary.main,
             border: `1px solid ${theme.colors.primary.main}`,
             borderRadius: theme.borderRadius.sm,
@@ -74,8 +75,8 @@ export const DraftDisplay: React.FC<DraftDisplayProps> = ({
           style={{
             padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
             backgroundColor: getSendButtonBg(sendStatus),
-            color: 'white',
-            border: 'none',
+            color: COLOR_NAMED_WHITE,
+            border: STRING_NONE,
             borderRadius: theme.borderRadius.md,
             cursor: isDisabled ? 'not-allowed' : 'pointer',
             fontSize: theme.typography.fontSize.sm,

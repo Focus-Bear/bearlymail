@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { WaitlistEntry } from 'hooks/useAdminDashboard';
 import { OPACITY_DISABLED_ALT, OPACITY_FULL } from 'constants/numbers';
+import { PROVIDER_GMAIL, PROVIDER_OTHER, PROVIDER_OUTLOOK, PROVIDER_ZOHO, STRING_NONE, STRING_TRANSPARENT, STRING_WHITE } from 'constants/strings';
 import { humanizeTimestamp } from 'utils/dateUtils';
 
 interface WaitlistEntryCardProps {
@@ -11,6 +12,25 @@ interface WaitlistEntryCardProps {
   onApprove?: (id: string) => void;
   onDecline?: (id: string) => void;
 }
+
+const APPROVED_CHECKMARK = '✓';
+const EMAIL_SYSTEM_LABELS: Record<string, string> = {
+  [PROVIDER_GMAIL]: 'Gmail/Google Workspace',
+  [PROVIDER_OUTLOOK]: 'Outlook/Office365',
+  [PROVIDER_ZOHO]: 'Zoho Mail',
+};
+
+const getEmailSystemDisplay = (entry: WaitlistEntry): string => {
+  if (entry.emailSystem === PROVIDER_OTHER && entry.emailSystemOther) {
+    return entry.emailSystemOther;
+  }
+
+  if (!entry.emailSystem) {
+    return '';
+  }
+
+  return EMAIL_SYSTEM_LABELS[entry.emailSystem] ?? entry.emailSystem;
+};
 
 export const WaitlistEntryCard: React.FC<WaitlistEntryCardProps> = ({
   entry,
@@ -39,7 +59,7 @@ export const WaitlistEntryCard: React.FC<WaitlistEntryCardProps> = ({
           color: theme.colors.text.primary,
           marginBottom: theme.spacing.xs,
         }}>
-          {entry.firstName} ({entry.email}) {isApproved ? '✓' : ''}
+          {entry.firstName} ({entry.email}) {isApproved ? APPROVED_CHECKMARK : ''}
         </div>
                 <div style={{
                   color: theme.colors.text.secondary,
@@ -55,15 +75,7 @@ export const WaitlistEntryCard: React.FC<WaitlistEntryCardProps> = ({
                     marginBottom: isApproved ? 0 : theme.spacing.sm,
                   }}>
                     <strong>{t('admin.dashboard.emailSystem')}:</strong>{' '}
-                    {entry.emailSystem === 'other' && entry.emailSystemOther
-                      ? entry.emailSystemOther
-                      : entry.emailSystem === 'gmail'
-                        ? 'Gmail/Google Workspace'
-                        : entry.emailSystem === 'outlook'
-                          ? 'Outlook/Office365'
-                          : entry.emailSystem === 'zoho'
-                            ? 'Zoho Mail'
-                            : entry.emailSystem}
+                    {getEmailSystemDisplay(entry)}
                   </div>
                 )}
         {!isApproved && (
@@ -82,7 +94,7 @@ export const WaitlistEntryCard: React.FC<WaitlistEntryCardProps> = ({
               onClick={() => onDecline(entry.id)}
               style={{
                 padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-                backgroundColor: 'transparent',
+                backgroundColor: STRING_TRANSPARENT,
                 color: theme.colors.error.main,
                 border: `1px solid ${theme.colors.error.main}`,
                 borderRadius: theme.borderRadius.md,
@@ -99,8 +111,8 @@ export const WaitlistEntryCard: React.FC<WaitlistEntryCardProps> = ({
               style={{
                 padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
                 backgroundColor: theme.colors.secondary.main,
-                color: 'white',
-                border: 'none',
+                color: STRING_WHITE,
+                border: STRING_NONE,
                 borderRadius: theme.borderRadius.md,
                 cursor: 'pointer',
                 fontWeight: theme.typography.fontWeight.medium,

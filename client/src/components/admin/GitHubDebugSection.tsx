@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import axios from 'axios';
 import { API_URL } from 'config/api';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface FailedJob {
   id: string;
@@ -388,9 +390,9 @@ export const GitHubDebugSection: React.FC = () => {
               style={{
                 padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
                 borderRadius: theme.borderRadius.md,
-                border: 'none',
+                border: STRING_NONE,
                 backgroundColor: theme.colors.primary.main,
-                color: 'white',
+                color: COLOR_NAMED_WHITE,
                 fontSize: theme.typography.fontSize.sm,
                 cursor: testingToken || !testUserId.trim() ? 'not-allowed' : 'pointer',
                 opacity: testingToken || !testUserId.trim() ? BUTTON_DISABLED_OPACITY : 1,

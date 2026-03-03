@@ -5,6 +5,7 @@ import { PriorityOverrideModal } from 'components/priority/PriorityOverrideModal
 import { UrgencyOverrideModal } from 'components/inbox/UrgencyOverrideModal';
 import { PriorityFeedbackModal } from 'components/priority/PriorityFeedbackModal';
 import { API_URL } from 'config/api';
+import { ANIMATION_TYPE_ARCHIVE } from 'constants/strings';
 
 interface ModalsState {
   blockConfirmEmail: { id: string; from: string; fromName?: string } | null;
@@ -19,7 +20,7 @@ interface ModalsState {
     emailId: string;
     originalPriorityScore: number;
     newPriorityScore: number;
-    context?: 'archive' | 'star' | 'manual';
+    context?: typeof ANIMATION_TYPE_ARCHIVE | 'star' | 'manual';
   } | null;
   urgencyOverrideModal: {
     show: boolean;
@@ -89,7 +90,7 @@ export const InboxModals: React.FC<InboxModalsProps> = ({
           onClose={onHidePriorityOverride}
           onSubmitted={async () => {
             // If context is 'archive', actually archive the email after override is submitted
-            if (modals.priorityOverrideModal?.context === 'archive') {
+            if (modals.priorityOverrideModal?.context === ANIMATION_TYPE_ARCHIVE) {
               try {
                 const axios = (await import('axios')).default;
                 await axios.put(`${API_URL}/emails/${modals.priorityOverrideModal.emailId}/archive`);

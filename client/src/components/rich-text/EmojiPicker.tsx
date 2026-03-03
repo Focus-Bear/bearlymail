@@ -1,5 +1,5 @@
 import React from 'react';
-import data from '@emoji-mart/data';
+import emojiData from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
 import { theme } from 'theme/theme';
 
@@ -21,7 +21,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ onSelect }) => {
       }}
     >
       <Picker
-        data={data}
+        data={emojiData}
         onEmojiSelect={(emoji: EmojiData) => onSelect(emoji.native)}
         theme="light"
         previewPosition="none"

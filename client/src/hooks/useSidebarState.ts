@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
+import { STRING_TRUE } from 'constants/strings';
 
 const SIDEBAR_EXPANDED_KEY = 'bearlymail-sidebar-expanded';
 
@@ -22,7 +23,7 @@ export function useSidebarState(options: UseSidebarStateOptions = {}): UseSideba
   
   const [manuallyExpanded, setManuallyExpanded] = useState<boolean>(() => {
     const stored = localStorage.getItem(SIDEBAR_EXPANDED_KEY);
-    return stored === 'true';
+    return stored === STRING_TRUE;
   });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 

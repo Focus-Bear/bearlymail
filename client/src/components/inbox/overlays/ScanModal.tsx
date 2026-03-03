@@ -1,6 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface ScanModalProps {
   onStartScan: () => void;
@@ -21,7 +23,7 @@ export const ScanModal: React.FC<ScanModalProps> = ({ onStartScan, onDismissScan
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: theme.colors.background.overlay,
+        backgroundColor: theme.colors.overlay.dark,
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
@@ -57,8 +59,8 @@ export const ScanModal: React.FC<ScanModalProps> = ({ onStartScan, onDismissScan
             style={{
               padding: theme.spacing.lg,
               backgroundColor: theme.colors.primary.main,
-              color: 'white',
-              border: 'none',
+              color: COLOR_NAMED_WHITE,
+              border: STRING_NONE,
               borderRadius: theme.borderRadius.md,
               fontWeight: theme.typography.fontWeight.semibold,
               cursor: 'pointer',
@@ -70,9 +72,9 @@ export const ScanModal: React.FC<ScanModalProps> = ({ onStartScan, onDismissScan
             onClick={onDismissScan}
             style={{
               padding: theme.spacing.md,
-              backgroundColor: 'transparent',
+              backgroundColor: COLOR_TRANSPARENT,
               color: theme.colors.text.secondary,
-              border: 'none',
+              border: STRING_NONE,
               cursor: 'pointer',
             }}
           >

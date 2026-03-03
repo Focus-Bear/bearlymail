@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
+import { COLOR_TRANSPARENT } from 'constants/colors';
 
 interface FollowUpActionsErrorProps {
   error: string;
@@ -33,7 +34,7 @@ export const FollowUpActionsError: React.FC<FollowUpActionsErrorProps> = ({
           style={{
             marginLeft: theme.spacing.md,
             padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            backgroundColor: 'transparent',
+            backgroundColor: COLOR_TRANSPARENT,
             color: theme.colors.error.main,
             border: `1px solid ${theme.colors.error.main}`,
             borderRadius: theme.borderRadius.sm,

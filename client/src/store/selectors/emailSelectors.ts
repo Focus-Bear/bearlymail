@@ -1,5 +1,5 @@
 import { createSelector } from '@reduxjs/toolkit';
-import { RootState } from '../store';
+import { RootState } from 'store';
 import { Email } from 'types/email';
 import { AnimatingOutItem, CategorySummaryItem } from 'store/slices/emailSlice';
 

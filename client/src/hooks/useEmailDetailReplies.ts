@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { API_URL } from 'config/api';
 import { useEmailDetailToneCheck } from 'hooks/useEmailDetailToneCheck';
-import { useReplyDraftGeneration, ReplyGenerationDebugInfo } from 'hooks/useReplyDraftGeneration';
+import { useReplyDraftGeneration } from 'hooks/useReplyDraftGeneration';
 import { useNotifications } from 'contexts/NotificationContext';
 import { useAuth } from 'contexts/AuthContext';
 import { REPLY_MODE_REPLY_ALL, REPLY_MODE_FORWARD } from 'constants/strings';
@@ -45,7 +45,7 @@ export function useEmailDetailReplies(
   const [replyBcc, setReplyBcc] = useState<string>('');
   const [showCc, setShowCc] = useState(false);
   const [showBcc, setShowBcc] = useState(false);
-  const [sending, setSending] = useState(false);
+  const [sending] = useState(false);
   const [initialAttachments, setInitialAttachments] = useState<EmailAttachment[]>([]);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [scheduledSendAt, setScheduledSendAt] = useState<Date | null>(null);

@@ -1,5 +1,6 @@
 import React from 'react';
 import { theme } from 'theme/theme';
+import { STRING_SM } from 'constants/strings';
 
 interface ContactTypeBadgeProps {
   label: string;
@@ -12,11 +13,11 @@ export const ContactTypeBadge: React.FC<ContactTypeBadgeProps> = ({
   label,
   color,
   icon,
-  size = 'sm',
+  size = STRING_SM,
 }) => {
   const badgeColor = color || '#6B7280';
-  const fontSize = size === 'sm' ? theme.typography.fontSize.xs : theme.typography.fontSize.sm;
-  const padding = size === 'sm'
+  const fontSize = size === STRING_SM ? theme.typography.fontSize.xs : theme.typography.fontSize.sm;
+  const padding = size === STRING_SM
     ? `1px ${theme.spacing.xs}`
     : `2px ${theme.spacing.sm}`;
 
@@ -27,7 +28,7 @@ export const ContactTypeBadge: React.FC<ContactTypeBadgeProps> = ({
         alignItems: 'center',
         gap: '3px',
         padding,
-        backgroundColor: badgeColor + '18',
+        backgroundColor: `${badgeColor}18`,
         color: badgeColor,
         border: `1px solid ${badgeColor}40`,
         borderRadius: theme.borderRadius.sm,

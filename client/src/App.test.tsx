@@ -1,6 +1,3 @@
-import React from 'react';
-import { render, screen } from '@testing-library/react';
-
 // Skip App component test - it requires extensive mocking of:
 // - import.meta.env (Vite-specific)
 // - React Router

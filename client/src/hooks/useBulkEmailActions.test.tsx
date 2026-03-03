@@ -51,6 +51,7 @@ describe('useBulkEmailActions', () => {
     mockHandleSetStarCount.mockResolvedValue(undefined);
     mockHandleBulkMarkAsRead.mockResolvedValue(undefined);
     mockHandleBulkMarkAsUnread.mockResolvedValue(undefined);
+    // eslint-disable-next-line id-denylist
     mockedAxios.post.mockResolvedValue({ data: { message: 'Emails archived' } });
   });
 

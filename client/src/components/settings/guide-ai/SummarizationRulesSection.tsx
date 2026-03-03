@@ -4,6 +4,8 @@ import { theme } from 'theme/theme';
 import { INPUT_WIDTH_PX } from 'constants/numbers';
 import { SummarizationRuleItem } from 'components/settings/guide-ai/SummarizationRuleItem';
 import { SummarizationRuleAddForm } from 'components/settings/guide-ai/SummarizationRuleAddForm';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface SummarizationRule {
   ruleId: string;
@@ -119,8 +121,8 @@ export const SummarizationRulesSection: React.FC<SummarizationRulesSectionProps>
               style={{
                 padding: `${theme.spacing.sm} ${theme.spacing.md}`,
                 backgroundColor: theme.colors.primary.main,
-                color: 'white',
-                border: 'none',
+                color: COLOR_NAMED_WHITE,
+                border: STRING_NONE,
                 borderRadius: theme.borderRadius.md,
                 cursor: 'pointer',
                 fontSize: theme.typography.fontSize.sm,

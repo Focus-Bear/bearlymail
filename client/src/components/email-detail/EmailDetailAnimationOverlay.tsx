@@ -27,7 +27,11 @@ export const EmailDetailAnimationOverlay: React.FC<EmailDetailAnimationOverlayPr
       pointerEvents: 'none',
     }}>
       <div style={{ fontSize: '5rem' }}>
-        {animationClass.includes('poof') ? '💨' : animationClass.includes('priority') ? '🏗️' : '✈️'}
+        {(() => {
+          if (animationClass.includes('poof')) return '💨';
+          if (animationClass.includes('priority')) return '🏗️';
+          return '✈️';
+        })()}
       </div>
     </div>
   );

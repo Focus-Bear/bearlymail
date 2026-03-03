@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { CONTEXT_ANALYSIS_RECENT_COUNT } from 'constants/numbers';
 import { useAnalysisProgress } from 'hooks/settings/useAnalysisProgress';
+import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface ContextAnalysisStepProps {
   onComplete: () => void;
@@ -78,8 +80,8 @@ export const ContextAnalysisStep: React.FC<ContextAnalysisStepProps> = ({ onComp
                 style={{
                   padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
                   backgroundColor: theme.colors.primary.main,
-                  color: 'white',
-                  border: 'none',
+                  color: COLOR_NAMED_WHITE,
+                  border: STRING_NONE,
                   borderRadius: theme.borderRadius.md,
                   fontSize: theme.typography.fontSize.sm,
                   fontWeight: theme.typography.fontWeight.semibold,
@@ -92,7 +94,7 @@ export const ContextAnalysisStep: React.FC<ContextAnalysisStepProps> = ({ onComp
                 onClick={onComplete}
                 style={{
                   padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-                  backgroundColor: 'transparent',
+                  backgroundColor: COLOR_TRANSPARENT,
                   color: theme.colors.text.secondary,
                   border: `1px solid ${theme.colors.border.medium}`,
                   borderRadius: theme.borderRadius.md,
@@ -188,9 +190,9 @@ export const ContextAnalysisStep: React.FC<ContextAnalysisStepProps> = ({ onComp
                   {t('settings.analysis.whatWereLearning')}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}>
-                  {analyzeProgress.progress.insights.slice(-CONTEXT_ANALYSIS_RECENT_COUNT).reverse().map((insight, index) => (
+                  {analyzeProgress.progress.insights.slice(-CONTEXT_ANALYSIS_RECENT_COUNT).reverse().map((insight) => (
                     <div
-                      key={index}
+                      key={insight}
                       style={{
                         fontSize: theme.typography.fontSize.xs,
                         color: theme.colors.text.secondary,
@@ -214,8 +216,8 @@ export const ContextAnalysisStep: React.FC<ContextAnalysisStepProps> = ({ onComp
             width: '100%',
             padding: theme.spacing.lg,
             backgroundColor: theme.colors.primary.main,
-            color: 'white',
-            border: 'none',
+            color: COLOR_NAMED_WHITE,
+            border: STRING_NONE,
             borderRadius: theme.borderRadius.md,
             fontSize: theme.typography.fontSize.base,
             fontWeight: theme.typography.fontWeight.semibold,

@@ -1,5 +1,7 @@
 import React from 'react';
 import { theme } from 'theme/theme';
+import { COLOR_TRANSPARENT } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface SettingsSubNavItem {
   id: string;
@@ -31,9 +33,9 @@ export const SettingsSubNavGroup: React.FC<SettingsSubNavGroupProps> = ({
         style={{
           width: '100%',
           padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-          backgroundColor: 'transparent',
+          backgroundColor: COLOR_TRANSPARENT,
           color: theme.colors.text.secondary,
-          border: 'none',
+          border: STRING_NONE,
           borderRadius: theme.borderRadius.sm,
           cursor: 'pointer',
           fontSize: theme.typography.fontSize.sm,
@@ -60,7 +62,7 @@ export const SettingsSubNavGroup: React.FC<SettingsSubNavGroupProps> = ({
                 padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
                 backgroundColor: hash === `#${subItem.anchor}` ? theme.colors.primary.subtle : 'transparent',
                 color: hash === `#${subItem.anchor}` ? theme.colors.primary.main : theme.colors.text.tertiary,
-                border: 'none',
+                border: STRING_NONE,
                 borderRadius: theme.borderRadius.sm,
                 cursor: 'pointer',
                 fontSize: theme.typography.fontSize.sm,

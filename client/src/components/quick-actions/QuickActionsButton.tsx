@@ -2,6 +2,8 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { EMOJI_LIGHTNING } from 'constants/emojis';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { STRING_NONE } from 'constants/strings';
 
 interface QuickActionsButtonProps {
   actionCount: number;
@@ -23,8 +25,8 @@ export const QuickActionsButton: React.FC<QuickActionsButtonProps> = ({
       style={{
         padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
         backgroundColor: theme.colors.primary.main,
-        color: 'white',
-        border: 'none',
+        color: COLOR_NAMED_WHITE,
+        border: STRING_NONE,
         borderRadius: theme.borderRadius.md,
         fontWeight: theme.typography.fontWeight.semibold,
         cursor: 'pointer',
@@ -42,7 +44,7 @@ export const QuickActionsButton: React.FC<QuickActionsButtonProps> = ({
       {actionCount > 0 && (
         <span
           style={{
-            backgroundColor: 'white',
+            backgroundColor: COLOR_NAMED_WHITE,
             color: theme.colors.primary.main,
             borderRadius: '50%',
             width: '20px',

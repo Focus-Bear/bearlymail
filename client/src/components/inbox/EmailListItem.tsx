@@ -12,6 +12,7 @@ import { FollowUpMetadata } from 'components/inbox/FollowUpMetadata';
 import { FollowUpDraft } from 'components/inbox/FollowUpDraft';
 import { GitHubProjectBadges } from 'components/github/GitHubProjectBadges';
 import { selectAnimatingOut } from 'store/selectors/emailSelectors';
+import { ANIMATION_TYPE_ARCHIVE, ANIMATION_TYPE_PRIORITY, MODE_FOLLOW_UP } from 'constants/strings';
 
 interface EmailListItemProps {
   email: Email;
@@ -85,9 +86,9 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
   const animatingOutItem = animatingOut.find(item => item.id === email.id);
 
   let animationClass = '';
-  if (animatingOutItem?.type === 'archive') {
+  if (animatingOutItem?.type === ANIMATION_TYPE_ARCHIVE) {
     animationClass = 'animate-fly-out-right';
-  } else if (animatingOutItem?.type === 'priority') {
+  } else if (animatingOutItem?.type === ANIMATION_TYPE_PRIORITY) {
     animationClass = 'animate-priority-out';
   }
 
@@ -111,7 +112,7 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
       className={animationClass}
       style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs, position: 'relative' }}
     >
-      {animatingOutItem?.type === 'priority' && (
+      {animatingOutItem?.type === ANIMATION_TYPE_PRIORITY && (
         <div className="priority-emoji-float" aria-hidden="true" />
       )}
       <EmailCard email={email} isSelected={isSelected} onCardClick={handleCardClick} mode={mode}>
@@ -124,10 +125,10 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
         <EmailSubject email={email} />
         <EmailPreview email={email} />
         <MetadataIndicators email={email} />
-        {mode === 'follow-up' && (
+        {mode === MODE_FOLLOW_UP && (
           <FollowUpMetadata email={email as any} />
         )}
-        {mode === 'follow-up' && followUpData && (
+        {mode === MODE_FOLLOW_UP && followUpData && (
           <FollowUpDraft
             followUpData={followUpData}
             onUpdateDraft={onUpdateDraft}

@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { theme } from 'theme/theme';
 import { EXIT_ANIMATION_DURATION_MS } from 'constants/numbers';
+import { NOTIFICATION_TYPE_ERROR, NOTIFICATION_TYPE_INFO, NOTIFICATION_TYPE_SUCCESS, NOTIFICATION_TYPE_WARNING, STRING_NONE } from 'constants/strings';
 import { Notification } from 'contexts/NotificationContext';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
 
 interface NotificationToastProps {
   notification: Notification;
@@ -37,13 +39,13 @@ export const NotificationToast: React.FC<NotificationToastProps> = ({
 
   const getBackgroundColor = (): string => {
     switch (notification.type) {
-      case 'success':
+      case NOTIFICATION_TYPE_SUCCESS:
         return theme.colors.accent.success || '#10b981';
-      case 'error':
+      case NOTIFICATION_TYPE_ERROR:
         return theme.colors.accent.error || '#ef4444';
-      case 'warning':
+      case NOTIFICATION_TYPE_WARNING:
         return theme.colors.accent.warning || '#f59e0b';
-      case 'info':
+      case NOTIFICATION_TYPE_INFO:
       default:
         return theme.colors.primary.main || '#3b82f6';
     }
@@ -51,13 +53,13 @@ export const NotificationToast: React.FC<NotificationToastProps> = ({
 
   const getIcon = (): string => {
     switch (notification.type) {
-      case 'success':
+      case NOTIFICATION_TYPE_SUCCESS:
         return '✓';
-      case 'error':
+      case NOTIFICATION_TYPE_ERROR:
         return '✕';
-      case 'warning':
+      case NOTIFICATION_TYPE_WARNING:
         return '⚠';
-      case 'info':
+      case NOTIFICATION_TYPE_INFO:
       default:
         return 'ℹ';
     }
@@ -86,7 +88,7 @@ export const NotificationToast: React.FC<NotificationToastProps> = ({
       <div
         style={{
           backgroundColor: getBackgroundColor(),
-          color: 'white',
+          color: COLOR_NAMED_WHITE,
           borderRadius: '50%',
           width: '24px',
           height: '24px',
@@ -114,8 +116,8 @@ export const NotificationToast: React.FC<NotificationToastProps> = ({
       <button
         onClick={handleClose}
         style={{
-          background: 'none',
-          border: 'none',
+          background: STRING_NONE,
+          border: STRING_NONE,
           color: theme.colors.text.secondary,
           cursor: 'pointer',
           padding: 0,

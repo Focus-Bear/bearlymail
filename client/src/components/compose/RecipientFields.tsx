@@ -2,11 +2,9 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { FONT_SIZE_XS_PX, FONT_SIZE_MD_PX, DEFAULT_AVATAR_SIZE_PX, AVATAR_SIZE_SMALL_PX } from 'constants/numbers';
+import { EMAIL_FIELD_BCC, EMAIL_FIELD_CC, EMAIL_FIELD_TO, KEY_COMMA, KEY_ENTER, STRING_NONE } from 'constants/strings';
 import { Contact } from 'types/contact';
-
-const RECIPIENT_FIELD_TO = 'to';
-const RECIPIENT_FIELD_CC = 'cc';
-const RECIPIENT_FIELD_BCC = 'bcc';
+import { COLOR_TRANSPARENT } from 'constants/colors';
 
 const isValidEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -105,8 +103,8 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
             <button
               onClick={() => onRemoveRecipient(recipient.email, field)}
               style={{
-                background: 'none',
-                border: 'none',
+                background: STRING_NONE,
+                border: STRING_NONE,
                 cursor: 'pointer',
                 color: theme.colors.text.secondary,
                 fontSize: '14px',
@@ -136,7 +134,7 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
             onSetActiveField(null);
           }}
           onKeyDown={(e) => {
-            if ((e.key === 'Enter' || e.key === ',') && searchQuery.trim()) {
+            if ((e.key === KEY_ENTER || e.key === KEY_COMMA) && searchQuery.trim()) {
               e.preventDefault();
               const value = searchQuery.trim().replace(/,$/, '');
               if (isValidEmail(value)) {
@@ -149,12 +147,12 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
           style={{
             flex: 1,
             minWidth: '150px',
-            border: 'none',
+            border: STRING_NONE,
             outline: 'none',
             padding: '4px 0',
             fontSize: theme.typography.fontSize.base,
             fontFamily: theme.typography.fontFamily,
-            backgroundColor: 'transparent',
+            backgroundColor: COLOR_TRANSPARENT,
           }}
         />
         {isActive && searchResults.length > 0 && (
@@ -192,7 +190,7 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
                   e.currentTarget.style.backgroundColor = theme.colors.background.subtle;
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.backgroundColor = COLOR_TRANSPARENT;
                 }}
               >
                 {contact.photoUrl ? (
@@ -243,15 +241,15 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
 
   return (
     <div style={{ position: 'relative' }}>
-      {renderRecipientField(t('compose.to'), to, RECIPIENT_FIELD_TO, activeField === RECIPIENT_FIELD_TO)}
-      {showCc && renderRecipientField(t('compose.cc'), cc, RECIPIENT_FIELD_CC, activeField === RECIPIENT_FIELD_CC)}
-      {showBcc && renderRecipientField(t('compose.bcc'), bcc, RECIPIENT_FIELD_BCC, activeField === RECIPIENT_FIELD_BCC)}
+      {renderRecipientField(t('compose.to'), to, EMAIL_FIELD_TO, activeField === EMAIL_FIELD_TO)}
+      {showCc && renderRecipientField(t('compose.cc'), cc, EMAIL_FIELD_CC, activeField === EMAIL_FIELD_CC)}
+      {showBcc && renderRecipientField(t('compose.bcc'), bcc, EMAIL_FIELD_BCC, activeField === EMAIL_FIELD_BCC)}
       {!showCc && (
         <button
           onClick={onShowCc}
           style={{
-            background: 'none',
-            border: 'none',
+            background: STRING_NONE,
+            border: STRING_NONE,
             color: theme.colors.text.secondary,
             cursor: 'pointer',
             fontSize: theme.typography.fontSize.sm,
@@ -266,8 +264,8 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
         <button
           onClick={onShowBcc}
           style={{
-            background: 'none',
-            border: 'none',
+            background: STRING_NONE,
+            border: STRING_NONE,
             color: theme.colors.text.secondary,
             cursor: 'pointer',
             fontSize: theme.typography.fontSize.sm,

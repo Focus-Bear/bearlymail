@@ -4,8 +4,8 @@ import { theme } from 'theme/theme';
 import { GITHUB_STATE_OPEN, GITHUB_STATE_CLOSED } from 'constants/strings';
 
 interface StatusSelectorProps {
-  state: 'open' | 'closed';
-  onStateChange: (state: 'open' | 'closed') => void;
+  state: typeof GITHUB_STATE_OPEN | typeof GITHUB_STATE_CLOSED;
+  onStateChange: (state: typeof GITHUB_STATE_OPEN | typeof GITHUB_STATE_CLOSED) => void;
 }
 
 export const StatusSelector: React.FC<StatusSelectorProps> = ({ state, onStateChange }) => {
@@ -32,9 +32,9 @@ export const StatusSelector: React.FC<StatusSelectorProps> = ({ state, onStateCh
         }}>
           <input
             type="radio"
-            value="open"
+            value={GITHUB_STATE_OPEN}
             checked={state === GITHUB_STATE_OPEN}
-            onChange={(e) => onStateChange(e.target.value as 'open' | 'closed')}
+            onChange={(e) => onStateChange(e.target.value as typeof GITHUB_STATE_OPEN)}
             style={{ marginRight: theme.spacing.sm }}
           />
           <span>{t('quickActions.github.open')}</span>
@@ -49,9 +49,9 @@ export const StatusSelector: React.FC<StatusSelectorProps> = ({ state, onStateCh
         }}>
           <input
             type="radio"
-            value="closed"
+            value={GITHUB_STATE_CLOSED}
             checked={state === GITHUB_STATE_CLOSED}
-            onChange={(e) => onStateChange(e.target.value as 'open' | 'closed')}
+            onChange={(e) => onStateChange(e.target.value as typeof GITHUB_STATE_CLOSED)}
             style={{ marginRight: theme.spacing.sm }}
           />
           <span>{t('quickActions.github.closed')}</span>

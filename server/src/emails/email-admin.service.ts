@@ -11,8 +11,13 @@ import { BlockedSendersService } from "../blocked-senders/blocked-senders.servic
 import { ContactsService } from "../contacts/contacts.service";
 import { EmailRecipient } from "./interfaces/email-provider.interface";
 import { HOURS_PER_DAY, HOURS, DAYS } from "../constants/time-constants";
+import { INBOX_MODES } from "../constants/query-limits";
 
-type ValidMode = "triage" | "action";
+type ValidMode = typeof INBOX_MODES.TRIAGE | typeof INBOX_MODES.ACTION;
+const VALID_MODES: readonly ValidMode[] = [
+  INBOX_MODES.TRIAGE,
+  INBOX_MODES.ACTION,
+];
 
 @Injectable()
 export class EmailAdminService {
@@ -254,13 +259,14 @@ export class EmailAdminService {
   }
 
   parseModes(modesParam?: string): ValidMode[] {
-    const validModes: ValidMode[] = ["triage", "action"];
-    if (!modesParam) return validModes;
+    if (!modesParam) return [...VALID_MODES];
+
     const requested = modesParam.split(",").map((m) => m.trim());
     const filtered = requested.filter((m): m is ValidMode =>
-      validModes.includes(m as ValidMode),
+      VALID_MODES.includes(m as ValidMode),
     );
-    return filtered.length > 0 ? filtered : validModes;
+
+    return filtered.length > 0 ? filtered : [...VALID_MODES];
   }
 
   async queueBulkRecategorization(

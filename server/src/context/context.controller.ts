@@ -549,6 +549,11 @@ export class ContextController {
   }
 
   private static readonly DEFAULT_ADMIN_ANALYSES_LIMIT = 50;
+  private static readonly FAILURE_VIEW_LIMIT_MULTIPLIER = 5;
+  private static readonly MIN_FAILURE_VIEW_QUERY_LIMIT = 250;
+  /** Upper bound on queryLimit to prevent over-fetching for large limit inputs */
+  private static readonly MAX_FAILURE_VIEW_QUERY_LIMIT = 1000;
+  private static readonly ANALYSIS_STATUS_FAILED = "failed";
 
   @Get("admin/analyses")
   @UseGuards(AdminGuard)
@@ -561,14 +566,27 @@ export class ContextController {
       parsedLimit > 0
         ? parsedLimit
         : ContextController.DEFAULT_ADMIN_ANALYSES_LIMIT;
-
+    const normalizedStatus = status?.toLowerCase();
+    const isFailureView =
+      normalizedStatus === ContextController.ANALYSIS_STATUS_FAILED;
+    const queryLimit = isFailureView
+      ? Math.min(
+          Math.max(
+            limit * ContextController.FAILURE_VIEW_LIMIT_MULTIPLIER,
+            ContextController.MIN_FAILURE_VIEW_QUERY_LIMIT,
+          ),
+          ContextController.MAX_FAILURE_VIEW_QUERY_LIMIT,
+        )
+      : limit;
     const queryBuilder = this.contextAnalysisRepository
       .createQueryBuilder("analysis")
       .orderBy("analysis.createdAt", "DESC")
-      .take(limit);
+      .take(queryLimit);
 
-    if (status) {
-      queryBuilder.where("analysis.status = :status", { status });
+    if (normalizedStatus && !isFailureView) {
+      queryBuilder.where("analysis.status = :status", {
+        status: normalizedStatus,
+      });
     }
 
     const analyses = await queryBuilder.getMany();
@@ -582,50 +600,82 @@ export class ContextController {
       : [];
     const userMap = new Map(users.map((u) => [u.id, u.email]));
 
+    const analysesWithDetails = this.mapAnalysesWithDetails(analyses, userMap);
+
+    const filteredAnalyses = isFailureView
+      ? analysesWithDetails.filter(
+          (analysis) =>
+            analysis.status === ContextController.ANALYSIS_STATUS_FAILED ||
+            analysis.failedBatches > 0 ||
+            Boolean(analysis.errorMessage),
+        )
+      : analysesWithDetails;
+
     return {
-      analyses: analyses.map((analysis) => {
-        const stats = analysis.stats || {};
-        const batchResults =
-          (stats.batchResults as Record<string, unknown>) || {};
-        const failedBatches = (stats.failedBatches as number[]) || [];
-        const totalBatches = (stats.totalBatches as number) || 0;
-        const completedBatches = Object.keys(batchResults).filter(
-          (key) => !failedBatches.includes(parseInt(key, 10)),
-        ).length;
-
-        const failureDetails = failedBatches.map((batchIndex) => {
-          const batchResult = batchResults[String(batchIndex)] as
-            | {
-                error?: string;
-                failedAt?: string;
-              }
-            | undefined;
-          return {
-            batchIndex,
-            error: batchResult?.error || "Unknown error",
-            failedAt: batchResult?.failedAt || null,
-          };
-        });
-
-        return {
-          id: analysis.id,
-          correlationId: analysis.correlationId,
-          userId: analysis.userId,
-          userEmail: userMap.get(analysis.userId) || "Unknown",
-          status: analysis.status,
-          errorMessage: analysis.errorMessage,
-          progress: analysis.progress,
-          threadCount: analysis.threadCount,
-          analyzedCount: analysis.analyzedCount,
-          totalBatches,
-          completedBatches,
-          failedBatches: failedBatches.length,
-          failureDetails,
-          createdAt: analysis.createdAt,
-          updatedAt: analysis.updatedAt,
-        };
-      }),
+      analyses: filteredAnalyses.slice(0, limit),
       timestamp: new Date().toISOString(),
     };
+  }
+
+  private mapAnalysesWithDetails(
+    analyses: ContextAnalysis[],
+    userMap: Map<string, string>,
+  ) {
+    return analyses.map((analysis) => {
+      const stats = analysis.stats || {};
+      const batchResults =
+        (stats.batchResults as Record<string, unknown>) || {};
+      const failedBatchSet = new Set<number>(
+        ((stats.failedBatches as number[]) || []).filter((batchIndex) =>
+          Number.isInteger(batchIndex),
+        ),
+      );
+
+      Object.entries(batchResults).forEach(([indexKey, result]) => {
+        const batchResult = result as { error?: string } | undefined;
+        const parsedIndex = parseInt(indexKey, 10);
+        if (batchResult?.error && Number.isInteger(parsedIndex)) {
+          failedBatchSet.add(parsedIndex);
+        }
+      });
+
+      const failedBatches = Array.from(failedBatchSet).sort((a, b) => a - b);
+      const totalBatches = (stats.totalBatches as number) || 0;
+      const completedBatches = Object.keys(batchResults).filter(
+        (key) => !failedBatchSet.has(parseInt(key, 10)),
+      ).length;
+
+      const failureDetails = failedBatches.map((batchIndex) => {
+        const batchResult = batchResults[String(batchIndex)] as
+          | {
+              error?: string;
+              failedAt?: string;
+            }
+          | undefined;
+        return {
+          batchIndex,
+          error: batchResult?.error || "Unknown error",
+          failedAt: batchResult?.failedAt || null,
+        };
+      });
+
+      return {
+        id: analysis.id,
+        correlationId: analysis.correlationId,
+        userId: analysis.userId,
+        userEmail: userMap.get(analysis.userId) || "Unknown",
+        status: analysis.status,
+        errorMessage: analysis.errorMessage,
+        progress: analysis.progress,
+        threadCount: analysis.threadCount,
+        analyzedCount: analysis.analyzedCount,
+        totalBatches,
+        completedBatches,
+        failedBatches: failedBatches.length,
+        failureDetails,
+        createdAt: analysis.createdAt,
+        updatedAt: analysis.updatedAt,
+      };
+    });
   }
 }

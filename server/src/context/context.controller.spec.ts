@@ -27,18 +27,20 @@ describe("ContextController", () => {
     send: jest.fn(),
   };
 
+  const mockQueryBuilder = {
+    orderBy: jest.fn().mockReturnThis(),
+    take: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    getMany: jest.fn().mockResolvedValue([]),
+  };
+
   const mockContextAnalysisRepository = {
     find: jest.fn(),
     findOne: jest.fn(),
     save: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
-    createQueryBuilder: jest.fn(() => ({
-      orderBy: jest.fn().mockReturnThis(),
-      take: jest.fn().mockReturnThis(),
-      where: jest.fn().mockReturnThis(),
-      getMany: jest.fn().mockResolvedValue([]),
-    })),
+    createQueryBuilder: jest.fn(() => mockQueryBuilder),
   };
 
   const mockUserRepository = {
@@ -79,6 +81,10 @@ describe("ContextController", () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+    mockQueryBuilder.orderBy.mockReturnThis();
+    mockQueryBuilder.take.mockReturnThis();
+    mockQueryBuilder.where.mockReturnThis();
+    mockQueryBuilder.getMany.mockResolvedValue([]);
   });
 
   describe("getContext", () => {
@@ -191,6 +197,68 @@ describe("ContextController", () => {
       const result = await controller.getAnalyzeProgress(mockRequest);
 
       expect(result.progress.current).toBe(100);
+    });
+  });
+
+  describe("getAdminAnalyses", () => {
+    it("includes analyses with batch-level errors in failed filter even when status is completed", async () => {
+      mockQueryBuilder.getMany.mockResolvedValue([
+        {
+          id: "analysis-completed-with-batch-failure",
+          correlationId: "corr-1",
+          userId: "user-1",
+          status: "completed",
+          errorMessage: null,
+          progress: 100,
+          threadCount: 12,
+          analyzedCount: 12,
+          stats: {
+            totalBatches: 2,
+            batchResults: {
+              "0": { completedAt: "2026-03-02T06:00:00.000Z" },
+              "1": {
+                error: "OpenAI timeout",
+                failedAt: "2026-03-02T06:01:00.000Z",
+              },
+            },
+          },
+          createdAt: new Date("2026-03-02T06:00:00.000Z"),
+          updatedAt: new Date("2026-03-02T06:01:00.000Z"),
+        },
+      ]);
+      mockUserRepository.find.mockResolvedValue([
+        { id: "user-1", email: "failed@example.com" },
+      ]);
+
+      const result = await controller.getAdminAnalyses("50", "failed");
+
+      // 50 (limit) * 5 (FAILURE_VIEW_LIMIT_MULTIPLIER) = 250, which equals MIN_FAILURE_VIEW_QUERY_LIMIT
+      // so Math.max picks MIN_FAILURE_VIEW_QUERY_LIMIT; derive from the constant rather than hardcoding
+      const expectedLimit = (ContextController as unknown as Record<string, number>)["MIN_FAILURE_VIEW_QUERY_LIMIT"];
+      expect(mockQueryBuilder.take).toHaveBeenCalledWith(expectedLimit);
+      expect(result.analyses).toHaveLength(1);
+      expect(result.analyses[0]).toMatchObject({
+        id: "analysis-completed-with-batch-failure",
+        userEmail: "failed@example.com",
+        failedBatches: 1,
+      });
+      expect(result.analyses[0].failureDetails).toEqual([
+        {
+          batchIndex: 1,
+          error: "OpenAI timeout",
+          failedAt: "2026-03-02T06:01:00.000Z",
+        },
+      ]);
+    });
+
+    it("keeps exact status filtering for non-failed filters", async () => {
+      await controller.getAdminAnalyses("10", "running");
+
+      expect(mockQueryBuilder.take).toHaveBeenCalledWith(10);
+      expect(mockQueryBuilder.where).toHaveBeenCalledWith(
+        "analysis.status = :status",
+        { status: "running" },
+      );
     });
   });
 });

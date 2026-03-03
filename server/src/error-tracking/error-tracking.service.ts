@@ -84,6 +84,8 @@ export class ErrorTrackingService {
         $exception_type: error.name,
         $exception_message: error.message,
         $exception_list: [createPosthogExceptionPayload(error, true)],
+        // Keep top-level platform for compatibility with strict exception schema checks
+        platform: "node",
         environment: process.env.NODE_ENV,
         service: "backend",
         ...this.sanitizeProperties(additionalContext || {}),

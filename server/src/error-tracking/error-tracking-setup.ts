@@ -73,6 +73,8 @@ export function captureGlobalError(
         $exception_type: error.name,
         $exception_message: error.message,
         $exception_list: [createPosthogExceptionPayload(error, false)],
+        // Keep top-level platform for compatibility with strict exception schema checks
+        platform: "node",
         environment: process.env.NODE_ENV,
         service: "backend",
         ...context,

@@ -75,12 +75,14 @@ export class SummarizationController {
     @Param("id") id: string,
     @Body() rule: SummarizationRule & { provider?: "gemini" | "openai" },
   ) {
+    const result = await this.summarizationService.summarizeEmailWithPhishing(
+      req.user.userId,
+      id,
+      rule,
+    );
     return {
-      summary: await this.summarizationService.summarizeEmail(
-        req.user.userId,
-        id,
-        rule,
-      ),
+      summary: result.summary,
+      phishingSignal: result.phishingSignal ?? null,
     };
   }
 }

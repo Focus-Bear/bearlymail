@@ -279,7 +279,8 @@
       "reanalysingCategories": "Re-analysing...",
       "reanalyseSuccess": "Generated {{count}} new categories. {{reclassifyCount}} emails queued for reclassification.",
       "reanalyseNoNewCategories": "No new categories could be generated from the emails in Other",
-      "loadingContent": "Loading emails..."
+      "loadingContent": "Loading emails...",
+      "dangerousPhishing": "DANGEROUS: potential phishing attempt"
     },
     "protoCategory": {
       "convertToCategory": "Convert to category",
@@ -1145,7 +1146,7 @@
     "dealStage": "Stage",
     "expectedClose": "Expected Close",
     "contact": "Contact",
-    "searchContacts": "Search contacts...",
+    "searchContacts": "Search contacts",
     "noContactsFound": "No contacts found",
     "currency": "Currency",
     "noDeals": "No deals yet",
@@ -1166,9 +1167,7 @@
     "closedWon": "Won",
     "closedLost": "Lost",
     "deleteConfirm": "Are you sure you want to delete this deal?",
-    "deleteStageConfirm": "Are you sure you want to delete this stage? Deals will be unassigned.",
-    "searchContacts": "Search contacts",
-    "noContactsFound": "No contacts found"
+    "deleteStageConfirm": "Are you sure you want to delete this stage? Deals will be unassigned."
   },
   "contactTypes": {
     "lead": "Lead",
@@ -2077,5 +2076,19 @@
     "networkMessage": "It looks like you're having trouble with your network connection. Please check your connection and try again.",
     "correlationId": "Error code: {{id}}",
     "reloadButton": "Reload Page"
+  },
+  "phishing": {
+    "warningTitle": "Potential Phishing Attempt Detected",
+    "warningAriaLabel": "Phishing warning",
+    "confidence": "Confidence",
+    "reason": "Reason",
+    "showDetails": "Show details",
+    "hideDetails": "Hide details",
+    "sidebarLabel": "Phishing",
+    "confidenceLevel": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High"
+    }
   }
 }

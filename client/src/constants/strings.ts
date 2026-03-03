@@ -242,6 +242,7 @@ export const INPUT_TYPE_URL = 'url' as const;
 export const INPUT_TYPE_TEXT = 'text' as const;
 export const INPUT_TYPE_TEL = 'tel' as const;
 
+
 // Notification/Toast types
 export const NOTIFICATION_TYPE_SUCCESS = 'success' as const;
 export const NOTIFICATION_TYPE_ERROR = 'error' as const;
@@ -376,3 +377,7 @@ export const FONT_WEIGHT_NORMAL = 'normal' as const;
 export const STRING_UPPERCASE = 'uppercase' as const;
 export const LETTER_SPACING_WIDE = '0.06em' as const;
 export const LETTER_SPACING_WIDER = '0.08em' as const;
+
+export const PHISHING_CONFIDENCE_MEDIUM = 'medium' as const;
+export const PHISHING_CONFIDENCE_HIGH = 'high' as const;
+

@@ -2,6 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { theme } from 'theme/theme';
 import { EXIT_ANIMATION_DURATION_MS } from 'constants/numbers';
 import { NOTIFICATION_TYPE_ERROR, NOTIFICATION_TYPE_INFO, NOTIFICATION_TYPE_SUCCESS, NOTIFICATION_TYPE_WARNING, STRING_NONE } from 'constants/strings';
+import { 
+  NOTIFICATION_TYPE_SUCCESS, 
+  NOTIFICATION_TYPE_ERROR, 
+  NOTIFICATION_TYPE_WARNING, 
+  NOTIFICATION_TYPE_INFO 
+} from 'constants/strings';
 import { Notification } from 'contexts/NotificationContext';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 

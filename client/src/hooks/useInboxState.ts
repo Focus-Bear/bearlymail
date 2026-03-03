@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { useTranslation } from 'react-i18next';
@@ -19,23 +19,13 @@ import { useTriageSuggestions } from 'hooks/useTriageSuggestions';
 import { useEmailSelection } from 'hooks/useEmailSelection';
 import { useBatchSchedule } from 'hooks/useBatchSchedule';
 import { useTabCounts } from 'hooks/useTabCounts';
-import { useKeyboardShortcuts } from 'hooks/useKeyboardShortcuts';
-import { useOnboarding } from 'hooks/useOnboarding';
-import { useDebugPanel } from 'hooks/useDebugPanel';
-import { useModals } from 'hooks/useModals';
-import { useSnoozeInput } from 'hooks/useSnoozeInput';
-import { usePriorityTooltip } from 'hooks/usePriorityTooltip';
-import { useKeyboardHint } from 'hooks/useKeyboardHint';
-import { useSplitView } from 'hooks/useSplitView';
-import { useUrgentNotification } from 'hooks/useUrgentNotification';
 import { useEmailActions } from 'hooks/useEmailActions';
-import { useFollowUps } from 'hooks/useFollowUps';
-import { useEmailProcessingPolling } from 'hooks/useEmailProcessingPolling';
 import { useInboxInitialization } from 'hooks/useInboxInitialization';
 import { useInboxModeChanges } from 'hooks/useInboxModeChanges';
-import { useInboxKeyboardNavigation } from 'hooks/useInboxKeyboardNavigation';
-import { useGitHubBatchFetch } from 'hooks/useGitHubBatchFetch';
 import { useInboxFilters } from 'hooks/useInboxFilters';
+import { useInboxUIState } from 'hooks/useInboxUIState';
+import { useInboxEmailHandlers } from 'hooks/useInboxEmailHandlers';
+import { useInboxUrlSync } from 'hooks/useInboxUrlSync';
 
 const VALID_MODES: InboxMode[] = [
   MODE_TRIAGE,
@@ -70,8 +60,7 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
   };
   
   const [mode, setModeState] = useState<InboxMode>(getInitialMode);
-  const isInitialMount = useRef(true);
-  const lastUrlRef = useRef<string>('');
+
 
   // Triage suggestions hook
   const {
@@ -129,58 +118,20 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     handleEmailClick: handleEmailClickBase,
   } = useEmailSelection(mode, emails.length);
 
-  // Follow-ups hook
+  // Follow-up data (replaces useFollowUps + followUpDataMap useState + 2 useEffects)
   const {
-    threads: followUpThreads,
-    error: followUpsError,
+    followUpDataMap,
+    followUpsError,
     isGeneratingDrafts,
     generateDrafts,
     updateDraft,
     bulkSend,
     fetchThreadsWithDrafts,
-  } = useFollowUps();
+  } = useInboxFollowUpData(mode, user?.id, authLoading);
 
-  // Store follow-up data mapped by threadId
-  const [followUpDataMap, setFollowUpDataMap] = useState<Map<string, any>>(new Map());
-
-  // Category accordion state - stored here to persist across InboxContent remounts
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
-  const [stableCategoryOrder, setStableCategoryOrder] = useState<string[]>([]);
-  const hasAutoExpandedRef = useRef(false);
-
-  // Fetch follow-up data when in follow-up mode
-  useEffect(() => {
-    if (mode === MODE_FOLLOW_UP && user && !authLoading) {
-      fetchThreadsWithDrafts();
-    }
-  }, [mode, user, authLoading, fetchThreadsWithDrafts, isGeneratingDrafts]);
-
-  // Update follow-up data map when threads change
-  useEffect(() => {
-    if (mode === MODE_FOLLOW_UP && followUpThreads.length > 0) {
-      const map = new Map();
-      followUpThreads.forEach((thread: any) => {
-        if (thread.followUp) {
-          map.set(thread.threadId, thread.followUp);
-        }
-      });
-      setFollowUpDataMap(map);
-    }
-  }, [mode, followUpThreads]);
-
-  // Hooks for state management
-  const snoozeInput = useSnoozeInput();
-  const onboarding = useOnboarding({
-    user,
-    authLoading,
-    refreshUser,
-  });
-  const urgentNotification = useUrgentNotification();
-  const debugPanel = useDebugPanel(() => fetchEmails());
-  const modals = useModals();
-  const priorityTooltip = usePriorityTooltip();
-  const keyboardHint = useKeyboardHint();
-  const splitView = useSplitView();
+  // UI peripheral state sub-hook (replaces 8 hooks + GitHub/polling + tracking effect + tourSteps)
+  const { snoozeInput, onboarding, urgentNotification, debugPanel, modals, priorityTooltip, keyboardHint, splitView, tourSteps } =
+    useInboxUIState({ user, authLoading, refreshUser, fetchEmails, refreshInPlace, mode, emails, loading });
 
   // Initialization hook
   const { hasInitiallyLoaded, hasRunAnalysis } = useInboxInitialization({
@@ -191,13 +142,8 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     fetchTabCounts,
   });
 
-  // Tour element refs
-  const triageTabRef = useRef<HTMLButtonElement>(null);
-  const actionTabRef = useRef<HTMLButtonElement>(null);
-  const followUpTabRef = useRef<HTMLButtonElement>(null);
-  const deliverBtnRef = useRef<HTMLButtonElement>(null);
-  const emailListRef = useRef<HTMLDivElement>(null);
-  const emailDetailRef = useRef<HTMLDivElement>(null);
+  // Tour element refs sub-hook (replaces 6 useRef calls)
+  const { triageTabRef, actionTabRef, followUpTabRef, deliverBtnRef, emailListRef, emailDetailRef } = useInboxTourRefs();
 
   // Mode changes hook
   useInboxModeChanges({
@@ -215,13 +161,6 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     emails,
     loadingSuggestions,
   });
-
-  const tourSteps = [
-    { title: t('onboarding.tour.welcome'), content: t('onboarding.tour.welcomeContent') },
-    { title: t('onboarding.tour.triageTitle'), content: t('onboarding.tour.triageContent') },
-    { title: t('onboarding.tour.actionTitle'), content: t('onboarding.tour.actionContent') },
-    { title: t('onboarding.tour.deliveryTitle'), content: t('onboarding.tour.deliveryContent') },
-  ];
 
   // Email action handlers
   const emailActions = useEmailActions({
@@ -250,264 +189,36 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     onTabCountsUpdateOptimistically: updateTabCountsOptimistically,
   });
 
-  // Fetch GitHub metadata in batch after inbox loads
-  useGitHubBatchFetch(emails, loading);
-
-  // Poll for email updates when emails are actively processing.
-  // Use refreshInPlace so polling never wipes the existing email list — the update
-  // happens invisibly in the background without any visible reload.
-  useEmailProcessingPolling({
-    emails,
-    onPoll: refreshInPlace,
+  // Email interaction handlers sub-hook (replaces 3 useCallbacks + useInboxKeyboardNavigation)
+  const { keyboardShortcuts, handleEmailClick, handleEmailSelect } = useInboxEmailHandlers({
+    emails, selectedEmailIndex, selectedEmailIds, setSelectedEmailIndex,
+    handleEmailClickBase, handleArchiveBase, handleSetStarCountBase, handleMarkAsRead,
+    splitView, emailListRef, emailDetailRef, navigate, mode,
   });
 
-  // Track inbox view
-  useEffect(() => {
-    if (user && !authLoading && hasInitiallyLoaded) {
-      captureEvent('inbox_viewed', { mode });
-    }
-  }, [user, authLoading, hasInitiallyLoaded, mode]);
-
-  // Handler for keyboard-based archive in split view
-  // This archives the email and navigates to the next one
-  const handleSplitViewArchiveFromKeyboard = useCallback((archivedEmailId: string) => {
-    // First, archive the email
-    const fakeEvent = { stopPropagation: () => {} } as React.MouseEvent;
-    handleArchiveBase(archivedEmailId, fakeEvent);
-    
-    // Then navigate to the next email (same logic as onSplitViewArchive in Inbox.tsx)
-    // Filter out the just-archived email to get the remaining visible emails
-    const visibleEmails = emails.filter(e => !e.isArchived && e.id !== archivedEmailId);
-    
-    if (visibleEmails.length === 0) {
-      splitView.closeEmail();
-      return;
-    }
-    
-    // Use the current index as the next index (since we removed the current email)
-    const currentIndex = selectedEmailIndex >= 0 ? selectedEmailIndex : 0;
-    const nextIndex = currentIndex < visibleEmails.length 
-      ? currentIndex 
-      : Math.max(0, visibleEmails.length - 1);
-    
-    const nextEmail = visibleEmails[nextIndex];
-    if (nextEmail) {
-      splitView.openEmail(nextEmail.id);
-      setSelectedEmailIndex(nextIndex);
-    } else {
-      splitView.closeEmail();
-    }
-  }, [emails, selectedEmailIndex, handleArchiveBase, splitView, setSelectedEmailIndex]);
-
-  // Use keyboard shortcuts hook
-  const keyboardShortcuts = useKeyboardShortcuts({
-    emails,
-    selectedEmailIndex,
-    selectedEmailIds,
-    setSelectedEmailIndex,
-    onArchive: handleArchiveBase,
-    onSetStarCount: handleSetStarCountBase,
-    emailListRef,
-    emailDetailRef,
-    splitViewSelectedEmailId: splitView.selectedEmailId,
-    onSplitViewArchive: handleSplitViewArchiveFromKeyboard,
-  });
-
-  // Wrapper for email click that passes emails array
-  const handleEmailClick = useCallback((emailId: string, index: number, e: React.MouseEvent) => {
-    e.stopPropagation();
-    handleEmailClickBase(emailId, index, e, emails);
-  }, [handleEmailClickBase, emails]);
-
-  // Handle email selection - use split view on desktop, navigate on mobile
-  const handleEmailSelect = useCallback((emailId: string, e: React.MouseEvent) => {
-    captureEvent('email_clicked', { email_id: emailId, mode });
-    if (splitView.isMobile) {
-      handleMarkAsRead(emailId);
-      navigate(`/email/${emailId}`, { state: { fromMode: mode } });
-    } else {
-      handleMarkAsRead(emailId);
-      splitView.openEmail(emailId);
-      // Update selectedEmailIndex to match the email being opened in split view
-      const visibleEmails = emails.filter(email => !email.isArchived);
-      const emailIndex = visibleEmails.findIndex(email => email.id === emailId);
-      if (emailIndex >= 0) {
-        setSelectedEmailIndex(emailIndex);
-      }
-    }
-  }, [splitView, handleMarkAsRead, navigate, mode, emails, setSelectedEmailIndex]);
-
-  // Keyboard navigation
-  useInboxKeyboardNavigation({
-    emails,
-    selectedEmailIndex,
-    setSelectedEmailIndex,
-    splitView,
-    onEmailSelect: handleEmailSelect,
-    emailListRef,
-    emailDetailRef,
-  });
-
-  const getBasePath = useCallback(() => {
-    return isFocusedMode ? '/focused-inbox' : '/inbox';
-  }, [isFocusedMode]);
+  // Category accordion state sub-hook (replaces 2 useCallbacks + 4 refs/assignments + 2 useEffects)
+  const {
+    expandedCategories,
+    stableCategoryOrder,
+    toggleCategory,
+    updateStableCategoryOrder,
+    resetForModeChange,
+  } = useInboxCategoryAccordion({ categorySummary, fetchCategoryEmails, loadedCategoryNames, loadingCategoryNames });
 
   const setMode = useCallback((newMode: InboxMode) => {
     setModeState(newMode);
-    // Clear Redux category state immediately so InboxContent's effect doesn't fire with stale
-    // categorySummary from the previous mode before fetchEmails() clears it.
     dispatch(clearCategoryState());
-    // Reset category order when mode changes so it gets recalculated for the new mode
-    setStableCategoryOrder([]);
-    // Reset expanded categories so stale categories from the previous mode don't remain expanded
-    setExpandedCategories(new Set());
-    // Reset auto-expand flag so the top categories get auto-expanded in the new mode
-    hasAutoExpandedRef.current = false;
-  }, [dispatch]);
+    resetForModeChange();
+  }, [dispatch, resetForModeChange]);
 
-  // Toggle category expansion. Fetching is handled by the re-fetch effect below.
-  const toggleCategory = useCallback((category: string) => {
-    setExpandedCategories(prev => {
-      const next = new Set(prev);
-      if (next.has(category)) {
-        next.delete(category);
-      } else {
-        next.add(category);
-      }
-      return next;
-    });
-  }, []);
 
-  // Update stable category order and auto-expand the top categories on first load.
-  // Fetching is handled by the re-fetch effect below — no direct fetchCategoryEmails needed.
-  const updateStableCategoryOrder = useCallback((categories: string[]) => {
-    if (categories.length > 0) {
-      setStableCategoryOrder(categories);
 
-      // Auto-expand the top 3 priority categories on initial load.
-      // The re-fetch effect will trigger the actual data fetch once expandedCategories updates.
-      if (!hasAutoExpandedRef.current) {
-        hasAutoExpandedRef.current = true;
-        const INITIAL_PRELOAD_COUNT = 3;
-        const toExpand = categories.slice(0, INITIAL_PRELOAD_COUNT);
-        setExpandedCategories(new Set(toExpand));
-      }
-    }
-  }, []);
-
-  // Refs to read the latest loaded/loading state inside the re-fetch effect without making it
-  // a dependency (avoids re-running the effect after every category load).
-  // Note: fetchCategoryEmails also maintains its own internal refs for these values,
-  // so these refs here serve as a secondary guard to avoid even calling fetchCategoryEmails
-  // when we know the category is already handled.
-  const loadedCategoryNamesRef = useRef(loadedCategoryNames);
-  loadedCategoryNamesRef.current = loadedCategoryNames;
-  const loadingCategoryNamesRef = useRef(loadingCategoryNames);
-  loadingCategoryNamesRef.current = loadingCategoryNames;
-
-  // Fetch expanded categories whose data is missing.
-  // Fires whenever:
-  //   • categorySummary becomes available (initial load or after a full fetchEmails clears it)
-  //   • expandedCategories changes (user toggles an accordion or auto-expand fires)
-  //   • fetchCategoryEmails changes (only on mode/filter changes — NOT on category loads,
-  //     since fetchCategoryEmails is stable across category loads via internal refs)
-  useEffect(() => {
-    if (!categorySummary) {
-      return;
-    }
-
-    const toFetch = Array.from(expandedCategories).filter(category =>
-      !loadedCategoryNamesRef.current.includes(category) &&
-      !loadingCategoryNamesRef.current.includes(category)
-    );
-
-    if (toFetch.length === 0) {
-      return;
-    }
-
-    toFetch.forEach(categoryName => {
-      // Look up category ID from summary for API call
-      const categoryItem = categorySummary.find(c => c.name === categoryName);
-      const categoryId = categoryItem?.id;
-      fetchCategoryEmails(categoryName, categoryId).catch(err =>
-        console.error(`Error fetching category "${categoryName}":`, err)
-      );
-    });
-  }, [categorySummary, expandedCategories, fetchCategoryEmails]);
-
-  // Re-fetch expanded category emails when categorySummary reloads after a background poll.
-  // When fetchEmails() is called (e.g., by useEmailProcessingPolling), clearCategoryState()
-  // wipes loadedCategoryNames. After the summary re-fetches, expanded categories need their
-  // emails re-fetched or they appear empty with no loading spinner.
-  const prevCategorySummaryRef = useRef<typeof categorySummary>(null);
-  // Keep latest expandedCategories accessible inside the effect without adding it as a
-  // dependency (we only want the effect to react to categorySummary transitions).
-  const expandedCategoriesForRefetchRef = useRef(expandedCategories);
-  expandedCategoriesForRefetchRef.current = expandedCategories;
-
-  useEffect(() => {
-    const wasNull = prevCategorySummaryRef.current === null;
-    prevCategorySummaryRef.current = categorySummary ?? null;
-
-    // Only act on the null → non-null transition (summary just reloaded after a re-fetch)
-    if (!categorySummary || !wasNull) return;
-
-    // Re-trigger fetching for any expanded category whose data was cleared during re-fetch
-    expandedCategoriesForRefetchRef.current.forEach(category => {
-      fetchCategoryEmails(category).catch(err =>
-        console.error(`Error re-fetching category ${category} after summary reload:`, err)
-      );
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categorySummary, fetchCategoryEmails]);
-
-  useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-
-      if (urlThreadId && splitView.selectedEmailId !== urlThreadId) {
-        splitView.openEmail(urlThreadId);
-      }
-
-      if (!urlMode) {
-        const basePath = getBasePath();
-        navigate(`${basePath}/${mode}`, { replace: true });
-      }
-      return;
-    }
-  }, []);
-
-  useEffect(() => {
-    if (isInitialMount.current) return;
-
-    const basePath = getBasePath();
-    let newPath: string;
-    
-    if (splitView.selectedEmailId) {
-      newPath = `${basePath}/${mode}/${splitView.selectedEmailId}`;
-    } else {
-      newPath = `${basePath}/${mode}`;
-    }
-
-    if (newPath !== lastUrlRef.current) {
-      lastUrlRef.current = newPath;
-      navigate(newPath, { replace: true });
-    }
-  }, [mode, splitView.selectedEmailId, navigate, getBasePath]);
-
-  useEffect(() => {
-    if (isInitialMount.current) return;
-
-    if (urlMode && isValidMode(urlMode) && urlMode !== mode) {
-      setModeState(urlMode);
-    }
-
-    if (urlThreadId && urlThreadId !== splitView.selectedEmailId) {
-      splitView.openEmail(urlThreadId);
-    } else if (!urlThreadId && splitView.selectedEmailId) {
-      splitView.closeEmail();
-    }
-  }, [urlMode, urlThreadId]);
+  // URL synchronization sub-hook (replaces isInitialMount/lastUrlRef refs + getBasePath + 3 useEffects)
+  useInboxUrlSync({
+    isFocusedMode, mode, splitViewSelectedEmailId: splitView.selectedEmailId,
+    urlMode, urlThreadId, openEmail: splitView.openEmail, closeEmail: splitView.closeEmail,
+    navigate, onUrlModeChange: setModeState,
+  });
 
   return {
     // State

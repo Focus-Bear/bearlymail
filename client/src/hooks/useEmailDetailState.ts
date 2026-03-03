@@ -14,6 +14,8 @@ interface EmailDetailEmail {
   receivedAt: string;
   summary?: string;
   isProcessingSummary?: boolean;
+  phishingConfidence?: 'low' | 'medium' | 'high' | null;
+  phishingReason?: string | null;
   githubMetadata?: {
     links: any[];
   };

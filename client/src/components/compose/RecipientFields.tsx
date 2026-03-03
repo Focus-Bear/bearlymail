@@ -5,6 +5,9 @@ import { FONT_SIZE_XS_PX, FONT_SIZE_MD_PX, DEFAULT_AVATAR_SIZE_PX, AVATAR_SIZE_S
 import { EMAIL_FIELD_BCC, EMAIL_FIELD_CC, EMAIL_FIELD_TO, KEY_COMMA, KEY_ENTER, STRING_NONE } from 'constants/strings';
 import { Contact } from 'types/contact';
 import { COLOR_TRANSPARENT } from 'constants/colors';
+import { EMAIL_FIELD_TO, EMAIL_FIELD_CC, EMAIL_FIELD_BCC } from 'constants/strings';
+import { Contact } from 'types/contact';
+import { COLOR_TRANSPARENT } from 'constants/colors';
 
 const isValidEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

@@ -46,6 +46,8 @@ type SummaryLlmCallResult = {
   emailId: string;
   email: Email;
   summary: string | null;
+  phishingConfidence: "low" | "medium" | "high" | null;
+  phishingReason: string | null;
   error: unknown;
 };
 
@@ -858,20 +860,34 @@ export class LLMProcessor implements OnModuleInit {
       async ({ userId, emailId, email }) => {
         try {
           const userRules = rulesMap.get(userId) || [];
-          const summary =
+          const result =
             await this.summarizationService.summarizeEmailWithAutoRule(
               userId,
               emailId,
               email,
               userRules,
             );
-          return { emailId, email, summary, error: null };
+          return {
+            emailId,
+            email,
+            summary: result.summary,
+            phishingConfidence: result.phishingSignal?.confidence ?? null,
+            phishingReason: result.phishingSignal?.reason ?? null,
+            error: null,
+          };
         } catch (error) {
           this.logger.error(
             `[Worker ${batchId}] LLM call failed for email ${emailId}`,
             error,
           );
-          return { emailId, email, summary: null, error };
+          return {
+            emailId,
+            email,
+            summary: null,
+            phishingConfidence: null,
+            phishingReason: null,
+            error,
+          };
         }
       },
     );
@@ -891,7 +907,14 @@ export class LLMProcessor implements OnModuleInit {
     let successCount = 0;
     let failCount = 0;
 
-    for (const { emailId, email, summary, error } of results) {
+    for (const {
+      emailId,
+      email,
+      summary,
+      phishingConfidence,
+      phishingReason,
+      error,
+    } of results) {
       if (summary && !error) {
         try {
           const jobEntry = jobsToProcess.find((j) => j.emailId === emailId);
@@ -906,7 +929,13 @@ export class LLMProcessor implements OnModuleInit {
 
           await this.emailRepository.update(
             { id: In(threadEmailIds) },
-            { summary, isProcessingSummary: false },
+            {
+              summary,
+              isProcessingSummary: false,
+              ...(phishingConfidence !== null
+                ? { phishingConfidence, phishingReason }
+                : {}),
+            },
           );
 
           // Auto-classify contact type during initial summary generation

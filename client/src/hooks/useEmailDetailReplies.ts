@@ -8,6 +8,68 @@ import { useNotifications } from 'contexts/NotificationContext';
 import { useAuth } from 'contexts/AuthContext';
 import { REPLY_MODE_REPLY_ALL, REPLY_MODE_FORWARD } from 'constants/strings';
 
+// Pure helper: builds recipient/cc addresses based on reply mode.
+function buildReplyAddresses(
+  mode: string,
+  email: any,
+  userEmail: string | undefined,
+): { recipients: string; cc: string | null; showCc: boolean } {
+  const normalizedUserEmail = userEmail?.toLowerCase();
+  const extractEmail = (addr: string) => { const m = addr.match(/<([^>]+)>/); return m ? m[1].toLowerCase() : addr.toLowerCase(); };
+  const notCurrentUser = (addr: string) => !!normalizedUserEmail && extractEmail(addr) !== normalizedUserEmail;
+  const isFromCurrentUser = !!normalizedUserEmail && email.from?.toLowerCase() === normalizedUserEmail;
+  const replyToAddress = email.replyTo || email.from;
+
+  if (mode === REPLY_MODE_FORWARD) {
+    return { recipients: '', cc: null, showCc: false };
+  }
+
+  if (mode === REPLY_MODE_REPLY_ALL) {
+    const recipients: string[] = [];
+    if (isFromCurrentUser) {
+      if (email.to) { recipients.push(...email.to.split(',').map((r: string) => r.trim()).filter(notCurrentUser)); }
+    } else {
+      recipients.push(replyToAddress);
+      if (email.to) { recipients.push(...email.to.split(',').map((r: string) => r.trim()).filter(notCurrentUser)); }
+    }
+    let cc: string | null = null;
+    let showCc = false;
+    if (email.cc) {
+      const ccList = email.cc.split(',').map((r: string) => r.trim()).filter(notCurrentUser);
+      if (ccList.length > 0) { cc = ccList.join(', '); showCc = true; }
+    }
+    return { recipients: [...new Set(recipients)].join(', '), cc, showCc };
+  }
+
+  // Regular reply
+  if (isFromCurrentUser && email.to) {
+    const firstRecipient = email.to.split(',').map((r: string) => r.trim()).filter(notCurrentUser)[0];
+    return { recipients: firstRecipient || replyToAddress, cc: null, showCc: false };
+  }
+  return { recipients: replyToAddress, cc: null, showCc: false };
+}
+
+// Pure helper: builds FormData for reply with file attachments.
+function buildReplyFormData(params: {
+  draftToSend: string; recipients: string; replyMode: string;
+  cc?: string; bcc?: string; expectedReplyHours?: number;
+  forwardAttachmentIds?: string[]; scheduleTime?: Date | null;
+  userTimezone: string; files: File[];
+}): FormData {
+  const { draftToSend, recipients, replyMode, cc, bcc, expectedReplyHours, forwardAttachmentIds, scheduleTime, userTimezone, files } = params;
+  const formData = new FormData();
+  formData.append('reply', draftToSend);
+  formData.append('recipients', recipients);
+  formData.append('replyAll', String(replyMode === REPLY_MODE_REPLY_ALL));
+  if (cc) formData.append('cc', cc);
+  if (bcc) formData.append('bcc', bcc);
+  if (expectedReplyHours !== undefined) formData.append('expectedReplyHours', String(expectedReplyHours));
+  if (forwardAttachmentIds?.length) formData.append('forwardAttachmentIds', JSON.stringify(forwardAttachmentIds));
+  if (scheduleTime) { formData.append('scheduledSendAt', scheduleTime.toISOString()); formData.append('userTimezone', userTimezone); }
+  files.forEach(file => formData.append('files', file));
+  return formData;
+}
+
 interface EmailAttachment {
   attachmentId: string;
   filename: string;
@@ -83,67 +145,10 @@ export function useEmailDetailReplies(
     setShowCc(false);
     setShowBcc(false);
     if (email) {
-      const normalizedUserEmail = user?.email?.toLowerCase();
-      const isFromCurrentUser = normalizedUserEmail && email.from?.toLowerCase() === normalizedUserEmail;
-
-      // Use Reply-To address if available, otherwise fall back to From address
-      const replyToAddress = email.replyTo || email.from;
-
-      if (mode === REPLY_MODE_FORWARD) {
-        setReplyRecipients('');
-        setInitialAttachments(email.attachments || []);
-      } else if (mode === REPLY_MODE_REPLY_ALL) {
-        const recipients: string[] = [];
-        const extractEmail = (addr: string): string => {
-          const match = addr.match(/<([^>]+)>/);
-          return match ? match[1].toLowerCase() : addr.toLowerCase();
-        };
-        const isCurrentUser = (addr: string): boolean =>
-          !!normalizedUserEmail && extractEmail(addr) === normalizedUserEmail;
-
-        if (isFromCurrentUser) {
-          // User sent this email - reply to the original recipients, not to self
-          if ((email as any).to) {
-            const toRecipients = (email as any).to.split(',').map((r: string) => r.trim()).filter((r: string) => r && !isCurrentUser(r));
-            recipients.push(...toRecipients);
-          }
-        } else {
-          recipients.push(replyToAddress);
-          if ((email as any).to) {
-            const toRecipients = (email as any).to.split(',').map((r: string) => r.trim()).filter((r: string) => r && !isCurrentUser(r));
-            recipients.push(...toRecipients);
-          }
-        }
-        setReplyRecipients([...new Set(recipients)].join(', '));
-
-        // Add CC recipients from the original email
-        if ((email as any).cc) {
-          const ccRecipients = (email as any).cc.split(',').map((r: string) => r.trim()).filter((r: string) => r && !isCurrentUser(r));
-          if (ccRecipients.length > 0) {
-            setReplyCc(ccRecipients.join(', '));
-            setShowCc(true);
-          }
-        }
-        setInitialAttachments([]);
-      } else {
-        // Regular reply
-        if (isFromCurrentUser) {
-          // User sent this email - reply to the first recipient, not to self
-          if ((email as any).to) {
-            const extractEmail = (addr: string): string => {
-              const match = addr.match(/<([^>]+)>/);
-              return match ? match[1].toLowerCase() : addr.toLowerCase();
-            };
-            const firstRecipient = (email as any).to.split(',').map((r: string) => r.trim()).filter((r: string) => r && !!normalizedUserEmail && extractEmail(r) !== normalizedUserEmail)[0];
-            setReplyRecipients(firstRecipient || replyToAddress);
-          } else {
-            setReplyRecipients(replyToAddress);
-          }
-        } else {
-          setReplyRecipients(replyToAddress);
-        }
-        setInitialAttachments([]);
-      }
+      const { recipients, cc, showCc: shouldShowCc } = buildReplyAddresses(mode, email, user?.email);
+      setReplyRecipients(recipients);
+      if (cc) { setReplyCc(cc); setShowCc(shouldShowCc); }
+      setInitialAttachments(mode === REPLY_MODE_FORWARD ? (email.attachments || []) : []);
     }
     handleGenerateDraft();
   }, [email, user?.email, handleGenerateDraft, setDraft, setToneCheckResult]);
@@ -183,31 +188,8 @@ export function useEmailDetailReplies(
     const sendReplyAsync = async () => {
       try {
         if (files.length > 0) {
-          const formData = new FormData();
-          formData.append('reply', draftToSend);
-          formData.append('recipients', currentReplyRecipients);
-          formData.append('replyAll', String(currentReplyMode === REPLY_MODE_REPLY_ALL));
-          if (currentReplyCc) formData.append('cc', currentReplyCc);
-          if (currentReplyBcc) formData.append('bcc', currentReplyBcc);
-          if (expectedReplyHours !== undefined) {
-            formData.append('expectedReplyHours', String(expectedReplyHours));
-          }
-          if (forwardAttachmentIds && forwardAttachmentIds.length > 0) {
-            formData.append('forwardAttachmentIds', JSON.stringify(forwardAttachmentIds));
-          }
-          if (scheduleTime) {
-            formData.append('scheduledSendAt', scheduleTime.toISOString());
-            formData.append('userTimezone', userTimezone);
-          }
-          files.forEach((file) => {
-            formData.append('files', file);
-          });
-
-          await axios.post(`${API_URL}/replies/send/${emailId}`, formData, {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            },
-          });
+          const formData = buildReplyFormData({ draftToSend, recipients: currentReplyRecipients, replyMode: currentReplyMode, cc: currentReplyCc, bcc: currentReplyBcc, expectedReplyHours, forwardAttachmentIds, scheduleTime, userTimezone, files });
+          await axios.post(`${API_URL}/replies/send/${emailId}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
         } else {
           await axios.post(`${API_URL}/replies/send/${emailId}`, {
             reply: draftToSend,
@@ -216,29 +198,17 @@ export function useEmailDetailReplies(
             bcc: currentReplyBcc || undefined,
             replyAll: currentReplyMode === REPLY_MODE_REPLY_ALL,
             expectedReplyHours: expectedReplyHours || undefined,
-            forwardAttachmentIds: forwardAttachmentIds && forwardAttachmentIds.length > 0 ? forwardAttachmentIds : undefined,
+            forwardAttachmentIds: forwardAttachmentIds?.length ? forwardAttachmentIds : undefined,
             scheduledSendAt: scheduleTime?.toISOString(),
             userTimezone: scheduleTime ? userTimezone : undefined,
           });
         }
-        setDraft(null);
-        setReplyCc('');
-        setReplyBcc('');
-        setShowCc(false);
-        setShowBcc(false);
-        setInitialAttachments([]);
-        setScheduledSendAt(null);
+        setDraft(null); setReplyCc(''); setReplyBcc(''); setShowCc(false); setShowBcc(false); setInitialAttachments([]); setScheduledSendAt(null);
         showSuccess(isScheduled ? t('emailDetail.replyScheduledSuccess') : t('emailDetail.replySentSuccess'));
       } catch (error: any) {
         console.error('Error sending reply:', error);
-        setDraft(draftToSend);
-        setReplyRecipients(currentReplyRecipients);
-        setReplyCc(currentReplyCc);
-        setReplyBcc(currentReplyBcc);
-        setShowCc(currentShowCc);
-        setShowBcc(currentShowBcc);
-        setInitialAttachments(currentInitialAttachments);
-        setScheduledSendAt(scheduleTime);
+        setDraft(draftToSend); setReplyRecipients(currentReplyRecipients); setReplyCc(currentReplyCc); setReplyBcc(currentReplyBcc);
+        setShowCc(currentShowCc); setShowBcc(currentShowBcc); setInitialAttachments(currentInitialAttachments); setScheduledSendAt(scheduleTime);
         setShowReplyComposer(true);
         showError(error.response?.data?.message || t('emailDetail.replySentError'));
       }

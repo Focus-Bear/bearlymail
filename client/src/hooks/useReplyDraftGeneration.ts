@@ -1,10 +1,54 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { MutableRefObject, useState, useCallback, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { API_URL } from 'config/api';
 import { plainTextToHtml } from 'utils/emailUtils';
 import { sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
 
 const CUSTOM_ONLY_OPTIONS = [{ label: 'Custom', text: '' }];
+
+// Pure helper: fetches pre-generated or on-demand reply options, returns null on stale/abort.
+async function resolveGeneratedOptions(
+  email: { id: string; emailThreadId?: string; from: string; fromName?: string; subject: string; body: string },
+  currentEmailId: string,
+  currentGenerationEmailIdRef: MutableRefObject<string | null>,
+  controller: AbortController,
+  fetchPreGenerated: (threadId: string, signal: AbortSignal) => Promise<any>,
+  generateOnDemand: (email: any, signal: AbortSignal) => Promise<any>,
+  setIsGeneratingInBackground: (v: boolean) => void,
+): Promise<Array<{ label: string; text: string }> | null | 'stale'> {
+  let generatedOptions: Array<{ label: string; text: string }> | null = null;
+
+  if (email.emailThreadId) {
+    const preGenerated = await fetchPreGenerated(email.emailThreadId, controller.signal);
+    if (currentGenerationEmailIdRef.current !== currentEmailId || controller.signal.aborted) { return 'stale'; }
+    if (preGenerated) {
+      if (preGenerated.isGenerating) { setIsGeneratingInBackground(true); }
+      if (preGenerated.options?.length > 0) { generatedOptions = preGenerated.options; }
+    }
+  }
+
+  if (!generatedOptions) {
+    if (currentGenerationEmailIdRef.current !== currentEmailId || controller.signal.aborted) { return 'stale'; }
+    generatedOptions = await generateOnDemand(email, controller.signal);
+  }
+
+  return generatedOptions;
+}
+
+// Pure helper: converts raw options to HTML and applies them to state.
+function applyGeneratedOptions(
+  generatedOptions: Array<{ label: string; text: string }> | null,
+  setReplyOptions: (opts: Array<{ label: string; text: string }>) => void,
+  setSelectedReplyOption: (i: number) => void,
+): void {
+  if (generatedOptions && generatedOptions.length > 0) {
+    const htmlOptions = generatedOptions.map(opt => ({ ...opt, text: sanitizeAndProcessHtml(plainTextToHtml(opt.text)) }));
+    setReplyOptions([{ label: 'Custom', text: '' }, ...htmlOptions]);
+  } else {
+    setReplyOptions(CUSTOM_ONLY_OPTIONS);
+  }
+  setSelectedReplyOption(0);
+}
 
 interface Email {
   id: string;
@@ -138,62 +182,16 @@ export function useReplyDraftGeneration(
     });
     
     setLoadingReplies(true);
-    
+
     try {
-      let generatedOptions: Array<{ label: string; text: string }> | null = null;
-      
-      if (email.emailThreadId) {
-        const preGenerated = await fetchPreGeneratedReplies(email.emailThreadId, controller.signal);
-        
-        if (currentGenerationEmailIdRef.current !== currentEmailId || controller.signal.aborted) {
-          return;
-        }
-        
-        if (preGenerated) {
-          if (preGenerated.isGenerating) {
-            setIsGeneratingInBackground(true);
-          }
-          
-          if (preGenerated.options && preGenerated.options.length > 0) {
-            generatedOptions = preGenerated.options;
-          }
-        }
-      }
-      
-      if (!generatedOptions) {
-        if (currentGenerationEmailIdRef.current !== currentEmailId || controller.signal.aborted) {
-          return;
-        }
-        generatedOptions = await generateRepliesOnDemand(email, controller.signal);
-      }
-      
-      if (currentGenerationEmailIdRef.current !== currentEmailId) {
-        return;
-      }
-      
-      if (generatedOptions && generatedOptions.length > 0) {
-        const htmlOptions = generatedOptions.map(opt => ({
-          ...opt,
-          text: sanitizeAndProcessHtml(plainTextToHtml(opt.text)),
-        }));
-        const optionsWithCustom = [
-          { label: 'Custom', text: '' },
-          ...htmlOptions,
-        ];
-        setReplyOptions(optionsWithCustom);
-        setSelectedReplyOption(0);
-      } else {
-        setReplyOptions(CUSTOM_ONLY_OPTIONS);
-        setSelectedReplyOption(0);
-      }
+      const result = await resolveGeneratedOptions(email, currentEmailId, currentGenerationEmailIdRef, controller, fetchPreGeneratedReplies, generateRepliesOnDemand, setIsGeneratingInBackground);
+      if (result === 'stale' || currentGenerationEmailIdRef.current !== currentEmailId) { return; }
+      applyGeneratedOptions(result, setReplyOptions, setSelectedReplyOption);
       lastGeneratedEmailId.current = emailId;
     } catch (error) {
-      if (currentGenerationEmailIdRef.current !== currentEmailId) {
-        return;
-      }
+      if (currentGenerationEmailIdRef.current !== currentEmailId) { return; }
       console.error('Error generating draft:', error);
-      setReplyOptions(CUSTOM_ONLY_OPTIONS);
-      setSelectedReplyOption(0);
+      applyGeneratedOptions(null, setReplyOptions, setSelectedReplyOption);
     } finally {
       if (currentGenerationEmailIdRef.current === currentEmailId) {
         setLoadingReplies(false);

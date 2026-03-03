@@ -9,7 +9,7 @@ import { SettingsSubNavGroup as SettingsSubNavGroupComponent } from 'components/
 import { SettingsSubNavItem as SettingsSubNavItemComponent } from 'components/inbox/sidebar/SettingsSubNavItem';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import { COLOR_TRANSPARENT } from 'constants/colors';
-import { ROUTE_ADMIN, ROUTE_CRM_CONTACTS, ROUTE_CRM_DEALS, ROUTE_INBOX, ROUTE_SEARCH, ROUTE_SETTINGS, ROUTE_STATS, STRING_NONE } from 'constants/strings';
+import { CATEGORY_DANGEROUS_PHISHING, ROUTE_ADMIN, ROUTE_CRM_CONTACTS, ROUTE_CRM_DEALS, ROUTE_INBOX, ROUTE_SEARCH, ROUTE_SETTINGS, ROUTE_STATS, STRING_NONE } from 'constants/strings';
 
 interface SidebarItemProps {
   label: string;
@@ -289,6 +289,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
             path={ROUTE_INBOX}
             icon="📥"
             active={location.pathname === ROUTE_INBOX}
+            isCollapsed={effectiveIsCollapsed}
+            onNavigationClick={handleNavigationClick}
+          />
+          <SidebarItem
+            label={t('phishing.sidebarLabel')}
+            path={ROUTE_INBOX}
+            icon="🛑"
+            active={location.pathname === ROUTE_INBOX && location.search.includes(encodeURIComponent(CATEGORY_DANGEROUS_PHISHING))}
+            onClick={() => {
+              captureEvent('sidebar_phishing_filter_clicked');
+              window.dispatchEvent(new CustomEvent('inbox:filterPhishing'));
+            }}
             isCollapsed={effectiveIsCollapsed}
             onNavigationClick={handleNavigationClick}
           />

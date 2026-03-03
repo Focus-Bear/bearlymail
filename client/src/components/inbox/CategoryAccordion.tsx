@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
 import { OPACITY_DISABLED } from 'constants/numbers';
-import { CATEGORY_OTHER, KEY_ESCAPE, KEY_Y, STRING_NONE } from 'constants/strings';
+import { CATEGORY_DANGEROUS_PHISHING, CATEGORY_OTHER, KEY_ESCAPE, KEY_Y, STRING_NONE } from 'constants/strings';
 import { Email, InboxMode, getEmailPriorityScore } from 'types/email';
 import { ArchiveConfirmationToast } from 'components/inbox/ArchiveConfirmationToast';
 
@@ -29,6 +29,7 @@ const DEFAULT_CATEGORY_TRANSLATIONS: Record<string, string> = {
   'Customer Support': 'inbox.category.customerSupport',
   'HR Admin': 'inbox.category.hrAdmin',
   'Other': 'inbox.category.other',
+  [CATEGORY_DANGEROUS_PHISHING]: 'inbox.category.dangerousPhishing',
 };
 
 const isDefaultCategory = (category: string): boolean => {
@@ -47,6 +48,7 @@ const getCategoryIcon = (category: string): string => {
     'Customer Support': '🎧',
     'HR Admin': '📋',
     'Other': '📧',
+    [CATEGORY_DANGEROUS_PHISHING]: '🛑',
   };
   return icons[category] || '📧';
 };
@@ -56,6 +58,21 @@ const EDIT_ICON = '✏️';
 const REANALYSE_ICON = '🔄';
 
 const ARCHIVE_ALL_ICON = '🗄️';
+
+function makeArchiveKeyDownHandler(
+  onConfirm: () => void,
+  onCancel: () => void
+): (e: KeyboardEvent) => void {
+  return (e: KeyboardEvent) => {
+    if (e.key.toLowerCase() === KEY_Y) {
+      e.stopPropagation();
+      onConfirm();
+    } else if (e.key === KEY_ESCAPE) {
+      e.stopPropagation();
+      onCancel();
+    }
+  };
+}
 
 export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
   category,
@@ -113,17 +130,7 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
 
   useEffect(() => {
     if (!showArchiveConfirmation) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === KEY_Y) {
-        e.stopPropagation();
-        handleConfirmArchive();
-      } else if (e.key === KEY_ESCAPE) {
-        e.stopPropagation();
-        handleCancelArchive();
-      }
-    };
-
+    const handleKeyDown = makeArchiveKeyDownHandler(handleConfirmArchive, handleCancelArchive);
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showArchiveConfirmation, handleConfirmArchive, handleCancelArchive]);
@@ -327,7 +334,13 @@ export const groupEmailsByCategory = (
   const categoryMap = new Map<string, Email[]>();
 
   emails.forEach(email => {
-    const category = email.category || CATEGORY_OTHER;
+    // Phishing emails are always bucketed into the dangerous category regardless of
+    // their server-assigned category, so they are never buried in a regular inbox group.
+    const isPhishing =
+      email.phishingConfidence === 'medium' || email.phishingConfidence === 'high';
+    const category = isPhishing
+      ? CATEGORY_DANGEROUS_PHISHING
+      : email.category || CATEGORY_OTHER;
     if (!categoryMap.has(category)) {
       categoryMap.set(category, []);
     }

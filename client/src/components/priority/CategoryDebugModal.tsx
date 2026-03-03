@@ -62,93 +62,56 @@ const emptyStyle: React.CSSProperties = {
 
 const COPY_FEEDBACK_DURATION_MS = 2000;
 
+// Pure section builders extracted to reduce formatForGithubIssue statement count.
+function appendEmailSection(lines: string[], email: CategoryDebugData['email']): void {
+  const fromDisplay = email.fromName ? `${email.fromName} <${email.from}>` : email.from;
+  lines.push('### Email', `- **From**: ${fromDisplay}`);
+  if (email.senderJobTitle) { lines.push(`- **Job Title**: ${email.senderJobTitle}`); }
+  lines.push(`- **Subject**: ${email.subject}`);
+  if (email.bodyPreview) { lines.push('- **Body Preview**:', '  ```', `  ${email.bodyPreview.replace(/\n/g, '\n  ')}`, '  ```'); }
+  lines.push('');
+}
+
+function appendCategorySection(lines: string[], thread: CategoryDebugData['thread']): void {
+  lines.push('### Current Category', `- **Category**: ${thread.category ?? 'None'}`);
+  if (thread.categoryExplanation) { lines.push(`- **Explanation**: ${thread.categoryExplanation}`); }
+  lines.push('');
+}
+
+function appendCategoriesList(lines: string[], categories: CategoryDebugData['emailCategories'], header: string): void {
+  lines.push(header);
+  if (categories.length === 0) { lines.push('None'); }
+  else { categories.forEach(cat => lines.push(`- **${cat.name}**${cat.description ? `: ${cat.description}` : ''}`)); }
+  lines.push('');
+}
+
+function appendContextItemList(lines: string[], label: string, items: Array<{value: string; explanation?: string; priority?: number}>): void {
+  if (items.length === 0) return;
+  lines.push(`**${label}:**`);
+  items.forEach(item => {
+    const extra = item.explanation ? ` (${item.explanation})` : item.priority !== undefined ? ` (priority ${item.priority})` : '';
+    lines.push(`- ${item.value}${extra}`);
+  });
+}
+
 const formatForGithubIssue = (debugInfo: CategoryDebugData): string => {
   const lines: string[] = ['## Category Debug Report', ''];
-
-  lines.push('### Email');
-  const fromDisplay = debugInfo.email.fromName
-    ? `${debugInfo.email.fromName} <${debugInfo.email.from}>`
-    : debugInfo.email.from;
-  lines.push(`- **From**: ${fromDisplay}`);
-  if (debugInfo.email.senderJobTitle) {
-    lines.push(`- **Job Title**: ${debugInfo.email.senderJobTitle}`);
-  }
-  lines.push(`- **Subject**: ${debugInfo.email.subject}`);
-  if (debugInfo.email.bodyPreview) {
-    lines.push('- **Body Preview**:');
-    lines.push('  ```');
-    lines.push(`  ${debugInfo.email.bodyPreview.replace(/\n/g, '\n  ')}`);
-    lines.push('  ```');
-  }
-  lines.push('');
-
-  lines.push('### Current Category');
-  lines.push(`- **Category**: ${debugInfo.thread.category ?? 'None'}`);
-  if (debugInfo.thread.categoryExplanation) {
-    lines.push(`- **Explanation**: ${debugInfo.thread.categoryExplanation}`);
-  }
-  lines.push('');
-
-  lines.push(`### Available Categories (${debugInfo.emailCategories.length})`);
-  if (debugInfo.emailCategories.length === 0) {
-    lines.push('None');
-  } else {
-    debugInfo.emailCategories.forEach((cat) => {
-      lines.push(`- **${cat.name}**${cat.description ? `: ${cat.description}` : ''}`);
-    });
-  }
-  lines.push('');
-
+  appendEmailSection(lines, debugInfo.email);
+  appendCategorySection(lines, debugInfo.thread);
+  appendCategoriesList(lines, debugInfo.emailCategories, `### Available Categories (${debugInfo.emailCategories.length})`);
   if (debugInfo.protoCategories.length > 0) {
-    lines.push(`### Proto Categories (${debugInfo.protoCategories.length})`);
-    debugInfo.protoCategories.forEach((cat) => {
-      lines.push(`- **${cat.name}**${cat.description ? `: ${cat.description}` : ''}`);
-    });
-    lines.push('');
+    appendCategoriesList(lines, debugInfo.protoCategories, `### Proto Categories (${debugInfo.protoCategories.length})`);
   }
-
   lines.push('### User Context');
   const { urgentItems, notUrgentItems, goals, workingOn, dontCare } = debugInfo.userContext;
-  if (urgentItems.length > 0) {
-    lines.push('**Urgent Items:**');
-    urgentItems.forEach((item) => {
-      lines.push(`- ${item.value}${item.explanation ? ` (${item.explanation})` : ''}`);
-    });
-  }
-  if (notUrgentItems.length > 0) {
-    lines.push('**Not Urgent Items:**');
-    notUrgentItems.forEach((item) => {
-      lines.push(`- ${item.value}${item.explanation ? ` (${item.explanation})` : ''}`);
-    });
-  }
-  if (goals.length > 0) {
-    lines.push('**Goals:**');
-    goals.forEach((item) => {
-      lines.push(`- ${item.value}${item.priority !== undefined ? ` (priority ${item.priority})` : ''}`);
-    });
-  }
-  if (workingOn.length > 0) {
-    lines.push('**Working On:**');
-    workingOn.forEach((item) => {
-      lines.push(`- ${item.value}${item.priority !== undefined ? ` (priority ${item.priority})` : ''}`);
-    });
-  }
-  if (dontCare.length > 0) {
-    lines.push("**Don't Care:**");
-    dontCare.forEach((item) => {
-      lines.push(`- ${item.value}`);
-    });
-  }
-  const hasNoContext =
-    urgentItems.length === 0 &&
-    notUrgentItems.length === 0 &&
-    goals.length === 0 &&
-    workingOn.length === 0 &&
-    dontCare.length === 0;
-  if (hasNoContext) {
+  appendContextItemList(lines, 'Urgent Items', urgentItems);
+  appendContextItemList(lines, 'Not Urgent Items', notUrgentItems);
+  appendContextItemList(lines, 'Goals', goals);
+  appendContextItemList(lines, 'Working On', workingOn);
+  appendContextItemList(lines, "Don't Care", dontCare);
+  if (!urgentItems.length && !notUrgentItems.length && !goals.length && !workingOn.length && !dontCare.length) {
     lines.push('None');
   }
-
   return lines.join('\n');
 };
 

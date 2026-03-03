@@ -663,7 +663,7 @@
     "dealStage": "Etapa",
     "expectedClose": "Cierre Esperado",
     "contact": "Contacto",
-    "searchContacts": "Buscar contactos...",
+    "searchContacts": "Buscar contactos",
     "noContactsFound": "No se encontraron contactos",
     "currency": "Moneda",
     "noDeals": "Aún no hay negocios",
@@ -684,9 +684,7 @@
     "closedWon": "Ganado",
     "closedLost": "Perdido",
     "deleteConfirm": "¿Estás seguro de que deseas eliminar este negocio?",
-    "deleteStageConfirm": "¿Estás seguro de que deseas eliminar esta etapa? Los negocios quedarán sin asignar.",
-    "searchContacts": "Buscar contactos",
-    "noContactsFound": "No se encontraron contactos"
+    "deleteStageConfirm": "¿Estás seguro de que deseas eliminar esta etapa? Los negocios quedarán sin asignar."
   },
   "contactTypes": {
     "lead": "Prospecto",
@@ -1066,7 +1064,8 @@
       "reanalysingCategories": "Re-analizando...",
       "reanalyseSuccess": "Se generaron {{count}} nuevas categorías. {{reclassifyCount}} correos en cola para reclasificación.",
       "reanalyseNoNewCategories": "No se pudieron generar nuevas categorías a partir de los correos en Otros",
-      "loadingContent": "Cargando correos..."
+      "loadingContent": "Cargando correos...",
+      "dangerousPhishing": "PELIGROSO: posible intento de phishing"
     },
     "protoCategory": {
       "convertToCategory": "Convertir a categoría",
@@ -2080,5 +2079,19 @@
     "networkMessage": "Parece que tienes problemas con tu conexión a internet. Por favor, verifica tu conexión e inténtalo de nuevo.",
     "correlationId": "Código de error: {{id}}",
     "reloadButton": "Recargar página"
+  },
+  "phishing": {
+    "warningTitle": "Posible intento de phishing detectado",
+    "warningAriaLabel": "Advertencia de phishing",
+    "confidence": "Confianza",
+    "reason": "Razón",
+    "showDetails": "Mostrar detalles",
+    "hideDetails": "Ocultar detalles",
+    "sidebarLabel": "Phishing",
+    "confidenceLevel": {
+      "low": "Baja",
+      "medium": "Media",
+      "high": "Alta"
+    }
   }
 }

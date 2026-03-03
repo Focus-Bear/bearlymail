@@ -18,6 +18,7 @@ import { ReplyComposer } from 'components/email-detail-inline/ReplyComposer';
 import { EmailDetailAnimationOverlay } from 'components/email-detail/EmailDetailAnimationOverlay';
 import { EmailDetailSidebar } from 'components/email-detail/EmailDetailSidebar';
 import { EmailDetailHeader } from 'components/email-detail/EmailDetailHeader';
+import { EmailPhishingWarning, shouldShowPhishingAlert } from 'components/email-detail/EmailPhishingWarning';
 import { EmailDetailActions } from 'components/email-detail/EmailDetailActions';
 import { EmailThreadView } from 'components/email-detail/EmailThreadView';
 import { CustomRuleModal } from 'components/email-detail/CustomRuleModal';
@@ -595,6 +596,13 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
             emailSubject={email?.subject}
           />
         </div>
+
+        {shouldShowPhishingAlert(email?.phishingConfidence) && email?.phishingConfidence && (
+          <EmailPhishingWarning
+            confidence={email.phishingConfidence}
+            reason={email.phishingReason ?? ''}
+          />
+        )}
 
         <SummarySection
           summary={summary}

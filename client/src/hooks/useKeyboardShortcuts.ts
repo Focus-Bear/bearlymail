@@ -1,9 +1,47 @@
-import { useEffect, useCallback, useState, useRef } from 'react';
+import { MutableRefObject, useEffect, useCallback, useState, useRef } from 'react';
 import { Email } from 'types/email';
 import { KEY_ARROW_DOWN, KEY_ARROW_UP, KEY_J, KEY_K, KEY_DELETE, KEY_BACKSPACE, KEY_E, KEY_Y, KEY_N, KEY_ESCAPE } from 'constants/strings';
 
 // Time in ms before archive confirmation is cancelled
 const ARCHIVE_CONFIRM_TIMEOUT = 3000;
+
+// Pure helpers extracted to reduce handleKeyDown statement count.
+
+function scrollEmailIntoView(index: number, emailListRef: MutableRefObject<HTMLDivElement | null>): void {
+  if (!emailListRef?.current) return;
+  setTimeout(() => {
+    const el = emailListRef.current?.querySelector(`[data-email-index="${index}"]`) as HTMLElement;
+    if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+  }, 0);
+}
+
+function buildArchiveTargetIds(
+  splitViewSelectedEmailId: string | undefined,
+  selectedEmailIds: Set<string>,
+  selectedEmailIndex: number,
+  visibleEmails: Email[],
+): { emailIds: string[]; isSplitView: boolean } {
+  if (splitViewSelectedEmailId) {
+    return { emailIds: [splitViewSelectedEmailId], isSplitView: true };
+  }
+  if (selectedEmailIds.size > 0) {
+    return { emailIds: Array.from(selectedEmailIds), isSplitView: false };
+  }
+  const emailToArchive = selectedEmailIndex >= 0 ? visibleEmails[selectedEmailIndex] : undefined;
+  return emailToArchive ? { emailIds: [emailToArchive.id], isSplitView: false } : { emailIds: [], isSplitView: false };
+}
+
+interface PendingArchiveState { emailIds: string[]; isSplitView: boolean; }
+
+function scheduleArchiveWithConfirmation(
+  archiveState: PendingArchiveState,
+  setPendingArchive: (state: PendingArchiveState | null) => void,
+  timeoutRef: MutableRefObject<ReturnType<typeof setTimeout> | null>,
+): void {
+  setPendingArchive(archiveState);
+  if (timeoutRef.current) { clearTimeout(timeoutRef.current); }
+  timeoutRef.current = setTimeout(() => { setPendingArchive(null); }, ARCHIVE_CONFIRM_TIMEOUT);
+}
 
 interface UseKeyboardShortcutsProps {
   emails: Email[];
@@ -17,11 +55,6 @@ interface UseKeyboardShortcutsProps {
   emailDetailRef?: React.RefObject<HTMLDivElement | null>;
   splitViewSelectedEmailId?: string | null;
   onSplitViewArchive?: (emailId: string) => void;
-}
-
-interface PendingArchiveState {
-  emailIds: string[];
-  isSplitView: boolean;
 }
 
 export interface UseKeyboardShortcutsResult {
@@ -133,94 +166,30 @@ export function useKeyboardShortcuts({
       e.preventDefault();
       const newIndex = Math.min(selectedEmailIndex + 1, visibleEmails.length - 1);
       setSelectedEmailIndex(newIndex);
-      // Scroll the newly selected email into view
-      if (emailListRef?.current) {
-        setTimeout(() => {
-          const emailElement = emailListRef.current?.querySelector(
-            `[data-email-index="${newIndex}"]`
-          ) as HTMLElement;
-          if (emailElement) {
-            emailElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-          }
-        }, 0);
-      }
+      scrollEmailIntoView(newIndex, emailListRef);
     } else if (e.key === KEY_ARROW_UP || e.key === KEY_K) {
       e.preventDefault();
       const newIndex = Math.max(selectedEmailIndex - 1, 0);
       setSelectedEmailIndex(newIndex);
-      // Scroll the newly selected email into view
-      if (emailListRef?.current) {
-        setTimeout(() => {
-          const emailElement = emailListRef.current?.querySelector(
-            `[data-email-index="${newIndex}"]`
-          ) as HTMLElement;
-          if (emailElement) {
-            emailElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-          }
-        }, 0);
-      }
+      scrollEmailIntoView(newIndex, emailListRef);
     }
 
-    // Star shortcuts (1, 2, 3)
-    if (['1', '2', '3'].includes(e.key) && selectedEmailIds.size > 0) {
+    // Star shortcuts (1, 2, 3) and clear star (0)
+    if ((['1', '2', '3', '0'].includes(e.key)) && selectedEmailIds.size > 0) {
       e.preventDefault();
       const starCount = parseInt(e.key);
-      selectedEmailIds.forEach(emailId => {
-        onSetStarCount(emailId, starCount);
-      });
+      selectedEmailIds.forEach(emailId => { onSetStarCount(emailId, starCount); });
     }
 
     // Archive (Delete, Backspace, or 'e') - now requires confirmation
     if (e.key === KEY_DELETE || e.key === KEY_BACKSPACE || e.key === KEY_E) {
-      // Build the pending archive state based on context
-      let emailIdsToArchive: string[] = [];
-      let isSplitView = false;
-
-      if (splitViewSelectedEmailId) {
-        // Split view: archive the currently viewed email
-        emailIdsToArchive = [splitViewSelectedEmailId];
-        isSplitView = true;
-      } else if (selectedEmailIds.size > 0) {
-        // Checked emails: archive all of them
-        emailIdsToArchive = Array.from(selectedEmailIds);
-      } else if (selectedEmailIndex >= 0 && selectedEmailIndex < visibleEmails.length) {
-        // Highlighted email: archive that one
-        const emailToArchive = visibleEmails[selectedEmailIndex];
-        if (emailToArchive) {
-          emailIdsToArchive = [emailToArchive.id];
-        }
-      }
-
+      const { emailIds: emailIdsToArchive, isSplitView } = buildArchiveTargetIds(splitViewSelectedEmailId, selectedEmailIds, selectedEmailIndex, visibleEmails);
       if (emailIdsToArchive.length > 0) {
         e.preventDefault();
-        
-        // Set pending archive and start timeout
-        const archiveState: PendingArchiveState = {
-          emailIds: emailIdsToArchive,
-          isSplitView,
-        };
-        setPendingArchive(archiveState);
-        
-        // Clear any existing timeout
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-        }
-        
-        // Set timeout to cancel pending archive
-        timeoutRef.current = setTimeout(() => {
-          setPendingArchive(null);
-        }, ARCHIVE_CONFIRM_TIMEOUT);
+        scheduleArchiveWithConfirmation({ emailIds: emailIdsToArchive, isSplitView }, setPendingArchive, timeoutRef);
       }
     }
-
-    // Clear star (0)
-    if (e.key === '0' && selectedEmailIds.size > 0) {
-      e.preventDefault();
-      selectedEmailIds.forEach(emailId => {
-        onSetStarCount(emailId, 0);
-      });
-    }
-  }, [emails, selectedEmailIndex, selectedEmailIds, setSelectedEmailIndex, onArchive, onSetStarCount, emailListRef, emailDetailRef, splitViewSelectedEmailId, onSplitViewArchive, pendingArchive, executeArchive, cancelPendingArchive]);
+  }, [emails, selectedEmailIndex, selectedEmailIds, setSelectedEmailIndex, onSetStarCount, emailListRef, splitViewSelectedEmailId, pendingArchive, executeArchive, cancelPendingArchive]);
 
   useEffect(() => {
     if (!enabled) return;

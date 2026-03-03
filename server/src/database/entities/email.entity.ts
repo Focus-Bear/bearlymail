@@ -182,6 +182,21 @@ export class Email {
   isProcessingSummary: boolean;
 
   @Column({
+    type: "varchar",
+    nullable: true,
+    comment:
+      "Phishing detection confidence level: low, medium, or high. NULL means not detected.",
+  })
+  phishingConfidence: "low" | "medium" | "high" | null;
+
+  @Column({
+    type: "text",
+    nullable: true,
+    comment: "Human-readable reason for the phishing detection signal",
+  })
+  phishingReason: string | null;
+
+  @Column({
     default: false,
     comment:
       "Flag to indicate email was delivered early (emergency) due to high priority outside batch window",

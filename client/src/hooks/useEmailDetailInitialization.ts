@@ -1,6 +1,7 @@
 import { MutableRefObject, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { API_URL } from 'config/api';
+import { SUMMARY_TYPE_TLDR } from 'constants/strings';
 
 // Pure helper: applies the best-matching summarization rule (or fallback) for an email.
 function applyMatchedRule(
@@ -91,7 +92,7 @@ export const useEmailDetailInitialization = ({
       setLoading(true);
       setEmail(null); // Clear email to show loading spinner
       setSummary(null);
-      setSummaryType('tldr'); // Reset to default type
+      setSummaryType(SUMMARY_TYPE_TLDR); // Reset to default type
       setThreadEmails([]); // Clear thread emails to prevent showing stale content
       setExpandedThreadItems(new Set()); // Clear expanded state
       setActionItems([]); // Clear action items
@@ -107,7 +108,7 @@ export const useEmailDetailInitialization = ({
   
   // Track manual summaryType changes
   useEffect(() => {
-    if (id && summaryType !== 'tldr' && initializedEmailIdRef.current !== id) {
+    if (id && summaryType !== SUMMARY_TYPE_TLDR && initializedEmailIdRef.current !== id) {
       // User has manually selected a different summary type for the current email, mark as initialized
       initializedEmailIdRef.current = id;
     }
@@ -137,7 +138,7 @@ export const useEmailDetailInitialization = ({
           !emailData.isProcessingSummary && 
           !isGeneratingSummary &&
           !summary &&
-          summaryType === 'tldr';
+          summaryType === SUMMARY_TYPE_TLDR;
         
         if (shouldAutoSelect) {
           const rulesList = rules || [];
@@ -152,12 +153,12 @@ export const useEmailDetailInitialization = ({
             }
           } else {
             initializedEmailIdRef.current = id;
-            handleSummarize('tldr');
+            handleSummarize(SUMMARY_TYPE_TLDR);
           }
         } else if (emailData && emailData.summary && !summary) {
           // Email already has a summary from the server, use it
           setSummary(emailData.summary);
-          setSummaryType('tldr');
+          setSummaryType(SUMMARY_TYPE_TLDR);
           setSummaryCollapsed(false);
           initializedEmailIdRef.current = id;
         }

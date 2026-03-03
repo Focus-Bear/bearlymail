@@ -13,6 +13,42 @@ interface ComposeActionsProps {
   onSchedule?: () => void;
 }
 
+const SPINNER_STYLE: React.CSSProperties = {
+  display: 'inline-block',
+  width: '14px',
+  height: '14px',
+  border: '2px solid rgba(255,255,255,0.3)',
+  borderTopColor: 'white',
+  borderRadius: '50%',
+  animation: 'spin 1s linear infinite',
+};
+
+const SPIN_KEYFRAMES = `@keyframes spin { to { transform: rotate(360deg); } }`;
+
+function SendButtonContent({ sending, sendSuccess, checkingTone }: { sending: boolean; sendSuccess: boolean; checkingTone: boolean }) {
+  const { t } = useTranslation();
+  if (checkingTone) {
+    return (
+      <>
+        <span style={SPINNER_STYLE} />
+        {t('emailDetail.checkingTone')}
+      </>
+    );
+  }
+  if (sending) {
+    return (
+      <>
+        <span style={SPINNER_STYLE} />
+        {t('compose.sending')}
+      </>
+    );
+  }
+  if (sendSuccess) {
+    return <>{t('compose.sent')}</>;
+  }
+  return <>{t('compose.send')}</>;
+}
+
 export const ComposeActions: React.FC<ComposeActionsProps> = ({
   sending,
   sendSuccess,
@@ -22,6 +58,7 @@ export const ComposeActions: React.FC<ComposeActionsProps> = ({
   onSchedule,
 }) => {
   const { t } = useTranslation();
+  const isDisabled = sending || sendSuccess || checkingTone;
 
   return (
     <div
@@ -53,16 +90,16 @@ export const ComposeActions: React.FC<ComposeActionsProps> = ({
       {onSchedule && (
         <button
           onClick={onSchedule}
-          disabled={sending || sendSuccess || checkingTone}
+          disabled={isDisabled}
           style={{
             padding: '10px 20px',
             backgroundColor: COLOR_TRANSPARENT,
-            border: `1px solid ${sending || sendSuccess || checkingTone ? theme.colors.border.light : theme.colors.primary.main}`,
+            border: `1px solid ${isDisabled ? theme.colors.border.light : theme.colors.primary.main}`,
             borderRadius: theme.borderRadius.md,
-            cursor: sending || sendSuccess || checkingTone ? 'not-allowed' : 'pointer',
+            cursor: isDisabled ? 'not-allowed' : 'pointer',
             fontSize: theme.typography.fontSize.sm,
             fontWeight: theme.typography.fontWeight.medium,
-            color: sending || sendSuccess || checkingTone ? theme.colors.text.tertiary : theme.colors.primary.main,
+            color: isDisabled ? theme.colors.text.tertiary : theme.colors.primary.main,
             transition: theme.transitions.default,
           }}
         >
@@ -71,13 +108,13 @@ export const ComposeActions: React.FC<ComposeActionsProps> = ({
       )}
       <button
         onClick={onSend}
-        disabled={sending || sendSuccess || checkingTone}
+        disabled={isDisabled}
         style={{
           padding: '10px 24px',
-          backgroundColor: sending || sendSuccess || checkingTone ? theme.colors.primary.light : theme.colors.primary.main,
+          backgroundColor: isDisabled ? theme.colors.primary.light : theme.colors.primary.main,
           border: STRING_NONE,
           borderRadius: theme.borderRadius.md,
-          cursor: sending || sendSuccess || checkingTone ? 'not-allowed' : 'pointer',
+          cursor: isDisabled ? 'not-allowed' : 'pointer',
           fontSize: theme.typography.fontSize.sm,
           fontWeight: theme.typography.fontWeight.semibold,
           color: COLOR_NAMED_WHITE,
@@ -87,55 +124,9 @@ export const ComposeActions: React.FC<ComposeActionsProps> = ({
           gap: '8px',
         }}
       >
-        {(() => {
-          if (checkingTone) {
-            return (
-              <>
-                <span style={{ 
-                  display: 'inline-block',
-                  width: '14px',
-                  height: '14px',
-                  border: '2px solid rgba(255,255,255,0.3)',
-                  borderTopColor: 'white',
-                  borderRadius: '50%',
-                  animation: 'spin 1s linear infinite',
-                }} />
-                {t('emailDetail.checkingTone')}
-              </>
-            );
-          }
-          if (sending) {
-            return (
-              <>
-                <span style={{ 
-                  display: 'inline-block',
-                  width: '14px',
-                  height: '14px',
-                  border: '2px solid rgba(255,255,255,0.3)',
-                  borderTopColor: 'white',
-                  borderRadius: '50%',
-                  animation: 'spin 1s linear infinite',
-                }} />
-                {t('compose.sending')}
-              </>
-            );
-          }
-          if (sendSuccess) {
-            return t('compose.sent');
-          }
-          return t('compose.send');
-        })()}
+        <SendButtonContent sending={sending} sendSuccess={sendSuccess} checkingTone={checkingTone} />
       </button>
-      <style>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
+      <style>{SPIN_KEYFRAMES}</style>
     </div>
   );
 };
-
-
-
-
-

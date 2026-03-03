@@ -694,6 +694,7 @@ export class EmailsService {
         e."googleAccountId", e."office365AccountId", e."zohoAccountId",
         e."from", e."fromName", e."senderJobTitle", e.subject,
         e."isSnoozed", e."snoozeUntil", e."isRead", e.summary, e."isProcessingSummary",
+        e."phishingConfidence", e."phishingReason",
         e."receivedAt", e.labels,
         correspondent."from" as "correspondentEmail",
         correspondent."fromName" as "correspondentName"
@@ -703,6 +704,7 @@ export class EmailsService {
           em."from", em."fromName", em."senderJobTitle", em.subject,
           em."googleAccountId", em."office365AccountId", em."zohoAccountId",
           em."isSnoozed", em."snoozeUntil", em."isRead", em.summary, em."isProcessingSummary",
+          em."phishingConfidence", em."phishingReason",
           em."receivedAt", em.labels
         FROM emails em
         WHERE em."emailThreadId" = thread.id AND em."userId" = $1
@@ -963,6 +965,9 @@ export class EmailsService {
         : null,
       correspondentEmail,
       correspondentName,
+      phishingConfidence:
+        (row.phishingConfidence as "low" | "medium" | "high" | null) ?? null,
+      phishingReason: (row.phishingReason as string | null) ?? null,
     } as unknown as Email;
   }
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
-import { LONG_TIMEOUT_MS, POLLING_INTERVAL_MS, PROGRESS_THRESHOLD_30, PROGRESS_THRESHOLD_40, PROGRESS_THRESHOLD_75, PROGRESS_THRESHOLD_85, PROGRESS_THRESHOLD_95, MAX_RETRIES_POLLING, POLLING_DELAY_MS, DELAY_1_SECOND_MS } from 'constants/numbers';
+import { LONG_TIMEOUT_MS, POLLING_INTERVAL_MS, MAX_RETRIES_POLLING, POLLING_DELAY_MS, DELAY_1_SECOND_MS } from 'constants/numbers';
 import { devLog, devError, devDebug } from 'utils/dev-logger';
 import { API_URL } from 'config/api';
 
@@ -40,19 +40,6 @@ export interface AnalyzeProgress {
   isComplete: boolean;
 }
 
-const getProgressMessage = (current: number, total: number, message?: string): string => {
-  if (message) return message;
-  if (total === 0) return 'Starting analysis...';
-  const percent = (current / total) * 100;
-  
-  if (percent < PROGRESS_THRESHOLD_30) return 'Fetching emails from your inbox...';
-  if (percent < PROGRESS_THRESHOLD_40) return 'Identifying VIP contacts from starred emails...';
-  if (percent < PROGRESS_THRESHOLD_75) return 'Analyzing email patterns with AI...';
-  if (percent < PROGRESS_THRESHOLD_85) return 'Extracting common Q&A from your replies...';
-  if (percent < PROGRESS_THRESHOLD_95) return 'Saving insights to your context...';
-  if (percent < 100) return 'Finalizing analysis...';
-  return 'Analysis complete!';
-};
 
 // eslint-disable-next-line max-lines-per-function -- Analysis progress hook requires handling multiple states and logic
 export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {

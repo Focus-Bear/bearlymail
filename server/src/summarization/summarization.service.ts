@@ -13,6 +13,11 @@ import { QUERY_LIMITS } from "../constants/query-limits";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { logError, logWarn } from "../utils/logger";
 import { UsersService } from "../users/users.service";
+import {
+  detectPhishingSignal,
+  mergePhishingSignals,
+  PhishingSignal,
+} from "./phishing-detection.service";
 
 interface ThreadData {
   emailId: string;
@@ -344,6 +349,85 @@ export class SummarizationService {
   }
 
   /**
+   * Summarize an email AND detect phishing signals in one call.
+   * Returns both the summary string and an optional PhishingSignal.
+   * This is the preferred method for callers that need phishing detection.
+   */
+  async summarizeEmailWithPhishing(
+    userId: string,
+    emailId: string,
+    rule: SummarizationRule,
+    prefetchedEmail?: Awaited<ReturnType<EmailsService["getEmailById"]>>,
+  ): Promise<{ summary: string; phishingSignal: PhishingSignal | null }> {
+    const email =
+      prefetchedEmail ||
+      (await this.emailsService.getEmailById(userId, emailId));
+    if (!email) {
+      throw new Error("Email not found");
+    }
+
+    const userEmail = await this.getUserEmail(userId);
+
+    const allThreadEmails = await this.emailsService.getThreadEmails(
+      userId,
+      email.threadId,
+      { limit: 20, order: "ASC" },
+    );
+
+    const sliceCount = Math.abs(CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE);
+    let messagesToSummarize: typeof allThreadEmails;
+    if (allThreadEmails.length <= sliceCount + 1) {
+      messagesToSummarize = allThreadEmails;
+    } else {
+      const firstEmail = allThreadEmails[0];
+      const lastNEmails = allThreadEmails.slice(
+        CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE,
+      );
+      messagesToSummarize = [firstEmail, ...lastNEmails];
+    }
+
+    const threadText = this.buildThreadText(
+      messagesToSummarize,
+      allThreadEmails,
+      userEmail,
+    );
+    const emailWithHtml = email as EmailWithHtmlBody;
+    const subject = email.subject || "";
+
+    // Compute phishing signal across all thread messages
+    const phishingSignal = allThreadEmails.reduce(
+      (merged, threadEmail) =>
+        mergePhishingSignals(
+          merged,
+          detectPhishingSignal(threadEmail.from, threadEmail.body ?? ""),
+        ),
+      null as PhishingSignal | null,
+    );
+
+    try {
+      const summary = await this.generateLLMSummary(
+        { ...emailWithHtml, subject },
+        subject,
+        threadText,
+        messagesToSummarize,
+        allThreadEmails,
+        rule,
+        userId,
+        emailId,
+      );
+      return { summary, phishingSignal };
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.errorTrackingService.captureException(err, userId, {
+        operation: "summarize_email_with_phishing",
+        ruleType: rule.type,
+        emailId,
+      });
+      throw err;
+    }
+  }
+
+  /**
    * Batch summarize multiple threads in parallel.
    * Each thread gets its own LLM call, but calls are fired concurrently for efficiency.
    * Note: This method is called with emailIds but summarizes at the THREAD level -
@@ -493,7 +577,7 @@ export class SummarizationService {
     emailId: string,
     prefetchedEmail?: Awaited<ReturnType<EmailsService["getEmailById"]>>,
     prefetchedRules?: SummarizationRuleEntity[],
-  ): Promise<string> {
+  ): Promise<{ summary: string; phishingSignal: PhishingSignal | null }> {
     const email =
       prefetchedEmail ||
       (await this.emailsService.getEmailById(userId, emailId));
@@ -522,8 +606,8 @@ export class SummarizationService {
       rule = { type: "tldr" };
     }
 
-    // Pass prefetched email to avoid re-fetching
-    return this.summarizeEmail(userId, emailId, rule, email);
+    // Pass prefetched email to avoid re-fetching; return both summary and phishing signal
+    return this.summarizeEmailWithPhishing(userId, emailId, rule, email);
   }
 
   async createSummarizationRule(

@@ -70,6 +70,9 @@ export interface Email {
     mimeType: string;
     size: number;
   }>;
+  // Phishing detection signal (populated after summarisation)
+  phishingConfidence?: 'low' | 'medium' | 'high' | null;
+  phishingReason?: string | null;
   // Email category for grouping (e.g., Newsletters, Sales, Customer Support)
   category?: string | null;
   // Explanation of why this category was chosen (especially useful for "Other")

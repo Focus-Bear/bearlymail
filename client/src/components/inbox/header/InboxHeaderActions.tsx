@@ -15,6 +15,7 @@ interface InboxHeaderActionsProps {
   debugViewOpen?: boolean;
   onToggleDebug?: () => void;
   onViewBlockedEmails?: () => void;
+  onViewAutoRespondedEmails?: () => void;
 }
 
 /**
@@ -28,6 +29,7 @@ export const InboxHeaderActions: React.FC<InboxHeaderActionsProps> = ({
   debugViewOpen,
   onToggleDebug,
   onViewBlockedEmails,
+  onViewAutoRespondedEmails,
 }) => {
   const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -124,6 +126,23 @@ export const InboxHeaderActions: React.FC<InboxHeaderActionsProps> = ({
               }}
             >
               {t('inbox.viewBlockedEmails')}
+            </button>
+            <button
+              onClick={() => {
+                onViewAutoRespondedEmails?.();
+                setMenuOpen(false);
+              }}
+              style={{
+                width: '100%',
+                textAlign: 'left',
+                background: 'transparent',
+                border: 'none',
+                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                cursor: 'pointer',
+                color: theme.colors.text.primary,
+              }}
+            >
+              {t('inbox.viewAutoRespondedEmails')}
             </button>
           </div>
         )}

@@ -1,5 +1,9 @@
 import React from 'react';
-import { MODE_TRIAGE, MODE_ACTION } from 'constants/strings';
+import {
+  MODE_TRIAGE,
+  MODE_ACTION,
+  MODE_AUTORESPONDED,
+} from 'constants/strings';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { InboxMode } from 'types/email';
@@ -18,12 +22,14 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ mode }) => {
   const getTitle = (): string => {
     if (mode === MODE_TRIAGE) return t('inbox.noTriageEmails');
     if (mode === MODE_ACTION) return t('inbox.noActionEmails');
+    if (mode === MODE_AUTORESPONDED) return t('inbox.noAutoRespondedEmails');
     return t('inbox.noFollowUpEmails');
   };
 
   const getMessage = (): string => {
     if (mode === MODE_TRIAGE) return t('inbox.triageCaughtUp');
     if (mode === MODE_ACTION) return t('inbox.actionCaughtUp');
+    if (mode === MODE_AUTORESPONDED) return t('inbox.autoRespondedCaughtUp');
     return t('inbox.followUpCaughtUp');
   };
 

@@ -234,7 +234,9 @@ describe("ContextController", () => {
 
       // 50 (limit) * 5 (FAILURE_VIEW_LIMIT_MULTIPLIER) = 250, which equals MIN_FAILURE_VIEW_QUERY_LIMIT
       // so Math.max picks MIN_FAILURE_VIEW_QUERY_LIMIT; derive from the constant rather than hardcoding
-      const expectedLimit = (ContextController as unknown as Record<string, number>)["MIN_FAILURE_VIEW_QUERY_LIMIT"];
+      const expectedLimit = (
+        ContextController as unknown as Record<string, number>
+      )["MIN_FAILURE_VIEW_QUERY_LIMIT"];
       expect(mockQueryBuilder.take).toHaveBeenCalledWith(expectedLimit);
       expect(result.analyses).toHaveLength(1);
       expect(result.analyses[0]).toMatchObject({

@@ -1,8 +1,15 @@
 import { useCallback, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import axios from 'axios';
-import { HTTP_UNAUTHORIZED } from 'constants/numbers';
-import { ERROR_NETWORK, ERROR_CODE_ERR_NETWORK, ERROR_GMAIL_REQUIRED, ERROR_GMAIL } from 'constants/strings';
+import { HTTP_UNAUTHORIZED, INBOX_FETCH_LIMIT } from 'constants/numbers';
+import {
+  ERROR_NETWORK,
+  ERROR_CODE_ERR_NETWORK,
+  ERROR_GMAIL_REQUIRED,
+  ERROR_GMAIL,
+  MODE_AUTORESPONDED,
+  CATEGORY_OTHER,
+} from 'constants/strings';
 import { Email, InboxMode } from 'types/email';
 import { API_URL } from 'config/api';
 import { InboxFilter } from 'hooks/useInboxFilters';
@@ -89,7 +96,7 @@ export function useEmailFetching({
       params.append('categories', categoryName);
     }
     // Fetch all emails for this category in one request
-    params.append('limit', '500');
+    params.append('limit', INBOX_FETCH_LIMIT.toString());
     params.append('offset', '0');
 
     if (filters) {
@@ -103,6 +110,42 @@ export function useEmailFetching({
 
     return params;
   }, [mode, filters]);
+
+  const buildAutoRespondedParams = useCallback((): URLSearchParams => {
+    const params = new URLSearchParams();
+    params.append('offset', '0');
+    // Fetch all auto-responded threads in one request; frontend groups by category.
+    params.append('limit', INBOX_FETCH_LIMIT.toString());
+
+    if (filters) {
+      if (filters.categories && filters.categories.length > 0) {
+        params.append('categories', filters.categories.join(','));
+      }
+      if (filters.minPriority !== null && filters.minPriority !== undefined) {
+        params.append('minPriority', filters.minPriority.toString());
+      }
+      if (filters.accountIds && filters.accountIds.length > 0) {
+        params.append('accounts', filters.accountIds.join(','));
+      }
+    }
+
+    return params;
+  }, [filters]);
+
+  const buildAutoRespondedSummary = useCallback((emails: Email[]) => {
+    const categoryCounts = new Map<string, number>();
+
+    emails.forEach((email) => {
+      const categoryName = email.category || CATEGORY_OTHER;
+      categoryCounts.set(categoryName, (categoryCounts.get(categoryName) || 0) + 1);
+    });
+
+    return Array.from(categoryCounts.entries()).map(([name, count]) => ({
+      id: null,
+      name,
+      count,
+    }));
+  }, []);
 
   /**
    * Fetch the inbox summary: category names and counts.
@@ -124,12 +167,33 @@ export function useEmailFetching({
     dispatch(setTotalCount(0));
     isLoadingMoreRef.current = false;
     try {
-      const params = buildSummaryParams();
+      if (mode === MODE_AUTORESPONDED) {
+        const params = buildAutoRespondedParams();
+        const response = await axios.get(`${API_URL}/auto-responder/threads?${params.toString()}`);
+        const { emails = [], total = 0, hasMore = false } = response.data;
 
-      const response = await axios.get(`${API_URL}/emails/inbox-summary?${params.toString()}`);
-      const { total, categories } = response.data;
-      dispatch(setCategorySummary(categories));
-      dispatch(setTotalCount(total));
+        const normalizedEmails: Email[] = emails.map((email: Email) => ({
+          ...email,
+          category: email.category || CATEGORY_OTHER,
+        }));
+        const categorySummary = buildAutoRespondedSummary(normalizedEmails);
+
+        dispatch(setEmails(normalizedEmails));
+        dispatch(setCategorySummary(categorySummary));
+        dispatch(setTotalCount(total));
+        dispatch(setHasMore(hasMore));
+        dispatch(setCurrentOffset(normalizedEmails.length));
+        categorySummary.forEach((category) => {
+          dispatch(markCategoryLoaded(category.name));
+        });
+      } else {
+        const params = buildSummaryParams();
+        const response = await axios.get(`${API_URL}/emails/inbox-summary?${params.toString()}`);
+        const { total, categories } = response.data;
+        dispatch(setCategorySummary(categories));
+        dispatch(setTotalCount(total));
+      }
+
       dispatch(setDecrypting(false));
       dispatch(setFetchError(null));
     } catch (error: any) {
@@ -153,7 +217,13 @@ export function useEmailFetching({
       dispatch(setRefreshing(false));
       dispatch(setLoadingModeSwitch(false));
     }
-  }, [mode, filters, dispatch, buildSummaryParams]);
+  }, [
+    mode,
+    dispatch,
+    buildSummaryParams,
+    buildAutoRespondedParams,
+    buildAutoRespondedSummary,
+  ]);
 
   /**
    * Fetch emails for a specific category and append to the flat email list.
@@ -181,6 +251,10 @@ export function useEmailFetching({
       return;
     }
     if (loadingCategoryNamesRef.current.includes(categoryName)) {
+      return;
+    }
+
+    if (mode === MODE_AUTORESPONDED) {
       return;
     }
 
@@ -261,6 +335,31 @@ export function useEmailFetching({
    * left untouched; their summary counts will be updated in step 1.
    */
   const refreshInPlace = useCallback(async () => {
+    if (mode === MODE_AUTORESPONDED) {
+      try {
+        const params = buildAutoRespondedParams();
+        const response = await axios.get(`${API_URL}/auto-responder/threads?${params.toString()}`);
+        const { emails = [], total = 0, hasMore = false } = response.data;
+        const normalizedEmails: Email[] = emails.map((email: Email) => ({
+          ...email,
+          category: email.category || CATEGORY_OTHER,
+        }));
+        const categorySummary = buildAutoRespondedSummary(normalizedEmails);
+
+        dispatch(setEmails(normalizedEmails));
+        dispatch(setCategorySummary(categorySummary));
+        dispatch(setTotalCount(total));
+        dispatch(setHasMore(hasMore));
+        dispatch(setCurrentOffset(normalizedEmails.length));
+        categorySummary.forEach((category) => {
+          dispatch(markCategoryLoaded(category.name));
+        });
+      } catch (err) {
+        console.warn('[refreshInPlace] Autoresponded refresh failed:', err);
+      }
+      return;
+    }
+
     try {
       // Step 1: Silently update the summary (category names + counts)
       const summaryParams = buildSummaryParams();
@@ -303,7 +402,14 @@ export function useEmailFetching({
       })
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, buildSummaryParams, buildCategoryParams]);
+  }, [
+    mode,
+    dispatch,
+    buildSummaryParams,
+    buildCategoryParams,
+    buildAutoRespondedParams,
+    buildAutoRespondedSummary,
+  ]);
 
   return { fetchEmails, loadMore, fetchCategoryEmails, refreshInPlace };
 }

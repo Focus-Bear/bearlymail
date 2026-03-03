@@ -5,7 +5,13 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from 'contexts/AuthContext';
 import { InboxMode } from 'types/email';
 import { captureEvent } from 'utils/posthog';
-import { MODE_FOLLOW_UP, MODE_TRIAGE, MODE_ACTION, MODE_BLOCKED } from 'constants/strings';
+import {
+  MODE_FOLLOW_UP,
+  MODE_TRIAGE,
+  MODE_ACTION,
+  MODE_BLOCKED,
+  MODE_AUTORESPONDED,
+} from 'constants/strings';
 import { AppDispatch } from 'store/store';
 import { clearCategoryState } from 'store/slices/emailSlice';
 import { useEmailManagement } from 'hooks/useEmailManagement';
@@ -31,7 +37,13 @@ import { useInboxKeyboardNavigation } from 'hooks/useInboxKeyboardNavigation';
 import { useGitHubBatchFetch } from 'hooks/useGitHubBatchFetch';
 import { useInboxFilters } from 'hooks/useInboxFilters';
 
-const VALID_MODES: InboxMode[] = [MODE_TRIAGE, MODE_ACTION, MODE_FOLLOW_UP, MODE_BLOCKED];
+const VALID_MODES: InboxMode[] = [
+  MODE_TRIAGE,
+  MODE_ACTION,
+  MODE_FOLLOW_UP,
+  MODE_BLOCKED,
+  MODE_AUTORESPONDED,
+];
 
 function isValidMode(mode: string | undefined): mode is InboxMode {
   return mode !== undefined && VALID_MODES.includes(mode as InboxMode);

@@ -1,5 +1,9 @@
 import React from 'react';
-import { MODE_TRIAGE, MODE_ACTION } from 'constants/strings';
+import {
+  MODE_TRIAGE,
+  MODE_ACTION,
+  MODE_AUTORESPONDED,
+} from 'constants/strings';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
@@ -13,6 +17,7 @@ interface HelpLinkProps {
 const getHelpLink = (mode: InboxMode): string => {
   if (mode === MODE_TRIAGE) return '/help/triage';
   if (mode === MODE_ACTION) return '/help/process';
+  if (mode === MODE_AUTORESPONDED) return '/help/autoresponder';
   if (mode === 'blocked') return '/help/triage';
   return '/help/follow-up';
 };
@@ -20,6 +25,8 @@ const getHelpLink = (mode: InboxMode): string => {
 const getHelpType = (mode: InboxMode): string => {
   if (mode === MODE_TRIAGE) return 'triage';
   if (mode === MODE_ACTION) return 'process';
+  if (mode === MODE_AUTORESPONDED) return 'autoresponder';
+  if (mode === 'blocked') return 'triage';
   return 'follow-up';
 };
 

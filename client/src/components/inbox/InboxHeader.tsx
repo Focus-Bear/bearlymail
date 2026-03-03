@@ -37,6 +37,7 @@ interface InboxHeaderProps {
   debugViewOpen?: boolean;
   onToggleDebug?: () => void;
   onViewBlockedEmails?: () => void;
+  onViewAutoRespondedEmails?: () => void;
 }
 
 export const InboxHeader: React.FC<InboxHeaderProps> = ({
@@ -58,6 +59,7 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
   debugViewOpen,
   onToggleDebug,
   onViewBlockedEmails,
+  onViewAutoRespondedEmails,
 }) => {
   const { t } = useTranslation();
   const { isMobile, isTablet } = useResponsiveBreakpoints();
@@ -193,6 +195,7 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
         debugViewOpen={debugViewOpen}
         onToggleDebug={onToggleDebug}
         onViewBlockedEmails={onViewBlockedEmails}
+        onViewAutoRespondedEmails={onViewAutoRespondedEmails}
       />
     </header>
   );

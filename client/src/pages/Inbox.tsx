@@ -181,6 +181,7 @@ const Inbox: React.FC = () => {
           debugViewOpen={debugPanel.debugViewOpen}
           onToggleDebug={() => debugPanel.setDebugViewOpen(!debugPanel.debugViewOpen)}
           onViewBlockedEmails={() => setMode('blocked')}
+          onViewAutoRespondedEmails={() => setMode('autoresponded')}
         />
 
         <InboxFilters

@@ -675,6 +675,22 @@ export class AutoResponderService {
   }
 
   /**
+   * Get auto-responded threads for the autoresponded inbox mode
+   */
+  async getAutoRespondedThreads(
+    userId: string,
+    filters?: {
+      categories?: string[];
+      minPriority?: number;
+      accountIds?: string[];
+      offset?: number;
+      limit?: number;
+    },
+  ) {
+    return this.analyticsService.getAutoRespondedThreads(userId, filters);
+  }
+
+  /**
    * Get analytics for auto-responses
    */
   async getAnalytics(

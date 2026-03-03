@@ -2,7 +2,11 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { InboxMode } from 'types/email';
-import { MODE_ACTION, MODE_FOLLOW_UP } from 'constants/strings';
+import {
+  MODE_ACTION,
+  MODE_FOLLOW_UP,
+  MODE_AUTORESPONDED,
+} from 'constants/strings';
 
 interface LoadingStateProps {
   decrypting: boolean;
@@ -23,12 +27,13 @@ export const LoadingState: React.FC<LoadingStateProps> = ({
 
   const getLoadingTitle = (): string => {
     if (decrypting) {
-      return 'Decrypting emails...';
+      return t('inbox.decryptingEmails');
     }
     if (loadingModeSwitch) {
-      if (mode === MODE_ACTION) return 'Loading starred emails...';
-      if (mode === MODE_FOLLOW_UP) return 'Loading follow-up emails...';
-      return 'Loading unstarred emails...';
+      if (mode === MODE_ACTION) return t('inbox.loadingActionEmails');
+      if (mode === MODE_FOLLOW_UP) return t('inbox.loadingFollowUpEmails');
+      if (mode === MODE_AUTORESPONDED) return t('inbox.loadingAutoRespondedEmails');
+      return t('inbox.loadingTriageEmails');
     }
     return t('inbox.loadingEmails');
   };

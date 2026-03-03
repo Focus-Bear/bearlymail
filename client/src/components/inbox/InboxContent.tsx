@@ -228,11 +228,11 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   // Build per-category email map from the loaded flat email array
   const emailCategoryMap = useMemo(() => {
     const map = new Map<string, CategoryGroup>();
-    groupEmailsByCategory(filteredEmails).forEach(group => {
+    groupEmailsByCategory(filteredEmails, mode).forEach(group => {
       map.set(group.category, group);
     });
     return map;
-  }, [filteredEmails]);
+  }, [filteredEmails, mode]);
 
   // Group "Other" category emails by their proto category name for sub-accordions
   const otherProtoGroups = useMemo(() => {
@@ -268,7 +268,7 @@ export const InboxContent: React.FC<InboxContentProps> = ({
       }
     } else if (!summaryCategories) {
       // Fallback: derive order from loaded emails (legacy path)
-      const categoryGroups = groupEmailsByCategory(filteredEmails);
+      const categoryGroups = groupEmailsByCategory(filteredEmails, mode);
       if (categoryGroups.length > 0) {
         if (stableCategoryOrder.length === 0) {
           onUpdateStableCategoryOrder(categoryGroups.map(grp => grp.category));
@@ -282,16 +282,16 @@ export const InboxContent: React.FC<InboxContentProps> = ({
         }
       }
     }
-  }, [summaryCategories, filteredEmails, stableCategoryOrder, onUpdateStableCategoryOrder]);
+  }, [summaryCategories, filteredEmails, stableCategoryOrder, onUpdateStableCategoryOrder, mode]);
 
   // Build the ordered list of categories to render.
   // When a summary exists: show ALL categories (even those without loaded emails yet).
   // Order follows stableCategoryOrder, with new categories appended.
   // Empty categories (count=0) are excluded so they disappear after archiving all emails.
   const displayCategories = useMemo((): Array<{ name: string; count: number }> => {
-    const source = summaryCategories ?? groupEmailsByCategory(filteredEmails).map(grp => ({
-      name: grp.category,
-      count: grp.emails.length,
+    const source = summaryCategories ?? groupEmailsByCategory(filteredEmails, mode).map(g => ({
+      name: g.category,
+      count: g.emails.length,
     }));
 
     // Filter out categories with count=0 from the source.
@@ -306,7 +306,7 @@ export const InboxContent: React.FC<InboxContentProps> = ({
       const orderB = orderMap.get(b.name) ?? Number.MAX_SAFE_INTEGER;
       return orderA - orderB;
     });
-  }, [summaryCategories, filteredEmails, stableCategoryOrder]);
+  }, [summaryCategories, filteredEmails, stableCategoryOrder, mode]);
 
   // Fetch proto categories when "Other" category is visible and expanded
   useEffect(() => {

@@ -14,6 +14,8 @@ import { AutoResponderService } from "./auto-responder.service";
 import { QueueStatsService } from "./queue-stats.service";
 import { AutoResponderConfig } from "./types/auto-responder.types";
 
+const DEFAULT_PAGE_LIMIT = 50;
+
 interface AuthenticatedRequest {
   user: {
     userId: string;
@@ -62,6 +64,53 @@ export class AutoResponderController {
   async getStats(@Request() req: AuthenticatedRequest) {
     const stats = await this.queueStatsService.getQueueStats(req.user.userId);
     return { stats };
+  }
+
+  /**
+   * Get threads where an auto-response was sent (autoresponded inbox mode)
+   */
+  @Get("threads")
+  async getAutoRespondedThreads(
+    @Request() req: AuthenticatedRequest,
+    @Query()
+    query: {
+      categories?: string;
+      minPriority?: string;
+      accounts?: string;
+      limit?: string;
+      offset?: string;
+    },
+  ) {
+    const categoryList = query.categories
+      ? query.categories.split(",").filter(Boolean)
+      : undefined;
+    const parsedMinPriority =
+      query.minPriority !== undefined
+        ? parseFloat(query.minPriority)
+        : undefined;
+    const minPriority = Number.isFinite(parsedMinPriority)
+      ? parsedMinPriority
+      : undefined;
+    const accountIds = query.accounts
+      ? query.accounts.split(",").filter(Boolean)
+      : undefined;
+
+    const parsedLimit = query.limit ? parseInt(query.limit, 10) : NaN;
+    const parsedOffset = query.offset ? parseInt(query.offset, 10) : NaN;
+    const limit = Number.isFinite(parsedLimit)
+      ? Math.max(1, parsedLimit)
+      : DEFAULT_PAGE_LIMIT;
+    const offset = Number.isFinite(parsedOffset)
+      ? Math.max(0, parsedOffset)
+      : 0;
+
+    return this.autoResponderService.getAutoRespondedThreads(req.user.userId, {
+      categories: categoryList,
+      minPriority,
+      accountIds,
+      limit,
+      offset,
+    });
   }
 
   /**

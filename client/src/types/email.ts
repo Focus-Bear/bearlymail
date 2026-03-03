@@ -83,6 +83,9 @@ export interface Email {
   correspondentName?: string | null;
   // CRM contact type for the correspondent (loaded asynchronously)
   contactType?: string | null;
+  // Auto-responder metadata (autoresponded inbox mode)
+  autoRespondedAt?: string | null;
+  autoResponseCount?: number;
 }
 
 export interface TriageSuggestion {
@@ -102,7 +105,12 @@ export interface PriorityExplanation {
   breakdown: Array<{ factor: string; value: number; description: string }>;
 }
 
-export type InboxMode = 'triage' | 'action' | 'follow-up' | 'blocked';
+export type InboxMode =
+  | 'triage'
+  | 'action'
+  | 'follow-up'
+  | 'blocked'
+  | 'autoresponded';
 
 /**
  * Calculate priority score from breakdown array

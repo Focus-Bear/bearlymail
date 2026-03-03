@@ -1,7 +1,25 @@
-import { useEffect, useRef } from 'react';
+import { MutableRefObject, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { API_URL } from 'config/api';
-import { SUMMARY_TYPE_TLDR } from 'constants/strings';
+
+// Pure helper: applies the best-matching summarization rule (or fallback) for an email.
+function applyMatchedRule(
+  matchedRule: any,
+  rulesList: any[],
+  id: string,
+  initializedRef: MutableRefObject<string | null>,
+  handleUseCustomRule: (rule: any) => void,
+  handleSummarize: (type: string) => void,
+): void {
+  const validRule = (r: any) => r?.ruleId && r?.whenToUse && r?.howToSummarize;
+  const ruleToApply = validRule(matchedRule) ? matchedRule : rulesList.find(validRule);
+  initializedRef.current = id;
+  if (ruleToApply) {
+    handleUseCustomRule(ruleToApply);
+  } else {
+    handleSummarize('tldr');
+  }
+}
 
 interface UseEmailDetailInitializationProps {
   id: string | undefined;
@@ -73,7 +91,7 @@ export const useEmailDetailInitialization = ({
       setLoading(true);
       setEmail(null); // Clear email to show loading spinner
       setSummary(null);
-      setSummaryType(SUMMARY_TYPE_TLDR); // Reset to default type
+      setSummaryType('tldr'); // Reset to default type
       setThreadEmails([]); // Clear thread emails to prevent showing stale content
       setExpandedThreadItems(new Set()); // Clear expanded state
       setActionItems([]); // Clear action items
@@ -89,7 +107,7 @@ export const useEmailDetailInitialization = ({
   
   // Track manual summaryType changes
   useEffect(() => {
-    if (id && summaryType !== SUMMARY_TYPE_TLDR && initializedEmailIdRef.current !== id) {
+    if (id && summaryType !== 'tldr' && initializedEmailIdRef.current !== id) {
       // User has manually selected a different summary type for the current email, mark as initialized
       initializedEmailIdRef.current = id;
     }
@@ -119,58 +137,27 @@ export const useEmailDetailInitialization = ({
           !emailData.isProcessingSummary && 
           !isGeneratingSummary &&
           !summary &&
-          summaryType === SUMMARY_TYPE_TLDR;
+          summaryType === 'tldr';
         
         if (shouldAutoSelect) {
           const rulesList = rules || [];
           
           if (rulesList.length > 0) {
             try {
-              // Try to match a rule automatically based on whenToUse criteria
               const response = await axios.post(`${API_URL}/summarize/match-rule/${id}`);
-              const matchedRule = response.data?.rule;
-              
-              if (matchedRule && matchedRule.ruleId && matchedRule.whenToUse && matchedRule.howToSummarize) {
-                // Use the matched rule
-                initializedEmailIdRef.current = id;
-                handleUseCustomRule(matchedRule);
-              } else {
-                // Fallback to first rule if matching failed or returned invalid data
-                console.warn('Rule matching returned invalid data, using first rule');
-                const firstRule = rulesList[0];
-                if (firstRule && firstRule.ruleId && firstRule.whenToUse && firstRule.howToSummarize) {
-                  initializedEmailIdRef.current = id;
-                  handleUseCustomRule(firstRule);
-                } else {
-                  // Last resort: use default TL;DR
-                  console.error('Invalid rule data, falling back to TL;DR');
-                  initializedEmailIdRef.current = id;
-                  handleSummarize(SUMMARY_TYPE_TLDR);
-                }
-              }
+              applyMatchedRule(response.data?.rule, rulesList, id, initializedEmailIdRef, handleUseCustomRule, handleSummarize);
             } catch (error) {
               console.error('Error matching rule, using first rule:', error);
-              // Fallback to first rule on error
-              const firstRule = rulesList[0];
-              if (firstRule && firstRule.ruleId && firstRule.whenToUse && firstRule.howToSummarize) {
-                initializedEmailIdRef.current = id;
-                handleUseCustomRule(firstRule);
-            } else {
-                // Last resort: use default TL;DR
-                console.error('Invalid rule data, falling back to TL;DR');
-                initializedEmailIdRef.current = id;
-              handleSummarize(SUMMARY_TYPE_TLDR);
-              }
+              applyMatchedRule(null, rulesList, id, initializedEmailIdRef, handleUseCustomRule, handleSummarize);
             }
           } else {
-            // No custom rules, use default TL;DR
             initializedEmailIdRef.current = id;
-            handleSummarize(SUMMARY_TYPE_TLDR);
+            handleSummarize('tldr');
           }
         } else if (emailData && emailData.summary && !summary) {
           // Email already has a summary from the server, use it
           setSummary(emailData.summary);
-          setSummaryType(SUMMARY_TYPE_TLDR);
+          setSummaryType('tldr');
           setSummaryCollapsed(false);
           initializedEmailIdRef.current = id;
         }

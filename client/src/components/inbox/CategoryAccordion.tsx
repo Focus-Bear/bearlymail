@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
 import { OPACITY_DISABLED } from 'constants/numbers';
 import { CATEGORY_OTHER, KEY_ESCAPE, KEY_Y, STRING_NONE } from 'constants/strings';
-import { Email, getEmailPriorityScore } from 'types/email';
+import { Email, InboxMode, getEmailPriorityScore } from 'types/email';
 import { ArchiveConfirmationToast } from 'components/inbox/ArchiveConfirmationToast';
 
 interface CategoryAccordionProps {
@@ -320,7 +320,10 @@ export interface CategoryGroup {
   maxPriority: number;
 }
 
-export const groupEmailsByCategory = (emails: Email[]): CategoryGroup[] => {
+export const groupEmailsByCategory = (
+  emails: Email[],
+  mode?: InboxMode,
+): CategoryGroup[] => {
   const categoryMap = new Map<string, Email[]>();
 
   emails.forEach(email => {
@@ -334,6 +337,18 @@ export const groupEmailsByCategory = (emails: Email[]): CategoryGroup[] => {
   const groups: CategoryGroup[] = [];
   categoryMap.forEach((categoryEmails, category) => {
     const sortedEmails = [...categoryEmails].sort((a, b) => {
+      if (mode === 'autoresponded') {
+        const autoRespondedA = a.autoRespondedAt
+          ? new Date(a.autoRespondedAt).getTime()
+          : 0;
+        const autoRespondedB = b.autoRespondedAt
+          ? new Date(b.autoRespondedAt).getTime()
+          : 0;
+        if (autoRespondedB !== autoRespondedA) {
+          return autoRespondedB - autoRespondedA;
+        }
+      }
+
       const priorityA = getEmailPriorityScore(a);
       const priorityB = getEmailPriorityScore(b);
       return priorityB - priorityA;

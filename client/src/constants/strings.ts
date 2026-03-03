@@ -45,8 +45,14 @@ export const MODE_TRIAGE = 'triage' as const;
 export const MODE_ACTION = 'action' as const;
 export const MODE_FOLLOW_UP = 'follow-up' as const;
 export const MODE_BLOCKED = 'blocked' as const;
+export const MODE_AUTORESPONDED = 'autoresponded' as const;
 
-export type InboxModeType = typeof MODE_TRIAGE | typeof MODE_ACTION | typeof MODE_FOLLOW_UP | typeof MODE_BLOCKED;
+export type InboxModeType =
+  | typeof MODE_TRIAGE
+  | typeof MODE_ACTION
+  | typeof MODE_FOLLOW_UP
+  | typeof MODE_BLOCKED
+  | typeof MODE_AUTORESPONDED;
 
 // Reply modes
 export const REPLY_MODE_REPLY = 'reply' as const;
@@ -211,6 +217,7 @@ export const NODE_NAME_ANCHOR = 'A' as const;
 
 // Email categories
 export const CATEGORY_OTHER = 'Other' as const;
+export const CATEGORY_DANGEROUS_PHISHING = 'Dangerous / Phishing' as const;
 
 // Email providers
 export const PROVIDER_GMAIL = 'gmail' as const;

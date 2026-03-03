@@ -100,6 +100,7 @@ export const DEFAULT_ICON_SIZE_PX = 16;
 export const DEFAULT_AVATAR_SIZE_PX = 50;
 export const AVATAR_SIZE_SMALL_PX = 24;
 export const MAX_BULK_SEND_COUNT = 20;
+export const INBOX_FETCH_LIMIT = 500;
 export const DEBOUNCE_DELAY_SHORT_MS = 300;
 
 // Dimensions

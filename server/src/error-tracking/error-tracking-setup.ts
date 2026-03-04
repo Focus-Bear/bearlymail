@@ -24,7 +24,7 @@ export function initializeGlobalErrorTracking(): void {
       logger.log(
         `✅ Global error tracking initialized (host: ${apiHost}, API key starts with: ${apiKey.substring(0, API_KEY_PREVIEW_LENGTH)}...)`,
       );
-      console.error(
+      logger.log(
         `POSTHOG: Global tracking initialized (host: ${apiHost}, key prefix: ${apiKey.substring(0, API_KEY_PREVIEW_LENGTH)}...)`,
       );
     } catch (initError) {
@@ -39,7 +39,7 @@ export function initializeGlobalErrorTracking(): void {
     logger.warn(
       "Set POSTHOG_API_KEY environment variable to enable global error tracking",
     );
-    console.error(
+    logger.log(
       "POSTHOG: Disabled - POSTHOG_API_KEY environment variable is not set",
     );
   }
@@ -58,7 +58,7 @@ export function captureGlobalError(
     logger.debug(
       "captureGlobalError called but PostHog client not initialized",
     );
-    console.error(
+    logger.log(
       `POSTHOG: captureGlobalError called but client not initialized - error was: ${error.name}: ${error.message}`,
     );
     return;

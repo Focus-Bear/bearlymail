@@ -87,6 +87,17 @@ export function logWarn(
   }
 }
 
+const moduleLogger = new Logger("logger");
+
+/**
+ * Log an informational message to console only (no PostHog).
+ * Use this for success/informational messages that must NOT be treated as errors.
+ * @param message - The info message
+ */
+export function logLog(message: string): void {
+  moduleLogger.log(message);
+}
+
 /**
  * Create a logger instance with a specific context name
  * This is useful for service classes where you want to maintain context

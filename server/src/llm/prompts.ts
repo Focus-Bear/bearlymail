@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 
-import { logError, logWarn } from "../utils/logger";
+import { logError, logLog, logWarn } from "../utils/logger";
 
 interface PromptConfig {
   id: string;
@@ -65,7 +65,7 @@ function loadPromptFile(
     const content = fs.readFileSync(filePath, "utf-8");
     cache.set(key, { id: key, prompt: content, systemPrompt: "" });
     if (critical) {
-      logWarn(`✅ Loaded prompt: ${key} from ${file}`);
+      logLog(`✅ Loaded prompt: ${key} from ${file}`);
     }
   } else if (critical) {
     logError(`❌ CRITICAL: ${file} not found at ${filePath}`, undefined, {
@@ -140,7 +140,7 @@ export function loadPrompts(): Map<string, PromptConfig> {
     return promptsCache;
   }
 
-  logWarn(`✅ Prompts directory found at: ${promptsDir}`);
+  logLog(`✅ Prompts directory found at: ${promptsDir}`);
 
   try {
     for (const { file, key, critical } of PROMPT_FILE_MAP) {

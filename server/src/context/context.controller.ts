@@ -650,12 +650,16 @@ export class ContextController {
           | {
               error?: string;
               failedAt?: string;
+              correlationId?: string;
+              errorType?: string;
             }
           | undefined;
         return {
           batchIndex,
           error: batchResult?.error || "Unknown error",
           failedAt: batchResult?.failedAt || null,
+          correlationId: batchResult?.correlationId || null,
+          errorType: batchResult?.errorType || "unknown",
         };
       });
 

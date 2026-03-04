@@ -20,6 +20,7 @@ import {
 } from "../constants/time-constants";
 import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
 import { logError, logWarn } from "../utils/logger";
+import { randomUUID } from "crypto";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { PERCENTAGES } from "../constants/percentages";
 import { CloudWatchService } from "../aws/cloudwatch.service";
@@ -83,6 +84,24 @@ function calculateBackoffDelay(
   const jitter = Math.random() * jitterFactor * cappedDelay;
 
   return Math.floor(cappedDelay + jitter);
+}
+
+export function classifyBatchError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  if (message.includes("rate limit") || message.includes("429"))
+    return "rate_limit";
+  if (message.includes("timeout") || message.includes("ETIMEDOUT"))
+    return "timeout";
+  if (message.includes("token") && message.includes("limit"))
+    return "token_limit";
+  if (message.includes("parse") || message.includes("JSON"))
+    return "parse_error";
+  if (
+    message.includes("ECONNREFUSED") ||
+    message.includes("ENOTFOUND")
+  )
+    return "network_error";
+  return "unknown";
 }
 
 @Injectable()
@@ -659,8 +678,17 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
             `[Worker ${workerId}] Batch ${batchIndex + 1}/${totalBatches} failed after ${maxRetries} retries: ${errorMessage}`,
             errorStack || error,
           );
+          const batchCorrelationId = randomUUID();
+          const errorType = classifyBatchError(error);
           logError(
             `[BATCH-PROCESSOR] [Worker ${workerId}] Batch ${batchIndex + 1}/${totalBatches} failed after ${maxRetries} retries: ${errorMessage}`,
+            undefined,
+            {
+              correlationId: batchCorrelationId,
+              batchIndex,
+              analysisId: analysisRecordId,
+              errorType,
+            },
           );
           writeAnalysisLog(
             `[Worker ${workerId}] Batch ${batchIndex + 1}/${totalBatches} failed after ${maxRetries} retries: ${errorMessage}`,
@@ -691,6 +719,8 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
               batchResults[String(batchIndex)] = {
                 error: errorMessage,
                 failedAt: new Date().toISOString(),
+                correlationId: batchCorrelationId,
+                errorType,
               };
               stats.batchResults = batchResults;
               stats.failedBatches = failedBatches;

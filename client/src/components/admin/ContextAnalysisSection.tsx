@@ -9,6 +9,8 @@ interface FailureDetail {
   batchIndex: number;
   error: string;
   failedAt: string | null;
+  correlationId: string | null;
+  errorType: string | null;
 }
 
 interface ContextAnalysisItem {
@@ -110,6 +112,23 @@ export const ContextAnalysisSection: React.FC = () => {
         return theme.colors.accent.success;
       case STATUS_PENDING:
         return theme.colors.accent.warning;
+      default:
+        return theme.colors.text.secondary;
+    }
+  };
+
+  const getErrorTypeColor = (errorType: string | null): string => {
+    switch (errorType) {
+      case 'rate_limit':
+        return theme.colors.accent.error;
+      case 'timeout':
+        return theme.colors.accent.warning;
+      case 'token_limit':
+        return theme.colors.accent.warning;
+      case 'parse_error':
+        return theme.colors.accent.info;
+      case 'network_error':
+        return theme.colors.accent.error;
       default:
         return theme.colors.text.secondary;
     }
@@ -394,13 +413,31 @@ export const ContextAnalysisSection: React.FC = () => {
                               display: 'flex',
                               justifyContent: 'space-between',
                               marginBottom: theme.spacing.xs,
+                              flexWrap: 'wrap',
+                              gap: theme.spacing.xs,
                             }}>
-                              <span style={{
-                                fontWeight: theme.typography.fontWeight.medium,
-                                color: theme.colors.text.primary,
-                              }}>
-                                {t('admin.contextAnalysis.batch')} #{failure.batchIndex + 1}
-                              </span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
+                                <span style={{
+                                  fontWeight: theme.typography.fontWeight.medium,
+                                  color: theme.colors.text.primary,
+                                }}>
+                                  {t('admin.contextAnalysis.batch')} #{failure.batchIndex + 1}
+                                </span>
+                                {failure.errorType && (
+                                  <span style={{
+                                    fontSize: theme.typography.fontSize.xs,
+                                    fontWeight: theme.typography.fontWeight.semibold,
+                                    color: '#fff',
+                                    backgroundColor: getErrorTypeColor(failure.errorType),
+                                    borderRadius: theme.borderRadius.sm,
+                                    padding: `2px ${theme.spacing.xs}`,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.05em',
+                                  }}>
+                                    {t(`admin.contextAnalysis.errorType.${failure.errorType}`, { defaultValue: failure.errorType })}
+                                  </span>
+                                )}
+                              </div>
                               {failure.failedAt && (
                                 <span style={{
                                   fontSize: theme.typography.fontSize.xs,
@@ -416,9 +453,59 @@ export const ContextAnalysisSection: React.FC = () => {
                               color: theme.colors.accent.error,
                               whiteSpace: 'pre-wrap',
                               wordBreak: 'break-word',
+                              marginBottom: failure.correlationId ? theme.spacing.sm : undefined,
                             }}>
                               {failure.error}
                             </div>
+                            {failure.correlationId && (
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: theme.spacing.sm,
+                                flexWrap: 'wrap',
+                                marginTop: theme.spacing.xs,
+                              }}>
+                                <span style={{
+                                  fontSize: theme.typography.fontSize.xs,
+                                  color: theme.colors.text.secondary,
+                                  fontWeight: theme.typography.fontWeight.medium,
+                                }}>
+                                  {t('admin.contextAnalysis.batchCorrelationId')}:
+                                </span>
+                                <button
+                                  onClick={() => copyToClipboard(failure.correlationId!, `batch-${failure.batchIndex}`)}
+                                  title={t('admin.contextAnalysis.copyCorrelationId')}
+                                  style={{
+                                    background: STRING_NONE,
+                                    border: `1px solid ${theme.colors.border.light}`,
+                                    borderRadius: theme.borderRadius.sm,
+                                    padding: `2px ${theme.spacing.xs}`,
+                                    cursor: 'pointer',
+                                    fontFamily: 'monospace',
+                                    fontSize: theme.typography.fontSize.xs,
+                                    color: theme.colors.text.primary,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                  }}
+                                >
+                                  {copiedId === `batch-${failure.batchIndex}` ? '✓' : '📋'}{' '}
+                                  {failure.correlationId.slice(0, 8)}...
+                                </button>
+                                <a
+                                  href={`https://app.posthog.com/events?properties=[{"key":"correlationId","value":"${failure.correlationId}","operator":"exact"}]`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{
+                                    fontSize: theme.typography.fontSize.xs,
+                                    color: theme.colors.accent.info,
+                                    textDecoration: 'none',
+                                  }}
+                                >
+                                  {t('admin.contextAnalysis.viewInPosthog')} ↗
+                                </a>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>

@@ -249,6 +249,8 @@ describe("ContextController", () => {
           batchIndex: 1,
           error: "OpenAI timeout",
           failedAt: "2026-03-02T06:01:00.000Z",
+          correlationId: null,
+          errorType: "unknown",
         },
       ]);
     });

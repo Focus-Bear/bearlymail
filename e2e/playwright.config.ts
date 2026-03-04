@@ -35,19 +35,27 @@ export default defineConfig({
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
-        // Use persistent context with Chrome profile for BearLyMail session
-        contextOptions: {
-          // Default Chrome profile location on macOS
-          userDataDir: process.env.CHROME_USER_DATA_DIR || path.join(
-            os.homedir(),
-            'Library/Application Support/Google/Chrome'
-          ),
-        },
-        // Use persistent context to maintain login session
+        // In CI we use a fresh (ephemeral) browser context — no persistent
+        // Chrome profile is available.  Locally, opt-in via CHROME_USER_DATA_DIR
+        // or the default macOS path to reuse an existing login session.
+        ...(process.env.CI
+          ? {}
+          : {
+              contextOptions: {
+                userDataDir:
+                  process.env.CHROME_USER_DATA_DIR ||
+                  path.join(
+                    os.homedir(),
+                    'Library/Application Support/Google/Chrome',
+                  ),
+              },
+            }),
         launchOptions: {
           args: [
             '--disable-blink-features=AutomationControlled',
             '--disable-dev-shm-usage',
+            // Required in CI containers that run without /dev/shm
+            ...(process.env.CI ? ['--no-sandbox', '--disable-setuid-sandbox'] : []),
           ],
         },
       },

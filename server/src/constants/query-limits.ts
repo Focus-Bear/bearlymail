@@ -89,4 +89,12 @@ export const QUERY_LIMITS = {
   CONTEXT_COMPRESSION_TOTAL_THRESHOLD: 25,
   CONTEXT_COMPRESSION_PER_KEY_THRESHOLD: 8,
   CONTEXT_COMPRESSION_MAX_ITEMS_PER_KEY: 8,
+  // Safety cap for CI local-DB search fallback (small seed datasets only)
+  CI_LOCAL_DB_SEARCH_MAX: 500,
+  // Base relevance score for the top local-DB search result
+  CI_LOCAL_DB_BASE_SCORE: 80,
+  // Score step reduction per result position
+  CI_LOCAL_DB_SCORE_STEP: 5,
+  // Minimum score for local-DB search results
+  CI_LOCAL_DB_MIN_SCORE: 10,
 } as const;

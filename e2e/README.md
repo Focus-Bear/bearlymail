@@ -10,135 +10,129 @@ e2e/
 │   ├── BasePage.ts     # Base page with common functionality
 │   ├── LoginPage.ts    # Login page interactions
 │   ├── InboxPage.ts    # Inbox page interactions
+│   ├── SearchPage.ts   # Search page interactions
 │   └── PriorityTooltip.ts  # Priority tooltip component
 ├── utils/              # Utility classes
 │   └── NetworkTracker.ts   # Network request tracking utility
 ├── tests/              # Test specifications
-│   └── inbox-load-time.spec.ts
+│   ├── inbox-load-time.spec.ts  # CI — inbox performance
+│   ├── search-ci.spec.ts        # CI — search with seeded data
+│   └── search-debug.spec.ts     # LOCAL ONLY — search debug with real mailbox
 ├── playwright.config.ts
 └── package.json
 ```
 
-## Page Object Model
+---
 
-The tests use the Page Object Model pattern for better maintainability:
+## Running Locally
+
+```bash
+# Install dependencies
+cd e2e && npm install
+
+# Make sure the client (port 3000) and server (port 3005) are running,
+# then run all CI-safe tests:
+npx playwright test search-ci.spec.ts inbox-load-time.spec.ts
+
+# Run search-debug tests (requires a real Gmail connection):
+npx playwright test search-debug.spec.ts
+
+# Open the interactive UI runner:
+npm run test:ui
+```
+
+---
+
+## Running in CI
+
+CI uses the `e2e-tests` job in `.github/workflows/ci.yml`.  It:
+1. Spins up a Postgres service container
+2. Builds the server and runs migrations
+3. Seeds the test user (`npm run seed:test-user`)
+4. Seeds search data (`npm run seed:search-data`)
+5. Starts the server with `CI_SEARCH_FALLBACK=true`
+6. Builds the client and serves it with `vite preview`
+7. Runs `search-ci.spec.ts` and `inbox-load-time.spec.ts`
+
+---
+
+## Seeded Test Data
+
+### Test user
+| Field    | Value              |
+|----------|--------------------|
+| Email    | test@example.com   |
+| Password | testpassword       |
+
+Created by `server/scripts/seed-test-user.ts` (`npm run seed:test-user`).
+
+### Search seed emails
+Created by `server/scripts/seed-search-data.ts` (`npm run seed:search-data`).
+
+| Scenario   | Query                             | Seeded subjects / from                                        |
+|------------|-----------------------------------|---------------------------------------------------------------|
+| Has results | `test`                           | "Test meeting notes for Q2", "Follow-up: test results…"       |
+| No results  | `xyzabc123nonexistentquery98765` | (nothing matches — by design)                                 |
+| Rejected    | `meeting`                        | "Team meeting agenda…" (strong match), plus a weak match that may be ranked low |
+
+The seed script is **idempotent** — safe to run multiple times.
+
+---
+
+## `CI_SEARCH_FALLBACK` flag
+
+BearlyMail's search normally requires a connected email provider (Gmail / Office365 / Zoho).
+In CI there is no real provider, so the server exposes a local-DB fallback:
+
+```
+CI_SEARCH_FALLBACK=true
+```
+
+When this env var is set the `EmailSearchService` loads all of the test user's
+emails from Postgres, decrypts them in-memory, and filters by the query string.
+This is suitable only for small datasets (CI seed data).
+
+---
+
+## Which test files run in CI vs locally
+
+| File                      | CI | Local |
+|---------------------------|----|-------|
+| `inbox-load-time.spec.ts` | ✅ | ✅    |
+| `search-ci.spec.ts`       | ✅ | ✅    |
+| `search-debug.spec.ts`    | ❌ | ✅    |
+
+`search-debug.spec.ts` reads from `server/logs/search-system.log` and uses
+real Gmail queries — it is intended for local debugging only.
+
+---
+
+## Environment Variables
+
+| Variable              | Default                | Purpose                                    |
+|-----------------------|------------------------|--------------------------------------------|
+| `PLAYWRIGHT_BASE_URL` | `http://localhost:3000`| URL of the running client                  |
+| `TEST_EMAIL`          | `test@example.com`     | Login email for the seeded test user        |
+| `TEST_PASSWORD`       | `testpassword`         | Login password for the seeded test user     |
+| `CI`                  | (unset)                | Set by CI; disables Chrome persistent context |
+| `CHROME_USER_DATA_DIR`| macOS Chrome default   | Override Chrome profile path for local runs|
+
+---
+
+## Adding New Search Test Scenarios
+
+1. Add seed emails to `server/scripts/seed-search-data.ts` (use a unique `messageId` per email)
+2. Add a corresponding `test(...)` block in `e2e/tests/search-ci.spec.ts`
+3. Use `searchPage.search('your query')` + `searchPage.waitForResults()` + assertions
+4. Keep search queries deterministic — avoid AI-generated terms that may vary
+
+---
+
+## Page Object Model
 
 - **BasePage**: Base class with common page functionality
 - **LoginPage**: Handles login form interactions
 - **InboxPage**: Handles inbox page interactions and priority badge finding
+- **SearchPage**: Handles search form, results, queries-tried, and rejected-emails sections
 - **PriorityTooltip**: Handles priority tooltip interactions and content verification
 - **NetworkTracker**: Utility class for tracking and analyzing network requests
-
-## Setup
-
-1. Install dependencies:
-```bash
-cd e2e
-npm install
-```
-
-2. Install Playwright browsers:
-```bash
-npx playwright install
-```
-
-## Configuration
-
-### 1. Seed Test User (REQUIRED - Must be done before running tests)
-
-**IMPORTANT**: The application uses a waitlist system, so you cannot register users through the UI. You must seed the test user before running tests.
-
-Before running tests, create a test user in the database:
-
-```bash
-cd server
-npm run seed:test-user
-```
-
-This creates an approved user with:
-- Email: `test@example.com`
-- Password: `testpassword`
-- Status: Approved (can login immediately)
-
-**Note**: If you see "Authentication failed" errors, the test user likely doesn't exist or isn't approved. Run the seed script again.
-
-### 2. Set Environment Variables
-
-Set environment variables in `.env` file or export them:
-
-```bash
-export TEST_EMAIL=test@example.com
-export TEST_PASSWORD=testpassword
-export REACT_APP_API_URL=http://localhost:3005
-export PLAYWRIGHT_BASE_URL=http://localhost:3000
-```
-
-**Note**: The tests require the test user to be seeded beforehand. Registration is not available through the UI due to the waitlist system.
-
-## Running Tests
-
-```bash
-# Run all tests (headless)
-npm test
-
-# Run with UI mode (interactive test runner with browser visible)
-npm run test:ui
-
-# Run in headed mode (see browser, no UI)
-npm run test:headed
-
-# Run with UI mode AND visible browser (best for watching tests)
-npm run test:watch
-
-# Debug mode (step through tests)
-npm run test:debug
-
-# View test report
-npm run test:report
-```
-
-### Recommended: Watch Tests in Browser
-
-To watch the tests run in a visible browser with the interactive UI:
-
-```bash
-cd e2e
-TEST_EMAIL=test@example.com TEST_PASSWORD=testpassword REACT_APP_API_URL=http://localhost:3001 PLAYWRIGHT_BASE_URL=http://localhost:3000 npm run test:watch
-```
-
-This will:
-- Open the Playwright UI with test controls
-- Show the browser window as tests run
-- Allow you to pause, step through, and inspect tests
-- Show network requests and console logs in real-time
-
-## Tests
-
-### 1. Inbox Load Performance
-
-The `inbox-load-time.spec.ts` file contains two tests:
-
-#### Test 1: Inbox Load Performance
-- Logs in to the application
-- Navigates to the inbox
-- Measures load time
-- Tracks all network requests
-- Verifies load time is under 2 seconds
-- Reports duplicate API calls
-- Provides detailed network request analysis
-
-#### Test 2: Priority Popup Performance
-- Logs in and navigates to inbox
-- Finds a priority badge
-- Hovers/clicks to trigger the priority popup
-- Measures popup load time (must be under 1 second)
-- Verifies the popup displays:
-  - Priority Score header with numeric score
-  - Urgency dimension with score
-  - Goal Alignment dimension with score
-  - VIP Contact dimension with score
-- Tracks API request for priority explanation
-- Verifies API request is fast (under 500ms)
-- Checks for duplicate API requests
-- Provides detailed performance analysis
-

@@ -111,6 +111,15 @@ export class EmailSearchService {
         accountTypes,
       );
       if (!providersToSearch) {
+        // In CI / test mode fall back to an in-memory DB search so that
+        // e2e tests can run against seeded data without a real email provider.
+        if (process.env.CI_SEARCH_FALLBACK === "true") {
+          this.logger.log(
+            `[SEARCH] No provider connected for user ${userId}; using CI local-DB fallback`,
+          );
+          return this.searchEmailsFromLocalDb(userId, originalQuery);
+        }
+
         const message = accountTypes?.length
           ? `No matching email accounts found for the selected filters: ${accountTypes?.join(", ")}`
           : "No email provider connected";
@@ -1002,6 +1011,88 @@ Return ONLY the Gmail search query, nothing else.`;
       .map((w) => `"${w}"`)
       .join(" OR ");
     return `subject:(${words}) OR ${words}`;
+  }
+
+  /**
+   * CI / local-DB search fallback.
+   *
+   * Used when no email provider is connected (e.g. in CI e2e tests against
+   * seeded data).  Because all email fields are AES-encrypted in Postgres we
+   * can't do a DB-level LIKE query — instead we load all of the user's emails,
+   * let TypeORM decrypt them via the column transformers, and then filter
+   * in-memory.
+   *
+   * This is intentionally simple and only suitable for small datasets (CI
+   * seed data).  Do not use in production paths.
+   */
+  private async searchEmailsFromLocalDb(
+    userId: string,
+    query: string,
+  ): Promise<EmailWithMetadata[]> {
+    const allEmails = await this.emailRepository.find({
+      where: { userId },
+      order: { receivedAt: "DESC" },
+      take: QUERY_LIMITS.CI_LOCAL_DB_SEARCH_MAX,
+    });
+
+    const lowerQuery = query.toLowerCase();
+    const queriesTried: QueryTried[] = [
+      { query: `local-db:${query}`, resultCount: 0, accountType: "local-db" },
+    ];
+
+    const matched = allEmails.filter((email) => {
+      const subject = (email.subject || "").toLowerCase();
+      const from = (email.from || "").toLowerCase();
+      const fromName = (email.fromName || "").toLowerCase();
+      const body = (email.body || "").toLowerCase();
+      return (
+        subject.includes(lowerQuery) ||
+        from.includes(lowerQuery) ||
+        fromName.includes(lowerQuery) ||
+        body.includes(lowerQuery)
+      );
+    });
+
+    queriesTried[0].resultCount = matched.length;
+
+    if (matched.length === 0) {
+      return [
+        {
+          id: "no-results",
+          subject: "",
+          from: "",
+          body: "",
+          receivedAt: new Date().toISOString(),
+          debugInfo: {
+            originalQuery: query,
+            queriesTried,
+            message: "No emails found matching your search",
+          },
+        } as unknown as EmailWithMetadata,
+      ];
+    }
+
+    return matched.map((email, idx) => {
+      const result = {
+        ...email,
+        searchExplanation: `Found via local DB search for "${query}"`,
+        relevanceScore: Math.max(
+          QUERY_LIMITS.CI_LOCAL_DB_MIN_SCORE,
+          QUERY_LIMITS.CI_LOCAL_DB_BASE_SCORE -
+            idx * QUERY_LIMITS.CI_LOCAL_DB_SCORE_STEP,
+        ),
+        debugInfo:
+          idx === 0
+            ? {
+                originalQuery: query,
+                queriesTried,
+                gmailQuery: `local-db:${query}`,
+                totalRawEmails: matched.length,
+              }
+            : undefined,
+      } as unknown as EmailWithMetadata;
+      return result;
+    });
   }
 
   private isTimeSensitiveQuery(query: string): boolean {

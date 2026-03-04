@@ -41,6 +41,7 @@
     "jobs:reset": "ts-node -r tsconfig-paths/register src/scripts/reset-stuck-jobs.ts",
     "fix:stuck-calculating": "ts-node -r tsconfig-paths/register src/scripts/fix-stuck-calculating.ts",
     "seed:test-user": "ts-node -r tsconfig-paths/register scripts/seed-test-user.ts",
+    "seed:search-data": "ts-node -r tsconfig-paths/register scripts/seed-search-data.ts",
     "promptfoo:test": "node scripts/run-promptfoo-tests.js",
     "promptfoo:view": "promptfoo view promptfoo",
     "security:audit": "ts-node -r tsconfig-paths/register scripts/security-audit.ts",

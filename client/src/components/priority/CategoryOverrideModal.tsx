@@ -1,13 +1,11 @@
-import React, { useMemo,useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { useSelector } from 'react-redux';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 
 import { ModalBackdrop, ModalContent, ModalFooter,ModalHeader } from 'components/modal';
 import { API_URL } from 'config/api';
-import { selectEmails } from 'store/selectors/emailSelectors';
 
 const ADD_NEW_VALUE = '__add_new__';
 
@@ -25,23 +23,39 @@ export const CategoryOverrideModal: React.FC<CategoryOverrideModalProps> = ({
   onSubmitted,
 }) => {
   const { t } = useTranslation();
-  const emails = useSelector(selectEmails);
+  const [existingCategories, setExistingCategories] = useState<string[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [customCategory, setCustomCategory] = useState('');
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [reasonText, setReasonText] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const existingCategories = useMemo(() => {
-    const categories = new Set<string>();
-    emails.forEach(email => {
-      // Filter out the sentinel value to prevent collision with the "Add new" option
-      if (email.category && email.category !== currentCategory && email.category !== ADD_NEW_VALUE) {
-        categories.add(email.category);
-      }
-    });
-    return Array.from(categories).sort((a, b) => a.localeCompare(b));
-  }, [emails, currentCategory]);
+  // Fetch all known categories from the API on mount so the dropdown is
+  // populated from the full dataset, not just emails loaded in Redux.
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingCategories(true);
+    axios
+      .get<string[]>(`${API_URL}/emails/categories`)
+      .then((res) => {
+        if (!cancelled) {
+          // Exclude the current category so "move to same category" isn't offered
+          setExistingCategories(
+            res.data.filter((cat) => cat !== currentCategory),
+          );
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load categories:', err);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingCategories(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentCategory]);
 
   const resolvedCategory = isAddingNew ? customCategory.trim() : selectedCategory;
 
@@ -128,10 +142,13 @@ export const CategoryOverrideModal: React.FC<CategoryOverrideModalProps> = ({
           <select
             value={isAddingNew ? ADD_NEW_VALUE : selectedCategory}
             onChange={(e) => handleSelectChange(e.target.value)}
+            disabled={loadingCategories}
             style={selectStyle}
           >
             <option value="" disabled>
-              {t('priority.categoryOverride.selectPlaceholder')}
+              {loadingCategories
+                ? t('priority.categoryOverride.loadingCategories')
+                : t('priority.categoryOverride.selectPlaceholder')}
             </option>
             {existingCategories.map((cat) => (
               <option key={cat} value={cat}>{cat}</option>

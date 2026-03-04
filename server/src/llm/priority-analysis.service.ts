@@ -483,7 +483,7 @@ Body: ${cleanedBody}`;
       day: "numeric",
     });
 
-    const batchPrompt = `You are an email prioritization assistant. Analyze each email below and return a JSON array of results.
+    const batchPrompt = `You are an email prioritization assistant. Analyze each email below and return a JSON object wrapping an array of results.
 
 For EACH email, provide:
 - urgencyScore (0-100): How urgently it requires attention
@@ -505,10 +505,36 @@ Today's date: ${currentDateStr}
 
 ${emailDescriptions.join("\n\n")}
 
-Return a JSON array with one object per email, in the same order as the emails above. Each object must include the email's "key" field matching the emailKey.
-Example: [{"key": "email-1", "urgencyScore": 30, "urgencyExplanation": "...", "sentimentScore": 0, "goalAlignmentScore": 50, "goalAlignmentExplanation": "...", "category": "Newsletters", "categoryExplanation": "...", "reasoning": "..."}]
+Respond with a JSON object with exactly one key \`priority_results\` containing the array of per-email result objects. The top-level key MUST be exactly \`priority_results\`. Each object must include the email's "key" field matching the emailKey.
+Example (2-item):
+{
+  "priority_results": [
+    {
+      "key": "email-1",
+      "urgencyScore": 30,
+      "urgencyExplanation": "Low urgency, informational content",
+      "sentimentScore": 0,
+      "goalAlignmentScore": 10,
+      "goalAlignmentExplanation": "Newsletter unrelated to active goals",
+      "category": "Newsletters",
+      "categoryExplanation": "Mass-sent digest email",
+      "reasoning": "Weekly digest with no call to action"
+    },
+    {
+      "key": "email-2",
+      "urgencyScore": 75,
+      "urgencyExplanation": "Customer blocked, needs immediate response",
+      "sentimentScore": -0.6,
+      "goalAlignmentScore": 85,
+      "goalAlignmentExplanation": "Directly related to active support goal",
+      "category": "Customer Support",
+      "categoryExplanation": "Customer reporting a blocker",
+      "reasoning": "High-priority support request requiring prompt reply"
+    }
+  ]
+}
 
-IMPORTANT: Return ONLY the JSON array, no other text.`;
+IMPORTANT: The top-level response MUST be a JSON object with key \`priority_results\`, NOT a bare array.`;
 
     try {
       const response = await this.llmCoreService.generateText(
@@ -524,53 +550,113 @@ IMPORTANT: Return ONLY the JSON array, no other text.`;
         userId,
       );
 
-      // Parse the JSON array response
+      // Parse the JSON response.
+      // json_object mode guarantees valid JSON, so JSON.parse(response) is the primary path.
+      // Fallbacks handle edge cases (non-json_object providers, response leakage, etc.).
       const batchResponsePreview = response.substring(
         0,
         QUERY_LIMITS.LLM_RESPONSE_PREVIEW_LENGTH,
       );
-      const jsonMatch = response.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        if (Array.isArray(parsed)) {
-          for (const item of parsed) {
-            const key = item.key || item.emailKey;
-            if (key) {
-              const category = item.category || "Other";
-              results.set(key, {
-                urgencyScore: Math.max(
-                  0,
-                  Math.min(100, item.urgencyScore || 0),
-                ),
-                urgencyExplanation: item.urgencyExplanation || "No explanation",
-                sentimentScore:
-                  item.sentimentScore !== undefined
-                    ? Math.max(-1, Math.min(1, item.sentimentScore))
-                    : 0,
-                goalAlignmentScore: Math.max(
-                  0,
-                  Math.min(100, item.goalAlignmentScore || 0),
-                ),
-                goalAlignmentExplanation:
-                  item.goalAlignmentExplanation || "No explanation",
-                category,
-                categoryExplanation:
-                  item.categoryExplanation || "No explanation",
-                reasoning: item.reasoning || "No reasoning",
-                protoCategorySuggestion:
-                  category === "Other" && item.protoCategorySuggestion
-                    ? {
-                        name: item.protoCategorySuggestion.name || "",
-                        description:
-                          item.protoCategorySuggestion.description || "",
-                      }
-                    : undefined,
-              });
-            }
+
+      // Attempt to parse and extract the results array
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(response);
+      } catch {
+        // json_object mode should always yield valid JSON, but guard against edge cases
+        // by trying to extract a JSON object or array from the response text.
+        const jsonObjMatch = response.match(/\{[\s\S]*\}/);
+        if (jsonObjMatch) {
+          // May throw — let the outer catch handle it and log "Failed to parse"
+          parsed = JSON.parse(jsonObjMatch[0]);
+        } else {
+          const jsonArrMatch = response.match(/\[[\s\S]*\]/);
+          if (jsonArrMatch) {
+            // May throw — let the outer catch handle it and log "Failed to parse"
+            parsed = JSON.parse(jsonArrMatch[0]);
+          }
+          // else: parsed remains undefined — handled below
+        }
+      }
+
+      let parsedArray: unknown[] | null = null;
+
+      if (Array.isArray(parsed)) {
+        // Gemini guard: some API variants return a bare array instead of a wrapped object
+        this.logger.warn(
+          `analyzePriorityBatch: LLM returned a bare array instead of a wrapped { priority_results: [...] } object. Accepting with warning. Batch size: ${emails.length}`,
+        );
+        parsedArray = parsed;
+      } else if (
+        parsed !== null &&
+        parsed !== undefined &&
+        typeof parsed === "object"
+      ) {
+        const parsedRecord = parsed as Record<string, unknown>;
+        if (Array.isArray(parsedRecord.priority_results)) {
+          // Primary path: correct wrapper key
+          parsedArray = parsedRecord.priority_results;
+        } else {
+          // Fallback: LLM used a different wrapper key — find the first array-valued property
+          const arrayKey = Object.keys(parsedRecord).find((k) =>
+            Array.isArray(parsedRecord[k]),
+          );
+          if (arrayKey) {
+            this.logger.warn(
+              `analyzePriorityBatch: Expected top-level key 'priority_results' but found '${arrayKey}'. Using fallback. Prompt may need updating.`,
+            );
+            parsedArray = parsedRecord[arrayKey] as unknown[];
+          }
+        }
+      }
+
+      if (parsedArray !== null) {
+        for (const item of parsedArray) {
+          const typedItem = item as Record<string, unknown>;
+          const key =
+            (typedItem.key as string) || (typedItem.emailKey as string);
+          if (key) {
+            const category = (typedItem.category as string) || "Other";
+            const protoSuggestion = typedItem.protoCategorySuggestion as
+              | Record<string, string>
+              | undefined;
+            results.set(key, {
+              urgencyScore: Math.max(
+                0,
+                Math.min(100, (typedItem.urgencyScore as number) || 0),
+              ),
+              urgencyExplanation:
+                (typedItem.urgencyExplanation as string) || "No explanation",
+              sentimentScore:
+                typedItem.sentimentScore !== undefined
+                  ? Math.max(
+                      -1,
+                      Math.min(1, typedItem.sentimentScore as number),
+                    )
+                  : 0,
+              goalAlignmentScore: Math.max(
+                0,
+                Math.min(100, (typedItem.goalAlignmentScore as number) || 0),
+              ),
+              goalAlignmentExplanation:
+                (typedItem.goalAlignmentExplanation as string) ||
+                "No explanation",
+              category,
+              categoryExplanation:
+                (typedItem.categoryExplanation as string) || "No explanation",
+              reasoning: (typedItem.reasoning as string) || "No reasoning",
+              protoCategorySuggestion:
+                category === "Other" && protoSuggestion
+                  ? {
+                      name: protoSuggestion.name || "",
+                      description: protoSuggestion.description || "",
+                    }
+                  : undefined,
+            });
           }
         }
       } else {
-        // No JSON array found in batch response - log clearly so it's visible in worker terminal
+        // No usable array found — log clearly so it's visible in worker terminal
         const emailKeys = emails.map((e) => e.emailKey).join(", ");
         this.logger.error(
           `analyzePriorityBatch: LLM returned a non-JSON response for batch of ${emails.length} emails [${emailKeys}]. Response preview: "${batchResponsePreview}"`,

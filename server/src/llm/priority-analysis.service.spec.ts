@@ -287,7 +287,7 @@ describe("PriorityAnalysisService", () => {
       },
     ];
 
-    const validBatchResponse = JSON.stringify([
+    const emailResultItems = [
       {
         key: "email-1",
         urgencyScore: 30,
@@ -310,9 +310,17 @@ describe("PriorityAnalysisService", () => {
         categoryExplanation: "Support request",
         reasoning: "Customer issue",
       },
-    ]);
+    ];
 
-    it("should parse a valid batch JSON response correctly", async () => {
+    // Correct format: wrapped with priority_results key
+    const validBatchResponse = JSON.stringify({
+      priority_results: emailResultItems,
+    });
+
+    // Legacy/bare array format — used to test Gemini guard
+    const bareArrayBatchResponse = JSON.stringify(emailResultItems);
+
+    it("should parse a valid batch JSON response with priority_results wrapper key", async () => {
       (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
         validBatchResponse,
       );
@@ -386,20 +394,22 @@ describe("PriorityAnalysisService", () => {
     });
 
     it("should log missing email keys when batch response omits some emails", async () => {
-      // Only returns result for email-1, not email-2
-      const partialResponse = JSON.stringify([
-        {
-          key: "email-1",
-          urgencyScore: 30,
-          urgencyExplanation: "Low urgency",
-          sentimentScore: 0,
-          goalAlignmentScore: 20,
-          goalAlignmentExplanation: "Slightly aligned",
-          category: "Newsletters",
-          categoryExplanation: "Newsletter content",
-          reasoning: "Mass email",
-        },
-      ]);
+      // Only returns result for email-1, not email-2 (using correct priority_results format)
+      const partialResponse = JSON.stringify({
+        priority_results: [
+          {
+            key: "email-1",
+            urgencyScore: 30,
+            urgencyExplanation: "Low urgency",
+            sentimentScore: 0,
+            goalAlignmentScore: 20,
+            goalAlignmentExplanation: "Slightly aligned",
+            category: "Newsletters",
+            categoryExplanation: "Newsletter content",
+            reasoning: "Mass email",
+          },
+        ],
+      });
       (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
         partialResponse,
       );
@@ -422,6 +432,60 @@ describe("PriorityAnalysisService", () => {
       expect(results.get("email-2")?.categoryExplanation).toBe(
         "Batch analysis failed",
       );
+    });
+
+    it("should use fallback when LLM responds with a wrong wrapper key (non-deterministic key name)", async () => {
+      // LLM invented its own key name instead of using priority_results
+      const wrongKeyResponse = JSON.stringify({ results: emailResultItems });
+      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
+        wrongKeyResponse,
+      );
+
+      const loggerWarnSpy = jest
+        .spyOn(Logger.prototype, "warn")
+        .mockImplementation(() => undefined);
+
+      const results = await service.analyzePriorityBatch(batchEmails);
+
+      // Should warn about the unexpected key name
+      expect(loggerWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Expected top-level key 'priority_results'"),
+      );
+      expect(loggerWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("results"),
+      );
+
+      // Should still parse both emails correctly via fallback
+      expect(results.size).toBe(2);
+      expect(results.get("email-1")?.category).toBe("Newsletters");
+      expect(results.get("email-2")?.category).toBe("Customer Support");
+      expect(results.get("email-2")?.urgencyScore).toBe(70);
+    });
+
+    it("should handle a bare array response (Gemini guard for different API variants)", async () => {
+      // Some API variants (e.g. Gemini via a different endpoint) may return a bare array
+      (mockLLMCoreService.generateText as jest.Mock).mockResolvedValue(
+        bareArrayBatchResponse,
+      );
+
+      const loggerWarnSpy = jest
+        .spyOn(Logger.prototype, "warn")
+        .mockImplementation(() => undefined);
+
+      const results = await service.analyzePriorityBatch(batchEmails);
+
+      // Should warn about the bare array, but still process it
+      expect(loggerWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "LLM returned a bare array instead of a wrapped",
+        ),
+      );
+
+      // Both emails should be parsed correctly
+      expect(results.size).toBe(2);
+      expect(results.get("email-1")?.category).toBe("Newsletters");
+      expect(results.get("email-2")?.category).toBe("Customer Support");
+      expect(results.get("email-2")?.urgencyScore).toBe(70);
     });
 
     it("should return empty map for empty email list", async () => {

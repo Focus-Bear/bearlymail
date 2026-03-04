@@ -1,10 +1,12 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback,useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { OPACITY_DISABLED_ALT } from 'constants/numbers';
-import { AutoResponderConfig, QueueStats } from './types';
+
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
+import { OPACITY_DISABLED_ALT } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
+
+import { AutoResponderConfig, QueueStats } from './types';
 
 interface AutoResponderTemplateEditorProps {
   config: AutoResponderConfig;

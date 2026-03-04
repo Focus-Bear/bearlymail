@@ -1,7 +1,9 @@
-import { renderHook, act, waitFor } from '@testing-library/react';
-import { useSplitView } from './useSplitView';
-import { useResponsiveBreakpoints } from './useResponsiveBreakpoints';
+import { act, renderHook, waitFor } from '@testing-library/react';
+
 import { TIMEOUT_300_MS } from 'constants/numbers';
+
+import { useResponsiveBreakpoints } from './useResponsiveBreakpoints';
+import { useSplitView } from './useSplitView';
 
 jest.mock('./useResponsiveBreakpoints', () => ({
   useResponsiveBreakpoints: jest.fn(),

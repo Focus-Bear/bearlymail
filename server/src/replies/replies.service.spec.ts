@@ -1,17 +1,18 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { RepliesService } from "./replies.service";
-import { EmailsService } from "../emails/emails.service";
-import { EmailProviderManager } from "../emails/email-provider-manager.service";
-import { EmailThreadService } from "../emails/email-thread.service";
+
 import { ContextService } from "../context/context.service";
-import { LLMService } from "../llm/llm.service";
-import { UsersService } from "../users/users.service";
 import { WritingStyleLearningService } from "../context/writing-style-learning.service";
-import { SnoozeService } from "../snooze/snooze.service";
-import { FollowUpsService } from "../follow-ups/follow-ups.service";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { EmailProviderManager } from "../emails/email-provider-manager.service";
+import { EmailThreadService } from "../emails/email-thread.service";
+import { EmailsService } from "../emails/emails.service";
+import { FollowUpsService } from "../follow-ups/follow-ups.service";
+import { LLMService } from "../llm/llm.service";
+import { SnoozeService } from "../snooze/snooze.service";
+import { UsersService } from "../users/users.service";
+import { RepliesService } from "./replies.service";
 
 describe("RepliesService", () => {
   let service: RepliesService;

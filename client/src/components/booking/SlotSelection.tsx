@@ -1,9 +1,10 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+
+import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { EMOJI_SELECTED } from 'constants/emojis';
 import { OPACITY_DISABLED } from 'constants/numbers';
-import { COLOR_NAMED_WHITE } from 'constants/colors';
 
 interface TimeSlot {
   start: string;

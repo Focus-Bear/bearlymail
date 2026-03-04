@@ -1,6 +1,7 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { fireEvent,render, screen, waitFor } from '@testing-library/react';
 import axios from 'axios';
+
 import BookingReschedulePage from './BookingReschedulePage';
 
 jest.mock('axios');

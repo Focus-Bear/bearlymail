@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { QueueStats } from './types';
+
 import { COLOR_TRANSPARENT } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
+
+import { QueueStats } from './types';
 
 const renderFormattedText = (text: string): React.ReactNode => {
   const parts: React.ReactNode[] = [];

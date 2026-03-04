@@ -1,9 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { GmailEmptyState } from 'components/settings/email-delivery/GmailEmptyState';
-import { GmailAccountItem } from 'components/settings/email-delivery/GmailAccountItem';
 
+import { GmailAccountItem } from 'components/settings/email-delivery/GmailAccountItem';
+import { GmailEmptyState } from 'components/settings/email-delivery/GmailEmptyState';
 import { API_URL } from 'config/api';
 import { COLOR_TRANSPARENT } from 'constants/colors';
 

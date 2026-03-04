@@ -1,6 +1,7 @@
-import { renderHook, act } from '@testing-library/react';
-import { useEmailSelection } from './useEmailSelection';
+import { act,renderHook } from '@testing-library/react';
 import { Email, InboxMode } from 'types/email';
+
+import { useEmailSelection } from './useEmailSelection';
 
 describe('useEmailSelection', () => {
   const mockEmails: Email[] = [

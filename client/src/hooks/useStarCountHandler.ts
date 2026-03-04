@@ -1,4 +1,7 @@
 import { useCallback } from 'react';
+import { Email, getEmailPriorityScore } from 'types/email';
+import { captureEvent } from 'utils/posthog';
+
 import {
   DEFAULT_PRIORITY_SCORE,
   PERCENTAGE_12_5,
@@ -7,8 +10,6 @@ import {
   PERCENTAGE_87_5,
   STAR_COUNT_THRESHOLD_20,
 } from 'constants/numbers';
-import { Email, getEmailPriorityScore } from 'types/email';
-import { captureEvent } from 'utils/posthog';
 
 interface UseStarCountHandlerProps {
   emails: Email[];

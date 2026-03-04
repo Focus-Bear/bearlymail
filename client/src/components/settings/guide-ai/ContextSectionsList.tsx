@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
+import { theme } from 'theme/theme';
+
 import { ContextSection } from 'components/settings/guide-ai/ContextSection';
 import { ProtoCategoriesModal } from 'components/settings/guide-ai/ProtoCategoriesModal';
 import { RecategorizeProgressBar } from 'components/settings/RecategorizeProgressBar';
-import { useRecategorizeProgress } from 'hooks/settings/useRecategorizeProgress';
-import { theme } from 'theme/theme';
-import { OPACITY_DISABLED } from 'constants/numbers';
 import { API_URL } from 'config/api';
+import { OPACITY_DISABLED } from 'constants/numbers';
 import { CONTEXT_KEY_EMAIL_CATEGORY, STRING_NONE } from 'constants/strings';
+import { useRecategorizeProgress } from 'hooks/settings/useRecategorizeProgress';
 
 interface UserContext {
   contextId: string;

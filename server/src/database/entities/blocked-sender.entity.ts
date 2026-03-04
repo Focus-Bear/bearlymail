@@ -1,14 +1,15 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
   CreateDateColumn,
-  ManyToOne,
-  JoinColumn,
+  Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
 } from "typeorm";
-import { User } from "./user.entity";
+
 import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
+import { User } from "./user.entity";
 
 /**
  * Blocked senders - emails from these addresses are automatically archived

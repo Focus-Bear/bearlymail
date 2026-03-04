@@ -1,18 +1,19 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { DataSource, Repository } from "typeorm";
-import { EmailDebugService } from "./email-debug.service";
+
+import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
-import {
-  UserContext,
-  ContextKey,
-} from "../database/entities/user-context.entity";
 import { ProtoCategory } from "../database/entities/proto-category.entity";
+import {
+  ContextKey,
+  UserContext,
+} from "../database/entities/user-context.entity";
+import { EmailDebugService } from "./email-debug.service";
+import { EmailDebugCategoryService } from "./email-debug-category.service";
 import { EmailProviderManager } from "./email-provider-manager.service";
 import { GmailProvider } from "./providers/gmail.provider";
-import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
 import { SyncHistoryService } from "./sync-history.service";
-import { EmailDebugCategoryService } from "./email-debug-category.service";
 
 describe("EmailDebugService", () => {
   let service: EmailDebugService;

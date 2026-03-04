@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useState } from 'react';
 import axios from 'axios';
-import { identifyUser, resetPostHog, captureEvent } from 'utils/posthog';
-import { useAuthInitialization } from 'contexts/useAuthInitialization';
 import { devLog } from 'utils/dev-logger';
+import { captureEvent,identifyUser, resetPostHog } from 'utils/posthog';
+
 import { API_URL } from 'config/api';
+import { useAuthInitialization } from 'contexts/useAuthInitialization';
 
 interface User {
   id: string;

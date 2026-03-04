@@ -1,4 +1,5 @@
 import React from 'react';
+
 import { CalendarInviteFormFields } from 'components/quick-actions/modals/CalendarInviteFormFields';
 
 interface CalendarInviteFormProps {

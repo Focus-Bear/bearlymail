@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
+
 import { logError, logWarn } from "../utils/logger";
 
 interface PromptConfig {

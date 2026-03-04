@@ -1,8 +1,9 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { ContactsService } from "./contacts.service";
-import { ContactCrmService } from "./contact-crm.service";
+
 import { Contact } from "../database/entities/contact.entity";
+import { ContactCrmService } from "./contact-crm.service";
+import { ContactsService } from "./contacts.service";
 import { GmailContactsProvider } from "./providers/gmail-contacts.provider";
 import { SearchIndexHelper } from "./search-index.helper";
 

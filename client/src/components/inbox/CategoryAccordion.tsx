@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback,useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
-import { OPACITY_DISABLED } from 'constants/numbers';
-import { CATEGORY_DANGEROUS_PHISHING, CATEGORY_OTHER, KEY_ESCAPE, KEY_Y, STRING_NONE, PHISHING_CONFIDENCE_MEDIUM, PHISHING_CONFIDENCE_HIGH, MODE_AUTORESPONDED } from 'constants/strings';
-import { Email, InboxMode, getEmailPriorityScore } from 'types/email';
+import { Email, getEmailPriorityScore,InboxMode } from 'types/email';
+
 import { ArchiveConfirmationToast } from 'components/inbox/ArchiveConfirmationToast';
+import { OPACITY_DISABLED } from 'constants/numbers';
+import { CATEGORY_DANGEROUS_PHISHING, CATEGORY_OTHER, KEY_ESCAPE, KEY_Y, MODE_AUTORESPONDED,PHISHING_CONFIDENCE_HIGH, PHISHING_CONFIDENCE_MEDIUM, STRING_NONE } from 'constants/strings';
 
 interface CategoryAccordionProps {
   category: string;

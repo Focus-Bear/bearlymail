@@ -1,12 +1,12 @@
 import React from 'react';
-
-import { ERROR_CODE_GMAIL_REQUIRED } from 'constants/strings';
 import { theme } from 'theme/theme';
-import { InboxLoadingState } from 'components/inbox/InboxLoadingState';
+
+import { ArchiveConfirmationToast } from 'components/inbox/ArchiveConfirmationToast';
 import { GmailConnectionScreen } from 'components/inbox/GmailConnectionScreen';
 import { InboxContent } from 'components/inbox/InboxContent';
+import { InboxLoadingState } from 'components/inbox/InboxLoadingState';
 import { InboxModals } from 'components/inbox/InboxModals';
-import { ArchiveConfirmationToast } from 'components/inbox/ArchiveConfirmationToast';
+import { ERROR_CODE_GMAIL_REQUIRED } from 'constants/strings';
 import { useInboxState } from 'hooks/useInboxState';
 
 const FocusedInbox: React.FC = () => {

@@ -1,9 +1,10 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { DataSource } from "typeorm";
-import { QueueMonitorService } from "./queue-monitor.service";
-import { QUEUE_CONSTANTS } from "../constants/queue-constants";
 import * as fs from "fs";
 import * as path from "path";
+import { DataSource } from "typeorm";
+
+import { QUEUE_CONSTANTS } from "../constants/queue-constants";
+import { QueueMonitorService } from "./queue-monitor.service";
 
 // Mock fs module
 jest.mock("fs");

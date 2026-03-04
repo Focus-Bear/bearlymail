@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { OPACITY_DISABLED_ALT, VIEWPORT_HEIGHT_90, Z_INDEX_MODAL_OVERLAY } from 'constants/numbers';
-import { ConsentModalHeader, ConsentModalFooter } from 'components/consent';
 import { acceptConsent } from 'utils/consentApi';
+
+import { ConsentModalFooter,ConsentModalHeader } from 'components/consent';
+import { OPACITY_DISABLED_ALT, VIEWPORT_HEIGHT_90, Z_INDEX_MODAL_OVERLAY } from 'constants/numbers';
 
 interface ConsentModalProps {
   needsTermsAcceptance: boolean;

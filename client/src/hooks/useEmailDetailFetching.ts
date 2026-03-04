@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef,useState } from 'react';
 import axios from 'axios';
+import { emailMentionsGitHub } from 'utils/githubUtils';
+
 import { API_URL } from 'config/api';
 import { useEmailDetailGithub } from 'hooks/useEmailDetailGithub';
-import { emailMentionsGitHub } from 'utils/githubUtils';
 
 interface Email {
   id: string;

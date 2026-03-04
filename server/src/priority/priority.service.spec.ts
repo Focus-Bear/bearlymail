@@ -1,15 +1,16 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { PriorityService } from "./priority.service";
+
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { PriorityOverride } from "../database/entities/priority-override.entity";
 import {
-  UserContext,
   ContextKey,
   Source,
+  UserContext,
 } from "../database/entities/user-context.entity";
-import { PriorityOverride } from "../database/entities/priority-override.entity";
 import { LLMService } from "../llm/llm.service";
+import { PriorityService } from "./priority.service";
 
 describe("PriorityService", () => {
   let service: PriorityService;

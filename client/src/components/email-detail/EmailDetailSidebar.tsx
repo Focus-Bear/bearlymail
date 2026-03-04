@@ -1,10 +1,11 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
+
+import { COLOR_TRANSPARENT } from 'constants/colors';
 import { EMOJI_BACK } from 'constants/emojis';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
-import { COLOR_TRANSPARENT } from 'constants/colors';
 
 export const EmailDetailSidebar: React.FC = () => {
   const navigate = useNavigate();

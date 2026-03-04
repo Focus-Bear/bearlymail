@@ -1,33 +1,34 @@
-import { useState, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
+import { useCallback,useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from 'contexts/AuthContext';
+import { useDispatch } from 'react-redux';
+import { useNavigate, useParams } from 'react-router-dom';
 import { InboxMode } from 'types/email';
+
 import {
+  MODE_ACTION,
+  MODE_AUTORESPONDED,
+  MODE_BLOCKED,
   MODE_FOLLOW_UP,
   MODE_TRIAGE,
-  MODE_ACTION,
-  MODE_BLOCKED,
-  MODE_AUTORESPONDED,
 } from 'constants/strings';
-import { AppDispatch } from 'store/store';
-import { clearCategoryState } from 'store/slices/emailSlice';
-import { useEmailManagement } from 'hooks/useEmailManagement';
-import { useTriageSuggestions } from 'hooks/useTriageSuggestions';
-import { useEmailSelection } from 'hooks/useEmailSelection';
+import { useAuth } from 'contexts/AuthContext';
 import { useBatchSchedule } from 'hooks/useBatchSchedule';
-import { useTabCounts } from 'hooks/useTabCounts';
 import { useEmailActions } from 'hooks/useEmailActions';
+import { useEmailManagement } from 'hooks/useEmailManagement';
+import { useEmailSelection } from 'hooks/useEmailSelection';
+import { useInboxCategoryAccordion } from 'hooks/useInboxCategoryAccordion';
+import { useInboxEmailHandlers } from 'hooks/useInboxEmailHandlers';
+import { useInboxFilters } from 'hooks/useInboxFilters';
+import { useInboxFollowUpData } from 'hooks/useInboxFollowUpData';
 import { useInboxInitialization } from 'hooks/useInboxInitialization';
 import { useInboxModeChanges } from 'hooks/useInboxModeChanges';
-import { useInboxFilters } from 'hooks/useInboxFilters';
-import { useInboxUIState } from 'hooks/useInboxUIState';
-import { useInboxEmailHandlers } from 'hooks/useInboxEmailHandlers';
-import { useInboxUrlSync } from 'hooks/useInboxUrlSync';
-import { useInboxCategoryAccordion } from 'hooks/useInboxCategoryAccordion';
-import { useInboxFollowUpData } from 'hooks/useInboxFollowUpData';
 import { useInboxTourRefs } from 'hooks/useInboxTourRefs';
+import { useInboxUIState } from 'hooks/useInboxUIState';
+import { useInboxUrlSync } from 'hooks/useInboxUrlSync';
+import { useTabCounts } from 'hooks/useTabCounts';
+import { useTriageSuggestions } from 'hooks/useTriageSuggestions';
+import { clearCategoryState } from 'store/slices/emailSlice';
+import { AppDispatch } from 'store/store';
 
 const VALID_MODES: InboxMode[] = [
   MODE_TRIAGE,

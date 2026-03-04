@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { theme } from 'theme/theme';
+
 import { EMOJI_INFO } from 'constants/emojis';
-import { MS_PER_MINUTE, MINUTES_PER_HOUR } from 'constants/numbers';
+import { MINUTES_PER_HOUR,MS_PER_MINUTE } from 'constants/numbers';
 
 interface BatchInfoBarProps {
   nextDelivery: Date | null;

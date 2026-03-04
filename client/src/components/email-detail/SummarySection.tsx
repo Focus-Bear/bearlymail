@@ -1,10 +1,11 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { SUMMARY_TYPE_CUSTOM, SUMMARY_TYPE_CUSTOM_PREFIX } from 'constants/strings';
-import { SUMMARY_PREVIEW_MAX_CHARS } from 'constants/numbers';
+
 import { CollapsibleSection } from 'components/common/CollapsibleSection';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { SUMMARY_PREVIEW_MAX_CHARS } from 'constants/numbers';
+import { SUMMARY_TYPE_CUSTOM, SUMMARY_TYPE_CUSTOM_PREFIX } from 'constants/strings';
 
 interface SummarySectionProps {
   summary: string | null;

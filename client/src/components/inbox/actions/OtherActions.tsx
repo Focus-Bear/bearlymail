@@ -2,11 +2,12 @@ import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Email, InboxMode } from 'types/email';
-import { SnoozeInput } from 'components/inbox/actions/SnoozeInput';
-import { TOAST_DURATION_MS, OPACITY_DISABLED, MODE_TRIAGE } from 'components/inbox/constants';
-import { EMOJI_INBOX, EMOJI_BLOCK, EMOJI_LINK } from 'constants/emojis';
-import { extractUnsubscribeLink } from 'utils/unsubscribeUtils';
 import { captureEvent } from 'utils/posthog';
+import { extractUnsubscribeLink } from 'utils/unsubscribeUtils';
+
+import { SnoozeInput } from 'components/inbox/actions/SnoozeInput';
+import { MODE_TRIAGE,OPACITY_DISABLED, TOAST_DURATION_MS } from 'components/inbox/constants';
+import { EMOJI_BLOCK, EMOJI_INBOX, EMOJI_LINK } from 'constants/emojis';
 
 interface OtherActionsProps {
   email: Email;

@@ -1,13 +1,14 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
+
+import { QUERY_LIMITS } from "../constants/query-limits";
 import {
-  UserContext,
   ContextKey,
   Source,
+  UserContext,
 } from "../database/entities/user-context.entity";
 import { getErrorMessage } from "../types/common";
-import { QUERY_LIMITS } from "../constants/query-limits";
 import { ContextPiiRedactionService } from "./context-pii-redaction.service";
 
 export interface CreateContextOptions {

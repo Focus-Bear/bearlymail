@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+
 import { MAX_PREVIEW_LENGTH } from 'components/inbox/constants';
 import { TOOLTIP_PREVIEW_MAX_CHARS } from 'constants/numbers';
 

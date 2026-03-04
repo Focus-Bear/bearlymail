@@ -1,21 +1,22 @@
 import {
+  BadRequestException,
+  Body,
   Controller,
+  Delete,
   Get,
+  Param,
   Post,
   Put,
-  Delete,
-  Body,
-  Param,
   Request,
   UseGuards,
-  BadRequestException,
 } from "@nestjs/common";
-import { JwtAuthGuard } from "../auth/jwt-auth.guard";
-import { FollowUpsService } from "./follow-ups.service";
 import { Inject } from "@nestjs/common";
 import PgBoss from "pg-boss";
+
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { Email } from "../database/entities/email.entity";
+import { FollowUpsService } from "./follow-ups.service";
 
 /**
  * Email with follow-up tracking properties added by the inbox query

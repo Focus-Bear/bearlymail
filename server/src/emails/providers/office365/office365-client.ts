@@ -1,7 +1,8 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { Office365AccountsService } from "../../../office365-accounts/office365-accounts.service";
 import axios, { AxiosInstance } from "axios";
+
+import { Office365AccountsService } from "../../../office365-accounts/office365-accounts.service";
 
 @Injectable()
 export class Office365Client {

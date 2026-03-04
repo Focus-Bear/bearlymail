@@ -1,12 +1,13 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect,useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+
+import { COLOR_TRANSPARENT } from 'constants/colors';
+import { FILTER_ALL } from 'constants/strings';
+import type { ConnectedAccount,InboxFilter } from 'hooks/useInboxFilters';
 import {
   PRIORITY_RANGES,
 } from 'hooks/useInboxFilters';
-import type { InboxFilter, ConnectedAccount } from 'hooks/useInboxFilters';
-import { FILTER_ALL } from 'constants/strings';
-import { COLOR_TRANSPARENT } from 'constants/colors';
 
 interface InboxFiltersProps {
   onFilterChange?: () => void;

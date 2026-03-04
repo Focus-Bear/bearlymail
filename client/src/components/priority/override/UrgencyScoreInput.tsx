@@ -1,8 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { EMOJI_SIREN, EMOJI_WARNING, EMOJI_CLIPBOARD, EMOJI_CHECK } from 'constants/emojis';
-import { URGENCY_THRESHOLD, URGENCY_LOW, URGENCY_HIGH_THRESHOLD } from 'constants/numbers';
+
+import { EMOJI_CHECK,EMOJI_CLIPBOARD, EMOJI_SIREN, EMOJI_WARNING } from 'constants/emojis';
+import { URGENCY_HIGH_THRESHOLD,URGENCY_LOW, URGENCY_THRESHOLD } from 'constants/numbers';
 
 interface UrgencyScoreInputProps {
   urgencyScore: number;

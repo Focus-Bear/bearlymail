@@ -1,14 +1,15 @@
 import { Injectable } from "@nestjs/common";
 import { DataSource } from "typeorm";
+
+import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
-import {
-  UserContext,
-  ContextKey,
-} from "../database/entities/user-context.entity";
 import { ProtoCategory } from "../database/entities/proto-category.entity";
+import {
+  ContextKey,
+  UserContext,
+} from "../database/entities/user-context.entity";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
-import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
 
 export interface CategoryDebugData {
   email: {

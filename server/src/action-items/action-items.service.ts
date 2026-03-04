@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, Not, IsNull } from "typeorm";
+import { IsNull, Not, Repository } from "typeorm";
+
 import { ActionItem } from "../database/entities/action-item.entity";
 
 @Injectable()

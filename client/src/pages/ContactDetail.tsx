@@ -1,18 +1,19 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useCallback,useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { theme } from 'theme/theme';
-import { ContactDetail as ContactDetailType, ContactTypeConfig, ContactNote } from 'types/contact';
-import { useAuth } from 'contexts/AuthContext';
-import { Sidebar } from 'components/inbox/Sidebar';
-import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
-import { useSidebarState } from 'hooks/useSidebarState';
+import { ContactDetail as ContactDetailType, ContactNote,ContactTypeConfig } from 'types/contact';
+
 import { ContactTypeBadge } from 'components/crm/ContactTypeBadge';
+import { Sidebar } from 'components/inbox/Sidebar';
 import { API_URL } from 'config/api';
 import { EMOJI_MENU } from 'constants/emojis';
-import { OPACITY_HALF, OPACITY_FULL, WIDTH_64_PX, HEIGHT_64_PX, MAX_WIDTH_800_PX } from 'constants/numbers';
-import { FIELD_TYPE_NUMBER, FIELD_TYPE_DATE, FIELD_TYPE_URL, FIELD_TYPE_TEXT, INPUT_TYPE_NUMBER, INPUT_TYPE_DATE, INPUT_TYPE_URL, INPUT_TYPE_TEXT, INPUT_TYPE_TEL, STRING_CENTER, STRING_BLOCK, STRING_FLEX, STRING_GRID, STRING_FIXED, STRING_VERTICAL, STRING_COLUMN, STRING_COVER, STRING_PRE_WRAP, STRING_SPACE_BETWEEN, STRING_FLEX_END, STRING_HIDDEN, STRING_AUTO, STRING_TRANSPARENT, STRING_WHITE, STRING_NONE, STRING_POINTER, FIELD_TYPE_PHONE, FIELD_TYPE_COMPANY, FIELD_JOB_TITLE } from 'constants/strings';
+import { HEIGHT_64_PX, MAX_WIDTH_800_PX,OPACITY_FULL, OPACITY_HALF, WIDTH_64_PX } from 'constants/numbers';
+import { FIELD_JOB_TITLE,FIELD_TYPE_COMPANY, FIELD_TYPE_DATE, FIELD_TYPE_NUMBER, FIELD_TYPE_PHONE, FIELD_TYPE_TEXT, FIELD_TYPE_URL, INPUT_TYPE_DATE, INPUT_TYPE_NUMBER, INPUT_TYPE_TEL, INPUT_TYPE_TEXT, INPUT_TYPE_URL, STRING_AUTO, STRING_BLOCK, STRING_CENTER, STRING_COLUMN, STRING_COVER, STRING_FIXED, STRING_FLEX, STRING_FLEX_END, STRING_GRID, STRING_HIDDEN, STRING_NONE, STRING_POINTER, STRING_PRE_WRAP, STRING_SPACE_BETWEEN, STRING_TRANSPARENT, STRING_VERTICAL, STRING_WHITE } from 'constants/strings';
+import { useAuth } from 'contexts/AuthContext';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { useSidebarState } from 'hooks/useSidebarState';
 
 
 interface ContactNotesSectionProps {

@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
-import { PRIORITY_MEDIUM_THRESHOLD } from 'constants/numbers';
-import { ModalBackdrop, ModalContent, ModalHeader, ModalFooter } from 'components/modal';
+
+import { ModalBackdrop, ModalContent, ModalFooter,ModalHeader } from 'components/modal';
 import { ReasonTypeSelector } from 'components/priority/override/ReasonTypeSelector';
 import { OverrideReasonType } from 'components/priority/types';
-
 import { API_URL } from 'config/api';
+import { PRIORITY_MEDIUM_THRESHOLD } from 'constants/numbers';
 import { CONTEXT_ARCHIVE, CONTEXT_MANUAL } from 'constants/strings';
 
 interface PriorityOverrideModalProps {

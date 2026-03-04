@@ -1,8 +1,9 @@
 import { useCallback } from 'react';
 import axios from 'axios';
+
 import { API_URL } from 'config/api';
 import { POLLING_INTERVAL_MS, POLLING_TIMEOUT_2_MIN_MS } from 'constants/numbers';
-import { DRAFT_STATUS_PENDING, DRAFT_STATUS_GENERATING, DRAFT_STATUS_COMPLETED, DRAFT_STATUS_ERROR } from 'constants/strings';
+import { DRAFT_STATUS_COMPLETED, DRAFT_STATUS_ERROR,DRAFT_STATUS_GENERATING, DRAFT_STATUS_PENDING } from 'constants/strings';
 import { ThreadWithFollowUp } from 'hooks/useFollowUps';
 
 interface UseFollowUpPollingProps {

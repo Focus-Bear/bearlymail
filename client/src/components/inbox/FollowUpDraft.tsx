@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect,useState } from 'react';
 import { theme } from 'theme/theme';
-import { DraftGenerationStatus } from 'components/inbox/followup/DraftGenerationStatus';
+
 import { DraftDisplay } from 'components/inbox/followup/DraftDisplay';
 import { DraftEditor } from 'components/inbox/followup/DraftEditor';
+import { DraftGenerationStatus } from 'components/inbox/followup/DraftGenerationStatus';
 
 interface FollowUpDraftProps {
   followUpData: {

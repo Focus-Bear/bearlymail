@@ -1,21 +1,22 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
-  ManyToOne,
   CreateDateColumn,
-  UpdateDateColumn,
-  JoinColumn,
+  Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
   OneToMany,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from "typeorm";
-import { User } from "./user.entity";
-import { Email } from "./email.entity";
-import { ProtoCategory } from "./proto-category.entity";
+
 import {
   encryptedColumnTransformer,
   encryptedJsonTransformer,
 } from "../../encryption/encryption.helper";
+import { Email } from "./email.entity";
+import { ProtoCategory } from "./proto-category.entity";
+import { User } from "./user.entity";
 
 @Entity("email_threads")
 // One thread per user

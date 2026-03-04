@@ -1,11 +1,12 @@
-import { Module, forwardRef } from "@nestjs/common";
+import { forwardRef, Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
+
+import { AuthModule } from "../auth/auth.module";
+import { Waitlist } from "../database/entities/waitlist.entity";
+import { EmailModule } from "../email/email.module";
+import { UsersModule } from "../users/users.module";
 import { WaitlistController } from "./waitlist.controller";
 import { WaitlistService } from "./waitlist.service";
-import { Waitlist } from "../database/entities/waitlist.entity";
-import { UsersModule } from "../users/users.module";
-import { AuthModule } from "../auth/auth.module";
-import { EmailModule } from "../email/email.module";
 
 @Module({
   imports: [

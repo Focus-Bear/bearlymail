@@ -1,14 +1,15 @@
 import {
+  BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
-  BadRequestException,
-  ForbiddenException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { Deal } from "../database/entities/deal.entity";
+
 import { Contact } from "../database/entities/contact.entity";
+import { Deal } from "../database/entities/deal.entity";
 import {
   DealStage,
   DEFAULT_DEAL_STAGES,

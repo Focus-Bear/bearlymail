@@ -1,10 +1,11 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { humanizeTimestamp } from 'utils/dateUtils';
 import { Email } from 'types/email';
-import { EmailBodyIframe } from './EmailBodyIframe';
+import { humanizeTimestamp } from 'utils/dateUtils';
+
 import { EmailAttachments } from './EmailAttachments';
+import { EmailBodyIframe } from './EmailBodyIframe';
 
 interface EmailThreadViewProps {
   email: Email;

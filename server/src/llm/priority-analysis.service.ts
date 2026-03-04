@@ -1,21 +1,22 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { LLMCoreService } from "./llm-core.service";
-import { LLMProvider } from "./llm.types";
-import {
-  LLM_OP_ANALYZE_PRIORITY,
-  LLM_OP_ANALYZE_PRIORITY_BATCH,
-} from "./llm-operations";
-import { DISPLAY_CONSTANTS } from "../constants/service-constants";
-import { cleanEmailContent } from "./email-content-cleaner";
-import { getPrompt, renderPrompt } from "./prompts";
-import { RATIOS } from "../constants/percentages";
-import { QUERY_LIMITS } from "../constants/query-limits";
+
 import {
   BODY_PREVIEW_LENGTHS,
   PRIORITY_ANALYSIS_FALLBACK,
 } from "../constants/llm-constants";
+import { RATIOS } from "../constants/percentages";
+import { QUERY_LIMITS } from "../constants/query-limits";
+import { DISPLAY_CONSTANTS } from "../constants/service-constants";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { StructuralError } from "../errors/structural-error";
+import { cleanEmailContent } from "./email-content-cleaner";
+import { LLMProvider } from "./llm.types";
+import { LLMCoreService } from "./llm-core.service";
+import {
+  LLM_OP_ANALYZE_PRIORITY,
+  LLM_OP_ANALYZE_PRIORITY_BATCH,
+} from "./llm-operations";
+import { getPrompt, renderPrompt } from "./prompts";
 
 @Injectable()
 export class PriorityAnalysisService {

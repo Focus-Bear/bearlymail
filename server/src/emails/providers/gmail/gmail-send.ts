@@ -1,8 +1,8 @@
-import {
-  EmailRecipient,
-  EmailAttachmentData,
-} from "../../interfaces/email-provider.interface";
 import { QUERY_LIMITS } from "../../../constants/query-limits";
+import {
+  EmailAttachmentData,
+  EmailRecipient,
+} from "../../interfaces/email-provider.interface";
 
 /**
  * Build email content with support for attachments and HTML using multipart MIME

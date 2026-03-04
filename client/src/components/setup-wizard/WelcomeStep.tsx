@@ -1,7 +1,8 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback,useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { theme } from 'theme/theme';
 import axios from 'axios';
+import { theme } from 'theme/theme';
+
 import { API_URL } from 'config/api';
 
 interface WelcomeStepProps {

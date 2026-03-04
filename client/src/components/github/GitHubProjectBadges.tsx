@@ -1,25 +1,25 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useEffect, useMemo,useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import axios from 'axios';
 import { theme } from 'theme/theme';
 import { GitHubLink } from 'types/email';
-import axios from 'axios';
-import { useTranslation } from 'react-i18next';
+
+import { API_URL } from 'config/api';
 import {
-  GITHUB_STATUS_MERGED,
-  GITHUB_STATUS_CLOSED,
-  GITHUB_STATUS_OPEN,
-  GITHUB_REVIEW_STATUS_APPROVED,
-  GITHUB_REVIEW_STATUS_CHANGES_REQUESTED,
-} from 'constants/strings';
-import {
-  COLOR_GITHUB_OPEN_BG,
-  COLOR_GITHUB_OPEN_FG,
   COLOR_GITHUB_CLOSED_BG,
   COLOR_GITHUB_CLOSED_FG,
   COLOR_GITHUB_MERGED_BG,
   COLOR_GITHUB_MERGED_FG,
+  COLOR_GITHUB_OPEN_BG,
+  COLOR_GITHUB_OPEN_FG,
 } from 'constants/colors';
-
-import { API_URL } from 'config/api';
+import {
+  GITHUB_REVIEW_STATUS_APPROVED,
+  GITHUB_REVIEW_STATUS_CHANGES_REQUESTED,
+  GITHUB_STATUS_CLOSED,
+  GITHUB_STATUS_MERGED,
+  GITHUB_STATUS_OPEN,
+} from 'constants/strings';
 
 interface GitHubProjectBadgesProps {
   emailId: string;

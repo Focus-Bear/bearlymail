@@ -1,7 +1,8 @@
 import React from 'react';
 import { theme } from 'theme/theme';
-import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+
 import { getFeatureCardStyles, getParagraphMarginBottom } from 'components/landing/FeatureCardStyles';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 interface FeatureCardProps {
   /**

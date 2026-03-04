@@ -1,7 +1,8 @@
 import React from 'react';
 import { theme } from 'theme/theme';
-import { Z_INDEX_MODAL_OVERLAY, OPACITY_HALF } from 'constants/numbers';
-import { ConfirmModalHeader, ConfirmModalBody, ConfirmModalFooter } from 'components/modal';
+
+import { ConfirmModalBody, ConfirmModalFooter,ConfirmModalHeader } from 'components/modal';
+import { OPACITY_HALF,Z_INDEX_MODAL_OVERLAY } from 'constants/numbers';
 
 interface ConfirmModalProps {
   isOpen: boolean;

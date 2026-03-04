@@ -1,4 +1,5 @@
 import React from 'react';
+
 import { LegalPageLayout } from 'components/legal/LegalPageLayout';
 import { TermsOfUseContent } from 'pages/terms/TermsOfUseContent';
 

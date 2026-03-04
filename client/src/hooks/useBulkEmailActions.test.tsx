@@ -1,12 +1,14 @@
 import React from 'react';
-import { renderHook, act, waitFor } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
-import { useBulkEmailActions } from './useBulkEmailActions';
-import { captureEvent } from 'utils/posthog';
-import emailReducer from 'store/slices/emailSlice';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import axios from 'axios';
 import { Email } from 'types/email';
+import { captureEvent } from 'utils/posthog';
+
+import emailReducer from 'store/slices/emailSlice';
+
+import { useBulkEmailActions } from './useBulkEmailActions';
 
 jest.mock('utils/posthog', () => ({
   captureEvent: jest.fn(),

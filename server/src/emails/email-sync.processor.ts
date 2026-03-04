@@ -1,20 +1,21 @@
-import { Injectable, OnModuleInit, Logger, Inject } from "@nestjs/common";
+import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as os from "os";
 import PgBoss from "pg-boss";
-import { EmailProviderManager } from "./email-provider-manager.service";
-import { UsersService } from "../users/users.service";
-import { GmailProvider } from "./providers/gmail.provider";
-import { getJobPriority } from "../queue/job-priorities";
+
+import { CloudWatchService } from "../aws/cloudwatch.service";
 import {
   DAYS,
   HOURS,
   MILLISECONDS,
-  MS_PER_SECOND,
   MINUTES,
+  MS_PER_SECOND,
 } from "../constants/time-constants";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
-import { CloudWatchService } from "../aws/cloudwatch.service";
+import { getJobPriority } from "../queue/job-priorities";
+import { UsersService } from "../users/users.service";
+import { EmailProviderManager } from "./email-provider-manager.service";
+import { GmailProvider } from "./providers/gmail.provider";
 
 @Injectable()
 export class EmailSyncProcessor implements OnModuleInit {

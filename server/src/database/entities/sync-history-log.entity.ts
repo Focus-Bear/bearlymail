@@ -1,9 +1,9 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
   CreateDateColumn,
+  Entity,
   Index,
+  PrimaryGeneratedColumn,
 } from "typeorm";
 
 @Entity("sync_history_logs")

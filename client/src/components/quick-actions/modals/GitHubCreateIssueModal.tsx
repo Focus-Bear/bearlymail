@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { VIEWPORT_HEIGHT_90, MAX_DESCRIPTION_LENGTH, MODAL_WIDTH_MEDIUM } from 'constants/numbers';
+
+import { ErrorDisplay } from 'components/modal/ErrorDisplay';
 import { ModalBackdrop } from 'components/modal/ModalBackdrop';
 import { ModalContent } from 'components/modal/ModalContent';
-import { ModalHeaderWithClose } from 'components/modal/ModalHeaderWithClose';
-import { ErrorDisplay } from 'components/modal/ErrorDisplay';
 import { ModalFormActions } from 'components/modal/ModalFormActions';
+import { ModalHeaderWithClose } from 'components/modal/ModalHeaderWithClose';
 import { GitHubIssueForm } from 'components/quick-actions/modals/github/GitHubIssueForm';
-
 import { API_URL } from 'config/api';
+import { MAX_DESCRIPTION_LENGTH, MODAL_WIDTH_MEDIUM,VIEWPORT_HEIGHT_90 } from 'constants/numbers';
 
 interface GitHubCreateIssueModalProps {
   email: {

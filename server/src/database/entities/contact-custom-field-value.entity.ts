@@ -1,16 +1,17 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
   CreateDateColumn,
-  UpdateDateColumn,
-  ManyToOne,
-  JoinColumn,
+  Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from "typeorm";
+
+import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
 import { Contact } from "./contact.entity";
 import { ContactCustomField } from "./contact-custom-field.entity";
-import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
 
 @Entity("contact_custom_field_values")
 @Index(["contactId", "fieldId"], { unique: true })

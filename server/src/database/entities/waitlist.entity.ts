@@ -1,13 +1,14 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
   CreateDateColumn,
+  Entity,
   Index,
+  PrimaryGeneratedColumn,
 } from "typeorm";
+
 import {
-  encryptedColumnTransformer,
   emailTransformer,
+  encryptedColumnTransformer,
 } from "../../encryption/encryption.helper";
 
 @Entity("waitlist")

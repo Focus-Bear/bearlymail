@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { Email } from 'types/email';
+
+import { KEY_ARROW_DOWN, KEY_ARROW_UP, KEY_ENTER,KEY_ESCAPE, KEY_TAB } from 'constants/strings';
 import { useSplitView } from 'hooks/useSplitView';
-import { KEY_ESCAPE, KEY_TAB, KEY_ARROW_DOWN, KEY_ARROW_UP, KEY_ENTER } from 'constants/strings';
 
 interface UseInboxKeyboardNavigationProps {
   emails: Email[];

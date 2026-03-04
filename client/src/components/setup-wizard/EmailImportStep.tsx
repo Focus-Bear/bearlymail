@@ -1,10 +1,11 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useCallback, useEffect, useRef,useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { theme } from 'theme/theme';
 import axios from 'axios';
+import { theme } from 'theme/theme';
+
 import { API_URL } from 'config/api';
-import { POLLING_INTERVAL_MS } from 'constants/numbers';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { POLLING_INTERVAL_MS } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
 
 interface EmailImportStepProps {

@@ -1,7 +1,8 @@
 import React from 'react';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
-import { TOAST_DURATION_MS, OPACITY_HALF } from 'components/inbox/constants';
+
+import { OPACITY_HALF,TOAST_DURATION_MS } from 'components/inbox/constants';
 
 interface StarButtonsProps {
   email: Email;

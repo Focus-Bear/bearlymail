@@ -1,10 +1,11 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
-import { CTAButton } from 'components/landing/CTAButton';
+
 import { ClosingStatementContent } from 'components/landing/ClosingStatementContent';
-import { getResponsiveSpacing, getHeadingFontSize } from 'components/landing/utils';
+import { CTAButton } from 'components/landing/CTAButton';
+import { getHeadingFontSize,getResponsiveSpacing } from 'components/landing/utils';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 /**
  * Closing statement section component

@@ -1,18 +1,19 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, MoreThan } from "typeorm";
-import { EmailThread } from "../database/entities/email-thread.entity";
-import { Email } from "../database/entities/email.entity";
-import { AutoResponseLog } from "../database/entities/auto-response-log.entity";
-import { QueueStats, CategoryReplyTime } from "./types/auto-responder.types";
-import { DISPLAY_LIMITS, STATS_CONFIG } from "./auto-responder-constants";
-import { LEARNING_THRESHOLDS } from "../constants/service-constants";
+import { MoreThan, Repository } from "typeorm";
+
 import { RATIOS } from "../constants/percentages";
+import { LEARNING_THRESHOLDS } from "../constants/service-constants";
 import {
   DAYS,
-  MINUTES_PER_HOUR,
   HOURS_PER_DAY,
+  MINUTES_PER_HOUR,
 } from "../constants/time-constants";
+import { AutoResponseLog } from "../database/entities/auto-response-log.entity";
+import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
+import { DISPLAY_LIMITS, STATS_CONFIG } from "./auto-responder-constants";
+import { CategoryReplyTime, QueueStats } from "./types/auto-responder.types";
 
 // Default response times when no data is available (calculated from typical patterns)
 const DEFAULT_RESPONSE_TIMES = {

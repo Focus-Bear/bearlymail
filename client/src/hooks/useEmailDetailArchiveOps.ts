@@ -3,18 +3,20 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { captureEvent } from 'utils/posthog';
-import {
-  removeEmail,
-  addOptimisticArchive,
-  restoreEmail,
-  removeOptimisticArchive,
-  addOptimisticSnooze,
-  removeOptimisticSnooze,
-} from 'store/slices/emailSlice';
-import { selectEmails } from 'store/selectors/emailSelectors';
-import { ANIMATION_TYPE_ARCHIVE } from 'constants/strings';
+
 import { API_URL } from 'config/api';
+import { ANIMATION_TYPE_ARCHIVE } from 'constants/strings';
+import { selectEmails } from 'store/selectors/emailSelectors';
+import {
+  addOptimisticArchive,
+  addOptimisticSnooze,
+  removeEmail,
+  removeOptimisticArchive,
+  removeOptimisticSnooze,
+  restoreEmail,
+} from 'store/slices/emailSlice';
 import { AppDispatch } from 'store/store';
+
 import { EmailDetailOperationsOptions, EmailDetailState } from './useEmailDetailOperations.types';
 
 // Pure helper: performs the optimistic archive update and background API call.

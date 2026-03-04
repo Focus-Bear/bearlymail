@@ -1,7 +1,8 @@
-import { ERROR_NOTIFICATION_DURATION_MS } from 'constants/numbers';
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { NotificationToast } from 'components/notifications/NotificationToast';
+import React, { createContext, ReactNode,useCallback, useContext, useState } from 'react';
 import { theme } from 'theme/theme';
+
+import { NotificationToast } from 'components/notifications/NotificationToast';
+import { ERROR_NOTIFICATION_DURATION_MS } from 'constants/numbers';
 
 export type NotificationType = 'success' | 'error' | 'info' | 'warning';
 

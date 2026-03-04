@@ -1,9 +1,10 @@
 import React from 'react';
+
 import { ConfirmModal } from 'components/ConfirmModal';
-import { StarDiscrepancyModal } from 'components/priority/StarDiscrepancyModal';
-import { PriorityOverrideModal } from 'components/priority/PriorityOverrideModal';
 import { UrgencyOverrideModal } from 'components/inbox/UrgencyOverrideModal';
 import { PriorityFeedbackModal } from 'components/priority/PriorityFeedbackModal';
+import { PriorityOverrideModal } from 'components/priority/PriorityOverrideModal';
+import { StarDiscrepancyModal } from 'components/priority/StarDiscrepancyModal';
 import { API_URL } from 'config/api';
 import { ANIMATION_TYPE_ARCHIVE } from 'constants/strings';
 

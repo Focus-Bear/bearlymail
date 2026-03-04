@@ -1,13 +1,12 @@
-import React, { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
-import { Editor } from '@tiptap/react';
+import React, { useCallback, useEffect, useLayoutEffect,useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { Editor } from '@tiptap/react';
 import { theme } from 'theme/theme';
-
-import { FONT_WEIGHT_BOLD_INLINE, FONT_WEIGHT_NORMAL_INLINE, OPACITY_HALF, Z_INDEX_POPUP } from 'constants/numbers';
-import { KEY_ENTER, KEY_ESCAPE, STRING_NONE } from 'constants/strings';
 
 import { EmojiPicker } from 'components/rich-text/EmojiPicker';
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
+import { FONT_WEIGHT_BOLD_INLINE, FONT_WEIGHT_NORMAL_INLINE, OPACITY_HALF, Z_INDEX_POPUP } from 'constants/numbers';
+import { KEY_ENTER, KEY_ESCAPE, STRING_NONE } from 'constants/strings';
 
 interface RichTextToolbarProps {
   editor: Editor | null;

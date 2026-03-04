@@ -1,13 +1,14 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+
+import { FounderHeader } from 'components/landing/founder/FounderHeader';
+import { FounderStoryContent } from 'components/landing/founder/FounderStoryContent';
 import {
   getHeadingFontSize,
   getResponsiveSpacing,
 } from 'components/landing/utils';
-import { FounderHeader } from 'components/landing/founder/FounderHeader';
-import { FounderStoryContent } from 'components/landing/founder/FounderStoryContent';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 /**
  * Founder's story section component

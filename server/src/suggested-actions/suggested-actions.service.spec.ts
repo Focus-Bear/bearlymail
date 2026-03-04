@@ -1,17 +1,18 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { SuggestedActionsService } from "./suggested-actions.service";
-import { UsersService } from "../users/users.service";
-import { EmailsService } from "../emails/emails.service";
-import { LLMService } from "../llm/llm.service";
-import { GitHubService } from "../github/github.service";
-import { GitHubApiService } from "../github/github-api.service";
-import { CalendarService } from "../calendar/calendar.service";
+
 import { ActionItemsService } from "../action-items/action-items.service";
-import { GitHubRepoMappingService } from "../github/github-repo-mapping.service";
+import { CalendarService } from "../calendar/calendar.service";
+import { ActionItem } from "../database/entities/action-item.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
-import { ActionItem } from "../database/entities/action-item.entity";
+import { EmailsService } from "../emails/emails.service";
+import { GitHubService } from "../github/github.service";
+import { GitHubApiService } from "../github/github-api.service";
+import { GitHubRepoMappingService } from "../github/github-repo-mapping.service";
+import { LLMService } from "../llm/llm.service";
+import { UsersService } from "../users/users.service";
+import { SuggestedActionsService } from "./suggested-actions.service";
 
 describe("SuggestedActionsService", () => {
   let service: SuggestedActionsService;

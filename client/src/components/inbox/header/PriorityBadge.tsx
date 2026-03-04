@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Email, getEmailPriorityScore } from 'types/email';
 import { getPriorityBadge } from 'utils/priorityUtils';
+
 import { PriorityTooltip } from 'components/priority/PriorityTooltip';
 
 interface PriorityBadgeProps {

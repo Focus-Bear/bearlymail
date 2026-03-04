@@ -1,10 +1,11 @@
 import { Injectable } from "@nestjs/common";
+
+import { AutoResponseSuppression } from "../database/entities/auto-response-suppression.entity";
+import { AutoResponderQaService } from "./auto-responder-qa.service";
+import { AutoResponderSuppressionService } from "./auto-responder-suppression.service";
 import { EmailClassifierService } from "./email-classifier.service";
 import { QueueStatsService } from "./queue-stats.service";
-import { AutoResponderSuppressionService } from "./auto-responder-suppression.service";
-import { AutoResponderQaService } from "./auto-responder-qa.service";
 import { QueueStats } from "./types/auto-responder.types";
-import { AutoResponseSuppression } from "../database/entities/auto-response-suppression.entity";
 
 /**
  * Groups email classification, queue stats, suppression, and Q&A services

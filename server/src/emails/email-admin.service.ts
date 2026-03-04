@@ -1,17 +1,18 @@
-import { Injectable, Inject, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
 import * as crypto from "crypto";
 import PgBoss from "pg-boss";
-import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { EmailsService } from "./emails.service";
-import { PgBossWithInternals } from "./email-controller.helpers";
-import { getJobPriority } from "../queue/job-priorities";
-import { EmailThread } from "../database/entities/email-thread.entity";
+
 import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
-import { ContactsService } from "../contacts/contacts.service";
-import { EmailRecipient } from "./interfaces/email-provider.interface";
-import { HOURS_PER_DAY, HOURS, DAYS } from "../constants/time-constants";
 import { INBOX_MODES } from "../constants/query-limits";
+import { DAYS, HOURS, HOURS_PER_DAY } from "../constants/time-constants";
+import { ContactsService } from "../contacts/contacts.service";
+import { EmailThread } from "../database/entities/email-thread.entity";
+import { getJobPriority } from "../queue/job-priorities";
+import { PgBossWithInternals } from "./email-controller.helpers";
+import { EmailsService } from "./emails.service";
+import { EmailRecipient } from "./interfaces/email-provider.interface";
 
 type ValidMode = typeof INBOX_MODES.TRIAGE | typeof INBOX_MODES.ACTION;
 const VALID_MODES: readonly ValidMode[] = [

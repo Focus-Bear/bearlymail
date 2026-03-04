@@ -1,9 +1,10 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { OnboardingService } from "./onboarding.service";
-import { UsersService } from "../users/users.service";
-import { EmailThread } from "../database/entities/email-thread.entity";
 import PgBoss from "pg-boss";
+
+import { EmailThread } from "../database/entities/email-thread.entity";
+import { UsersService } from "../users/users.service";
+import { OnboardingService } from "./onboarding.service";
 
 describe("OnboardingService", () => {
   let service: OnboardingService;

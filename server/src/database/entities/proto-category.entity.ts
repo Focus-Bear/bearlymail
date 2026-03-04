@@ -1,15 +1,16 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
-  ManyToOne,
   CreateDateColumn,
-  UpdateDateColumn,
-  JoinColumn,
+  Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from "typeorm";
-import { User } from "./user.entity";
+
 import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
+import { User } from "./user.entity";
 
 /**
  * ProtoCategory represents a proposed category that hasn't been promoted to a real category yet.

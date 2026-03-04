@@ -1,22 +1,23 @@
 import React from 'react';
-import { ERROR_CODE_GMAIL_REQUIRED } from 'constants/strings';
 import axios from 'axios';
 import { theme } from 'theme/theme';
-import { DebugPanel } from 'components/inbox/DebugPanel';
-import { InboxOverlays } from 'components/inbox/InboxOverlays';
-import { InboxHeader } from 'components/inbox/InboxHeader';
-import { BulkOperationsBar } from 'components/inbox/BulkOperationsBar';
-import { Sidebar } from 'components/inbox/Sidebar';
-import { KeyboardHintTooltip } from 'components/inbox/KeyboardHintTooltip';
+
 import { ArchiveConfirmationToast } from 'components/inbox/ArchiveConfirmationToast';
-import { InboxLoadingState } from 'components/inbox/InboxLoadingState';
+import { BulkOperationsBar } from 'components/inbox/BulkOperationsBar';
+import { DebugPanel } from 'components/inbox/DebugPanel';
 import { GmailConnectionScreen } from 'components/inbox/GmailConnectionScreen';
 import { InboxContent } from 'components/inbox/InboxContent';
-import { InboxModals } from 'components/inbox/InboxModals';
 import { InboxFilters } from 'components/inbox/InboxFilters';
+import { InboxHeader } from 'components/inbox/InboxHeader';
+import { InboxLoadingState } from 'components/inbox/InboxLoadingState';
+import { InboxModals } from 'components/inbox/InboxModals';
+import { InboxOverlays } from 'components/inbox/InboxOverlays';
+import { KeyboardHintTooltip } from 'components/inbox/KeyboardHintTooltip';
+import { Sidebar } from 'components/inbox/Sidebar';
 import { API_URL } from 'config/api';
-import { useInboxState } from 'hooks/useInboxState';
+import { ERROR_CODE_GMAIL_REQUIRED } from 'constants/strings';
 import { useInboxFilters } from 'hooks/useInboxFilters';
+import { useInboxState } from 'hooks/useInboxState';
 import { useSidebarState } from 'hooks/useSidebarState';
 
 const Inbox: React.FC = () => {

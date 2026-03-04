@@ -1,4 +1,5 @@
 import React from 'react';
+
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 
 export interface EmailDetailState {

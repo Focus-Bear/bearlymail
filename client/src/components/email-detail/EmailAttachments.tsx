@@ -1,8 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { theme } from 'theme/theme';
-import { API_URL } from 'config/api';
 import axios from 'axios';
+import { theme } from 'theme/theme';
+
+import { API_URL } from 'config/api';
 import { FONT_WEIGHT_MEDIUM, FONT_WEIGHT_SEMIBOLD } from 'constants/numbers';
 
 interface EmailAttachment {

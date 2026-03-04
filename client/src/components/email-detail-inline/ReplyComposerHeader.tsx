@@ -1,8 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { EMOJI_WRITE, EMOJI_CLOSE, EMOJI_FORWARD } from 'constants/emojis';
-import { REPLY_MODE_REPLY_ALL, REPLY_MODE_FORWARD } from 'constants/strings';
+
+import { EMOJI_CLOSE, EMOJI_FORWARD,EMOJI_WRITE } from 'constants/emojis';
+import { REPLY_MODE_FORWARD,REPLY_MODE_REPLY_ALL } from 'constants/strings';
 
 interface ReplyComposerHeaderProps {
   replyMode: 'reply' | 'replyAll' | 'forward';

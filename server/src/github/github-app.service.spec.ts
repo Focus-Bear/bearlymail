@@ -1,8 +1,9 @@
-import { Test, TestingModule } from "@nestjs/testing";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
-import { GitHubAppService } from "./github-app.service";
+import { Test, TestingModule } from "@nestjs/testing";
+
 import { UsersService } from "../users/users.service";
+import { GitHubAppService } from "./github-app.service";
 
 describe("GitHubAppService - getAuthorizationUrl", () => {
   let service: GitHubAppService;

@@ -1,28 +1,29 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { google, calendar_v3 } from "googleapis";
+import { randomBytes } from "crypto";
 import { OAuth2Client } from "google-auth-library";
-import { UsersService } from "../users/users.service";
-import { LLMService } from "../llm/llm.service";
-import { EmailsService } from "../emails/emails.service";
+import { calendar_v3, google } from "googleapis";
+import { Repository } from "typeorm";
+
 import {
-  MINUTES,
   HOURS,
   MILLISECONDS,
+  MINUTES,
   MINUTES_PER_HOUR,
 } from "../constants/time-constants";
+import { CalendarBooking } from "../database/entities/calendar-booking.entity";
+import { EmailsService } from "../emails/emails.service";
+import { LLMService } from "../llm/llm.service";
+import {
+  SchedulingPreferenceData,
+  SchedulingPreferencesService,
+} from "../scheduling-preferences/scheduling-preferences.service";
+import { UsersService } from "../users/users.service";
 import { logError } from "../utils/logger";
 import {
-  respondToInvitation,
   generateMeetingReply,
+  respondToInvitation,
 } from "./calendar-invitation-response.service";
-import {
-  SchedulingPreferencesService,
-  SchedulingPreferenceData,
-} from "../scheduling-preferences/scheduling-preferences.service";
-import { CalendarBooking } from "../database/entities/calendar-booking.entity";
-import { randomBytes } from "crypto";
 
 const BOOKING_TOKEN_BYTES = 32;
 

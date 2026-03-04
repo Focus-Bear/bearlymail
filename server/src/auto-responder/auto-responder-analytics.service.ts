@@ -1,13 +1,14 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
+
+import { QUERY_LIMITS } from "../constants/query-limits";
 import { AutoResponseLog } from "../database/entities/auto-response-log.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
-import { QUERY_LIMITS } from "../constants/query-limits";
 import {
-  QASearchResult,
-  EmailClassification,
   AutoResponseLogPriority,
+  EmailClassification,
+  QASearchResult,
 } from "./types/auto-responder.types";
 
 type AutoRespondedThread = {
@@ -157,7 +158,11 @@ export class AutoResponderAnalyticsService {
   async getAutoRespondedThreads(
     userId: string,
     filters?: AutoRespondedThreadFilters,
-): Promise<{ emails: AutoRespondedThread[]; total: number; hasMore: boolean }> {
+  ): Promise<{
+    emails: AutoRespondedThread[];
+    total: number;
+    hasMore: boolean;
+  }> {
     const queryParams: unknown[] = [userId];
     let paramIndex = 2;
     let additionalFilters = "";
@@ -312,8 +317,12 @@ export class AutoResponderAnalyticsService {
     };
   }
 
-  private mapAutoRespondedRow(row: AutoRespondedThreadQueryRow): AutoRespondedThread {
-    const category = row.category ? EncryptionHelper.decrypt(row.category) : null;
+  private mapAutoRespondedRow(
+    row: AutoRespondedThreadQueryRow,
+  ): AutoRespondedThread {
+    const category = row.category
+      ? EncryptionHelper.decrypt(row.category)
+      : null;
     const categoryExplanation = row.categoryExplanation
       ? EncryptionHelper.decrypt(row.categoryExplanation)
       : null;
@@ -332,9 +341,9 @@ export class AutoResponderAnalyticsService {
       summary: row.summary ? EncryptionHelper.decrypt(row.summary) : null,
       isProcessingSummary: row.isProcessingSummary,
       priorityScore: row.priorityScore,
-      priorityExplanation: this.decryptEncryptedJsonField<Record<string, unknown>>(
-        row.priorityExplanation,
-      ),
+      priorityExplanation: this.decryptEncryptedJsonField<
+        Record<string, unknown>
+      >(row.priorityExplanation),
       isProcessingPriority: row.isProcessingPriority,
       urgencyScore: row.urgencyScore,
       category: category || "Other",

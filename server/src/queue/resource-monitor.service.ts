@@ -1,8 +1,9 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
-import { DataSource } from "typeorm";
-import * as os from "os";
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
+import { DataSource } from "typeorm";
+
 import { RESOURCE_MONITOR_CONSTANTS } from "../constants/resource-monitor-constants";
 import { BYTE_CONVERSIONS } from "../constants/service-constants";
 import { MS_PER_SECOND } from "../constants/time-constants";

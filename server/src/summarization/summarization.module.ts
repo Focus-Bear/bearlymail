@@ -1,11 +1,12 @@
-import { Module, forwardRef } from "@nestjs/common";
+import { forwardRef, Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { SummarizationController } from "./summarization.controller";
-import { SummarizationService } from "./summarization.service";
+
+import { SummarizationRule } from "../database/entities/summarization-rule.entity";
 import { EmailsModule } from "../emails/emails.module";
 import { LLMModule } from "../llm/llm.module";
-import { SummarizationRule } from "../database/entities/summarization-rule.entity";
 import { UsersModule } from "../users/users.module";
+import { SummarizationController } from "./summarization.controller";
+import { SummarizationService } from "./summarization.service";
 
 @Module({
   imports: [

@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
+import { captureEvent } from 'utils/posthog';
+
+import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { EMOJI_CALENDAR } from 'constants/emojis';
 import { OPACITY_HALF } from 'constants/numbers';
-import { captureEvent } from 'utils/posthog';
-import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
 
 interface CalendarInviteActionsProps {

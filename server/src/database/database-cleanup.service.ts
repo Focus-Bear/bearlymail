@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
 import { InjectConnection } from "@nestjs/typeorm";
 import { Connection } from "typeorm";
+
 import { getErrorMessage, isError } from "../types/common";
 
 @Injectable()

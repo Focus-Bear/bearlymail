@@ -1,28 +1,29 @@
-import { Injectable, Logger, Inject, forwardRef } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { User } from "../database/entities/user.entity";
+
+import { MILLISECONDS } from "../constants/time-constants";
 import { EmailThread } from "../database/entities/email-thread.entity";
-import { AutoResponderContextService } from "./auto-responder-context.service";
-import { AutoResponderTemplateService } from "./auto-responder-template.service";
-import { AutoResponderAnalyticsService } from "./auto-responder-analytics.service";
-import { AutoResponderPreviewService } from "./auto-responder-preview.service";
+import { User } from "../database/entities/user.entity";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
+import { AutoResponderAnalyticsService } from "./auto-responder-analytics.service";
 import {
-  AutoResponderConfig,
-  DEFAULT_AUTO_RESPONDER_CONFIG,
-  AutoResponseTemplateVars,
-  EmailClassification,
-} from "./types/auto-responder.types";
+  EMAIL_AGE_CONFIG,
+  PRIORITY_THRESHOLDS,
+} from "./auto-responder-constants";
+import { AutoResponderContextService } from "./auto-responder-context.service";
+import { AutoResponderPreviewService } from "./auto-responder-preview.service";
+import { AutoResponderTemplateService } from "./auto-responder-template.service";
 import {
-  autoresponderLogger,
   AutoresponderDecisionContext,
+  autoresponderLogger,
 } from "./autoresponder-logger";
 import {
-  PRIORITY_THRESHOLDS,
-  EMAIL_AGE_CONFIG,
-} from "./auto-responder-constants";
-import { MILLISECONDS } from "../constants/time-constants";
+  AutoResponderConfig,
+  AutoResponseTemplateVars,
+  DEFAULT_AUTO_RESPONDER_CONFIG,
+  EmailClassification,
+} from "./types/auto-responder.types";
 
 type PreparedResponse = {
   senderEmailHash: string;

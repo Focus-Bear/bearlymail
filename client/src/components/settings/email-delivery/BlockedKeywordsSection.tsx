@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { captureEvent } from 'utils/posthog';
+
+import { BlockedKeywordItem } from 'components/settings/email-delivery/BlockedKeywordItem';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { EMOJI_BLOCK } from 'constants/emojis';
 import { INPUT_WIDTH_PX, OPACITY_HALF } from 'constants/numbers';
 import { KEY_ENTER, STRING_NONE } from 'constants/strings';
-import { BlockedKeywordItem } from 'components/settings/email-delivery/BlockedKeywordItem';
-import { EMOJI_BLOCK } from 'constants/emojis';
-import { captureEvent } from 'utils/posthog';
-import { COLOR_NAMED_WHITE } from 'constants/colors';
 
 interface BlockedKeyword {
   id: string;

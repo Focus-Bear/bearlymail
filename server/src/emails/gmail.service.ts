@@ -1,10 +1,11 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { google } from "googleapis";
+
+import { HTTP_STATUS } from "../constants/http-status";
 import { UsersService } from "../users/users.service";
+import { logError } from "../utils/logger";
 import { EmailsService } from "./emails.service";
 import { RawEmailMessage } from "./interfaces/email-provider.interface";
-import { logError } from "../utils/logger";
-import { HTTP_STATUS } from "../constants/http-status";
 import { GmailPayload, GmailPayloadPart } from "./types/gmail.types";
 
 @Injectable()

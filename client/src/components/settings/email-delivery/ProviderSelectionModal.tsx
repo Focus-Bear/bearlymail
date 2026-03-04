@@ -1,9 +1,10 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+
+import { COLOR_ERROR_DARK_ALT, COLOR_ERROR_GOOGLE, COLOR_INFO_BLUE, COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { OPACITY_DISABLED_ALT, Z_INDEX_MODAL_OVERLAY } from 'constants/numbers';
 import { KEY_ESCAPE } from 'constants/strings';
-import { COLOR_ERROR_DARK_ALT, COLOR_ERROR_GOOGLE, COLOR_INFO_BLUE, COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 
 interface ProviderSelectionModalProps {
   isOpen: boolean;

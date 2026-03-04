@@ -1,5 +1,6 @@
 import React from 'react';
 import { theme } from 'theme/theme';
+
 import { COLOR_NAMED_RED } from 'constants/colors';
 
 interface StarredThread {

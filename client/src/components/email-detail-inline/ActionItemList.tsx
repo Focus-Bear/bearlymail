@@ -1,8 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { EMOJI_CLOSE } from 'constants/emojis';
 import { captureEvent } from 'utils/posthog';
+
+import { EMOJI_CLOSE } from 'constants/emojis';
 
 const ACTION_ITEM_SOURCE_LLM = 'llm';
 

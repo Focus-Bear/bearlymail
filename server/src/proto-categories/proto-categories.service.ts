@@ -7,12 +7,13 @@ import {
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { ProtoCategory } from "../database/entities/proto-category.entity";
+
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { ProtoCategory } from "../database/entities/proto-category.entity";
 import {
-  UserContext,
   ContextKey,
   Source,
+  UserContext,
 } from "../database/entities/user-context.entity";
 
 @Injectable()

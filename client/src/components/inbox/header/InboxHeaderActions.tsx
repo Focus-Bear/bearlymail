@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FiMoreVertical } from 'react-icons/fi';
-import { EMOJI_BUG } from 'constants/emojis';
 import { theme } from 'theme/theme';
 import { InboxMode } from 'types/email';
-import { HelpLink } from 'components/inbox/header/HelpLink';
-import { ComposeButton } from 'components/inbox/header/ComposeButton';
+
 import { AnalyzeEmailsButton } from 'components/inbox/header/AnalyzeEmailsButton';
+import { ComposeButton } from 'components/inbox/header/ComposeButton';
+import { HelpLink } from 'components/inbox/header/HelpLink';
+import { EMOJI_BUG } from 'constants/emojis';
 
 interface InboxHeaderActionsProps {
   mode: InboxMode;

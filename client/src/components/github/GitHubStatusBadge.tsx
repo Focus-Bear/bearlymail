@@ -1,12 +1,13 @@
 import React from 'react';
 import { theme } from 'theme/theme';
 import { GitHubLink } from 'types/email';
+
 import {
-  LINK_TYPE_ISSUE,
-  LINK_TYPE_PR,
-  GITHUB_STATE_OPEN,
   GITHUB_REVIEW_STATUS_APPROVED,
   GITHUB_REVIEW_STATUS_CHANGES_REQUESTED,
+  GITHUB_STATE_OPEN,
+  LINK_TYPE_ISSUE,
+  LINK_TYPE_PR,
 } from 'constants/strings';
 
 interface GitHubStatusBadgeProps {

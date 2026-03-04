@@ -1,17 +1,18 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
+
+import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
+import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
+import { ContactsService } from "../contacts/contacts.service";
+import { BatchSchedule } from "../database/entities/batch-schedule.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
+import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
+import { ScheduledEmailsService } from "../scheduled-emails/scheduled-emails.service";
+import { UsersService } from "../users/users.service";
+import { EmailAdminService } from "./email-admin.service";
+import { EmailProviderManager } from "./email-provider-manager.service";
 import { EmailsController } from "./emails.controller";
 import { EmailsService } from "./emails.service";
-import { EmailProviderManager } from "./email-provider-manager.service";
-import { EmailAdminService } from "./email-admin.service";
-import { ContactsService } from "../contacts/contacts.service";
-import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
-import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
-import { EmailThread } from "../database/entities/email-thread.entity";
-import { BatchSchedule } from "../database/entities/batch-schedule.entity";
-import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
-import { UsersService } from "../users/users.service";
-import { ScheduledEmailsService } from "../scheduled-emails/scheduled-emails.service";
 
 describe("EmailsController", () => {
   let controller: EmailsController;

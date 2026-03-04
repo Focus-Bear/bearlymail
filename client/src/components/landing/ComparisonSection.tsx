@@ -1,15 +1,16 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
-import { ComparisonTable } from 'components/landing/ComparisonTable';
+
 import { ComparisonHighlightBox } from 'components/landing/ComparisonHighlightBox';
+import { ComparisonTable } from 'components/landing/ComparisonTable';
 import {
-  getSectionMarginBottom,
   getHeadingFontSize,
   getResponsiveFontSize,
   getResponsiveSpacing,
+  getSectionMarginBottom,
 } from 'components/landing/utils';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 /**
  * Comparison section component

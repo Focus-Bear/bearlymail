@@ -1,36 +1,37 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Param,
   Body,
-  UseGuards,
-  Request,
+  Controller,
+  Delete,
+  Get,
   Inject,
   Logger,
+  Param,
+  Post,
+  Put,
   Query,
+  Request,
+  UseGuards,
 } from "@nestjs/common";
-import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
-import { MINUTES_PER_HOUR } from "../constants/time-constants";
-import { ContextService } from "./context.service";
-import {
-  UserContext,
-  ContextKey,
-  Source,
-} from "../database/entities/user-context.entity";
-import { JwtAuthGuard } from "../auth/jwt-auth.guard";
-import { AdminGuard } from "../auth/admin.guard";
-import { UsersService } from "../users/users.service";
-import PgBoss from "pg-boss";
-import { getJobPriority } from "../queue/job-priorities";
-import { PERCENTAGES } from "../constants/percentages";
-import { writeAnalysisLog } from "./context-analysis-logger";
 import { InjectRepository } from "@nestjs/typeorm";
+import PgBoss from "pg-boss";
 import { In, Repository } from "typeorm";
+
+import { AdminGuard } from "../auth/admin.guard";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
+import { PERCENTAGES } from "../constants/percentages";
+import { MINUTES_PER_HOUR } from "../constants/time-constants";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
 import { User } from "../database/entities/user.entity";
+import {
+  ContextKey,
+  Source,
+  UserContext,
+} from "../database/entities/user-context.entity";
+import { getJobPriority } from "../queue/job-priorities";
+import { UsersService } from "../users/users.service";
+import { ContextService } from "./context.service";
+import { writeAnalysisLog } from "./context-analysis-logger";
 
 type ProgressStage =
   | "starting"

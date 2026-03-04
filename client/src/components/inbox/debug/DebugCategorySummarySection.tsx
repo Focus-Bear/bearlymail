@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { CategorySummaryItem } from 'store/slices/emailSlice';
 import { Email } from 'types/email';
+
 import { COLOR_BG_ERROR, COLOR_BG_LIGHT_GRAY, COLOR_BG_NEUTRAL, COLOR_BG_NEUTRAL_ALT, COLOR_BG_WARNING, COLOR_ERROR_DARK, COLOR_ERROR_MED, COLOR_GREY_LIGHT, COLOR_GREY_MID, COLOR_WHITE } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
+import { CategorySummaryItem } from 'store/slices/emailSlice';
 
 interface DebugCategorySummaryProps {
   categorySummary: CategorySummaryItem[] | null;

@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect,useState } from 'react';
 import axios from 'axios';
 import { theme } from 'theme/theme';
-import { VIEWPORT_HEIGHT_90, CALENDAR_DAYS_AHEAD, CALENDAR_DAYS_BACK, MODAL_WIDTH_LARGE } from 'constants/numbers';
+
 import { ModalBackdrop } from 'components/modal/ModalBackdrop';
 import { ModalContent } from 'components/modal/ModalContent';
-import { CalendarModalHeader } from 'components/quick-actions/modals/CalendarModalHeader';
 import { CalendarEventsList } from 'components/quick-actions/modals/CalendarEventsList';
-
+import { CalendarModalHeader } from 'components/quick-actions/modals/CalendarModalHeader';
 import { API_URL } from 'config/api';
+import { CALENDAR_DAYS_AHEAD, CALENDAR_DAYS_BACK, MODAL_WIDTH_LARGE,VIEWPORT_HEIGHT_90 } from 'constants/numbers';
 
 interface CalendarFindEventsModalProps {
   attendeeEmail: string;

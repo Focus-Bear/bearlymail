@@ -1,5 +1,6 @@
 import React from 'react';
 import { theme } from 'theme/theme';
+
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 
 interface BulkActionButtonProps {

@@ -1,4 +1,4 @@
-import { MINUTES, MILLISECONDS } from "../../../constants/time-constants";
+import { MILLISECONDS, MINUTES } from "../../../constants/time-constants";
 
 /**
  * Check if user is within grace period (5 minutes after login)

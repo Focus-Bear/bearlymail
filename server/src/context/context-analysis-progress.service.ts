@@ -1,12 +1,13 @@
-import { Injectable, Logger, Inject } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, MoreThan } from "typeorm";
+import PgBoss from "pg-boss";
+import { MoreThan, Repository } from "typeorm";
+
+import { MILLISECONDS } from "../constants/time-constants";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
+import { getJobPriority } from "../queue/job-priorities";
 import { getErrorMessage } from "../types/common";
 import { writeAnalysisLog } from "./context-analysis-logger";
-import { getJobPriority } from "../queue/job-priorities";
-import { MILLISECONDS } from "../constants/time-constants";
-import PgBoss from "pg-boss";
 
 /**
  * Service for managing context analysis progress tracking and job synchronization.

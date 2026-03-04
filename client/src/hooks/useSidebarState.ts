@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback,useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+
 import { STRING_TRUE } from 'constants/strings';
 
 const SIDEBAR_EXPANDED_KEY = 'bearlymail-sidebar-expanded';

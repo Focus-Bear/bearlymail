@@ -1,20 +1,21 @@
-import { Injectable, Logger, Inject } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
+import PgBoss from "pg-boss";
 import { Repository } from "typeorm";
-import {
-  UserContext,
-  ContextKey,
-  Source,
-} from "../database/entities/user-context.entity";
+
+import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
+import { QUERY_LIMITS } from "../constants/query-limits";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
-import { getErrorMessage } from "../types/common";
-import { LLMService } from "../llm/llm.service";
+import {
+  ContextKey,
+  Source,
+  UserContext,
+} from "../database/entities/user-context.entity";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
-import { QUERY_LIMITS } from "../constants/query-limits";
-import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
+import { LLMService } from "../llm/llm.service";
 import { getJobPriority } from "../queue/job-priorities";
-import PgBoss from "pg-boss";
+import { getErrorMessage } from "../types/common";
 
 /**
  * Service for managing email category consolidation and generation.

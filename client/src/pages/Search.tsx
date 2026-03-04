@@ -1,16 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect,useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { PRIORITY_HIGH_THRESHOLD, PRIORITY_MEDIUM_THRESHOLD } from 'constants/numbers';
-import { captureEvent } from 'utils/posthog';
 import { Email } from 'types/email';
-import { useSearch } from 'hooks/useSearch';
-import { SearchHeader } from 'components/search/SearchHeader';
+import { captureEvent } from 'utils/posthog';
+
 import { SearchForm } from 'components/search/SearchForm';
+import { SearchHeader } from 'components/search/SearchHeader';
 import { SearchProgress } from 'components/search/SearchProgress';
 import { SearchResults } from 'components/search/SearchResults';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { PRIORITY_HIGH_THRESHOLD, PRIORITY_MEDIUM_THRESHOLD } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
+import { useSearch } from 'hooks/useSearch';
 
 interface SearchEmail extends Email {
   starCount?: number;

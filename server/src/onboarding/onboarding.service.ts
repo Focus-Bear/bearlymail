@@ -1,10 +1,11 @@
-import { Injectable, Inject, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
 import PgBoss from "pg-boss";
-import { UsersService } from "../users/users.service";
-import { getJobPriority } from "../queue/job-priorities";
+import { Repository } from "typeorm";
+
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { getJobPriority } from "../queue/job-priorities";
+import { UsersService } from "../users/users.service";
 
 @Injectable()
 export class OnboardingService {

@@ -1,5 +1,6 @@
-import { Injectable, OnModuleInit, Logger, Inject } from "@nestjs/common";
+import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import PgBoss from "pg-boss";
+
 import { GitHubEmailInfoService } from "./github-email-info.service";
 import { GitHubRepoMappingService } from "./github-repo-mapping.service";
 

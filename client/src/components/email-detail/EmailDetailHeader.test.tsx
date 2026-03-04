@@ -1,7 +1,8 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import { EmailDetailHeader } from './EmailDetailHeader';
+import { act,fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { Email } from 'types/email';
+
+import { EmailDetailHeader } from './EmailDetailHeader';
 
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({

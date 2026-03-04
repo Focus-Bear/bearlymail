@@ -1,5 +1,6 @@
 import React from 'react';
 import { theme } from 'theme/theme';
+
 import { STRING_SM } from 'constants/strings';
 
 interface ContactTypeBadgeProps {

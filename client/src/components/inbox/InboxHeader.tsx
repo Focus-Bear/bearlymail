@@ -3,10 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { FiFilter } from 'react-icons/fi';
 import { theme } from 'theme/theme';
 import { InboxMode } from 'types/email';
-import { InboxHeaderTabs, InboxHeaderActions } from 'components/inbox/header';
-import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+
+import { InboxHeaderActions,InboxHeaderTabs } from 'components/inbox/header';
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 const HAMBURGER_ICON = '\u2630'; // ☰
 

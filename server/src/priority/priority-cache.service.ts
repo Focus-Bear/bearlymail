@@ -1,9 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { UserContext } from "../database/entities/user-context.entity";
-import { Email } from "../database/entities/email.entity";
+
 import { MILLISECONDS } from "../constants/time-constants";
+import { Email } from "../database/entities/email.entity";
+import { UserContext } from "../database/entities/user-context.entity";
 
 interface CacheEntry<T> {
   cachedValue: T;

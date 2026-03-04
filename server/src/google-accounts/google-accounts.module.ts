@@ -1,10 +1,11 @@
-import { Module, forwardRef } from "@nestjs/common";
+import { forwardRef, Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { GoogleAccountsService } from "./google-accounts.service";
-import { GoogleAccountsController } from "./google-accounts.controller";
+
+import { AuthModule } from "../auth/auth.module";
 import { GoogleAccount } from "../database/entities/google-account.entity";
 import { UsersModule } from "../users/users.module";
-import { AuthModule } from "../auth/auth.module";
+import { GoogleAccountsController } from "./google-accounts.controller";
+import { GoogleAccountsService } from "./google-accounts.service";
 
 @Module({
   imports: [

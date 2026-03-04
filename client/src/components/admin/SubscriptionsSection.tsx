@@ -1,8 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { UserWithSubscription } from 'hooks/useAdminDashboard';
+
 import { UserSubscriptionCard } from 'components/admin/UserSubscriptionCard';
+import { UserWithSubscription } from 'hooks/useAdminDashboard';
 
 interface SubscriptionsSectionProps {
   users: UserWithSubscription[];

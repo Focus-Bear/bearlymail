@@ -1,10 +1,11 @@
 import { Injectable } from "@nestjs/common";
+
+import { BRANDING, DISPLAY_LIMITS } from "./auto-responder-constants";
 import {
   AutoResponderConfig,
-  QueueStats,
   AutoResponseTemplateVars,
+  QueueStats,
 } from "./types/auto-responder.types";
-import { DISPLAY_LIMITS, BRANDING } from "./auto-responder-constants";
 
 /**
  * Service for handling auto-responder template selection and rendering

@@ -1,10 +1,11 @@
+import { ConfigService } from "@nestjs/config";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { ConfigService } from "@nestjs/config";
 import axios from "axios";
-import { SubscriptionsService } from "./subscriptions.service";
+import { Repository } from "typeorm";
+
 import { User } from "../database/entities/user.entity";
+import { SubscriptionsService } from "./subscriptions.service";
 
 jest.mock("axios");
 const mockedAxios = axios as jest.Mocked<typeof axios>;

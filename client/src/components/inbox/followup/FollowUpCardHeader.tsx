@@ -1,8 +1,9 @@
 import React from 'react';
 import { theme } from 'theme/theme';
-import { ThreadWithFollowUp } from 'hooks/useFollowUps';
-import { ThreadMetadata } from 'components/inbox/followup/ThreadMetadata';
+
 import { StatusBadge } from 'components/inbox/followup/StatusBadge';
+import { ThreadMetadata } from 'components/inbox/followup/ThreadMetadata';
+import { ThreadWithFollowUp } from 'hooks/useFollowUps';
 
 interface FollowUpCardHeaderProps {
   thread: ThreadWithFollowUp;

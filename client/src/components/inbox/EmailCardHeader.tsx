@@ -1,6 +1,7 @@
 import React from 'react';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
+
 import { EmailHeaderLeft } from 'components/inbox/header/EmailHeaderLeft';
 import { EmailHeaderRight } from 'components/inbox/header/EmailHeaderRight';
 

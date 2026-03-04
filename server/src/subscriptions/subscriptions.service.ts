@@ -1,10 +1,11 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { User } from "../database/entities/user.entity";
 import { ConfigService } from "@nestjs/config";
+import { InjectRepository } from "@nestjs/typeorm";
 import axios from "axios";
+import { Repository } from "typeorm";
+
 import { TOKEN_CONSTANTS } from "../constants/service-constants";
+import { User } from "../database/entities/user.entity";
 import { ApiError } from "../types/common";
 
 /**

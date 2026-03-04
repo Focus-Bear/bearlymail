@@ -1,18 +1,19 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
+import PgBoss from "pg-boss";
 import { Repository } from "typeorm";
-import { FollowUpsService } from "./follow-ups.service";
+
+import { ContextService } from "../context/context.service";
+import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
 import {
   FollowUp,
   FollowUpStatus,
 } from "../database/entities/follow-up.entity";
-import { EmailThread } from "../database/entities/email-thread.entity";
-import { Email } from "../database/entities/email.entity";
+import { EmailsService } from "../emails/emails.service";
 import { LLMService } from "../llm/llm.service";
 import { UsersService } from "../users/users.service";
-import { ContextService } from "../context/context.service";
-import { EmailsService } from "../emails/emails.service";
-import PgBoss from "pg-boss";
+import { FollowUpsService } from "./follow-ups.service";
 
 jest.mock("../encryption/encryption.helper", () => ({
   // Simple mock - returns as-is

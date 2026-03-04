@@ -1,8 +1,9 @@
 import { Logger } from "@nestjs/common";
 import { AxiosInstance } from "axios";
-import { isApiError } from "../../../types/common";
-import { QUERY_LIMITS } from "../../../constants/query-limits";
+
 import { HTTP_STATUS } from "../../../constants/http-status";
+import { QUERY_LIMITS } from "../../../constants/query-limits";
+import { isApiError } from "../../../types/common";
 import { MicrosoftGraphMessage } from "./office365-message-parser";
 
 const logger = new Logger("Office365Operations");

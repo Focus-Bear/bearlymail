@@ -1,16 +1,17 @@
 import {
-  ExceptionFilter,
-  Catch,
   ArgumentsHost,
+  Catch,
+  ExceptionFilter,
   HttpException,
   HttpStatus,
-  Logger,
   Inject,
+  Logger,
   Optional,
 } from "@nestjs/common";
 import { Request, Response } from "express";
-import { logErrorToFile } from "../utils/error-logger";
+
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
+import { logErrorToFile } from "../utils/error-logger";
 
 const isProduction = process.env.NODE_ENV === "production";
 

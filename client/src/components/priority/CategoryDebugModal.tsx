@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect,useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
+
 import { ModalBackdrop, ModalContent } from 'components/modal';
 import { ModalHeaderWithClose } from 'components/modal/ModalHeaderWithClose';
 import { API_URL } from 'config/api';

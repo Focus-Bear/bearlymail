@@ -1,13 +1,13 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo,useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
 import { theme } from 'theme/theme';
-import { ModalBackdrop, ModalContent, ModalHeader, ModalFooter } from 'components/modal';
-import { selectEmails } from 'store/selectors/emailSelectors';
 
+import { ModalBackdrop, ModalContent, ModalFooter,ModalHeader } from 'components/modal';
 import { API_URL } from 'config/api';
+import { selectEmails } from 'store/selectors/emailSelectors';
 
 const ADD_NEW_VALUE = '__add_new__';
 

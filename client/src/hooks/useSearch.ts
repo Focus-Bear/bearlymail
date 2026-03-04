@@ -1,11 +1,12 @@
-import { MutableRefObject, useState, useCallback, useEffect, useRef } from 'react';
+import { MutableRefObject, useCallback, useEffect, useRef,useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { HTTP_UNAUTHORIZED } from 'constants/numbers';
-import { captureEvent } from 'utils/posthog';
 import { Email } from 'types/email';
-import { SEARCH_RESULT_NO_RESULTS } from 'constants/strings';
+import { captureEvent } from 'utils/posthog';
+
 import { API_URL } from 'config/api';
+import { HTTP_UNAUTHORIZED } from 'constants/numbers';
+import { SEARCH_RESULT_NO_RESULTS } from 'constants/strings';
 
 interface ConnectedAccount {
   id: string;

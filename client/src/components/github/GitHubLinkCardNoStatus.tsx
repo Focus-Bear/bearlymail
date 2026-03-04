@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { GitHubLink } from 'types/email';
+
 import { EMOJI_ISSUE, EMOJI_PR } from 'constants/emojis';
 import { LINK_TYPE_ISSUE } from 'constants/strings';
 

@@ -1,7 +1,8 @@
 import { Logger } from "@nestjs/common";
 import { AxiosInstance } from "axios";
-import { isApiError } from "../../../types/common";
+
 import { HTTP_STATUS } from "../../../constants/http-status";
+import { isApiError } from "../../../types/common";
 import { ZohoMailMessage } from "./zoho-message-parser";
 
 const logger = new Logger("ZohoOperations");

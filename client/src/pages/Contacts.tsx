@@ -1,21 +1,21 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useCallback, useEffect, useRef,useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { theme } from 'theme/theme';
-import { DEBOUNCE_DELAY_MS, MILLISECONDS_PER_MINUTE, OPACITY_DISABLED, OPACITY_FULL, TOAST_DURATION_MS } from 'constants/numbers';
-import { captureEvent } from 'utils/posthog';
 import { Contact, ContactTypeConfig } from 'types/contact';
-import { useAuth } from 'contexts/AuthContext';
-import { getPusherInstance } from 'config/pusher';
+import { captureEvent } from 'utils/posthog';
+
+import { ContactTypeBadge } from 'components/crm/ContactTypeBadge';
 import { Sidebar } from 'components/inbox/Sidebar';
+import { API_URL } from 'config/api';
+import { getPusherInstance } from 'config/pusher';
+import { EMOJI_MENU } from 'constants/emojis';
+import { DEBOUNCE_DELAY_MS, MILLISECONDS_PER_MINUTE, OPACITY_DISABLED, OPACITY_FULL, TOAST_DURATION_MS } from 'constants/numbers';
+import { STRING_AUTO, STRING_CENTER, STRING_COVER, STRING_DEFAULT, STRING_ELLIPSIS,STRING_FIXED, STRING_FLEX, STRING_HIDDEN, STRING_NONE, STRING_NOWRAP, STRING_POINTER, STRING_SPACE_BETWEEN, STRING_TRANSPARENT, STRING_WHITE } from 'constants/strings';
+import { useAuth } from 'contexts/AuthContext';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import { useSidebarState } from 'hooks/useSidebarState';
-import { ContactTypeBadge } from 'components/crm/ContactTypeBadge';
-
-import { API_URL } from 'config/api';
-import { EMOJI_MENU } from 'constants/emojis';
-import { STRING_CENTER, STRING_FLEX, STRING_FIXED, STRING_COVER, STRING_SPACE_BETWEEN, STRING_HIDDEN, STRING_AUTO, STRING_TRANSPARENT, STRING_WHITE, STRING_NONE, STRING_POINTER, STRING_DEFAULT, STRING_NOWRAP, STRING_ELLIPSIS } from 'constants/strings';
 const Contacts: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();

@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
+
 import { EMOJI_CHECK, EMOJI_NOTE } from 'constants/emojis';
 
 const EMOJI_ROBOT = '🤖';

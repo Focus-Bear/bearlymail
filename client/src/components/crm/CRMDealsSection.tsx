@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback,useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FiBriefcase, FiPlus, FiDollarSign } from 'react-icons/fi';
+import { FiBriefcase, FiDollarSign,FiPlus } from 'react-icons/fi';
 import axios from 'axios';
 import { theme } from 'theme/theme';
+import { Deal } from 'types/deal';
+
 import { CollapsibleSection } from 'components/common/CollapsibleSection';
 import { API_URL } from 'config/api';
-import { Deal } from 'types/deal';
-import { STRING_EN_US, STRING_ES, STRING_ES_ES, STRING_USD, STRING_CURRENCY } from 'constants/strings';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { STRING_CURRENCY,STRING_EN_US, STRING_ES, STRING_ES_ES, STRING_USD } from 'constants/strings';
 
 const CRM_ACCENT = '#8B5CF6'; // Purple for CRM
 const CRM_BG = '#F5F3FF'; // Light purple background

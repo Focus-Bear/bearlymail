@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+
 import { EMOJI_CLOSE } from 'constants/emojis';
 import { PRIORITY_STATUS_CALCULATING, STRING_NONE } from 'constants/strings';
 

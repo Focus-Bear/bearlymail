@@ -1,24 +1,24 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-
+import { useLocation,useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { useNotifications } from 'contexts/NotificationContext';
-import { useAuth } from 'contexts/AuthContext';
-import { HTTP_UNAUTHORIZED, HTTP_FORBIDDEN, HOURS_IN_TWO_DAYS, HOURS_PER_DAY } from 'constants/numbers';
-import { captureEvent } from 'utils/posthog';
-import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
-import { extractCleanBody, removeSignature, extractCleanHtmlBody, sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
+import { extractCleanBody, extractCleanHtmlBody, removeSignature, sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
 import { emailMentionsGitHub } from 'utils/githubUtils';
-import { ACTION_ITEM_SOURCE_LLM, REPLY_MODE_REPLY_ALL, ANIMATION_TYPE_SEND, ANIMATION_TYPE_ARCHIVE, ANIMATION_TYPE_PRIORITY, GITHUB_ACTION_PREFIX } from 'constants/strings';
-import { TIMEOUT_800_MS } from 'constants/numbers';
+import { captureEvent } from 'utils/posthog';
 
+import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 import { API_URL } from 'config/api';
-import { EmailDetailState, EmailDetailOperationsOptions } from './useEmailDetailOperations.types';
-import { useEmailDetailDraftOps } from './useEmailDetailDraftOps';
-import { useEmailDetailArchiveOps } from './useEmailDetailArchiveOps';
+import { HOURS_IN_TWO_DAYS, HOURS_PER_DAY,HTTP_FORBIDDEN, HTTP_UNAUTHORIZED } from 'constants/numbers';
+import { TIMEOUT_800_MS } from 'constants/numbers';
+import { ACTION_ITEM_SOURCE_LLM, ANIMATION_TYPE_ARCHIVE, ANIMATION_TYPE_PRIORITY, ANIMATION_TYPE_SEND, GITHUB_ACTION_PREFIX,REPLY_MODE_REPLY_ALL } from 'constants/strings';
+import { useAuth } from 'contexts/AuthContext';
+import { useNotifications } from 'contexts/NotificationContext';
 
-export type { EmailDetailState, EmailDetailOperationsOptions };
+import { useEmailDetailArchiveOps } from './useEmailDetailArchiveOps';
+import { useEmailDetailDraftOps } from './useEmailDetailDraftOps';
+import { EmailDetailOperationsOptions,EmailDetailState } from './useEmailDetailOperations.types';
+
+export type { EmailDetailOperationsOptions,EmailDetailState };
 
 // eslint-disable-next-line max-lines-per-function -- Email detail operations hook requires handling multiple email operations, state management, and API calls
 export function useEmailDetailOperations(id: string | undefined, state: EmailDetailState, options: EmailDetailOperationsOptions = {}) {

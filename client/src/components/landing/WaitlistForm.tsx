@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import { useTranslation } from 'react-i18next';
+import axios from 'axios';
 import { theme } from 'theme/theme';
-import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
-import { WaitlistFormContainer } from 'components/landing/WaitlistFormContainer';
-import { WaitlistFormHeader } from 'components/landing/WaitlistFormHeader';
-import { WaitlistFormField } from 'components/landing/WaitlistFormField';
 import { captureEvent } from 'utils/posthog';
+
+import { WaitlistFormContainer } from 'components/landing/WaitlistFormContainer';
+import { WaitlistFormField } from 'components/landing/WaitlistFormField';
+import { WaitlistFormHeader } from 'components/landing/WaitlistFormHeader';
 import { API_URL } from 'config/api';
-import { PROVIDER_GMAIL, PROVIDER_OTHER, PROVIDER_OUTLOOK, PROVIDER_ZOHO, STRING_NONE } from 'constants/strings';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { PROVIDER_GMAIL, PROVIDER_OTHER, PROVIDER_OUTLOOK, PROVIDER_ZOHO, STRING_NONE } from 'constants/strings';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 interface WaitlistFormProps {
   /**

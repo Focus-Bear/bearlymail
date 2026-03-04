@@ -1,22 +1,23 @@
-import { Injectable, Inject, forwardRef, Logger } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { EmailsService } from "../emails/emails.service";
-import { EmailProviderManager } from "../emails/email-provider-manager.service";
-import { EmailThreadService } from "../emails/email-thread.service";
+
+import { STAR_COUNTS } from "../constants/priority-constants";
+import { HOURS_PER_DAY } from "../constants/time-constants";
 import { ContextService } from "../context/context.service";
-import { LLMService, LLMProvider } from "../llm/llm.service";
-import { UsersService } from "../users/users.service";
 import { WritingStyleLearningService } from "../context/writing-style-learning.service";
-import { logError } from "../utils/logger";
-import { ContextKey } from "../database/entities/user-context.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
-import { SnoozeService } from "../snooze/snooze.service";
-import { HOURS_PER_DAY } from "../constants/time-constants";
-import { FollowUpsService } from "../follow-ups/follow-ups.service";
+import { ContextKey } from "../database/entities/user-context.entity";
+import { EmailProviderManager } from "../emails/email-provider-manager.service";
+import { EmailThreadService } from "../emails/email-thread.service";
+import { EmailsService } from "../emails/emails.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
-import { STAR_COUNTS } from "../constants/priority-constants";
+import { FollowUpsService } from "../follow-ups/follow-ups.service";
+import { LLMProvider, LLMService } from "../llm/llm.service";
+import { SnoozeService } from "../snooze/snooze.service";
+import { UsersService } from "../users/users.service";
+import { logError } from "../utils/logger";
 
 export interface ReplyRule {
   ruleId?: string;

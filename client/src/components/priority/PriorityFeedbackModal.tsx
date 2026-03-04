@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
+
 import { ModalBackdrop } from 'components/modal/ModalBackdrop';
 import { ModalContent } from 'components/modal/ModalContent';
-import { PriorityFeedbackForm } from 'components/priority/feedback/PriorityFeedbackForm';
 import { PriorityFeedbackActions } from 'components/priority/feedback/PriorityFeedbackActions';
-
+import { PriorityFeedbackForm } from 'components/priority/feedback/PriorityFeedbackForm';
 import { API_URL } from 'config/api';
 
 interface PriorityFeedbackModalProps {

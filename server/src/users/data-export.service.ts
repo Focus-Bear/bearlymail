@@ -1,13 +1,14 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
+
+import { AutoResponderConfig } from "../auto-responder/types/auto-responder.types";
+import { BatchSchedule } from "../database/entities/batch-schedule.entity";
+import { BlockedKeyword } from "../database/entities/blocked-keyword.entity";
+import { BlockedSender } from "../database/entities/blocked-sender.entity";
+import { SummarizationRule } from "../database/entities/summarization-rule.entity";
 import { User } from "../database/entities/user.entity";
 import { UserContext } from "../database/entities/user-context.entity";
-import { BatchSchedule } from "../database/entities/batch-schedule.entity";
-import { BlockedSender } from "../database/entities/blocked-sender.entity";
-import { BlockedKeyword } from "../database/entities/blocked-keyword.entity";
-import { SummarizationRule } from "../database/entities/summarization-rule.entity";
-import { AutoResponderConfig } from "../auto-responder/types/auto-responder.types";
 
 export interface ExportedUserData {
   exportedAt: string;

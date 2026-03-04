@@ -1,4 +1,5 @@
 import DOMPurify from 'dompurify';
+
 import { NODE_NAME_ANCHOR } from 'constants/strings';
 
 interface EmailWithSender {

@@ -3,17 +3,18 @@ import { useTranslation } from 'react-i18next';
 import { FiArchive, FiClock, FiCornerUpLeft, FiCornerUpRight } from 'react-icons/fi';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
-import { QuickActionsSection } from 'components/email-detail/QuickActionsSection';
+import { isCalendarInvitation } from 'utils/calendarUtils';
+import { captureEvent } from 'utils/posthog';
+import { extractUnsubscribeLink } from 'utils/unsubscribeUtils';
+
 import { CalendarInviteActions } from 'components/email-detail/CalendarInviteActions';
+import { QuickActionsSection } from 'components/email-detail/QuickActionsSection';
 import { SchedulingRequestCard } from 'components/email-detail/SchedulingRequestCard';
 import { SnoozeInputForm } from 'components/inbox/actions/SnoozeInputForm';
+import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { EMOJI_BLOCK, EMOJI_LINK } from 'constants/emojis';
 import { OPACITY_DISABLED } from 'constants/numbers';
 import { ACTION_TYPE_SCHEDULING_REQUEST, LETTER_SPACING_WIDER, REPLY_MODE_FORWARD, STRING_NONE } from 'constants/strings';
-import { extractUnsubscribeLink } from 'utils/unsubscribeUtils';
-import { captureEvent } from 'utils/posthog';
-import { isCalendarInvitation } from 'utils/calendarUtils';
-import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 
 const PRIORITY_OPTIONS = [
   { label: 'Can wait', emoji: '😊', value: 1 },

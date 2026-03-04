@@ -1,18 +1,19 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { EmailsService } from "../emails/emails.service";
-import { LLMService, LLMProvider } from "../llm/llm.service";
+
+import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
+import { QUERY_LIMITS } from "../constants/query-limits";
 import { SummarizationRule as SummarizationRuleEntity } from "../database/entities/summarization-rule.entity";
+import { EmailsService } from "../emails/emails.service";
+import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import {
   cleanEmailContent,
   cleanEmailForThread,
 } from "../llm/email-content-cleaner";
-import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
-import { QUERY_LIMITS } from "../constants/query-limits";
-import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
-import { logError, logWarn } from "../utils/logger";
+import { LLMProvider, LLMService } from "../llm/llm.service";
 import { UsersService } from "../users/users.service";
+import { logError, logWarn } from "../utils/logger";
 import {
   detectPhishingSignal,
   mergePhishingSignals,

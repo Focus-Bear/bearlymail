@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import { BREAKPOINT_TABLET, BREAKPOINT_DESKTOP } from 'constants/numbers';
+import { useEffect,useState } from 'react';
+
+import { BREAKPOINT_DESKTOP,BREAKPOINT_TABLET } from 'constants/numbers';
 
 /**
  * Custom hook to detect responsive breakpoints

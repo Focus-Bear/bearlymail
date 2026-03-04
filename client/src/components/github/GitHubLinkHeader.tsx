@@ -1,6 +1,7 @@
 import React from 'react';
 import { theme } from 'theme/theme';
 import { GitHubLink } from 'types/email';
+
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 
 interface GitHubLinkHeaderProps {

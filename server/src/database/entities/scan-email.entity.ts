@@ -1,10 +1,11 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
   CreateDateColumn,
+  Entity,
   Index,
+  PrimaryGeneratedColumn,
 } from "typeorm";
+
 import {
   encryptedColumnTransformer,
   encryptedJsonTransformer,

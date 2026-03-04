@@ -1,14 +1,15 @@
 import {
   Injectable,
   Logger,
-  OnModuleInit,
   OnModuleDestroy,
+  OnModuleInit,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { StandardUnit } from "@aws-sdk/client-cloudwatch";
 import { DataSource } from "typeorm";
+
 import { CloudWatchService } from "../aws/cloudwatch.service";
 import { MS_PER_SECOND } from "../constants/time-constants";
-import { StandardUnit } from "@aws-sdk/client-cloudwatch";
 
 @Injectable()
 export class QueueAutoscalingService implements OnModuleInit, OnModuleDestroy {

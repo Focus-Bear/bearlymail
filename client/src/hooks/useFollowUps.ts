@@ -1,9 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useCallback,useState } from 'react';
 import axios from 'axios';
-import { API_URL } from 'config/api';
-import { POLLING_INTERVAL_MS, POLLING_TIMEOUT_5_MIN_MS, MAX_BULK_SEND_COUNT } from 'constants/numbers';
-import { FOLLOW_UP_SEND_STATUS_SENT, FOLLOW_UP_SEND_STATUS_FAILED } from 'constants/strings';
 import { Email } from 'types/email';
+
+import { API_URL } from 'config/api';
+import { MAX_BULK_SEND_COUNT,POLLING_INTERVAL_MS, POLLING_TIMEOUT_5_MIN_MS } from 'constants/numbers';
+import { FOLLOW_UP_SEND_STATUS_FAILED,FOLLOW_UP_SEND_STATUS_SENT } from 'constants/strings';
 import { useFollowUpPolling } from 'hooks/useFollowUpPolling';
 
 export interface FollowUpData {

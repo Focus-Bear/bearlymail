@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Query, UseGuards } from "@nestjs/common";
-import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+
 import { AdminGuard } from "../auth/admin.guard";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { TokenUsageService } from "./token-usage.service";
 
 @Controller("admin/token-usage")

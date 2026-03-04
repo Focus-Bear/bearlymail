@@ -1,4 +1,5 @@
 import posthog from 'posthog-js';
+
 import { TYPEOF_UNDEFINED } from 'constants/strings';
 
 // Initialize PostHog if API key is provided

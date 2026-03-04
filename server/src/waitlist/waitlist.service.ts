@@ -1,15 +1,16 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
 import { ConfigService } from "@nestjs/config";
+import { InjectRepository } from "@nestjs/typeorm";
 import axios from "axios";
 import * as crypto from "crypto";
-import { Waitlist } from "../database/entities/waitlist.entity";
-import { UsersService } from "../users/users.service";
-import { EncryptionHelper } from "../encryption/encryption.helper";
-import { EmailService } from "../email/email.service";
-import { isError, getErrorMessage } from "../types/common";
+import { Repository } from "typeorm";
+
 import { TOKEN_CONSTANTS } from "../constants/service-constants";
+import { Waitlist } from "../database/entities/waitlist.entity";
+import { EmailService } from "../email/email.service";
+import { EncryptionHelper } from "../encryption/encryption.helper";
+import { getErrorMessage, isError } from "../types/common";
+import { UsersService } from "../users/users.service";
 
 @Injectable()
 export class WaitlistService {

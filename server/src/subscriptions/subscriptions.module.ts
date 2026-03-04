@@ -1,11 +1,12 @@
 import { Module } from "@nestjs/common";
-import { TypeOrmModule } from "@nestjs/typeorm";
-import { SubscriptionsService } from "./subscriptions.service";
-import { SubscriptionsController } from "./subscriptions.controller";
-import { SubscriptionGuard } from "./subscription.guard";
-import { User } from "../database/entities/user.entity";
 import { ConfigModule } from "@nestjs/config";
+import { TypeOrmModule } from "@nestjs/typeorm";
+
+import { User } from "../database/entities/user.entity";
 import { UsersModule } from "../users/users.module";
+import { SubscriptionGuard } from "./subscription.guard";
+import { SubscriptionsController } from "./subscriptions.controller";
+import { SubscriptionsService } from "./subscriptions.service";
 
 @Module({
   imports: [

@@ -1,11 +1,13 @@
 /* eslint-disable id-denylist -- 'data' is a standard property name for axios responses */
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import axios from 'axios';
-import { useFollowUps } from './useFollowUps';
-import { useFollowUpPolling } from 'hooks/useFollowUpPolling';
+
+import { API_URL } from 'config/api';
 import { MAX_BULK_SEND_COUNT, POLLING_INTERVAL_MS, POLLING_TIMEOUT_5_MIN_MS } from 'constants/numbers';
 import { FOLLOW_UP_SEND_STATUS_SENT } from 'constants/strings';
-import { API_URL } from 'config/api';
+import { useFollowUpPolling } from 'hooks/useFollowUpPolling';
+
+import { useFollowUps } from './useFollowUps';
 
 jest.mock('axios');
 jest.mock('hooks/useFollowUpPolling', () => ({

@@ -1,11 +1,12 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { SummarizationService } from "./summarization.service";
-import { EmailsService } from "../emails/emails.service";
-import { LLMService } from "../llm/llm.service";
+
 import { SummarizationRule as SummarizationRuleEntity } from "../database/entities/summarization-rule.entity";
+import { EmailsService } from "../emails/emails.service";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
+import { LLMService } from "../llm/llm.service";
 import { UsersService } from "../users/users.service";
+import { SummarizationService } from "./summarization.service";
 
 describe("SummarizationService", () => {
   let service: SummarizationService;

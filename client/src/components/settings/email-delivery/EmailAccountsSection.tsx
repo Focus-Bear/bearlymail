@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { theme } from 'theme/theme';
-import { PROVIDER_GMAIL, PROVIDER_GOOGLE, PROVIDER_OFFICE365, PROVIDER_ZOHO, STRING_NONE } from 'constants/strings';
 import axios from 'axios';
-import { ProviderSelectionModal } from './ProviderSelectionModal';
+import { theme } from 'theme/theme';
 
 import { API_URL } from 'config/api';
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
+import { PROVIDER_GMAIL, PROVIDER_GOOGLE, PROVIDER_OFFICE365, PROVIDER_ZOHO, STRING_NONE } from 'constants/strings';
+
+import { ProviderSelectionModal } from './ProviderSelectionModal';
 
 interface EmailAccount {
   id: string;

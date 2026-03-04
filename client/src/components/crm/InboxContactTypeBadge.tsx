@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useCallback,useEffect, useRef, useState } from 'react';
 import axios from 'axios';
-import { ContactTypeBadge } from './ContactTypeBadge';
 import { ContactTypeConfig } from 'types/contact';
+
 import { API_URL } from 'config/api';
+
+import { ContactTypeBadge } from './ContactTypeBadge';
 
 let configsCache: ContactTypeConfig[] | null = null;
 const typeCache = new Map<string, string | null>();

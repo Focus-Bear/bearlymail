@@ -1,12 +1,13 @@
-import { Injectable, OnModuleInit, Logger, Inject } from "@nestjs/common";
+import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as os from "os";
 import PgBoss from "pg-boss";
-import { ContextService } from "./context.service";
-import { UsersService } from "../users/users.service";
-import { writeAnalysisLog } from "./context-analysis-logger";
-import { JobPerformanceTracker } from "../queue/job-performance-tracker";
+
 import { CloudWatchService } from "../aws/cloudwatch.service";
+import { JobPerformanceTracker } from "../queue/job-performance-tracker";
+import { UsersService } from "../users/users.service";
+import { ContextService } from "./context.service";
+import { writeAnalysisLog } from "./context-analysis-logger";
 
 @Injectable()
 export class ContextAnalysisProcessor implements OnModuleInit {

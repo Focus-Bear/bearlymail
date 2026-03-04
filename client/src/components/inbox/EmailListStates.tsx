@@ -1,6 +1,7 @@
 import React from 'react';
 import { InboxMode } from 'types/email';
-import { LoadingState, ErrorState, EmptyState } from 'components/inbox/states';
+
+import { EmptyState,ErrorState, LoadingState } from 'components/inbox/states';
 
 interface EmailListStatesProps {
   loading: boolean;

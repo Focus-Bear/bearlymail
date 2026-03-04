@@ -1,22 +1,23 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from 'contexts/AuthContext';
 import { theme } from 'theme/theme';
-import { useAdminDashboard } from 'hooks/useAdminDashboard';
+
 import { AdminDashboardHeader } from 'components/admin/AdminDashboardHeader';
 import { AdminTabs } from 'components/admin/AdminTabs';
-import { WaitlistSection } from 'components/admin/WaitlistSection';
-import { SubscriptionsSection } from 'components/admin/SubscriptionsSection';
-import { JobsSection } from 'components/admin/JobsSection';
-import { TokenUsageSection } from 'components/admin/TokenUsageSection';
-import { QueueDashboardSection } from 'components/admin/QueueDashboardSection';
-import { GitHubDebugSection } from 'components/admin/GitHubDebugSection';
 import { ContextAnalysisSection } from 'components/admin/ContextAnalysisSection';
-import { ADMIN_TAB_WAITLIST, ADMIN_TAB_JOBS, ADMIN_TAB_TOKEN_USAGE, ADMIN_TAB_QUEUE_DASHBOARD, ADMIN_TAB_GITHUB_DEBUG, ADMIN_TAB_CONTEXT_ANALYSIS } from 'constants/adminTabs';
+import { GitHubDebugSection } from 'components/admin/GitHubDebugSection';
+import { JobsSection } from 'components/admin/JobsSection';
+import { QueueDashboardSection } from 'components/admin/QueueDashboardSection';
+import { SubscriptionsSection } from 'components/admin/SubscriptionsSection';
+import { TokenUsageSection } from 'components/admin/TokenUsageSection';
+import { WaitlistSection } from 'components/admin/WaitlistSection';
 import { Sidebar } from 'components/inbox/Sidebar';
+import { ADMIN_TAB_CONTEXT_ANALYSIS,ADMIN_TAB_GITHUB_DEBUG, ADMIN_TAB_JOBS, ADMIN_TAB_QUEUE_DASHBOARD, ADMIN_TAB_TOKEN_USAGE, ADMIN_TAB_WAITLIST } from 'constants/adminTabs';
+import { EMOJI_MENU } from 'constants/emojis';
+import { useAuth } from 'contexts/AuthContext';
+import { useAdminDashboard } from 'hooks/useAdminDashboard';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import { useSidebarState } from 'hooks/useSidebarState';
-import { EMOJI_MENU } from 'constants/emojis';
 
 const DEFAULT_EXTEND_DAYS = 7;
 

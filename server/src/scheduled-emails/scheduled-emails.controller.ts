@@ -1,16 +1,17 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Delete,
   Body,
+  Controller,
+  Delete,
+  Get,
   Param,
-  UseGuards,
+  Post,
   Request,
+  UseGuards,
 } from "@nestjs/common";
-import { ScheduledEmailsService } from "./scheduled-emails.service";
-import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+
 import { GmailRequiredGuard } from "../auth/gmail-required.guard";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { ScheduledEmailsService } from "./scheduled-emails.service";
 
 @Controller("scheduled-emails")
 @UseGuards(JwtAuthGuard, GmailRequiredGuard)

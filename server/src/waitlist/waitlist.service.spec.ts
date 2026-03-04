@@ -1,13 +1,14 @@
+import { ConfigService } from "@nestjs/config";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { ConfigService } from "@nestjs/config";
 import axios from "axios";
-import { WaitlistService } from "./waitlist.service";
+import { Repository } from "typeorm";
+
 import { Waitlist } from "../database/entities/waitlist.entity";
-import { UsersService } from "../users/users.service";
 import { EmailService } from "../email/email.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import { UsersService } from "../users/users.service";
+import { WaitlistService } from "./waitlist.service";
 
 jest.mock("axios");
 jest.mock("crypto", () => ({

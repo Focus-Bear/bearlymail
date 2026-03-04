@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { theme } from 'theme/theme';
 import axios from 'axios';
+import { theme } from 'theme/theme';
 
 import { API_URL } from 'config/api';
 import { SORT_ASC, SORT_DESC, TYPEOF_STRING } from 'constants/strings';

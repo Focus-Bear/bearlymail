@@ -1,19 +1,20 @@
 import {
   Body,
   Controller,
-  Get,
-  Post,
   Delete,
-  Param,
-  Put,
-  UseGuards,
-  Request,
+  Get,
   Logger,
   NotFoundException,
+  Param,
+  Post,
+  Put,
+  Request,
+  UseGuards,
 } from "@nestjs/common";
+
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
-import { ProtoCategoriesService } from "./proto-categories.service";
 import { UpdateProtoCategoryDto } from "./dto/update-proto-category.dto";
+import { ProtoCategoriesService } from "./proto-categories.service";
 
 @Controller("proto-categories")
 @UseGuards(JwtAuthGuard)

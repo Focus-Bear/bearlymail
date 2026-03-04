@@ -1,17 +1,18 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useCallback,useEffect, useRef, useState } from 'react';
 import { theme } from 'theme/theme';
-import { ReplyOptionsSelector } from 'components/email-detail-inline/ReplyOptionsSelector';
-import { ToneCheckResult } from 'components/email-detail-inline/ToneCheckResult';
-import { ReplyComposerHeader } from 'components/email-detail-inline/ReplyComposerHeader';
-import { ReplyRecipientsInput } from 'components/email-detail-inline/ReplyRecipientsInput';
-import { ReplyDraftTextarea } from 'components/email-detail-inline/ReplyDraftTextarea';
-import { ReplyComposerFooter } from 'components/email-detail-inline/ReplyComposerFooter';
+
 import { ReplyComposerAttachments } from 'components/email-detail-inline/ReplyComposerAttachments';
-import { ReplyGenerationDebugInfo } from 'hooks/useReplyDraftGeneration';
-import { useAuth } from 'contexts/AuthContext';
+import { ReplyComposerFooter } from 'components/email-detail-inline/ReplyComposerFooter';
+import { ReplyComposerHeader } from 'components/email-detail-inline/ReplyComposerHeader';
+import { ReplyDraftTextarea } from 'components/email-detail-inline/ReplyDraftTextarea';
+import { ReplyOptionsSelector } from 'components/email-detail-inline/ReplyOptionsSelector';
+import { ReplyRecipientsInput } from 'components/email-detail-inline/ReplyRecipientsInput';
+import { ToneCheckResult } from 'components/email-detail-inline/ToneCheckResult';
 import { COLOR_TRANSPARENT } from 'constants/colors';
-import { STRING_NONE } from 'constants/strings';
 import { FONT_WEIGHT_SEMIBOLD } from 'constants/numbers';
+import { STRING_NONE } from 'constants/strings';
+import { useAuth } from 'contexts/AuthContext';
+import { ReplyGenerationDebugInfo } from 'hooks/useReplyDraftGeneration';
 
 const EMPTY_ATTACHMENTS: EmailAttachment[] = [];
 const DRAG_OVERLAY_OPACITY = 0.95;

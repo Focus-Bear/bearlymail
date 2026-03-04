@@ -1,15 +1,16 @@
-import { Injectable, Inject, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { gmail_v1, google } from "googleapis";
 import PgBoss from "pg-boss";
+import { Repository } from "typeorm";
+
 import { MILLISECONDS } from "../constants/time-constants";
-import { ScanEmail } from "../database/entities/scan-email.entity";
-import { ScanEmailService } from "../emails/scan-email.service";
 import { ContextService } from "../context/context.service";
+import { ScanEmail } from "../database/entities/scan-email.entity";
 import { ContextKey, Source } from "../database/entities/user-context.entity";
-import { google, gmail_v1 } from "googleapis";
-import { UsersService } from "../users/users.service";
+import { ScanEmailService } from "../emails/scan-email.service";
 import { LLMService } from "../llm/llm.service";
+import { UsersService } from "../users/users.service";
 
 @Injectable()
 export class ScanAnalysisService {

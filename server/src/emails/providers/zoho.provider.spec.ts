@@ -1,10 +1,11 @@
+import { ConfigService } from "@nestjs/config";
 import { Test, TestingModule } from "@nestjs/testing";
-import { ZohoProvider } from "./zoho.provider";
+
 import { UsersService } from "../../users/users.service";
+import { ZohoAccountsService } from "../../zoho-accounts/zoho-accounts.service";
 import { EmailsService } from "../emails.service";
 import { ScanEmailService } from "../scan-email.service";
-import { ZohoAccountsService } from "../../zoho-accounts/zoho-accounts.service";
-import { ConfigService } from "@nestjs/config";
+import { ZohoProvider } from "./zoho.provider";
 describe("ZohoProvider", () => {
   let provider: ZohoProvider;
   let usersService: jest.Mocked<UsersService>;

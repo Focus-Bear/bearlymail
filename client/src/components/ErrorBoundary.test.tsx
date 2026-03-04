@@ -1,8 +1,9 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { ErrorBoundary } from './ErrorBoundary';
-import * as posthog from 'utils/posthog';
 import * as correlationId from 'utils/correlationId';
+import * as posthog from 'utils/posthog';
+
+import { ErrorBoundary } from './ErrorBoundary';
 
 // Suppress console.error noise from intentional error throws in tests
 beforeAll(() => {

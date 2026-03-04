@@ -1,14 +1,15 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
-import { StarredComparisonGrid } from 'components/inbox/debug/StarredComparisonGrid';
+
 import { ComparisonResultsGrid } from 'components/inbox/debug/ComparisonResultsGrid';
 import { MissingFromProcessTabList } from 'components/inbox/debug/MissingFromProcessTabList';
+import { StarredComparisonGrid } from 'components/inbox/debug/StarredComparisonGrid';
 import { StarredThreadsList } from 'components/inbox/debug/StarredThreadsList';
-import { EMOJI_SEARCH } from 'constants/emojis';
 import { DebugStarredData } from 'components/inbox/debug/types';
 import { COLOR_NAMED_WHITE, COLOR_WHITE } from 'constants/colors';
+import { EMOJI_SEARCH } from 'constants/emojis';
+import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
 
 

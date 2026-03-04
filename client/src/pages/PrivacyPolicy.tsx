@@ -1,4 +1,5 @@
 import React from 'react';
+
 import { LegalPageLayout } from 'components/legal/LegalPageLayout';
 import { PrivacyPolicyContent } from 'pages/privacy/PrivacyPolicyContent';
 

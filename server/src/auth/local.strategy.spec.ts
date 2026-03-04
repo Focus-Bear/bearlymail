@@ -1,7 +1,8 @@
-import { Test, TestingModule } from "@nestjs/testing";
 import { UnauthorizedException } from "@nestjs/common";
-import { LocalStrategy } from "./local.strategy";
+import { Test, TestingModule } from "@nestjs/testing";
+
 import { AuthService } from "./auth.service";
+import { LocalStrategy } from "./local.strategy";
 
 describe("LocalStrategy", () => {
   let strategy: LocalStrategy;

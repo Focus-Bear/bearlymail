@@ -1,8 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { Z_INDEX_POPUP } from 'constants/numbers';
+
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
+import { Z_INDEX_POPUP } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
 
 interface CustomRule {

@@ -1,26 +1,26 @@
 import React, { useEffect, useRef } from 'react';
 import axios from 'axios';
 import { theme } from 'theme/theme';
+
 import { Sidebar } from 'components/inbox/Sidebar';
-import { useAuth } from 'contexts/AuthContext';
-import { EmailDeliverySection } from 'components/settings/EmailDeliverySection';
-import { GuideOurAISection } from 'components/settings/GuideOurAISection';
-import { IntegrationsSection } from 'components/settings/IntegrationsSection';
 import { AccountDeletionSection } from 'components/settings/AccountDeletionSection';
-import { DataExportSection } from 'components/settings/DataExportSection';
-import { SettingsHeader } from 'components/settings/SettingsHeader';
 import { AnalysisProgressModal } from 'components/settings/AnalysisProgressModal';
 import { AutoResponderSection } from 'components/settings/auto-responder';
+import { DataExportSection } from 'components/settings/DataExportSection';
+import { EmailDeliverySection } from 'components/settings/EmailDeliverySection';
+import { EmailSignatureSection } from 'components/settings/EmailSignatureSection';
+import { GuideOurAISection } from 'components/settings/GuideOurAISection';
+import { IntegrationsSection } from 'components/settings/IntegrationsSection';
 import { SchedulingPreferencesSection } from 'components/settings/SchedulingPreferencesSection';
 import { SetPasswordSection } from 'components/settings/SetPasswordSection';
-import { EmailSignatureSection } from 'components/settings/EmailSignatureSection';
-import { useSettingsData } from 'hooks/useSettingsData';
-import { useAutoResponder } from 'hooks/useAutoResponder';
-import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
-import { useSidebarState } from 'hooks/useSidebarState';
-
+import { SettingsHeader } from 'components/settings/SettingsHeader';
 import { API_URL } from 'config/api';
 import { EMOJI_MENU } from 'constants/emojis';
+import { useAuth } from 'contexts/AuthContext';
+import { useAutoResponder } from 'hooks/useAutoResponder';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { useSettingsData } from 'hooks/useSettingsData';
+import { useSidebarState } from 'hooks/useSidebarState';
 
 const GITHUB_CALLBACK_CONNECTED = 'connected';
 const GITHUB_CALLBACK_ERROR = 'error';

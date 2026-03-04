@@ -1,21 +1,22 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
-  ManyToOne,
   CreateDateColumn,
-  JoinColumn,
+  Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
 } from "typeorm";
-import { User } from "./user.entity";
-import { EmailThread } from "./email-thread.entity";
-import { GoogleAccount } from "./google-account.entity";
-import { Office365Account } from "./office365-account.entity";
-import { ZohoAccount } from "./zoho-account.entity";
+
 import {
   encryptedColumnTransformer,
   encryptedJsonTransformer,
 } from "../../encryption/encryption.helper";
+import { EmailThread } from "./email-thread.entity";
+import { GoogleAccount } from "./google-account.entity";
+import { Office365Account } from "./office365-account.entity";
+import { User } from "./user.entity";
+import { ZohoAccount } from "./zoho-account.entity";
 
 @Entity("emails")
 @Index(["userId", "threadId"])

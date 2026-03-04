@@ -1,13 +1,14 @@
 import { useCallback, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { DEFAULT_PRIORITY_SCORE, PRIORITY_MEDIUM_THRESHOLD } from 'constants/numbers';
-import { MODE_TRIAGE, MODE_ACTION, MODE_FOLLOW_UP } from 'constants/strings';
 import axios from 'axios';
 import { getEmailPriorityScore } from 'types/email';
+
 import { API_URL } from 'config/api';
-import { AppDispatch } from 'store/store';
-import { removeEmail, updateEmail, restoreEmail, addOptimisticArchive, removeOptimisticArchive, addOptimisticSnooze, removeOptimisticSnooze, addAnimatingOut, removeAnimatingOut, decrementCategorySummaryCount, incrementCategorySummaryCount } from 'store/slices/emailSlice';
+import { DEFAULT_PRIORITY_SCORE, PRIORITY_MEDIUM_THRESHOLD } from 'constants/numbers';
+import { MODE_ACTION, MODE_FOLLOW_UP,MODE_TRIAGE } from 'constants/strings';
 import { selectEmails } from 'store/selectors/emailSelectors';
+import { addAnimatingOut, addOptimisticArchive, addOptimisticSnooze, decrementCategorySummaryCount, incrementCategorySummaryCount,removeAnimatingOut, removeEmail, removeOptimisticArchive, removeOptimisticSnooze, restoreEmail, updateEmail } from 'store/slices/emailSlice';
+import { AppDispatch } from 'store/store';
 
 /** Duration (ms) of email exit animations — must match CSS animation durations in App.css */
 export const EMAIL_EXIT_ANIMATION_DURATION_MS = 800;

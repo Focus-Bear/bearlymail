@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { CATEGORY_DANGEROUS_PHISHING, PHISHING_CONFIDENCE_MEDIUM, PHISHING_CONFIDENCE_HIGH } from 'constants/strings';
+
+import { CATEGORY_DANGEROUS_PHISHING, PHISHING_CONFIDENCE_HIGH,PHISHING_CONFIDENCE_MEDIUM } from 'constants/strings';
 
 export type PhishingConfidence = 'low' | 'medium' | 'high';
 

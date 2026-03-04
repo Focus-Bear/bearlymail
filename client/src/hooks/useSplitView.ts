@@ -1,6 +1,7 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { useCallback, useEffect, useRef,useState } from 'react';
+
 import { TIMEOUT_300_MS } from 'constants/numbers';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 const STORAGE_KEY = 'bearlymail_split_position';
 const DEFAULT_SPLIT_POSITION = 50;

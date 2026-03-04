@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
-import { EMOJI_SEARCH } from 'constants/emojis';
-import { ThreadLookupResult } from 'hooks/useDebugPanel';
+
 import { COLOR_BG_NEUTRAL, COLOR_BG_WARNING, COLOR_ERROR_DARK, COLOR_GREY_MED, COLOR_INFO_VIOLET, COLOR_NAMED_WHITE, COLOR_SUCCESS_DARK, COLOR_WARNING_DARK, COLOR_WHITE } from 'constants/colors';
+import { EMOJI_SEARCH } from 'constants/emojis';
+import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
+import { ThreadLookupResult } from 'hooks/useDebugPanel';
 
 interface DebugThreadLookupSectionProps {
   threadLookupResult: ThreadLookupResult | null;

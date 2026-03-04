@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
-import { LONG_TIMEOUT_MS } from 'constants/numbers';
 import { Email } from 'types/email';
+
+import { LONG_TIMEOUT_MS } from 'constants/numbers';
 
 interface UseEmailProcessingPollingProps {
   emails: Email[];

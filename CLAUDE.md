@@ -68,6 +68,10 @@ cd server && npm run migration:run
 cd server && npm run lint
 cd client && npm run lint
 
+# Import ordering is enforced and auto-fixable (simple-import-sort)
+cd server && npm run lint   # --fix enabled in script
+cd client && npm run lint:fix
+
 # Build (must pass before PR)
 cd server && npm run build
 cd client && npm run build

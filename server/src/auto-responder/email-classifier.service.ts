@@ -1,20 +1,21 @@
-import { Injectable, Logger, Inject, forwardRef } from "@nestjs/common";
-import { LLMService, LLMProvider } from "../llm/llm.service";
-import { getPrompt, renderPrompt } from "../llm/prompts";
-import { EmailClassification } from "./types/auto-responder.types";
-import { cleanEmailContent } from "../llm/email-content-cleaner";
-import { RATIOS } from "../constants/percentages";
-import { LLM_CONFIG } from "./auto-responder-constants";
+import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
+
 import {
-  EMAIL_CLASSIFICATION,
   BODY_PREVIEW_LENGTHS,
+  EMAIL_CLASSIFICATION,
 } from "../constants/llm-constants";
+import { RATIOS } from "../constants/percentages";
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
 import { StructuralError } from "../errors/structural-error";
+import { cleanEmailContent } from "../llm/email-content-cleaner";
+import { LLMProvider, LLMService } from "../llm/llm.service";
 import {
-  LLM_OP_CLASSIFY_EMAIL,
   LLM_OP_CHECK_CUSTOM_EXCLUSION_RULES,
+  LLM_OP_CLASSIFY_EMAIL,
 } from "../llm/llm-operations";
+import { getPrompt, renderPrompt } from "../llm/prompts";
+import { LLM_CONFIG } from "./auto-responder-constants";
+import { EmailClassification } from "./types/auto-responder.types";
 
 /**
  * Service for classifying emails to determine if auto-response should be sent

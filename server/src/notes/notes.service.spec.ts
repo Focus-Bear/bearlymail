@@ -1,7 +1,8 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { NotesService } from "./notes.service";
+
 import { PrivateNote } from "../database/entities/private-note.entity";
+import { NotesService } from "./notes.service";
 
 describe("NotesService", () => {
   let service: NotesService;

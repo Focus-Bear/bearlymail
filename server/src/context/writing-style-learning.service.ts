@@ -1,10 +1,11 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { Email } from "../database/entities/email.entity";
-import { UsersService } from "../users/users.service";
-import { LLMService } from "../llm/llm.service";
+
 import { RATIOS } from "../constants/percentages";
+import { Email } from "../database/entities/email.entity";
+import { LLMService } from "../llm/llm.service";
+import { UsersService } from "../users/users.service";
 
 // Target number of email examples to collect
 const TARGET_EXAMPLE_COUNT = 20;

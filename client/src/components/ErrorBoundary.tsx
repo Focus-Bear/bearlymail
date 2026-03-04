@@ -1,7 +1,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { captureException } from 'utils/posthog';
 import { generateCorrelationId, isNetworkError } from 'utils/correlationId';
+import { captureException } from 'utils/posthog';
 
 interface Props {
   children: ReactNode;

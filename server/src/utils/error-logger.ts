@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
+
 import { captureGlobalError } from "../error-tracking/error-tracking-setup";
 
 // Only log to file during local development

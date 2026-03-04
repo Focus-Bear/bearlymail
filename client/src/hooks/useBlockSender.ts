@@ -1,9 +1,10 @@
 import { useCallback } from 'react';
-import axios from 'axios';
 import { SetStateAction } from 'react';
+import axios from 'axios';
 import { Email, getEmailPriorityScore } from 'types/email';
-import { API_URL } from 'config/api';
 import { captureEvent } from 'utils/posthog';
+
+import { API_URL } from 'config/api';
 
 // Threshold for considering priority scores "equal" (matches backend RATIOS.TINY)
 const PRIORITY_SCORE_TINY_THRESHOLD = 0.01;

@@ -1,5 +1,6 @@
 import React from 'react';
 import { theme } from 'theme/theme';
+
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
 

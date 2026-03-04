@@ -1,11 +1,12 @@
 import {
   Controller,
   Get,
-  Post,
   Param,
-  UseGuards,
+  Post,
   Request,
+  UseGuards,
 } from "@nestjs/common";
+
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { SuggestedRepliesService } from "./suggested-replies.service";
 

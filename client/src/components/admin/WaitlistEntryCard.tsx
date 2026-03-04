@@ -1,10 +1,11 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { WaitlistEntry } from 'hooks/useAdminDashboard';
+import { humanizeTimestamp } from 'utils/dateUtils';
+
 import { OPACITY_DISABLED_ALT, OPACITY_FULL } from 'constants/numbers';
 import { PROVIDER_GMAIL, PROVIDER_OTHER, PROVIDER_OUTLOOK, PROVIDER_ZOHO, STRING_NONE, STRING_TRANSPARENT, STRING_WHITE } from 'constants/strings';
-import { humanizeTimestamp } from 'utils/dateUtils';
+import { WaitlistEntry } from 'hooks/useAdminDashboard';
 
 interface WaitlistEntryCardProps {
   entry: WaitlistEntry;

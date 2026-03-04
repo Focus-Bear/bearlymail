@@ -1,24 +1,25 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
+import * as fs from "fs";
+import * as path from "path";
 import { Repository } from "typeorm";
+
+import {
+  STAR_COUNTS,
+  TRIAGE_THRESHOLDS,
+} from "../constants/priority-constants";
+import { QUERY_LIMITS } from "../constants/query-limits";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import {
-  UserContext,
   ContextKey,
+  UserContext,
 } from "../database/entities/user-context.entity";
-import { LLMService } from "../llm/llm.service";
-import { QUERY_LIMITS } from "../constants/query-limits";
-import { PriorityService } from "./priority.service";
 import { EmailsService } from "../emails/emails.service";
-import { calculateScoreFromBreakdown } from "../utils/priority.utils";
 import { EncryptionHelper } from "../encryption/encryption.helper";
-import {
-  TRIAGE_THRESHOLDS,
-  STAR_COUNTS,
-} from "../constants/priority-constants";
-import * as fs from "fs";
-import * as path from "path";
+import { LLMService } from "../llm/llm.service";
+import { calculateScoreFromBreakdown } from "../utils/priority.utils";
+import { PriorityService } from "./priority.service";
 
 export interface TriageSuggestion {
   emailId: string;

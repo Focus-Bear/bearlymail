@@ -1,18 +1,19 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback,useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
-import { Deal, KanbanBoard } from 'types/deal';
 import { Contact } from 'types/contact';
-import { useAuth } from 'contexts/AuthContext';
-import { Sidebar } from 'components/inbox/Sidebar';
-import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
-import { useSidebarState } from 'hooks/useSidebarState';
-import { KanbanColumn } from 'components/crm/KanbanColumn';
+import { Deal, KanbanBoard } from 'types/deal';
+
 import { DealFormModal } from 'components/crm/DealFormModal';
+import { KanbanColumn } from 'components/crm/KanbanColumn';
+import { Sidebar } from 'components/inbox/Sidebar';
 import { API_URL } from 'config/api';
 import { EMOJI_MENU } from 'constants/emojis';
-import { STRING_FLEX, STRING_HIDDEN, STRING_FIXED, STRING_POINTER, STRING_CENTER, STRING_AUTO, STRING_NONE, STRING_WHITE, STRING_CURRENCY, STRING_USD, STRING_EN_US } from 'constants/strings';
+import { STRING_AUTO, STRING_CENTER, STRING_CURRENCY, STRING_EN_US,STRING_FIXED, STRING_FLEX, STRING_HIDDEN, STRING_NONE, STRING_POINTER, STRING_USD, STRING_WHITE } from 'constants/strings';
+import { useAuth } from 'contexts/AuthContext';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { useSidebarState } from 'hooks/useSidebarState';
 
 const Deals: React.FC = () => {
   const { t } = useTranslation();

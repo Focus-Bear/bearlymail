@@ -1,26 +1,27 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
   CreateDateColumn,
-  UpdateDateColumn,
-  OneToMany,
+  Entity,
   Index,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from "typeorm";
-import { UserContext } from "./user-context.entity";
-import { PrivateNote } from "./private-note.entity";
-import { Email } from "./email.entity";
-import { SummarizationRule } from "./summarization-rule.entity";
-import { ActionItem } from "./action-item.entity";
-import { GoogleAccount } from "./google-account.entity";
-import { Office365Account } from "./office365-account.entity";
-import { ZohoAccount } from "./zoho-account.entity";
+
+import { AutoResponderConfig } from "../../auto-responder/types/auto-responder.types";
 import {
-  encryptedColumnTransformer,
   emailTransformer,
+  encryptedColumnTransformer,
   encryptedJsonTransformer,
 } from "../../encryption/encryption.helper";
-import { AutoResponderConfig } from "../../auto-responder/types/auto-responder.types";
+import { ActionItem } from "./action-item.entity";
+import { Email } from "./email.entity";
+import { GoogleAccount } from "./google-account.entity";
+import { Office365Account } from "./office365-account.entity";
+import { PrivateNote } from "./private-note.entity";
+import { SummarizationRule } from "./summarization-rule.entity";
+import { UserContext } from "./user-context.entity";
+import { ZohoAccount } from "./zoho-account.entity";
 
 @Entity("users")
 export class User {

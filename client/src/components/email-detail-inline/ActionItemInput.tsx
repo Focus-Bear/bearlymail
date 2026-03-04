@@ -1,8 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { KEY_ENTER } from 'constants/strings';
 import { captureEvent } from 'utils/posthog';
+
+import { KEY_ENTER } from 'constants/strings';
 
 interface ActionItemInputProps {
   newActionItem: string;

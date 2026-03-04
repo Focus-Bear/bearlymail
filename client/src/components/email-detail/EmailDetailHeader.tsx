@@ -1,11 +1,12 @@
-import React, { useMemo, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useCallback,useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
+import { Email, getEmailPriorityScore } from 'types/email';
 import { humanizeTimestamp } from 'utils/dateUtils';
 import { getCorrespondent } from 'utils/emailUtils';
-import { Email, getEmailPriorityScore } from 'types/email';
-import { EMOJI_EMAIL, EMOJI_USER, EMOJI_GOAL, EMOJI_SETTINGS, EMOJI_POSITIVE, EMOJI_NEGATIVE, EMOJI_NEUTRAL } from 'constants/emojis';
+
+import { EMOJI_EMAIL, EMOJI_GOAL, EMOJI_NEGATIVE, EMOJI_NEUTRAL,EMOJI_POSITIVE, EMOJI_SETTINGS, EMOJI_USER } from 'constants/emojis';
 import { PRIORITY_HIGH_THRESHOLD, PRIORITY_MEDIUM_THRESHOLD, SAVE_CONFIRMATION_DURATION_MS } from 'constants/numbers';
 import { useAuth } from 'contexts/AuthContext';
 import { useNotifications } from 'contexts/NotificationContext';

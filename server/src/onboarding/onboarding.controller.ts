@@ -1,6 +1,7 @@
-import { Controller, Post, Get, UseGuards, Request } from "@nestjs/common";
-import { OnboardingService } from "./onboarding.service";
+import { Controller, Get, Post, Request, UseGuards } from "@nestjs/common";
+
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { OnboardingService } from "./onboarding.service";
 
 @Controller("onboarding")
 @UseGuards(JwtAuthGuard)

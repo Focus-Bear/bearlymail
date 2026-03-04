@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
+
 import { MS_PER_DAY } from 'constants/numbers';
 
 interface FollowUpMetadataProps {

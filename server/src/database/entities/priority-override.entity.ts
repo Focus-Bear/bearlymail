@@ -1,14 +1,15 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
-  ManyToOne,
   CreateDateColumn,
-  JoinColumn,
+  Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
 } from "typeorm";
-import { User } from "./user.entity";
+
 import { Email } from "./email.entity";
+import { User } from "./user.entity";
 
 export enum OverrideReasonType {
   WRONG_SENDER_PRIORITY = "wrong_sender_priority",

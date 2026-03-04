@@ -1,8 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 import { captureEvent } from 'utils/posthog';
+
+import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 
 const ACTION_ITEM_SOURCE_LLM = 'llm';
 

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { theme } from 'theme/theme';
 import { Deal, DealStage } from 'types/deal';
+
 import { STRING_NONE } from 'constants/strings';
 
 interface KanbanColumnProps {

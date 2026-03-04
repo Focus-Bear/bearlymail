@@ -5,7 +5,7 @@ module.exports = {
     tsconfigRootDir: __dirname,
     sourceType: 'module',
   },
-  plugins: ['@typescript-eslint/eslint-plugin'],
+  plugins: ['@typescript-eslint/eslint-plugin', 'simple-import-sort'],
   extends: [
     'plugin:@typescript-eslint/recommended',
     'plugin:prettier/recommended',
@@ -17,6 +17,24 @@ module.exports = {
   },
   ignorePatterns: ['.eslintrc.js', 'dist/**/*', 'src/database/migrations/**/*'],
   rules: {
+    // ===========================================
+    // IMPORT ORDERING
+    // ===========================================
+    'simple-import-sort/imports': [
+      'error',
+      {
+        groups: [
+          // Side-effect imports (e.g. import 'reflect-metadata')
+          ['^\\u0000'],
+          // External packages: NestJS first, then @-scoped, then others
+          ['^@nestjs', '^@?\\w'],
+          // Relative imports (server has no path aliases)
+          ['^\\.'],
+        ],
+      },
+    ],
+    'simple-import-sort/exports': 'error',
+
     // ===========================================
     // FILE SIZE LIMITS
     // ===========================================

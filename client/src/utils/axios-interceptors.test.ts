@@ -1,7 +1,9 @@
 import axios from 'axios';
-import { setupAxiosInterceptors, resetInterceptorsForTesting } from './axios-interceptors';
+
 import { HTTP_UNAUTHORIZED } from 'constants/numbers';
 import { API_ENDPOINT_USERS_ME, HTTP_METHOD_GET } from 'constants/strings';
+
+import { resetInterceptorsForTesting,setupAxiosInterceptors } from './axios-interceptors';
 
 // Helper to create a JWT token with expiration
 const createJWT = (exp: number): string => {

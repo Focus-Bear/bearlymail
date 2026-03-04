@@ -1,57 +1,58 @@
-import { Injectable, Inject, forwardRef, Logger } from "@nestjs/common";
-import { google, gmail_v1 } from "googleapis";
-import { UsersService } from "../../users/users.service";
+import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
+import { gmail_v1, google } from "googleapis";
+import PgBoss from "pg-boss";
+
+import { authLogger } from "../../auth/auth-logger";
+import { HTTP_STATUS } from "../../constants/http-status";
+import { QUERY_LIMITS } from "../../constants/query-limits";
+// QUERY_LIMITS used in helper modules
 import {
-  EmailsService,
+  DAYS,
+  MILLISECONDS,
+  MINUTES,
+  MS_PER_SECOND,
+} from "../../constants/time-constants";
+import { User } from "../../database/entities/user.entity";
+import { getJobPriority } from "../../queue/job-priorities";
+import { formatGaxiosError, isApiError } from "../../types/common";
+import { UsersService } from "../../users/users.service";
+import { logErrorToFile } from "../../utils/error-logger";
+import {
   EmailDataWithOptionalThreadProps,
+  EmailsService,
 } from "../emails.service";
+import {
+  EmailAttachmentData,
+  EmailProvider,
+  EmailRecipient,
+  RawEmailMessage,
+  SendReplyOptions,
+} from "../interfaces/email-provider.interface";
 import { ScanEmailService } from "../scan-email.service";
 import { SyncHistoryService } from "../sync-history.service";
 import {
-  EmailProvider,
-  RawEmailMessage,
-  EmailRecipient,
-  EmailAttachmentData,
-  SendReplyOptions,
-} from "../interfaces/email-provider.interface";
-import PgBoss from "pg-boss";
-import { getJobPriority } from "../../queue/job-priorities";
-// QUERY_LIMITS used in helper modules
-import {
-  MINUTES,
-  DAYS,
-  MILLISECONDS,
-  MS_PER_SECOND,
-} from "../../constants/time-constants";
-import { HTTP_STATUS } from "../../constants/http-status";
-import { QUERY_LIMITS } from "../../constants/query-limits";
-import { isApiError, formatGaxiosError } from "../../types/common";
-import { User } from "../../database/entities/user.entity";
-import { logErrorToFile } from "../../utils/error-logger";
+  buildGmailUrlIdsToTry,
+  lookupGmailMessageByIds,
+  lookupGmailThreadByIds,
+} from "./gmail/gmail-lookup";
 import { parseGmailMessage } from "./gmail/gmail-message-parser";
+import {
+  archiveThreadInGmail,
+  ensureLabelExists,
+  snoozeThreadInGmail,
+  syncReadStatusToGmail as syncReadToGmail,
+  syncStarStatusToGmail as syncStarToGmail,
+  trashThreadInGmail,
+  unarchiveThreadInGmail,
+  unsnoozeThreadInGmail,
+} from "./gmail/gmail-operations";
+import { buildEmailContent, encodeEmailForGmail } from "./gmail/gmail-send";
 import {
   getExistingThreadUpdates,
   isGmailAuthError,
   isThreadStarred,
   verifyThreadStatusesInGmail,
 } from "./gmail/gmail-sync";
-import {
-  archiveThreadInGmail,
-  unarchiveThreadInGmail,
-  trashThreadInGmail,
-  syncStarStatusToGmail as syncStarToGmail,
-  syncReadStatusToGmail as syncReadToGmail,
-  snoozeThreadInGmail,
-  unsnoozeThreadInGmail,
-  ensureLabelExists,
-} from "./gmail/gmail-operations";
-import { buildEmailContent, encodeEmailForGmail } from "./gmail/gmail-send";
-import {
-  buildGmailUrlIdsToTry,
-  lookupGmailMessageByIds,
-  lookupGmailThreadByIds,
-} from "./gmail/gmail-lookup";
-import { authLogger } from "../../auth/auth-logger";
 
 /**
  * Parse a comma-separated recipient string (supports "Name <email>" format)

@@ -1,8 +1,9 @@
-import { MutableRefObject, useState, useCallback, useEffect, useRef } from 'react';
+import { MutableRefObject, useCallback, useEffect, useRef,useState } from 'react';
 import axios from 'axios';
-import { API_URL } from 'config/api';
-import { plainTextToHtml } from 'utils/emailUtils';
 import { sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
+import { plainTextToHtml } from 'utils/emailUtils';
+
+import { API_URL } from 'config/api';
 import { STRING_STALE } from 'constants/strings';
 
 const CUSTOM_ONLY_OPTIONS = [{ label: 'Custom', text: '' }];

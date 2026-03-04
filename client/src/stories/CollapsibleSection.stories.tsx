@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { StoryObj } from '@storybook/react';
+
 import { COLOR_SUCCESS_MED, COLOR_WARNING_MED, COLOR_WHITE_FULL } from 'constants/colors';
 
 const Th = {

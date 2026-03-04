@@ -1,16 +1,17 @@
 import {
+  BadRequestException,
+  Body,
   Controller,
   Get,
-  Post,
-  Param,
-  Body,
-  Query,
-  BadRequestException,
-  ServiceUnavailableException,
   Logger,
+  Param,
+  Post,
+  Query,
+  ServiceUnavailableException,
 } from "@nestjs/common";
-import { CalendarService } from "./calendar.service";
+
 import { DAYS, MINUTES } from "../constants/time-constants";
+import { CalendarService } from "./calendar.service";
 
 @Controller("public/calendar")
 export class PublicCalendarController {

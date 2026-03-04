@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+
 import { ScheduledEmailsService } from "./scheduled-emails.service";
 
 @Injectable()

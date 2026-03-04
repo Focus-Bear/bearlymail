@@ -1,9 +1,11 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { AutoResponderAnalytics as AnalyticsData } from './types';
+
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
+
+import { AutoResponderAnalytics as AnalyticsData } from './types';
 
 interface AutoResponderAnalyticsProps {
   analytics: AnalyticsData | null;

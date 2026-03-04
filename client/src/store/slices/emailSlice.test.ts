@@ -1,15 +1,17 @@
-import emailReducer, {
-  addAnimatingOut,
-  removeAnimatingOut,
-  removeEmail,
-  addOptimisticArchive,
-  updateCategoryEmails,
-} from './emailSlice';
+import { Email } from 'types/email';
+
 import {
   selectAnimatingOut,
   selectVisibleEmails,
 } from 'store/selectors/emailSelectors';
-import { Email } from 'types/email';
+
+import emailReducer, {
+  addAnimatingOut,
+  addOptimisticArchive,
+  removeAnimatingOut,
+  removeEmail,
+  updateCategoryEmails,
+} from './emailSlice';
 
 const makeEmail = (id: string, category?: string | null): Email =>
   ({

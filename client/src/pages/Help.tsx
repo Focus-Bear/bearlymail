@@ -1,9 +1,10 @@
 import React from 'react';
-import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from 'contexts/AuthContext';
-import { Sidebar } from 'components/inbox/Sidebar';
+import { Link,useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
+
+import { Sidebar } from 'components/inbox/Sidebar';
+import { useAuth } from 'contexts/AuthContext';
 import { useSidebarState } from 'hooks/useSidebarState';
 
 interface HelpArticle {

@@ -1,10 +1,11 @@
 import React, { RefObject } from 'react';
+
 import {
-  TourOverlay,
+  ReloginBanner,
   ScanModal,
   ScanNotification,
+  TourOverlay,
   UrgentNotification,
-  ReloginBanner,
 } from 'components/inbox/overlays';
 
 interface TourStep {

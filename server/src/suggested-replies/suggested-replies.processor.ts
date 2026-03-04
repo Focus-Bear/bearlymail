@@ -1,18 +1,19 @@
-import { Injectable, OnModuleInit, Logger, Inject } from "@nestjs/common";
+import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
 import PgBoss from "pg-boss";
-import { Email } from "../database/entities/email.entity";
-import { SuggestedRepliesService } from "./suggested-replies.service";
-import { LLMService } from "../llm/llm.service";
-import { UsersService } from "../users/users.service";
-import { JobPerformanceTracker } from "../queue/job-performance-tracker";
-import { EncryptionHelper } from "../encryption/encryption.helper";
-import { MILLISECONDS } from "../constants/time-constants";
+import { Repository } from "typeorm";
+
 import { CloudWatchService } from "../aws/cloudwatch.service";
 import { QUERY_LIMITS } from "../constants/query-limits";
-import { StructuralError } from "../errors/structural-error";
+import { MILLISECONDS } from "../constants/time-constants";
+import { Email } from "../database/entities/email.entity";
 import { User } from "../database/entities/user.entity";
+import { EncryptionHelper } from "../encryption/encryption.helper";
+import { StructuralError } from "../errors/structural-error";
+import { LLMService } from "../llm/llm.service";
+import { JobPerformanceTracker } from "../queue/job-performance-tracker";
+import { UsersService } from "../users/users.service";
+import { SuggestedRepliesService } from "./suggested-replies.service";
 
 interface ReplyContext {
   userEmail: string;

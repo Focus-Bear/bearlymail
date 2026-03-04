@@ -1,12 +1,14 @@
-import React, { RefObject, useRef, useState, useEffect, useCallback } from 'react';
+import React, { RefObject, useCallback,useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FiArchive, FiClock, FiCornerUpLeft, FiCornerUpRight, FiMaximize2, FiX } from 'react-icons/fi';
 import { theme } from 'theme/theme';
-import EmailDetail, { EmailDetailRef } from 'pages/EmailDetail';
+import { Email,InboxMode } from 'types/email';
+import { captureEvent } from 'utils/posthog';
+
 import { SnoozeInputForm } from 'components/inbox/actions/SnoozeInputForm';
-import { InboxMode, Email } from 'types/email';
-import { LETTER_SPACING_WIDER, MODE_ACTION, MODE_TRIAGE, STRING_NONE } from 'constants/strings';import { captureEvent } from 'utils/posthog';
 import { COLOR_TRANSPARENT } from 'constants/colors';
+import { LETTER_SPACING_WIDER, MODE_ACTION, MODE_TRIAGE, STRING_NONE } from 'constants/strings';
+import EmailDetail, { EmailDetailRef } from 'pages/EmailDetail';
 const PRIORITY_OPTIONS = [
   { label: 'Can wait', emoji: '\u{1F60A}', value: 1 },
   { label: 'Get on it', emoji: '\u{1F600}', value: 2 },

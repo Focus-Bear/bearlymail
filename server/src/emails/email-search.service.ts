@@ -1,16 +1,17 @@
-import { Injectable, Logger, Inject, forwardRef } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, In } from "typeorm";
-import { Email } from "../database/entities/email.entity";
-import { EmailProviderManager } from "./email-provider-manager.service";
-import { LLMService } from "../llm/llm.service";
-import { searchLogger } from "../utils/search-logger";
-import { QUERY_LIMITS } from "../constants/query-limits";
+import { In, Repository } from "typeorm";
+
 import {
   PRIORITY_BOOSTS,
   PRIORITY_SCORES,
 } from "../constants/priority-constants";
+import { QUERY_LIMITS } from "../constants/query-limits";
 import { DAYS, MILLISECONDS } from "../constants/time-constants";
+import { Email } from "../database/entities/email.entity";
+import { LLMService } from "../llm/llm.service";
+import { searchLogger } from "../utils/search-logger";
+import { EmailProviderManager } from "./email-provider-manager.service";
 import { EmailSearchRankingService } from "./email-search-ranking.service";
 
 // Type for emails with search metadata

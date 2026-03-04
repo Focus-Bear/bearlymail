@@ -1,19 +1,20 @@
 import {
-  Module,
   Global,
-  OnApplicationBootstrap,
-  OnModuleDestroy,
   Inject,
   Logger,
+  Module,
+  OnApplicationBootstrap,
+  OnModuleDestroy,
 } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import PgBoss from "pg-boss";
-import { QueueMonitorService } from "./queue-monitor.service";
-import { ResourceMonitorService } from "./resource-monitor.service";
-import { QueueAutoscalingService } from "./queue-autoscaling.service";
+
 import { AwsModule } from "../aws/aws.module";
 import { logErrorToFile } from "../utils/error-logger";
+import { QueueAutoscalingService } from "./queue-autoscaling.service";
+import { QueueMonitorService } from "./queue-monitor.service";
+import { ResourceMonitorService } from "./resource-monitor.service";
 
 @Global()
 @Module({

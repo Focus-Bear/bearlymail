@@ -1,7 +1,8 @@
-import { Test, TestingModule } from "@nestjs/testing";
 import { ConfigService } from "@nestjs/config";
-import { GoogleStrategy } from "./google.strategy";
+import { Test, TestingModule } from "@nestjs/testing";
+
 import { AuthService } from "./auth.service";
+import { GoogleStrategy } from "./google.strategy";
 
 describe("GoogleStrategy", () => {
   let strategy: GoogleStrategy;

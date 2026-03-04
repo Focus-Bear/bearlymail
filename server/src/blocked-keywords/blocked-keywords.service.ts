@@ -1,9 +1,10 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { BlockedKeyword } from "../database/entities/blocked-keyword.entity";
-import { SearchIndexHelper } from "../contacts/search-index.helper";
+
 import { MILLISECONDS } from "../constants/time-constants";
+import { SearchIndexHelper } from "../contacts/search-index.helper";
+import { BlockedKeyword } from "../database/entities/blocked-keyword.entity";
 
 export interface BlockedKeywordInfo {
   id: string;

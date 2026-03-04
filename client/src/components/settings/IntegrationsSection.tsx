@@ -1,8 +1,9 @@
 import React from 'react';
-import { OpenAIApiKeySection } from 'components/settings/integrations/OpenAIApiKeySection';
+
+import { GitHubConnectionStatusSection } from 'components/settings/integrations/GitHubConnectionStatusSection';
 import { GitHubIntegrationSection } from 'components/settings/integrations/GitHubIntegrationSection';
 import { GitHubRepoMappingsSection } from 'components/settings/integrations/GitHubRepoMappingsSection';
-import { GitHubConnectionStatusSection } from 'components/settings/integrations/GitHubConnectionStatusSection';
+import { OpenAIApiKeySection } from 'components/settings/integrations/OpenAIApiKeySection';
 
 interface IntegrationsSectionProps {
   openAiApiKey: string;

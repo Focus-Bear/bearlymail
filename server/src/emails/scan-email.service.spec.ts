@@ -1,7 +1,8 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { ScanEmailService } from "./scan-email.service";
+
 import { ScanEmail } from "../database/entities/scan-email.entity";
+import { ScanEmailService } from "./scan-email.service";
 
 describe("ScanEmailService", () => {
   let service: ScanEmailService;

@@ -1,9 +1,10 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { captureEvent } from 'utils/posthog';
-import { useKeyboardShortcuts } from 'hooks/useKeyboardShortcuts';
-import { useInboxKeyboardNavigation } from 'hooks/useInboxKeyboardNavigation';
 import { InboxMode } from 'types/email';
+import { captureEvent } from 'utils/posthog';
+
+import { useInboxKeyboardNavigation } from 'hooks/useInboxKeyboardNavigation';
+import { useKeyboardShortcuts } from 'hooks/useKeyboardShortcuts';
 
 interface EmailHandlerParams {
   emails: any[];

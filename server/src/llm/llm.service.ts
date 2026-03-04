@@ -1,49 +1,50 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { cleanEmailContent } from "./email-content-cleaner";
-import { getPrompt, renderPrompt } from "./prompts";
-import { StructuralError } from "../errors/structural-error";
+
 import {
-  LLMOperation,
-  LLM_OP_ANALYZE_EMAIL_PATTERNS,
-  LLM_OP_SUMMARIZE_EMAIL,
-  LLM_OP_SUMMARIZE_EMAIL_BATCH,
-  LLM_OP_CHECK_TONE,
-  LLM_OP_EXTRACT_ACTION_ITEMS,
-  LLM_OP_SUGGEST_ACTIONS,
-  LLM_OP_GENERATE_REPLY,
-  LLM_OP_GENERATE_REPLY_OPTIONS,
-  LLM_OP_GENERATE_MEETING_REPLY,
-  LLM_OP_GENERATE_FOLLOW_UP,
-  LLM_OP_ANALYZE_OVERRIDE_REASON,
-  LLM_OP_EXTRACT_QANDA,
-  LLM_OP_SEARCH_RELEVANCE,
-  LLM_OP_SEARCH_RELEVANCE_BATCH,
-  LLM_OP_REDACT_NAMES,
-  LLM_OP_VALIDATE_WRITING_EXAMPLE,
-  LLM_OP_DISPUTE_TONE_CHECK,
-  LLM_OP_CONSOLIDATE_CATEGORIES,
-  LLM_OP_GENERATE_CATEGORIES_FROM_OTHER,
-  LLM_OP_IDENTIFY_CUSTOM_LABELS,
-  LLM_OP_COMPRESS_CONTEXT,
-} from "./llm-operations";
-import { getErrorMessage } from "../types/common";
+  BODY_PREVIEW_LENGTHS,
+  CONTEXT_ANALYSIS,
+  QA_EXTRACTION,
+  RECENCY_THRESHOLDS,
+  TIME_FORMATTING,
+} from "../constants/llm-constants";
 import { RATIOS } from "../constants/percentages";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import {
-  MINUTES,
   MILLISECONDS,
+  MINUTES,
   MS_PER_SECOND,
 } from "../constants/time-constants";
-import {
-  TIME_FORMATTING,
-  RECENCY_THRESHOLDS,
-  QA_EXTRACTION,
-  BODY_PREVIEW_LENGTHS,
-  CONTEXT_ANALYSIS,
-} from "../constants/llm-constants";
-import { LLMCoreService } from "./llm-core.service";
-import { LLMProvider } from "./llm.types";
+import { StructuralError } from "../errors/structural-error";
+import { getErrorMessage } from "../types/common";
+import { cleanEmailContent } from "./email-content-cleaner";
 import type { LLMRequest } from "./llm.types";
+import { LLMProvider } from "./llm.types";
+import { LLMCoreService } from "./llm-core.service";
+import {
+  LLM_OP_ANALYZE_EMAIL_PATTERNS,
+  LLM_OP_ANALYZE_OVERRIDE_REASON,
+  LLM_OP_CHECK_TONE,
+  LLM_OP_COMPRESS_CONTEXT,
+  LLM_OP_CONSOLIDATE_CATEGORIES,
+  LLM_OP_DISPUTE_TONE_CHECK,
+  LLM_OP_EXTRACT_ACTION_ITEMS,
+  LLM_OP_EXTRACT_QANDA,
+  LLM_OP_GENERATE_CATEGORIES_FROM_OTHER,
+  LLM_OP_GENERATE_FOLLOW_UP,
+  LLM_OP_GENERATE_MEETING_REPLY,
+  LLM_OP_GENERATE_REPLY,
+  LLM_OP_GENERATE_REPLY_OPTIONS,
+  LLM_OP_IDENTIFY_CUSTOM_LABELS,
+  LLM_OP_REDACT_NAMES,
+  LLM_OP_SEARCH_RELEVANCE,
+  LLM_OP_SEARCH_RELEVANCE_BATCH,
+  LLM_OP_SUGGEST_ACTIONS,
+  LLM_OP_SUMMARIZE_EMAIL,
+  LLM_OP_SUMMARIZE_EMAIL_BATCH,
+  LLM_OP_VALIDATE_WRITING_EXAMPLE,
+  LLMOperation,
+} from "./llm-operations";
+import { getPrompt, renderPrompt } from "./prompts";
 // Re-export LLMProvider for backward compatibility with existing callers
 export { LLMProvider };
 

@@ -1,11 +1,12 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
+
+import { SearchIndexHelper } from "../contacts/search-index.helper";
 import { Contact } from "../database/entities/contact.entity";
 import { LLMService } from "../llm/llm.service";
 import { LLM_OP_CLASSIFY_CONTACT_TYPE } from "../llm/llm-operations";
 import { getPrompt, renderPrompt } from "../llm/prompts";
-import { SearchIndexHelper } from "../contacts/search-index.helper";
 import { logError } from "../utils/logger";
 
 const BODY_PREVIEW_LENGTH = 500;

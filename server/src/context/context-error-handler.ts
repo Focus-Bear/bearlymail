@@ -1,5 +1,5 @@
-import { isApiError, ApiError } from "../types/common";
 import { HTTP_STATUS } from "../constants/http-status";
+import { ApiError, isApiError } from "../types/common";
 
 const AUTH_ERROR_MSG =
   "Your email account needs to be reconnected. Please go to Settings and reconnect your account.";

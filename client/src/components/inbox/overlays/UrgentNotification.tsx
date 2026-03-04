@@ -1,11 +1,12 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { UrgentNotificationHeader } from 'components/inbox/overlays/UrgentNotificationHeader';
+
 import { UrgentEmailList } from 'components/inbox/overlays/UrgentEmailList';
+import { UrgentNotificationHeader } from 'components/inbox/overlays/UrgentNotificationHeader';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { EMOJI_CHECK } from 'constants/emojis';
 import { Z_INDEX_POPUP } from 'constants/numbers';
-import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
 
 interface UrgentEmail {

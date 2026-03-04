@@ -1,14 +1,15 @@
 import {
+  Body,
   Controller,
   Get,
   Post,
-  Body,
-  UseGuards,
   Request,
+  UseGuards,
 } from "@nestjs/common";
-import { LLMService } from "./llm.service";
+
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { UsersService } from "../users/users.service";
+import { LLMService } from "./llm.service";
 
 @Controller("llm")
 @UseGuards(JwtAuthGuard)

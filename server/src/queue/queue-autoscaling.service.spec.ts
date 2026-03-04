@@ -1,9 +1,10 @@
-import { Test, TestingModule } from "@nestjs/testing";
 import { ConfigService } from "@nestjs/config";
-import { DataSource } from "typeorm";
-import { QueueAutoscalingService } from "./queue-autoscaling.service";
-import { CloudWatchService } from "../aws/cloudwatch.service";
+import { Test, TestingModule } from "@nestjs/testing";
 import { StandardUnit } from "@aws-sdk/client-cloudwatch";
+import { DataSource } from "typeorm";
+
+import { CloudWatchService } from "../aws/cloudwatch.service";
+import { QueueAutoscalingService } from "./queue-autoscaling.service";
 
 describe("QueueAutoscalingService", () => {
   let service: QueueAutoscalingService;

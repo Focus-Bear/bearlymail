@@ -1,13 +1,14 @@
-import { Module, forwardRef } from "@nestjs/common";
+import { forwardRef, Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { SuggestedRepliesController } from "./suggested-replies.controller";
-import { SuggestedRepliesService } from "./suggested-replies.service";
-import { SuggestedRepliesProcessor } from "./suggested-replies.processor";
-import { SuggestedReply } from "../database/entities/suggested-reply.entity";
+
+import { AwsModule } from "../aws/aws.module";
 import { Email } from "../database/entities/email.entity";
+import { SuggestedReply } from "../database/entities/suggested-reply.entity";
 import { LLMModule } from "../llm/llm.module";
 import { UsersModule } from "../users/users.module";
-import { AwsModule } from "../aws/aws.module";
+import { SuggestedRepliesController } from "./suggested-replies.controller";
+import { SuggestedRepliesProcessor } from "./suggested-replies.processor";
+import { SuggestedRepliesService } from "./suggested-replies.service";
 
 @Module({
   imports: [

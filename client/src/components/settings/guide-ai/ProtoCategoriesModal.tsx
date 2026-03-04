@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback,useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
-import { OPACITY_DISABLED, Z_INDEX_POPUP } from 'constants/numbers';
+
 import { API_URL } from 'config/api';
-import { useNotifications } from 'contexts/NotificationContext';
+import { OPACITY_DISABLED, Z_INDEX_POPUP } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
+import { useNotifications } from 'contexts/NotificationContext';
 
 const PROTO_CATEGORY_PROMOTION_THRESHOLD = 5;
 

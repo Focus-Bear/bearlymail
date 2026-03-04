@@ -1,9 +1,10 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
+
+import { writeDebugLog } from "../auth/auth-logger";
 import { User } from "../database/entities/user.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
-import { writeDebugLog } from "../auth/auth-logger";
 
 @Injectable()
 export class UsersService {

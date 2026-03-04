@@ -1,26 +1,26 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useCallback, useEffect, useRef,useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { theme } from 'theme/theme';
-import { OPACITY_DISABLED, OPACITY_FULL, DELAY_1_5_SECONDS_MS } from 'constants/numbers';
-import { EMAIL_FIELD_TO, EMAIL_FIELD_CC } from 'constants/strings';
-import { captureEvent } from 'utils/posthog';
 import { Contact } from 'types/contact';
+import { captureEvent } from 'utils/posthog';
+
+import { ComposeActions } from 'components/compose/ComposeActions';
+import { ComposeBody } from 'components/compose/ComposeBody';
+import { ComposeMessages } from 'components/compose/ComposeMessages';
+import { FrequentContactsList } from 'components/compose/FrequentContactsList';
+import { RecipientFields } from 'components/compose/RecipientFields';
+import { TimePicker } from 'components/compose/TimePicker';
+import { ToneCheckResult } from 'components/email-detail-inline/ToneCheckResult';
+import { API_URL } from 'config/api';
+import { DELAY_1_5_SECONDS_MS,OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
+import { EMAIL_FIELD_CC,EMAIL_FIELD_TO } from 'constants/strings';
+import { useNotifications } from 'contexts/NotificationContext';
 import { useComposeForm } from 'hooks/useComposeForm';
 import { useContactSearch } from 'hooks/useContactSearch';
 import { useEmailDetailToneCheck } from 'hooks/useEmailDetailToneCheck';
 import { useScheduledEmails } from 'hooks/useScheduledEmails';
-import { useNotifications } from 'contexts/NotificationContext';
-import { RecipientFields } from 'components/compose/RecipientFields';
-import { ComposeBody } from 'components/compose/ComposeBody';
-import { FrequentContactsList } from 'components/compose/FrequentContactsList';
-import { ComposeActions } from 'components/compose/ComposeActions';
-import { ComposeMessages } from 'components/compose/ComposeMessages';
-import { ToneCheckResult } from 'components/email-detail-inline/ToneCheckResult';
-import { TimePicker } from 'components/compose/TimePicker';
-
-import { API_URL } from 'config/api';
 
 // eslint-disable-next-line max-lines-per-function -- Compose page component requires handling multiple form fields, validation, and email composition logic
 const Compose: React.FC = () => {

@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect,useState } from 'react';
 import axios from 'axios';
+
+import { ErrorDisplay } from 'components/modal/ErrorDisplay';
 import { ModalBackdrop } from 'components/modal/ModalBackdrop';
 import { ModalContent } from 'components/modal/ModalContent';
-import { ModalHeaderWithClose } from 'components/modal/ModalHeaderWithClose';
-import { ErrorDisplay } from 'components/modal/ErrorDisplay';
 import { ModalFormActions } from 'components/modal/ModalFormActions';
+import { ModalHeaderWithClose } from 'components/modal/ModalHeaderWithClose';
 import { IssueInfoDisplay } from 'components/quick-actions/modals/github/IssueInfoDisplay';
 import { StatusSelector } from 'components/quick-actions/modals/github/StatusSelector';
-
 import { API_URL } from 'config/api';
 
 interface GitHubUpdateStatusModalProps {

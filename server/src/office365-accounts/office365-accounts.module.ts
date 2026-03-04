@@ -1,10 +1,11 @@
-import { Module, forwardRef } from "@nestjs/common";
+import { forwardRef, Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { Office365AccountsService } from "./office365-accounts.service";
-import { Office365AccountsController } from "./office365-accounts.controller";
+
+import { AuthModule } from "../auth/auth.module";
 import { Office365Account } from "../database/entities/office365-account.entity";
 import { UsersModule } from "../users/users.module";
-import { AuthModule } from "../auth/auth.module";
+import { Office365AccountsController } from "./office365-accounts.controller";
+import { Office365AccountsService } from "./office365-accounts.service";
 
 @Module({
   imports: [

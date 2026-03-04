@@ -1,14 +1,15 @@
 import {
+  Body,
   Controller,
-  Post,
   Delete,
   Param,
-  Body,
-  UseGuards,
+  Post,
   Request,
+  UseGuards,
 } from "@nestjs/common";
-import { SnoozeService } from "./snooze.service";
+
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { SnoozeService } from "./snooze.service";
 
 @Controller("snooze")
 @UseGuards(JwtAuthGuard)

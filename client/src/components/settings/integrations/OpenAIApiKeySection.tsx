@@ -1,9 +1,10 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { INPUT_WIDTH_PX } from 'constants/numbers';
-import { OpenAIApiKeyInput } from 'components/settings/integrations/OpenAIApiKeyInput';
+
 import { OpenAIApiKeyActions } from 'components/settings/integrations/OpenAIApiKeyActions';
+import { OpenAIApiKeyInput } from 'components/settings/integrations/OpenAIApiKeyInput';
+import { INPUT_WIDTH_PX } from 'constants/numbers';
 
 interface OpenAIApiKeySectionProps {
   openAiApiKey: string;

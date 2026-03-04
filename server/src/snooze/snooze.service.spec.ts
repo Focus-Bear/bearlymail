@@ -1,11 +1,12 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
+import * as chrono from "chrono-node";
 import { Repository } from "typeorm";
-import { SnoozeService } from "./snooze.service";
+
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
-import * as chrono from "chrono-node";
+import { SnoozeService } from "./snooze.service";
 
 jest.mock("chrono-node", () => ({
   parseDate: jest.fn(),

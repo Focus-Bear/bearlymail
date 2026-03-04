@@ -1,39 +1,40 @@
-import { Injectable, OnModuleInit, Logger, Inject } from "@nestjs/common";
+import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, In, Not, IsNull } from "typeorm";
 import * as os from "os";
 import PgBoss from "pg-boss";
-import { Email } from "../database/entities/email.entity";
-import { EmailThread } from "../database/entities/email-thread.entity";
+import { In, IsNull, Not, Repository } from "typeorm";
+
+import { CloudWatchService } from "../aws/cloudwatch.service";
+import {
+  BODY_PREVIEW_LENGTHS,
+  EMAIL_CLASSIFICATION,
+  SUGGESTED_REPLIES,
+} from "../constants/llm-constants";
+import {
+  NEWSLETTER_DISCOUNT,
+  PRIORITY_SCORES,
+  SENTIMENT_THRESHOLDS,
+} from "../constants/priority-constants";
+import { MILLISECONDS } from "../constants/time-constants";
+import { SearchIndexHelper } from "../contacts/search-index.helper";
+import { ContactTypeClassifierService } from "../crm/contact-type-classifier.service";
 import {
   Contact,
   DEFAULT_CONTACT_TYPES,
 } from "../database/entities/contact.entity";
-import { EmailsService } from "./emails.service";
+import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
+import { ContextKey } from "../database/entities/user-context.entity";
+import { cleanEmailContent } from "../llm/email-content-cleaner";
+import { IncrementalAnalysisService } from "../llm/incremental-analysis.service";
+import { PriorityAnalysisService } from "../llm/priority-analysis.service";
 import { PriorityService } from "../priority/priority.service";
 import { PriorityCacheService } from "../priority/priority-cache.service";
-import { SummarizationService } from "../summarization/summarization.service";
-import { PriorityAnalysisService } from "../llm/priority-analysis.service";
-import { IncrementalAnalysisService } from "../llm/incremental-analysis.service";
-import { ContactTypeClassifierService } from "../crm/contact-type-classifier.service";
-import { cleanEmailContent } from "../llm/email-content-cleaner";
-import { ContextKey } from "../database/entities/user-context.entity";
-import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { ProtoCategoriesService } from "../proto-categories/proto-categories.service";
-import { CloudWatchService } from "../aws/cloudwatch.service";
-import { SearchIndexHelper } from "../contacts/search-index.helper";
-import {
-  SENTIMENT_THRESHOLDS,
-  PRIORITY_SCORES,
-  NEWSLETTER_DISCOUNT,
-} from "../constants/priority-constants";
-import {
-  EMAIL_CLASSIFICATION,
-  SUGGESTED_REPLIES,
-  BODY_PREVIEW_LENGTHS,
-} from "../constants/llm-constants";
-import { MILLISECONDS } from "../constants/time-constants";
+import { JobPerformanceTracker } from "../queue/job-performance-tracker";
+import { SummarizationService } from "../summarization/summarization.service";
+import { EmailsService } from "./emails.service";
 
 type SummaryJobEntry = {
   job: PgBoss.Job<unknown>;
@@ -914,7 +915,9 @@ export class LLMProcessor implements OnModuleInit {
       phishingConfidence,
       phishingReason,
       error,
-    } of results) {      if (summary && !error) {        try {
+    } of results) {
+      if (summary && !error) {
+        try {
           const jobEntry = jobsToProcess.find((j) => j.emailId === emailId);
           if (!jobEntry) continue;
 

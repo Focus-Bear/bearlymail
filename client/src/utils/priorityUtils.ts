@@ -1,4 +1,5 @@
 import { theme } from 'theme/theme';
+
 import { PRIORITY_HIGH_THRESHOLD, PRIORITY_MEDIUM_THRESHOLD } from 'constants/numbers';
 
 export const getPriorityBadge = (score: number, t?: (key: string) => string) => {

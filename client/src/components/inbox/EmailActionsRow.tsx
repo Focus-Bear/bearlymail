@@ -2,14 +2,15 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Email, InboxMode, TriageSuggestion } from 'types/email';
-import { MODE_TRIAGE } from 'constants/strings';
+import { captureEvent } from 'utils/posthog';
+import { extractUnsubscribeLink } from 'utils/unsubscribeUtils';
+
 import { PrioritySlider } from 'components/inbox/actions/PrioritySlider';
 import { SnoozeButton } from 'components/inbox/actions/SnoozeButton';
 import { SnoozeInputForm } from 'components/inbox/actions/SnoozeInputForm';
-import { EMOJI_INBOX, EMOJI_BLOCK, EMOJI_LINK } from 'constants/emojis';
-import { extractUnsubscribeLink } from 'utils/unsubscribeUtils';
-import { captureEvent } from 'utils/posthog';
-import { TOAST_DURATION_MS, OPACITY_DISABLED } from 'components/inbox/constants';
+import { OPACITY_DISABLED,TOAST_DURATION_MS } from 'components/inbox/constants';
+import { EMOJI_BLOCK, EMOJI_INBOX, EMOJI_LINK } from 'constants/emojis';
+import { MODE_TRIAGE } from 'constants/strings';
 
 interface EmailActionsRowProps {
   email: Email;

@@ -1,6 +1,7 @@
 import React from 'react';
 import { theme } from 'theme/theme';
 import { GitHubLink } from 'types/email';
+
 import { GitHubStatusBadge } from 'components/github/GitHubStatusBadge';
 
 interface GitHubStatusBadgesProps {

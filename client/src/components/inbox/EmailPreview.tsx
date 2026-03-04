@@ -2,8 +2,9 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
-import { MAX_PREVIEW_LENGTH, TOOLTIP_PREVIEW_MAX_CHARS } from 'constants/numbers';
 import { stripHtmlTags } from 'utils/emailBodyUtils';
+
+import { MAX_PREVIEW_LENGTH, TOOLTIP_PREVIEW_MAX_CHARS } from 'constants/numbers';
 import { CATEGORY_OTHER } from 'constants/strings';
 
 interface EmailPreviewProps {

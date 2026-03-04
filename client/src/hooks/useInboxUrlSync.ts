@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { InboxMode } from 'types/email';
-import { MODE_TRIAGE, MODE_ACTION, MODE_FOLLOW_UP, MODE_BLOCKED } from 'constants/strings';
+
+import { MODE_ACTION, MODE_BLOCKED,MODE_FOLLOW_UP, MODE_TRIAGE } from 'constants/strings';
 
 const VALID_MODES: InboxMode[] = [MODE_TRIAGE, MODE_ACTION, MODE_FOLLOW_UP, MODE_BLOCKED];
 

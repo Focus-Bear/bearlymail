@@ -1,17 +1,18 @@
-import { Injectable, Logger, Inject, forwardRef } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import {
-  UserContext,
-  ContextKey,
-} from "../database/entities/user-context.entity";
-import { LLMService } from "../llm/llm.service";
-import { getPrompt, renderPrompt } from "../llm/prompts";
-import { cleanEmailContent } from "../llm/email-content-cleaner";
-import { QASearchResult } from "./types/auto-responder.types";
+
 import { RATIOS } from "../constants/percentages";
-import { LLM_CONFIG } from "./auto-responder-constants";
+import {
+  ContextKey,
+  UserContext,
+} from "../database/entities/user-context.entity";
+import { cleanEmailContent } from "../llm/email-content-cleaner";
+import { LLMService } from "../llm/llm.service";
 import { LLM_OP_GENERATE_QA_ANSWER } from "../llm/llm-operations";
+import { getPrompt, renderPrompt } from "../llm/prompts";
+import { LLM_CONFIG } from "./auto-responder-constants";
+import { QASearchResult } from "./types/auto-responder.types";
 
 /**
  * Service for generating Q&A answers from user context

@@ -1,40 +1,41 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Param,
   Body,
-  UseGuards,
-  Request,
-  Query,
+  Controller,
+  Delete,
+  forwardRef,
+  Get,
   Inject,
   Logger,
-  UseInterceptors,
+  Param,
+  Post,
+  Put,
+  Query,
+  Request,
   UploadedFiles,
-  forwardRef,
+  UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
-import { EmailsService } from "./emails.service";
-import { EmailProviderManager } from "./email-provider-manager.service";
-import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
-import { UsersService } from "../users/users.service";
-import { ScheduledEmailsService } from "../scheduled-emails/scheduled-emails.service";
 import PgBoss from "pg-boss";
+
+import { AdminGuard } from "../auth/admin.guard";
+import { GmailRequiredGuard } from "../auth/gmail-required.guard";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
+import { QUERY_LIMITS } from "../constants/query-limits";
+import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { Email } from "../database/entities/email.entity";
+import { getJobPriority } from "../queue/job-priorities";
+import { ScheduledEmailsService } from "../scheduled-emails/scheduled-emails.service";
+import { UsersService } from "../users/users.service";
+import { EmailAdminService } from "./email-admin.service";
 import {
   BatchStatusPerformanceTracker,
   PgBossWithInternals,
 } from "./email-controller.helpers";
-import { EmailAdminService } from "./email-admin.service";
-import { JwtAuthGuard } from "../auth/jwt-auth.guard";
-import { GmailRequiredGuard } from "../auth/gmail-required.guard";
-import { AdminGuard } from "../auth/admin.guard";
+import { EmailProviderManager } from "./email-provider-manager.service";
+import { EmailsService } from "./emails.service";
 import { EmailRecipient } from "./interfaces/email-provider.interface";
-import { BatchSchedule } from "../database/entities/batch-schedule.entity";
-import { getJobPriority } from "../queue/job-priorities";
-import { QUERY_LIMITS } from "../constants/query-limits";
 
 @Controller("emails")
 @UseGuards(JwtAuthGuard, GmailRequiredGuard)

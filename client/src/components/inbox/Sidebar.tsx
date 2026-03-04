@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useLocation,useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
-import { SidebarHeader } from 'components/inbox/sidebar/SidebarHeader';
-import { SidebarFooter } from 'components/inbox/sidebar/SidebarFooter';
+
 import { SettingsSubNavGroup as SettingsSubNavGroupComponent } from 'components/inbox/sidebar/SettingsSubNavGroup';
 import { SettingsSubNavItem as SettingsSubNavItemComponent } from 'components/inbox/sidebar/SettingsSubNavItem';
-import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { SidebarFooter } from 'components/inbox/sidebar/SidebarFooter';
+import { SidebarHeader } from 'components/inbox/sidebar/SidebarHeader';
 import { COLOR_TRANSPARENT } from 'constants/colors';
 import { CATEGORY_DANGEROUS_PHISHING, ROUTE_ADMIN, ROUTE_CRM_CONTACTS, ROUTE_CRM_DEALS, ROUTE_INBOX, ROUTE_SEARCH, ROUTE_SETTINGS, ROUTE_STATS, STRING_NONE } from 'constants/strings';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 interface SidebarItemProps {
   label: string;

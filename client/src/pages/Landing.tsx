@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
 import { theme } from 'theme/theme';
-import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+
 import {
-  LandingHeader,
-  LandingFooter,
-  HeroSection,
-  IntroSection,
-  HowItWorksSection,
-  ComparisonSection,
   ClosingStatement,
+  ComparisonSection,
   FounderStory,
+  HeroSection,
+  HowItWorksSection,
+  IntroSection,
+  LandingFooter,
+  LandingHeader,
   WaitlistForm,
   WaitlistSuccess,
 } from 'components/landing';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 /**
  * Landing page component

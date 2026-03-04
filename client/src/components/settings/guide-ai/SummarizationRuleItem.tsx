@@ -1,6 +1,7 @@
 import React from 'react';
-import { SummarizationRuleEditForm } from 'components/settings/guide-ai/SummarizationRuleEditForm';
+
 import { SummarizationRuleDisplay } from 'components/settings/guide-ai/SummarizationRuleDisplay';
+import { SummarizationRuleEditForm } from 'components/settings/guide-ai/SummarizationRuleEditForm';
 
 interface SummarizationRule {
   ruleId: string;

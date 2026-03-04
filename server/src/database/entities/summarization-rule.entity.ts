@@ -1,13 +1,14 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
-  ManyToOne,
   CreateDateColumn,
+  Entity,
   JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
 } from "typeorm";
-import { User } from "./user.entity";
+
 import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
+import { User } from "./user.entity";
 
 @Entity("summarization_rules")
 export class SummarizationRule {

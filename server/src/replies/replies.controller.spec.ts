@@ -1,8 +1,9 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { RepliesController } from "./replies.controller";
-import { RepliesService } from "./replies.service";
+
 import { EmailsService } from "../emails/emails.service";
 import { ScheduledEmailsService } from "../scheduled-emails/scheduled-emails.service";
+import { RepliesController } from "./replies.controller";
+import { RepliesService } from "./replies.service";
 
 describe("RepliesController", () => {
   let controller: RepliesController;

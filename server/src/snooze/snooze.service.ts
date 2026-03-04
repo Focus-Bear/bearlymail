@@ -1,12 +1,13 @@
-import { Injectable, Inject, forwardRef, Logger } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { Email } from "../database/entities/email.entity";
-import { EmailThread } from "../database/entities/email-thread.entity";
 import * as chrono from "chrono-node";
-import { EmailProviderManager } from "../emails/email-provider-manager.service";
+import { Repository } from "typeorm";
+
 import { SNOOZE_CONSTANTS } from "../constants/snooze-constants";
 import { MILLISECONDS } from "../constants/time-constants";
+import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
+import { EmailProviderManager } from "../emails/email-provider-manager.service";
 
 @Injectable()
 export class SnoozeService {

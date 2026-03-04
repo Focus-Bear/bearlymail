@@ -1,19 +1,20 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
   CreateDateColumn,
-  UpdateDateColumn,
-  ManyToOne,
-  JoinColumn,
+  Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
   OneToMany,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from "typeorm";
-import { User } from "./user.entity";
+
 import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
-import { ContactNote } from "./contact-note.entity";
 import { ContactCustomFieldValue } from "./contact-custom-field-value.entity";
+import { ContactNote } from "./contact-note.entity";
 import { Deal } from "./deal.entity";
+import { User } from "./user.entity";
 
 export const DEFAULT_CONTACT_TYPES = [
   "lead",

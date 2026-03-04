@@ -1,13 +1,14 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { Email } from "../database/entities/email.entity";
-import { LLMService } from "../llm/llm.service";
-import { searchLogger } from "../utils/search-logger";
-import { QUERY_LIMITS } from "../constants/query-limits";
+
 import {
   PRIORITY_BOOSTS,
   PRIORITY_SCORES,
 } from "../constants/priority-constants";
+import { QUERY_LIMITS } from "../constants/query-limits";
 import { DAYS, MILLISECONDS } from "../constants/time-constants";
+import { Email } from "../database/entities/email.entity";
+import { LLMService } from "../llm/llm.service";
+import { searchLogger } from "../utils/search-logger";
 
 export type EmailWithRankingMetadata = Email & {
   searchExplanation?: string;

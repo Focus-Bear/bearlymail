@@ -1,9 +1,10 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+
+import { AnalyzeContextButton } from 'components/settings/guide-ai/AnalyzeContextButton';
 import { ContextAboutMeHeader } from 'components/settings/guide-ai/ContextAboutMeHeader';
 import { ContextImpactInfo } from 'components/settings/guide-ai/ContextImpactInfo';
-import { AnalyzeContextButton } from 'components/settings/guide-ai/AnalyzeContextButton';
 import { ContextSectionsList } from 'components/settings/guide-ai/ContextSectionsList';
 import { ProfileSettingsSection } from 'components/settings/guide-ai/ProfileSettingsSection';
 

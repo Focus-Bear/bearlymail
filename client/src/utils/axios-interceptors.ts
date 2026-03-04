@@ -1,4 +1,5 @@
 import axios from 'axios';
+
 import { HTTP_UNAUTHORIZED, MS_PER_SECOND } from 'constants/numbers';
 import { API_ENDPOINT_USERS_ME, HTTP_METHOD_GET } from 'constants/strings';
 

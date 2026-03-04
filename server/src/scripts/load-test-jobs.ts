@@ -19,6 +19,7 @@
 import PgBoss = require("pg-boss");
 import * as dotenv from "dotenv";
 import * as path from "path";
+
 import { MS_PER_SECOND } from "../constants/time-constants";
 
 // Load environment variables
@@ -443,4 +444,4 @@ if (require.main === module) {
   main().catch(console.error);
 }
 
-export { testConcurrentSyncs, testPriorityBurst, testMixedWorkload };
+export { testConcurrentSyncs, testMixedWorkload, testPriorityBurst };

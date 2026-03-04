@@ -1,8 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { ThreadWithFollowUp } from 'hooks/useFollowUps';
+
 import { MS_PER_DAY } from 'constants/numbers';
+import { ThreadWithFollowUp } from 'hooks/useFollowUps';
 
 interface ThreadMetadataProps {
   thread: ThreadWithFollowUp;

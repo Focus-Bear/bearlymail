@@ -1,21 +1,22 @@
 import {
-  Injectable,
+  forwardRef,
   Inject,
+  Injectable,
   Logger,
   UnauthorizedException,
-  forwardRef,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import PgBoss from "pg-boss";
-import { UsersService } from "../users/users.service";
-import { WaitlistService } from "../waitlist/waitlist.service";
 import * as bcrypt from "bcrypt";
-import { writeDebugLog, AuthLogger } from "./auth-logger";
-import { getJobPriority } from "../queue/job-priorities";
-import { User } from "../database/entities/user.entity";
+import PgBoss from "pg-boss";
+
 import { AUTH_CONSTANTS } from "../constants/auth-constants";
 import { MINUTES_PER_HOUR } from "../constants/time-constants";
+import { User } from "../database/entities/user.entity";
+import { getJobPriority } from "../queue/job-priorities";
+import { UsersService } from "../users/users.service";
 import { logError } from "../utils/logger";
+import { WaitlistService } from "../waitlist/waitlist.service";
+import { AuthLogger, writeDebugLog } from "./auth-logger";
 
 const INITIAL_SYNC_DELAY_MS = 2000;
 

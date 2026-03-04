@@ -1,10 +1,11 @@
+import { Logger } from "@nestjs/common";
+import { NestFactory } from "@nestjs/core";
 import cluster from "cluster";
 import os from "os";
-import { NestFactory } from "@nestjs/core";
-import { Logger } from "@nestjs/common";
-import { WorkerModule } from "./worker.module";
-import { setupGlobalErrorHandlers, logErrorToFile } from "./utils/error-logger";
+
 import { initializeGlobalErrorTracking } from "./error-tracking/error-tracking-setup";
+import { logErrorToFile, setupGlobalErrorHandlers } from "./utils/error-logger";
+import { WorkerModule } from "./worker.module";
 
 const logger = new Logger("Worker");
 

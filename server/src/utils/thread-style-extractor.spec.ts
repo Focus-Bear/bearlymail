@@ -1,7 +1,7 @@
 import {
-  extractSignOffName,
-  extractGreetingStyle,
   analyzeThreadStyle,
+  extractGreetingStyle,
+  extractSignOffName,
 } from "./thread-style-extractor";
 
 describe("thread-style-extractor", () => {

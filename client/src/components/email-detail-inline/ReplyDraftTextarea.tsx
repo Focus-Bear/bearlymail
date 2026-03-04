@@ -1,4 +1,5 @@
 import React from 'react';
+
 import { RichTextEditor } from 'components/rich-text/RichTextEditor';
 
 interface ReplyDraftTextareaProps {

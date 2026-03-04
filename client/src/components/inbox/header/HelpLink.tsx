@@ -1,15 +1,16 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
+import { theme } from 'theme/theme';
+import { InboxMode } from 'types/email';
+import { captureEvent } from 'utils/posthog';
+
 import {
-  MODE_TRIAGE,
   MODE_ACTION,
   MODE_AUTORESPONDED,
   MODE_BLOCKED,
+  MODE_TRIAGE,
 } from 'constants/strings';
-import { Link } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
-import { theme } from 'theme/theme';
-import { captureEvent } from 'utils/posthog';
-import { InboxMode } from 'types/email';
 
 interface HelpLinkProps {
   mode: InboxMode;

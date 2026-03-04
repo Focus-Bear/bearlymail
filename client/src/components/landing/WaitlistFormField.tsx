@@ -1,6 +1,7 @@
 import React from 'react';
-import { INPUT_TYPE_TEXTAREA } from 'constants/strings';
 import { theme } from 'theme/theme';
+
+import { INPUT_TYPE_TEXTAREA } from 'constants/strings';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 interface WaitlistFormFieldProps {

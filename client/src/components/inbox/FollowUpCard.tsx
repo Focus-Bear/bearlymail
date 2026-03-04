@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { theme } from 'theme/theme';
-import { DRAFT_STATUS_GENERATING, DRAFT_STATUS_ERROR } from 'constants/strings';
-import { ThreadWithFollowUp } from 'hooks/useFollowUps';
-import { SimpleDraftDisplay } from 'components/inbox/followup/SimpleDraftDisplay';
+
 import { DraftEditor } from 'components/inbox/followup/DraftEditor';
 import { FollowUpCardHeader } from 'components/inbox/followup/FollowUpCardHeader';
 import { RetryButton } from 'components/inbox/followup/RetryButton';
+import { SimpleDraftDisplay } from 'components/inbox/followup/SimpleDraftDisplay';
+import { DRAFT_STATUS_ERROR,DRAFT_STATUS_GENERATING } from 'constants/strings';
+import { ThreadWithFollowUp } from 'hooks/useFollowUps';
 
 interface FollowUpCardProps {
   thread: ThreadWithFollowUp;

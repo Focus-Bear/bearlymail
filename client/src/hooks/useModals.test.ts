@@ -1,6 +1,7 @@
-import { renderHook, act } from '@testing-library/react';
-import { useModals } from './useModals';
+import { act,renderHook } from '@testing-library/react';
 import { Email } from 'types/email';
+
+import { useModals } from './useModals';
 
 describe('useModals', () => {
   describe('initialization', () => {

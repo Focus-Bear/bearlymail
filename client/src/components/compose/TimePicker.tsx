@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect,useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { TimeSuggestion } from 'hooks/useScheduledEmails';
+
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
+import { TimeSuggestion } from 'hooks/useScheduledEmails';
 
 const OPACITY_DISABLED = 0.5;
 const WARNING_ICON = '⚠️';

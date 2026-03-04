@@ -1,14 +1,15 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
-  ManyToOne,
   CreateDateColumn,
-  JoinColumn,
+  Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
 } from "typeorm";
-import { User } from "./user.entity";
+
 import { SuppressionReason } from "../../auto-responder/types/auto-responder.types";
+import { User } from "./user.entity";
 
 @Entity("auto_response_suppressions")
 @Index(["userId", "senderEmailHash"])

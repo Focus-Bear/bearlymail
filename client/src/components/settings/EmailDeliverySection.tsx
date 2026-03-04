@@ -1,10 +1,11 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+
+import { BlockedKeywordsSection } from 'components/settings/email-delivery/BlockedKeywordsSection';
+import { BlockedSendersSection } from 'components/settings/email-delivery/BlockedSendersSection';
 import { EmailAccountsSection } from 'components/settings/email-delivery/EmailAccountsSection';
 import { EmailBatchingSection } from 'components/settings/email-delivery/EmailBatchingSection';
-import { BlockedSendersSection } from 'components/settings/email-delivery/BlockedSendersSection';
-import { BlockedKeywordsSection } from 'components/settings/email-delivery/BlockedKeywordsSection';
 
 interface BlockedSender {
   id: string;

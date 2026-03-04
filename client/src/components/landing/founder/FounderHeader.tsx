@@ -1,8 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+
 import { getResponsiveFontSize } from 'components/landing/utils';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 export const FounderHeader: React.FC = () => {
   const { t } = useTranslation();

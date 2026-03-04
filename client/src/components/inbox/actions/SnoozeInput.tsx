@@ -1,5 +1,6 @@
 import React from 'react';
 import { Email } from 'types/email';
+
 import { SnoozeButton } from 'components/inbox/actions/SnoozeButton';
 import { SnoozeInputForm } from 'components/inbox/actions/SnoozeInputForm';
 

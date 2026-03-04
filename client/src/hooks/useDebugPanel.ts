@@ -1,9 +1,10 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useCallback, useEffect,useState } from 'react';
 import axios from 'axios';
-import { API_URL } from 'config/api';
-import { SyncHistoryEntry } from 'components/inbox/debug/DebugSyncHistorySection';
 import { Email, InboxMode } from 'types/email';
+
+import { SyncHistoryEntry } from 'components/inbox/debug/DebugSyncHistorySection';
 import { DebugStarredData } from 'components/inbox/debug/types';
+import { API_URL } from 'config/api';
 
 interface SyncStatus {
   lastSyncTime: string | null;

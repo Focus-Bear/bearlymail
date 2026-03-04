@@ -1,28 +1,29 @@
 import {
-  Controller,
-  Post,
-  Get,
+  BadRequestException,
   Body,
-  UseGuards,
+  Controller,
+  Get,
+  Logger,
+  Post,
+  Put,
+  Query,
   Request,
   Res,
-  BadRequestException,
-  Query,
-  Logger,
-  Put,
+  UseGuards,
 } from "@nestjs/common";
-import { JwtAuthGuard } from "./jwt-auth.guard";
+
+import { AUTH_CONSTANTS } from "../constants/auth-constants";
+import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
+import { Office365AccountsService } from "../office365-accounts/office365-accounts.service";
+import { logError } from "../utils/logger";
+import { WaitlistService } from "../waitlist/waitlist.service";
+import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
 import { AuthService } from "./auth.service";
-import { LocalAuthGuard } from "./local-auth.guard";
 import { GoogleAuthGuard } from "./google-auth.guard";
+import { JwtAuthGuard } from "./jwt-auth.guard";
+import { LocalAuthGuard } from "./local-auth.guard";
 import { MicrosoftAuthGuard } from "./microsoft-auth.guard";
 import { ZohoAuthGuard } from "./zoho-auth.guard";
-import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
-import { logError } from "../utils/logger";
-import { Office365AccountsService } from "../office365-accounts/office365-accounts.service";
-import { ZohoAccountsService } from "../zoho-accounts/zoho-accounts.service";
-import { WaitlistService } from "../waitlist/waitlist.service";
-import { AUTH_CONSTANTS } from "../constants/auth-constants";
 
 @Controller("auth")
 export class AuthController {

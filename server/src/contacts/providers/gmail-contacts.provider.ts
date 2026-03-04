@@ -1,14 +1,15 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { google } from "googleapis";
+
+import { HTTP_STATUS } from "../../constants/http-status";
+import { QUERY_LIMITS } from "../../constants/query-limits";
+import { isApiError } from "../../types/common";
 import { UsersService } from "../../users/users.service";
+import { logError } from "../../utils/logger";
 import {
   ContactProvider,
   RawContact,
 } from "../interfaces/contact-provider.interface";
-import { isApiError } from "../../types/common";
-import { QUERY_LIMITS } from "../../constants/query-limits";
-import { HTTP_STATUS } from "../../constants/http-status";
-import { logError } from "../../utils/logger";
 
 @Injectable()
 export class GmailContactsProvider implements ContactProvider {

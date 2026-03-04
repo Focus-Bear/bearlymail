@@ -1,7 +1,8 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { theme } from 'theme/theme';
-import { Z_INDEX_MODAL_OVERLAY, TOOLTIP_MIN_WIDTH_SMALL, TOOLTIP_MAX_WIDTH_SMALL, VIEWPORT_HEIGHT_75 } from 'constants/numbers';
+
+import { TOOLTIP_MAX_WIDTH_SMALL, TOOLTIP_MIN_WIDTH_SMALL, VIEWPORT_HEIGHT_75,Z_INDEX_MODAL_OVERLAY } from 'constants/numbers';
 
 interface PriorityTooltipContainerProps {
   emailId: string;

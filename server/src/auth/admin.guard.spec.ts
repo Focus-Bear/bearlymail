@@ -1,7 +1,8 @@
-import { Test, TestingModule } from "@nestjs/testing";
 import { ExecutionContext } from "@nestjs/common";
-import { AdminGuard } from "./admin.guard";
+import { Test, TestingModule } from "@nestjs/testing";
+
 import { UsersService } from "../users/users.service";
+import { AdminGuard } from "./admin.guard";
 
 describe("AdminGuard", () => {
   let guard: AdminGuard;

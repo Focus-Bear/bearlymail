@@ -1,7 +1,8 @@
 import { Injectable } from "@nestjs/common";
-import { ENCRYPTION_CONSTANTS } from "../constants/encryption-constants";
 import { ConfigService } from "@nestjs/config";
 import * as crypto from "crypto";
+
+import { ENCRYPTION_CONSTANTS } from "../constants/encryption-constants";
 import { logError } from "../utils/logger";
 
 @Injectable()

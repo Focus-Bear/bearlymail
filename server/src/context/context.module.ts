@@ -1,30 +1,31 @@
 import { Module } from "@nestjs/common";
+import { forwardRef } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { ContextController } from "./context.controller";
-import { ContextService } from "./context.service";
-import { ContextCrudService } from "./context-crud.service";
-import { ContextCategoryService } from "./context-category.service";
-import { ContextAnalysisProgressService } from "./context-analysis-progress.service";
-import { ContextPiiRedactionService } from "./context-pii-redaction.service";
-import { ContextGmailDataService } from "./context-gmail-data.service";
-import { ContextQaExtractionService } from "./context-qa-extraction.service";
-import { ContextAnalysisProcessor } from "./context-analysis.processor";
-import { ContextBatchAnalysisProcessor } from "./context-batch-analysis.processor";
-import { ContextFinalizationProcessor } from "./context-finalization.processor";
-import { WritingStyleLearningService } from "./writing-style-learning.service";
-import { WritingStyleLearningProcessor } from "./writing-style-learning.processor";
-import { UserContext } from "../database/entities/user-context.entity";
+
+import { AuthModule } from "../auth/auth.module";
+import { AwsModule } from "../aws/aws.module";
+import { ContextAnalysis } from "../database/entities/context-analysis.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
-import { ContextAnalysis } from "../database/entities/context-analysis.entity";
 import { User } from "../database/entities/user.entity";
-import { LLMModule } from "../llm/llm.module";
-import { UsersModule } from "../users/users.module";
-import { QueueModule } from "../queue/queue.module";
-import { forwardRef } from "@nestjs/common";
+import { UserContext } from "../database/entities/user-context.entity";
 import { EmailsModule } from "../emails/emails.module";
-import { AwsModule } from "../aws/aws.module";
-import { AuthModule } from "../auth/auth.module";
+import { LLMModule } from "../llm/llm.module";
+import { QueueModule } from "../queue/queue.module";
+import { UsersModule } from "../users/users.module";
+import { ContextController } from "./context.controller";
+import { ContextService } from "./context.service";
+import { ContextAnalysisProcessor } from "./context-analysis.processor";
+import { ContextAnalysisProgressService } from "./context-analysis-progress.service";
+import { ContextBatchAnalysisProcessor } from "./context-batch-analysis.processor";
+import { ContextCategoryService } from "./context-category.service";
+import { ContextCrudService } from "./context-crud.service";
+import { ContextFinalizationProcessor } from "./context-finalization.processor";
+import { ContextGmailDataService } from "./context-gmail-data.service";
+import { ContextPiiRedactionService } from "./context-pii-redaction.service";
+import { ContextQaExtractionService } from "./context-qa-extraction.service";
+import { WritingStyleLearningProcessor } from "./writing-style-learning.processor";
+import { WritingStyleLearningService } from "./writing-style-learning.service";
 
 @Module({
   imports: [

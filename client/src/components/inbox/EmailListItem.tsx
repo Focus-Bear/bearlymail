@@ -2,17 +2,18 @@ import React from 'react';
 import { useSelector } from 'react-redux';
 import { theme } from 'theme/theme';
 import { Email, InboxMode, TriageSuggestion } from 'types/email';
-import { EmailCardHeader } from 'components/inbox/EmailCardHeader';
-import { EmailPreview } from 'components/inbox/EmailPreview';
+
+import { GitHubProjectBadges } from 'components/github/GitHubProjectBadges';
 import { EmailActionsRow } from 'components/inbox/EmailActionsRow';
 import { EmailCard } from 'components/inbox/EmailCard';
+import { EmailCardHeader } from 'components/inbox/EmailCardHeader';
+import { EmailPreview } from 'components/inbox/EmailPreview';
 import { EmailSubject } from 'components/inbox/EmailSubject';
-import { MetadataIndicators } from 'components/inbox/MetadataIndicators';
-import { FollowUpMetadata } from 'components/inbox/FollowUpMetadata';
 import { FollowUpDraft } from 'components/inbox/FollowUpDraft';
-import { GitHubProjectBadges } from 'components/github/GitHubProjectBadges';
-import { selectAnimatingOut } from 'store/selectors/emailSelectors';
+import { FollowUpMetadata } from 'components/inbox/FollowUpMetadata';
+import { MetadataIndicators } from 'components/inbox/MetadataIndicators';
 import { ANIMATION_TYPE_ARCHIVE, ANIMATION_TYPE_PRIORITY, MODE_FOLLOW_UP } from 'constants/strings';
+import { selectAnimatingOut } from 'store/selectors/emailSelectors';
 
 interface EmailListItemProps {
   email: Email;

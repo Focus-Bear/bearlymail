@@ -1,18 +1,19 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
-import { EmailThread } from "../database/entities/email-thread.entity";
+
 import { MILLISECONDS } from "../constants/time-constants";
 import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
+import { EmailsService } from "../emails/emails.service";
+import { EncryptionHelper } from "../encryption/encryption.helper";
+import { UsersService } from "../users/users.service";
 import { GitHubService, ParsedGitHubLink } from "./github.service";
 import {
   GitHubApiService,
   GitHubIssueStatus,
   GitHubPRStatus,
 } from "./github-api.service";
-import { UsersService } from "../users/users.service";
-import { EmailsService } from "../emails/emails.service";
-import { EncryptionHelper } from "../encryption/encryption.helper";
 
 /**
  * The shape of a single GitHub link entry stored in thread metadata.

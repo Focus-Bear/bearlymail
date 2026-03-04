@@ -1,47 +1,48 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { Inject } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, MoreThan, In } from "typeorm";
-import {
-  UserContext,
-  ContextKey,
-  Source,
-} from "../database/entities/user-context.entity";
-import { Email } from "../database/entities/email.entity";
-import { EmailThread } from "../database/entities/email-thread.entity";
-import { getErrorMessage } from "../types/common";
+import PgBoss from "pg-boss";
+import { In, MoreThan, Repository } from "typeorm";
+
 import { GMAIL_LABELS } from "../constants/email-labels";
+import {
+  BODY_PREVIEW_LENGTHS,
+  CONTEXT_ANALYSIS,
+} from "../constants/llm-constants";
+import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
+import { QUERY_LIMITS } from "../constants/query-limits";
+import { DISPLAY_CONSTANTS } from "../constants/service-constants";
 import {
   DAYS,
   MILLISECONDS,
-  MS_PER_SECOND,
-  MINUTES_PER_HOUR,
   MINUTES,
+  MINUTES_PER_HOUR,
+  MS_PER_SECOND,
 } from "../constants/time-constants";
-import { QUERY_LIMITS } from "../constants/query-limits";
-import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
-import { DISPLAY_CONSTANTS } from "../constants/service-constants";
-import {
-  CONTEXT_ANALYSIS,
-  BODY_PREVIEW_LENGTHS,
-} from "../constants/llm-constants";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
-import { LLMService } from "../llm/llm.service";
-import { UsersService } from "../users/users.service";
+import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
+import {
+  ContextKey,
+  Source,
+  UserContext,
+} from "../database/entities/user-context.entity";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
-import { ContextPiiRedactionService } from "./context-pii-redaction.service";
-import { ContextGmailDataService } from "./context-gmail-data.service";
-import { ContextQaExtractionService } from "./context-qa-extraction.service";
+import { LLMService } from "../llm/llm.service";
+import { getJobPriority } from "../queue/job-priorities";
+import { getErrorMessage } from "../types/common";
+import { UsersService } from "../users/users.service";
+import { writeAnalysisLog } from "./context-analysis-logger";
+import { ContextAnalysisProgressService } from "./context-analysis-progress.service";
+import { ContextCategoryService } from "./context-category.service";
 import {
   ContextCrudService,
   CreateContextOptions,
 } from "./context-crud.service";
-import { ContextCategoryService } from "./context-category.service";
-import { ContextAnalysisProgressService } from "./context-analysis-progress.service";
-import { writeAnalysisLog } from "./context-analysis-logger";
 import { classifyContextAnalysisError } from "./context-error-handler";
-import { Inject } from "@nestjs/common";
-import PgBoss from "pg-boss";
-import { getJobPriority } from "../queue/job-priorities";
+import { ContextGmailDataService } from "./context-gmail-data.service";
+import { ContextPiiRedactionService } from "./context-pii-redaction.service";
+import { ContextQaExtractionService } from "./context-qa-extraction.service";
 
 @Injectable()
 export class ContextService {

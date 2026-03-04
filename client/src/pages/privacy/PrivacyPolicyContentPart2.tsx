@@ -1,7 +1,8 @@
 import React from 'react';
-import { LegalSection } from 'components/legal/LegalSection';
-import { LegalParagraph } from 'components/legal/LegalParagraph';
+
 import { LegalList } from 'components/legal/LegalList';
+import { LegalParagraph } from 'components/legal/LegalParagraph';
+import { LegalSection } from 'components/legal/LegalSection';
 
 export const PrivacyPolicyContentPart2: React.FC = () => {
   return (

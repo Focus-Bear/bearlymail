@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { theme } from 'theme/theme';
 import axios from 'axios';
+import { theme } from 'theme/theme';
+
 import { API_URL } from 'config/api';
 import { FILTER_ALL, STATUS_COMPLETED, STATUS_FAILED, STATUS_PENDING, STATUS_RUNNING, STRING_NONE, STRING_TRANSPARENT } from 'constants/strings';
 

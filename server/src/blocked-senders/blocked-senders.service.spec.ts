@@ -1,8 +1,9 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { BlockedSendersService } from "./blocked-senders.service";
-import { BlockedSender } from "../database/entities/blocked-sender.entity";
+
 import { SearchIndexHelper } from "../contacts/search-index.helper";
+import { BlockedSender } from "../database/entities/blocked-sender.entity";
+import { BlockedSendersService } from "./blocked-senders.service";
 
 describe("BlockedSendersService", () => {
   let service: BlockedSendersService;

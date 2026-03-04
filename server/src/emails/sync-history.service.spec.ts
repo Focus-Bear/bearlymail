@@ -1,8 +1,9 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { SyncHistoryService } from "./sync-history.service";
+
 import { SyncHistoryLog } from "../database/entities/sync-history-log.entity";
+import { SyncHistoryService } from "./sync-history.service";
 
 describe("SyncHistoryService", () => {
   let service: SyncHistoryService;

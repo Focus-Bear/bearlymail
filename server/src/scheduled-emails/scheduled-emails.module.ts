@@ -1,20 +1,21 @@
 import {
-  Module,
   forwardRef,
-  OnModuleInit,
   Inject,
   Logger,
+  Module,
+  OnModuleInit,
 } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
+import PgBoss from "pg-boss";
+
+import { ContactsModule } from "../contacts/contacts.module";
+import { ScheduledEmail } from "../database/entities/scheduled-email.entity";
+import { EmailsModule } from "../emails/emails.module";
+import { GoogleAccountsModule } from "../google-accounts/google-accounts.module";
+import { UsersModule } from "../users/users.module";
 import { ScheduledEmailsController } from "./scheduled-emails.controller";
 import { ScheduledEmailsService } from "./scheduled-emails.service";
 import { SendScheduledEmailsProcessor } from "./send-scheduled-emails.processor";
-import { ScheduledEmail } from "../database/entities/scheduled-email.entity";
-import { EmailsModule } from "../emails/emails.module";
-import { ContactsModule } from "../contacts/contacts.module";
-import { UsersModule } from "../users/users.module";
-import { GoogleAccountsModule } from "../google-accounts/google-accounts.module";
-import PgBoss from "pg-boss";
 
 @Module({
   imports: [

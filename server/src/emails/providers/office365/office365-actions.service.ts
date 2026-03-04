@@ -1,4 +1,12 @@
 import {
+  EmailAttachmentData,
+  EmailRecipient,
+  RawEmailMessage,
+  SendReplyOptions,
+} from "../../interfaces/email-provider.interface";
+import type { Office365Provider } from "../office365.provider";
+import { parseOffice365Message } from "./office365-message-parser";
+import {
   archiveThreadInOffice365,
   isAuthError,
   searchEmailsViaOffice365,
@@ -6,14 +14,6 @@ import {
   sendReplyViaOffice365,
   unarchiveThreadInOffice365,
 } from "./office365-operations";
-import { parseOffice365Message } from "./office365-message-parser";
-import {
-  EmailAttachmentData,
-  EmailRecipient,
-  RawEmailMessage,
-  SendReplyOptions,
-} from "../../interfaces/email-provider.interface";
-import type { Office365Provider } from "../office365.provider";
 
 export async function sendReply(
   provider: Office365Provider,

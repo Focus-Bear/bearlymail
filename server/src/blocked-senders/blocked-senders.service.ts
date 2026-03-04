@@ -1,9 +1,10 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { BlockedSender } from "../database/entities/blocked-sender.entity";
-import { SearchIndexHelper } from "../contacts/search-index.helper";
+
 import { MILLISECONDS } from "../constants/time-constants";
+import { SearchIndexHelper } from "../contacts/search-index.helper";
+import { BlockedSender } from "../database/entities/blocked-sender.entity";
 
 export interface BlockedSenderInfo {
   id: string;

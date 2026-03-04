@@ -1,11 +1,12 @@
-import { Injectable, Logger, Inject } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
 import PgBoss from "pg-boss";
-import { SuggestedReply } from "../database/entities/suggested-reply.entity";
-import { Email } from "../database/entities/email.entity";
-import { getJobPriority } from "../queue/job-priorities";
+import { Repository } from "typeorm";
+
 import { QUERY_LIMITS } from "../constants/query-limits";
+import { Email } from "../database/entities/email.entity";
+import { SuggestedReply } from "../database/entities/suggested-reply.entity";
+import { getJobPriority } from "../queue/job-priorities";
 
 @Injectable()
 export class SuggestedRepliesService {

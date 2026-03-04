@@ -1,20 +1,21 @@
 import {
+  BadRequestException,
+  Body,
   Controller,
   Get,
-  Post,
-  Body,
   Param,
-  UseGuards,
+  Post,
   Request,
-  BadRequestException,
+  UseGuards,
 } from "@nestjs/common";
-import { SuggestedActionsService } from "./suggested-actions.service";
+
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
-import { UsersService } from "../users/users.service";
-import { GitHubApiService } from "../github/github-api.service";
 import { CalendarService } from "../calendar/calendar.service";
 import { EmailsService } from "../emails/emails.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import { GitHubApiService } from "../github/github-api.service";
+import { UsersService } from "../users/users.service";
+import { SuggestedActionsService } from "./suggested-actions.service";
 
 @Controller("suggested-actions")
 @UseGuards(JwtAuthGuard)

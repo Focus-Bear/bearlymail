@@ -1,4 +1,5 @@
 import React, { RefObject } from 'react';
+
 import { TourHighlightOverlay } from 'components/inbox/overlays/TourHighlightOverlay';
 import { TourModalContent } from 'components/inbox/overlays/TourModalContent';
 

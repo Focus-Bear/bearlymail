@@ -1,8 +1,9 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Octokit } from "@octokit/rest";
-import { ParsedGitHubLink } from "./github.service";
-import { isApiError, getErrorMessage } from "../types/common";
+
 import { HTTP_STATUS } from "../constants/http-status";
+import { getErrorMessage, isApiError } from "../types/common";
+import { ParsedGitHubLink } from "./github.service";
 
 /**
  * GraphQL response for project items query

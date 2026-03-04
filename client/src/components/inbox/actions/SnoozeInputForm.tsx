@@ -1,11 +1,12 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { captureEvent } from 'utils/posthog';
 import { Email } from 'types/email';
+import { captureEvent } from 'utils/posthog';
+
+import { COLOR_TRANSPARENT } from 'constants/colors';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 import { KEY_ENTER, KEY_ESCAPE, STRING_NONE } from 'constants/strings';
-import { COLOR_TRANSPARENT } from 'constants/colors';
 
 interface SnoozeInputFormProps {
   email: Email;

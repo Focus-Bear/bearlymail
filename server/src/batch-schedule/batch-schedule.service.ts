@@ -1,11 +1,12 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
+import { DateTime } from "luxon";
 import { Repository } from "typeorm";
-import { BatchSchedule } from "../database/entities/batch-schedule.entity";
-import { EmailThread } from "../database/entities/email-thread.entity";
+
 import { PRIORITY_SCORES } from "../constants/priority-constants";
 import { DAYS, MINUTES, MINUTES_PER_HOUR } from "../constants/time-constants";
-import { DateTime } from "luxon";
+import { BatchSchedule } from "../database/entities/batch-schedule.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
 
 @Injectable()
 export class BatchScheduleService {

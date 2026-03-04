@@ -1,5 +1,6 @@
-import { removeSignature, sanitizeAndProcessHtml } from './emailUtils';
 import { TYPEOF_UNDEFINED } from 'constants/strings';
+
+import { removeSignature, sanitizeAndProcessHtml } from './emailUtils';
 
 // Mock DOMPurify for testing
 jest.mock('dompurify', () => {

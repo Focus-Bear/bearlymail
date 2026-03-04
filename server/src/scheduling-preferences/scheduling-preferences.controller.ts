@@ -1,14 +1,15 @@
 import {
+  BadRequestException,
+  Body,
   Controller,
   Get,
   Put,
-  Body,
-  UseGuards,
   Request,
-  BadRequestException,
+  UseGuards,
 } from "@nestjs/common";
-import { SchedulingPreferencesService } from "./scheduling-preferences.service";
+
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { SchedulingPreferencesService } from "./scheduling-preferences.service";
 import { UpdateSchedulingPreferencesDto } from "./update-scheduling-preferences.dto";
 
 @Controller("scheduling-preferences")

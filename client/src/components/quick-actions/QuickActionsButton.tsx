@@ -1,8 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { EMOJI_LIGHTNING } from 'constants/emojis';
+
 import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { EMOJI_LIGHTNING } from 'constants/emojis';
 import { STRING_NONE } from 'constants/strings';
 
 interface QuickActionsButtonProps {

@@ -1,13 +1,13 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo,useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { Contact } from 'types/contact';
-import { DEBOUNCE_DELAY_200_MS } from 'constants/numbers';
-import { EMAIL_FIELD_BCC, EMAIL_FIELD_CC, EMAIL_FIELD_TO, KEY_ARROW_DOWN, KEY_ARROW_UP, KEY_BACKSPACE, KEY_ENTER, KEY_ESCAPE, STRING_NONE } from 'constants/strings';
 
 import { API_URL } from 'config/api';
 import { COLOR_TRANSPARENT } from 'constants/colors';
+import { DEBOUNCE_DELAY_200_MS } from 'constants/numbers';
+import { EMAIL_FIELD_BCC, EMAIL_FIELD_CC, EMAIL_FIELD_TO, KEY_ARROW_DOWN, KEY_ARROW_UP, KEY_BACKSPACE, KEY_ENTER, KEY_ESCAPE, STRING_NONE } from 'constants/strings';
 
 interface ReplyRecipientsInputProps {
   replyRecipients: string;

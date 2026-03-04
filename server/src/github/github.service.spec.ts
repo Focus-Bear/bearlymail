@@ -1,4 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
+
 import { GitHubService } from "./github.service";
 
 describe("GitHubService", () => {

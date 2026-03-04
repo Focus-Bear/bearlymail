@@ -1,12 +1,14 @@
-import { renderHook, act, waitFor } from '@testing-library/react';
-import { useStarCountHandler } from './useStarCountHandler';
-import { captureEvent } from 'utils/posthog';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { Email, getEmailPriorityScore } from 'types/email';
+import { captureEvent } from 'utils/posthog';
+
 import {
   PERCENTAGE_37_5,
   PERCENTAGE_62_5,
   PERCENTAGE_87_5,
 } from 'constants/numbers';
+
+import { useStarCountHandler } from './useStarCountHandler';
 
 jest.mock('utils/posthog', () => ({
   captureEvent: jest.fn(),

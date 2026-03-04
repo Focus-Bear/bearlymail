@@ -1,12 +1,13 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { CalendarService } from "./calendar.service";
-import { UsersService } from "../users/users.service";
-import { LLMService } from "../llm/llm.service";
-import { EmailsService } from "../emails/emails.service";
-import { SchedulingPreferencesService } from "../scheduling-preferences/scheduling-preferences.service";
-import { CalendarBooking } from "../database/entities/calendar-booking.entity";
 import { google } from "googleapis";
+
+import { CalendarBooking } from "../database/entities/calendar-booking.entity";
+import { EmailsService } from "../emails/emails.service";
+import { LLMService } from "../llm/llm.service";
+import { SchedulingPreferencesService } from "../scheduling-preferences/scheduling-preferences.service";
+import { UsersService } from "../users/users.service";
+import { CalendarService } from "./calendar.service";
 
 // Mock googleapis
 jest.mock("googleapis", () => ({

@@ -1,11 +1,12 @@
-import { PassportStrategy } from "@nestjs/passport";
-import { Strategy } from "passport-oauth2";
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { PassportStrategy } from "@nestjs/passport";
 import axios from "axios";
+import { Strategy } from "passport-oauth2";
+
+import { User } from "../database/entities/user.entity";
 import { AuthService } from "./auth.service";
 import { writeDebugLog } from "./auth-logger";
-import { User } from "../database/entities/user.entity";
 
 interface MicrosoftProfile {
   id: string;

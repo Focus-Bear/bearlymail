@@ -1,5 +1,5 @@
-import { RawEmailMessage } from "../../interfaces/email-provider.interface";
 import { MS_PER_SECOND } from "../../../constants/time-constants";
+import { RawEmailMessage } from "../../interfaces/email-provider.interface";
 
 /**
  * Zoho Mail API message interface

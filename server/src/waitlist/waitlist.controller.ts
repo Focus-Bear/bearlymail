@@ -1,18 +1,19 @@
 import {
+  Body,
   Controller,
   Delete,
   Get,
+  Param,
   Post,
   Put,
-  Param,
-  Body,
-  UseGuards,
   Request,
+  UseGuards,
 } from "@nestjs/common";
-import { WaitlistService } from "./waitlist.service";
+
 import { AdminGuard } from "../auth/admin.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { CreateWaitlistDto } from "./create-waitlist.dto";
+import { WaitlistService } from "./waitlist.service";
 
 @Controller("waitlist")
 export class WaitlistController {

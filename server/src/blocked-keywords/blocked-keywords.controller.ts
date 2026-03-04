@@ -1,15 +1,16 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Delete,
   Body,
+  Controller,
+  Delete,
+  Get,
   Param,
-  UseGuards,
+  Post,
   Request,
+  UseGuards,
 } from "@nestjs/common";
-import { BlockedKeywordsService } from "./blocked-keywords.service";
+
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { BlockedKeywordsService } from "./blocked-keywords.service";
 
 @Controller("blocked-keywords")
 @UseGuards(JwtAuthGuard)

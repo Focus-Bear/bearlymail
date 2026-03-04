@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useCallback,useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { theme } from 'theme/theme';
+
 import { BookingLoadingState } from 'components/booking/BookingLoadingState';
-import { EMOJI_CHECK } from 'constants/emojis';
-import { BOOKING_STATUS_SUCCESS, BOOKING_STATUS_CANCELLED, BOOKING_IDLE, BOOKING_SUBMITTING, BOOKING_SUCCESS, BOOKING_ERROR, STRING_WHITE, STRING_CENTER, STRING_AUTO, STRING_HIDDEN, STRING_LONG, STRING_NUMERIC, STRING_2_DIGIT, STRING_NONE, STRING_NOT_ALLOWED, STRING_POINTER } from 'constants/strings';
-import { OPACITY_DISABLED_ALT, OPACITY_FULL, WIDTH_FULL_PX, MAX_WIDTH_500_PX, MAX_WIDTH_600_PX, OPACITY_90_PERCENT } from 'constants/numbers';
 import { API_URL } from 'config/api';
+import { EMOJI_CHECK } from 'constants/emojis';
+import { MAX_WIDTH_500_PX, MAX_WIDTH_600_PX, OPACITY_90_PERCENT,OPACITY_DISABLED_ALT, OPACITY_FULL, WIDTH_FULL_PX } from 'constants/numbers';
+import { BOOKING_ERROR, BOOKING_IDLE, BOOKING_STATUS_CANCELLED, BOOKING_STATUS_SUCCESS, BOOKING_SUBMITTING, BOOKING_SUCCESS, STRING_2_DIGIT, STRING_AUTO, STRING_CENTER, STRING_HIDDEN, STRING_LONG, STRING_NONE, STRING_NOT_ALLOWED, STRING_NUMERIC, STRING_POINTER,STRING_WHITE } from 'constants/strings';
 
 interface BookingData {
   id: string;

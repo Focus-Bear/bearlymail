@@ -1,15 +1,16 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Delete,
-  Param,
   Body,
-  UseGuards,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
   Request,
+  UseGuards,
 } from "@nestjs/common";
-import { NotesService } from "./notes.service";
+
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { NotesService } from "./notes.service";
 
 @Controller("notes")
 @UseGuards(JwtAuthGuard)

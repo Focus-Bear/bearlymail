@@ -1,4 +1,4 @@
-import { DAYS_PER_YEAR, DAYS_IN_MONTH_30, MONTHS_IN_YEAR, MS_PER_SECOND, SECONDS_PER_MINUTE, MINUTES_PER_HOUR, HOURS_PER_DAY } from 'constants/numbers';
+import { DAYS_IN_MONTH_30, DAYS_PER_YEAR, HOURS_PER_DAY,MINUTES_PER_HOUR, MONTHS_IN_YEAR, MS_PER_SECOND, SECONDS_PER_MINUTE } from 'constants/numbers';
 
 /**
  * Humanizes a date to relative time (e.g., "2 hours ago", "yesterday", "3 days ago")

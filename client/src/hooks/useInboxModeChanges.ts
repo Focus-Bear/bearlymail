@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { InboxMode } from 'types/email';
+
 import { MODE_TRIAGE } from 'constants/strings';
 
 interface UseInboxModeChangesProps {

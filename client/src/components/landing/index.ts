@@ -8,23 +8,23 @@
  * - Separation of Concerns: UI logic separated from business logic
  */
 
-export { CTAButton } from 'components/landing/CTAButton';
-export { LandingHeader } from 'components/landing/LandingHeader';
-export { LandingFooter } from 'components/landing/LandingFooter';
-export { HeroSection } from 'components/landing/HeroSection';
-export { IntroSection } from 'components/landing/IntroSection';
-export { FeatureCard } from 'components/landing/FeatureCard';
-export { HowItWorksSection } from 'components/landing/HowItWorksSection';
-export { ComparisonTable } from 'components/landing/ComparisonTable';
-export { ComparisonSection } from 'components/landing/ComparisonSection';
 export { ClosingStatement } from 'components/landing/ClosingStatement';
-export { WaitlistForm } from 'components/landing/WaitlistForm';
-export { WaitlistSuccess } from 'components/landing/WaitlistSuccess';
-export { WaitlistFormField } from 'components/landing/WaitlistFormField';
-export { WaitlistFormContainer } from 'components/landing/WaitlistFormContainer';
-export { WaitlistFormHeader } from 'components/landing/WaitlistFormHeader';
+export { ComparisonHighlightBox } from 'components/landing/ComparisonHighlightBox';
+export { ComparisonSection } from 'components/landing/ComparisonSection';
+export { ComparisonTable } from 'components/landing/ComparisonTable';
 export { ComparisonTableHeader } from 'components/landing/ComparisonTableHeader';
 export { ComparisonTableRow } from 'components/landing/ComparisonTableRow';
-export { ComparisonHighlightBox } from 'components/landing/ComparisonHighlightBox';
+export { CTAButton } from 'components/landing/CTAButton';
+export { FeatureCard } from 'components/landing/FeatureCard';
 export { FounderStory } from 'components/landing/FounderStory';
+export { HeroSection } from 'components/landing/HeroSection';
+export { HowItWorksSection } from 'components/landing/HowItWorksSection';
+export { IntroSection } from 'components/landing/IntroSection';
+export { LandingFooter } from 'components/landing/LandingFooter';
+export { LandingHeader } from 'components/landing/LandingHeader';
+export { WaitlistForm } from 'components/landing/WaitlistForm';
+export { WaitlistFormContainer } from 'components/landing/WaitlistFormContainer';
+export { WaitlistFormField } from 'components/landing/WaitlistFormField';
+export { WaitlistFormHeader } from 'components/landing/WaitlistFormHeader';
+export { WaitlistSuccess } from 'components/landing/WaitlistSuccess';
 

@@ -1,18 +1,19 @@
+import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { BadRequestException, NotFoundException } from "@nestjs/common";
-import { DataImportService } from "./data-import.service";
+
+import { BatchSchedule } from "../database/entities/batch-schedule.entity";
+import { BlockedKeyword } from "../database/entities/blocked-keyword.entity";
+import { BlockedSender } from "../database/entities/blocked-sender.entity";
+import { SummarizationRule } from "../database/entities/summarization-rule.entity";
 import { User } from "../database/entities/user.entity";
 import {
-  UserContext,
   ContextKey,
   Source,
+  UserContext,
 } from "../database/entities/user-context.entity";
-import { BatchSchedule } from "../database/entities/batch-schedule.entity";
-import { BlockedSender } from "../database/entities/blocked-sender.entity";
-import { BlockedKeyword } from "../database/entities/blocked-keyword.entity";
-import { SummarizationRule } from "../database/entities/summarization-rule.entity";
 import { ExportedUserData } from "./data-export.service";
+import { DataImportService } from "./data-import.service";
 
 describe("DataImportService", () => {
   let service: DataImportService;

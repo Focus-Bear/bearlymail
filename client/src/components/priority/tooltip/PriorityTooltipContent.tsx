@@ -1,10 +1,11 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { PriorityTooltipHeader } from 'components/priority/tooltip/PriorityTooltipHeader';
-import { PriorityTooltipBreakdown } from 'components/priority/tooltip/PriorityTooltipBreakdown';
+
 import { PriorityTooltipActions } from 'components/priority/tooltip/PriorityTooltipActions';
+import { PriorityTooltipBreakdown } from 'components/priority/tooltip/PriorityTooltipBreakdown';
 import { PriorityTooltipCategory } from 'components/priority/tooltip/PriorityTooltipCategory';
+import { PriorityTooltipHeader } from 'components/priority/tooltip/PriorityTooltipHeader';
 
 interface PriorityExplanation {
   score: number;

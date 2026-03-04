@@ -1,12 +1,13 @@
 import React from 'react';
-import {
-  MODE_TRIAGE,
-  MODE_ACTION,
-  MODE_AUTORESPONDED,
-} from 'constants/strings';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { InboxMode } from 'types/email';
+
+import {
+  MODE_ACTION,
+  MODE_AUTORESPONDED,
+  MODE_TRIAGE,
+} from 'constants/strings';
 
 interface EmptyStateProps {
   mode: InboxMode;

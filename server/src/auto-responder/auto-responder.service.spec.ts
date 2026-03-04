@@ -1,21 +1,22 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { EmailClassifierService } from "./email-classifier.service";
-import { QueueStatsService } from "./queue-stats.service";
-import { AutoResponderTemplateService } from "./auto-responder-template.service";
-import { AutoResponderSuppressionService } from "./auto-responder-suppression.service";
-import { AutoResponderQaService } from "./auto-responder-qa.service";
-import { AutoResponderAnalyticsService } from "./auto-responder-analytics.service";
-import { AutoResponderPreviewService } from "./auto-responder-preview.service";
-import { AutoResponderContextService } from "./auto-responder-context.service";
-import { LLMService } from "../llm/llm.service";
-import { User } from "../database/entities/user.entity";
-import { EmailThread } from "../database/entities/email-thread.entity";
-import { Email } from "../database/entities/email.entity";
-import { UserContext } from "../database/entities/user-context.entity";
+
 import { AutoResponseLog } from "../database/entities/auto-response-log.entity";
 import { AutoResponseSuppression } from "../database/entities/auto-response-suppression.entity";
+import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
+import { User } from "../database/entities/user.entity";
+import { UserContext } from "../database/entities/user-context.entity";
+import { LLMService } from "../llm/llm.service";
+import { AutoResponderAnalyticsService } from "./auto-responder-analytics.service";
+import { AutoResponderContextService } from "./auto-responder-context.service";
+import { AutoResponderPreviewService } from "./auto-responder-preview.service";
+import { AutoResponderQaService } from "./auto-responder-qa.service";
+import { AutoResponderSuppressionService } from "./auto-responder-suppression.service";
+import { AutoResponderTemplateService } from "./auto-responder-template.service";
+import { EmailClassifierService } from "./email-classifier.service";
+import { QueueStatsService } from "./queue-stats.service";
 import { DEFAULT_AUTO_RESPONDER_CONFIG } from "./types/auto-responder.types";
 
 // Mock the EmailProviderManager to avoid importing problematic dependencies
@@ -26,8 +27,8 @@ jest.mock("../emails/email-provider-manager.service", () => ({
 }));
 
 // Import after mocking
-import { AutoResponderService } from "./auto-responder.service";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
+import { AutoResponderService } from "./auto-responder.service";
 
 describe("AutoResponderService", () => {
   let module: TestingModule;

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+
 import { INPUT_WIDTH_PX } from 'constants/numbers';
 
 export const GuideOurAISectionHeader: React.FC = () => {

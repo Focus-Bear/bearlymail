@@ -1,10 +1,11 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useCallback,useEffect, useRef } from 'react';
 import { useDispatch } from 'react-redux';
 import axios from 'axios';
 import { Email, GitHubLink } from 'types/email';
+
 import { API_URL } from 'config/api';
-import { AppDispatch } from 'store/store';
 import { updateEmail } from 'store/slices/emailSlice';
+import { AppDispatch } from 'store/store';
 
 const POLL_INTERVAL_MS = 10_000;
 const MAX_POLL_ATTEMPTS = 6;

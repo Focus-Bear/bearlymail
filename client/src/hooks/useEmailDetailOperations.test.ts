@@ -1,13 +1,15 @@
 /* eslint-disable id-denylist -- 'data' is a standard property name for axios responses */
 import React from 'react';
-import { renderHook, act, waitFor } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import axios from 'axios';
-import { useEmailDetailOperations } from './useEmailDetailOperations';
-import emailReducer from 'store/slices/emailSlice';
 import { Email } from 'types/email';
+
 import { API_URL } from 'config/api';
+import emailReducer from 'store/slices/emailSlice';
+
+import { useEmailDetailOperations } from './useEmailDetailOperations';
 
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;

@@ -1,4 +1,5 @@
-import { Injectable, Logger, Inject, forwardRef } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
+
 import {
   EmailProvider,
   SyncEmailsOptions,

@@ -1,10 +1,11 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { TokenUsage } from "../database/entities/token-usage.entity";
-import { PromptExampleEntity } from "../database/entities/prompt-example.entity";
-import { LLMOperation, LLM_OP_UNKNOWN } from "./llm-operations";
+
 import { CONTEXT_ANALYSIS } from "../constants/llm-constants";
+import { PromptExampleEntity } from "../database/entities/prompt-example.entity";
+import { TokenUsage } from "../database/entities/token-usage.entity";
+import { LLM_OP_UNKNOWN, LLMOperation } from "./llm-operations";
 
 const SYSTEM_PROMPT_PREVIEW_LENGTH = 5000;
 

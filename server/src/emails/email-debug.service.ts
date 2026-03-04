@@ -1,24 +1,26 @@
-import { Injectable, Logger, Inject, forwardRef } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import { DataSource, In, IsNull, Not } from "typeorm";
-import { Email } from "../database/entities/email.entity";
-import { EmailThread } from "../database/entities/email-thread.entity";
-import { EmailProviderManager } from "./email-provider-manager.service";
-import { GmailProvider } from "./providers/gmail.provider";
+
 import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
 import { QUERY_LIMITS } from "../constants/query-limits";
-import { isError } from "../types/common";
 import { MILLISECONDS } from "../constants/time-constants";
+import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
+import { isError } from "../types/common";
+import { EmailProviderManager } from "./email-provider-manager.service";
+import { GmailProvider } from "./providers/gmail.provider";
 
 const SYNC_HISTORY_DEFAULT_LIMIT: number = QUERY_LIMITS.MAX_RESULTS_DEFAULT;
 // Fallback duration when syncStatusUpdatedAt is null (we don't know when it was last updated)
 const UNKNOWN_DURATION_MINUTES = 999;
 import PgBoss from "pg-boss";
+
 import { getJobPriority } from "../queue/job-priorities";
-import { SyncHistoryService, SyncHistoryEntry } from "./sync-history.service";
 import {
-  EmailDebugCategoryService,
   type CategoryDebugData,
+  EmailDebugCategoryService,
 } from "./email-debug-category.service";
+import { SyncHistoryEntry, SyncHistoryService } from "./sync-history.service";
 
 export interface ThreadLookupResult {
   found: boolean;

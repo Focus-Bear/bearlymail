@@ -1,19 +1,20 @@
 import {
-  Controller,
-  Post,
-  Get,
-  Put,
-  Delete,
-  Param,
   Body,
-  UseGuards,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
   Request,
+  UseGuards,
 } from "@nestjs/common";
-import {
-  SummarizationService,
-  SummarizationRule,
-} from "./summarization.service";
+
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import {
+  SummarizationRule,
+  SummarizationService,
+} from "./summarization.service";
 
 @Controller("summarize")
 @UseGuards(JwtAuthGuard)

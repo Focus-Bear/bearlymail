@@ -1,6 +1,7 @@
 import React from 'react';
 import { theme } from 'theme/theme';
-import { sanitizeAndProcessHtml, removeSignature, extractCleanHtmlBody } from 'utils/emailBodyUtils';
+import { extractCleanHtmlBody,removeSignature, sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
+
 import { EmailBodyIframe } from './EmailBodyIframe';
 
 interface EmailDetailBodyProps {

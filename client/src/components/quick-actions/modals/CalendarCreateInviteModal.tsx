@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
-import { ISO_DATETIME_STRING_LENGTH } from 'constants/numbers';
 import axios from 'axios';
 import { theme } from 'theme/theme';
-import { VIEWPORT_HEIGHT_90, DEFAULT_MEETING_DURATION_MINUTES, MAX_DESCRIPTION_LENGTH, MODAL_WIDTH_MEDIUM } from 'constants/numbers';
+
 import { ModalBackdrop } from 'components/modal/ModalBackdrop';
 import { ModalContent } from 'components/modal/ModalContent';
-import { CalendarModalHeader } from 'components/quick-actions/modals/CalendarModalHeader';
-import { CalendarInviteForm } from 'components/quick-actions/modals/CalendarInviteForm';
 import { CalendarInviteActions } from 'components/quick-actions/modals/CalendarInviteActions';
-
+import { CalendarInviteForm } from 'components/quick-actions/modals/CalendarInviteForm';
+import { CalendarModalHeader } from 'components/quick-actions/modals/CalendarModalHeader';
 import { API_URL } from 'config/api';
+import { ISO_DATETIME_STRING_LENGTH } from 'constants/numbers';
+import { DEFAULT_MEETING_DURATION_MINUTES, MAX_DESCRIPTION_LENGTH, MODAL_WIDTH_MEDIUM,VIEWPORT_HEIGHT_90 } from 'constants/numbers';
 
 interface CalendarCreateInviteModalProps {
   email: {

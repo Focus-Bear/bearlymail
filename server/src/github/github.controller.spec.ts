@@ -1,16 +1,17 @@
+import { NotFoundException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { NotFoundException } from "@nestjs/common";
+
+import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
+import { EmailsService } from "../emails/emails.service";
+import { UsersService } from "../users/users.service";
 import { GitHubController } from "./github.controller";
 import { GitHubService } from "./github.service";
 import { GitHubApiService } from "./github-api.service";
 import { GitHubAppService } from "./github-app.service";
-import { GitHubRepoMappingService } from "./github-repo-mapping.service";
 import { GitHubEmailInfoService } from "./github-email-info.service";
-import { UsersService } from "../users/users.service";
-import { EmailsService } from "../emails/emails.service";
-import { EmailThread } from "../database/entities/email-thread.entity";
-import { Email } from "../database/entities/email.entity";
+import { GitHubRepoMappingService } from "./github-repo-mapping.service";
 
 describe("GitHubController - getAdminDebugInfo", () => {
   let controller: GitHubController;

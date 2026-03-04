@@ -3,9 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { FiFileText } from 'react-icons/fi';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
-import { MS_PER_SECOND, SECONDS_PER_MINUTE, MINUTES_PER_HOUR, NOTES_PREVIEW_MAX_CHARS } from 'constants/numbers';
+
 import { CollapsibleSection } from 'components/common/CollapsibleSection';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { MINUTES_PER_HOUR, MS_PER_SECOND, NOTES_PREVIEW_MAX_CHARS,SECONDS_PER_MINUTE } from 'constants/numbers';
 
 const DEBOUNCE_MS = 1000;
 const SAVED_STATUS_UPDATE_INTERVAL_MS = 10000;

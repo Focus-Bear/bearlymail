@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { Deal, DealStage } from 'types/deal';
 import { Contact } from 'types/contact';
-import { OPACITY_HALF, OPACITY_FULL } from 'constants/numbers';
-import { KEY_ARROW_DOWN, KEY_ARROW_UP, KEY_ENTER, KEY_ESCAPE, STRING_NONE } from 'constants/strings';
+import { Deal, DealStage } from 'types/deal';
+
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
+import { OPACITY_FULL,OPACITY_HALF } from 'constants/numbers';
+import { KEY_ARROW_DOWN, KEY_ARROW_UP, KEY_ENTER, KEY_ESCAPE, STRING_NONE } from 'constants/strings';
 
 interface DealFormModalProps {
   deal: Deal | null;

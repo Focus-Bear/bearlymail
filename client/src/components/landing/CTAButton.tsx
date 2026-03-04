@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { theme } from 'theme/theme';
-import { BUTTON_VARIANT_PRIMARY, BUTTON_VARIANT_SECONDARY, STRING_NONE } from 'constants/strings';
 import { captureEvent } from 'utils/posthog';
+
 import { COLOR_WHITE_FULL } from 'constants/colors';
+import { BUTTON_VARIANT_PRIMARY, BUTTON_VARIANT_SECONDARY, STRING_NONE } from 'constants/strings';
 
 interface CTAButtonProps {
   /**

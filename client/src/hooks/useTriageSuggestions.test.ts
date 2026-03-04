@@ -1,10 +1,12 @@
 /* eslint-disable id-denylist -- 'data' is a standard property name for axios responses */
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import axios from 'axios';
-import { useTriageSuggestions } from './useTriageSuggestions';
 import { Email, TriageSuggestion } from 'types/email';
-import { TRIAGE_SUGGESTIONS_LIMIT_20 } from 'constants/numbers';
+
 import { API_URL } from 'config/api';
+import { TRIAGE_SUGGESTIONS_LIMIT_20 } from 'constants/numbers';
+
+import { useTriageSuggestions } from './useTriageSuggestions';
 
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;

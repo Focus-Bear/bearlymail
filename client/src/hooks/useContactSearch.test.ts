@@ -1,9 +1,11 @@
 /* eslint-disable id-denylist -- 'data' is a standard property name for axios responses */
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import axios from 'axios';
-import { useContactSearch } from './useContactSearch';
-import { DEBOUNCE_DELAY_200_MS } from 'constants/numbers';
+
 import { API_URL } from 'config/api';
+import { DEBOUNCE_DELAY_200_MS } from 'constants/numbers';
+
+import { useContactSearch } from './useContactSearch';
 
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;

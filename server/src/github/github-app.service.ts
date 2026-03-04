@@ -1,9 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
-import { UsersService } from "../users/users.service";
-import { EncryptionHelper } from "../encryption/encryption.helper";
 import axios from "axios";
+
+import { EncryptionHelper } from "../encryption/encryption.helper";
+import { UsersService } from "../users/users.service";
 
 interface GitHubUser {
   id: number;

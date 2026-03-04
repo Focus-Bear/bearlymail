@@ -1,7 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { DRAFT_STATUS_GENERATING, DRAFT_STATUS_ERROR } from 'constants/strings';
+
+import { DRAFT_STATUS_ERROR,DRAFT_STATUS_GENERATING } from 'constants/strings';
 
 interface DraftGenerationStatusProps {
   generationStatus: 'pending' | 'generating' | 'completed' | 'error' | null;

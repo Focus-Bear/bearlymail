@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+
 import { ModalBackdrop } from 'components/modal/ModalBackdrop';
 import { ModalContent } from 'components/modal/ModalContent';
-import { StarDiscrepancyHeader } from 'components/priority/star/StarDiscrepancyHeader';
-import { StarDiscrepancyForm } from 'components/priority/star/StarDiscrepancyForm';
 import { StarDiscrepancyActions } from 'components/priority/star/StarDiscrepancyActions';
-
+import { StarDiscrepancyForm } from 'components/priority/star/StarDiscrepancyForm';
+import { StarDiscrepancyHeader } from 'components/priority/star/StarDiscrepancyHeader';
 import { API_URL } from 'config/api';
 
 interface StarDiscrepancyModalProps {

@@ -1,7 +1,8 @@
 import React from 'react';
 import { theme } from 'theme/theme';
-import { GmailAccountInfo } from 'components/settings/email-delivery/GmailAccountInfo';
+
 import { GmailAccountActions } from 'components/settings/email-delivery/GmailAccountActions';
+import { GmailAccountInfo } from 'components/settings/email-delivery/GmailAccountInfo';
 
 interface GoogleAccount {
   id: string;

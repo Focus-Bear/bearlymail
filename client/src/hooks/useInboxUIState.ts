@@ -1,18 +1,19 @@
-import { useTranslation } from 'react-i18next';
-import { useSnoozeInput } from 'hooks/useSnoozeInput';
-import { useOnboarding } from 'hooks/useOnboarding';
-import { useUrgentNotification } from 'hooks/useUrgentNotification';
-import { useDebugPanel } from 'hooks/useDebugPanel';
-import { useModals } from 'hooks/useModals';
-import { usePriorityTooltip } from 'hooks/usePriorityTooltip';
-import { useKeyboardHint } from 'hooks/useKeyboardHint';
-import { useSplitView } from 'hooks/useSplitView';
-import { useGitHubBatchFetch } from 'hooks/useGitHubBatchFetch';
-import { useEmailProcessingPolling } from 'hooks/useEmailProcessingPolling';
-import { captureEvent } from 'utils/posthog';
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { InboxMode } from 'types/email';
+import { captureEvent } from 'utils/posthog';
+
 import { MODE_FOLLOW_UP } from 'constants/strings';
+import { useDebugPanel } from 'hooks/useDebugPanel';
+import { useEmailProcessingPolling } from 'hooks/useEmailProcessingPolling';
+import { useGitHubBatchFetch } from 'hooks/useGitHubBatchFetch';
+import { useKeyboardHint } from 'hooks/useKeyboardHint';
+import { useModals } from 'hooks/useModals';
+import { useOnboarding } from 'hooks/useOnboarding';
+import { usePriorityTooltip } from 'hooks/usePriorityTooltip';
+import { useSnoozeInput } from 'hooks/useSnoozeInput';
+import { useSplitView } from 'hooks/useSplitView';
+import { useUrgentNotification } from 'hooks/useUrgentNotification';
 
 interface UIStateParams {
   user: any;

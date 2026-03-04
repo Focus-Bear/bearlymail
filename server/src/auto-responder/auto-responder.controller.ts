@@ -1,14 +1,15 @@
 import {
+  Body,
   Controller,
   Get,
-  Put,
-  Post,
-  Body,
-  Query,
-  UseGuards,
-  Request,
   Logger,
+  Post,
+  Put,
+  Query,
+  Request,
+  UseGuards,
 } from "@nestjs/common";
+
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { AutoResponderService } from "./auto-responder.service";
 import { QueueStatsService } from "./queue-stats.service";

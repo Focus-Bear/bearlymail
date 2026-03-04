@@ -1,10 +1,11 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, MoreThan } from "typeorm";
+import { MoreThan, Repository } from "typeorm";
+
+import { PRIORITY_SCORES } from "../constants/priority-constants";
+import { QUERY_LIMITS } from "../constants/query-limits";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
-import { QUERY_LIMITS } from "../constants/query-limits";
-import { PRIORITY_SCORES } from "../constants/priority-constants";
 import { UsersService } from "../users/users.service";
 
 @Injectable()

@@ -1,6 +1,8 @@
-import { renderHook, act } from '@testing-library/react';
+import { act,renderHook } from '@testing-library/react';
+
+import { EVENT_KEYDOWN, KEY_ARROW_DOWN, KEY_ARROW_UP, KEY_BACKSPACE, KEY_DELETE, KEY_E, KEY_ESCAPE, KEY_J, KEY_K, KEY_N, KEY_Y, TYPEOF_FUNCTION } from 'constants/strings';
+
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
-import { KEY_ARROW_DOWN, KEY_ARROW_UP, KEY_J, KEY_K, KEY_DELETE, KEY_BACKSPACE, KEY_E, KEY_Y, KEY_ESCAPE, KEY_N, EVENT_KEYDOWN, TYPEOF_FUNCTION } from 'constants/strings';
 
 describe('useKeyboardShortcuts', () => {
   const mockEmails = [

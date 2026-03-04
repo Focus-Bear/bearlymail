@@ -1,12 +1,13 @@
-import { Injectable, Inject, Logger, OnModuleInit } from "@nestjs/common";
-import { DataSource } from "typeorm";
-import PgBoss from "pg-boss";
-import { MS_PER_SECOND } from "../constants/time-constants";
+import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import * as fs from "fs";
 import * as path from "path";
+import PgBoss from "pg-boss";
+import { DataSource } from "typeorm";
+
+import { QUERY_LIMITS } from "../constants/query-limits";
 import { QUEUE_CONSTANTS } from "../constants/queue-constants";
 import { RESOURCE_MONITOR_CONSTANTS } from "../constants/resource-monitor-constants";
-import { QUERY_LIMITS } from "../constants/query-limits";
+import { MS_PER_SECOND } from "../constants/time-constants";
 
 const MAX_PROCESSING_TIMES_HISTORY = 1000;
 

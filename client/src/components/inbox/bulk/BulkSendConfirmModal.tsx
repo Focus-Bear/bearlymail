@@ -2,10 +2,11 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
-import { ThreadWithFollowUp } from 'hooks/useFollowUps';
+
 import { FollowUpPreviewList } from 'components/inbox/bulk/FollowUpPreviewList';
 import { COLOR_TRANSPARENT } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
+import { ThreadWithFollowUp } from 'hooks/useFollowUps';
 
 interface BulkSendConfirmModalProps {
   selectedCount: number;

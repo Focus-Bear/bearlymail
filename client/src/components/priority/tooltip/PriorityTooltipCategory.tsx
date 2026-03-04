@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { CategoryOverrideModal } from 'components/priority/CategoryOverrideModal';
+
 import { CategoryDebugModal } from 'components/priority/CategoryDebugModal';
+import { CategoryOverrideModal } from 'components/priority/CategoryOverrideModal';
 import { CATEGORY_OTHER } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
 

@@ -1,11 +1,13 @@
 /* eslint-disable id-denylist -- 'data' is a standard property name for axios responses */
-import { renderHook, waitFor, act } from '@testing-library/react';
-import axios from 'axios';
-import { useSearch } from './useSearch';
 import { useNavigate } from 'react-router-dom';
-import { HTTP_UNAUTHORIZED } from 'constants/numbers';
+import { act,renderHook, waitFor } from '@testing-library/react';
+import axios from 'axios';
 import { captureEvent } from 'utils/posthog';
+
 import { API_URL } from 'config/api';
+import { HTTP_UNAUTHORIZED } from 'constants/numbers';
+
+import { useSearch } from './useSearch';
 
 jest.mock('axios');
 jest.mock('react-router-dom', () => ({

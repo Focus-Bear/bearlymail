@@ -1,10 +1,11 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { UserWithSubscription } from 'hooks/useAdminDashboard';
+
 import { ExtendTrialForm } from 'components/admin/ExtendTrialForm';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
+import { UserWithSubscription } from 'hooks/useAdminDashboard';
 
 interface UserSubscriptionCardProps {
   userData: UserWithSubscription;

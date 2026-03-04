@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react';
 import axios from 'axios';
-import { HTTP_UNAUTHORIZED, MS_PER_SECOND } from 'constants/numbers';
-import { identifyUser } from 'utils/posthog';
 import { setupAxiosInterceptors } from 'utils/axios-interceptors';
+import { identifyUser } from 'utils/posthog';
+
 import { API_URL } from 'config/api';
+import { HTTP_UNAUTHORIZED, MS_PER_SECOND } from 'constants/numbers';
 
 interface User {
   id: string;

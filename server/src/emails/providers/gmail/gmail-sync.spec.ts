@@ -1,5 +1,6 @@
-import { isThreadStarred } from "./gmail-sync";
 import { gmail_v1 } from "googleapis";
+
+import { isThreadStarred } from "./gmail-sync";
 
 describe("gmail-sync helpers", () => {
   describe("isThreadStarred", () => {

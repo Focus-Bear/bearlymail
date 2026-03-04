@@ -1,15 +1,16 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
-  ManyToOne,
   CreateDateColumn,
-  UpdateDateColumn,
-  JoinColumn,
+  Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from "typeorm";
-import { User } from "./user.entity";
+
 import { encryptedJsonTransformer } from "../../encryption/encryption.helper";
+import { User } from "./user.entity";
 
 @Entity("suggested_replies")
 @Index(["userId", "emailThreadId"], { unique: true })

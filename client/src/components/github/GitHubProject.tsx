@@ -1,5 +1,6 @@
 import React from 'react';
 import { theme } from 'theme/theme';
+
 import { EMOJI_CLIPBOARD } from 'constants/emojis';
 
 interface GitHubProjectProps {

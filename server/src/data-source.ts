@@ -1,7 +1,7 @@
-import { DataSource } from "typeorm";
 import { ConfigService } from "@nestjs/config";
 import { config } from "dotenv";
 import * as path from "path";
+import { DataSource } from "typeorm";
 
 // Load environment variables
 config({ path: path.join(__dirname, "../.env") });

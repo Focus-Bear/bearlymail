@@ -2,10 +2,11 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { InboxMode } from 'types/email';
+
 import {
   MODE_ACTION,
-  MODE_FOLLOW_UP,
   MODE_AUTORESPONDED,
+  MODE_FOLLOW_UP,
 } from 'constants/strings';
 
 interface LoadingStateProps {

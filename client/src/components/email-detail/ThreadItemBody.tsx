@@ -1,6 +1,6 @@
 import React from 'react';
 import { theme } from 'theme/theme';
-import { removeSignature, sanitizeAndProcessHtml, extractCleanHtmlBody } from 'utils/emailBodyUtils';
+import { extractCleanHtmlBody,removeSignature, sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
 
 interface ThreadItemBodyProps {
   body: string;

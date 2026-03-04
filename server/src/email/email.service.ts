@@ -1,11 +1,12 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
-import mjml from "mjml";
+import { SendEmailCommand, SESClient } from "@aws-sdk/client-ses";
 import * as fs from "fs";
+import mjml from "mjml";
 import * as path from "path";
-import { translateEmail } from "./email-translations";
+
 import { isError } from "../types/common";
+import { translateEmail } from "./email-translations";
 
 @Injectable()
 export class EmailService {

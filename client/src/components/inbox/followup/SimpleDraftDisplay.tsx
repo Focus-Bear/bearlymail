@@ -1,8 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { TEXT_TRUNCATE_LENGTH } from 'constants/numbers';
+
 import { COLOR_TRANSPARENT } from 'constants/colors';
+import { TEXT_TRUNCATE_LENGTH } from 'constants/numbers';
 
 interface SimpleDraftDisplayProps {
   draft: string;

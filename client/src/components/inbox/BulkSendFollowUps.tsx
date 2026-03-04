@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { ThreadWithFollowUp } from 'hooks/useFollowUps';
-import { OPACITY_DISABLED, OPACITY_FULL, MAX_BULK_SEND_COUNT } from 'constants/numbers';
 import { captureEvent } from 'utils/posthog';
+
 import { BulkSendConfirmModal } from 'components/inbox/bulk/BulkSendConfirmModal';
 import { BulkSendResults } from 'components/inbox/bulk/BulkSendResults';
 import { BulkSendSelectionControls } from 'components/inbox/bulk/BulkSendSelectionControls';
+import { MAX_BULK_SEND_COUNT,OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
+import { ThreadWithFollowUp } from 'hooks/useFollowUps';
 
 interface BulkSendFollowUpsProps {
   selectedThreads: ThreadWithFollowUp[];

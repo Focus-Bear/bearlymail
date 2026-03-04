@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+
 import { EMOJI_CALENDAR, EMOJI_LOCATION, EMOJI_PEOPLE } from 'constants/emojis';
 
 interface CalendarEvent {

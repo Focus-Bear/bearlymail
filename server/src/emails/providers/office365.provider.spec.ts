@@ -1,10 +1,11 @@
+import { ConfigService } from "@nestjs/config";
 import { Test, TestingModule } from "@nestjs/testing";
-import { Office365Provider } from "./office365.provider";
+
+import { Office365AccountsService } from "../../office365-accounts/office365-accounts.service";
 import { UsersService } from "../../users/users.service";
 import { EmailsService } from "../emails.service";
 import { ScanEmailService } from "../scan-email.service";
-import { Office365AccountsService } from "../../office365-accounts/office365-accounts.service";
-import { ConfigService } from "@nestjs/config";
+import { Office365Provider } from "./office365.provider";
 describe("Office365Provider", () => {
   let provider: Office365Provider;
   let usersService: jest.Mocked<UsersService>;

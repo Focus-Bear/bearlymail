@@ -1,11 +1,12 @@
-import React, { useState, useRef } from 'react';
+import React, { useRef,useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { captureEvent } from 'utils/posthog';
+
+import { API_URL } from 'config/api';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { OPACITY_DISABLED_ALT } from 'constants/numbers';
 import { STRING_NONE, TYPEOF_OBJECT } from 'constants/strings';
-import { API_URL } from 'config/api';
-import { captureEvent } from 'utils/posthog';
-import { COLOR_NAMED_WHITE } from 'constants/colors';
 
 const BUTTON_VARIANT_PRIMARY = 'primary' as const;
 

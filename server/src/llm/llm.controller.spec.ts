@@ -1,10 +1,11 @@
-import { Test, TestingModule } from "@nestjs/testing";
 import { INestApplication } from "@nestjs/common";
+import { Test, TestingModule } from "@nestjs/testing";
 import request from "supertest";
+
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { UsersService } from "../users/users.service";
 import { LLMController } from "./llm.controller";
 import { LLMService } from "./llm.service";
-import { UsersService } from "../users/users.service";
-import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 
 describe("LLMController (Integration)", () => {
   let app: INestApplication;

@@ -1,10 +1,11 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { ANALYSIS_RECENT_INSIGHTS_COUNT, Z_INDEX_POPUP } from 'constants/numbers';
-import { AnalyzeProgress } from 'hooks/useSettingsData';
+
 import { EMOJI_WARNING } from 'constants/emojis';
+import { ANALYSIS_RECENT_INSIGHTS_COUNT, Z_INDEX_POPUP } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
+import { AnalyzeProgress } from 'hooks/useSettingsData';
 
 interface AnalysisProgressModalProps {
   analyzeProgress: AnalyzeProgress;

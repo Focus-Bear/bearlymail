@@ -1,8 +1,9 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { BatchScheduleService } from "./batch-schedule.service";
+
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { BatchScheduleService } from "./batch-schedule.service";
 
 describe("BatchScheduleService", () => {
   let service: BatchScheduleService;

@@ -1,10 +1,11 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { ContextController } from "./context.controller";
-import { ContextService } from "./context.service";
-import { UsersService } from "../users/users.service";
+
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
 import { User } from "../database/entities/user.entity";
+import { UsersService } from "../users/users.service";
+import { ContextController } from "./context.controller";
+import { ContextService } from "./context.service";
 
 describe("ContextController", () => {
   let controller: ContextController;

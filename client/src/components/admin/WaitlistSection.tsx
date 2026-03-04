@@ -1,9 +1,10 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { WaitlistEntry } from 'hooks/useAdminDashboard';
-import { WaitlistEntryCard } from 'components/admin/WaitlistEntryCard';
+
 import { WaitlistEmptyState } from 'components/admin/WaitlistEmptyState';
+import { WaitlistEntryCard } from 'components/admin/WaitlistEntryCard';
+import { WaitlistEntry } from 'hooks/useAdminDashboard';
 
 interface WaitlistSectionProps {
   pending: WaitlistEntry[];

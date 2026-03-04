@@ -1,37 +1,37 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { createTypeOrmConfig } from "./database/typeorm-config.factory";
 
+import { AutoResponderModule } from "./auto-responder/auto-responder.module";
+import { BatchScheduleModule } from "./batch-schedule/batch-schedule.module";
+import { BlockedKeywordsModule } from "./blocked-keywords/blocked-keywords.module";
+import { BlockedSendersModule } from "./blocked-senders/blocked-senders.module";
+import { ContactsModule } from "./contacts/contacts.module";
+import { ContextModule } from "./context/context.module";
+import { createTypeOrmConfig } from "./database/typeorm-config.factory";
+import { EmailsModule } from "./emails/emails.module";
+import { EncryptionModule } from "./encryption/encryption.module";
+import { ErrorTrackingModule } from "./error-tracking/error-tracking.module";
+import { FollowUpsModule } from "./follow-ups/follow-ups.module";
+import { GitHubModule } from "./github/github.module";
+import { GoogleAccountsModule } from "./google-accounts/google-accounts.module";
+import { LLMModule } from "./llm/llm.module";
+import { NotesModule } from "./notes/notes.module";
+import { Office365AccountsModule } from "./office365-accounts/office365-accounts.module";
+import { OnboardingModule } from "./onboarding/onboarding.module";
+import { PriorityModule } from "./priority/priority.module";
+import { ProtoCategoriesModule } from "./proto-categories/proto-categories.module";
+import { PusherModule } from "./pusher/pusher.module";
 // Feature modules — each module owns its own entities, services, and processors.
 // Importing them here gives the worker access to everything they provide,
 // so we never need to manually list individual services or entities.
 import { QueueModule } from "./queue/queue.module";
-import { EncryptionModule } from "./encryption/encryption.module";
-import { UsersModule } from "./users/users.module";
-import { EmailsModule } from "./emails/emails.module";
-import { PriorityModule } from "./priority/priority.module";
-import { SummarizationModule } from "./summarization/summarization.module";
-import { LLMModule } from "./llm/llm.module";
-import { ContextModule } from "./context/context.module";
-import { OnboardingModule } from "./onboarding/onboarding.module";
-import { SnoozeModule } from "./snooze/snooze.module";
-import { BatchScheduleModule } from "./batch-schedule/batch-schedule.module";
-import { AutoResponderModule } from "./auto-responder/auto-responder.module";
-import { FollowUpsModule } from "./follow-ups/follow-ups.module";
-import { SuggestedRepliesModule } from "./suggested-replies/suggested-replies.module";
-import { ProtoCategoriesModule } from "./proto-categories/proto-categories.module";
-import { GitHubModule } from "./github/github.module";
-import { GoogleAccountsModule } from "./google-accounts/google-accounts.module";
-import { Office365AccountsModule } from "./office365-accounts/office365-accounts.module";
-import { ZohoAccountsModule } from "./zoho-accounts/zoho-accounts.module";
-import { BlockedSendersModule } from "./blocked-senders/blocked-senders.module";
-import { BlockedKeywordsModule } from "./blocked-keywords/blocked-keywords.module";
-import { NotesModule } from "./notes/notes.module";
-import { PusherModule } from "./pusher/pusher.module";
-import { ContactsModule } from "./contacts/contacts.module";
 import { ScheduledEmailsModule } from "./scheduled-emails/scheduled-emails.module";
-import { ErrorTrackingModule } from "./error-tracking/error-tracking.module";
+import { SnoozeModule } from "./snooze/snooze.module";
+import { SuggestedRepliesModule } from "./suggested-replies/suggested-replies.module";
+import { SummarizationModule } from "./summarization/summarization.module";
+import { UsersModule } from "./users/users.module";
+import { ZohoAccountsModule } from "./zoho-accounts/zoho-accounts.module";
 
 @Module({
   imports: [

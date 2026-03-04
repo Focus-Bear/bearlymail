@@ -1,10 +1,11 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useCallback,useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { CONTEXT_ANALYSIS_RECENT_COUNT } from 'constants/numbers';
-import { useAnalysisProgress } from 'hooks/settings/useAnalysisProgress';
+
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
+import { CONTEXT_ANALYSIS_RECENT_COUNT } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
+import { useAnalysisProgress } from 'hooks/settings/useAnalysisProgress';
 
 interface ContextAnalysisStepProps {
   onComplete: () => void;

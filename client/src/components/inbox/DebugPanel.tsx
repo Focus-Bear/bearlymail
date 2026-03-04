@@ -1,24 +1,25 @@
 import React from 'react';
-import { MODE_ACTION, MODE_FOLLOW_UP, STRING_NONE } from 'constants/strings';
-import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
-import { EMOJI_BUG, EMOJI_SYNC } from 'constants/emojis';
+
 import {
-  DebugStatsSection,
-  DebugStarredSection,
-  DebugOrphanSection,
-  DebugThreadLookupSection,
-  DebugEmailList,
-  DebugSyncHistorySection,
   DebugCategorySummarySection,
+  DebugEmailList,
+  DebugOrphanSection,
+  DebugStarredSection,
+  DebugStatsSection,
+  DebugSyncHistorySection,
+  DebugThreadLookupSection,
 } from 'components/inbox/debug';
-import { ThreadLookupResult } from 'hooks/useDebugPanel';
 import { SyncHistoryEntry } from 'components/inbox/debug/DebugSyncHistorySection';
-import { CategorySummaryItem } from 'store/slices/emailSlice';
 import { DebugStarredData } from 'components/inbox/debug/types';
 import { COLOR_BG_INFO, COLOR_INFO_BLUE_LIGHT, COLOR_NAMED_WHITE } from 'constants/colors';
+import { EMOJI_BUG, EMOJI_SYNC } from 'constants/emojis';
+import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
+import { MODE_ACTION, MODE_FOLLOW_UP, STRING_NONE } from 'constants/strings';
+import { ThreadLookupResult } from 'hooks/useDebugPanel';
+import { CategorySummaryItem } from 'store/slices/emailSlice';
 
 interface DebugOrphanData {
   totalEmailsInDb: number;

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+
 import { MAX_OPTION_LENGTH, MAX_TEXTAREA_HEIGHT_PX } from 'constants/numbers';
 
 interface ReplyOption {

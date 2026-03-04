@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { TriageSuggestion } from 'types/email';
 import { captureEvent } from 'utils/posthog';
+
 import { EMOJI_LIGHTBULB, EMOJI_STAR } from 'constants/emojis';
 
 interface TriageSuggestionBannerProps {

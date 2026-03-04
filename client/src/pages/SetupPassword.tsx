@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useEffect,useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
-import { useAuth } from 'contexts/AuthContext';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
 import { API_URL } from 'config/api';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
+import { useAuth } from 'contexts/AuthContext';
 
 const SetupPassword: React.FC = () => {
   const { t } = useTranslation();

@@ -1,9 +1,10 @@
 import {
-  Injectable,
   CanActivate,
   ExecutionContext,
+  Injectable,
   UnauthorizedException,
 } from "@nestjs/common";
+
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
 import { UsersService } from "../users/users.service";
 

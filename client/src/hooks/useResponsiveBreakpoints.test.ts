@@ -1,6 +1,8 @@
-import { renderHook, act } from '@testing-library/react';
+import { act,renderHook } from '@testing-library/react';
+
+import { BREAKPOINT_DESKTOP,BREAKPOINT_TABLET } from 'constants/numbers';
+
 import { useResponsiveBreakpoints } from './useResponsiveBreakpoints';
-import { BREAKPOINT_TABLET, BREAKPOINT_DESKTOP } from 'constants/numbers';
 
 describe('useResponsiveBreakpoints', () => {
   const originalInnerWidth = window.innerWidth;

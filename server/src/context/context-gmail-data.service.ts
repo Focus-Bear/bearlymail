@@ -1,22 +1,24 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { UsersService } from "../users/users.service";
+
+import { QUERY_LIMITS } from "../constants/query-limits";
+import { DAYS, MS_PER_SECOND } from "../constants/time-constants";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import {
   EmailProvider,
   RawEmailMessage,
 } from "../emails/interfaces/email-provider.interface";
-import { QUERY_LIMITS } from "../constants/query-limits";
-import { DAYS, MS_PER_SECOND } from "../constants/time-constants";
+import { UsersService } from "../users/users.service";
 
 const EMAIL_FETCH_LIMIT = 400;
-import { GmailProvider } from "../emails/providers/gmail.provider";
+import { gmail_v1, google } from "googleapis";
+
 import { GMAIL_LABELS } from "../constants/email-labels";
+import { GmailProvider } from "../emails/providers/gmail.provider";
 import {
-  getErrorMessage,
   formatGaxiosError,
+  getErrorMessage,
   getGaxiosErrorDetails,
 } from "../types/common";
-import { google, gmail_v1 } from "googleapis";
 
 export interface ThreadEmail {
   id: string;

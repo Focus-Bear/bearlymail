@@ -1,9 +1,10 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { useScheduledEmails, ScheduledEmail } from 'hooks/useScheduledEmails';
-import { ACTION_TYPE_REPLY, STRING_NONE } from 'constants/strings';
+
 import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { ACTION_TYPE_REPLY, STRING_NONE } from 'constants/strings';
+import { ScheduledEmail,useScheduledEmails } from 'hooks/useScheduledEmails';
 export const ScheduledEmailsManager: React.FC = () => {
   const { t } = useTranslation();
   const { scheduledEmails, loading, cancelScheduledEmail } = useScheduledEmails();

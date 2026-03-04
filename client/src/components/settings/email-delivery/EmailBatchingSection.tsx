@@ -2,12 +2,12 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
-import { INPUT_WIDTH_PX } from 'constants/numbers';
+
 import { DeliveryDaysSelector } from 'components/settings/email-delivery/DeliveryDaysSelector';
 import { DeliveryTimesManager } from 'components/settings/email-delivery/DeliveryTimesManager';
-
 import { API_URL } from 'config/api';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { INPUT_WIDTH_PX } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
 
 const TimezoneSelectorSection: React.FC<{ timezone: string; onChange: (tz: string) => void }> = ({ timezone, onChange }) => {

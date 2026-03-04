@@ -1,7 +1,8 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { EmailClassifierService } from "./email-classifier.service";
-import { LLMService } from "../llm/llm.service";
+
 import { ErrorTrackingService } from "../error-tracking/error-tracking.service";
+import { LLMService } from "../llm/llm.service";
+import { EmailClassifierService } from "./email-classifier.service";
 
 function hasReasonMatching(reasons: string[], pattern: string): boolean {
   return reasons.some((r) => r.includes(pattern));

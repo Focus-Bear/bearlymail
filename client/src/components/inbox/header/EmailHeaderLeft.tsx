@@ -1,9 +1,10 @@
 import React from 'react';
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
-import { PriorityBadge } from 'components/inbox/header/PriorityBadge';
-import { EmailLabels } from 'components/inbox/header/EmailLabels';
+
 import { InboxContactTypeBadge } from 'components/crm/InboxContactTypeBadge';
+import { EmailLabels } from 'components/inbox/header/EmailLabels';
+import { PriorityBadge } from 'components/inbox/header/PriorityBadge';
 
 interface EmailHeaderLeftProps {
   email: Email;

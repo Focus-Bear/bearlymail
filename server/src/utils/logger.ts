@@ -1,4 +1,5 @@
 import { Logger } from "@nestjs/common";
+
 import { captureGlobalError } from "../error-tracking/error-tracking-setup";
 
 /**

@@ -1,10 +1,10 @@
-import {
-  EncryptionHelper,
-  encryptedColumnTransformer,
-  emailTransformer,
-  encryptedJsonTransformer,
-} from "./encryption.helper";
 import { ENCRYPTION_CONSTANTS } from "../constants/encryption-constants";
+import {
+  emailTransformer,
+  encryptedColumnTransformer,
+  encryptedJsonTransformer,
+  EncryptionHelper,
+} from "./encryption.helper";
 
 describe("EncryptionHelper", () => {
   const originalEnv = process.env.ENCRYPTION_KEY;

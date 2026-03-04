@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { ToneRuleItem } from 'components/settings/guide-ai/ToneRuleItem';
-import { KEY_ENTER, STRING_NONE } from 'constants/strings';
 import { captureEvent } from 'utils/posthog';
+
+import { ToneRuleItem } from 'components/settings/guide-ai/ToneRuleItem';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { KEY_ENTER, STRING_NONE } from 'constants/strings';
 
 interface ToneSettingsSectionProps {
   toneRules: string[];

@@ -1,5 +1,5 @@
 import { MILLISECONDS_PER_MINUTE } from 'components/inbox/constants';
-import { MINUTES_PER_HOUR, HOURS_PER_DAY } from 'constants/numbers';
+import { HOURS_PER_DAY,MINUTES_PER_HOUR } from 'constants/numbers';
 
 export interface DeliverySchedule {
   deliveryDays: number[];

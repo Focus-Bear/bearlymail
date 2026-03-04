@@ -2,9 +2,10 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { Email, InboxMode } from 'types/email';
+
+import { FONT_WEIGHT_SEMIBOLD } from 'constants/numbers';
 import { MODE_TRIAGE } from 'constants/strings';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
-import { FONT_WEIGHT_SEMIBOLD } from 'constants/numbers';
 
 interface EmailCardProps {
   email: Email;

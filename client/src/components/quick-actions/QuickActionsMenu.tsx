@@ -1,9 +1,10 @@
 import React from 'react';
 import { theme } from 'theme/theme';
+
 import { ModalBackdrop } from 'components/modal/ModalBackdrop';
 import { ModalContent } from 'components/modal/ModalContent';
-import { QuickActionsHeader } from 'components/quick-actions/QuickActionsHeader';
 import { QuickActionItem } from 'components/quick-actions/QuickActionItem';
+import { QuickActionsHeader } from 'components/quick-actions/QuickActionsHeader';
 
 export interface SuggestedAction {
   type: string;

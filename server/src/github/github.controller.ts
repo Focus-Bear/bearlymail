@@ -1,34 +1,35 @@
 import {
+  Body,
   Controller,
+  Delete,
   Get,
+  Inject,
+  Logger,
+  NotFoundException,
+  Param,
   Post,
   Put,
-  Delete,
-  Body,
-  Param,
-  UseGuards,
-  Request,
-  Logger,
-  Res,
   Query,
-  Inject,
-  NotFoundException,
+  Request,
+  Res,
+  UseGuards,
 } from "@nestjs/common";
 import { Response } from "express";
 import PgBoss from "pg-boss";
-import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+
 import { AdminGuard } from "../auth/admin.guard";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Public } from "../auth/public.decorator";
-import { GitHubAppService } from "./github-app.service";
+import { EncryptionHelper } from "../encryption/encryption.helper";
+import { isError } from "../types/common";
+import { UsersService } from "../users/users.service";
 import { GitHubApiService } from "./github-api.service";
+import { GitHubAppService } from "./github-app.service";
 import {
   GitHubEmailInfoService,
   GitHubMetadataLink,
 } from "./github-email-info.service";
 import { GitHubRepoMappingService } from "./github-repo-mapping.service";
-import { UsersService } from "../users/users.service";
-import { EncryptionHelper } from "../encryption/encryption.helper";
-import { isError } from "../types/common";
 
 interface PgBossWithInternals extends PgBoss {
   db: {

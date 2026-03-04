@@ -1,10 +1,11 @@
-import { NestFactory } from "@nestjs/core";
 import { Logger, ValidationPipe } from "@nestjs/common";
+import { NestFactory } from "@nestjs/core";
+
 import { AppModule } from "./app.module";
-import { AllExceptionsFilter } from "./filters/http-exception.filter";
-import { setupGlobalErrorHandlers, logErrorToFile } from "./utils/error-logger";
-import { initializeGlobalErrorTracking } from "./error-tracking/error-tracking-setup";
 import { ErrorTrackingService } from "./error-tracking/error-tracking.service";
+import { initializeGlobalErrorTracking } from "./error-tracking/error-tracking-setup";
+import { AllExceptionsFilter } from "./filters/http-exception.filter";
+import { logErrorToFile, setupGlobalErrorHandlers } from "./utils/error-logger";
 
 // Initialize PostHog for global error tracking
 initializeGlobalErrorTracking();

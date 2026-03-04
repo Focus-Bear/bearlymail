@@ -1,5 +1,6 @@
 import React from 'react';
 import { theme } from 'theme/theme';
+
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 interface WaitlistFormContainerProps {

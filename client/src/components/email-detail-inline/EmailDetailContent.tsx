@@ -1,24 +1,25 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useEffect,useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import axios from 'axios';
 import { FiArchive, FiClock, FiCornerUpLeft, FiCornerUpRight } from 'react-icons/fi';
+import axios from 'axios';
 import { theme } from 'theme/theme';
-import { GitHubStatusSection } from 'components/github/GitHubStatusSection';
+import { extractEmailAddress } from 'utils/emailUtils';
+import { captureEvent } from 'utils/posthog';
+import { extractUnsubscribeLink } from 'utils/unsubscribeUtils';
+
 import { CRMDealsSection } from 'components/crm/CRMDealsSection';
 import { EmailDetailBody, EmailThreadList } from 'components/email-detail';
 import { EmailAttachments } from 'components/email-detail/EmailAttachments';
-import { PrivateNotesSection } from 'components/email-detail-inline/PrivateNotesSection';
 import { ActionItemsSection } from 'components/email-detail-inline/ActionItemsSection';
+import { PrivateNotesSection } from 'components/email-detail-inline/PrivateNotesSection';
+import { GitHubStatusSection } from 'components/github/GitHubStatusSection';
 import { SnoozeInputForm } from 'components/inbox/actions/SnoozeInputForm';
-import { EMOJI_BLOCK, EMOJI_LINK } from 'constants/emojis';
-import { extractUnsubscribeLink } from 'utils/unsubscribeUtils';
-import { extractEmailAddress } from 'utils/emailUtils';
 import { API_URL } from 'config/api';
-import { captureEvent } from 'utils/posthog';
-import { FONT_WEIGHT_SEMIBOLD, OPACITY_DISABLED } from 'constants/numbers';
-import { useAuth } from 'contexts/AuthContext';
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
+import { EMOJI_BLOCK, EMOJI_LINK } from 'constants/emojis';
+import { FONT_WEIGHT_SEMIBOLD, OPACITY_DISABLED } from 'constants/numbers';
 import { LETTER_SPACING_WIDER, STRING_NONE } from 'constants/strings';
+import { useAuth } from 'contexts/AuthContext';
 
 const PRIORITY_OPTIONS = [
   { label: 'Can wait', emoji: '😊', value: 1 },

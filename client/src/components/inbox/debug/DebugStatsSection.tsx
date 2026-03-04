@@ -1,10 +1,11 @@
 import React from 'react';
-import { DELIVERY_STATUS_OVERDUE } from 'constants/strings';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { calculateTimeAgo, calculateNextDelivery, formatDeliverySchedule, DeliverySchedule } from 'components/inbox/debug/DebugStatsUtils';
+
+import { calculateNextDelivery, calculateTimeAgo, DeliverySchedule,formatDeliverySchedule } from 'components/inbox/debug/DebugStatsUtils';
 import { EMOJI_WARNING } from 'constants/emojis';
 import { MS_PER_MINUTE } from 'constants/numbers';
+import { DELIVERY_STATUS_OVERDUE } from 'constants/strings';
 
 interface SyncStatus {
   lastSyncTime: string | null;

@@ -1,55 +1,56 @@
-import { Injectable, Inject, forwardRef, Logger } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, IsNull, Not, In } from "typeorm";
 import PgBoss from "pg-boss";
-import { Email } from "../database/entities/email.entity";
-import { EmailThread } from "../database/entities/email-thread.entity";
-import { ActionItem } from "../database/entities/action-item.entity";
-import { CategoryOverride } from "../database/entities/category-override.entity";
-import {
-  UserContext,
-  ContextKey,
-} from "../database/entities/user-context.entity";
-import { PriorityService } from "../priority/priority.service";
-import { EmailProviderManager } from "./email-provider-manager.service";
-import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
+import { In, IsNull, Not, Repository } from "typeorm";
+
+import { CloudWatchService } from "../aws/cloudwatch.service";
+import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
 import { BlockedKeywordsService } from "../blocked-keywords/blocked-keywords.service";
-import { EncryptionHelper } from "../encryption/encryption.helper";
-import { LLMService } from "../llm/llm.service";
-import { UsersService } from "../users/users.service";
-import { getJobPriority } from "../queue/job-priorities";
-import { logError } from "../utils/logger";
-import { GitHubService } from "../github/github.service";
-import { GitHubApiService } from "../github/github-api.service";
+import { BlockedSendersService } from "../blocked-senders/blocked-senders.service";
 import { RATIOS } from "../constants/percentages";
-import {
-  DAYS,
-  MILLISECONDS,
-  MS_PER_SECOND,
-  MINUTES,
-} from "../constants/time-constants";
-import { QUERY_LIMITS, INBOX_MODES } from "../constants/query-limits";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
 import { STAR_COUNTS } from "../constants/priority-constants";
 import {
-  PRIORITY_SCORES,
   PRIORITY_BOOSTS,
+  PRIORITY_SCORES,
   SENTIMENT_THRESHOLDS,
 } from "../constants/priority-constants";
+import { INBOX_MODES, QUERY_LIMITS } from "../constants/query-limits";
+import {
+  DAYS,
+  MILLISECONDS,
+  MINUTES,
+  MS_PER_SECOND,
+} from "../constants/time-constants";
+import { ActionItem } from "../database/entities/action-item.entity";
+import { BatchSchedule } from "../database/entities/batch-schedule.entity";
+import { CategoryOverride } from "../database/entities/category-override.entity";
+import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
+import {
+  ContextKey,
+  UserContext,
+} from "../database/entities/user-context.entity";
+import { EncryptionHelper } from "../encryption/encryption.helper";
+import { GitHubService } from "../github/github.service";
+import { GitHubApiService } from "../github/github-api.service";
+import { LLMService } from "../llm/llm.service";
+import { PriorityService } from "../priority/priority.service";
+import { getJobPriority } from "../queue/job-priorities";
+import { SuggestedRepliesService } from "../suggested-replies/suggested-replies.service";
 import { isError } from "../types/common";
-import { EmailThreadService } from "./email-thread.service";
+import { UsersService } from "../users/users.service";
+import { logError } from "../utils/logger";
+import { EmailCrudService } from "./email-crud.service";
+import { EmailDebugService } from "./email-debug.service";
+import { EmailGmailService } from "./email-gmail.service";
+import { EmailProviderManager } from "./email-provider-manager.service";
+import { EmailReadService } from "./email-read.service";
 import { EmailSearchService } from "./email-search.service";
 import { EmailStarService } from "./email-star.service";
-import { EmailDebugService } from "./email-debug.service";
-import { EmailReadService } from "./email-read.service";
-import { EmailCrudService } from "./email-crud.service";
-import { EmailGmailService } from "./email-gmail.service";
 import { EmailStatusService } from "./email-status.service";
-import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
-import { BatchSchedule } from "../database/entities/batch-schedule.entity";
-import { SuggestedRepliesService } from "../suggested-replies/suggested-replies.service";
+import { EmailThreadService } from "./email-thread.service";
 import { PerformanceTracker } from "./performance-tracker";
-import { CloudWatchService } from "../aws/cloudwatch.service";
 
 // Performance budgets in milliseconds
 // Use PERFORMANCE_BUDGETS and QUERY_LIMITS constants directly instead of local PERF_BUDGETS
@@ -972,7 +973,9 @@ export class EmailsService {
       correspondentEmail,
       correspondentName,
       phishingConfidence:
-        (row.phishingConfidence as "low" | "medium" | "high" | null) ?? null,      phishingReason: (row.phishingReason as string | null) ?? null,    } as unknown as Email;
+        (row.phishingConfidence as "low" | "medium" | "high" | null) ?? null,
+      phishingReason: (row.phishingReason as string | null) ?? null,
+    } as unknown as Email;
   }
 
   private decryptEmailLabels(row: RawEmailRow): string[] {

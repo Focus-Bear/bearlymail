@@ -1,8 +1,9 @@
-import { Injectable, OnModuleInit, Logger, Inject } from "@nestjs/common";
+import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import PgBoss from "pg-boss";
-import { EmailsService } from "./emails.service";
-import { EmailProviderManager } from "./email-provider-manager.service";
+
 import { logErrorToFile } from "../utils/error-logger";
+import { EmailProviderManager } from "./email-provider-manager.service";
+import { EmailsService } from "./emails.service";
 
 interface ArchiveEmailJobData {
   userId: string;

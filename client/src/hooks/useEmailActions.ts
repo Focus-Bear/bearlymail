@@ -1,9 +1,10 @@
 import { useCallback } from 'react';
-import { Email, InboxMode } from 'types/email';
 import { SetStateAction } from 'react';
+import { Email, InboxMode } from 'types/email';
 import { captureEvent } from 'utils/posthog';
-import { useBulkEmailActions } from 'hooks/useBulkEmailActions';
+
 import { useBlockSender } from 'hooks/useBlockSender';
+import { useBulkEmailActions } from 'hooks/useBulkEmailActions';
 import { useStarCountHandler } from 'hooks/useStarCountHandler';
 
 type SplitViewRef = { selectedEmailId: string | null; openEmail: (emailId: string) => void; closeEmail: () => void };

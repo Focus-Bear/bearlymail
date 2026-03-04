@@ -1,6 +1,6 @@
+import { useEmailDetailActionItems } from 'hooks/useEmailDetailActionItems';
 import { useEmailDetailFetching } from 'hooks/useEmailDetailFetching';
 import { useEmailDetailNotes } from 'hooks/useEmailDetailNotes';
-import { useEmailDetailActionItems } from 'hooks/useEmailDetailActionItems';
 import { useEmailDetailReplies } from 'hooks/useEmailDetailReplies';
 
 interface UseEmailDetailInlineOptions {

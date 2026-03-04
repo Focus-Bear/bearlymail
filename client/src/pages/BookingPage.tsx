@@ -1,16 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useEffect,useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BOOKING_STATUS_SUCCESS, BOOKING_IDLE, BOOKING_SUBMITTING, BOOKING_SUCCESS, BOOKING_ERROR, STRING_WHITE, STRING_AUTO, STRING_HIDDEN } from 'constants/strings';
-import { DAYS_IN_MONTH_30, MAX_WIDTH_600_PX, OPACITY_90_PERCENT } from 'constants/numbers';
+import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { theme } from 'theme/theme';
+
+import { BookingForm } from 'components/booking/BookingForm';
 import { BookingLoadingState } from 'components/booking/BookingLoadingState';
 import { BookingSuccessState } from 'components/booking/BookingSuccessState';
 import { SlotSelection } from 'components/booking/SlotSelection';
-import { BookingForm } from 'components/booking/BookingForm';
-
 import { API_URL } from 'config/api';
+import { DAYS_IN_MONTH_30, MAX_WIDTH_600_PX, OPACITY_90_PERCENT } from 'constants/numbers';
+import { BOOKING_ERROR, BOOKING_IDLE, BOOKING_STATUS_SUCCESS, BOOKING_SUBMITTING, BOOKING_SUCCESS, STRING_AUTO, STRING_HIDDEN,STRING_WHITE } from 'constants/strings';
 
 interface TimeSlot {
   start: string;

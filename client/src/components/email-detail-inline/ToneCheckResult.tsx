@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { captureEvent } from 'utils/posthog';
+
+import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { EMOJI_CHECK, EMOJI_WARNING } from 'constants/emojis';
 import { OPACITY_DISABLED } from 'constants/numbers';
-import { captureEvent } from 'utils/posthog';
-import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
 
 interface DisputeResult {

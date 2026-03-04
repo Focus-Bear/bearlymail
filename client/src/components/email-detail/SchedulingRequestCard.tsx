@@ -1,15 +1,16 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback,useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
-import { SHORT_TIMEOUT_MS } from 'constants/numbers';
 import { Email } from 'types/email';
-import { EMOJI_CALENDAR } from 'constants/emojis';
-import { API_URL } from 'config/api';
 import { captureEvent } from 'utils/posthog';
-import { useAuth } from 'contexts/AuthContext';
+
+import { API_URL } from 'config/api';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { EMOJI_CALENDAR } from 'constants/emojis';
+import { SHORT_TIMEOUT_MS } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
+import { useAuth } from 'contexts/AuthContext';
 
 interface SchedulingRequestCardProps {
   email: Email;

@@ -1,9 +1,10 @@
 import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { BatchScheduleService } from "./batch-schedule.service";
-import { BatchScheduleController } from "./batch-schedule.controller";
+
 import { BatchSchedule } from "../database/entities/batch-schedule.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { BatchScheduleController } from "./batch-schedule.controller";
+import { BatchScheduleService } from "./batch-schedule.service";
 
 @Module({
   imports: [TypeOrmModule.forFeature([BatchSchedule, EmailThread])],

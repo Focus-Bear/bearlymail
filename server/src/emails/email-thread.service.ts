@@ -1,11 +1,12 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, MoreThan, In } from "typeorm";
-import { EmailThread } from "../database/entities/email-thread.entity";
-import { Email } from "../database/entities/email.entity";
+import { In, MoreThan, Repository } from "typeorm";
+
 import { QUERY_LIMITS } from "../constants/query-limits";
-import { isError, isDatabaseError } from "../types/common";
-import { MILLISECONDS, DAYS_PER_WEEK } from "../constants/time-constants";
+import { DAYS_PER_WEEK, MILLISECONDS } from "../constants/time-constants";
+import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
+import { isDatabaseError, isError } from "../types/common";
 
 const PER_THREAD_BUDGET_MS = 200;
 

@@ -1,8 +1,9 @@
-import { Injectable, OnModuleInit, Logger, Inject } from "@nestjs/common";
+import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import PgBoss from "pg-boss";
-import { ContactsService } from "./contacts.service";
-import { UsersService } from "../users/users.service";
+
 import { PusherService } from "../pusher/pusher.service";
+import { UsersService } from "../users/users.service";
+import { ContactsService } from "./contacts.service";
 
 @Injectable()
 export class ContactSyncProcessor implements OnModuleInit {

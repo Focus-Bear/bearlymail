@@ -1,12 +1,13 @@
-import { Module, forwardRef } from "@nestjs/common";
+import { forwardRef, Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
+
+import { Contact } from "../database/entities/contact.entity";
 import { Deal } from "../database/entities/deal.entity";
 import { DealStage } from "../database/entities/deal-stage.entity";
-import { Contact } from "../database/entities/contact.entity";
+import { LLMModule } from "../llm/llm.module";
+import { ContactTypeClassifierService } from "./contact-type-classifier.service";
 import { DealsController } from "./deals.controller";
 import { DealsService } from "./deals.service";
-import { ContactTypeClassifierService } from "./contact-type-classifier.service";
-import { LLMModule } from "../llm/llm.module";
 
 @Module({
   imports: [

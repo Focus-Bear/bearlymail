@@ -1,12 +1,13 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
-import { MAX_SEARCH_RESULT_LENGTH } from 'constants/numbers';
-import { SEARCH_RESULT_NO_RESULTS, STRING_NA } from 'constants/strings';
-import { captureEvent } from 'utils/posthog';
 import { Email, getEmailPriorityScore } from 'types/email';
 import { humanizeTimestamp } from 'utils/dateUtils';
+import { captureEvent } from 'utils/posthog';
+
+import { MAX_SEARCH_RESULT_LENGTH } from 'constants/numbers';
+import { SEARCH_RESULT_NO_RESULTS, STRING_NA } from 'constants/strings';
 
 interface SearchEmail extends Email {
   starCount?: number;

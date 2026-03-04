@@ -1,12 +1,13 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
+
+import { EmailThread } from "../database/entities/email-thread.entity";
+import { EmailsService } from "../emails/emails.service";
 import { PriorityController } from "./priority.controller";
-import { TriageSuggestionsService } from "./triage-suggestions.service";
 import { PriorityService } from "./priority.service";
 import { PriorityLearningService } from "./priority-learning.service";
-import { EmailsService } from "../emails/emails.service";
-import { EmailThread } from "../database/entities/email-thread.entity";
+import { TriageSuggestionsService } from "./triage-suggestions.service";
 
 describe("PriorityController", () => {
   let controller: PriorityController;

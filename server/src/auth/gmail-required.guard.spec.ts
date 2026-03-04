@@ -1,8 +1,9 @@
-import { Test, TestingModule } from "@nestjs/testing";
 import { ExecutionContext, UnauthorizedException } from "@nestjs/common";
-import { GmailRequiredGuard } from "./gmail-required.guard";
+import { Test, TestingModule } from "@nestjs/testing";
+
 import { GoogleAccountsService } from "../google-accounts/google-accounts.service";
 import { UsersService } from "../users/users.service";
+import { GmailRequiredGuard } from "./gmail-required.guard";
 
 describe("GmailRequiredGuard", () => {
   let guard: GmailRequiredGuard;

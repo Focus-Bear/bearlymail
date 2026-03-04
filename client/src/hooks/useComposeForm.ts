@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback,useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Contact } from 'types/contact';
-import { EMAIL_FIELD_TO, EMAIL_FIELD_CC } from 'constants/strings';
+
+import { EMAIL_FIELD_CC,EMAIL_FIELD_TO } from 'constants/strings';
 
 interface Recipient {
   email: string;

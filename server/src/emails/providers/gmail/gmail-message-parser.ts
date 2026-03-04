@@ -1,7 +1,8 @@
 import { gmail_v1 } from "googleapis";
+
 import {
-  RawEmailMessage,
   EmailAttachment,
+  RawEmailMessage,
 } from "../../interfaces/email-provider.interface";
 
 /**

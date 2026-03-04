@@ -1,13 +1,14 @@
 import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import axios from 'axios';
-import { captureEvent } from 'utils/posthog';
-import { API_URL } from 'config/api';
-import { AppDispatch } from 'store/store';
-import { removeEmail, restoreEmail, addOptimisticArchive, removeOptimisticArchive, decrementCategorySummaryCount, incrementCategorySummaryCount } from 'store/slices/emailSlice';
-import { selectEmails } from 'store/selectors/emailSelectors';
 import { Email } from 'types/email';
-import { MODE_TRIAGE, MODE_ACTION, MODE_FOLLOW_UP } from 'constants/strings';
+import { captureEvent } from 'utils/posthog';
+
+import { API_URL } from 'config/api';
+import { MODE_ACTION, MODE_FOLLOW_UP,MODE_TRIAGE } from 'constants/strings';
+import { selectEmails } from 'store/selectors/emailSelectors';
+import { addOptimisticArchive, decrementCategorySummaryCount, incrementCategorySummaryCount,removeEmail, removeOptimisticArchive, restoreEmail } from 'store/slices/emailSlice';
+import { AppDispatch } from 'store/store';
 
 interface UseBulkEmailActionsProps {
   selectedEmailIds: Set<string>;

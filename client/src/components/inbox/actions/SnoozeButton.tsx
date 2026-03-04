@@ -1,8 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { captureEvent } from 'utils/posthog';
 import { Email } from 'types/email';
+import { captureEvent } from 'utils/posthog';
+
 import { EMOJI_CLOCK } from 'constants/emojis';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 

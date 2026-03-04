@@ -1,10 +1,12 @@
 /* eslint-disable id-denylist -- 'data' is a standard property name for axios responses */
-import { renderHook, waitFor, act } from '@testing-library/react';
+import { act,renderHook, waitFor } from '@testing-library/react';
 import axios from 'axios';
-import { useBlockSender } from './useBlockSender';
-import { captureEvent } from 'utils/posthog';
 import { Email } from 'types/email';
+import { captureEvent } from 'utils/posthog';
+
 import { API_URL } from 'config/api';
+
+import { useBlockSender } from './useBlockSender';
 
 jest.mock('axios');
 jest.mock('utils/posthog', () => ({

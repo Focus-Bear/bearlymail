@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FiList } from 'react-icons/fi';
 import { theme } from 'theme/theme';
-import { useTranslation } from 'react-i18next';
-import { ActionItemList } from 'components/email-detail-inline/ActionItemList';
-import { ActionItemInput } from 'components/email-detail-inline/ActionItemInput';
-import { CollapsibleSection } from 'components/common/CollapsibleSection';
 import { captureEvent } from 'utils/posthog';
+
+import { CollapsibleSection } from 'components/common/CollapsibleSection';
+import { ActionItemInput } from 'components/email-detail-inline/ActionItemInput';
+import { ActionItemList } from 'components/email-detail-inline/ActionItemList';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 
 const ACTION_ITEMS_ACCENT = '#16A34A';

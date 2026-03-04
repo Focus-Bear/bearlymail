@@ -1,18 +1,19 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
-  ManyToOne,
   CreateDateColumn,
-  UpdateDateColumn,
-  JoinColumn,
+  Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from "typeorm";
-import { User } from "./user.entity";
+
 import {
   encryptedColumnTransformer,
   encryptedJsonTransformer,
 } from "../../encryption/encryption.helper";
+import { User } from "./user.entity";
 
 export interface EmailRecipient {
   email: string;

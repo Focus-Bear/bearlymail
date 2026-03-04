@@ -1,20 +1,21 @@
 import React from 'react';
 import { theme } from 'theme/theme';
-import { QuickActionsButton } from 'components/quick-actions/QuickActionsButton';
-import { QuickActionsMenu, SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
-import { GitHubCreateIssueModal } from 'components/quick-actions/modals/GitHubCreateIssueModal';
-import { GitHubUpdateStatusModal } from 'components/quick-actions/modals/GitHubUpdateStatusModal';
-import { GitHubAddCommentModal } from 'components/quick-actions/modals/GitHubAddCommentModal';
-import { GitHubSearchIssuesModal } from 'components/quick-actions/modals/GitHubSearchIssuesModal';
+
 import { CalendarCreateInviteModal } from 'components/quick-actions/modals/CalendarCreateInviteModal';
 import { CalendarFindEventsModal } from 'components/quick-actions/modals/CalendarFindEventsModal';
+import { GitHubAddCommentModal } from 'components/quick-actions/modals/GitHubAddCommentModal';
+import { GitHubCreateIssueModal } from 'components/quick-actions/modals/GitHubCreateIssueModal';
+import { GitHubSearchIssuesModal } from 'components/quick-actions/modals/GitHubSearchIssuesModal';
+import { GitHubUpdateStatusModal } from 'components/quick-actions/modals/GitHubUpdateStatusModal';
+import { QuickActionsButton } from 'components/quick-actions/QuickActionsButton';
+import { QuickActionsMenu, SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 import {
-  ACTION_TYPE_GITHUB_CREATE_ISSUE,
-  ACTION_TYPE_GITHUB_UPDATE_STATUS,
-  ACTION_TYPE_GITHUB_ADD_COMMENT,
-  ACTION_TYPE_GITHUB_SEARCH_ISSUES,
   ACTION_TYPE_CALENDAR_CREATE_INVITE,
   ACTION_TYPE_CALENDAR_FIND_EVENTS,
+  ACTION_TYPE_GITHUB_ADD_COMMENT,
+  ACTION_TYPE_GITHUB_CREATE_ISSUE,
+  ACTION_TYPE_GITHUB_SEARCH_ISSUES,
+  ACTION_TYPE_GITHUB_UPDATE_STATUS,
 } from 'constants/strings';
 
 interface Email {

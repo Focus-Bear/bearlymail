@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+
 import { IssueResultItem } from 'components/quick-actions/modals/github/IssueResultItem';
 
 interface IssueResult {

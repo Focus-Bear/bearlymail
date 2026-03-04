@@ -1,7 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { GITHUB_STATE_OPEN, GITHUB_STATE_CLOSED } from 'constants/strings';
+
+import { GITHUB_STATE_CLOSED,GITHUB_STATE_OPEN } from 'constants/strings';
 
 interface StatusSelectorProps {
   state: typeof GITHUB_STATE_OPEN | typeof GITHUB_STATE_CLOSED;

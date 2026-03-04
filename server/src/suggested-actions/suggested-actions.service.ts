@@ -1,17 +1,18 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, Not, IsNull } from "typeorm";
-import { UsersService } from "../users/users.service";
-import { EmailsService } from "../emails/emails.service";
-import { LLMService } from "../llm/llm.service";
-import { GitHubService } from "../github/github.service";
-import { GitHubApiService } from "../github/github-api.service";
+import { IsNull, Not, Repository } from "typeorm";
+
+import { ActionItemsService } from "../action-items/action-items.service";
 import { CalendarService } from "../calendar/calendar.service";
 import { ActionItem } from "../database/entities/action-item.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
-import { ActionItemsService } from "../action-items/action-items.service";
+import { EmailsService } from "../emails/emails.service";
+import { GitHubService } from "../github/github.service";
+import { GitHubApiService } from "../github/github-api.service";
 import { GitHubRepoMappingService } from "../github/github-repo-mapping.service";
+import { LLMService } from "../llm/llm.service";
+import { UsersService } from "../users/users.service";
 
 type GitHubLinkInfo = {
   type: string;

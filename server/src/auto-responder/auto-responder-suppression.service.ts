@@ -1,7 +1,8 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, MoreThan } from "typeorm";
 import * as crypto from "crypto";
+import { MoreThan, Repository } from "typeorm";
+
 import { AutoResponseSuppression } from "../database/entities/auto-response-suppression.entity";
 import { SuppressionReason } from "./types/auto-responder.types";
 

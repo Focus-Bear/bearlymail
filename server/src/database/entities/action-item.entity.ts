@@ -1,19 +1,20 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
-  ManyToOne,
-  JoinColumn,
   CreateDateColumn,
-  UpdateDateColumn,
+  Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from "typeorm";
-import { User } from "./user.entity";
-import { Email } from "./email.entity";
+
 import {
   encryptedColumnTransformer,
   encryptedJsonTransformer,
 } from "../../encryption/encryption.helper";
+import { Email } from "./email.entity";
+import { User } from "./user.entity";
 
 @Entity("action_items")
 // For querying active tasks

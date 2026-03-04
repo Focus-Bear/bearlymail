@@ -1,24 +1,25 @@
 import {
-  Controller,
-  Post,
-  Get,
   Body,
-  UseGuards,
-  Request,
+  Controller,
+  Get,
   Param,
+  Post,
+  Request,
+  UseGuards,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import {
-  TriageSuggestionsService,
-  TriageSuggestion,
-} from "./triage-suggestions.service";
+
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { EmailThread } from "../database/entities/email-thread.entity";
+import { EmailsService } from "../emails/emails.service";
+import { EncryptionHelper } from "../encryption/encryption.helper";
 import { PriorityService } from "./priority.service";
 import { PriorityLearningService } from "./priority-learning.service";
-import { JwtAuthGuard } from "../auth/jwt-auth.guard";
-import { EmailsService } from "../emails/emails.service";
-import { EmailThread } from "../database/entities/email-thread.entity";
-import { EncryptionHelper } from "../encryption/encryption.helper";
+import {
+  TriageSuggestion,
+  TriageSuggestionsService,
+} from "./triage-suggestions.service";
 
 @Controller("priority")
 @UseGuards(JwtAuthGuard)

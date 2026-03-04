@@ -1,29 +1,30 @@
-import { Injectable, OnModuleInit, Logger, Inject } from "@nestjs/common";
+import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { InjectRepository } from "@nestjs/typeorm";
+import { randomUUID } from "crypto";
 import * as os from "os";
 import PgBoss from "pg-boss";
-import { LLMService } from "../llm/llm.service";
-import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { ContextAnalysis } from "../database/entities/context-analysis.entity";
-import { writeAnalysisLog } from "./context-analysis-logger";
-import { getErrorMessage } from "../types/common";
-import { ContextGmailDataService } from "./context-gmail-data.service";
-import { cleanEmailContent } from "../llm/email-content-cleaner";
+
+import { CloudWatchService } from "../aws/cloudwatch.service";
 import { GMAIL_LABELS } from "../constants/email-labels";
-import { UsersService } from "../users/users.service";
+import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
+import { PERCENTAGES } from "../constants/percentages";
 import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
 import {
   MILLISECONDS,
-  MS_PER_SECOND,
   MINUTES_PER_HOUR,
+  MS_PER_SECOND,
 } from "../constants/time-constants";
-import { BODY_PREVIEW_LENGTHS } from "../constants/llm-constants";
-import { logError, logWarn } from "../utils/logger";
-import { randomUUID } from "crypto";
+import { ContextAnalysis } from "../database/entities/context-analysis.entity";
+import { cleanEmailContent } from "../llm/email-content-cleaner";
+import { LLMService } from "../llm/llm.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
-import { PERCENTAGES } from "../constants/percentages";
-import { CloudWatchService } from "../aws/cloudwatch.service";
+import { getErrorMessage } from "../types/common";
+import { UsersService } from "../users/users.service";
+import { logError, logWarn } from "../utils/logger";
+import { writeAnalysisLog } from "./context-analysis-logger";
+import { ContextGmailDataService } from "./context-gmail-data.service";
 
 interface BatchAnalysisJob {
   userId: string;
@@ -96,10 +97,7 @@ export function classifyBatchError(error: unknown): string {
     return "token_limit";
   if (message.includes("parse") || message.includes("JSON"))
     return "parse_error";
-  if (
-    message.includes("ECONNREFUSED") ||
-    message.includes("ENOTFOUND")
-  )
+  if (message.includes("ECONNREFUSED") || message.includes("ENOTFOUND"))
     return "network_error";
   return "unknown";
 }

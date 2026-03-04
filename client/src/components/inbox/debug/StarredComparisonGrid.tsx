@@ -1,8 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { EMOJI_EMAIL, EMOJI_DATABASE } from 'constants/emojis';
+
 import { COLOR_INFO_BLUE_LIGHT, COLOR_NAMED_RED } from 'constants/colors';
+import { EMOJI_DATABASE,EMOJI_EMAIL } from 'constants/emojis';
 
 interface StarredComparisonGridProps {
   gmail: {

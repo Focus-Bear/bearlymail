@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
-import { EMOJI_OCTOPUS, EMOJI_LINK } from 'constants/emojis';
+
 import { API_URL } from 'config/api';
+import { EMOJI_LINK,EMOJI_OCTOPUS } from 'constants/emojis';
 
 const CONNECTING_OPACITY = 0.8;
 

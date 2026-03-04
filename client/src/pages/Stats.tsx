@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { STATS_PERIOD_14_DAYS, DAYS_IN_MONTH_30, MONTHS_IN_YEAR, CHART_BAR_MAX_WIDTH, CHART_BAR_HEIGHT_OFFSET, DAYS_IN_MONTH_MAX, CALENDAR_DAYS_AHEAD, MINUTES_PER_HOUR, HOURS_PER_DAY } from 'constants/numbers';
-import { useAuth } from 'contexts/AuthContext';
+
 import { Sidebar } from 'components/inbox/Sidebar';
-import { useEmailStats, CategoryStats } from 'hooks/useEmailStats';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { EMOJI_MENU } from 'constants/emojis';
+import { CALENDAR_DAYS_AHEAD, CHART_BAR_HEIGHT_OFFSET, CHART_BAR_MAX_WIDTH, DAYS_IN_MONTH_30, DAYS_IN_MONTH_MAX, HOURS_PER_DAY,MINUTES_PER_HOUR, MONTHS_IN_YEAR, STATS_PERIOD_14_DAYS } from 'constants/numbers';
+import { STRING_NONE, STRING_UPPERCASE } from 'constants/strings';
+import { useAuth } from 'contexts/AuthContext';
+import { CategoryStats,useEmailStats } from 'hooks/useEmailStats';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import { useSidebarState } from 'hooks/useSidebarState';
-import { EMOJI_MENU } from 'constants/emojis';
-import { COLOR_NAMED_WHITE } from 'constants/colors';
-import { STRING_NONE, STRING_UPPERCASE } from 'constants/strings';
 
 const PERIOD_OPTIONS = [7, STATS_PERIOD_14_DAYS, DAYS_IN_MONTH_30, MINUTES_PER_HOUR, CALENDAR_DAYS_AHEAD] as const;
 

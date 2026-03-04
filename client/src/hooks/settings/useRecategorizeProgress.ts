@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef,useState } from 'react';
 import axios from 'axios';
-import { POLLING_INTERVAL_MS } from 'constants/numbers';
+
 import { API_URL } from 'config/api';
+import { POLLING_INTERVAL_MS } from 'constants/numbers';
 
 const STORAGE_KEY = 'recategorize_progress';
 

@@ -1,20 +1,21 @@
-import { Module, forwardRef } from "@nestjs/common";
+import { forwardRef, Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { PriorityController } from "./priority.controller";
-import { PriorityService } from "./priority.service";
-import { PriorityLearningService } from "./priority-learning.service";
-import { PriorityLearningProcessor } from "./priority-learning.processor";
-import { TriageSuggestionsService } from "./triage-suggestions.service";
-import { PriorityCacheService } from "./priority-cache.service";
-import { UserContext } from "../database/entities/user-context.entity";
+
+import { AwsModule } from "../aws/aws.module";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { PriorityOverride } from "../database/entities/priority-override.entity";
-import { LLMModule } from "../llm/llm.module";
-import { UsersModule } from "../users/users.module";
-import { QueueModule } from "../queue/queue.module";
+import { UserContext } from "../database/entities/user-context.entity";
 import { EmailsModule } from "../emails/emails.module";
-import { AwsModule } from "../aws/aws.module";
+import { LLMModule } from "../llm/llm.module";
+import { QueueModule } from "../queue/queue.module";
+import { UsersModule } from "../users/users.module";
+import { PriorityController } from "./priority.controller";
+import { PriorityService } from "./priority.service";
+import { PriorityCacheService } from "./priority-cache.service";
+import { PriorityLearningProcessor } from "./priority-learning.processor";
+import { PriorityLearningService } from "./priority-learning.service";
+import { TriageSuggestionsService } from "./triage-suggestions.service";
 
 @Module({
   imports: [

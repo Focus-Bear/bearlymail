@@ -1,15 +1,16 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Delete,
   Body,
+  Controller,
+  Delete,
+  Get,
   Param,
-  UseGuards,
+  Post,
   Request,
+  UseGuards,
 } from "@nestjs/common";
-import { BlockedSendersService } from "./blocked-senders.service";
+
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { BlockedSendersService } from "./blocked-senders.service";
 
 @Controller("blocked-senders")
 @UseGuards(JwtAuthGuard)

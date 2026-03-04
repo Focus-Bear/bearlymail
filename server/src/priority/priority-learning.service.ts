@@ -1,16 +1,17 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { PRIORITY_LEARNING_CONSTANTS } from "../constants/priority-learning-constants";
-import { QUERY_LIMITS } from "../constants/query-limits";
-import { STAR_COUNTS } from "../constants/priority-constants";
-import { LEARNING_THRESHOLDS } from "../constants/service-constants";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
+
+import { STAR_COUNTS } from "../constants/priority-constants";
+import { PRIORITY_LEARNING_CONSTANTS } from "../constants/priority-learning-constants";
+import { QUERY_LIMITS } from "../constants/query-limits";
+import { LEARNING_THRESHOLDS } from "../constants/service-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import {
-  UserContext,
   ContextKey,
   Source,
+  UserContext,
 } from "../database/entities/user-context.entity";
 import { LLMService } from "../llm/llm.service";
 import { UsersService } from "../users/users.service";

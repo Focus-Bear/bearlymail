@@ -1,8 +1,9 @@
-import { google, calendar_v3 } from "googleapis";
-import { LLMProvider } from "../llm/llm.types";
-import { EncryptionHelper } from "../encryption/encryption.helper";
-import { logError } from "../utils/logger";
+import { calendar_v3, google } from "googleapis";
+
 import { MILLISECONDS } from "../constants/time-constants";
+import { EncryptionHelper } from "../encryption/encryption.helper";
+import { LLMProvider } from "../llm/llm.types";
+import { logError } from "../utils/logger";
 import type { CalendarService } from "./calendar.service";
 
 const ICAL_DATE_MIN_LENGTH = 8;

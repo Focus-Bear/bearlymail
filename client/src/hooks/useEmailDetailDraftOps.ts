@@ -1,8 +1,10 @@
 import { useCallback, useRef } from 'react';
 import axios from 'axios';
 import { captureEvent } from 'utils/posthog';
-import { REPLY_MODE_REPLY_ALL } from 'constants/strings';
+
 import { API_URL } from 'config/api';
+import { REPLY_MODE_REPLY_ALL } from 'constants/strings';
+
 import { EmailDetailState } from './useEmailDetailOperations.types';
 import { useEmailDraftCrud } from './useEmailDraftCrud';
 

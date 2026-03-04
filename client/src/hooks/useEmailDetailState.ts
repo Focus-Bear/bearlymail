@@ -1,4 +1,5 @@
 import { useState } from 'react';
+
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 
 interface EmailDetailEmail {

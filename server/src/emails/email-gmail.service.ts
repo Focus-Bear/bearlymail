@@ -1,13 +1,14 @@
-import { Injectable, Inject, forwardRef, Logger } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
 import { google } from "googleapis";
+import { Repository } from "typeorm";
+
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
-import { EmailProviderManager } from "./email-provider-manager.service";
-import { UsersService } from "../users/users.service";
 import { EncryptionHelper } from "../encryption/encryption.helper";
 import { isError } from "../types/common";
+import { UsersService } from "../users/users.service";
+import { EmailProviderManager } from "./email-provider-manager.service";
 
 @Injectable()
 export class EmailGmailService {

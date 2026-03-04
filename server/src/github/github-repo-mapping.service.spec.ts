@@ -1,7 +1,8 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { GitHubRepoMappingService } from "./github-repo-mapping.service";
+
 import { GitHubRepoMapping } from "../database/entities/github-repo-mapping.entity";
+import { GitHubRepoMappingService } from "./github-repo-mapping.service";
 
 describe("GitHubRepoMappingService", () => {
   let service: GitHubRepoMappingService;

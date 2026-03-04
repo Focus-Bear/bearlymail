@@ -1,30 +1,31 @@
 import {
-  Injectable,
-  OnModuleInit,
-  Logger,
-  Inject,
   forwardRef,
+  Inject,
+  Injectable,
+  Logger,
+  OnModuleInit,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
 import PgBoss from "pg-boss";
+import { Repository } from "typeorm";
+
+import { THREAD_LIMITS } from "../constants/llm-constants";
+import { HTTP_STATUS } from "../constants/service-constants";
 import { MS_PER_SECOND } from "../constants/time-constants";
+import { ContextService } from "../context/context.service";
+import { Email } from "../database/entities/email.entity";
 import {
   FollowUp,
   FollowUpStatus,
 } from "../database/entities/follow-up.entity";
-import { Email } from "../database/entities/email.entity";
-import { FollowUpsService } from "./follow-ups.service";
-import { LLMService } from "../llm/llm.service";
-import { ContextService } from "../context/context.service";
 import { ContextKey } from "../database/entities/user-context.entity";
-import { UsersService } from "../users/users.service";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
+import { EncryptionHelper } from "../encryption/encryption.helper";
+import { LLMService } from "../llm/llm.service";
+import { UsersService } from "../users/users.service";
 import { calculateBusinessDays } from "../utils/business-days.util";
 import { analyzeThreadStyle } from "../utils/thread-style-extractor";
-import { EncryptionHelper } from "../encryption/encryption.helper";
-import { THREAD_LIMITS } from "../constants/llm-constants";
-import { HTTP_STATUS } from "../constants/service-constants";
+import { FollowUpsService } from "./follow-ups.service";
 
 @Injectable()
 export class FollowUpsProcessor implements OnModuleInit {

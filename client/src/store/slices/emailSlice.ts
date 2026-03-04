@@ -1,5 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { Email, getEmailPriorityScore } from 'types/email';
+
 import { ANIMATION_TYPE_ARCHIVE, ANIMATION_TYPE_PRIORITY, CATEGORY_OTHER, TYPEOF_STRING } from 'constants/strings';
 
 // Threshold for considering priority scores "equal" (matches backend RATIOS.TINY)

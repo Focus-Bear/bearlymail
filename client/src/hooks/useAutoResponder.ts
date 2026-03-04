@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback,useEffect, useState } from 'react';
 import axios from 'axios';
+
+import { AutoResponderAnalytics, AutoResponderConfig, DEFAULT_AUTO_RESPONDER_CONFIG,QueueStats } from 'components/settings/auto-responder/types';
 import { API_URL } from 'config/api';
-import { AutoResponderConfig, QueueStats, AutoResponderAnalytics, DEFAULT_AUTO_RESPONDER_CONFIG } from 'components/settings/auto-responder/types';
 
 interface UseAutoResponderReturn {
   config: AutoResponderConfig;

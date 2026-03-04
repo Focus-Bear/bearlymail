@@ -1,8 +1,9 @@
 import React from 'react';
 import { theme } from 'theme/theme';
-import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+
 import { ComparisonTableHeader } from 'components/landing/ComparisonTableHeader';
 import { ComparisonTableRow } from 'components/landing/ComparisonTableRow';
+import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 interface ComparisonRow {
   label: string;

@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { MAX_DESCRIPTION_LENGTH } from 'constants/numbers';
+
+import { ErrorDisplay } from 'components/modal/ErrorDisplay';
 import { ModalBackdrop } from 'components/modal/ModalBackdrop';
 import { ModalContent } from 'components/modal/ModalContent';
-import { ModalHeaderWithClose } from 'components/modal/ModalHeaderWithClose';
-import { ErrorDisplay } from 'components/modal/ErrorDisplay';
 import { ModalFormActions } from 'components/modal/ModalFormActions';
-import { IssueInfoDisplay } from 'components/quick-actions/modals/github/IssueInfoDisplay';
+import { ModalHeaderWithClose } from 'components/modal/ModalHeaderWithClose';
 import { CommentTextarea } from 'components/quick-actions/modals/github/CommentTextarea';
-
+import { IssueInfoDisplay } from 'components/quick-actions/modals/github/IssueInfoDisplay';
 import { API_URL } from 'config/api';
+import { MAX_DESCRIPTION_LENGTH } from 'constants/numbers';
 
 interface GitHubAddCommentModalProps {
   issueInfo: {

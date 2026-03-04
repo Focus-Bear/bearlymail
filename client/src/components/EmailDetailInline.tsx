@@ -1,15 +1,16 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback,useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { useNotifications } from 'contexts/NotificationContext';
-import { ReplyComposer, LoadingSpinner, EmailNotFound, EmailDetailContent } from 'components/email-detail-inline';
+import axios from 'axios';
+import { captureEvent } from 'utils/posthog';
+
 import { TimePicker } from 'components/compose/TimePicker';
+import { EmailDetailContent,EmailNotFound, LoadingSpinner, ReplyComposer } from 'components/email-detail-inline';
+import { API_URL } from 'config/api';
+import { ACTION_TYPE_CUSTOM } from 'constants/strings';
+import { useNotifications } from 'contexts/NotificationContext';
 import { useEmailDetailInline } from 'hooks/useEmailDetailInline';
 import { useScheduledEmails } from 'hooks/useScheduledEmails';
-import { ACTION_TYPE_CUSTOM } from 'constants/strings';
-import { API_URL } from 'config/api';
-import { captureEvent } from 'utils/posthog';
 
 // Immediate log when module loads
 

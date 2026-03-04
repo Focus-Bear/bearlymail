@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { theme } from 'theme/theme';
+
 import { WaitlistForm } from 'components/landing/WaitlistForm';
 import {
-  ERROR_TYPE_PENDING_APPROVAL,
-  ERROR_TYPE_NOT_ON_WAITLIST,
   ERROR_TYPE_AUTH_ERROR,
-  STRING_WAITLIST,
-  STRING_TYPE,
+  ERROR_TYPE_NOT_ON_WAITLIST,
+  ERROR_TYPE_PENDING_APPROVAL,
   STRING_MESSAGE,
-  STRING_TRANSPARENT,
-  STRING_WHITE,
   STRING_NONE,
+  STRING_TRANSPARENT,
+  STRING_TYPE,
+  STRING_WAITLIST,
+  STRING_WHITE,
 } from 'constants/strings';
 
 type ErrorType = typeof ERROR_TYPE_PENDING_APPROVAL | typeof ERROR_TYPE_NOT_ON_WAITLIST | typeof ERROR_TYPE_AUTH_ERROR;

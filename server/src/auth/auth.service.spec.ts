@@ -1,12 +1,13 @@
-import { Test, TestingModule } from "@nestjs/testing";
-import { JwtService } from "@nestjs/jwt";
 import { UnauthorizedException } from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import { Test, TestingModule } from "@nestjs/testing";
 import * as bcrypt from "bcrypt";
 import PgBoss from "pg-boss";
-import { AuthService } from "./auth.service";
+
+import { User } from "../database/entities/user.entity";
 import { UsersService } from "../users/users.service";
 import { WaitlistService } from "../waitlist/waitlist.service";
-import { User } from "../database/entities/user.entity";
+import { AuthService } from "./auth.service";
 
 jest.mock("bcrypt");
 jest.mock("./auth-logger", () => ({

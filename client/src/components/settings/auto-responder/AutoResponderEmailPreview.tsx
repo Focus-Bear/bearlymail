@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback,useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { SUBJECT_PREVIEW_LENGTH } from 'constants/numbers';
+
 import { API_URL } from 'config/api';
 import { COLOR_TRANSPARENT } from 'constants/colors';
+import { SUBJECT_PREVIEW_LENGTH } from 'constants/numbers';
 import { PRIORITY_LEVEL_HIGH, PRIORITY_LEVEL_LOW, STRING_NONE } from 'constants/strings';
 
 interface RecentEmail {

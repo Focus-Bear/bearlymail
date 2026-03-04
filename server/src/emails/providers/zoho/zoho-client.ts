@@ -1,7 +1,8 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { ZohoAccountsService } from "../../../zoho-accounts/zoho-accounts.service";
 import axios, { AxiosInstance } from "axios";
+
+import { ZohoAccountsService } from "../../../zoho-accounts/zoho-accounts.service";
 
 @Injectable()
 export class ZohoClient {

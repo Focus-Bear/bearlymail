@@ -1,10 +1,11 @@
-import { PassportStrategy } from "@nestjs/passport";
-import { Strategy } from "passport-google-oauth20";
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { PassportStrategy } from "@nestjs/passport";
+import { Strategy } from "passport-google-oauth20";
+
+import { User } from "../database/entities/user.entity";
 import { AuthService } from "./auth.service";
 import { writeDebugLog } from "./auth-logger";
-import { User } from "../database/entities/user.entity";
 
 /**
  * Google OAuth profile from passport-google-oauth20

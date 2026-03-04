@@ -1,9 +1,10 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { ADMIN_TAB_WAITLIST, ADMIN_TAB_SUBSCRIPTIONS, ADMIN_TAB_JOBS, ADMIN_TAB_TOKEN_USAGE, ADMIN_TAB_QUEUE_DASHBOARD, ADMIN_TAB_GITHUB_DEBUG, ADMIN_TAB_CONTEXT_ANALYSIS, AdminTab } from 'constants/adminTabs';
-import { STRING_NONE, FONT_WEIGHT_NORMAL } from 'constants/strings';
+
+import { ADMIN_TAB_CONTEXT_ANALYSIS, ADMIN_TAB_GITHUB_DEBUG, ADMIN_TAB_JOBS, ADMIN_TAB_QUEUE_DASHBOARD, ADMIN_TAB_SUBSCRIPTIONS, ADMIN_TAB_TOKEN_USAGE, ADMIN_TAB_WAITLIST, AdminTab } from 'constants/adminTabs';
 import { MARGIN_BOTTOM_NEG_2PX } from 'constants/numbers';
+import { FONT_WEIGHT_NORMAL,STRING_NONE } from 'constants/strings';
 
 interface AdminTabsProps {
   activeTab: AdminTab;

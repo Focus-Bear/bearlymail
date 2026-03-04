@@ -8,12 +8,13 @@
  *   npm run ts-node -r tsconfig-paths/register src/scripts/bulk-recalculate-priority.ts user-123 --limit 100
  */
 
-import { DataSource } from "typeorm";
 import { config } from "dotenv";
 import * as path from "path";
 import PgBoss from "pg-boss";
-import { EmailThread } from "../database/entities/email-thread.entity";
+import { DataSource } from "typeorm";
+
 import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
 import { getJobPriority } from "../queue/job-priorities";
 
 config({ path: path.join(__dirname, "../../.env") });

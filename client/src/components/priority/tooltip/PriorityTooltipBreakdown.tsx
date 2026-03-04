@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+
 import { PriorityTooltipBreakdownTotal } from 'components/priority/tooltip/PriorityTooltipBreakdownTotal';
 
 interface PriorityTooltipBreakdownProps {

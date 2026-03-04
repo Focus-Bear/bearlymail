@@ -1,8 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { INPUT_WIDTH_PX } from 'constants/numbers';
+
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
+import { INPUT_WIDTH_PX } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
 
 interface SummarizationRuleEditFormProps {

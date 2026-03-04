@@ -1,18 +1,19 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
+
+import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
+import { DISPLAY_CONSTANTS } from "../constants/service-constants";
 import {
-  UserContext,
   ContextKey,
   Source,
+  UserContext,
 } from "../database/entities/user-context.entity";
-import { LLMService } from "../llm/llm.service";
-import { ContextPiiRedactionService } from "./context-pii-redaction.service";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
-import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
-import { SentEmailData } from "./context-gmail-data.service";
+import { LLMService } from "../llm/llm.service";
 import { writeAnalysisLog } from "./context-analysis-logger";
-import { DISPLAY_CONSTANTS } from "../constants/service-constants";
+import { SentEmailData } from "./context-gmail-data.service";
+import { ContextPiiRedactionService } from "./context-pii-redaction.service";
 
 /**
  * Service for extracting Q&A pairs from user's sent emails.

@@ -1,5 +1,6 @@
 import React from 'react';
 import { theme } from 'theme/theme';
+
 import { COLOR_BG_ERROR_ALT, COLOR_NAMED_RED } from 'constants/colors';
 
 interface MissingItem {

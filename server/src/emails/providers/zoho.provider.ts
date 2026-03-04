@@ -1,36 +1,27 @@
-import { Injectable, Inject, forwardRef, Logger } from "@nestjs/common";
-import { UsersService } from "../../users/users.service";
-import { EmailsService } from "../emails.service";
-import { ScanEmailService } from "../scan-email.service";
-import {
-  EmailProvider,
-  RawEmailMessage,
-  EmailRecipient,
-  EmailAttachmentData,
-  SendReplyOptions,
-} from "../interfaces/email-provider.interface";
+import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { AxiosInstance } from "axios";
 import PgBoss from "pg-boss";
-import { getJobPriority } from "../../queue/job-priorities";
-import { QUERY_LIMITS } from "../../constants/query-limits";
-import { BODY_PREVIEW_LENGTHS } from "../../constants/llm-constants";
-import { DAYS, MS_PER_SECOND } from "../../constants/time-constants";
+
 import { HTTP_STATUS } from "../../constants/http-status";
-import { isApiError, isError } from "../../types/common";
+import { BODY_PREVIEW_LENGTHS } from "../../constants/llm-constants";
+import { QUERY_LIMITS } from "../../constants/query-limits";
+import { DAYS, MS_PER_SECOND } from "../../constants/time-constants";
 import { User } from "../../database/entities/user.entity";
 import { ZohoAccount } from "../../database/entities/zoho-account.entity";
-import { AxiosInstance } from "axios";
+import { getJobPriority } from "../../queue/job-priorities";
+import { isApiError, isError } from "../../types/common";
+import { UsersService } from "../../users/users.service";
 import { ZohoAccountsService } from "../../zoho-accounts/zoho-accounts.service";
-import { ConfigService } from "@nestjs/config";
-import { parseZohoMessage, ZohoMailMessage } from "./zoho/zoho-message-parser";
-import { ZohoClient } from "./zoho/zoho-client";
+import { EmailsService } from "../emails.service";
 import {
-  isWithinGracePeriod,
-  logZohoAuthFailure as logAuthFailure,
-} from "./zoho/zoho-auth";
-import {
-  verifyThreadStatusesInZoho,
-  getExistingThreadUpdates,
-} from "./zoho/zoho-sync";
+  EmailAttachmentData,
+  EmailProvider,
+  EmailRecipient,
+  RawEmailMessage,
+  SendReplyOptions,
+} from "../interfaces/email-provider.interface";
+import { ScanEmailService } from "../scan-email.service";
 import {
   archiveThread,
   searchEmails,
@@ -39,7 +30,17 @@ import {
   trashThread,
   unarchiveThread,
 } from "./zoho/zoho-actions.service";
+import {
+  isWithinGracePeriod,
+  logZohoAuthFailure as logAuthFailure,
+} from "./zoho/zoho-auth";
+import { ZohoClient } from "./zoho/zoho-client";
+import { parseZohoMessage, ZohoMailMessage } from "./zoho/zoho-message-parser";
 import { isAuthError } from "./zoho/zoho-operations";
+import {
+  getExistingThreadUpdates,
+  verifyThreadStatusesInZoho,
+} from "./zoho/zoho-sync";
 
 @Injectable()
 export class ZohoProvider implements EmailProvider {

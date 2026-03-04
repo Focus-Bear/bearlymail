@@ -3,8 +3,8 @@
  * Run with: npx ts-node -r tsconfig-paths/register src/scripts/reset-stuck-jobs.ts
  */
 
-import { Client } from "pg";
 import * as dotenv from "dotenv";
+import { Client } from "pg";
 
 dotenv.config();
 

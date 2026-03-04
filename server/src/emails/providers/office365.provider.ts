@@ -1,39 +1,27 @@
-import { Injectable, Inject, forwardRef, Logger } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { AxiosInstance } from "axios";
+import PgBoss from "pg-boss";
+
+import { HTTP_STATUS } from "../../constants/http-status";
+import { BODY_PREVIEW_LENGTHS } from "../../constants/llm-constants";
+import { QUERY_LIMITS } from "../../constants/query-limits";
+import { DAYS } from "../../constants/time-constants";
+import { Office365Account } from "../../database/entities/office365-account.entity";
+import { User } from "../../database/entities/user.entity";
+import { Office365AccountsService } from "../../office365-accounts/office365-accounts.service";
+import { getJobPriority } from "../../queue/job-priorities";
+import { isApiError, isError } from "../../types/common";
 import { UsersService } from "../../users/users.service";
 import { EmailsService } from "../emails.service";
-import { ScanEmailService } from "../scan-email.service";
 import {
-  EmailProvider,
-  RawEmailMessage,
-  EmailRecipient,
   EmailAttachmentData,
+  EmailProvider,
+  EmailRecipient,
+  RawEmailMessage,
   SendReplyOptions,
 } from "../interfaces/email-provider.interface";
-import PgBoss from "pg-boss";
-import { getJobPriority } from "../../queue/job-priorities";
-import { QUERY_LIMITS } from "../../constants/query-limits";
-import { BODY_PREVIEW_LENGTHS } from "../../constants/llm-constants";
-import { DAYS } from "../../constants/time-constants";
-import { HTTP_STATUS } from "../../constants/http-status";
-import { isApiError, isError } from "../../types/common";
-import { User } from "../../database/entities/user.entity";
-import { Office365Account } from "../../database/entities/office365-account.entity";
-import { AxiosInstance } from "axios";
-import { Office365AccountsService } from "../../office365-accounts/office365-accounts.service";
-import { ConfigService } from "@nestjs/config";
-import {
-  parseOffice365Message,
-  MicrosoftGraphMessage,
-} from "./office365/office365-message-parser";
-import { Office365Client } from "./office365/office365-client";
-import {
-  isWithinGracePeriod,
-  logOffice365AuthFailure as logAuthFailure,
-} from "./office365/office365-auth";
-import {
-  verifyThreadStatusesInOffice365,
-  getExistingThreadUpdates,
-} from "./office365/office365-sync";
+import { ScanEmailService } from "../scan-email.service";
 import {
   archiveThread,
   searchEmails,
@@ -42,7 +30,20 @@ import {
   trashThread,
   unarchiveThread,
 } from "./office365/office365-actions.service";
+import {
+  isWithinGracePeriod,
+  logOffice365AuthFailure as logAuthFailure,
+} from "./office365/office365-auth";
+import { Office365Client } from "./office365/office365-client";
+import {
+  MicrosoftGraphMessage,
+  parseOffice365Message,
+} from "./office365/office365-message-parser";
 import { isAuthError } from "./office365/office365-operations";
+import {
+  getExistingThreadUpdates,
+  verifyThreadStatusesInOffice365,
+} from "./office365/office365-sync";
 
 @Injectable()
 export class Office365Provider implements EmailProvider {

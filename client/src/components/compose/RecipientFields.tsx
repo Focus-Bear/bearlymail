@@ -1,10 +1,11 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { FONT_SIZE_XS_PX, FONT_SIZE_MD_PX, DEFAULT_AVATAR_SIZE_PX, AVATAR_SIZE_SMALL_PX } from 'constants/numbers';
-import { EMAIL_FIELD_BCC, EMAIL_FIELD_CC, EMAIL_FIELD_TO, KEY_COMMA, KEY_ENTER, STRING_NONE } from 'constants/strings';
 import { Contact } from 'types/contact';
+
 import { COLOR_TRANSPARENT } from 'constants/colors';
+import { AVATAR_SIZE_SMALL_PX,DEFAULT_AVATAR_SIZE_PX, FONT_SIZE_MD_PX, FONT_SIZE_XS_PX } from 'constants/numbers';
+import { EMAIL_FIELD_BCC, EMAIL_FIELD_CC, EMAIL_FIELD_TO, KEY_COMMA, KEY_ENTER, STRING_NONE } from 'constants/strings';
 
 
 const isValidEmail = (email: string): boolean => {

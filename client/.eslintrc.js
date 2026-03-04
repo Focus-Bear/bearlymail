@@ -1,7 +1,30 @@
 module.exports = {
   extends: ['react-app', 'react-app/jest'],
-  plugins: ['i18next'],
+  plugins: ['i18next', 'simple-import-sort'],
   rules: {
+    // ===========================================
+    // IMPORT ORDERING
+    // ===========================================
+    // Auto-sortable alphabetical import groups (run: npm run lint:fix)
+    'simple-import-sort/imports': [
+      'error',
+      {
+        groups: [
+          // Side-effect imports
+          ['^\\u0000'],
+          // External packages: react first, then @-scoped, then others
+          ['^react', '^@?\\w'],
+          // Internal path-alias imports (src/ root folders used as aliases)
+          [
+            '^(components|config|constants|contexts|hooks|pages|store|stories|locales)(/.*|$)',
+          ],
+          // Relative imports
+          ['^\\.'],
+        ],
+      },
+    ],
+    'simple-import-sort/exports': 'error',
+
     // ===========================================
     // FILE SIZE LIMITS
     // ===========================================

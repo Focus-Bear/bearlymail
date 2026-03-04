@@ -1,12 +1,14 @@
 import React from 'react';
 import { theme } from 'theme/theme';
+
 import { OPACITY_DISABLED_ALT } from 'constants/numbers';
-import { AutoResponderHeader } from './AutoResponderHeader';
-import { AutoResponderToggle } from './AutoResponderToggle';
+
+import { AutoResponderEmailPreview } from './AutoResponderEmailPreview';
 import { AutoResponderExclusionSettings } from './AutoResponderExclusionSettings';
+import { AutoResponderHeader } from './AutoResponderHeader';
 import { AutoResponderQASettings } from './AutoResponderQASettings';
 import { AutoResponderTemplateEditor } from './AutoResponderTemplateEditor';
-import { AutoResponderEmailPreview } from './AutoResponderEmailPreview';
+import { AutoResponderToggle } from './AutoResponderToggle';
 import { AutoResponderConfig, QueueStats } from './types';
 
 interface AutoResponderSectionProps {

@@ -1,4 +1,12 @@
 import {
+  EmailAttachmentData,
+  EmailRecipient,
+  RawEmailMessage,
+  SendReplyOptions,
+} from "../../interfaces/email-provider.interface";
+import type { ZohoProvider } from "../zoho.provider";
+import { parseZohoMessage } from "./zoho-message-parser";
+import {
   archiveThreadInZoho,
   isAuthError,
   searchEmailsViaZoho,
@@ -6,14 +14,6 @@ import {
   sendReplyViaZoho,
   unarchiveThreadInZoho,
 } from "./zoho-operations";
-import { parseZohoMessage } from "./zoho-message-parser";
-import {
-  EmailAttachmentData,
-  EmailRecipient,
-  RawEmailMessage,
-  SendReplyOptions,
-} from "../../interfaces/email-provider.interface";
-import type { ZohoProvider } from "../zoho.provider";
 
 export async function sendReply(
   provider: ZohoProvider,

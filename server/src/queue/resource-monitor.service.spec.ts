@@ -1,9 +1,10 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { DataSource } from "typeorm";
-import { ResourceMonitorService } from "./resource-monitor.service";
-import { RESOURCE_MONITOR_CONSTANTS } from "../constants/resource-monitor-constants";
 import * as fs from "fs";
 import * as path from "path";
+import { DataSource } from "typeorm";
+
+import { RESOURCE_MONITOR_CONSTANTS } from "../constants/resource-monitor-constants";
+import { ResourceMonitorService } from "./resource-monitor.service";
 
 // Mock fs, path, and os modules
 jest.mock("fs");

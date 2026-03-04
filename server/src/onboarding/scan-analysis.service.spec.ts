@@ -1,14 +1,15 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { ScanAnalysisService } from "./scan-analysis.service";
-import { ScanEmail } from "../database/entities/scan-email.entity";
-import { ScanEmailService } from "../emails/scan-email.service";
-import { ContextService } from "../context/context.service";
-import { UsersService } from "../users/users.service";
-import { ContextKey, Source } from "../database/entities/user-context.entity";
 import { google } from "googleapis";
+import { Repository } from "typeorm";
+
+import { ContextService } from "../context/context.service";
+import { ScanEmail } from "../database/entities/scan-email.entity";
+import { ContextKey, Source } from "../database/entities/user-context.entity";
+import { ScanEmailService } from "../emails/scan-email.service";
 import { LLMService } from "../llm/llm.service";
+import { UsersService } from "../users/users.service";
+import { ScanAnalysisService } from "./scan-analysis.service";
 
 // Mock googleapis
 jest.mock("googleapis", () => ({

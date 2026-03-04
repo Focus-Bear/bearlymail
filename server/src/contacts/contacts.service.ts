@@ -1,12 +1,13 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
+
 import { Contact } from "../database/entities/contact.entity";
-import { RawContact } from "./interfaces/contact-provider.interface";
-import { SearchIndexHelper } from "./search-index.helper";
-import { GmailContactsProvider } from "./providers/gmail-contacts.provider";
-import { ContactCrmService } from "./contact-crm.service";
 import { logError } from "../utils/logger";
+import { ContactCrmService } from "./contact-crm.service";
+import { RawContact } from "./interfaces/contact-provider.interface";
+import { GmailContactsProvider } from "./providers/gmail-contacts.provider";
+import { SearchIndexHelper } from "./search-index.helper";
 
 export interface ContactSearchResult {
   id: string;

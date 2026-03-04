@@ -1,16 +1,17 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, LessThanOrEqual } from "typeorm";
+import { DateTime } from "luxon";
+import { LessThanOrEqual, Repository } from "typeorm";
+
+import { ContactsService } from "../contacts/contacts.service";
 import {
-  ScheduledEmail,
-  EmailRecipient,
   EmailAttachment,
+  EmailRecipient,
+  ScheduledEmail,
 } from "../database/entities/scheduled-email.entity";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { EmailsService } from "../emails/emails.service";
-import { ContactsService } from "../contacts/contacts.service";
 import { UsersService } from "../users/users.service";
-import { DateTime } from "luxon";
 
 // Time constants for scheduling
 const SUNDAY = 0;

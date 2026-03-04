@@ -1,20 +1,21 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { User } from "../database/entities/user.entity";
+
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
+import { User } from "../database/entities/user.entity";
+import {
+  PREVIEW_DEFAULTS,
+  PRIORITY_THRESHOLDS,
+} from "./auto-responder-constants";
+import { AutoResponderQaService } from "./auto-responder-qa.service";
 import { AutoResponderTemplateService } from "./auto-responder-template.service";
 import { QueueStatsService } from "./queue-stats.service";
-import { AutoResponderQaService } from "./auto-responder-qa.service";
 import {
   AutoResponderConfig,
   AutoResponseTemplateVars,
 } from "./types/auto-responder.types";
-import {
-  PRIORITY_THRESHOLDS,
-  PREVIEW_DEFAULTS,
-} from "./auto-responder-constants";
 
 function getPriorityLevel(templateType: string): "low" | "medium" | "high" {
   if (templateType === "highPriority") {

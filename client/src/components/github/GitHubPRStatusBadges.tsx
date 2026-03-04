@@ -1,7 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { EMOJI_CHECK, EMOJI_WARNING, EMOJI_COMMENT } from 'constants/emojis';
+
+import { EMOJI_CHECK, EMOJI_COMMENT,EMOJI_WARNING } from 'constants/emojis';
 import { GITHUB_REVIEW_STATUS_APPROVED, GITHUB_REVIEW_STATUS_CHANGES_REQUESTED } from 'constants/strings';
 
 interface GitHubPRStatusBadgesProps {

@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useCallback,useEffect, useRef, useState } from 'react';
 import axios from 'axios';
-import { Email } from 'types/email';
 import { ContactTypeConfig } from 'types/contact';
+import { Email } from 'types/email';
+
 import { API_URL } from 'config/api';
 
 export function useContactTypeBadges(emails: Email[], loading: boolean) {

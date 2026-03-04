@@ -1,9 +1,10 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { UsersService } from "./users.service";
+
 import { User } from "../database/entities/user.entity";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import { UsersService } from "./users.service";
 
 jest.mock("../encryption/encryption.helper", () => ({
   EncryptionHelper: {

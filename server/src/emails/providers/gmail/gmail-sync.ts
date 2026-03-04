@@ -1,9 +1,10 @@
 import { Logger } from "@nestjs/common";
 import { gmail_v1 } from "googleapis";
+
+import { HTTP_STATUS } from "../../../constants/http-status";
 import { QUERY_LIMITS } from "../../../constants/query-limits";
 import { isApiError, isError } from "../../../types/common";
 import { logErrorToFile } from "../../../utils/error-logger";
-import { HTTP_STATUS } from "../../../constants/http-status";
 
 const logger = new Logger("GmailSync");
 

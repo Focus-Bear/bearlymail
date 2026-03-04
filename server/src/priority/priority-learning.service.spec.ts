@@ -1,16 +1,17 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { PriorityLearningService } from "./priority-learning.service";
+
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import {
-  UserContext,
   ContextKey,
   Source,
+  UserContext,
 } from "../database/entities/user-context.entity";
 import { LLMService } from "../llm/llm.service";
 import { UsersService } from "../users/users.service";
+import { PriorityLearningService } from "./priority-learning.service";
 
 describe("PriorityLearningService", () => {
   let service: PriorityLearningService;

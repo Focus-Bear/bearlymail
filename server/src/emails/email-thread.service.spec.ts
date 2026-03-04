@@ -1,9 +1,10 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { EmailThreadService } from "./email-thread.service";
-import { EmailThread } from "../database/entities/email-thread.entity";
-import { Email } from "../database/entities/email.entity";
+
 import { QUERY_LIMITS } from "../constants/query-limits";
+import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
+import { EmailThreadService } from "./email-thread.service";
 
 describe("EmailThreadService", () => {
   let service: EmailThreadService;

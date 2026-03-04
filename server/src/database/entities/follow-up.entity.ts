@@ -1,16 +1,17 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
-  ManyToOne,
-  JoinColumn,
   CreateDateColumn,
-  UpdateDateColumn,
+  Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from "typeorm";
-import { User } from "./user.entity";
-import { EmailThread } from "./email-thread.entity";
+
 import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
+import { EmailThread } from "./email-thread.entity";
+import { User } from "./user.entity";
 
 export enum FollowUpStatus {
   // Waiting for the other party to reply

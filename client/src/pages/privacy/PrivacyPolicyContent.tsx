@@ -1,4 +1,5 @@
 import React from 'react';
+
 import { PrivacyPolicyContentPart1 } from 'pages/privacy/PrivacyPolicyContentPart1';
 import { PrivacyPolicyContentPart2 } from 'pages/privacy/PrivacyPolicyContentPart2';
 

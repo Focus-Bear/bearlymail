@@ -1,23 +1,24 @@
 import {
+  Body,
   Controller,
+  Delete,
+  forwardRef,
   Get,
+  Inject,
+  Param,
   Post,
   Put,
-  Delete,
-  Param,
-  Body,
-  UseGuards,
   Request,
-  UseInterceptors,
   UploadedFiles,
-  Inject,
-  forwardRef,
+  UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
-import { RepliesService, ReplyRule } from "./replies.service";
+
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
-import { ScheduledEmailsService } from "../scheduled-emails/scheduled-emails.service";
 import { EmailsService } from "../emails/emails.service";
+import { ScheduledEmailsService } from "../scheduled-emails/scheduled-emails.service";
+import { RepliesService, ReplyRule } from "./replies.service";
 
 @Controller("replies")
 @UseGuards(JwtAuthGuard)

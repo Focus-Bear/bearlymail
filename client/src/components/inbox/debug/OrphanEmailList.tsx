@@ -1,9 +1,10 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { EMOJI_WRENCH, EMOJI_WARNING } from 'constants/emojis';
-import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
+
 import { COLOR_BG_ERROR_ALT, COLOR_NAMED_RED, COLOR_NAMED_WHITE, COLOR_SUCCESS_WEB } from 'constants/colors';
+import { EMOJI_WARNING,EMOJI_WRENCH } from 'constants/emojis';
+import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
 
 interface OrphanEmail {

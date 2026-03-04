@@ -1,18 +1,19 @@
 import {
   Controller,
-  Get,
-  Post,
   Delete,
+  Get,
   Param,
-  UseGuards,
+  Post,
   Req,
   Res,
+  UseGuards,
 } from "@nestjs/common";
 import { Response } from "express";
-import { GoogleAccountsService } from "./google-accounts.service";
-import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+
 import { AuthService } from "../auth/auth.service";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { AuthenticatedRequest } from "../types/common";
+import { GoogleAccountsService } from "./google-accounts.service";
 
 @Controller("google-accounts")
 export class GoogleAccountsController {

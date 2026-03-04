@@ -1,6 +1,7 @@
 import React from 'react';
 import { theme } from 'theme/theme';
 import { GitHubLink } from 'types/email';
+
 import { GitHubLinkCard } from 'components/github/GitHubLinkCard';
 
 interface GitHubLinksListProps {

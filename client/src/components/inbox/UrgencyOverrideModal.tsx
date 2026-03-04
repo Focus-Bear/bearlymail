@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
-import { ModalBackdrop, ModalContent, ModalHeader, ModalFooter } from 'components/modal';
-import { UrgencyScoreInput } from 'components/priority/override/UrgencyScoreInput';
-import { MAX_URGENCY_SCORE, MAX_PERCENTAGE } from 'constants/numbers';
 
+import { ModalBackdrop, ModalContent, ModalFooter,ModalHeader } from 'components/modal';
+import { UrgencyScoreInput } from 'components/priority/override/UrgencyScoreInput';
 import { API_URL } from 'config/api';
+import { MAX_PERCENTAGE,MAX_URGENCY_SCORE } from 'constants/numbers';
 
 interface UrgencyOverrideModalProps {
   threadId: string;

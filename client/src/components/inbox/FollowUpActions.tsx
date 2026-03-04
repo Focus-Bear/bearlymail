@@ -1,8 +1,9 @@
 import React from 'react';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
-import { FollowUpActionsHeader } from 'components/inbox/FollowUpActionsHeader';
+
 import { FollowUpActionsError } from 'components/inbox/FollowUpActionsError';
+import { FollowUpActionsHeader } from 'components/inbox/FollowUpActionsHeader';
 
 interface FollowUpActionsProps {
   onGenerateDrafts: () => void;

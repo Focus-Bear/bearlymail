@@ -1,13 +1,14 @@
-import { Injectable, OnModuleInit, Logger, Inject } from "@nestjs/common";
+import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, LessThanOrEqual } from "typeorm";
 import PgBoss from "pg-boss";
-import { EmailThread } from "../database/entities/email-thread.entity";
+import { LessThanOrEqual, Repository } from "typeorm";
+
+import { CloudWatchService } from "../aws/cloudwatch.service";
 import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
 import { getJobPriority } from "../queue/job-priorities";
-import { CloudWatchService } from "../aws/cloudwatch.service";
 
 @Injectable()
 export class SnoozeProcessor implements OnModuleInit {

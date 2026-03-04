@@ -1,37 +1,38 @@
 import { useCallback, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import axios from 'axios';
+import { Email, InboxMode } from 'types/email';
+
+import { API_URL } from 'config/api';
 import { HTTP_UNAUTHORIZED, INBOX_FETCH_LIMIT } from 'constants/numbers';
 import {
-  ERROR_NETWORK,
-  ERROR_CODE_ERR_NETWORK,
-  ERROR_GMAIL_REQUIRED,
-  ERROR_GMAIL,
-  MODE_AUTORESPONDED,
   CATEGORY_OTHER,
+  ERROR_CODE_ERR_NETWORK,
+  ERROR_GMAIL,
+  ERROR_GMAIL_REQUIRED,
+  ERROR_NETWORK,
+  MODE_AUTORESPONDED,
 } from 'constants/strings';
-import { Email, InboxMode } from 'types/email';
-import { API_URL } from 'config/api';
 import { InboxFilter } from 'hooks/useInboxFilters';
-import { AppDispatch } from 'store/store';
+import { selectCurrentOffset, selectLoadedCategoryNames, selectLoadingCategoryNames } from 'store/selectors/emailSelectors';
 import {
-  setEmails,
-  updateCategoryEmails,
-  setHasMore,
-  setTotalCount,
-  setCurrentOffset,
-  setDecrypting,
-  setLoading,
-  setRefreshing,
-  setLoadingModeSwitch,
-  setFetchError,
-  setCategorySummary,
-  setSummaryLoading,
+  clearCategoryState,
   markCategoryLoaded,
   markCategoryLoading,
-  clearCategoryState,
+  setCategorySummary,
+  setCurrentOffset,
+  setDecrypting,
+  setEmails,
+  setFetchError,
+  setHasMore,
+  setLoading,
+  setLoadingModeSwitch,
+  setRefreshing,
+  setSummaryLoading,
+  setTotalCount,
+  updateCategoryEmails,
 } from 'store/slices/emailSlice';
-import { selectCurrentOffset, selectLoadedCategoryNames, selectLoadingCategoryNames } from 'store/selectors/emailSelectors';
+import { AppDispatch } from 'store/store';
 
 interface UseEmailFetchingProps {
   mode: InboxMode;

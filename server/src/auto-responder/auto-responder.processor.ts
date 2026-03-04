@@ -1,10 +1,10 @@
-import { Injectable, Logger, OnModuleInit, Inject } from "@nestjs/common";
+import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import PgBoss = require("pg-boss");
-import { AutoResponderService } from "./auto-responder.service";
-import { getJobPriority } from "../queue/job-priorities";
-import { autoresponderLogger } from "./autoresponder-logger";
-import { QUEUE_CONFIG } from "./auto-responder-constants";
 import { StructuralError } from "../errors/structural-error";
+import { getJobPriority } from "../queue/job-priorities";
+import { AutoResponderService } from "./auto-responder.service";
+import { QUEUE_CONFIG } from "./auto-responder-constants";
+import { autoresponderLogger } from "./autoresponder-logger";
 
 interface AutoResponderJobData {
   userId: string;

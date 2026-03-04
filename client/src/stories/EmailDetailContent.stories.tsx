@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { StoryObj } from '@storybook/react';
+
 import { COLOR_BG_NEUTRAL_ALT, COLOR_GREY_MEDIUM, COLOR_NEAR_BLACK, COLOR_SUCCESS_MED, COLOR_TRANSPARENT, COLOR_WARNING_MED, COLOR_WHITE, COLOR_WHITE_FULL } from 'constants/colors';
 
 const Th = {  border: '#E5E7EB', text: '#111827', textSec: '#6B7280',

@@ -1,8 +1,9 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { ActionItemsService } from "./action-items.service";
+
 import { ActionItem } from "../database/entities/action-item.entity";
+import { ActionItemsService } from "./action-items.service";
 
 describe("ActionItemsService", () => {
   let service: ActionItemsService;

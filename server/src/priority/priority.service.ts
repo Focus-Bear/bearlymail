@@ -1,29 +1,30 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
+import * as natural from "natural";
 import { Repository } from "typeorm";
+
+import {
+  JOB_TITLE_SCORES,
+  PRIORITY_BOOSTS,
+  PRIORITY_FACTOR_DISPLAY_NAMES,
+  PRIORITY_FACTOR_TYPES,
+  PRIORITY_SCORES,
+  PRIORITY_WEIGHTS,
+  SENTIMENT_THRESHOLDS,
+  SENTIMENT_TYPES,
+} from "../constants/priority-constants";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import {
-  UserContext,
-  ContextKey,
-} from "../database/entities/user-context.entity";
-import {
-  PriorityOverride,
   OverrideReasonType,
+  PriorityOverride,
 } from "../database/entities/priority-override.entity";
-import { LLMService } from "../llm/llm.service";
-import * as natural from "natural";
-import { calculateScoreFromBreakdown } from "../utils/priority.utils";
 import {
-  PRIORITY_SCORES,
-  PRIORITY_BOOSTS,
-  PRIORITY_WEIGHTS,
-  SENTIMENT_THRESHOLDS,
-  JOB_TITLE_SCORES,
-  PRIORITY_FACTOR_TYPES,
-  PRIORITY_FACTOR_DISPLAY_NAMES,
-  SENTIMENT_TYPES,
-} from "../constants/priority-constants";
+  ContextKey,
+  UserContext,
+} from "../database/entities/user-context.entity";
+import { LLMService } from "../llm/llm.service";
+import { calculateScoreFromBreakdown } from "../utils/priority.utils";
 
 /**
  * Priority explanation structure

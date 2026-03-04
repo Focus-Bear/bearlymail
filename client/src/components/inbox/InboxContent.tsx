@@ -1,24 +1,25 @@
-import React, { useRef, useMemo, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import React, { useCallback,useEffect, useMemo, useRef } from 'react';
 import { useSelector } from 'react-redux';
+import axios from 'axios';
 import { theme } from 'theme/theme';
-import { Email, InboxMode, getEmailPriorityScore } from 'types/email';
-import { API_URL } from 'config/api';
-import { MODE_TRIAGE, MODE_FOLLOW_UP, CATEGORY_OTHER } from 'constants/strings';
-import { ResizableDivider } from 'components/inbox/ResizableDivider';
+import { Email, getEmailPriorityScore,InboxMode } from 'types/email';
+
+import { BatchInfoBar } from 'components/inbox/BatchInfoBar';
+import { CategoryAccordion, CategoryGroup,groupEmailsByCategory } from 'components/inbox/CategoryAccordion';
+import { DebugView } from 'components/inbox/DebugView';
 import { EmailListItem } from 'components/inbox/EmailListItem';
-import { SplitViewPanel } from 'components/inbox/SplitViewPanel';
 import { EmailListStates } from 'components/inbox/EmailListStates';
 import { FollowUpActions } from 'components/inbox/FollowUpActions';
-import { DebugView } from 'components/inbox/DebugView';
-import { BatchInfoBar } from 'components/inbox/BatchInfoBar';
-import { useSplitView } from 'hooks/useSplitView';
-import { CategoryAccordion, groupEmailsByCategory, CategoryGroup } from 'components/inbox/CategoryAccordion';
 import { ProtoCategorySubAccordion } from 'components/inbox/ProtoCategorySubAccordion';
-import { CategorySummaryItem } from 'store/slices/emailSlice';
-import { selectSummaryLoading } from 'store/selectors/emailSelectors';
+import { ResizableDivider } from 'components/inbox/ResizableDivider';
+import { SplitViewPanel } from 'components/inbox/SplitViewPanel';
+import { API_URL } from 'config/api';
+import { CATEGORY_OTHER,MODE_FOLLOW_UP, MODE_TRIAGE } from 'constants/strings';
 import { useProtoCategoryManagement } from 'hooks/useProtoCategoryManagement';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { useSplitView } from 'hooks/useSplitView';
+import { selectSummaryLoading } from 'store/selectors/emailSelectors';
+import { CategorySummaryItem } from 'store/slices/emailSlice';
 
 interface InboxContentProps {
   mode: InboxMode;

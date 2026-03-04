@@ -1,13 +1,14 @@
 import React from 'react';
 import { theme } from 'theme/theme';
 import { GitHubLink } from 'types/email';
-import { LINK_TYPE_ISSUE, GITHUB_STATE_OPEN, GITHUB_STATUS_MERGED } from 'constants/strings';
+
+import { GitHubAssignees } from 'components/github/GitHubAssignees';
+import { GitHubLabels } from 'components/github/GitHubLabels';
 import { GitHubLinkCardNoStatus } from 'components/github/GitHubLinkCardNoStatus';
 import { GitHubLinkHeader } from 'components/github/GitHubLinkHeader';
-import { GitHubPRStatusBadges } from 'components/github/GitHubPRStatusBadges';
-import { GitHubLabels } from 'components/github/GitHubLabels';
-import { GitHubAssignees } from 'components/github/GitHubAssignees';
 import { GitHubProject } from 'components/github/GitHubProject';
+import { GitHubPRStatusBadges } from 'components/github/GitHubPRStatusBadges';
+import { GITHUB_STATE_OPEN, GITHUB_STATUS_MERGED,LINK_TYPE_ISSUE } from 'constants/strings';
 
 interface GitHubLinkCardProps {
   link: GitHubLink;

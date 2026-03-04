@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { OPACITY_DISABLED } from 'constants/numbers';
+
 import { ArchiveConfirmationToast } from 'components/inbox/ArchiveConfirmationToast';
+import { OPACITY_DISABLED } from 'constants/numbers';
 import { KEY_ESCAPE, KEY_Y, KEY_Y_UPPERCASE, STRING_NONE } from 'constants/strings';
 
 const ARCHIVE_ALL_ICON = '🗄️';

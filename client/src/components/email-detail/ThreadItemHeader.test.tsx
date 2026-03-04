@@ -1,5 +1,6 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { act,fireEvent, render, screen, waitFor } from '@testing-library/react';
+
 import { ThreadItemHeader } from './ThreadItemHeader';
 
 jest.mock('react-i18next', () => ({

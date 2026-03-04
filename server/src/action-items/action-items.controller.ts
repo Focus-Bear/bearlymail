@@ -1,18 +1,19 @@
 import {
+  Body,
   Controller,
+  Delete,
   Get,
+  Param,
   Post,
   Put,
-  Delete,
-  Body,
-  Param,
   Query,
-  UseGuards,
   Request,
+  UseGuards,
 } from "@nestjs/common";
-import { ActionItemsService } from "./action-items.service";
+
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { ActionItem } from "../database/entities/action-item.entity";
+import { ActionItemsService } from "./action-items.service";
 
 @Controller("action-items")
 @UseGuards(JwtAuthGuard)

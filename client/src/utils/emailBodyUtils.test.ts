@@ -1,9 +1,10 @@
 import DOMPurify from 'dompurify';
+
 import {
-  removeSignature,
-  extractCleanHtmlBody,
-  sanitizeAndProcessHtml,
   extractCleanBody,
+  extractCleanHtmlBody,
+  removeSignature,
+  sanitizeAndProcessHtml,
   stripHtmlTags,
 } from './emailBodyUtils';
 

@@ -1,17 +1,18 @@
-import { Module, forwardRef } from "@nestjs/common";
+import { forwardRef, Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { LLMService } from "./llm.service";
+
+import { AuthModule } from "../auth/auth.module";
+import { PromptExampleEntity } from "../database/entities/prompt-example.entity";
+import { TokenUsage } from "../database/entities/token-usage.entity";
+import { UsersModule } from "../users/users.module";
+import { IncrementalAnalysisService } from "./incremental-analysis.service";
 import { LLMController } from "./llm.controller";
+import { LLMService } from "./llm.service";
 import { LLMCoreService } from "./llm-core.service";
 import { PriorityAnalysisService } from "./priority-analysis.service";
-import { IncrementalAnalysisService } from "./incremental-analysis.service";
-import { TokenUsageService } from "./token-usage.service";
 import { TokenUsageController } from "./token-usage.controller";
-import { TokenUsage } from "../database/entities/token-usage.entity";
-import { PromptExampleEntity } from "../database/entities/prompt-example.entity";
-import { UsersModule } from "../users/users.module";
-import { AuthModule } from "../auth/auth.module";
+import { TokenUsageService } from "./token-usage.service";
 
 @Module({
   imports: [

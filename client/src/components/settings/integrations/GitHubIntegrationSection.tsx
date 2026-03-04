@@ -1,10 +1,11 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { FONT_WEIGHT_MEDIUM, INPUT_WIDTH_PX } from 'constants/numbers';
-import { EMOJI_CHECK } from 'constants/emojis';
 import { captureEvent } from 'utils/posthog';
+
 import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { EMOJI_CHECK } from 'constants/emojis';
+import { FONT_WEIGHT_MEDIUM, INPUT_WIDTH_PX } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
 
 interface GitHubIntegrationSectionProps {

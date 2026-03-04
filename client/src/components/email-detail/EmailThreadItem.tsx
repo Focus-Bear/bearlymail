@@ -1,8 +1,9 @@
 import React from 'react';
 import { theme } from 'theme/theme';
-import { ThreadItemHeader } from 'components/email-detail/ThreadItemHeader';
-import { ThreadItemBody } from 'components/email-detail/ThreadItemBody';
+
 import { EmailAttachments } from 'components/email-detail/EmailAttachments';
+import { ThreadItemBody } from 'components/email-detail/ThreadItemBody';
+import { ThreadItemHeader } from 'components/email-detail/ThreadItemHeader';
 
 interface EmailThreadItemProps {
   threadEmail: {

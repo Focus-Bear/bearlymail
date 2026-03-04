@@ -1,6 +1,7 @@
 import React from 'react';
 import { theme } from 'theme/theme';
 import { Email, getEmailPriorityScore } from 'types/email';
+
 import { COLOR_NAMED_RED } from 'constants/colors';
 
 interface DebugEmailListProps {

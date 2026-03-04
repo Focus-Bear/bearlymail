@@ -1,8 +1,9 @@
 import { Logger } from "@nestjs/common";
 import * as fs from "fs";
 import * as path from "path";
-import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
+
 import { CloudWatchService } from "../aws/cloudwatch.service";
+import { PERFORMANCE_BUDGETS } from "../constants/performance-budgets";
 
 interface JobLogEntry {
   timestamp: string;

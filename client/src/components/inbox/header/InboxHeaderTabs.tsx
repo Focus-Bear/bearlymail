@@ -1,10 +1,11 @@
 import React, { RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
-import { MODE_ACTION, MODE_FOLLOW_UP, MODE_TRIAGE, STRING_NONE } from 'constants/strings';
 import { InboxMode } from 'types/email';
 import { captureEvent } from 'utils/posthog';
+
+import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
+import { MODE_ACTION, MODE_FOLLOW_UP, MODE_TRIAGE, STRING_NONE } from 'constants/strings';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 interface TabCounts {

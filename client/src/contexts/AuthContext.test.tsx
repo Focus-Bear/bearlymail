@@ -2,8 +2,9 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axios from 'axios';
-import { AuthProvider, useAuth } from './AuthContext';
 import * as posthogModule from 'utils/posthog';
+
+import { AuthProvider, useAuth } from './AuthContext';
 
 // Mock dependencies
 jest.mock('axios');

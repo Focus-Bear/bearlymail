@@ -1,15 +1,16 @@
 import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { UsersService } from "./users.service";
-import { UsersController } from "./users.controller";
-import { DataExportService } from "./data-export.service";
-import { DataImportService } from "./data-import.service";
+
+import { BatchSchedule } from "../database/entities/batch-schedule.entity";
+import { BlockedKeyword } from "../database/entities/blocked-keyword.entity";
+import { BlockedSender } from "../database/entities/blocked-sender.entity";
+import { SummarizationRule } from "../database/entities/summarization-rule.entity";
 import { User } from "../database/entities/user.entity";
 import { UserContext } from "../database/entities/user-context.entity";
-import { BatchSchedule } from "../database/entities/batch-schedule.entity";
-import { BlockedSender } from "../database/entities/blocked-sender.entity";
-import { BlockedKeyword } from "../database/entities/blocked-keyword.entity";
-import { SummarizationRule } from "../database/entities/summarization-rule.entity";
+import { DataExportService } from "./data-export.service";
+import { DataImportService } from "./data-import.service";
+import { UsersController } from "./users.controller";
+import { UsersService } from "./users.service";
 
 @Module({
   imports: [

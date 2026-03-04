@@ -1,19 +1,20 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
-  ManyToOne,
   CreateDateColumn,
-  JoinColumn,
+  Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
 } from "typeorm";
-import { User } from "./user.entity";
-import { EmailThread } from "./email-thread.entity";
+
+import { AutoResponseLogPriority } from "../../auto-responder/types/auto-responder.types";
 import {
   encryptedColumnTransformer,
   encryptedJsonTransformer,
 } from "../../encryption/encryption.helper";
-import { AutoResponseLogPriority } from "../../auto-responder/types/auto-responder.types";
+import { EmailThread } from "./email-thread.entity";
+import { User } from "./user.entity";
 
 @Entity("auto_response_logs")
 @Index(["userId", "sentAt"])

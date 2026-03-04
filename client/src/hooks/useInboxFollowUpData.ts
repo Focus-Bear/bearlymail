@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
-import { useFollowUps } from 'hooks/useFollowUps';
+import { useEffect,useState } from 'react';
+
 import { MODE_FOLLOW_UP } from 'constants/strings';
+import { useFollowUps } from 'hooks/useFollowUps';
 
 type InboxMode = string;
 

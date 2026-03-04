@@ -1,20 +1,21 @@
 import {
+  Body,
   Controller,
+  Delete,
   Get,
+  Inject,
+  Param,
   Post,
   Put,
-  Delete,
-  Body,
-  Param,
   Query,
-  Inject,
-  UseGuards,
   Request,
+  UseGuards,
 } from "@nestjs/common";
 import PgBoss from "pg-boss";
-import { ContactsService, ContactSearchResult } from "./contacts.service";
+
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { QUERY_LIMITS } from "../constants/query-limits";
+import { ContactSearchResult, ContactsService } from "./contacts.service";
 
 @Controller("contacts")
 @UseGuards(JwtAuthGuard)

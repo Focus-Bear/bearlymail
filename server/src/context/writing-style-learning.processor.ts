@@ -1,14 +1,15 @@
-import { Injectable, OnModuleInit, Logger, Inject } from "@nestjs/common";
+import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import PgBoss from "pg-boss";
-import { UsersService } from "../users/users.service";
-import { WritingStyleLearningService } from "./writing-style-learning.service";
-import { EmailProviderManager } from "../emails/email-provider-manager.service";
-import { ContextEmailDataService } from "./context-gmail-data.service";
-import { JobPerformanceTracker } from "../queue/job-performance-tracker";
+
 import { CloudWatchService } from "../aws/cloudwatch.service";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { DAYS } from "../constants/time-constants";
+import { EmailProviderManager } from "../emails/email-provider-manager.service";
+import { JobPerformanceTracker } from "../queue/job-performance-tracker";
+import { UsersService } from "../users/users.service";
+import { ContextEmailDataService } from "./context-gmail-data.service";
+import { WritingStyleLearningService } from "./writing-style-learning.service";
 
 // Check for learning opportunities every 30 minutes
 const LEARNING_CHECK_CRON = "*/30 * * * *";

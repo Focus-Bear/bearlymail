@@ -1,8 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
-import { MS_PER_SECOND, MS_PER_MINUTE, MINUTES_PER_HOUR, HOURS_PER_DAY } from 'constants/numbers';
+
 import { COLOR_ERROR_WEB, COLOR_WHITE } from 'constants/colors';
+import { HOURS_PER_DAY,MINUTES_PER_HOUR, MS_PER_MINUTE, MS_PER_SECOND } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
 
 export interface SyncHistoryEntry {

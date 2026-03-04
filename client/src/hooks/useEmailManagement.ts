@@ -2,15 +2,16 @@ import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import axios from 'axios';
 import { Email, InboxMode } from 'types/email';
+
 import { API_URL } from 'config/api';
-import { useEmailFetching } from 'hooks/useEmailFetching';
-import { useEmailActionsBase } from 'hooks/useEmailActionsBase';
-import { InboxFilter } from 'hooks/useInboxFilters';
-import { AppDispatch } from 'store/store';
-import { updateEmail, setRefreshing, setEmails as setEmailsAction, setLoadingModeSwitch as setLoadingModeSwitchAction } from 'store/slices/emailSlice';
-import { selectVisibleEmails, selectLoading, selectDecrypting, selectRefreshing, selectLoadingModeSwitch, selectFetchError, selectHasMore, selectCategorySummary, selectLoadedCategoryNames, selectLoadingCategoryNames } from 'store/selectors/emailSelectors';
-import { CategorySummaryItem } from 'store/slices/emailSlice';
 import { TYPEOF_FUNCTION } from 'constants/strings';
+import { useEmailActionsBase } from 'hooks/useEmailActionsBase';
+import { useEmailFetching } from 'hooks/useEmailFetching';
+import { InboxFilter } from 'hooks/useInboxFilters';
+import { selectCategorySummary, selectDecrypting, selectFetchError, selectHasMore, selectLoadedCategoryNames, selectLoading, selectLoadingCategoryNames,selectLoadingModeSwitch, selectRefreshing, selectVisibleEmails } from 'store/selectors/emailSelectors';
+import { setEmails as setEmailsAction, setLoadingModeSwitch as setLoadingModeSwitchAction,setRefreshing, updateEmail } from 'store/slices/emailSlice';
+import { CategorySummaryItem } from 'store/slices/emailSlice';
+import { AppDispatch } from 'store/store';
 
 type BulkReadParams = {
   emailIds: string[];

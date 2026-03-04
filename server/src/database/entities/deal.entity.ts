@@ -1,20 +1,21 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
   CreateDateColumn,
-  UpdateDateColumn,
-  ManyToOne,
-  JoinColumn,
+  Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from "typeorm";
-import { User } from "./user.entity";
-import { Contact } from "./contact.entity";
-import { DealStage } from "./deal-stage.entity";
+
 import {
   encryptedColumnTransformer,
   encryptedJsonTransformer,
 } from "../../encryption/encryption.helper";
+import { Contact } from "./contact.entity";
+import { DealStage } from "./deal-stage.entity";
+import { User } from "./user.entity";
 
 @Entity("deals")
 @Index(["userId", "stageId"])

@@ -1,8 +1,9 @@
 import React from 'react';
 import { theme } from 'theme/theme';
-import { PriorityBadge } from 'components/inbox/email-card/PriorityBadge';
+
 import { EmailLabels } from 'components/inbox/email-card/EmailLabels';
 import { EmailTimestamp } from 'components/inbox/email-card/EmailTimestamp';
+import { PriorityBadge } from 'components/inbox/email-card/PriorityBadge';
 
 interface EmailCardHeaderProps {
   from: string;

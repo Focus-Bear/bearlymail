@@ -1,4 +1,5 @@
 import { theme } from 'theme/theme';
+
 import { getResponsiveFontSize, getResponsiveSpacing } from 'components/landing/utils';
 
 interface ResponsiveBreakpoints {

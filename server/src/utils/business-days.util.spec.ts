@@ -1,7 +1,7 @@
 import {
-  isBusinessDay,
-  getNextBusinessDay,
   calculateBusinessDays,
+  getNextBusinessDay,
+  isBusinessDay,
 } from "./business-days.util";
 
 describe("BusinessDaysUtil", () => {

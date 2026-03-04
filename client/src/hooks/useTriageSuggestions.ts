@@ -1,6 +1,7 @@
-import { useState, useCallback, useRef } from 'react';
+import { useCallback, useRef,useState } from 'react';
 import axios from 'axios';
 import { Email, TriageSuggestion } from 'types/email';
+
 import { API_URL } from 'config/api';
 import { TRIAGE_SUGGESTIONS_LIMIT_20 } from 'constants/numbers';
 

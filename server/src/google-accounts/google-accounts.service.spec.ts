@@ -1,9 +1,10 @@
+import { NotFoundException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { NotFoundException } from "@nestjs/common";
-import { GoogleAccountsService } from "./google-accounts.service";
+
 import { GoogleAccount } from "../database/entities/google-account.entity";
 import { UsersService } from "../users/users.service";
+import { GoogleAccountsService } from "./google-accounts.service";
 
 describe("GoogleAccountsService", () => {
   let service: GoogleAccountsService;

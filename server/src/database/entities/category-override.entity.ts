@@ -1,15 +1,16 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
-  ManyToOne,
   CreateDateColumn,
-  JoinColumn,
+  Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
 } from "typeorm";
-import { User } from "./user.entity";
-import { EmailThread } from "./email-thread.entity";
+
 import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
+import { EmailThread } from "./email-thread.entity";
+import { User } from "./user.entity";
 
 @Entity("category_overrides")
 @Index(["userId", "emailThreadId"])

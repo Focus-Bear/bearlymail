@@ -1,15 +1,16 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
   CreateDateColumn,
-  UpdateDateColumn,
-  ManyToOne,
-  JoinColumn,
+  Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from "typeorm";
-import { Contact } from "./contact.entity";
+
 import { encryptedColumnTransformer } from "../../encryption/encryption.helper";
+import { Contact } from "./contact.entity";
 
 @Entity("contact_notes")
 @Index(["contactId"])

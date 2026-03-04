@@ -1,17 +1,18 @@
-import {
-  Entity,
-  Column,
-  PrimaryGeneratedColumn,
-  CreateDateColumn,
-  UpdateDateColumn,
-  ManyToOne,
-  JoinColumn,
-  Index,
-  BeforeInsert,
-} from "typeorm";
 import { randomUUID } from "crypto";
-import { User } from "./user.entity";
+import {
+  BeforeInsert,
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from "typeorm";
+
 import { encryptedJsonTransformer } from "../../encryption/encryption.helper";
+import { User } from "./user.entity";
 
 /**
  * Tracks context analysis runs for users.

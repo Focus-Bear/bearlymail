@@ -1,11 +1,13 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback,useState } from 'react';
+import axios from 'axios';
 import { theme } from 'theme/theme';
-import { WelcomeStep } from './WelcomeStep';
+
+import { API_URL } from 'config/api';
+import { SETUP_STEP_CONTEXT_ANALYSIS, SETUP_STEP_EMAIL_IMPORT,SETUP_STEP_WELCOME } from 'constants/strings';
+
 import { ContextAnalysisStep } from './ContextAnalysisStep';
 import { EmailImportStep } from './EmailImportStep';
-import axios from 'axios';
-import { API_URL } from 'config/api';
-import { SETUP_STEP_WELCOME, SETUP_STEP_CONTEXT_ANALYSIS, SETUP_STEP_EMAIL_IMPORT } from 'constants/strings';
+import { WelcomeStep } from './WelcomeStep';
 
 interface SetupWizardProps {
   onComplete: () => void;

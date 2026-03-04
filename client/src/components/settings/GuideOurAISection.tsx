@@ -1,9 +1,10 @@
 import React from 'react';
 import { theme } from 'theme/theme';
+
 import { ContextAboutMeSection } from 'components/settings/guide-ai/ContextAboutMeSection';
-import { ToneSettingsSection } from 'components/settings/guide-ai/ToneSettingsSection';
-import { SummarizationRulesSection } from 'components/settings/guide-ai/SummarizationRulesSection';
 import { GuideOurAISectionHeader } from 'components/settings/guide-ai/GuideOurAISectionHeader';
+import { SummarizationRulesSection } from 'components/settings/guide-ai/SummarizationRulesSection';
+import { ToneSettingsSection } from 'components/settings/guide-ai/ToneSettingsSection';
 
 interface UserContext {
   contextId: string;

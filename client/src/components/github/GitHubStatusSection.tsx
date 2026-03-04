@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { FiGithub } from 'react-icons/fi';
 import { theme } from 'theme/theme';
 import { GitHubLink } from 'types/email';
-import { GitHubStatusLoading } from 'components/github/GitHubStatusLoading';
-import { GitHubLinksList } from 'components/github/GitHubLinksList';
-import { GitHubConnectionPrompt } from 'components/github/GitHubConnectionPrompt';
 import { emailMentionsGitHub } from 'utils/githubUtils';
+
 import { CollapsibleSection } from 'components/common/CollapsibleSection';
+import { GitHubConnectionPrompt } from 'components/github/GitHubConnectionPrompt';
+import { GitHubLinksList } from 'components/github/GitHubLinksList';
+import { GitHubStatusLoading } from 'components/github/GitHubStatusLoading';
 import { STRING_NONE } from 'constants/strings';
 
 const GITHUB_ACCENT = '#1F2937';

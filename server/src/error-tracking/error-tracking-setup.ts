@@ -1,5 +1,5 @@
-import { PostHog } from "posthog-node";
 import { Logger } from "@nestjs/common";
+import { PostHog } from "posthog-node";
 
 const API_KEY_PREVIEW_LENGTH = 8;
 

@@ -1,21 +1,22 @@
-import { Injectable, Logger, Inject } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, LessThanOrEqual } from "typeorm";
+import PgBoss from "pg-boss";
+import { LessThanOrEqual, Repository } from "typeorm";
+
+import { QUERY_LIMITS } from "../constants/query-limits";
+import { ContextService } from "../context/context.service";
+import { Email } from "../database/entities/email.entity";
+import { EmailThread } from "../database/entities/email-thread.entity";
 import {
   FollowUp,
   FollowUpStatus,
 } from "../database/entities/follow-up.entity";
-import { EmailThread } from "../database/entities/email-thread.entity";
-import { Email } from "../database/entities/email.entity";
-import { LLMService } from "../llm/llm.service";
-import { QUERY_LIMITS } from "../constants/query-limits";
-import { UsersService } from "../users/users.service";
-import { ContextService } from "../context/context.service";
 import { ContextKey } from "../database/entities/user-context.entity";
 import { EmailsService } from "../emails/emails.service";
-import { calculateBusinessDays } from "../utils/business-days.util";
-import PgBoss from "pg-boss";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import { LLMService } from "../llm/llm.service";
+import { UsersService } from "../users/users.service";
+import { calculateBusinessDays } from "../utils/business-days.util";
 
 @Injectable()
 export class FollowUpsService {

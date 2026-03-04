@@ -1,7 +1,8 @@
 import React from 'react';
-import { PriorityTooltipLoading } from 'components/priority/tooltip/PriorityTooltipLoading';
+
 import { PriorityTooltipContainer } from 'components/priority/tooltip/PriorityTooltipContainer';
 import { PriorityTooltipContent } from 'components/priority/tooltip/PriorityTooltipContent';
+import { PriorityTooltipLoading } from 'components/priority/tooltip/PriorityTooltipLoading';
 
 interface PriorityExplanation {
   score: number;

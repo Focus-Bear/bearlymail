@@ -1,18 +1,19 @@
 import {
+  BadRequestException,
   Injectable,
   Logger,
   NotFoundException,
-  BadRequestException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
+
 import { Contact } from "../database/entities/contact.entity";
-import { ContactNote } from "../database/entities/contact-note.entity";
 import {
   ContactCustomField,
   CustomFieldType,
 } from "../database/entities/contact-custom-field.entity";
 import { ContactCustomFieldValue } from "../database/entities/contact-custom-field-value.entity";
+import { ContactNote } from "../database/entities/contact-note.entity";
 import { ContactType } from "../database/entities/contact-type.entity";
 
 const DEFAULT_CONTACT_TYPE_DEFS = [

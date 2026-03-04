@@ -155,8 +155,7 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
                         alert('Failed to fix stale unsynced threads');
                       }
                     } catch (error) {
-                      alert(`Error fixing stale unsynced threads: ${error}`);
-                    }
+                      alert(`Error fixing stale unsynced threads: ${error}`);                    }
                   }}
                   style={{
                     padding: `${theme.spacing.xs} ${theme.spacing.md}`,

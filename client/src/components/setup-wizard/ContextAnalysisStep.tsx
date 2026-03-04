@@ -23,7 +23,7 @@ export const ContextAnalysisStep: React.FC<ContextAnalysisStepProps> = ({ onComp
     if (!analyzing && !analyzeProgress.isComplete) {
       startAnalysis();
     }
-  }, []);
+  }, [analyzing, analyzeProgress.isComplete, startAnalysis]);
 
   const progressPercent = analyzeProgress.progress
     ? Math.round((analyzeProgress.progress.current / analyzeProgress.progress.total) * 100)

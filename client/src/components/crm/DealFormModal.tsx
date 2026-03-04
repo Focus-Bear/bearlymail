@@ -23,6 +23,197 @@ interface DealFormModalProps {
   onClose: () => void;
 }
 
+interface ContactDropdownFieldProps {
+  contacts: Contact[];
+  contactId: string;
+  onContactSelected: (id: string) => void;
+  label: string;
+  inputStyle: React.CSSProperties;
+  labelStyle: React.CSSProperties;
+  searchPlaceholder: string;
+  noResultsText: string;
+}
+
+const ContactDropdownField: React.FC<ContactDropdownFieldProps> = ({
+  contacts,
+  contactId,
+  onContactSelected,
+  label,
+  inputStyle,
+  labelStyle,
+  searchPlaceholder,
+  noResultsText,
+}) => {
+  const [contactSearchTerm, setContactSearchTerm] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const selectableContacts = useMemo(
+    () => contacts.filter((c): c is Contact & { id: string } => Boolean(c.id)),
+    [contacts]
+  );
+
+  const filteredContacts = useMemo(() => {
+    const searchQuery = contactSearchTerm.trim().toLowerCase();
+    if (!searchQuery) return selectableContacts;
+    return selectableContacts.filter((c) => {
+      const name = (c.name || '').toLowerCase();
+      const email = (c.email || '').toLowerCase();
+      return name.includes(searchQuery) || email.includes(searchQuery);
+    });
+  }, [selectableContacts, contactSearchTerm]);
+
+  const contactLabelById = useMemo(
+    () => new Map(selectableContacts.map((c) => [c.id, c.name || c.email])),
+    [selectableContacts]
+  );
+
+  const selectedContactLabel = contactId ? contactLabelById.get(contactId) || '' : '';
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [isOpen]);
+
+  useEffect(() => { setHighlightedIndex(-1); }, [contactSearchTerm, isOpen]);
+
+  const close = () => { setIsOpen(false); setContactSearchTerm(''); setHighlightedIndex(-1); };
+  const toggle = () => { setIsOpen((prev) => { if (prev) { setContactSearchTerm(''); setHighlightedIndex(-1); } return !prev; }); };
+  const select = (id: string) => { onContactSelected(id); close(); };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    const maxIndex = filteredContacts.length;
+    if (event.key === KEY_ESCAPE) { event.preventDefault(); close(); return; }
+    if (event.key === KEY_ARROW_DOWN) {
+      event.preventDefault();
+      setHighlightedIndex((prev) => (prev >= maxIndex ? 0 : prev + 1));
+      return;
+    }
+    if (event.key === KEY_ARROW_UP) {
+      event.preventDefault();
+      setHighlightedIndex((prev) => (prev <= 0 ? maxIndex : prev - 1));
+      return;
+    }
+    if (event.key === KEY_ENTER && highlightedIndex >= 0) {
+      event.preventDefault();
+      if (highlightedIndex === 0) { select(''); return; }
+      const chosen = filteredContacts[highlightedIndex - 1];
+      if (chosen) { select(chosen.id); }
+    }
+  };
+
+  const triggerColor = selectedContactLabel ? theme.colors.text.primary : theme.colors.text.tertiary;
+
+  return (
+    <div ref={dropdownRef}>
+      <label style={labelStyle}>{label}</label>
+      <button
+        type="button"
+        onClick={toggle}
+        style={{ ...inputStyle, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+        aria-label={label}
+        aria-haspopup="listbox"
+        aria-controls="deal-contact-listbox"
+        aria-expanded={isOpen}
+      >
+        <span style={{ color: triggerColor }}>{selectedContactLabel || '--'}</span>
+        <span style={{ color: theme.colors.text.tertiary }}>{isOpen ? '▲' : '▼'}</span>
+      </button>
+
+      {isOpen && (
+        <div style={{
+          marginTop: theme.spacing.xs,
+          border: `1px solid ${theme.colors.border.medium}`,
+          borderRadius: theme.borderRadius.md,
+          backgroundColor: theme.colors.background.paper,
+          boxShadow: theme.shadows.lg,
+          overflow: 'hidden',
+          position: 'relative',
+          zIndex: 20,
+        }}>
+          <div style={{ padding: theme.spacing.sm, borderBottom: `1px solid ${theme.colors.border.light}` }}>
+            <input
+              ref={searchInputRef}
+              value={contactSearchTerm}
+              onChange={(e) => setContactSearchTerm(e.target.value)}
+              onKeyDown={handleKeyDown}
+              aria-label={searchPlaceholder}
+              placeholder={searchPlaceholder}
+              style={inputStyle}
+            />
+          </div>
+          <div id="deal-contact-listbox" style={{ maxHeight: '220px', overflowY: 'auto' }} role="listbox">
+            <button
+              type="button"
+              role="option"
+              aria-selected={contactId === ''}
+              onMouseEnter={() => setHighlightedIndex(0)}
+              onClick={() => select('')}
+              style={{
+                width: '100%',
+                border: STRING_NONE,
+                backgroundColor: highlightedIndex === 0 || contactId === '' ? theme.colors.background.subtle : 'transparent',
+                cursor: 'pointer',
+                textAlign: 'left',
+                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                fontSize: theme.typography.fontSize.base,
+                color: theme.colors.text.primary,
+              }}
+            >
+              --
+            </button>
+            {filteredContacts.map((c, index) => {
+              const optionIndex = index + 1;
+              const isHighlighted = highlightedIndex === optionIndex;
+              const isSelected = c.id === contactId;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  onMouseEnter={() => setHighlightedIndex(optionIndex)}
+                  onClick={() => select(c.id)}
+                  style={{
+                    width: '100%',
+                    border: STRING_NONE,
+                    backgroundColor: isHighlighted || isSelected ? theme.colors.background.subtle : 'transparent',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                    fontSize: theme.typography.fontSize.base,
+                    color: theme.colors.text.primary,
+                  }}
+                >
+                  {c.name || c.email}
+                </button>
+              );
+            })}
+            {filteredContacts.length === 0 && (
+              <div style={{ padding: theme.spacing.md, color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.sm }}>
+                {noResultsText}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const DealFormModal: React.FC<DealFormModalProps> = ({
   deal,
   stages,
@@ -35,122 +226,15 @@ export const DealFormModal: React.FC<DealFormModalProps> = ({
   const [details, setDetails] = useState(deal?.details || '');
   const [value, setValue] = useState(deal?.value?.toString() || '');
   const [currency, setCurrency] = useState(deal?.currency || 'USD');
-  const [stageId, setStageId] = useState(deal?.stageId || (stages[0]?.id || ''));
+  const [stageId, setStageId] = useState(deal?.stageId || stages[0]?.id || '');
   const [contactId, setContactId] = useState(deal?.contactId || '');
-  const [contactSearchTerm, setContactSearchTerm] = useState('');
-  const [isContactDropdownOpen, setIsContactDropdownOpen] = useState(false);
-  const [highlightedContactIndex, setHighlightedContactIndex] = useState(-1);
-  const contactDropdownRef = useRef<HTMLDivElement>(null);
-  const contactSearchInputRef = useRef<HTMLInputElement>(null);
   const [expectedCloseDate, setExpectedCloseDate] = useState(
     deal?.expectedCloseDate ? deal.expectedCloseDate.split('T')[0] : ''
   );
 
-  const selectableContacts = useMemo(
-    () => contacts.filter((contact): contact is Contact & { id: string } => Boolean(contact.id)),
-    [contacts]
-  );
-
-  const filteredContacts = useMemo(() => {
-    const normalizedSearch = contactSearchTerm.trim().toLowerCase();
-    if (!normalizedSearch) return selectableContacts;
-
-    return selectableContacts.filter((contact) => {
-      const contactName = (contact.name || '').toLowerCase();
-      const contactEmail = (contact.email || '').toLowerCase();
-      return contactName.includes(normalizedSearch) || contactEmail.includes(normalizedSearch);
-    });
-  }, [selectableContacts, contactSearchTerm]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (contactDropdownRef.current && !contactDropdownRef.current.contains(event.target as Node)) {
-        setIsContactDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    if (isContactDropdownOpen && contactSearchInputRef.current) {
-      contactSearchInputRef.current.focus();
-    }
-  }, [isContactDropdownOpen]);
-
-  useEffect(() => {
-    setHighlightedContactIndex(-1);
-  }, [contactSearchTerm, isContactDropdownOpen]);
-
-  const contactLabelById = useMemo(
-    () => new Map(selectableContacts.map((contact) => [contact.id, contact.name || contact.email])),
-    [selectableContacts]
-  );
-
-  const selectedContactLabel = contactId ? contactLabelById.get(contactId) || '' : '';
-
-  const closeContactDropdown = () => {
-    setIsContactDropdownOpen(false);
-    setContactSearchTerm('');
-    setHighlightedContactIndex(-1);
-  };
-
-  const toggleContactDropdown = () => {
-    setIsContactDropdownOpen((prevOpen) => {
-      const isOpening = !prevOpen;
-      if (!isOpening) {
-        setContactSearchTerm('');
-        setHighlightedContactIndex(-1);
-      }
-      return isOpening;
-    });
-  };
-
-  const handleContactSelect = (selectedId: string) => {
-    setContactId(selectedId);
-    closeContactDropdown();
-  };
-
-  const handleContactSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    const maxIndex = filteredContacts.length;
-
-    if (event.key === KEY_ESCAPE) {
-      event.preventDefault();
-      closeContactDropdown();
-      return;
-    }
-
-    if (event.key === KEY_ARROW_DOWN) {
-      event.preventDefault();
-      setHighlightedContactIndex((prevIndex) => (prevIndex >= maxIndex ? 0 : prevIndex + 1));
-      return;
-    }
-
-    if (event.key === KEY_ARROW_UP) {
-      event.preventDefault();
-      setHighlightedContactIndex((prevIndex) => (prevIndex <= 0 ? maxIndex : prevIndex - 1));
-      return;
-    }
-
-    if (event.key === KEY_ENTER && highlightedContactIndex >= 0) {
-      event.preventDefault();
-      if (highlightedContactIndex === 0) {
-        handleContactSelect('');
-        return;
-      }
-
-      const selectedContact = filteredContacts[highlightedContactIndex - 1];
-      if (selectedContact) {
-        handleContactSelect(selectedContact.id);
-      }
-    }
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-
     onSave({
       title: title.trim(),
       details: details.trim() || undefined,
@@ -180,15 +264,14 @@ export const DealFormModal: React.FC<DealFormModalProps> = ({
     fontWeight: theme.typography.fontWeight.medium,
   };
 
+  const canSubmit = Boolean(title.trim());
+
   return (
     <div
       onClick={onClose}
       style={{
         position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
+        top: 0, left: 0, right: 0, bottom: 0,
         backgroundColor: 'rgba(0,0,0,0.5)',
         display: 'flex',
         justifyContent: 'center',
@@ -252,118 +335,16 @@ export const DealFormModal: React.FC<DealFormModalProps> = ({
               </select>
             </div>
 
-            <div ref={contactDropdownRef}>
-              <label style={labelStyle}>{t('deals.contact')}</label>
-              <button
-                type="button"
-                onClick={toggleContactDropdown}
-                style={{
-                  ...inputStyle,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}
-                aria-label={t('deals.contact')}
-                aria-haspopup="listbox"
-                aria-controls="deal-contact-listbox"
-                aria-expanded={isContactDropdownOpen}
-              >
-                <span style={{ color: selectedContactLabel ? theme.colors.text.primary : theme.colors.text.tertiary }}>
-                  {selectedContactLabel || '--'}
-                </span>
-                <span style={{ color: theme.colors.text.tertiary }}>{isContactDropdownOpen ? '▲' : '▼'}</span>
-              </button>
-
-              {isContactDropdownOpen && (
-                <div
-                  style={{
-                    marginTop: theme.spacing.xs,
-                    border: `1px solid ${theme.colors.border.medium}`,
-                    borderRadius: theme.borderRadius.md,
-                    backgroundColor: theme.colors.background.paper,
-                    boxShadow: theme.shadows.lg,
-                    overflow: 'hidden',
-                    position: 'relative',
-                    zIndex: 20,
-                  }}
-                >
-                  <div style={{ padding: theme.spacing.sm, borderBottom: `1px solid ${theme.colors.border.light}` }}>
-                    <input
-                      ref={contactSearchInputRef}
-                      value={contactSearchTerm}
-                      onChange={(e) => setContactSearchTerm(e.target.value)}
-                      onKeyDown={handleContactSearchKeyDown}
-                      aria-label={t('deals.searchContacts')}
-                      placeholder={t('deals.searchContacts')}
-                      style={inputStyle}
-                    />
-                  </div>
-
-                  <div id="deal-contact-listbox" style={{ maxHeight: '220px', overflowY: 'auto' }} role="listbox">
-                    <button
-                      type="button"
-                      role="option"
-                      aria-selected={contactId === ''}
-                      onMouseEnter={() => setHighlightedContactIndex(0)}
-                      onClick={() => handleContactSelect('')}
-                      style={{
-                        width: '100%',
-                        border: STRING_NONE,
-                        backgroundColor: highlightedContactIndex === 0 || contactId === ''
-                          ? theme.colors.background.subtle
-                          : 'transparent',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                        fontSize: theme.typography.fontSize.base,
-                        color: theme.colors.text.primary,
-                      }}
-                    >
-                      --
-                    </button>
-
-                    {filteredContacts.map((contact, index) => {
-                      const optionIndex = index + 1;
-                      const isHighlighted = highlightedContactIndex === optionIndex;
-                      const isSelected = contact.id === contactId;
-
-                      return (
-                        <button
-                          key={contact.id}
-                          type="button"
-                          role="option"
-                          aria-selected={isSelected}
-                          onMouseEnter={() => setHighlightedContactIndex(optionIndex)}
-                          onClick={() => handleContactSelect(contact.id)}
-                          style={{
-                            width: '100%',
-                            border: STRING_NONE,
-                            backgroundColor: isHighlighted || isSelected
-                              ? theme.colors.background.subtle
-                              : 'transparent',
-                            cursor: 'pointer',
-                            textAlign: 'left',
-                            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                            fontSize: theme.typography.fontSize.base,
-                            color: theme.colors.text.primary,
-                          }}
-                        >
-                          {contact.name || contact.email}
-                        </button>
-                      );
-                    })}
-
-                    {filteredContacts.length === 0 && (
-                      <div style={{ padding: theme.spacing.md, color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.sm }}>
-                        {t('deals.noContactsFound')}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+            <ContactDropdownField
+              contacts={contacts}
+              contactId={contactId}
+              onContactSelected={setContactId}
+              label={t('deals.contact')}
+              inputStyle={inputStyle}
+              labelStyle={labelStyle}
+              searchPlaceholder={t('deals.searchContacts')}
+              noResultsText={t('deals.noContactsFound')}
+            />
 
             <div>
               <label style={labelStyle}>{t('deals.expectedClose')}</label>
@@ -389,17 +370,17 @@ export const DealFormModal: React.FC<DealFormModalProps> = ({
             </button>
             <button
               type="submit"
-              disabled={!title.trim()}
+              disabled={!canSubmit}
               style={{
                 padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
                 backgroundColor: theme.colors.primary.main,
                 color: COLOR_NAMED_WHITE,
                 border: STRING_NONE,
                 borderRadius: theme.borderRadius.md,
-                cursor: title.trim() ? 'pointer' : 'not-allowed',
+                cursor: canSubmit ? 'pointer' : 'not-allowed',
                 fontSize: theme.typography.fontSize.base,
                 fontWeight: theme.typography.fontWeight.medium,
-                opacity: title.trim() ? OPACITY_FULL : OPACITY_HALF,
+                opacity: canSubmit ? OPACITY_FULL : OPACITY_HALF,
               }}
             >
               {t('deals.save')}

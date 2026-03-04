@@ -4,7 +4,6 @@ import { useDispatch } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from 'contexts/AuthContext';
 import { InboxMode } from 'types/email';
-import { captureEvent } from 'utils/posthog';
 import {
   MODE_FOLLOW_UP,
   MODE_TRIAGE,

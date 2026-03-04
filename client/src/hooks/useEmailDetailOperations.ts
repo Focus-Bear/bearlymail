@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useDispatch, useSelector } from 'react-redux';
+
 import axios from 'axios';
 import { useNotifications } from 'contexts/NotificationContext';
 import { useAuth } from 'contexts/AuthContext';
@@ -12,118 +12,19 @@ import { extractCleanBody, removeSignature, extractCleanHtmlBody, sanitizeAndPro
 import { emailMentionsGitHub } from 'utils/githubUtils';
 import { ACTION_ITEM_SOURCE_LLM, REPLY_MODE_REPLY_ALL, ANIMATION_TYPE_SEND, ANIMATION_TYPE_ARCHIVE, ANIMATION_TYPE_PRIORITY, GITHUB_ACTION_PREFIX } from 'constants/strings';
 import { TIMEOUT_800_MS } from 'constants/numbers';
-import { AppDispatch } from 'store/store';
-import { removeEmail, addOptimisticArchive, restoreEmail, removeOptimisticArchive, addOptimisticSnooze, removeOptimisticSnooze } from 'store/slices/emailSlice';
-import { selectEmails } from 'store/selectors/emailSelectors';
-import { API_URL } from 'config/api';
 
-interface EmailDetailState {
-  email: any;
-  setEmail: (email: any) => void;
-  threadEmails: any[];
-  setThreadEmails: (emails: any[]) => void;
-  expandedThreadItems: Set<string>;
-  setExpandedThreadItems: (setter: (prev: Set<string>) => Set<string>) => void;
-  noteContent: string;
-  setNoteContent: (content: string) => void;
-  notesCollapsed: boolean;
-  setNotesCollapsed: (collapsed: boolean) => void;
-  summary: string | null;
-  setSummary: (summary: string | null) => void;
-  summaryType: string;
-  setSummaryType: (type: string) => void;
-  isGeneratingSummary: boolean;
-  setIsGeneratingSummary: (generating: boolean) => void;
-  summaryCollapsed: boolean;
-  setSummaryCollapsed: (collapsed: boolean) => void;
-  showRuleModal: boolean;
-  setShowRuleModal: (show: boolean) => void;
-  customRule: { whenToUse: string; howToSummarize: string };
-  setCustomRule: (rule: { whenToUse: string; howToSummarize: string }) => void;
-  customRules: Array<{ ruleId: string; whenToUse: string; howToSummarize: string }>;
-  setCustomRules: (rules: Array<{ ruleId: string; whenToUse: string; howToSummarize: string }>) => void;
-  actionItems: Array<{ id?: string; description: string; isCompleted: boolean; source: string }>;
-  setActionItems: React.Dispatch<React.SetStateAction<Array<{ id?: string; description: string; isCompleted: boolean; source: string }>>>;
-  newActionItem: string;
-  setNewActionItem: (item: string) => void;
-  draft: string | null;
-  setDraft: (draft: string | null) => void;
-  // eslint-disable-next-line no-restricted-syntax -- Type annotations must use string literal types for TypeScript
-  replyOptions: Array<{ label: string; text: string }> | null;
-  // eslint-disable-next-line no-restricted-syntax -- Type annotations must use string literal types for TypeScript
-  setReplyOptions: (options: Array<{ label: string; text: string }> | null) => void;
-  selectedReplyOption: number;
-  setSelectedReplyOption: (index: number) => void;
-  showReplyComposer: boolean;
-  setShowReplyComposer: (show: boolean) => void;
-  // eslint-disable-next-line no-restricted-syntax -- Type parameter must remain literal type for TypeScript compatibility
-  replyMode: 'reply' | 'replyAll';
-  // eslint-disable-next-line no-restricted-syntax -- Type parameter must remain literal type for TypeScript compatibility
-  setReplyMode: (mode: 'reply' | 'replyAll') => void;
-  replyRecipients: string;
-  setReplyRecipients: (recipients: string) => void;
-  replyCc: string;
-  setReplyCc: (cc: string) => void;
-  replyBcc: string;
-  setReplyBcc: (bcc: string) => void;
-  showCc: boolean;
-  setShowCc: (show: boolean) => void;
-  showBcc: boolean;
-  setShowBcc: (show: boolean) => void;
-  loadingReplies: boolean;
-  setLoadingReplies: (loading: boolean) => void;
-  sending: boolean;
-  setSending: (sending: boolean) => void;
-  toneCheckResult: { isOk: boolean; suggestions: string[]; revisedText?: string } | null;
-  setToneCheckResult: (result: { isOk: boolean; suggestions: string[]; revisedText?: string } | null) => void;
-  checkingTone: boolean;
-  setCheckingTone: (checking: boolean) => void;
-  disputing: boolean;
-  setDisputing: (disputing: boolean) => void;
-  disputeResult: { accepted: boolean; rulesToRemove: string[]; explanation: string; rulesUpdated: boolean; remainingRules: string[] } | null;
-  setDisputeResult: (result: { accepted: boolean; rulesToRemove: string[]; explanation: string; rulesUpdated: boolean; remainingRules: string[] } | null) => void;
-  snoozeInput: string;
-  // eslint-disable-next-line no-restricted-syntax -- Type parameter must remain literal type for TypeScript compatibility
-  setSnoozeInput: (input: string) => void;
-  showSnoozeInput: boolean;
-  setShowSnoozeInput: (show: boolean) => void;
-  // eslint-disable-next-line no-restricted-syntax -- Type parameter must remain literal type for TypeScript compatibility
-  priorityExplanation: any;
-  setPriorityExplanation: (explanation: any) => void;
-  showPriorityExplanation: boolean;
-  setShowPriorityExplanation: (show: boolean) => void;
-  githubLinks: any[];
-  setGithubLinks: (links: any[]) => void;
-  loadingGithub: boolean;
-  setLoadingGithub: (loading: boolean) => void;
-  hasGithubToken: boolean;
-  setHasGithubToken: (hasToken: boolean) => void;
-  suggestedActions: SuggestedAction[];
-  setSuggestedActions: (actions: SuggestedAction[]) => void;
-  loadingSuggestedActions: boolean;
-  setLoadingSuggestedActions: (loading: boolean) => void;
-  showQuickActionsMenu: boolean;
-  setShowQuickActionsMenu: (show: boolean) => void;
-  selectedAction: SuggestedAction | null;
-  setSelectedAction: (action: SuggestedAction | null) => void;
-  animationClass: string | null;
-  setAnimationClass: (className: string | null) => void;
-  loading: boolean;
-  setLoading: (loading: boolean) => void;
-}
+import { API_URL } from 'config/api';
+import { EmailDetailState, EmailDetailOperationsOptions } from './useEmailDetailOperations.types';
+import { useEmailDetailDraftOps } from './useEmailDetailDraftOps';
+import { useEmailDetailArchiveOps } from './useEmailDetailArchiveOps';
+
+export type { EmailDetailState, EmailDetailOperationsOptions };
 
 // eslint-disable-next-line max-lines-per-function -- Email detail operations hook requires handling multiple email operations, state management, and API calls
-interface EmailDetailOperationsOptions {
-  onArchiveComplete?: (emailId: string) => void;
-  onSnoozeComplete?: (emailId: string) => void;
-}
-
 export function useEmailDetailOperations(id: string | undefined, state: EmailDetailState, options: EmailDetailOperationsOptions = {}) {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
-  const dispatch = useDispatch<AppDispatch>();
-  const emails = useSelector(selectEmails);
   const { showSuccess, showError } = useNotifications();
   const { user } = useAuth();
     const {
@@ -194,7 +95,6 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
   }, [location.state]);
 
   const summaryAbortControllerRef = useRef<AbortController | null>(null);
-  const draftAbortControllerRef = useRef<AbortController | null>(null);
   const previousIdRef = useRef<string | null>(null);
   const summaryRef = useRef<string | null>(summary);
   const emailRef = useRef<any>(email);
@@ -207,10 +107,6 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
       if (summaryAbortControllerRef.current) {
         summaryAbortControllerRef.current.abort();
         summaryAbortControllerRef.current = null;
-      }
-      if (draftAbortControllerRef.current) {
-        draftAbortControllerRef.current.abort();
-        draftAbortControllerRef.current = null;
       }
     }
     previousIdRef.current = id;
@@ -400,38 +296,6 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     }
   }, [email?.threadId, setNoteContent, setNotesCollapsed]);
 
-  const fetchDraft = useCallback(async () => {
-    if (!email?.threadId) return null;
-    try {
-      const response = await axios.get(`${API_URL}/drafts/thread/${email.threadId}`);
-      return response.data;
-    } catch (error) {
-      return null;
-    }
-  }, [email?.threadId]);
-
-  const saveDraft = useCallback(async (content: string, mode: 'reply' | 'replyAll', recipients: string) => {
-    if (!email?.threadId || !content.trim()) return;
-    try {
-      await axios.post(`${API_URL}/drafts/thread/${email.threadId}`, {
-        content,
-        replyMode: mode,
-        recipients,
-      });
-    } catch (error) {
-      console.error('Error saving draft:', error);
-    }
-  }, [email?.threadId]);
-
-  const deleteDraft = useCallback(async () => {
-    if (!email?.threadId) return;
-    try {
-      await axios.delete(`${API_URL}/drafts/thread/${email.threadId}`);
-    } catch (error) {
-      console.error('Error deleting draft:', error);
-    }
-  }, [email?.threadId]);
-
   const fetchActionItems = useCallback(async () => {
     if (!email?.id) return;
     try {
@@ -444,9 +308,6 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
 
   // Track which email IDs we've already fetched GitHub data for
   const githubFetchedRef = useRef<string | null>(null);
-
-  // Track current email ID for draft generation to prevent race conditions
-  const draftGenerationEmailIdRef = useRef<string | null>(null);
 
   // Stable function that doesn't change on re-renders - uses refs for tracking
   const fetchGithubInfo = useCallback(async () => {
@@ -689,223 +550,43 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     }
   }, [customRule, id, fetchCustomRules, handleUseCustomRule, setShowRuleModal, setCustomRule]);
 
-  const handleGenerateDraft = useCallback(async () => {
-    if (!id || !email) return;
+  // Draft and reply-composer operations extracted to sub-hook
+  const draftOps = useEmailDetailDraftOps(
+    id,
+    {
+      email,
+      threadEmails,
+      replyOptions,
+      setReplyOptions,
+      setDraft,
+      setSelectedReplyOption,
+      setLoadingReplies,
+      setReplyMode,
+      setShowReplyComposer,
+      setToneCheckResult,
+      setReplyRecipients,
+      setReplyCc,
+      setReplyBcc,
+      setShowCc,
+      setShowBcc,
+    },
+    user?.email,
+  );
 
-    // Ensure email data matches the current ID to prevent using stale data
-    // This can happen when switching threads - id updates before email state
-    if (email.id !== id) {
-      console.warn('[handleGenerateDraft] Skipping - email.id mismatch', { emailId: email.id, propId: id });
-      return;
-    }
+  const { fetchDraft, saveDraft, deleteDraft, handleGenerateDraft, handleOpenReplyComposer } = draftOps;
 
-    // Cancel any pending draft generation request
-    if (draftAbortControllerRef.current) {
-      draftAbortControllerRef.current.abort();
-    }
-    const controller = new AbortController();
-    draftAbortControllerRef.current = controller;
+  // Archive, snooze and delete operations extracted to sub-hook
+  const archiveOps = useEmailDetailArchiveOps({
+    id,
+    snoozeInput,
+    setSnoozeInput,
+    setShowSnoozeInput,
+    options,
+    getInboxPath,
+    triggerAnimation,
+  });
 
-    // Track which email we're generating for to prevent race conditions
-    const currentEmailId = id;
-    draftGenerationEmailIdRef.current = currentEmailId;
-
-    setLoadingReplies(true);
-    try {
-      const response = await axios.post(`${API_URL}/llm/suggest-replies`, {
-        originalEmail: {
-          from: email.from,
-          fromName: email.fromName,
-          subject: email.subject,
-          body: email.body,
-        }
-      }, { signal: controller.signal });
-
-      // Only update state if we're still looking at the same email
-      // This prevents showing suggestions from a previous email after switching
-      if (draftGenerationEmailIdRef.current !== currentEmailId || controller.signal.aborted) {
-        return;
-      }
-
-      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
-        captureEvent('reply_draft_generated', {
-          email_id: id,
-          draft_count: response.data.length,
-        });
-        const optionsWithCustom = [
-          { label: 'Custom', text: '' },
-          ...response.data,
-        ];
-        setReplyOptions(optionsWithCustom);
-        // Don't auto-populate draft - let user choose or start typing
-        setDraft('');
-        setSelectedReplyOption(0);
-      } else {
-        setReplyOptions([{ label: 'Custom', text: '' }]);
-        setDraft('');
-        setSelectedReplyOption(0);
-      }
-    } catch (error) {
-      // Ignore cancelled requests
-      if (axios.isCancel(error)) {
-        return;
-      }
-      // Only update state if we're still looking at the same email
-      if (draftGenerationEmailIdRef.current !== currentEmailId) {
-        return;
-      }
-      console.error('Error generating draft:', error);
-      setReplyOptions([{ label: 'Custom', text: '' }]);
-      setDraft('');
-      setSelectedReplyOption(0);
-    } finally {
-      // Only update loading state if we're still looking at the same email
-      if (draftGenerationEmailIdRef.current === currentEmailId && !controller.signal.aborted) {
-        setLoadingReplies(false);
-      }
-    }
-  }, [id, email, setLoadingReplies, setReplyOptions, setDraft, setSelectedReplyOption]);
-
-  // eslint-disable-next-line no-restricted-syntax -- Type parameter must remain literal type for TypeScript compatibility
-  const handleOpenReplyComposer = useCallback((mode: 'reply' | 'replyAll') => {
-    captureEvent('reply_button_clicked', { email_id: id, reply_type: mode });
-    setReplyMode(mode);
-    setShowReplyComposer(true);
-    setToneCheckResult(null);
-    setReplyCc('');
-    setReplyBcc('');
-    setShowCc(false);
-    setShowBcc(false);
-
-    const latestEmail = threadEmails.length > 0
-      ? threadEmails.reduce((latest, current) =>
-          new Date(current.receivedAt) > new Date(latest.receivedAt) ? current : latest
-        )
-      : email;
-
-    if (latestEmail) {
-      const normalizedUserEmail = user?.email?.toLowerCase();
-      // Extract plain email address from "Name <email>" or plain "email" format
-      const extractEmail = (addr: string): string => {
-        const match = addr.match(/<([^>]+)>/);
-        return match ? match[1].toLowerCase() : addr.toLowerCase();
-      };
-      const isCurrentUser = (addr: string): boolean =>
-        !!normalizedUserEmail && extractEmail(addr) === normalizedUserEmail;
-      const isLatestFromCurrentUser = normalizedUserEmail && isCurrentUser(latestEmail.from);
-
-      if (mode === REPLY_MODE_REPLY_ALL) {
-        const recipients: string[] = [];
-
-        if (isLatestFromCurrentUser) {
-          // User sent the last email - reply to the original recipients
-          if (latestEmail.to) {
-            const toRecipients = latestEmail.to.split(',').map((r: string) => r.trim()).filter((r: string) => r && !isCurrentUser(r));
-            recipients.push(...toRecipients);
-          }
-        } else {
-          // Someone else sent the last email - reply to them + other recipients
-          const replyToAddress = latestEmail.replyTo || latestEmail.from;
-          recipients.push(replyToAddress);
-          if (latestEmail.to) {
-            const toRecipients = latestEmail.to.split(',').map((r: string) => r.trim()).filter((r: string) => r && !isCurrentUser(r));
-            recipients.push(...toRecipients);
-          }
-        }
-
-        const uniqueRecipients = [...new Set(recipients)];
-        setReplyRecipients(uniqueRecipients.join(', '));
-        if (latestEmail.cc) {
-          // Filter out current user from CC as well
-          const ccRecipients = latestEmail.cc.split(',').map((r: string) => r.trim()).filter((r: string) => r && !isCurrentUser(r));
-          if (ccRecipients.length > 0) {
-            setReplyCc(ccRecipients.join(', '));
-            setShowCc(true);
-          }
-        }
-      } else {
-        // Regular reply
-        if (isLatestFromCurrentUser) {
-          // User sent the last email - reply to the recipients of that email, not to yourself
-          // Try to find the correspondent from thread emails first
-          const otherPersonEmail = threadEmails.find(
-            (e: any) => !isCurrentUser(e.from)
-          );
-          if (otherPersonEmail) {
-            setReplyRecipients(otherPersonEmail.from);
-          } else if (latestEmail.to) {
-            // Fall back to the 'to' field of the latest email
-            const firstRecipient = latestEmail.to.split(',').map((r: string) => r.trim()).filter((r: string) => r && !isCurrentUser(r))[0];
-            setReplyRecipients(firstRecipient || latestEmail.to);
-          } else {
-            setReplyRecipients(latestEmail.from);
-          }
-        } else {
-          // Use Reply-To if present, otherwise From
-          setReplyRecipients(latestEmail.replyTo || latestEmail.from);
-        }
-      }
-    }
-    // Only generate suggestions if we don't already have them (they may have been pre-generated in background)
-    if (!replyOptions || replyOptions.length === 0) {
-      setDraft('');
-      handleGenerateDraft();
-    } else {
-      // If we have suggestions, start with empty draft (Custom option)
-      // Don't auto-populate - let user choose or start typing
-      setDraft('');
-    }
-  }, [id, email, threadEmails, draft, replyOptions, user?.email, setReplyMode, setShowReplyComposer, setDraft, setToneCheckResult, setReplyRecipients, setReplyCc, setReplyBcc, setShowCc, setShowBcc, handleGenerateDraft]);
-
-  const performArchiveAfterReply = useCallback(async () => {
-    if (!id) return;
-    const emailToArchive = emails.find(e => e.id === id);
-    // Always dispatch optimistic update so the email is hidden immediately,
-    // even if the email object isn't in the Redux store (e.g. full-page view)
-    dispatch(removeEmail(id));
-    dispatch(addOptimisticArchive(id));
-
-    // Navigate immediately after optimistic update for instant UI feedback
-    if (options.onArchiveComplete && id) {
-      options.onArchiveComplete(id);
-    } else {
-      navigate(getInboxPath());
-    }
-
-    // Make API call in background - revert optimistic update if it fails
-    axios.put(`${API_URL}/emails/${id}/archive`).catch((error) => {
-      console.error('Error archiving email after reply:', error);
-      dispatch(removeOptimisticArchive(id));
-      if (emailToArchive) {
-        dispatch(restoreEmail(emailToArchive));
-      }
-    });
-  }, [id, emails, dispatch, options, navigate, getInboxPath]);
-
-  const performSnoozeAfterReply = useCallback(async (duration: string) => {
-    if (!id) return;
-    const emailToSnooze = emails.find(e => e.id === id);
-    // Always dispatch optimistic update so the email is hidden immediately,
-    // even if the email object isn't in the Redux store (e.g. full-page view)
-    dispatch(removeEmail(id));
-    dispatch(addOptimisticSnooze(id));
-
-    // Navigate immediately after optimistic update for instant UI feedback
-    if (options.onSnoozeComplete) {
-      options.onSnoozeComplete(id);
-    } else {
-      navigate(getInboxPath());
-    }
-
-    // Make API call in background - revert optimistic update if it fails
-    axios.post(`${API_URL}/snooze/${id}`, { duration }).catch((error) => {
-      console.error('Error snoozing email after reply:', error);
-      dispatch(removeOptimisticSnooze(id));
-      if (emailToSnooze) {
-        dispatch(restoreEmail(emailToSnooze));
-      }
-    });
-  }, [id, emails, dispatch, options, navigate, getInboxPath]);
+  const { performArchiveAfterReply, performSnoozeAfterReply, handleArchive, handleSnooze, handleDelete } = archiveOps;
 
   const handleSendReply = useCallback(async (files: File[] = [], expectedReplyHours?: number, draftOverride?: string, scheduledSendAt?: Date) => {
     const draftToSend = draftOverride || draft;
@@ -978,8 +659,8 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
         }
         setDraft(null);
         deleteDraft();
-        
-        const successMessage = scheduledSendAt 
+
+        const successMessage = scheduledSendAt
           ? t('emailDetail.replyScheduledSuccess')
           : t('emailDetail.replySentSuccess');
         showSuccess(successMessage);
@@ -1022,97 +703,6 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
       setDisputing(false);
     }
   }, [setDisputing, setDisputeResult]);
-
-  const handleArchive = useCallback(async () => {
-    if (!id) return;
-    captureEvent('email_archive_clicked', { email_id: id });
-
-    const emailToArchive = emails.find(e => e.id === id);
-
-    if (emailToArchive) {
-      dispatch(removeEmail(id));
-      dispatch(addOptimisticArchive(id));
-    }
-
-    if (options.onArchiveComplete) {
-      try {
-        await axios.put(`${API_URL}/emails/${id}/archive`);
-        options.onArchiveComplete(id);
-      } catch (error) {
-        console.error('Error archiving email:', error);
-        if (emailToArchive) {
-          dispatch(restoreEmail(emailToArchive));
-          dispatch(removeOptimisticArchive(id));
-        }
-        options.onArchiveComplete(id);
-      }
-    } else {
-      await triggerAnimation(ANIMATION_TYPE_ARCHIVE);
-      navigate('/inbox');
-      axios.put(`${API_URL}/emails/${id}/archive`)
-        .catch((error) => {
-          console.error('Error archiving email:', error);
-          if (emailToArchive) {
-            dispatch(restoreEmail(emailToArchive));
-            dispatch(removeOptimisticArchive(id));
-          }
-        });
-    }
-  }, [id, triggerAnimation, navigate, options, dispatch, emails]);
-
-  const handleSnooze = useCallback(async (durationOverride?: string) => {
-    const duration = durationOverride || snoozeInput.trim();
-    if (!id || !duration) return;
-    captureEvent('email_snooze_confirmed', {
-      email_id: id,
-      snooze_input_length: duration.length,
-    });
-
-    const emailToSnooze = emails.find(e => e.id === id);
-
-    if (emailToSnooze) {
-      dispatch(removeEmail(id));
-      dispatch(addOptimisticSnooze(id));
-    }
-
-    if (!durationOverride) {
-      setSnoozeInput('');
-      setShowSnoozeInput(false);
-    }
-
-    if (options.onSnoozeComplete) {
-      try {
-        await axios.post(`${API_URL}/snooze/${id}`, { duration });
-        options.onSnoozeComplete(id);
-      } catch (error) {
-        console.error('Error snoozing email:', error);
-        if (emailToSnooze) {
-          dispatch(restoreEmail(emailToSnooze));
-          dispatch(removeOptimisticSnooze(id));
-        }
-        options.onSnoozeComplete(id);
-      }
-    } else {
-      navigate('/inbox');
-      axios.post(`${API_URL}/snooze/${id}`, { duration }).catch(error => {
-        console.error('Error snoozing email:', error);
-        if (emailToSnooze) {
-          dispatch(restoreEmail(emailToSnooze));
-          dispatch(removeOptimisticSnooze(id));
-        }
-      });
-    }
-  }, [id, snoozeInput, setSnoozeInput, setShowSnoozeInput, navigate, options, dispatch, emails]);
-
-  const handleDelete = useCallback(async () => {
-    if (!id) return;
-    captureEvent('email_delete_clicked', { email_id: id });
-    await triggerAnimation(ANIMATION_TYPE_ARCHIVE);
-    navigate('/inbox');
-    axios.delete(`${API_URL}/emails/${id}`).catch(error => {
-      console.error('Error deleting email:', error);
-    });
-  }, [id, triggerAnimation, navigate]);
 
   const handleSetStarCount = useCallback(async (emailId: string, starCount: number) => {
     captureEvent('email_star_count_changed', { email_id: emailId, star_count: starCount });
@@ -1206,4 +796,3 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     sanitizeAndProcessHtml,
   };
 }
-

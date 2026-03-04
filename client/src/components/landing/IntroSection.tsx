@@ -9,6 +9,21 @@ import {
   getResponsiveSpacing,
 } from 'components/landing/utils';
 
+type BreakpointHook = ReturnType<typeof useResponsiveBreakpoints>;
+
+function useIntroStyles(breakpoints: BreakpointHook) {
+  const bodyFontSize = getResponsiveFontSize(breakpoints, { mobile: theme.typography.fontSize.base, tablet: theme.typography.fontSize.base, desktop: theme.typography.fontSize.lg });
+  const subHeadingFontSize = getResponsiveFontSize(breakpoints, { mobile: theme.typography.fontSize.lg, tablet: theme.typography.fontSize.xl, desktop: theme.typography.fontSize.xl });
+  return {
+    mainHeadingFontSize: getHeadingFontSize(breakpoints, 'h2'),
+    headingMarginBottom: getResponsiveSpacing(breakpoints, { mobile: theme.spacing.md, tablet: theme.spacing.lg, desktop: theme.spacing.lg }),
+    sectionGap: getResponsiveSpacing(breakpoints, { mobile: theme.spacing.lg, tablet: theme.spacing.xl, desktop: theme.spacing.xl }),
+    paragraphStyle: { fontSize: bodyFontSize, color: theme.colors.text.secondary, lineHeight: 1.8, wordWrap: 'break-word' as const, overflowWrap: 'break-word' as const, maxWidth: '100%', marginBottom: theme.spacing.md },
+    subSectionHeadingStyle: { fontSize: subHeadingFontSize, fontWeight: theme.typography.fontWeight.semibold, color: theme.colors.text.primary, marginBottom: theme.spacing.sm, marginTop: 0 },
+    subheadingStyle: { fontSize: bodyFontSize, fontStyle: 'italic' as const, color: theme.colors.text.secondary, marginBottom: theme.spacing.md },
+  };
+}
+
 /**
  * Introduction section component
  * Explains why BearlyMail exists with structured content
@@ -17,52 +32,7 @@ export const IntroSection: React.FC = () => {
   const { t } = useTranslation();
   const breakpoints = useResponsiveBreakpoints();
 
-  const mainHeadingFontSize = getHeadingFontSize(breakpoints, 'h2');
-  const subHeadingFontSize = getResponsiveFontSize(breakpoints, {
-    mobile: theme.typography.fontSize.lg,
-    tablet: theme.typography.fontSize.xl,
-    desktop: theme.typography.fontSize.xl,
-  });
-  const bodyFontSize = getResponsiveFontSize(breakpoints, {
-    mobile: theme.typography.fontSize.base,
-    tablet: theme.typography.fontSize.base,
-    desktop: theme.typography.fontSize.lg,
-  });
-  const headingMarginBottom = getResponsiveSpacing(breakpoints, {
-    mobile: theme.spacing.md,
-    tablet: theme.spacing.lg,
-    desktop: theme.spacing.lg,
-  });
-  const sectionGap = getResponsiveSpacing(breakpoints, {
-    mobile: theme.spacing.lg,
-    tablet: theme.spacing.xl,
-    desktop: theme.spacing.xl,
-  });
-
-  const paragraphStyle: React.CSSProperties = {
-    fontSize: bodyFontSize,
-    color: theme.colors.text.secondary,
-    lineHeight: 1.8,
-    wordWrap: 'break-word',
-    overflowWrap: 'break-word',
-    maxWidth: '100%',
-    marginBottom: theme.spacing.md,
-  };
-
-  const subSectionHeadingStyle: React.CSSProperties = {
-    fontSize: subHeadingFontSize,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.sm,
-    marginTop: 0,
-  };
-
-  const subheadingStyle: React.CSSProperties = {
-    fontSize: bodyFontSize,
-    fontStyle: 'italic',
-    color: theme.colors.text.secondary,
-    marginBottom: theme.spacing.md,
-  };
+  const { mainHeadingFontSize, headingMarginBottom, sectionGap, paragraphStyle, subSectionHeadingStyle, subheadingStyle } = useIntroStyles(breakpoints);
 
   return (
     <section

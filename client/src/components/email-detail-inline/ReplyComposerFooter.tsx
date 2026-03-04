@@ -19,6 +19,33 @@ const EXPECTED_REPLY_OPTIONS = [
   { value: 168, labelKey: LABEL_KEY_DAYS, count: 7 },
 ];
 
+interface ExpectedReplyOptionButtonProps {
+  option: typeof EXPECTED_REPLY_OPTIONS[0];
+  selected: boolean;
+  disabled: boolean;
+  onSelect: (value: number) => void;
+  getLabel: (option: typeof EXPECTED_REPLY_OPTIONS[0]) => string;
+}
+
+const ExpectedReplyOptionButton: React.FC<ExpectedReplyOptionButtonProps> = ({ option, selected, disabled, onSelect, getLabel }) => (
+  <button
+    key={option.value}
+    onClick={() => onSelect(option.value)}
+    disabled={disabled}
+    style={{
+      padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+      backgroundColor: selected ? theme.colors.primary.main : theme.colors.background.subtle,
+      color: selected ? 'white' : theme.colors.text.secondary,
+      border: `1px solid ${selected ? theme.colors.primary.main : theme.colors.border.light}`,
+      borderRadius: theme.borderRadius.sm,
+      cursor: disabled ? 'not-allowed' : 'pointer',
+      fontSize: theme.typography.fontSize.xs,
+      fontWeight: selected ? theme.typography.fontWeight.medium : theme.typography.fontWeight.normal,
+      transition: 'all 0.15s ease',
+    }}
+  >{getLabel(option)}</button>
+);
+
 interface ReplyComposerFooterProps {
   sending: boolean;
   checkingTone: boolean;
@@ -45,21 +72,11 @@ export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = ({
 
   const getButtonText = (): string => {
     if (checkingTone) return t('emailDetail.checkingTone');
-    if (sending) return t('emailDetail.sending');
-    return t('emailDetail.send');
+    return sending ? t('emailDetail.sending') : t('emailDetail.send');
   };
-
-  const handleSend = () => {
-    captureEvent('reply_sent', { expected_reply_hours: expectedReplyHours > 0 ? expectedReplyHours : null });
-    onSend(expectedReplyHours, undefined, scheduledSendAt || undefined);
-  };
-
-  const getOptionLabel = (option: typeof EXPECTED_REPLY_OPTIONS[0]): string => {
-    if (option.labelKey === LABEL_KEY_NONE) {
-      return t('emailDetail.expectedReply.none');
-    }
-    return t(`emailDetail.expectedReply.${option.labelKey}`, { count: option.count });
-  };
+  const handleSend = () => { captureEvent('reply_sent', { expected_reply_hours: expectedReplyHours > 0 ? expectedReplyHours : null }); onSend(expectedReplyHours, undefined, scheduledSendAt || undefined); };
+  const getOptionLabel = (option: typeof EXPECTED_REPLY_OPTIONS[0]): string =>
+    option.labelKey === LABEL_KEY_NONE ? t('emailDetail.expectedReply.none') : t(`emailDetail.expectedReply.${option.labelKey}`, { count: option.count });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md, marginTop: theme.spacing.md }}>
@@ -73,32 +90,13 @@ export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = ({
         </span>
         <div style={{ display: 'flex', gap: theme.spacing.xs, flexWrap: 'wrap' }}>
           {EXPECTED_REPLY_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              onClick={() => setExpectedReplyHours(option.value)}
+            <ExpectedReplyOptionButton
+              key={option.value} option={option}
+              selected={expectedReplyHours === option.value}
               disabled={sending || checkingTone}
-              style={{
-                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                backgroundColor: expectedReplyHours === option.value 
-                  ? theme.colors.primary.main 
-                  : theme.colors.background.subtle,
-                color: expectedReplyHours === option.value 
-                  ? 'white' 
-                  : theme.colors.text.secondary,
-                border: `1px solid ${expectedReplyHours === option.value 
-                  ? theme.colors.primary.main 
-                  : theme.colors.border.light}`,
-                borderRadius: theme.borderRadius.sm,
-                cursor: (sending || checkingTone) ? 'not-allowed' : 'pointer',
-                fontSize: theme.typography.fontSize.xs,
-                fontWeight: expectedReplyHours === option.value 
-                  ? theme.typography.fontWeight.medium 
-                  : theme.typography.fontWeight.normal,
-                transition: 'all 0.15s ease',
-              }}
-            >
-              {getOptionLabel(option)}
-            </button>
+              onSelect={setExpectedReplyHours}
+              getLabel={getOptionLabel}
+            />
           ))}
         </div>
       </div>

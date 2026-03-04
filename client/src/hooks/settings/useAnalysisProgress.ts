@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, type MutableRefObject } from 'react';
 import axios from 'axios';
 import { LONG_TIMEOUT_MS, POLLING_INTERVAL_MS, MAX_RETRIES_POLLING, POLLING_DELAY_MS, DELAY_1_SECOND_MS } from 'constants/numbers';
 import { devLog, devError, devDebug } from 'utils/dev-logger';
@@ -40,6 +40,37 @@ export interface AnalyzeProgress {
   isComplete: boolean;
 }
 
+const getStageOrder = (messageKey?: string | null): number => {
+  if (!messageKey) {
+    return -1;
+  }
+  return STAGE_ORDER[messageKey] ?? -1;
+};
+
+const resolveEffectiveMessageKey = ({
+  messageKey,
+  messageKeyHighWaterMark,
+}: {
+  messageKey?: string;
+  messageKeyHighWaterMark: MutableRefObject<string | null>;
+}): string | undefined => {
+  const currentStageOrder = getStageOrder(messageKey);
+  const highWaterMessageKey = messageKeyHighWaterMark.current;
+  const highWaterStageOrder = getStageOrder(highWaterMessageKey);
+
+  if (currentStageOrder > highWaterStageOrder) {
+    messageKeyHighWaterMark.current = messageKey ?? null;
+    devLog(`Message stage advanced: ${messageKey} (order ${currentStageOrder})`);
+    return messageKey;
+  }
+
+  if (currentStageOrder < highWaterStageOrder && highWaterMessageKey) {
+    devLog(`Message stage went backwards (${messageKey} order ${currentStageOrder} < ${highWaterMessageKey} order ${highWaterStageOrder}), using high water mark: ${highWaterMessageKey}`);
+    return highWaterMessageKey;
+  }
+
+  return messageKey;
+};
 
 // eslint-disable-next-line max-lines-per-function -- Analysis progress hook requires handling multiple states and logic
 export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
@@ -109,6 +140,7 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
     }
   }, []);
 
+  // eslint-disable-next-line max-lines-per-function -- Analysis polling requires tracking multiple states, retries, and error conditions
   useEffect(() => {
     // Don't start polling until BOTH analyzing is true AND analysisId is set
     // This prevents the first poll from using an old/null analysisId
@@ -167,21 +199,10 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
       
       // CRITICAL: Use stage-based high water mark for messageKey to prevent message going backwards
       // (e.g., showing "fetching" after "analyzing" due to backend race conditions)
-      let effectiveMessageKey = messageKey;
-      let effectiveMessageValues = messageValues;
-      const currentStageOrder = STAGE_ORDER[messageKey] ?? -1;
-      const highWaterStageOrder = messageKeyHighWaterMark.current ? (STAGE_ORDER[messageKeyHighWaterMark.current] ?? -1) : -1;
-      
-      if (currentStageOrder > highWaterStageOrder) {
-        // Stage advanced - update high water mark
-        messageKeyHighWaterMark.current = messageKey;
-        devLog(`Message stage advanced: ${messageKey} (order ${currentStageOrder})`);
-      } else if (currentStageOrder < highWaterStageOrder && messageKeyHighWaterMark.current) {
-        // Stage went backwards - use high water mark message instead
-        effectiveMessageKey = messageKeyHighWaterMark.current;
-        // Keep current values but log the override
-        devLog(`Message stage went backwards (${messageKey} order ${currentStageOrder} < ${messageKeyHighWaterMark.current} order ${highWaterStageOrder}), using high water mark: ${effectiveMessageKey}`);
-      }
+      const effectiveMessageKey = resolveEffectiveMessageKey({
+        messageKey,
+        messageKeyHighWaterMark,
+      });
       
       setAnalyzeProgress({
         show: true,
@@ -189,7 +210,7 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
           current: effectiveCurrent,
           total,
           messageKey: effectiveMessageKey,
-          messageValues: effectiveMessageValues,
+          messageValues,
           threadCount,
           analyzedCount,
           batchStatus,
@@ -260,40 +281,44 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
     let isPolling = false;
     
     
-    // Helper: schedule the next poll after a delay (avoids repeating setTimeout pattern).
-    const scheduleNextPoll = (delayMs: number) => {
-      if (!cancelledRef.current) {
-        pollingTimeoutRef.current = setTimeout(() => {
-          if (!cancelledRef.current) { pollProgress(); }
-        }, delayMs);
-      }
-    };
-
     const pollProgress = async () => {
+      // CRITICAL: Don't poll until we have an analysisId - prevents fetching old completed analyses
       if (!analysisId) {
         devDebug('Poll skipped - waiting for analysisId to be set');
-        scheduleNextPoll(POLLING_DELAY_MS);
+        // Retry in 500ms
+        pollingTimeoutRef.current = setTimeout(() => {
+          if (!cancelledRef.current) {
+            pollProgress();
+          }
+        }, POLLING_DELAY_MS);
         return;
       }
-      if (isPolling) return;
-
+      
+      if (isPolling) {
+        return; // Skip if previous request is still in progress
+      }
+      
       isPolling = true;
-      const requestStartTime = Date.now();
 
       try {
+        // Pass analysis ID in polling request - now always has value due to check above
         const url = `${API_URL}/context/analyze-progress?analysisId=${analysisId}`;
         devDebug(`Polling progress from ${url}`);
+        
         const response = await axios.get(url);
-        const requestDuration = Date.now() - requestStartTime;
-        devDebug('Progress response:', response.data, 'duration:', requestDuration);
 
+        devDebug('Progress response:', response.data);
+        
         if (response.data.error) {
           devError('Progress check returned error:', response.data.error);
-          handleErrorResponse(response.data.error.message || 'Analysis failed. Please try again.', pollingTimeoutRef.current);
+          handleErrorResponse(
+            response.data.error.message || 'Analysis failed. Please try again.',
+            pollingTimeoutRef.current
+          );
           isPolling = false;
           return;
         }
-
+        
         if (response.data.progress) {
           const rawPercent = response.data.progress.current;
           devLog(`[RAW] Progress update from backend: ${rawPercent}/${response.data.progress.total} - ${response.data.progress.messageKey || 'No messageKey'}, high water mark: ${progressHighWaterMark.current}`);
@@ -302,11 +327,26 @@ export const useAnalysisProgress = (onComplete?: () => Promise<void>) => {
           devDebug('No progress in response, calling handleNoProgressResponse');
           await handleNoProgressResponse(pollingTimeoutRef.current);
         }
-
-        scheduleNextPoll(POLLING_INTERVAL_MS);
+        
+        // Wait 2 seconds AFTER receiving response before next poll
+        // CRITICAL: Check cancelledRef (not analyzing state) to ensure cancellation is seen
+        if (!cancelledRef.current) {
+          pollingTimeoutRef.current = setTimeout(() => {
+            if (!cancelledRef.current) {
+              pollProgress();
+            }
+          }, POLLING_INTERVAL_MS);
+        }
       } catch (error: any) {
         handleFetchError(error, pollingTimeoutRef.current);
-        scheduleNextPoll(POLLING_INTERVAL_MS);
+        // Wait 2 seconds even on error before retrying
+        if (!cancelledRef.current) {
+          pollingTimeoutRef.current = setTimeout(() => {
+            if (!cancelledRef.current) {
+              pollProgress();
+            }
+          }, POLLING_INTERVAL_MS);
+        }
       } finally {
         isPolling = false;
       }

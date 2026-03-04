@@ -10,6 +10,20 @@ import { API_URL } from 'config/api';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
 
+const TimezoneSelectorSection: React.FC<{ timezone: string; onChange: (tz: string) => void }> = ({ timezone, onChange }) => {
+  const { t } = useTranslation();
+  return (
+    <div style={{ marginBottom: theme.spacing.lg }}>
+      <label style={{ display: 'block', color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, marginBottom: theme.spacing.xs }}>
+        {t('settings.delivery.timezone')}
+      </label>
+      <select value={timezone} onChange={(e) => onChange(e.target.value)} style={{ padding: `${theme.spacing.xs} ${theme.spacing.sm}`, borderRadius: theme.borderRadius.sm, border: `1px solid ${theme.colors.border.medium}`, fontSize: theme.typography.fontSize.sm, backgroundColor: theme.colors.background.paper, color: theme.colors.text.primary, minWidth: '250px' }}>
+        {TIMEZONE_OPTIONS.map((tz) => (<option key={tz} value={tz}>{tz.replace(/_/g, ' ')}</option>))}
+      </select>
+    </div>
+  );
+};
+
 const TIMEZONE_OPTIONS: string[] = (() => {
   try {
     return Intl.supportedValuesOf('timeZone');
@@ -119,35 +133,7 @@ export const EmailBatchingSection: React.FC<EmailBatchingSectionProps> = ({
         onRemoveTime={removeDeliveryTime}
       />
 
-      <div style={{ marginBottom: theme.spacing.lg }}>
-        <label style={{
-          display: 'block',
-          color: theme.colors.text.secondary,
-          fontSize: theme.typography.fontSize.sm,
-          marginBottom: theme.spacing.xs,
-        }}>
-          {t('settings.delivery.timezone')}
-        </label>
-        <select
-          value={batchSchedule.timezone}
-          onChange={(e) => onBatchScheduleChange({ ...batchSchedule, timezone: e.target.value })}
-          style={{
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            borderRadius: theme.borderRadius.sm,
-            border: `1px solid ${theme.colors.border.medium}`,
-            fontSize: theme.typography.fontSize.sm,
-            backgroundColor: theme.colors.background.paper,
-            color: theme.colors.text.primary,
-            minWidth: '250px',
-          }}
-        >
-          {TIMEZONE_OPTIONS.map((tz) => (
-            <option key={tz} value={tz}>
-              {tz.replace(/_/g, ' ')}
-            </option>
-          ))}
-        </select>
-      </div>
+      <TimezoneSelectorSection timezone={batchSchedule.timezone} onChange={(tz) => onBatchScheduleChange({ ...batchSchedule, timezone: tz })} />
 
       <button
         onClick={handleUpdateBatchSchedule}

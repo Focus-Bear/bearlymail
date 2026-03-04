@@ -6,6 +6,27 @@ import { useBulkEmailActions } from 'hooks/useBulkEmailActions';
 import { useBlockSender } from 'hooks/useBlockSender';
 import { useStarCountHandler } from 'hooks/useStarCountHandler';
 
+type SplitViewRef = { selectedEmailId: string | null; openEmail: (emailId: string) => void; closeEmail: () => void };
+
+function navigateSplitViewAfterRemove(
+  removedEmailId: string,
+  removedIndex: number,
+  visibleEmails: Email[],
+  splitView: SplitViewRef,
+  setSelectedEmailIndex?: (i: number) => void,
+): void {
+  const remaining = visibleEmails.filter(email => email.id !== removedEmailId);
+  if (remaining.length === 0) { splitView.closeEmail(); return; }
+  const nextIndex = removedIndex < remaining.length ? removedIndex : Math.max(0, remaining.length - 1);
+  const nextEmail = remaining[nextIndex];
+  if (nextEmail) {
+    splitView.openEmail(nextEmail.id);
+    setSelectedEmailIndex?.(nextIndex);
+  } else {
+    splitView.closeEmail();
+  }
+}
+
 interface UseEmailActionsProps {
   mode: InboxMode;
   emails: Email[];
@@ -86,49 +107,13 @@ export function useEmailActions({
 
   const handleArchive = useCallback(async (emailId: string, e: React.MouseEvent) => {
     captureEvent('email_archive_clicked', { email_id: emailId });
-    
-    // Find the index of the email being archived
     const visibleEmails = emails.filter(email => !email.isArchived);
     const archivedIndex = visibleEmails.findIndex(email => email.id === emailId);
-    
-    setSelectedEmailIds(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(emailId);
-      return newSet;
-    });
-    
+    setSelectedEmailIds(prev => { const ns = new Set(prev); ns.delete(emailId); return ns; });
     await handleArchiveBase(emailId, e);
-    
-    // Navigate to next email in split view after archiving
     if (splitView?.selectedEmailId === emailId) {
-      // Filter out the just-archived email to get the remaining visible emails
-      const remainingEmails = visibleEmails.filter(e => e.id !== emailId);
-      
-      if (remainingEmails.length === 0) {
-        splitView.closeEmail();
-        return;
-      }
-      
-      // Use the current index as the next index (since we removed the current email)
-      const nextIndex = archivedIndex < remainingEmails.length 
-        ? archivedIndex 
-        : Math.max(0, remainingEmails.length - 1);
-      
-      const nextEmail = remainingEmails[nextIndex];
-      if (nextEmail) {
-        splitView.openEmail(nextEmail.id);
-        if (setSelectedEmailIndex !== undefined) {
-          setSelectedEmailIndex(nextIndex);
-        }
-      } else {
-        splitView.closeEmail();
-      }
+      navigateSplitViewAfterRemove(emailId, archivedIndex, visibleEmails, splitView, setSelectedEmailIndex);
     }
-    
-    // Note: We intentionally do NOT scroll after archiving in list view.
-    // The category accordion structure means email indices don't match the flat list order,
-    // so scrollIntoView would scroll to the wrong email and cause the user to lose their place.
-    // The browser's natural scroll anchoring keeps the user at roughly the same position.
   }, [handleArchiveBase, setSelectedEmailIds, emails, splitView, setSelectedEmailIndex]);
 
   const handleBlockSender = useCallback((emailId: string, e: React.MouseEvent) => {
@@ -160,74 +145,20 @@ export function useEmailActions({
 
   const handleSnooze = useCallback(async (emailId: string) => {
     const duration = snoozeInput.getSnoozeValue(emailId)?.trim();
-    if (!duration) {
-      console.warn('Cannot snooze: duration is empty');
-      return;
-    }
-
-    captureEvent('email_snooze_confirmed', {
-      email_id: emailId,
-      // Only track length, not the actual content
-      snooze_input_length: duration.length,
-    });
-
-    // Find the index of the email being snoozed for navigation
+    if (!duration) { console.warn('Cannot snooze: duration is empty'); return; }
+    captureEvent('email_snooze_confirmed', { email_id: emailId, snooze_input_length: duration.length });
     const visibleEmails = emails.filter(email => !email.isArchived);
     const snoozedIndex = visibleEmails.findIndex(email => email.id === emailId);
-
-    // Clear snooze input first
     snoozeInput.clearSnooze(emailId);
-
-    // Remove from selection
-    setSelectedEmailIds(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(emailId);
-      return newSet;
-    });
-
-    // Call the base snooze handler (now optimistic, doesn't wait for API)
+    setSelectedEmailIds(prev => { const ns = new Set(prev); ns.delete(emailId); return ns; });
     handleSnoozeBase(emailId, duration);
-
-    // Navigate to next email in split view after snoozing
     if (splitView?.selectedEmailId === emailId) {
-      // Filter out the just-snoozed email to get the remaining visible emails
-      const remainingEmails = visibleEmails.filter(e => e.id !== emailId);
-      
-      if (remainingEmails.length === 0) {
-        splitView.closeEmail();
-        return;
-      }
-      
-      // Use the current index as the next index (since we removed the current email)
-      const nextIndex = snoozedIndex < remainingEmails.length 
-        ? snoozedIndex 
-        : Math.max(0, remainingEmails.length - 1);
-      
-      const nextEmail = remainingEmails[nextIndex];
-      if (nextEmail) {
-        splitView.openEmail(nextEmail.id);
-        if (setSelectedEmailIndex !== undefined) {
-          setSelectedEmailIndex(nextIndex);
-        }
-      } else {
-        splitView.closeEmail();
-      }
+      navigateSplitViewAfterRemove(emailId, snoozedIndex, visibleEmails, splitView, setSelectedEmailIndex);
     } else if (emailListRef?.current && snoozedIndex >= 0 && visibleEmails.length > 1) {
-      // Scroll to next email in list view after snoozing
-      const nextIndex = snoozedIndex < visibleEmails.length - 1 
-        ? snoozedIndex 
-        : Math.max(0, snoozedIndex - 1);
-      
+      const nextIndex = snoozedIndex < visibleEmails.length - 1 ? snoozedIndex : Math.max(0, snoozedIndex - 1);
       setTimeout(() => {
-        const emailElement = emailListRef.current?.querySelector(
-          `[data-email-index="${nextIndex}"]`
-        ) as HTMLElement;
-        if (emailElement) {
-          emailElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-          if (setSelectedEmailIndex !== undefined) {
-            setSelectedEmailIndex(nextIndex);
-          }
-        }
+        const el = emailListRef.current?.querySelector(`[data-email-index="${nextIndex}"]`) as HTMLElement;
+        if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); setSelectedEmailIndex?.(nextIndex); }
       }, 100);
     }
   }, [snoozeInput, handleSnoozeBase, emails, splitView, emailListRef, setSelectedEmailIndex, setSelectedEmailIds]);

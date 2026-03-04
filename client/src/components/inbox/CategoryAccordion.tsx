@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
 import { OPACITY_DISABLED } from 'constants/numbers';
-import { CATEGORY_DANGEROUS_PHISHING, CATEGORY_OTHER, KEY_ESCAPE, KEY_Y, STRING_NONE } from 'constants/strings';
+import { CATEGORY_DANGEROUS_PHISHING, CATEGORY_OTHER, KEY_ESCAPE, KEY_Y, STRING_NONE, PHISHING_CONFIDENCE_MEDIUM, PHISHING_CONFIDENCE_HIGH, MODE_AUTORESPONDED } from 'constants/strings';
 import { Email, InboxMode, getEmailPriorityScore } from 'types/email';
 import { ArchiveConfirmationToast } from 'components/inbox/ArchiveConfirmationToast';
 
@@ -59,6 +59,44 @@ const REANALYSE_ICON = '🔄';
 
 const ARCHIVE_ALL_ICON = '🗄️';
 
+interface ReanalyseButtonProps {
+  onClick: (e: React.MouseEvent) => void;
+  isReanalysing: boolean;
+  label: string;
+}
+
+const ReanalyseButton: React.FC<ReanalyseButtonProps> = ({ onClick, isReanalysing, label }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      disabled={isReanalysing}
+      style={{
+        padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+        borderRadius: theme.borderRadius.sm,
+        border: STRING_NONE,
+        backgroundColor: isHovered ? theme.colors.interactive.hover : 'transparent',
+        color: isReanalysing ? theme.colors.text.disabled : theme.colors.text.tertiary,
+        fontSize: theme.typography.fontSize.sm,
+        cursor: isReanalysing ? 'not-allowed' : 'pointer',
+        transition: theme.transitions.fast,
+        display: 'flex',
+        alignItems: 'center',
+        gap: theme.spacing.xs,
+        opacity: isReanalysing ? OPACITY_DISABLED : 1,
+      }}
+      title={label}
+    >
+      <span style={{ animation: isReanalysing ? 'spin 1s linear infinite' : 'none' }}>
+        {REANALYSE_ICON}
+      </span>
+      {label}
+    </button>
+  );
+};
+
 function makeArchiveKeyDownHandler(
   onConfirm: () => void,
   onCancel: () => void
@@ -90,7 +128,6 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
   const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
   const [isPencilHovered, setIsPencilHovered] = useState(false);
-  const [isReanalyseHovered, setIsReanalyseHovered] = useState(false);
   const [isArchiveAllHovered, setIsArchiveAllHovered] = useState(false);
   const [showArchiveConfirmation, setShowArchiveConfirmation] = useState(false);
   // Use summary count when available (shows accurate count even before emails are loaded)
@@ -218,34 +255,11 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
             {EDIT_ICON}
           </button>
           {isOtherCategory && onReanalyseOther && (
-            <button
+            <ReanalyseButton
               onClick={handleReanalyseClick}
-              onMouseEnter={() => setIsReanalyseHovered(true)}
-              onMouseLeave={() => setIsReanalyseHovered(false)}
-              disabled={isReanalysingOther}
-              style={{
-                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                borderRadius: theme.borderRadius.sm,
-                border: STRING_NONE,
-                backgroundColor: isReanalyseHovered ? theme.colors.interactive.hover : 'transparent',
-                color: isReanalysingOther ? theme.colors.text.disabled : theme.colors.text.tertiary,
-                fontSize: theme.typography.fontSize.sm,
-                cursor: isReanalysingOther ? 'not-allowed' : 'pointer',
-                transition: theme.transitions.fast,
-                display: 'flex',
-                alignItems: 'center',
-                gap: theme.spacing.xs,
-                opacity: isReanalysingOther ? OPACITY_DISABLED : 1,
-              }}
-              title={t('inbox.category.reanalyseCategories')}
-            >
-              <span style={{ 
-                animation: isReanalysingOther ? 'spin 1s linear infinite' : 'none',
-              }}>
-                {REANALYSE_ICON}
-              </span>
-              {t('inbox.category.reanalyseCategories')}
-            </button>
+              isReanalysing={Boolean(isReanalysingOther)}
+              label={t('inbox.category.reanalyseCategories')}
+            />
           )}
         </div>
 
@@ -337,7 +351,7 @@ export const groupEmailsByCategory = (
     // Phishing emails are always bucketed into the dangerous category regardless of
     // their server-assigned category, so they are never buried in a regular inbox group.
     const isPhishing =
-      email.phishingConfidence === 'medium' || email.phishingConfidence === 'high';
+      email.phishingConfidence === PHISHING_CONFIDENCE_MEDIUM || email.phishingConfidence === PHISHING_CONFIDENCE_HIGH;
     const category = isPhishing
       ? CATEGORY_DANGEROUS_PHISHING
       : email.category || CATEGORY_OTHER;
@@ -350,7 +364,7 @@ export const groupEmailsByCategory = (
   const groups: CategoryGroup[] = [];
   categoryMap.forEach((categoryEmails, category) => {
     const sortedEmails = [...categoryEmails].sort((a, b) => {
-      if (mode === 'autoresponded') {
+      if (mode === MODE_AUTORESPONDED) {
         const autoRespondedA = a.autoRespondedAt
           ? new Date(a.autoRespondedAt).getTime()
           : 0;

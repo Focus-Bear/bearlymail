@@ -5,6 +5,12 @@ import { TOAST_DURATION_MS } from 'constants/numbers';
 import { API_URL } from 'config/api';
 import { useAuth } from 'contexts/AuthContext';
 
+async function createGitHubConnectToken(userId: string | undefined, includeRepo: boolean, apiUrl: string): Promise<string | null> {
+  if (!userId) return null;
+  const response = await axios.post(`${apiUrl}/github/create-connect-token`, includeRepo ? { includeRepo: true } : undefined);
+  return response.data.token;
+}
+
 export const useApiKeys = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -56,44 +62,23 @@ export const useApiKeys = () => {
     }
   }, [t]);
 
-  const connectGitHub = useCallback(async () => {
+  const connectGitHubCommon = useCallback(async (includeRepo: boolean) => {
     if (!user?.id) {
       console.error('Cannot connect GitHub: user not authenticated');
       alert(t('settings.githubConnectError'));
       return;
     }
-
     try {
-      // First, get a signed connect token from the backend
-      const response = await axios.post(`${API_URL}/github/create-connect-token`);
-      const { token } = response.data;
-
-      // Then redirect to the connect endpoint with the signed token
-      window.location.href = `${API_URL}/github/connect?token=${encodeURIComponent(token)}`;
+      const token = await createGitHubConnectToken(user.id, includeRepo, API_URL);
+      if (token) window.location.href = `${API_URL}/github/connect?token=${encodeURIComponent(token)}`;
     } catch (error) {
       console.error('Error creating GitHub connect token:', error);
       alert(t('settings.githubConnectError'));
     }
   }, [user, t]);
 
-  const connectGitHubWithRepoAccess = useCallback(async () => {
-    if (!user?.id) {
-      console.error('Cannot connect GitHub: user not authenticated');
-      alert(t('settings.githubConnectError'));
-      return;
-    }
-
-    try {
-      // Request a connect token that includes the 'repo' scope for private repo access
-      const response = await axios.post(`${API_URL}/github/create-connect-token`, { includeRepo: true });
-      const { token } = response.data;
-
-      window.location.href = `${API_URL}/github/connect?token=${encodeURIComponent(token)}`;
-    } catch (error) {
-      console.error('Error creating GitHub connect token with repo access:', error);
-      alert(t('settings.githubConnectError'));
-    }
-  }, [user, t]);
+  const connectGitHub = useCallback(() => connectGitHubCommon(false), [connectGitHubCommon]);
+  const connectGitHubWithRepoAccess = useCallback(() => connectGitHubCommon(true), [connectGitHubCommon]);
 
   const disconnectGitHub = useCallback(async () => {
     if (!window.confirm(t('settings.confirmRemoveGithubToken'))) {

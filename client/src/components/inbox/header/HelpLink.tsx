@@ -3,6 +3,7 @@ import {
   MODE_TRIAGE,
   MODE_ACTION,
   MODE_AUTORESPONDED,
+  MODE_BLOCKED,
 } from 'constants/strings';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -18,7 +19,7 @@ const getHelpLink = (mode: InboxMode): string => {
   if (mode === MODE_TRIAGE) return '/help/triage';
   if (mode === MODE_ACTION) return '/help/process';
   if (mode === MODE_AUTORESPONDED) return '/help/autoresponder';
-  if (mode === 'blocked') return '/help/triage';
+  if (mode === MODE_BLOCKED) return '/help/triage';
   return '/help/follow-up';
 };
 
@@ -26,7 +27,7 @@ const getHelpType = (mode: InboxMode): string => {
   if (mode === MODE_TRIAGE) return 'triage';
   if (mode === MODE_ACTION) return 'process';
   if (mode === MODE_AUTORESPONDED) return 'autoresponder';
-  if (mode === 'blocked') return 'triage';
+  if (mode === MODE_BLOCKED) return 'triage';
   return 'follow-up';
 };
 

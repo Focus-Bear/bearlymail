@@ -62,8 +62,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
               {stage.name}
             </span>
             <span style={{
-              backgroundColor: `${stageColor}20`,
-              color: stageColor,
+              backgroundColor: `${stageColor}20`,              color: stageColor,
               padding: `1px ${theme.spacing.xs}`,
               borderRadius: theme.borderRadius.sm,
               fontSize: theme.typography.fontSize.xs,

@@ -6,6 +6,8 @@ import { theme } from 'theme/theme';
 import { CollapsibleSection } from 'components/common/CollapsibleSection';
 import { API_URL } from 'config/api';
 import { Deal } from 'types/deal';
+import { STRING_EN_US, STRING_ES, STRING_ES_ES, STRING_USD, STRING_CURRENCY } from 'constants/strings';
+import { COLOR_NAMED_WHITE } from 'constants/colors';
 
 const CRM_ACCENT = '#8B5CF6'; // Purple for CRM
 const CRM_BG = '#F5F3FF'; // Light purple background
@@ -66,13 +68,13 @@ export const CRMDealsSection: React.FC<CRMDealsSectionProps> = ({
     return null;
   }
 
-  const locale = i18n.language === 'es' ? 'es-ES' : 'en-US';
+  const locale = i18n.language === STRING_ES ? STRING_ES_ES : STRING_EN_US;
 
   const formatCurrency = (value: number | null, currency: string | null) => {
     if (value === null) return null;
-    const currencyCode = currency || 'USD';
+    const currencyCode = currency || STRING_USD;
     return new Intl.NumberFormat(locale, {
-      style: 'currency',
+      style: STRING_CURRENCY,
       currency: currencyCode,
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
@@ -89,12 +91,17 @@ export const CRMDealsSection: React.FC<CRMDealsSectionProps> = ({
   };
 
   const totalValue = deals.reduce((sum, deal) => sum + (deal.value || 0), 0);
-  const preview = loading 
-    ? t('common.loading')
-    : deals.length === 0 
-      ? t('crm.noDeals')
-      : `${deals.length} ${deals.length === 1 ? t('crm.deal') : t('crm.deals')}` +
-        (totalValue > 0 ? ` · ${formatCurrency(totalValue, 'USD')}` : '');
+  const dealCountText = deals.length === 1 ? t('crm.deal') : t('crm.deals');
+  const totalValueText = totalValue > 0 ? ` · ${formatCurrency(totalValue, STRING_USD)}` : '';
+  const dealsText = `${deals.length} ${dealCountText}${totalValueText}`;
+  let preview: string;
+  if (loading) {
+    preview = t('common.loading');
+  } else if (deals.length === 0) {
+    preview = t('crm.noDeals');
+  } else {
+    preview = dealsText;
+  }
 
   const controls = (
     <button
@@ -129,7 +136,7 @@ export const CRMDealsSection: React.FC<CRMDealsSectionProps> = ({
       preview={preview}
       controls={controls}
     >
-      {loading ? (
+      {loading && (
         <div style={{
           padding: theme.spacing.md,
           color: theme.colors.text.secondary,
@@ -137,7 +144,8 @@ export const CRMDealsSection: React.FC<CRMDealsSectionProps> = ({
         }}>
           {t('common.loading')}
         </div>
-      ) : error ? (
+      )}
+      {!loading && error && (
         <div style={{
           padding: theme.spacing.md,
           color: theme.colors.error.main,
@@ -145,7 +153,8 @@ export const CRMDealsSection: React.FC<CRMDealsSectionProps> = ({
         }}>
           {error}
         </div>
-      ) : deals.length === 0 ? (
+      )}
+      {!loading && !error && deals.length === 0 && (
         <div style={{
           padding: theme.spacing.md,
           color: theme.colors.text.secondary,
@@ -154,14 +163,15 @@ export const CRMDealsSection: React.FC<CRMDealsSectionProps> = ({
         }}>
           {t('crm.noDealsWithContact')}
         </div>
-      ) : (
+      )}
+      {!loading && !error && deals.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
           {deals.map((deal) => (
             <div
               key={deal.id}
               style={{
                 padding: theme.spacing.md,
-                backgroundColor: 'white',
+                backgroundColor: COLOR_NAMED_WHITE,
                 borderRadius: theme.borderRadius.md,
                 border: `1px solid ${theme.colors.border.light}`,
               }}

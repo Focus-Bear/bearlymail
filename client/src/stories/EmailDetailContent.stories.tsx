@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import type { StoryObj } from '@storybook/react';
 import { COLOR_BG_NEUTRAL_ALT, COLOR_GREY_MEDIUM, COLOR_NEAR_BLACK, COLOR_SUCCESS_MED, COLOR_TRANSPARENT, COLOR_WARNING_MED, COLOR_WHITE, COLOR_WHITE_FULL } from 'constants/colors';
 
-const Th = {
-  border: '#E5E7EB', text: '#111827', textSec: '#6B7280',
+const Th = {  border: '#E5E7EB', text: '#111827', textSec: '#6B7280',
   sp: { xs: '4px', sm: '8px', md: '16px', lg: '24px', xl: '32px' },
   r: { sm: '4px', md: '8px', lg: '12px', full: '999px' },
   f: { xs: '11px', sm: '13px', base: '15px', lg: '18px' },
@@ -44,15 +43,13 @@ const CS = ({ title, accent, accentBg, icon, collapsed, onToggle, preview, child
       <span style={{ fontSize: '16px', flexShrink: 0 }}>{icon}</span>
       <strong style={{ fontSize: Th.f.sm, fontWeight: 700, color: accent, textTransform: 'uppercase' as const, letterSpacing: '0.06em', flexShrink: 0 }}>{title}</strong>
       {collapsed && preview && (
-        <span style={{ fontSize: Th.f.sm, color: Th.textSec, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, marginLeft: Th.sp.xs, flex: 1 }}>
-          {preview}
+        <span style={{ fontSize: Th.f.sm, color: Th.textSec, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, marginLeft: Th.sp.xs, flex: 1 }}>          {preview}
         </span>
       )}
       {!collapsed && <span style={{ flex: 1 }} />}
       <span style={{ fontSize: 10, color: Th.textSec, flexShrink: 0 }}>{collapsed ? '▶' : '▼'}</span>
     </button>
-    {!collapsed && <div style={{ padding: Th.sp.md, backgroundColor: COLOR_WHITE_FULL }}>{children}</div>}
-  </div>
+    {!collapsed && <div style={{ padding: Th.sp.md, backgroundColor: COLOR_WHITE_FULL }}>{children}</div>}  </div>
 );
 
 interface PanelProps { priority?: number; note?: string; allCollapsed?: boolean }
@@ -103,8 +100,7 @@ const FullPanel = ({ priority = 0, note = '', allCollapsed = false }: PanelProps
               {PRIORITY_OPTIONS.map(({ label, emoji, value }) => {
                 const active = starCount === value;
                 return (
-                  <button key={value} onClick={() => setStarCount(starCount === value ? 0 : value)} style={{ padding: `${Th.sp.xs} ${Th.sp.md}`, backgroundColor: active ? Th.text : 'transparent', color: active ? '#fff' : Th.textSec, border: `1px solid ${active ? Th.text : Th.border}`, borderRadius: Th.r.full, cursor: 'pointer', fontSize: Th.f.sm, fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span>{emoji}</span><span>{label}</span>
+                  <button key={value} onClick={() => setStarCount(starCount === value ? 0 : value)} style={{ padding: `${Th.sp.xs} ${Th.sp.md}`, backgroundColor: active ? Th.text : 'transparent', color: active ? '#fff' : Th.textSec, border: `1px solid ${active ? Th.text : Th.border}`, borderRadius: Th.r.full, cursor: 'pointer', fontSize: Th.f.sm, fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>                    <span>{emoji}</span><span>{label}</span>
                   </button>
                 );
               })}
@@ -117,8 +113,7 @@ const FullPanel = ({ priority = 0, note = '', allCollapsed = false }: PanelProps
         </CS>
 
         <CS title="Private Notes" accent="#7C3AED" accentBg="#F5F3FF" icon="📝" collapsed={notesCollapsed} onToggle={() => setNotesCollapsed(!notesCollapsed)} preview={notesPreview}>
-          <textarea value={noteContent} onChange={e => setNoteContent(e.target.value)} placeholder="Add a private note… only you can see this." style={{ width: '100%', minHeight: 80, padding: Th.sp.sm, border: `1px solid ${Th.border}`, borderRadius: Th.r.sm, fontSize: Th.f.base, color: Th.text, resize: 'vertical', boxSizing: 'border-box' as const, fontFamily: 'inherit' }} />
-        </CS>
+          <textarea value={noteContent} onChange={e => setNoteContent(e.target.value)} placeholder="Add a private note… only you can see this." style={{ width: '100%', minHeight: 80, padding: Th.sp.sm, border: `1px solid ${Th.border}`, borderRadius: Th.r.sm, fontSize: Th.f.base, color: Th.text, resize: 'vertical', boxSizing: 'border-box' as const, fontFamily: 'inherit' }} />        </CS>
 
         <CS title="Action Items" accent="#16A34A" accentBg="#F0FDF4" icon="✅" collapsed={actionsCollapsed} onToggle={() => setActionsCollapsed(!actionsCollapsed)} preview={actionsPreview}>
           <ul style={{ margin: '0 0 12px', padding: 0, listStyle: 'none' }}>
@@ -131,8 +126,7 @@ const FullPanel = ({ priority = 0, note = '', allCollapsed = false }: PanelProps
           </ul>
           <div style={{ display: 'flex', gap: Th.sp.sm }}>
             <input value={newItem} onChange={e => setNewItem(e.target.value)} onKeyDown={e => e.key === 'Enter' && addItem()} placeholder="Add action item…" style={{ flex: 1, padding: `${Th.sp.xs} ${Th.sp.sm}`, border: `1px solid ${Th.border}`, borderRadius: Th.r.sm, fontSize: Th.f.base, fontFamily: 'inherit' }} />
-            <button onClick={addItem} style={{ padding: `${Th.sp.xs} ${Th.sp.md}`, backgroundColor: COLOR_SUCCESS_MED, color: COLOR_WHITE, border: 'none', borderRadius: Th.r.sm, cursor: 'pointer', fontSize: Th.f.sm, fontWeight: 600 }}>Add</button>
-          </div>
+            <button onClick={addItem} style={{ padding: `${Th.sp.xs} ${Th.sp.md}`, backgroundColor: COLOR_SUCCESS_MED, color: COLOR_WHITE, border: 'none', borderRadius: Th.r.sm, cursor: 'pointer', fontSize: Th.f.sm, fontWeight: 600 }}>Add</button>          </div>
         </CS>
 
         <CS title="GitHub Status" accent="#1F2937" accentBg="#F9FAFB" icon="🐙" collapsed={githubCollapsed} onToggle={() => setGithubCollapsed(!githubCollapsed)} preview={githubPreview}>
@@ -140,8 +134,7 @@ const FullPanel = ({ priority = 0, note = '', allCollapsed = false }: PanelProps
             {GITHUB_ITEMS.map(({ label, status, color }) => (
               <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: `${Th.sp.xs} 0`, borderBottom: `1px solid ${Th.border}` }}>
                 <span style={{ fontSize: Th.f.sm, color: Th.text }}>{label}</span>
-                <span style={{ fontSize: Th.f.xs, fontWeight: 700, color, backgroundColor: `${color}18`, padding: '2px 8px', borderRadius: Th.r.full, flexShrink: 0 }}>{status}</span>
-              </div>
+                <span style={{ fontSize: Th.f.xs, fontWeight: 700, color, backgroundColor: `${color}18`, padding: '2px 8px', borderRadius: Th.r.full, flexShrink: 0 }}>{status}</span>              </div>
             ))}
             <button type="button" onClick={e => e.preventDefault()} style={{ fontSize: Th.f.sm, color: COLOR_NEAR_BLACK, fontWeight: 600, textDecoration: 'none', marginTop: Th.sp.xs, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>View on GitHub →</button>
           </div>
@@ -152,8 +145,7 @@ const FullPanel = ({ priority = 0, note = '', allCollapsed = false }: PanelProps
           <div style={{ lineHeight: 1.7, color: Th.text, fontSize: Th.f.base }}>
             <p style={{ margin: '0 0 12px' }}>Hi there,</p>
             <p style={{ margin: '0 0 12px' }}>Just a quick update on the Grand Prix event. We have a few things to sort out:</p>
-            <ol style={{ margin: '0 0 12px', paddingLeft: Th.sp.lg }}>
-              <li>Catering arrangements need to be confirmed by Thursday</li>
+            <ol style={{ margin: '0 0 12px', paddingLeft: Th.sp.lg }}>              <li>Catering arrangements need to be confirmed by Thursday</li>
               <li>Finance has approved the budget, pending final sign-off</li>
               <li>We need to assign 3 team members to registration duties</li>
             </ol>

@@ -100,6 +100,23 @@ interface UseDebugPanelReturn {
   fetchAllEmails: (mode: InboxMode) => Promise<void>;
 }
 
+async function fetchDebugEndpoint<T>(
+  url: string,
+  setLoading: (v: boolean) => void,
+  setData: (v: T) => void,
+  label: string,
+): Promise<void> {
+  setLoading(true);
+  try {
+    const response = await axios.get(url);
+    setData(response.data);
+  } catch (error) {
+    console.error(`Error fetching ${label}:`, error);
+  } finally {
+    setLoading(false);
+  }
+}
+
 export function useDebugPanel(onSuccess?: () => void): UseDebugPanelReturn {
   const [debugViewOpen, setDebugViewOpen] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
@@ -116,60 +133,26 @@ export function useDebugPanel(onSuccess?: () => void): UseDebugPanelReturn {
   const [allEmails, setAllEmails] = useState<Email[]>([]);
   const [loadingAllEmails, setLoadingAllEmails] = useState(false);
 
-  const fetchSyncStatus = useCallback(async () => {
-    setLoadingSyncStatus(true);
-    try {
-      const response = await axios.get(`${API_URL}/emails/debug/sync-status`);
-      setSyncStatus(response.data);
-    } catch (error) {
-      console.error('Error fetching sync status:', error);
-    } finally {
-      setLoadingSyncStatus(false);
-    }
-  }, []);
+  const fetchSyncStatus = useCallback(
+    () => fetchDebugEndpoint(`${API_URL}/emails/debug/sync-status`, setLoadingSyncStatus, setSyncStatus, 'sync status'),
+    [],
+  );
+  const fetchSyncHistory = useCallback(
+    () => fetchDebugEndpoint(`${API_URL}/emails/debug/sync-history`, setLoadingSyncHistory, setSyncHistory, 'sync history'),
+    [],
+  );
+  const fetchDebugStarredThreads = useCallback(
+    () => fetchDebugEndpoint(`${API_URL}/emails/debug/starred-threads`, setLoadingDebugData, setDebugStarredData, 'starred threads'),
+    [],
+  );
+  const fetchDebugOrphanEmails = useCallback(
+    () => fetchDebugEndpoint(`${API_URL}/emails/debug/orphan-emails`, setLoadingOrphanData, setDebugOrphanData, 'orphan emails'),
+    [],
+  );
 
-  // Auto-fetch sync status when debug panel opens
   useEffect(() => {
-    if (debugViewOpen && !syncStatus && !loadingSyncStatus) {
-      fetchSyncStatus();
-    }
+    if (debugViewOpen && !syncStatus && !loadingSyncStatus) { fetchSyncStatus(); }
   }, [debugViewOpen, syncStatus, loadingSyncStatus, fetchSyncStatus]);
-
-  const fetchSyncHistory = useCallback(async () => {
-    setLoadingSyncHistory(true);
-    try {
-      const response = await axios.get(`${API_URL}/emails/debug/sync-history`);
-      setSyncHistory(response.data);
-    } catch (error) {
-      console.error('Error fetching sync history:', error);
-    } finally {
-      setLoadingSyncHistory(false);
-    }
-  }, []);
-
-  const fetchDebugStarredThreads = useCallback(async () => {
-    setLoadingDebugData(true);
-    try {
-      const response = await axios.get(`${API_URL}/emails/debug/starred-threads`);
-      setDebugStarredData(response.data);
-    } catch (error) {
-      console.error('Error fetching debug starred threads:', error);
-    } finally {
-      setLoadingDebugData(false);
-    }
-  }, []);
-
-  const fetchDebugOrphanEmails = useCallback(async () => {
-    setLoadingOrphanData(true);
-    try {
-      const response = await axios.get(`${API_URL}/emails/debug/orphan-emails`);
-      setDebugOrphanData(response.data);
-    } catch (error) {
-      console.error('Error fetching debug orphan emails:', error);
-    } finally {
-      setLoadingOrphanData(false);
-    }
-  }, []);
 
   const handleFixOrphanEmails = useCallback(async (onSuccessCallback?: () => void) => {
     setFixingOrphans(true);
@@ -188,9 +171,7 @@ export function useDebugPanel(onSuccess?: () => void): UseDebugPanelReturn {
   }, [fetchDebugOrphanEmails, onSuccess]);
 
   const lookupThread = useCallback(async (threadId: string) => {
-    if (!threadId.trim()) {
-      return;
-    }
+    if (!threadId.trim()) return;
     setLoadingThreadLookup(true);
     setThreadLookupResult(null);
     try {
@@ -198,18 +179,9 @@ export function useDebugPanel(onSuccess?: () => void): UseDebugPanelReturn {
       setThreadLookupResult(response.data);
     } catch (error) {
       console.error('Error looking up thread:', error);
-      setThreadLookupResult({
-        found: false,
-        threadId,
-        thread: null,
-        emails: [],
-        visibility: {
-          wouldShowInTriage: false,
-          wouldShowInAction: false,
-          wouldShowInFollowUp: false,
-        },
-        reasons: ['Error looking up thread - please check the thread ID and try again'],
-      });
+      setThreadLookupResult({ found: false, threadId, thread: null, emails: [],
+        visibility: { wouldShowInTriage: false, wouldShowInAction: false, wouldShowInFollowUp: false },
+        reasons: ['Error looking up thread - please check the thread ID and try again'] });
     } finally {
       setLoadingThreadLookup(false);
     }
@@ -218,14 +190,7 @@ export function useDebugPanel(onSuccess?: () => void): UseDebugPanelReturn {
   const fetchAllEmails = useCallback(async (mode: InboxMode) => {
     setLoadingAllEmails(true);
     try {
-      // Fetch all emails for the current mode without pagination
-      // Using a high limit to get all emails in one request
-      const params = new URLSearchParams();
-      params.append('mode', mode);
-      params.append('limit', '1000');
-      params.append('offset', '0');
-
-      const response = await axios.get(`${API_URL}/emails/inbox?${params.toString()}`);
+      const response = await axios.get(`${API_URL}/emails/inbox?mode=${mode}&limit=1000&offset=0`);
       setAllEmails(response.data.emails || []);
     } catch (error) {
       console.error('Error fetching all emails for debug:', error);
@@ -236,28 +201,11 @@ export function useDebugPanel(onSuccess?: () => void): UseDebugPanelReturn {
   }, []);
 
   return {
-    debugViewOpen,
-    setDebugViewOpen,
-    syncStatus,
-    loadingSyncStatus,
-    syncHistory,
-    loadingSyncHistory,
-    debugStarredData,
-    loadingDebugData,
-    debugOrphanData,
-    loadingOrphanData,
-    fixingOrphans,
-    threadLookupResult,
-    loadingThreadLookup,
-    allEmails,
-    loadingAllEmails,
-    fetchSyncStatus,
-    fetchSyncHistory,
-    fetchDebugStarredThreads,
-    fetchDebugOrphanEmails,
-    handleFixOrphanEmails,
-    lookupThread,
-    fetchAllEmails,
+    debugViewOpen, setDebugViewOpen, syncStatus, loadingSyncStatus, syncHistory, loadingSyncHistory,
+    debugStarredData, loadingDebugData, debugOrphanData, loadingOrphanData, fixingOrphans,
+    threadLookupResult, loadingThreadLookup, allEmails, loadingAllEmails,
+    fetchSyncStatus, fetchSyncHistory, fetchDebugStarredThreads, fetchDebugOrphanEmails,
+    handleFixOrphanEmails, lookupThread, fetchAllEmails,
   };
 }
 

@@ -35,89 +35,27 @@ interface GitHubConnectionStatusSectionProps {
 
 const BUTTON_DISABLED_OPACITY = 0.6;
 
-export const GitHubConnectionStatusSection: React.FC<GitHubConnectionStatusSectionProps> = ({
-  hasGithubToken,
+
+interface GitHubStatusDetailsProps {
+  status: ConnectionStatus;
+  inaccessibleRepos: RepoStatus[];
+  hasIssues: boolean;
+  onConnectGitHub: () => void;
+  onConnectGitHubWithRepoAccess: () => void;
+}
+
+// eslint-disable-next-line max-lines-per-function
+const GitHubStatusDetails: React.FC<GitHubStatusDetailsProps> = ({
+  status,
+  inaccessibleRepos,
+  hasIssues,
   onConnectGitHub,
   onConnectGitHubWithRepoAccess,
 }) => {
   const { t } = useTranslation();
-  const [status, setStatus] = useState<ConnectionStatus | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [lastChecked, setLastChecked] = useState<Date | null>(null);
-
-  const fetchStatus = useCallback(async () => {
-    if (!hasGithubToken) return;
-    setLoading(true);
-    try {
-      const response = await axios.get<ConnectionStatus>(`${API_URL}/github/my/connection-status`);
-      setStatus(response.data);
-      setLastChecked(new Date());
-    } catch (error) {
-      console.error('Error fetching GitHub connection status:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [hasGithubToken]);
-
-  useEffect(() => {
-    if (hasGithubToken) {
-      fetchStatus();
-    }
-  }, [hasGithubToken, fetchStatus]);
-
-  if (!hasGithubToken) return null;
-
-  const inaccessibleRepos = status?.repos?.filter((r) => !r.accessible) ?? [];
-  const hasIssues = status && (!status.tokenValid || inaccessibleRepos.length > 0);
-
   return (
-    <div
-      id="github-connection-status"
-      style={{
-        backgroundColor: theme.colors.background.paper,
-        borderRadius: theme.borderRadius.lg,
-        padding: theme.spacing.xl,
-        marginBottom: theme.spacing.lg,
-        boxShadow: theme.shadows.md,
-      }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.md }}>
-        <h2 style={{ color: theme.colors.text.primary, margin: 0, fontSize: theme.typography.fontSize.xl }}>
-          {t('settings.github.connectionStatus.title')}
-        </h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
-          {lastChecked && (
-            <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.tertiary }}>
-              {t('settings.github.connectionStatus.checkedAt')}: {lastChecked.toLocaleTimeString()}
-            </span>
-          )}
-          <button
-            onClick={fetchStatus}
-            disabled={loading}
-            style={{
-              padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-              borderRadius: theme.borderRadius.md,
-              border: `1px solid ${theme.colors.border.medium}`,
-              backgroundColor: theme.colors.background.paper,
-              color: theme.colors.text.primary,
-              fontSize: theme.typography.fontSize.sm,
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? BUTTON_DISABLED_OPACITY : 1,
-            }}
-          >
-            {loading ? t('common.loading') : t('settings.github.connectionStatus.refresh')}
-          </button>
-        </div>
-      </div>
+    <>
 
-      {loading && !status && (
-        <p style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>
-          {t('common.loading')}
-        </p>
-      )}
-
-      {status && (
-        <>
           {/* Token status */}
           <div style={{
             padding: theme.spacing.md,
@@ -278,7 +216,99 @@ export const GitHubConnectionStatusSection: React.FC<GitHubConnectionStatusSecti
               )}
             </div>
           )}
-        </>
+            </>
+  );
+};
+
+export const GitHubConnectionStatusSection: React.FC<GitHubConnectionStatusSectionProps> = ({
+  hasGithubToken,
+  onConnectGitHub,
+  onConnectGitHubWithRepoAccess,
+}) => {
+  const { t } = useTranslation();
+  const [status, setStatus] = useState<ConnectionStatus | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [lastChecked, setLastChecked] = useState<Date | null>(null);
+
+  const fetchStatus = useCallback(async () => {
+    if (!hasGithubToken) return;
+    setLoading(true);
+    try {
+      const response = await axios.get<ConnectionStatus>(`${API_URL}/github/my/connection-status`);
+      setStatus(response.data);
+      setLastChecked(new Date());
+    } catch (error) {
+      console.error('Error fetching GitHub connection status:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [hasGithubToken]);
+
+  useEffect(() => {
+    if (hasGithubToken) {
+      fetchStatus();
+    }
+  }, [hasGithubToken, fetchStatus]);
+
+  if (!hasGithubToken) return null;
+
+  const inaccessibleRepos = status?.repos?.filter((r) => !r.accessible) ?? [];
+  const hasIssues = status && (!status.tokenValid || inaccessibleRepos.length > 0);
+
+  return (
+    <div
+      id="github-connection-status"
+      style={{
+        backgroundColor: theme.colors.background.paper,
+        borderRadius: theme.borderRadius.lg,
+        padding: theme.spacing.xl,
+        marginBottom: theme.spacing.lg,
+        boxShadow: theme.shadows.md,
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.md }}>
+        <h2 style={{ color: theme.colors.text.primary, margin: 0, fontSize: theme.typography.fontSize.xl }}>
+          {t('settings.github.connectionStatus.title')}
+        </h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
+          {lastChecked && (
+            <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.tertiary }}>
+              {t('settings.github.connectionStatus.checkedAt')}: {lastChecked.toLocaleTimeString()}
+            </span>
+          )}
+          <button
+            onClick={fetchStatus}
+            disabled={loading}
+            style={{
+              padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+              borderRadius: theme.borderRadius.md,
+              border: `1px solid ${theme.colors.border.medium}`,
+              backgroundColor: theme.colors.background.paper,
+              color: theme.colors.text.primary,
+              fontSize: theme.typography.fontSize.sm,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? BUTTON_DISABLED_OPACITY : 1,
+            }}
+          >
+            {loading ? t('common.loading') : t('settings.github.connectionStatus.refresh')}
+          </button>
+        </div>
+      </div>
+
+      {loading && !status && (
+        <p style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>
+          {t('common.loading')}
+        </p>
+      )}
+
+      {status && (
+        <GitHubStatusDetails
+          status={status}
+          inaccessibleRepos={inaccessibleRepos}
+          hasIssues={Boolean(hasIssues)}
+          onConnectGitHub={onConnectGitHub}
+          onConnectGitHubWithRepoAccess={onConnectGitHubWithRepoAccess}
+        />
       )}
     </div>
   );

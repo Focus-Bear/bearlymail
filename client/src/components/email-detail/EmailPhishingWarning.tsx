@@ -17,9 +17,7 @@ interface EmailPhishingWarningProps {
 export function shouldShowPhishingAlert(
   confidence: PhishingConfidence | null | undefined,
 ): boolean {
-  return confidence === PHISHING_CONFIDENCE_MEDIUM || confidence === PHISHING_CONFIDENCE_HIGH;
-}
-
+  return confidence === PHISHING_CONFIDENCE_MEDIUM || confidence === PHISHING_CONFIDENCE_HIGH;}
 const CONFIDENCE_COLORS: Record<PhishingConfidence, { bg: string; border: string; text: string }> = {
   low: { bg: '#fff8e1', border: '#ffe082', text: '#7c5a00' },
   medium: { bg: '#fff3e0', border: '#ffb74d', text: '#7c3a00' },

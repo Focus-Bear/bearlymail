@@ -89,7 +89,12 @@ function appendContextItemList(lines: string[], label: string, items: Array<{val
   if (items.length === 0) return;
   lines.push(`**${label}:**`);
   items.forEach(item => {
-    const extra = item.explanation ? ` (${item.explanation})` : item.priority !== undefined ? ` (priority ${item.priority})` : '';
+    let extra = '';
+    if (item.explanation) {
+      extra = ` (${item.explanation})`;
+    } else if (item.priority !== undefined) {
+      extra = ` (priority ${item.priority})`;
+    }
     lines.push(`- ${item.value}${extra}`);
   });
 }

@@ -16,7 +16,6 @@ import { ContactTypeBadge } from 'components/crm/ContactTypeBadge';
 import { API_URL } from 'config/api';
 import { EMOJI_MENU } from 'constants/emojis';
 import { STRING_CENTER, STRING_FLEX, STRING_FIXED, STRING_COVER, STRING_SPACE_BETWEEN, STRING_HIDDEN, STRING_AUTO, STRING_TRANSPARENT, STRING_WHITE, STRING_NONE, STRING_POINTER, STRING_DEFAULT, STRING_NOWRAP, STRING_ELLIPSIS } from 'constants/strings';
-
 const Contacts: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -121,8 +120,7 @@ const Contacts: React.FC = () => {
 
     channel.bind('contacts-sync-failed', (eventData: { error: string }) => {
       setSyncing(false);
-      setError(eventData.error);
-    });
+      setError(eventData.error);    });
 
     return () => {
       channel.unbind_all();
@@ -242,8 +240,7 @@ const Contacts: React.FC = () => {
                 padding: `${theme.spacing.sm} ${theme.spacing.md}`,
                 backgroundColor: theme.colors.primary.main,
                 color: STRING_WHITE,
-                border: STRING_NONE,
-                borderRadius: theme.borderRadius.md,
+                border: STRING_NONE,                borderRadius: theme.borderRadius.md,
                 cursor: syncing ? 'not-allowed' : STRING_POINTER,
                 fontSize: theme.typography.fontSize.sm,
                 fontWeight: theme.typography.fontWeight.medium,
@@ -278,8 +275,7 @@ const Contacts: React.FC = () => {
         {error && (
           <div style={{
             padding: theme.spacing.md,
-            backgroundColor: `${theme.colors.accent.error}20`,
-            borderRadius: theme.borderRadius.md,
+            backgroundColor: `${theme.colors.accent.error}20`,            borderRadius: theme.borderRadius.md,
             color: theme.colors.accent.error,
             marginBottom: theme.spacing.lg,
           }}>
@@ -288,8 +284,7 @@ const Contacts: React.FC = () => {
         )}
 
         {(() => {
-          if (loading || searching) return (
-          <div style={{
+          if (loading || searching) return (          <div style={{
             textAlign: STRING_CENTER,
             padding: theme.spacing.xl,
             color: theme.colors.text.secondary,
@@ -297,8 +292,7 @@ const Contacts: React.FC = () => {
             {t('contacts.loading')}
           </div>
           );
-          if (filteredContacts.length === 0) return (
-          <div style={{
+          if (filteredContacts.length === 0) return (          <div style={{
             textAlign: STRING_CENTER,
             padding: theme.spacing.xl,
             backgroundColor: theme.colors.background.paper,
@@ -334,8 +328,7 @@ const Contacts: React.FC = () => {
                   padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
                   backgroundColor: theme.colors.primary.main,
                   color: STRING_WHITE,
-                  border: STRING_NONE,
-                  borderRadius: theme.borderRadius.md,
+                  border: STRING_NONE,                  borderRadius: theme.borderRadius.md,
                   cursor: syncing ? 'not-allowed' : STRING_POINTER,
                   fontSize: theme.typography.fontSize.base,
                   fontWeight: theme.typography.fontWeight.medium,
@@ -347,8 +340,7 @@ const Contacts: React.FC = () => {
             )}
           </div>
           );
-          return (
-          <div style={{
+          return (          <div style={{
             backgroundColor: theme.colors.background.paper,
             borderRadius: theme.borderRadius.lg,
             boxShadow: theme.shadows.sm,
@@ -384,8 +376,7 @@ const Contacts: React.FC = () => {
                       if (contact.id) e.currentTarget.style.backgroundColor = theme.colors.background.default;
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = STRING_TRANSPARENT;
-                    }}
+                      e.currentTarget.style.backgroundColor = STRING_TRANSPARENT;                    }}
                   >
                     {contact.photoUrl ? (
                       <img

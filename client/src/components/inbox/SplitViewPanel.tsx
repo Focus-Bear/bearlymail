@@ -5,10 +5,8 @@ import { theme } from 'theme/theme';
 import EmailDetail, { EmailDetailRef } from 'pages/EmailDetail';
 import { SnoozeInputForm } from 'components/inbox/actions/SnoozeInputForm';
 import { InboxMode, Email } from 'types/email';
-import { LETTER_SPACING_WIDER, MODE_ACTION, MODE_TRIAGE, STRING_NONE } from 'constants/strings';
-import { captureEvent } from 'utils/posthog';
+import { LETTER_SPACING_WIDER, MODE_ACTION, MODE_TRIAGE, STRING_NONE } from 'constants/strings';import { captureEvent } from 'utils/posthog';
 import { COLOR_TRANSPARENT } from 'constants/colors';
-
 const PRIORITY_OPTIONS = [
   { label: 'Can wait', emoji: '\u{1F60A}', value: 1 },
   { label: 'Get on it', emoji: '\u{1F600}', value: 2 },
@@ -68,7 +66,7 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
   useEffect(() => {
     setStarCount((selectedEmail as any)?.starCount ?? 0);
     setCorrespondentName('');
-  }, [selectedEmailId]);
+  }, [selectedEmailId, selectedEmail]);
 
   const handleReplyClick = () => {
     emailDetailComponentRef.current?.openReplyComposer('replyAll');
@@ -194,8 +192,7 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
               style={{
                 padding: theme.spacing.xs,
                 backgroundColor: COLOR_TRANSPARENT,
-                border: STRING_NONE,
-                borderRadius: theme.borderRadius.sm,
+                border: STRING_NONE,                borderRadius: theme.borderRadius.sm,
                 cursor: 'pointer',
                 color: theme.colors.text.secondary,
                 display: 'flex',
@@ -210,8 +207,7 @@ export const SplitViewPanel: React.FC<SplitViewPanelProps> = ({
               style={{
                 padding: theme.spacing.xs,
                 backgroundColor: COLOR_TRANSPARENT,
-                border: STRING_NONE,
-                borderRadius: theme.borderRadius.sm,
+                border: STRING_NONE,                borderRadius: theme.borderRadius.sm,
                 cursor: 'pointer',
                 color: theme.colors.text.secondary,
                 display: 'flex',

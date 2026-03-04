@@ -1,7 +1,34 @@
 import { useState, useCallback, useEffect } from 'react';
 import axios from 'axios';
 import { API_URL } from 'config/api';
-import { PRIORITY_STATUS_CALCULATING } from 'constants/strings';
+
+const PRIORITY_CALCULATING_TEXT = 'Calculating...';
+const POLL_INTERVAL_MS = 2000;
+const MAX_POLL_ATTEMPTS = 15;
+
+async function pollForPriorityCompletion(
+  emailId: string,
+  setPriorityExplanation: (explanation: PriorityExplanation) => void,
+  attempts = 0,
+): Promise<void> {
+  try {
+    const response = await axios.get(`${API_URL}/emails/${emailId}/priority-explanation`);
+    const explanation = response.data;
+    const hasCalculatingItems = explanation?.breakdown?.some(
+      (item: { description?: string }) =>
+        item.description === PRIORITY_CALCULATING_TEXT ||
+        item.description?.includes(PRIORITY_CALCULATING_TEXT),
+    );
+    if (!hasCalculatingItems || attempts >= MAX_POLL_ATTEMPTS) {
+      setPriorityExplanation(explanation);
+      if (attempts >= MAX_POLL_ATTEMPTS) console.warn('Priority calculation expedite: Max polling attempts reached');
+      return;
+    }
+    setTimeout(() => pollForPriorityCompletion(emailId, setPriorityExplanation, attempts + 1), POLL_INTERVAL_MS);
+  } catch (error) {
+    console.error('Error polling for priority explanation:', error);
+  }
+}
 
 interface PriorityExplanation {
   score: number;
@@ -57,7 +84,7 @@ export function usePriorityTooltip(): UsePriorityTooltipReturn {
       // Always reset loading state, even on timeout or error
       setLoadingPriorityExplanation(false);
     }
-  }, [loadingPriorityExplanation, priorityExplanation]);
+  }, [loadingPriorityExplanation]);
 
   const togglePriorityTooltip = useCallback((emailId: string) => {
     if (hoveredPriorityEmailId === emailId) {
@@ -70,7 +97,7 @@ export function usePriorityTooltip(): UsePriorityTooltipReturn {
       setHoveredPriorityEmailId(emailId);
       fetchPriorityExplanation(emailId);
     }
-  }, [hoveredPriorityEmailId, fetchPriorityExplanation, priorityExplanation]);
+  }, [hoveredPriorityEmailId, fetchPriorityExplanation]);
 
   const hidePriorityTooltip = useCallback(() => {
     setHoveredPriorityEmailId(null);
@@ -82,53 +109,7 @@ export function usePriorityTooltip(): UsePriorityTooltipReturn {
   const expeditePriorityCalculation = useCallback(async (emailId: string) => {
     try {
       await axios.post(`${API_URL}/emails/${emailId}/accelerate`);
-      
-      // Poll for completion - check every 2 seconds, max 30 seconds
-      const POLL_INTERVAL_MS = 2000;
-      const MAX_POLL_TIME_MS = 30000;
-      const maxAttempts = Math.floor(MAX_POLL_TIME_MS / POLL_INTERVAL_MS); // 15 attempts
-      let attempts = 0;
-      
-      const pollForCompletion = async (): Promise<void> => {
-        attempts++;
-        
-        try {
-          const response = await axios.get(`${API_URL}/emails/${emailId}/priority-explanation`);
-          const explanation = response.data;
-          
-          // Check if breakdown still has "Calculating..." items
-          const hasCalculatingItems = explanation?.breakdown?.some(
-            (item: { description?: string }) => 
-              item.description === PRIORITY_STATUS_CALCULATING || 
-              item.description?.includes(PRIORITY_STATUS_CALCULATING)
-          );
-          
-          // If no calculating items, we're done
-          if (!hasCalculatingItems) {
-            setPriorityExplanation(explanation);
-            return;
-          }
-          
-          // If we've hit max attempts, stop polling
-          if (attempts >= maxAttempts) {
-            // Still update with current state even if still calculating
-            setPriorityExplanation(explanation);
-            console.warn('Priority calculation expedite: Max polling attempts reached');
-            return;
-          }
-          
-          // Continue polling after interval
-          setTimeout(() => {
-            pollForCompletion();
-          }, POLL_INTERVAL_MS);
-        } catch (error) {
-          console.error('Error polling for priority explanation:', error);
-          // Stop polling on error
-        }
-      };
-      
-      // Start polling
-      pollForCompletion();
+      pollForPriorityCompletion(emailId, setPriorityExplanation);
     } catch (error) {
       console.error('Error expediting priority calculation:', error);
     }

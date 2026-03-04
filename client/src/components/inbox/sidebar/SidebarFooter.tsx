@@ -4,6 +4,32 @@ import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 import { COLOR_TRANSPARENT } from 'constants/colors';
 
+const sidebarBtnStyle: React.CSSProperties = {
+  padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+  backgroundColor: COLOR_TRANSPARENT,
+  color: theme.colors.text.secondary,
+  border: `1px solid ${theme.colors.border.medium}`,
+  borderRadius: theme.borderRadius.md,
+  cursor: 'pointer',
+  fontSize: theme.typography.fontSize.xs,
+  fontWeight: theme.typography.fontWeight.medium,
+  transition: theme.transitions.fast,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  whiteSpace: 'nowrap',
+};
+
+const onSidebarBtnMouseEnter = (e: React.MouseEvent<HTMLButtonElement>) => {
+  e.currentTarget.style.borderColor = theme.colors.text.primary;
+  e.currentTarget.style.color = theme.colors.text.primary;
+};
+
+const onSidebarBtnMouseLeave = (e: React.MouseEvent<HTMLButtonElement>) => {
+  e.currentTarget.style.borderColor = theme.colors.border.medium;
+  e.currentTarget.style.color = theme.colors.text.secondary;
+};
+
 interface SidebarFooterProps {
   userEmail?: string;
   onLogout: () => void;
@@ -45,29 +71,9 @@ export const SidebarFooter: React.FC<SidebarFooterProps> = ({ userEmail, onLogou
               onToggleCollapse();
             }}
             title={t('sidebar.expand')}
-            style={{
-              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-              backgroundColor: COLOR_TRANSPARENT,
-              color: theme.colors.text.secondary,
-              border: `1px solid ${theme.colors.border.medium}`,
-              borderRadius: theme.borderRadius.md,
-              cursor: 'pointer',
-              fontSize: theme.typography.fontSize.xs,
-              fontWeight: theme.typography.fontWeight.medium,
-              transition: theme.transitions.fast,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              whiteSpace: 'nowrap',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = theme.colors.text.primary;
-              e.currentTarget.style.color = theme.colors.text.primary;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = theme.colors.border.medium;
-              e.currentTarget.style.color = theme.colors.text.secondary;
-            }}
+            style={sidebarBtnStyle}
+            onMouseEnter={onSidebarBtnMouseEnter}
+            onMouseLeave={onSidebarBtnMouseLeave}
           >
             ☰
           </button>
@@ -79,29 +85,9 @@ export const SidebarFooter: React.FC<SidebarFooterProps> = ({ userEmail, onLogou
               onLogout();
             }}
             title={isCollapsed ? t('auth.logout') : undefined}
-            style={{
-              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-              backgroundColor: COLOR_TRANSPARENT,
-              color: theme.colors.text.secondary,
-              border: `1px solid ${theme.colors.border.medium}`,
-              borderRadius: theme.borderRadius.md,
-              cursor: 'pointer',
-              fontSize: theme.typography.fontSize.xs,
-              fontWeight: theme.typography.fontWeight.medium,
-              transition: theme.transitions.fast,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              whiteSpace: 'nowrap',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = theme.colors.text.primary;
-              e.currentTarget.style.color = theme.colors.text.primary;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = theme.colors.border.medium;
-              e.currentTarget.style.color = theme.colors.text.secondary;
-            }}
+            style={sidebarBtnStyle}
+            onMouseEnter={onSidebarBtnMouseEnter}
+            onMouseLeave={onSidebarBtnMouseLeave}
           >
             {t('auth.logout')}
           </button>

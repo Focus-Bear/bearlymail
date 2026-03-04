@@ -381,3 +381,12 @@ export const LETTER_SPACING_WIDER = '0.08em' as const;
 export const PHISHING_CONFIDENCE_MEDIUM = 'medium' as const;
 export const PHISHING_CONFIDENCE_HIGH = 'high' as const;
 
+export const STRING_MD = 'md' as const;
+export const STRING_ES = 'es' as const;
+export const STRING_ES_ES = 'es-ES' as const;
+export const STRING_SHORT = 'short' as const;
+export const STRING_OPEN = 'open' as const;
+export const STRING_WON = 'won' as const;
+export const STRING_LOST = 'lost' as const;
+
+export const STRING_STALE = 'stale' as const;

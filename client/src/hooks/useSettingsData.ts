@@ -18,6 +18,40 @@ export type { UserContext } from 'hooks/settings/useContextManagement';
 export type { BatchSchedule };
 export type { AnalyzeProgress };
 
+interface AccountSetters {
+  setGoogleAccounts: (v: any[]) => void;
+  setOffice365Accounts: (v: any[]) => void;
+  setZohoAccounts: (v: any[]) => void;
+  setDisplayName: (v: string | undefined) => void;
+  setJobTitle: (v: string | undefined) => void;
+  setEmailSignature: (v: string) => void;
+}
+
+async function fetchUserAndAccounts(setters: AccountSetters): Promise<void> {
+  const [userRes, googleRes, office365Res, zohoRes] = await Promise.all([
+    axios.get(`${API_URL}/users/me`),
+    // eslint-disable-next-line id-denylist -- 'data' is a standard Axios property
+    axios.get(`${API_URL}/google-accounts`).catch(() => ({ data: [] })),
+    // eslint-disable-next-line id-denylist -- 'data' is a standard Axios property
+    axios.get(`${API_URL}/office365-accounts`).catch(() => ({ data: [] })),
+    // eslint-disable-next-line id-denylist -- 'data' is a standard Axios property
+    axios.get(`${API_URL}/zoho-accounts`).catch(() => ({ data: [] })),
+  ]);
+  const user = userRes.data;
+  setters.setDisplayName(user.displayName);
+  setters.setJobTitle(user.jobTitle);
+  setters.setEmailSignature(user.emailSignature || 'Sent from BearlyMail (anti inbox overwhelm system)');
+  const googleAccts = googleRes.data;
+  const hasTokens = !!(user.googleCalendarAccessToken || user.googleCalendarRefreshToken);
+  if (hasTokens && googleAccts.length === 0) {
+    setters.setGoogleAccounts([{ id: 'sso-account', email: user.email, name: user.name || '', isPrimary: true, isSSO: true }]);
+  } else {
+    setters.setGoogleAccounts(googleAccts);
+  }
+  setters.setOffice365Accounts(office365Res.data);
+  setters.setZohoAccounts(zohoRes.data);
+}
+
 export function useSettingsData() {
   const [loading, setLoading] = useState(true);
   const [googleAccounts, setGoogleAccounts] = useState<any[]>([]);
@@ -36,91 +70,27 @@ export function useSettingsData() {
   const blockedKeywords = useBlockedKeywords();
   const batchSchedule = useBatchSchedule();
 
-  // Destructure fetch functions to get stable references
-  const {
-    fetchSummarizationRules,
-  } = summarizationRules;
-  const {
-    fetchContexts,
-  } = contextManagement;
-  const {
-    fetchBlockedSenders,
-  } = blockedSenders;
-  const {
-    fetchBlockedKeywords,
-  } = blockedKeywords;
-  const {
-    fetchBatchSchedule,
-  } = batchSchedule;
-  const {
-    fetchToneRules,
-  } = toneRules;
-  const {
-    fetchApiKeys,
-  } = apiKeys;
+  const { fetchSummarizationRules } = summarizationRules;
+  const { fetchContexts } = contextManagement;
+  const { fetchBlockedSenders } = blockedSenders;
+  const { fetchBlockedKeywords } = blockedKeywords;
+  const { fetchBatchSchedule } = batchSchedule;
+  const { fetchToneRules } = toneRules;
+  const { fetchApiKeys } = apiKeys;
 
   const fetchData = useCallback(async () => {
     try {
-      const [userRes, googleAccountsRes, office365AccountsRes, zohoAccountsRes] = await Promise.all([
-        axios.get(`${API_URL}/users/me`),
-        // eslint-disable-next-line id-denylist -- 'data' is a standard property in Axios responses
-        axios.get(`${API_URL}/google-accounts`).catch(() => ({ data: [] })),
-        // eslint-disable-next-line id-denylist -- 'data' is a standard property in Axios responses
-        axios.get(`${API_URL}/office365-accounts`).catch(() => ({ data: [] })),
-        // eslint-disable-next-line id-denylist -- 'data' is a standard property in Axios responses
-        axios.get(`${API_URL}/zoho-accounts`).catch(() => ({ data: [] })),
-      ]);
-
       await Promise.all([
-        fetchSummarizationRules(),
-        fetchContexts(),
-        fetchBlockedSenders(),
-        fetchBlockedKeywords(),
-        fetchBatchSchedule(),
-        fetchToneRules(),
-        fetchApiKeys(),
+        fetchUserAndAccounts({ setGoogleAccounts, setOffice365Accounts, setZohoAccounts, setDisplayName, setJobTitle, setEmailSignature }),
+        fetchSummarizationRules(), fetchContexts(), fetchBlockedSenders(),
+        fetchBlockedKeywords(), fetchBatchSchedule(), fetchToneRules(), fetchApiKeys(),
       ]);
-
-      const user = userRes.data;
-      // eslint-disable-next-line id-denylist -- 'data' is a standard property in Axios responses
-      const googleAccountsData = googleAccountsRes.data;
-      // eslint-disable-next-line id-denylist -- 'data' is a standard property in Axios responses
-      const office365AccountsData = office365AccountsRes.data;
-      // eslint-disable-next-line id-denylist -- 'data' is a standard property in Axios responses
-      const zohoAccountsData = zohoAccountsRes.data;
-      const hasTokens = !!(user.googleCalendarAccessToken || user.googleCalendarRefreshToken);
-
-      setDisplayName(user.displayName);
-      setJobTitle(user.jobTitle);
-      setEmailSignature(user.emailSignature || 'Sent from BearlyMail (anti inbox overwhelm system)');
-      
-      if (hasTokens && googleAccountsData.length === 0) {
-        setGoogleAccounts([{
-          id: 'sso-account',
-          email: user.email,
-          name: user.name || '',
-          isPrimary: true,
-          isSSO: true,
-        }]);
-      } else {
-        setGoogleAccounts(googleAccountsData);
-      }
-      setOffice365Accounts(office365AccountsData);
-      setZohoAccounts(zohoAccountsData);
     } catch (error) {
       console.error('Error fetching settings:', error);
     } finally {
       setLoading(false);
     }
-  }, [
-    fetchSummarizationRules,
-    fetchContexts,
-    fetchBlockedSenders,
-    fetchBlockedKeywords,
-    fetchBatchSchedule,
-    fetchToneRules,
-    fetchApiKeys,
-  ]);
+  }, [fetchSummarizationRules, fetchContexts, fetchBlockedSenders, fetchBlockedKeywords, fetchBatchSchedule, fetchToneRules, fetchApiKeys]);
 
   const analysisProgress = useAnalysisProgress(fetchData);
 
@@ -160,32 +130,11 @@ export function useSettingsData() {
   }, [fetchData]);
 
   return {
-    // State from extracted hooks
-    ...summarizationRules,
-    ...blockedSenders,
-    ...blockedKeywords,
-    ...contextManagement,
-    ...batchSchedule,
-    ...toneRules,
-    ...apiKeys,
-    ...analysisProgress,
-    // Local state
-    loading,
-    googleAccounts,
-    setGoogleAccounts,
-    office365Accounts,
-    setOffice365Accounts,
-    zohoAccounts,
-    setZohoAccounts,
-    displayName,
-    jobTitle,
-    emailSignature,
-    savingSignature,
-    // Handlers
-    fetchData,
-    updateProfile,
-    setEmailSignature,
-    handleSaveEmailSignature,
+    ...summarizationRules, ...blockedSenders, ...blockedKeywords, ...contextManagement,
+    ...batchSchedule, ...toneRules, ...apiKeys, ...analysisProgress,
+    loading, googleAccounts, setGoogleAccounts, office365Accounts, setOffice365Accounts,
+    zohoAccounts, setZohoAccounts, displayName, jobTitle, emailSignature, savingSignature,
+    fetchData, updateProfile, setEmailSignature, handleSaveEmailSignature,
     handleAnalyzeContext: analysisProgress.startAnalysis,
     handleAddContext: contextManagement.addContext,
     handleUpdateContext: contextManagement.updateContext,

@@ -19,6 +19,40 @@ interface Email {
   };
 }
 
+async function fetchThreadEmailsForId(
+  emailId: string,
+  setThreadEmails: (emails: Email[]) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  if (!emailId) return;
+  try {
+    const response = await axios.get(`${API_URL}/emails/${emailId}/thread`, { signal });
+    setThreadEmails(response.data || []);
+  } catch (error) {
+    if (axios.isCancel(error)) return;
+    console.error('Error fetching thread emails:', error);
+    setThreadEmails([]);
+  }
+}
+
+function toggleThreadItemInSet(prev: Set<string>, itemId: string): Set<string> {
+  const newSet = new Set(prev);
+  if (newSet.has(itemId)) { newSet.delete(itemId); } else { newSet.add(itemId); }
+  return newSet;
+}
+
+function triggerEmailSideEffects(emailId: string, emailThreadId?: string): void {
+  axios.put(`${API_URL}/emails/${emailId}/read`).catch(err => console.error('Error marking as read:', err));
+  axios.post(`${API_URL}/emails/${emailId}/accelerate`).catch(err =>
+    console.debug('Job acceleration not available:', err.message),
+  );
+  if (emailThreadId) {
+    axios.post(`${API_URL}/suggested-replies/${emailThreadId}/ensure`).catch(err =>
+      console.debug('Suggested reply generation not triggered:', err.message),
+    );
+  }
+}
+
 export function useEmailDetailFetching(emailId: string) {
   const [email, setEmail] = useState<Email | null>(null);
   const [threadEmails, setThreadEmails] = useState<Email[]>([]);
@@ -56,16 +90,7 @@ export function useEmailDetailFetching(emailId: string) {
         }
       }
       
-      axios.put(`${API_URL}/emails/${emailId}/read`).catch(err => console.error('Error marking as read:', err));
-      axios.post(`${API_URL}/emails/${emailId}/accelerate`).catch(err => 
-        console.debug('Job acceleration not available:', err.message)
-      );
-      
-      if (emailData.emailThreadId) {
-        axios.post(`${API_URL}/suggested-replies/${emailData.emailThreadId}/ensure`).catch(err =>
-          console.debug('Suggested reply generation not triggered:', err.message)
-        );
-      }
+      triggerEmailSideEffects(emailId, emailData.emailThreadId);
     } catch (error) {
       if (axios.isCancel(error)) {
         return;
@@ -76,19 +101,10 @@ export function useEmailDetailFetching(emailId: string) {
     }
   }, [emailId]);
 
-  const fetchThreadEmails = useCallback(async (signal?: AbortSignal) => {
-    if (!emailId) return;
-    try {
-      const response = await axios.get(`${API_URL}/emails/${emailId}/thread`, { signal });
-      setThreadEmails(response.data || []);
-    } catch (error) {
-      if (axios.isCancel(error)) {
-        return;
-      }
-      console.error('Error fetching thread emails:', error);
-      setThreadEmails([]);
-    }
-  }, [emailId]);
+  const fetchThreadEmails = useCallback(
+    (signal?: AbortSignal) => fetchThreadEmailsForId(emailId, setThreadEmails, signal),
+    [emailId],
+  );
 
   useEffect(() => {
     if (abortControllerRef.current) {
@@ -131,16 +147,8 @@ export function useEmailDetailFetching(emailId: string) {
     }
   }, [email?.id, threadEmails]);
 
-  const toggleThreadItem = (emailId: string) => {
-    setExpandedThreadItems(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(emailId)) {
-        newSet.delete(emailId);
-      } else {
-        newSet.add(emailId);
-      }
-      return newSet;
-    });
+  const toggleThreadItem = (itemId: string) => {
+    setExpandedThreadItems(prev => toggleThreadItemInSet(prev, itemId));
   };
 
   return {

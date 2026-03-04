@@ -13,6 +13,76 @@ interface DebugThreadLookupSectionProps {
   onLookupThread: (threadId: string) => void;
 }
 
+
+interface VisibilityPanelProps {
+  visibility: {
+    wouldShowInTriage: boolean;
+    wouldShowInAction: boolean;
+    wouldShowInFollowUp: boolean;
+  };
+}
+
+/* eslint-disable i18next/no-literal-string */
+const VisibilityPanel: React.FC<VisibilityPanelProps> = ({ visibility }) => {
+  const { t } = useTranslation();
+  const yesColor = '#2E7D32';
+  const noColor = '#C62828';
+  const items = [
+    { key: 'triage', label: 'Triage', value: visibility.wouldShowInTriage },
+    { key: 'action', label: 'Action', value: visibility.wouldShowInAction },
+    { key: 'followup', label: 'Follow-up', value: visibility.wouldShowInFollowUp },
+  ];
+  return (
+    <div style={{ marginBottom: theme.spacing.md }}>
+      <strong>{t('debug.threadLookup.visibility')}:</strong>
+      <ul style={{ margin: `${theme.spacing.xs} 0 0 0`, paddingLeft: theme.spacing.lg }}>
+        {items.map((item) => (
+          <li key={item.key} style={{ color: item.value ? yesColor : noColor }}>
+            {item.label}: {item.value ? 'Yes' : 'No'}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+/* eslint-enable i18next/no-literal-string */
+
+
+/* eslint-disable i18next/no-literal-string */
+interface GmailApiResult {
+  foundInGmailApi: boolean;
+  apiThreadId?: string;
+  apiMessageId?: string;
+  subject?: string;
+  from?: string;
+  receivedAt?: string;
+}
+
+const GmailApiResultPanel: React.FC<{ gmailApiResult: GmailApiResult }> = ({ gmailApiResult }) => {
+  const { t } = useTranslation();
+  const bgColor = gmailApiResult.foundInGmailApi ? '#E3F2FD' : '#F5F5F5';
+  const borderColor = gmailApiResult.foundInGmailApi ? '#90CAF9' : '#E0E0E0';
+  return (
+    <div style={{ marginTop: theme.spacing.md, padding: theme.spacing.sm, backgroundColor: bgColor, borderRadius: theme.borderRadius.sm, border: `1px solid ${borderColor}`, fontSize: theme.typography.fontSize.xs }}>
+      <strong>{t('debug.threadLookup.gmailApiResult')}:</strong>
+      {gmailApiResult.foundInGmailApi ? (
+        <ul style={{ margin: `${theme.spacing.xs} 0 0 0`, paddingLeft: theme.spacing.lg }}>
+          <li><strong>Gmail API Thread ID:</strong> <code style={{ backgroundColor: COLOR_BG_NEUTRAL, padding: '1px 3px', borderRadius: '2px' }}>{gmailApiResult.apiThreadId}</code></li>
+          <li><strong>Gmail API Message ID:</strong> <code style={{ backgroundColor: COLOR_BG_NEUTRAL, padding: '1px 3px', borderRadius: '2px' }}>{gmailApiResult.apiMessageId}</code></li>
+          {gmailApiResult.subject && <li><strong>Subject:</strong> {gmailApiResult.subject}</li>}
+          {gmailApiResult.from && <li><strong>From:</strong> {gmailApiResult.from}</li>}
+          {gmailApiResult.receivedAt && <li><strong>Date:</strong> {new Date(gmailApiResult.receivedAt).toLocaleString()}</li>}
+        </ul>
+      ) : (
+        <span style={{ color: COLOR_GREY_MED, marginLeft: theme.spacing.xs }}>
+          {t('debug.threadLookup.gmailApiNotFound')}
+        </span>
+      )}
+    </div>
+  );
+};
+/* eslint-enable i18next/no-literal-string */
+
 export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> = ({
   threadLookupResult,
   loadingThreadLookup,
@@ -134,24 +204,7 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
             </div>
           )}
 
-          <div style={{ marginBottom: theme.spacing.md }}>
-            {/* eslint-disable-next-line i18next/no-literal-string */}
-            <strong>{t('debug.threadLookup.visibility')}:</strong>
-            <ul style={{ margin: `${theme.spacing.xs} 0 0 0`, paddingLeft: theme.spacing.lg }}>
-              <li style={{ color: threadLookupResult.visibility.wouldShowInTriage ? '#2E7D32' : '#C62828' }}>
-                {/* eslint-disable-next-line i18next/no-literal-string */}
-                Triage: {threadLookupResult.visibility.wouldShowInTriage ? 'Yes' : 'No'}
-              </li>
-              <li style={{ color: threadLookupResult.visibility.wouldShowInAction ? '#2E7D32' : '#C62828' }}>
-                {/* eslint-disable-next-line i18next/no-literal-string */}
-                Action: {threadLookupResult.visibility.wouldShowInAction ? 'Yes' : 'No'}
-              </li>
-              <li style={{ color: threadLookupResult.visibility.wouldShowInFollowUp ? '#2E7D32' : '#C62828' }}>
-                {/* eslint-disable-next-line i18next/no-literal-string */}
-                Follow-up: {threadLookupResult.visibility.wouldShowInFollowUp ? 'Yes' : 'No'}
-              </li>
-            </ul>
-          </div>
+          <VisibilityPanel visibility={threadLookupResult.visibility} />
 
           <div style={{ marginBottom: theme.spacing.md }}>
             {/* eslint-disable-next-line i18next/no-literal-string */}
@@ -226,37 +279,7 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
           )}
 
           {threadLookupResult.gmailApiResult && (
-            <div
-              style={{
-                marginTop: theme.spacing.md,
-                padding: theme.spacing.sm,
-                backgroundColor: threadLookupResult.gmailApiResult.foundInGmailApi ? '#E3F2FD' : '#F5F5F5',
-                borderRadius: theme.borderRadius.sm,
-                border: `1px solid ${threadLookupResult.gmailApiResult.foundInGmailApi ? '#90CAF9' : '#E0E0E0'}`,
-                fontSize: theme.typography.fontSize.xs,
-              }}
-            >
-              {/* eslint-disable-next-line i18next/no-literal-string */}
-              <strong>{t('debug.threadLookup.gmailApiResult')}:</strong>
-              {threadLookupResult.gmailApiResult.foundInGmailApi ? (
-                <ul style={{ margin: `${theme.spacing.xs} 0 0 0`, paddingLeft: theme.spacing.lg }}>
-                  {/* eslint-disable-next-line i18next/no-literal-string */}
-                  <li><strong>Gmail API Thread ID:</strong> <code style={{ backgroundColor: COLOR_BG_NEUTRAL, padding: '1px 3px', borderRadius: '2px' }}>{threadLookupResult.gmailApiResult.apiThreadId}</code></li>
-                  {/* eslint-disable-next-line i18next/no-literal-string */}
-                  <li><strong>Gmail API Message ID:</strong> <code style={{ backgroundColor: COLOR_BG_NEUTRAL, padding: '1px 3px', borderRadius: '2px' }}>{threadLookupResult.gmailApiResult.apiMessageId}</code></li>
-                  {/* eslint-disable-next-line i18next/no-literal-string */}
-                  {threadLookupResult.gmailApiResult.subject && <li><strong>Subject:</strong> {threadLookupResult.gmailApiResult.subject}</li>}
-                  {/* eslint-disable-next-line i18next/no-literal-string */}
-                  {threadLookupResult.gmailApiResult.from && <li><strong>From:</strong> {threadLookupResult.gmailApiResult.from}</li>}
-                  {/* eslint-disable-next-line i18next/no-literal-string */}
-                  {threadLookupResult.gmailApiResult.receivedAt && <li><strong>Date:</strong> {new Date(threadLookupResult.gmailApiResult.receivedAt).toLocaleString()}</li>}
-                </ul>
-              ) : (
-                <span style={{ color: COLOR_GREY_MED, marginLeft: theme.spacing.xs }}>
-                  {t('debug.threadLookup.gmailApiNotFound')}
-                </span>
-              )}
-            </div>
+            <GmailApiResultPanel gmailApiResult={threadLookupResult.gmailApiResult} />
           )}
         </div>
       )}

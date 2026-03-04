@@ -14,6 +14,138 @@ import { EMOJI_MENU } from 'constants/emojis';
 import { OPACITY_HALF, OPACITY_FULL, WIDTH_64_PX, HEIGHT_64_PX, MAX_WIDTH_800_PX } from 'constants/numbers';
 import { FIELD_TYPE_NUMBER, FIELD_TYPE_DATE, FIELD_TYPE_URL, FIELD_TYPE_TEXT, INPUT_TYPE_NUMBER, INPUT_TYPE_DATE, INPUT_TYPE_URL, INPUT_TYPE_TEXT, INPUT_TYPE_TEL, STRING_CENTER, STRING_BLOCK, STRING_FLEX, STRING_GRID, STRING_FIXED, STRING_VERTICAL, STRING_COLUMN, STRING_COVER, STRING_PRE_WRAP, STRING_SPACE_BETWEEN, STRING_FLEX_END, STRING_HIDDEN, STRING_AUTO, STRING_TRANSPARENT, STRING_WHITE, STRING_NONE, STRING_POINTER, FIELD_TYPE_PHONE, FIELD_TYPE_COMPANY, FIELD_JOB_TITLE } from 'constants/strings';
 
+
+interface ContactNotesSectionProps {
+  notes: ContactNote[];
+  newNote: string;
+  addingNote: boolean;
+  onNewNoteChange: (v: string) => void;
+  onAddNote: () => void;
+  onDeleteNote: (id: string) => void;
+  sectionStyle: React.CSSProperties;
+  inputStyle: React.CSSProperties;
+  buttonPrimary: React.CSSProperties;
+  buttonSecondary: React.CSSProperties;
+}
+
+const ContactNotesSection: React.FC<ContactNotesSectionProps> = ({
+  notes, newNote, addingNote, onNewNoteChange, onAddNote, onDeleteNote,
+  sectionStyle, inputStyle, buttonPrimary, buttonSecondary,
+}) => {
+  const { t } = useTranslation();
+  const submitDisabled = addingNote || !newNote.trim();
+  return (
+    <div style={sectionStyle}>
+      <h2 style={{ ...theme.typography.heading.h5, color: theme.colors.text.primary, margin: 0, marginBottom: theme.spacing.md }}>
+        {t('contacts.notes')}
+      </h2>
+      <div style={{ display: STRING_FLEX, gap: theme.spacing.sm, marginBottom: theme.spacing.md }}>
+        <textarea value={newNote} onChange={(e) => onNewNoteChange(e.target.value)} placeholder={t('contacts.notePlaceholder')} rows={3} style={{ ...inputStyle, resize: STRING_VERTICAL }} />
+        <button onClick={onAddNote} disabled={submitDisabled} style={{ ...buttonPrimary, alignSelf: STRING_FLEX_END, opacity: !newNote.trim() ? OPACITY_HALF : OPACITY_FULL }}>
+          {t('contacts.addNote')}
+        </button>
+      </div>
+      {notes.length === 0 ? (
+        <div style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.sm }}>{t('contacts.noNotes')}</div>
+      ) : (
+        <div style={{ display: STRING_FLEX, flexDirection: STRING_COLUMN, gap: theme.spacing.sm }}>
+          {notes.map((note: ContactNote) => (
+            <div key={note.id} style={{ padding: theme.spacing.md, backgroundColor: theme.colors.background.default, borderRadius: theme.borderRadius.md, border: `1px solid ${theme.colors.border.light}` }}>
+              <div style={{ color: theme.colors.text.primary, fontSize: theme.typography.fontSize.base, whiteSpace: STRING_PRE_WRAP, marginBottom: theme.spacing.xs }}>{note.content}</div>
+              <div style={{ display: STRING_FLEX, justifyContent: STRING_SPACE_BETWEEN, alignItems: STRING_CENTER }}>
+                <span style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.xs }}>{new Date(note.createdAt).toLocaleDateString()}</span>
+                <button onClick={() => onDeleteNote(note.id)} style={{ ...buttonSecondary, padding: `2px ${theme.spacing.sm}`, fontSize: theme.typography.fontSize.xs, color: theme.colors.accent.error }}>{t('contacts.delete')}</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+interface ContactDealsSectionProps {
+  deals: Array<{ id: string; title: string; stageName?: string | null; value?: number | null }>;
+  onViewDeals: () => void;
+  onAddDeal: () => void;
+  sectionStyle: React.CSSProperties;
+  buttonPrimary: React.CSSProperties;
+}
+
+const ContactDealsSection: React.FC<ContactDealsSectionProps> = ({
+  deals, onViewDeals, onAddDeal, sectionStyle, buttonPrimary,
+}) => {
+  const { t } = useTranslation();
+  return (
+    <div style={sectionStyle}>
+      <div style={{ display: STRING_FLEX, justifyContent: STRING_SPACE_BETWEEN, alignItems: STRING_CENTER, marginBottom: theme.spacing.md }}>
+        <h2 style={{ ...theme.typography.heading.h5, color: theme.colors.text.primary, margin: 0 }}>{t('contacts.deals')}</h2>
+        <button onClick={onAddDeal} style={buttonPrimary}>{t('deals.addDeal')}</button>
+      </div>
+      {deals.length === 0 ? (
+        <div style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.sm }}>{t('contacts.noDealsSummary')}</div>
+      ) : (
+        <div style={{ display: STRING_FLEX, flexDirection: STRING_COLUMN, gap: theme.spacing.sm }}>
+          {deals.map((deal) => (
+            <div key={deal.id} onClick={onViewDeals} style={{ display: STRING_FLEX, justifyContent: STRING_SPACE_BETWEEN, alignItems: STRING_CENTER, padding: theme.spacing.md, backgroundColor: theme.colors.background.default, borderRadius: theme.borderRadius.md, border: `1px solid ${theme.colors.border.light}`, cursor: STRING_POINTER }}>
+              <div>
+                <div style={{ color: theme.colors.text.primary, fontWeight: theme.typography.fontWeight.medium }}>{deal.title}</div>
+                {deal.stageName && <div style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>{deal.stageName}</div>}
+              </div>
+              {deal.value !== null && deal.value !== undefined && (
+                <div style={{ color: theme.colors.primary.main, fontWeight: theme.typography.fontWeight.semibold }}>${deal.value.toLocaleString()}</div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+interface EditableFieldProps {
+  label: string;
+  value: string | null | undefined;
+  isEditing: boolean;
+  editValue: string;
+  onStartEdit: () => void;
+  onSave: () => void;
+  onCancel: () => void;
+  onEditValueChange: (v: string) => void;
+  inputType?: string;
+  inputStyle: React.CSSProperties;
+  buttonPrimary: React.CSSProperties;
+  buttonSecondary: React.CSSProperties;
+  saveLabel: string;
+  cancelLabel: string;
+}
+
+const EditableField: React.FC<EditableFieldProps> = ({
+  label, value, isEditing, editValue, onStartEdit, onSave, onCancel, onEditValueChange,
+  inputType = INPUT_TYPE_TEXT, inputStyle, buttonPrimary, buttonSecondary, saveLabel, cancelLabel,
+}) => {
+  return (
+    <div>
+      <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: STRING_BLOCK, marginBottom: theme.spacing.xs }}>
+        {label}
+      </label>
+      {isEditing ? (
+        <div style={{ display: STRING_FLEX, gap: theme.spacing.xs }}>
+          <input type={inputType} value={editValue} onChange={(e) => onEditValueChange(e.target.value)} style={inputStyle} autoFocus />
+          <button onClick={onSave} style={buttonPrimary}>{saveLabel}</button>
+          <button onClick={onCancel} style={buttonSecondary}>{cancelLabel}</button>
+        </div>
+      ) : (
+        <div onClick={onStartEdit} style={{ ...inputStyle, cursor: STRING_POINTER, color: value ? theme.colors.text.primary : theme.colors.text.tertiary, minHeight: '38px', display: STRING_FLEX, alignItems: STRING_CENTER }}>
+          {value || '--'}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ContactDetailPage: React.FC = () => {
   const { contactId } = useParams<{ contactId: string }>();
   const navigate = useNavigate();
@@ -248,83 +380,18 @@ const ContactDetailPage: React.FC = () => {
                 <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: STRING_BLOCK, marginBottom: theme.spacing.xs }}>
                   {t('contacts.contactType')}
                 </label>
-                <select
-                  value={contact.contactType || ''}
-                  onChange={(e) => handleUpdateField('contactType', e.target.value || null)}
-                  style={{ ...inputStyle, cursor: STRING_POINTER }}
-                >
+                <select value={contact.contactType || ''} onChange={(e) => handleUpdateField('contactType', e.target.value || null)} style={{ ...inputStyle, cursor: STRING_POINTER }}>
                   <option value="">--</option>
-                  {contactTypes.map(ct => (
-                    <option key={ct.name} value={ct.name}>{ct.icon} {ct.label}</option>
-                  ))}
+                  {contactTypes.map(ct => (<option key={ct.name} value={ct.name}>{ct.icon} {ct.label}</option>))}
                 </select>
               </div>
-
-              {/* Phone */}
-              <div>
-                <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: STRING_BLOCK, marginBottom: theme.spacing.xs }}>
-                  {t('contacts.phone')}
-                </label>
-                {editingField === FIELD_TYPE_PHONE ? (
-                  <div style={{ display: STRING_FLEX, gap: theme.spacing.xs }}>
-                    <input type={INPUT_TYPE_TEL} value={editValue} onChange={(e) => setEditValue(e.target.value)} style={inputStyle} autoFocus />
-                    <button onClick={() => handleUpdateField(FIELD_TYPE_PHONE, editValue)} style={buttonPrimary}>{t('contacts.save')}</button>
-                    <button onClick={() => setEditingField(null)} style={buttonSecondary}>{t('contacts.cancel')}</button>
-                  </div>
-                ) : (
-                  <div onClick={() => { setEditingField(FIELD_TYPE_PHONE); setEditValue(contact.phone || ''); }} style={{ ...inputStyle, cursor: STRING_POINTER, color: contact.phone ? theme.colors.text.primary : theme.colors.text.tertiary, minHeight: '38px', display: STRING_FLEX, alignItems: STRING_CENTER }}>
-                    {contact.phone || '--'}
-                  </div>
-                )}
-              </div>
-
-              {/* Company */}
-              <div>
-                <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: STRING_BLOCK, marginBottom: theme.spacing.xs }}>
-                  {t('contacts.company')}
-                </label>
-                {editingField === FIELD_TYPE_COMPANY ? (
-                  <div style={{ display: STRING_FLEX, gap: theme.spacing.xs }}>
-                    <input value={editValue} onChange={(e) => setEditValue(e.target.value)} style={inputStyle} autoFocus />
-                    <button onClick={() => handleUpdateField(FIELD_TYPE_COMPANY, editValue)} style={buttonPrimary}>{t('contacts.save')}</button>
-                    <button onClick={() => setEditingField(null)} style={buttonSecondary}>{t('contacts.cancel')}</button>
-                  </div>
-                ) : (
-                  <div onClick={() => { setEditingField(FIELD_TYPE_COMPANY); setEditValue(contact.company || ''); }} style={{ ...inputStyle, cursor: STRING_POINTER, color: contact.company ? theme.colors.text.primary : theme.colors.text.tertiary, minHeight: '38px', display: STRING_FLEX, alignItems: STRING_CENTER }}>
-                    {contact.company || '--'}
-                  </div>
-                )}
-              </div>
-
-              {/* Job Title */}
-              <div>
-                <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: STRING_BLOCK, marginBottom: theme.spacing.xs }}>
-                  {t('contacts.jobTitle')}
-                </label>
-                {editingField === FIELD_JOB_TITLE ? (
-                  <div style={{ display: STRING_FLEX, gap: theme.spacing.xs }}>
-                    <input value={editValue} onChange={(e) => setEditValue(e.target.value)} style={inputStyle} autoFocus />
-                    <button onClick={() => handleUpdateField(FIELD_JOB_TITLE, editValue)} style={buttonPrimary}>{t('contacts.save')}</button>
-                    <button onClick={() => setEditingField(null)} style={buttonSecondary}>{t('contacts.cancel')}</button>
-                  </div>
-                ) : (
-                  <div onClick={() => { setEditingField(FIELD_JOB_TITLE); setEditValue(contact.jobTitle || ''); }} style={{ ...inputStyle, cursor: STRING_POINTER, color: contact.jobTitle ? theme.colors.text.primary : theme.colors.text.tertiary, minHeight: '38px', display: STRING_FLEX, alignItems: STRING_CENTER }}>
-                    {contact.jobTitle || '--'}
-                  </div>
-                )}
-              </div>
-
+              <EditableField label={t('contacts.phone')} value={contact.phone} isEditing={editingField === FIELD_TYPE_PHONE} editValue={editValue} onStartEdit={() => { setEditingField(FIELD_TYPE_PHONE); setEditValue(contact.phone || ''); }} onSave={() => handleUpdateField(FIELD_TYPE_PHONE, editValue)} onCancel={() => setEditingField(null)} onEditValueChange={setEditValue} inputType={INPUT_TYPE_TEL} inputStyle={inputStyle} buttonPrimary={buttonPrimary} buttonSecondary={buttonSecondary} saveLabel={t('contacts.save')} cancelLabel={t('contacts.cancel')} />
+              <EditableField label={t('contacts.company')} value={contact.company} isEditing={editingField === FIELD_TYPE_COMPANY} editValue={editValue} onStartEdit={() => { setEditingField(FIELD_TYPE_COMPANY); setEditValue(contact.company || ''); }} onSave={() => handleUpdateField(FIELD_TYPE_COMPANY, editValue)} onCancel={() => setEditingField(null)} onEditValueChange={setEditValue} inputStyle={inputStyle} buttonPrimary={buttonPrimary} buttonSecondary={buttonSecondary} saveLabel={t('contacts.save')} cancelLabel={t('contacts.cancel')} />
+              <EditableField label={t('contacts.jobTitle')} value={contact.jobTitle} isEditing={editingField === FIELD_JOB_TITLE} editValue={editValue} onStartEdit={() => { setEditingField(FIELD_JOB_TITLE); setEditValue(contact.jobTitle || ''); }} onSave={() => handleUpdateField(FIELD_JOB_TITLE, editValue)} onCancel={() => setEditingField(null)} onEditValueChange={setEditValue} inputStyle={inputStyle} buttonPrimary={buttonPrimary} buttonSecondary={buttonSecondary} saveLabel={t('contacts.save')} cancelLabel={t('contacts.cancel')} />
               {/* Follow-up Date */}
               <div>
-                <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: STRING_BLOCK, marginBottom: theme.spacing.xs }}>
-                  {t('contacts.followUpDate')}
-                </label>
-                <input
-                  type={INPUT_TYPE_DATE}
-                  value={contact.followUpDate ? contact.followUpDate.split('T')[0] : ''}
-                  onChange={(e) => handleUpdateField('followUpDate', e.target.value || null)}
-                  style={inputStyle}
-                />
+                <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: STRING_BLOCK, marginBottom: theme.spacing.xs }}>{t('contacts.followUpDate')}</label>
+                <input type={INPUT_TYPE_DATE} value={contact.followUpDate ? contact.followUpDate.split('T')[0] : ''} onChange={(e) => handleUpdateField('followUpDate', e.target.value || null)} style={inputStyle} />
               </div>
             </div>
           </div>
@@ -399,83 +466,26 @@ const ContactDetailPage: React.FC = () => {
             )}
           </div>
 
-          {/* Notes Section */}
-          <div style={sectionStyle}>
-            <h2 style={{ ...theme.typography.heading.h5, color: theme.colors.text.primary, margin: 0, marginBottom: theme.spacing.md }}>
-              {t('contacts.notes')}
-            </h2>
+          <ContactNotesSection
+            notes={contact.notes}
+            newNote={newNote}
+            addingNote={addingNote}
+            onNewNoteChange={setNewNote}
+            onAddNote={handleAddNote}
+            onDeleteNote={handleDeleteNote}
+            sectionStyle={sectionStyle}
+            inputStyle={inputStyle}
+            buttonPrimary={buttonPrimary}
+            buttonSecondary={buttonSecondary}
+          />
 
-            <div style={{ display: STRING_FLEX, gap: theme.spacing.sm, marginBottom: theme.spacing.md }}>
-              <textarea
-                value={newNote}
-                onChange={(e) => setNewNote(e.target.value)}
-                placeholder={t('contacts.notePlaceholder')}
-                rows={3}
-                style={{ ...inputStyle, resize: STRING_VERTICAL }}
-              />
-              <button onClick={handleAddNote} disabled={addingNote || !newNote.trim()} style={{ ...buttonPrimary, alignSelf: STRING_FLEX_END, opacity: !newNote.trim() ? OPACITY_HALF : OPACITY_FULL }}>
-                {t('contacts.addNote')}
-              </button>
-            </div>
-
-            {contact.notes.length === 0 ? (
-              <div style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.sm }}>
-                {t('contacts.noNotes')}
-              </div>
-            ) : (
-              <div style={{ display: STRING_FLEX, flexDirection: STRING_COLUMN, gap: theme.spacing.sm }}>
-                {contact.notes.map((note: ContactNote) => (
-                  <div key={note.id} style={{ padding: theme.spacing.md, backgroundColor: theme.colors.background.default, borderRadius: theme.borderRadius.md, border: `1px solid ${theme.colors.border.light}` }}>
-                    <div style={{ color: theme.colors.text.primary, fontSize: theme.typography.fontSize.base, whiteSpace: STRING_PRE_WRAP, marginBottom: theme.spacing.xs }}>
-                      {note.content}
-                    </div>
-                    <div style={{ display: STRING_FLEX, justifyContent: STRING_SPACE_BETWEEN, alignItems: STRING_CENTER }}>
-                      <span style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.xs }}>
-                        {new Date(note.createdAt).toLocaleDateString()}
-                      </span>
-                      <button onClick={() => handleDeleteNote(note.id)} style={{ ...buttonSecondary, padding: `2px ${theme.spacing.sm}`, fontSize: theme.typography.fontSize.xs, color: theme.colors.accent.error }}>
-                        {t('contacts.delete')}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Deals Section */}
-          <div style={sectionStyle}>
-            <div style={{ display: STRING_FLEX, justifyContent: STRING_SPACE_BETWEEN, alignItems: STRING_CENTER, marginBottom: theme.spacing.md }}>
-              <h2 style={{ ...theme.typography.heading.h5, color: theme.colors.text.primary, margin: 0 }}>
-                {t('contacts.deals')}
-              </h2>
-              <button onClick={() => navigate(`/crm/deals?contactId=${contactId}`)} style={buttonPrimary}>
-                {t('deals.addDeal')}
-              </button>
-            </div>
-
-            {contact.deals.length === 0 ? (
-              <div style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.sm }}>
-                {t('contacts.noDealsSummary')}
-              </div>
-            ) : (
-              <div style={{ display: STRING_FLEX, flexDirection: STRING_COLUMN, gap: theme.spacing.sm }}>
-                {contact.deals.map(deal => (
-                  <div key={deal.id} onClick={() => navigate('/crm/deals')} style={{ display: STRING_FLEX, justifyContent: STRING_SPACE_BETWEEN, alignItems: STRING_CENTER, padding: theme.spacing.md, backgroundColor: theme.colors.background.default, borderRadius: theme.borderRadius.md, border: `1px solid ${theme.colors.border.light}`, cursor: STRING_POINTER }}>
-                    <div>
-                      <div style={{ color: theme.colors.text.primary, fontWeight: theme.typography.fontWeight.medium }}>{deal.title}</div>
-                      {deal.stageName && <div style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>{deal.stageName}</div>}
-                    </div>
-                    {deal.value !== null && (
-                      <div style={{ color: theme.colors.primary.main, fontWeight: theme.typography.fontWeight.semibold }}>
-                        ${deal.value.toLocaleString()}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <ContactDealsSection
+            deals={contact.deals}
+            onViewDeals={() => navigate('/crm/deals')}
+            onAddDeal={() => navigate(`/crm/deals?contactId=${contactId}`)}
+            sectionStyle={sectionStyle}
+            buttonPrimary={buttonPrimary}
+          />
         </div>
       </div>
     </div>

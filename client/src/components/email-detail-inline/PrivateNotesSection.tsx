@@ -44,7 +44,6 @@ export const PrivateNotesSection: React.FC<PrivateNotesSectionProps> = ({
 
   useEffect(() => {
     isInitialLoadRef.current = true;
-    previousContentRef.current = noteContent;
   }, []);
 
   useEffect(() => {
@@ -111,28 +110,12 @@ export const PrivateNotesSection: React.FC<PrivateNotesSectionProps> = ({
           fontFamily: theme.typography.fontFamily,
           resize: 'vertical',
           boxSizing: 'border-box',
-          backgroundColor: COLOR_NAMED_WHITE,
-        }}
+          backgroundColor: COLOR_NAMED_WHITE,        }}
       />
       {/* eslint-disable i18next/no-literal-string */}
-      {lastSavedAt && (
-        <div style={{
-          fontSize: theme.typography.fontSize.xs,
-          color: theme.colors.text.tertiary,
-          marginTop: theme.spacing.xs,
-        }}>
-          Only visible to you · Saved {humanizeDuration(Date.now() - lastSavedAt)}
-        </div>
-      )}
-      {!lastSavedAt && (
-        <div style={{
-          fontSize: theme.typography.fontSize.xs,
-          color: theme.colors.text.tertiary,
-          marginTop: theme.spacing.xs,
-        }}>
-          Only visible to you
-        </div>
-      )}
+      <div style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.tertiary, marginTop: theme.spacing.xs }}>
+        {lastSavedAt ? `Only visible to you · Saved ${humanizeDuration(Date.now() - lastSavedAt)}` : 'Only visible to you'}
+      </div>
       {/* eslint-enable i18next/no-literal-string */}
     </CollapsibleSection>
   );

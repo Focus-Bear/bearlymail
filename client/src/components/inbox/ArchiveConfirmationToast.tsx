@@ -10,6 +10,9 @@ interface ArchiveConfirmationToastProps {
   onCancel: () => void;
 }
 
+const kbdStyle = { padding: `0 ${theme.spacing.xs}`, borderRadius: '3px', fontSize: theme.typography.fontSize.xs } as const;
+const btnBaseStyle = { borderRadius: theme.borderRadius.sm, padding: `${theme.spacing.xs} ${theme.spacing.md}`, fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: theme.spacing.xs } as const;
+
 export const ArchiveConfirmationToast: React.FC<ArchiveConfirmationToastProps> = ({
   emailCount,
   onConfirm,
@@ -49,52 +52,12 @@ export const ArchiveConfirmationToast: React.FC<ArchiveConfirmationToastProps> =
         gap: theme.spacing.sm,
         alignItems: 'center',
       }}>
-        <button
-          onClick={onConfirm}
-          style={{
-            backgroundColor: theme.colors.accent.error,
-            color: COLOR_NAMED_WHITE,
-            border: STRING_NONE,
-            borderRadius: theme.borderRadius.sm,
-            padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-            fontSize: theme.typography.fontSize.sm,
-            fontWeight: theme.typography.fontWeight.medium,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: theme.spacing.xs,
-          }}
-        >
-          <kbd style={{
-            backgroundColor: 'rgba(255,255,255,0.2)',
-            padding: `0 ${theme.spacing.xs}`,
-            borderRadius: '3px',
-            fontSize: theme.typography.fontSize.xs,
-          }}>{t('keyboard.keyY')}</kbd>
+        <button onClick={onConfirm} style={{ ...btnBaseStyle, backgroundColor: theme.colors.accent.error, color: COLOR_NAMED_WHITE, border: STRING_NONE }}>
+          <kbd style={{ ...kbdStyle, backgroundColor: 'rgba(255,255,255,0.2)' }}>{t('keyboard.keyY')}</kbd>
           {t('keyboard.yes')}
         </button>
-        <button
-          onClick={onCancel}
-          style={{
-            backgroundColor: COLOR_TRANSPARENT,
-            color: theme.colors.text.secondary,
-            border: `1px solid ${theme.colors.border.medium}`,
-            borderRadius: theme.borderRadius.sm,
-            padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-            fontSize: theme.typography.fontSize.sm,
-            fontWeight: theme.typography.fontWeight.medium,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: theme.spacing.xs,
-          }}
-        >
-          <kbd style={{
-            backgroundColor: theme.colors.background.disabled,
-            padding: `0 ${theme.spacing.xs}`,
-            borderRadius: '3px',
-            fontSize: theme.typography.fontSize.xs,
-          }}>{t('keyboard.keyEsc')}</kbd>
+        <button onClick={onCancel} style={{ ...btnBaseStyle, backgroundColor: COLOR_TRANSPARENT, color: theme.colors.text.secondary, border: `1px solid ${theme.colors.border.medium}` }}>
+          <kbd style={{ ...kbdStyle, backgroundColor: theme.colors.background.disabled }}>{t('keyboard.keyEsc')}</kbd>
           {t('keyboard.no')}
         </button>
       </div>

@@ -6,6 +6,17 @@ import { SAVE_CONFIRMATION_DURATION_MS } from 'constants/numbers';
 import { useNotifications } from 'contexts/NotificationContext';
 
 const COPY_ICON = '⧉';
+const getHeaderBgColor = (isCurrentEmail: boolean): string =>
+  isCurrentEmail ? theme.colors.primary.subtle : theme.colors.background.subtle;
+
+interface AddressFieldProps { label: string; value: string }
+const AddressField: React.FC<AddressFieldProps> = ({ label, value }) => (
+  /* eslint-disable i18next/no-literal-string */
+  <div style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary, marginTop: theme.spacing.xs }}>
+    <span style={{ fontWeight: theme.typography.fontWeight.medium }}>{label}:</span> {value}
+  </div>
+  /* eslint-enable i18next/no-literal-string */
+);
 
 interface ThreadItemHeaderProps {
   from: string;
@@ -43,17 +54,12 @@ export const ThreadItemHeader: React.FC<ThreadItemHeaderProps> = ({
     }
   }, [from, showSuccess, t]);
 
-  const getBackgroundColor = (): string => {
-    if (isCurrentEmail) return theme.colors.primary.subtle;
-    return theme.colors.background.subtle;
-  };
-
   return (
     <div
       onClick={onToggle}
       style={{
         padding: theme.spacing.md,
-        backgroundColor: getBackgroundColor(),
+        backgroundColor: getHeaderBgColor(isCurrentEmail),
         cursor: 'pointer',
         display: 'flex',
         justifyContent: 'space-between',
@@ -114,26 +120,8 @@ export const ThreadItemHeader: React.FC<ThreadItemHeaderProps> = ({
             {humanizeTimestamp(new Date(receivedAt))}
           </span>
         </div>
-                {to && (
-                  <div style={{ 
-                    fontSize: theme.typography.fontSize.xs, 
-                    color: theme.colors.text.secondary,
-                    marginTop: theme.spacing.xs 
-                  }}>
-                    {/* eslint-disable-next-line i18next/no-literal-string */}
-                    <span style={{ fontWeight: theme.typography.fontWeight.medium }}>To:</span> {to}
-                  </div>
-                )}
-                {cc && (
-                  <div style={{ 
-                    fontSize: theme.typography.fontSize.xs, 
-                    color: theme.colors.text.secondary,
-                    marginTop: theme.spacing.xs 
-                  }}>
-                    {/* eslint-disable-next-line i18next/no-literal-string */}
-                    <span style={{ fontWeight: theme.typography.fontWeight.medium }}>CC:</span> {cc}
-                  </div>
-                )}
+                {to && <AddressField label="To" value={to} />}
+                {cc && <AddressField label="CC" value={cc} />}
       </div>
       <span style={{ color: theme.colors.text.tertiary }}>
         {isExpanded ? '▼' : '▶'}

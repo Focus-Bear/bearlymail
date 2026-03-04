@@ -20,6 +20,21 @@ interface ProtoCategorySubAccordionProps {
   isDeleting?: boolean;
 }
 
+function makeProtoKeyDownHandler(
+  onConfirm: () => void,
+  onCancel: () => void
+): (e: KeyboardEvent) => void {
+  return (e: KeyboardEvent) => {
+    if (e.key === KEY_Y || e.key === KEY_Y_UPPERCASE) {
+      e.stopPropagation();
+      onConfirm();
+    } else if (e.key === KEY_ESCAPE) {
+      e.stopPropagation();
+      onCancel();
+    }
+  };
+}
+
 export const ProtoCategorySubAccordion: React.FC<ProtoCategorySubAccordionProps> = ({
   name,
   description,
@@ -36,7 +51,7 @@ export const ProtoCategorySubAccordion: React.FC<ProtoCategorySubAccordionProps>
   const [isExpanded, setIsExpanded] = useState(true);
   const [isArchiveAllHovered, setIsArchiveAllHovered] = useState(false);
   const [showArchiveConfirmation, setShowArchiveConfirmation] = useState(false);
-  const isBusy = isConverting || (isDeleting ?? false);
+  const isBusy = isConverting || Boolean(isDeleting);
 
   const handleArchiveAllClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -58,17 +73,7 @@ export const ProtoCategorySubAccordion: React.FC<ProtoCategorySubAccordionProps>
 
   useEffect(() => {
     if (!showArchiveConfirmation) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === KEY_Y || e.key === KEY_Y_UPPERCASE) {
-        e.stopPropagation();
-        handleConfirmArchive();
-      } else if (e.key === KEY_ESCAPE) {
-        e.stopPropagation();
-        handleCancelArchive();
-      }
-    };
-
+    const handleKeyDown = makeProtoKeyDownHandler(handleConfirmArchive, handleCancelArchive);
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showArchiveConfirmation, handleConfirmArchive, handleCancelArchive]);

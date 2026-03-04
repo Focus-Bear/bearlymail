@@ -12,6 +12,28 @@ import { selectVisibleEmails, selectLoading, selectDecrypting, selectRefreshing,
 import { CategorySummaryItem } from 'store/slices/emailSlice';
 import { TYPEOF_FUNCTION } from 'constants/strings';
 
+type BulkReadParams = {
+  emailIds: string[];
+  isRead: boolean;
+  dispatch: AppDispatch;
+  fetchEmails: () => Promise<void>;
+  onSuggestionRemove?: (emailId: string) => void;
+};
+
+async function bulkMarkReadUnread({ emailIds, isRead, dispatch, fetchEmails, onSuggestionRemove }: BulkReadParams): Promise<void> {
+  if (emailIds.length === 0) return;
+  emailIds.forEach(id => { dispatch(updateEmail({ id, updates: { isRead } })); });
+  if (onSuggestionRemove) emailIds.forEach(id => onSuggestionRemove(id));
+  const endpoint = isRead ? 'read' : 'unread';
+  try {
+    await axios.post(`${API_URL}/emails/bulk/${endpoint}`, { emailIds });
+    fetchEmails().catch(err => console.error(`Error refreshing after bulk ${endpoint}:`, err));
+  } catch (error) {
+    console.error(`Error bulk marking emails as ${endpoint}:`, error);
+    fetchEmails();
+  }
+}
+
 interface TabCountChanges {
   triage?: number;
   action?: number;
@@ -54,9 +76,7 @@ interface UseEmailManagementReturn {
 
 export function useEmailManagement({ mode, onSuggestionRemove, onTabCountsUpdateOptimistically, filters }: UseEmailManagementProps): UseEmailManagementReturn {
   const dispatch = useDispatch<AppDispatch>();
-  // Use selectVisibleEmails to automatically filter out optimistically archived/snoozed emails
-  // This ensures the filtering always uses the latest Redux state, fixing the issue where
-  // the previous ref-based approach could have stale values
+  // selectVisibleEmails filters out optimistically archived/snoozed emails from Redux state
   const emails = useSelector(selectVisibleEmails);
   const loading = useSelector(selectLoading);
   const decrypting = useSelector(selectDecrypting);
@@ -71,12 +91,7 @@ export function useEmailManagement({ mode, onSuggestionRemove, onTabCountsUpdate
   const { fetchEmails, loadMore, fetchCategoryEmails, refreshInPlace } = useEmailFetching({ mode, filters });
 
   const { handleSetStarCount, handleArchive, handleSnooze } = useEmailActionsBase({
-    fetchEmails,
-    onSuggestionRemove,
-    onTabCountsUpdateOptimistically,
-    mode,
-    // Note: onShowPriorityOverride is not available here - it's passed from useInboxState
-    // This hook is used in other contexts where priority override might not be needed
+    fetchEmails, onSuggestionRemove, onTabCountsUpdateOptimistically, mode,
   });
 
   const handleMarkAsRead = useCallback(async (emailId: string) => {
@@ -97,41 +112,15 @@ export function useEmailManagement({ mode, onSuggestionRemove, onTabCountsUpdate
     }
   }, [dispatch]);
 
-  const handleBulkMarkAsRead = useCallback(async (emailIds: string[]) => {
-    if (emailIds.length === 0) return;
-    
-    // Optimistic update
-    emailIds.forEach(id => {
-      dispatch(updateEmail({ id, updates: { isRead: true } }));
-    });
-    onSuggestionRemove && emailIds.forEach(id => onSuggestionRemove(id));
+  const handleBulkMarkAsRead = useCallback(
+    (emailIds: string[]) => bulkMarkReadUnread({ emailIds, isRead: true, dispatch, fetchEmails, onSuggestionRemove }),
+    [fetchEmails, onSuggestionRemove, dispatch],
+  );
 
-    try {
-      await axios.post(`${API_URL}/emails/bulk/read`, { emailIds });
-      fetchEmails().catch(err => console.error('Error refreshing after bulk read:', err));
-    } catch (error) {
-      console.error('Error bulk marking emails as read:', error);
-      fetchEmails(); // Revert on error
-    }
-  }, [fetchEmails, onSuggestionRemove, dispatch]);
-
-  const handleBulkMarkAsUnread = useCallback(async (emailIds: string[]) => {
-    if (emailIds.length === 0) return;
-    
-    // Optimistic update
-    emailIds.forEach(id => {
-      dispatch(updateEmail({ id, updates: { isRead: false } }));
-    });
-    onSuggestionRemove && emailIds.forEach(id => onSuggestionRemove(id));
-
-    try {
-      await axios.post(`${API_URL}/emails/bulk/unread`, { emailIds });
-      fetchEmails().catch(err => console.error('Error refreshing after bulk unread:', err));
-    } catch (error) {
-      console.error('Error bulk marking emails as unread:', error);
-      fetchEmails(); // Revert on error
-    }
-  }, [fetchEmails, onSuggestionRemove, dispatch]);
+  const handleBulkMarkAsUnread = useCallback(
+    (emailIds: string[]) => bulkMarkReadUnread({ emailIds, isRead: false, dispatch, fetchEmails, onSuggestionRemove }),
+    [fetchEmails, onSuggestionRemove, dispatch],
+  );
 
   const handleCheckUrgent = useCallback(async () => {
     dispatch(setRefreshing(true));

@@ -18,27 +18,13 @@ import { useSettingsData } from 'hooks/useSettingsData';
 import { useAutoResponder } from 'hooks/useAutoResponder';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import { useSidebarState } from 'hooks/useSidebarState';
-import {
-  CONNECTION_STATUS_CONNECTED,
-  ALERT_GITHUB_CONNECTED,
-  ALERT_GITHUB_CONNECT_FAILED,
-  LOADING_TEXT,
-  STRING_TRUE_TEXT,
-  STRING_SMOOTH,
-  STRING_START,
-  STRING_GITHUB_PARAM,
-  STRING_ERROR,
-  STRING_AUTO_ANALYZE,
-  ERROR_UPDATING_HISTORY,
-  STYLE_100VH,
-  STRING_HIDDEN,
-  STYLE_48PX,
-  STYLE_1_5REM,
-  ARIA_LABEL_OPEN_NAV,
-} from 'constants/strings';
 
 import { API_URL } from 'config/api';
 import { EMOJI_MENU } from 'constants/emojis';
+
+const GITHUB_CALLBACK_CONNECTED = 'connected';
+const GITHUB_CALLBACK_ERROR = 'error';
+const AUTO_ANALYZE_QUERY_VALUE = 'true';
 
 const Settings: React.FC = () => {
   const { user, logout, refreshUser } = useAuth();
@@ -58,41 +44,42 @@ const Settings: React.FC = () => {
   // Handle OAuth callback
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const github = params.get(STRING_GITHUB_PARAM);
-    if (github === CONNECTION_STATUS_CONNECTED) {
+    const github = params.get('github');
+    if (github === GITHUB_CALLBACK_CONNECTED) {
       // Refresh GitHub token status
       settingsData.fetchApiKeys();
       // Remove query parameter from URL
       window.history.replaceState({}, '', window.location.pathname + window.location.hash);
       // Show success message
-      alert(ALERT_GITHUB_CONNECTED);
-    } else if (github === STRING_ERROR) {
+      alert('GitHub connected successfully!');
+    } else if (github === GITHUB_CALLBACK_ERROR) {
       // Remove query parameter from URL
       window.history.replaceState({}, '', window.location.pathname + window.location.hash);
       // Show error message
-      alert(ALERT_GITHUB_CONNECT_FAILED);
+      alert('Failed to connect GitHub. Please try again.');
     }
   }, [settingsData]);
 
   // Handle autoAnalyze query parameter from onboarding flow
+  const { loading: settingsLoading, handleAnalyzeContext } = settingsData;
   useEffect(() => {
-    if (settingsData.loading || hasTriggeredAutoAnalyze.current) return;
+    if (settingsLoading || hasTriggeredAutoAnalyze.current) return;
     
     const params = new URLSearchParams(window.location.search);
-    const autoAnalyze = params.get(STRING_AUTO_ANALYZE);
+    const autoAnalyze = params.get('autoAnalyze');
     
-    if (autoAnalyze === STRING_TRUE_TEXT) {
+    if (autoAnalyze === AUTO_ANALYZE_QUERY_VALUE) {
       hasTriggeredAutoAnalyze.current = true;
       // Remove query parameter from URL but keep the hash
       window.history.replaceState({}, '', window.location.pathname + window.location.hash);
       // Mark user as having scanned history (so modal doesn't show again)
       axios.put(`${API_URL}/users/me`, { hasScannedHistory: true })
         .then(() => refreshUser())
-        .catch((error) => console.error(ERROR_UPDATING_HISTORY, error));
+        .catch((error) => console.error('Error updating hasScannedHistory:', error));
       // Auto-trigger context analysis
-      settingsData.handleAnalyzeContext();
+      handleAnalyzeContext();
     }
-  }, [settingsData.loading, settingsData.handleAnalyzeContext, refreshUser]);
+  }, [settingsLoading, handleAnalyzeContext, refreshUser]);
 
   // Handle anchor scrolling when navigating with hash (from sidebar navigation)
   useEffect(() => {
@@ -102,7 +89,7 @@ const Settings: React.FC = () => {
         setTimeout(() => {
           const element = document.getElementById(hash.substring(1));
           if (element) {
-            element.scrollIntoView({ behavior: STRING_SMOOTH, block: STRING_START });
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }
         }, 100);
       }
@@ -114,11 +101,11 @@ const Settings: React.FC = () => {
   }, [settingsData.loading]);
 
   if (settingsData.loading) {
-    return <div>{LOADING_TEXT}</div>;
+    return <div>Loading...</div>;
   }
 
   return (
-    <div style={{ display: 'flex', height: STYLE_100VH, overflow: STRING_HIDDEN }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       <Sidebar
         user={user}
         logout={logout}
@@ -135,8 +122,8 @@ const Settings: React.FC = () => {
               position: 'fixed',
               top: theme.spacing.md,
               left: theme.spacing.md,
-              width: STYLE_48PX,
-              height: STYLE_48PX,
+              width: '48px',
+              height: '48px',
               borderRadius: '50%',
               border: `1px solid ${theme.colors.border.medium}`,
               backgroundColor: theme.colors.background.paper,
@@ -144,12 +131,12 @@ const Settings: React.FC = () => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: STYLE_1_5REM,
+              fontSize: '1.5rem',
               transition: theme.transitions.fast,
               boxShadow: theme.shadows.md,
               zIndex: 100,
             }}
-            aria-label={ARIA_LABEL_OPEN_NAV}
+            aria-label="Open navigation menu"
           >
             {EMOJI_MENU}
           </button>

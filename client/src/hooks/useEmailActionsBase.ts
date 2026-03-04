@@ -12,6 +12,15 @@ import { selectEmails } from 'store/selectors/emailSelectors';
 /** Duration (ms) of email exit animations — must match CSS animation durations in App.css */
 export const EMAIL_EXIT_ANIMATION_DURATION_MS = 800;
 
+type TabCountFn = ((changes: { triage?: number; action?: number; followUp?: number }) => void) | undefined;
+
+function adjustTabCount(tabFn: TabCountFn, mode: string | undefined, delta: number): void {
+  if (!tabFn || !mode) return;
+  if (mode === MODE_TRIAGE) tabFn({ triage: delta });
+  else if (mode === MODE_ACTION) tabFn({ action: delta });
+  else if (mode === MODE_FOLLOW_UP) tabFn({ followUp: delta });
+}
+
 interface TabCountChanges {
   triage?: number;
   action?: number;
@@ -40,249 +49,87 @@ export function useEmailActionsBase({
   const archiveAnimationTimeouts = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const priorityAnimationTimeouts = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
-  const handleSetStarCount = useCallback(async (emailId: string, starCount: number, e?: React.MouseEvent) => {
-    e?.stopPropagation();
-
-    const email = emails.find(e => e.id === emailId);
+  const handleSetStarCount = useCallback(async (emailId: string, starCount: number, ev?: React.MouseEvent) => {
+    ev?.stopPropagation();
+    const email = emails.find(em => em.id === emailId);
     const originalStarCount = email?.starCount ?? 0;
-    const predictedStarCount = email
-      ? Math.round((getEmailPriorityScore(email) / 100) * 3)
-      : Math.round(DEFAULT_PRIORITY_SCORE / 100 * 3);
+    const predictedStarCount = email ? Math.round((getEmailPriorityScore(email) / 100) * 3) : Math.round(DEFAULT_PRIORITY_SCORE / 100 * 3);
 
-    // In Triage mode, starring an email (starCount > 0) should remove it from the list
-    // since starred emails belong in the Action tab
     if (mode === MODE_TRIAGE && starCount > 0) {
-      // Animate the email out with 🏗️ overlay before removing it
       dispatch(addAnimatingOut({ id: emailId, type: 'priority' }));
       onSuggestionRemove?.(emailId);
-      // Optimistically update tab counts: decrement triage, increment action
-      if (onTabCountsUpdateOptimistically) {
-        onTabCountsUpdateOptimistically({ triage: -1, action: 1 });
-      }
-      // Remove from list after animation completes
-      const priorityTimeoutId = setTimeout(() => {
-        dispatch(removeEmail(emailId));
-        dispatch(removeAnimatingOut(emailId));
-        priorityAnimationTimeouts.current.delete(emailId);
-      }, EMAIL_EXIT_ANIMATION_DURATION_MS);
-      priorityAnimationTimeouts.current.set(emailId, priorityTimeoutId);
+      onTabCountsUpdateOptimistically?.({ triage: -1, action: 1 });
+      const tid = setTimeout(() => { dispatch(removeEmail(emailId)); dispatch(removeAnimatingOut(emailId)); priorityAnimationTimeouts.current.delete(emailId); }, EMAIL_EXIT_ANIMATION_DURATION_MS);
+      priorityAnimationTimeouts.current.set(emailId, tid);
     } else if (mode === MODE_ACTION && starCount === 0) {
-      // In Action mode, unstarring an email (starCount = 0) should remove it from the list
-      // since unstarred emails belong in the Triage tab
-      dispatch(removeEmail(emailId));
-      onSuggestionRemove?.(emailId);
-      // Optimistically update tab counts: decrement action, increment triage
-      if (onTabCountsUpdateOptimistically) {
-        onTabCountsUpdateOptimistically({ action: -1, triage: 1 });
-      }
+      dispatch(removeEmail(emailId)); onSuggestionRemove?.(emailId);
+      onTabCountsUpdateOptimistically?.({ action: -1, triage: 1 });
     } else {
-      // Optimistic update - update UI immediately
-      dispatch(updateEmail({ id: emailId, updates: { starCount } }));
-      onSuggestionRemove?.(emailId);
+      dispatch(updateEmail({ id: emailId, updates: { starCount } })); onSuggestionRemove?.(emailId);
     }
 
-    // Calculate and return discrepancy info immediately (for modal display)
     const discrepancy = Math.abs(starCount - predictedStarCount);
-    const result = (discrepancy >= 2 && starCount > 0) 
-      ? { discrepancy, predictedStarCount } 
-      : null;
+    const result = (discrepancy >= 2 && starCount > 0) ? { discrepancy, predictedStarCount } : null;
 
-    // Make API call in background (non-blocking)
-    // Note: We don't update tab counts in the .then() callback because:
-    // 1. We already optimistically updated the counts above
-    // 2. The server processes star changes asynchronously, so fetching counts would return stale data
     axios.put(`${API_URL}/emails/${emailId}/star-count`, { starCount })
       .catch((error) => {
         console.error('Error setting star count:', error);
-        // Revert optimistic update on error - restore email to list or star count
         if (mode === MODE_TRIAGE && starCount > 0 && email) {
-          const pendingTimeout = priorityAnimationTimeouts.current.get(emailId);
-          if (pendingTimeout !== undefined) {
-            // Animation hasn't finished yet — cancel it and stop the animation
-            clearTimeout(pendingTimeout);
-            priorityAnimationTimeouts.current.delete(emailId);
-            dispatch(removeAnimatingOut(emailId));
-            // Email is still in state.emails, no need to restore
-          } else {
-            // Animation already completed and email was removed — restore it
-            dispatch(restoreEmail(email));
-          }
-          // Revert tab count changes
-          if (onTabCountsUpdateOptimistically) {
-            onTabCountsUpdateOptimistically({ triage: 1, action: -1 });
-          }
+          const pending = priorityAnimationTimeouts.current.get(emailId);
+          if (pending !== undefined) { clearTimeout(pending); priorityAnimationTimeouts.current.delete(emailId); dispatch(removeAnimatingOut(emailId)); }
+          else { dispatch(restoreEmail(email)); }
+          onTabCountsUpdateOptimistically?.({ triage: 1, action: -1 });
         } else if (mode === MODE_ACTION && starCount === 0 && email) {
-          dispatch(restoreEmail(email));
-          // Revert tab count changes
-          if (onTabCountsUpdateOptimistically) {
-            onTabCountsUpdateOptimistically({ action: 1, triage: -1 });
-          }
+          dispatch(restoreEmail(email)); onTabCountsUpdateOptimistically?.({ action: 1, triage: -1 });
         } else {
           dispatch(updateEmail({ id: emailId, updates: { starCount: originalStarCount } }));
         }
-        // Only refresh on error to sync state
         fetchEmails().catch(err => console.error('Error refreshing after star update error:', err));
       });
 
-    // Return immediately without waiting for API
     return result;
   }, [emails, fetchEmails, onSuggestionRemove, dispatch, mode, onTabCountsUpdateOptimistically]);
 
-  const handleArchive = useCallback(async (emailId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-
-    console.log('[Archive] Starting archive for email:', emailId);
-    const emailToArchive = emails.find(e => e.id === emailId);
-    if (!emailToArchive) {
-      console.warn('[Archive] Email not found in list:', emailId);
-      return;
-    }
-
-    console.log('[Archive] Email found:', { id: emailToArchive.id, subject: emailToArchive.subject, threadId: emailToArchive.threadId });
-
-    // Check if email is unread and has priority > 20 - if so, show priority override modal
-    const priorityScore = getEmailPriorityScore(emailToArchive);
-    if (!emailToArchive.isRead && priorityScore > PRIORITY_MEDIUM_THRESHOLD && onShowPriorityOverride) {
-      // Show priority override modal with archive context - user will archive after submitting
-      onShowPriorityOverride(emailId, priorityScore, 0, 'archive'); // 0 = low priority (archiving)
-      return;
-    }
-    
-    // Add to optimistic archive immediately so fetches don't re-show the email
-    // Also start the fly-out animation; the email is removed from the list after animation
-    console.log('[Archive] Dispatching addOptimisticArchive and addAnimatingOut');
-    dispatch(addOptimisticArchive(emailId));
-    dispatch(addAnimatingOut({ id: emailId, type: 'archive' }));
-    // Decrement the category summary count to keep accordion badge in sync
+  const handleArchive = useCallback(async (emailId: string, archiveEvent: React.MouseEvent) => {
+    archiveEvent.stopPropagation();
+    const emailToArchive = emails.find(em => em.id === emailId);
+    if (!emailToArchive) { console.warn('[Archive] Email not found in list:', emailId); return; }
+    const score = getEmailPriorityScore(emailToArchive);
+    if (!emailToArchive.isRead && score > PRIORITY_MEDIUM_THRESHOLD && onShowPriorityOverride) { onShowPriorityOverride(emailId, score, 0, 'archive'); return; }
     const categoryName = emailToArchive.category || 'Other';
-    dispatch(decrementCategorySummaryCount(categoryName));
-    onSuggestionRemove?.(emailId);
-    // Remove from list after animation completes (duration matches animate-fly-out-right in App.css)
-    const archiveTimeoutId = setTimeout(() => {
-      dispatch(removeEmail(emailId));
-      dispatch(removeAnimatingOut(emailId));
-      archiveAnimationTimeouts.current.delete(emailId);
-    }, EMAIL_EXIT_ANIMATION_DURATION_MS);
-    archiveAnimationTimeouts.current.set(emailId, archiveTimeoutId);
-
-    // Optimistically update tab counts based on current mode
-    // Archive removes the email from the current tab
-    if (onTabCountsUpdateOptimistically) {
-      if (mode === MODE_TRIAGE) {
-        onTabCountsUpdateOptimistically({ triage: -1 });
-      } else if (mode === MODE_ACTION) {
-        onTabCountsUpdateOptimistically({ action: -1 });
-      } else if (mode === MODE_FOLLOW_UP) {
-        onTabCountsUpdateOptimistically({ followUp: -1 });
-      }
-    }
-
-    console.log('[Archive] Making API call to archive email');
-    // Make API call in background (non-blocking)
-    // Note: We don't update tab counts in the .then() callback because:
-    // 1. We already optimistically updated the counts above
-    // 2. The server processes archive as a background job, so fetching counts would return stale data
-    axios.put(`${API_URL}/emails/${emailId}/archive`)
-      .then((response) => {
-        console.log('[Archive] API call successful:', response.data);
-        // After successful archive, keep it in optimistic set - it will be filtered out anyway
-        // No need to call fetchEmails() - the optimistic update is sufficient
-      })
-      .catch((error) => {
-        console.error('[Archive] API call failed:', error);
-        console.log('[Archive] Reverting optimistic update');
-        // Cancel the animation timeout and remove from animatingOut so email becomes visible again
-        const pendingArchiveTimeout = archiveAnimationTimeouts.current.get(emailId);
-        if (pendingArchiveTimeout !== undefined) {
-          clearTimeout(pendingArchiveTimeout);
-          archiveAnimationTimeouts.current.delete(emailId);
-          dispatch(removeAnimatingOut(emailId));
-          // Email is still in state.emails — no need to restore
-        } else {
-          // Animation already completed and email was removed — restore it
-          if (emailToArchive) {
-            dispatch(restoreEmail(emailToArchive));
-          }
-        }
-        dispatch(removeOptimisticArchive(emailId));
-        // Revert category summary count
-        dispatch(incrementCategorySummaryCount(categoryName));
-        // Revert tab count changes
-        if (onTabCountsUpdateOptimistically) {
-          if (mode === MODE_TRIAGE) {
-            onTabCountsUpdateOptimistically({ triage: 1 });
-          } else if (mode === MODE_ACTION) {
-            onTabCountsUpdateOptimistically({ action: 1 });
-          } else if (mode === MODE_FOLLOW_UP) {
-            onTabCountsUpdateOptimistically({ followUp: 1 });
-          }
-        }
-        // Only refresh on error to sync state
-        fetchEmails().catch(err => console.error('Error refreshing after archive error:', err));
-      });
+    dispatch(addOptimisticArchive(emailId)); dispatch(addAnimatingOut({ id: emailId, type: 'archive' }));
+    dispatch(decrementCategorySummaryCount(categoryName)); onSuggestionRemove?.(emailId);
+    const tid = setTimeout(() => { dispatch(removeEmail(emailId)); dispatch(removeAnimatingOut(emailId)); archiveAnimationTimeouts.current.delete(emailId); }, EMAIL_EXIT_ANIMATION_DURATION_MS);
+    archiveAnimationTimeouts.current.set(emailId, tid);
+    adjustTabCount(onTabCountsUpdateOptimistically, mode, -1);
+    axios.put(`${API_URL}/emails/${emailId}/archive`).catch((error) => {
+      console.error('[Archive] API call failed:', error);
+      const pending = archiveAnimationTimeouts.current.get(emailId);
+      if (pending !== undefined) { clearTimeout(pending); archiveAnimationTimeouts.current.delete(emailId); dispatch(removeAnimatingOut(emailId)); }
+      else if (emailToArchive) { dispatch(restoreEmail(emailToArchive)); }
+      dispatch(removeOptimisticArchive(emailId)); dispatch(incrementCategorySummaryCount(categoryName));
+      adjustTabCount(onTabCountsUpdateOptimistically, mode, 1);
+      fetchEmails().catch(err => console.error('Error refreshing after archive error:', err));
+    });
   }, [emails, fetchEmails, onSuggestionRemove, dispatch, onShowPriorityOverride, onTabCountsUpdateOptimistically, mode]);
 
   const handleSnooze = useCallback(async (emailId: string, duration: string) => {
-    if (!duration.trim()) {
-      console.warn('Cannot snooze: duration is empty');
-      return;
-    }
+    if (!duration.trim()) { console.warn('Cannot snooze: duration is empty'); return; }
+    const emailToSnooze = emails.find(em => em.id === emailId);
+    if (!emailToSnooze) { console.warn('[Snooze] Email not found in list:', emailId); return; }
 
-    console.log('[Snooze] Starting snooze for email:', emailId);
-    const emailToSnooze = emails.find(e => e.id === emailId);
-    if (!emailToSnooze) {
-      console.warn('[Snooze] Email not found in list:', emailId);
-      return;
-    }
-
-    // Optimistic update - remove from list immediately and add to optimistic snooze set
-    console.log('[Snooze] Dispatching removeEmail and addOptimisticSnooze');
     dispatch(removeEmail(emailId));
     dispatch(addOptimisticSnooze(emailId));
     onSuggestionRemove?.(emailId);
+    adjustTabCount(onTabCountsUpdateOptimistically, mode, -1);
 
-    // Optimistically update tab counts based on current mode
-    // Snooze removes the email from the current tab
-    if (onTabCountsUpdateOptimistically) {
-      if (mode === MODE_TRIAGE) {
-        onTabCountsUpdateOptimistically({ triage: -1 });
-      } else if (mode === MODE_ACTION) {
-        onTabCountsUpdateOptimistically({ action: -1 });
-      } else if (mode === MODE_FOLLOW_UP) {
-        onTabCountsUpdateOptimistically({ followUp: -1 });
-      }
-    }
-
-    console.log('[Snooze] Making API call to snooze email');
-    // Make API call in background (non-blocking)
-    // Note: We don't update tab counts in the .then() callback because:
-    // 1. We already optimistically updated the counts above
-    // 2. The server processes snooze asynchronously, so fetching counts would return stale data
     axios.post(`${API_URL}/snooze/${emailId}`, { duration })
-      .then(() => {
-        console.log('[Snooze] API call successful');
-      })
       .catch((error) => {
         console.error('[Snooze] API call failed:', error);
-        // Revert optimistic update on error - restore email to list and remove from optimistic set
-        console.log('[Snooze] Reverting optimistic update');
-        if (emailToSnooze) {
-          dispatch(restoreEmail(emailToSnooze));
-        }
+        if (emailToSnooze) dispatch(restoreEmail(emailToSnooze));
         dispatch(removeOptimisticSnooze(emailId));
-        // Revert tab count changes
-        if (onTabCountsUpdateOptimistically) {
-          if (mode === MODE_TRIAGE) {
-            onTabCountsUpdateOptimistically({ triage: 1 });
-          } else if (mode === MODE_ACTION) {
-            onTabCountsUpdateOptimistically({ action: 1 });
-          } else if (mode === MODE_FOLLOW_UP) {
-            onTabCountsUpdateOptimistically({ followUp: 1 });
-          }
-        }
-        // Only refresh on error to sync state
+        adjustTabCount(onTabCountsUpdateOptimistically, mode, 1);
         fetchEmails().catch(err => console.error('Error refreshing after snooze error:', err));
-        // Re-throw so the caller can show an error message
         throw error;
       });
   }, [emails, fetchEmails, onSuggestionRemove, dispatch, onTabCountsUpdateOptimistically, mode]);

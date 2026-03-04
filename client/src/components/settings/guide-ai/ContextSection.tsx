@@ -166,7 +166,7 @@ export const ContextSection: React.FC<ContextSectionProps> = ({
               style={{
                 alignSelf: 'flex-start',
                 marginTop: theme.spacing.xs,
-                background: 'transparent',
+                background: COLOR_TRANSPARENT,
                 border: `1px dashed ${theme.colors.border.medium}`,
                 borderRadius: theme.borderRadius.md,
                 padding: `${theme.spacing.xs} ${theme.spacing.md}`,
@@ -274,6 +274,28 @@ const ContextItem: React.FC<ContextItemProps> = ({
   );
 };
 
+function parseQAndA(contextValue: string): { question: string; answer: string } {
+  const parts = contextValue.split(' | ');
+  const question = parts.find(part => part.startsWith('Q:'))?.replace('Q:', '').trim() || '';
+  const answer = parts.find(part => part.startsWith('A:'))?.replace('A:', '').trim() || '';
+  return { question, answer };
+}
+
+function translateExplanation(explanation: string, t: (key: string, opts?: Record<string, unknown>) => string): string {
+  if (!explanation.includes(':')) return explanation;
+  const [key, ...params] = explanation.split(':');
+  try {
+    if (key === CONTEXT_EXPLANATION_VIP_CONTACT_STARRED && params[0]) {
+      const count = parseInt(params[0], 10);
+      return t('settings.contextExplanations.vipContactStarredExplanation', { count, plural: count > 1 ? 's' : '' });
+    }
+    const normalizedKey = key.trim().toLowerCase().split(/\s+/).map((word, index) => index === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1)).join('');
+    return t(`settings.contextExplanations.${normalizedKey}`, { reason: params.join(':').trim(), defaultValue: explanation });
+  } catch {
+    return explanation;
+  }
+}
+
 interface ContextItemContentProps {
   context: UserContext;
 }
@@ -284,8 +306,7 @@ const ContextItemContent: React.FC<ContextItemContentProps> = ({ context }) => {
   
   const shouldTruncate = context.contextValue.length > TRUNCATE_LENGTH;
   const displayValue = shouldTruncate && !isExpanded 
-    ?  `${context.contextValue.substring(0, TRUNCATE_LENGTH)}...`
-    : context.contextValue;
+    ?  `${context.contextValue.substring(0, TRUNCATE_LENGTH)}...`    : context.contextValue;
 
   return (
     <div style={{ flex: 1 }}>
@@ -294,19 +315,8 @@ const ContextItemContent: React.FC<ContextItemContentProps> = ({ context }) => {
           {context.contextKey === CONTEXT_KEY_Q_AND_A && context.contextValue.includes('|') ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs, width: '100%' }}>
               {(() => {
-                const parts = context.contextValue.split(' | ');
-                const question = parts.find(part => part.startsWith('Q:'))?.replace('Q:', '').trim() || '';
-                const answer = parts.find(part => part.startsWith('A:'))?.replace('A:', '').trim() || '';
-                return (
-                  <>
-                    <div style={{ color: theme.colors.text.primary, fontWeight: theme.typography.fontWeight.medium }}>
-                      {t('settings.context.question')}: {question}
-                    </div>
-                    <div style={{ color: theme.colors.text.secondary, marginLeft: theme.spacing.md }}>
-                      {t('settings.context.answer')}: {answer}
-                    </div>
-                  </>
-                );
+                const { question, answer } = parseQAndA(context.contextValue);
+                return (<><div style={{ color: theme.colors.text.primary, fontWeight: theme.typography.fontWeight.medium }}>{t('settings.context.question')}: {question}</div><div style={{ color: theme.colors.text.secondary, marginLeft: theme.spacing.md }}>{t('settings.context.answer')}: {answer}</div></>);
               })()}
             </div>
           ) : (
@@ -349,34 +359,7 @@ const ContextItemContent: React.FC<ContextItemContentProps> = ({ context }) => {
             color: theme.colors.text.secondary,
             fontStyle: 'italic',
           }}>
-            {(() => {
-              if (context.explanation.includes(':')) {
-                const [key, ...params] = context.explanation.split(':');
-                try {
-                  if (key === CONTEXT_EXPLANATION_VIP_CONTACT_STARRED && params[0]) {
-                    const count = parseInt(params[0], 10);
-                    return t('settings.contextExplanations.vipContactStarredExplanation', { 
-                      count,
-                      plural: count > 1 ? 's' : ''
-                    });
-                  }
-                  // Normalize key: convert "Learned from override" to "learnedFromOverride"
-                  const normalizedKey = key.trim()
-                    .toLowerCase()
-                    .split(/\s+/)
-                    .map((word, index) => index === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1))
-                    .join('');
-                  const translationKey = `settings.contextExplanations.${normalizedKey}`;
-                  const reasonText = params.join(':').trim();
-                  // Try to translate, fallback to showing the explanation if translation doesn't exist
-                  const translated = t(translationKey, { reason: reasonText, defaultValue: context.explanation });
-                  return translated;
-                } catch {
-                  return context.explanation;
-                }
-              }
-              return context.explanation;
-            })()}
+            {translateExplanation(context.explanation, t)}
           </span>
         )}
         {context.sourceThreadIds && context.sourceThreadIds.length > 0 && (
@@ -441,8 +424,7 @@ const ContextAddInput: React.FC<ContextAddInputProps> = ({
           padding: `${theme.spacing.xs} ${theme.spacing.md}`,
           backgroundColor: theme.colors.primary.main,
           color: COLOR_NAMED_WHITE,
-          border: STRING_NONE,
-          borderRadius: theme.borderRadius.md,
+          border: STRING_NONE,          borderRadius: theme.borderRadius.md,
           cursor: newContextValue.trim() ? 'pointer' : 'not-allowed',
           opacity: newContextValue.trim() ? OPACITY_FULL : OPACITY_DISABLED
         }}

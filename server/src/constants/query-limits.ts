@@ -11,6 +11,7 @@ export const INBOX_MODES = {
   TRIAGE: "triage",
   ACTION: "action",
   FOLLOW_UP: "follow-up",
+  BLOCKED: "blocked",
 } as const;
 
 export type InboxMode = (typeof INBOX_MODES)[keyof typeof INBOX_MODES];

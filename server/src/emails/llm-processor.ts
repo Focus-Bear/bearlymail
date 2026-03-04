@@ -914,9 +914,7 @@ export class LLMProcessor implements OnModuleInit {
       phishingConfidence,
       phishingReason,
       error,
-    } of results) {
-      if (summary && !error) {
-        try {
+    } of results) {      if (summary && !error) {        try {
           const jobEntry = jobsToProcess.find((j) => j.emailId === emailId);
           if (!jobEntry) continue;
 

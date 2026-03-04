@@ -224,7 +224,6 @@ export function useEmailFetching({
     buildAutoRespondedParams,
     buildAutoRespondedSummary,
   ]);
-
   /**
    * Fetch emails for a specific category and append to the flat email list.
    * Called when the user expands a category accordion that hasn't been loaded yet.

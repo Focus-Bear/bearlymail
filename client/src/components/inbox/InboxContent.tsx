@@ -1,6 +1,5 @@
-import React, { useRef, useMemo, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useMemo, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { useTranslation } from 'react-i18next';
 import { useSelector } from 'react-redux';
 import { theme } from 'theme/theme';
 import { Email, InboxMode, getEmailPriorityScore } from 'types/email';
@@ -18,7 +17,7 @@ import { CategoryAccordion, groupEmailsByCategory, CategoryGroup } from 'compone
 import { ProtoCategorySubAccordion } from 'components/inbox/ProtoCategorySubAccordion';
 import { CategorySummaryItem } from 'store/slices/emailSlice';
 import { selectSummaryLoading } from 'store/selectors/emailSelectors';
-import { useNotifications } from 'contexts/NotificationContext';
+import { useProtoCategoryManagement } from 'hooks/useProtoCategoryManagement';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
 interface InboxContentProps {
@@ -68,6 +67,58 @@ interface InboxContentProps {
 }
 
 // eslint-disable-next-line max-lines-per-function -- Inbox content component requires handling multiple inbox modes, emails, and UI states
+
+type InboxSplitView = {
+  isMobile: boolean;
+  selectedEmailId: string | null | undefined;
+  panelExpanded: boolean;
+  isResizing: boolean;
+  splitPosition: number;
+};
+
+function computeEmailListBorderRight(splitView: InboxSplitView): string {
+  if (splitView.selectedEmailId && !splitView.panelExpanded && !splitView.isMobile) {
+    return `1px solid ${theme.colors.border.light}`;
+  }
+  return STRING_NONE;
+}
+
+function computeCanRenderCategories(
+  loading: boolean,
+  isRefetchingWithoutData: boolean,
+  hasInitiallyLoaded: boolean,
+  loadingModeSwitch: boolean,
+  fetchError: string | null | undefined,
+  categoriesCount: number
+): boolean {
+  if (loading || isRefetchingWithoutData || !hasInitiallyLoaded) return false;
+  if (loadingModeSwitch || fetchError || categoriesCount === 0) return false;
+  return true;
+}
+
+function computeIsEmailsEmpty(
+  isRefetchingWithoutData: boolean,
+  categorySummary: Array<{ name: string; count: number }> | null | undefined,
+  loading: boolean,
+  loadingModeSwitch: boolean,
+  emailsCount: number
+): boolean {
+  if (isRefetchingWithoutData) return false;
+  if (categorySummary !== null && categorySummary !== undefined) {
+    return categorySummary.length === 0 && !loading && !loadingModeSwitch;
+  }
+  return emailsCount === 0 && !loading && !loadingModeSwitch;
+}
+
+function computeHasInfiniteSentinel(
+  hasMore: boolean,
+  loading: boolean,
+  loadingModeSwitch: boolean,
+  hasInitiallyLoaded: boolean
+): boolean {
+  return hasMore && !loading && !loadingModeSwitch && hasInitiallyLoaded;
+}
+
 export const InboxContent: React.FC<InboxContentProps> = ({
   mode,
   emails,
@@ -112,8 +163,6 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   categorySummary,
   loadedCategoryNames,
 }) => {
-  const { t } = useTranslation();
-  const { showNotification } = useNotifications();
   const { isMobile } = useResponsiveBreakpoints();
   const summaryLoading = useSelector(selectSummaryLoading);
   // True when we're fetching a fresh summary and have no cached category data yet.
@@ -121,12 +170,18 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   // a false "No emails" flash while data is being fetched.
   const isRefetchingWithoutData = summaryLoading && (categorySummary === null || categorySummary === undefined);
   const splitViewContainerRef = useRef<HTMLDivElement>(null);
-  const [isReanalysingOther, setIsReanalysingOther] = useState(false);
   const isLoadingMoreRef = useRef(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
-  const [protoCategories, setProtoCategories] = useState<Array<{ id: string; name: string; description: string | null }>>([]);
-  const [convertingProtoCategoryId, setConvertingProtoCategoryId] = useState<string | null>(null);
-  const [deletingProtoCategoryId, setDeletingProtoCategoryId] = useState<string | null>(null);
+  const {
+    protoCategories,
+    isReanalysingOther,
+    convertingProtoCategoryId,
+    deletingProtoCategoryId,
+    fetchProtoCategories,
+    handleReanalyseOther,
+    handleConvertProtoCategory,
+    handleDeleteProtoCategoryFromInbox,
+  } = useProtoCategoryManagement();
 
   const handleLoadMore = useCallback(async () => {
     if (!onLoadMore || isLoadingMoreRef.current || !hasMore) return;
@@ -156,69 +211,7 @@ export const InboxContent: React.FC<InboxContentProps> = ({
     return () => observer.disconnect();
   }, [hasMore, handleLoadMore]);
 
-  const handleReanalyseOther = async () => {
-    setIsReanalysingOther(true);
-    try {
-      const response = await axios.post(`${API_URL}/context/generate-categories-from-other`);
-      const { newCategoriesCount, reclassifyJobsQueued } = response.data;
-      
-      if (newCategoriesCount > 0) {
-        showNotification(
-          t('inbox.category.reanalyseSuccess', { count: newCategoriesCount, reclassifyCount: reclassifyJobsQueued }),
-          'success'
-        );
-      } else {
-        showNotification(
-          t('inbox.category.reanalyseNoNewCategories'),
-          'info'
-        );
-      }
-    } catch (error) {
-      console.error('Error re-analysing categories:', error);
-      showNotification(
-        'Failed to re-analyse categories. Please try again.',
-        'error'
-      );
-    } finally {
-      setIsReanalysingOther(false);
-    }
-  };
 
-  const fetchProtoCategories = useCallback(async () => {
-    try {
-      const response = await axios.get<Array<{ id: string; name: string; description: string | null; emailCount: number }>>(`${API_URL}/proto-categories`);
-      setProtoCategories(response.data.map(c => ({ id: c.id, name: c.name, description: c.description })));
-    } catch (error) {
-      console.error('Error fetching proto categories:', error);
-    }
-  }, []);
-
-  const handleConvertProtoCategory = useCallback(async (protoCategoryId: string, name: string) => {
-    if (!protoCategoryId) return;
-    setConvertingProtoCategoryId(protoCategoryId);
-    try {
-      await axios.post(`${API_URL}/proto-categories/${protoCategoryId}/promote`);
-      setProtoCategories(prev => prev.filter(pc => pc.id !== protoCategoryId));
-      showNotification(t('inbox.protoCategory.convertSuccess', { name }), 'success');
-    } catch (error) {
-      console.error('Error converting proto category:', error);
-      showNotification(t('inbox.protoCategory.convertError'), 'error');
-    } finally {
-      setConvertingProtoCategoryId(null);
-    }
-  }, [showNotification, t]);
-
-  const handleDeleteProtoCategoryFromInbox = useCallback(async (protoCategoryId: string) => {
-    setDeletingProtoCategoryId(protoCategoryId);
-    try {
-      await axios.delete(`${API_URL}/proto-categories/${protoCategoryId}`);
-      setProtoCategories(prev => prev.filter(pc => pc.id !== protoCategoryId));
-    } catch (error) {
-      console.error('Error deleting proto category:', error);
-    } finally {
-      setDeletingProtoCategoryId(null);
-    }
-  }, []);
 
   const filteredEmails = useMemo(() =>
     emails.filter(email => !email.isArchived),
@@ -250,7 +243,7 @@ export const InboxContent: React.FC<InboxContentProps> = ({
 
   // When a summary is available, use it as the authoritative category order.
   // Fall back to grouping loaded emails when no summary is available.
-  const summaryCategories = categorySummary ?? null;
+  const summaryCategories = categorySummary !== undefined ? categorySummary : null;
 
   // Update stable category order from summary (preferred) or from loaded emails (fallback).
   // The summary is available before emails are loaded so accordions appear immediately.
@@ -289,9 +282,9 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   // Order follows stableCategoryOrder, with new categories appended.
   // Empty categories (count=0) are excluded so they disappear after archiving all emails.
   const displayCategories = useMemo((): Array<{ name: string; count: number }> => {
-    const source = summaryCategories ?? groupEmailsByCategory(filteredEmails, mode).map(g => ({
-      name: g.category,
-      count: g.emails.length,
+    const source = summaryCategories ?? groupEmailsByCategory(filteredEmails, mode).map((grp) => ({
+      name: grp.category,
+      count: grp.emails.length,
     }));
 
     // Filter out categories with count=0 from the source.
@@ -388,7 +381,7 @@ export const InboxContent: React.FC<InboxContentProps> = ({
             ? `${theme.spacing.sm} ${theme.spacing.xs}`
             : `${theme.spacing.md} ${theme.spacing.lg} ${theme.spacing.lg}`,
           transition: splitView.isResizing ? 'none' : 'flex 0.3s ease',
-          borderRight: splitView.selectedEmailId && !splitView.panelExpanded && !splitView.isMobile ? `1px solid ${theme.colors.border.light}` : 'none',
+          borderRight: computeEmailListBorderRight(splitView),
         }}
       >
         <div style={{ maxWidth: splitView.selectedEmailId ? '100%' : '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: isMobile ? theme.spacing.xs : theme.spacing.md }}>
@@ -412,19 +405,11 @@ export const InboxContent: React.FC<InboxContentProps> = ({
             loadingModeSwitch={loadingModeSwitch}
             decrypting={decrypting}
             fetchError={fetchError}
-            emailsEmpty={
-              // Never show empty state while we're fetching (suppresses false "no emails" flash)
-              !isRefetchingWithoutData && (
-                // Empty when summary loaded and has no categories, or (fallback) no emails loaded
-                categorySummary !== null && categorySummary !== undefined
-                  ? categorySummary.length === 0 && !loading && !loadingModeSwitch
-                  : emails.length === 0 && !loading && !loadingModeSwitch
-              )
-            }
+            emailsEmpty={computeIsEmailsEmpty(isRefetchingWithoutData, categorySummary, loading, loadingModeSwitch, emails.length)}
             mode={mode}
             onRetry={onRetry}
           />
-          {!loading && !isRefetchingWithoutData && hasInitiallyLoaded && !loadingModeSwitch && !fetchError && displayCategories.length > 0 && (
+          {computeCanRenderCategories(loading, isRefetchingWithoutData, hasInitiallyLoaded, loadingModeSwitch, fetchError, displayCategories.length) && (
             displayCategories.map((categoryItem, catIdx) => {
               const categoryName = categoryItem.name;
               const isExpanded = expandedCategories.has(categoryName);
@@ -552,7 +537,7 @@ export const InboxContent: React.FC<InboxContentProps> = ({
             })
           )}
           {/* Sentinel element for infinite scroll — triggers loadMore via IntersectionObserver */}
-          {hasMore && !loading && !loadingModeSwitch && hasInitiallyLoaded && (
+          {computeHasInfiniteSentinel(hasMore, loading, loadingModeSwitch, hasInitiallyLoaded) && (
             <div
               ref={sentinelRef}
               style={{ height: '1px', visibility: 'hidden' }}

@@ -27,6 +27,11 @@ interface OtherActionsProps {
   onSnooze: (emailId: string) => Promise<void>;
 }
 
+const actionBtnStyle: React.CSSProperties = {
+  background: 'transparent', border: 'none', cursor: 'pointer',
+  fontSize: '1.2rem', padding: '0 4px', display: 'flex', alignItems: 'center', gap: theme.spacing.xs,
+};
+
 export const OtherActions: React.FC<OtherActionsProps> = ({
   email,
   mode,
@@ -84,16 +89,7 @@ export const OtherActions: React.FC<OtherActionsProps> = ({
             }
           }}
           title={t('inbox.archiveOrPressDelete')}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            cursor: 'pointer',
-            fontSize: '1.2rem',
-            padding: '0 4px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: theme.spacing.xs,
-          }}
+          style={actionBtnStyle}
         >
           {/* eslint-disable-next-line i18next/no-literal-string */}
           <span>{EMOJI_INBOX}</span>
@@ -112,17 +108,7 @@ export const OtherActions: React.FC<OtherActionsProps> = ({
           <button
             onClick={handleUnsubscribeClick}
             title={t('inbox.unsubscribe')}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '1.1rem',
-              padding: '0 4px',
-              opacity: OPACITY_DISABLED,
-              display: 'flex',
-              alignItems: 'center',
-              gap: theme.spacing.xs,
-            }}
+            style={{ ...actionBtnStyle, fontSize: '1.1rem', opacity: OPACITY_DISABLED }}
           >
             {/* eslint-disable-next-line i18next/no-literal-string */}
             <span>{EMOJI_LINK}</span>
@@ -132,17 +118,7 @@ export const OtherActions: React.FC<OtherActionsProps> = ({
           <button
             onClick={(e) => onBlockSender(email.id, e)}
             title={t('inbox.blockSender')}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '1.1rem',
-              padding: '0 4px',
-              opacity: OPACITY_DISABLED,
-              display: 'flex',
-              alignItems: 'center',
-              gap: theme.spacing.xs,
-            }}
+            style={{ ...actionBtnStyle, fontSize: '1.1rem', opacity: OPACITY_DISABLED }}
           >
             {/* eslint-disable-next-line i18next/no-literal-string */}
             <span>{EMOJI_BLOCK}</span>

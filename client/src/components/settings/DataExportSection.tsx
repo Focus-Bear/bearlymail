@@ -7,6 +7,8 @@ import { API_URL } from 'config/api';
 import { captureEvent } from 'utils/posthog';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 
+const BUTTON_VARIANT_PRIMARY = 'primary' as const;
+
 interface ImportResult {
   success: boolean;
   imported: {
@@ -26,6 +28,62 @@ interface ImportResult {
   };
   errors: string[];
 }
+
+interface ActionButtonProps {
+  onClick: () => void;
+  disabled: boolean;
+  isHovered: boolean;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+  label: string;
+  variant: 'primary' | 'secondary';
+}
+
+const ActionButton: React.FC<ActionButtonProps> = ({
+  onClick,
+  disabled,
+  isHovered,
+  onMouseEnter,
+  onMouseLeave,
+  label,
+  variant,
+}) => {
+  const isPrimary = variant === BUTTON_VARIANT_PRIMARY;
+  const isActive = isHovered && !disabled;
+  let bgColor = theme.colors.button.secondary.default;
+  let textColor: string = theme.colors.button.secondary.text;
+  let borderStyle: string = `1px solid ${isActive ? theme.colors.button.secondary.hoverBorder : theme.colors.button.secondary.border}`;
+  if (isPrimary) {
+    bgColor = isActive ? theme.colors.primary.dark : theme.colors.primary.main;
+    textColor = COLOR_NAMED_WHITE;
+    borderStyle = STRING_NONE;
+  } else if (isActive) {
+    textColor = theme.colors.button.secondary.hoverText;
+  }
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      style={{
+        backgroundColor: bgColor,
+        color: textColor,
+        border: borderStyle,
+        borderRadius: theme.borderRadius.md,
+        padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        fontSize: theme.typography.fontSize.base,
+        fontWeight: theme.typography.fontWeight.medium,
+        transition: theme.transitions.default,
+        opacity: disabled ? OPACITY_DISABLED_ALT : 1,
+      }}
+    >
+      {label}
+    </button>
+  );
+};
 
 export const DataExportSection: React.FC = () => {
   const { t } = useTranslation();
@@ -223,29 +281,15 @@ export const DataExportSection: React.FC = () => {
       )}
 
       <div style={{ display: 'flex', gap: theme.spacing.md, flexWrap: 'wrap' }}>
-        <button
+        <ActionButton
           onClick={handleExport}
           disabled={isExporting || isImporting}
+          isHovered={isExportHovered}
           onMouseEnter={() => setIsExportHovered(true)}
           onMouseLeave={() => setIsExportHovered(false)}
-          style={{
-            backgroundColor:
-              isExportHovered && !isExporting && !isImporting
-                ? theme.colors.primary.dark
-                : theme.colors.primary.main,
-            color: COLOR_NAMED_WHITE,
-            border: STRING_NONE,
-            borderRadius: theme.borderRadius.md,
-            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-            cursor: isExporting || isImporting ? 'not-allowed' : 'pointer',
-            fontSize: theme.typography.fontSize.base,
-            fontWeight: theme.typography.fontWeight.medium,
-            transition: theme.transitions.default,
-            opacity: isExporting || isImporting ? OPACITY_DISABLED_ALT : 1,
-          }}
-        >
-          {isExporting ? t('settings.dataExport.exporting') : t('settings.dataExport.exportButton')}
-        </button>
+          label={isExporting ? t('settings.dataExport.exporting') : t('settings.dataExport.exportButton')}
+          variant="primary"
+        />
 
         <input
           ref={fileInputRef}
@@ -255,33 +299,15 @@ export const DataExportSection: React.FC = () => {
           style={{ display: 'none' }}
         />
 
-        <button
+        <ActionButton
           onClick={handleImportClick}
           disabled={isExporting || isImporting}
+          isHovered={isImportHovered}
           onMouseEnter={() => setIsImportHovered(true)}
           onMouseLeave={() => setIsImportHovered(false)}
-          style={{
-            backgroundColor: theme.colors.button.secondary.default,
-            color:
-              isImportHovered && !isExporting && !isImporting
-                ? theme.colors.button.secondary.hoverText
-                : theme.colors.button.secondary.text,
-            border: `1px solid ${
-              isImportHovered && !isExporting && !isImporting
-                ? theme.colors.button.secondary.hoverBorder
-                : theme.colors.button.secondary.border
-            }`,
-            borderRadius: theme.borderRadius.md,
-            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-            cursor: isExporting || isImporting ? 'not-allowed' : 'pointer',
-            fontSize: theme.typography.fontSize.base,
-            fontWeight: theme.typography.fontWeight.medium,
-            transition: theme.transitions.default,
-            opacity: isExporting || isImporting ? OPACITY_DISABLED_ALT : 1,
-          }}
-        >
-          {isImporting ? t('settings.dataExport.importing') : t('settings.dataExport.importButton')}
-        </button>
+          label={isImporting ? t('settings.dataExport.importing') : t('settings.dataExport.importButton')}
+          variant="secondary"
+        />
       </div>
     </div>
   );

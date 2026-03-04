@@ -19,6 +19,25 @@ interface PriorityOverrideModalProps {
   context?: typeof CONTEXT_ARCHIVE | 'star' | typeof CONTEXT_MANUAL; // Context for why we're asking
 }
 
+type TFunction = (key: string, options?: Record<string, unknown>) => string;
+
+function getPriorityLabel(t: TFunction, isHighPriority: boolean, score: number): string {
+  if (isHighPriority) return t('priority.high');
+  if (score >= 0) return t('priority.low');
+  return t('priority.veryLow');
+}
+
+function getDescription(
+  t: TFunction, context: string, isHighPriority: boolean,
+  origScore: number, newScore: number, priorityLabel: string,
+): string {
+  if (context === CONTEXT_ARCHIVE) {
+    const key = isHighPriority ? 'priority.override.archiveHighPriority' : 'priority.override.archiveLowPriority';
+    return t(key, { score: origScore.toFixed(0), priority: priorityLabel });
+  }
+  return t('priority.override.description', { from: origScore.toFixed(0), to: newScore.toFixed(0) });
+}
+
 export const PriorityOverrideModal: React.FC<PriorityOverrideModalProps> = ({
   emailId,
   originalPriorityScore,
@@ -33,12 +52,7 @@ export const PriorityOverrideModal: React.FC<PriorityOverrideModalProps> = ({
   const [submitting, setSubmitting] = useState(false);
 
   const isHighPriority = originalPriorityScore > PRIORITY_MEDIUM_THRESHOLD;
-  const getPriorityLabel = () => {
-    if (isHighPriority) return t('priority.high');
-    if (originalPriorityScore >= 0) return t('priority.low');
-    return t('priority.veryLow');
-  };
-  const priorityLabel = getPriorityLabel();
+  const priorityLabel = getPriorityLabel(t, isHighPriority, originalPriorityScore);
 
   const handleSubmit = async () => {
     if (!selectedReason) return;
@@ -63,27 +77,7 @@ export const PriorityOverrideModal: React.FC<PriorityOverrideModalProps> = ({
     }
   };
 
-  // Get context-specific description
-  const getDescription = () => {
-    if (context === CONTEXT_ARCHIVE) {
-      if (isHighPriority) {
-        return t('priority.override.archiveHighPriority', { 
-          score: originalPriorityScore.toFixed(0),
-          priority: priorityLabel 
-        });
-      } else {
-        return t('priority.override.archiveLowPriority', { 
-          score: originalPriorityScore.toFixed(0),
-          priority: priorityLabel 
-        });
-      }
-    }
-    // Default description for manual/star changes
-    return t('priority.override.description', { 
-      from: originalPriorityScore.toFixed(0), 
-      to: newPriorityScore.toFixed(0) 
-    });
-  };
+  const description = getDescription(t, context, isHighPriority, originalPriorityScore, newPriorityScore, priorityLabel);
 
   return (
     <ModalBackdrop onClose={onClose}>
@@ -96,7 +90,7 @@ export const PriorityOverrideModal: React.FC<PriorityOverrideModalProps> = ({
           marginBottom: theme.spacing.md,
           lineHeight: theme.typography.lineHeight.relaxed,
         }}>
-          {getDescription()}
+          {description}
         </p>
 
         <ReasonTypeSelector

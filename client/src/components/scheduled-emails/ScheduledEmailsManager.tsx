@@ -4,7 +4,6 @@ import { theme } from 'theme/theme';
 import { useScheduledEmails, ScheduledEmail } from 'hooks/useScheduledEmails';
 import { ACTION_TYPE_REPLY, STRING_NONE } from 'constants/strings';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
-
 export const ScheduledEmailsManager: React.FC = () => {
   const { t } = useTranslation();
   const { scheduledEmails, loading, cancelScheduledEmail } = useScheduledEmails();
@@ -111,8 +110,7 @@ export const ScheduledEmailsManager: React.FC = () => {
                   padding: '6px 12px',
                   backgroundColor: theme.colors.error,
                   color: COLOR_NAMED_WHITE,
-                  border: STRING_NONE,
-                  borderRadius: '4px',
+                  border: STRING_NONE,                  borderRadius: '4px',
                   cursor: 'pointer',
                   fontSize: '14px',
                 }}
@@ -134,15 +132,12 @@ export const ScheduledEmailsManager: React.FC = () => {
                   backgroundColor:
                     email.emailType === ACTION_TYPE_REPLY
                       ? `${theme.colors.primary}20`
-                      : `${theme.colors.secondary}20`,
-                  padding: '2px 8px',
-                  borderRadius: '4px',
+                      : `${theme.colors.secondary}20`,                  padding: '2px 8px',                  borderRadius: '4px',
                   fontSize: '11px',
                   textTransform: 'uppercase',
                 }}
               >
-                {email.emailType === ACTION_TYPE_REPLY
-                  ? t('scheduledEmails.typeReply')
+                {email.emailType === ACTION_TYPE_REPLY                  ? t('scheduledEmails.typeReply')
                   : t('scheduledEmails.typeNew')}
               </span>
             </div>

@@ -3,19 +3,25 @@ import axios from 'axios';
 import { API_URL } from 'config/api';
 import { plainTextToHtml } from 'utils/emailUtils';
 import { sanitizeAndProcessHtml } from 'utils/emailBodyUtils';
+import { STRING_STALE } from 'constants/strings';
 
 const CUSTOM_ONLY_OPTIONS = [{ label: 'Custom', text: '' }];
 
+interface ResolveGeneratedOptionsParams {
+  email: { id: string; emailThreadId?: string; from: string; fromName?: string; subject: string; body: string };
+  currentEmailId: string;
+  currentGenerationEmailIdRef: MutableRefObject<string | null>;
+  controller: AbortController;
+  fetchPreGenerated: (threadId: string, signal: AbortSignal) => Promise<any>;
+  generateOnDemand: (emailArg: any, signal: AbortSignal) => Promise<any>;
+  setIsGeneratingInBackground: (active: boolean) => void;
+}
+
 // Pure helper: fetches pre-generated or on-demand reply options, returns null on stale/abort.
-async function resolveGeneratedOptions(
-  email: { id: string; emailThreadId?: string; from: string; fromName?: string; subject: string; body: string },
-  currentEmailId: string,
-  currentGenerationEmailIdRef: MutableRefObject<string | null>,
-  controller: AbortController,
-  fetchPreGenerated: (threadId: string, signal: AbortSignal) => Promise<any>,
-  generateOnDemand: (email: any, signal: AbortSignal) => Promise<any>,
-  setIsGeneratingInBackground: (v: boolean) => void,
-): Promise<Array<{ label: string; text: string }> | null | 'stale'> {
+async function resolveGeneratedOptions({
+  email, currentEmailId, currentGenerationEmailIdRef, controller,
+  fetchPreGenerated, generateOnDemand, setIsGeneratingInBackground,
+}: ResolveGeneratedOptionsParams): Promise<Array<{ label: string; text: string }> | null | 'stale'> {
   let generatedOptions: Array<{ label: string; text: string }> | null = null;
 
   if (email.emailThreadId) {
@@ -78,6 +84,27 @@ export interface ReplyGenerationDebugInfo {
   timestamp: string;
 }
 
+async function fetchPreGeneratedRepliesImpl(threadId: string, signal?: AbortSignal): Promise<SuggestedReplyResponse | null> {
+  try {
+    const response = await axios.get(`${API_URL}/suggested-replies/${threadId}`, { signal });
+    return response.data;
+  } catch {
+    return null;
+  }
+}
+
+async function generateRepliesOnDemandImpl(currentEmail: Email, signal?: AbortSignal): Promise<Array<{ label: string; text: string }> | null> {
+  try {
+    const response = await axios.post(`${API_URL}/llm/suggest-replies`, {
+      originalEmail: { from: currentEmail.from, fromName: currentEmail.fromName, subject: currentEmail.subject, body: currentEmail.body },
+    }, { signal });
+    if (response.data && Array.isArray(response.data) && response.data.length > 0) return response.data;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export function useReplyDraftGeneration(
   emailId: string,
   email: Email | null,
@@ -114,39 +141,8 @@ export function useReplyDraftGeneration(
     previousEmailIdRef.current = emailId;
   }, [emailId]);
 
-  const fetchPreGeneratedReplies = useCallback(async (threadId: string, signal?: AbortSignal): Promise<SuggestedReplyResponse | null> => {
-    try {
-      const response = await axios.get(`${API_URL}/suggested-replies/${threadId}`, { signal });
-      return response.data;
-    } catch (error) {
-      if (axios.isCancel(error)) {
-        return null;
-      }
-      return null;
-    }
-  }, []);
-
-  const generateRepliesOnDemand = useCallback(async (currentEmail: Email, signal?: AbortSignal): Promise<Array<{ label: string; text: string }> | null> => {
-    try {
-      const response = await axios.post(`${API_URL}/llm/suggest-replies`, {
-        originalEmail: {
-          from: currentEmail.from,
-          fromName: currentEmail.fromName,
-          subject: currentEmail.subject,
-          body: currentEmail.body,
-        }
-      }, { signal });
-      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
-        return response.data;
-      }
-      return null;
-    } catch (error) {
-      if (axios.isCancel(error)) {
-        return null;
-      }
-      return null;
-    }
-  }, []);
+  const fetchPreGeneratedReplies = useCallback(fetchPreGeneratedRepliesImpl, []);
+  const generateRepliesOnDemand = useCallback(generateRepliesOnDemandImpl, []);
 
   const handleGenerateDraft = useCallback(async () => {
     if (!emailId || !email) return;
@@ -184,8 +180,8 @@ export function useReplyDraftGeneration(
     setLoadingReplies(true);
 
     try {
-      const result = await resolveGeneratedOptions(email, currentEmailId, currentGenerationEmailIdRef, controller, fetchPreGeneratedReplies, generateRepliesOnDemand, setIsGeneratingInBackground);
-      if (result === 'stale' || currentGenerationEmailIdRef.current !== currentEmailId) { return; }
+      const result = await resolveGeneratedOptions({ email, currentEmailId, currentGenerationEmailIdRef, controller, fetchPreGenerated: fetchPreGeneratedReplies, generateOnDemand: generateRepliesOnDemand, setIsGeneratingInBackground });
+      if (result === STRING_STALE || currentGenerationEmailIdRef.current !== currentEmailId) { return; }
       applyGeneratedOptions(result, setReplyOptions, setSelectedReplyOption);
       lastGeneratedEmailId.current = emailId;
     } catch (error) {

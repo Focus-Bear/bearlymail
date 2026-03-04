@@ -290,10 +290,10 @@ export class EmailsService {
     let threadFilter =
       'AND thread."isArchived" = false AND thread."starCount" = 0';
 
-    if (mode === "action" || mode === "follow-up") {
+    if (mode === INBOX_MODES.ACTION || mode === INBOX_MODES.FOLLOW_UP) {
       threadFilter =
         'AND thread."isArchived" = false AND thread."starCount" > 0';
-    } else if (mode === "blocked") {
+    } else if (mode === INBOX_MODES.BLOCKED) {
       threadFilter = BLOCKED_MODE_THREAD_FILTER;
     }
 
@@ -328,7 +328,8 @@ export class EmailsService {
     // We always need the latest email's "from" field to:
     // 1. Filter blocked senders (all modes)
     // 2. Filter threads where user sent last (action excludes, follow-up includes)
-    const needsUserSentLastFilter = mode === "action" || mode === "follow-up";
+    const needsUserSentLastFilter =
+      mode === INBOX_MODES.ACTION || mode === INBOX_MODES.FOLLOW_UP;
 
     const selectParts: string[] = ["thread.category"];
     if (filters?.includeThreadIds) {
@@ -407,16 +408,21 @@ export class EmailsService {
     }[]) {
       // Skip threads from blocked senders for normal inbox modes.
       // Blocked mode intentionally shows these threads.
-      if (mode !== "blocked" && row.latestFrom) {
+      // Note: isSenderBlocked uses a cached lookup after the cache is warmed above.
+      if (mode !== INBOX_MODES.BLOCKED && row.latestFrom) {
+        let fromEmail = "";
         try {
-          const fromEmail = EncryptionHelper.decrypt(row.latestFrom) || "";
+          fromEmail = EncryptionHelper.decrypt(row.latestFrom) || "";
+        } catch {
+          // Decryption failed — include the row to avoid silently hiding emails
+        }
+
+        if (fromEmail) {
           const isBlocked = await this.blockedSendersService.isSenderBlocked(
             userId,
             fromEmail,
           );
           if (isBlocked) continue;
-        } catch {
-          // Decryption failed — include the row to avoid silently hiding emails
         }
       }
 
@@ -427,8 +433,8 @@ export class EmailsService {
           const fromLower =
             EncryptionHelper.decrypt(row.latestFrom)?.toLowerCase() || "";
           const userSentLast = fromLower.includes(userEmailLower);
-          if (mode === "action" && userSentLast) continue;
-          if (mode === "follow-up" && !userSentLast) continue;
+          if (mode === INBOX_MODES.ACTION && userSentLast) continue;
+          if (mode === INBOX_MODES.FOLLOW_UP && !userSentLast) continue;
         } catch {
           // Decryption failed — include the row to avoid silently hiding emails
         }
@@ -966,9 +972,7 @@ export class EmailsService {
       correspondentEmail,
       correspondentName,
       phishingConfidence:
-        (row.phishingConfidence as "low" | "medium" | "high" | null) ?? null,
-      phishingReason: (row.phishingReason as string | null) ?? null,
-    } as unknown as Email;
+        (row.phishingConfidence as "low" | "medium" | "high" | null) ?? null,      phishingReason: (row.phishingReason as string | null) ?? null,    } as unknown as Email;
   }
 
   private decryptEmailLabels(row: RawEmailRow): string[] {

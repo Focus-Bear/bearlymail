@@ -17,6 +17,27 @@ interface CalendarInviteActionsProps {
 
 const RESPONSE_STATUS_ACCEPTED = 'accepted' as const;
 const RESPONSE_STATUS_DECLINED = 'declined' as const;
+type ResponseStatus = typeof RESPONSE_STATUS_ACCEPTED | typeof RESPONSE_STATUS_DECLINED;
+
+
+function getAcceptButtonBg(responseStatus: ResponseStatus | null, isDisabled: boolean): string {
+  if (responseStatus === RESPONSE_STATUS_ACCEPTED) return theme.colors.success.main;
+  return isDisabled ? theme.colors.border.medium : theme.colors.primary.main;
+}
+function getDeclineButtonBg(responseStatus: ResponseStatus | null, isDisabled: boolean): string {
+  if (responseStatus === RESPONSE_STATUS_DECLINED) return theme.colors.text.secondary;
+  return isDisabled ? theme.colors.border.medium : 'transparent';
+}
+function getAcceptLabel(responding: boolean, responseStatus: ResponseStatus | null, t: (k: string, fb?: string) => string): string {
+  if (responding && responseStatus !== RESPONSE_STATUS_ACCEPTED) return t('emailDetail.calendarInvite.accepting', 'Accepting...');
+  if (responseStatus === RESPONSE_STATUS_ACCEPTED) return t('emailDetail.calendarInvite.accepted', 'Accepted');
+  return t('emailDetail.calendarInvite.accept', 'Accept');
+}
+function getDeclineLabel(responding: boolean, responseStatus: ResponseStatus | null, t: (k: string, fb?: string) => string): string {
+  if (responding && responseStatus !== RESPONSE_STATUS_DECLINED) return t('emailDetail.calendarInvite.declining', 'Declining...');
+  if (responseStatus === RESPONSE_STATUS_DECLINED) return t('emailDetail.calendarInvite.declined', 'Declined');
+  return t('emailDetail.calendarInvite.decline', 'Decline');
+}
 
 export const CalendarInviteActions: React.FC<CalendarInviteActionsProps> = ({
   email,
@@ -28,35 +49,15 @@ export const CalendarInviteActions: React.FC<CalendarInviteActionsProps> = ({
   const [responding, setResponding] = useState(false);
   const [responseStatus, setResponseStatus] = useState<typeof RESPONSE_STATUS_ACCEPTED | typeof RESPONSE_STATUS_DECLINED | null>(null);
 
-  const handleAccept = async () => {
-    setResponding(true);
-    setResponseStatus(null);
-    captureEvent('calendar_invite_accept_clicked', { email_id: email.id });
-    try {
-      await onAccept();
-      setResponseStatus(RESPONSE_STATUS_ACCEPTED);
-    } catch (error) {
-      console.error('Error accepting invitation:', error);
-      alert(t('emailDetail.calendarInvite.acceptError') || 'Failed to accept invitation');
-    } finally {
-      setResponding(false);
-    }
+  const makeHandler = (action: () => Promise<void>, status: ResponseStatus, eventName: string, errorKey: string) => async () => {
+    setResponding(true); setResponseStatus(null);
+    captureEvent(eventName, { email_id: email.id });
+    try { await action(); setResponseStatus(status); }
+    catch (error) { console.error(`Error ${status}:`, error); alert(t(`emailDetail.calendarInvite.${errorKey}`) || `Failed to ${status} invitation`); }
+    finally { setResponding(false); }
   };
-
-  const handleDecline = async () => {
-    setResponding(true);
-    setResponseStatus(null);
-    captureEvent('calendar_invite_decline_clicked', { email_id: email.id });
-    try {
-      await onDecline();
-      setResponseStatus(RESPONSE_STATUS_DECLINED);
-    } catch (error) {
-      console.error('Error declining invitation:', error);
-      alert(t('emailDetail.calendarInvite.declineError') || 'Failed to decline invitation');
-    } finally {
-      setResponding(false);
-    }
-  };
+  const handleAccept = makeHandler(onAccept, RESPONSE_STATUS_ACCEPTED, 'calendar_invite_accept_clicked', 'acceptError');
+  const handleDecline = makeHandler(onDecline, RESPONSE_STATUS_DECLINED, 'calendar_invite_decline_clicked', 'declineError');
 
   const isDisabled = loading || responding;
 
@@ -93,68 +94,23 @@ export const CalendarInviteActions: React.FC<CalendarInviteActionsProps> = ({
         gap: theme.spacing.sm,
         flexWrap: 'wrap',
       }}>
-        <button
-          onClick={handleAccept}
-          disabled={isDisabled || responseStatus === RESPONSE_STATUS_ACCEPTED}
-          style={{
-            flex: 1,
-            minWidth: '120px',
-            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-            backgroundColor: (() => {
-              if (responseStatus === RESPONSE_STATUS_ACCEPTED) return theme.colors.success.main;
-              if (isDisabled) return theme.colors.border.medium;
-              return theme.colors.primary.main;
-            })(),
-            color: COLOR_NAMED_WHITE,
-            border: STRING_NONE,
-            borderRadius: theme.borderRadius.md,
-            fontWeight: theme.typography.fontWeight.semibold,
-            cursor: isDisabled || responseStatus === RESPONSE_STATUS_ACCEPTED ? 'not-allowed' : 'pointer',
-            fontSize: theme.typography.fontSize.sm,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: theme.spacing.xs,
-            opacity: responseStatus === RESPONSE_STATUS_DECLINED ? OPACITY_HALF : 1,
-          }}
-        >
-          {(() => {
-            if (responding && responseStatus !== RESPONSE_STATUS_ACCEPTED) return t('emailDetail.calendarInvite.accepting') || 'Accepting...';
-            if (responseStatus === RESPONSE_STATUS_ACCEPTED) return t('emailDetail.calendarInvite.accepted') || 'Accepted';
-            return t('emailDetail.calendarInvite.accept') || 'Accept';
-          })()}
+        <button onClick={handleAccept} disabled={isDisabled || responseStatus === RESPONSE_STATUS_ACCEPTED}
+          style={{ flex: 1, minWidth: '120px', padding: `${theme.spacing.sm} ${theme.spacing.md}`, backgroundColor: getAcceptButtonBg(responseStatus, isDisabled),
+            color: COLOR_NAMED_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.md, fontWeight: theme.typography.fontWeight.semibold,
+            cursor: isDisabled || responseStatus === RESPONSE_STATUS_ACCEPTED ? 'not-allowed' : 'pointer', fontSize: theme.typography.fontSize.sm,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: theme.spacing.xs,
+            opacity: responseStatus === RESPONSE_STATUS_DECLINED ? OPACITY_HALF : 1 }}>
+          {getAcceptLabel(responding, responseStatus, t)}
         </button>
-
-        <button
-          onClick={handleDecline}
-          disabled={isDisabled || responseStatus === RESPONSE_STATUS_DECLINED}
-          style={{
-            flex: 1,
-            minWidth: '120px',
-            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-            backgroundColor: (() => {
-              if (responseStatus === RESPONSE_STATUS_DECLINED) return theme.colors.text.secondary;
-              if (isDisabled) return theme.colors.border.medium;
-              return 'transparent';
-            })(),
-            color: responseStatus === RESPONSE_STATUS_DECLINED ? 'white' : theme.colors.text.secondary,
+        <button onClick={handleDecline} disabled={isDisabled || responseStatus === RESPONSE_STATUS_DECLINED}
+          style={{ flex: 1, minWidth: '120px', padding: `${theme.spacing.sm} ${theme.spacing.md}`, backgroundColor: getDeclineButtonBg(responseStatus, isDisabled),
+            color: responseStatus === RESPONSE_STATUS_DECLINED ? COLOR_NAMED_WHITE : theme.colors.text.secondary,
             border: `1px solid ${responseStatus === RESPONSE_STATUS_DECLINED ? 'transparent' : theme.colors.border.medium}`,
-            borderRadius: theme.borderRadius.md,
-            fontWeight: theme.typography.fontWeight.semibold,
-            cursor: isDisabled || responseStatus === RESPONSE_STATUS_DECLINED ? 'not-allowed' : 'pointer',
-            fontSize: theme.typography.fontSize.sm,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: theme.spacing.xs,
-            opacity: responseStatus === RESPONSE_STATUS_ACCEPTED ? OPACITY_HALF : 1,
-          }}
-        >
-          {(() => {
-            if (responding && responseStatus !== RESPONSE_STATUS_DECLINED) return t('emailDetail.calendarInvite.declining') || 'Declining...';
-            if (responseStatus === RESPONSE_STATUS_DECLINED) return t('emailDetail.calendarInvite.declined') || 'Declined';
-            return t('emailDetail.calendarInvite.decline') || 'Decline';
-          })()}
+            borderRadius: theme.borderRadius.md, fontWeight: theme.typography.fontWeight.semibold,
+            cursor: isDisabled || responseStatus === RESPONSE_STATUS_DECLINED ? 'not-allowed' : 'pointer', fontSize: theme.typography.fontSize.sm,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: theme.spacing.xs,
+            opacity: responseStatus === RESPONSE_STATUS_ACCEPTED ? OPACITY_HALF : 1 }}>
+          {getDeclineLabel(responding, responseStatus, t)}
         </button>
       </div>
     </div>

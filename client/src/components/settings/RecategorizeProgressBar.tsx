@@ -8,6 +8,15 @@ interface RecategorizeProgressBarProps {
   onDismiss: () => void;
 }
 
+const spinnerStyle: React.CSSProperties = {
+  width: '12px', height: '12px',
+  border: `2px solid ${theme.colors.accent.warning}`,
+  borderTop: '2px solid transparent',
+  borderRadius: '50%',
+  animation: 'spin 1s linear infinite',
+  flexShrink: 0,
+};
+
 export const RecategorizeProgressBar: React.FC<RecategorizeProgressBarProps> = ({
   progress,
   onDismiss,
@@ -32,19 +41,7 @@ export const RecategorizeProgressBar: React.FC<RecategorizeProgressBarProps> = (
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.sm }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
-          {!isComplete && (
-            <div
-              style={{
-                width: '12px',
-                height: '12px',
-                border: `2px solid ${theme.colors.accent.warning}`,
-                borderTop: '2px solid transparent',
-                borderRadius: '50%',
-                animation: 'spin 1s linear infinite',
-                flexShrink: 0,
-              }}
-            />
-          )}
+          {!isComplete && <div style={spinnerStyle} />}
           <span
             style={{
               fontSize: theme.typography.fontSize.sm,

@@ -8,6 +8,49 @@ import { useNotifications } from 'contexts/NotificationContext';
 import { useAuth } from 'contexts/AuthContext';
 import { REPLY_MODE_REPLY_ALL, REPLY_MODE_FORWARD } from 'constants/strings';
 
+interface SendReplyParams {
+  emailId: string; draftToSend: string; recipients: string; cc: string; bcc: string;
+  replyMode: string; expectedReplyHours?: number; forwardAttachmentIds?: string[];
+  scheduleTime: Date | null; userTimezone: string; files: File[];
+  isScheduled: boolean;
+  setDraft: (d: string | null) => void; setReplyRecipients: (v: string) => void;
+  setReplyCc: (v: string) => void; setReplyBcc: (v: string) => void;
+  setShowCc: (v: boolean) => void; setShowBcc: (v: boolean) => void;
+  setInitialAttachments: (v: EmailAttachment[]) => void; setScheduledSendAt: (v: Date | null) => void;
+  setShowReplyComposer: (v: boolean) => void;
+  showSuccess: (msg: string) => void; showError: (msg: string) => void;
+  successMsg: string; errorPrefix: string;
+}
+
+async function sendReplyRequest(params: SendReplyParams): Promise<void> {
+  const { emailId, draftToSend, recipients, cc, bcc, replyMode, expectedReplyHours, forwardAttachmentIds, scheduleTime, userTimezone, files } = params;
+  if (files.length > 0) {
+    const formData = buildReplyFormData({ draftToSend, recipients, replyMode, cc, bcc, expectedReplyHours, forwardAttachmentIds, scheduleTime, userTimezone, files });
+    await axios.post(`${API_URL}/replies/send/${emailId}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+  } else {
+    await axios.post(`${API_URL}/replies/send/${emailId}`, {
+      reply: draftToSend, recipients, cc: cc || undefined, bcc: bcc || undefined,
+      replyAll: replyMode === REPLY_MODE_REPLY_ALL, expectedReplyHours: expectedReplyHours || undefined,
+      forwardAttachmentIds: forwardAttachmentIds?.length ? forwardAttachmentIds : undefined,
+      scheduledSendAt: scheduleTime?.toISOString(), userTimezone: scheduleTime ? userTimezone : undefined,
+    });
+  }
+}
+
+async function executeSendReply(params: SendReplyParams): Promise<void> {
+  try {
+    await sendReplyRequest(params);
+    params.setDraft(null); params.setReplyCc(''); params.setReplyBcc(''); params.setShowCc(false); params.setShowBcc(false); params.setInitialAttachments([]); params.setScheduledSendAt(null);
+    params.showSuccess(params.successMsg);
+  } catch (error: any) {
+    console.error('Error sending reply:', error);
+    params.setDraft(params.draftToSend); params.setReplyRecipients(params.recipients); params.setReplyCc(params.cc); params.setReplyBcc(params.bcc);
+    params.setShowCc(!!params.cc); params.setShowBcc(!!params.bcc); params.setInitialAttachments([]); params.setScheduledSendAt(params.scheduleTime);
+    params.setShowReplyComposer(true);
+    params.showError(error.response?.data?.message || params.errorPrefix);
+  }
+}
+
 // Pure helper: builds recipient/cc addresses based on reply mode.
 function buildReplyAddresses(
   mode: string,
@@ -15,7 +58,7 @@ function buildReplyAddresses(
   userEmail: string | undefined,
 ): { recipients: string; cc: string | null; showCc: boolean } {
   const normalizedUserEmail = userEmail?.toLowerCase();
-  const extractEmail = (addr: string) => { const m = addr.match(/<([^>]+)>/); return m ? m[1].toLowerCase() : addr.toLowerCase(); };
+  const extractEmail = (addr: string) => { const match = addr.match(/<([^>]+)>/); return match ? match[1].toLowerCase() : addr.toLowerCase(); };
   const notCurrentUser = (addr: string) => !!normalizedUserEmail && extractEmail(addr) !== normalizedUserEmail;
   const isFromCurrentUser = !!normalizedUserEmail && email.from?.toLowerCase() === normalizedUserEmail;
   const replyToAddress = email.replyTo || email.from;
@@ -112,28 +155,8 @@ export function useEmailDetailReplies(
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [scheduledSendAt, setScheduledSendAt] = useState<Date | null>(null);
 
-  const {
-    checkingTone,
-    toneCheckResult,
-    setToneCheckResult,
-    checkTone,
-    disputing,
-    disputeResult,
-    disputeToneCheck,
-    clearDisputeResult,
-  } = useEmailDetailToneCheck();
-
-  const {
-    replyOptions,
-    selectedReplyOption,
-    draft,
-    loadingReplies,
-    debugInfo: replyGenerationDebugInfo,
-    setReplyOptions,
-    setDraft,
-    setSelectedReplyOption,
-    handleGenerateDraft,
-  } = useReplyDraftGeneration(emailId, email, { autoGenerate: autoGenerateReplies });
+  const { checkingTone, toneCheckResult, setToneCheckResult, checkTone, disputing, disputeResult, disputeToneCheck, clearDisputeResult } = useEmailDetailToneCheck();
+  const { replyOptions, selectedReplyOption, draft, loadingReplies, debugInfo: replyGenerationDebugInfo, setReplyOptions, setDraft, setSelectedReplyOption, handleGenerateDraft } = useReplyDraftGeneration(emailId, email, { autoGenerate: autoGenerateReplies });
 
   const handleOpenReplyComposer = useCallback((mode: 'reply' | 'replyAll' | 'forward') => {
     setReplyMode(mode);
@@ -154,120 +177,41 @@ export function useEmailDetailReplies(
   }, [email, user?.email, handleGenerateDraft, setDraft, setToneCheckResult]);
 
   const handleSendReply = useCallback(async (
-    files: File[] = [],
-    expectedReplyHours?: number,
-    forwardAttachmentIds?: string[],
-    onClose?: () => void,
-    draftOverride?: string,
-    scheduledSendAtOverride?: Date,
+    files: File[] = [], expectedReplyHours?: number, forwardAttachmentIds?: string[],
+    onClose?: () => void, draftOverride?: string, scheduledSendAtOverride?: Date,
   ) => {
     const draftToSend = draftOverride || draft;
     const scheduleTime = scheduledSendAtOverride || scheduledSendAt;
     if (!emailId || !draftToSend) return;
-
-    if (!draftOverride) {
-      const toneOk = await checkTone(draftToSend);
-      if (!toneOk) return;
-    }
-
-    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const currentReplyRecipients = replyRecipients;
-    const currentReplyCc = replyCc;
-    const currentReplyBcc = replyBcc;
-    const currentReplyMode = replyMode;
-    const currentShowCc = showCc;
-    const currentShowBcc = showBcc;
-    const currentInitialAttachments = initialAttachments;
-    const isScheduled = !!scheduleTime;
-
+    if (!draftOverride && !(await checkTone(draftToSend))) return;
     setShowReplyComposer(false);
-    if (onClose) {
-      onClose();
-    }
+    if (onClose) onClose();
+    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    executeSendReply({
+      emailId, draftToSend, recipients: replyRecipients, cc: replyCc, bcc: replyBcc, replyMode,
+      expectedReplyHours, forwardAttachmentIds, scheduleTime, userTimezone, files,
+      isScheduled: !!scheduleTime,
+      setDraft, setReplyRecipients, setReplyCc, setReplyBcc, setShowCc, setShowBcc,
+      setInitialAttachments, setScheduledSendAt, setShowReplyComposer,
+      showSuccess, showError,
+      successMsg: scheduleTime ? t('emailDetail.replyScheduledSuccess') : t('emailDetail.replySentSuccess'),
+      errorPrefix: t('emailDetail.replySentError'),
+    });
+  }, [emailId, draft, replyRecipients, replyCc, replyBcc, replyMode, scheduledSendAt, checkTone, setDraft, setReplyCc, setReplyBcc, setShowCc, setShowBcc, setInitialAttachments, setScheduledSendAt, setShowReplyComposer, showSuccess, showError, t]);
 
-    const sendReplyAsync = async () => {
-      try {
-        if (files.length > 0) {
-          const formData = buildReplyFormData({ draftToSend, recipients: currentReplyRecipients, replyMode: currentReplyMode, cc: currentReplyCc, bcc: currentReplyBcc, expectedReplyHours, forwardAttachmentIds, scheduleTime, userTimezone, files });
-          await axios.post(`${API_URL}/replies/send/${emailId}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-        } else {
-          await axios.post(`${API_URL}/replies/send/${emailId}`, {
-            reply: draftToSend,
-            recipients: currentReplyRecipients,
-            cc: currentReplyCc || undefined,
-            bcc: currentReplyBcc || undefined,
-            replyAll: currentReplyMode === REPLY_MODE_REPLY_ALL,
-            expectedReplyHours: expectedReplyHours || undefined,
-            forwardAttachmentIds: forwardAttachmentIds?.length ? forwardAttachmentIds : undefined,
-            scheduledSendAt: scheduleTime?.toISOString(),
-            userTimezone: scheduleTime ? userTimezone : undefined,
-          });
-        }
-        setDraft(null); setReplyCc(''); setReplyBcc(''); setShowCc(false); setShowBcc(false); setInitialAttachments([]); setScheduledSendAt(null);
-        showSuccess(isScheduled ? t('emailDetail.replyScheduledSuccess') : t('emailDetail.replySentSuccess'));
-      } catch (error: any) {
-        console.error('Error sending reply:', error);
-        setDraft(draftToSend); setReplyRecipients(currentReplyRecipients); setReplyCc(currentReplyCc); setReplyBcc(currentReplyBcc);
-        setShowCc(currentShowCc); setShowBcc(currentShowBcc); setInitialAttachments(currentInitialAttachments); setScheduledSendAt(scheduleTime);
-        setShowReplyComposer(true);
-        showError(error.response?.data?.message || t('emailDetail.replySentError'));
-      }
-    };
-
-    sendReplyAsync();
-  }, [emailId, draft, replyRecipients, replyCc, replyBcc, replyMode, showCc, showBcc, initialAttachments, scheduledSendAt, checkTone, setDraft, setReplyRecipients, setReplyCc, setReplyBcc, setShowCc, setShowBcc, setInitialAttachments, setScheduledSendAt, setShowReplyComposer, showSuccess, showError, t]);
-
-  const handleOpenTimePicker = useCallback(() => {
-    setShowTimePicker(true);
-  }, []);
-
-  const handleTimeSelect = useCallback((time: Date) => {
-    setScheduledSendAt(time);
-    setShowTimePicker(false);
-  }, []);
-
-  const handleCancelTimePicker = useCallback(() => {
-    setShowTimePicker(false);
-  }, []);
+  const handleOpenTimePicker = useCallback(() => { setShowTimePicker(true); }, []);
+  const handleTimeSelect = useCallback((time: Date) => { setScheduledSendAt(time); setShowTimePicker(false); }, []);
+  const handleCancelTimePicker = useCallback(() => { setShowTimePicker(false); }, []);
 
   return {
-    replyOptions,
-    selectedReplyOption,
-    showReplyComposer,
-    replyMode,
-    replyRecipients,
-    replyCc,
-    replyBcc,
-    showCc,
-    showBcc,
-    draft,
-    loadingReplies,
-    sending,
-    checkingTone,
-    toneCheckResult,
-    disputing,
-    disputeResult,
-    initialAttachments,
-    replyGenerationDebugInfo,
-    showTimePicker,
-    scheduledSendAt,
-    setReplyRecipients,
-    setReplyCc,
-    setReplyBcc,
-    setShowCc,
-    setShowBcc,
-    setDraft,
-    setSelectedReplyOption,
-    setShowReplyComposer,
-    setReplyOptions,
-    setToneCheckResult,
-    handleOpenReplyComposer,
-    handleSendReply,
-    handleOpenTimePicker,
-    handleTimeSelect,
-    handleCancelTimePicker,
-    disputeToneCheck,
-    clearDisputeResult,
+    replyOptions, selectedReplyOption, showReplyComposer, replyMode, replyRecipients,
+    replyCc, replyBcc, showCc, showBcc, draft, loadingReplies, sending,
+    checkingTone, toneCheckResult, disputing, disputeResult,
+    initialAttachments, replyGenerationDebugInfo, showTimePicker, scheduledSendAt,
+    setReplyRecipients, setReplyCc, setReplyBcc, setShowCc, setShowBcc,
+    setDraft, setSelectedReplyOption, setShowReplyComposer, setReplyOptions, setToneCheckResult,
+    handleOpenReplyComposer, handleSendReply, handleOpenTimePicker, handleTimeSelect,
+    handleCancelTimePicker, disputeToneCheck, clearDisputeResult,
   };
 }
 

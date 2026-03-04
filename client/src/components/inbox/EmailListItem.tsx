@@ -13,7 +13,6 @@ import { FollowUpDraft } from 'components/inbox/FollowUpDraft';
 import { GitHubProjectBadges } from 'components/github/GitHubProjectBadges';
 import { selectAnimatingOut } from 'store/selectors/emailSelectors';
 import { ANIMATION_TYPE_ARCHIVE, ANIMATION_TYPE_PRIORITY, MODE_FOLLOW_UP } from 'constants/strings';
-import { ANIMATION_TYPE_ARCHIVE, ANIMATION_TYPE_PRIORITY } from 'constants/strings';
 
 interface EmailListItemProps {
   email: Email;

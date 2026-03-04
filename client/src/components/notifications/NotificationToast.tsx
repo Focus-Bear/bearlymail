@@ -1,19 +1,31 @@
 import React, { useEffect, useState } from 'react';
 import { theme } from 'theme/theme';
 import { EXIT_ANIMATION_DURATION_MS } from 'constants/numbers';
-import { NOTIFICATION_TYPE_ERROR, NOTIFICATION_TYPE_INFO, NOTIFICATION_TYPE_SUCCESS, NOTIFICATION_TYPE_WARNING, STRING_NONE } from 'constants/strings';
-import { 
-  NOTIFICATION_TYPE_SUCCESS, 
-  NOTIFICATION_TYPE_ERROR, 
-  NOTIFICATION_TYPE_WARNING, 
-  NOTIFICATION_TYPE_INFO 
-} from 'constants/strings';
+import { NOTIFICATION_TYPE_ERROR, NOTIFICATION_TYPE_SUCCESS, NOTIFICATION_TYPE_WARNING, STRING_NONE } from 'constants/strings';
 import { Notification } from 'contexts/NotificationContext';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 
 interface NotificationToastProps {
   notification: Notification;
   onClose: () => void;
+}
+
+function getNotificationColor(type: string): string {
+  switch (type) {
+    case NOTIFICATION_TYPE_SUCCESS: return theme.colors.accent.success || '#10b981';
+    case NOTIFICATION_TYPE_ERROR: return theme.colors.accent.error || '#ef4444';
+    case NOTIFICATION_TYPE_WARNING: return theme.colors.accent.warning || '#f59e0b';
+    default: return theme.colors.primary.main || '#3b82f6';
+  }
+}
+
+function getNotificationIcon(type: string): string {
+  switch (type) {
+    case NOTIFICATION_TYPE_SUCCESS: return '✓';
+    case NOTIFICATION_TYPE_ERROR: return '✕';
+    case NOTIFICATION_TYPE_WARNING: return '⚠';
+    default: return 'ℹ';
+  }
 }
 
 export const NotificationToast: React.FC<NotificationToastProps> = ({
@@ -43,33 +55,8 @@ export const NotificationToast: React.FC<NotificationToastProps> = ({
     setTimeout(onClose, EXIT_ANIMATION_DURATION_MS);
   };
 
-  const getBackgroundColor = (): string => {
-    switch (notification.type) {
-      case NOTIFICATION_TYPE_SUCCESS:
-        return theme.colors.accent.success || '#10b981';
-      case NOTIFICATION_TYPE_ERROR:
-        return theme.colors.accent.error || '#ef4444';
-      case NOTIFICATION_TYPE_WARNING:
-        return theme.colors.accent.warning || '#f59e0b';
-      case NOTIFICATION_TYPE_INFO:
-      default:
-        return theme.colors.primary.main || '#3b82f6';
-    }
-  };
-
-  const getIcon = (): string => {
-    switch (notification.type) {
-      case NOTIFICATION_TYPE_SUCCESS:
-        return '✓';
-      case NOTIFICATION_TYPE_ERROR:
-        return '✕';
-      case NOTIFICATION_TYPE_WARNING:
-        return '⚠';
-      case NOTIFICATION_TYPE_INFO:
-      default:
-        return 'ℹ';
-    }
-  };
+  const backgroundColor = getNotificationColor(notification.type);
+  const icon = getNotificationIcon(notification.type);
 
   return (
     <div
@@ -81,7 +68,7 @@ export const NotificationToast: React.FC<NotificationToastProps> = ({
         boxShadow: theme.shadows.lg,
         minWidth: '300px',
         maxWidth: '400px',
-        borderLeft: `4px solid ${getBackgroundColor()}`,
+        borderLeft: `4px solid ${backgroundColor}`,
         pointerEvents: 'auto',
         transform: isVisible && !isExiting ? 'translateX(0)' : 'translateX(400px)',
         opacity: isVisible && !isExiting ? 1 : 0,
@@ -93,7 +80,7 @@ export const NotificationToast: React.FC<NotificationToastProps> = ({
     >
       <div
         style={{
-          backgroundColor: getBackgroundColor(),
+          backgroundColor: backgroundColor,
           color: COLOR_NAMED_WHITE,
           borderRadius: '50%',
           width: '24px',
@@ -106,7 +93,7 @@ export const NotificationToast: React.FC<NotificationToastProps> = ({
           flexShrink: 0,
         }}
       >
-        {getIcon()}
+        {icon}
       </div>
       <div style={{ flex: 1 }}>
         <p

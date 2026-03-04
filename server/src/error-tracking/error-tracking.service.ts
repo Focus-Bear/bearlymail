@@ -1,6 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PostHog } from "posthog-node";
-import { createPosthogExceptionPayload } from "./error-tracking.utils";
 
 const API_KEY_PREVIEW_LENGTH = 8;
 
@@ -80,24 +79,17 @@ export class ErrorTrackingService {
     }
 
     try {
+      const distinctId = userId || "backend-errors";
       const properties: Record<string, unknown> = {
-        $exception_type: error.name,
-        $exception_message: error.message,
-        $exception_list: [createPosthogExceptionPayload(error, true)],
-        // Keep top-level platform for compatibility with strict exception schema checks
-        platform: "node",
         environment: process.env.NODE_ENV,
         service: "backend",
         ...this.sanitizeProperties(additionalContext || {}),
       };
 
-      const distinctId = userId || "backend-errors";
-
-      this.posthog.capture({
-        distinctId,
-        event: "$exception",
-        properties,
-      });
+      // Use SDK native captureException - it builds the correct schema including
+      // the platform field that PostHog serde ingestion requires.
+      // posthog.capture({ event: "" }) is unreliable per SDK warning.
+      this.posthog.captureException(error, distinctId, properties);
 
       this.logger.debug(
         `Captured exception to PostHog: ${error.name} - ${error.message} (distinctId: ${distinctId})`,

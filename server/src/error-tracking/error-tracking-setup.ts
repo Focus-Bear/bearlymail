@@ -1,6 +1,5 @@
 import { PostHog } from "posthog-node";
 import { Logger } from "@nestjs/common";
-import { createPosthogExceptionPayload } from "./error-tracking.utils";
 
 const API_KEY_PREVIEW_LENGTH = 8;
 
@@ -66,20 +65,16 @@ export function captureGlobalError(
   }
 
   try {
-    posthogClient.capture({
-      distinctId: "backend-global-errors",
-      event: "$exception",
-      properties: {
-        $exception_type: error.name,
-        $exception_message: error.message,
-        $exception_list: [createPosthogExceptionPayload(error, false)],
-        // Keep top-level platform for compatibility with strict exception schema checks
-        platform: "node",
-        environment: process.env.NODE_ENV,
-        service: "backend",
-        ...context,
-      },
-    });
+    const properties: Record<string, unknown> = {
+      environment: process.env.NODE_ENV,
+      service: "backend",
+      ...context,
+    };
+
+    // Use SDK native captureException - it builds the correct schema including
+    // the platform field that PostHog serde ingestion requires.
+    // posthog.capture({ event: "" }) is unreliable per SDK warning.
+    posthogClient.captureException(error, "backend-global-errors", properties);
     logger.debug(
       `Captured global error to PostHog: ${error.name} - ${error.message}`,
     );

@@ -2,7 +2,7 @@ import { ErrorTrackingService } from "./error-tracking.service";
 
 describe("ErrorTrackingService", () => {
   let service: ErrorTrackingService;
-  let mockCapture: jest.Mock;
+  let mockCaptureException: jest.Mock;
 
   beforeEach(() => {
     // Enable PostHog by providing a fake API key
@@ -10,10 +10,11 @@ describe("ErrorTrackingService", () => {
 
     service = new ErrorTrackingService();
 
-    // Spy on the internal PostHog client's capture method
-    mockCapture = jest.fn();
+    // Spy on the internal PostHog client's captureException method
+    // (not .capture — we must use the SDK's native captureException for $exception events)
+    mockCaptureException = jest.fn();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (service as any).posthog = { capture: mockCapture };
+    (service as any).posthog = { captureException: mockCaptureException };
   });
 
   afterEach(() => {
@@ -22,26 +23,68 @@ describe("ErrorTrackingService", () => {
   });
 
   describe("captureException", () => {
-    it('includes platform: "node" in the PostHog exception payload', () => {
+    it("calls posthog.captureException() (not posthog.capture()) for $exception events", () => {
       const error = new Error("something went wrong");
       error.name = "TestError";
 
       service.captureException(error, "user-123");
 
-      expect(mockCapture).toHaveBeenCalledTimes(1);
-      const callArgs = mockCapture.mock.calls[0][0];
-      expect(callArgs.properties.platform).toBe("node");
+      expect(mockCaptureException).toHaveBeenCalledTimes(1);
+      // SDK signature: captureException(error, distinctId, additionalProperties)
+      const [capturedError, distinctId] = mockCaptureException.mock.calls[0];
+      expect(capturedError).toBe(error);
+      expect(distinctId).toBe("user-123");
     });
 
-    it("includes $exception_type and $exception_message in properties", () => {
+    it("uses 'backend-errors' as distinctId when no userId is provided", () => {
       const error = new Error("boom");
-      error.name = "BoomError";
 
       service.captureException(error);
 
-      const callArgs = mockCapture.mock.calls[0][0];
-      expect(callArgs.properties.$exception_type).toBe("BoomError");
-      expect(callArgs.properties.$exception_message).toBe("boom");
+      expect(mockCaptureException).toHaveBeenCalledTimes(1);
+      const [, distinctId] = mockCaptureException.mock.calls[0];
+      expect(distinctId).toBe("backend-errors");
+    });
+
+    it("passes environment and service in additionalProperties", () => {
+      const error = new Error("ctx error");
+      process.env.NODE_ENV = "test";
+
+      service.captureException(error, "user-456", { tag: "batch" });
+
+      expect(mockCaptureException).toHaveBeenCalledTimes(1);
+      const [, , additionalProps] = mockCaptureException.mock.calls[0];
+      expect(additionalProps).toMatchObject({
+        environment: "test",
+        service: "backend",
+        tag: "batch",
+      });
+    });
+
+    it("does not pass PII fields in additionalProperties", () => {
+      const error = new Error("pii test");
+
+      service.captureException(error, "user-789", {
+        email: "secret@example.com",
+        name: "Jane Doe",
+        tag: "safe-tag",
+      });
+
+      const [, , additionalProps] = mockCaptureException.mock.calls[0];
+      expect(additionalProps).not.toHaveProperty("email");
+      expect(additionalProps).not.toHaveProperty("name");
+      expect(additionalProps).toHaveProperty("tag", "safe-tag");
+    });
+
+    it("does nothing when PostHog is disabled", () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (service as any).isEnabled = false;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (service as any).posthog = null;
+
+      service.captureException(new Error("silent"));
+
+      expect(mockCaptureException).not.toHaveBeenCalled();
     });
   });
 });

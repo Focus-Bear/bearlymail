@@ -26,6 +26,9 @@ import { useInboxFilters } from 'hooks/useInboxFilters';
 import { useInboxUIState } from 'hooks/useInboxUIState';
 import { useInboxEmailHandlers } from 'hooks/useInboxEmailHandlers';
 import { useInboxUrlSync } from 'hooks/useInboxUrlSync';
+import { useInboxCategoryAccordion } from 'hooks/useInboxCategoryAccordion';
+import { useInboxFollowUpData } from 'hooks/useInboxFollowUpData';
+import { useInboxTourRefs } from 'hooks/useInboxTourRefs';
 
 const VALID_MODES: InboxMode[] = [
   MODE_TRIAGE,

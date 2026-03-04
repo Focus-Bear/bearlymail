@@ -14,7 +14,7 @@ import { ProtoCategorySubAccordion } from 'components/inbox/ProtoCategorySubAcco
 import { ResizableDivider } from 'components/inbox/ResizableDivider';
 import { SplitViewPanel } from 'components/inbox/SplitViewPanel';
 import { API_URL } from 'config/api';
-import { CATEGORY_OTHER,MODE_FOLLOW_UP, MODE_TRIAGE } from 'constants/strings';
+import { CATEGORY_OTHER, MODE_FOLLOW_UP, MODE_TRIAGE, STRING_NONE } from 'constants/strings';
 import { useProtoCategoryManagement } from 'hooks/useProtoCategoryManagement';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import { useSplitView } from 'hooks/useSplitView';

@@ -257,7 +257,7 @@ export const SchedulingPreferencesSection: React.FC = () => {
           >
             {GAP_OPTIONS.map((minuteValue) => (
               <option key={minuteValue} value={minuteValue}>
-                {t('settings.schedulingPreferences.meetingGapMinutes', { count: m })}
+                {t('settings.schedulingPreferences.meetingGapMinutes', { count: minuteValue })}
               </option>
             ))}
           </select>

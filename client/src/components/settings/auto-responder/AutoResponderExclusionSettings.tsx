@@ -72,7 +72,7 @@ export const AutoResponderExclusionSettings: React.FC<AutoResponderExclusionSett
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
         {customExclusionRules.length > 0 ? (
-          customExclusionRules.map((rule) => (
+          customExclusionRules.map((rule, index) => (
             <div
               key={rule}
               style={{

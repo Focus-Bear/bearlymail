@@ -44,9 +44,11 @@
     "promptfoo:test": "node scripts/run-promptfoo-tests.js",
     "promptfoo:view": "promptfoo view promptfoo",
     "security:audit": "ts-node -r tsconfig-paths/register scripts/security-audit.ts",
+    "security:audit:no-llm": "ts-node -r tsconfig-paths/register scripts/security-audit.ts --no-llm",
     "security:audit:diff": "ts-node -r tsconfig-paths/register scripts/security-audit.ts --diff",
     "security:audit:llm": "ts-node -r tsconfig-paths/register scripts/security-audit.ts --llm",
     "security:audit:diff:llm": "ts-node -r tsconfig-paths/register scripts/security-audit.ts --diff --llm",
+    "security:audit:ci": "ts-node -r tsconfig-paths/register scripts/security-audit.ts --ci",
     "queue:dashboard": "node node_modules/@pg-boss/dashboard/bin/cli.js"
   },
   "dependencies": {

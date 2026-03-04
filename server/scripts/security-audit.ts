@@ -7,17 +7,30 @@
  * 2. Missing admin guards on admin-only endpoints
  * 3. Endpoints that access userId without JwtAuthGuard
  *
+ * LLM analysis is ON by default. Set SECURITY_AUDIT_OPENAI_API_KEY (or OPENAI_API_KEY as fallback).
+ *
  * Usage:
  *   Full scan:       npx ts-node -r tsconfig-paths/register scripts/security-audit.ts
+ *   No LLM:          npx ts-node -r tsconfig-paths/register scripts/security-audit.ts --no-llm
  *   Diff from main:  npx ts-node -r tsconfig-paths/register scripts/security-audit.ts --diff
- *   With LLM:        npx ts-node -r tsconfig-paths/register scripts/security-audit.ts --llm
- *   Diff + LLM:      npx ts-node -r tsconfig-paths/register scripts/security-audit.ts --diff --llm
+ *   CI mode:         npx ts-node -r tsconfig-paths/register scripts/security-audit.ts --ci
  *   JSON output:     npx ts-node -r tsconfig-paths/register scripts/security-audit.ts --json
+ *
+ * CI mode (--ci):
+ *   - Implies --diff (only scans changed controller files)
+ *   - Auto-reads GITHUB_BASE_REF env var for the base branch
+ *   - Exits 0 cleanly when no controller files have changed (no fallback to full scan)
+ *   - Exits 1 when critical findings are detected
+ *
+ * Environment variables:
+ *   SECURITY_AUDIT_OPENAI_API_KEY  Dedicated API key for security audit (recommended)
+ *   OPENAI_API_KEY                  Fallback if SECURITY_AUDIT_OPENAI_API_KEY is not set
+ *   GITHUB_BASE_REF                 Base branch for diff (set automatically by GitHub Actions)
  */
 
 import * as fs from "fs";
 import * as path from "path";
-import { execSync } from "child_process";
+import { execSync, execFileSync } from "child_process";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -414,36 +427,103 @@ function analyzeController(
 
 // ─── Diff Mode ───────────────────────────────────────────────────────────────
 
-function getChangedControllerFiles(baseBranch: string = "main"): string[] {
+function getChangedControllerFiles(): { files: string[]; diffFailed: boolean } {
+  let diffFailed = false;
+
   try {
-    // Fetch the base branch to ensure we have it
-    try {
-      execSync(`git fetch origin ${baseBranch} 2>/dev/null`, {
-        encoding: "utf-8",
-        stdio: "pipe",
-      });
-    } catch {
-      // Ignore fetch errors (might already have the branch)
+    // Try multiple git diff strategies in order of preference.
+    // This avoids hard-failing when origin/<base> is unavailable in CI shallow clones.
+    const baseRefs: string[] = [];
+    if (process.env.GITHUB_BASE_SHA) baseRefs.push(process.env.GITHUB_BASE_SHA);
+    if (process.env.GITHUB_BASE_REF) {
+      baseRefs.push(`origin/${process.env.GITHUB_BASE_REF}`);
+      baseRefs.push(process.env.GITHUB_BASE_REF);
+    }
+    baseRefs.push("main", "origin/main", "HEAD~1");
+
+    // Build candidate strategies: three-dot (merge-base), then direct tree diff (no dots)
+    const candidateRefs: Array<{ ref: string; diffMode: "three-dot" | "direct" }> = [];
+    for (const ref of baseRefs) {
+      candidateRefs.push({ ref, diffMode: "three-dot" });
+    }
+    for (const ref of baseRefs) {
+      candidateRefs.push({ ref, diffMode: "direct" });
     }
 
-    const diffOutput = execSync(
-      `git diff --name-only origin/${baseBranch}...HEAD -- "server/src/**/*.controller.ts"`,
-      { encoding: "utf-8", stdio: "pipe" },
-    ).trim();
+    // In CI shallow clones, refs like origin/main may not exist.
+    // Try to fetch the base ref if we're in a shallow clone.
+    try {
+      const isShallow = execFileSync("git", ["rev-parse", "--is-shallow-repository"], {
+        encoding: "utf-8",
+      }).trim();
+      if (isShallow === "true") {
+        const baseRef = process.env.GITHUB_BASE_REF || "main";
+        console.error(`Shallow clone detected, fetching ${baseRef}...`);
+        try {
+          execFileSync("git", ["fetch", "origin", baseRef, "--depth=1"], { encoding: "utf-8" });
+          console.error(`Fetched origin/${baseRef} for diff comparison`);
+        } catch (fetchErr) {
+          console.error(
+            `Warning: Could not fetch ${baseRef}: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`,
+          );
+        }
+      }
+    } catch {
+      // git rev-parse not available, skip
+    }
 
-    if (!diffOutput) return [];
-    return diffOutput
+    let result = "";
+    let selectedRef: string | null = null;
+    const refErrors: string[] = [];
+
+    for (const candidate of candidateRefs) {
+      const { ref, diffMode } = candidate;
+      // three-dot: uses merge-base (needs full history)
+      // direct: compares trees directly (works in shallow clones)
+      const diffArgs =
+        diffMode === "three-dot"
+          ? ["diff", "--name-only", `${ref}...HEAD`, "--", "server/src/**/*.controller.ts"]
+          : ["diff", "--name-only", ref, "HEAD", "--", "server/src/**/*.controller.ts"];
+      try {
+        result = execFileSync("git", diffArgs, { encoding: "utf-8" });
+        selectedRef = `${ref} (${diffMode})`;
+        break;
+      } catch (error) {
+        const refLabel = `${ref}(${diffMode})`;
+        const stderr =
+          error instanceof Error && (error as NodeJS.ErrnoException & { stderr?: Buffer }).stderr
+            ? (error as NodeJS.ErrnoException & { stderr?: Buffer }).stderr!.toString().trim()
+            : "";
+        refErrors.push(
+          `${refLabel}: ${error instanceof Error ? error.message : String(error)}${stderr ? " | stderr: " + stderr : ""}`,
+        );
+      }
+    }
+
+    if (!selectedRef) {
+      const refLabels = candidateRefs.map((c) => `${c.ref}(${c.diffMode})`);
+      throw new Error(
+        `Unable to diff against any candidate refs: ${refLabels.join(", ")}.\nDetailed errors:\n${refErrors.map((e, i) => "  " + (i + 1) + ". " + e).join("\n")}`,
+      );
+    }
+
+    console.error(`Using git diff base ref: ${selectedRef}`);
+
+    const files = result
+      .trim()
       .split("\n")
-      .filter((f) => f.endsWith(".controller.ts"))
+      .filter((f) => f && f.endsWith(".controller.ts"))
       .map((f) => path.resolve(process.cwd(), "..", f));
+
+    return { files, diffFailed: false };
   } catch (error) {
+    // If all diff strategies fail, tell caller to run full scan
+    diffFailed = true;
     console.error(
-      `Warning: Could not get diff from ${baseBranch}. Falling back to full scan.`,
+      `Warning: Could not determine changed controller files: ${error instanceof Error ? error.message : String(error)}`,
     );
-    console.error(
-      `  Error: ${error instanceof Error ? error.message : String(error)}`,
-    );
-    return [];
+    console.error(`Falling back to full scan`);
+    return { files: [], diffFailed };
   }
 }
 
@@ -533,15 +613,27 @@ Return ONLY valid JSON, no other text.`;
 async function analyzWithLLM(
   controllers: ControllerInfo[],
 ): Promise<SecurityFinding[]> {
-  // Check for OpenAI API key
-  const apiKey = process.env.OPENAI_API_KEY;
+  // Check for OpenAI API key (dedicated key preferred, fallback to main key)
+  const apiKey =
+    process.env.SECURITY_AUDIT_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+  const keySource = process.env.SECURITY_AUDIT_OPENAI_API_KEY
+    ? "SECURITY_AUDIT_OPENAI_API_KEY"
+    : process.env.OPENAI_API_KEY
+      ? "OPENAI_API_KEY (fallback)"
+      : "NOT SET";
+
   if (!apiKey) {
     console.error(
-      "\n  LLM analysis requires OPENAI_API_KEY environment variable.",
+      "\n  LLM analysis requires SECURITY_AUDIT_OPENAI_API_KEY (or OPENAI_API_KEY as fallback).",
     );
-    console.error("  Set it with: export OPENAI_API_KEY=your-key-here\n");
+    console.error(
+      "  Set it with: export SECURITY_AUDIT_OPENAI_API_KEY=your-key-here",
+    );
+    console.error("  Or disable LLM with: --no-llm\n");
     return [];
   }
+
+  console.log(`  Using API key from: ${keySource}`);
 
   const findings: SecurityFinding[] = [];
 
@@ -744,17 +836,29 @@ function printReport(result: AuditResult, jsonOutput: boolean): void {
 // eslint-disable-next-line max-lines-per-function
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
-  const diffMode = args.includes("--diff");
-  const llmMode = args.includes("--llm");
+  const ciMode = args.includes("--ci");
+  const diffMode = args.includes("--diff") || ciMode;
+  // LLM is ON by default; use --no-llm to disable
+  const llmMode = !args.includes("--no-llm");
   const jsonOutput = args.includes("--json");
-  const baseBranch = args.find((a) => a.startsWith("--base="))?.split("=")[1] || "main";
+  // CI mode auto-reads GITHUB_BASE_REF / GITHUB_BASE_SHA (set by GitHub Actions on pull_request events)
+  const baseBranch =
+    (ciMode ? process.env.GITHUB_BASE_REF : undefined) ||
+    args.find((a) => a.startsWith("--base="))?.split("=")[1] ||
+    "main";
+  // GITHUB_BASE_SHA is used by the resilient diff logic inside getChangedControllerFiles
 
   const srcDir = path.resolve(__dirname, "../src");
 
   if (!jsonOutput) {
     console.log("\n  Security Audit Script");
+    const modeLabel = ciMode
+      ? `CI/diff (vs ${baseBranch})`
+      : diffMode
+        ? `diff (vs ${baseBranch})`
+        : "full scan";
     console.log(
-      `  Mode: ${diffMode ? `diff (vs ${baseBranch})` : "full scan"}${llmMode ? " + LLM analysis" : ""}`,
+      `  Mode: ${modeLabel}${llmMode ? " + LLM analysis" : " (static only)"}`,
     );
   }
 
@@ -763,15 +867,31 @@ async function main(): Promise<void> {
   let changedFunctionsMap: Map<string, string[]> = new Map();
 
   if (diffMode) {
-    controllerFiles = getChangedControllerFiles(baseBranch);
-    if (controllerFiles.length === 0) {
+    const { files: changedFiles, diffFailed } = getChangedControllerFiles();
+    controllerFiles = changedFiles;
+    if (diffFailed || controllerFiles.length === 0) {
+      if (ciMode && !diffFailed) {
+        // In CI mode with no changed controllers: exit cleanly so CI passes
+        if (!jsonOutput) {
+          console.log(
+            `\n  No controller files changed compared to ${baseBranch}. Skipping security audit.`,
+          );
+        }
+        process.exit(0);
+      }
       if (!jsonOutput) {
-        console.log(
-          `\n  No controller files changed compared to ${baseBranch}.`,
-        );
-        console.log(
-          "  Running full scan instead...\n",
-        );
+        if (diffFailed) {
+          console.log(
+            `\n  Could not determine changed files. Running full scan instead...\n`,
+          );
+        } else {
+          console.log(
+            `\n  No controller files changed compared to ${baseBranch}.`,
+          );
+          console.log(
+            "  Running full scan instead...\n",
+          );
+        }
       }
       controllerFiles = findControllerFiles(srcDir);
     } else {

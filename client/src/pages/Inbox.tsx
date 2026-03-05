@@ -21,24 +21,109 @@ import { useInboxState } from 'hooks/useInboxState';
 import { useSidebarState } from 'hooks/useSidebarState';
 
 const Inbox: React.FC = () => {
-  const inboxState = useInboxState();
-  const filterState = useInboxFilters();
-  const { loading, fetchError, splitView } = inboxState;
-  const sidebarState = useSidebarState({ splitViewActive: !!splitView.selectedEmailId });
+  const {
+    mode,
+    setMode,
+    user,
+    logout,
+    refreshUser,
+    loading,
+    fetchError,
+    fetchEmails,
+    fetchCategoryEmails,
+    selectedEmailIndex,
+    setSelectedEmailIndex,
+    selectedEmailIds,
+    setSelectedEmailIds,
+    triageSuggestions,
+    followUpDataMap,
+    isGeneratingDrafts,
+    followUpsError,
+    generateDrafts,
+    updateDraft,
+    bulkSend,
+    fetchThreadsWithDrafts,
+    snoozeInput,
+    onboarding,
+    urgentNotification,
+    debugPanel,
+    modals,
+    priorityTooltip,
+    keyboardHint,
+    splitView,
+    emailActions,
+    keyboardShortcuts,
+    hasInitiallyLoaded,
+    loadingModeSwitch,
+    decrypting,
+    hasRunAnalysis,
+    nextDelivery,
+    lastUrgentCheck,
+    tabCounts,
+    triageTabRef,
+    actionTabRef,
+    followUpTabRef,
+    deliverBtnRef,
+    emailListRef,
+    emailDetailRef,
+    handleEmailClick,
+    handleEmailSelect,
+    tourSteps,
+    emails,
+    loadMore,
+    hasMore,
+    expandedCategories,
+    stableCategoryOrder,
+    toggleCategory,
+    updateStableCategoryOrder,
+    categorySummary,
+    loadedCategoryNames,
+    loadingCategoryNames,
+  } = useInboxState();
 
-  if (loading) return <InboxLoadingState />;
-  if (fetchError === ERROR_CODE_GMAIL_REQUIRED) return <GmailConnectionScreen />;
-  return <InboxLayout inbox={inboxState} filters={filterState} sidebar={sidebarState} />;
-};
+  const {
+    isFilterBarVisible,
+    filters,
+    connectedAccounts,
+    availableCategories,
+    loadingAccounts,
+    loadingCategories,
+    hasActiveFilters,
+    toggleFilterBar,
+    setAccountFilter,
+    setCategoryFilter,
+    setPriorityFilter,
+    clearFilters,
+  } = useInboxFilters();
 
-const InboxLayout: React.FC<{ inbox: ReturnType<typeof useInboxState>; filters: ReturnType<typeof useInboxFilters>; sidebar: ReturnType<typeof useSidebarState> }> = ({ inbox, filters: filterState, sidebar }) => {
-  const { mode, setMode, user, logout, refreshUser, fetchEmails, selectedEmailIndex, setSelectedEmailIndex, selectedEmailIds, setSelectedEmailIds, triageSuggestions, followUpDataMap, isGeneratingDrafts, followUpsError, generateDrafts, updateDraft, bulkSend, fetchThreadsWithDrafts, snoozeInput, onboarding, urgentNotification, debugPanel, modals, priorityTooltip, keyboardHint, splitView, emailActions, keyboardShortcuts, hasInitiallyLoaded, loadingModeSwitch, decrypting, hasRunAnalysis, nextDelivery, lastUrgentCheck, tabCounts, triageTabRef, actionTabRef, followUpTabRef, deliverBtnRef, emailListRef, emailDetailRef, handleEmailClick, handleEmailSelect, tourSteps, emails, loadMore, hasMore, expandedCategories, stableCategoryOrder, toggleCategory, updateStableCategoryOrder, categorySummary, loadedCategoryNames, loadingCategoryNames, fetchError } = inbox;
-  const { isFilterBarVisible, filters, connectedAccounts, availableCategories, loadingAccounts, loadingCategories, hasActiveFilters, toggleFilterBar, setAccountFilter, setCategoryFilter, setPriorityFilter, clearFilters } = filterState;
-  const activeFilterCount = (filters.accountIds.length > 0 ? 1 : 0) + (filters.categories.length > 0 ? 1 : 0) + (filters.minPriority !== null ? 1 : 0);
-  const { isCollapsed: isSidebarCollapsed, isMobileMenuOpen, toggleCollapse: handleToggleSidebarCollapse, openMobileMenu, closeMobileMenu: handleCloseMobileMenu } = sidebar;
+  const activeFilterCount =
+    (filters.accountIds.length > 0 ? 1 : 0) +
+    (filters.categories.length > 0 ? 1 : 0) +
+    (filters.minPriority !== null ? 1 : 0);
+
+  const {
+    isCollapsed: isSidebarCollapsed,
+    isMobileMenuOpen,
+    toggleCollapse: handleToggleSidebarCollapse,
+    openMobileMenu,
+    closeMobileMenu: handleCloseMobileMenu,
+  } = useSidebarState({ splitViewActive: !!splitView.selectedEmailId });
+
+  if (loading) {
+    return <InboxLoadingState />;
+  }
+
+  if (fetchError === ERROR_CODE_GMAIL_REQUIRED) {
+    return <GmailConnectionScreen />;
+  }
 
   return (
-    <div style={{ display: 'flex', height: '100vh', backgroundColor: theme.colors.background.default, overflow: 'hidden', }}>
+    <div style={{
+      display: 'flex',
+      height: '100vh',
+      backgroundColor: theme.colors.background.default,
+      overflow: 'hidden',
+    }}>
       <Sidebar
         user={user}
         logout={logout}
@@ -216,18 +301,104 @@ const InboxLayout: React.FC<{ inbox: ReturnType<typeof useInboxState>; filters: 
           categorySummary={categorySummary}
           loadedCategoryNames={loadedCategoryNames}
           loadingCategoryNames={loadingCategoryNames}
-          onSplitViewArchive={(emailId) => navigateToNextEmail(emailId, emails, splitView, setSelectedEmailIndex)}
-          onSplitViewSnooze={(emailId) => navigateToNextEmail(emailId, emails, splitView, setSelectedEmailIndex)}
-          onSplitViewPrioritySet={(emailId, starCount) => {
+          fetchCategoryEmails={fetchCategoryEmails}
+          onSplitViewArchive={(archivedEmailId) => {
+            // Find the archived email to get its category
+            const archivedEmail = emails.find(e => e.id === archivedEmailId);
+            const archivedCategory = archivedEmail?.category || 'Other';
+            
+            // Filter out archived emails and the just-archived email
+            const visibleEmails = emails.filter(e => !e.isArchived && e.id !== archivedEmailId);
+            
+            if (visibleEmails.length === 0) {
+              splitView.closeEmail();
+              return;
+            }
+            
+            // First, try to find the next email in the same category
+            const sameCategoryEmails = visibleEmails.filter(e => (e.category || 'Other') === archivedCategory);
+            
+            if (sameCategoryEmails.length > 0) {
+              // Open the first email in the same category
+              const nextEmail = sameCategoryEmails[0];
+              const nextIndex = visibleEmails.findIndex(e => e.id === nextEmail.id);
+              splitView.openEmail(nextEmail.id);
+              setSelectedEmailIndex(nextIndex >= 0 ? nextIndex : 0);
+            } else {
+              // No more emails in this category, open the first email from the next category
+              const nextEmail = visibleEmails[0];
+              splitView.openEmail(nextEmail.id);
+              setSelectedEmailIndex(0);
+            }
+          }}
+          onSplitViewSnooze={(snoozedEmailId) => {
+            // Find the snoozed email to get its category
+            const snoozedEmail = emails.find(e => e.id === snoozedEmailId);
+            const snoozedCategory = snoozedEmail?.category || 'Other';
+
+            // Filter out archived emails and the just-snoozed email
+            const visibleEmails = emails.filter(e => !e.isArchived && e.id !== snoozedEmailId);
+
+            if (visibleEmails.length === 0) {
+              splitView.closeEmail();
+              return;
+            }
+
+            // First, try to find the next email in the same category
+            const sameCategoryEmails = visibleEmails.filter(e => (e.category || 'Other') === snoozedCategory);
+
+            if (sameCategoryEmails.length > 0) {
+              // Open the first email in the same category
+              const nextEmail = sameCategoryEmails[0];
+              const nextIndex = visibleEmails.findIndex(e => e.id === nextEmail.id);
+              splitView.openEmail(nextEmail.id);
+              setSelectedEmailIndex(nextIndex >= 0 ? nextIndex : 0);
+            } else {
+              // No more emails in this category, open the first email from the next category
+              const nextEmail = visibleEmails[0];
+              splitView.openEmail(nextEmail.id);
+              setSelectedEmailIndex(0);
+            }
+          }}
+          onSplitViewPrioritySet={(prioritizedEmailId, starCount) => {
+            // Trigger the exit animation on the triage list item (same as clicking priority in the list)
             const fakeEvent = { stopPropagation: () => {} } as React.MouseEvent;
-            emailActions.handleSetStarCount(emailId, starCount, fakeEvent);
-            navigateToNextEmail(emailId, emails, splitView, setSelectedEmailIndex);
+            emailActions.handleSetStarCount(prioritizedEmailId, starCount, fakeEvent);
+
+            // Navigate to next email in same category (same pattern as archive/snooze)
+            const prioritizedEmail = emails.find(e => e.id === prioritizedEmailId);
+            const prioritizedCategory = prioritizedEmail?.category || 'Other';
+            const visibleEmails = emails.filter(e => !e.isArchived && e.id !== prioritizedEmailId);
+
+            if (visibleEmails.length === 0) {
+              splitView.closeEmail();
+              return;
+            }
+
+            const sameCategoryEmails = visibleEmails.filter(e => (e.category || 'Other') === prioritizedCategory);
+
+            if (sameCategoryEmails.length > 0) {
+              const nextEmail = sameCategoryEmails[0];
+              const nextIndex = visibleEmails.findIndex(e => e.id === nextEmail.id);
+              splitView.openEmail(nextEmail.id);
+              setSelectedEmailIndex(nextIndex >= 0 ? nextIndex : 0);
+            } else {
+              const nextEmail = visibleEmails[0];
+              splitView.openEmail(nextEmail.id);
+              setSelectedEmailIndex(0);
+            }
           }}
         />
       </div>
 
       <InboxModals
-        modals={{ blockConfirmEmail: modals.blockConfirmEmail, starDiscrepancyModal: modals.starDiscrepancyModal, priorityOverrideModal: modals.priorityOverrideModal, urgencyOverrideModal: modals.urgencyOverrideModal, priorityFeedbackModal: modals.priorityFeedbackModal, }}
+        modals={{
+          blockConfirmEmail: modals.blockConfirmEmail,
+          starDiscrepancyModal: modals.starDiscrepancyModal,
+          priorityOverrideModal: modals.priorityOverrideModal,
+          urgencyOverrideModal: modals.urgencyOverrideModal,
+          priorityFeedbackModal: modals.priorityFeedbackModal,
+        }}
         onHideBlockConfirm={() => modals.hideBlockConfirm()}
         onConfirmBlockSender={emailActions.confirmBlockSender}
         onHideStarDiscrepancy={() => modals.hideStarDiscrepancy()}
@@ -239,17 +410,5 @@ const InboxLayout: React.FC<{ inbox: ReturnType<typeof useInboxState>; filters: 
     </div>
   );
 };
-
-function navigateToNextEmail(removedEmailId: string, emails: any[], splitView: any, setSelectedEmailIndex: (idx: number) => void) {
-  const removedEmail = emails.find((e: any) => e.id === removedEmailId);
-  const removedCategory = removedEmail?.category || 'Other';
-  const visibleEmails = emails.filter((e: any) => !e.isArchived && e.id !== removedEmailId);
-  if (visibleEmails.length === 0) { splitView.closeEmail(); return; }
-  const sameCategoryEmails = visibleEmails.filter((e: any) => (e.category || 'Other') === removedCategory);
-  const nextEmail = sameCategoryEmails.length > 0 ? sameCategoryEmails[0] : visibleEmails[0];
-  const nextIndex = visibleEmails.findIndex((e: any) => e.id === nextEmail.id);
-  splitView.openEmail(nextEmail.id);
-  setSelectedEmailIndex(nextIndex >= 0 ? nextIndex : 0);
-}
 
 export default Inbox;

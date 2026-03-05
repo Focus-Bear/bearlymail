@@ -17,7 +17,7 @@ interface CategoryAccordionProps {
   isLoadingContent?: boolean;
   isExpanded: boolean;
   onToggle: () => void;
-  onArchiveAll?: (emailIds: string[]) => Promise<void>;
+  onArchiveAll?: (category: string, emailIds: string[]) => Promise<void>;
   children: React.ReactNode;
   onReanalyseOther?: () => void;
   isReanalysingOther?: boolean;
@@ -138,11 +138,35 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
   const emailIds = emails.map(e => e.id);
   const isOtherCategory = category === CATEGORY_OTHER;
 
-  const handleEditCategoryClick = (e: React.MouseEvent) => { e.stopPropagation(); navigate('/settings#email-categories'); };
-  const handleArchiveAllClick = (e: React.MouseEvent) => { e.stopPropagation(); if (emailCount > 0) setShowArchiveConfirmation(true); };
-  const handleReanalyseClick = (e: React.MouseEvent) => { e.stopPropagation(); if (onReanalyseOther && !isReanalysingOther) onReanalyseOther(); };
-  const handleConfirmArchive = useCallback(async () => { setShowArchiveConfirmation(false); if (onArchiveAll) await onArchiveAll(emailIds); }, [onArchiveAll, emailIds]);
-  const handleCancelArchive = useCallback(() => { setShowArchiveConfirmation(false); }, []);
+  const handleEditCategoryClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate('/settings#email-categories');
+  };
+
+  const handleArchiveAllClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (emailCount > 0) {
+      setShowArchiveConfirmation(true);
+    }
+  };
+
+  const handleConfirmArchive = useCallback(async () => {
+    setShowArchiveConfirmation(false);
+    if (onArchiveAll) {
+      await onArchiveAll(category, emailIds);
+    }
+  }, [onArchiveAll, category, emailIds]);
+
+  const handleCancelArchive = useCallback(() => {
+    setShowArchiveConfirmation(false);
+  }, []);
+
+  const handleReanalyseClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onReanalyseOther && !isReanalysingOther) {
+      onReanalyseOther();
+    }
+  };
 
   useEffect(() => {
     if (!showArchiveConfirmation) return;

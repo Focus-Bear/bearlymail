@@ -117,6 +117,7 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
           : config.contextKey;
         const key = `context-section-${contextKeyStr}`;
         const isEmailCategory = contextKeyStr === CONTEXT_KEY_EMAIL_CATEGORY;
+        const isAnchoredMatch = Boolean(config.anchorId && window.location.hash === `#${config.anchorId}`);
         const sectionElement = (
           <ContextSection
             key={key}
@@ -125,6 +126,7 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
             addLabel={config.addLabel || (config.addLabelKey ? t(config.addLabelKey) : '')}
             tooltipContent={t(config.tooltipKey)}
             actionButton={isEmailCategory ? <EmailCategoryControls /> : undefined}
+            isInitiallyExpanded={isAnchoredMatch}
             {...commonProps}
           />
         );

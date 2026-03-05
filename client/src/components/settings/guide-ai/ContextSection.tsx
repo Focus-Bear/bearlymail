@@ -38,6 +38,8 @@ interface ContextSectionProps {
   onAddingContextTypeChange: (type: string | null) => void;
   onEditingContextIdChange: (id: string | null) => void;
   onEditContextValueChange: (value: string) => void;
+  /** If true, the section will be expanded by default (useful for deep-linking) */
+  isInitiallyExpanded?: boolean;
 }
 
 export const ContextSection: React.FC<ContextSectionProps> = ({
@@ -58,13 +60,21 @@ export const ContextSection: React.FC<ContextSectionProps> = ({
   onAddingContextTypeChange,
   onEditingContextIdChange,
   onEditContextValueChange,
+  isInitiallyExpanded = false,
 }) => {
   const { t } = useTranslation();
-  const [isExpanded, setIsExpanded] = useState(false); // Default to collapsed
+  const [isExpanded, setIsExpanded] = useState(Boolean(isInitiallyExpanded)); // Default to collapsed unless requested
   const keys = Array.isArray(contextKey) ? contextKey : [contextKey];
   const filteredContexts = contexts.filter(c => keys.includes(c.contextKey));
   const addType = keys[0];
   const itemCount = filteredContexts.length;
+
+  // If the initial expansion prop changes (e.g., via navigation), ensure the section expands
+  React.useEffect(() => {
+    if (isInitiallyExpanded) {
+      setIsExpanded(true);
+    }
+  }, [isInitiallyExpanded]);
 
   return (
     <div style={{ marginBottom: theme.spacing.lg, border: `1px solid ${theme.colors.border.light}`, borderRadius: theme.borderRadius.md, backgroundColor: theme.colors.background.paper, }}>

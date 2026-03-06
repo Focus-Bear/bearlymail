@@ -411,6 +411,8 @@ export class PriorityAnalysisService {
       senderJobTitle?: string;
       subject: string;
       body: string;
+      /** Optional thread context (previous messages) to improve LLM accuracy for replies */
+      threadContext?: string;
     }>,
     userContext?: {
       urgentItems?: Array<{ value: string; explanation?: string }>;
@@ -435,6 +437,12 @@ export class PriorityAnalysisService {
         category: string;
         categoryExplanation: string;
         reasoning: string;
+        /**
+         * True when this entry is a fallback/sentinel value because the LLM did not
+         * return a result for this email. Callers MUST skip DB writes for fallback
+         * entries to avoid overwriting existing valid priority scores with zeros.
+         */
+        isFallback: boolean;
         protoCategorySuggestion?: {
           name: string;
           description: string;
@@ -453,6 +461,7 @@ export class PriorityAnalysisService {
         category: string;
         categoryExplanation: string;
         reasoning: string;
+        isFallback: boolean;
         protoCategorySuggestion?: {
           name: string;
           description: string;
@@ -468,9 +477,12 @@ export class PriorityAnalysisService {
         null,
         BODY_PREVIEW_LENGTHS.SINGLE_PREVIEW,
       );
+      const threadContextSection = email.threadContext
+        ? `\nThread Context (previous messages, chronological):\n${email.threadContext}`
+        : "";
       return `--- EMAIL ${index + 1} (key: "${email.emailKey}") ---
 From: ${email.fromName || email.from}${email.senderJobTitle ? ` (${email.senderJobTitle})` : ""}
-Subject: ${email.subject}
+Subject: ${email.subject}${threadContextSection}
 Body: ${cleanedBody}`;
     });
 
@@ -646,6 +658,7 @@ IMPORTANT: The top-level response MUST be a JSON object with key \`priority_resu
               categoryExplanation:
                 (typedItem.categoryExplanation as string) || "No explanation",
               reasoning: (typedItem.reasoning as string) || "No reasoning",
+              isFallback: false,
               protoCategorySuggestion:
                 category === "Other" && protoSuggestion
                   ? {
@@ -682,7 +695,9 @@ IMPORTANT: The top-level response MUST be a JSON object with key \`priority_resu
       );
     }
 
-    // Fill in defaults for any emails that didn't get a result
+    // Fill in sentinel fallback entries for any emails that didn't get a result.
+    // NOTE: isFallback is set to TRUE — callers MUST check this flag and skip DB
+    // writes to avoid overwriting existing valid priority scores with zero values.
     const missingEmailKeys: string[] = [];
     for (const email of emails) {
       if (!results.has(email.emailKey)) {
@@ -696,6 +711,7 @@ IMPORTANT: The top-level response MUST be a JSON object with key \`priority_resu
           category: "Other",
           categoryExplanation: "Batch analysis failed",
           reasoning: "Batch analysis did not return results for this email",
+          isFallback: true,
         });
       }
     }

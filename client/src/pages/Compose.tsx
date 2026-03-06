@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { Contact } from 'types/contact';
+import { getNextMorning } from 'utils/dateUtils';
 import { captureEvent } from 'utils/posthog';
 
 import { ComposeActions } from 'components/compose/ComposeActions';
@@ -55,6 +56,7 @@ const Compose: React.FC = () => {
   const [scheduledSendAt, setScheduledSendAt] = useState<Date | null>(null);
   const [timeWarning, setTimeWarning] = useState<string | undefined>();
   const [suggestedTime, setSuggestedTime] = useState<Date | undefined>();
+  const [lastSelectedTime, setLastSelectedTime] = useState<Date | undefined>();
 
   useEffect(() => {
     captureEvent('compose_viewed');
@@ -170,6 +172,7 @@ const Compose: React.FC = () => {
   }, [fetchTimeSuggestions]);
 
   const handleTimeSelect = useCallback(async (time: Date) => {
+    setLastSelectedTime(time);
     const checkResult = await checkSendTime(time);
     if (!checkResult.isAppropriate) {
       setTimeWarning(checkResult.warning);
@@ -181,6 +184,14 @@ const Compose: React.FC = () => {
       setShowTimePicker(false);
     }
   }, [checkSendTime]);
+
+  const handleOverrideTime = useCallback((time: Date) => {
+    setScheduledSendAt(time);
+    setTimeWarning(undefined);
+    setSuggestedTime(undefined);
+    setLastSelectedTime(undefined);
+    setShowTimePicker(false);
+  }, []);
 
   const handleCancelTimePicker = useCallback(() => {
     setShowTimePicker(false);
@@ -329,6 +340,10 @@ const Compose: React.FC = () => {
             onDispute={disputeToneCheck}
             disputing={disputing}
             disputeResult={disputeResult}
+            onScheduleForMorning={() => {
+              captureEvent('tone_check_schedule_for_morning_compose');
+              setScheduledSendAt(getNextMorning());
+            }}
           />
 
           <ComposeMessages
@@ -344,6 +359,8 @@ const Compose: React.FC = () => {
           onDiscard={() => navigate('/inbox')}
           onSend={handleSend}
           onSchedule={handleOpenTimePicker}
+          scheduledSendAt={scheduledSendAt}
+          onClearSchedule={() => setScheduledSendAt(null)}
         />
       </div>
 
@@ -355,6 +372,8 @@ const Compose: React.FC = () => {
           onCancel={handleCancelTimePicker}
           warning={timeWarning}
           suggestedTime={suggestedTime}
+          onOverride={handleOverrideTime}
+          lastSelectedTime={lastSelectedTime}
         />
       )}
     </div>

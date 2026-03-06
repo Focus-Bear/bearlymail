@@ -217,3 +217,5 @@ export const BLOCKQUOTE_MIN_POSITION = 20; // Minimum position before blockquote
 export const SIGNATURE_MIN_CONTENT_PLAINTEXT = 100; // Minimum content for plain text signature detection
 
 
+
+export const MAX_BADGE_DISPLAY = 99; // Maximum badge count before showing 99+

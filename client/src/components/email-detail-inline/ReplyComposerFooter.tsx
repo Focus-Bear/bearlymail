@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { formatScheduledTime } from 'utils/dateUtils';
 import { captureEvent } from 'utils/posthog';
 
 import { COLOR_TRANSPARENT } from 'constants/colors';
@@ -55,8 +56,10 @@ interface ReplyComposerFooterProps {
   onClose: () => void;
   onSend: (expectedReplyHours?: number, draftOverride?: string, scheduledSendAt?: Date) => void;
   onSchedule?: () => void;
+  onClearSchedule?: () => void;
 }
 
+// eslint-disable-next-line max-lines-per-function -- ReplyComposerFooter handles scheduled send display, expected-reply options, and send/cancel controls in a single cohesive component
 export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = ({
   sending,
   checkingTone,
@@ -65,6 +68,7 @@ export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = ({
   onClose,
   onSend,
   onSchedule,
+  onClearSchedule,
 }) => {
   const { t } = useTranslation();
   const [expectedReplyHours, setExpectedReplyHours] = useState<number>(DEFAULT_EXPECTED_REPLY_HOURS);
@@ -81,6 +85,21 @@ export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md, marginTop: theme.spacing.md }}>
+      {scheduledSendAt && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px', color: theme.colors.primary.main, fontSize: theme.typography.fontSize.sm }}>
+          <span>🕐</span>
+          <span>{t('compose.scheduledFor', { time: formatScheduledTime(scheduledSendAt) })}</span>
+          {onClearSchedule && (
+            <button
+              onClick={onClearSchedule}
+              title={t('compose.clearSchedule')}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.colors.text.tertiary, fontSize: '14px', padding: '0 2px', lineHeight: 1 }}
+            >
+              ×
+            </button>
+          )}
+        </div>
+      )}
       <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
         <span style={{ 
           fontSize: theme.typography.fontSize.sm, 

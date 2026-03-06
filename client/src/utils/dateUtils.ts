@@ -1,6 +1,26 @@
 import { DAYS_IN_MONTH_30, DAYS_PER_YEAR, HOURS_PER_DAY,MINUTES_PER_HOUR, MONTHS_IN_YEAR, MS_PER_SECOND, SECONDS_PER_MINUTE } from 'constants/numbers';
 
 /**
+ * Returns 9:00 AM the next business day in browser-local time.
+ * Skips Saturday (→ Monday) and Sunday (→ Monday).
+ */
+export const getNextMorning = (): Date => {
+  const next = new Date();
+  next.setDate(next.getDate() + 1);
+  if (next.getDay() === 6) next.setDate(next.getDate() + 2);
+  else if (next.getDay() === 0) next.setDate(next.getDate() + 1);
+  next.setHours(9, 0, 0, 0);
+  return next;
+};
+
+/**
+ * Formats a Date for display in scheduled-send UI.
+ * Example: "Mon, Jan 6, 9:00 AM"
+ */
+export const formatScheduledTime = (date: Date): string =>
+  date.toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+
+/**
  * Humanizes a date to relative time (e.g., "2 hours ago", "yesterday", "3 days ago")
  * Uses the user's browser timezone automatically via toLocaleString
  */

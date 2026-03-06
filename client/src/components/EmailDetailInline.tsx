@@ -2,6 +2,7 @@ import React, { useCallback,useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { getNextMorning } from 'utils/dateUtils';
 import { captureEvent } from 'utils/posthog';
 
 import { TimePicker } from 'components/compose/TimePicker';
@@ -77,18 +78,28 @@ const useTimePickerHandlers = ({
 }: TimePickerHandlerDeps) => {
   const [timeWarning, setTimeWarning] = useState<string | undefined>();
   const [suggestedTime, setSuggestedTime] = useState<Date | undefined>();
+  const [lastSelectedTime, setLastSelectedTime] = useState<Date | undefined>();
 
   const handleOpenTimePicker = useCallback(() => {
     fetchTimeSuggestions(); setTimeWarning(undefined); setSuggestedTime(undefined); openTimePickerBase();
   }, [fetchTimeSuggestions, openTimePickerBase]);
 
   const handleTimeSelect = useCallback(async (time: Date) => {
+    setLastSelectedTime(time);
     const checkResult = await checkSendTime(time);
     if (!checkResult.isAppropriate) { setTimeWarning(checkResult.warning); setSuggestedTime(checkResult.suggestion ? new Date(checkResult.suggestion) : undefined); }
-    else { setTimeWarning(undefined); setSuggestedTime(undefined); setScheduledTime(time); }
+    else { setTimeWarning(undefined); setSuggestedTime(undefined); setLastSelectedTime(undefined); setScheduledTime(time); }
   }, [checkSendTime, setScheduledTime]);
 
-  const handleCancelTimePickerWithReset = useCallback(() => { setTimeWarning(undefined); setSuggestedTime(undefined); handleCancelTimePicker(); }, [handleCancelTimePicker]);
+  const handleOverrideTime = useCallback((time: Date) => {
+    setScheduledTime(time);
+    setTimeWarning(undefined);
+    setSuggestedTime(undefined);
+    setLastSelectedTime(undefined);
+    handleCancelTimePicker();
+  }, [setScheduledTime, handleCancelTimePicker]);
+
+  const handleCancelTimePickerWithReset = useCallback(() => { setTimeWarning(undefined); setSuggestedTime(undefined); setLastSelectedTime(undefined); handleCancelTimePicker(); }, [handleCancelTimePicker]);
 
   const handleBlockSender = useCallback(async (emailIdToBlock: string) => {
     if (onBlockSender) { onBlockSender(emailIdToBlock); return; }
@@ -99,7 +110,7 @@ const useTimePickerHandlers = ({
     } catch (error) { console.error('Error blocking sender:', error); }
   }, [onBlockSender, onClose, navigate]);
 
-  return { timeWarning, suggestedTime, handleOpenTimePicker, handleTimeSelect, handleCancelTimePickerWithReset, handleBlockSender };
+  return { timeWarning, suggestedTime, lastSelectedTime, handleOpenTimePicker, handleTimeSelect, handleOverrideTime, handleCancelTimePickerWithReset, handleBlockSender };
 };
 
 export const EmailDetailInline: React.FC<EmailDetailInlineProps> = ({
@@ -118,10 +129,10 @@ export const EmailDetailInline: React.FC<EmailDetailInlineProps> = ({
     handleSaveNote, handleAddActionItem, handleToggleActionItem, handleDeleteActionItem, handleExtractActions,
     handleOpenReplyComposer, toggleThreadItem, handleSendReplyWithClose, handleDraftChange,
     handleReplyComposerClose, handleReplyOptionSelect, handleToggleNotesCollapsed,
-    handleOpenTimePicker: openTimePickerBase, handleTimeSelect: setScheduledTime, handleCancelTimePicker, disputeToneCheck,
+    handleOpenTimePicker: openTimePickerBase, handleTimeSelect: setScheduledTime, handleCancelTimePicker, setScheduledSendAt, disputeToneCheck,
   } = useEmailDetailInlineHandlers(emailId, onClose, autoGenerateReplies);
 
-  const { timeWarning, suggestedTime, handleOpenTimePicker, handleTimeSelect, handleCancelTimePickerWithReset, handleBlockSender } = useTimePickerHandlers({ fetchTimeSuggestions, checkSendTime, openTimePickerBase, setScheduledTime, handleCancelTimePicker, onBlockSender, onClose, navigate });
+  const { timeWarning, suggestedTime, lastSelectedTime, handleOpenTimePicker, handleTimeSelect, handleOverrideTime, handleCancelTimePickerWithReset, handleBlockSender } = useTimePickerHandlers({ fetchTimeSuggestions, checkSendTime, openTimePickerBase, setScheduledTime, handleCancelTimePicker, onBlockSender, onClose, navigate });
 
   if (loading) return <LoadingSpinner />;
   if (!email) return <EmailNotFound />;
@@ -149,9 +160,10 @@ export const EmailDetailInline: React.FC<EmailDetailInlineProps> = ({
         onShowCc={() => setShowCc(true)} onShowBcc={() => setShowBcc(true)} onDraftChange={handleDraftChange}
         onReplyOptionSelect={handleReplyOptionSelect} onClose={handleReplyComposerClose} onSend={handleSendReplyWithClose}
         onUseRevisedText={handleDraftChange} onDispute={disputeToneCheck} disputing={disputing} disputeResult={disputeResult}
-        onSchedule={handleOpenTimePicker}
+        onSchedule={handleOpenTimePicker} onClearSchedule={() => setScheduledSendAt(null)}
+        onScheduleForMorning={() => { captureEvent('tone_check_schedule_for_morning_email_detail'); setScheduledSendAt(getNextMorning()); }}
       />
-      {showTimePicker && <TimePicker selectedTime={scheduledSendAt} suggestions={timeSuggestions} onTimeSelect={handleTimeSelect} onCancel={handleCancelTimePickerWithReset} warning={timeWarning} suggestedTime={suggestedTime} />}
+      {showTimePicker && <TimePicker selectedTime={scheduledSendAt} suggestions={timeSuggestions} onTimeSelect={handleTimeSelect} onCancel={handleCancelTimePickerWithReset} warning={timeWarning} suggestedTime={suggestedTime} onOverride={handleOverrideTime} lastSelectedTime={lastSelectedTime} />}
     </>
   );
 };

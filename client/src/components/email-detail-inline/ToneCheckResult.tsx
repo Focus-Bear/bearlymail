@@ -27,6 +27,7 @@ interface ToneCheckResultProps {
   onDispute?: (emailText: string, suggestions: string[], argument: string) => Promise<DisputeResult | null>;
   disputing?: boolean;
   disputeResult?: DisputeResult | null;
+  onScheduleForMorning?: () => void;
 }
 
 interface DisputeSectionProps {
@@ -133,6 +134,14 @@ const DisputeSection: React.FC<DisputeSectionProps> = ({
   );
 };
 
+/** Returns true if any suggestion hint relates to timing (late night / weekend send). */
+const hasSendTimingSuggestion = (suggestions: string[]): boolean => {
+  const timingKeywords = ['late', 'night', 'weekend', 'early', 'morning', 'timing', 'hour', 'after hours', 'business hours', 'off hours'];
+  return suggestions.some((suggestion) =>
+    timingKeywords.some((kw) => suggestion.toLowerCase().includes(kw))
+  );
+};
+
 export const ToneCheckResult: React.FC<ToneCheckResultProps> = ({
   toneCheckResult,
   onUseRevisedText,
@@ -140,6 +149,7 @@ export const ToneCheckResult: React.FC<ToneCheckResultProps> = ({
   onDispute,
   disputing = false,
   disputeResult,
+  onScheduleForMorning,
 }) => {
   const { t } = useTranslation();
 
@@ -165,6 +175,17 @@ export const ToneCheckResult: React.FC<ToneCheckResultProps> = ({
           <li key={suggestion}>{suggestion}</li>
         ))}
       </ul>
+      {onScheduleForMorning && hasSendTimingSuggestion(toneCheckResult.suggestions) && (
+        <button
+          onClick={() => {
+            captureEvent('tone_check_schedule_for_morning_clicked');
+            onScheduleForMorning();
+          }}
+          style={{ marginTop: theme.spacing.sm, padding: `${theme.spacing.xs} ${theme.spacing.sm}`, backgroundColor: theme.colors.primary.light, color: theme.colors.primary.main, border: `1px solid ${theme.colors.primary.main}`, borderRadius: theme.borderRadius.sm, cursor: 'pointer', fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium, }}
+        >
+          🌅 {t('emailDetail.scheduleForMorning')}
+        </button>
+      )}
       {toneCheckResult.revisedText && (
         <div style={{ marginTop: theme.spacing.md }}>
           <div style={{ fontWeight: 'bold', fontSize: theme.typography.fontSize.sm }}>{t('emailDetail.suggestedRevision')}</div>

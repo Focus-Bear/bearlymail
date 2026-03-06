@@ -211,6 +211,7 @@ export function useEmailDetailReplies(
     initialAttachments, replyGenerationDebugInfo, showTimePicker, scheduledSendAt,
     setReplyRecipients, setReplyCc, setReplyBcc, setShowCc, setShowBcc,
     setDraft, setSelectedReplyOption, setShowReplyComposer, setReplyOptions, setToneCheckResult,
+    setScheduledSendAt,
     handleOpenReplyComposer, handleSendReply, handleOpenTimePicker, handleTimeSelect,
     handleCancelTimePicker, disputeToneCheck, clearDisputeResult,
   };

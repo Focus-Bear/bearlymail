@@ -378,6 +378,10 @@ export class LLMProcessor implements OnModuleInit {
       `[Worker ${workerId}] Starting BATCH priority refinement for ${emailIds.length} emails`,
     );
 
+    // Track which thread IDs we locked so we can unlock them in the catch block.
+    // Must be declared outside try so the catch block can reference it.
+    let threadIdsToLock: string[] = [];
+
     try {
       tracker.startPhase("dataFetch");
 
@@ -392,18 +396,64 @@ export class LLMProcessor implements OnModuleInit {
         this.protoCategoriesService.findActiveByUser(userId),
       ]);
 
-      // Filter out nulls and emails that already have valid priority
-      const emailsToProcess = emailResults.filter(
-        (email): email is NonNullable<typeof email> => {
-          if (!email) return false;
-          return true;
-        },
-      );
+      // FIX: Bulk-fetch all threads in a single IN(...) query to avoid N individual lookups
+      const uniqueThreadIds = [
+        ...new Set(
+          emailResults
+            .filter(Boolean)
+            .map((e) => e!.emailThreadId)
+            .filter(Boolean) as string[],
+        ),
+      ];
+
+      const threads =
+        uniqueThreadIds.length > 0
+          ? await this.emailThreadRepository.find({
+              where: { id: In(uniqueThreadIds) },
+            })
+          : [];
+      const threadMap = new Map(threads.map((t) => [t.id, t]));
+
+      // FIX 1 — Add skip guard: parity with single-email path.
+      // Emails that already have a valid, up-to-date priority score are skipped so
+      // that a partial LLM batch response cannot overwrite them with fallback zeros.
+      const emailsToProcess = (
+        await Promise.all(
+          emailResults
+            .filter((e): e is NonNullable<typeof e> => !!e)
+            .map(async (email) => {
+              const thread = email.emailThreadId
+                ? (threadMap.get(email.emailThreadId) ?? null)
+                : null;
+              const shouldSkip = await this.shouldSkipPriorityRecalculation(
+                thread,
+                false,
+                email,
+                workerId,
+                email.id,
+              );
+              return shouldSkip ? null : email;
+            }),
+        )
+      ).filter((e): e is NonNullable<typeof e> => !!e);
 
       if (emailsToProcess.length === 0) {
         this.logger.log(`[Worker ${workerId}] No emails to process in batch`);
         tracker.finish();
         return;
+      }
+
+      // FIX 2 — Fix race condition: set isProcessingPriority: true on all affected
+      // threads BEFORE the LLM call using a single bulk IN(...) update.
+      threadIdsToLock = [
+        ...new Set(emailsToProcess.map((e) => e.emailThreadId).filter(Boolean)),
+      ] as string[];
+
+      if (threadIdsToLock.length > 0) {
+        await this.emailThreadRepository.update(
+          { id: In(threadIdsToLock) },
+          { isProcessingPriority: true },
+        );
       }
 
       tracker.endPhase("dataFetch");
@@ -412,19 +462,67 @@ export class LLMProcessor implements OnModuleInit {
       // Format user context for batch LLM call
       const userContext = this.buildUserContext(contexts, protoCategories);
 
-      // Prepare batch emails for LLM
-      const batchEmails = emailsToProcess.map((email) => ({
-        emailKey: email.id,
-        from: email.from || "",
-        fromName: email.fromName,
-        senderJobTitle: email.senderJobTitle,
-        subject: email.subject || "",
-        body: cleanEmailContent(
-          email.body,
-          email.htmlBody,
-          BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
-        ),
-      }));
+      // FIX 4 — Add thread context to batch path: fetch sibling emails for each
+      // email so the LLM has conversation history (parity with single-email path).
+      const threadEmailsMap = new Map<
+        string,
+        Array<{
+          from: string;
+          fromName?: string;
+          subject: string;
+          body: string;
+          receivedAt: Date;
+        }>
+      >();
+
+      await Promise.all(
+        emailsToProcess.map(async (email) => {
+          if (email.threadId) {
+            const threadEmails = await this.emailsService.getThreadEmails(
+              userId,
+              email.threadId,
+              {
+                limit: LLM_PROCESSOR_CONSTANTS.THREAD_EMAILS_LIMIT,
+                order: "ASC",
+              },
+            );
+            const siblings = threadEmails
+              .filter((e) => e.id !== email.id)
+              .map((e) => ({
+                from: e.from || "",
+                fromName: e.fromName,
+                subject: e.subject || "",
+                body: e.body || "",
+                receivedAt: e.receivedAt || new Date(),
+              }));
+            if (siblings.length > 0) {
+              threadEmailsMap.set(email.id, siblings);
+            }
+          }
+        }),
+      );
+
+      // Prepare batch emails for LLM (with optional thread context per email)
+      const batchEmails = emailsToProcess.map((email) => {
+        const siblings = threadEmailsMap.get(email.id);
+        const threadContext =
+          siblings && siblings.length > 0
+            ? this.buildBatchThreadContext(siblings)
+            : undefined;
+        return {
+          emailKey: email.id,
+          from: email.from || "",
+          fromName: email.fromName,
+          senderJobTitle: email.senderJobTitle,
+          subject: email.subject || "",
+          body: cleanEmailContent(
+            email.body,
+            email.htmlBody,
+            BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
+          ),
+          threadContext,
+        };
+      });
 
       tracker.endPhase("processing");
       tracker.startPhase("llmCall");
@@ -444,7 +542,22 @@ export class LLMProcessor implements OnModuleInit {
       // Process results and update DB for each email
       for (const email of emailsToProcess) {
         const llmResult = batchResults.get(email.id);
-        if (!llmResult) continue;
+        if (!llmResult) {
+          this.logger.warn(
+            `[Worker ${workerId}] No batch LLM result for email ${email.id} — skipping DB write to preserve existing priority`,
+          );
+          continue;
+        }
+
+        // FIX 3 — Guard against fallback overwrites: when the LLM returned a partial
+        // batch response, the service sets isFallback: true on missing-email entries.
+        // We MUST skip DB writes for those to avoid clobbering valid existing scores.
+        if (llmResult.isFallback) {
+          this.logger.warn(
+            `[Worker ${workerId}] Skipping fallback result for email ${email.id} — preserving existing priority score`,
+          );
+          continue;
+        }
 
         try {
           await this.applyPriorityResult(
@@ -472,23 +585,71 @@ export class LLMProcessor implements OnModuleInit {
         `[Worker ${workerId}] Failed batch priority refinement`,
         error,
       );
-      // Reset processing flags
-      for (const emailId of emailIds) {
+      // FIX 2 (recovery): Reset isProcessingPriority flags using a single bulk update.
+      // If threadIdsToLock was populated before the error, use it for efficiency.
+      if (threadIdsToLock.length > 0) {
         try {
-          const email = await this.emailsService.getEmailById(userId, emailId);
-          if (email?.emailThreadId) {
-            await this.emailThreadRepository.update(
-              { id: email.emailThreadId },
-              { isProcessingPriority: false },
-            );
-          }
+          await this.emailThreadRepository.update(
+            { id: In(threadIdsToLock) },
+            { isProcessingPriority: false },
+          );
         } catch {
           // Ignore cleanup errors
+        }
+      } else {
+        // Fallback: thread IDs not yet known — resolve via individual email lookups
+        for (const emailId of emailIds) {
+          try {
+            const email = await this.emailsService.getEmailById(
+              userId,
+              emailId,
+            );
+            if (email?.emailThreadId) {
+              await this.emailThreadRepository.update(
+                { id: email.emailThreadId },
+                { isProcessingPriority: false },
+              );
+            }
+          } catch {
+            // Ignore cleanup errors
+          }
         }
       }
       tracker.finish(error as Error);
       throw error;
     }
+  }
+
+  /**
+   * Build a compact thread context string for use in batch LLM calls.
+   * Formats sibling emails chronologically as a brief summary per message.
+   */
+  private buildBatchThreadContext(
+    threadEmails: Array<{
+      from: string;
+      fromName?: string;
+      subject: string;
+      body: string;
+      receivedAt: Date;
+    }>,
+  ): string {
+    const limit = LLM_PROCESSOR_CONSTANTS.THREAD_EMAILS_LIMIT;
+    const emailsToInclude = threadEmails.slice(-limit);
+    const messages = emailsToInclude.map((e, i) => {
+      const cleanedBody = cleanEmailContent(
+        e.body,
+        null,
+        BODY_PREVIEW_LENGTHS.SINGLE_PREVIEW,
+      );
+      const dateStr = e.receivedAt.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+      const senderName = e.fromName || e.from;
+      return `[Msg ${i + 1} from ${senderName} on ${dateStr}]: Subject: ${e.subject} | ${cleanedBody}`;
+    });
+    return messages.join("\n");
   }
 
   private buildUserContext(

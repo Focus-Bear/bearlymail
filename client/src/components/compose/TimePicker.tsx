@@ -41,7 +41,7 @@ const WarningBanner: React.FC<WarningBannerProps> = ({ warning, suggestedTime, o
     {onOverride && (
       <button
         onClick={onOverride}
-        style={{ marginTop: theme.spacing.sm, marginLeft: suggestedTime ? theme.spacing.sm : 0, padding: `${theme.spacing.xs} ${theme.spacing.sm}`, backgroundColor: 'transparent', color: theme.colors.text.secondary, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.sm, cursor: 'pointer', fontSize: theme.typography.fontSize.sm, opacity: 0.8 }}
+        style={{ marginTop: theme.spacing.sm, marginLeft: suggestedTime ? theme.spacing.sm : 0, padding: `${theme.spacing.xs} ${theme.spacing.sm}`, backgroundColor: COLOR_TRANSPARENT, color: theme.colors.text.secondary, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.sm, cursor: 'pointer', fontSize: theme.typography.fontSize.sm, opacity: 0.8 }}
       >
         {t('compose.sendAnywayOverride')}
       </button>

@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
+import { formatScheduledTime } from 'utils/dateUtils';
 import { captureEvent } from 'utils/posthog';
 
 import { COLOR_TRANSPARENT } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
-import { formatScheduledTime } from 'utils/dateUtils';
 
 const DEFAULT_EXPECTED_REPLY_HOURS = 48;
 
@@ -59,6 +59,7 @@ interface ReplyComposerFooterProps {
   onClearSchedule?: () => void;
 }
 
+// eslint-disable-next-line max-lines-per-function -- ReplyComposerFooter handles scheduled send display, expected-reply options, and send/cancel controls in a single cohesive component
 export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = ({
   sending,
   checkingTone,
@@ -94,7 +95,7 @@ export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = ({
               title={t('compose.clearSchedule')}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.colors.text.tertiary, fontSize: '14px', padding: '0 2px', lineHeight: 1 }}
             >
-              ✕
+              ×
             </button>
           )}
         </div>

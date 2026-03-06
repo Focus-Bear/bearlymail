@@ -2,8 +2,8 @@ import React, { useCallback,useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { captureEvent } from 'utils/posthog';
 import { getNextMorning } from 'utils/dateUtils';
+import { captureEvent } from 'utils/posthog';
 
 import { TimePicker } from 'components/compose/TimePicker';
 import { EmailDetailContent,EmailNotFound, LoadingSpinner, ReplyComposer } from 'components/email-detail-inline';

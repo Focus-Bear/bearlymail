@@ -137,8 +137,8 @@ const DisputeSection: React.FC<DisputeSectionProps> = ({
 /** Returns true if any suggestion hint relates to timing (late night / weekend send). */
 const hasSendTimingSuggestion = (suggestions: string[]): boolean => {
   const timingKeywords = ['late', 'night', 'weekend', 'early', 'morning', 'timing', 'hour', 'after hours', 'business hours', 'off hours'];
-  return suggestions.some((s) =>
-    timingKeywords.some((kw) => s.toLowerCase().includes(kw))
+  return suggestions.some((suggestion) =>
+    timingKeywords.some((kw) => suggestion.toLowerCase().includes(kw))
   );
 };
 

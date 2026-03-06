@@ -8,8 +8,9 @@ import { SettingsSubNavGroup as SettingsSubNavGroupComponent } from 'components/
 import { SettingsSubNavItem as SettingsSubNavItemComponent } from 'components/inbox/sidebar/SettingsSubNavItem';
 import { SidebarFooter } from 'components/inbox/sidebar/SidebarFooter';
 import { SidebarHeader } from 'components/inbox/sidebar/SidebarHeader';
-import { COLOR_TRANSPARENT } from 'constants/colors';
-import { CATEGORY_DANGEROUS_PHISHING, ROUTE_ADMIN, ROUTE_CRM_CONTACTS, ROUTE_CRM_DEALS, ROUTE_INBOX, ROUTE_SCHEDULED, ROUTE_SEARCH, ROUTE_SETTINGS, ROUTE_STATS, STRING_NONE } from 'constants/strings';
+import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
+import { MAX_BADGE_DISPLAY } from 'constants/numbers';
+import { CATEGORY_DANGEROUS_PHISHING, ROUTE_ADMIN, ROUTE_CRM_CONTACTS, ROUTE_CRM_DEALS, ROUTE_INBOX, ROUTE_SCHEDULED, ROUTE_SEARCH, ROUTE_SETTINGS, ROUTE_STATS, STATUS_PENDING, STRING_NONE } from 'constants/strings';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import { useScheduledEmails } from 'hooks/useScheduledEmails';
 
@@ -71,8 +72,8 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ label, path, icon, active, on
       )}
       {!isCollapsed && <span style={{ flex: 1 }}>{label}</span>}
       {badge !== undefined && badge > 0 && (
-        <span style={{ backgroundColor: theme.colors.primary.main, color: 'white', borderRadius: '10px', fontSize: '11px', fontWeight: theme.typography.fontWeight.semibold, minWidth: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px', marginLeft: isCollapsed ? 0 : 'auto', }}>
-          {badge > 99 ? '99+' : badge}
+        <span style={{ backgroundColor: theme.colors.primary.main, color: COLOR_NAMED_WHITE, borderRadius: '10px', fontSize: '11px', fontWeight: theme.typography.fontWeight.semibold, minWidth: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px', marginLeft: isCollapsed ? 0 : 'auto', }}>
+          {badge > MAX_BADGE_DISPLAY ? `${MAX_BADGE_DISPLAY}+` : badge}
         </span>
       )}
     </button>
@@ -203,7 +204,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { isMobile, isTablet } = useResponsiveBreakpoints();
   const isNarrow = isMobile || isTablet;
   const { scheduledEmails } = useScheduledEmails();
-  const pendingScheduledCount = scheduledEmails.filter(e => e.status === 'pending').length;
+  const pendingScheduledCount = scheduledEmails.filter(e => e.status === STATUS_PENDING).length;
 
   const handleNavigationClick = (path: string) => {
     const shouldKeepOpen = path === ROUTE_SETTINGS;

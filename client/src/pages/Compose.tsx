@@ -4,8 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 import { Contact } from 'types/contact';
-import { captureEvent } from 'utils/posthog';
 import { getNextMorning } from 'utils/dateUtils';
+import { captureEvent } from 'utils/posthog';
 
 import { ComposeActions } from 'components/compose/ComposeActions';
 import { ComposeBody } from 'components/compose/ComposeBody';

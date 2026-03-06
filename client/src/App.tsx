@@ -177,10 +177,10 @@ const AppRoutes: React.FC = () => (
                 path="/stats"
                 element={ <PrivateRoute> <Stats /> </PrivateRoute> }
               />
-            <Route
-              path="/scheduled"
-              element={ <PrivateRoute> <ScheduledEmails /> </PrivateRoute> }
-            />
+              <Route
+                path="/scheduled"
+                element={ <PrivateRoute> <ScheduledEmails /> </PrivateRoute> }
+              />
             <Route
               path="/compose"
               element={ <PrivateRoute> <Compose /> </PrivateRoute> }

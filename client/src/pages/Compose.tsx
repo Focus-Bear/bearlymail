@@ -5,16 +5,7 @@ import axios from 'axios';
 import { theme } from 'theme/theme';
 import { Contact } from 'types/contact';
 import { captureEvent } from 'utils/posthog';
-
-/** Returns 9:00 AM the next business day in browser-local time. */
-const getNextMorning = (): Date => {
-  const next = new Date();
-  next.setDate(next.getDate() + 1);
-  if (next.getDay() === 6) next.setDate(next.getDate() + 2);
-  else if (next.getDay() === 0) next.setDate(next.getDate() + 1);
-  next.setHours(9, 0, 0, 0);
-  return next;
-};
+import { getNextMorning } from 'utils/dateUtils';
 
 import { ComposeActions } from 'components/compose/ComposeActions';
 import { ComposeBody } from 'components/compose/ComposeBody';

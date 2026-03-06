@@ -4,6 +4,7 @@ import { theme } from 'theme/theme';
 
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
+import { formatScheduledTime } from 'utils/dateUtils';
 
 interface ComposeActionsProps {
   sending: boolean;
@@ -64,9 +65,6 @@ export const ComposeActions: React.FC<ComposeActionsProps> = ({
 }) => {
   const { t } = useTranslation();
   const isDisabled = sending || sendSuccess || checkingTone;
-
-  const formatScheduledTime = (date: Date) =>
-    date.toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
   return (
     <div

@@ -5,6 +5,7 @@ import { captureEvent } from 'utils/posthog';
 
 import { COLOR_TRANSPARENT } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
+import { formatScheduledTime } from 'utils/dateUtils';
 
 const DEFAULT_EXPECTED_REPLY_HOURS = 48;
 
@@ -80,9 +81,6 @@ export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = ({
   const handleSend = () => { captureEvent('reply_sent', { expected_reply_hours: expectedReplyHours > 0 ? expectedReplyHours : null }); onSend(expectedReplyHours, undefined, scheduledSendAt || undefined); };
   const getOptionLabel = (option: typeof EXPECTED_REPLY_OPTIONS[0]): string =>
     option.labelKey === LABEL_KEY_NONE ? t('emailDetail.expectedReply.none') : t(`emailDetail.expectedReply.${option.labelKey}`, { count: option.count });
-
-  const formatScheduledTime = (date: Date) =>
-    date.toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md, marginTop: theme.spacing.md }}>

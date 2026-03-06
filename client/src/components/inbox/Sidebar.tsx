@@ -206,7 +206,104 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {isNarrow && isMobileMenuOpen && <div onClick={onCloseMobileMenu} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.5)', zIndex: 999 }} />}
       <div style={{ width: effectiveIsCollapsed ? '80px' : '280px', backgroundColor: theme.colors.background.paper, borderRight: `1px solid ${theme.colors.border.light}`, padding: effectiveIsCollapsed ? theme.spacing.sm : `${theme.spacing.sm} ${theme.spacing.md}`, display: 'flex', flexDirection: 'column', height: '100vh', transition: 'width 0.3s ease, padding 0.3s ease, transform 0.3s ease', ...(isNarrow && { position: 'fixed' as const, left: 0, top: 0, zIndex: 1000, transform: isMobileMenuOpen ? 'translateX(0)' : 'translateX(-100%)', width: '240px', padding: `${theme.spacing.sm} ${theme.spacing.sm}` }) }}>
         <SidebarHeader isCollapsed={effectiveIsCollapsed} />
-        <SidebarNav t={t} location={location} isCollapsed={isCollapsed} effectiveIsCollapsed={effectiveIsCollapsed} isSettingsPage={isSettingsPage} isAdmin={user?.isAdmin} handleNavigationClick={handleNavigationClick} />
+
+        <nav style={{
+          flex: 1,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          paddingRight: theme.spacing.xs,
+        }}>
+          <SidebarItem
+            label={t('inbox.title')}
+            path={ROUTE_INBOX}
+            icon="📥"
+            active={location.pathname === ROUTE_INBOX}
+            isCollapsed={effectiveIsCollapsed}
+            onNavigationClick={handleNavigationClick}
+          />
+          <SidebarItem
+            label="Search"
+            path={ROUTE_SEARCH}
+            icon="🔍"
+            active={location.pathname === ROUTE_SEARCH}
+            isCollapsed={effectiveIsCollapsed}
+            onNavigationClick={handleNavigationClick}
+          />
+          <SidebarItem
+            label={t('crm.title')}
+            path={ROUTE_CRM_CONTACTS}
+            icon="💼"
+            active={location.pathname.startsWith('/crm')}
+            isCollapsed={effectiveIsCollapsed}
+            onNavigationClick={isCollapsed ? handleNavigationClick : undefined}
+          />
+          {!isCollapsed && location.pathname.startsWith('/crm') && (
+            <div style={{ marginLeft: theme.spacing.lg, marginBottom: theme.spacing.xs }}>
+              <SidebarItem
+                label={t('crm.contacts')}
+                path={ROUTE_CRM_CONTACTS}
+                icon="👤"
+                active={location.pathname === ROUTE_CRM_CONTACTS || location.pathname.startsWith(`${ROUTE_CRM_CONTACTS}/`)}
+                isCollapsed={false}
+                onNavigationClick={handleNavigationClick}
+              />
+              <SidebarItem
+                label={t('crm.deals')}
+                path={ROUTE_CRM_DEALS}
+                icon="🤝"
+                active={location.pathname === ROUTE_CRM_DEALS}
+                isCollapsed={false}
+                onNavigationClick={handleNavigationClick}
+              />
+            </div>
+          )}
+          <SidebarItem
+            label={t('stats.title')}
+            path={ROUTE_STATS}
+            icon="📊"
+            active={location.pathname === ROUTE_STATS}
+            isCollapsed={effectiveIsCollapsed}
+            onNavigationClick={handleNavigationClick}
+          />
+          {!effectiveIsCollapsed && (
+            <div style={{ marginTop: theme.spacing.xs }}>
+              <SidebarItem
+                label={t('settings.title')}
+                path={ROUTE_SETTINGS}
+                icon="⚙️"
+                active={isSettingsPage}
+                isCollapsed={effectiveIsCollapsed}
+                onNavigationClick={handleNavigationClick}
+              />
+              {isSettingsPage && <SettingsSubNav hash={location.hash} />}
+            </div>
+          )}
+          {effectiveIsCollapsed && (
+            <div style={{ marginTop: theme.spacing.xs }}>
+              <SidebarItem
+                label={t('settings.title')}
+                path={ROUTE_SETTINGS}
+                icon="⚙️"
+                active={isSettingsPage}
+                isCollapsed={effectiveIsCollapsed}
+                onNavigationClick={handleNavigationClick}
+              />
+            </div>
+          )}
+          {user?.isAdmin && (
+            <div style={{ marginTop: theme.spacing.sm }}>
+              <SidebarItem
+                label={t('admin.title')}
+                path={ROUTE_ADMIN}
+                icon="🛠️"
+                active={location.pathname === ROUTE_ADMIN}
+                isCollapsed={effectiveIsCollapsed}
+                onNavigationClick={handleNavigationClick}
+              />
+            </div>
+          )}
+        </nav>
+
         <SidebarFooter userEmail={user?.email} onLogout={logout} isCollapsed={effectiveIsCollapsed} onToggleCollapse={onToggleCollapse} />
       </div>
     </>

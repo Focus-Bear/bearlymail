@@ -48,6 +48,7 @@ export const useEmailDetailInline = (
     handleOpenTimePicker: replies.handleOpenTimePicker,
     handleTimeSelect: replies.handleTimeSelect,
     handleCancelTimePicker: replies.handleCancelTimePicker,
+    setScheduledSendAt: replies.setScheduledSendAt,
     disputeToneCheck: replies.disputeToneCheck,
     clearDisputeResult: replies.clearDisputeResult,
   };

@@ -351,7 +351,10 @@
     "setCustomTime": "Establecer Hora",
     "useSuggestion": "Usar Sugerencia",
     "dropFilesToAttach": "Soltar archivos para adjuntar",
-    "forwardedAttachments": "Adjuntos reenviados:"
+    "forwardedAttachments": "Adjuntos reenviados:",
+    "sendAnywayOverride": "Enviar de todas formas (urgente / zona horaria diferente)",
+    "scheduledFor": "Enviando {{time}}",
+    "clearSchedule": "Borrar hora programada"
   },
   "consent": {
     "acceptAndContinue": "Aceptar y continuar",
@@ -608,7 +611,8 @@
       "custom": "Personalizado"
     },
     "whenToUseLabel": "¿Cuándo se debe utilizar esta regla? (por ejemplo, \"Para correos electrónicos de mi gerente\", \"Para solicitudes de reunión\")",
-    "whenToUsePlaceholder": "Describe cuándo usar esta regla..."
+    "whenToUsePlaceholder": "Describe cuándo usar esta regla...",
+    "scheduleForMorning": "Programar para mañana por la mañana"
   },
   "contacts": {
     "title": "Contactos",
@@ -2111,5 +2115,8 @@
     "sourceThreads_plural": "📧 {{count}} fuentes",
     "viewSourceThread": "Ver hilo de correo fuente ({{count}} fuente)",
     "viewSourceThread_plural": "Ver hilo de correo fuente ({{count}} fuentes)"
+  },
+  "nav": {
+    "scheduled": "Programados"
   }
 }

@@ -301,6 +301,7 @@ export const ROUTE_STATS = '/stats' as const;
 export const ROUTE_CRM = '/crm' as const;
 export const ROUTE_CRM_CONTACTS = '/crm/contacts' as const;
 export const ROUTE_CRM_DEALS = '/crm/deals' as const;
+export const ROUTE_SCHEDULED = '/scheduled' as const;
 
 // Scroll behavior
 export const SCROLL_BEHAVIOR_SMOOTH = 'smooth' as const;

@@ -55,6 +55,7 @@ interface ReplyComposerFooterProps {
   onClose: () => void;
   onSend: (expectedReplyHours?: number, draftOverride?: string, scheduledSendAt?: Date) => void;
   onSchedule?: () => void;
+  onClearSchedule?: () => void;
 }
 
 export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = ({
@@ -65,6 +66,7 @@ export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = ({
   onClose,
   onSend,
   onSchedule,
+  onClearSchedule,
 }) => {
   const { t } = useTranslation();
   const [expectedReplyHours, setExpectedReplyHours] = useState<number>(DEFAULT_EXPECTED_REPLY_HOURS);
@@ -79,8 +81,26 @@ export const ReplyComposerFooter: React.FC<ReplyComposerFooterProps> = ({
   const getOptionLabel = (option: typeof EXPECTED_REPLY_OPTIONS[0]): string =>
     option.labelKey === LABEL_KEY_NONE ? t('emailDetail.expectedReply.none') : t(`emailDetail.expectedReply.${option.labelKey}`, { count: option.count });
 
+  const formatScheduledTime = (date: Date) =>
+    date.toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md, marginTop: theme.spacing.md }}>
+      {scheduledSendAt && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px', color: theme.colors.primary.main, fontSize: theme.typography.fontSize.sm }}>
+          <span>🕐</span>
+          <span>{t('compose.scheduledFor', { time: formatScheduledTime(scheduledSendAt) })}</span>
+          {onClearSchedule && (
+            <button
+              onClick={onClearSchedule}
+              title={t('compose.clearSchedule')}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.colors.text.tertiary, fontSize: '14px', padding: '0 2px', lineHeight: 1 }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      )}
       <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
         <span style={{ 
           fontSize: theme.typography.fontSize.sm, 

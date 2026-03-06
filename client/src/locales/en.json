@@ -421,7 +421,8 @@
       "viewSlots": "View Available Slots",
       "availableSlots": "Available Times",
       "noSlots": "No available slots found in the next 7 days."
-    }
+    },
+    "scheduleForMorning": "Schedule for tomorrow morning"
   },
   "settings": {
     "title": "Settings",
@@ -1091,7 +1092,10 @@
     "setCustomTime": "Set Time",
     "useSuggestion": "Use Suggestion",
     "dropFilesToAttach": "Drop files to attach",
-    "forwardedAttachments": "Forwarded attachments:"
+    "forwardedAttachments": "Forwarded attachments:",
+    "sendAnywayOverride": "Send anyway (urgent / different timezone)",
+    "scheduledFor": "Sending {{time}}",
+    "clearSchedule": "Clear scheduled time"
   },
   "contacts": {
     "title": "Contacts",
@@ -2108,5 +2112,8 @@
     "sourceThreads_plural": "📧 {{count}} sources",
     "viewSourceThread": "View source email thread ({{count}} source)",
     "viewSourceThread_plural": "View source email thread ({{count}} sources)"
+  },
+  "nav": {
+    "scheduled": "Scheduled"
   }
 }

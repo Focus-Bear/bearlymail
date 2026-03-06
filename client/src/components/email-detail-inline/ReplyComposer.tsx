@@ -59,6 +59,8 @@ interface ReplyComposerProps {
   disputing?: boolean;
   disputeResult?: DisputeResult | null;
   onSchedule?: () => void;
+  onClearSchedule?: () => void;
+  onScheduleForMorning?: () => void;
 }
 
 const useReplyComposerState = (
@@ -124,7 +126,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
   sending, initialAttachments, debugInfo, currentEmailId, currentEmailObjectId, currentEmailThreadId,
   scheduledSendAt, onReplyRecipientsChange, onCcChange, onBccChange, onShowCc, onShowBcc,
   onDraftChange, onReplyOptionSelect, onClose, onSend, onUseRevisedText, textareaRef,
-  onDispute, disputing, disputeResult, onSchedule,
+  onDispute, disputing, disputeResult, onSchedule, onClearSchedule, onScheduleForMorning,
 }) => {
   const { user } = useAuth();
   const { t } = useTranslation();
@@ -151,9 +153,9 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
       <ReplyDraftTextarea draft={draft} loadingReplies={loadingReplies} hasToneError={!!(toneCheckResult && !toneCheckResult.isOk)} onDraftChange={handleDraftChange} textareaRef={textareaRef} onPasteFiles={handlePasteFiles} />
       <ReplyComposerAttachments files={files} onFilesChange={setFiles} />
       <ForwardedAttachmentsList attachments={forwardAttachmentsToShow} onRemove={handleRemoveForwardAttachment} />
-      <ToneCheckResult toneCheckResult={toneCheckResult} onUseRevisedText={handleUseRevisedText} emailText={draft || ''} onDispute={onDispute} disputing={disputing} disputeResult={disputeResult} />
+      <ToneCheckResult toneCheckResult={toneCheckResult} onUseRevisedText={handleUseRevisedText} emailText={draft || ''} onDispute={onDispute} disputing={disputing} disputeResult={disputeResult} onScheduleForMorning={onScheduleForMorning} />
       {user?.isAdmin && <ReplyComposerDebugPanel debugInfo={debugInfo} currentEmailId={currentEmailId} currentEmailObjectId={currentEmailObjectId} currentEmailThreadId={currentEmailThreadId} replyOptions={replyOptions} />}
-      <ReplyComposerFooter sending={sending} checkingTone={checkingTone} draft={draft} scheduledSendAt={scheduledSendAt} onClose={handleClose} onSend={handleSend} onSchedule={onSchedule} />
+      <ReplyComposerFooter sending={sending} checkingTone={checkingTone} draft={draft} scheduledSendAt={scheduledSendAt} onClose={handleClose} onSend={handleSend} onSchedule={onSchedule} onClearSchedule={onClearSchedule} />
     </div>
   );
 };

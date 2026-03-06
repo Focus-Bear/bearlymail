@@ -29,6 +29,7 @@ import Inbox from 'pages/Inbox';
 import Landing from 'pages/Landing';
 import Login from 'pages/Login';
 import PrivacyPolicy from 'pages/PrivacyPolicy';
+import ScheduledEmails from 'pages/ScheduledEmails';
 import Search from 'pages/Search';
 import Settings from 'pages/Settings';
 import SetupPassword from 'pages/SetupPassword';
@@ -176,6 +177,10 @@ const AppRoutes: React.FC = () => (
                 path="/stats"
                 element={ <PrivateRoute> <Stats /> </PrivateRoute> }
               />
+            <Route
+              path="/scheduled"
+              element={ <PrivateRoute> <ScheduledEmails /> </PrivateRoute> }
+            />
             <Route
               path="/compose"
               element={ <PrivateRoute> <Compose /> </PrivateRoute> }

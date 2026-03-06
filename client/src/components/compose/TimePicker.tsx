@@ -16,16 +16,19 @@ interface TimePickerProps {
   onCancel: () => void;
   warning?: string;
   suggestedTime?: Date;
+  onOverride?: (time: Date) => void;
+  lastSelectedTime?: Date;
 }
 
 interface WarningBannerProps {
   warning: string;
   suggestedTime?: Date;
   onUseSuggestion: () => void;
+  onOverride?: () => void;
   t: (key: string) => string;
 }
 
-const WarningBanner: React.FC<WarningBannerProps> = ({ warning, suggestedTime, onUseSuggestion, t }) => (
+const WarningBanner: React.FC<WarningBannerProps> = ({ warning, suggestedTime, onUseSuggestion, onOverride, t }) => (
   <div style={{ backgroundColor: theme.colors.warning.light, border: `1px solid ${theme.colors.warning.main}`, borderRadius: theme.borderRadius.md, padding: theme.spacing.md, marginBottom: theme.spacing.md }}>
     <p style={{ margin: 0, color: theme.colors.text.primary, fontSize: theme.typography.fontSize.sm }}>
       {WARNING_ICON} {warning}
@@ -33,6 +36,14 @@ const WarningBanner: React.FC<WarningBannerProps> = ({ warning, suggestedTime, o
     {suggestedTime && (
       <button onClick={onUseSuggestion} style={{ marginTop: theme.spacing.sm, padding: `${theme.spacing.xs} ${theme.spacing.sm}`, backgroundColor: theme.colors.primary.main, color: COLOR_NAMED_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.sm, cursor: 'pointer', fontSize: theme.typography.fontSize.sm }}>
         {t('compose.useSuggestion')} ({new Date(suggestedTime).toLocaleString()})
+      </button>
+    )}
+    {onOverride && (
+      <button
+        onClick={onOverride}
+        style={{ marginTop: theme.spacing.sm, marginLeft: suggestedTime ? theme.spacing.sm : 0, padding: `${theme.spacing.xs} ${theme.spacing.sm}`, backgroundColor: 'transparent', color: theme.colors.text.secondary, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.sm, cursor: 'pointer', fontSize: theme.typography.fontSize.sm, opacity: 0.8 }}
+      >
+        {t('compose.sendAnywayOverride')}
       </button>
     )}
   </div>
@@ -66,6 +77,8 @@ export const TimePicker: React.FC<TimePickerProps> = ({
   onCancel,
   warning,
   suggestedTime,
+  onOverride,
+  lastSelectedTime,
 }) => {
   const { t } = useTranslation();
   const [customDate, setCustomDate] = useState('');
@@ -83,6 +96,7 @@ export const TimePicker: React.FC<TimePickerProps> = ({
   const handleSuggestionClick = (suggestion: TimeSuggestion) => { onTimeSelect(new Date(suggestion.value)); };
   const handleCustomTimeSubmit = () => { if (customDate && customTime) onTimeSelect(new Date(`${customDate}T${customTime}`)); };
   const handleUseSuggestion = () => { if (suggestedTime) onTimeSelect(suggestedTime); };
+  const handleOverride = () => { if (onOverride && lastSelectedTime) onOverride(lastSelectedTime); };
 
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={onCancel}>
@@ -90,7 +104,7 @@ export const TimePicker: React.FC<TimePickerProps> = ({
         <h3 style={{ marginTop: 0, color: theme.colors.text.primary, fontSize: theme.typography.fontSize.xl }}>
           {t('compose.scheduleEmail')}
         </h3>
-        {warning && <WarningBanner warning={warning} suggestedTime={suggestedTime} onUseSuggestion={handleUseSuggestion} t={t} />}
+        {warning && <WarningBanner warning={warning} suggestedTime={suggestedTime} onUseSuggestion={handleUseSuggestion} onOverride={onOverride && lastSelectedTime ? handleOverride : undefined} t={t} />}
         <div style={{ marginBottom: theme.spacing.md }}>
           <h4 style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, marginBottom: theme.spacing.sm }}>{t('compose.quickOptions')}</h4>
           <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>

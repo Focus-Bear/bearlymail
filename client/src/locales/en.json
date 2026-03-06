@@ -1089,7 +1089,9 @@
     "customTime": "Custom Time",
     "hideCustomTime": "Hide Custom Time",
     "setCustomTime": "Set Time",
-    "useSuggestion": "Use Suggestion"
+    "useSuggestion": "Use Suggestion",
+    "dropFilesToAttach": "Drop files to attach",
+    "forwardedAttachments": "Forwarded attachments:"
   },
   "contacts": {
     "title": "Contacts",
@@ -2100,5 +2102,11 @@
       "medium": "Medium",
       "high": "High"
     }
+  },
+  "guideAi": {
+    "sourceThreads": "📧 {{count}} source",
+    "sourceThreads_plural": "📧 {{count}} sources",
+    "viewSourceThread": "View source email thread ({{count}} source)",
+    "viewSourceThread_plural": "View source email thread ({{count}} sources)"
   }
 }

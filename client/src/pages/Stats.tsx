@@ -8,7 +8,7 @@ import { EMOJI_MENU } from 'constants/emojis';
 import { CALENDAR_DAYS_AHEAD, CHART_BAR_HEIGHT_OFFSET, CHART_BAR_MAX_WIDTH, DAYS_IN_MONTH_30, DAYS_IN_MONTH_MAX, HOURS_PER_DAY,MINUTES_PER_HOUR, MONTHS_IN_YEAR, STATS_PERIOD_14_DAYS } from 'constants/numbers';
 import { STRING_NONE, STRING_UPPERCASE } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
-import { CategoryStats,useEmailStats } from 'hooks/useEmailStats';
+import { CategoryStats, ProcessedEmailStats, useEmailStats } from 'hooks/useEmailStats';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import { useSidebarState } from 'hooks/useSidebarState';
 
@@ -204,6 +204,72 @@ const DailyChart: React.FC<{
   );
 };
 
+interface StatsBodyContentProps {
+  stats: ProcessedEmailStats | null;
+  loading: boolean;
+  error: string | null;
+  refetch: () => void;
+  days: number;
+  setDays: (days: number) => void;
+  maxEmails: number;
+  t: (key: string, options?: object) => string;
+}
+
+const StatsBodyContent: React.FC<StatsBodyContentProps> = ({ stats, loading, error, refetch, days, setDays, maxEmails, t }) => (
+  <>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.xl }}>
+      <h1 style={{ ...theme.typography.heading.h4, color: theme.colors.text.primary, margin: 0 }}>{t('stats.title')}</h1>
+      <div style={{ display: 'flex', gap: theme.spacing.xs }}>
+        {PERIOD_OPTIONS.map(option => (
+          <button
+            key={option}
+            onClick={() => setDays(option)}
+            style={{ padding: `${theme.spacing.xs} ${theme.spacing.sm}`, borderRadius: theme.borderRadius.sm, border: `1px solid ${days === option ? theme.colors.primary.main : theme.colors.border.light}`, backgroundColor: days === option ? theme.colors.primary.main : 'transparent', color: days === option ? 'white' : theme.colors.text.secondary, cursor: 'pointer', ...theme.typography.body.large, fontWeight: days === option ? theme.typography.fontWeight.semibold : theme.typography.fontWeight.normal, transition: theme.transitions.fast }}
+          >
+            {t('stats.periodDays', { count: option })}
+          </button>
+        ))}
+      </div>
+    </div>
+
+    {loading && (
+      <div style={{ textAlign: 'center', padding: theme.spacing.xl, color: theme.colors.text.secondary }}>{t('common.loading')}</div>
+    )}
+
+    {error && (
+      <div style={{ textAlign: 'center', padding: theme.spacing.xl, color: theme.colors.error.main }}>
+        <p>{error}</p>
+        <button onClick={refetch} style={{ padding: `${theme.spacing.sm} ${theme.spacing.md}`, backgroundColor: theme.colors.primary.main, color: COLOR_NAMED_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.md, cursor: 'pointer' }}>{t('common.retry')}</button>
+      </div>
+    )}
+
+    {stats && !loading && (
+      <>
+        <div style={{ display: 'flex', gap: theme.spacing.md, marginBottom: theme.spacing.xl, flexWrap: 'wrap' }}>
+          <StatCard label={t('stats.totalEmails')} value={stats.totalEmails.toLocaleString()} subtext={t('stats.periodDays', { count: stats.days })} />
+          <StatCard label={t('stats.avgPerDay')} value={String(stats.avgEmailsPerDay)} />
+          <StatCard label={t('stats.categories')} value={String(stats.categoryStats.length)} />
+          <StatCard label={t('stats.avgReplyTime')} value={formatReplyTime(stats.categoryStats.reduce((sum, category) => { if (category.avgReplyTimeMinutes !== null) { return sum + category.avgReplyTimeMinutes * category.repliedCount; } return sum; }, 0) / Math.max(stats.categoryStats.reduce((sum, category) => sum + category.repliedCount, 0), 1))} />
+        </div>
+        <div style={{ backgroundColor: theme.colors.background.paper, borderRadius: theme.borderRadius.lg, padding: theme.spacing.lg, border: `1px solid ${theme.colors.border.light}`, marginBottom: theme.spacing.xl }}>
+          <h2 style={{ ...theme.typography.heading.h6, color: theme.colors.text.primary, marginTop: 0, marginBottom: theme.spacing.md }}>{t('stats.emailsPerDay')}</h2>
+          {stats.dailyCounts.length > 0 ? <DailyChart dailyCounts={stats.dailyCounts} /> : <p style={{ color: theme.colors.text.tertiary, ...theme.typography.body.large }}>{t('stats.noData')}</p>}
+        </div>
+        <div style={{ backgroundColor: theme.colors.background.paper, borderRadius: theme.borderRadius.lg, padding: theme.spacing.lg, border: `1px solid ${theme.colors.border.light}` }}>
+          <h2 style={{ ...theme.typography.heading.h6, color: theme.colors.text.primary, marginTop: 0, marginBottom: theme.spacing.md }}>{t('stats.byCategory')}</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md, padding: `${theme.spacing.sm} 0`, borderBottom: `2px solid ${theme.colors.border.medium}` }}>
+            <div style={{ width: '160px', flexShrink: 0, ...theme.typography.body.medium, fontWeight: theme.typography.fontWeight.semibold, color: theme.colors.text.tertiary, textTransform: STRING_UPPERCASE }}>{t('stats.categoryHeader')}</div>
+            <div style={{ flex: 1, ...theme.typography.body.medium, fontWeight: theme.typography.fontWeight.semibold, color: theme.colors.text.tertiary, textTransform: STRING_UPPERCASE }}>{t('stats.emailsHeader')}</div>
+            <div style={{ width: '100px', textAlign: 'center', ...theme.typography.body.medium, fontWeight: theme.typography.fontWeight.semibold, color: theme.colors.text.tertiary, textTransform: STRING_UPPERCASE, flexShrink: 0 }}>{t('stats.avgReplyHeader')}</div>
+            <div style={{ width: '80px', textAlign: 'center', ...theme.typography.body.medium, fontWeight: theme.typography.fontWeight.semibold, color: theme.colors.text.tertiary, textTransform: STRING_UPPERCASE, flexShrink: 0 }}>{t('stats.repliedHeader')}</div>
+          </div>
+          {stats.categoryStats.length > 0 ? stats.categoryStats.map(stat => (<CategoryRow key={stat.category} stat={stat} maxEmails={maxEmails} />)) : <p style={{ color: theme.colors.text.tertiary, ...theme.typography.body.large, padding: theme.spacing.md }}>{t('stats.noData')}</p>}
+        </div>
+      </>
+    )}
+  </>
+);
+
 const Stats: React.FC = () => {
   const { t } = useTranslation();
   const { user, logout } = useAuth();
@@ -271,215 +337,16 @@ const Stats: React.FC = () => {
           </button>
         )}
 
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: theme.spacing.xl,
-        }}>
-          <h1 style={{
-            ...theme.typography.heading.h4,
-            color: theme.colors.text.primary,
-            margin: 0,
-          }}>
-            {t('stats.title')}
-          </h1>
-
-          <div style={{ display: 'flex', gap: theme.spacing.xs }}>
-            {PERIOD_OPTIONS.map(option => (
-              <button
-                key={option}
-                onClick={() => setDays(option)}
-                style={{
-                  padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                  borderRadius: theme.borderRadius.sm,
-                  border: `1px solid ${days === option ? theme.colors.primary.main : theme.colors.border.light}`,
-                  backgroundColor: days === option ? theme.colors.primary.main : 'transparent',
-                  color: days === option ? 'white' : theme.colors.text.secondary,
-                  cursor: 'pointer',
-                  ...theme.typography.body.large,
-                  fontWeight: days === option ? theme.typography.fontWeight.semibold : theme.typography.fontWeight.normal,
-                  transition: theme.transitions.fast,
-                }}
-              >
-                {t('stats.periodDays', { count: option })}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {loading && (
-          <div style={{
-            textAlign: 'center',
-            padding: theme.spacing.xl,
-            color: theme.colors.text.secondary,
-          }}>
-            {t('common.loading')}
-          </div>
-        )}
-
-        {error && (
-          <div style={{
-            textAlign: 'center',
-            padding: theme.spacing.xl,
-            color: theme.colors.error.main,
-          }}>
-            <p>{error}</p>
-            <button
-              onClick={refetch}
-              style={{
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                backgroundColor: theme.colors.primary.main,
-                color: COLOR_NAMED_WHITE,
-                border: STRING_NONE,
-                borderRadius: theme.borderRadius.md,
-                cursor: 'pointer',
-              }}
-            >
-              {t('common.retry')}
-            </button>
-          </div>
-        )}
-
-        {stats && !loading && (
-          <>
-            {/* Summary Cards */}
-            <div style={{
-              display: 'flex',
-              gap: theme.spacing.md,
-              marginBottom: theme.spacing.xl,
-              flexWrap: 'wrap',
-            }}>
-              <StatCard
-                label={t('stats.totalEmails')}
-                value={stats.totalEmails.toLocaleString()}
-                subtext={t('stats.periodDays', { count: stats.days })}
-              />
-              <StatCard
-                label={t('stats.avgPerDay')}
-                value={String(stats.avgEmailsPerDay)}
-              />
-              <StatCard
-                label={t('stats.categories')}
-                value={String(stats.categoryStats.length)}
-              />
-              <StatCard
-                label={t('stats.avgReplyTime')}
-                value={formatReplyTime(
-                  stats.categoryStats.reduce((sum, c) => {
-                    if (c.avgReplyTimeMinutes !== null) {
-                      return sum + c.avgReplyTimeMinutes * c.repliedCount;
-                    }
-                    return sum;
-                  }, 0) / Math.max(stats.categoryStats.reduce((sum, c) => sum + c.repliedCount, 0), 1),
-                )}
-              />
-            </div>
-
-            {/* Emails Per Day Chart */}
-            <div style={{
-              backgroundColor: theme.colors.background.paper,
-              borderRadius: theme.borderRadius.lg,
-              padding: theme.spacing.lg,
-              border: `1px solid ${theme.colors.border.light}`,
-              marginBottom: theme.spacing.xl,
-            }}>
-              <h2 style={{
-                ...theme.typography.heading.h6,
-                color: theme.colors.text.primary,
-                marginTop: 0,
-                marginBottom: theme.spacing.md,
-              }}>
-                {t('stats.emailsPerDay')}
-              </h2>
-              {stats.dailyCounts.length > 0 ? (
-                <DailyChart dailyCounts={stats.dailyCounts} />
-              ) : (
-                <p style={{ color: theme.colors.text.tertiary, ...theme.typography.body.large }}>
-                  {t('stats.noData')}
-                </p>
-              )}
-            </div>
-
-            {/* Category Breakdown */}
-            <div style={{
-              backgroundColor: theme.colors.background.paper,
-              borderRadius: theme.borderRadius.lg,
-              padding: theme.spacing.lg,
-              border: `1px solid ${theme.colors.border.light}`,
-            }}>
-              <h2 style={{
-                ...theme.typography.heading.h6,
-                color: theme.colors.text.primary,
-                marginTop: 0,
-                marginBottom: theme.spacing.md,
-              }}>
-                {t('stats.byCategory')}
-              </h2>
-
-              {/* Header Row */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: theme.spacing.md,
-                padding: `${theme.spacing.sm} 0`,
-                borderBottom: `2px solid ${theme.colors.border.medium}`,
-              }}>
-                <div style={{
-                  width: '160px',
-                  flexShrink: 0,
-                  ...theme.typography.body.medium,
-                  fontWeight: theme.typography.fontWeight.semibold,
-                  color: theme.colors.text.tertiary,
-                  textTransform: STRING_UPPERCASE,
-                }}>
-                  {t('stats.categoryHeader')}
-                </div>
-                <div style={{
-                  flex: 1,
-                  ...theme.typography.body.medium,
-                  fontWeight: theme.typography.fontWeight.semibold,
-                  color: theme.colors.text.tertiary,
-                  textTransform: STRING_UPPERCASE,
-                }}>
-                  {t('stats.emailsHeader')}
-                </div>
-                <div style={{
-                  width: '100px',
-                  textAlign: 'center',
-                  ...theme.typography.body.medium,
-                  fontWeight: theme.typography.fontWeight.semibold,
-                  color: theme.colors.text.tertiary,
-                  textTransform: STRING_UPPERCASE,
-                  flexShrink: 0,
-                }}>
-                  {t('stats.avgReplyHeader')}
-                </div>
-                <div style={{
-                  width: '80px',
-                  textAlign: 'center',
-                  ...theme.typography.body.medium,
-                  fontWeight: theme.typography.fontWeight.semibold,
-                  color: theme.colors.text.tertiary,
-                  textTransform: STRING_UPPERCASE,
-                  flexShrink: 0,
-                }}>
-                  {t('stats.repliedHeader')}
-                </div>
-              </div>
-
-              {stats.categoryStats.length > 0 ? (
-                stats.categoryStats.map(stat => (
-                  <CategoryRow key={stat.category} stat={stat} maxEmails={maxEmails} />
-                ))
-              ) : (
-                <p style={{ color: theme.colors.text.tertiary, ...theme.typography.body.large, padding: theme.spacing.md }}>
-                  {t('stats.noData')}
-                </p>
-              )}
-            </div>
-          </>
-        )}
+        <StatsBodyContent
+          stats={stats}
+          loading={loading}
+          error={error}
+          refetch={refetch}
+          days={days}
+          setDays={setDays}
+          maxEmails={maxEmails}
+          t={t}
+        />
       </div>
     </div>
   );

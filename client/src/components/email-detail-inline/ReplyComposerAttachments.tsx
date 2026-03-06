@@ -78,77 +78,31 @@ export const ReplyComposerAttachments: React.FC<ReplyComposerAttachmentsProps> =
           gap: theme.spacing.xs,
         }}
       >
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         <span>📎</span>
         <span>{t('emailDetail.attachFiles')}</span>
       </button>
 
       {files.length > 0 && (
         <div style={{ marginTop: theme.spacing.sm, display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}>
-          {files.map((file) => (
-            <div
-              key={file.name}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: theme.spacing.sm,
-                padding: theme.spacing.xs,
-                backgroundColor: theme.colors.background.default,
-                border: `1px solid ${theme.colors.border.light}`,
-                borderRadius: theme.borderRadius.sm,
-                fontSize: theme.typography.fontSize.sm,
-              }}
-            >
-              {/* eslint-disable-next-line i18next/no-literal-string */}
-              <span>📎</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    color: theme.colors.text.primary,
-                  }}
-                >
-                  {file.name}
-                </div>
-                <div
-                  style={{
-                    fontSize: theme.typography.fontSize.xs,
-                    color: theme.colors.text.secondary,
-                    marginTop: theme.spacing.xs,
-                  }}
-                >
-                  {formatFileSize(file.size)}
-                </div>
-              </div>
-              {/* eslint-disable i18next/no-literal-string */}
-              <button
-                type="button"
-                onClick={() => handleRemoveFile(index)}
-                style={{
-                  padding: `${theme.spacing.xs} ${theme.spacing.xs}`,
-                  backgroundColor: COLOR_TRANSPARENT,
-                  color: theme.colors.text.secondary,
-                  border: STRING_NONE,
-                  borderRadius: theme.borderRadius.sm,
-                  cursor: 'pointer',
-                  fontSize: theme.typography.fontSize.sm,
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = theme.colors.error.main;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = theme.colors.text.secondary;
-                }}
-              >
-                ✕
-              </button>
-              {/* eslint-enable i18next/no-literal-string */}
-            </div>
+          {files.map((file, index) => (
+            <AttachmentFileItem key={file.name} file={file} onRemove={() => handleRemoveFile(index)} />
           ))}
         </div>
       )}
+    </div>
+  );
+};
+
+const AttachmentFileItem: React.FC<{ file: File; onRemove: () => void }> = ({ file, onRemove }) => {
+  const { t } = useTranslation();
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, padding: theme.spacing.xs, backgroundColor: theme.colors.background.default, border: `1px solid ${theme.colors.border.light}`, borderRadius: theme.borderRadius.sm, fontSize: theme.typography.fontSize.sm }}>
+      <span>📎</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: theme.colors.text.primary }}>{file.name}</div>
+        <div style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary, marginTop: theme.spacing.xs }}>{formatFileSize(file.size)}</div>
+      </div>
+      <button type="button" onClick={onRemove} style={{ padding: `${theme.spacing.xs} ${theme.spacing.xs}`, backgroundColor: COLOR_TRANSPARENT, color: theme.colors.text.secondary, border: STRING_NONE, borderRadius: theme.borderRadius.sm, cursor: 'pointer', fontSize: theme.typography.fontSize.sm }} onMouseEnter={(e) => { e.currentTarget.style.color = theme.colors.error.main; }} onMouseLeave={(e) => { e.currentTarget.style.color = theme.colors.text.secondary; }} aria-label={t('common.remove')}>{'\u2715'}</button>
     </div>
   );
 };

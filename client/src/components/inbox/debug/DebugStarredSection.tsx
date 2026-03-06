@@ -23,6 +23,7 @@ interface DebugStarredSectionProps {
  * Debug starred section component
  * Displays starred threads debug information
  */
+// eslint-disable-next-line max-lines-per-function -- debug-only component with inline admin UI
 export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
   debugStarredData,
   loadingDebugData,
@@ -38,35 +39,16 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
 
   return (
     <div
-      style={{
-        marginBottom: theme.spacing.lg,
-        padding: theme.spacing.md,
-        backgroundColor: COLOR_WHITE,
-        borderRadius: theme.borderRadius.md,
-      }}
+      style={{ marginBottom: theme.spacing.lg, padding: theme.spacing.md, backgroundColor: COLOR_WHITE, borderRadius: theme.borderRadius.md, }}
     >
       <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: theme.spacing.md,
-          marginBottom: theme.spacing.md,
-        }}
+        style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md, marginBottom: theme.spacing.md, }}
       >
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         <h4 style={{ margin: 0 }}>{EMOJI_SEARCH} {t('debug.starred.title')}</h4>
         <button
           onClick={handleCheckStarredSync}
           disabled={loadingDebugData}
-          style={{
-            padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-            backgroundColor: theme.colors.primary.main,
-            color: COLOR_NAMED_WHITE,
-            border: STRING_NONE,
-            borderRadius: theme.borderRadius.sm,
-            cursor: loadingDebugData ? 'not-allowed' : 'pointer',
-            opacity: loadingDebugData ? OPACITY_DISABLED : OPACITY_FULL,
-          }}
+          style={{ padding: `${theme.spacing.xs} ${theme.spacing.md}`, backgroundColor: theme.colors.primary.main, color: COLOR_NAMED_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.sm, cursor: loadingDebugData ? 'not-allowed' : 'pointer', opacity: loadingDebugData ? OPACITY_DISABLED : OPACITY_FULL, }}
         >
           {loadingDebugData ? t('common.loading') : 'Check starred sync'}
         </button>
@@ -90,27 +72,11 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
 
       {showSyncPopup && debugStarredData && (
         <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: theme.colors.overlay.darkLight,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 1000,
-          }}
+          style={{ position: 'fixed', inset: 0, backgroundColor: theme.colors.overlay.darkLight, display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, }}
           onClick={() => setShowSyncPopup(false)}
         >
           <div
-            style={{
-              backgroundColor: COLOR_WHITE,
-              borderRadius: theme.borderRadius.md,
-              padding: theme.spacing.md,
-              maxWidth: 900,
-              width: '90%',
-              maxHeight: '80vh',
-              overflowY: 'auto',
-            }}
+            style={{ backgroundColor: COLOR_WHITE, borderRadius: theme.borderRadius.md, padding: theme.spacing.md, maxWidth: 900, width: '90%', maxHeight: '80vh', overflowY: 'auto', }}
             onClick={(event) => event.stopPropagation()}
           >
             <h4 style={{ marginTop: 0 }}>Starred Sync Check Results</h4>
@@ -158,15 +124,7 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
                     } catch (error) {
                       alert(`Error fixing stale unsynced threads: ${error}`);                    }
                   }}
-                  style={{
-                    padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                    backgroundColor: theme.colors.warning?.main || '#ff9800',
-                    color: COLOR_WHITE,
-                    border: STRING_NONE,
-                    borderRadius: theme.borderRadius.sm,
-                    cursor: 'pointer',
-                    marginBottom: theme.spacing.sm,
-                  }}
+                  style={{ padding: `${theme.spacing.xs} ${theme.spacing.md}`, backgroundColor: theme.colors.warning?.main || '#ff9800', color: COLOR_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.sm, cursor: 'pointer', marginBottom: theme.spacing.sm, }}
                 >
                   Fix Stale Unsynced Threads
                 </button>
@@ -177,14 +135,7 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
 
             <button
               onClick={() => setShowSyncPopup(false)}
-              style={{
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                backgroundColor: theme.colors.primary.main,
-                color: COLOR_WHITE,
-                border: STRING_NONE,
-                borderRadius: theme.borderRadius.sm,
-                cursor: 'pointer',
-              }}
+              style={{ padding: `${theme.spacing.xs} ${theme.spacing.md}`, backgroundColor: theme.colors.primary.main, color: COLOR_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.sm, cursor: 'pointer', }}
             >
               Close
             </button>

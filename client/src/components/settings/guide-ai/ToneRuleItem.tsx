@@ -52,39 +52,18 @@ export const ToneRuleItem: React.FC<ToneRuleItemProps> = ({ rule, index, onRemov
           onChange={(e) => setEditValue(e.target.value)}
           onKeyDown={handleKeyDown}
           autoFocus
-          style={{
-            flex: 1,
-            padding: theme.spacing.xs,
-            border: `1px solid ${theme.colors.border.medium}`,
-            borderRadius: theme.borderRadius.sm,
-            fontSize: theme.typography.fontSize.sm,
-          }}
+          style={{ flex: 1, padding: theme.spacing.xs, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.sm, fontSize: theme.typography.fontSize.sm, }}
         />
         <button
           onClick={handleSaveEdit}
           disabled={!editValue.trim()}
-          style={{
-            background: theme.colors.primary.main,
-            color: COLOR_NAMED_WHITE,
-            border: STRING_NONE,
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            borderRadius: theme.borderRadius.sm,
-            cursor: editValue.trim() ? 'pointer' : 'not-allowed',
-            fontSize: theme.typography.fontSize.sm,
-          }}
+          style={{ background: theme.colors.primary.main, color: COLOR_NAMED_WHITE, border: STRING_NONE, padding: `${theme.spacing.xs} ${theme.spacing.sm}`, borderRadius: theme.borderRadius.sm, cursor: editValue.trim() ? 'pointer' : 'not-allowed', fontSize: theme.typography.fontSize.sm, }}
         >
           {t('common.save')}
         </button>
         <button
           onClick={handleCancelEdit}
-          style={{
-            background: 'transparent',
-            border: `1px solid ${theme.colors.border.medium}`,
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            borderRadius: theme.borderRadius.sm,
-            cursor: 'pointer',
-            fontSize: theme.typography.fontSize.sm,
-          }}
+          style={{ background: 'transparent', border: `1px solid ${theme.colors.border.medium}`, padding: `${theme.spacing.xs} ${theme.spacing.sm}`, borderRadius: theme.borderRadius.sm, cursor: 'pointer', fontSize: theme.typography.fontSize.sm, }}
         >
           {t('common.cancel')}
         </button>
@@ -94,26 +73,14 @@ export const ToneRuleItem: React.FC<ToneRuleItemProps> = ({ rule, index, onRemov
 
   return (
     <div key={`${displayRule}-${emailId || index}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: theme.spacing.sm, border: `1px solid ${theme.colors.border.light}`, borderRadius: theme.borderRadius.md }}>
-      <span style={{
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-        flex: 1,
-        minWidth: 0,
-      }}>
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0, }}>
         {displayRule}
         {emailId && (
           <a 
             href={`/email/${emailId}`}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ 
-              marginLeft: theme.spacing.xs, 
-              color: theme.colors.primary.main,
-              fontSize: '0.85em',
-              textDecoration: 'none',
-              whiteSpace: 'nowrap',
-            }}
+            style={{ marginLeft: theme.spacing.xs, color: theme.colors.primary.main, fontSize: '0.85em', textDecoration: 'none', whiteSpace: 'nowrap', }}
             onClick={(e) => {
               e.stopPropagation();
             }}
@@ -126,12 +93,7 @@ export const ToneRuleItem: React.FC<ToneRuleItemProps> = ({ rule, index, onRemov
         {onEdit && (
           <button
             onClick={() => setIsEditing(true)}
-            style={{
-              background: 'transparent',
-              border: STRING_NONE,
-              color: theme.colors.primary.main,
-              cursor: 'pointer',
-            }}
+            style={{ background: 'transparent', border: STRING_NONE, color: theme.colors.primary.main, cursor: 'pointer', }}
           >
             {t('common.edit')}
           </button>
@@ -141,12 +103,7 @@ export const ToneRuleItem: React.FC<ToneRuleItemProps> = ({ rule, index, onRemov
             captureEvent('tone_rule_removed');
             onRemove();
           }}
-          style={{
-            background: 'transparent',
-            border: STRING_NONE,
-            color: theme.colors.accent.error,
-            cursor: 'pointer',
-          }}
+          style={{ background: 'transparent', border: STRING_NONE, color: theme.colors.accent.error, cursor: 'pointer', }}
         >
           {t('common.remove')}
         </button>

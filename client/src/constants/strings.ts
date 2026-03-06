@@ -390,3 +390,10 @@ export const STRING_WON = 'won' as const;
 export const STRING_LOST = 'lost' as const;
 
 export const STRING_STALE = 'stale' as const;
+
+// Error type keys for context analysis
+export const ERROR_TYPE_RATE_LIMIT    = 'rate_limit'    as const;
+export const ERROR_TYPE_TIMEOUT       = 'timeout'       as const;
+export const ERROR_TYPE_TOKEN_LIMIT   = 'token_limit'   as const;
+export const ERROR_TYPE_PARSE_ERROR   = 'parse_error'   as const;
+export const ERROR_TYPE_NETWORK_ERROR = 'network_error' as const;

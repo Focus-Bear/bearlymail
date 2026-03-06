@@ -5,9 +5,7 @@ import { theme } from 'theme/theme';
 import { COLOR_TRANSPARENT } from 'constants/colors';
 import { FILTER_ALL } from 'constants/strings';
 import type { ConnectedAccount,InboxFilter } from 'hooks/useInboxFilters';
-import {
-  PRIORITY_RANGES,
-} from 'hooks/useInboxFilters';
+import { PRIORITY_RANGES, } from 'hooks/useInboxFilters';
 
 interface InboxFiltersProps {
   onFilterChange?: () => void;
@@ -34,6 +32,42 @@ interface MultiSelectDropdownProps {
   emptyMessage?: string;
 }
 
+interface MultiSelectDropdownPanelProps {
+  searchable: boolean; searchTerm: string; setSearchTerm: (v: string) => void;
+  searchInputRef: React.RefObject<HTMLInputElement | null>;
+  filteredOptions: Array<{ id: string; label: string }>; selectedIds: string[];
+  handleToggle: (id: string) => void; emptyMessage: string;
+}
+
+const MultiSelectDropdownPanel: React.FC<MultiSelectDropdownPanelProps> = ({
+  searchable, searchTerm, setSearchTerm, searchInputRef, filteredOptions, selectedIds, handleToggle, emptyMessage,
+}) => (
+  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: theme.spacing.xs, maxHeight: '280px', backgroundColor: theme.colors.background.paper, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, boxShadow: theme.shadows.lg, zIndex: 1000, display: 'flex', flexDirection: 'column' }}>
+    {searchable && (
+      <div style={{ padding: theme.spacing.sm, borderBottom: `1px solid ${theme.colors.border.light}` }}>
+        <input ref={searchInputRef} type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search..."
+          style={{ width: '100%', padding: `${theme.spacing.xs} ${theme.spacing.sm}`, fontSize: theme.typography.fontSize.lg, borderRadius: theme.borderRadius.sm, border: `1px solid ${theme.colors.border.light}`, backgroundColor: theme.colors.background.default, color: theme.colors.text.primary, outline: 'none' }} />
+      </div>
+    )}
+    <div style={{ overflowY: 'auto', maxHeight: '220px' }}>
+      {filteredOptions.length === 0 ? (
+        <div style={{ padding: theme.spacing.md, fontSize: theme.typography.fontSize.lg, color: theme.colors.text.tertiary, textAlign: 'center' }}>{emptyMessage}</div>
+      ) : filteredOptions.map((option) => {
+        const isSelected = selectedIds.includes(option.id);
+        return (
+          <label key={option.id}
+            style={{ display: 'flex', alignItems: 'center', padding: `${theme.spacing.sm} ${theme.spacing.md}`, cursor: 'pointer', backgroundColor: isSelected ? theme.colors.background.subtle : 'transparent', transition: theme.transitions.fast }}
+            onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = theme.colors.background.subtle; }}
+            onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = COLOR_TRANSPARENT; }}>
+            <input type="checkbox" checked={isSelected} onChange={() => handleToggle(option.id)} style={{ marginRight: theme.spacing.sm, cursor: 'pointer', width: '16px', height: '16px', accentColor: theme.colors.primary.main }} />
+            <span style={{ fontSize: theme.typography.fontSize.lg, color: theme.colors.text.primary }}>{option.label}</span>
+          </label>
+        );
+      })}
+    </div>
+  </div>
+);
+
 const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   label,
   options,
@@ -59,10 +93,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
       if (
         dropdownRef.current &&
         !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-        setSearchTerm('');
-      }
+      ) { setIsOpen(false); setSearchTerm(''); }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -93,143 +124,20 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   return (
     <div ref={dropdownRef} style={{ position: 'relative', minWidth: '200px', flex: '1' }}>
       <label
-        style={{
-          display: 'block',
-          marginBottom: theme.spacing.xs,
-          fontSize: theme.typography.fontSize.sm,
-          color: theme.colors.text.secondary,
-          fontWeight: theme.typography.fontWeight.medium,
-        }}
+        style={{ display: 'block', marginBottom: theme.spacing.xs, fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary, fontWeight: theme.typography.fontWeight.medium, }}
       >
         {label}
       </label>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        style={{
-          width: '100%',
-          padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-          fontSize: theme.typography.fontSize.lg,
-          borderRadius: theme.borderRadius.md,
-          border: `1px solid ${theme.colors.border.medium}`,
-          backgroundColor: theme.colors.background.paper,
-          color: selectedCount > 0 ? theme.colors.text.primary : theme.colors.text.tertiary,
-          cursor: 'pointer',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          transition: theme.transitions.fast,
-          textAlign: 'left',
-        }}
+        style={{ width: '100%', padding: `${theme.spacing.sm} ${theme.spacing.md}`, fontSize: theme.typography.fontSize.lg, borderRadius: theme.borderRadius.md, border: `1px solid ${theme.colors.border.medium}`, backgroundColor: theme.colors.background.paper, color: selectedCount > 0 ? theme.colors.text.primary : theme.colors.text.tertiary, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: theme.transitions.fast, textAlign: 'left', }}
       >
         <span>{displayText}</span>
         <span style={{ color: theme.colors.text.tertiary }}>{isOpen ? '▲' : '▼'}</span>
       </button>
 
-      {isOpen && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            right: 0,
-            marginTop: theme.spacing.xs,
-            maxHeight: '280px',
-            backgroundColor: theme.colors.background.paper,
-            border: `1px solid ${theme.colors.border.medium}`,
-            borderRadius: theme.borderRadius.md,
-            boxShadow: theme.shadows.lg,
-            zIndex: 1000,
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          {searchable && (
-            <div style={{ padding: theme.spacing.sm, borderBottom: `1px solid ${theme.colors.border.light}` }}>
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search..."
-                style={{
-                  width: '100%',
-                  padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                  fontSize: theme.typography.fontSize.lg,
-                  borderRadius: theme.borderRadius.sm,
-                  border: `1px solid ${theme.colors.border.light}`,
-                  backgroundColor: theme.colors.background.default,
-                  color: theme.colors.text.primary,
-                  outline: 'none',
-                }}
-              />
-            </div>
-          )}
-
-          <div style={{ overflowY: 'auto', maxHeight: '220px' }}>
-            {filteredOptions.length === 0 ? (
-              <div
-                style={{
-                  padding: theme.spacing.md,
-                  fontSize: theme.typography.fontSize.lg,
-                  color: theme.colors.text.tertiary,
-                  textAlign: 'center',
-                }}
-              >
-                {emptyMessage}
-              </div>
-            ) : (
-              filteredOptions.map((option) => {
-                const isSelected = selectedIds.includes(option.id);
-                return (
-                  <label
-                    key={option.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                      cursor: 'pointer',
-                      backgroundColor: isSelected ? theme.colors.background.subtle : 'transparent',
-                      transition: theme.transitions.fast,
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isSelected) {
-                        e.currentTarget.style.backgroundColor = theme.colors.background.subtle;
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isSelected) {
-                        e.currentTarget.style.backgroundColor = COLOR_TRANSPARENT;
-                      }
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => handleToggle(option.id)}
-                      style={{
-                        marginRight: theme.spacing.sm,
-                        cursor: 'pointer',
-                        width: '16px',
-                        height: '16px',
-                        accentColor: theme.colors.primary.main,
-                      }}
-                    />
-                    <span
-                      style={{
-                        fontSize: theme.typography.fontSize.lg,
-                        color: theme.colors.text.primary,
-                      }}
-                    >
-                      {option.label}
-                    </span>
-                  </label>
-                );
-              })
-            )}
-          </div>
-        </div>
-      )}
+      {isOpen && <MultiSelectDropdownPanel searchable={searchable} searchTerm={searchTerm} setSearchTerm={setSearchTerm} searchInputRef={searchInputRef} filteredOptions={filteredOptions} selectedIds={selectedIds} handleToggle={handleToggle} emptyMessage={emptyMessage} />}
     </div>
   );
 };
@@ -256,9 +164,7 @@ const SingleSelectDropdown: React.FC<SingleSelectDropdownProps> = ({
       if (
         dropdownRef.current &&
         !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-      }
+      ) { setIsOpen(false); }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -273,34 +179,14 @@ const SingleSelectDropdown: React.FC<SingleSelectDropdownProps> = ({
   return (
     <div ref={dropdownRef} style={{ position: 'relative', minWidth: '180px', flex: '1' }}>
       <label
-        style={{
-          display: 'block',
-          marginBottom: theme.spacing.xs,
-          fontSize: theme.typography.fontSize.sm,
-          color: theme.colors.text.secondary,
-          fontWeight: theme.typography.fontWeight.medium,
-        }}
+        style={{ display: 'block', marginBottom: theme.spacing.xs, fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary, fontWeight: theme.typography.fontWeight.medium, }}
       >
         {label}
       </label>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        style={{
-          width: '100%',
-          padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-          fontSize: theme.typography.fontSize.lg,
-          borderRadius: theme.borderRadius.md,
-          border: `1px solid ${theme.colors.border.medium}`,
-          backgroundColor: theme.colors.background.paper,
-          color: theme.colors.text.primary,
-          cursor: 'pointer',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          transition: theme.transitions.fast,
-          textAlign: 'left',
-        }}
+        style={{ width: '100%', padding: `${theme.spacing.sm} ${theme.spacing.md}`, fontSize: theme.typography.fontSize.lg, borderRadius: theme.borderRadius.md, border: `1px solid ${theme.colors.border.medium}`, backgroundColor: theme.colors.background.paper, color: theme.colors.text.primary, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: theme.transitions.fast, textAlign: 'left', }}
       >
         <span>{displayText}</span>
         <span style={{ color: theme.colors.text.tertiary }}>{isOpen ? '▲' : '▼'}</span>
@@ -308,20 +194,7 @@ const SingleSelectDropdown: React.FC<SingleSelectDropdownProps> = ({
 
       {isOpen && (
         <div
-          style={{
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            right: 0,
-            marginTop: theme.spacing.xs,
-            maxHeight: '280px',
-            overflowY: 'auto',
-            backgroundColor: theme.colors.background.paper,
-            border: `1px solid ${theme.colors.border.medium}`,
-            borderRadius: theme.borderRadius.md,
-            boxShadow: theme.shadows.lg,
-            zIndex: 1000,
-          }}
+          style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: theme.spacing.xs, maxHeight: '280px', overflowY: 'auto', backgroundColor: theme.colors.background.paper, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, boxShadow: theme.shadows.lg, zIndex: 1000, }}
         >
           {options.map((option) => {
             const isSelected = option.value === selectedValue;
@@ -332,14 +205,7 @@ const SingleSelectDropdown: React.FC<SingleSelectDropdownProps> = ({
                   onChange(option.value === FILTER_ALL ? null : Number(option.value));
                   setIsOpen(false);
                 }}
-                style={{
-                  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                  cursor: 'pointer',
-                  backgroundColor: isSelected ? theme.colors.background.subtle : 'transparent',
-                  fontSize: theme.typography.fontSize.lg,
-                  color: theme.colors.text.primary,
-                  transition: theme.transitions.fast,
-                }}
+                style={{ padding: `${theme.spacing.sm} ${theme.spacing.md}`, cursor: 'pointer', backgroundColor: isSelected ? theme.colors.background.subtle : 'transparent', fontSize: theme.typography.fontSize.lg, color: theme.colors.text.primary, transition: theme.transitions.fast, }}
                 onMouseEnter={(e) => {
                   if (!isSelected) {
                     e.currentTarget.style.backgroundColor = theme.colors.background.subtle;
@@ -412,14 +278,7 @@ export const InboxFilters: React.FC<InboxFiltersProps> = ({
 
   return (
     <div
-      style={{
-        display: 'flex',
-        gap: theme.spacing.md,
-        flexWrap: 'wrap',
-        padding: theme.spacing.md,
-        backgroundColor: theme.colors.background.paper,
-        borderBottom: `1px solid ${theme.colors.border.light}`,
-      }}
+      style={{ display: 'flex', gap: theme.spacing.md, flexWrap: 'wrap', padding: theme.spacing.md, backgroundColor: theme.colors.background.paper, borderBottom: `1px solid ${theme.colors.border.light}`, }}
     >
       {/* Account Filter - only show if more than 1 account */}
       {showAccountFilter && !loadingAccounts && (

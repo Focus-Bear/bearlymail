@@ -23,7 +23,6 @@ interface VisibilityPanelProps {
   };
 }
 
-/* eslint-disable i18next/no-literal-string */
 const VisibilityPanel: React.FC<VisibilityPanelProps> = ({ visibility }) => {
   const { t } = useTranslation();
   const yesColor = '#2E7D32';
@@ -49,7 +48,6 @@ const VisibilityPanel: React.FC<VisibilityPanelProps> = ({ visibility }) => {
 /* eslint-enable i18next/no-literal-string */
 
 
-/* eslint-disable i18next/no-literal-string */
 interface GmailApiResult {
   foundInGmailApi: boolean;
   apiThreadId?: string;
@@ -83,7 +81,7 @@ const GmailApiResultPanel: React.FC<{ gmailApiResult: GmailApiResult }> = ({ gma
   );
 };
 /* eslint-enable i18next/no-literal-string */
-
+// eslint-disable-next-line max-lines-per-function -- debug lookup panel
 export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> = ({
   threadLookupResult,
   loadingThreadLookup,
@@ -101,22 +99,11 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
 
   return (
     <div
-      style={{
-        marginBottom: theme.spacing.lg,
-        padding: theme.spacing.md,
-        backgroundColor: COLOR_WHITE,
-        borderRadius: theme.borderRadius.md,
-      }}
+      style={{ marginBottom: theme.spacing.lg, padding: theme.spacing.md, backgroundColor: COLOR_WHITE, borderRadius: theme.borderRadius.md, }}
     >
       <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: theme.spacing.md,
-          marginBottom: theme.spacing.md,
-        }}
+        style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md, marginBottom: theme.spacing.md, }}
       >
-        {/* eslint-disable-next-line i18next/no-literal-string */}
         <h4 style={{ margin: 0 }}>{EMOJI_SEARCH} {t('debug.threadLookup.sectionTitle')}</h4>
       </div>
 
@@ -127,27 +114,12 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
             value={threadIdInput}
             onChange={(e) => setThreadIdInput(e.target.value)}
             placeholder={t('debug.threadLookup.placeholder')}
-            style={{
-              flex: 1,
-              padding: theme.spacing.sm,
-              border: `1px solid ${theme.colors.border.light}`,
-              borderRadius: theme.borderRadius.sm,
-              fontFamily: 'monospace',
-              fontSize: theme.typography.fontSize.sm,
-            }}
+            style={{ flex: 1, padding: theme.spacing.sm, border: `1px solid ${theme.colors.border.light}`, borderRadius: theme.borderRadius.sm, fontFamily: 'monospace', fontSize: theme.typography.fontSize.sm, }}
           />
           <button
             type="submit"
             disabled={loadingThreadLookup || !threadIdInput.trim()}
-            style={{
-              padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-              backgroundColor: theme.colors.primary.main,
-              color: COLOR_NAMED_WHITE,
-              border: STRING_NONE,
-              borderRadius: theme.borderRadius.sm,
-              cursor: loadingThreadLookup || !threadIdInput.trim() ? 'not-allowed' : 'pointer',
-              opacity: loadingThreadLookup || !threadIdInput.trim() ? OPACITY_DISABLED : OPACITY_FULL,
-            }}
+            style={{ padding: `${theme.spacing.sm} ${theme.spacing.md}`, backgroundColor: theme.colors.primary.main, color: COLOR_NAMED_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.sm, cursor: loadingThreadLookup || !threadIdInput.trim() ? 'not-allowed' : 'pointer', opacity: loadingThreadLookup || !threadIdInput.trim() ? OPACITY_DISABLED : OPACITY_FULL, }}
           >
             {loadingThreadLookup ? t('common.loading') : t('debug.threadLookup.lookupButton')}
           </button>
@@ -156,15 +128,9 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
 
       {threadLookupResult && (
         <div
-          style={{
-            backgroundColor: threadLookupResult.found ? '#E8F5E9' : '#FFEBEE',
-            padding: theme.spacing.md,
-            borderRadius: theme.borderRadius.sm,
-            border: `1px solid ${threadLookupResult.found ? '#A5D6A7' : '#EF9A9A'}`,
-          }}
+          style={{ backgroundColor: threadLookupResult.found ? '#E8F5E9' : '#FFEBEE', padding: theme.spacing.md, borderRadius: theme.borderRadius.sm, border: `1px solid ${threadLookupResult.found ? '#A5D6A7' : '#EF9A9A'}`, }}
         >
           <div style={{ marginBottom: theme.spacing.md }}>
-            {/* eslint-disable-next-line i18next/no-literal-string */}
             <strong>{t('debug.threadLookup.threadId')}:</strong>{' '}
             <code style={{ backgroundColor: COLOR_BG_NEUTRAL, padding: '2px 4px', borderRadius: '3px' }}>
               {threadLookupResult.threadId}
@@ -172,7 +138,6 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
           </div>
 
           <div style={{ marginBottom: theme.spacing.md }}>
-            {/* eslint-disable-next-line i18next/no-literal-string */}
             <strong>{t('debug.threadLookup.status')}:</strong>{' '}
             {threadLookupResult.found ? (
               <span style={{ color: COLOR_SUCCESS_DARK }}>{t('debug.threadLookup.found')}</span>
@@ -183,23 +148,13 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
 
           {threadLookupResult.thread && (
             <div
-              style={{
-                marginBottom: theme.spacing.md,
-                padding: theme.spacing.sm,
-                backgroundColor: COLOR_BG_NEUTRAL,
-                borderRadius: theme.borderRadius.sm,
-              }}
+              style={{ marginBottom: theme.spacing.md, padding: theme.spacing.sm, backgroundColor: COLOR_BG_NEUTRAL, borderRadius: theme.borderRadius.sm, }}
             >
-              {/* eslint-disable-next-line i18next/no-literal-string */}
               <strong>{t('debug.threadLookup.threadDetails')}:</strong>
               <ul style={{ margin: `${theme.spacing.xs} 0 0 0`, paddingLeft: theme.spacing.lg }}>
-                {/* eslint-disable-next-line i18next/no-literal-string */}
                 <li>Star Count: {threadLookupResult.thread.starCount}</li>
-                {/* eslint-disable-next-line i18next/no-literal-string */}
                 <li>Archived: {threadLookupResult.thread.isArchived ? 'Yes' : 'No'}</li>
-                {/* eslint-disable-next-line i18next/no-literal-string */}
                 <li>Priority Score: {threadLookupResult.thread.priorityScore ?? 'N/A'}</li>
-                {/* eslint-disable-next-line i18next/no-literal-string */}
                 <li>Updated At: {new Date(threadLookupResult.thread.updatedAt).toLocaleString()}</li>
               </ul>
             </div>
@@ -208,16 +163,9 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
           <VisibilityPanel visibility={threadLookupResult.visibility} />
 
           <div style={{ marginBottom: theme.spacing.md }}>
-            {/* eslint-disable-next-line i18next/no-literal-string */}
             <strong>{t('debug.threadLookup.reasons')}:</strong>
             <ul
-              style={{
-                margin: `${theme.spacing.xs} 0 0 0`,
-                paddingLeft: theme.spacing.lg,
-                backgroundColor: COLOR_BG_WARNING,
-                padding: theme.spacing.sm,
-                borderRadius: theme.borderRadius.sm,
-              }}
+              style={{ margin: `${theme.spacing.xs} 0 0 0`, paddingLeft: theme.spacing.lg, backgroundColor: COLOR_BG_WARNING, padding: theme.spacing.sm, borderRadius: theme.borderRadius.sm, }}
             >
               {threadLookupResult.reasons.map((reason) => (
                 <li key={reason} style={{ marginBottom: theme.spacing.xs }}>
@@ -229,47 +177,31 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
 
           {threadLookupResult.emails.length > 0 && (
             <div>
-              {/* eslint-disable-next-line i18next/no-literal-string */}
               <strong>{t('debug.threadLookup.emails')} ({threadLookupResult.emails.length}):</strong>
               <div
-                style={{
-                  marginTop: theme.spacing.xs,
-                  maxHeight: '200px',
-                  overflowY: 'auto',
-                  fontSize: theme.typography.fontSize.xs,
-                }}
+                style={{ marginTop: theme.spacing.xs, maxHeight: '200px', overflowY: 'auto', fontSize: theme.typography.fontSize.xs, }}
               >
                 {threadLookupResult.emails.map((email) => (
                   <div
                     key={email.id}
-                    style={{
-                      padding: theme.spacing.xs,
-                      backgroundColor: COLOR_BG_NEUTRAL,
-                      marginBottom: theme.spacing.xs,
-                      borderRadius: theme.borderRadius.sm,
-                    }}
+                    style={{ padding: theme.spacing.xs, backgroundColor: COLOR_BG_NEUTRAL, marginBottom: theme.spacing.xs, borderRadius: theme.borderRadius.sm, }}
                   >
                     <div>
-                      {/* eslint-disable-next-line i18next/no-literal-string */}
                       <strong>Subject:</strong> {email.subject || '(no subject)'}
                     </div>
                     <div>
-                      {/* eslint-disable-next-line i18next/no-literal-string */}
                       <strong>From:</strong> {email.from}
                     </div>
                     <div>
-                      {/* eslint-disable-next-line i18next/no-literal-string */}
                       <strong>Received:</strong> {new Date(email.receivedAt).toLocaleString()}
                     </div>
                     {email.isSnoozed && (
                       <div style={{ color: COLOR_WARNING_DARK }}>
-                        {/* eslint-disable-next-line i18next/no-literal-string */}
                         Snoozed until: {email.snoozeUntil ? new Date(email.snoozeUntil).toLocaleString() : 'N/A'}
                       </div>
                     )}
                     {email.isBatched && (
                       <div style={{ color: COLOR_INFO_VIOLET }}>
-                        {/* eslint-disable-next-line i18next/no-literal-string */}
                         Batched until: {email.batchReleaseAt ? new Date(email.batchReleaseAt).toLocaleString() : 'N/A'}
                       </div>
                     )}

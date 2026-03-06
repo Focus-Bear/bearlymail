@@ -56,17 +56,7 @@ export const BatchInfoBar: React.FC<BatchInfoBarProps> = ({
 
   return (
     <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: theme.spacing.xs,
-        padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-        backgroundColor: theme.colors.background.subtle,
-        borderRadius: theme.borderRadius.md,
-        marginBottom: theme.spacing.md,
-        fontSize: theme.typography.fontSize.sm,
-        color: theme.colors.text.secondary,
-      }}
+      style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs, padding: `${theme.spacing.sm} ${theme.spacing.md}`, backgroundColor: theme.colors.background.subtle, borderRadius: theme.borderRadius.md, marginBottom: theme.spacing.md, fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary, }}
     >
       {/* Next batch delivery */}
       {nextDeliveryText && (
@@ -82,23 +72,7 @@ export const BatchInfoBar: React.FC<BatchInfoBarProps> = ({
             {EMOJI_INFO}
             {showDeliveryTooltip && (
               <div
-                style={{
-                  position: 'absolute',
-                  top: '100%',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  marginTop: theme.spacing.xs,
-                  padding: theme.spacing.sm,
-                  backgroundColor: theme.colors.background.paper,
-                  border: `1px solid ${theme.colors.border.light}`,
-                  borderRadius: theme.borderRadius.md,
-                  boxShadow: theme.shadows.md,
-                  width: '280px',
-                  zIndex: 1000,
-                  fontSize: theme.typography.fontSize.xs,
-                  color: theme.colors.text.secondary,
-                  lineHeight: theme.typography.lineHeight.relaxed,
-                }}
+                style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', marginTop: theme.spacing.xs, padding: theme.spacing.sm, backgroundColor: theme.colors.background.paper, border: `1px solid ${theme.colors.border.light}`, borderRadius: theme.borderRadius.md, boxShadow: theme.shadows.md, width: '280px', zIndex: 1000, fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary, lineHeight: theme.typography.lineHeight.relaxed, }}
               >
                 {t('inbox.batchInfo.deliveryTooltip')}{' '}
                 <Link
@@ -126,23 +100,7 @@ export const BatchInfoBar: React.FC<BatchInfoBarProps> = ({
           {EMOJI_INFO}
           {showUrgentTooltip && (
             <div
-              style={{
-                position: 'absolute',
-                top: '100%',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                marginTop: theme.spacing.xs,
-                padding: theme.spacing.sm,
-                backgroundColor: theme.colors.background.paper,
-                border: `1px solid ${theme.colors.border.light}`,
-                borderRadius: theme.borderRadius.md,
-                boxShadow: theme.shadows.md,
-                width: '300px',
-                zIndex: 1000,
-                fontSize: theme.typography.fontSize.xs,
-                color: theme.colors.text.secondary,
-                lineHeight: theme.typography.lineHeight.relaxed,
-              }}
+              style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', marginTop: theme.spacing.xs, padding: theme.spacing.sm, backgroundColor: theme.colors.background.paper, border: `1px solid ${theme.colors.border.light}`, borderRadius: theme.borderRadius.md, boxShadow: theme.shadows.md, width: '300px', zIndex: 1000, fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary, lineHeight: theme.typography.lineHeight.relaxed, }}
             >
               {t('inbox.batchInfo.urgentTooltip')}
             </div>

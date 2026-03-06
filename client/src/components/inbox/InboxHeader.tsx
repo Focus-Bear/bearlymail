@@ -68,36 +68,16 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
 
   return (
     <header
-      style={{
-        padding: isNarrow ? `${theme.spacing.sm} ${theme.spacing.xs}` : `${theme.spacing.sm} ${theme.spacing.lg}`,
-        backgroundColor: theme.colors.background.paper,
-        borderBottom: `1px solid ${theme.colors.border.light}`,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-      }}
+      style={{ padding: isNarrow ? `${theme.spacing.sm} ${theme.spacing.xs}` : `${theme.spacing.sm} ${theme.spacing.lg}`, backgroundColor: theme.colors.background.paper, borderBottom: `1px solid ${theme.colors.border.light}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', }}
     >
       <div
-        style={{
-          display: 'flex',
-          gap: theme.spacing.sm,
-          alignItems: 'center',
-        }}
+        style={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center', }}
       >
         {/* Hamburger menu button for mobile and tablet */}
         {isNarrow && (
           <button
             onClick={onToggleMobileMenu}
-            style={{
-              background: STRING_NONE,
-              border: STRING_NONE,
-              cursor: 'pointer',
-              padding: theme.spacing.xs,
-              display: 'flex',
-              alignItems: 'center',
-              fontSize: '24px',
-              color: theme.colors.text.primary,
-            }}
+            style={{ background: STRING_NONE, border: STRING_NONE, cursor: 'pointer', padding: theme.spacing.xs, display: 'flex', alignItems: 'center', fontSize: '24px', color: theme.colors.text.primary, }}
             aria-label="Toggle navigation menu"
           >
             {HAMBURGER_ICON}
@@ -119,24 +99,7 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
           onClick={onToggleFilterBar}
           data-testid="filter-toggle-button"
           title={t('inbox.filters.toggle')}
-          style={{
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            fontSize: theme.typography.fontSize.base,
-            borderRadius: theme.borderRadius.md,
-            border: hasActiveFilters ? 'none' : `1px solid ${theme.colors.border.medium}`,
-            backgroundColor: (() => {
-              if (hasActiveFilters) return theme.colors.primary.main;
-              if (isFilterBarVisible) return theme.colors.background.subtle;
-              return theme.colors.background.paper;
-            })(),
-            color: hasActiveFilters ? 'white' : theme.colors.text.primary,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: theme.spacing.xs,
-            transition: theme.transitions.fast,
-            flexShrink: 0,
-          }}
+          style={{ padding: `${theme.spacing.xs} ${theme.spacing.sm}`, fontSize: theme.typography.fontSize.base, borderRadius: theme.borderRadius.md, border: hasActiveFilters ? 'none' : `1px solid ${theme.colors.border.medium}`, backgroundColor: (() => { if (hasActiveFilters) return theme.colors.primary.main; if (isFilterBarVisible) return theme.colors.background.subtle; return theme.colors.background.paper; })(), color: hasActiveFilters ? 'white' : theme.colors.text.primary, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: theme.spacing.xs, transition: theme.transitions.fast, flexShrink: 0, }}
           onMouseEnter={(e) => {
             if (!hasActiveFilters) {
               e.currentTarget.style.backgroundColor = theme.colors.background.subtle;
@@ -153,16 +116,7 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
           <FiFilter size={14} />
           {hasActiveFilters && (
             <span
-              style={{
-                backgroundColor: COLOR_NAMED_WHITE,
-                color: theme.colors.primary.main,
-                borderRadius: theme.borderRadius.full,
-                padding: `0 ${theme.spacing.xs}`,
-                fontSize: theme.typography.fontSize.xs,
-                fontWeight: theme.typography.fontWeight.bold,
-                minWidth: '16px',
-                textAlign: 'center',
-              }}
+              style={{ backgroundColor: COLOR_NAMED_WHITE, color: theme.colors.primary.main, borderRadius: theme.borderRadius.full, padding: `0 ${theme.spacing.xs}`, fontSize: theme.typography.fontSize.xs, fontWeight: theme.typography.fontWeight.bold, minWidth: '16px', textAlign: 'center', }}
             >
               {activeFilterCount}
             </span>
@@ -173,16 +127,7 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
         {hasActiveFilters && (
           <button
             onClick={onClearFilters}
-            style={{
-              padding: `${theme.spacing.xs} ${theme.spacing.xs}`,
-              fontSize: theme.typography.fontSize.sm,
-              border: STRING_NONE,
-              backgroundColor: COLOR_TRANSPARENT,
-              color: theme.colors.primary.main,
-              cursor: 'pointer',
-              textDecoration: 'underline',
-              flexShrink: 0,
-            }}
+            style={{ padding: `${theme.spacing.xs} ${theme.spacing.xs}`, fontSize: theme.typography.fontSize.sm, border: STRING_NONE, backgroundColor: COLOR_TRANSPARENT, color: theme.colors.primary.main, cursor: 'pointer', textDecoration: 'underline', flexShrink: 0, }}
           >
             {t('inbox.filters.clear')}
           </button>

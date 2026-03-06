@@ -3,13 +3,16 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { theme } from 'theme/theme';
 
-import { TimezoneAutocomplete } from 'components/common/TimezoneAutocomplete';
 import { API_URL } from 'config/api';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { EMOJI_CALENDAR } from 'constants/emojis';
-import { DAYS_IN_MONTH_30, HOURS_12_HOUR_FORMAT, MINUTES_PER_HOUR,SAVE_CONFIRMATION_DURATION_MS, SCHEDULING_GAP_15_MIN, SCHEDULING_GAP_45_MIN, SHORT_TIMEOUT_MS } from 'constants/numbers';
+import { DAYS_IN_MONTH_30, MINUTES_PER_HOUR,SAVE_CONFIRMATION_DURATION_MS, SCHEDULING_GAP_15_MIN, SCHEDULING_GAP_45_MIN, SHORT_TIMEOUT_MS } from 'constants/numbers';
 import { STRING_NONE, STRING_UTC } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
+
+import SchedulePreset from './SchedulePreset';
+import { formatHour } from './SchedulingPreferencesHelpers';
+import TimezoneSelect from './TimezoneSelect';
 
 const DEBOUNCE_MS = 600;
 
@@ -32,6 +35,58 @@ const GAP_OPTIONS = [0, SCHEDULING_GAP_15_MIN, DAYS_IN_MONTH_30, SCHEDULING_GAP_
 const DEEP_WORK_OPTIONS = [0, 1, 2, 3, 4];
 
 const SLOT_DURATION_OPTIONS = [SCHEDULING_GAP_15_MIN, DAYS_IN_MONTH_30, SCHEDULING_GAP_45_MIN, MINUTES_PER_HOUR];
+
+interface SchedulingFormProps {
+  prefs: SchedulingPreferences; savePrefs: (u: Partial<SchedulingPreferences>) => void; toggleDay: (day: number) => void;
+  userId?: string; linkCopied: boolean; onCopyLink: () => void;
+  labelStyle: React.CSSProperties; selectStyle: React.CSSProperties; t: (k: string, opts?: any) => string;
+}
+
+const SchedulingForm: React.FC<SchedulingFormProps> = ({ prefs, savePrefs, toggleDay, userId, linkCopied, onCopyLink, labelStyle, selectStyle, t }) => (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.lg }}>
+    <div id="scheduling-availability">
+      <div style={labelStyle}>{t('settings.schedulingPreferences.availabilityHours')}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
+        <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.tertiary }}>{t('settings.schedulingPreferences.startHour')}</span>
+        <select value={prefs.availabilityStartHour} onChange={(e) => savePrefs({ availabilityStartHour: Number(e.target.value) })} style={selectStyle}>{HOUR_OPTIONS.map((h) => <option key={h} value={h}>{formatHour(h)}</option>)}</select>
+        <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.tertiary }}>{t('settings.schedulingPreferences.endHour')}</span>
+        <select value={prefs.availabilityEndHour} onChange={(e) => savePrefs({ availabilityEndHour: Number(e.target.value) })} style={selectStyle}>{HOUR_OPTIONS.map((h) => <option key={h} value={h}>{formatHour(h)}</option>)}</select>
+      </div>
+    </div>
+    <div>
+      <div style={labelStyle}>{t('settings.schedulingPreferences.availabilityDays')}</div>
+      <div style={{ display: 'flex', gap: theme.spacing.xs, flexWrap: 'wrap' }}>
+        {DAY_KEYS.map((key, idx) => <SchedulePreset key={key} label={t(`settings.schedulingPreferences.days.${key}`)} active={prefs.availabilityDays.includes(idx)} onClick={() => toggleDay(idx)} />)}
+      </div>
+    </div>
+    <div id="scheduling-meeting-gap">
+      <div style={labelStyle}>{t('settings.schedulingPreferences.meetingGap')}</div>
+      <select value={prefs.meetingGapMinutes} onChange={(e) => savePrefs({ meetingGapMinutes: Number(e.target.value) })} style={selectStyle}>{GAP_OPTIONS.map((minuteValue) => <option key={minuteValue} value={minuteValue}>{t('settings.schedulingPreferences.meetingGapMinutes', { count: minuteValue })}</option>)}</select>
+    </div>
+    <div id="scheduling-deep-work">
+      <div style={labelStyle}>{t('settings.schedulingPreferences.deepWork')}</div>
+      <select value={prefs.deepWorkHoursPerDay} onChange={(e) => savePrefs({ deepWorkHoursPerDay: Number(e.target.value) })} style={selectStyle}>{DEEP_WORK_OPTIONS.map((h) => <option key={h} value={h}>{t('settings.schedulingPreferences.deepWorkHours', { count: h })}</option>)}</select>
+    </div>
+    <div id="scheduling-slot-duration">
+      <div style={labelStyle}>{t('settings.schedulingPreferences.slotDuration')}</div>
+      <select value={prefs.slotDurationMinutes} onChange={(e) => savePrefs({ slotDurationMinutes: Number(e.target.value) })} style={selectStyle}>{SLOT_DURATION_OPTIONS.map((slotMinute) => <option key={slotMinute} value={slotMinute}>{t('settings.schedulingPreferences.slotDurationMinutes', { count: slotMinute })}</option>)}</select>
+    </div>
+    <div id="scheduling-timezone">
+      <div style={labelStyle}>{t('settings.schedulingPreferences.timezone')}</div>
+      <TimezoneSelect value={prefs.timezone} onChange={(timezone) => savePrefs({ timezone })} />
+    </div>
+    {userId && (
+      <div id="scheduling-booking-link">
+        <div style={labelStyle}>{t('settings.schedulingPreferences.bookingLink')}</div>
+        <p style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.tertiary, marginBottom: theme.spacing.sm, marginTop: 0 }}>{t('settings.schedulingPreferences.bookingLinkDescription')}</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: '200px', padding: `${theme.spacing.xs} ${theme.spacing.sm}`, borderRadius: theme.borderRadius.sm, border: `1px solid ${theme.colors.border.medium}`, fontSize: theme.typography.fontSize.sm, backgroundColor: theme.colors.background.default, color: theme.colors.text.secondary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{`${window.location.origin}/book/${userId}`}</div>
+          <button onClick={onCopyLink} style={{ padding: `${theme.spacing.xs} ${theme.spacing.md}`, borderRadius: theme.borderRadius.sm, border: STRING_NONE, backgroundColor: linkCopied ? theme.colors.accent.success : theme.colors.primary.main, color: COLOR_NAMED_WHITE, fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium, cursor: 'pointer', whiteSpace: 'nowrap' }}>{linkCopied ? t('settings.schedulingPreferences.linkCopied') : t('settings.schedulingPreferences.copyLink')}</button>
+        </div>
+      </div>
+    )}
+  </div>
+);
 
 export const SchedulingPreferencesSection: React.FC = () => {
   const { t } = useTranslation();
@@ -122,241 +177,19 @@ export const SchedulingPreferencesSection: React.FC = () => {
     }
   }, [user?.id]);
 
-  const formatHour = (hour: number): string => {
-    if (hour === 0) return '12 AM';
-    if (hour < HOURS_12_HOUR_FORMAT) return `${hour} AM`;
-    if (hour === HOURS_12_HOUR_FORMAT) return '12 PM';
-    return `${hour - HOURS_12_HOUR_FORMAT} PM`;
-  };
-
-  const labelStyle: React.CSSProperties = {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.medium,
-    color: theme.colors.text.secondary,
-    marginBottom: theme.spacing.xs,
-  };
-
-  const selectStyle: React.CSSProperties = {
-    padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-    borderRadius: theme.borderRadius.sm,
-    border: `1px solid ${theme.colors.border.medium}`,
-    fontSize: theme.typography.fontSize.sm,
-    backgroundColor: theme.colors.background.paper,
-    color: theme.colors.text.primary,
-  };
+  const labelStyle: React.CSSProperties = { fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium, color: theme.colors.text.secondary, marginBottom: theme.spacing.xs };
+  const selectStyle: React.CSSProperties = { padding: `${theme.spacing.xs} ${theme.spacing.sm}`, borderRadius: theme.borderRadius.sm, border: `1px solid ${theme.colors.border.medium}`, fontSize: theme.typography.fontSize.sm, backgroundColor: theme.colors.background.paper, color: theme.colors.text.primary };
 
   return (
-    <div
-      id="scheduling-preferences"
-      style={{
-        backgroundColor: theme.colors.background.paper,
-        borderRadius: theme.borderRadius.lg,
-        border: `1px solid ${theme.colors.border.light}`,
-        padding: theme.spacing.xl,
-        marginBottom: theme.spacing.xl,
-      }}
-    >
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: theme.spacing.sm,
-        marginBottom: theme.spacing.md,
-      }}>
+    <div id="scheduling-preferences" style={{ backgroundColor: theme.colors.background.paper, borderRadius: theme.borderRadius.lg, border: `1px solid ${theme.colors.border.light}`, padding: theme.spacing.xl, marginBottom: theme.spacing.xl }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, marginBottom: theme.spacing.md }}>
         {/* eslint-disable-next-line i18next/no-literal-string */}
         <span style={{ fontSize: theme.typography.fontSize.xl }}>{EMOJI_CALENDAR}</span>
-        <h2 style={{
-          fontSize: theme.typography.fontSize.lg,
-          fontWeight: theme.typography.fontWeight.bold,
-          color: theme.colors.text.primary,
-          margin: 0,
-        }}>
-          {t('settings.schedulingPreferences.title')}
-        </h2>
-        {(saving || saved) && (
-          <span style={{
-            fontSize: theme.typography.fontSize.sm,
-            color: saved ? theme.colors.accent.success : theme.colors.text.tertiary,
-            marginLeft: 'auto',
-          }}>
-            {saved ? t('settings.schedulingPreferences.saved') : t('common.saving')}
-          </span>
-        )}
+        <h2 style={{ fontSize: theme.typography.fontSize.lg, fontWeight: theme.typography.fontWeight.bold, color: theme.colors.text.primary, margin: 0 }}>{t('settings.schedulingPreferences.title')}</h2>
+        {(saving || saved) && <span style={{ fontSize: theme.typography.fontSize.sm, color: saved ? theme.colors.accent.success : theme.colors.text.tertiary, marginLeft: 'auto' }}>{saved ? t('settings.schedulingPreferences.saved') : t('common.saving')}</span>}
       </div>
-
-      <p style={{
-        fontSize: theme.typography.fontSize.sm,
-        color: theme.colors.text.tertiary,
-        marginBottom: theme.spacing.lg,
-        lineHeight: theme.typography.lineHeight.normal,
-      }}>
-        {t('settings.schedulingPreferences.description')}
-      </p>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.lg }}>
-        <div id="scheduling-availability">
-          <div style={labelStyle}>{t('settings.schedulingPreferences.availabilityHours')}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
-            <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.tertiary }}>
-              {t('settings.schedulingPreferences.startHour')}
-            </span>
-            <select
-              value={prefs.availabilityStartHour}
-              onChange={(e) => savePrefs({ availabilityStartHour: Number(e.target.value) })}
-              style={selectStyle}
-            >
-              {HOUR_OPTIONS.map((h) => (
-                <option key={h} value={h}>{formatHour(h)}</option>
-              ))}
-            </select>
-            <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.tertiary }}>
-              {t('settings.schedulingPreferences.endHour')}
-            </span>
-            <select
-              value={prefs.availabilityEndHour}
-              onChange={(e) => savePrefs({ availabilityEndHour: Number(e.target.value) })}
-              style={selectStyle}
-            >
-              {HOUR_OPTIONS.map((h) => (
-                <option key={h} value={h}>{formatHour(h)}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <div style={labelStyle}>{t('settings.schedulingPreferences.availabilityDays')}</div>
-          <div style={{ display: 'flex', gap: theme.spacing.xs, flexWrap: 'wrap' }}>
-            {DAY_KEYS.map((key, idx) => (
-              <button
-                key={key}
-                onClick={() => toggleDay(idx)}
-                style={{
-                  padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                  borderRadius: theme.borderRadius.sm,
-                  border: `1px solid ${prefs.availabilityDays.includes(idx) ? theme.colors.primary.main : theme.colors.border.medium}`,
-                  backgroundColor: prefs.availabilityDays.includes(idx) ? theme.colors.primary.main : 'transparent',
-                  color: prefs.availabilityDays.includes(idx) ? 'white' : theme.colors.text.secondary,
-                  fontSize: theme.typography.fontSize.sm,
-                  fontWeight: theme.typography.fontWeight.medium,
-                  cursor: 'pointer',
-                  minWidth: '44px',
-                }}
-              >
-                {t(`settings.schedulingPreferences.days.${key}`)}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div id="scheduling-meeting-gap">
-          <div style={labelStyle}>{t('settings.schedulingPreferences.meetingGap')}</div>
-          <select
-            value={prefs.meetingGapMinutes}
-            onChange={(e) => savePrefs({ meetingGapMinutes: Number(e.target.value) })}
-            style={selectStyle}
-          >
-            {GAP_OPTIONS.map((minuteValue) => (
-              <option key={minuteValue} value={minuteValue}>
-                {t('settings.schedulingPreferences.meetingGapMinutes', { count: minuteValue })}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div id="scheduling-deep-work">
-          <div style={labelStyle}>{t('settings.schedulingPreferences.deepWork')}</div>
-          <select
-            value={prefs.deepWorkHoursPerDay}
-            onChange={(e) => savePrefs({ deepWorkHoursPerDay: Number(e.target.value) })}
-            style={selectStyle}
-          >
-            {DEEP_WORK_OPTIONS.map((h) => (
-              <option key={h} value={h}>
-                {t('settings.schedulingPreferences.deepWorkHours', { count: h })}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div id="scheduling-slot-duration">
-          <div style={labelStyle}>{t('settings.schedulingPreferences.slotDuration')}</div>
-          <select
-            value={prefs.slotDurationMinutes}
-            onChange={(e) => savePrefs({ slotDurationMinutes: Number(e.target.value) })}
-            style={selectStyle}
-          >
-            {SLOT_DURATION_OPTIONS.map((slotMinute) => (
-              <option key={slotMinute} value={slotMinute}>
-                {t('settings.schedulingPreferences.slotDurationMinutes', { count: slotMinute })}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div id="scheduling-timezone">
-          <div style={labelStyle}>{t('settings.schedulingPreferences.timezone')}</div>
-          <TimezoneAutocomplete
-            value={prefs.timezone}
-            onChange={(timezone) => savePrefs({ timezone })}
-          />
-        </div>
-
-        {user?.id && (
-          <div id="scheduling-booking-link">
-            <div style={labelStyle}>{t('settings.schedulingPreferences.bookingLink')}</div>
-            <p style={{
-              fontSize: theme.typography.fontSize.sm,
-              color: theme.colors.text.tertiary,
-              marginBottom: theme.spacing.sm,
-              marginTop: 0,
-            }}>
-              {t('settings.schedulingPreferences.bookingLinkDescription')}
-            </p>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: theme.spacing.sm,
-              flexWrap: 'wrap',
-            }}>
-              <div style={{
-                flex: 1,
-                minWidth: '200px',
-                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                borderRadius: theme.borderRadius.sm,
-                border: `1px solid ${theme.colors.border.medium}`,
-                fontSize: theme.typography.fontSize.sm,
-                backgroundColor: theme.colors.background.default,
-                color: theme.colors.text.secondary,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}>
-                {`${window.location.origin}/book/${user.id}`}
-              </div>
-              <button
-                onClick={handleCopyBookingLink}
-                style={{
-                  padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                  borderRadius: theme.borderRadius.sm,
-                  border: STRING_NONE,
-                  backgroundColor: linkCopied
-                    ? theme.colors.accent.success
-                    : theme.colors.primary.main,
-                  color: COLOR_NAMED_WHITE,
-                  fontSize: theme.typography.fontSize.sm,
-                  fontWeight: theme.typography.fontWeight.medium,
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {linkCopied
-                  ? t('settings.schedulingPreferences.linkCopied')
-                  : t('settings.schedulingPreferences.copyLink')}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      <p style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.tertiary, marginBottom: theme.spacing.lg, lineHeight: theme.typography.lineHeight.normal }}>{t('settings.schedulingPreferences.description')}</p>
+      <SchedulingForm prefs={prefs} savePrefs={savePrefs} toggleDay={toggleDay} userId={user?.id} linkCopied={linkCopied} onCopyLink={handleCopyBookingLink} labelStyle={labelStyle} selectStyle={selectStyle} t={t} />
     </div>
   );
 };

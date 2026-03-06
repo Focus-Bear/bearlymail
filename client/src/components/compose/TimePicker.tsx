@@ -18,6 +18,47 @@ interface TimePickerProps {
   suggestedTime?: Date;
 }
 
+interface WarningBannerProps {
+  warning: string;
+  suggestedTime?: Date;
+  onUseSuggestion: () => void;
+  t: (key: string) => string;
+}
+
+const WarningBanner: React.FC<WarningBannerProps> = ({ warning, suggestedTime, onUseSuggestion, t }) => (
+  <div style={{ backgroundColor: theme.colors.warning.light, border: `1px solid ${theme.colors.warning.main}`, borderRadius: theme.borderRadius.md, padding: theme.spacing.md, marginBottom: theme.spacing.md }}>
+    <p style={{ margin: 0, color: theme.colors.text.primary, fontSize: theme.typography.fontSize.sm }}>
+      {WARNING_ICON} {warning}
+    </p>
+    {suggestedTime && (
+      <button onClick={onUseSuggestion} style={{ marginTop: theme.spacing.sm, padding: `${theme.spacing.xs} ${theme.spacing.sm}`, backgroundColor: theme.colors.primary.main, color: COLOR_NAMED_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.sm, cursor: 'pointer', fontSize: theme.typography.fontSize.sm }}>
+        {t('compose.useSuggestion')} ({new Date(suggestedTime).toLocaleString()})
+      </button>
+    )}
+  </div>
+);
+
+interface CustomTimeFormProps {
+  customDate: string;
+  customTime: string;
+  onDateChange: (v: string) => void;
+  onTimeChange: (v: string) => void;
+  onSubmit: () => void;
+  t: (key: string) => string;
+}
+
+const CustomTimeForm: React.FC<CustomTimeFormProps> = ({ customDate, customTime, onDateChange, onTimeChange, onSubmit, t }) => (
+  <div style={{ marginBottom: theme.spacing.md }}>
+    <div style={{ display: 'flex', gap: theme.spacing.sm, marginBottom: theme.spacing.sm }}>
+      <input type="date" value={customDate} onChange={(e) => onDateChange(e.target.value)} style={{ flex: 1, padding: theme.spacing.sm, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, backgroundColor: theme.colors.background.subtle, color: theme.colors.text.primary, fontSize: theme.typography.fontSize.sm }} />
+      <input type="time" value={customTime} onChange={(e) => onTimeChange(e.target.value)} style={{ flex: 1, padding: theme.spacing.sm, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, backgroundColor: theme.colors.background.subtle, color: theme.colors.text.primary, fontSize: theme.typography.fontSize.sm }} />
+    </div>
+    <button onClick={onSubmit} disabled={!customDate || !customTime} style={{ padding: `${theme.spacing.sm} ${theme.spacing.md}`, backgroundColor: theme.colors.primary.main, color: COLOR_NAMED_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.md, cursor: customDate && customTime ? 'pointer' : 'not-allowed', opacity: customDate && customTime ? 1 : OPACITY_DISABLED, width: '100%', fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium }}>
+      {t('compose.setCustomTime')}
+    </button>
+  </div>
+);
+
 export const TimePicker: React.FC<TimePickerProps> = ({
   selectedTime,
   suggestions,
@@ -34,218 +75,41 @@ export const TimePicker: React.FC<TimePickerProps> = ({
   useEffect(() => {
     if (selectedTime) {
       const date = new Date(selectedTime);
-      const dateStr = date.toISOString().split('T')[0];
-      const timeStr = date.toTimeString().slice(0, 5);
-      setCustomDate(dateStr);
-      setCustomTime(timeStr);
+      setCustomDate(date.toISOString().split('T')[0]);
+      setCustomTime(date.toTimeString().slice(0, 5));
     }
   }, [selectedTime]);
 
-  const handleSuggestionClick = (suggestion: TimeSuggestion) => {
-    onTimeSelect(new Date(suggestion.value));
-  };
-
-  const handleCustomTimeSubmit = () => {
-    if (customDate && customTime) {
-      const dateTime = new Date(`${customDate}T${customTime}`);
-      onTimeSelect(dateTime);
-    }
-  };
-
-  const handleUseSuggestion = () => {
-    if (suggestedTime) {
-      onTimeSelect(suggestedTime);
-    }
-  };
+  const handleSuggestionClick = (suggestion: TimeSuggestion) => { onTimeSelect(new Date(suggestion.value)); };
+  const handleCustomTimeSubmit = () => { if (customDate && customTime) onTimeSelect(new Date(`${customDate}T${customTime}`)); };
+  const handleUseSuggestion = () => { if (suggestedTime) onTimeSelect(suggestedTime); };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-      }}
-      onClick={onCancel}
-    >
-      <div
-        style={{
-          backgroundColor: theme.colors.background.paper,
-          borderRadius: theme.borderRadius.lg,
-          padding: theme.spacing.xl,
-          maxWidth: '500px',
-          width: '90%',
-          maxHeight: '80vh',
-          overflowY: 'auto',
-          boxShadow: theme.shadows.xl,
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={onCancel}>
+      <div style={{ backgroundColor: theme.colors.background.paper, borderRadius: theme.borderRadius.lg, padding: theme.spacing.xl, maxWidth: '500px', width: '90%', maxHeight: '80vh', overflowY: 'auto', boxShadow: theme.shadows.xl }} onClick={(e) => e.stopPropagation()}>
         <h3 style={{ marginTop: 0, color: theme.colors.text.primary, fontSize: theme.typography.fontSize.xl }}>
           {t('compose.scheduleEmail')}
         </h3>
-
-        {warning && (
-          <div
-            style={{
-              backgroundColor: theme.colors.warning.light,
-              border: `1px solid ${theme.colors.warning.main}`,
-              borderRadius: theme.borderRadius.md,
-              padding: theme.spacing.md,
-              marginBottom: theme.spacing.md,
-            }}
-          >
-            <p style={{ margin: 0, color: theme.colors.text.primary, fontSize: theme.typography.fontSize.sm }}>
-              {WARNING_ICON} {warning}
-            </p>
-            {suggestedTime && (
-              <button
-                onClick={handleUseSuggestion}
-                style={{
-                  marginTop: theme.spacing.sm,
-                  padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                  backgroundColor: theme.colors.primary.main,
-                  color: COLOR_NAMED_WHITE,
-                  border: STRING_NONE,
-                  borderRadius: theme.borderRadius.sm,
-                  cursor: 'pointer',
-                  fontSize: theme.typography.fontSize.sm,
-                }}
-              >
-                {t('compose.useSuggestion')} ({new Date(suggestedTime).toLocaleString()})
-              </button>
-            )}
-          </div>
-        )}
-
+        {warning && <WarningBanner warning={warning} suggestedTime={suggestedTime} onUseSuggestion={handleUseSuggestion} t={t} />}
         <div style={{ marginBottom: theme.spacing.md }}>
-          <h4 style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, marginBottom: theme.spacing.sm }}>
-            {t('compose.quickOptions')}
-          </h4>
+          <h4 style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, marginBottom: theme.spacing.sm }}>{t('compose.quickOptions')}</h4>
           <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
-            {suggestions.map((suggestion, index) => (
-              <button
-                // eslint-disable-next-line react/no-array-index-key
-                key={index}
-                onClick={() => handleSuggestionClick(suggestion)}
-                style={{
-                  padding: theme.spacing.md,
-                  backgroundColor: theme.colors.background.subtle,
-                  border: `1px solid ${theme.colors.border.light}`,
-                  borderRadius: theme.borderRadius.md,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  transition: theme.transitions.default,
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = theme.colors.interactive.hover;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = theme.colors.background.subtle;
-                }}
-              >
-                <div style={{ fontWeight: theme.typography.fontWeight.semibold, color: theme.colors.text.primary }}>
-                  {suggestion.label}
-                </div>
-                <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
-                  {suggestion.description}
-                </div>
+            {suggestions.map((suggestion) => (
+              <button key={suggestion.label} onClick={() => handleSuggestionClick(suggestion)} style={{ padding: theme.spacing.md, backgroundColor: theme.colors.background.subtle, border: `1px solid ${theme.colors.border.light}`, borderRadius: theme.borderRadius.md, cursor: 'pointer', textAlign: 'left', transition: theme.transitions.default }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = theme.colors.interactive.hover; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = theme.colors.background.subtle; }}>
+                <div style={{ fontWeight: theme.typography.fontWeight.semibold, color: theme.colors.text.primary }}>{suggestion.label}</div>
+                <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>{suggestion.description}</div>
               </button>
             ))}
           </div>
         </div>
-
         <div style={{ marginBottom: theme.spacing.md }}>
-          <button
-            onClick={() => setShowCustom(!showCustom)}
-            style={{
-              padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-              backgroundColor: COLOR_TRANSPARENT,
-              border: `1px solid ${theme.colors.border.medium}`,
-              borderRadius: theme.borderRadius.md,
-              cursor: 'pointer',
-              color: theme.colors.text.secondary,
-              width: '100%',
-              fontSize: theme.typography.fontSize.sm,
-            }}
-          >
+          <button onClick={() => setShowCustom(!showCustom)} style={{ padding: `${theme.spacing.sm} ${theme.spacing.md}`, backgroundColor: COLOR_TRANSPARENT, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, cursor: 'pointer', color: theme.colors.text.secondary, width: '100%', fontSize: theme.typography.fontSize.sm }}>
             {showCustom ? t('compose.hideCustomTime') : t('compose.customTime')}
           </button>
         </div>
-
-        {showCustom && (
-          <div style={{ marginBottom: theme.spacing.md }}>
-            <div style={{ display: 'flex', gap: theme.spacing.sm, marginBottom: theme.spacing.sm }}>
-              <input
-                type="date"
-                value={customDate}
-                onChange={(e) => setCustomDate(e.target.value)}
-                style={{
-                  flex: 1,
-                  padding: theme.spacing.sm,
-                  border: `1px solid ${theme.colors.border.medium}`,
-                  borderRadius: theme.borderRadius.md,
-                  backgroundColor: theme.colors.background.subtle,
-                  color: theme.colors.text.primary,
-                  fontSize: theme.typography.fontSize.sm,
-                }}
-              />
-              <input
-                type="time"
-                value={customTime}
-                onChange={(e) => setCustomTime(e.target.value)}
-                style={{
-                  flex: 1,
-                  padding: theme.spacing.sm,
-                  border: `1px solid ${theme.colors.border.medium}`,
-                  borderRadius: theme.borderRadius.md,
-                  backgroundColor: theme.colors.background.subtle,
-                  color: theme.colors.text.primary,
-                  fontSize: theme.typography.fontSize.sm,
-                }}
-              />
-            </div>
-            <button
-              onClick={handleCustomTimeSubmit}
-              disabled={!customDate || !customTime}
-              style={{
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                backgroundColor: theme.colors.primary.main,
-                color: COLOR_NAMED_WHITE,
-                border: STRING_NONE,
-                borderRadius: theme.borderRadius.md,
-                cursor: customDate && customTime ? 'pointer' : 'not-allowed',
-                opacity: customDate && customTime ? 1 : OPACITY_DISABLED,
-                width: '100%',
-                fontSize: theme.typography.fontSize.sm,
-                fontWeight: theme.typography.fontWeight.medium,
-              }}
-            >
-              {t('compose.setCustomTime')}
-            </button>
-          </div>
-        )}
-
+        {showCustom && <CustomTimeForm customDate={customDate} customTime={customTime} onDateChange={setCustomDate} onTimeChange={setCustomTime} onSubmit={handleCustomTimeSubmit} t={t} />}
         <div style={{ display: 'flex', gap: theme.spacing.sm }}>
-          <button
-            onClick={onCancel}
-            style={{
-              flex: 1,
-              padding: theme.spacing.sm,
-              backgroundColor: theme.colors.background.subtle,
-              border: `1px solid ${theme.colors.border.medium}`,
-              borderRadius: theme.borderRadius.md,
-              cursor: 'pointer',
-              color: theme.colors.text.secondary,
-              fontSize: theme.typography.fontSize.sm,
-            }}
-          >
+          <button onClick={onCancel} style={{ flex: 1, padding: theme.spacing.sm, backgroundColor: theme.colors.background.subtle, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, cursor: 'pointer', color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>
             {t('common.cancel')}
           </button>
         </div>

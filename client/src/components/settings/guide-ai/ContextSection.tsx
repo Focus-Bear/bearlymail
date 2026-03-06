@@ -67,35 +67,13 @@ export const ContextSection: React.FC<ContextSectionProps> = ({
   const itemCount = filteredContexts.length;
 
   return (
-    <div style={{
-      marginBottom: theme.spacing.lg,
-      border: `1px solid ${theme.colors.border.light}`,
-      borderRadius: theme.borderRadius.md,
-      backgroundColor: theme.colors.background.paper,
-    }}>
+    <div style={{ marginBottom: theme.spacing.lg, border: `1px solid ${theme.colors.border.light}`, borderRadius: theme.borderRadius.md, backgroundColor: theme.colors.background.paper, }}>
       <div
         onClick={() => setIsExpanded(!isExpanded)}
-        style={{
-          fontSize: theme.typography.fontSize.lg,
-          color: theme.colors.text.primary,
-          padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-          display: 'flex',
-          alignItems: 'center',
-          gap: theme.spacing.sm,
-          cursor: 'pointer',
-          backgroundColor: theme.colors.background.paper,
-          borderBottom: isExpanded ? `1px solid ${theme.colors.border.light}` : 'none',
-          borderRadius: isExpanded ? `${theme.borderRadius.md} ${theme.borderRadius.md} 0 0` : theme.borderRadius.md,
-          transition: theme.transitions.fast,
-        }}
+        style={{ fontSize: theme.typography.fontSize.lg, color: theme.colors.text.primary, padding: `${theme.spacing.sm} ${theme.spacing.md}`, display: 'flex', alignItems: 'center', gap: theme.spacing.sm, cursor: 'pointer', backgroundColor: theme.colors.background.paper, borderBottom: isExpanded ? `1px solid ${theme.colors.border.light}` : 'none', borderRadius: isExpanded ? `${theme.borderRadius.md} ${theme.borderRadius.md} 0 0` : theme.borderRadius.md, transition: theme.transitions.fast, }}
       >
         <span
-          style={{
-            transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-            transition: theme.transitions.fast,
-            fontSize: theme.typography.fontSize.base,
-            color: theme.colors.text.secondary,
-          }}
+          style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: theme.transitions.fast, fontSize: theme.typography.fontSize.base, color: theme.colors.text.secondary, }}
         >
           ▶
         </span>
@@ -103,14 +81,7 @@ export const ContextSection: React.FC<ContextSectionProps> = ({
           {title}
         </span>
         <span
-          style={{
-            backgroundColor: theme.colors.greyscale[300],
-            color: theme.colors.text.secondary,
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            borderRadius: theme.borderRadius.full,
-            fontSize: theme.typography.fontSize.sm,
-            fontWeight: theme.typography.fontWeight.medium,
-          }}
+          style={{ backgroundColor: theme.colors.greyscale[300], color: theme.colors.text.secondary, padding: `${theme.spacing.xs} ${theme.spacing.sm}`, borderRadius: theme.borderRadius.full, fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium, }}
         >
           {itemCount}
         </span>
@@ -123,12 +94,7 @@ export const ContextSection: React.FC<ContextSectionProps> = ({
       </div>
 
       {isExpanded && (
-        <div style={{
-          padding: theme.spacing.md,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: theme.spacing.sm
-        }}>
+        <div style={{ padding: theme.spacing.md, display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
           {filteredContexts.length > 0 ? (
             filteredContexts.map(context => (
               <ContextItem
@@ -164,20 +130,7 @@ export const ContextSection: React.FC<ContextSectionProps> = ({
                 onAddingContextTypeChange(addType);
                 onNewContextValueChange('');
               }}
-              style={{
-                alignSelf: 'flex-start',
-                marginTop: theme.spacing.xs,
-                background: COLOR_TRANSPARENT,
-                border: `1px dashed ${theme.colors.border.medium}`,
-                borderRadius: theme.borderRadius.md,
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                color: theme.colors.text.secondary,
-                cursor: 'pointer',
-                fontSize: theme.typography.fontSize.sm,
-                display: 'flex',
-                alignItems: 'center',
-                gap: theme.spacing.xs
-              }}
+              style={{ alignSelf: 'flex-start', marginTop: theme.spacing.xs, background: COLOR_TRANSPARENT, border: `1px dashed ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, padding: `${theme.spacing.xs} ${theme.spacing.md}`, color: theme.colors.text.secondary, cursor: 'pointer', fontSize: theme.typography.fontSize.sm, display: 'flex', alignItems: 'center', gap: theme.spacing.xs }}
             >
               <span>+</span> {addLabel}
             </button>
@@ -211,26 +164,13 @@ const ContextItem: React.FC<ContextItemProps> = ({
 
   if (editingContextId === context.contextId) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        padding: theme.spacing.sm,
-        backgroundColor: theme.colors.background.subtle,
-        borderRadius: theme.borderRadius.md,
-        border: `1px solid ${theme.colors.border.light}`
-      }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: theme.spacing.sm, backgroundColor: theme.colors.background.subtle, borderRadius: theme.borderRadius.md, border: `1px solid ${theme.colors.border.light}` }}>
         <div style={{ display: 'flex', flex: 1, gap: theme.spacing.sm }}>
           <input
             type="text"
             value={editContextValue}
             onChange={(e) => onEditContextValueChange(e.target.value)}
-            style={{
-              flex: 1,
-              padding: theme.spacing.xs,
-              borderRadius: theme.borderRadius.sm,
-              border: `1px solid ${theme.colors.border.medium}`
-            }}
+            style={{ flex: 1, padding: theme.spacing.xs, borderRadius: theme.borderRadius.sm, border: `1px solid ${theme.colors.border.medium}` }}
           />
           <button onClick={onUpdateContext} style={{ cursor: 'pointer', color: theme.colors.primary.main, border: STRING_NONE, background: STRING_NONE }}>{t('common.save')}</button>
           <button onClick={() => onEditingContextIdChange(null)} style={{ cursor: 'pointer', color: theme.colors.text.secondary, border: STRING_NONE, background: STRING_NONE }}>{t('common.cancel')}</button>
@@ -240,15 +180,7 @@ const ContextItem: React.FC<ContextItemProps> = ({
   }
 
   return (
-    <div style={{ 
-      display: 'flex', 
-      justifyContent: 'space-between', 
-      alignItems: 'center',
-      padding: theme.spacing.sm,
-      backgroundColor: theme.colors.background.subtle,
-      borderRadius: theme.borderRadius.md,
-      border: `1px solid ${theme.colors.border.light}`
-    }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: theme.spacing.sm, backgroundColor: theme.colors.background.subtle, borderRadius: theme.borderRadius.md, border: `1px solid ${theme.colors.border.light}` }}>
       <ContextItemContent context={context} />
       <div style={{ display: 'flex', gap: theme.spacing.sm }}>
         <button 
@@ -326,15 +258,7 @@ const ContextItemContent: React.FC<ContextItemContentProps> = ({ context }) => {
               {shouldTruncate && (
                 <button
                   onClick={() => setIsExpanded(!isExpanded)}
-                  style={{
-                    marginLeft: theme.spacing.xs,
-                    color: theme.colors.primary.main,
-                    background: STRING_NONE,
-                    border: STRING_NONE,
-                    cursor: 'pointer',
-                    fontSize: theme.typography.fontSize.sm,
-                    padding: 0,
-                  }}
+                  style={{ marginLeft: theme.spacing.xs, color: theme.colors.primary.main, background: STRING_NONE, border: STRING_NONE, cursor: 'pointer', fontSize: theme.typography.fontSize.sm, padding: 0, }}
                 >
                   {isExpanded ? t('common.showLess') : t('common.showMore')}
                 </button>
@@ -342,40 +266,24 @@ const ContextItemContent: React.FC<ContextItemContentProps> = ({ context }) => {
             </span>
           )}
           {(context.source === CONTEXT_SOURCE_AUTOGENERATED || context.source === CONTEXT_SOURCE_USER_EDITED) && (
-            <span style={{ 
-              fontSize: theme.typography.fontSize.xs, 
-              color: theme.colors.text.tertiary,
-              backgroundColor: theme.colors.background.paper,
-              padding: '2px 6px',
-              borderRadius: theme.borderRadius.sm,
-              border: `1px solid ${theme.colors.border.light}`
-            }}>
+            <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.tertiary, backgroundColor: theme.colors.background.paper, padding: '2px 6px', borderRadius: theme.borderRadius.sm, border: `1px solid ${theme.colors.border.light}` }}>
               {context.source === CONTEXT_SOURCE_USER_EDITED ? t('common.custom') : t('common.auto')}
             </span>
           )}
         </div>
         {context.explanation && (
-          <span style={{ 
-            fontSize: theme.typography.fontSize.xs, 
-            color: theme.colors.text.secondary,
-            fontStyle: 'italic',
-          }}>
+          <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary, fontStyle: 'italic', }}>
             {translateExplanation(context.explanation, t)}
           </span>
         )}
         {context.sourceThreadIds && context.sourceThreadIds.length > 0 && (
-          <span style={{ 
-            fontSize: theme.typography.fontSize.xs, 
-            color: theme.colors.primary.main,
-            cursor: 'pointer',
-          }}>
+          <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.primary.main, cursor: 'pointer', }}>
             <a 
               href={`/email/${context.sourceThreadIds[0]}`}
               style={{ color: theme.colors.primary.main, textDecoration: 'none' }}
-              title={`View source email thread (${context.sourceThreadIds.length} source${context.sourceThreadIds.length > 1 ? 's' : ''})`}
+              title={t('guideAi.viewSourceThread', { count: context.sourceThreadIds.length })}
             >
-              {/* eslint-disable-next-line i18next/no-literal-string */}
-              📧 {context.sourceThreadIds.length} source{context.sourceThreadIds.length > 1 ? 's' : ''}
+              {t('guideAi.sourceThreads', { count: context.sourceThreadIds.length })}
             </a>
           </span>
         )}
@@ -407,12 +315,7 @@ const ContextAddInput: React.FC<ContextAddInputProps> = ({
         onChange={(e) => onNewContextValueChange(e.target.value)}
         placeholder={t('settings.addContext.placeholder')}
         autoFocus
-        style={{
-          flex: 1,
-          padding: theme.spacing.sm,
-          borderRadius: theme.borderRadius.md,
-          border: `1px solid ${theme.colors.primary.main}`
-        }}
+        style={{ flex: 1, padding: theme.spacing.sm, borderRadius: theme.borderRadius.md, border: `1px solid ${theme.colors.primary.main}` }}
         onKeyDown={(e) => {
           if (e.key === KEY_ENTER) onAddContext();
           if (e.key === KEY_ESCAPE) onCancel();
@@ -421,26 +324,13 @@ const ContextAddInput: React.FC<ContextAddInputProps> = ({
       <button 
         onClick={onAddContext}
         disabled={!newContextValue.trim()}
-        style={{
-          padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-          backgroundColor: theme.colors.primary.main,
-          color: COLOR_NAMED_WHITE,
-          border: STRING_NONE,          borderRadius: theme.borderRadius.md,
-          cursor: newContextValue.trim() ? 'pointer' : 'not-allowed',
-          opacity: newContextValue.trim() ? OPACITY_FULL : OPACITY_DISABLED
-        }}
+        style={{ padding: `${theme.spacing.xs} ${theme.spacing.md}`, backgroundColor: theme.colors.primary.main, color: COLOR_NAMED_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.md, cursor: newContextValue.trim() ? 'pointer' : 'not-allowed', opacity: newContextValue.trim() ? OPACITY_FULL : OPACITY_DISABLED }}
       >
         {t('common.add')}
       </button>
       <button 
         onClick={onCancel}
-        style={{
-          padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-          backgroundColor: COLOR_TRANSPARENT,
-          color: theme.colors.text.secondary,
-          border: STRING_NONE,
-          cursor: 'pointer'
-        }}
+        style={{ padding: `${theme.spacing.xs} ${theme.spacing.md}`, backgroundColor: COLOR_TRANSPARENT, color: theme.colors.text.secondary, border: STRING_NONE, cursor: 'pointer' }}
       >
         {t('common.cancel')}
       </button>

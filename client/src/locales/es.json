@@ -349,7 +349,9 @@
     "customTime": "Hora Personalizada",
     "hideCustomTime": "Ocultar Hora Personalizada",
     "setCustomTime": "Establecer Hora",
-    "useSuggestion": "Usar Sugerencia"
+    "useSuggestion": "Usar Sugerencia",
+    "dropFilesToAttach": "Soltar archivos para adjuntar",
+    "forwardedAttachments": "Adjuntos reenviados:"
   },
   "consent": {
     "acceptAndContinue": "Aceptar y continuar",
@@ -2103,5 +2105,11 @@
       "medium": "Media",
       "high": "Alta"
     }
+  },
+  "guideAi": {
+    "sourceThreads": "📧 {{count}} fuente",
+    "sourceThreads_plural": "📧 {{count}} fuentes",
+    "viewSourceThread": "Ver hilo de correo fuente ({{count}} fuente)",
+    "viewSourceThread_plural": "Ver hilo de correo fuente ({{count}} fuentes)"
   }
 }

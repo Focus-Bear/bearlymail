@@ -114,56 +114,21 @@ export const TimezoneAutocomplete: React.FC<TimezoneAutocompleteProps> = ({
         onFocus={() => setIsOpen(true)}
         onKeyDown={handleKeyDown}
         placeholder="Search timezone..."
-        style={{
-          width: '100%',
-          padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-          borderRadius: theme.borderRadius.sm,
-          border: `1px solid ${theme.colors.border.medium}`,
-          fontSize: theme.typography.fontSize.sm,
-          backgroundColor: theme.colors.background.paper,
-          color: theme.colors.text.primary,
-          minWidth: '250px',
-        }}
+        style={{ width: '100%', padding: `${theme.spacing.xs} ${theme.spacing.sm}`, borderRadius: theme.borderRadius.sm, border: `1px solid ${theme.colors.border.medium}`, fontSize: theme.typography.fontSize.sm, backgroundColor: theme.colors.background.paper, color: theme.colors.text.primary, minWidth: '250px', }}
       />
       {isOpen && filteredOptions.length > 0 && (
-        <div
-          ref={dropdownRef}
-          style={{
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            right: 0,
-            maxHeight: '200px',
-            overflowY: 'auto',
-            backgroundColor: theme.colors.background.paper,
-            border: `1px solid ${theme.colors.border.medium}`,
-            borderTop: 'none',
-            borderRadius: `0 0 ${theme.borderRadius.sm} ${theme.borderRadius.sm}`,
-            boxShadow: theme.shadows.md,
-            zIndex: 1000,
-          }}
-        >
-          {filteredOptions.map((tz, index) => (
-            <div
-              key={tz}
-              onClick={() => handleSelectTimezone(tz)}
-              onMouseEnter={() => setHighlightedIndex(index)}
-              style={{
-                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                cursor: 'pointer',
-                backgroundColor:
-                  index === highlightedIndex
-                    ? theme.colors.background.hover
-                    : 'transparent',
-                fontSize: theme.typography.fontSize.sm,
-                color: theme.colors.text.primary,
-              }}
-            >
-              {tz.replace(/_/g, ' ')}
-            </div>
-          ))}
-        </div>
+        <TimezoneDropdown dropdownRef={dropdownRef} options={filteredOptions} highlightedIndex={highlightedIndex} onSelect={handleSelectTimezone} onHighlight={setHighlightedIndex} />
       )}
     </div>
   );
 };
+
+const TimezoneDropdown: React.FC<{ dropdownRef: React.RefObject<HTMLDivElement>; options: string[]; highlightedIndex: number; onSelect: (tz: string) => void; onHighlight: (index: number) => void }> = ({ dropdownRef, options, highlightedIndex, onSelect, onHighlight }) => (
+  <div ref={dropdownRef} style={{ position: 'absolute', top: '100%', left: 0, right: 0, maxHeight: '200px', overflowY: 'auto', backgroundColor: theme.colors.background.paper, border: `1px solid ${theme.colors.border.medium}`, borderTop: 'none', borderRadius: `0 0 ${theme.borderRadius.sm} ${theme.borderRadius.sm}`, boxShadow: theme.shadows.md, zIndex: 1000 }}>
+    {options.map((tz, index) => (
+      <div key={tz} onClick={() => onSelect(tz)} onMouseEnter={() => onHighlight(index)} style={{ padding: `${theme.spacing.xs} ${theme.spacing.sm}`, cursor: 'pointer', backgroundColor: index === highlightedIndex ? theme.colors.background.hover : 'transparent', fontSize: theme.typography.fontSize.sm, color: theme.colors.text.primary }}>
+        {tz.replace(/_/g, ' ')}
+      </div>
+    ))}
+  </div>
+);

@@ -12,6 +12,76 @@ import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { PROVIDER_GMAIL, PROVIDER_OTHER, PROVIDER_OUTLOOK, PROVIDER_ZOHO, STRING_NONE } from 'constants/strings';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
+// Static style constants — outside component to avoid recreation on each render
+const errorDivStyle: React.CSSProperties = {
+  backgroundColor: `${theme.colors.accent.error}20`,
+  color: theme.colors.accent.error,
+  padding: theme.spacing.md,
+  borderRadius: theme.borderRadius.md,
+  marginBottom: theme.spacing.md,
+};
+
+const formStyle: React.CSSProperties = {
+  width: '100%',
+  boxSizing: 'border-box',
+};
+
+const emailSystemContainerStyle: React.CSSProperties = {
+  marginBottom: theme.spacing.md,
+};
+
+function buildEmailSystemOptions(t: (key: string) => string): Array<{ value: string; label: string }> {
+  return [
+    { value: '', label: t('landing.waitlist.emailSystemPlaceholder') },
+    { value: PROVIDER_GMAIL, label: t('landing.waitlist.emailSystemGmail') },
+    { value: PROVIDER_OUTLOOK, label: t('landing.waitlist.emailSystemOutlook') },
+    { value: PROVIDER_ZOHO, label: t('landing.waitlist.emailSystemZoho') },
+    { value: PROVIDER_OTHER, label: t('landing.waitlist.emailSystemOther') },
+  ];
+}
+
+const selectBaseStyle: React.CSSProperties = {
+  width: '100%',
+  border: `1px solid ${theme.colors.border.medium}`,
+  borderRadius: theme.borderRadius.md,
+  fontSize: theme.typography.fontSize.base,
+  boxSizing: 'border-box',
+  fontFamily: theme.typography.fontFamily,
+  backgroundColor: COLOR_NAMED_WHITE,
+};
+
+// Dynamic style helpers — accept state/breakpoint values
+function getLabelStyle(isMobile: boolean): React.CSSProperties {
+  return {
+    display: 'block',
+    marginBottom: isMobile ? theme.spacing.sm : theme.spacing.xs,
+    color: theme.colors.text.primary,
+    fontWeight: theme.typography.fontWeight.medium,
+    fontSize: theme.typography.fontSize.base,
+  };
+}
+
+function getSelectStyle(isMobile: boolean): React.CSSProperties {
+  return {
+    ...selectBaseStyle,
+    padding: isMobile ? theme.spacing.md : theme.spacing.md,
+  };
+}
+
+function getButtonStyle(isMobile: boolean, submitting: boolean): React.CSSProperties {
+  return {
+    width: '100%',
+    padding: isMobile ? theme.spacing.md : theme.spacing.lg,
+    backgroundColor: submitting ? theme.colors.border.dark : theme.colors.primary.main,
+    color: COLOR_NAMED_WHITE,
+    border: STRING_NONE,
+    borderRadius: theme.borderRadius.md,
+    fontSize: theme.typography.fontSize.base,
+    fontWeight: theme.typography.fontWeight.semibold,
+    cursor: submitting ? 'wait' : 'pointer',
+  };
+}
+
 interface WaitlistFormProps {
   /**
    * Callback when form is successfully submitted
@@ -34,13 +104,12 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
   const [error, setError] = useState('');
   const { isMobile } = useResponsiveBreakpoints();
 
-  const emailSystemOptions = [
-    { value: '', label: t('landing.waitlist.emailSystemPlaceholder') },
-    { value: PROVIDER_GMAIL, label: t('landing.waitlist.emailSystemGmail') },
-    { value: PROVIDER_OUTLOOK, label: t('landing.waitlist.emailSystemOutlook') },
-    { value: PROVIDER_ZOHO, label: t('landing.waitlist.emailSystemZoho') },
-    { value: PROVIDER_OTHER, label: t('landing.waitlist.emailSystemOther') },
-  ];
+  const emailSystemOptions = buildEmailSystemOptions(t);
+
+  const handleEmailSystemChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setEmailSystem(e.target.value);
+    if (e.target.value) captureEvent('wait-list-email-platform-selected');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,37 +133,13 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
     }
   };
 
-  const buttonStyle: React.CSSProperties = {
-    width: '100%',
-    padding: isMobile ? theme.spacing.md : theme.spacing.lg,
-    backgroundColor: submitting ? theme.colors.border.dark : theme.colors.primary.main,
-    color: COLOR_NAMED_WHITE,
-    border: STRING_NONE,
-    borderRadius: theme.borderRadius.md,
-    fontSize: theme.typography.fontSize.base,
-    fontWeight: theme.typography.fontWeight.semibold,
-    cursor: submitting ? 'wait' : 'pointer',
-  };
-
   return (
     <WaitlistFormContainer>
       <WaitlistFormHeader />
 
-      {error && (
-        <div
-          style={{
-            backgroundColor: `${theme.colors.accent.error}20`,
-            color: theme.colors.accent.error,
-            padding: theme.spacing.md,
-            borderRadius: theme.borderRadius.md,
-            marginBottom: theme.spacing.md,
-          }}
-        >
-          {error}
-        </div>
-      )}
+      {error && <div style={errorDivStyle}>{error}</div>}
 
-      <form onSubmit={handleSubmit} style={{ width: '100%', boxSizing: 'border-box' }}>
+      <form onSubmit={handleSubmit} style={formStyle}>
         <WaitlistFormField
           label="First Name"
           type="text"
@@ -111,71 +156,48 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
           onBlur={() => email && captureEvent('wait-list-email-entered')}
           required
         />
-                <WaitlistFormField
-                  label="Why do you want to use BearlyMail?"
-                  type="textarea"
-                  value={reason}
-                  onChange={setReason}
-                  onBlur={() => reason && captureEvent('wait-list-reason-entered')}
-                  required
-                  rows={2}
-                />
+        <WaitlistFormField
+          label="Why do you want to use BearlyMail?"
+          type="textarea"
+          value={reason}
+          onChange={setReason}
+          onBlur={() => reason && captureEvent('wait-list-reason-entered')}
+          required
+          rows={2}
+        />
 
-                <div style={{ marginBottom: theme.spacing.md }}>
-                                    <label
-                                      style={{
-                                        display: 'block',
-                                        marginBottom: isMobile ? theme.spacing.sm : theme.spacing.xs,
-                                        color: theme.colors.text.primary,
-                                        fontWeight: theme.typography.fontWeight.medium,
-                                        fontSize: theme.typography.fontSize.base,
-                                      }}
-                                    >
-                                      {t('landing.waitlist.emailSystemLabel')}
-                                    </label>
-                                    <select
-                                      value={emailSystem}
-                                      onChange={(e) => {
-                                        setEmailSystem(e.target.value);
-                                        if (e.target.value) {
-                                          captureEvent('wait-list-email-platform-selected');
-                                        }
-                                      }}
-                                      required
-                                      style={{
-                                        width: '100%',
-                                        padding: isMobile ? theme.spacing.md : theme.spacing.md,
-                                        border: `1px solid ${theme.colors.border.medium}`,
-                                        borderRadius: theme.borderRadius.md,
-                                        fontSize: theme.typography.fontSize.base,
-                                        boxSizing: 'border-box',
-                                        fontFamily: theme.typography.fontFamily,
-                                        backgroundColor: COLOR_NAMED_WHITE,
-                                      }}
-                                    >
-                                      {emailSystemOptions.map((option) => (
-                                        <option key={option.value} value={option.value}>
-                                          {option.label}
-                                        </option>
-                                      ))}
-                                    </select>
-                </div>
+        <div style={emailSystemContainerStyle}>
+          <label style={getLabelStyle(isMobile)}>
+            {t('landing.waitlist.emailSystemLabel')}
+          </label>
+          <select
+            value={emailSystem}
+            onChange={handleEmailSystemChange}
+            required
+            style={getSelectStyle(isMobile)}
+          >
+            {emailSystemOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
-                                 {emailSystem === PROVIDER_OTHER && (
-                                  <WaitlistFormField
-                                    label={t('landing.waitlist.emailSystemOtherLabel')}
-                                    type="text"
-                                    value={emailSystemOther}
-                                    onChange={setEmailSystemOther}
-                                    required
-                                  />
-                                )}
+        {emailSystem === PROVIDER_OTHER && (
+          <WaitlistFormField
+            label={t('landing.waitlist.emailSystemOtherLabel')}
+            type="text"
+            value={emailSystemOther}
+            onChange={setEmailSystemOther}
+            required
+          />
+        )}
 
-                <button type="submit" disabled={submitting} style={buttonStyle}>
+        <button type="submit" disabled={submitting} style={getButtonStyle(isMobile, submitting)}>
           {submitting ? 'Submitting...' : 'Join Waitlist'}
         </button>
       </form>
     </WaitlistFormContainer>
   );
 };
-

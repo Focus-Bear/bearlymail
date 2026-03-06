@@ -11,14 +11,7 @@ import { OPACITY_DISABLED } from 'constants/numbers';
 import { CONTEXT_KEY_EMAIL_CATEGORY, STRING_NONE } from 'constants/strings';
 import { useRecategorizeProgress } from 'hooks/settings/useRecategorizeProgress';
 
-interface UserContext {
-  contextId: string;
-  contextKey: string;
-  contextValue: string;
-  source: string;
-  priority?: number;
-  explanation?: string;
-}
+interface UserContext { contextId: string; contextKey: string; contextValue: string; source: string; priority?: number; explanation?: string; }
 
 interface ContextSectionsListProps {
   contexts: UserContext[];
@@ -35,25 +28,9 @@ interface ContextSectionsListProps {
   onEditContextValueChange: (value: string) => void;
 }
 
-interface ContextSectionConfig {
-  titleKey?: string;
-  title?: string;
-  contextKey: string | string[];
-  addLabelKey?: string;
-  addLabel?: string;
-  tooltipKey: string;
-  anchorId?: string;
-}
+interface ContextSectionConfig { titleKey?: string; title?: string; contextKey: string | string[]; addLabelKey?: string; addLabel?: string; tooltipKey: string; anchorId?: string; }
 
-const CONTEXT_SECTIONS: ContextSectionConfig[] = [
-  { titleKey: 'settings.contextSections.emailCategories', contextKey: 'EMAIL_CATEGORY', addLabelKey: 'settings.addContext.emailCategories', tooltipKey: 'settings.contextTypes.tooltip.emailCategories', anchorId: 'email-categories' },
-  { titleKey: 'settings.contextSections.vip', contextKey: 'VIP_CONTACT', addLabelKey: 'settings.addContext.vip', tooltipKey: 'settings.contextTypes.tooltip.vip' },
-  { titleKey: 'settings.contextSections.userInfo', contextKey: 'USER_INFO', addLabelKey: 'settings.addContext.userInfo', tooltipKey: 'settings.contextTypes.tooltip.userInfo' },
-  { titleKey: 'settings.contextSections.projects', contextKey: ['CURRENT_TOPIC', 'PROJECT_NAME', 'WORKING_ON'], addLabelKey: 'settings.addContext.projects', tooltipKey: 'settings.contextTypes.tooltip.projects' },
-  { titleKey: 'settings.contextSections.urgent', contextKey: 'URGENT', addLabelKey: 'settings.addContext.urgent', tooltipKey: 'settings.contextTypes.tooltip.urgent' },
-  { titleKey: 'settings.contextSections.notImportant', contextKey: 'NOT_IMPORTANT', addLabelKey: 'settings.addContext.notImportant', tooltipKey: 'settings.contextTypes.tooltip.notImportant' },
-  { title: 'Q&A', contextKey: 'Q_AND_A', addLabel: 'Add common Q&A', tooltipKey: 'settings.contextTypes.tooltip.qanda' },
-];
+const CONTEXT_SECTIONS: ContextSectionConfig[] = [ { titleKey: 'settings.contextSections.emailCategories', contextKey: 'EMAIL_CATEGORY', addLabelKey: 'settings.addContext.emailCategories', tooltipKey: 'settings.contextTypes.tooltip.emailCategories', anchorId: 'email-categories' }, { titleKey: 'settings.contextSections.vip', contextKey: 'VIP_CONTACT', addLabelKey: 'settings.addContext.vip', tooltipKey: 'settings.contextTypes.tooltip.vip' }, { titleKey: 'settings.contextSections.userInfo', contextKey: 'USER_INFO', addLabelKey: 'settings.addContext.userInfo', tooltipKey: 'settings.contextTypes.tooltip.userInfo' }, { titleKey: 'settings.contextSections.projects', contextKey: ['CURRENT_TOPIC', 'PROJECT_NAME', 'WORKING_ON'], addLabelKey: 'settings.addContext.projects', tooltipKey: 'settings.contextTypes.tooltip.projects' }, { titleKey: 'settings.contextSections.urgent', contextKey: 'URGENT', addLabelKey: 'settings.addContext.urgent', tooltipKey: 'settings.contextTypes.tooltip.urgent' }, { titleKey: 'settings.contextSections.notImportant', contextKey: 'NOT_IMPORTANT', addLabelKey: 'settings.addContext.notImportant', tooltipKey: 'settings.contextTypes.tooltip.notImportant' }, { title: 'Q&A', contextKey: 'Q_AND_A', addLabel: 'Add common Q&A', tooltipKey: 'settings.contextTypes.tooltip.qanda' }, ];
 
 export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
   contexts,
@@ -117,89 +94,18 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
     }
   };
 
-  const commonProps = {
-    contexts,
-    addingContextType,
-    editingContextId,
-    editContextValue,
-    newContextValue,
-    onAddContext,
-    onUpdateContext,
-    onDeleteContext,
-    onNewContextValueChange,
-    onAddingContextTypeChange,
-    onEditingContextIdChange,
-    onEditContextValueChange,
-  };
+  const commonProps = { contexts, addingContextType, editingContextId, editContextValue, newContextValue, onAddContext, onUpdateContext, onDeleteContext, onNewContextValueChange, onAddingContextTypeChange, onEditingContextIdChange, onEditContextValueChange, };
 
-  const emailCategoryButtons = (
+  const EmailCategoryControls: React.FC = () => (
     <div style={{ marginLeft: 'auto', minWidth: '260px' }}>
       <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-        <button
-          onClick={() => setShowProtoCategoriesModal(true)}
-          style={{
-            background: 'transparent',
-            border: STRING_NONE,
-            color: theme.colors.primary.main,
-            cursor: 'pointer',
-            fontSize: theme.typography.fontSize.sm,
-            fontWeight: theme.typography.fontWeight.medium,
-          }}
-        >
-          {t('settings.protoCategories.viewButton')}
-        </button>
-        <button
-          onClick={handleCompressContext}
-          disabled={isCompressing}
-          style={{
-            background: 'transparent',
-            border: STRING_NONE,
-            color: theme.colors.primary.main,
-            cursor: 'pointer',
-            fontSize: theme.typography.fontSize.sm,
-            fontWeight: theme.typography.fontWeight.medium,
-            opacity: isCompressing ? OPACITY_DISABLED : 1,
-          }}
-        >
-          {isCompressing ? t('settings.context.compressing') : t('settings.context.compress')}
-        </button>
-        <button
-          onClick={handleConsolidateCategories}
-          disabled={isConsolidating}
-          style={{
-            background: 'transparent',
-            border: STRING_NONE,
-            color: theme.colors.primary.main,
-            cursor: isConsolidating ? 'not-allowed' : 'pointer',
-            fontSize: theme.typography.fontSize.sm,
-            fontWeight: theme.typography.fontWeight.medium,
-            opacity: isConsolidating ? OPACITY_DISABLED : 1,
-          }}
-        >
-          {isConsolidating ? t('settings.emailCategories.consolidating') : t('settings.emailCategories.consolidate')}
-        </button>
-        <button
-          onClick={handleRecategorize}
-          disabled={isRecategorizing}
-          style={{
-            background: 'transparent',
-            border: STRING_NONE,
-            color: theme.colors.accent.warning,
-            cursor: isRecategorizing ? 'not-allowed' : 'pointer',
-            fontSize: theme.typography.fontSize.sm,
-            fontWeight: theme.typography.fontWeight.medium,
-            opacity: isRecategorizing ? OPACITY_DISABLED : 1,
-          }}
-        >
-          {isRecategorizing ? t('settings.emailCategories.recategorizing') : t('settings.emailCategories.recategorize')}
-        </button>
+        <button onClick={() => setShowProtoCategoriesModal(true)} style={{ background: 'transparent', border: STRING_NONE, color: theme.colors.primary.main, cursor: 'pointer', fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium }}>{t('settings.protoCategories.viewButton')}</button>
+        <button onClick={handleCompressContext} disabled={isCompressing} style={{ background: 'transparent', border: STRING_NONE, color: theme.colors.primary.main, cursor: 'pointer', fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium, opacity: isCompressing ? OPACITY_DISABLED : 1 }}>{isCompressing ? t('settings.context.compressing') : t('settings.context.compress')}</button>
+        <button onClick={handleConsolidateCategories} disabled={isConsolidating} style={{ background: 'transparent', border: STRING_NONE, color: theme.colors.primary.main, cursor: isConsolidating ? 'not-allowed' : 'pointer', fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium, opacity: isConsolidating ? OPACITY_DISABLED : 1 }}>{isConsolidating ? t('settings.emailCategories.consolidating') : t('settings.emailCategories.consolidate')}</button>
+        <button onClick={handleRecategorize} disabled={isRecategorizing} style={{ background: 'transparent', border: STRING_NONE, color: theme.colors.accent.warning, cursor: isRecategorizing ? 'not-allowed' : 'pointer', fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium, opacity: isRecategorizing ? OPACITY_DISABLED : 1 }}>{isRecategorizing ? t('settings.emailCategories.recategorizing') : t('settings.emailCategories.recategorize')}</button>
       </div>
       <RecategorizeProgressBar progress={recategorizeProgress} onDismiss={dismissProgress} />
-      {showProtoCategoriesModal && (
-        <ProtoCategoriesModal
-          onClose={() => setShowProtoCategoriesModal(false)}
-        />
-      )}
+      {showProtoCategoriesModal && <ProtoCategoriesModal onClose={() => setShowProtoCategoriesModal(false)} />}
     </div>
   );
 
@@ -218,7 +124,7 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
             contextKey={config.contextKey}
             addLabel={config.addLabel || (config.addLabelKey ? t(config.addLabelKey) : '')}
             tooltipContent={t(config.tooltipKey)}
-            actionButton={isEmailCategory ? emailCategoryButtons : undefined}
+            actionButton={isEmailCategory ? <EmailCategoryControls /> : undefined}
             {...commonProps}
           />
         );

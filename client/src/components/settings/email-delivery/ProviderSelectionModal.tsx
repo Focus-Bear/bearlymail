@@ -21,59 +21,15 @@ export const ProviderSelectionModal: React.FC<ProviderSelectionModalProps> = ({
 
   if (!isOpen) return null;
 
-  const providers = [
-    {
-      id: 'gmail' as const,
-      name: 'Gmail',
-      description: t('settings.emailAccounts.providers.gmail.description'),
-      color: COLOR_ERROR_GOOGLE,
-    },
-    {
-      id: 'office365' as const,
-      name: 'Office 365',
-      description: t('settings.emailAccounts.providers.office365.description'),
-      color: COLOR_INFO_BLUE,
-    },
-    {
-      id: 'zoho' as const,
-      name: 'Zoho Mail',
-      description: t('settings.emailAccounts.providers.zoho.description'),
-      color: COLOR_ERROR_DARK_ALT,
-    },
-  ];
+  const providers = getProviderOptions(t);
 
-  const handleProviderClick = (providerId: 'gmail' | 'office365' | 'zoho') => {
-    onSelectProvider(providerId);
-    onClose();
-  };
-
-  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === KEY_ESCAPE) {
-      onClose();
-    }
-  };
+  const handleProviderClick = (providerId: 'gmail' | 'office365' | 'zoho') => { onSelectProvider(providerId); onClose(); };
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => { if (e.target === e.currentTarget) onClose(); };
+  const handleKeyDown = (e: React.KeyboardEvent) => { if (e.key === KEY_ESCAPE) onClose(); };
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: `rgba(0, 0, 0, ${OPACITY_DISABLED_ALT})`,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: Z_INDEX_MODAL_OVERLAY,
-        padding: theme.spacing.lg,
-      }}
+      style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: `rgba(0, 0, 0, ${OPACITY_DISABLED_ALT})`, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: Z_INDEX_MODAL_OVERLAY, padding: theme.spacing.lg, }}
       onClick={handleBackdropClick}
       onKeyDown={handleKeyDown}
       role="dialog"
@@ -81,24 +37,12 @@ export const ProviderSelectionModal: React.FC<ProviderSelectionModalProps> = ({
       aria-labelledby="provider-modal-title"
     >
       <div
-        style={{
-          backgroundColor: theme.colors.background.paper,
-          borderRadius: theme.borderRadius.lg,
-          padding: theme.spacing['2xl'],
-          maxWidth: '600px',
-          width: '100%',
-          boxShadow: theme.shadows.xl,
-        }}
+        style={{ backgroundColor: theme.colors.background.paper, borderRadius: theme.borderRadius.lg, padding: theme.spacing['2xl'], maxWidth: '600px', width: '100%', boxShadow: theme.shadows.xl, }}
         onClick={(e) => e.stopPropagation()}
       >
         <h2
           id="provider-modal-title"
-          style={{
-            color: theme.colors.text.primary,
-            marginBottom: theme.spacing.xl,
-            fontSize: theme.typography.fontSize['2xl'],
-            fontWeight: theme.typography.fontWeight.semibold,
-          }}
+          style={{ color: theme.colors.text.primary, marginBottom: theme.spacing.xl, fontSize: theme.typography.fontSize['2xl'], fontWeight: theme.typography.fontWeight.semibold, }}
         >
           {t('settings.emailAccounts.selectProvider')}
         </h2>
@@ -108,18 +52,7 @@ export const ProviderSelectionModal: React.FC<ProviderSelectionModalProps> = ({
             <button
               key={provider.id}
               onClick={() => handleProviderClick(provider.id)}
-              style={{
-                padding: theme.spacing.lg,
-                border: `2px solid ${theme.colors.border.medium}`,
-                borderRadius: theme.borderRadius.md,
-                backgroundColor: theme.colors.background.default,
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'all 0.2s ease',
-                display: 'flex',
-                alignItems: 'center',
-                gap: theme.spacing.md,
-              }}
+              style={{ padding: theme.spacing.lg, border: `2px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, backgroundColor: theme.colors.background.default, cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', gap: theme.spacing.md, }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.borderColor = provider.color;
                 e.currentTarget.style.backgroundColor = theme.colors.background.paper;
@@ -132,38 +65,18 @@ export const ProviderSelectionModal: React.FC<ProviderSelectionModalProps> = ({
               }}
             >
               <div
-                style={{
-                  width: '48px',
-                  height: '48px',
-                  borderRadius: theme.borderRadius.md,
-                  backgroundColor: provider.color,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: COLOR_NAMED_WHITE,
-                  fontSize: theme.typography.fontSize.lg,
-                  fontWeight: theme.typography.fontWeight.bold,
-                  flexShrink: 0,
-                }}
+                style={{ width: '48px', height: '48px', borderRadius: theme.borderRadius.md, backgroundColor: provider.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: COLOR_NAMED_WHITE, fontSize: theme.typography.fontSize.lg, fontWeight: theme.typography.fontWeight.bold, flexShrink: 0, }}
               >
                 {provider.name.charAt(0)}
               </div>
               <div style={{ flex: 1 }}>
                 <div
-                  style={{
-                    color: theme.colors.text.primary,
-                    fontSize: theme.typography.fontSize.lg,
-                    fontWeight: theme.typography.fontWeight.medium,
-                    marginBottom: theme.spacing.xs,
-                  }}
+                  style={{ color: theme.colors.text.primary, fontSize: theme.typography.fontSize.lg, fontWeight: theme.typography.fontWeight.medium, marginBottom: theme.spacing.xs, }}
                 >
                   {provider.name}
                 </div>
                 <div
-                  style={{
-                    color: theme.colors.text.secondary,
-                    fontSize: theme.typography.fontSize.sm,
-                  }}
+                  style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, }}
                 >
                   {provider.description}
                 </div>
@@ -174,17 +87,7 @@ export const ProviderSelectionModal: React.FC<ProviderSelectionModalProps> = ({
 
         <button
           onClick={onClose}
-          style={{
-            marginTop: theme.spacing.xl,
-            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-            backgroundColor: COLOR_TRANSPARENT,
-            color: theme.colors.text.secondary,
-            border: `1px solid ${theme.colors.border.medium}`,
-            borderRadius: theme.borderRadius.md,
-            fontSize: theme.typography.fontSize.sm,
-            cursor: 'pointer',
-            width: '100%',
-          }}
+          style={{ marginTop: theme.spacing.xl, padding: `${theme.spacing.sm} ${theme.spacing.md}`, backgroundColor: COLOR_TRANSPARENT, color: theme.colors.text.secondary, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, fontSize: theme.typography.fontSize.sm, cursor: 'pointer', width: '100%', }}
           onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = theme.colors.background.default;
           }}
@@ -201,3 +104,11 @@ export const ProviderSelectionModal: React.FC<ProviderSelectionModalProps> = ({
 
 
 
+
+function getProviderOptions(t: (key: string) => string) {
+  return [
+    { id: 'gmail' as const, name: 'Gmail', description: t('settings.emailAccounts.providers.gmail.description'), color: COLOR_ERROR_GOOGLE },
+    { id: 'office365' as const, name: 'Office 365', description: t('settings.emailAccounts.providers.office365.description'), color: COLOR_INFO_BLUE },
+    { id: 'zoho' as const, name: 'Zoho Mail', description: t('settings.emailAccounts.providers.zoho.description'), color: COLOR_ERROR_DARK_ALT },
+  ];
+}

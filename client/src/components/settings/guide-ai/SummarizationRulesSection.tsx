@@ -56,36 +56,13 @@ export const SummarizationRulesSection: React.FC<SummarizationRulesSectionProps>
   const itemCount = summarizationRules.length;
 
   return (
-    <div id="summarization" style={{
-      marginTop: theme.spacing.lg,
-      border: `1px solid ${theme.colors.border.light}`,
-      borderRadius: theme.borderRadius.md,
-      backgroundColor: theme.colors.background.paper,
-    }}>
+    <div id="summarization" style={{ marginTop: theme.spacing.lg, border: `1px solid ${theme.colors.border.light}`, borderRadius: theme.borderRadius.md, backgroundColor: theme.colors.background.paper, }}>
       <div
         onClick={() => setIsExpanded(!isExpanded)}
-        style={{
-          fontSize: theme.typography.fontSize.lg,
-          color: theme.colors.text.primary,
-          padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-          display: 'flex',
-          alignItems: 'center',
-          gap: theme.spacing.sm,
-          cursor: 'pointer',
-          backgroundColor: theme.colors.background.paper,
-          borderBottom: isExpanded ? `1px solid ${theme.colors.border.light}` : 'none',
-          borderRadius: isExpanded ? `${theme.borderRadius.md} ${theme.borderRadius.md} 0 0` : theme.borderRadius.md,
-          transition: theme.transitions.fast,
-          scrollMarginTop: `${INPUT_WIDTH_PX}px`,
-        }}
+        style={{ fontSize: theme.typography.fontSize.lg, color: theme.colors.text.primary, padding: `${theme.spacing.sm} ${theme.spacing.md}`, display: 'flex', alignItems: 'center', gap: theme.spacing.sm, cursor: 'pointer', backgroundColor: theme.colors.background.paper, borderBottom: isExpanded ? `1px solid ${theme.colors.border.light}` : 'none', borderRadius: isExpanded ? `${theme.borderRadius.md} ${theme.borderRadius.md} 0 0` : theme.borderRadius.md, transition: theme.transitions.fast, scrollMarginTop: `${INPUT_WIDTH_PX}px`, }}
       >
         <span
-          style={{
-            transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-            transition: theme.transitions.fast,
-            fontSize: theme.typography.fontSize.base,
-            color: theme.colors.text.secondary,
-          }}
+          style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: theme.transitions.fast, fontSize: theme.typography.fontSize.base, color: theme.colors.text.secondary, }}
         >
           ▶
         </span>
@@ -93,14 +70,7 @@ export const SummarizationRulesSection: React.FC<SummarizationRulesSectionProps>
           {t('settings.summarizationRules')}
         </span>
         <span
-          style={{
-            backgroundColor: theme.colors.greyscale[300],
-            color: theme.colors.text.secondary,
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            borderRadius: theme.borderRadius.full,
-            fontSize: theme.typography.fontSize.sm,
-            fontWeight: theme.typography.fontWeight.medium,
-          }}
+          style={{ backgroundColor: theme.colors.greyscale[300], color: theme.colors.text.secondary, padding: `${theme.spacing.xs} ${theme.spacing.sm}`, borderRadius: theme.borderRadius.full, fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium, }}
         >
           {itemCount}
         </span>
@@ -108,27 +78,14 @@ export const SummarizationRulesSection: React.FC<SummarizationRulesSectionProps>
 
       {isExpanded && (
         <div style={{ padding: theme.spacing.md }}>
-          <p style={{
-            color: theme.colors.text.secondary,
-            marginBottom: theme.spacing.lg,
-            fontSize: theme.typography.fontSize.sm,
-          }}>
+          <p style={{ color: theme.colors.text.secondary, marginBottom: theme.spacing.lg, fontSize: theme.typography.fontSize.sm, }}>
             {t('settings.summarizationRulesDesc')}
           </p>
 
           {!showAddForm && (
             <button
               onClick={(e) => { e.stopPropagation(); setShowAddForm(true); }}
-              style={{
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                backgroundColor: theme.colors.primary.main,
-                color: COLOR_NAMED_WHITE,
-                border: STRING_NONE,
-                borderRadius: theme.borderRadius.md,
-                cursor: 'pointer',
-                fontSize: theme.typography.fontSize.sm,
-                marginBottom: theme.spacing.lg,
-              }}
+              style={{ padding: `${theme.spacing.sm} ${theme.spacing.md}`, backgroundColor: theme.colors.primary.main, color: COLOR_NAMED_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.md, cursor: 'pointer', fontSize: theme.typography.fontSize.sm, marginBottom: theme.spacing.lg, }}
             >
               {t('settings.addRule')}
             </button>
@@ -149,13 +106,7 @@ export const SummarizationRulesSection: React.FC<SummarizationRulesSectionProps>
 
           {/* Existing Rules */}
           {summarizationRules.length === 0 ? (
-            <div style={{
-              padding: theme.spacing.xl,
-              textAlign: 'center',
-              color: theme.colors.text.secondary,
-              border: `2px dashed ${theme.colors.border.light}`,
-              borderRadius: theme.borderRadius.md,
-            }}>
+            <div style={{ padding: theme.spacing.xl, textAlign: 'center', color: theme.colors.text.secondary, border: `2px dashed ${theme.colors.border.light}`, borderRadius: theme.borderRadius.md, }}>
               {t('settings.noSummarizationRules')}
             </div>
           ) : (

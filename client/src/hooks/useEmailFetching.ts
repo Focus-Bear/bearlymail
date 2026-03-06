@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import axios from 'axios';
 import { Email, InboxMode } from 'types/email';
@@ -39,7 +39,42 @@ interface UseEmailFetchingProps {
   filters?: InboxFilter;
 }
 
-// eslint-disable-next-line max-lines-per-function -- Inbox fetching requires summary, per-category lazy loading, and error handling
+async function fetchAutoRespondedEmails(
+  dispatch: AppDispatch,
+  buildAutoRespondedParams: () => URLSearchParams,
+  buildAutoRespondedSummary: (emails: Email[]) => Array<{ id: null; name: string; count: number }>,
+): Promise<void> {
+  const params = buildAutoRespondedParams();
+  const response = await axios.get(`${API_URL}/auto-responder/threads?${params.toString()}`);
+  const { emails = [], total = 0, hasMore = false } = response.data;
+
+  const normalizedEmails: Email[] = emails.map((email: Email) => ({
+    ...email,
+    category: email.category || CATEGORY_OTHER,
+  }));
+  const categorySummary = buildAutoRespondedSummary(normalizedEmails);
+
+  dispatch(setEmails(normalizedEmails));
+  dispatch(setCategorySummary(categorySummary));
+  dispatch(setTotalCount(total));
+  dispatch(setHasMore(hasMore));
+  dispatch(setCurrentOffset(normalizedEmails.length));
+  categorySummary.forEach((category) => {
+    dispatch(markCategoryLoaded(category.name));
+  });
+}
+
+async function fetchInboxSummary(
+  dispatch: AppDispatch,
+  buildSummaryParams: () => URLSearchParams,
+): Promise<void> {
+  const params = buildSummaryParams();
+  const response = await axios.get(`${API_URL}/emails/inbox-summary?${params.toString()}`);
+  const { total, categories } = response.data;
+  dispatch(setCategorySummary(categories));
+  dispatch(setTotalCount(total));
+}
+
 export function useEmailFetching({
   mode,
   filters,
@@ -64,89 +99,18 @@ export function useEmailFetching({
   // fetchEmails() cleared the state, which would block a subsequent re-fetch via the guard.
   const fetchSessionRef = useRef(0);
 
-  const buildSummaryParams = useCallback((): URLSearchParams => {
-    const params = new URLSearchParams();
-    params.append('mode', mode);
-
-    // Include thread IDs for all modes to support category debug view
-    params.append('includeThreadIds', 'true');
-
-    if (filters) {
-      if (filters.categories && filters.categories.length > 0) {
-        params.append('categories', filters.categories.join(','));
-      }
-      if (filters.minPriority !== null && filters.minPriority !== undefined) {
-        params.append('minPriority', filters.minPriority.toString());
-      }
-      // Include account filter to ensure summary counts match category fetches
-      if (filters.accountIds && filters.accountIds.length > 0) {
-        params.append('accounts', filters.accountIds.join(','));
-      }
-    }
-
-    return params;
-  }, [mode, filters]);
-
-  const buildCategoryParams = useCallback((categoryName: string, categoryId?: string | null): URLSearchParams => {
-    const params = new URLSearchParams();
-    params.append('mode', mode);
-    // Use category ID if available, otherwise fall back to name
-    if (categoryId) {
-      params.append('categoryIds', categoryId);
-    } else {
-      params.append('categories', categoryName);
-    }
-    // Fetch all emails for this category in one request
-    params.append('limit', INBOX_FETCH_LIMIT.toString());
-    params.append('offset', '0');
-
-    if (filters) {
-      if (filters.accountIds && filters.accountIds.length > 0) {
-        params.append('accounts', filters.accountIds.join(','));
-      }
-      if (filters.minPriority !== null && filters.minPriority !== undefined) {
-        params.append('minPriority', filters.minPriority.toString());
-      }
-    }
-
-    return params;
-  }, [mode, filters]);
-
-  const buildAutoRespondedParams = useCallback((): URLSearchParams => {
-    const params = new URLSearchParams();
-    params.append('offset', '0');
-    // Fetch all auto-responded threads in one request; frontend groups by category.
-    params.append('limit', INBOX_FETCH_LIMIT.toString());
-
-    if (filters) {
-      if (filters.categories && filters.categories.length > 0) {
-        params.append('categories', filters.categories.join(','));
-      }
-      if (filters.minPriority !== null && filters.minPriority !== undefined) {
-        params.append('minPriority', filters.minPriority.toString());
-      }
-      if (filters.accountIds && filters.accountIds.length > 0) {
-        params.append('accounts', filters.accountIds.join(','));
-      }
-    }
-
-    return params;
-  }, [filters]);
-
-  const buildAutoRespondedSummary = useCallback((emails: Email[]) => {
-    const categoryCounts = new Map<string, number>();
-
-    emails.forEach((email) => {
-      const categoryName = email.category || CATEGORY_OTHER;
-      categoryCounts.set(categoryName, (categoryCounts.get(categoryName) || 0) + 1);
-    });
-
-    return Array.from(categoryCounts.entries()).map(([name, count]) => ({
-      id: null,
-      name,
-      count,
-    }));
-  }, []);
+  const buildSummaryParams = useCallback(
+    () => buildSummaryParamsImpl(mode, filters), [mode, filters],
+  );
+  const buildCategoryParams = useCallback(
+    (categoryName: string, categoryId?: string | null) => buildCategoryParamsImpl(mode, filters, categoryName, categoryId), [mode, filters],
+  );
+  const buildAutoRespondedParams = useCallback(
+    () => buildAutoRespondedParamsImpl(filters), [filters],
+  );
+  const buildAutoRespondedSummary = useCallback(
+    (emails: Email[]) => buildAutoRespondedSummaryImpl(emails), [],
+  );
 
   /**
    * Fetch the inbox summary: category names and counts.
@@ -154,262 +118,188 @@ export function useEmailFetching({
    * summary immediately, then each category's emails are loaded lazily on expand.
    */
   const fetchEmails = useCallback(async () => {
-    // Increment session to invalidate any in-flight fetchCategoryEmails calls from a prior cycle.
-    // Without this, a stale fetchCategoryEmails could dispatch markCategoryLoaded AFTER we
-    // cleared the state, poisoning the guard and preventing a correct re-fetch.
     fetchSessionRef.current += 1;
-    dispatch(setDecrypting(true));
-    dispatch(setFetchError(null));
-    // clearCategoryState sets summaryLoading = true internally, so no separate dispatch needed
-    dispatch(clearCategoryState());
-    dispatch(setEmails([]));
-    dispatch(setCurrentOffset(0));
-    dispatch(setHasMore(false));
-    dispatch(setTotalCount(0));
     isLoadingMoreRef.current = false;
-    try {
-      if (mode === MODE_AUTORESPONDED) {
-        const params = buildAutoRespondedParams();
-        const response = await axios.get(`${API_URL}/auto-responder/threads?${params.toString()}`);
-        const { emails = [], total = 0, hasMore = false } = response.data;
-
-        const normalizedEmails: Email[] = emails.map((email: Email) => ({
-          ...email,
-          category: email.category || CATEGORY_OTHER,
-        }));
-        const categorySummary = buildAutoRespondedSummary(normalizedEmails);
-
-        dispatch(setEmails(normalizedEmails));
-        dispatch(setCategorySummary(categorySummary));
-        dispatch(setTotalCount(total));
-        dispatch(setHasMore(hasMore));
-        dispatch(setCurrentOffset(normalizedEmails.length));
-        categorySummary.forEach((category) => {
-          dispatch(markCategoryLoaded(category.name));
-        });
-      } else {
-        const params = buildSummaryParams();
-        const response = await axios.get(`${API_URL}/emails/inbox-summary?${params.toString()}`);
-        const { total, categories } = response.data;
-        dispatch(setCategorySummary(categories));
-        dispatch(setTotalCount(total));
-      }
-
-      dispatch(setDecrypting(false));
-      dispatch(setFetchError(null));
-    } catch (error: any) {
-      dispatch(setDecrypting(false));
-      dispatch(setSummaryLoading(false));
-      // eslint-disable-next-line no-restricted-syntax -- Error code comparison requires literal string for axios error codes
-      if (error.code === ERROR_CODE_ERR_NETWORK || error.message?.includes(ERROR_NETWORK)) {
-        dispatch(setFetchError('Unable to connect to the server. Please check if the server is running.'));
-      } else if (error.response?.status === HTTP_UNAUTHORIZED) {
-        const errorMessage = error.response?.data?.message || '';
-        if (errorMessage.includes(ERROR_GMAIL_REQUIRED) || errorMessage.includes(ERROR_GMAIL)) {
-          dispatch(setFetchError('GMAIL_REQUIRED'));
-        } else {
-          dispatch(setFetchError('Please log in again to view emails.'));
-        }
-      } else {
-        dispatch(setFetchError(error.response?.data?.message || error.message || 'Failed to load emails. Please try again.'));
-      }
-    } finally {
-      dispatch(setLoading(false));
-      dispatch(setRefreshing(false));
-      dispatch(setLoadingModeSwitch(false));
-    }
-  }, [
-    mode,
-    dispatch,
-    buildSummaryParams,
-    buildAutoRespondedParams,
-    buildAutoRespondedSummary,
-  ]);
-  /**
-   * Fetch emails for a specific category and append to the flat email list.
-   * Called when the user expands a category accordion that hasn't been loaded yet.
-   *
-   * Uses refs for loadedCategoryNames and loadingCategoryNames so this callback stays
-   * STABLE across category loads. This is critical: if loadedCategoryNames were in the
-   * dep array, every category load would create a new fetchCategoryEmails reference,
-   * which would trigger the re-fetch effect in useInboxState, causing cascading effect
-   * re-runs that can leave categories stuck or fetch them multiple times.
-   *
-   * Session-based invalidation: each fetchEmails() call increments fetchSessionRef.current.
-   * We capture the session ID at the start of this call and abandon results if the session
-   * changed while the API request was in-flight (i.e. fetchEmails() was called concurrently).
-   * This prevents a stale fetch from dispatching markCategoryLoaded() after clearCategoryState()
-   * cleared loadedCategoryNames, which would block the correct re-fetch via the guard.
-   *
-   * @param categoryName - The category name (used for tracking and as fallback)
-   * @param categoryId - The category UUID (preferred for API calls)
-   */
+    await fetchEmailsImpl({ mode, dispatch, buildSummaryParams, buildAutoRespondedParams, buildAutoRespondedSummary });
+  }, [mode, dispatch, buildSummaryParams, buildAutoRespondedParams, buildAutoRespondedSummary]);
   const fetchCategoryEmails = useCallback(async (categoryName: string, categoryId?: string | null) => {
-    // Use refs (updated every render) instead of closed-over state values.
-    // This prevents stale reads without making loadedCategoryNames a dep.
-    if (loadedCategoryNamesRef.current.includes(categoryName)) {
-      return;
-    }
-    if (loadingCategoryNamesRef.current.includes(categoryName)) {
-      return;
-    }
+    await fetchCategoryEmailsImpl({
+      categoryName, categoryId, mode, dispatch, buildCategoryParams,
+      loadedCategoryNamesRef, loadingCategoryNamesRef, fetchSessionRef,
+    });
+  // NOTE: loadedCategoryNames and loadingCategoryNames are read via refs, not deps.
+  }, [mode, dispatch, buildCategoryParams]);
 
-    if (mode === MODE_AUTORESPONDED) {
-      return;
-    }
-
-    // Capture session ID before any async work
-    const sessionId = fetchSessionRef.current;
-
-    dispatch(markCategoryLoading(categoryName));
-    try {
-      const params = buildCategoryParams(categoryName, categoryId);
-
-      const response = await axios.get(`${API_URL}/emails/inbox?${params.toString()}`);
-      const { emails } = response.data;
-
-      // Defensive normalization: the category-specific endpoint is requested for a
-      // single categoryName, but backend/category-sync races can occasionally return
-      // rows with null/mismatched category values. That caused the expanded accordion
-      // to appear empty because grouping is based on email.category.
-      //
-      // Force these rows into the requested category so the UI consistently renders
-      // what the summary and fetch request are asking for.
-      const normalizedEmails = emails.map((email: any) => {
-        if (!email.category || email.category !== categoryName) {
-          return { ...email, category: categoryName };
-        }
-        return email;
-      });
-
-      // Discard results if fetchEmails() was called while this request was in-flight.
-      // A stale result dispatching markCategoryLoaded() would poison the guard and
-      // prevent a correct re-fetch in the new session.
-      if (fetchSessionRef.current !== sessionId) {
-        return;
-      }
-
-      dispatch(updateCategoryEmails({ categoryName, emails: normalizedEmails }));
-      dispatch(markCategoryLoaded(categoryName));
-    } catch (error: any) {
-      console.error(`Error fetching category "${categoryName}":`, error);
-      // Only mark as loaded if still the current session — otherwise clearCategoryState()
-      // already cleaned up loadingCategoryNames and a re-fetch will be triggered correctly.
-      if (fetchSessionRef.current === sessionId) {
-        dispatch(markCategoryLoaded(categoryName));
-      }
-    }
-  // NOTE: loadedCategoryNames and loadingCategoryNames are intentionally NOT in deps.
-  // They are read via refs (loadedCategoryNamesRef, loadingCategoryNamesRef) which are
-  // always current. Keeping them out of deps makes this callback stable across category
-  // loads, which prevents the cascading re-fetch effect runs that caused the bug.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, filters, dispatch, buildCategoryParams]);
-
-  // loadMore is kept for backward compatibility but is now a no-op.
-  // Category emails are loaded lazily via fetchCategoryEmails instead.
   const loadMore = useCallback(async () => {
     if (isLoadingMoreRef.current) return;
     isLoadingMoreRef.current = true;
-    try {
-      // no-op: use fetchCategoryEmails for per-category lazy loading
-      void currentOffset;
-    } finally {
-      isLoadingMoreRef.current = false;
-    }
+    try { void currentOffset; } finally { isLoadingMoreRef.current = false; }
   }, [currentOffset]);
 
-  /**
-   * Refresh inbox data in-place without wiping existing state.
-   *
-   * Unlike fetchEmails() — which clears all emails and category state before reloading —
-   * this function quietly updates:
-   *   1. The category summary (counts)
-   *   2. The email list for every already-loaded category
-   *
-   * No loading spinners are shown and no existing data is removed until the fresh data
-   * arrives. This makes it safe to call from background polling without causing a visible
-   * reload of the inbox.
-   *
-   * Only loaded categories are refreshed. Categories the user has not yet expanded are
-   * left untouched; their summary counts will be updated in step 1.
-   */
   const refreshInPlace = useCallback(async () => {
-    if (mode === MODE_AUTORESPONDED) {
-      try {
-        const params = buildAutoRespondedParams();
-        const response = await axios.get(`${API_URL}/auto-responder/threads?${params.toString()}`);
-        const { emails = [], total = 0, hasMore = false } = response.data;
-        const normalizedEmails: Email[] = emails.map((email: Email) => ({
-          ...email,
-          category: email.category || CATEGORY_OTHER,
-        }));
-        const categorySummary = buildAutoRespondedSummary(normalizedEmails);
-
-        dispatch(setEmails(normalizedEmails));
-        dispatch(setCategorySummary(categorySummary));
-        dispatch(setTotalCount(total));
-        dispatch(setHasMore(hasMore));
-        dispatch(setCurrentOffset(normalizedEmails.length));
-        categorySummary.forEach((category) => {
-          dispatch(markCategoryLoaded(category.name));
-        });
-      } catch (err) {
-        console.warn('[refreshInPlace] Autoresponded refresh failed:', err);
-      }
-      return;
-    }
-
-    try {
-      // Step 1: Silently update the summary (category names + counts)
-      const summaryParams = buildSummaryParams();
-      const summaryResponse = await axios.get(`${API_URL}/emails/inbox-summary?${summaryParams.toString()}`);
-      const { total, categories } = summaryResponse.data;
-      dispatch(setCategorySummary(categories));
-      dispatch(setTotalCount(total));
-    } catch (err) {
-      // If the summary fetch fails, bail out — no point refreshing category emails
-      console.warn('[refreshInPlace] Summary fetch failed, skipping category refresh:', err);
-      return;
-    }
-
-    // Step 2: Re-fetch emails for each category that has already been loaded.
-    // We read the snapshot of loaded categories at the start; new categories that
-    // finish loading during this refresh cycle will not be double-fetched.
-    const loadedCategories = [...loadedCategoryNamesRef.current];
-    await Promise.all(
-      loadedCategories.map(async (categoryName) => {
-        try {
-          const catParams = buildCategoryParams(categoryName);
-          const catResponse = await axios.get(`${API_URL}/emails/inbox?${catParams.toString()}`);
-          const { emails: categoryEmails } = catResponse.data as { emails: Email[] };
-
-          // Defensive normalization: same as fetchCategoryEmails.
-          // Backend/category-sync races can occasionally return rows with null/mismatched
-          // category values. Force these into the requested category so the UI consistently
-          // renders what the summary and fetch request are asking for.
-          const normalizedEmails = categoryEmails.map((email) => {
-            if (!email.category || email.category !== categoryName) {
-              return { ...email, category: categoryName };
-            }
-            return email;
-          });
-
-          dispatch(updateCategoryEmails({ categoryName, emails: normalizedEmails }));
-        } catch (err) {
-          console.warn(`[refreshInPlace] Failed to refresh category "${categoryName}":`, err);
-        }
-      })
-    );
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    mode,
-    dispatch,
-    buildSummaryParams,
-    buildCategoryParams,
-    buildAutoRespondedParams,
-    buildAutoRespondedSummary,
-  ]);
+    await refreshInPlaceImpl({
+      mode, dispatch, buildSummaryParams, buildCategoryParams,
+      buildAutoRespondedParams, buildAutoRespondedSummary, loadedCategoryNamesRef,
+    });
+  }, [mode, dispatch, buildSummaryParams, buildCategoryParams, buildAutoRespondedParams, buildAutoRespondedSummary]);
 
   return { fetchEmails, loadMore, fetchCategoryEmails, refreshInPlace };
+}
+
+/** Extracted: fetch emails for a single category on expand. */
+async function fetchCategoryEmailsImpl({ categoryName, categoryId, mode, dispatch, buildCategoryParams, loadedCategoryNamesRef, loadingCategoryNamesRef, fetchSessionRef }: {
+  categoryName: string; categoryId?: string | null; mode: InboxMode; dispatch: AppDispatch;
+  buildCategoryParams: (name: string, id?: string | null) => URLSearchParams;
+  loadedCategoryNamesRef: React.MutableRefObject<string[]>; loadingCategoryNamesRef: React.MutableRefObject<string[]>;
+  fetchSessionRef: React.MutableRefObject<number>;
+}) {
+  if (loadedCategoryNamesRef.current.includes(categoryName)) return;
+  if (loadingCategoryNamesRef.current.includes(categoryName)) return;
+  if (mode === MODE_AUTORESPONDED) return;
+
+  const sessionId = fetchSessionRef.current;
+  dispatch(markCategoryLoading(categoryName));
+
+  try {
+    const params = buildCategoryParams(categoryName, categoryId);
+    const response = await axios.get(`${API_URL}/emails/inbox?${params.toString()}`);
+    const normalizedEmails = normalizeCategoryEmails(response.data.emails, categoryName);
+    if (fetchSessionRef.current !== sessionId) return;
+    dispatch(updateCategoryEmails({ categoryName, emails: normalizedEmails }));
+    dispatch(markCategoryLoaded(categoryName));
+  } catch (error: any) {
+    console.error(`Error fetching category "${categoryName}":`, error);
+    if (fetchSessionRef.current === sessionId) dispatch(markCategoryLoaded(categoryName));
+  }
+}
+
+function normalizeCategoryEmails(emails: any[], categoryName: string) {
+  return emails.map((email: any) => (!email.category || email.category !== categoryName) ? { ...email, category: categoryName } : email);
+}
+
+/** Extracted: refresh inbox in-place without clearing state. */
+async function refreshInPlaceImpl({ mode, dispatch, buildSummaryParams, buildCategoryParams, buildAutoRespondedParams, buildAutoRespondedSummary, loadedCategoryNamesRef }: {
+  mode: InboxMode; dispatch: AppDispatch;
+  buildSummaryParams: () => URLSearchParams; buildCategoryParams: (name: string) => URLSearchParams;
+  buildAutoRespondedParams: () => URLSearchParams; buildAutoRespondedSummary: (emails: Email[]) => Array<{ id: null; name: string; count: number }>;
+  loadedCategoryNamesRef: React.MutableRefObject<string[]>;
+}) {
+  if (mode === MODE_AUTORESPONDED) {
+    try {
+      await fetchAutoRespondedEmails(dispatch, buildAutoRespondedParams, buildAutoRespondedSummary);
+    } catch (err) {
+      console.warn('[refreshInPlace] Autoresponded refresh failed:', err);
+    }
+    return;
+  }
+
+  try {
+    const summaryParams = buildSummaryParams();
+    const summaryResponse = await axios.get(`${API_URL}/emails/inbox-summary?${summaryParams.toString()}`);
+    dispatch(setCategorySummary(summaryResponse.data.categories));
+    dispatch(setTotalCount(summaryResponse.data.total));
+  } catch (err) {
+    console.warn('[refreshInPlace] Summary fetch failed:', err);
+    return;
+  }
+
+  const loadedCategories = [...loadedCategoryNamesRef.current];
+  await Promise.all(loadedCategories.map(async (categoryName) => {
+    try {
+      const catParams = buildCategoryParams(categoryName);
+      const catResponse = await axios.get(`${API_URL}/emails/inbox?${catParams.toString()}`);
+      const normalizedEmails = normalizeCategoryEmails((catResponse.data as { emails: Email[] }).emails, categoryName);
+      dispatch(updateCategoryEmails({ categoryName, emails: normalizedEmails }));
+    } catch (err) {
+      console.warn(`[refreshInPlace] Failed to refresh "${categoryName}":`, err);
+    }
+  }));
+}
+
+function appendFilterParams(params: URLSearchParams, filters: InboxFilter | undefined): void {
+  if (!filters) return;
+  if (filters.categories?.length) params.append('categories', filters.categories.join(','));
+  if (filters.minPriority !== null && filters.minPriority !== undefined) params.append('minPriority', filters.minPriority.toString());
+  if (filters.accountIds?.length) params.append('accounts', filters.accountIds.join(','));
+}
+
+function buildSummaryParamsImpl(mode: InboxMode, filters?: InboxFilter): URLSearchParams {
+  const params = new URLSearchParams();
+  params.append('mode', mode);
+  params.append('includeThreadIds', 'true');
+  appendFilterParams(params, filters);
+  return params;
+}
+
+function buildCategoryParamsImpl(mode: InboxMode, filters: InboxFilter | undefined, categoryName: string, categoryId?: string | null): URLSearchParams {
+  const params = new URLSearchParams();
+  params.append('mode', mode);
+  if (categoryId) { params.append('categoryIds', categoryId); } else { params.append('categories', categoryName); }
+  params.append('limit', INBOX_FETCH_LIMIT.toString());
+  params.append('offset', '0');
+  if (filters) {
+    if (filters.accountIds?.length) params.append('accounts', filters.accountIds.join(','));
+    if (filters.minPriority !== null && filters.minPriority !== undefined) params.append('minPriority', filters.minPriority.toString());
+  }
+  return params;
+}
+
+function buildAutoRespondedParamsImpl(filters?: InboxFilter): URLSearchParams {
+  const params = new URLSearchParams();
+  params.append('offset', '0');
+  params.append('limit', INBOX_FETCH_LIMIT.toString());
+  appendFilterParams(params, filters);
+  return params;
+}
+
+function buildAutoRespondedSummaryImpl(emails: Email[]): Array<{ id: null; name: string; count: number }> {
+  const categoryCounts = new Map<string, number>();
+  emails.forEach((email) => {
+    const name = email.category || CATEGORY_OTHER;
+    categoryCounts.set(name, (categoryCounts.get(name) || 0) + 1);
+  });
+  return Array.from(categoryCounts.entries()).map(([name, count]) => ({ id: null, name, count }));
+}
+
+async function fetchEmailsImpl({ mode, dispatch, buildSummaryParams, buildAutoRespondedParams, buildAutoRespondedSummary }: {
+  mode: InboxMode; dispatch: AppDispatch;
+  buildSummaryParams: () => URLSearchParams;
+  buildAutoRespondedParams: () => URLSearchParams;
+  buildAutoRespondedSummary: (emails: Email[]) => Array<{ id: null; name: string; count: number }>;
+}) {
+  dispatch(setDecrypting(true));
+  dispatch(setFetchError(null));
+  dispatch(clearCategoryState());
+  dispatch(setEmails([]));
+  dispatch(setCurrentOffset(0));
+  dispatch(setHasMore(false));
+  dispatch(setTotalCount(0));
+  try {
+    if (mode === MODE_AUTORESPONDED) {
+      await fetchAutoRespondedEmails(dispatch, buildAutoRespondedParams, buildAutoRespondedSummary);
+    } else {
+      await fetchInboxSummary(dispatch, buildSummaryParams);
+    }
+    dispatch(setDecrypting(false));
+    dispatch(setFetchError(null));
+  } catch (error: any) {
+    dispatch(setDecrypting(false));
+    dispatch(setSummaryLoading(false));
+    handleFetchError(dispatch, error);
+  } finally {
+    dispatch(setLoading(false));
+    dispatch(setRefreshing(false));
+    dispatch(setLoadingModeSwitch(false));
+  }
+}
+
+function handleFetchError(dispatch: AppDispatch, error: any) {
+  if (error.code === ERROR_CODE_ERR_NETWORK || error.message?.includes(ERROR_NETWORK)) {
+    dispatch(setFetchError('Unable to connect to the server. Please check if the server is running.'));
+  } else if (error.response?.status === HTTP_UNAUTHORIZED) {
+    const msg = error.response?.data?.message || '';
+    dispatch(setFetchError(msg.includes(ERROR_GMAIL_REQUIRED) || msg.includes(ERROR_GMAIL) ? 'GMAIL_REQUIRED' : 'Please log in again to view emails.'));
+  } else {
+    dispatch(setFetchError(error.response?.data?.message || error.message || 'Failed to load emails. Please try again.'));
+  }
 }

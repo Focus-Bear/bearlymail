@@ -1,466 +1,152 @@
-import React, { useCallback, useEffect, useRef,useState } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { theme } from 'theme/theme';
 import { Contact, ContactTypeConfig } from 'types/contact';
-import { captureEvent } from 'utils/posthog';
 
 import { ContactTypeBadge } from 'components/crm/ContactTypeBadge';
 import { Sidebar } from 'components/inbox/Sidebar';
-import { API_URL } from 'config/api';
-import { getPusherInstance } from 'config/pusher';
 import { EMOJI_MENU } from 'constants/emojis';
-import { DEBOUNCE_DELAY_MS, MILLISECONDS_PER_MINUTE, OPACITY_DISABLED, OPACITY_FULL, TOAST_DURATION_MS } from 'constants/numbers';
-import { STRING_AUTO, STRING_CENTER, STRING_COVER, STRING_DEFAULT, STRING_ELLIPSIS,STRING_FIXED, STRING_FLEX, STRING_HIDDEN, STRING_NONE, STRING_NOWRAP, STRING_POINTER, STRING_SPACE_BETWEEN, STRING_TRANSPARENT, STRING_WHITE } from 'constants/strings';
+import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
+import { STRING_AUTO, STRING_CENTER, STRING_COVER, STRING_DEFAULT, STRING_ELLIPSIS, STRING_FIXED, STRING_FLEX, STRING_HIDDEN, STRING_NONE, STRING_NOWRAP, STRING_POINTER, STRING_SPACE_BETWEEN, STRING_TRANSPARENT, STRING_WHITE } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
+import { useContactsData } from 'hooks/useContactsData';
+import { useContactSearch } from 'hooks/useContactSearch';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import { useSidebarState } from 'hooks/useSidebarState';
-const Contacts: React.FC = () => {
-  const navigate = useNavigate();
+
+interface ContactsMainContentProps {
+  contacts: Contact[];
+  contactTypes: ContactTypeConfig[];
+  loading: boolean;
+  syncing: boolean;
+  error: string | null;
+  getContactTypeConfig: (typeName: string | null | undefined) => ContactTypeConfig | undefined;
+  handleSync: () => Promise<void>;
+}
+
+const ContactsMainContent: React.FC<ContactsMainContentProps> = ({
+  contacts, loading, syncing, error, getContactTypeConfig, handleSync,
+}) => {
   const { t } = useTranslation();
-  const { user, logout } = useAuth();
-  const { isMobile, isTablet } = useResponsiveBreakpoints();
-  const isNarrow = isMobile || isTablet;
-  const {
-    isCollapsed,
-    isMobileMenuOpen,
-    toggleCollapse,
-    openMobileMenu,
-    closeMobileMenu,
-  } = useSidebarState();
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [contactTypes, setContactTypes] = useState<ContactTypeConfig[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [searchResults, setSearchResults] = useState<Contact[] | null>(null);
-  const [searching, setSearching] = useState(false);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  const fetchContacts = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await axios.get(`${API_URL}/contacts`);
-      setContacts(response.data);
-    } catch (err) {
-      console.error('Failed to fetch contacts:', err);
-      setError(t('contacts.errorLoading'));
-    } finally {
-      setLoading(false);
-    }
-  }, [t]);
-
-  const fetchContactTypes = useCallback(async () => {
-    try {
-      const response = await axios.get(`${API_URL}/contacts/types`);
-      setContactTypes(response.data);
-    } catch (err) {
-      console.error('Failed to fetch contact types:', err);
-    }
-  }, []);
-
-  useEffect(() => {
-    captureEvent('contacts_viewed');
-    fetchContacts();
-    fetchContactTypes();
-  }, [fetchContacts, fetchContactTypes]);
-
-  const handleSync = async () => {
-    captureEvent('contacts_sync_clicked');
-    setSyncing(true);
-    try {
-      await axios.post(`${API_URL}/contacts/sync`);
-      const pusher = getPusherInstance();
-      if (!pusher) {
-        const pollInterval = setInterval(async () => {
-          try {
-            const res = await axios.get(`${API_URL}/contacts`);
-            if (res.data.length > 0) {
-              clearInterval(pollInterval);
-              setContacts(res.data);
-              setSyncing(false);
-            }
-          } catch {
-            clearInterval(pollInterval);
-            setSyncing(false);
-          }
-        }, TOAST_DURATION_MS);
-        setTimeout(() => {
-          clearInterval(pollInterval);
-          setSyncing(false);
-          fetchContacts();
-        }, MILLISECONDS_PER_MINUTE);
-      }
-    } catch (err) {
-      console.error('Failed to sync contacts:', err);
-      setError(t('contacts.errorSyncing'));
-      setSyncing(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!user?.id) return;
-
-    const pusher = getPusherInstance();
-    if (!pusher) return;
-
-    const channel = pusher.subscribe(`user-${user.id}`);
-
-    channel.bind('contacts-sync-started', () => {
-      setSyncing(true);
-    });
-
-    channel.bind('contacts-sync-complete', () => {
-      setSyncing(false);
-      fetchContacts();
-    });
-
-    channel.bind('contacts-sync-failed', (eventData: { error: string }) => {
-      setSyncing(false);
-      setError(eventData.error);    });
-
-    return () => {
-      channel.unbind_all();
-      pusher.unsubscribe(`user-${user.id}`);
-    };
-  }, [user?.id, fetchContacts]);
-
-  useEffect(() => {
-    if (!searchQuery || searchQuery.length < 2) {
-      setSearchResults(null);
-      return;
-    }
-
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-
-    searchTimeoutRef.current = setTimeout(async () => {
-      setSearching(true);
-      try {
-        const response = await axios.get(
-          `${API_URL}/contacts/search?q=${encodeURIComponent(searchQuery)}&limit=20`
-        );
-        setSearchResults(response.data);
-      } catch (err) {
-        console.error('Contact search failed:', err);
-        setSearchResults([]);
-      } finally {
-        setSearching(false);
-      }
-    }, DEBOUNCE_DELAY_MS);
-
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-    };
-  }, [searchQuery]);
-
-  const filteredContacts = searchResults !== null ? searchResults : contacts;
-
-  const getContactTypeConfig = (typeName: string | null | undefined): ContactTypeConfig | undefined => {
-    if (!typeName) return undefined;
-    return contactTypes.find(ct => ct.name === typeName);
-  };
+  const navigate = useNavigate();
+  const { searchQuery, setSearchQuery, searching, filteredContacts } = useContactSearch();
+  const displayedContacts = filteredContacts(contacts);
 
   return (
-    <div style={{
-      display: STRING_FLEX,
-      height: '100vh',
-      overflow: STRING_HIDDEN,
-    }}>
-      <Sidebar
-        user={user}
-        logout={logout}
-        isCollapsed={isCollapsed}
-        onToggleCollapse={toggleCollapse}
-        isMobileMenuOpen={isMobileMenuOpen}
-        onCloseMobileMenu={closeMobileMenu}
-      />
+    <div style={{ maxWidth: '900px', margin: STRING_AUTO }}>
+      <div style={{ display: STRING_FLEX, justifyContent: STRING_SPACE_BETWEEN, alignItems: STRING_CENTER, marginBottom: theme.spacing.lg }}>
+        <h1 style={{ ...theme.typography.heading.h4, color: theme.colors.text.primary, margin: 0 }}>{t('contacts.title')}</h1>
+        <button
+          onClick={handleSync}
+          disabled={syncing}
+          style={{ padding: `${theme.spacing.sm} ${theme.spacing.md}`, backgroundColor: theme.colors.primary.main, color: STRING_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.md, cursor: syncing ? 'not-allowed' : STRING_POINTER, fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium, opacity: syncing ? OPACITY_DISABLED : OPACITY_FULL, transition: theme.transitions.default }}
+        >
+          {syncing ? t('contacts.syncing') : t('contacts.syncContacts')}
+        </button>
+      </div>
 
-      <div style={{
-        flex: 1,
-        overflowY: 'auto',
-        backgroundColor: theme.colors.background.default,
-        padding: isNarrow ? `70px ${theme.spacing.sm} ${theme.spacing.md}` : theme.spacing.lg,
-      }}>
-        {isNarrow && (
-          <button
-            onClick={openMobileMenu}
-            style={{
-              position: STRING_FIXED,
-              top: theme.spacing.md,
-              left: theme.spacing.md,
-              width: '48px',
-              height: '48px',
-              borderRadius: '50%',
-              border: `1px solid ${theme.colors.border.medium}`,
-              backgroundColor: theme.colors.background.paper,
-              cursor: STRING_POINTER,
-              display: STRING_FLEX,
-              alignItems: STRING_CENTER,
-              justifyContent: STRING_CENTER,
-              fontSize: '1.5rem',
-              transition: theme.transitions.fast,
-              boxShadow: theme.shadows.md,
-              zIndex: 100,
-            }}
-            aria-label="Open navigation menu"
-          >
-            {EMOJI_MENU}
-          </button>
-        )}
+      <div style={{ marginBottom: theme.spacing.lg }}>
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder={t('contacts.searchPlaceholder')}
+          style={{ width: '100%', padding: theme.spacing.md, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, fontSize: theme.typography.fontSize.base, outline: STRING_NONE, backgroundColor: theme.colors.background.paper }}
+        />
+      </div>
 
-        <div style={{
-          maxWidth: '900px',
-          margin: STRING_AUTO,
-        }}>
-          <div style={{
-            display: STRING_FLEX,
-            justifyContent: STRING_SPACE_BETWEEN,
-            alignItems: STRING_CENTER,
-            marginBottom: theme.spacing.lg,
-          }}>
-            <h1 style={{
-              ...theme.typography.heading.h4,
-              color: theme.colors.text.primary,
-              margin: 0,
-            }}>
-              {t('contacts.title')}
-            </h1>
+      {error && (
+        <div style={{ padding: theme.spacing.md, backgroundColor: `${theme.colors.accent.error}20`, borderRadius: theme.borderRadius.md, color: theme.colors.accent.error, marginBottom: theme.spacing.lg }}>{error}</div>
+      )}
 
-            <button
-              onClick={handleSync}
-              disabled={syncing}
-              style={{
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                backgroundColor: theme.colors.primary.main,
-                color: STRING_WHITE,
-                border: STRING_NONE,                borderRadius: theme.borderRadius.md,
-                cursor: syncing ? 'not-allowed' : STRING_POINTER,
-                fontSize: theme.typography.fontSize.sm,
-                fontWeight: theme.typography.fontWeight.medium,
-                opacity: syncing ? OPACITY_DISABLED : OPACITY_FULL,
-                transition: theme.transitions.default,
-              }}
-            >
-              {syncing ? t('contacts.syncing') : t('contacts.syncContacts')}
-            </button>
-          </div>
-
-        <div style={{
-          marginBottom: theme.spacing.lg,
-        }}>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={t('contacts.searchPlaceholder')}
-            style={{
-              width: '100%',
-              padding: theme.spacing.md,
-              border: `1px solid ${theme.colors.border.medium}`,
-              borderRadius: theme.borderRadius.md,
-              fontSize: theme.typography.fontSize.base,
-              outline: STRING_NONE,
-              backgroundColor: theme.colors.background.paper,
-            }}
-          />
-        </div>
-
-        {error && (
-          <div style={{
-            padding: theme.spacing.md,
-            backgroundColor: `${theme.colors.accent.error}20`,            borderRadius: theme.borderRadius.md,
-            color: theme.colors.accent.error,
-            marginBottom: theme.spacing.lg,
-          }}>
-            {error}
-          </div>
-        )}
-
-        {(() => {
-          if (loading || searching) return (          <div style={{
-            textAlign: STRING_CENTER,
-            padding: theme.spacing.xl,
-            color: theme.colors.text.secondary,
-          }}>
-            {t('contacts.loading')}
-          </div>
-          );
-          if (filteredContacts.length === 0) return (          <div style={{
-            textAlign: STRING_CENTER,
-            padding: theme.spacing.xl,
-            backgroundColor: theme.colors.background.paper,
-            borderRadius: theme.borderRadius.lg,
-            boxShadow: theme.shadows.sm,
-          }}>
-            <div style={{
-              fontSize: '48px',
-              marginBottom: theme.spacing.md,
-            }}>
-              👤
+      {(() => {
+        if (loading || searching) {
+          return <div style={{ textAlign: STRING_CENTER, padding: theme.spacing.xl, color: theme.colors.text.secondary }}>{t('contacts.loading')}</div>;
+        }
+        if (displayedContacts.length === 0) {
+          return (
+            <div style={{ textAlign: STRING_CENTER, padding: theme.spacing.xl, backgroundColor: theme.colors.background.paper, borderRadius: theme.borderRadius.lg, boxShadow: theme.shadows.sm }}>
+              <div style={{ fontSize: '48px', marginBottom: theme.spacing.md }}>👤</div>
+              <h3 style={{ color: theme.colors.text.primary, fontSize: theme.typography.fontSize.lg, fontWeight: theme.typography.fontWeight.semibold, marginBottom: theme.spacing.sm }}>{searchQuery ? t('contacts.noSearchResults') : t('contacts.noContacts')}</h3>
+              <p style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.base, marginBottom: theme.spacing.lg }}>{searchQuery ? t('contacts.tryDifferentSearch') : t('contacts.syncToGetStarted')}</p>
+              {!searchQuery && (
+                <button onClick={handleSync} disabled={syncing} style={{ padding: `${theme.spacing.sm} ${theme.spacing.lg}`, backgroundColor: theme.colors.primary.main, color: STRING_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.md, cursor: syncing ? 'not-allowed' : STRING_POINTER, fontSize: theme.typography.fontSize.base, fontWeight: theme.typography.fontWeight.medium, opacity: syncing ? OPACITY_DISABLED : OPACITY_FULL }}>
+                  {syncing ? t('contacts.syncing') : t('contacts.syncNow')}
+                </button>
+              )}
             </div>
-            <h3 style={{
-              color: theme.colors.text.primary,
-              fontSize: theme.typography.fontSize.lg,
-              fontWeight: theme.typography.fontWeight.semibold,
-              marginBottom: theme.spacing.sm,
-            }}>
-              {searchQuery ? t('contacts.noSearchResults') : t('contacts.noContacts')}
-            </h3>
-            <p style={{
-              color: theme.colors.text.secondary,
-              fontSize: theme.typography.fontSize.base,
-              marginBottom: theme.spacing.lg,
-            }}>
-              {searchQuery ? t('contacts.tryDifferentSearch') : t('contacts.syncToGetStarted')}
-            </p>
-            {!searchQuery && (
-              <button
-                onClick={handleSync}
-                disabled={syncing}
-                style={{
-                  padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-                  backgroundColor: theme.colors.primary.main,
-                  color: STRING_WHITE,
-                  border: STRING_NONE,                  borderRadius: theme.borderRadius.md,
-                  cursor: syncing ? 'not-allowed' : STRING_POINTER,
-                  fontSize: theme.typography.fontSize.base,
-                  fontWeight: theme.typography.fontWeight.medium,
-                  opacity: syncing ? OPACITY_DISABLED : OPACITY_FULL,
-                }}
-              >
-                {syncing ? t('contacts.syncing') : t('contacts.syncNow')}
-              </button>
-            )}
-          </div>
           );
-          return (          <div style={{
-            backgroundColor: theme.colors.background.paper,
-            borderRadius: theme.borderRadius.lg,
-            boxShadow: theme.shadows.sm,
-            overflow: 'hidden',
-          }}>
-            <div style={{
-              padding: theme.spacing.md,
-              borderBottom: `1px solid ${theme.colors.border.light}`,
-              color: theme.colors.text.secondary,
-              fontSize: theme.typography.fontSize.sm,
-            }}>
-              {t('contacts.totalContacts', { count: filteredContacts.length })}
-            </div>
+        }
+        return (
+          <div style={{ backgroundColor: theme.colors.background.paper, borderRadius: theme.borderRadius.lg, boxShadow: theme.shadows.sm, overflow: 'hidden' }}>
+            <div style={{ padding: theme.spacing.md, borderBottom: `1px solid ${theme.colors.border.light}`, color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>{t('contacts.totalContacts', { count: displayedContacts.length })}</div>
             <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
-              {filteredContacts.map((contact, index) => {
+              {displayedContacts.map((contact, index) => {
                 const typeConfig = getContactTypeConfig(contact.contactType);
                 return (
                   <div
                     key={contact.id || contact.email}
                     onClick={() => contact.id && navigate(`/crm/contacts/${contact.id}`)}
-                    style={{
-                      display: STRING_FLEX,
-                      alignItems: STRING_CENTER,
-                      padding: theme.spacing.md,
-                      borderBottom: index < filteredContacts.length - 1
-                        ? `1px solid ${theme.colors.border.light}`
-                        : STRING_NONE,
-                      gap: theme.spacing.md,
-                      cursor: contact.id ? STRING_POINTER : STRING_DEFAULT,
-                      transition: theme.transitions.fast,
-                    }}
-                    onMouseEnter={(e) => {
-                      if (contact.id) e.currentTarget.style.backgroundColor = theme.colors.background.default;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = STRING_TRANSPARENT;                    }}
+                    style={{ display: STRING_FLEX, alignItems: STRING_CENTER, padding: theme.spacing.md, borderBottom: index < displayedContacts.length - 1 ? `1px solid ${theme.colors.border.light}` : STRING_NONE, gap: theme.spacing.md, cursor: contact.id ? STRING_POINTER : STRING_DEFAULT, transition: theme.transitions.fast }}
+                    onMouseEnter={(e) => { if (contact.id) e.currentTarget.style.backgroundColor = theme.colors.background.default; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = STRING_TRANSPARENT; }}
                   >
                     {contact.photoUrl ? (
-                      <img
-                        src={contact.photoUrl}
-                        alt=""
-                        style={{
-                          width: '40px',
-                          height: '40px',
-                          borderRadius: '50%',
-                          objectFit: STRING_COVER,
-                        }}
-                      />
+                      <img src={contact.photoUrl} alt="" style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: STRING_COVER }} />
                     ) : (
-                      <div
-                        style={{
-                          width: '40px',
-                          height: '40px',
-                          borderRadius: '50%',
-                          backgroundColor: theme.colors.primary.subtle,
-                          display: STRING_FLEX,
-                          alignItems: STRING_CENTER,
-                          justifyContent: STRING_CENTER,
-                          color: theme.colors.primary.main,
-                          fontSize: theme.typography.fontSize.lg,
-                          fontWeight: theme.typography.fontWeight.semibold,
-                          flexShrink: 0,
-                        }}
-                      >
+                      <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: theme.colors.primary.subtle, display: STRING_FLEX, alignItems: STRING_CENTER, justifyContent: STRING_CENTER, color: theme.colors.primary.main, fontSize: theme.typography.fontSize.lg, fontWeight: theme.typography.fontWeight.semibold, flexShrink: 0 }}>
                         {(contact.name || contact.email)[0].toUpperCase()}
                       </div>
                     )}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{
-                        display: STRING_FLEX,
-                        alignItems: STRING_CENTER,
-                        gap: theme.spacing.sm,
-                      }}>
-                        <span style={{
-                          color: theme.colors.text.primary,
-                          fontSize: theme.typography.fontSize.base,
-                          fontWeight: theme.typography.fontWeight.medium,
-                          overflow: STRING_HIDDEN,
-                          textOverflow: STRING_ELLIPSIS,
-                          whiteSpace: STRING_NOWRAP,
-                        }}>
-                          {contact.name || contact.email}
-                        </span>
-                        {typeConfig && (
-                          <ContactTypeBadge
-                            label={typeConfig.label}
-                            color={typeConfig.color}
-                            icon={typeConfig.icon}
-                          />
-                        )}
+                      <div style={{ display: STRING_FLEX, alignItems: STRING_CENTER, gap: theme.spacing.sm }}>
+                        <span style={{ color: theme.colors.text.primary, fontSize: theme.typography.fontSize.base, fontWeight: theme.typography.fontWeight.medium, overflow: STRING_HIDDEN, textOverflow: STRING_ELLIPSIS, whiteSpace: STRING_NOWRAP }}>{contact.name || contact.email}</span>
+                        {typeConfig && <ContactTypeBadge label={typeConfig.label} color={typeConfig.color} icon={typeConfig.icon} />}
                       </div>
-                      {contact.name && (
-                        <div style={{
-                          color: theme.colors.text.secondary,
-                          fontSize: theme.typography.fontSize.sm,
-                          overflow: STRING_HIDDEN,
-                          textOverflow: STRING_ELLIPSIS,
-                          whiteSpace: STRING_NOWRAP,
-                        }}>
-                          {contact.email}
-                        </div>
-                      )}
+                      {contact.name && <div style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, overflow: STRING_HIDDEN, textOverflow: STRING_ELLIPSIS, whiteSpace: STRING_NOWRAP }}>{contact.email}</div>}
                     </div>
-                    {contact.company && (
-                      <div style={{
-                        color: theme.colors.text.tertiary,
-                        fontSize: theme.typography.fontSize.sm,
-                        whiteSpace: STRING_NOWRAP,
-                      }}>
-                        {contact.company}
-                      </div>
-                    )}
+                    {contact.company && <div style={{ color: theme.colors.text.tertiary, fontSize: theme.typography.fontSize.sm, whiteSpace: STRING_NOWRAP }}>{contact.company}</div>}
                   </div>
                 );
               })}
             </div>
           </div>
-            );
-          })()}
-        </div>
+        );
+      })()}
+    </div>
+  );
+};
+
+const Contacts: React.FC = () => {
+  const { user, logout } = useAuth();
+  const { isMobile, isTablet } = useResponsiveBreakpoints();
+  const isNarrow = isMobile || isTablet;
+  const { isCollapsed, isMobileMenuOpen, toggleCollapse, openMobileMenu, closeMobileMenu } = useSidebarState();
+  const { contacts, contactTypes, loading, syncing, error, handleSync, getContactTypeConfig } = useContactsData(user?.id);
+
+  return (
+    <div style={{ display: STRING_FLEX, height: '100vh', overflow: STRING_HIDDEN }}>
+      <Sidebar user={user} logout={logout} isCollapsed={isCollapsed} onToggleCollapse={toggleCollapse} isMobileMenuOpen={isMobileMenuOpen} onCloseMobileMenu={closeMobileMenu} />
+      <div style={{ flex: 1, overflowY: 'auto', backgroundColor: theme.colors.background.default, padding: isNarrow ? `70px ${theme.spacing.sm} ${theme.spacing.md}` : theme.spacing.lg }}>
+        {isNarrow && (
+          <button
+            onClick={openMobileMenu}
+            style={{ position: STRING_FIXED, top: theme.spacing.md, left: theme.spacing.md, width: '48px', height: '48px', borderRadius: '50%', border: `1px solid ${theme.colors.border.medium}`, backgroundColor: theme.colors.background.paper, cursor: STRING_POINTER, display: STRING_FLEX, alignItems: STRING_CENTER, justifyContent: STRING_CENTER, fontSize: '1.5rem', transition: theme.transitions.fast, boxShadow: theme.shadows.md, zIndex: 100 }}
+            aria-label="Open navigation menu"
+          >
+            {EMOJI_MENU}
+          </button>
+        )}
+        <ContactsMainContent
+          contacts={contacts}
+          contactTypes={contactTypes}
+          loading={loading}
+          syncing={syncing}
+          error={error}
+          handleSync={handleSync}
+          getContactTypeConfig={getContactTypeConfig}
+        />
       </div>
     </div>
   );

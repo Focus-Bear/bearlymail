@@ -4,10 +4,7 @@ import { theme } from 'theme/theme';
 import { COLOR_TRANSPARENT } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
 
-interface EmailBodyIframeProps {
-  html: string;
-  minHeight?: number;
-}
+interface EmailBodyIframeProps { html: string; minHeight?: number; }
 
 /**
  * Renders email HTML content inside an iframe for complete CSS isolation.
@@ -21,94 +18,7 @@ export const EmailBodyIframe: React.FC<EmailBodyIframeProps> = ({
   const [height, setHeight] = useState(minHeight);
   const [contentWidth, setContentWidth] = useState<number | null>(null);
 
-  const {
-    colors: { text, primary, border, greyscale },
-  } = theme;
-
-  // Base styles to apply inside the iframe for readability
-  const baseStyles = `
-    <style>
-      * {
-        box-sizing: border-box;
-      }
-      html, body {
-        margin: 0;
-        padding: 0;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        font-size: 16px;
-        line-height: 1.6;
-        color: ${text.secondary};
-        background: transparent;
-        word-wrap: break-word;
-        overflow-wrap: break-word;
-      }
-      body {
-        padding: 0;
-      }
-      a {
-        color: ${primary.main};
-        text-decoration: none;
-      }
-      a:hover {
-        text-decoration: underline;
-      }
-      img {
-        max-width: 100%;
-        height: auto;
-      }
-      table {
-        max-width: 100%;
-        border-collapse: collapse;
-      }
-      blockquote {
-        margin: 1em 0;
-        padding-left: 1em;
-        border-left: 3px solid ${border.light};
-        color: ${text.tertiary};
-      }
-      pre, code {
-        font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, monospace;
-        background: ${greyscale.grey050};
-        border-radius: 4px;
-      }
-      pre {
-        padding: 1em;
-        overflow-x: auto;
-      }
-      code {
-        padding: 0.2em 0.4em;
-        font-size: 0.9em;
-      }
-      pre code {
-        padding: 0;
-        background: none;
-      }
-      /* Reset common email quirks */
-      p {
-        margin: 0 0 1em 0;
-      }
-      h1, h2, h3, h4, h5, h6 {
-        margin: 0 0 0.5em 0;
-        line-height: 1.3;
-      }
-    </style>
-  `;
-
-  // Build the full HTML document for the iframe
-  const fullDocument = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <base target="_blank">
-        ${baseStyles}
-      </head>
-      <body>
-        ${html}
-      </body>
-    </html>
-  `;
+  const fullDocument = buildIframeDocument(html);
 
   // Resize iframe to match content dimensions (height and natural width)
   const updateHeight = useCallback(() => {
@@ -185,15 +95,29 @@ export const EmailBodyIframe: React.FC<EmailBodyIframeProps> = ({
         srcDoc={fullDocument}
         title="Email content"
         sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-        style={{
-          width: contentWidth ? `${contentWidth}px` : '100%',
-          minWidth: '100%',
-          height: `${height}px`,
-          border: STRING_NONE,
-          display: 'block',
-          backgroundColor: COLOR_TRANSPARENT,
-        }}
+        style={{ width: contentWidth ? `${contentWidth}px` : '100%', minWidth: '100%', height: `${height}px`, border: STRING_NONE, display: 'block', backgroundColor: COLOR_TRANSPARENT, }}
       />
     </div>
   );
 };
+
+function buildIframeDocument(html: string): string {
+  const { colors: { text, primary, border, greyscale } } = theme;
+  const baseStyles = `<style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 16px; line-height: 1.6; color: ${text.secondary}; background: transparent; word-wrap: break-word; overflow-wrap: break-word; }
+    body { padding: 0; }
+    a { color: ${primary.main}; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    img { max-width: 100%; height: auto; }
+    table { max-width: 100%; border-collapse: collapse; }
+    blockquote { margin: 1em 0; padding-left: 1em; border-left: 3px solid ${border.light}; color: ${text.tertiary}; }
+    pre, code { font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, monospace; background: ${greyscale.grey050}; border-radius: 4px; }
+    pre { padding: 1em; overflow-x: auto; }
+    code { padding: 0.2em 0.4em; font-size: 0.9em; }
+    pre code { padding: 0; background: none; }
+    p { margin: 0 0 1em 0; }
+    h1, h2, h3, h4, h5, h6 { margin: 0 0 0.5em 0; line-height: 1.3; }
+  </style>`;
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><base target="_blank">${baseStyles}</head><body>${html}</body></html>`;
+}

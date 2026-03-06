@@ -12,8 +12,6 @@ import { useNotifications } from 'contexts/NotificationContext';
 import { useEmailDetailInline } from 'hooks/useEmailDetailInline';
 import { useScheduledEmails } from 'hooks/useScheduledEmails';
 
-// Immediate log when module loads
-
 interface EmailDetailInlineProps {
   emailId: string;
   onClose?: () => void;
@@ -23,10 +21,6 @@ interface EmailDetailInlineProps {
   autoGenerateReplies?: boolean;
 }
 
-/**
- * Email detail inline component with full features
- * Displays email details in an inline/split view with all features from full view
- */
 const useEmailDetailInlineHandlers = (
   emailId: string,
   onClose?: () => void,
@@ -36,21 +30,12 @@ const useEmailDetailInlineHandlers = (
   const { showSuccess } = useNotifications();
   const hookData = useEmailDetailInline(emailId, { autoGenerateReplies });
 
-  const handleSendReplyWithClose = async (
-    files: File[], 
-    expectedReplyHours?: number, 
-    forwardAttachmentIds?: string[], 
-    draftOverride?: string,
-    scheduledSendAt?: Date
-  ) => {
+  const handleSendReplyWithClose = async (files: File[], expectedReplyHours?: number, forwardAttachmentIds?: string[], draftOverride?: string, scheduledSendAt?: Date) => {
     try {
       await hookData.handleSendReply(files, expectedReplyHours, forwardAttachmentIds, undefined, draftOverride, scheduledSendAt);
-      // Refresh thread emails to show the sent reply
       await hookData.fetchThreadEmails();
       if (onClose) {
-        const successMessage = scheduledSendAt 
-          ? t('emailDetail.replyScheduledSuccess') 
-          : t('emailDetail.replySentSuccess');
+        const successMessage = scheduledSendAt ? t('emailDetail.replyScheduledSuccess') : t('emailDetail.replySentSuccess');
         showSuccess(successMessage);
         onClose();
       }
@@ -68,238 +53,105 @@ const useEmailDetailInlineHandlers = (
     }
   };
 
-  const handleReplyComposerClose = () => {
-    hookData.setShowReplyComposer(false);
-    hookData.setDraft('');
-    hookData.setReplyOptions(null);
-    hookData.setToneCheckResult(null);
-  };
+  const handleReplyComposerClose = () => { hookData.setShowReplyComposer(false); hookData.setDraft(''); hookData.setReplyOptions(null); hookData.setToneCheckResult(null); };
+  const handleReplyOptionSelect = (idx: number, text: string) => { hookData.setSelectedReplyOption(idx); hookData.setDraft(text); };
+  const handleToggleNotesCollapsed = () => { hookData.setNotesCollapsed(!hookData.notesCollapsed); };
 
-  const handleReplyOptionSelect = (idx: number, text: string) => {
-    hookData.setSelectedReplyOption(idx);
-    hookData.setDraft(text);
-  };
-
-  const handleToggleNotesCollapsed = () => {
-    hookData.setNotesCollapsed(!hookData.notesCollapsed);
-  };
-
-  return {
-    ...hookData,
-    handleSendReplyWithClose,
-    handleDraftChange,
-    handleReplyComposerClose,
-    handleReplyOptionSelect,
-    handleToggleNotesCollapsed,
-  };
+  return { ...hookData, handleSendReplyWithClose, handleDraftChange, handleReplyComposerClose, handleReplyOptionSelect, handleToggleNotesCollapsed };
 };
 
-export const EmailDetailInline: React.FC<EmailDetailInlineProps> = ({
-  emailId,
-  onClose,
-  onArchive,
-  onSetStarCount,
-  onBlockSender,
-  autoGenerateReplies = false,
-}) => {
-  const navigate = useNavigate();
+interface TimePickerHandlerDeps {
+  fetchTimeSuggestions: () => void;
+  checkSendTime: (time: Date) => Promise<{ isAppropriate: boolean; warning?: string; suggestion?: string }>;
+  openTimePickerBase: () => void;
+  setScheduledTime: (time: Date) => void;
+  handleCancelTimePicker: () => void;
+  onBlockSender: ((emailId: string) => void) | undefined;
+  onClose: (() => void) | undefined;
+  navigate: (path: string) => void;
+}
+
+const useTimePickerHandlers = ({
+  fetchTimeSuggestions, checkSendTime, openTimePickerBase, setScheduledTime,
+  handleCancelTimePicker, onBlockSender, onClose, navigate,
+}: TimePickerHandlerDeps) => {
   const [timeWarning, setTimeWarning] = useState<string | undefined>();
   const [suggestedTime, setSuggestedTime] = useState<Date | undefined>();
 
-  const {
-    timeSuggestions,
-    checkSendTime,
-    fetchTimeSuggestions,
-  } = useScheduledEmails();
-
-  const {
-    email,
-    threadEmails,
-    expandedThreadItems,
-    noteContent,
-    actionItems,
-    newActionItem,
-    loading,
-    notesCollapsed,
-    githubLinks,
-    loadingGithub,
-    hasGithubToken,
-    replyOptions,
-    selectedReplyOption,
-    showReplyComposer,
-    replyMode,
-    replyRecipients,
-    replyCc,
-    replyBcc,
-    showCc,
-    showBcc,
-    draft,
-    loadingReplies,
-    sending,
-    checkingTone,
-    toneCheckResult,
-    disputing,
-    disputeResult,
-    isGeneratingSummary,
-    replyGenerationDebugInfo,
-    initialAttachments,
-    showTimePicker,
-    scheduledSendAt,
-    setNoteContent,
-    setNewActionItem,
-    setReplyRecipients,
-    setReplyCc,
-    setReplyBcc,
-    setShowCc,
-    setShowBcc,
-    refreshGithubInfo,
-    handleSaveNote,
-    handleAddActionItem,
-    handleToggleActionItem,
-    handleDeleteActionItem,
-    handleExtractActions,
-    handleOpenReplyComposer,
-    toggleThreadItem,
-    handleSendReplyWithClose,
-    handleDraftChange,
-    handleReplyComposerClose,
-    handleReplyOptionSelect,
-    handleToggleNotesCollapsed,
-    handleOpenTimePicker: openTimePickerBase,
-    handleTimeSelect: setScheduledTime,
-    handleCancelTimePicker,
-    disputeToneCheck,
-  } = useEmailDetailInlineHandlers(emailId, onClose, autoGenerateReplies);
-
   const handleOpenTimePicker = useCallback(() => {
-    fetchTimeSuggestions();
-    setTimeWarning(undefined);
-    setSuggestedTime(undefined);
-    openTimePickerBase();
+    fetchTimeSuggestions(); setTimeWarning(undefined); setSuggestedTime(undefined); openTimePickerBase();
   }, [fetchTimeSuggestions, openTimePickerBase]);
 
   const handleTimeSelect = useCallback(async (time: Date) => {
     const checkResult = await checkSendTime(time);
-    if (!checkResult.isAppropriate) {
-      setTimeWarning(checkResult.warning);
-      setSuggestedTime(checkResult.suggestion ? new Date(checkResult.suggestion) : undefined);
-    } else {
-      setTimeWarning(undefined);
-      setSuggestedTime(undefined);
-      setScheduledTime(time);
-    }
+    if (!checkResult.isAppropriate) { setTimeWarning(checkResult.warning); setSuggestedTime(checkResult.suggestion ? new Date(checkResult.suggestion) : undefined); }
+    else { setTimeWarning(undefined); setSuggestedTime(undefined); setScheduledTime(time); }
   }, [checkSendTime, setScheduledTime]);
 
-  const handleCancelTimePickerWithReset = useCallback(() => {
-    setTimeWarning(undefined);
-    setSuggestedTime(undefined);
-    handleCancelTimePicker();
-  }, [handleCancelTimePicker]);
+  const handleCancelTimePickerWithReset = useCallback(() => { setTimeWarning(undefined); setSuggestedTime(undefined); handleCancelTimePicker(); }, [handleCancelTimePicker]);
 
-  // Block sender handler
   const handleBlockSender = useCallback(async (emailIdToBlock: string) => {
-    if (onBlockSender) {
-      onBlockSender(emailIdToBlock);
-    } else {
-      // Fallback implementation
-      captureEvent('email_block_sender_clicked', { email_id: emailIdToBlock });
-      try {
-        await axios.post(`${API_URL}/emails/${emailIdToBlock}/block-sender`);
-        if (onClose) {
-          onClose();
-        } else {
-          navigate('/inbox');
-        }
-      } catch (error) {
-        console.error('Error blocking sender:', error);
-      }
-    }
+    if (onBlockSender) { onBlockSender(emailIdToBlock); return; }
+    captureEvent('email_block_sender_clicked', { email_id: emailIdToBlock });
+    try {
+      await axios.post(`${API_URL}/emails/${emailIdToBlock}/block-sender`);
+      if (onClose) { onClose(); } else { navigate('/inbox'); }
+    } catch (error) { console.error('Error blocking sender:', error); }
   }, [onBlockSender, onClose, navigate]);
 
-  if (loading) {
-    return <LoadingSpinner />;
-  }
+  return { timeWarning, suggestedTime, handleOpenTimePicker, handleTimeSelect, handleCancelTimePickerWithReset, handleBlockSender };
+};
 
-  if (!email) {
-    return <EmailNotFound />;
-  }
+export const EmailDetailInline: React.FC<EmailDetailInlineProps> = ({
+  emailId, onClose, onArchive, onSetStarCount, onBlockSender, autoGenerateReplies = false,
+}) => {
+  const navigate = useNavigate();
+  const { timeSuggestions, checkSendTime, fetchTimeSuggestions } = useScheduledEmails();
+
+  const {
+    email, threadEmails, expandedThreadItems, noteContent, actionItems, newActionItem, loading, notesCollapsed,
+    githubLinks, loadingGithub, hasGithubToken, replyOptions, selectedReplyOption, showReplyComposer,
+    replyMode, replyRecipients, replyCc, replyBcc, showCc, showBcc, draft, loadingReplies, sending,
+    checkingTone, toneCheckResult, disputing, disputeResult, isGeneratingSummary, replyGenerationDebugInfo,
+    initialAttachments, showTimePicker, scheduledSendAt, setNoteContent, setNewActionItem,
+    setReplyRecipients, setReplyCc, setReplyBcc, setShowCc, setShowBcc, refreshGithubInfo,
+    handleSaveNote, handleAddActionItem, handleToggleActionItem, handleDeleteActionItem, handleExtractActions,
+    handleOpenReplyComposer, toggleThreadItem, handleSendReplyWithClose, handleDraftChange,
+    handleReplyComposerClose, handleReplyOptionSelect, handleToggleNotesCollapsed,
+    handleOpenTimePicker: openTimePickerBase, handleTimeSelect: setScheduledTime, handleCancelTimePicker, disputeToneCheck,
+  } = useEmailDetailInlineHandlers(emailId, onClose, autoGenerateReplies);
+
+  const { timeWarning, suggestedTime, handleOpenTimePicker, handleTimeSelect, handleCancelTimePickerWithReset, handleBlockSender } = useTimePickerHandlers({ fetchTimeSuggestions, checkSendTime, openTimePickerBase, setScheduledTime, handleCancelTimePicker, onBlockSender, onClose, navigate });
+
+  if (loading) return <LoadingSpinner />;
+  if (!email) return <EmailNotFound />;
 
   return (
     <>
       <EmailDetailContent
-        email={email}
-        emailId={emailId}
-        threadEmails={threadEmails}
-        expandedThreadItems={expandedThreadItems}
-        noteContent={noteContent}
-        notesCollapsed={notesCollapsed}
-        actionItems={actionItems}
-        newActionItem={newActionItem}
-        isGeneratingSummary={isGeneratingSummary}
-        githubLinks={githubLinks}
-        loadingGithub={loadingGithub}
-        hasGithubToken={hasGithubToken}
-        onNoteContentChange={setNoteContent}
-        onToggleNotesCollapsed={handleToggleNotesCollapsed}
-        onSaveNote={handleSaveNote}
-        onNewActionItemChange={setNewActionItem}
-        onAddActionItem={handleAddActionItem}
-        onToggleActionItem={handleToggleActionItem}
-        onDeleteActionItem={handleDeleteActionItem}
-        onExtractActions={handleExtractActions}
-        onRefreshGithub={refreshGithubInfo}
-        onToggleThreadItem={toggleThreadItem}
-        onArchive={onArchive}
-        onSetStarCount={onSetStarCount}
-        onOpenReplyComposer={handleOpenReplyComposer}
-        onBlockSender={handleBlockSender}
+        email={email} emailId={emailId} threadEmails={threadEmails} expandedThreadItems={expandedThreadItems}
+        noteContent={noteContent} notesCollapsed={notesCollapsed} actionItems={actionItems} newActionItem={newActionItem}
+        isGeneratingSummary={isGeneratingSummary} githubLinks={githubLinks} loadingGithub={loadingGithub} hasGithubToken={hasGithubToken}
+        onNoteContentChange={setNoteContent} onToggleNotesCollapsed={handleToggleNotesCollapsed} onSaveNote={handleSaveNote}
+        onNewActionItemChange={setNewActionItem} onAddActionItem={handleAddActionItem} onToggleActionItem={handleToggleActionItem}
+        onDeleteActionItem={handleDeleteActionItem} onExtractActions={handleExtractActions} onRefreshGithub={refreshGithubInfo}
+        onToggleThreadItem={toggleThreadItem} onArchive={onArchive} onSetStarCount={onSetStarCount}
+        onOpenReplyComposer={handleOpenReplyComposer} onBlockSender={handleBlockSender}
       />
       <ReplyComposer
-        showReplyComposer={showReplyComposer}
-        replyMode={replyMode}
-        replyRecipients={replyRecipients}
-        replyCc={replyCc}
-        replyBcc={replyBcc}
-        showCc={showCc}
-        showBcc={showBcc}
-        draft={draft}
-        replyOptions={replyOptions}
-        selectedReplyOption={selectedReplyOption}
-        loadingReplies={loadingReplies}
-        checkingTone={checkingTone}
-        toneCheckResult={toneCheckResult}
-        sending={sending}
-        initialAttachments={initialAttachments}
-        debugInfo={replyGenerationDebugInfo}
-        currentEmailId={emailId}
-        currentEmailObjectId={email?.id}
-        currentEmailThreadId={(email as any)?.emailThreadId}
-        scheduledSendAt={scheduledSendAt}
-        onReplyRecipientsChange={setReplyRecipients}
-        onCcChange={setReplyCc}
-        onBccChange={setReplyBcc}
-        onShowCc={() => setShowCc(true)}
-        onShowBcc={() => setShowBcc(true)}
-        onDraftChange={handleDraftChange}
-        onReplyOptionSelect={handleReplyOptionSelect}
-        onClose={handleReplyComposerClose}
-        onSend={handleSendReplyWithClose}
-        onUseRevisedText={handleDraftChange}
-        onDispute={disputeToneCheck}
-        disputing={disputing}
-        disputeResult={disputeResult}
+        showReplyComposer={showReplyComposer} replyMode={replyMode} replyRecipients={replyRecipients}
+        replyCc={replyCc} replyBcc={replyBcc} showCc={showCc} showBcc={showBcc} draft={draft}
+        replyOptions={replyOptions} selectedReplyOption={selectedReplyOption} loadingReplies={loadingReplies}
+        checkingTone={checkingTone} toneCheckResult={toneCheckResult} sending={sending} initialAttachments={initialAttachments}
+        debugInfo={replyGenerationDebugInfo} currentEmailId={emailId} currentEmailObjectId={email?.id}
+        currentEmailThreadId={(email as any)?.emailThreadId} scheduledSendAt={scheduledSendAt}
+        onReplyRecipientsChange={setReplyRecipients} onCcChange={setReplyCc} onBccChange={setReplyBcc}
+        onShowCc={() => setShowCc(true)} onShowBcc={() => setShowBcc(true)} onDraftChange={handleDraftChange}
+        onReplyOptionSelect={handleReplyOptionSelect} onClose={handleReplyComposerClose} onSend={handleSendReplyWithClose}
+        onUseRevisedText={handleDraftChange} onDispute={disputeToneCheck} disputing={disputing} disputeResult={disputeResult}
         onSchedule={handleOpenTimePicker}
       />
-      {showTimePicker && (
-        <TimePicker
-          selectedTime={scheduledSendAt}
-          suggestions={timeSuggestions}
-          onTimeSelect={handleTimeSelect}
-          onCancel={handleCancelTimePickerWithReset}
-          warning={timeWarning}
-          suggestedTime={suggestedTime}
-        />
-      )}
+      {showTimePicker && <TimePicker selectedTime={scheduledSendAt} suggestions={timeSuggestions} onTimeSelect={handleTimeSelect} onCancel={handleCancelTimePickerWithReset} warning={timeWarning} suggestedTime={suggestedTime} />}
     </>
   );
 };

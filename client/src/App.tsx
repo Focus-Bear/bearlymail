@@ -36,11 +36,7 @@ import Stats from 'pages/Stats';
 import TermsOfUse from 'pages/TermsOfUse';
 import { store } from 'store/store';
 
-interface OnboardingStatus {
-  hasCompletedOnboarding: boolean;
-  needsTermsAcceptance: boolean;
-  needsPrivacyAcceptance: boolean;
-}
+interface OnboardingStatus { hasCompletedOnboarding: boolean; needsTermsAcceptance: boolean; needsPrivacyAcceptance: boolean; }
 
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading, refreshUser } = useAuth();
@@ -68,13 +64,7 @@ const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   }, [loading, user]);
 
   if (loading || checkingStatus) {
-    return <div style={{ 
-      display: 'flex', 
-      justifyContent: 'center', 
-      alignItems: 'center', 
-      height: '100vh',
-      backgroundColor: theme.colors.background.default 
-    }}>Loading...</div>;
+    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: theme.colors.background.default }}>Loading...</div>;
   }
   
   if (!user) {
@@ -120,30 +110,14 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
   
   if (loading) {
-    return <div style={{ 
-      display: 'flex', 
-      justifyContent: 'center', 
-      alignItems: 'center', 
-      height: '100vh',
-      backgroundColor: theme.colors.background.default 
-    }}>Loading...</div>;
+    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: theme.colors.background.default }}>Loading...</div>;
   }
   
   return user?.isAdmin ? <>{children}</> : <Navigate to="/inbox" />;
 };
 
-function App() {
-  return (
-    <Provider store={store}>
-      <AuthProvider>
-        <NotificationProvider>
-          <Router>
-          <div className="App" style={{ 
-            backgroundColor: theme.colors.background.default,
-            minHeight: '100vh',
-            fontFamily: theme.typography.fontFamily,
-          }}>
-            <Routes>
+const AppRoutes: React.FC = () => (
+  <Routes>
               <Route path="/" element={<Landing />} />
                             <Route path="/login" element={<Login />} />
                             <Route path="/auth-error" element={<AuthError />} />
@@ -152,67 +126,35 @@ function App() {
               <Route path="/terms" element={<TermsOfUse />} />
               <Route
                 path="/inbox"
-                element={
-                  <PrivateRoute>
-                    <Inbox />
-                  </PrivateRoute>
-                }
+                element={ <PrivateRoute> <Inbox /> </PrivateRoute> }
               />
               <Route
                 path="/inbox/:mode"
-                element={
-                  <PrivateRoute>
-                    <Inbox />
-                  </PrivateRoute>
-                }
+                element={ <PrivateRoute> <Inbox /> </PrivateRoute> }
               />
               <Route
                 path="/inbox/:mode/:threadId"
-                element={
-                  <PrivateRoute>
-                    <Inbox />
-                  </PrivateRoute>
-                }
+                element={ <PrivateRoute> <Inbox /> </PrivateRoute> }
               />
               <Route
                 path="/focused-inbox/:mode"
-                element={
-                  <PrivateRoute>
-                    <FocusedInbox />
-                  </PrivateRoute>
-                }
+                element={ <PrivateRoute> <FocusedInbox /> </PrivateRoute> }
               />
               <Route
                 path="/focused-inbox/:mode/:threadId"
-                element={
-                  <PrivateRoute>
-                    <FocusedInbox />
-                  </PrivateRoute>
-                }
+                element={ <PrivateRoute> <FocusedInbox /> </PrivateRoute> }
               />
               <Route
                 path="/email/:id"
-                element={
-                  <PrivateRoute>
-                    <EmailDetail />
-                  </PrivateRoute>
-                }
+                element={ <PrivateRoute> <EmailDetail /> </PrivateRoute> }
               />
               <Route
                 path="/settings"
-                element={
-                  <PrivateRoute>
-                    <Settings />
-                  </PrivateRoute>
-                }
+                element={ <PrivateRoute> <Settings /> </PrivateRoute> }
               />
               <Route
                 path="/search"
-                element={
-                  <PrivateRoute>
-                    <Search />
-                  </PrivateRoute>
-                }
+                element={ <PrivateRoute> <Search /> </PrivateRoute> }
               />
               <Route
                 path="/contacts"
@@ -220,74 +162,52 @@ function App() {
               />
               <Route
                 path="/crm/contacts"
-                element={
-                  <PrivateRoute>
-                    <Contacts />
-                  </PrivateRoute>
-                }
+                element={ <PrivateRoute> <Contacts /> </PrivateRoute> }
               />
               <Route
                 path="/crm/contacts/:contactId"
-                element={
-                  <PrivateRoute>
-                    <ContactDetail />
-                  </PrivateRoute>
-                }
+                element={ <PrivateRoute> <ContactDetail /> </PrivateRoute> }
               />
               <Route
                 path="/crm/deals"
-                element={
-                  <PrivateRoute>
-                    <Deals />
-                  </PrivateRoute>
-                }
+                element={ <PrivateRoute> <Deals /> </PrivateRoute> }
               />
               <Route
                 path="/stats"
-                element={
-                  <PrivateRoute>
-                    <Stats />
-                  </PrivateRoute>
-                }
+                element={ <PrivateRoute> <Stats /> </PrivateRoute> }
               />
             <Route
               path="/compose"
-              element={
-                <PrivateRoute>
-                  <Compose />
-                </PrivateRoute>
-              }
+              element={ <PrivateRoute> <Compose /> </PrivateRoute> }
             />
             <Route
               path="/help"
-              element={
-                <PrivateRoute>
-                  <Help />
-                </PrivateRoute>
-              }
+              element={ <PrivateRoute> <Help /> </PrivateRoute> }
             />
             <Route
               path="/help/:articleId"
-              element={
-                <PrivateRoute>
-                  <HelpArticle />
-                </PrivateRoute>
-              }
+              element={ <PrivateRoute> <HelpArticle /> </PrivateRoute> }
             />
             <Route
               path="/admin"
-              element={
-                <AdminRoute>
-                  <AdminDashboard />
-                </AdminRoute>
-              }
+              element={ <AdminRoute> <AdminDashboard /> </AdminRoute> }
             />
             <Route path="/book/:userId" element={<BookingPage />} />
             <Route path="/booking/:token/reschedule" element={<BookingReschedulePage />} />
             <Route path="/booking/:token/cancel" element={<BookingCancelPage />} />
-            </Routes>
-          </div>
-        </Router>
+  </Routes>
+);
+
+function App() {
+  return (
+    <Provider store={store}>
+      <AuthProvider>
+        <NotificationProvider>
+          <Router>
+            <div className="App" style={{ backgroundColor: theme.colors.background.default, minHeight: '100vh', fontFamily: theme.typography.fontFamily, }}>
+              <AppRoutes />
+            </div>
+          </Router>
         </NotificationProvider>
       </AuthProvider>
     </Provider>

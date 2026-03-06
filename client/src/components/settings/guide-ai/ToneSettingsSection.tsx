@@ -29,35 +29,13 @@ export const ToneSettingsSection: React.FC<ToneSettingsSectionProps> = ({
   const itemCount = toneRules.length;
 
   return (
-    <div id="tone-settings" style={{
-      marginBottom: theme.spacing.lg,
-      border: `1px solid ${theme.colors.border.light}`,
-      borderRadius: theme.borderRadius.md,
-      backgroundColor: theme.colors.background.paper,
-    }}>
+    <div id="tone-settings" style={{ marginBottom: theme.spacing.lg, border: `1px solid ${theme.colors.border.light}`, borderRadius: theme.borderRadius.md, backgroundColor: theme.colors.background.paper, }}>
       <div
         onClick={() => setIsExpanded(!isExpanded)}
-        style={{
-          fontSize: theme.typography.fontSize.lg,
-          color: theme.colors.text.primary,
-          padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-          display: 'flex',
-          alignItems: 'center',
-          gap: theme.spacing.sm,
-          cursor: 'pointer',
-          backgroundColor: theme.colors.background.paper,
-          borderBottom: isExpanded ? `1px solid ${theme.colors.border.light}` : 'none',
-          borderRadius: isExpanded ? `${theme.borderRadius.md} ${theme.borderRadius.md} 0 0` : theme.borderRadius.md,
-          transition: theme.transitions.fast,
-        }}
+        style={{ fontSize: theme.typography.fontSize.lg, color: theme.colors.text.primary, padding: `${theme.spacing.sm} ${theme.spacing.md}`, display: 'flex', alignItems: 'center', gap: theme.spacing.sm, cursor: 'pointer', backgroundColor: theme.colors.background.paper, borderBottom: isExpanded ? `1px solid ${theme.colors.border.light}` : 'none', borderRadius: isExpanded ? `${theme.borderRadius.md} ${theme.borderRadius.md} 0 0` : theme.borderRadius.md, transition: theme.transitions.fast, }}
       >
         <span
-          style={{
-            transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-            transition: theme.transitions.fast,
-            fontSize: theme.typography.fontSize.base,
-            color: theme.colors.text.secondary,
-          }}
+          style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: theme.transitions.fast, fontSize: theme.typography.fontSize.base, color: theme.colors.text.secondary, }}
         >
           ▶
         </span>
@@ -65,14 +43,7 @@ export const ToneSettingsSection: React.FC<ToneSettingsSectionProps> = ({
           {t('settings.howIWrite')}
         </span>
         <span
-          style={{
-            backgroundColor: theme.colors.greyscale[300],
-            color: theme.colors.text.secondary,
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            borderRadius: theme.borderRadius.full,
-            fontSize: theme.typography.fontSize.sm,
-            fontWeight: theme.typography.fontWeight.medium,
-          }}
+          style={{ backgroundColor: theme.colors.greyscale[300], color: theme.colors.text.secondary, padding: `${theme.spacing.xs} ${theme.spacing.sm}`, borderRadius: theme.borderRadius.full, fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium, }}
         >
           {itemCount}
         </span>
@@ -80,11 +51,7 @@ export const ToneSettingsSection: React.FC<ToneSettingsSectionProps> = ({
 
       {isExpanded && (
         <div style={{ padding: theme.spacing.md }}>
-          <p style={{
-            color: theme.colors.text.secondary,
-            marginBottom: theme.spacing.md,
-            fontSize: theme.typography.fontSize.sm,
-          }}>
+          <p style={{ color: theme.colors.text.secondary, marginBottom: theme.spacing.md, fontSize: theme.typography.fontSize.sm, }}>
             {t('settings.toneConfig')}
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
@@ -110,12 +77,7 @@ export const ToneSettingsSection: React.FC<ToneSettingsSectionProps> = ({
                 onChange={(e) => onNewToneRuleChange(e.target.value)}
                 onKeyDown={(e) => e.key === KEY_ENTER && onAddToneRule()}
                 placeholder={t('settings.addRulePlaceholder')}
-                style={{
-                  flex: 1,
-                  padding: theme.spacing.sm,
-                  border: `1px solid ${theme.colors.border.medium}`,
-                  borderRadius: theme.borderRadius.md,
-                }}
+                style={{ flex: 1, padding: theme.spacing.sm, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, }}
               />
               <button
                 onClick={() => {
@@ -123,14 +85,7 @@ export const ToneSettingsSection: React.FC<ToneSettingsSectionProps> = ({
                   onAddToneRule();
                 }}
                 disabled={!newToneRule.trim()}
-                style={{
-                  padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-                  backgroundColor: theme.colors.secondary.main,
-                  color: COLOR_NAMED_WHITE,
-                  border: STRING_NONE,
-                  borderRadius: theme.borderRadius.md,
-                  cursor: newToneRule.trim() ? 'pointer' : 'not-allowed',
-                }}
+                style={{ padding: `${theme.spacing.sm} ${theme.spacing.lg}`, backgroundColor: theme.colors.secondary.main, color: COLOR_NAMED_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.md, cursor: newToneRule.trim() ? 'pointer' : 'not-allowed', }}
               >
                 {t('settings.addRule')}
               </button>

@@ -86,15 +86,8 @@ export const DebugSyncHistorySection: React.FC<DebugSyncHistorySectionProps> = (
 
   return (
     <div
-      style={{
-        marginBottom: theme.spacing.md,
-        padding: theme.spacing.sm,
-        backgroundColor: COLOR_WHITE,
-        borderRadius: theme.borderRadius.sm,
-        border: '1px solid #dee2e6',
-      }}
+      style={{ marginBottom: theme.spacing.md, padding: theme.spacing.sm, backgroundColor: COLOR_WHITE, borderRadius: theme.borderRadius.sm, border: '1px solid #dee2e6', }}
     >
-      {/* eslint-disable-next-line i18next/no-literal-string */}
       <h4 style={{ margin: `0 0 ${theme.spacing.xs} 0` }}>
         {t('debug.syncHistory.sectionTitle')}
       </h4>
@@ -102,15 +95,7 @@ export const DebugSyncHistorySection: React.FC<DebugSyncHistorySectionProps> = (
       {!syncHistory && !loadingSyncHistory && (
         <button
           onClick={onFetchSyncHistory}
-          style={{
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            background: theme.colors.primary,
-            color: COLOR_WHITE,
-            border: STRING_NONE,
-            borderRadius: theme.borderRadius.sm,
-            cursor: 'pointer',
-            fontSize: theme.typography.fontSize.xs,
-          }}
+          style={{ padding: `${theme.spacing.xs} ${theme.spacing.sm}`, background: theme.colors.primary, color: COLOR_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.sm, cursor: 'pointer', fontSize: theme.typography.fontSize.xs, }}
         >
           {t('debug.syncHistory.fetchButton')}
         </button>
@@ -123,26 +108,14 @@ export const DebugSyncHistorySection: React.FC<DebugSyncHistorySectionProps> = (
       {syncHistory && (
         <>
           <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: theme.spacing.xs,
-            }}
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.xs, }}
           >
             <span style={{ color: theme.colors.text.secondary, fontSize: '0.65rem' }}>
               {t('debug.syncHistory.showingLast', { count: syncHistory.length })}
             </span>
             <button
               onClick={onFetchSyncHistory}
-              style={{
-                padding: '2px 6px',
-                background: 'transparent',
-                border: '1px solid #adb5bd',
-                borderRadius: '3px',
-                cursor: 'pointer',
-                fontSize: '0.6rem',
-              }}
+              style={{ padding: '2px 6px', background: 'transparent', border: '1px solid #adb5bd', borderRadius: '3px', cursor: 'pointer', fontSize: '0.6rem', }}
             >
               {t('debug.syncHistory.refreshButton')}
             </button>
@@ -161,13 +134,7 @@ export const DebugSyncHistorySection: React.FC<DebugSyncHistorySectionProps> = (
                   {formatRelative(entry.syncedAt)}
                   {entry.isContinuation && (
                     <span
-                      style={{
-                        marginLeft: '4px',
-                        fontSize: '0.55rem',
-                        background: '#e9ecef',
-                        borderRadius: '3px',
-                        padding: '1px 3px',
-                      }}
+                      style={{ marginLeft: '4px', fontSize: '0.55rem', background: '#e9ecef', borderRadius: '3px', padding: '1px 3px', }}
                     >
                       {t('debug.syncHistory.continuation')}
                     </span>

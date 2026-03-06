@@ -58,52 +58,21 @@ export const BlockedKeywordsSection: React.FC<BlockedKeywordsSectionProps> = ({
   };
 
   return (
-    <div id="blocked-keywords" style={{
-      marginBottom: theme.spacing.lg,
-      border: `1px solid ${theme.colors.border.light}`,
-      borderRadius: theme.borderRadius.md,
-      backgroundColor: theme.colors.background.paper,
-    }}>
+    <div id="blocked-keywords" style={{ marginBottom: theme.spacing.lg, border: `1px solid ${theme.colors.border.light}`, borderRadius: theme.borderRadius.md, backgroundColor: theme.colors.background.paper, }}>
       <div
         onClick={() => setIsExpanded(!isExpanded)}
-        style={{
-          fontSize: theme.typography.fontSize.lg,
-          color: theme.colors.text.primary,
-          padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-          display: 'flex',
-          alignItems: 'center',
-          gap: theme.spacing.sm,
-          cursor: 'pointer',
-          backgroundColor: theme.colors.background.paper,
-          borderBottom: isExpanded ? `1px solid ${theme.colors.border.light}` : 'none',
-          borderRadius: isExpanded ? `${theme.borderRadius.md} ${theme.borderRadius.md} 0 0` : theme.borderRadius.md,
-          transition: theme.transitions.fast,
-          scrollMarginTop: `${INPUT_WIDTH_PX}px`,
-        }}
+        style={{ fontSize: theme.typography.fontSize.lg, color: theme.colors.text.primary, padding: `${theme.spacing.sm} ${theme.spacing.md}`, display: 'flex', alignItems: 'center', gap: theme.spacing.sm, cursor: 'pointer', backgroundColor: theme.colors.background.paper, borderBottom: isExpanded ? `1px solid ${theme.colors.border.light}` : 'none', borderRadius: isExpanded ? `${theme.borderRadius.md} ${theme.borderRadius.md} 0 0` : theme.borderRadius.md, transition: theme.transitions.fast, scrollMarginTop: `${INPUT_WIDTH_PX}px`, }}
       >
         <span
-          style={{
-            transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-            transition: theme.transitions.fast,
-            fontSize: theme.typography.fontSize.base,
-            color: theme.colors.text.secondary,
-          }}
+          style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: theme.transitions.fast, fontSize: theme.typography.fontSize.base, color: theme.colors.text.secondary, }}
         >
           ▶
         </span>
         <span style={{ fontWeight: theme.typography.fontWeight.semibold }}>
-          {/* eslint-disable-next-line i18next/no-literal-string */}
           {EMOJI_BLOCK} {t('settings.blockedKeywords.title')}
         </span>
         <span
-          style={{
-            backgroundColor: theme.colors.greyscale[300],
-            color: theme.colors.text.secondary,
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            borderRadius: theme.borderRadius.full,
-            fontSize: theme.typography.fontSize.sm,
-            fontWeight: theme.typography.fontWeight.medium,
-          }}
+          style={{ backgroundColor: theme.colors.greyscale[300], color: theme.colors.text.secondary, padding: `${theme.spacing.xs} ${theme.spacing.sm}`, borderRadius: theme.borderRadius.full, fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium, }}
         >
           {itemCount}
         </span>
@@ -111,46 +80,20 @@ export const BlockedKeywordsSection: React.FC<BlockedKeywordsSectionProps> = ({
 
       {isExpanded && (
         <div style={{ padding: theme.spacing.md }}>
-          <p style={{
-            color: theme.colors.text.secondary,
-            marginBottom: theme.spacing.md,
-            fontSize: theme.typography.fontSize.sm,
-          }}>
+          <p style={{ color: theme.colors.text.secondary, marginBottom: theme.spacing.md, fontSize: theme.typography.fontSize.sm, }}>
             {t('settings.blockedKeywords.description')}
           </p>
 
-          <div style={{
-            display: 'flex',
-            gap: theme.spacing.sm,
-            marginBottom: theme.spacing.lg,
-            flexWrap: 'wrap',
-            alignItems: 'center',
-          }}>
+          <div style={{ display: 'flex', gap: theme.spacing.sm, marginBottom: theme.spacing.lg, flexWrap: 'wrap', alignItems: 'center', }}>
             <input
               type="text"
               value={newKeyword}
               onChange={(e) => setNewKeyword(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder={t('settings.blockedKeywords.placeholder')}
-              style={{
-                flex: 1,
-                minWidth: '200px',
-                padding: theme.spacing.sm,
-                borderRadius: theme.borderRadius.md,
-                border: `1px solid ${theme.colors.border.light}`,
-                fontSize: theme.typography.fontSize.sm,
-                backgroundColor: theme.colors.background.subtle,
-                color: theme.colors.text.primary,
-              }}
+              style={{ flex: 1, minWidth: '200px', padding: theme.spacing.sm, borderRadius: theme.borderRadius.md, border: `1px solid ${theme.colors.border.light}`, fontSize: theme.typography.fontSize.sm, backgroundColor: theme.colors.background.subtle, color: theme.colors.text.primary, }}
             />
-            <label style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: theme.spacing.xs,
-              color: theme.colors.text.secondary,
-              fontSize: theme.typography.fontSize.sm,
-              cursor: 'pointer',
-            }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs, color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, cursor: 'pointer', }}>
               <input
                 type="checkbox"
                 checked={exactMatch}
@@ -162,29 +105,14 @@ export const BlockedKeywordsSection: React.FC<BlockedKeywordsSectionProps> = ({
             <button
               onClick={handleAddKeyword}
               disabled={!newKeyword.trim() || isAdding}
-              style={{
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                backgroundColor: theme.colors.primary.main,
-                color: COLOR_NAMED_WHITE,
-                border: STRING_NONE,
-                borderRadius: theme.borderRadius.md,
-                cursor: newKeyword.trim() && !isAdding ? 'pointer' : 'not-allowed',
-                fontSize: theme.typography.fontSize.sm,
-                opacity: newKeyword.trim() && !isAdding ? 1 : OPACITY_HALF,
-              }}
+              style={{ padding: `${theme.spacing.sm} ${theme.spacing.md}`, backgroundColor: theme.colors.primary.main, color: COLOR_NAMED_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.md, cursor: newKeyword.trim() && !isAdding ? 'pointer' : 'not-allowed', fontSize: theme.typography.fontSize.sm, opacity: newKeyword.trim() && !isAdding ? 1 : OPACITY_HALF, }}
             >
               {isAdding ? t('common.saving') : t('settings.blockedKeywords.addKeyword')}
             </button>
           </div>
 
           {blockedKeywords.length === 0 ? (
-            <div style={{
-              padding: theme.spacing.xl,
-              textAlign: 'center',
-              color: theme.colors.text.secondary,
-              border: `2px dashed ${theme.colors.border.light}`,
-              borderRadius: theme.borderRadius.md,
-            }}>
+            <div style={{ padding: theme.spacing.xl, textAlign: 'center', color: theme.colors.text.secondary, border: `2px dashed ${theme.colors.border.light}`, borderRadius: theme.borderRadius.md, }}>
               {t('settings.blockedKeywords.emptyState')}
             </div>
           ) : (

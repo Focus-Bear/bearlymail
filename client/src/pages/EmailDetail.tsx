@@ -1,4 +1,4 @@
-import React, { forwardRef, useCallback,useEffect, useImperativeHandle, useRef, useState } from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { theme } from 'theme/theme';
@@ -21,14 +21,14 @@ import { ActionItemsSection } from 'components/email-detail-inline/ActionItemsSe
 import { PrivateNotesSection } from 'components/email-detail-inline/PrivateNotesSection';
 import { ReplyComposer } from 'components/email-detail-inline/ReplyComposer';
 import { GitHubStatusSection } from 'components/github/GitHubStatusSection';
-import { AUTO_SAVE_INTERVAL_MS } from 'constants/numbers';
 import { ACTION_TYPE_CUSTOM, SUMMARY_TYPE_CUSTOM, SUMMARY_TYPE_CUSTOM_PREFIX } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
+import { useEmailDetailDraftSync } from 'hooks/useEmailDetailDraftSync';
 import { useEmailDetailInitialization } from 'hooks/useEmailDetailInitialization';
 import { useEmailDetailOperations } from 'hooks/useEmailDetailOperations';
 import { useEmailDetailState } from 'hooks/useEmailDetailState';
+import { useEmailDetailTimePicker } from 'hooks/useEmailDetailTimePicker';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
-import { useScheduledEmails } from 'hooks/useScheduledEmails';
 
 interface EmailDetailProps {
   emailId?: string;
@@ -69,7 +69,6 @@ function getEmailContentCardStyle(compactMode: boolean, isMobile: boolean): Reac
   };
 }
 
-// eslint-disable-next-line max-lines-per-function -- Email detail page requires handling multiple email operations and UI states
 const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: propEmailId, compactMode = false, onArchiveComplete, onSnoozeComplete, autoGenerateReplies = false, onCorrespondentChange }, ref) => {
   const params = useParams<{ id: string }>();
   const id = propEmailId || params.id;
@@ -78,207 +77,45 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
   const { isMobile } = useResponsiveBreakpoints();
   const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
   const replyComposerRef = useRef<HTMLDivElement>(null);
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [scheduledSendAt, setScheduledSendAt] = useState<Date | null>(null);
-  const [timeWarning, setTimeWarning] = useState<string | undefined>();
-  const [suggestedTime, setSuggestedTime] = useState<Date | undefined>();
-
   const {
+    showTimePicker,
+    scheduledSendAt,
+    timeWarning,
+    suggestedTime,
     timeSuggestions,
-    checkSendTime,
-    fetchTimeSuggestions,
-  } = useScheduledEmails();
+    handleOpenTimePicker,
+    handleTimeSelect,
+    handleCancelTimePicker,
+  } = useEmailDetailTimePicker();
 
   const state = useEmailDetailState();
-  const operations = useEmailDetailOperations(id, state, { onArchiveComplete, onSnoozeComplete });
-  
-  const {
-    email,
-    threadEmails,
-    expandedThreadItems,
-    noteContent,
-    notesCollapsed,
-    summary,
-    summaryType,
-    summaryCollapsed,
-    isGeneratingSummary,
-    showRuleModal,
-    customRule,
-    customRules,
-    actionItems,
-    newActionItem,
-    draft,
-    replyOptions,
-    selectedReplyOption,
-    showReplyComposer,
-    replyMode,
-    replyRecipients,
-    replyCc,
-    replyBcc,
-    showCc,
-    showBcc,
-    loadingReplies,
-    sending,
-    toneCheckResult,
-    checkingTone,
-    disputing,
-    disputeResult,
-    priorityExplanation,
-    showPriorityExplanation,
-    githubLinks,
-    loadingGithub,
-    hasGithubToken,
-    suggestedActions,
-    showQuickActionsMenu,
-    selectedAction,
-    animationClass,
-    loading,
-    setLoading,
-    setEmail,
-    setThreadEmails,
-    setExpandedThreadItems,
-    setNoteContent,
-    setNotesCollapsed,
-    setSummary,
-    setSummaryType,
-    setSummaryCollapsed,
-    setShowRuleModal,
-    setCustomRule,
-    setActionItems,
-    setNewActionItem,
-    setDraft,
-    setReplyOptions,
-    setSelectedReplyOption,
-    setShowReplyComposer,
-    setReplyRecipients,
-    setReplyCc,
-    setReplyBcc,
-    setShowCc,
-    setShowBcc,
-    setToneCheckResult,
-    setShowPriorityExplanation,
-    setShowQuickActionsMenu,
-    setSelectedAction,
-    setReplyMode,
-  } = state;
-
-  const {
-    fetchCustomRules,
-    handleUseCustomRule,
-    handleSummarize,
-    fetchEmail,
-    fetchThreadEmails,
-    fetchNote,
-    fetchDraft,
-    saveDraft,
-    fetchGithubInfo,
-    refreshGithubInfo,
-    fetchSuggestedActions,
-    handleActionSelected,
-    handleActionSuccess,
-    toggleThreadItem,
-    handleFetchPriorityExplanation,
-    handleExtractActions,
-    handleAddActionItem,
-    handleToggleActionItem,
-    handleDeleteActionItem,
-    handleRegenerateActionItems,
-    handleSaveNote,
-    handleCreateCustomRule,
-    handleOpenReplyComposer,
-    handleGenerateDraft,
-    handleSendReply,
-    disputeToneCheck,
-    handleArchive,
-    handleSnooze,
-    handleDelete,
-    handleSetStarCount,
-    handleBlockSender,
-    handleRespondToInvitation,
-    extractCleanBody,
-    removeSignature,
-    extractCleanHtmlBody,
-    sanitizeAndProcessHtml,
-  } = operations;
+  const ops = useEmailDetailOperations(id, state, { onArchiveComplete, onSnoozeComplete });
+  const { email, loading, animationClass, showRuleModal, customRule } = state;
 
   useEmailDetailInitialization({
-    id,
-    email,
-    isGeneratingSummary,
-    summaryType,
-    summary,
-    fetchCustomRules,
-    fetchEmail,
-    fetchGithubInfo,
-    fetchSuggestedActions,
-    fetchNote,
-    fetchThreadEmails,
-    handleUseCustomRule,
-    handleSummarize,
-    setSummary,
-    setSummaryType,
-    setSummaryCollapsed,
-    setActionItems,
-    setExpandedThreadItems,
-    setThreadEmails,
-    setLoading,
-    setEmail,
-    threadEmails,
-    actionItems,
+    id, email, isGeneratingSummary: state.isGeneratingSummary, summaryType: state.summaryType, summary: state.summary,
+    fetchCustomRules: ops.fetchCustomRules, fetchEmail: ops.fetchEmail, fetchGithubInfo: ops.fetchGithubInfo,
+    fetchSuggestedActions: ops.fetchSuggestedActions, fetchNote: ops.fetchNote, fetchThreadEmails: ops.fetchThreadEmails,
+    handleUseCustomRule: ops.handleUseCustomRule, handleSummarize: ops.handleSummarize,
+    setSummary: state.setSummary, setSummaryType: state.setSummaryType, setSummaryCollapsed: state.setSummaryCollapsed,
+    setActionItems: state.setActionItems, setExpandedThreadItems: state.setExpandedThreadItems,
+    setThreadEmails: state.setThreadEmails, setLoading: state.setLoading, setEmail: state.setEmail,
+    threadEmails: state.threadEmails, actionItems: state.actionItems,
   });
 
-  // Expose methods via ref for external control (e.g., SplitViewPanel header actions)
   useImperativeHandle(ref, () => ({
     openReplyComposer: (mode: 'reply' | 'replyAll' | 'forward' = 'reply') => {
-      handleOpenReplyComposer(mode);
-      // Scroll to reply composer and focus the textarea after a short delay to ensure it's mounted
-      setTimeout(() => {
-        replyComposerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        replyTextareaRef.current?.focus();
-      }, 100);
+      ops.handleOpenReplyComposer(mode);
+      setTimeout(() => { replyComposerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); replyTextareaRef.current?.focus(); }, 100);
     },
-    archive: () => {
-      handleArchive();
-    },
-    snooze: (duration: string) => {
-      handleSnooze(duration);
-    },
-    setStarCount: (count: number) => {
-      if (email?.id) {
-        handleSetStarCount(email.id, count);
-      }
-    },
-    getStarCount: () => {
-      return (email as any)?.starCount ?? 0;
-    },
-  }), [handleOpenReplyComposer, handleArchive, handleSnooze, handleSetStarCount, email]);
+    archive: () => ops.handleArchive(),
+    snooze: (duration: string) => ops.handleSnooze(duration),
+    setStarCount: (count: number) => { if (email?.id) ops.handleSetStarCount(email.id, count); },
+    getStarCount: () => (email as any)?.starCount ?? 0,
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- ops is stable from useEmailDetailOperations
+  }), [ops.handleOpenReplyComposer, ops.handleArchive, ops.handleSnooze, ops.handleSetStarCount, email]);
 
-  // Scheduling handlers
-  const handleOpenTimePicker = useCallback(() => {
-    fetchTimeSuggestions();
-    setTimeWarning(undefined);
-    setSuggestedTime(undefined);
-    setShowTimePicker(true);
-  }, [fetchTimeSuggestions]);
-
-  const handleTimeSelect = useCallback(async (time: Date) => {
-    const checkResult = await checkSendTime(time);
-    if (!checkResult.isAppropriate) {
-      setTimeWarning(checkResult.warning);
-      setSuggestedTime(checkResult.suggestion ? new Date(checkResult.suggestion) : undefined);
-    } else {
-      setTimeWarning(undefined);
-      setSuggestedTime(undefined);
-      setScheduledSendAt(time);
-      setShowTimePicker(false);
-    }
-  }, [checkSendTime]);
-
-  const handleCancelTimePicker = useCallback(() => {
-    setTimeWarning(undefined);
-    setSuggestedTime(undefined);
-    setShowTimePicker(false);
-  }, []);
+  // Scheduling handlers are provided by useEmailDetailTimePicker
 
   useEffect(() => {
     if (id && email) {
@@ -288,138 +125,23 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
 
   useEffect(() => {
     if (email && onCorrespondentChange) {
-      const correspondent = getCorrespondent(email, user?.email, threadEmails);
+      const correspondent = getCorrespondent(email, user?.email, state.threadEmails);
       onCorrespondentChange({ name: correspondent.name, email: correspondent.email });
     }
-  }, [email, threadEmails, user?.email, onCorrespondentChange]);
+  }, [email, state.threadEmails, user?.email, onCorrespondentChange]);
 
-  // Track previous email ID for draft saving when switching emails
-  const previousEmailIdRef = useRef<string | null>(null);
-  const previousThreadIdRef = useRef<string | null>(null);
-  const previousDraftRef = useRef<string | null>(null);
-  const previousReplyModeRef = useRef<'reply' | 'replyAll'>('reply');
-  const previousRecipientsRef = useRef<string>('');
-
-  // Save draft when switching to a different email
-  useEffect(() => {
-    const previousId = previousEmailIdRef.current;
-    const previousThreadId = previousThreadIdRef.current;
-    const previousDraft = previousDraftRef.current;
-    const previousReplyMode = previousReplyModeRef.current;
-    const previousRecipients = previousRecipientsRef.current;
-
-    if (previousId && previousId !== id && previousThreadId && previousDraft && previousDraft.trim()) {
-      saveDraft(previousDraft, previousReplyMode, previousRecipients);
-    }
-
-    previousEmailIdRef.current = id || null;
-    previousThreadIdRef.current = email?.threadId || null;
-
-    if (previousId !== id) {
-      setShowReplyComposer(false);
-      setDraft('');
-      setReplyOptions(null);
-      setToneCheckResult(null);
-    }
-  }, [id, email?.threadId, setShowReplyComposer, setDraft, setReplyOptions, setToneCheckResult, saveDraft]);
-
-  // Keep refs updated with current draft state
-  useEffect(() => {
-    previousDraftRef.current = draft;
-  }, [draft]);
-
-  useEffect(() => {
-    previousReplyModeRef.current = replyMode;
-  }, [replyMode]);
-
-  useEffect(() => {
-    previousRecipientsRef.current = replyRecipients;
-  }, [replyRecipients]);
-
-  // Load existing draft when opening an email (but don't auto-open the composer)
-  // The draft will be ready when user clicks reply
-  // Use a ref to track the last loaded threadId to prevent re-loading on every render
-  const lastLoadedThreadIdRef = useRef<string | null>(null);
-  useEffect(() => {
-    // Only load draft once per thread - prevents overwriting user's local changes
-    if (email?.threadId && lastLoadedThreadIdRef.current !== email.threadId) {
-      lastLoadedThreadIdRef.current = email.threadId;
-      const loadDraft = async () => {
-        const savedDraft = await fetchDraft();
-        if (savedDraft && savedDraft.content) {
-          setDraft(savedDraft.content);
-          // Don't auto-open the reply composer - let user read the email first
-          // The draft will be shown when user clicks reply
-          if (savedDraft.replyMode) {
-            setReplyMode(savedDraft.replyMode);
-          }
-          if (savedDraft.recipients) {
-            setReplyRecipients(savedDraft.recipients);
-          }
-        }
-      };
-      loadDraft();
-    }
-  }, [email?.threadId, fetchDraft, setDraft, setReplyRecipients, setReplyMode]);
-
-  // Auto-save draft every 10 seconds while reply composer is open
-  useEffect(() => {
-    if (!showReplyComposer || !email?.threadId) {
-      return;
-    }
-
-    const autoSaveInterval = setInterval(() => {
-      if (draft && draft.trim()) {
-        saveDraft(draft, replyMode, replyRecipients);
-      }
-    }, AUTO_SAVE_INTERVAL_MS);
-
-    return () => {
-      clearInterval(autoSaveInterval);
-    };
-  }, [showReplyComposer, email?.threadId, draft, replyMode, replyRecipients, saveDraft]);
-
-  // Scroll to reply composer when it opens
-  useEffect(() => {
-    if (showReplyComposer && replyComposerRef.current) {
-      // Use a small delay to ensure the component is fully rendered
-      setTimeout(() => {
-        replyComposerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 100);
-    }
-  }, [showReplyComposer]);
-
-  // Auto-generate reply drafts in the background when email loads (for "For Action" mode)
-  // Don't auto-open the reply composer - let user read the email first
-  // Suggestions will be ready when user clicks reply
-  const autoGeneratedRef = useRef<string | null>(null);
-  const hasDraftRef = useRef<boolean>(false);
-  
-  // Track if we have a saved draft to avoid generating suggestions over it
-  useEffect(() => {
-    hasDraftRef.current = !!(draft && draft.trim());
-  }, [draft]);
-  
-  useEffect(() => {
-    // Skip if: not in auto-generate mode, no email, already generated for this email,
-    // already have reply options, or there's a saved draft
-    if (autoGenerateReplies && id && email && autoGeneratedRef.current !== id && !replyOptions && !hasDraftRef.current) {
-      autoGeneratedRef.current = id;
-      // Generate suggestions in background without opening the composer
-      handleGenerateDraft();
-    }
-  }, [autoGenerateReplies, id, email, replyOptions, handleGenerateDraft]);
+  useEmailDetailDraftSync({
+    id, email, draft: state.draft, replyMode: state.replyMode, replyRecipients: state.replyRecipients,
+    autoGenerateReplies, replyOptions: state.replyOptions, showReplyComposer: state.showReplyComposer,
+    replyComposerRef, saveDraft: ops.saveDraft, fetchDraft: ops.fetchDraft,
+    setDraft: state.setDraft, setReplyRecipients: state.setReplyRecipients, setReplyMode: state.setReplyMode,
+    setShowReplyComposer: state.setShowReplyComposer, setReplyOptions: state.setReplyOptions,
+    setToneCheckResult: state.setToneCheckResult, handleGenerateDraft: ops.handleGenerateDraft,
+  });
 
   if (loading) {
     return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        backgroundColor: theme.colors.background.default,
-        color: theme.colors.text.secondary,
-      }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: theme.colors.background.default, color: theme.colors.text.secondary, }}>
         {t('emailDetail.loadingEmail')}
       </div>
     );
@@ -429,217 +151,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
     return <div>{t('emailDetail.emailNotFound')}</div>;
   }
 
-  // Shared content that appears in both full and compact mode
-  const emailContent = (
-    <>
-      <div style={{ marginBottom: isMobile ? theme.spacing.sm : theme.spacing.xl }}>
-        <PrivateNotesSection
-          noteContent={noteContent}
-          notesCollapsed={notesCollapsed}
-          onNoteContentChange={setNoteContent}
-          onToggleCollapsed={() => setNotesCollapsed(!notesCollapsed)}
-          onSaveNote={handleSaveNote}
-        />
-
-        <ActionItemsSection
-          actionItems={actionItems}
-          newActionItem={newActionItem}
-          isGeneratingSummary={isGeneratingSummary}
-          onNewActionItemChange={setNewActionItem}
-          onAddActionItem={handleAddActionItem}
-          onToggleActionItem={handleToggleActionItem}
-          onDeleteActionItem={handleDeleteActionItem}
-          onExtractActions={handleExtractActions}
-          onRegenerateActionItems={handleRegenerateActionItems}
-        />
-
-        {compactMode && (
-          <>
-            <GitHubStatusSection
-              links={githubLinks}
-              loading={loadingGithub}
-              hasToken={hasGithubToken}
-              onRefresh={refreshGithubInfo}
-              emailSubject={email?.subject}
-              emailBody={email?.body}
-              emailHtmlBody={email?.htmlBody}
-            />
-            <CRMDealsSection
-              senderEmail={extractEmailAddress(email?.from)}
-              emailSubject={email?.subject}
-            />
-          </>
-        )}
-      </div>
-      
-      <div style={getEmailContentCardStyle(compactMode, isMobile)}>
-        <div style={{ marginBottom: theme.spacing.xl }}>
-          <EmailDetailHeader
-            email={email as any}
-            threadEmails={threadEmails as Email[]}
-            priorityExplanation={priorityExplanation}
-            showPriorityExplanation={showPriorityExplanation}
-            onFetchPriorityExplanation={handleFetchPriorityExplanation}
-            onClosePriorityExplanation={() => setShowPriorityExplanation(false)}
-          />
-        </div>
-
-        <EmailDetailActions
-          email={email as any}
-          suggestedActions={suggestedActions}
-          showQuickActionsMenu={showQuickActionsMenu}
-          selectedAction={selectedAction}
-          onShowQuickActionsMenu={() => setShowQuickActionsMenu(true)}
-          onCloseQuickActionsMenu={() => setShowQuickActionsMenu(false)}
-          onSelectAction={handleActionSelected}
-          onCloseAction={() => setSelectedAction(null)}
-          onActionSuccess={handleActionSuccess}
-          onOpenReplyComposer={handleOpenReplyComposer}
-          onArchive={handleArchive}
-          onDelete={handleDelete}
-          onSetStarCount={handleSetStarCount}
-          onBlockSender={handleBlockSender}
-          onSnooze={handleSnooze}
-          onRespondToInvitation={handleRespondToInvitation}
-          onDraftReply={(replyDraft) => {
-            setDraft(replyDraft);
-            setShowReplyComposer(true);
-          }}
-          hideActionButtons={compactMode}
-        />
-
-        {showReplyComposer && (
-          <div ref={replyComposerRef}>
-            <ReplyComposer
-              showReplyComposer={showReplyComposer}
-              replyMode={replyMode}
-              replyRecipients={replyRecipients}
-              replyCc={replyCc}
-              replyBcc={replyBcc}
-              showCc={showCc}
-              showBcc={showBcc}
-              draft={draft}
-              replyOptions={replyOptions}
-              selectedReplyOption={selectedReplyOption}
-              loadingReplies={loadingReplies}
-              checkingTone={checkingTone}
-              toneCheckResult={toneCheckResult}
-              sending={sending}
-              textareaRef={replyTextareaRef}
-              scheduledSendAt={scheduledSendAt}
-              onReplyRecipientsChange={setReplyRecipients}
-              onCcChange={setReplyCc}
-              onBccChange={setReplyBcc}
-              onShowCc={() => setShowCc(true)}
-              onShowBcc={() => setShowBcc(true)}
-              onDraftChange={(draft) => {
-                setDraft(draft);
-                setToneCheckResult(null);
-                if (replyOptions && selectedReplyOption !== replyOptions.length - 1) {
-                  const customIdx = replyOptions.findIndex(option => option.label === ACTION_TYPE_CUSTOM);
-                  if (customIdx >= 0) setSelectedReplyOption(customIdx);
-                }
-              }}
-              onReplyOptionSelect={(index, text) => {
-                setSelectedReplyOption(index);
-                setDraft(text);
-              }}
-              onClose={() => {
-                setShowReplyComposer(false);
-                setDraft('');
-                setReplyOptions(null);
-                setToneCheckResult(null);
-              }}
-              onSend={(files, expectedReplyHours, _forwardAttachmentIds, draftOverride, scheduledSendAt) => handleSendReply(files, expectedReplyHours, draftOverride, scheduledSendAt)}
-              onUseRevisedText={(text) => {
-                setDraft(text);
-                setToneCheckResult(null);
-              }}
-              onDispute={disputeToneCheck}
-              disputing={disputing}
-              disputeResult={disputeResult}
-              onSchedule={handleOpenTimePicker}
-              currentEmailId={id}
-              currentEmailObjectId={email?.id}
-              currentEmailThreadId={(email as any)?.emailThreadId}
-            />
-          </div>
-        )}
-
-        {!compactMode && (
-          <>
-            <div style={{ marginBottom: theme.spacing.xl }}>
-              <GitHubStatusSection
-                links={githubLinks}
-                loading={loadingGithub}
-                hasToken={hasGithubToken}
-                onRefresh={refreshGithubInfo}
-                emailSubject={email?.subject}
-                emailBody={email?.body}
-                emailHtmlBody={email?.htmlBody}
-              />
-            </div>
-            <div style={{ marginBottom: theme.spacing.xl }}>
-              <CRMDealsSection
-                senderEmail={extractEmailAddress(email?.from)}
-                emailSubject={email?.subject}
-              />
-            </div>
-          </>
-        )}
-
-        {shouldShowPhishingAlert(email?.phishingConfidence) && email?.phishingConfidence && (
-          <EmailPhishingWarning
-            confidence={email.phishingConfidence}
-            reason={email.phishingReason ?? ''}
-          />
-        )}
-
-        <SummarySection
-          summary={summary}
-          summaryType={summaryType}
-          summaryCollapsed={summaryCollapsed}
-          isGeneratingSummary={isGeneratingSummary}
-          emailIsProcessingSummary={email?.isProcessingSummary}
-          customRules={customRules}
-          onSummaryTypeChange={(type) => {
-            if (type === SUMMARY_TYPE_CUSTOM) {
-              setShowRuleModal(true);
-            } else if (type.startsWith(SUMMARY_TYPE_CUSTOM_PREFIX)) {
-              // Properly extract ruleId by removing the prefix (handles UUIDs with hyphens)
-              const ruleId = type.replace(SUMMARY_TYPE_CUSTOM_PREFIX, '');
-              const rule = customRules.find(r => r.ruleId === ruleId);
-              if (rule) {
-                handleUseCustomRule(rule);
-              } else {
-                console.error('Custom rule not found:', ruleId);
-              }
-            } else {
-              handleSummarize(type);
-            }
-          }}
-          onToggleCollapsed={() => setSummaryCollapsed(!summaryCollapsed)}
-          onShowRuleModal={() => setShowRuleModal(true)}
-          onUseCustomRule={handleUseCustomRule}
-        />
-
-        <EmailThreadView
-          email={email as Email}
-          threadEmails={threadEmails as Email[]}
-          expandedThreadItems={expandedThreadItems}
-          onToggleThreadItem={toggleThreadItem}
-          extractCleanBody={extractCleanBody}
-          removeSignature={removeSignature}
-          extractCleanHtmlBody={extractCleanHtmlBody}
-          sanitizeAndProcessHtml={sanitizeAndProcessHtml}
-        />
-      </div>
-
-      {user?.isAdmin && email && (
-        <EmailDetailDebugInfo email={email} threadEmails={threadEmails} />
-      )}
-      </>
-    );
+  const emailContent = <EmailDetailContent state={state} ops={ops} scheduledSendAt={scheduledSendAt} compactMode={compactMode} isMobile={isMobile} id={id} user={user} replyTextareaRef={replyTextareaRef} replyComposerRef={replyComposerRef} handleOpenTimePicker={handleOpenTimePicker} />;
 
   // In compact mode, use the same emailContent (which is already compact-mode aware)
   if (compactMode) {
@@ -648,56 +160,21 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
         <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: theme.spacing.sm }}>
           {emailContent}
         </div>
-        <CustomRuleModal
-          show={showRuleModal}
-          customRule={customRule}
-          onCustomRuleChange={setCustomRule}
-          onClose={() => {
-            setShowRuleModal(false);
-            setCustomRule({ whenToUse: '', howToSummarize: '' });
-          }}
-          onCreate={handleCreateCustomRule}
-        />
+        <CustomRuleModal show={showRuleModal} customRule={customRule} onCustomRuleChange={state.setCustomRule} onClose={() => { state.setShowRuleModal(false); state.setCustomRule({ whenToUse: '', howToSummarize: '' }); }} onCreate={ops.handleCreateCustomRule} />
       </div>
     );
   }
 
-  // Full page mode with sidebar and overlay
   return (
     <>
       <EmailDetailAnimationOverlay animationClass={animationClass} />
       <EmailDetailSidebar />
-
-      <div style={{
-        height: '100vh',
-        backgroundColor: theme.colors.background.default,
-        overflow: 'hidden',
-        position: 'relative',
-      }}>
-        <div style={{
-          height: '100%',
-          overflowY: 'auto',
-          overflowX: 'hidden',
-          padding: isMobile
-            ? `70px ${theme.spacing.xs} ${theme.spacing.md}`
-            : theme.spacing['2xl'],
-        }}>
-          <div style={{ maxWidth: isMobile ? '100%' : '900px', margin: '0 auto' }}>
-            {emailContent}
-          </div>
+      <div style={{ height: '100vh', backgroundColor: theme.colors.background.default, overflow: 'hidden', position: 'relative' }}>
+        <div style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden', padding: isMobile ? `70px ${theme.spacing.xs} ${theme.spacing.md}` : theme.spacing['2xl'] }}>
+          <div style={{ maxWidth: isMobile ? '100%' : '900px', margin: '0 auto' }}>{emailContent}</div>
         </div>
       </div>
-
-      <CustomRuleModal
-        show={showRuleModal}
-        customRule={customRule}
-        onCustomRuleChange={setCustomRule}
-        onClose={() => {
-          setShowRuleModal(false);
-          setCustomRule({ whenToUse: '', howToSummarize: '' });
-        }}
-        onCreate={handleCreateCustomRule}
-      />
+      <CustomRuleModal show={showRuleModal} customRule={customRule} onCustomRuleChange={state.setCustomRule} onClose={() => { state.setShowRuleModal(false); state.setCustomRule({ whenToUse: '', howToSummarize: '' }); }} onCreate={ops.handleCreateCustomRule} />
 
       {showTimePicker && (
         <TimePicker
@@ -714,3 +191,62 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
 });
 
 export default EmailDetail;
+
+// Extracted to reduce main component line count
+const EmailDetailContent: React.FC<any> = ({ state: st, ops, scheduledSendAt, compactMode, isMobile, id, user, replyTextareaRef, replyComposerRef, handleOpenTimePicker }) => {
+  const handleDraftChange = (newDraft: string) => {
+    st.setDraft(newDraft); st.setToneCheckResult(null);
+    if (st.replyOptions && st.selectedReplyOption !== st.replyOptions.length - 1) {
+      const customIdx = st.replyOptions.findIndex((opt: any) => o.label === ACTION_TYPE_CUSTOM);
+      if (customIdx >= 0) st.setSelectedReplyOption(customIdx);
+    }
+  };
+  const handleReplyClose = () => { st.setShowReplyComposer(false); st.setDraft(''); st.setReplyOptions(null); st.setToneCheckResult(null); };
+  const handleSummaryTypeChange = (type: string) => {
+    if (type === SUMMARY_TYPE_CUSTOM) { st.setShowRuleModal(true); }
+    else if (type.startsWith(SUMMARY_TYPE_CUSTOM_PREFIX)) {
+      const ruleId = type.replace(SUMMARY_TYPE_CUSTOM_PREFIX, '');
+      const rule = st.customRules.find((r: any) => r.ruleId === ruleId);
+      if (rule) ops.handleUseCustomRule(rule); else console.error('Custom rule not found:', ruleId);
+    } else { ops.handleSummarize(type); }
+  };
+  return (
+    <>
+      <EmailDetailNotesAndActions state={s} ops={ops} compactMode={compactMode} isMobile={isMobile} />
+      <div style={getEmailContentCardStyle(compactMode, isMobile)}>
+        <div style={{ marginBottom: theme.spacing.xl }}>
+          <EmailDetailHeader email={st.email as any} threadEmails={st.threadEmails as Email[]} priorityExplanation={st.priorityExplanation} showPriorityExplanation={st.showPriorityExplanation} onFetchPriorityExplanation={ops.handleFetchPriorityExplanation} onClosePriorityExplanation={() => st.setShowPriorityExplanation(false)} />
+        </div>
+        <EmailDetailActions email={st.email as any} suggestedActions={st.suggestedActions} showQuickActionsMenu={st.showQuickActionsMenu} selectedAction={st.selectedAction} onShowQuickActionsMenu={() => st.setShowQuickActionsMenu(true)} onCloseQuickActionsMenu={() => st.setShowQuickActionsMenu(false)} onSelectAction={ops.handleActionSelected} onCloseAction={() => st.setSelectedAction(null)} onActionSuccess={ops.handleActionSuccess} onOpenReplyComposer={ops.handleOpenReplyComposer} onArchive={ops.handleArchive} onDelete={ops.handleDelete} onSetStarCount={ops.handleSetStarCount} onBlockSender={ops.handleBlockSender} onSnooze={ops.handleSnooze} onRespondToInvitation={ops.handleRespondToInvitation} onDraftReply={(replyDraft: string) => { st.setDraft(replyDraft); st.setShowReplyComposer(true); }} hideActionButtons={compactMode} />
+        {st.showReplyComposer && (
+          <div ref={replyComposerRef}>
+            <ReplyComposer showReplyComposer={st.showReplyComposer} replyMode={st.replyMode} replyRecipients={st.replyRecipients} replyCc={st.replyCc} replyBcc={st.replyBcc} showCc={st.showCc} showBcc={st.showBcc} draft={st.draft} replyOptions={st.replyOptions} selectedReplyOption={st.selectedReplyOption} loadingReplies={st.loadingReplies} checkingTone={st.checkingTone} toneCheckResult={st.toneCheckResult} sending={st.sending} textareaRef={replyTextareaRef} scheduledSendAt={scheduledSendAt} onReplyRecipientsChange={st.setReplyRecipients} onCcChange={st.setReplyCc} onBccChange={st.setReplyBcc} onShowCc={() => st.setShowCc(true)} onShowBcc={() => st.setShowBcc(true)} onDraftChange={handleDraftChange} onReplyOptionSelect={(i: number, t: string) => { st.setSelectedReplyOption(i); st.setDraft(t); }} onClose={handleReplyClose} onSend={(files: File[], hrs: number, _fwd: string[], draft: string, sched: string) => ops.handleSendReply(files, hrs, draft, sched)} onUseRevisedText={(t: string) => { st.setDraft(t); }} onDispute={ops.disputeToneCheck} disputing={st.disputing} disputeResult={st.disputeResult} onSchedule={handleOpenTimePicker} currentEmailId={id} currentEmailObjectId={st.email?.id} currentEmailThreadId={(st.email as any)?.emailThreadId} />
+          </div>
+        )}
+        {!compactMode && (
+          <>
+            <div style={{ marginBottom: theme.spacing.xl }}><GitHubStatusSection links={st.githubLinks} loading={st.loadingGithub} hasToken={st.hasGithubToken} onRefresh={ops.refreshGithubInfo} emailSubject={st.email?.subject} emailBody={st.email?.body} emailHtmlBody={st.email?.htmlBody} /></div>
+            <div style={{ marginBottom: theme.spacing.xl }}><CRMDealsSection senderEmail={extractEmailAddress(st.email?.from)} emailSubject={st.email?.subject} /></div>
+          </>
+        )}
+        {shouldShowPhishingAlert(st.email?.phishingConfidence) && st.email?.phishingConfidence && <EmailPhishingWarning confidence={st.email.phishingConfidence} reason={st.email.phishingReason ?? ''} />}
+        <SummarySection summary={st.summary} summaryType={st.summaryType} summaryCollapsed={st.summaryCollapsed} isGeneratingSummary={st.isGeneratingSummary} emailIsProcessingSummary={st.email?.isProcessingSummary} customRules={st.customRules} onSummaryTypeChange={handleSummaryTypeChange} onToggleCollapsed={() => st.setSummaryCollapsed(!st.summaryCollapsed)} onShowRuleModal={() => {}} onUseCustomRule={ops.handleUseCustomRule} />
+        <EmailThreadView email={st.email as Email} threadEmails={st.threadEmails as Email[]} expandedThreadItems={st.expandedThreadItems} onToggleThreadItem={ops.toggleThreadItem} extractCleanBody={ops.extractCleanBody} removeSignature={ops.removeSignature} extractCleanHtmlBody={ops.extractCleanHtmlBody} sanitizeAndProcessHtml={ops.sanitizeAndProcessHtml} />
+      </div>
+      {user?.isAdmin && st.email && <EmailDetailDebugInfo email={st.email} threadEmails={st.threadEmails} />}
+    </>
+  );
+};
+
+const EmailDetailNotesAndActions: React.FC<any> = ({ state: st, ops, compactMode, isMobile }) => (
+  <div style={{ marginBottom: isMobile ? theme.spacing.sm : theme.spacing.xl }}>
+    <PrivateNotesSection noteContent={st.noteContent} notesCollapsed={st.notesCollapsed} onNoteContentChange={st.setNoteContent} onToggleCollapsed={() => st.setNotesCollapsed(!st.notesCollapsed)} onSaveNote={ops.handleSaveNote} />
+    <ActionItemsSection actionItems={st.actionItems} newActionItem={st.newActionItem} isGeneratingSummary={st.isGeneratingSummary} onNewActionItemChange={st.setNewActionItem} onAddActionItem={ops.handleAddActionItem} onToggleActionItem={ops.handleToggleActionItem} onDeleteActionItem={ops.handleDeleteActionItem} onExtractActions={ops.handleExtractActions} onRegenerateActionItems={ops.handleRegenerateActionItems} />
+    {compactMode && (
+      <>
+        <GitHubStatusSection links={st.githubLinks} loading={st.loadingGithub} hasToken={st.hasGithubToken} onRefresh={ops.refreshGithubInfo} emailSubject={st.email?.subject} emailBody={st.email?.body} emailHtmlBody={st.email?.htmlBody} />
+        <CRMDealsSection senderEmail={extractEmailAddress(st.email?.from)} emailSubject={st.email?.subject} />
+      </>
+    )}
+  </div>
+);

@@ -1,0 +1,48 @@
+import React from 'react';
+import { theme } from 'theme/theme';
+
+import { STRING_NONE } from 'constants/strings';
+
+interface RecipientChipProps {
+  tag: string;
+  index: number;
+  onRemove: (index: number) => void;
+}
+
+export const RecipientChip: React.FC<RecipientChipProps> = ({ tag, index, onRemove }) => (
+  <span
+    key={tag}
+    style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '4px',
+      padding: '2px 8px',
+      backgroundColor: theme.colors.primary.subtle,
+      color: theme.colors.primary.main,
+      borderRadius: theme.borderRadius.sm,
+      fontSize: theme.typography.fontSize.xs,
+      maxWidth: '200px',
+    }}
+  >
+    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tag}</span>
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); onRemove(index); }}
+      style={{
+        background: STRING_NONE,
+        border: STRING_NONE,
+        padding: 0,
+        cursor: 'pointer',
+        color: theme.colors.primary.main,
+        fontSize: '14px',
+        lineHeight: 1,
+        display: 'flex',
+        alignItems: 'center',
+      }}
+    >
+      &times;
+    </button>
+  </span>
+);
+
+export default RecipientChip;

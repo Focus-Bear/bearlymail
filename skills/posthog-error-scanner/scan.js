@@ -30,7 +30,7 @@
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
-const { execSync, spawnSync } = require('child_process');
+const { spawnSync } = require('child_process');
 
 // ---------------------------------------------------------------------------
 // Config
@@ -218,10 +218,12 @@ function classify(exception, state) {
     try {
       const issueNum = existing.githubIssueUrl.split('/').pop();
       const repo = existing.githubIssueUrl.includes('web_dashboard') ? 'Focus-Bear/web_dashboard' : DEFAULT_REPO;
-      const issueState = execSync(
-        `gh issue view ${issueNum} --repo ${repo} --json state -q .state`,
+      const ghResult = spawnSync(
+        'gh', ['issue', 'view', issueNum, '--repo', repo, '--json', 'state', '-q', '.state'],
         { env: { ...process.env }, encoding: 'utf8' }
-      ).trim();
+      );
+      if (ghResult.status !== 0) throw new Error(ghResult.stderr || ghResult.stdout);
+      const issueState = ghResult.stdout.trim();
 
       if (issueState === 'OPEN') {
         return { classification: 'SKIP', reason: 'Issue already open in GitHub' };
@@ -346,11 +348,19 @@ See [Issue #655](https://github.com/Focus-Bear/BearlyMail/issues/655) for a prio
 
 function issueAlreadyExists(repo, fingerprint) {
   try {
-    const result = execSync(
-      `gh issue list --repo "${repo}" --search "posthog-fingerprint: ${fingerprint}" --state all --json number,state --limit 1`,
+    const result = spawnSync(
+      'gh', [
+        'issue', 'list',
+        '--repo', repo,
+        '--search', `posthog-fingerprint: ${fingerprint}`,
+        '--state', 'all',
+        '--json', 'number,state',
+        '--limit', '1',
+      ],
       { env: { ...process.env }, encoding: 'utf8' }
-    ).trim();
-    const parsed = JSON.parse(result || '[]');
+    );
+    if (result.status !== 0) return null;
+    const parsed = JSON.parse(result.stdout.trim() || '[]');
     return parsed.length > 0 ? parsed[0] : null;
   } catch (_) {
     return null;

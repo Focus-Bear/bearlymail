@@ -30,7 +30,7 @@
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
-const { execSync } = require('child_process');
+const { execSync, spawnSync } = require('child_process');
 
 // ---------------------------------------------------------------------------
 // Config
@@ -365,21 +365,28 @@ function createGitHubIssue(repo, title, body, labels) {
     return 'https://github.com/' + repo + '/issues/DRY_RUN';
   }
 
-  const labelArgs = labels.map(l => `--label "${l}"`).join(' ');
-  // Write body to temp file to avoid shell escaping issues
-  const tmpFile = `/tmp/posthog-issue-body-${Date.now()}.md`;
+  // Use spawnSync with array args to prevent shell injection via title/labels.
+  // PostHog exception messages could contain backticks or $() sequences that
+  // would be executed if interpolated into a shell string.
+  const tmpFile = `/tmp/posthog-issue-body-${Date.now()}-${process.pid}.md`;
   fs.writeFileSync(tmpFile, body);
 
   try {
-    const issueUrl = execSync(
-      `gh issue create --repo "${repo}" --title "${title.replace(/"/g, '\\"')}" --body-file "${tmpFile}" ${labelArgs}`,
-      { env: { ...process.env }, encoding: 'utf8' }
-    ).trim();
-    fs.unlinkSync(tmpFile);
-    return issueUrl;
-  } catch (e) {
-    fs.unlinkSync(tmpFile);
-    throw e;
+    const args = [
+      'issue', 'create',
+      '--repo', repo,
+      '--title', title,
+      '--body-file', tmpFile,
+      ...labels.flatMap(l => ['--label', l]),
+    ];
+    const result = spawnSync('gh', args, {
+      env: { ...process.env },
+      encoding: 'utf8',
+    });
+    if (result.status !== 0) throw new Error(result.stderr || result.stdout);
+    return result.stdout.trim();
+  } finally {
+    try { fs.unlinkSync(tmpFile); } catch (_) {}
   }
 }
 

@@ -8,19 +8,14 @@ import { captureEvent } from 'utils/posthog';
 import { extractUnsubscribeLink } from 'utils/unsubscribeUtils';
 
 import { CalendarInviteActions } from 'components/email-detail/CalendarInviteActions';
+import { PriorityButtonRow } from 'components/email-detail/PriorityButtonRow';
 import { QuickActionsSection } from 'components/email-detail/QuickActionsSection';
 import { SchedulingRequestCard } from 'components/email-detail/SchedulingRequestCard';
 import { SnoozeInputForm } from 'components/inbox/actions/SnoozeInputForm';
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { EMOJI_BLOCK, EMOJI_LINK } from 'constants/emojis';
 import { OPACITY_DISABLED } from 'constants/numbers';
-import { ACTION_TYPE_SCHEDULING_REQUEST, LETTER_SPACING_WIDER, REPLY_MODE_FORWARD, STRING_NONE } from 'constants/strings';
-
-const PRIORITY_OPTIONS = [
-  { label: 'Can wait', emoji: '😊', value: 1 },
-  { label: 'Get on it', emoji: '😀', value: 2 },
-  { label: 'Oh sh$t', emoji: '🤯', value: 3 },
-];
+import { ACTION_TYPE_SCHEDULING_REQUEST, REPLY_MODE_FORWARD, STRING_NONE } from 'constants/strings';
 
 interface EmailDetailActionsProps {
   email: Email;
@@ -315,58 +310,12 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
             </div>
           )}
 
-          {/* PRIORITIZE row */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: theme.spacing.md,
-            paddingTop: theme.spacing.sm,
-            borderTop: `1px solid ${theme.colors.border.light}`,
-          }}>
-            <span style={{
-              fontSize: theme.typography.fontSize.xs,
-              color: theme.colors.text.tertiary,
-              fontWeight: theme.typography.fontWeight.semibold,
-              letterSpacing: LETTER_SPACING_WIDER,
-              textTransform: 'uppercase',
-              flexShrink: 0,
-            }}>
-              {t('inbox.prioritise')}
-            </span>
-            <div style={{ display: 'flex', gap: theme.spacing.xs, flexWrap: 'wrap' }}>
-              {PRIORITY_OPTIONS.map(({ label, emoji, value }) => {
-                const isActive = starCount === value;
-                return (
-                  <button
-                    key={value}
-                    onClick={() => {
-                      const newCount = starCount === value ? 0 : value;
-                      onSetStarCount(email.id, newCount);
-                    }}
-                    style={{
-                      padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                      backgroundColor: isActive ? theme.colors.text.primary : 'transparent',
-                      color: isActive ? 'white' : theme.colors.text.secondary,
-                      border: `1px solid ${isActive ? theme.colors.text.primary : theme.colors.border.medium}`,
-                      borderRadius: theme.borderRadius.full || '999px',
-                      cursor: 'pointer',
-                      fontSize: theme.typography.fontSize.sm,
-                      fontWeight: theme.typography.fontWeight.medium,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      whiteSpace: 'nowrap',
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    <span>{emoji}</span>
-                    {/* eslint-disable-next-line i18next/no-literal-string */}
-                    <span>{label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          {/* PRIORITIZE row — shared component (consolidated in #698) */}
+          <PriorityButtonRow
+            emailId={email.id}
+            starCount={starCount}
+            onSetStarCount={(emailId, newCount) => onSetStarCount(emailId, newCount)}
+          />
         </div>
       )}
     </div>

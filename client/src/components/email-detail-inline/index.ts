@@ -2,7 +2,7 @@ export { ActionItemInput } from 'components/email-detail-inline/ActionItemInput'
 export { ActionItemList } from 'components/email-detail-inline/ActionItemList';
 export { ActionItemsHeader } from 'components/email-detail-inline/ActionItemsHeader';
 export { ActionItemsSection } from 'components/email-detail-inline/ActionItemsSection';
-export { EmailDetailContent } from 'components/email-detail-inline/EmailDetailContent';
+// EmailDetailContent was removed as part of #698 (EmailDetailInline dead-code cleanup)
 export { EmailNotFound } from 'components/email-detail-inline/EmailNotFound';
 export { LoadingSpinner } from 'components/email-detail-inline/LoadingSpinner';
 export { PrivateNotesSection } from 'components/email-detail-inline/PrivateNotesSection';

@@ -157,7 +157,7 @@ export function useEmailDetailDraftOps(
         setLoadingReplies(false);
       }
     }
-  }, [id, email, setLoadingReplies, setReplyOptions, setDraft, setSelectedReplyOption]);
+  }, [id, email, setLoadingReplies, setReplyOptions, setSelectedReplyOption]);
 
   // eslint-disable-next-line no-restricted-syntax -- Type parameter must remain literal type for TypeScript compatibility
   const handleOpenReplyComposer = useCallback((mode: 'reply' | 'replyAll') => {

@@ -18,11 +18,14 @@ import { EmailPhishingWarning, shouldShowPhishingAlert } from 'components/email-
 import { EmailThreadView } from 'components/email-detail/EmailThreadView';
 import { SummarySection } from 'components/email-detail/SummarySection';
 import { ActionItemsSection } from 'components/email-detail-inline/ActionItemsSection';
+import { EmailNotFound } from 'components/email-detail-inline/EmailNotFound';
+import { LoadingSpinner } from 'components/email-detail-inline/LoadingSpinner';
 import { PrivateNotesSection } from 'components/email-detail-inline/PrivateNotesSection';
 import { ReplyComposer } from 'components/email-detail-inline/ReplyComposer';
 import { GitHubStatusSection } from 'components/github/GitHubStatusSection';
-import { ACTION_TYPE_CUSTOM, SUMMARY_TYPE_CUSTOM, SUMMARY_TYPE_CUSTOM_PREFIX } from 'constants/strings';
+import { SUMMARY_TYPE_CUSTOM, SUMMARY_TYPE_CUSTOM_PREFIX } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
+import { useEmailDetailDraftHandlers } from 'hooks/useEmailDetailDraftHandlers';
 import { useEmailDetailDraftSync } from 'hooks/useEmailDetailDraftSync';
 import { useEmailDetailInitialization } from 'hooks/useEmailDetailInitialization';
 import { useEmailDetailOperations } from 'hooks/useEmailDetailOperations';
@@ -30,13 +33,31 @@ import { useEmailDetailState } from 'hooks/useEmailDetailState';
 import { useEmailDetailTimePicker } from 'hooks/useEmailDetailTimePicker';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 
+/**
+ * Controls how `EmailDetail` renders.
+ * - `full`    — default full-page view with sidebar, animation overlay, summary section
+ * - `compact` — split-view mode: no sidebar/overlay, forwardRef control (was `compactMode=true`)
+ * - `inline`  — panel/drawer mode: no sidebar/overlay/header/summary, `onClose` callback
+ *               (replaces the now-deleted `EmailDetailInline` component — see #698)
+ */
+export type EmailDetailVariant = 'full' | 'compact' | 'inline';
+
+export const EMAIL_DETAIL_VARIANT_FULL: EmailDetailVariant = 'full';
+export const EMAIL_DETAIL_VARIANT_COMPACT: EmailDetailVariant = 'compact';
+export const EMAIL_DETAIL_VARIANT_INLINE: EmailDetailVariant = 'inline';
+
 interface EmailDetailProps {
   emailId?: string;
+  /** @deprecated Use `displayVariant="compact"` instead. Kept for backward compat. */
   compactMode?: boolean; // When true, renders without sidebar, overlay, and full-page layout for use in split view
+  /** Rendering variant. When not set, falls back to `compactMode` flag, then defaults to 'full'. */
+  displayVariant?: EmailDetailVariant;
   onArchiveComplete?: (emailId: string) => void; // Called after archive completes in split view mode
   onSnoozeComplete?: (emailId: string) => void; // Called after snooze completes in split view mode
   autoGenerateReplies?: boolean; // When true, automatically generates reply drafts when email loads
   onCorrespondentChange?: (correspondent: { name: string; email: string }) => void; // Called when correspondent info is available
+  /** Called when the inline panel should close (only used with `displayVariant="inline"`). */
+  onClose?: () => void;
 }
 
 // Methods exposed via ref for external control (e.g., from SplitViewPanel header)
@@ -69,7 +90,11 @@ function getEmailContentCardStyle(compactMode: boolean, isMobile: boolean): Reac
   };
 }
 
-const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: propEmailId, compactMode = false, onArchiveComplete, onSnoozeComplete, autoGenerateReplies = false, onCorrespondentChange }, ref) => {
+const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: propEmailId, compactMode = false, displayVariant, onArchiveComplete, onSnoozeComplete, autoGenerateReplies = false, onCorrespondentChange, onClose }, ref) => {
+  // Resolve effective variant: explicit prop wins, then legacy compactMode, then 'full'.
+  const effectiveVariant: EmailDetailVariant = displayVariant ?? (compactMode ? EMAIL_DETAIL_VARIANT_COMPACT : EMAIL_DETAIL_VARIANT_FULL);
+  const isCompact = effectiveVariant === EMAIL_DETAIL_VARIANT_COMPACT;
+  const isInline = effectiveVariant === EMAIL_DETAIL_VARIANT_INLINE;
   const params = useParams<{ id: string }>();
   const id = propEmailId || params.id;
   const { t } = useTranslation();
@@ -140,6 +165,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
   });
 
   if (loading) {
+    if (isInline) return <LoadingSpinner />;
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: theme.colors.background.default, color: theme.colors.text.secondary, }}>
         {t('emailDetail.loadingEmail')}
@@ -148,13 +174,14 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
   }
 
   if (!email) {
+    if (isInline) return <EmailNotFound />;
     return <div>{t('emailDetail.emailNotFound')}</div>;
   }
 
-  const emailContent = <EmailDetailContent state={state} ops={ops} scheduledSendAt={scheduledSendAt} compactMode={compactMode} isMobile={isMobile} id={id} user={user} replyTextareaRef={replyTextareaRef} replyComposerRef={replyComposerRef} handleOpenTimePicker={handleOpenTimePicker} />;
+  const emailContent = <EmailDetailContent state={state} ops={ops} scheduledSendAt={scheduledSendAt} effectiveVariant={effectiveVariant} isMobile={isMobile} id={id} user={user} replyTextareaRef={replyTextareaRef} replyComposerRef={replyComposerRef} handleOpenTimePicker={handleOpenTimePicker} onClose={onClose} />;
 
-  // In compact mode, use the same emailContent (which is already compact-mode aware)
-  if (compactMode) {
+  // In compact or inline mode, render without sidebar/overlay
+  if (isCompact || isInline) {
     return (
       <div style={{ display: 'flex', height: '100%', overflow: 'hidden', position: 'relative' }}>
         <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: theme.spacing.sm }}>
@@ -193,37 +220,18 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
 export default EmailDetail;
 
 // Extracted to reduce main component line count
-const EmailDetailContent: React.FC<any> = ({ state: st, ops, scheduledSendAt, compactMode, isMobile, id, user, replyTextareaRef, replyComposerRef, handleOpenTimePicker }) => {
-  // Preserve user-typed content in the Custom tab across suggestion tab switches (fixes #562).
-  const customDraftRef = useRef<string>('');
+const EmailDetailContent: React.FC<any> = ({ state: st, ops, scheduledSendAt, effectiveVariant, isMobile, id, user, replyTextareaRef, replyComposerRef, handleOpenTimePicker, onClose }) => {
+  const isCompactOrInline = effectiveVariant === EMAIL_DETAIL_VARIANT_COMPACT || effectiveVariant === EMAIL_DETAIL_VARIANT_INLINE;
+  const isInline = effectiveVariant === EMAIL_DETAIL_VARIANT_INLINE;
 
-  const handleDraftChange = (newDraft: string) => {
-    st.setDraft(newDraft); st.setToneCheckResult(null);
-    // Always persist user input so it can be restored if they switch to a suggestion and come back.
-    customDraftRef.current = newDraft;
-    if (st.replyOptions && st.selectedReplyOption !== st.replyOptions.length - 1) {
-      const customIdx = st.replyOptions.findIndex((opt: any) => opt.label === ACTION_TYPE_CUSTOM);
-      if (customIdx >= 0) st.setSelectedReplyOption(customIdx);
-    }
-  };
-  const handleReplyClose = () => {
-    st.setShowReplyComposer(false);
-    st.setDraft('');
-    st.setReplyOptions(null);
-    st.setToneCheckResult(null);
-    customDraftRef.current = '';
-  };
-  const handleReplyOptionSelect = (idx: number, text: string) => {
-    const customIdx = st.replyOptions?.findIndex((opt: any) => opt.label === ACTION_TYPE_CUSTOM) ?? 0;
-    if (idx === customIdx) {
-      // User is switching back to the Custom tab — restore their previously typed content.
-      st.setSelectedReplyOption(idx);
-      st.setDraft(customDraftRef.current);
-    } else {
-      st.setSelectedReplyOption(idx);
-      st.setDraft(text);
-    }
-  };
+  const { handleDraftChange, handleReplyOptionSelect, handleReplyClose } = useEmailDetailDraftHandlers(
+    st.replyOptions,
+    st.setDraft,
+    st.setSelectedReplyOption,
+    st.setReplyOptions,
+    st.setToneCheckResult,
+    st.setShowReplyComposer,
+  );
   const handleSummaryTypeChange = (type: string) => {
     if (type === SUMMARY_TYPE_CUSTOM) { st.setShowRuleModal(true); }
     else if (type.startsWith(SUMMARY_TYPE_CUSTOM_PREFIX)) {
@@ -234,25 +242,30 @@ const EmailDetailContent: React.FC<any> = ({ state: st, ops, scheduledSendAt, co
   };
   return (
     <>
-      <EmailDetailNotesAndActions state={st} ops={ops} compactMode={compactMode} isMobile={isMobile} />
-      <div style={getEmailContentCardStyle(compactMode, isMobile)}>
-        <div style={{ marginBottom: theme.spacing.xl }}>
-          <EmailDetailHeader email={st.email as any} threadEmails={st.threadEmails as Email[]} priorityExplanation={st.priorityExplanation} showPriorityExplanation={st.showPriorityExplanation} onFetchPriorityExplanation={ops.handleFetchPriorityExplanation} onClosePriorityExplanation={() => st.setShowPriorityExplanation(false)} />
-        </div>
-        <EmailDetailActions email={st.email as any} suggestedActions={st.suggestedActions} showQuickActionsMenu={st.showQuickActionsMenu} selectedAction={st.selectedAction} onShowQuickActionsMenu={() => st.setShowQuickActionsMenu(true)} onCloseQuickActionsMenu={() => st.setShowQuickActionsMenu(false)} onSelectAction={ops.handleActionSelected} onCloseAction={() => st.setSelectedAction(null)} onActionSuccess={ops.handleActionSuccess} onOpenReplyComposer={ops.handleOpenReplyComposer} onArchive={ops.handleArchive} onDelete={ops.handleDelete} onSetStarCount={ops.handleSetStarCount} onBlockSender={ops.handleBlockSender} onSnooze={ops.handleSnooze} onRespondToInvitation={ops.handleRespondToInvitation} onDraftReply={(replyDraft: string) => { st.setDraft(replyDraft); st.setShowReplyComposer(true); }} hideActionButtons={compactMode} />
+      <EmailDetailNotesAndActions state={st} ops={ops} effectiveVariant={effectiveVariant} isMobile={isMobile} />
+      <div style={getEmailContentCardStyle(isCompactOrInline, isMobile)}>
+        {/* Header is hidden for inline variant — no router/priority context needed in panel mode */}
+        {!isInline && (
+          <div style={{ marginBottom: theme.spacing.xl }}>
+            <EmailDetailHeader email={st.email as any} threadEmails={st.threadEmails as Email[]} priorityExplanation={st.priorityExplanation} showPriorityExplanation={st.showPriorityExplanation} onFetchPriorityExplanation={ops.handleFetchPriorityExplanation} onClosePriorityExplanation={() => st.setShowPriorityExplanation(false)} />
+          </div>
+        )}
+        <EmailDetailActions email={st.email as any} suggestedActions={st.suggestedActions} showQuickActionsMenu={st.showQuickActionsMenu} selectedAction={st.selectedAction} onShowQuickActionsMenu={() => st.setShowQuickActionsMenu(true)} onCloseQuickActionsMenu={() => st.setShowQuickActionsMenu(false)} onSelectAction={ops.handleActionSelected} onCloseAction={() => st.setSelectedAction(null)} onActionSuccess={ops.handleActionSuccess} onOpenReplyComposer={ops.handleOpenReplyComposer} onArchive={ops.handleArchive} onDelete={ops.handleDelete} onSetStarCount={ops.handleSetStarCount} onBlockSender={ops.handleBlockSender} onSnooze={ops.handleSnooze} onRespondToInvitation={ops.handleRespondToInvitation} onDraftReply={(replyDraft: string) => { st.setDraft(replyDraft); st.setShowReplyComposer(true); }} hideActionButtons={isCompactOrInline && !isInline} />
         {st.showReplyComposer && (
           <div ref={replyComposerRef}>
             <ReplyComposer showReplyComposer={st.showReplyComposer} replyMode={st.replyMode} replyRecipients={st.replyRecipients} replyCc={st.replyCc} replyBcc={st.replyBcc} showCc={st.showCc} showBcc={st.showBcc} draft={st.draft} replyOptions={st.replyOptions} selectedReplyOption={st.selectedReplyOption} loadingReplies={st.loadingReplies} checkingTone={st.checkingTone} toneCheckResult={st.toneCheckResult} sending={st.sending} textareaRef={replyTextareaRef} scheduledSendAt={scheduledSendAt} onReplyRecipientsChange={st.setReplyRecipients} onCcChange={st.setReplyCc} onBccChange={st.setReplyBcc} onShowCc={() => st.setShowCc(true)} onShowBcc={() => st.setShowBcc(true)} onDraftChange={handleDraftChange} onReplyOptionSelect={handleReplyOptionSelect} onClose={handleReplyClose} onSend={(files: File[], hrs: number, _fwd: string[], draft: string, sched: string) => ops.handleSendReply(files, hrs, draft, sched)} onUseRevisedText={(t: string) => { st.setDraft(t); }} onDispute={ops.disputeToneCheck} disputing={st.disputing} disputeResult={st.disputeResult} onSchedule={handleOpenTimePicker} currentEmailId={id} currentEmailObjectId={st.email?.id} currentEmailThreadId={(st.email as any)?.emailThreadId} />
           </div>
         )}
-        {!compactMode && (
+        {/* GitHub + CRM sections: shown in full and inline modes; in compact mode they appear in EmailDetailNotesAndActions above instead */}
+        {effectiveVariant !== EMAIL_DETAIL_VARIANT_COMPACT && (
           <>
             <div style={{ marginBottom: theme.spacing.xl }}><GitHubStatusSection links={st.githubLinks} loading={st.loadingGithub} hasToken={st.hasGithubToken} onRefresh={ops.refreshGithubInfo} emailSubject={st.email?.subject} emailBody={st.email?.body} emailHtmlBody={st.email?.htmlBody} /></div>
             <div style={{ marginBottom: theme.spacing.xl }}><CRMDealsSection senderEmail={extractEmailAddress(st.email?.from)} emailSubject={st.email?.subject} /></div>
           </>
         )}
         {shouldShowPhishingAlert(st.email?.phishingConfidence) && st.email?.phishingConfidence && <EmailPhishingWarning confidence={st.email.phishingConfidence} reason={st.email.phishingReason ?? ''} />}
-        <SummarySection summary={st.summary} summaryType={st.summaryType} summaryCollapsed={st.summaryCollapsed} isGeneratingSummary={st.isGeneratingSummary} emailIsProcessingSummary={st.email?.isProcessingSummary} customRules={st.customRules} onSummaryTypeChange={handleSummaryTypeChange} onToggleCollapsed={() => st.setSummaryCollapsed(!st.summaryCollapsed)} onShowRuleModal={() => {}} onUseCustomRule={ops.handleUseCustomRule} />
+        {/* Summary section is omitted in inline variant — panel mode is not a primary reading surface */}
+        {!isInline && <SummarySection summary={st.summary} summaryType={st.summaryType} summaryCollapsed={st.summaryCollapsed} isGeneratingSummary={st.isGeneratingSummary} emailIsProcessingSummary={st.email?.isProcessingSummary} customRules={st.customRules} onSummaryTypeChange={handleSummaryTypeChange} onToggleCollapsed={() => st.setSummaryCollapsed(!st.summaryCollapsed)} onShowRuleModal={() => {}} onUseCustomRule={ops.handleUseCustomRule} />}
         <EmailThreadView email={st.email as Email} threadEmails={st.threadEmails as Email[]} expandedThreadItems={st.expandedThreadItems} onToggleThreadItem={ops.toggleThreadItem} extractCleanBody={ops.extractCleanBody} removeSignature={ops.removeSignature} extractCleanHtmlBody={ops.extractCleanHtmlBody} sanitizeAndProcessHtml={ops.sanitizeAndProcessHtml} />
       </div>
       {user?.isAdmin && st.email && <EmailDetailDebugInfo email={st.email} threadEmails={st.threadEmails} />}
@@ -260,11 +273,12 @@ const EmailDetailContent: React.FC<any> = ({ state: st, ops, scheduledSendAt, co
   );
 };
 
-const EmailDetailNotesAndActions: React.FC<any> = ({ state: st, ops, compactMode, isMobile }) => (
+const EmailDetailNotesAndActions: React.FC<any> = ({ state: st, ops, effectiveVariant, isMobile }) => (
   <div style={{ marginBottom: isMobile ? theme.spacing.sm : theme.spacing.xl }}>
     <PrivateNotesSection noteContent={st.noteContent} notesCollapsed={st.notesCollapsed} onNoteContentChange={st.setNoteContent} onToggleCollapsed={() => st.setNotesCollapsed(!st.notesCollapsed)} onSaveNote={ops.handleSaveNote} />
     <ActionItemsSection actionItems={st.actionItems} newActionItem={st.newActionItem} isGeneratingSummary={st.isGeneratingSummary} onNewActionItemChange={st.setNewActionItem} onAddActionItem={ops.handleAddActionItem} onToggleActionItem={ops.handleToggleActionItem} onDeleteActionItem={ops.handleDeleteActionItem} onExtractActions={ops.handleExtractActions} onRegenerateActionItems={ops.handleRegenerateActionItems} />
-    {compactMode && (
+    {/* In compact (split-view) mode, GitHub and CRM go here to match the previous compactMode=true layout */}
+    {effectiveVariant === EMAIL_DETAIL_VARIANT_COMPACT && (
       <>
         <GitHubStatusSection links={st.githubLinks} loading={st.loadingGithub} hasToken={st.hasGithubToken} onRefresh={ops.refreshGithubInfo} emailSubject={st.email?.subject} emailBody={st.email?.body} emailHtmlBody={st.email?.htmlBody} />
         <CRMDealsSection senderEmail={extractEmailAddress(st.email?.from)} emailSubject={st.email?.subject} />

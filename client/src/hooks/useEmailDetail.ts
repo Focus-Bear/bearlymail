@@ -1,3 +1,10 @@
+/**
+ * @deprecated This hook is not used by any live component. It predates the current
+ * `useEmailDetailFetching` / `useEmailDetailState` / `useEmailDetailOperations` architecture.
+ * Retained only because its test file (`useEmailDetail.test.ts`) provides coverage for the
+ * underlying API shape. Will be deleted in a follow-up cleanup once those tests are migrated.
+ * See #698 for context.
+ */
 import { useCallback,useEffect, useState } from 'react';
 import axios from 'axios';
 

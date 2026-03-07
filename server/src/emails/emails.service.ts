@@ -3071,51 +3071,23 @@ export class EmailsService {
    * Delegates to EmailDebugService
    */
   async debugStarredThreads(userId: string): Promise<{
-    gmail: {
-      starredThreadCount: number;
-      starredThreadIds: string[];
-      error?: string;
+    gmailError?: string;
+    summary: {
+      gmailStarredCount: number;
+      foundInDb: number;
+      notInDb: number;
+      inActionOrFollowUp: number;
+      starredInDbButHidden: number;
+      notStarredInDb: number;
     };
-    database: {
-      starredThreadCount: number;
-      starredEmailCount: number;
-    };
-    actionTabResults: number;
-    comparison: {
-      inGmailNotInDb: string[];
-      inDbNotInGmail: string[];
-      inDbButArchived: string[];
-    };
-    starredThreads: Array<{
+    threads: Array<{
       threadId: string;
-      starCount: number;
-      isArchived: boolean;
-      isSnoozed: boolean;
-      emailCount: number;
-      latestSubject: string;
-      latestFrom: string;
-      issues: string[];
-      inGmail: boolean;
-      syncStatus: "synced" | "unsynced";
-    }>;
-    missingFromProcessTab: Array<{
-      threadId: string;
+      subject: string | null;
+      inDb: boolean;
+      isStarredInDb: boolean;
+      category: string | null;
+      appearsInActionOrFollowUp: boolean;
       reason: string;
-      details: Record<string, unknown>;
-    }>;
-    gmailVisibilityChecks: Array<{
-      threadId: string;
-      inDatabase: boolean;
-      visibleInAction: boolean;
-      syncStatus: "synced" | "unsynced" | "missing";
-      reasons: string[];
-    }>;
-    staleUnsyncedThreads: Array<{
-      threadId: string;
-      syncStatusUpdatedAt: Date | null;
-      minutesUnsynced: number;
-      isArchived: boolean;
-      starCount: number;
     }>;
   }> {
     return this.emailDebugService.debugStarredThreads(userId);

@@ -59,7 +59,6 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
   // Without the count check, a fetch error (isLoaded=true, emails=[]) would silently hide
   // a category that actually has emails according to the summary.
   if (isLoaded && categoryEmails.length === 0 && categoryItem.count === 0) {
-    console.warn('[Accordion] Hiding category section (loaded+empty):', categoryName, 'count:', categoryItem.count);
     return null;
   }
 

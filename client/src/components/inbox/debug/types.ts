@@ -11,7 +11,7 @@ export interface DebugStarredData {
     starredEmailCount: number;
   };
   actionTabResults: number;
-  comparison: {
+  comparison?: {
     inGmailNotInDb: string[];
     inDbNotInGmail: string[];
     inDbButArchived: string[];

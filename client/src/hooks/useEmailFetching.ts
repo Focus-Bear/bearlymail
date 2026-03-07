@@ -18,6 +18,7 @@ import { selectCurrentOffset, selectLoadedCategoryNames, selectLoadingCategoryNa
 import {
   clearCategoryState,
   markCategoryLoaded,
+  markCategoryLoadFailed,
   markCategoryLoading,
   setCategorySummary,
   setCurrentOffset,
@@ -159,6 +160,7 @@ async function fetchCategoryEmailsImpl({ categoryName, categoryId, mode, dispatc
 
   const sessionId = fetchSessionRef.current;
   dispatch(markCategoryLoading(categoryName));
+  console.log('[Accordion] Fetching category:', categoryName);
 
   try {
     const params = buildCategoryParams(categoryName, categoryId);
@@ -167,9 +169,16 @@ async function fetchCategoryEmailsImpl({ categoryName, categoryId, mode, dispatc
     if (fetchSessionRef.current !== sessionId) return;
     dispatch(updateCategoryEmails({ categoryName, emails: normalizedEmails }));
     dispatch(markCategoryLoaded(categoryName));
+    console.log('[Accordion] Loaded category:', categoryName, normalizedEmails.length, 'emails');
   } catch (error: any) {
-    console.error(`Error fetching category "${categoryName}":`, error);
-    if (fetchSessionRef.current === sessionId) dispatch(markCategoryLoaded(categoryName));
+    console.error('[Accordion] Failed to load category:', categoryName, error);
+    // Use markCategoryLoadFailed so isLoaded stays false — the next expand will retry.
+    // markCategoryLoaded would set isLoaded=true with no emails, causing CategorySection
+    // to return null and the accordion section to vanish entirely.
+    if (fetchSessionRef.current === sessionId) {
+      console.warn('[Accordion] Category load failed, allowing retry:', categoryName);
+      dispatch(markCategoryLoadFailed(categoryName));
+    }
   }
 }
 

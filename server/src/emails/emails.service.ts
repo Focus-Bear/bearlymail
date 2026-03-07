@@ -3118,11 +3118,7 @@ export class EmailsService {
       starCount: number;
     }>;
   }> {
-    return this.emailDebugService.debugStarredThreads(
-      userId,
-      (userId, includeBatched, mode) =>
-        this.getInbox(userId, includeBatched, mode),
-    );
+    return this.emailDebugService.debugStarredThreads(userId);
   }
 
   /**

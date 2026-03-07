@@ -80,7 +80,6 @@ export class EmailDebugService {
     threadEmails: Email[],
     gmailStarredThreadIds: string[],
     gmailError: string | undefined,
-    actionTabEmails: Email[],
   ): Promise<{
     threadId: string;
     starCount: number;
@@ -117,10 +116,14 @@ export class EmailDebugService {
       issues.push("All emails in thread are SNOOZED");
     }
 
-    const inActionTab = actionTabEmails.some(
-      (e) => e.threadId === thread.threadId,
+    // Derive action-tab visibility from thread properties (no inbox fetch needed).
+    // Blocked-sender check is skipped for debug speed — accuracy is close enough.
+    const { wouldShowInAction } = this.buildThreadVisibility(
+      thread,
+      latestEmail,
+      false,
     );
-    if (!inActionTab && issues.length === 0) {
+    if (!wouldShowInAction && issues.length === 0) {
       issues.push("NOT IN ACTION TAB (unknown reason)");
     }
 
@@ -252,17 +255,9 @@ export class EmailDebugService {
    * Debug endpoint to find missing starred threads
    * Compares Gmail starred emails with what's in our DB
    */
-  async debugStarredThreads(
-    userId: string,
-    getInbox: (
-      userId: string,
-      includeBatched: boolean,
-      mode: "triage" | "action" | "follow-up",
-    ) => Promise<{ emails: Email[]; total: number; hasMore: boolean }>,
-  ): Promise<{
+  async debugStarredThreads(userId: string): Promise<{
     gmail: {
       starredThreadCount: number;
-      starredEmailCount: number;
       starredThreadIds: string[];
       error?: string;
     };
@@ -308,36 +303,32 @@ export class EmailDebugService {
       details: Record<string, unknown>;
     }>;
   }> {
-    // 1. Search Gmail for starred emails in inbox
-    let gmailStarredEmailCount = 0;
+    // 1. Fetch starred inbox thread IDs from Gmail using threads.list (lightweight —
+    //    no per-message messages.get calls, just thread IDs via pagination).
     let gmailStarredThreadIds: string[] = [];
     let gmailError: string | undefined;
 
     try {
-      const provider =
-        await this.emailProviderManager.getPrimaryProvider(userId);
-      if (provider) {
-        // Use the same query as the actual sync to get starred emails in inbox
-        // (archived starred emails should not be synced)
-        const starredEmails = await provider.searchEmails(
-          userId,
-          "is:starred in:inbox -label:SnoozedBearlyMail -label:VA-to-action",
-          QUERY_LIMITS.INBOX_TOTAL,
-        );
-        // Get unique thread IDs
-        gmailStarredEmailCount = starredEmails.length;
-        gmailStarredThreadIds = [
-          ...new Set(starredEmails.map((e) => e.threadId)),
-        ];
-        this.logger.debug(
-          `Gmail search found ${starredEmails.length} starred emails in ${gmailStarredThreadIds.length} threads`,
-        );
-      } else {
-        gmailError = "No email provider connected";
+      gmailStarredThreadIds =
+        await this.gmailProvider.getStarredInboxThreadIds(userId);
+      if (gmailStarredThreadIds.length === 0) {
+        // Provider may not be connected — surface a helpful message rather than
+        // silently returning an empty list.
+        const provider =
+          await this.emailProviderManager.getPrimaryProvider(userId);
+        if (!provider) gmailError = "No email provider connected";
       }
+      this.logger.debug(
+        `Gmail threads.list found ${gmailStarredThreadIds.length} starred inbox threads`,
+      );
     } catch (error: unknown) {
-      gmailError = isError(error) ? error.message : "Failed to search Gmail";
-      this.logger.error("Error searching Gmail for starred emails:", error);
+      gmailError = isError(error)
+        ? error.message
+        : "Failed to fetch starred thread IDs from Gmail";
+      this.logger.error(
+        "Error fetching starred inbox thread IDs from Gmail:",
+        error,
+      );
     }
 
     // 2. Get all starred threads from email_threads table
@@ -357,8 +348,6 @@ export class EmailDebugService {
       .andWhere("thread.starCount > 0")
       .getMany();
 
-    // dbStarredThreadIds used for comparison below via dbThreadIds
-
     // 3. Get emails in starred threads
     const starredThreadIds = allStarredThreads.map((t) => t.id);
     const emailsInStarredThreads: Email[] =
@@ -372,9 +361,29 @@ export class EmailDebugService {
             .getMany()
         : [];
 
-    // 4. Run the actual getInbox query for action mode to see what's returned
-    const actionTabResult = await getInbox(userId, false, "action");
-    const actionTabEmails: Email[] = actionTabResult.emails;
+    // 4. Compute action-tab count directly from DB — starred, non-archived, non-snoozed,
+    //    non-batched threads. This replaces the heavyweight getInbox() call that loaded
+    //    all inbox emails via the full pagination stack.
+    const now = new Date();
+    const actionTabCount = allStarredThreads.filter((t) => {
+      if (t.isArchived) return false;
+      if (t.isBatched && t.batchReleaseAt && new Date(t.batchReleaseAt) > now)
+        return false;
+      const threadEmails = emailsInStarredThreads.filter(
+        (e) => e.emailThreadId === t.id,
+      );
+      const latestEmail = [...threadEmails].sort(
+        (a, b) =>
+          new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime(),
+      )[0];
+      if (
+        latestEmail?.isSnoozed &&
+        latestEmail.snoozeUntil &&
+        new Date(latestEmail.snoozeUntil) > now
+      )
+        return false;
+      return true;
+    }).length;
 
     // 6. Compare Gmail vs DB
     const dbThreadIds = allStarredThreads.map((t) => t.threadId);
@@ -399,7 +408,6 @@ export class EmailDebugService {
           threadEmails,
           gmailStarredThreadIds,
           gmailError,
-          actionTabEmails,
         );
       }),
     );
@@ -526,7 +534,6 @@ export class EmailDebugService {
     return {
       gmail: {
         starredThreadCount: gmailStarredThreadIds.length,
-        starredEmailCount: gmailStarredEmailCount,
         starredThreadIds: gmailStarredThreadIds.map(
           (id) => `${id.substring(0, QUERY_LIMITS.THREAD_ID_PREVIEW)}...`,
         ),
@@ -536,7 +543,7 @@ export class EmailDebugService {
         starredThreadCount: allStarredThreads.length,
         starredEmailCount: emailsInStarredThreads.length,
       },
-      actionTabResults: actionTabEmails.length,
+      actionTabResults: actionTabCount,
       comparison: {
         inGmailNotInDb: inGmailNotInDb.map(
           (id) => `${id.substring(0, QUERY_LIMITS.THREAD_ID_PREVIEW)}...`,

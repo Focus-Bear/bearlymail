@@ -661,29 +661,21 @@ export class GmailProvider implements EmailProvider {
     gmail: gmail_v1.Gmail,
   ): Promise<void> {
     try {
-      const [inboxResponse, starredResponse] = await Promise.all([
-        gmail.users.threads.list({
-          userId: "me",
-          maxResults: 500,
-          q: "in:inbox -label:SnoozedBearlyMail -label:VA-to-action",
-        }),
-        gmail.users.threads.list({
-          userId: "me",
-          maxResults: 500,
-          q: "is:starred is:inbox -label:SnoozedBearlyMail -label:VA-to-action",
-        }),
+      const [inboxThreadIdList, starredThreadIdList] = await Promise.all([
+        this.fetchAllThreadsWithPagination(
+          gmail,
+          "in:inbox -label:SnoozedBearlyMail -label:VA-to-action",
+          QUERY_LIMITS.INBOX_TOTAL,
+        ),
+        this.fetchAllThreadsWithPagination(
+          gmail,
+          "is:starred is:inbox -label:SnoozedBearlyMail -label:VA-to-action",
+          QUERY_LIMITS.INBOX_TOTAL,
+        ),
       ]);
 
-      const inboxThreadIds = new Set(
-        (inboxResponse.data.threads || [])
-          .map((t) => t.id)
-          .filter((id): id is string => !!id),
-      );
-      const starredThreadIds = new Set(
-        (starredResponse.data.threads || [])
-          .map((t) => t.id)
-          .filter((id): id is string => !!id),
-      );
+      const inboxThreadIds = new Set(inboxThreadIdList);
+      const starredThreadIds = new Set(starredThreadIdList);
       const dbThreads = await this.emailsService.getAllThreadsForSync(userId);
 
       const updates = dbThreads
@@ -1040,6 +1032,29 @@ export class GmailProvider implements EmailProvider {
       return results;
     } catch (error) {
       this.logger.error(`Failed to search emails for user ${userId}:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * Lightweight alternative to searchEmails for the debug endpoint.
+   * Returns only thread IDs (no message bodies) using threads.list with pagination.
+   * Avoids the N×messages.get calls that cause 504 timeouts on large mailboxes.
+   */
+  async getStarredInboxThreadIds(userId: string): Promise<string[]> {
+    const gmail = await this.createGmailClient(userId);
+    if (!gmail) return [];
+    try {
+      return await this.fetchAllThreadsWithPagination(
+        gmail,
+        "is:starred in:inbox -label:SnoozedBearlyMail -label:VA-to-action",
+        QUERY_LIMITS.INBOX_TOTAL,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch starred inbox thread IDs for user ${userId}:`,
+        error,
+      );
       return [];
     }
   }

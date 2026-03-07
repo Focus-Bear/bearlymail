@@ -72,6 +72,25 @@ export function useInboxCategoryAccordion({
     });
   }, [categorySummary, expandedCategories, fetchCategoryEmails]);
 
+  // Limbo-state recovery: expanded categories that are neither loaded nor loading
+  // (e.g. after a fetch was abandoned due to session race, or after markCategoryLoadFailed).
+  // Re-trigger fetch whenever loadedCategoryNames or loadingCategoryNames changes.
+  useEffect(() => {
+    if (!categorySummary) return;
+    const limboCategories = Array.from(expandedCategories).filter(
+      category =>
+        !loadedCategoryNames.includes(category) &&
+        !loadingCategoryNames.includes(category),
+    );
+    if (limboCategories.length === 0) return;
+    limboCategories.forEach(categoryName => {
+      const categoryItem = categorySummary.find(c => c.name === categoryName);
+      fetchCategoryEmails(categoryName, categoryItem?.id).catch(err =>
+        console.error(`[limbo-recovery] Error re-fetching category "${categoryName}":`, err),
+      );
+    });
+  }, [categorySummary, expandedCategories, loadedCategoryNames, loadingCategoryNames, fetchCategoryEmails]);
+
   // Re-fetch expanded category emails when categorySummary reloads after a background poll.
   const prevCategorySummaryRef = useRef<typeof categorySummary>(null);
   const expandedCategoriesForRefetchRef = useRef(expandedCategories);

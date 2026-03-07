@@ -190,6 +190,12 @@ const emailSlice = createSlice({
         state.loadingCategoryNames.push(action.payload);
       }
     },
+    markCategoryLoadFailed: (state, action: PayloadAction<string>) => {
+      // Remove from loading — but do NOT add to loaded.
+      // This keeps isLoaded = false so the next expand triggers a retry.
+      // Existing emails (if any) are intentionally preserved.
+      state.loadingCategoryNames = state.loadingCategoryNames.filter(n => n !== action.payload);
+    },
     clearCategoryState: (state) => {
       state.categorySummary = null;
       // Set summaryLoading = true immediately so isRefetchingWithoutData is true
@@ -248,6 +254,7 @@ export const {
   setSummaryLoading,
   markCategoryLoaded,
   markCategoryLoading,
+  markCategoryLoadFailed,
   clearCategoryState,
   decrementCategorySummaryCount,
   incrementCategorySummaryCount,

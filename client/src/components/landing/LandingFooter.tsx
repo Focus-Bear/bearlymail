@@ -1,6 +1,5 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
 
 import { getResponsiveFontSize, getResponsiveSpacing } from 'components/landing/utils';
@@ -12,7 +11,6 @@ import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
  */
 export const LandingFooter: React.FC = () => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const breakpoints = useResponsiveBreakpoints();
 
   const horizontalPadding = getResponsiveSpacing(breakpoints, {
@@ -54,9 +52,8 @@ export const LandingFooter: React.FC = () => {
           flexWrap: 'wrap',
         }}
       >
-        <button
-          type='button'
-          onClick={() => navigate('/privacy')}
+        <a
+          href="https://app.bearlymail.com/privacy"
           style={linkStyle}
           onMouseEnter={(event) => {
             event.currentTarget.style.textDecoration = 'underline';
@@ -66,11 +63,10 @@ export const LandingFooter: React.FC = () => {
           }}
         >
           {t('consent.privacyPolicy')}
-        </button>
+        </a>
         <span style={{ color: theme.colors.text.secondary, fontSize }}>•</span>
-        <button
-          type='button'
-          onClick={() => navigate('/terms')}
+        <a
+          href="https://app.bearlymail.com/terms"
           style={linkStyle}
           onMouseEnter={(event) => {
             event.currentTarget.style.textDecoration = 'underline';
@@ -80,7 +76,7 @@ export const LandingFooter: React.FC = () => {
           }}
         >
           {t('consent.termsOfUse')}
-        </button>
+        </a>
       </div>
     </footer>
   );

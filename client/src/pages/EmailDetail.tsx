@@ -178,7 +178,8 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
     return <div>{t('emailDetail.emailNotFound')}</div>;
   }
 
-  const emailContent = <EmailDetailContent state={state} ops={ops} scheduledSendAt={scheduledSendAt} effectiveVariant={effectiveVariant} isMobile={isMobile} id={id} user={user} replyTextareaRef={replyTextareaRef} replyComposerRef={replyComposerRef} handleOpenTimePicker={handleOpenTimePicker} onClose={onClose} />;
+  const handleClearSchedule = () => setScheduledSendAt(null);
+  const emailContent = <EmailDetailContent state={state} ops={ops} scheduledSendAt={scheduledSendAt} effectiveVariant={effectiveVariant} isMobile={isMobile} id={id} user={user} replyTextareaRef={replyTextareaRef} replyComposerRef={replyComposerRef} handleOpenTimePicker={handleOpenTimePicker} handleClearSchedule={handleClearSchedule} onClose={onClose} />;
 
   // In compact or inline mode, render without sidebar/overlay
   if (isCompact || isInline) {
@@ -220,7 +221,7 @@ const EmailDetail = forwardRef<EmailDetailRef, EmailDetailProps>(({ emailId: pro
 export default EmailDetail;
 
 // Extracted to reduce main component line count
-const EmailDetailContent: React.FC<any> = ({ state: st, ops, scheduledSendAt, effectiveVariant, isMobile, id, user, replyTextareaRef, replyComposerRef, handleOpenTimePicker, onClose }) => {
+const EmailDetailContent: React.FC<any> = ({ state: st, ops, scheduledSendAt, effectiveVariant, isMobile, id, user, replyTextareaRef, replyComposerRef, handleOpenTimePicker, handleClearSchedule, onClose }) => {
   const isCompactOrInline = effectiveVariant === EMAIL_DETAIL_VARIANT_COMPACT || effectiveVariant === EMAIL_DETAIL_VARIANT_INLINE;
   const isInline = effectiveVariant === EMAIL_DETAIL_VARIANT_INLINE;
 
@@ -253,7 +254,7 @@ const EmailDetailContent: React.FC<any> = ({ state: st, ops, scheduledSendAt, ef
         <EmailDetailActions email={st.email as any} suggestedActions={st.suggestedActions} showQuickActionsMenu={st.showQuickActionsMenu} selectedAction={st.selectedAction} onShowQuickActionsMenu={() => st.setShowQuickActionsMenu(true)} onCloseQuickActionsMenu={() => st.setShowQuickActionsMenu(false)} onSelectAction={ops.handleActionSelected} onCloseAction={() => st.setSelectedAction(null)} onActionSuccess={ops.handleActionSuccess} onOpenReplyComposer={ops.handleOpenReplyComposer} onArchive={ops.handleArchive} onDelete={ops.handleDelete} onSetStarCount={ops.handleSetStarCount} onBlockSender={ops.handleBlockSender} onSnooze={ops.handleSnooze} onRespondToInvitation={ops.handleRespondToInvitation} onDraftReply={(replyDraft: string) => { st.setDraft(replyDraft); st.setShowReplyComposer(true); }} hideActionButtons={isCompactOrInline && !isInline} />
         {st.showReplyComposer && (
           <div ref={replyComposerRef}>
-            <ReplyComposer showReplyComposer={st.showReplyComposer} replyMode={st.replyMode} replyRecipients={st.replyRecipients} replyCc={st.replyCc} replyBcc={st.replyBcc} showCc={st.showCc} showBcc={st.showBcc} draft={st.draft} replyOptions={st.replyOptions} selectedReplyOption={st.selectedReplyOption} loadingReplies={st.loadingReplies} checkingTone={st.checkingTone} toneCheckResult={st.toneCheckResult} sending={st.sending} textareaRef={replyTextareaRef} scheduledSendAt={scheduledSendAt} onReplyRecipientsChange={st.setReplyRecipients} onCcChange={st.setReplyCc} onBccChange={st.setReplyBcc} onShowCc={() => st.setShowCc(true)} onShowBcc={() => st.setShowBcc(true)} onDraftChange={handleDraftChange} onReplyOptionSelect={handleReplyOptionSelect} onClose={handleReplyClose} onSend={(files: File[], hrs: number, _fwd: string[], draft: string, sched: string) => ops.handleSendReply(files, hrs, draft, sched)} onUseRevisedText={(text: string) => { st.setDraft(text); }} onDispute={ops.disputeToneCheck} disputing={st.disputing} disputeResult={st.disputeResult} onSchedule={handleOpenTimePicker} currentEmailId={id} currentEmailObjectId={st.email?.id} currentEmailThreadId={(st.email as any)?.emailThreadId} />
+            <ReplyComposer showReplyComposer={st.showReplyComposer} replyMode={st.replyMode} replyRecipients={st.replyRecipients} replyCc={st.replyCc} replyBcc={st.replyBcc} showCc={st.showCc} showBcc={st.showBcc} draft={st.draft} replyOptions={st.replyOptions} selectedReplyOption={st.selectedReplyOption} loadingReplies={st.loadingReplies} checkingTone={st.checkingTone} toneCheckResult={st.toneCheckResult} sending={st.sending} textareaRef={replyTextareaRef} scheduledSendAt={scheduledSendAt} onReplyRecipientsChange={st.setReplyRecipients} onCcChange={st.setReplyCc} onBccChange={st.setReplyBcc} onShowCc={() => st.setShowCc(true)} onShowBcc={() => st.setShowBcc(true)} onDraftChange={handleDraftChange} onReplyOptionSelect={handleReplyOptionSelect} onClose={handleReplyClose} onSend={(files: File[], hrs?: number, _fwd?: string[], draft?: string, sched?: Date, keepInAction?: boolean) => ops.handleSendReply(files, hrs, draft, sched, keepInAction)} onUseRevisedText={(text: string) => { st.setDraft(text); }} onDispute={ops.disputeToneCheck} disputing={st.disputing} disputeResult={st.disputeResult} onSchedule={handleOpenTimePicker} onClearSchedule={handleClearSchedule} currentEmailId={id} currentEmailObjectId={st.email?.id} currentEmailThreadId={(st.email as any)?.emailThreadId} />
           </div>
         )}
         {/* GitHub + CRM sections: shown in full and inline modes; in compact mode they appear in EmailDetailNotesAndActions above instead */}

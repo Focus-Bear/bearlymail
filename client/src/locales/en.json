@@ -422,7 +422,8 @@
       "availableSlots": "Available Times",
       "noSlots": "No available slots found in the next 7 days."
     },
-    "scheduleForMorning": "Schedule for tomorrow morning"
+    "scheduleForMorning": "Schedule for tomorrow morning",
+    "keepInAction": "Still need to action"
   },
   "settings": {
     "title": "Settings",

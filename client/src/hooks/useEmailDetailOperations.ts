@@ -588,7 +588,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
 
   const { performArchiveAfterReply, performSnoozeAfterReply, handleArchive, handleSnooze, handleDelete } = archiveOps;
 
-  const handleSendReply = useCallback(async (files: File[] = [], expectedReplyHours?: number, draftOverride?: string, scheduledSendAt?: Date) => {
+  const handleSendReply = useCallback(async (files: File[] = [], expectedReplyHours?: number, draftOverride?: string, scheduledSendAt?: Date, keepInAction?: boolean) => {
     const draftToSend = draftOverride || draft;
     if (!id || !draftToSend) return;
 
@@ -626,6 +626,7 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
     setShowReplyComposer(false);
     triggerAnimation(ANIMATION_TYPE_SEND);
 
+    // eslint-disable-next-line max-statements -- sendReplyAsync handles both file-upload and JSON paths plus post-send routing logic
     const sendReplyAsync = async () => {
       try {
         if (files.length > 0) {
@@ -665,15 +666,17 @@ export function useEmailDetailOperations(id: string | undefined, state: EmailDet
           : t('emailDetail.replySentSuccess');
         showSuccess(successMessage);
 
-        if (expectedReplyHours !== undefined) {
-          if (expectedReplyHours === 0) {
-            performArchiveAfterReply();
+        if (!keepInAction) {
+          if (expectedReplyHours !== undefined) {
+            if (expectedReplyHours === 0) {
+              performArchiveAfterReply();
+            } else {
+              const duration = expectedReplyHours <= HOURS_IN_TWO_DAYS ? `${expectedReplyHours}h` : `${Math.round(expectedReplyHours / HOURS_PER_DAY)}d`;
+              performSnoozeAfterReply(duration);
+            }
           } else {
-            const duration = expectedReplyHours <= HOURS_IN_TWO_DAYS ? `${expectedReplyHours}h` : `${Math.round(expectedReplyHours / HOURS_PER_DAY)}d`;
-            performSnoozeAfterReply(duration);
+            navigate(getInboxPath());
           }
-        } else {
-          navigate(getInboxPath());
         }
       } catch (error: any) {
         console.error('Error sending reply:', error);

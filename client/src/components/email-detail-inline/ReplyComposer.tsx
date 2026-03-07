@@ -52,7 +52,7 @@ interface ReplyComposerProps {
   onDraftChange: (draft: string) => void;
   onReplyOptionSelect: (index: number, text: string) => void;
   onClose: () => void;
-  onSend: (files: File[], expectedReplyHours?: number, forwardAttachmentIds?: string[], draftOverride?: string, scheduledSendAt?: Date) => void;
+  onSend: (files: File[], expectedReplyHours?: number, forwardAttachmentIds?: string[], draftOverride?: string, scheduledSendAt?: Date, keepInAction?: boolean) => void;
   onUseRevisedText: (text: string) => void;
   textareaRef?: React.RefObject<HTMLTextAreaElement>;
   onDispute?: (emailText: string, suggestions: string[], argument: string) => Promise<DisputeResult | null>;
@@ -109,13 +109,13 @@ const useReplyComposerState = (
   const handleRemoveForwardAttachment = (attachmentId: string) => { setForwardAttachmentIds(prev => prev.filter(id => id !== attachmentId)); };
   const handleDraftChange = (newDraft: string) => { onDraftChange(newDraft); };
 
-  const handleSend = (expectedReplyHours?: number, draftOverride?: string, scheduledAt?: Date) => {
-    onSend(files, expectedReplyHours, forwardAttachmentIds.length > 0 ? forwardAttachmentIds : undefined, draftOverride, scheduledAt);
+  const handleSend = (expectedReplyHours?: number, draftOverride?: string, scheduledAt?: Date, keepInAction?: boolean) => {
+    onSend(files, expectedReplyHours, forwardAttachmentIds.length > 0 ? forwardAttachmentIds : undefined, draftOverride, scheduledAt, keepInAction);
     setFiles([]); setForwardAttachmentIds([]);
   };
 
   const handleClose = () => { setFiles([]); setForwardAttachmentIds([]); onClose(); };
-  const handleUseRevisedText = (text: string) => { onUseRevisedText(text); handleSend(undefined, text); };
+  const handleUseRevisedText = (text: string) => { onUseRevisedText(text); handleSend(undefined, text, undefined, false); };
 
   return { files, setFiles, forwardAttachmentIds, isDragging, handleDragEnter, handleDragLeave, handleDragOver, handleDrop, handlePasteFiles, handleRemoveForwardAttachment, handleDraftChange, handleSend, handleClose, handleUseRevisedText };
 };

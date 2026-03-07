@@ -35,46 +35,49 @@ describe('ReplyComposerFooter', () => {
 
       fireEvent.click(screen.getByText('emailDetail.send'));
 
-      expect(defaultProps.onSend).toHaveBeenCalledWith(48, undefined, undefined);
+      expect(defaultProps.onSend).toHaveBeenCalledWith(48, undefined, undefined, false);
     });
 
     it('sends 0 when "None" is selected', () => {
       render(<ReplyComposerFooter {...defaultProps} />);
 
-      // Click "None" option (value=0)
-      fireEvent.click(screen.getByText('emailDetail.expectedReply.none'));
+      const select = screen.getByRole('combobox');
+      fireEvent.change(select, { target: { value: '0' } });
       fireEvent.click(screen.getByText('emailDetail.send'));
 
       // Must pass 0 (not undefined) so archive branch is reached
-      expect(defaultProps.onSend).toHaveBeenCalledWith(0, undefined, undefined);
-      expect(defaultProps.onSend).not.toHaveBeenCalledWith(undefined, undefined, undefined);
+      expect(defaultProps.onSend).toHaveBeenCalledWith(0, undefined, undefined, false);
+      expect(defaultProps.onSend).not.toHaveBeenCalledWith(undefined, undefined, undefined, false);
     });
 
     it('sends 24 when 24h option is selected', () => {
       render(<ReplyComposerFooter {...defaultProps} />);
 
-      fireEvent.click(screen.getByText('emailDetail.expectedReply.hours {"count":24}'));
+      const select = screen.getByRole('combobox');
+      fireEvent.change(select, { target: { value: '24' } });
       fireEvent.click(screen.getByText('emailDetail.send'));
 
-      expect(defaultProps.onSend).toHaveBeenCalledWith(24, undefined, undefined);
+      expect(defaultProps.onSend).toHaveBeenCalledWith(24, undefined, undefined, false);
     });
 
     it('sends 72 when 3d option is selected', () => {
       render(<ReplyComposerFooter {...defaultProps} />);
 
-      fireEvent.click(screen.getByText('emailDetail.expectedReply.days {"count":3}'));
+      const select = screen.getByRole('combobox');
+      fireEvent.change(select, { target: { value: '72' } });
       fireEvent.click(screen.getByText('emailDetail.send'));
 
-      expect(defaultProps.onSend).toHaveBeenCalledWith(72, undefined, undefined);
+      expect(defaultProps.onSend).toHaveBeenCalledWith(72, undefined, undefined, false);
     });
 
     it('sends 168 when 7d option is selected', () => {
       render(<ReplyComposerFooter {...defaultProps} />);
 
-      fireEvent.click(screen.getByText('emailDetail.expectedReply.days {"count":7}'));
+      const select = screen.getByRole('combobox');
+      fireEvent.change(select, { target: { value: '168' } });
       fireEvent.click(screen.getByText('emailDetail.send'));
 
-      expect(defaultProps.onSend).toHaveBeenCalledWith(168, undefined, undefined);
+      expect(defaultProps.onSend).toHaveBeenCalledWith(168, undefined, undefined, false);
     });
   });
 
@@ -85,7 +88,7 @@ describe('ReplyComposerFooter', () => {
 
       fireEvent.click(screen.getByText('emailDetail.send'));
 
-      expect(defaultProps.onSend).toHaveBeenCalledWith(48, undefined, scheduledTime);
+      expect(defaultProps.onSend).toHaveBeenCalledWith(48, undefined, scheduledTime, false);
     });
 
     it('sends undefined for scheduledSendAt when not provided', () => {
@@ -93,7 +96,27 @@ describe('ReplyComposerFooter', () => {
 
       fireEvent.click(screen.getByText('emailDetail.send'));
 
-      expect(defaultProps.onSend).toHaveBeenCalledWith(48, undefined, undefined);
+      expect(defaultProps.onSend).toHaveBeenCalledWith(48, undefined, undefined, false);
+    });
+  });
+
+  describe('keepInAction checkbox', () => {
+    it('sends keepInAction=false by default', () => {
+      render(<ReplyComposerFooter {...defaultProps} />);
+
+      fireEvent.click(screen.getByText('emailDetail.send'));
+
+      expect(defaultProps.onSend).toHaveBeenCalledWith(48, undefined, undefined, false);
+    });
+
+    it('sends keepInAction=true when checkbox is checked', () => {
+      render(<ReplyComposerFooter {...defaultProps} />);
+
+      const checkbox = screen.getByRole('checkbox');
+      fireEvent.click(checkbox);
+      fireEvent.click(screen.getByText('emailDetail.send'));
+
+      expect(defaultProps.onSend).toHaveBeenCalledWith(48, undefined, undefined, true);
     });
   });
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FiMoreVertical } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
 import { theme } from 'theme/theme';
 import { InboxMode } from 'types/email';
 
@@ -8,6 +9,7 @@ import { AnalyzeEmailsButton } from 'components/inbox/header/AnalyzeEmailsButton
 import { ComposeButton } from 'components/inbox/header/ComposeButton';
 import { HelpLink } from 'components/inbox/header/HelpLink';
 import { EMOJI_BUG } from 'constants/emojis';
+import { ROUTE_SCHEDULED } from 'constants/strings';
 
 interface InboxHeaderActionsProps {
   mode: InboxMode;
@@ -33,6 +35,7 @@ export const InboxHeaderActions: React.FC<InboxHeaderActionsProps> = ({
   onViewAutoRespondedEmails,
 }) => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -93,6 +96,15 @@ export const InboxHeaderActions: React.FC<InboxHeaderActionsProps> = ({
               style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none', padding: `${theme.spacing.sm} ${theme.spacing.md}`, cursor: 'pointer', color: theme.colors.text.primary, }}
             >
               {t('inbox.viewAutoRespondedEmails')}
+            </button>
+            <button
+              onClick={() => {
+                navigate(ROUTE_SCHEDULED);
+                setMenuOpen(false);
+              }}
+              style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none', padding: `${theme.spacing.sm} ${theme.spacing.md}`, cursor: 'pointer', color: theme.colors.text.primary, }}
+            >
+              🕐 {t('nav.scheduled')}
             </button>
           </div>
         )}

@@ -10,9 +10,8 @@ import { SidebarFooter } from 'components/inbox/sidebar/SidebarFooter';
 import { SidebarHeader } from 'components/inbox/sidebar/SidebarHeader';
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { MAX_BADGE_DISPLAY } from 'constants/numbers';
-import { CATEGORY_DANGEROUS_PHISHING, ROUTE_ADMIN, ROUTE_CRM_CONTACTS, ROUTE_CRM_DEALS, ROUTE_INBOX, ROUTE_SCHEDULED, ROUTE_SEARCH, ROUTE_SETTINGS, ROUTE_STATS, STATUS_PENDING, STRING_NONE } from 'constants/strings';
+import { ROUTE_ADMIN, ROUTE_CRM_CONTACTS, ROUTE_CRM_DEALS, ROUTE_INBOX, ROUTE_SEARCH, ROUTE_SETTINGS, ROUTE_STATS, STRING_NONE } from 'constants/strings';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
-import { useScheduledEmails } from 'hooks/useScheduledEmails';
 
 interface SidebarItemProps {
   label: string;
@@ -159,15 +158,12 @@ interface SidebarNavProps {
   t: (k: string) => string; location: { pathname: string; search: string; hash: string };
   isCollapsed: boolean; effectiveIsCollapsed: boolean; isSettingsPage: boolean;
   isAdmin?: boolean; handleNavigationClick: (path: string) => void;
-  pendingScheduledCount?: number;
 }
 
-const SidebarNav: React.FC<SidebarNavProps> = ({ t, location, isCollapsed, effectiveIsCollapsed, isSettingsPage, isAdmin, handleNavigationClick, pendingScheduledCount }) => (
+const SidebarNav: React.FC<SidebarNavProps> = ({ t, location, isCollapsed, effectiveIsCollapsed, isSettingsPage, isAdmin, handleNavigationClick }) => (
   <nav style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', paddingRight: theme.spacing.xs }}>
     <SidebarItem label={t('inbox.title')} path={ROUTE_INBOX} icon="📥" active={location.pathname === ROUTE_INBOX} isCollapsed={effectiveIsCollapsed} onNavigationClick={handleNavigationClick} />
-    <SidebarItem label={t('phishing.sidebarLabel')} path={ROUTE_INBOX} icon="🛑" active={location.pathname === ROUTE_INBOX && location.search.includes(encodeURIComponent(CATEGORY_DANGEROUS_PHISHING))} onClick={() => { captureEvent('sidebar_phishing_filter_clicked'); window.dispatchEvent(new CustomEvent('inbox:filterPhishing')); }} isCollapsed={effectiveIsCollapsed} onNavigationClick={handleNavigationClick} />
     <SidebarItem label="Search" path={ROUTE_SEARCH} icon="🔍" active={location.pathname === ROUTE_SEARCH} isCollapsed={effectiveIsCollapsed} onNavigationClick={handleNavigationClick} />
-    <SidebarItem label={t('nav.scheduled')} path={ROUTE_SCHEDULED} icon="🕐" active={location.pathname === ROUTE_SCHEDULED} isCollapsed={effectiveIsCollapsed} onNavigationClick={handleNavigationClick} badge={pendingScheduledCount} />
     <SidebarItem label={t('crm.title')} path={ROUTE_CRM_CONTACTS} icon="💼" active={location.pathname.startsWith('/crm')} isCollapsed={effectiveIsCollapsed} onNavigationClick={isCollapsed ? handleNavigationClick : undefined} />
     {!isCollapsed && location.pathname.startsWith('/crm') && (
       <div style={{ marginLeft: theme.spacing.lg, marginBottom: theme.spacing.xs }}>
@@ -203,9 +199,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const isSettingsPage = location.pathname === ROUTE_SETTINGS;
   const { isMobile, isTablet } = useResponsiveBreakpoints();
   const isNarrow = isMobile || isTablet;
-  const { scheduledEmails } = useScheduledEmails();
-  const pendingScheduledCount = scheduledEmails.filter(e => e.status === STATUS_PENDING).length;
-
   const handleNavigationClick = (path: string) => {
     const shouldKeepOpen = path === ROUTE_SETTINGS;
     if (isNarrow && onCloseMobileMenu && !shouldKeepOpen) onCloseMobileMenu();
@@ -218,7 +211,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {isNarrow && isMobileMenuOpen && <div onClick={onCloseMobileMenu} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.5)', zIndex: 999 }} />}
       <div style={{ width: effectiveIsCollapsed ? '80px' : '280px', backgroundColor: theme.colors.background.paper, borderRight: `1px solid ${theme.colors.border.light}`, padding: effectiveIsCollapsed ? theme.spacing.sm : `${theme.spacing.sm} ${theme.spacing.md}`, display: 'flex', flexDirection: 'column', height: '100vh', transition: 'width 0.3s ease, padding 0.3s ease, transform 0.3s ease', ...(isNarrow && { position: 'fixed' as const, left: 0, top: 0, zIndex: 1000, transform: isMobileMenuOpen ? 'translateX(0)' : 'translateX(-100%)', width: '240px', padding: `${theme.spacing.sm} ${theme.spacing.sm}` }) }}>
         <SidebarHeader isCollapsed={effectiveIsCollapsed} />
-        <SidebarNav t={t} location={location} isCollapsed={isCollapsed} effectiveIsCollapsed={effectiveIsCollapsed} isSettingsPage={isSettingsPage} isAdmin={user?.isAdmin} handleNavigationClick={handleNavigationClick} pendingScheduledCount={pendingScheduledCount} />
+        <SidebarNav t={t} location={location} isCollapsed={isCollapsed} effectiveIsCollapsed={effectiveIsCollapsed} isSettingsPage={isSettingsPage} isAdmin={user?.isAdmin} handleNavigationClick={handleNavigationClick} />
         <SidebarFooter userEmail={user?.email} onLogout={logout} isCollapsed={effectiveIsCollapsed} onToggleCollapse={onToggleCollapse} />
       </div>
     </>

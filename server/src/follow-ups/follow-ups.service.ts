@@ -301,11 +301,11 @@ export class FollowUpsService {
     // Get user's communication style
     const contexts = await this.contextService.getUserContext(userId);
     const tone =
-      contexts.find((c) => c.contextKey === ContextKey.WRITING_STYLE_TONE)
+      contexts.find((item) => item.contextKey === ContextKey.WRITING_STYLE_TONE)
         ?.contextValue || "professional";
     const commonPhrases = contexts
-      .filter((c) => c.contextKey === ContextKey.COMMON_PHRASE)
-      .map((c) => c.contextValue);
+      .filter((item) => item.contextKey === ContextKey.COMMON_PHRASE)
+      .map((item) => item.contextValue);
 
     // Check if user has preference to skip greeting
     const skipGreeting =

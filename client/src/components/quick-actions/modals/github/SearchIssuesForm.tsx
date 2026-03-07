@@ -8,7 +8,7 @@ interface SearchIssuesFormProps {
   query: string;
   loading: boolean;
   onQueryChange: (value: string) => void;
-  onSubmit: (e: React.FormEvent) => void;
+  onSubmit: (event: React.FormEvent) => void;
 }
 
 export const SearchIssuesForm: React.FC<SearchIssuesFormProps> = ({
@@ -23,7 +23,7 @@ export const SearchIssuesForm: React.FC<SearchIssuesFormProps> = ({
         <input
           type="text"
           value={query}
-          onChange={(e) => onQueryChange(e.target.value)}
+          onChange={(event) => onQueryChange(event.target.value)}
           placeholder="Search query (e.g., 'bug login error')"
           style={{
             flex: 1,

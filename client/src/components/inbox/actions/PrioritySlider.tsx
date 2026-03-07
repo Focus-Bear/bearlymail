@@ -9,7 +9,7 @@ interface PrioritySliderProps {
     showHint: (emailId: string, action: string) => void;
     hideHint: () => void;
   };
-  onSetStarCount: (emailId: string, starCount: number, e?: React.MouseEvent) => Promise<void>;
+  onSetStarCount: (emailId: string, starCount: number, event?: React.MouseEvent) => Promise<void>;
 }
 
 const PRIORITY_LEVELS = [
@@ -41,10 +41,10 @@ export const PrioritySlider: React.FC<PrioritySliderProps> = ({
       {PRIORITY_LEVELS.map((level) => (
         <button
           key={level.value}
-          onClick={(e) => {
-            e.stopPropagation();
+          onClick={(event) => {
+            event.stopPropagation();
             const newCount = currentStarCount === level.value ? 0 : level.value;
-            onSetStarCount(email.id, newCount, e);
+            onSetStarCount(email.id, newCount, event);
           }}
           title={t(level.label)}
           style={{
@@ -60,13 +60,13 @@ export const PrioritySlider: React.FC<PrioritySliderProps> = ({
             alignItems: 'center',
             gap: '2px',
           }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.opacity = '1';
-            e.currentTarget.style.transform = 'scale(1.1)';
+          onMouseEnter={(event) => {
+            event.currentTarget.style.opacity = '1';
+            event.currentTarget.style.transform = 'scale(1.1)';
           }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.opacity = currentStarCount === level.value ? '1' : String(INACTIVE_OPACITY);
-            e.currentTarget.style.transform = 'scale(1)';
+          onMouseLeave={(event) => {
+            event.currentTarget.style.opacity = currentStarCount === level.value ? '1' : String(INACTIVE_OPACITY);
+            event.currentTarget.style.transform = 'scale(1)';
           }}
         >
           {/* eslint-disable-next-line i18next/no-literal-string */}

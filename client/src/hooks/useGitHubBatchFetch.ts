@@ -76,7 +76,7 @@ export function useGitHubBatchFetch(emails: Email[], loading: boolean) {
   useEffect(() => {
     if (loading || emails.length === 0) return;
 
-    const emailIdsKey = emails.map(e => e.id).sort().join(',');
+    const emailIdsKey = emails.map(event => event.id).sort().join(',');
     if (fetchedForRef.current === emailIdsKey) return;
     fetchedForRef.current = emailIdsKey;
     pollCountRef.current = 0;
@@ -90,7 +90,7 @@ export function useGitHubBatchFetch(emails: Email[], loading: boolean) {
     });
 
     if (emailsNeedingGitHub.length > 0) {
-      fetchBatchGitHubStatus(emailsNeedingGitHub.map(e => e.id)).then(pendingIds => {
+      fetchBatchGitHubStatus(emailsNeedingGitHub.map(event => event.id)).then(pendingIds => {
         startPolling(pendingIds);
       });
     }

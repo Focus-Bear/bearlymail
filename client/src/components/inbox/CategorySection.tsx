@@ -79,8 +79,8 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
 
   const isOtherCategory = categoryName === CATEGORY_OTHER;
   const hasProtoGroups = isOtherCategory && otherProtoGroups.length > 0;
-  const protoGroupedEmailIds = hasProtoGroups ? new Set(otherProtoGroups.flatMap(grp => grp.emails.map(e => e.id))) : new Set<string>();
-  const uncategorizedOtherEmails = hasProtoGroups ? categoryEmails.filter(e => !protoGroupedEmailIds.has(e.id)) : [];
+  const protoGroupedEmailIds = hasProtoGroups ? new Set(otherProtoGroups.flatMap(grp => grp.emails.map(event => event.id))) : new Set<string>();
+  const uncategorizedOtherEmails = hasProtoGroups ? categoryEmails.filter(event => !protoGroupedEmailIds.has(event.id)) : [];
 
   return (
     <CategoryAccordion key={categoryName} category={categoryName} emails={categoryEmails} count={isLoaded ? categoryEmails.length : categoryItem.count} isLoadingContent={isExpanded && !isLoaded} isExpanded={isExpanded} onToggle={() => onToggleCategory(categoryName)} onArchiveAll={onBulkArchive} onReanalyseOther={handleReanalyseOther} isReanalysingOther={isReanalysingOther}>

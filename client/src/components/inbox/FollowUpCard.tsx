@@ -65,8 +65,8 @@ export const FollowUpCard: React.FC<FollowUpCardProps> = ({
         <input
           type="checkbox"
           checked={isSelected}
-          onChange={(e) => onSelect(thread.threadId, e.target.checked)}
-          onClick={(e) => e.stopPropagation()}
+          onChange={(event) => onSelect(thread.threadId, event.target.checked)}
+          onClick={(event) => event.stopPropagation()}
           disabled={!hasDraft || isGenerating}
           style={{
             marginTop: theme.spacing.xs,

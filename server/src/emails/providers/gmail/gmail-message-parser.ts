@@ -15,17 +15,21 @@ export function parseGmailMessage(
 
   const headers = messageData.payload?.headers || [];
   const subject =
-    headers.find((h: { name?: string; value?: string }) => h.name === "Subject")
-      ?.value || "(No Subject)";
+    headers.find(
+      (header: { name?: string; value?: string }) => header.name === "Subject",
+    )?.value || "(No Subject)";
   const from =
-    headers.find((h: { name?: string; value?: string }) => h.name === "From")
-      ?.value || "";
+    headers.find(
+      (header: { name?: string; value?: string }) => header.name === "From",
+    )?.value || "";
   const to =
-    headers.find((h: { name?: string; value?: string }) => h.name === "To")
-      ?.value || undefined;
+    headers.find(
+      (header: { name?: string; value?: string }) => header.name === "To",
+    )?.value || undefined;
   const cc =
-    headers.find((h: { name?: string; value?: string }) => h.name === "Cc")
-      ?.value || undefined;
+    headers.find(
+      (header: { name?: string; value?: string }) => header.name === "Cc",
+    )?.value || undefined;
   const labelIds = messageData.labelIds || [];
   const starCount = labelIds.includes("STARRED") ? 3 : 0;
 

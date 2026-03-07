@@ -24,9 +24,9 @@ export const PriorityTooltipActions: React.FC<PriorityTooltipActionsProps> = ({
     }}>
       <a
         href={`/email/${emailId}`}
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
           if (onProvideFeedback) {
             onProvideFeedback();
           }

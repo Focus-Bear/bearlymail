@@ -102,7 +102,7 @@ export class EmailThreadService {
 
     // Filter out any null/undefined
     return results
-      .map((r: { threadId: string }) => r.threadId)
+      .map((result: { threadId: string }) => result.threadId)
       .filter((id: string) => id);
   }
 
@@ -114,7 +114,7 @@ export class EmailThreadService {
       where: { userId, isArchived: false },
       select: ["threadId"],
     });
-    return threads.map((t) => t.threadId);
+    return threads.map((thread) => thread.threadId);
   }
 
   /**
@@ -138,7 +138,7 @@ export class EmailThreadService {
 
     // Filter out any null/undefined
     return results
-      .map((r: { threadId: string }) => r.threadId)
+      .map((result: { threadId: string }) => result.threadId)
       .filter((id: string) => id);
   }
 
@@ -168,13 +168,13 @@ export class EmailThreadService {
       .getMany();
 
     return results
-      .map((t) => ({
-        threadId: t.threadId,
-        isArchived: t.isArchived,
-        starCount: t.starCount,
-        syncStatus: t.syncStatus,
+      .map((thread) => ({
+        threadId: thread.threadId,
+        isArchived: thread.isArchived,
+        starCount: thread.starCount,
+        syncStatus: thread.syncStatus,
       }))
-      .filter((t) => t.threadId);
+      .filter((thread) => thread.threadId);
     // Filter out any null/undefined threadIds
   }
 
@@ -428,11 +428,11 @@ export class EmailThreadService {
       where: { userId, threadId: In(threadIds) },
       select: ["threadId", "updatedAt", "starCount", "isArchived"],
     });
-    return threads.map((t) => ({
-      threadId: t.threadId,
-      updatedAt: t.updatedAt,
-      starCount: t.starCount,
-      isArchived: t.isArchived,
+    return threads.map((thread) => ({
+      threadId: thread.threadId,
+      updatedAt: thread.updatedAt,
+      starCount: thread.starCount,
+      isArchived: thread.isArchived,
     }));
   }
 
@@ -445,10 +445,10 @@ export class EmailThreadService {
       where: { userId, starCount: MoreThan(0) },
       select: ["threadId", "starCount", "isArchived"],
     });
-    return threads.map((t) => ({
-      threadId: t.threadId,
-      starCount: t.starCount,
-      isArchived: t.isArchived,
+    return threads.map((thread) => ({
+      threadId: thread.threadId,
+      starCount: thread.starCount,
+      isArchived: thread.isArchived,
     }));
   }
 

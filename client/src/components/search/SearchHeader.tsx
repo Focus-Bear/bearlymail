@@ -41,13 +41,13 @@ export const SearchHeader: React.FC = () => {
               color: theme.colors.text.tertiary,
               textDecoration: 'none',
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = theme.colors.primary.main;
-              e.currentTarget.style.textDecoration = 'underline';
+            onMouseEnter={(event) => {
+              event.currentTarget.style.color = theme.colors.primary.main;
+              event.currentTarget.style.textDecoration = 'underline';
             }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = theme.colors.text.tertiary;
-              e.currentTarget.style.textDecoration = 'none';
+            onMouseLeave={(event) => {
+              event.currentTarget.style.color = theme.colors.text.tertiary;
+              event.currentTarget.style.textDecoration = 'none';
             }}
           >
             {t('search.help')}

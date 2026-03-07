@@ -45,7 +45,7 @@ const REANALYSE_ICON = '🔄';
 const ARCHIVE_ALL_ICON = '🗄️';
 
 interface ReanalyseButtonProps {
-  onClick: (e: React.MouseEvent) => void;
+  onClick: (event: React.MouseEvent) => void;
   isReanalysing: boolean;
   label: string;
 }
@@ -72,13 +72,13 @@ const ReanalyseButton: React.FC<ReanalyseButtonProps> = ({ onClick, isReanalysin
 function makeArchiveKeyDownHandler(
   onConfirm: () => void,
   onCancel: () => void
-): (e: KeyboardEvent) => void {
-  return (e: KeyboardEvent) => {
-    if (e.key.toLowerCase() === KEY_Y) {
-      e.stopPropagation();
+): (event: KeyboardEvent) => void {
+  return (event: KeyboardEvent) => {
+    if (event.key.toLowerCase() === KEY_Y) {
+      event.stopPropagation();
       onConfirm();
-    } else if (e.key === KEY_ESCAPE) {
-      e.stopPropagation();
+    } else if (event.key === KEY_ESCAPE) {
+      event.stopPropagation();
       onCancel();
     }
   };
@@ -87,9 +87,9 @@ function makeArchiveKeyDownHandler(
 interface CategoryAccordionHeaderProps {
   category: string; emailCount: number; isExpanded: boolean; isOtherCategory: boolean;
   isReanalysingOther?: boolean; hasArchiveAll: boolean;
-  onToggle: () => void; onEditCategoryClick: (e: React.MouseEvent) => void;
-  onReanalyseClick: (e: React.MouseEvent) => void; onArchiveAllClick: (e: React.MouseEvent) => void;
-  onReanalyseOther?: () => void; t: (k: string) => string;
+  onToggle: () => void; onEditCategoryClick: (event: React.MouseEvent) => void;
+  onReanalyseClick: (event: React.MouseEvent) => void; onArchiveAllClick: (event: React.MouseEvent) => void;
+  onReanalyseOther?: () => void; t: (tKey: string) => string;
 }
 
 const CategoryAccordionHeader: React.FC<CategoryAccordionHeaderProps> = ({
@@ -135,16 +135,16 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
   const navigate = useNavigate();
   const [showArchiveConfirmation, setShowArchiveConfirmation] = useState(false);
   const emailCount = count !== undefined ? count : emails.length;
-  const emailIds = emails.map(e => e.id);
+  const emailIds = emails.map(event => event.id);
   const isOtherCategory = category === CATEGORY_OTHER;
 
-  const handleEditCategoryClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleEditCategoryClick = (event: React.MouseEvent) => {
+    event.stopPropagation();
     navigate('/settings#email-categories');
   };
 
-  const handleArchiveAllClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleArchiveAllClick = (event: React.MouseEvent) => {
+    event.stopPropagation();
     if (emailCount > 0) {
       setShowArchiveConfirmation(true);
     }
@@ -161,8 +161,8 @@ export const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
     setShowArchiveConfirmation(false);
   }, []);
 
-  const handleReanalyseClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleReanalyseClick = (event: React.MouseEvent) => {
+    event.stopPropagation();
     if (onReanalyseOther && !isReanalysingOther) {
       onReanalyseOther();
     }
@@ -217,21 +217,21 @@ export const groupEmailsByCategory = (
 
   const groups: CategoryGroup[] = [];
   categoryMap.forEach((categoryEmails, category) => {
-    const sortedEmails = [...categoryEmails].sort((a, b) => {
+    const sortedEmails = [...categoryEmails].sort((itemA, itemB) => {
       if (mode === MODE_AUTORESPONDED) {
-        const autoRespondedA = a.autoRespondedAt
-          ? new Date(a.autoRespondedAt).getTime()
+        const autoRespondedA = itemA.autoRespondedAt
+          ? new Date(itemA.autoRespondedAt).getTime()
           : 0;
-        const autoRespondedB = b.autoRespondedAt
-          ? new Date(b.autoRespondedAt).getTime()
+        const autoRespondedB = itemB.autoRespondedAt
+          ? new Date(itemB.autoRespondedAt).getTime()
           : 0;
         if (autoRespondedB !== autoRespondedA) {
           return autoRespondedB - autoRespondedA;
         }
       }
 
-      const priorityA = getEmailPriorityScore(a);
-      const priorityB = getEmailPriorityScore(b);
+      const priorityA = getEmailPriorityScore(itemA);
+      const priorityB = getEmailPriorityScore(itemB);
       return priorityB - priorityA;
     });
 
@@ -240,7 +240,7 @@ export const groupEmailsByCategory = (
     groups.push({ category, emails: sortedEmails, maxPriority, });
   });
 
-  groups.sort((a, b) => b.maxPriority - a.maxPriority);
+  groups.sort((itemA, itemB) => itemB.maxPriority - itemA.maxPriority);
 
   return groups;
 };

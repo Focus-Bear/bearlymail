@@ -74,8 +74,8 @@ export const ToneSettingsSection: React.FC<ToneSettingsSectionProps> = ({
               <input
                 type="text"
                 value={newToneRule}
-                onChange={(e) => onNewToneRuleChange(e.target.value)}
-                onKeyDown={(e) => e.key === KEY_ENTER && onAddToneRule()}
+                onChange={(event) => onNewToneRuleChange(event.target.value)}
+                onKeyDown={(event) => event.key === KEY_ENTER && onAddToneRule()}
                 placeholder={t('settings.addRulePlaceholder')}
                 style={{ flex: 1, padding: theme.spacing.sm, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, }}
               />

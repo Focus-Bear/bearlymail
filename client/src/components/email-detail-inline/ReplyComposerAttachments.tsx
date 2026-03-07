@@ -15,10 +15,10 @@ interface ReplyComposerAttachmentsProps {
  */
 const formatFileSize = (bytes: number): string => {
   if (bytes === 0) return '0 Bytes';
-  const k = 1024;
+  const kb = 1024;
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${Math.round((bytes / Math.pow(k, i)) * 100) / 100} ${sizes[i]}`;
+  const i = Math.floor(Math.log(bytes) / Math.log(kb));
+  return `${Math.round((bytes / Math.pow(kb, i)) * 100) / 100} ${sizes[i]}`;
 };
 
 /**
@@ -102,7 +102,7 @@ const AttachmentFileItem: React.FC<{ file: File; onRemove: () => void }> = ({ fi
         <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: theme.colors.text.primary }}>{file.name}</div>
         <div style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.text.secondary, marginTop: theme.spacing.xs }}>{formatFileSize(file.size)}</div>
       </div>
-      <button type="button" onClick={onRemove} style={{ padding: `${theme.spacing.xs} ${theme.spacing.xs}`, backgroundColor: COLOR_TRANSPARENT, color: theme.colors.text.secondary, border: STRING_NONE, borderRadius: theme.borderRadius.sm, cursor: 'pointer', fontSize: theme.typography.fontSize.sm }} onMouseEnter={(e) => { e.currentTarget.style.color = theme.colors.error.main; }} onMouseLeave={(e) => { e.currentTarget.style.color = theme.colors.text.secondary; }} aria-label={t('common.remove')}>{'\u2715'}</button>
+      <button type="button" onClick={onRemove} style={{ padding: `${theme.spacing.xs} ${theme.spacing.xs}`, backgroundColor: COLOR_TRANSPARENT, color: theme.colors.text.secondary, border: STRING_NONE, borderRadius: theme.borderRadius.sm, cursor: 'pointer', fontSize: theme.typography.fontSize.sm }} onMouseEnter={(event) => { event.currentTarget.style.color = theme.colors.error.main; }} onMouseLeave={(event) => { event.currentTarget.style.color = theme.colors.text.secondary; }} aria-label={t('common.remove')}>{'\u2715'}</button>
     </div>
   );
 };

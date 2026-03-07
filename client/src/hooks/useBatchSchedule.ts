@@ -94,7 +94,7 @@ export function useBatchSchedule(): UseBatchScheduleReturn {
           return;
         }
       }
-    } catch (e) {
+    } catch (err) {
       // Ignore cache errors
     }
 

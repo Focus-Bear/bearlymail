@@ -201,8 +201,8 @@ export class ContextAnalysisProgressService {
     batchResults: Record<string, unknown>,
   ): boolean {
     if (!totalBatches || totalBatches === 0) {
-      const completedBatchIndices = Object.keys(batchResults).map((k) =>
-        parseInt(k, 10),
+      const completedBatchIndices = Object.keys(batchResults).map((key) =>
+        parseInt(key, 10),
       );
       this.logger.log(
         `[PROGRESS-CHECK] totalBatches is ${totalBatches || "not set"} and ${completedBatchIndices.length} batches completed. ` +
@@ -252,7 +252,7 @@ export class ContextAnalysisProgressService {
       queuedJobsInPgBoss,
     } = state;
     const batchesWithJobIdsInDb = Object.keys(batchJobIds).filter(
-      (k) => batchJobIds[parseInt(k, 10)] !== null,
+      (key) => batchJobIds[parseInt(key, 10)] !== null,
     ).length;
     const missingJobs = Math.max(0, remainingBatchesInDb - queuedJobsInPgBoss);
 
@@ -291,8 +291,8 @@ export class ContextAnalysisProgressService {
     batchResults: Record<string, unknown>,
     failedBatches: number[],
   ): number[] {
-    const completedBatchIndices = Object.keys(batchResults).map((k) =>
-      parseInt(k, 10),
+    const completedBatchIndices = Object.keys(batchResults).map((key) =>
+      parseInt(key, 10),
     );
     const missing: number[] = [];
     for (let i = 0; i < totalBatches; i++) {

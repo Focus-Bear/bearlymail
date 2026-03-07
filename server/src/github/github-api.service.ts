@@ -116,7 +116,7 @@ export class GitHubApiService {
       const scopes = scopesHeader
         ? scopesHeader
             .split(",")
-            .map((s: string) => s.trim())
+            .map((segment: string) => segment.trim())
             .filter(Boolean)
         : [];
       return {

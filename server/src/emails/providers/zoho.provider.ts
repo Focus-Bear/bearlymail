@@ -283,7 +283,8 @@ export class ZohoProvider implements EmailProvider {
 
       try {
         const latestMessage = messages.sort(
-          (a, b) => (b.receivedTime || 0) - (a.receivedTime || 0),
+          (itemA, itemB) =>
+            (itemB.receivedTime || 0) - (itemA.receivedTime || 0),
         )[0];
         const isInInbox = inboxMessages.some(
           (message) =>

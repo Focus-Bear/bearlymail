@@ -27,7 +27,7 @@ export const FollowUpPreviewList: React.FC<FollowUpPreviewListProps> = ({
       overflow: 'auto',
     }}>
       {selectedFollowUps.slice(0, 10).map((fu) => {
-        const thread = selectedThreads.find(t => t.followUp?.id === fu.id);
+        const thread = selectedThreads.find(thread => thread.followUp?.id === fu.id);
         return (
           <div key={fu.id} style={{
             padding: theme.spacing.md,

@@ -102,8 +102,8 @@ export function useAdminDashboard() {
     }
   }, [fetchWaitlist]);
 
-  const pending = waitlist.filter(w => !w.approved);
-  const approved = waitlist.filter(w => w.approved);
+  const pending = waitlist.filter(waitlistItem => !waitlistItem.approved);
+  const approved = waitlist.filter(waitlistItem => waitlistItem.approved);
 
   return {
     waitlist,

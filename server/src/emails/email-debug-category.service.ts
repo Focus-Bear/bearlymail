@@ -113,9 +113,9 @@ export class EmailDebugCategoryService {
     contexts: UserContext[],
   ): Array<{ name: string; description?: string }> {
     return contexts
-      .filter((c) => c.contextKey === ContextKey.EMAIL_CATEGORY)
-      .map((c) => {
-        const parts = c.contextValue.split(" - ");
+      .filter((category) => category.contextKey === ContextKey.EMAIL_CATEGORY)
+      .map((category) => {
+        const parts = category.contextValue.split(" - ");
         return {
           name: parts[0].trim(),
           description:
@@ -133,32 +133,32 @@ export class EmailDebugCategoryService {
   } {
     return {
       urgentItems: contexts
-        .filter((c) => c.contextKey === ContextKey.URGENT)
-        .map((c) => ({
-          value: c.contextValue,
-          explanation: c.explanation || undefined,
+        .filter((item) => item.contextKey === ContextKey.URGENT)
+        .map((item) => ({
+          value: item.contextValue,
+          explanation: item.explanation || undefined,
         })),
       notUrgentItems: contexts
-        .filter((c) => c.contextKey === ContextKey.NOT_IMPORTANT)
-        .map((c) => ({
-          value: c.contextValue,
-          explanation: c.explanation || undefined,
+        .filter((item) => item.contextKey === ContextKey.NOT_IMPORTANT)
+        .map((item) => ({
+          value: item.contextValue,
+          explanation: item.explanation || undefined,
         })),
       goals: contexts
-        .filter((c) => c.contextKey === ContextKey.MY_GOALS)
-        .map((c) => ({
-          value: c.contextValue,
-          priority: c.priority || undefined,
+        .filter((item) => item.contextKey === ContextKey.MY_GOALS)
+        .map((item) => ({
+          value: item.contextValue,
+          priority: item.priority || undefined,
         })),
       workingOn: contexts
-        .filter((c) => c.contextKey === ContextKey.WORKING_ON)
-        .map((c) => ({
-          value: c.contextValue,
-          priority: c.priority || undefined,
+        .filter((item) => item.contextKey === ContextKey.WORKING_ON)
+        .map((item) => ({
+          value: item.contextValue,
+          priority: item.priority || undefined,
         })),
       dontCare: contexts
-        .filter((c) => c.contextKey === ContextKey.DONT_CARE)
-        .map((c) => ({ value: c.contextValue })),
+        .filter((item) => item.contextKey === ContextKey.DONT_CARE)
+        .map((item) => ({ value: item.contextValue })),
     };
   }
 }

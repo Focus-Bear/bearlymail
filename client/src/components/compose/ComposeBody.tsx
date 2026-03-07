@@ -46,7 +46,7 @@ export const ComposeBody: React.FC<ComposeBodyProps> = ({
         <input
           type="text"
           value={subject}
-          onChange={(e) => onSubjectChange(e.target.value)}
+          onChange={(event) => onSubjectChange(event.target.value)}
           placeholder={t('compose.subjectPlaceholder')}
           style={{
             flex: 1,

@@ -35,7 +35,7 @@ export const StatusSelector: React.FC<StatusSelectorProps> = ({ state, onStateCh
             type="radio"
             value={GITHUB_STATE_OPEN}
             checked={state === GITHUB_STATE_OPEN}
-            onChange={(e) => onStateChange(e.target.value as typeof GITHUB_STATE_OPEN)}
+            onChange={(event) => onStateChange(event.target.value as typeof GITHUB_STATE_OPEN)}
             style={{ marginRight: theme.spacing.sm }}
           />
           <span>{t('quickActions.github.open')}</span>
@@ -52,7 +52,7 @@ export const StatusSelector: React.FC<StatusSelectorProps> = ({ state, onStateCh
             type="radio"
             value={GITHUB_STATE_CLOSED}
             checked={state === GITHUB_STATE_CLOSED}
-            onChange={(e) => onStateChange(e.target.value as typeof GITHUB_STATE_CLOSED)}
+            onChange={(event) => onStateChange(event.target.value as typeof GITHUB_STATE_CLOSED)}
             style={{ marginRight: theme.spacing.sm }}
           />
           <span>{t('quickActions.github.closed')}</span>

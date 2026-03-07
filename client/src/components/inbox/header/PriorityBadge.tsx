@@ -48,9 +48,9 @@ export const PriorityBadge: React.FC<PriorityBadgeProps> = ({
         position: 'relative',
         zIndex: 10,
       }}
-      onClick={(e) => {
-        e.stopPropagation();
-        e.preventDefault();
+      onClick={(event) => {
+        event.stopPropagation();
+        event.preventDefault();
         if (email.isProcessingPriority) return;
         priorityTooltip.togglePriorityTooltip(email.id);
       }}

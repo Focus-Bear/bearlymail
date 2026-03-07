@@ -34,8 +34,8 @@ const SetupPassword: React.FC = () => {
     }
   }, [user, token, navigate, t]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setError('');
 
     if (!token) {
@@ -139,7 +139,7 @@ const SetupPassword: React.FC = () => {
             <input
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(event) => setPassword(event.target.value)}
               required
               minLength={8}
               style={{
@@ -173,7 +173,7 @@ const SetupPassword: React.FC = () => {
             <input
               type="password"
               value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
+              onChange={(event) => setConfirmPassword(event.target.value)}
               required
               minLength={8}
               style={{
@@ -202,14 +202,14 @@ const SetupPassword: React.FC = () => {
               cursor: loading || !token ? 'not-allowed' : 'pointer',
               marginBottom: theme.spacing.md,
             }}
-            onMouseOver={(e) => {
+            onMouseOver={(event) => {
               if (!loading && token) {
-                e.currentTarget.style.backgroundColor = theme.colors.primary.dark;
+                event.currentTarget.style.backgroundColor = theme.colors.primary.dark;
               }
             }}
-            onMouseOut={(e) => {
+            onMouseOut={(event) => {
               if (!loading && token) {
-                e.currentTarget.style.backgroundColor = theme.colors.primary.main;
+                event.currentTarget.style.backgroundColor = theme.colors.primary.main;
               }
             }}
           >

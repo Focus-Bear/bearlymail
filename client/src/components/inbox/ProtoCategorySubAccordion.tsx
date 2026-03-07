@@ -155,13 +155,13 @@ interface ProtoCategorySubAccordionProps {
 function makeProtoKeyDownHandler(
   onConfirm: () => void,
   onCancel: () => void
-): (e: KeyboardEvent) => void {
-  return (e: KeyboardEvent) => {
-    if (e.key === KEY_Y || e.key === KEY_Y_UPPERCASE) {
-      e.stopPropagation();
+): (event: KeyboardEvent) => void {
+  return (event: KeyboardEvent) => {
+    if (event.key === KEY_Y || event.key === KEY_Y_UPPERCASE) {
+      event.stopPropagation();
       onConfirm();
-    } else if (e.key === KEY_ESCAPE) {
-      e.stopPropagation();
+    } else if (event.key === KEY_ESCAPE) {
+      event.stopPropagation();
       onCancel();
     }
   };
@@ -185,8 +185,8 @@ export const ProtoCategorySubAccordion: React.FC<ProtoCategorySubAccordionProps>
   const [showArchiveConfirmation, setShowArchiveConfirmation] = useState(false);
   const isBusy = isConverting || Boolean(isDeleting);
 
-  const handleArchiveAllClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleArchiveAllClick = (event: React.MouseEvent) => {
+    event.stopPropagation();
     if (!isBusy && onArchiveAll && emailIds.length > 0) {
       setShowArchiveConfirmation(true);
     }
@@ -221,7 +221,7 @@ export const ProtoCategorySubAccordion: React.FC<ProtoCategorySubAccordionProps>
           </div>
           {description && <span style={descriptionStyle}>{description}</span>}
         </div>
-        <div style={actionsContainerStyle} onClick={(e) => e.stopPropagation()}>
+        <div style={actionsContainerStyle} onClick={(event) => event.stopPropagation()}>
           {onArchiveAll && emailCount > 0 && (
             <button
               onClick={handleArchiveAllClick}

@@ -10,8 +10,8 @@ import { CategorySummaryItem } from 'store/slices/emailSlice';
 interface DebugCategorySummaryProps { categorySummary: CategorySummaryItem[] | null; loadedCategoryNames: string[]; loadingCategoryNames: string[]; expandedCategories: Set<string>; emails: Email[]; }
 
 const getLoadedEmailsForCategory = (categoryName: string, emails: Email[]): Email[] => {
-  if (categoryName === 'Other') return emails.filter(e => !e.isArchived && (e.category === null || e.category === undefined || e.category === '' || e.category === 'Other'));
-  return emails.filter(e => !e.isArchived && e.category === categoryName);
+  if (categoryName === 'Other') return emails.filter(event => !event.isArchived && (event.category === null || event.category === undefined || event.category === '' || event.category === 'Other'));
+  return emails.filter(event => !event.isArchived && event.category === categoryName);
 };
 
 const getCategoryStatus = (categoryName: string, loadingCategoryNames: string[], loadedCategoryNames: string[]): string => {
@@ -21,7 +21,7 @@ const getCategoryStatus = (categoryName: string, loadingCategoryNames: string[],
 };
 
 interface CategoryTableProps extends DebugCategorySummaryProps {
-  expandedDetails: Set<string>; toggleDetails: (name: string) => void; t: (k: string) => string;
+  expandedDetails: Set<string>; toggleDetails: (name: string) => void; t: (tKey: string) => string;
 }
 
 const CategorySummaryTable: React.FC<CategoryTableProps> = ({
@@ -32,7 +32,7 @@ const CategorySummaryTable: React.FC<CategoryTableProps> = ({
     <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: theme.spacing.sm, marginBottom: theme.spacing.sm }}>
         <div style={{ padding: theme.spacing.sm, backgroundColor: COLOR_WHITE, borderRadius: theme.borderRadius.sm, border: '1px solid #E0E0E0' }}><strong>{t('debug.categorySummary.totalCategories')}:</strong> {categorySummary.length}</div>
-        <div style={{ padding: theme.spacing.sm, backgroundColor: COLOR_WHITE, borderRadius: theme.borderRadius.sm, border: '1px solid #E0E0E0' }}><strong>{t('debug.categorySummary.loadedEmails')}:</strong> {emails.filter(e => !e.isArchived).length}</div>
+        <div style={{ padding: theme.spacing.sm, backgroundColor: COLOR_WHITE, borderRadius: theme.borderRadius.sm, border: '1px solid #E0E0E0' }}><strong>{t('debug.categorySummary.loadedEmails')}:</strong> {emails.filter(event => !event.isArchived).length}</div>
       </div>
       <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: COLOR_WHITE, borderRadius: theme.borderRadius.sm, overflow: 'hidden' }}>
         <thead>

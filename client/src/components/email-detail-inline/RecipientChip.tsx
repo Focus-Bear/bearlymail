@@ -27,7 +27,7 @@ export const RecipientChip: React.FC<RecipientChipProps> = ({ tag, index, onRemo
     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tag}</span>
     <button
       type="button"
-      onClick={(e) => { e.stopPropagation(); onRemove(index); }}
+      onClick={(event) => { event.stopPropagation(); onRemove(index); }}
       style={{
         background: STRING_NONE,
         border: STRING_NONE,

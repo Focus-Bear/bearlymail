@@ -61,8 +61,8 @@ interface CustomTimeFormProps {
 const CustomTimeForm: React.FC<CustomTimeFormProps> = ({ customDate, customTime, onDateChange, onTimeChange, onSubmit, t }) => (
   <div style={{ marginBottom: theme.spacing.md }}>
     <div style={{ display: 'flex', gap: theme.spacing.sm, marginBottom: theme.spacing.sm }}>
-      <input type="date" value={customDate} onChange={(e) => onDateChange(e.target.value)} style={{ flex: 1, padding: theme.spacing.sm, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, backgroundColor: theme.colors.background.subtle, color: theme.colors.text.primary, fontSize: theme.typography.fontSize.sm }} />
-      <input type="time" value={customTime} onChange={(e) => onTimeChange(e.target.value)} style={{ flex: 1, padding: theme.spacing.sm, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, backgroundColor: theme.colors.background.subtle, color: theme.colors.text.primary, fontSize: theme.typography.fontSize.sm }} />
+      <input type="date" value={customDate} onChange={(event) => onDateChange(event.target.value)} style={{ flex: 1, padding: theme.spacing.sm, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, backgroundColor: theme.colors.background.subtle, color: theme.colors.text.primary, fontSize: theme.typography.fontSize.sm }} />
+      <input type="time" value={customTime} onChange={(event) => onTimeChange(event.target.value)} style={{ flex: 1, padding: theme.spacing.sm, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, backgroundColor: theme.colors.background.subtle, color: theme.colors.text.primary, fontSize: theme.typography.fontSize.sm }} />
     </div>
     <button onClick={onSubmit} disabled={!customDate || !customTime} style={{ padding: `${theme.spacing.sm} ${theme.spacing.md}`, backgroundColor: theme.colors.primary.main, color: COLOR_NAMED_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.md, cursor: customDate && customTime ? 'pointer' : 'not-allowed', opacity: customDate && customTime ? 1 : OPACITY_DISABLED, width: '100%', fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium }}>
       {t('compose.setCustomTime')}
@@ -100,7 +100,7 @@ export const TimePicker: React.FC<TimePickerProps> = ({
 
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={onCancel}>
-      <div style={{ backgroundColor: theme.colors.background.paper, borderRadius: theme.borderRadius.lg, padding: theme.spacing.xl, maxWidth: '500px', width: '90%', maxHeight: '80vh', overflowY: 'auto', boxShadow: theme.shadows.xl }} onClick={(e) => e.stopPropagation()}>
+      <div style={{ backgroundColor: theme.colors.background.paper, borderRadius: theme.borderRadius.lg, padding: theme.spacing.xl, maxWidth: '500px', width: '90%', maxHeight: '80vh', overflowY: 'auto', boxShadow: theme.shadows.xl }} onClick={(event) => event.stopPropagation()}>
         <h3 style={{ marginTop: 0, color: theme.colors.text.primary, fontSize: theme.typography.fontSize.xl }}>
           {t('compose.scheduleEmail')}
         </h3>
@@ -109,7 +109,7 @@ export const TimePicker: React.FC<TimePickerProps> = ({
           <h4 style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, marginBottom: theme.spacing.sm }}>{t('compose.quickOptions')}</h4>
           <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
             {suggestions.map((suggestion) => (
-              <button key={suggestion.label} onClick={() => handleSuggestionClick(suggestion)} style={{ padding: theme.spacing.md, backgroundColor: theme.colors.background.subtle, border: `1px solid ${theme.colors.border.light}`, borderRadius: theme.borderRadius.md, cursor: 'pointer', textAlign: 'left', transition: theme.transitions.default }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = theme.colors.interactive.hover; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = theme.colors.background.subtle; }}>
+              <button key={suggestion.label} onClick={() => handleSuggestionClick(suggestion)} style={{ padding: theme.spacing.md, backgroundColor: theme.colors.background.subtle, border: `1px solid ${theme.colors.border.light}`, borderRadius: theme.borderRadius.md, cursor: 'pointer', textAlign: 'left', transition: theme.transitions.default }} onMouseEnter={(event) => { event.currentTarget.style.backgroundColor = theme.colors.interactive.hover; }} onMouseLeave={(event) => { event.currentTarget.style.backgroundColor = theme.colors.background.subtle; }}>
                 <div style={{ fontWeight: theme.typography.fontWeight.semibold, color: theme.colors.text.primary }}>{suggestion.label}</div>
                 <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>{suggestion.description}</div>
               </button>

@@ -112,12 +112,17 @@ export class SummarizationService {
   ): string {
     const sliceCount = Math.abs(CONTEXT_ANALYSIS.LAST_THREAD_EMAILS_SLICE);
     return messagesToSummarize
-      .map((e, idx) => {
-        const emailWithHtml = e as EmailWithHtmlBody;
-        const isFromUser = this.isEmailFromUser(e.from, userEmail);
-        const sender = isFromUser ? "You" : e.fromName || e.from;
-        const date = new Date(e.receivedAt).toLocaleString();
-        const cleanedBody = cleanEmailForThread(e.body, emailWithHtml.htmlBody);
+      .map((emailEntry, idx) => {
+        const emailWithHtml = emailEntry as EmailWithHtmlBody;
+        const isFromUser = this.isEmailFromUser(emailEntry.from, userEmail);
+        const sender = isFromUser
+          ? "You"
+          : emailEntry.fromName || emailEntry.from;
+        const date = new Date(emailEntry.receivedAt).toLocaleString();
+        const cleanedBody = cleanEmailForThread(
+          emailEntry.body,
+          emailWithHtml.htmlBody,
+        );
         const messageLabel =
           idx === 0 && allThreadEmails.length > sliceCount + 1
             ? "Original"
@@ -552,7 +557,9 @@ export class SummarizationService {
       }
 
       // Check for keyword matches in the rule (simple fast matching)
-      const keywords = whenToUseLower.split(/\s+/).filter((w) => w.length > 3);
+      const keywords = whenToUseLower
+        .split(/\s+/)
+        .filter((word) => word.length > 3);
       for (const keyword of keywords) {
         if (subjectLower.includes(keyword) || fromLower.includes(keyword)) {
           return rule;

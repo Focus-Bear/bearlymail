@@ -101,16 +101,16 @@ function parseRecipientsToZoho(
 ): Array<{ address: string; personal?: string }> {
   return recipientStr
     .split(",")
-    .map((r) => r.trim())
-    .filter((r) => r.length > 0)
-    .map((r) => {
-      const match = r.match(/^(.*?)\s*<([^>]+)>$/);
+    .map((recipient) => recipient.trim())
+    .filter((recipient) => recipient.length > 0)
+    .map((recipient) => {
+      const match = recipient.match(/^(.*?)\s*<([^>]+)>$/);
       if (match) {
         const name = match[1].trim();
         const address = match[2].trim();
         return name ? { address, personal: name } : { address };
       }
-      return { address: r };
+      return { address: recipient };
     });
 }
 
@@ -173,15 +173,21 @@ export async function sendEmailViaZoho(
     bcc?: ZohoRecipient[];
   }
   const message: ZohoMessageBody = {
-    to: to.map((r) => ({ address: r.email, personal: r.name })),
+    to: to.map((result) => ({ address: result.email, personal: result.name })),
     subject,
     content: { html: htmlBody },
   };
 
   if (cc?.length)
-    message.cc = cc.map((r) => ({ address: r.email, personal: r.name }));
+    message.cc = cc.map((result) => ({
+      address: result.email,
+      personal: result.name,
+    }));
   if (bcc?.length)
-    message.bcc = bcc.map((r) => ({ address: r.email, personal: r.name }));
+    message.bcc = bcc.map((result) => ({
+      address: result.email,
+      personal: result.name,
+    }));
 
   const response = await zohoClient.post(
     `/accounts/${zohoAccountId}/messages`,

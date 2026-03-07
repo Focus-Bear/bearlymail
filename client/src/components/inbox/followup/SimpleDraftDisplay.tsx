@@ -38,8 +38,8 @@ export const SimpleDraftDisplay: React.FC<SimpleDraftDisplayProps> = ({
       </div>
       <div style={{ display: 'flex', gap: theme.spacing.sm }}>
         <button
-          onClick={(e) => {
-            e.stopPropagation();
+          onClick={(event) => {
+            event.stopPropagation();
             onToggleExpand();
           }}
           style={{
@@ -55,8 +55,8 @@ export const SimpleDraftDisplay: React.FC<SimpleDraftDisplayProps> = ({
           {isExpanded ? t('common.showLess') : t('common.showMore')}
         </button>
         <button
-          onClick={(e) => {
-            e.stopPropagation();
+          onClick={(event) => {
+            event.stopPropagation();
             onEdit();
           }}
           style={{

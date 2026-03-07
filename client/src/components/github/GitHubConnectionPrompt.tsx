@@ -79,14 +79,14 @@ export const GitHubConnectionPrompt: React.FC = () => {
           transition: 'background-color 0.2s ease',
           opacity: isConnecting ? CONNECTING_OPACITY : 1,
         }}
-        onMouseEnter={(e) => {
+        onMouseEnter={(event) => {
           if (!isConnecting) {
-            e.currentTarget.style.backgroundColor = theme.colors.primary.dark;
+            event.currentTarget.style.backgroundColor = theme.colors.primary.dark;
           }
         }}
-        onMouseLeave={(e) => {
+        onMouseLeave={(event) => {
           if (!isConnecting) {
-            e.currentTarget.style.backgroundColor = theme.colors.primary.main;
+            event.currentTarget.style.backgroundColor = theme.colors.primary.main;
           }
         }}
       >

@@ -17,14 +17,14 @@ export function useEmailProcessingPolling({
   onPoll,
 }: UseEmailProcessingPollingProps) {
   useEffect(() => {
-    const processingEmails = emails.filter(e => e.isProcessingPriority || e.isProcessingSummary);
+    const processingEmails = emails.filter(event => event.isProcessingPriority || event.isProcessingSummary);
 
     if (processingEmails.length === 0) {
       return;
     }
 
     const interval = setInterval(() => {
-      const stillProcessing = emails.some(e => e.isProcessingPriority || e.isProcessingSummary);
+      const stillProcessing = emails.some(event => event.isProcessingPriority || event.isProcessingSummary);
       if (stillProcessing) {
         onPoll();
       }
@@ -32,7 +32,7 @@ export function useEmailProcessingPolling({
 
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [emails.filter(e => e.isProcessingPriority || e.isProcessingSummary).length]);
+  }, [emails.filter(event => event.isProcessingPriority || event.isProcessingSummary).length]);
 }
 
 

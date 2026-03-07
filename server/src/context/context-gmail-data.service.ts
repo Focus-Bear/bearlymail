@@ -206,7 +206,8 @@ export class ContextEmailDataService {
     for (const [threadId, threadMessages] of threadMap.entries()) {
       // Sort messages by receivedAt
       threadMessages.sort(
-        (a, b) => a.receivedAt.getTime() - b.receivedAt.getTime(),
+        (itemA, itemB) =>
+          itemA.receivedAt.getTime() - itemB.receivedAt.getTime(),
       );
 
       // Get thread-level info from the last message
@@ -616,7 +617,7 @@ export class ContextEmailDataService {
               const headers = payload?.headers || [];
               const getHeader = (name: string) =>
                 headers.find(
-                  (h) => h.name?.toLowerCase() === name.toLowerCase(),
+                  (header) => header.name?.toLowerCase() === name.toLowerCase(),
                 )?.value || "";
 
               const from = getHeader("From");
@@ -670,7 +671,8 @@ export class ContextEmailDataService {
 
           // Sort by receivedAt
           threadEmails.sort(
-            (a, b) => a.receivedAt.getTime() - b.receivedAt.getTime(),
+            (itemA, itemB) =>
+              itemA.receivedAt.getTime() - itemB.receivedAt.getTime(),
           );
 
           const lastMessage = threadEmails[threadEmails.length - 1];
@@ -697,7 +699,7 @@ export class ContextEmailDataService {
 
       const batchResults = await Promise.all(batchPromises);
       threadsInRange.push(
-        ...(batchResults.filter((t) => t !== null) as ThreadData[]),
+        ...(batchResults.filter((thread) => thread !== null) as ThreadData[]),
       );
     }
 
@@ -1226,7 +1228,8 @@ export class ContextEmailDataService {
         const headers = messageToUse.payload?.headers || [];
         const subject =
           headers.find(
-            (h: { name: string; value?: string }) => h.name === "Subject",
+            (header: { name: string; value?: string }) =>
+              header.name === "Subject",
           )?.value || "(No Subject)";
 
         // Extract body

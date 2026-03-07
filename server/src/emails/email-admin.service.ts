@@ -254,7 +254,7 @@ export class EmailAdminService {
 
     const statsArray = Object.entries(statsByJobType)
       .map(([jobType, stats]) => ({ jobType, ...stats }))
-      .sort((a, b) => a.jobType.localeCompare(b.jobType));
+      .sort((itemA, itemB) => itemA.jobType.localeCompare(itemB.jobType));
 
     return { stats: statsArray, timestamp: new Date().toISOString() };
   }
@@ -262,9 +262,9 @@ export class EmailAdminService {
   parseModes(modesParam?: string): ValidMode[] {
     if (!modesParam) return [...VALID_MODES];
 
-    const requested = modesParam.split(",").map((m) => m.trim());
-    const filtered = requested.filter((m): m is ValidMode =>
-      VALID_MODES.includes(m as ValidMode),
+    const requested = modesParam.split(",").map((match) => match.trim());
+    const filtered = requested.filter((match): match is ValidMode =>
+      VALID_MODES.includes(match as ValidMode),
     );
 
     return filtered.length > 0 ? filtered : [...VALID_MODES];

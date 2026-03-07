@@ -32,7 +32,7 @@ export const PriorityFeedbackForm: React.FC<PriorityFeedbackFormProps> = ({
         </label>
         <textarea
           value={feedback}
-          onChange={(e) => onFeedbackChange(e.target.value)}
+          onChange={(event) => onFeedbackChange(event.target.value)}
           placeholder={t('priority.feedback.feedbackPlaceholder')}
           style={{
             width: '100%',
@@ -56,7 +56,7 @@ export const PriorityFeedbackForm: React.FC<PriorityFeedbackFormProps> = ({
           min="0"
           max="100"
           value={expectedPriority || ''}
-          onChange={(e) => onExpectedPriorityChange(e.target.value ? Number(e.target.value) : undefined)}
+          onChange={(event) => onExpectedPriorityChange(event.target.value ? Number(event.target.value) : undefined)}
           placeholder="0-100"
           style={{
             width: '100%',

@@ -19,13 +19,13 @@ const ConsentCheckbox: React.FC<{ checked: boolean; onChange: (v: boolean) => vo
   return (
     <div style={{ marginBottom: theme.spacing.lg }}>
       <label style={{ display: 'flex', alignItems: 'flex-start', gap: theme.spacing.md, cursor: 'pointer' }}>
-        <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} style={{ marginTop: '4px', width: '20px', height: '20px', flexShrink: 0, cursor: 'pointer' }} />
+        <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} style={{ marginTop: '4px', width: '20px', height: '20px', flexShrink: 0, cursor: 'pointer' }} />
         <div style={{ flex: 1 }}>
           <span style={{ color: theme.colors.text.primary, fontWeight: theme.typography.fontWeight.medium }}>
             {t('consent.iAcceptThe')}{' '}
-            <a href="/terms" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={linkStyle}>{t('consent.termsOfUse')}</a>
+            <a href="/terms" target="_blank" rel="noopener noreferrer" onClick={(event) => event.stopPropagation()} style={linkStyle}>{t('consent.termsOfUse')}</a>
             {' '}{t('consent.and')}{' '}
-            <a href="/privacy" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={linkStyle}>{t('consent.privacyPolicy')}</a>
+            <a href="/privacy" target="_blank" rel="noopener noreferrer" onClick={(event) => event.stopPropagation()} style={linkStyle}>{t('consent.privacyPolicy')}</a>
             <span style={{ color: theme.colors.accent.error }}> *</span>
           </span>
         </div>

@@ -29,15 +29,15 @@ function getDeclineButtonBg(responseStatus: ResponseStatus | null, isDisabled: b
   if (responseStatus === RESPONSE_STATUS_DECLINED) return theme.colors.text.secondary;
   return isDisabled ? theme.colors.border.medium : 'transparent';
 }
-function getAcceptLabel(responding: boolean, responseStatus: ResponseStatus | null, t: (k: string, fb?: string) => string): string {
-  if (responding && responseStatus !== RESPONSE_STATUS_ACCEPTED) return t('emailDetail.calendarInvite.accepting', 'Accepting...');
-  if (responseStatus === RESPONSE_STATUS_ACCEPTED) return t('emailDetail.calendarInvite.accepted', 'Accepted');
-  return t('emailDetail.calendarInvite.accept', 'Accept');
+function getAcceptLabel(responding: boolean, responseStatus: ResponseStatus | null, tFunc: (tKey: string, fb?: string) => string): string {
+  if (responding && responseStatus !== RESPONSE_STATUS_ACCEPTED) return tFunc('emailDetail.calendarInvite.accepting', 'Accepting...');
+  if (responseStatus === RESPONSE_STATUS_ACCEPTED) return tFunc('emailDetail.calendarInvite.accepted', 'Accepted');
+  return tFunc('emailDetail.calendarInvite.accept', 'Accept');
 }
-function getDeclineLabel(responding: boolean, responseStatus: ResponseStatus | null, t: (k: string, fb?: string) => string): string {
-  if (responding && responseStatus !== RESPONSE_STATUS_DECLINED) return t('emailDetail.calendarInvite.declining', 'Declining...');
-  if (responseStatus === RESPONSE_STATUS_DECLINED) return t('emailDetail.calendarInvite.declined', 'Declined');
-  return t('emailDetail.calendarInvite.decline', 'Decline');
+function getDeclineLabel(responding: boolean, responseStatus: ResponseStatus | null, tFunc: (tKey: string, fb?: string) => string): string {
+  if (responding && responseStatus !== RESPONSE_STATUS_DECLINED) return tFunc('emailDetail.calendarInvite.declining', 'Declining...');
+  if (responseStatus === RESPONSE_STATUS_DECLINED) return tFunc('emailDetail.calendarInvite.declined', 'Declined');
+  return tFunc('emailDetail.calendarInvite.decline', 'Decline');
 }
 
 export const CalendarInviteActions: React.FC<CalendarInviteActionsProps> = ({

@@ -14,10 +14,10 @@ interface DraftDisplayProps {
   sendError: string | null;
 }
 
-const getSendButtonText = (sendStatus: 'pending' | 'sending' | 'sent' | 'failed' | null, t: (key: string) => string): string => {
-  if (sendStatus === FOLLOW_UP_SEND_STATUS_SENDING) return t('inbox.sending');
-  if (sendStatus === FOLLOW_UP_SEND_STATUS_SENT) return t('inbox.sent');
-  return t('common.send');
+const getSendButtonText = (sendStatus: 'pending' | 'sending' | 'sent' | 'failed' | null, tFunc: (key: string) => string): string => {
+  if (sendStatus === FOLLOW_UP_SEND_STATUS_SENDING) return tFunc('inbox.sending');
+  if (sendStatus === FOLLOW_UP_SEND_STATUS_SENT) return tFunc('inbox.sent');
+  return tFunc('common.send');
 };
 
 const getSendButtonBg = (sendStatus: 'pending' | 'sending' | 'sent' | 'failed' | null): string => {
@@ -50,8 +50,8 @@ export const DraftDisplay: React.FC<DraftDisplayProps> = ({
       </div>
       <div style={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center', flexWrap: 'wrap' }}>
         <button
-          onClick={(e) => {
-            e.stopPropagation();
+          onClick={(event) => {
+            event.stopPropagation();
             onEdit();
           }}
           style={{
@@ -68,8 +68,8 @@ export const DraftDisplay: React.FC<DraftDisplayProps> = ({
           {t('common.edit')}
         </button>
         <button
-          onClick={(e) => {
-            e.stopPropagation();
+          onClick={(event) => {
+            event.stopPropagation();
             onSend();
           }}
           disabled={isDisabled}

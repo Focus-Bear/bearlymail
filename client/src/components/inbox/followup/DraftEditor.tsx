@@ -24,7 +24,7 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
   const { t } = useTranslation();
   
   return (
-    <div onClick={(e) => e.stopPropagation()}>
+    <div onClick={(event) => event.stopPropagation()}>
       <div style={{ marginBottom: theme.spacing.sm }}>
         <RichTextEditor
           content={editedDraft}
@@ -34,8 +34,8 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
       </div>
       <div style={{ display: 'flex', gap: theme.spacing.sm }}>
         <button
-          onClick={(e) => {
-            e.stopPropagation();
+          onClick={(event) => {
+            event.stopPropagation();
             onSave();
           }}
           disabled={isSavingDraft}
@@ -53,8 +53,8 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
           {isSavingDraft ? t('common.saving') : t('common.save')}
         </button>
         <button
-          onClick={(e) => {
-            e.stopPropagation();
+          onClick={(event) => {
+            event.stopPropagation();
             onCancel();
           }}
           disabled={isSavingDraft}

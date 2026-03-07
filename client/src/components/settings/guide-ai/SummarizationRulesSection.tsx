@@ -84,7 +84,7 @@ export const SummarizationRulesSection: React.FC<SummarizationRulesSectionProps>
 
           {!showAddForm && (
             <button
-              onClick={(e) => { e.stopPropagation(); setShowAddForm(true); }}
+              onClick={(event) => { event.stopPropagation(); setShowAddForm(true); }}
               style={{ padding: `${theme.spacing.sm} ${theme.spacing.md}`, backgroundColor: theme.colors.primary.main, color: COLOR_NAMED_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.md, cursor: 'pointer', fontSize: theme.typography.fontSize.sm, marginBottom: theme.spacing.lg, }}
             >
               {t('settings.addRule')}

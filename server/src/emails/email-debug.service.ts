@@ -311,8 +311,8 @@ export class EmailDebugService {
           })
         : [];
 
-    const dbThreadMap = new Map(dbThreads.map((t) => [t.threadId, t]));
-    const dbThreadInternalIds = dbThreads.map((t) => t.id);
+    const dbThreadMap = new Map(dbThreads.map((thread) => [thread.threadId, thread]));
+    const dbThreadInternalIds = dbThreads.map((thread) => thread.id);
 
     // ── Step 3: Fetch the latest email per thread (for subject) ──
     // We need one email per thread — we use a subquery to get the most recent one.
@@ -404,17 +404,17 @@ export class EmailDebugService {
     );
 
     // ── Step 5: Compute summary ──
-    const foundInDb = threads.filter((t) => t.inDb).length;
-    const notInDb = threads.filter((t) => !t.inDb).length;
+    const foundInDb = threads.filter((thread) => thread.inDb).length;
+    const notInDb = threads.filter((thread) => !thread.inDb).length;
     const inActionOrFollowUp = threads.filter(
-      (t) => t.appearsInActionOrFollowUp,
+      (thread) => thread.appearsInActionOrFollowUp,
     ).length;
     const notStarredInDb = threads.filter(
-      (t) => t.inDb && !t.isStarredInDb,
+      (thread) => thread.inDb && !thread.isStarredInDb,
     ).length;
     // "Starred in DB but hidden" = in DB, starCount > 0, still not in Action.
     const starredInDbButHidden = threads.filter(
-      (t) => t.inDb && t.isStarredInDb && !t.appearsInActionOrFollowUp,
+      (thread) => thread.inDb && thread.isStarredInDb && !thread.appearsInActionOrFollowUp,
     ).length;
 
     return {
@@ -493,29 +493,29 @@ export class EmailDebugService {
       .getRawMany();
 
     const threadIdsWithEmailsSet = new Set(
-      threadIdsWithEmails.map((r) => r.emailThreadId),
+      threadIdsWithEmails.map((rawRow) => rawRow.emailThreadId),
     );
 
     const threadsWithoutEmails = allThreads
-      .filter((t) => !threadIdsWithEmailsSet.has(t.id))
-      .map((t) => ({
-        id: `${t.id.substring(0, QUERY_LIMITS.THREAD_ID_PREVIEW)}...`,
-        threadId: `${t.threadId.substring(0, QUERY_LIMITS.THREAD_ID_PREVIEW)}...`,
-        starCount: t.starCount,
-        isArchived: t.isArchived,
+      .filter((thread) => !threadIdsWithEmailsSet.has(thread.id))
+      .map((thread) => ({
+        id: `${thread.id.substring(0, QUERY_LIMITS.THREAD_ID_PREVIEW)}...`,
+        threadId: `${thread.threadId.substring(0, QUERY_LIMITS.THREAD_ID_PREVIEW)}...`,
+        starCount: thread.starCount,
+        isArchived: thread.isArchived,
       }));
 
     return {
       totalEmailsInDb,
       emailsWithThreadId,
       orphanEmails: totalEmailsInDb - emailsWithThreadId,
-      orphanEmailDetails: orphanEmailsList.map((e) => ({
-        id: e.id,
-        threadId: e.threadId || "",
-        emailThreadId: e.emailThreadId,
-        subject: e.subject || "",
-        from: e.from || "",
-        receivedAt: e.receivedAt,
+      orphanEmailDetails: orphanEmailsList.map((emailEntry) => ({
+        id: emailEntry.id,
+        threadId: emailEntry.threadId || "",
+        emailThreadId: emailEntry.emailThreadId,
+        subject: emailEntry.subject || "",
+        from: emailEntry.from || "",
+        receivedAt: emailEntry.receivedAt,
       })),
       threadsInDb: allThreads.length,
       threadsWithoutEmails,
@@ -751,15 +751,15 @@ export class EmailDebugService {
         priorityScore: thread.priorityScore,
         updatedAt: thread.updatedAt,
       },
-      emails: emails.map((e) => ({
-        id: e.id,
-        subject: e.subject || "",
-        from: e.from || "",
-        receivedAt: e.receivedAt,
-        isSnoozed: e.isSnoozed,
-        snoozeUntil: e.snoozeUntil,
-        isBatched: e.isBatched,
-        batchReleaseAt: e.batchReleaseAt,
+      emails: emails.map((emailEntry) => ({
+        id: emailEntry.id,
+        subject: emailEntry.subject || "",
+        from: emailEntry.from || "",
+        receivedAt: emailEntry.receivedAt,
+        isSnoozed: emailEntry.isSnoozed,
+        snoozeUntil: emailEntry.snoozeUntil,
+        isBatched: emailEntry.isBatched,
+        batchReleaseAt: emailEntry.batchReleaseAt,
       })),
       visibility: {
         wouldShowInTriage,
@@ -1003,7 +1003,7 @@ export class EmailDebugService {
       await this.emailThreadRepository.update(
         {
           userId,
-          id: In(actuallyStale.map((t) => t.id)),
+          id: In(actuallyStale.map((thread) => thread.id)),
         },
         {
           syncStatus: "synced",
@@ -1014,8 +1014,8 @@ export class EmailDebugService {
 
     return {
       fixed: actuallyStale.length,
-      threadIds: actuallyStale.map((t) =>
-        t.threadId.substring(0, QUERY_LIMITS.THREAD_ID_PREVIEW),
+      threadIds: actuallyStale.map((thread) =>
+        thread.threadId.substring(0, QUERY_LIMITS.THREAD_ID_PREVIEW),
       ),
     };
   }

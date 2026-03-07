@@ -60,7 +60,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
           boxShadow: theme.shadows.xl,
           animation: 'fadeInScale 0.2s ease-out',
         }}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
       >
         <ConfirmModalHeader icon={icon} title={title} />
         <ConfirmModalBody message={message} />

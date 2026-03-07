@@ -100,14 +100,14 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
           data-testid="filter-toggle-button"
           title={t('inbox.filters.toggle')}
           style={{ padding: `${theme.spacing.xs} ${theme.spacing.sm}`, fontSize: theme.typography.fontSize.base, borderRadius: theme.borderRadius.md, border: hasActiveFilters ? 'none' : `1px solid ${theme.colors.border.medium}`, backgroundColor: (() => { if (hasActiveFilters) return theme.colors.primary.main; if (isFilterBarVisible) return theme.colors.background.subtle; return theme.colors.background.paper; })(), color: hasActiveFilters ? 'white' : theme.colors.text.primary, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: theme.spacing.xs, transition: theme.transitions.fast, flexShrink: 0, }}
-          onMouseEnter={(e) => {
+          onMouseEnter={(event) => {
             if (!hasActiveFilters) {
-              e.currentTarget.style.backgroundColor = theme.colors.background.subtle;
+              event.currentTarget.style.backgroundColor = theme.colors.background.subtle;
             }
           }}
-          onMouseLeave={(e) => {
+          onMouseLeave={(event) => {
             if (!hasActiveFilters) {
-              e.currentTarget.style.backgroundColor = isFilterBarVisible
+              event.currentTarget.style.backgroundColor = isFilterBarVisible
                 ? theme.colors.background.subtle
                 : theme.colors.background.paper;
             }

@@ -85,9 +85,9 @@ export function useInboxContentData({
   useEffect(() => {
     if (summaryCategories && summaryCategories.length > 0) {
       if (stableCategoryOrder.length === 0) {
-        onUpdateStableCategoryOrder(summaryCategories.map(c => c.name));
+        onUpdateStableCategoryOrder(summaryCategories.map(cat => cat.name));
       } else {
-        const newCats = summaryCategories.map(c => c.name).filter(name => !stableCategoryOrder.includes(name));
+        const newCats = summaryCategories.map(cat => cat.name).filter(name => !stableCategoryOrder.includes(name));
         if (newCats.length > 0) onUpdateStableCategoryOrder([...stableCategoryOrder, ...newCats]);
       }
     } else if (!summaryCategories) {
@@ -105,7 +105,7 @@ export function useInboxContentData({
 
   const displayCategories = useMemo(() => {
     if (!summaryCategories) return stableCategoryOrder.map(name => ({ name, id: null as string | null, count: emailCategoryMap.get(name)?.emails.length ?? 0 }));
-    const summaryMap = new Map(summaryCategories.map(c => [c.name, c]));
+    const summaryMap = new Map(summaryCategories.map(cat => [cat.name, cat]));
     return stableCategoryOrder.map(name => summaryMap.get(name) ?? { name, id: null, count: emailCategoryMap.get(name)?.emails.length ?? 0 });
   }, [summaryCategories, stableCategoryOrder, emailCategoryMap]);
 

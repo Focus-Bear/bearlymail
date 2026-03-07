@@ -58,7 +58,7 @@ export const WaitlistFormField: React.FC<WaitlistFormFieldProps> = ({
       {type === INPUT_TYPE_TEXTAREA ? (
         <textarea
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(event) => onChange(event.target.value)}
           onBlur={onBlur}
           required={required}
           rows={rows || (isMobile ? 3 : 4)}
@@ -72,7 +72,7 @@ export const WaitlistFormField: React.FC<WaitlistFormFieldProps> = ({
         <input
           type={type}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(event) => onChange(event.target.value)}
           onBlur={onBlur}
           required={required}
           style={inputStyle}

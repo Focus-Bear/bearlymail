@@ -134,11 +134,11 @@ describe('useEmailManagement', () => {
       await waitFor(() => {
         const emails = result.current.emails;
         // eslint-disable-next-line max-nested-callbacks -- Test structure requires nested callbacks: it -> renderHook -> waitFor -> find -> arrow
-        const email1 = emails.find((e) => e.id === '1');
+        const email1 = emails.find((event) => event.id === '1');
         return email1?.isRead === true;
       });
       const emails = result.current.emails;
-      const email1 = emails.find((e) => e.id === '1');
+      const email1 = emails.find((event) => event.id === '1');
       expect(email1?.isRead).toBe(true);
     });
 
@@ -189,11 +189,11 @@ describe('useEmailManagement', () => {
       await waitFor(() => {
         const emails = result.current.emails;
         // eslint-disable-next-line max-nested-callbacks -- Test structure requires nested callbacks: it -> renderHook -> waitFor -> find -> arrow
-        const email1 = emails.find((e) => e.id === '1');
+        const email1 = emails.find((event) => event.id === '1');
         return email1?.isRead === false;
       });
       const emails = result.current.emails;
-      const email1 = emails.find((e) => e.id === '1');
+      const email1 = emails.find((event) => event.id === '1');
       expect(email1?.isRead).toBe(false);
     });
 
@@ -243,26 +243,26 @@ describe('useEmailManagement', () => {
       await waitFor(() => {
         const emails = result.current.emails;
         // eslint-disable-next-line max-nested-callbacks -- Test structure requires nested callbacks: it -> renderHook -> waitFor -> find -> arrow
-        return emails.find((e) => e.id === '1')?.isRead === true;
+        return emails.find((event) => event.id === '1')?.isRead === true;
       });
       const emails1 = result.current.emails;
-      expect(emails1.find((e) => e.id === '1')?.isRead).toBe(true);
+      expect(emails1.find((event) => event.id === '1')?.isRead).toBe(true);
       
       await waitFor(() => {
         const emails = result.current.emails;
         // eslint-disable-next-line max-nested-callbacks -- Test structure requires nested callbacks: it -> renderHook -> waitFor -> find -> arrow
-        return emails.find((e) => e.id === '2')?.isRead === true;
+        return emails.find((event) => event.id === '2')?.isRead === true;
       });
       const emails2 = result.current.emails;
-      expect(emails2.find((e) => e.id === '2')?.isRead).toBe(true);
+      expect(emails2.find((event) => event.id === '2')?.isRead).toBe(true);
       
       await waitFor(() => {
         const emails = result.current.emails;
         // eslint-disable-next-line max-nested-callbacks -- Test structure requires nested callbacks: it -> renderHook -> waitFor -> find -> arrow
-        return emails.find((e) => e.id === '3')?.isRead === false;
+        return emails.find((event) => event.id === '3')?.isRead === false;
       });
       const emails3 = result.current.emails;
-      expect(emails3.find((e) => e.id === '3')?.isRead).toBe(false);
+      expect(emails3.find((event) => event.id === '3')?.isRead).toBe(false);
 
       await waitFor(() => {
         expect(mockedAxios.post).toHaveBeenCalledWith(
@@ -327,11 +327,11 @@ describe('useEmailManagement', () => {
       await waitFor(() => {
         const emails = result.current.emails;
         // eslint-disable-next-line max-nested-callbacks -- Test structure requires nested callbacks: it -> renderHook -> waitFor -> find -> arrow
-        return emails.find((e) => e.id === '1')?.isRead === false;
+        return emails.find((event) => event.id === '1')?.isRead === false;
       });
       const emails = result.current.emails;
-      expect(emails.find((e) => e.id === '1')?.isRead).toBe(false);
-      expect(emails.find((e) => e.id === '2')?.isRead).toBe(false);
+      expect(emails.find((event) => event.id === '1')?.isRead).toBe(false);
+      expect(emails.find((event) => event.id === '2')?.isRead).toBe(false);
 
       await waitFor(() => {
         expect(mockedAxios.post).toHaveBeenCalledWith(

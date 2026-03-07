@@ -284,7 +284,7 @@ export class ContactsService {
       take: limit,
     });
 
-    return contacts.map((c) => this.toSearchResult(c));
+    return contacts.map((contact) => this.toSearchResult(contact));
   }
 
   /**
@@ -371,7 +371,7 @@ export class ContactsService {
       },
     });
 
-    return contacts.map((c) => this.toSearchResult(c));
+    return contacts.map((contact) => this.toSearchResult(contact));
   }
 
   /**
@@ -481,16 +481,16 @@ export class ContactsService {
       notes,
       customFields,
       deals: dealsRaw.map(
-        (d: {
+        (deal: {
           id: string;
           title: string;
           value: number;
           stageName: string;
         }) => ({
-          id: d.id,
-          title: d.title,
-          value: d.value ? Number(d.value) : null,
-          stageName: d.stageName || null,
+          id: deal.id,
+          title: deal.title,
+          value: deal.value ? Number(deal.value) : null,
+          stageName: deal.stageName || null,
         }),
       ),
     };

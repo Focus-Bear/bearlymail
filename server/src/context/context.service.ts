@@ -1046,7 +1046,8 @@ export class ContextService {
           const batchPayloads = analysisBatchThreads
             .map((thread) => {
               const firstEmail = thread.emails?.sort(
-                (a, b) => a.receivedAt.getTime() - b.receivedAt.getTime(),
+                (itemA, itemB) =>
+                  itemA.receivedAt.getTime() - itemB.receivedAt.getTime(),
               )[0];
               if (!firstEmail) {
                 this.logger.warn(
@@ -1107,7 +1108,7 @@ export class ContextService {
                 isArchived: thread.isArchived || false,
               };
             })
-            .filter((t) => t !== null) as Array<{
+            .filter((thread) => thread !== null) as Array<{
             threadId?: string;
             from: string;
             fromName?: string;
@@ -1134,7 +1135,7 @@ export class ContextService {
         }
 
         this.logger.log(
-          `[CONTEXT-ANALYSIS] Created ${processedBatches.length} analysis batches from ${fetchedThreads.length} threads (${processedBatches.filter((b) => b.length > 0).length} non-empty)`,
+          `[CONTEXT-ANALYSIS] Created ${processedBatches.length} analysis batches from ${fetchedThreads.length} threads (${processedBatches.filter((itemB) => itemB.length > 0).length} non-empty)`,
         );
 
         // Enqueue analysis jobs for this fetch batch immediately (don't wait for all threads)
@@ -1224,7 +1225,7 @@ export class ContextService {
       const totalBatches = globalBatchIndex;
 
       this.logger.log(
-        `[CONTEXT-ANALYSIS] Calculated totalBatches: ${totalBatches} (globalBatchIndex: ${globalBatchIndex}, allProcessedBatches with content: ${allProcessedBatches.filter((b) => b.length > 0).length}, jobPromises.length: ${jobPromises.length})`,
+        `[CONTEXT-ANALYSIS] Calculated totalBatches: ${totalBatches} (globalBatchIndex: ${globalBatchIndex}, allProcessedBatches with content: ${allProcessedBatches.filter((itemB) => itemB.length > 0).length}, jobPromises.length: ${jobPromises.length})`,
       );
 
       // Note: totalBatches in job payloads was set to expectedTotalBatches when enqueuing
@@ -1258,7 +1259,7 @@ export class ContextService {
       }
 
       const successfulEnqueues = jobResults.filter(
-        (r) => r.jobId !== null,
+        (result) => result.jobId !== null,
       ).length;
       const failedEnqueues = jobResults.length - successfulEnqueues;
 
@@ -1911,8 +1912,8 @@ export class ContextService {
     // This was causing the bug where totalBatches=2 was being set during progressive fetching
     // The totalBatches should ONLY be set by analyzeAndLearnFromEmails after all batches are enqueued
     if (!totalBatches || totalBatches === 0) {
-      const completedBatchIndices = Object.keys(batchResults).map((k) =>
-        parseInt(k, 10),
+      const completedBatchIndices = Object.keys(batchResults).map((key) =>
+        parseInt(key, 10),
       );
       this.logger.log(
         `[PROGRESS-CHECK] totalBatches is ${totalBatches || "not set"} and ${completedBatchIndices.length} batches completed. ` +
@@ -1957,8 +1958,8 @@ export class ContextService {
     );
 
     // Find missing batches that need to be re-queued
-    const completedBatchIndices = Object.keys(batchResults).map((k) =>
-      parseInt(k, 10),
+    const completedBatchIndices = Object.keys(batchResults).map((key) =>
+      parseInt(key, 10),
     );
     const missingBatchIndices: number[] = [];
 
@@ -2168,8 +2169,8 @@ export class ContextService {
 
     // Log which batches are missing
     const completedBatchIndices = Object.keys(batchResults)
-      .map((k) => parseInt(k, 10))
-      .sort((a, b) => a - b);
+      .map((key) => parseInt(key, 10))
+      .sort((itemA, itemB) => itemA - itemB);
     const missingBatchIndices: number[] = [];
     for (let i = 0; i < totalExpectedBatches; i++) {
       if (!completedBatchIndices.includes(i) && !failedBatches.includes(i)) {
@@ -2801,10 +2802,10 @@ export class ContextService {
           ];
 
           const autoGenCount = consolidatedCategories.filter(
-            (c) => !c.isUserAdded,
+            (category) => !category.isUserAdded,
           ).length;
           const userCount = consolidatedCategories.filter(
-            (c) => c.isUserAdded,
+            (item) => item.isUserAdded,
           ).length;
 
           this.logger.log(
@@ -3697,7 +3698,7 @@ export class ContextService {
       };
     }
 
-    const existingIds = existing.map((e) => e.contextId);
+    const existingIds = existing.map((err) => err.contextId);
     if (existingIds.length > 0) {
       await this.contextRepository.delete({ contextId: In(existingIds) });
     }

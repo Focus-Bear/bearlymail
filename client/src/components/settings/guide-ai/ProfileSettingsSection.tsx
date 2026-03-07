@@ -100,7 +100,7 @@ const ProfileField: React.FC<{ label: string; value: string; isEditing: boolean;
     <div>
       <label style={{ ...theme.typography.body.medium, color: theme.colors.text.secondary, display: 'block', marginBottom: theme.spacing.xs }}>{label}</label>
       {isEditing ? (
-        <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} style={{ width: '100%', padding: theme.spacing.sm, borderRadius: theme.borderRadius.sm, border: `1px solid ${theme.colors.border.medium}`, ...theme.typography.body.large }} />
+        <input type="text" value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} style={{ width: '100%', padding: theme.spacing.sm, borderRadius: theme.borderRadius.sm, border: `1px solid ${theme.colors.border.medium}`, ...theme.typography.body.large }} />
       ) : (
         <div style={{ ...theme.typography.body.large, color: value ? theme.colors.text.primary : theme.colors.text.tertiary, fontStyle: value ? 'normal' : 'italic' }}>{value || t('settings.profile.notSet')}</div>
       )}

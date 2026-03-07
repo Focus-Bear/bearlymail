@@ -23,8 +23,8 @@ export const ActionItemInput: React.FC<ActionItemInputProps> = ({
       <input
         type="text"
         value={newActionItem}
-        onChange={(e) => onNewActionItemChange(e.target.value)}
-        onKeyDown={(e) => e.key === KEY_ENTER && onAddActionItem()}
+        onChange={(event) => onNewActionItemChange(event.target.value)}
+        onKeyDown={(event) => event.key === KEY_ENTER && onAddActionItem()}
         placeholder={t('emailDetail.addTaskPlaceholder')}
         style={{
           flex: 1,

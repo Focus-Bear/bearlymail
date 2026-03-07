@@ -32,9 +32,9 @@ const SumSection = ({ summary, loading, processing, defaultCollapsed = false }: 
         <span style={{ flex: 1, fontSize: Th.f.sm, fontWeight: 600, color: Th.text, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>AI Summary</span>
         {!loading && !processing && summary && (
           <span style={{ fontSize: Th.f.xs, color: Th.textSec, display: 'flex', gap: Th.sp.xs }}>
-            {['tldr', 'bullets', 'action-focused'].map(t => (
-              <span key={t} onClick={(e) => { e.stopPropagation(); setType(t); }} style={{ padding: '2px 8px', borderRadius: 999, backgroundColor: type === t ? ACCENT : 'transparent', color: type === t ? '#fff' : Th.textSec, cursor: 'pointer', fontSize: Th.f.xs, fontWeight: 500 }}>
-                {(() => { if (t === 'tldr') return 'TL;DR'; if (t === 'bullets') return 'Bullets'; return 'Actions'; })()}
+            {['tldr', 'bullets', 'action-focused'].map(item => (
+              <span key={item} onClick={(event) => { event.stopPropagation(); setType(item); }} style={{ padding: '2px 8px', borderRadius: 999, backgroundColor: type === item ? ACCENT : 'transparent', color: type === item ? '#fff' : Th.textSec, cursor: 'pointer', fontSize: Th.f.xs, fontWeight: 500 }}>
+                {(() => { if (item === 'tldr') return 'TL;DR'; if (item === 'bullets') return 'Bullets'; return 'Actions'; })()}
               </span>
             ))}
           </span>

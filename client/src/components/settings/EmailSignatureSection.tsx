@@ -55,7 +55,7 @@ export const EmailSignatureSection: React.FC<EmailSignatureSectionProps> = ({
         <textarea
           id="email-signature-input"
           value={emailSignature || ''}
-          onChange={(e) => onSignatureChange(e.target.value)}
+          onChange={(event) => onSignatureChange(event.target.value)}
           placeholder={t('settings.emailSignature.placeholder')}
           style={{
             width: '100%',

@@ -78,25 +78,27 @@ export class LLMService {
     }>,
   ): string {
     return receivedEmails
-      .map((e) => {
+      .map((emailEntry) => {
         const replyTimeMinutes =
-          e.timeToReply ??
-          (e.repliedAt
-            ? (new Date(e.repliedAt).getTime() -
-                new Date(e.receivedAt).getTime()) /
+          emailEntry.timeToReply ??
+          (emailEntry.repliedAt
+            ? (new Date(emailEntry.repliedAt).getTime() -
+                new Date(emailEntry.receivedAt).getTime()) /
               MILLISECONDS.SECOND /
               MINUTES.HOUR
             : null);
-        const readStatus = e.isRead ? "Read" : "Unread";
-        const archiveStatus = e.isArchived ? "Archived" : "InInbox";
+        const readStatus = emailEntry.isRead ? "Read" : "Unread";
+        const archiveStatus = emailEntry.isArchived ? "Archived" : "InInbox";
         const starStatus =
-          (e.starCount || 0) > 0 ? `Starred(${e.starCount})` : "NotStarred";
+          (emailEntry.starCount || 0) > 0
+            ? `Starred(${emailEntry.starCount})`
+            : "NotStarred";
         let behavior: string;
-        if (e.isArchived && !e.isRead) {
+        if (emailEntry.isArchived && !emailEntry.isRead) {
           behavior = "ArchivedWithoutReading";
-        } else if (e.isRead && !e.isArchived) {
+        } else if (emailEntry.isRead && !emailEntry.isArchived) {
           behavior = "ReadButKept";
-        } else if (e.isRead && e.isArchived) {
+        } else if (emailEntry.isRead && emailEntry.isArchived) {
           behavior = "ReadThenArchived";
         } else {
           behavior = "UnreadInInbox";
@@ -108,7 +110,7 @@ export class LLMService {
         const isQuickReply =
           replyTimeMinutes !== null &&
           replyTimeMinutes < QUERY_LIMITS.LLM_QUICK_REPLY_MINUTES;
-        return `From: ${e.fromName || e.from}, Subject: ${e.subject}, Read: ${readStatus}, ${archiveStatus}, ${starStatus}, Behavior: ${behavior}, ReplyTime: ${replyInfo}${isQuickReply ? " (QUICK)" : ""}`;
+        return `From: ${emailEntry.fromName || emailEntry.from}, Subject: ${emailEntry.subject}, Read: ${readStatus}, ${archiveStatus}, ${starStatus}, Behavior: ${behavior}, ReplyTime: ${replyInfo}${isQuickReply ? " (QUICK)" : ""}`;
       })
       .join("\n");
   }
@@ -124,13 +126,13 @@ export class LLMService {
   ): string {
     return sentEmails
       .slice(0, QUERY_LIMITS.LLM_SENT_EMAILS_LIMIT)
-      .map((e) => {
+      .map((emailEntry) => {
         const cleanBody = cleanEmailContent(
-          e.body,
+          emailEntry.body,
           null,
           QUERY_LIMITS.LLM_BODY_PREVIEW_LENGTH,
         );
-        return `To: ${e.to}, Subject: ${e.subject}\nFull Email Body:\n${cleanBody}\n---`;
+        return `To: ${emailEntry.to}, Subject: ${emailEntry.subject}\nFull Email Body:\n${cleanBody}\n---`;
       })
       .join("\n\n");
   }
@@ -140,16 +142,17 @@ export class LLMService {
   ): { receivedHours: string | null; replyHours: string | null } {
     const receivedHours: number[] = [];
     const replyHours: number[] = [];
-    receivedEmails.forEach((e) => {
-      if (e.receivedAt) receivedHours.push(new Date(e.receivedAt).getHours());
+    receivedEmails.forEach((emailEntry) => {
+      if (emailEntry.receivedAt)
+        receivedHours.push(new Date(emailEntry.receivedAt).getHours());
       if (
-        e.timeToReply !== null &&
-        e.timeToReply !== undefined &&
-        e.timeToReply < MINUTES.DAY
+        emailEntry.timeToReply !== null &&
+        emailEntry.timeToReply !== undefined &&
+        emailEntry.timeToReply < MINUTES.DAY
       ) {
-        const received = new Date(e.receivedAt);
+        const received = new Date(emailEntry.receivedAt);
         const replyTime = new Date(
-          received.getTime() + e.timeToReply * MILLISECONDS.MINUTE,
+          received.getTime() + emailEntry.timeToReply * MILLISECONDS.MINUTE,
         );
         replyHours.push(replyTime.getHours());
       }
@@ -1224,7 +1227,7 @@ export class LLMService {
 
     const _contextSummary = currentContext
       .slice(0, 10)
-      .map((c) => `${c.contextKey}: ${c.contextValue}`)
+      .map((item) => `${item.contextKey}: ${item.contextValue}`)
       .join("\n");
 
     const promptConfig = getPrompt("analyze_priority_feedback");
@@ -1294,11 +1297,13 @@ export class LLMService {
 
     // Count hours
     const hourCounts = new Map<number, number>();
-    hours.forEach((h) => hourCounts.set(h, (hourCounts.get(h) || 0) + 1));
+    hours.forEach((header) =>
+      hourCounts.set(header, (hourCounts.get(header) || 0) + 1),
+    );
 
     // Find peak hours (hours with most activity)
     const sortedHours = Array.from(hourCounts.entries())
-      .sort((a, b) => b[1] - a[1])
+      .sort((itemA, itemB) => itemB[1] - itemA[1])
       .slice(0, 3);
 
     if (sortedHours.length === 0) return "";
@@ -1334,13 +1339,13 @@ export class LLMService {
     }
 
     // Remove quoted/replied content from user's emails to focus on their actual responses
-    const cleanReplies = userReplies.map((e) => {
+    const cleanReplies = userReplies.map((emailEntry) => {
       const body = cleanEmailContent(
-        e.body,
+        emailEntry.body,
         null,
         BODY_PREVIEW_LENGTHS.CLASSIFICATION_PREVIEW,
       );
-      return `Subject: ${e.subject}\nBody: ${body}`;
+      return `Subject: ${emailEntry.subject}\nBody: ${body}`;
     });
 
     const repliesText = cleanReplies.join("\n\n---\n\n");
@@ -1531,7 +1536,7 @@ export class LLMService {
     );
     if (result.size === 0) {
       this.logger.error(
-        `No explanations generated! JSON keys: ${Object.keys(explanations).join(", ")}, Expected indices: ${emailDetailList.map((e) => e.index).join(", ")}`,
+        `No explanations generated! JSON keys: ${Object.keys(explanations).join(", ")}, Expected indices: ${emailDetailList.map((emailEntry) => emailEntry.index).join(", ")}`,
       );
     }
     return result;
@@ -2031,12 +2036,14 @@ export class LLMService {
             isUserAdded: !!item.isUserAdded,
           }),
         );
-      const withEmojis = consolidated.map((c) => ({
-        ...c,
-        name: c.isUserAdded ? c.name : this.ensureCategoryEmoji(c.name),
+      const withEmojis = consolidated.map((category) => ({
+        ...category,
+        name: category.isUserAdded
+          ? category.name
+          : this.ensureCategoryEmoji(category.name),
       }));
       this.logger.log(
-        `[CATEGORY-CONSOLIDATION] === SUCCESS === Consolidated ${autoCount} -> ${withEmojis.filter((c) => !c.isUserAdded).length} auto-generated (+ ${withEmojis.filter((c) => c.isUserAdded).length} user-added preserved)`,
+        `[CATEGORY-CONSOLIDATION] === SUCCESS === Consolidated ${autoCount} -> ${withEmojis.filter((category) => !category.isUserAdded).length} auto-generated (+ ${withEmojis.filter((cat) => cat.isUserAdded).length} user-added preserved)`,
       );
       return withEmojis;
     } catch (error) {
@@ -2060,13 +2067,16 @@ export class LLMService {
     );
     if (autoGeneratedCategories.length > 0) {
       this.logger.log(
-        `[CATEGORY-CONSOLIDATION] Auto-generated categories:\n${autoGeneratedCategories.map((c) => `  - ${c.name}`).join("\n")}`,
+        `[CATEGORY-CONSOLIDATION] Auto-generated categories:\n${autoGeneratedCategories.map((category) => `  - ${category.name}`).join("\n")}`,
       );
     }
 
     const fallbackResult = [
-      ...autoGeneratedCategories.map((c) => ({ ...c, isUserAdded: false })),
-      ...userAddedCategories.map((c) => ({ ...c, isUserAdded: true })),
+      ...autoGeneratedCategories.map((category) => ({
+        ...category,
+        isUserAdded: false,
+      })),
+      ...userAddedCategories.map((item) => ({ ...item, isUserAdded: true })),
     ];
 
     if (
@@ -2076,7 +2086,10 @@ export class LLMService {
       this.logger.log(
         `[CATEGORY-CONSOLIDATION] Skipping consolidation - only ${autoGeneratedCategories.length} auto-generated categories`,
       );
-      return autoGeneratedCategories.map((c) => ({ ...c, isUserAdded: false }));
+      return autoGeneratedCategories.map((category) => ({
+        ...category,
+        isUserAdded: false,
+      }));
     }
 
     const promptConfig = getPrompt("consolidate_categories");
@@ -2090,13 +2103,16 @@ export class LLMService {
     const categoriesText =
       autoGeneratedCategories.length > 0
         ? autoGeneratedCategories
-            .map((c) => `- ${c.name}: ${c.description}`)
+            .map((item) => `- ${item.name}: ${item.description}`)
             .join("\n")
         : "None";
     const userCategoriesText =
       userAddedCategories.length > 0
         ? userAddedCategories
-            .map((c) => `- ${c.name}: ${c.description} (USER-ADDED - PRESERVE)`)
+            .map(
+              (item) =>
+                `- ${item.name}: ${item.description} (USER-ADDED - PRESERVE)`,
+            )
             .join("\n")
         : "None";
 
@@ -2155,8 +2171,8 @@ export class LLMService {
       const parsed = JSON.parse(jsonMatch[0]);
       if (!Array.isArray(parsed)) return null;
       const existingNames = new Set(
-        existingCategories.map((c) =>
-          c.name.toLowerCase().replace(/^[^\w]+/, ""),
+        existingCategories.map((item) =>
+          item.name.toLowerCase().replace(/^[^\w]+/, ""),
         ),
       );
       return parsed
@@ -2213,7 +2229,7 @@ export class LLMService {
     const existingCategoriesText =
       existingCategories.length > 0
         ? existingCategories
-            .map((c) => `- ${c.name}: ${c.description}`)
+            .map((item) => `- ${item.name}: ${item.description}`)
             .join("\n")
         : "None";
 
@@ -2223,8 +2239,8 @@ export class LLMService {
     );
     const otherEmailsText = emailsToAnalyze
       .map(
-        (e, i) =>
-          `[Email ${i + 1}]\nFrom: ${e.fromName || e.from}\nSubject: ${e.subject}\nBody preview: ${cleanEmailContent(e.body || "", null, QUERY_LIMITS.SUBSTRING_SNIPPET_LENGTH)}`,
+        (emailEntry, i) =>
+          `[Email ${i + 1}]\nFrom: ${emailEntry.fromName || emailEntry.from}\nSubject: ${emailEntry.subject}\nBody preview: ${cleanEmailContent(emailEntry.body || "", null, QUERY_LIMITS.SUBSTRING_SNIPPET_LENGTH)}`,
       )
       .join("\n\n");
 

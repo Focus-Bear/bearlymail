@@ -20,7 +20,7 @@ interface BookingFormProps {
   bookingStatus: 'idle' | 'submitting' | 'success' | 'error';
   onGuestEmailChange: (email: string) => void;
   onGuestNameChange: (name: string) => void;
-  onSubmit: (e: React.FormEvent) => void;
+  onSubmit: (event: React.FormEvent) => void;
 }
 
 export const BookingForm: React.FC<BookingFormProps> = ({
@@ -53,7 +53,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
           <input
             type="text"
             value={guestName}
-            onChange={(e) => onGuestNameChange(e.target.value)}
+            onChange={(event) => onGuestNameChange(event.target.value)}
             required
             style={{
               width: '100%',
@@ -75,7 +75,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
           <input
             type="email"
             value={guestEmail}
-            onChange={(e) => onGuestEmailChange(e.target.value)}
+            onChange={(event) => onGuestEmailChange(event.target.value)}
             required
             style={{
               width: '100%',

@@ -116,7 +116,9 @@ export class ContactsController {
     @Request() req,
     @Query("emails") emails: string,
   ) {
-    const emailList = emails ? emails.split(",").map((e) => e.trim()) : [];
+    const emailList = emails
+      ? emails.split(",").map((emailEntry) => emailEntry.trim())
+      : [];
     return this.contactsService.getContactTypesByEmails(
       req.user.userId,
       emailList,

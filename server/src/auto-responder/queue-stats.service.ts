@@ -209,7 +209,8 @@ export class QueueStatsService {
     }
 
     const categoryData = stats.categoryReplyTimes.find(
-      (c) => c.category.toLowerCase() === category.toLowerCase(),
+      (categoryEntry) =>
+        categoryEntry.category.toLowerCase() === category.toLowerCase(),
     );
 
     if (

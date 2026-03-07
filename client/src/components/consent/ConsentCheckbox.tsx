@@ -36,7 +36,7 @@ export const ConsentCheckbox: React.FC<ConsentCheckboxProps> = ({
       <input
         type="checkbox"
         checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
+        onChange={(event) => onChange(event.target.checked)}
         disabled={disabled}
         style={{
           marginTop: '4px',
@@ -57,7 +57,7 @@ export const ConsentCheckbox: React.FC<ConsentCheckboxProps> = ({
             href={linkHref}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
             style={{
               color: theme.colors.primary.main,
               textDecoration: 'underline',

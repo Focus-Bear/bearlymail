@@ -31,13 +31,13 @@ export const SettingsHeader: React.FC = () => {
           fontWeight: theme.typography.fontWeight.bold,
           transition: theme.transitions.default,
         }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = theme.colors.primary.subtle;
-          e.currentTarget.style.color = theme.colors.primary.main;
+        onMouseEnter={(event) => {
+          event.currentTarget.style.backgroundColor = theme.colors.primary.subtle;
+          event.currentTarget.style.color = theme.colors.primary.main;
         }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = theme.colors.background.subtle;
-          e.currentTarget.style.color = theme.colors.text.secondary;
+        onMouseLeave={(event) => {
+          event.currentTarget.style.backgroundColor = theme.colors.background.subtle;
+          event.currentTarget.style.color = theme.colors.text.secondary;
         }}
         title={t('help.title')}
       >

@@ -298,9 +298,9 @@ export class Office365Provider implements EmailProvider {
 
       try {
         const latestMessage = messages.sort(
-          (a, b) =>
-            new Date(b.receivedDateTime || 0).getTime() -
-            new Date(a.receivedDateTime || 0).getTime(),
+          (itemA, itemB) =>
+            new Date(itemB.receivedDateTime || 0).getTime() -
+            new Date(itemA.receivedDateTime || 0).getTime(),
         )[0];
 
         const isInInbox = inboxMessages.some(

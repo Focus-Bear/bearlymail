@@ -13,8 +13,8 @@ import { AppDispatch } from 'store/store';
 interface UseBulkEmailActionsProps {
   selectedEmailIds: Set<string>;
   setSelectedEmailIds: React.Dispatch<React.SetStateAction<Set<string>>>;
-  handleArchive: (emailId: string, e: React.MouseEvent) => Promise<void>;
-  handleSetStarCount: (emailId: string, starCount: number, e?: React.MouseEvent) => Promise<void>;
+  handleArchive: (emailId: string, event: React.MouseEvent) => Promise<void>;
+  handleSetStarCount: (emailId: string, starCount: number, event?: React.MouseEvent) => Promise<void>;
   handleBulkMarkAsRead?: (emailIds: string[]) => Promise<void>;
   handleBulkMarkAsUnread?: (emailIds: string[]) => Promise<void>;
   onTabCountsUpdateOptimistically?: (changes: { triage?: number; action?: number; followUp?: number }) => void;
@@ -49,7 +49,7 @@ export function useBulkEmailActions({
     captureEvent('bulk_archive_clicked', { selected_count: emailIdsToArchive.length });
 
     // Create a Map for O(1) email lookups (avoids O(N*M) complexity)
-    const emailsById = new Map(emails.map(e => [e.id, e]));
+    const emailsById = new Map(emails.map(event => [event.id, event]));
 
     // Store emails for potential rollback and track category counts
     const emailsToArchive: Email[] = [];

@@ -77,7 +77,7 @@ export function useScheduledEmails() {
   const cancelScheduledEmail = useCallback(async (scheduledEmailId: string) => {
     try {
       await axios.delete(`${API_URL}/scheduled-emails/${scheduledEmailId}`);
-      setScheduledEmails(prev => prev.filter(e => e.id !== scheduledEmailId));
+      setScheduledEmails(prev => prev.filter(event => event.id !== scheduledEmailId));
       return true;
     } catch (error) {
       console.error('Failed to cancel scheduled email:', error);

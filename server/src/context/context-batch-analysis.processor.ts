@@ -305,7 +305,8 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
           batch = threads
             .map((thread) => {
               const firstEmail = thread.emails?.sort(
-                (a, b) => a.receivedAt.getTime() - b.receivedAt.getTime(),
+                (itemA, itemB) =>
+                  itemA.receivedAt.getTime() - itemB.receivedAt.getTime(),
               )[0];
               if (!firstEmail) {
                 return null;
@@ -361,11 +362,13 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
                 isArchived: thread.isArchived || false,
                 userReplied,
                 emailCount: thread.emails?.length || 0,
-                readCount: thread.emails?.filter((e) => e.isRead).length || 0,
+                readCount:
+                  thread.emails?.filter((emailEntry) => emailEntry.isRead)
+                    .length || 0,
                 receivedHour: firstEmail.receivedAt.getHours(),
               };
             })
-            .filter((t) => t !== null) as Array<{
+            .filter((thread) => thread !== null) as Array<{
             threadId?: string;
             from: string;
             fromName?: string;
@@ -513,7 +516,7 @@ export class ContextBatchAnalysisProcessor implements OnModuleInit {
 
         // Extract thread IDs from batch for source linking
         const batchThreadIds = batch
-          .map((t: { threadId?: string }) => t.threadId)
+          .map((thread: { threadId?: string }) => thread.threadId)
           .filter((id): id is string => !!id);
 
         // Store this batch's result (including thread IDs for fact-checking)

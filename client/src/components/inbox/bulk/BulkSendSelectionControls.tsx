@@ -22,7 +22,7 @@ export const BulkSendSelectionControls: React.FC<BulkSendSelectionControlsProps>
 }) => {
   const { t } = useTranslation();
   const isOverLimit = selectedCount > maxAllowed;
-  const allSelected = selectedCount === allThreads.filter(t => t.followUp?.draftFollowUp).length;
+  const allSelected = selectedCount === allThreads.filter(thread => thread.followUp?.draftFollowUp).length;
 
   return (
     <div>

@@ -162,10 +162,10 @@ export class PriorityLearningService {
 
       // Count how many times user starred emails from this sender (unused but kept for future use)
       const _starredCount = recentEmailsFromSender.filter(
-        (e) => e.starCount > 0,
+        (emailEntry) => emailEntry.starCount > 0,
       ).length;
       const threeStarCount = recentEmailsFromSender.filter(
-        (e) => e.starCount === STAR_COUNTS.HIGH,
+        (emailEntry) => emailEntry.starCount === STAR_COUNTS.HIGH,
       ).length;
 
       // If user consistently gives 3 stars to this sender, suggest adding as VIP
@@ -252,10 +252,10 @@ export class PriorityLearningService {
         },
         reasonType,
         reasonText,
-        contexts.map((c) => ({
-          contextKey: c.contextKey,
-          contextValue: c.contextValue,
-          priority: c.priority,
+        contexts.map((item) => ({
+          contextKey: item.contextKey,
+          contextValue: item.contextValue,
+          priority: item.priority,
         })),
         undefined,
         // provider
@@ -450,13 +450,13 @@ export class PriorityLearningService {
       .take(QUERY_LIMITS.PRIORITY_LEARNING_MAX_SAMPLES)
       .getRawAndEntities();
 
-    return result.entities.map((e, index) => {
+    return result.entities.map((emailEntry, index) => {
       const raw = result.raw[index] as {
         thread_starCount?: number;
         thread_isArchived?: boolean;
       };
       // Extend email with thread properties from the raw join result
-      return Object.assign(e, {
+      return Object.assign(emailEntry, {
         starCount: raw.thread_starCount ?? 0,
         isArchived: raw.thread_isArchived ?? false,
       }) as EmailWithThreadProps;
@@ -597,7 +597,7 @@ export class PriorityLearningService {
     const subjectWords = (email.subject || "")
       .toLowerCase()
       .split(/\s+/)
-      .filter((w) => w.length > 3);
+      .filter((word) => word.length > 3);
     patterns.push(
       ...subjectWords.slice(0, QUERY_LIMITS.SUBJECT_WORDS_TOP_COUNT),
     );
@@ -642,9 +642,9 @@ export class PriorityLearningService {
     });
 
     const similarContext = existingContexts.find(
-      (c) =>
-        c.contextValue.toLowerCase().includes(senderName.toLowerCase()) ||
-        senderName.toLowerCase().includes(c.contextValue.toLowerCase()),
+      (item) =>
+        item.contextValue.toLowerCase().includes(senderName.toLowerCase()) ||
+        senderName.toLowerCase().includes(item.contextValue.toLowerCase()),
     );
 
     if (similarContext) {
@@ -716,10 +716,10 @@ export class PriorityLearningService {
     const currentContexts = await this.userContextRepository.find({
       where: { userId },
     });
-    return currentContexts.slice(0, 10).map((c) => ({
-      contextKey: c.contextKey,
-      contextValue: c.contextValue,
-      priority: c.priority,
+    return currentContexts.slice(0, 10).map((item) => ({
+      contextKey: item.contextKey,
+      contextValue: item.contextValue,
+      priority: item.priority,
     }));
   }
 

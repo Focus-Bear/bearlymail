@@ -58,8 +58,8 @@ export const useSummarizationRules = () => {
   }, [editSummarizationWhen, editSummarizationHow, fetchSummarizationRules]);
 
   const deleteSummarizationRule = useCallback(async (ruleId: string) => {
-    const deletedRule = summarizationRules.find(r => r.ruleId === ruleId);
-    setSummarizationRules(prev => prev.filter(r => r.ruleId !== ruleId));
+    const deletedRule = summarizationRules.find(rule => rule.ruleId === ruleId);
+    setSummarizationRules(prev => prev.filter(rule => rule.ruleId !== ruleId));
     
     try {
       await axios.delete(`${API_URL}/summarize/rules/${ruleId}`);

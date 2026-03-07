@@ -28,11 +28,11 @@ export const ComposeButton: React.FC = () => {
         fontWeight: theme.typography.fontWeight.medium,
         transition: theme.transitions.fast,
       }}
-      onMouseEnter={(e) =>
-        (e.currentTarget.style.backgroundColor = theme.colors.secondary.dark)
+      onMouseEnter={(event) =>
+        (event.currentTarget.style.backgroundColor = theme.colors.secondary.dark)
       }
-      onMouseLeave={(e) =>
-        (e.currentTarget.style.backgroundColor = theme.colors.secondary.main)
+      onMouseLeave={(event) =>
+        (event.currentTarget.style.backgroundColor = theme.colors.secondary.main)
       }
     >
       {t('compose.title')}

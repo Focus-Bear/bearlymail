@@ -65,8 +65,8 @@ const emailSlice = createSlice({
       state.currentOffset = 0;
     },
     appendEmails: (state, action: PayloadAction<Email[]>) => {
-      const existingIds = new Set(state.emails.map(e => e.id));
-      const newEmails = action.payload.filter(e => !existingIds.has(e.id));
+      const existingIds = new Set(state.emails.map(event => event.id));
+      const newEmails = action.payload.filter(event => !existingIds.has(event.id));
       state.emails = [...state.emails, ...newEmails];
     },
     /**
@@ -78,16 +78,16 @@ const emailSlice = createSlice({
     updateCategoryEmails: (state, action: PayloadAction<{ categoryName: string; emails: Email[] }>) => {
       const { categoryName, emails } = action.payload;
       const isOther = categoryName === CATEGORY_OTHER;
-      const incomingIds = new Set(emails.map(e => e.id));
+      const incomingIds = new Set(emails.map(event => event.id));
       // Remove emails that previously belonged to this category AND any emails
       // whose ID matches an incoming email (they may have been loaded under a
       // different category due to concurrent fetches or backend category-sync races).
-      state.emails = state.emails.filter(e => {
-        if (incomingIds.has(e.id)) return false;
+      state.emails = state.emails.filter(event => {
+        if (incomingIds.has(event.id)) return false;
         if (isOther) {
-          return e.category !== null && e.category !== undefined && e.category !== '' && e.category !== CATEGORY_OTHER;
+          return event.category !== null && event.category !== undefined && event.category !== '' && event.category !== CATEGORY_OTHER;
         }
-        return e.category !== categoryName;
+        return event.category !== categoryName;
       });
       state.emails = [...state.emails, ...emails];
     },
@@ -131,21 +131,21 @@ const emailSlice = createSlice({
     },
     restoreEmail: (state, action: PayloadAction<Email>) => {
       // Insert email back in sorted order: priority DESC, threadUpdatedAt DESC, threadId (stable)
-      const newEmails = [...state.emails, action.payload].sort((a, b) => {
+      const newEmails = [...state.emails, action.payload].sort((itemA, itemB) => {
         // Primary: priority score DESC
-        const aScore = getEmailPriorityScore(a);
-        const bScore = getEmailPriorityScore(b);
+        const aScore = getEmailPriorityScore(itemA);
+        const bScore = getEmailPriorityScore(itemB);
         if (Math.abs(bScore - aScore) > PRIORITY_SCORE_TINY_THRESHOLD) {
           return bScore - aScore;
         }
         // Secondary: threadUpdatedAt DESC
-        const aUpdatedAt = a.threadUpdatedAt ? new Date(a.threadUpdatedAt).getTime() : 0;
-        const bUpdatedAt = b.threadUpdatedAt ? new Date(b.threadUpdatedAt).getTime() : 0;
+        const aUpdatedAt = itemA.threadUpdatedAt ? new Date(itemA.threadUpdatedAt).getTime() : 0;
+        const bUpdatedAt = itemB.threadUpdatedAt ? new Date(itemB.threadUpdatedAt).getTime() : 0;
         if (bUpdatedAt !== aUpdatedAt) {
           return bUpdatedAt - aUpdatedAt;
         }
         // Final stable tiebreaker: threadId
-        return a.threadId.localeCompare(b.threadId);
+        return itemA.threadId.localeCompare(itemB.threadId);
       });
       state.emails = newEmails;
     },
@@ -183,7 +183,7 @@ const emailSlice = createSlice({
       if (!state.loadedCategoryNames.includes(action.payload)) {
         state.loadedCategoryNames.push(action.payload);
       }
-      state.loadingCategoryNames = state.loadingCategoryNames.filter(n => n !== action.payload);
+      state.loadingCategoryNames = state.loadingCategoryNames.filter(name => name !== action.payload);
     },
     markCategoryLoading: (state, action: PayloadAction<string>) => {
       if (!state.loadingCategoryNames.includes(action.payload)) {
@@ -194,7 +194,7 @@ const emailSlice = createSlice({
       // Remove from loading — but do NOT add to loaded.
       // This keeps isLoaded = false so the next expand triggers a retry.
       // Existing emails (if any) are intentionally preserved.
-      state.loadingCategoryNames = state.loadingCategoryNames.filter(n => n !== action.payload);
+      state.loadingCategoryNames = state.loadingCategoryNames.filter(name => name !== action.payload);
     },
     clearCategoryState: (state) => {
       state.categorySummary = null;
@@ -209,7 +209,7 @@ const emailSlice = createSlice({
         ? { categoryName: action.payload, count: 1 }
         : action.payload;
       if (state.categorySummary) {
-        const category = state.categorySummary.find(c => c.name === categoryName);
+        const category = state.categorySummary.find(cat => cat.name === categoryName);
         if (category) {
           category.count = Math.max(0, category.count - count);
         }
@@ -220,7 +220,7 @@ const emailSlice = createSlice({
         ? { categoryName: action.payload, count: 1 }
         : action.payload;
       if (state.categorySummary) {
-        const category = state.categorySummary.find(c => c.name === categoryName);
+        const category = state.categorySummary.find(cat => cat.name === categoryName);
         if (category) {
           category.count += count;
         }

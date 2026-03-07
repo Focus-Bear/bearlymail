@@ -70,8 +70,9 @@ export class GmailService {
     });
     const headers = fullMsg.data.payload?.headers || [];
     const subject =
-      headers.find((h) => h.name === "Subject")?.value || "(No Subject)";
-    const from = headers.find((h) => h.name === "From")?.value || "";
+      headers.find((header) => header.name === "Subject")?.value ||
+      "(No Subject)";
+    const from = headers.find((header) => header.name === "From")?.value || "";
     const labelIds = fullMsg.data.labelIds || [];
     const starCount = labelIds.includes("STARRED") ? 3 : 0;
     const fromMatch = from.match(/(.*)<(.+)>/);
@@ -181,8 +182,9 @@ export class GmailService {
     });
     const headers = fullMsg.data.payload?.headers || [];
     const subject =
-      headers.find((h) => h.name === "Subject")?.value || "(No Subject)";
-    const from = headers.find((h) => h.name === "From")?.value || "";
+      headers.find((header) => header.name === "Subject")?.value ||
+      "(No Subject)";
+    const from = headers.find((header) => header.name === "From")?.value || "";
     const labelIds = fullMsg.data.labelIds || [];
     const starCount = labelIds.includes("STARRED") ? 3 : 0;
     const fromMatch = from.match(/(.*)<(.+)>/);

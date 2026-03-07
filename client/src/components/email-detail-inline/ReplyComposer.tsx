@@ -77,31 +77,31 @@ const useReplyComposerState = (
   const dragCounterRef = useRef(0);
 
   useEffect(() => {
-    const attachmentIdsString = initialAttachments.map(a => a.attachmentId).join(',');
+    const attachmentIdsString = initialAttachments.map(attachment => attachment.attachmentId).join(',');
     if (attachmentIdsString !== prevAttachmentsRef.current) {
       prevAttachmentsRef.current = attachmentIdsString;
-      setForwardAttachmentIds(initialAttachments.map(a => a.attachmentId));
+      setForwardAttachmentIds(initialAttachments.map(attachment => attachment.attachmentId));
     }
   }, [initialAttachments]);
 
-  const handleDragEnter = useCallback((e: React.DragEvent) => {
-    e.preventDefault(); e.stopPropagation();
+  const handleDragEnter = useCallback((event: React.DragEvent) => {
+    event.preventDefault(); event.stopPropagation();
     dragCounterRef.current++;
-    if (e.dataTransfer?.items && e.dataTransfer.items.length > 0) setIsDragging(true);
+    if (event.dataTransfer?.items && event.dataTransfer.items.length > 0) setIsDragging(true);
   }, []);
 
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault(); e.stopPropagation();
+  const handleDragLeave = useCallback((event: React.DragEvent) => {
+    event.preventDefault(); event.stopPropagation();
     dragCounterRef.current--;
     if (dragCounterRef.current === 0) setIsDragging(false);
   }, []);
 
-  const handleDragOver = useCallback((e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); }, []);
+  const handleDragOver = useCallback((event: React.DragEvent) => { event.preventDefault(); event.stopPropagation(); }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault(); e.stopPropagation();
+  const handleDrop = useCallback((event: React.DragEvent) => {
+    event.preventDefault(); event.stopPropagation();
     setIsDragging(false); dragCounterRef.current = 0;
-    const droppedFiles = e.dataTransfer?.files;
+    const droppedFiles = event.dataTransfer?.files;
     if (droppedFiles && droppedFiles.length > 0) setFiles(prev => [...prev, ...Array.from(droppedFiles)]);
   }, []);
 
@@ -135,7 +135,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
 
   if (!showReplyComposer) return null;
 
-  const forwardAttachmentsToShow = attachments.filter(a => forwardAttachmentIds.includes(a.attachmentId));
+  const forwardAttachmentsToShow = attachments.filter(attachment => forwardAttachmentIds.includes(attachment.attachmentId));
 
   return (
     <div className="animate-fade-in" onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onDragOver={handleDragOver} onDrop={handleDrop} style={{ marginBottom: theme.spacing.xl, padding: theme.spacing.xl, backgroundColor: theme.colors.background.paper, borderRadius: theme.borderRadius.lg, border: `1px solid ${isDragging ? theme.colors.primary.main : theme.colors.primary.light}`, boxShadow: theme.shadows.md, position: 'relative' }}>

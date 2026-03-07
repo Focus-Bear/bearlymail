@@ -45,19 +45,19 @@ export const SummarySection: React.FC<SummarySectionProps> = ({
     <div style={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center' }}>
       <select
         value={summaryType}
-        onChange={(e) => {
-          if (e.target.value === SUMMARY_TYPE_CUSTOM) {
+        onChange={(event) => {
+          if (event.target.value === SUMMARY_TYPE_CUSTOM) {
             onShowRuleModal();
-          } else if (e.target.value.startsWith(SUMMARY_TYPE_CUSTOM_PREFIX)) {
-            const ruleId = e.target.value.replace(SUMMARY_TYPE_CUSTOM_PREFIX, '');
-            const rule = customRules.find(r => r.ruleId === ruleId);
+          } else if (event.target.value.startsWith(SUMMARY_TYPE_CUSTOM_PREFIX)) {
+            const ruleId = event.target.value.replace(SUMMARY_TYPE_CUSTOM_PREFIX, '');
+            const rule = customRules.find(rule => rule.ruleId === ruleId);
             if (rule) {
-              onSummaryTypeChange(e.target.value);
+              onSummaryTypeChange(event.target.value);
             } else {
               onSummaryTypeChange(summaryType);
             }
           } else {
-            onSummaryTypeChange(e.target.value);
+            onSummaryTypeChange(event.target.value);
           }
         }}
         disabled={isGeneratingSummary}

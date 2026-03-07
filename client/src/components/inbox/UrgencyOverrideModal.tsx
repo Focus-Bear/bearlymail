@@ -85,7 +85,7 @@ export const UrgencyOverrideModal: React.FC<UrgencyOverrideModalProps> = ({
           </label>
           <textarea
             value={reason}
-            onChange={(e) => setReason(e.target.value)}
+            onChange={(event) => setReason(event.target.value)}
             placeholder={t('priority.override.reasonPlaceholder')}
             style={{
               width: '100%',

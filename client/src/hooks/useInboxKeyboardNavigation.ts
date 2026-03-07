@@ -9,7 +9,7 @@ interface UseInboxKeyboardNavigationProps {
   selectedEmailIndex: number;
   setSelectedEmailIndex: (index: number) => void;
   splitView: ReturnType<typeof useSplitView>;
-  onEmailSelect: (emailId: string, e: React.MouseEvent) => void;
+  onEmailSelect: (emailId: string, event: React.MouseEvent) => void;
   emailListRef: React.RefObject<HTMLDivElement | null>;
   emailDetailRef: React.RefObject<HTMLDivElement | null>;
 }
@@ -27,14 +27,14 @@ export function useInboxKeyboardNavigation({
     if (splitView.isMobile) return;
 
     // eslint-disable-next-line complexity, max-statements -- Keyboard navigation requires handling multiple key combinations and actions
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === KEY_ESCAPE && splitView.selectedEmailId) {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === KEY_ESCAPE && splitView.selectedEmailId) {
         splitView.closeEmail();
         emailListRef.current?.focus();
         return;
       }
 
-      if (e.key === KEY_TAB && !e.shiftKey && document.activeElement) {
+      if (event.key === KEY_TAB && !event.shiftKey && document.activeElement) {
         const activeEl = document.activeElement;
         const isInList = emailListRef.current?.contains(activeEl);
         const isInDetail = emailDetailRef.current?.contains(activeEl);
@@ -46,7 +46,7 @@ export function useInboxKeyboardNavigation({
           if (focusableInList && focusableInList.length > 0) {
             const lastFocusable = focusableInList[focusableInList.length - 1] as HTMLElement;
             if (activeEl === lastFocusable || activeEl === emailListRef.current) {
-              e.preventDefault();
+              event.preventDefault();
               const firstFocusableInDetail = emailDetailRef.current?.querySelector(
                 'a, button, input, textarea, select, [tabindex]:not([tabindex="-1"])'
               ) as HTMLElement;
@@ -56,7 +56,7 @@ export function useInboxKeyboardNavigation({
         }
       }
 
-      if (e.key === KEY_TAB && e.shiftKey && document.activeElement) {
+      if (event.key === KEY_TAB && event.shiftKey && document.activeElement) {
         const activeEl = document.activeElement;
         const isInList = emailListRef.current?.contains(activeEl);
         const isInDetail = emailDetailRef.current?.contains(activeEl);
@@ -68,7 +68,7 @@ export function useInboxKeyboardNavigation({
           if (focusableInDetail && focusableInDetail.length > 0) {
             const firstFocusable = focusableInDetail[0] as HTMLElement;
             if (activeEl === firstFocusable) {
-              e.preventDefault();
+              event.preventDefault();
               const lastFocusableInList = emailListRef.current?.querySelector(
                 'a, button, input, textarea, select, [tabindex]:not([tabindex="-1"])'
               ) as HTMLElement;
@@ -79,9 +79,9 @@ export function useInboxKeyboardNavigation({
       }
 
       if (emailListRef.current?.contains(document.activeElement)) {
-        const visibleEmails = emails.filter(e => !e.isArchived);
-        if (e.key === KEY_ARROW_DOWN && selectedEmailIndex < visibleEmails.length - 1) {
-          e.preventDefault();
+        const visibleEmails = emails.filter(event => !event.isArchived);
+        if (event.key === KEY_ARROW_DOWN && selectedEmailIndex < visibleEmails.length - 1) {
+          event.preventDefault();
           const newIndex = selectedEmailIndex + 1;
           setSelectedEmailIndex(newIndex);
           // Scroll the newly selected email into view
@@ -93,8 +93,8 @@ export function useInboxKeyboardNavigation({
               emailElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
           }, 0);
-        } else if (e.key === KEY_ARROW_UP && selectedEmailIndex > 0) {
-          e.preventDefault();
+        } else if (event.key === KEY_ARROW_UP && selectedEmailIndex > 0) {
+          event.preventDefault();
           const newIndex = selectedEmailIndex - 1;
           setSelectedEmailIndex(newIndex);
           // Scroll the newly selected email into view
@@ -106,9 +106,9 @@ export function useInboxKeyboardNavigation({
               emailElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
           }, 0);
-        } else if (e.key === KEY_ENTER && selectedEmailIndex >= 0 && visibleEmails[selectedEmailIndex]) {
-          e.preventDefault();
-          onEmailSelect(visibleEmails[selectedEmailIndex].id, e as any);
+        } else if (event.key === KEY_ENTER && selectedEmailIndex >= 0 && visibleEmails[selectedEmailIndex]) {
+          event.preventDefault();
+          onEmailSelect(visibleEmails[selectedEmailIndex].id, event as any);
         }
       }
     };

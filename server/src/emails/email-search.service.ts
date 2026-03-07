@@ -222,7 +222,7 @@ export class EmailSearchService {
       onProgress?.("fetching", "Fetching email details...");
       const matchedEmails = await this.fetchMatchedDbEmails(userId, rawEmails);
       const messageIds = rawEmails
-        .map((e) => e.messageId as string | undefined)
+        .map((emailEntry) => emailEntry.messageId as string | undefined)
         .filter((id): id is string => id !== null && id !== undefined);
 
       if (matchedEmails.length === 0) {
@@ -276,7 +276,10 @@ export class EmailSearchService {
           order: { receivedAt: "DESC" },
         });
         const syncedEmailMap = new Map(
-          syncedDbEmails.map((e) => [e.messageId, e]),
+          syncedDbEmails.map((emailEntry) => [
+            emailEntry.messageId,
+            emailEntry,
+          ]),
         );
         for (const rawEmail of rawEmails) {
           const messageId = rawEmail.messageId as string | undefined;
@@ -393,8 +396,8 @@ export class EmailSearchService {
 
     if (!accountTypes?.length) return connectedProviders;
 
-    const filtered = connectedProviders.filter((p) =>
-      accountTypes.includes(p.type),
+    const filtered = connectedProviders.filter((part) =>
+      accountTypes.includes(part.type),
     );
     return filtered.length > 0 ? filtered : null;
   }
@@ -493,7 +496,8 @@ export class EmailSearchService {
     );
 
     emailsWithMetadata.sort(
-      (a, b) => (b.relevanceScore ?? 0) - (a.relevanceScore ?? 0),
+      (itemA, itemB) =>
+        (itemB.relevanceScore ?? 0) - (itemA.relevanceScore ?? 0),
     );
 
     const debugInfo = {
@@ -516,8 +520,8 @@ export class EmailSearchService {
           daysAgo,
           aiScore: allScores.get(index) ?? null,
           includedInResults: filteredEmails.some(
-            (e) =>
-              (e as { messageId?: string }).messageId ===
+            (emailEntry) =>
+              (emailEntry as { messageId?: string }).messageId ===
               (rawEmail.messageId as string),
           ),
         };
@@ -631,9 +635,9 @@ export class EmailSearchService {
                 (allScores.get(index) ?? 0) >=
                 PRIORITY_BOOSTS.RELEVANCE_THRESHOLD,
             );
-            filteredEmails.sort((a, b) => {
-              const scoreA = allScores.get(matchedEmails.indexOf(a)) ?? 0;
-              const scoreB = allScores.get(matchedEmails.indexOf(b)) ?? 0;
+            filteredEmails.sort((itemA, itemB) => {
+              const scoreA = allScores.get(matchedEmails.indexOf(itemA)) ?? 0;
+              const scoreB = allScores.get(matchedEmails.indexOf(itemB)) ?? 0;
               return scoreB - scoreA;
             });
             filteredEmails = filteredEmails.slice(0, maxResults);
@@ -681,12 +685,12 @@ export class EmailSearchService {
       : "";
 
     const emailLines = emailSummaries
-      .map((e, index) => {
+      .map((emailEntry, index) => {
         let recencyLabel = "";
-        if (e.daysAgo === 0) recencyLabel = " (TODAY!)";
-        else if (e.daysAgo <= 1) recencyLabel = " (LAST 24 HOURS!)";
-        else if (e.isRecent) recencyLabel = " (RECENT)";
-        return `${index}. From: ${e.from}, Subject: ${e.subject}, Received: ${e.daysAgo} days ago${recencyLabel}, Preview: ${e.snippet.substring(0, QUERY_LIMITS.SUBSTRING_PREVIEW_LONG)}...`;
+        if (emailEntry.daysAgo === 0) recencyLabel = " (TODAY!)";
+        else if (emailEntry.daysAgo <= 1) recencyLabel = " (LAST 24 HOURS!)";
+        else if (emailEntry.isRecent) recencyLabel = " (RECENT)";
+        return `${index}. From: ${emailEntry.from}, Subject: ${emailEntry.subject}, Received: ${emailEntry.daysAgo} days ago${recencyLabel}, Preview: ${emailEntry.snippet.substring(0, QUERY_LIMITS.SUBSTRING_PREVIEW_LONG)}...`;
       })
       .join("\n");
 
@@ -725,7 +729,7 @@ Return ONLY a JSON array of objects.`;
     rawEmails: RawSearchEmail[],
   ): Promise<Email[]> {
     const messageIds = rawEmails
-      .map((e) => e.messageId as string | undefined)
+      .map((emailEntry) => emailEntry.messageId as string | undefined)
       .filter((id): id is string => id !== null && id !== undefined);
 
     if (messageIds.length === 0) {
@@ -737,7 +741,9 @@ Return ONLY a JSON array of objects.`;
       order: { receivedAt: "DESC" },
     });
 
-    const emailMap = new Map(dbEmails.map((e) => [e.messageId, e]));
+    const emailMap = new Map(
+      dbEmails.map((emailEntry) => [emailEntry.messageId, emailEntry]),
+    );
     const matchedEmails: Email[] = [];
     for (const rawEmail of rawEmails) {
       const messageId = rawEmail.messageId as string | undefined;
@@ -914,7 +920,7 @@ Return ONLY a JSON array of objects.`;
 
     // Fetch from DB, excluding already-found emails
     const messageIds = allRawEmails
-      .map((e) => e.messageId as string | undefined)
+      .map((emailEntry) => emailEntry.messageId as string | undefined)
       .filter((id): id is string => !!id);
 
     const dbEmails = await this.emailRepository.find({
@@ -924,7 +930,7 @@ Return ONLY a JSON array of objects.`;
 
     // Filter out emails already shown
     return dbEmails
-      .filter((e) => !existingEmailIds.has(e.id))
+      .filter((emailEntry) => !existingEmailIds.has(emailEntry.id))
       .slice(0, QUERY_LIMITS.MAX_SENT_EMAILS_FOR_STYLE) as EmailWithMetadata[];
   }
 
@@ -1008,8 +1014,8 @@ Return ONLY the Gmail search query, nothing else.`;
     // Split query into words and search in subject and body
     const words = query
       .split(/\s+/)
-      .filter((w) => w.length > 0)
-      .map((w) => `"${w}"`)
+      .filter((word) => word.length > 0)
+      .map((word) => `"${word}"`)
       .join(" OR ");
     return `subject:(${words}) OR ${words}`;
   }

@@ -20,13 +20,13 @@ export const ResizableDivider: React.FC<ResizableDividerProps> = ({
   const isDraggingRef = useRef(false);
 
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
+    const handleMouseMove = (event: MouseEvent) => {
       if (!isDraggingRef.current || !containerRef?.current) return;
 
       const container = containerRef.current;
       const containerRect = container.getBoundingClientRect();
       const containerWidth = containerRect.width;
-      const mouseX = e.clientX - containerRect.left;
+      const mouseX = event.clientX - containerRect.left;
       
       // Calculate new position as percentage
       const newPosition = (mouseX / containerWidth) * 100;
@@ -42,14 +42,14 @@ export const ResizableDivider: React.FC<ResizableDividerProps> = ({
       }
     };
 
-    const handleTouchMove = (e: TouchEvent) => {
+    const handleTouchMove = (event: TouchEvent) => {
       if (!isDraggingRef.current || !containerRef?.current) return;
-      e.preventDefault();
+      event.preventDefault();
 
       const container = containerRef.current;
       const containerRect = container.getBoundingClientRect();
       const containerWidth = containerRect.width;
-      const touch = e.touches[0];
+      const touch = event.touches[0];
       const touchX = touch.clientX - containerRect.left;
       
       const newPosition = (touchX / containerWidth) * 100;
@@ -78,16 +78,16 @@ export const ResizableDivider: React.FC<ResizableDividerProps> = ({
     };
   }, [onResize, onResizeEnd, containerRef]);
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault();
+  const handleMouseDown = (event: React.MouseEvent) => {
+    event.preventDefault();
     isDraggingRef.current = true;
     onResizeStart();
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
   };
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    e.preventDefault();
+  const handleTouchStart = (event: React.TouchEvent) => {
+    event.preventDefault();
     isDraggingRef.current = true;
     onResizeStart();
   };
@@ -106,12 +106,12 @@ export const ResizableDivider: React.FC<ResizableDividerProps> = ({
         transition: 'background-color 0.2s ease',
         zIndex: 10,
       }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = theme.colors.primary.main;
+      onMouseEnter={(event) => {
+        event.currentTarget.style.backgroundColor = theme.colors.primary.main;
       }}
-      onMouseLeave={(e) => {
+      onMouseLeave={(event) => {
         if (!isDraggingRef.current) {
-          e.currentTarget.style.backgroundColor = theme.colors.border.light;
+          event.currentTarget.style.backgroundColor = theme.colors.border.light;
         }
       }}
       role="separator"

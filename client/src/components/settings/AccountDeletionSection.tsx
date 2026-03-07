@@ -177,8 +177,8 @@ export const AccountDeletionSection: React.FC = () => {
         <button
           onClick={handleDeleteClick}
           style={deleteButtonBaseStyle}
-          onMouseOver={(e) => { e.currentTarget.style.backgroundColor = theme.colors.error.dark; }}
-          onMouseOut={(e) => { e.currentTarget.style.backgroundColor = theme.colors.error.main; }}
+          onMouseOver={(event) => { event.currentTarget.style.backgroundColor = theme.colors.error.dark; }}
+          onMouseOut={(event) => { event.currentTarget.style.backgroundColor = theme.colors.error.main; }}
         >
           {t('settings.accountDeletion.deleteButton')}
         </button>
@@ -192,7 +192,7 @@ export const AccountDeletionSection: React.FC = () => {
           <input
             type="text"
             value={confirmationInput}
-            onChange={(e) => setConfirmationInput(e.target.value)}
+            onChange={(event) => setConfirmationInput(event.target.value)}
             placeholder={CONFIRMATION_TEXT}
             style={getInputStyle(Boolean(error))}
             disabled={isDeleting}

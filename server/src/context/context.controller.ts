@@ -592,14 +592,14 @@ export class ContextController {
 
     const analyses = await queryBuilder.getMany();
 
-    const userIds = [...new Set(analyses.map((a) => a.userId))];
+    const userIds = [...new Set(analyses.map((itemA) => itemA.userId))];
     const users = userIds.length
       ? await this.userRepository.find({
           where: { id: In(userIds) },
           select: ["id", "email"],
         })
       : [];
-    const userMap = new Map(users.map((u) => [u.id, u.email]));
+    const userMap = new Map(users.map((user) => [user.id, user.email]));
 
     const analysesWithDetails = this.mapAnalysesWithDetails(analyses, userMap);
 
@@ -640,7 +640,9 @@ export class ContextController {
         }
       });
 
-      const failedBatches = Array.from(failedBatchSet).sort((a, b) => a - b);
+      const failedBatches = Array.from(failedBatchSet).sort(
+        (itemA, itemB) => itemA - itemB,
+      );
       const totalBatches = (stats.totalBatches as number) || 0;
       const completedBatches = Object.keys(batchResults).filter(
         (key) => !failedBatchSet.has(parseInt(key, 10)),

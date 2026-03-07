@@ -22,7 +22,7 @@ interface RichTextToolbarProps {
 type EditorLike = NonNullable<ReturnType<typeof useEditor>>;
 
 interface ToolbarSectionProps { editor: EditorLike; handlers: ReturnType<typeof useToolbarHandlers>; disabled: boolean; }
-interface LinkPopupProps extends ToolbarSectionProps { showLinkInput: boolean; linkUrl: string; linkInputRef: React.RefObject<HTMLInputElement | null>; setLinkUrl: (v: string) => void; setShowLinkInput: (v: boolean) => void; handleLinkSubmit: () => void; t: (k: string) => string; }
+interface LinkPopupProps extends ToolbarSectionProps { showLinkInput: boolean; linkUrl: string; linkInputRef: React.RefObject<HTMLInputElement | null>; setLinkUrl: (v: string) => void; setShowLinkInput: (v: boolean) => void; handleLinkSubmit: () => void; t: (tKey: string) => string; }
 
 const ToolbarFormattingSection: React.FC<ToolbarSectionProps> = ({ editor, handlers, disabled }) => (
   <>
@@ -32,7 +32,7 @@ const ToolbarFormattingSection: React.FC<ToolbarSectionProps> = ({ editor, handl
     <ToolbarButton onClick={handlers.toggleStrike} isActive={editor.isActive('strike')} disabled={disabled} title="Strikethrough (Cmd+Shift+S)"><span style={{ textDecoration: 'line-through' }}>S</span></ToolbarButton>
     <ToolbarDivider />
     <ToolbarButton onClick={handlers.unsetColor} disabled={disabled} title="Text color"><span style={{ position: 'relative' }}>A<span style={{ position: 'absolute', bottom: '-2px', left: 0, right: 0, height: '3px', backgroundColor: editor.getAttributes('textStyle').color || theme.colors.text.primary, borderRadius: '1px' }} /></span></ToolbarButton>
-    <input type="color" onChange={(e) => handlers.setColor(e.target.value)} value={editor.getAttributes('textStyle').color || '#000000'} disabled={disabled} title="Pick text color" style={{ width: '20px', height: '20px', padding: 0, border: 'none', borderRadius: '2px', cursor: disabled ? 'not-allowed' : 'pointer', backgroundColor: COLOR_TRANSPARENT }} />
+    <input type="color" onChange={(event) => handlers.setColor(event.target.value)} value={editor.getAttributes('textStyle').color || '#000000'} disabled={disabled} title="Pick text color" style={{ width: '20px', height: '20px', padding: 0, border: 'none', borderRadius: '2px', cursor: disabled ? 'not-allowed' : 'pointer', backgroundColor: COLOR_TRANSPARENT }} />
     <ToolbarDivider />
     <ToolbarButton onClick={handlers.toggleBulletList} isActive={editor.isActive('bulletList')} disabled={disabled} title="Bullet list"><span style={{ fontSize: '16px', lineHeight: 1 }}>•≡</span></ToolbarButton>
     <ToolbarButton onClick={handlers.toggleOrderedList} isActive={editor.isActive('orderedList')} disabled={disabled} title="Numbered list"><span style={{ fontSize: '12px', lineHeight: 1 }}>1.</span></ToolbarButton>
@@ -57,8 +57,8 @@ const LinkPopup: React.FC<LinkPopupProps> = ({ showLinkInput, linkUrl, linkInput
   if (!showLinkInput) return null;
   return (
     <div style={{ position: 'absolute', top: '100%', left: theme.spacing.sm, zIndex: 1000, display: 'flex', alignItems: 'center', gap: theme.spacing.xs, padding: theme.spacing.sm, backgroundColor: theme.colors.background.paper, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, boxShadow: theme.shadows.md }}>
-      <input ref={linkInputRef} type="url" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)}
-        onKeyDown={(e) => { if (e.key === KEY_ENTER) { e.preventDefault(); handleLinkSubmit(); } if (e.key === KEY_ESCAPE) { setShowLinkInput(false); } }}
+      <input ref={linkInputRef} type="url" value={linkUrl} onChange={(event) => setLinkUrl(event.target.value)}
+        onKeyDown={(event) => { if (event.key === KEY_ENTER) { event.preventDefault(); handleLinkSubmit(); } if (event.key === KEY_ESCAPE) { setShowLinkInput(false); } }}
         placeholder="https://example.com" style={{ width: '250px', padding: `${theme.spacing.xs} ${theme.spacing.sm}`, border: `1px solid ${theme.colors.border.light}`, borderRadius: theme.borderRadius.sm, fontSize: theme.typography.fontSize.sm, outline: 'none' }} />
       <button type="button" onClick={handleLinkSubmit} style={{ padding: `${theme.spacing.xs} ${theme.spacing.sm}`, backgroundColor: theme.colors.primary.main, color: COLOR_NAMED_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.sm, cursor: 'pointer', fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium }}>OK</button>
       <button type="button" onClick={() => setShowLinkInput(false)} style={{ padding: `${theme.spacing.xs} ${theme.spacing.sm}`, backgroundColor: COLOR_TRANSPARENT, color: theme.colors.text.secondary, border: `1px solid ${theme.colors.border.light}`, borderRadius: theme.borderRadius.sm, cursor: 'pointer', fontSize: theme.typography.fontSize.sm }}>{t('common.cancel')}</button>

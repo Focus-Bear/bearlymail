@@ -326,12 +326,17 @@ export class ScanAnalysisService {
   ): Promise<void> {
     // Calculate average reply time (store as context for future use)
     const repliedEmails = scanEmails.filter(
-      (e) => e.wasRepliedTo && e.timeToReply !== null && e.timeToReply > 0,
+      (emailEntry) =>
+        emailEntry.wasRepliedTo &&
+        emailEntry.timeToReply !== null &&
+        emailEntry.timeToReply > 0,
     );
     if (repliedEmails.length > 0) {
       const avgReplyTime =
-        repliedEmails.reduce((sum, e) => sum + (e.timeToReply || 0), 0) /
-        repliedEmails.length;
+        repliedEmails.reduce(
+          (sum, emailEntry) => sum + (emailEntry.timeToReply || 0),
+          0,
+        ) / repliedEmails.length;
       await this.contextService.createOrUpdateContext(
         userId,
         ContextKey.AVERAGE_REPLY_TIME,

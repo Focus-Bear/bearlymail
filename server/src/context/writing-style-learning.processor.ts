@@ -117,7 +117,7 @@ export class WritingStyleLearningProcessor implements OnModuleInit {
       if (sentEmails.length > 0) {
         await this.writingStyleLearningService.learnFromSentEmailBodies(
           userId,
-          sentEmails.map((e) => e.body),
+          sentEmails.map((emailEntry) => emailEntry.body),
         );
         return { processed: 1, skipped: 0 };
       }

@@ -14,7 +14,7 @@ interface CategorySelectProps {
   selectedCategory: string; customCategory: string;
   onSelectChange: (v: string) => void; onCustomChange: (v: string) => void;
   labelStyle: React.CSSProperties; selectStyle: React.CSSProperties; inputStyle: React.CSSProperties;
-  t: (k: string) => string;
+  t: (tKey: string) => string;
 }
 
 const CategorySelectField: React.FC<CategorySelectProps> = ({
@@ -23,12 +23,12 @@ const CategorySelectField: React.FC<CategorySelectProps> = ({
 }) => (
   <div style={{ marginBottom: theme.spacing.md }}>
     <label style={labelStyle}>{t('priority.categoryOverride.newCategory')}:</label>
-    <select value={isAddingNew ? ADD_NEW_VALUE : selectedCategory} onChange={(e) => onSelectChange(e.target.value)} disabled={loadingCategories} style={selectStyle}>
+    <select value={isAddingNew ? ADD_NEW_VALUE : selectedCategory} onChange={(event) => onSelectChange(event.target.value)} disabled={loadingCategories} style={selectStyle}>
       <option value="" disabled>{loadingCategories ? t('priority.categoryOverride.loadingCategories') : t('priority.categoryOverride.selectPlaceholder')}</option>
       {existingCategories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
       <option value={ADD_NEW_VALUE}>{t('priority.categoryOverride.addNewCategory')}</option>
     </select>
-    {isAddingNew && <input type="text" autoFocus value={customCategory} onChange={(e) => onCustomChange(e.target.value)} placeholder={t('priority.categoryOverride.categoryPlaceholder')} style={{ ...inputStyle, marginTop: theme.spacing.sm }} />}
+    {isAddingNew && <input type="text" autoFocus value={customCategory} onChange={(event) => onCustomChange(event.target.value)} placeholder={t('priority.categoryOverride.categoryPlaceholder')} style={{ ...inputStyle, marginTop: theme.spacing.sm }} />}
   </div>
 );
 
@@ -128,7 +128,7 @@ export const CategoryOverrideModal: React.FC<CategoryOverrideModalProps> = ({
         <CategorySelectField existingCategories={existingCategories} loadingCategories={loadingCategories} isAddingNew={isAddingNew} selectedCategory={selectedCategory} customCategory={customCategory} onSelectChange={handleSelectChange} onCustomChange={setCustomCategory} labelStyle={{ display: 'block', fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium, color: theme.colors.text.primary, marginBottom: theme.spacing.xs }} selectStyle={selectStyle} inputStyle={inputStyle} t={t} />
         <div style={{ marginBottom: theme.spacing.md }}>
           <label style={{ display: 'block', fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium, color: theme.colors.text.primary, marginBottom: theme.spacing.xs }}>{t('priority.categoryOverride.reason')}:</label>
-          <textarea value={reasonText} onChange={(e) => setReasonText(e.target.value)} placeholder={t('priority.categoryOverride.reasonPlaceholder')} style={{ width: '100%', padding: theme.spacing.sm, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, fontSize: theme.typography.fontSize.sm, fontFamily: theme.typography.fontFamily, resize: 'vertical', minHeight: '80px', boxSizing: 'border-box' }} />
+          <textarea value={reasonText} onChange={(event) => setReasonText(event.target.value)} placeholder={t('priority.categoryOverride.reasonPlaceholder')} style={{ width: '100%', padding: theme.spacing.sm, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, fontSize: theme.typography.fontSize.sm, fontFamily: theme.typography.fontFamily, resize: 'vertical', minHeight: '80px', boxSizing: 'border-box' }} />
         </div>
 
         <ModalFooter

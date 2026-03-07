@@ -553,9 +553,9 @@ export class EmailsService {
     }
 
     // Sort by primary first, then by provider
-    return accounts.sort((a, b) => {
-      if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1;
-      return a.provider.localeCompare(b.provider);
+    return accounts.sort((itemA, itemB) => {
+      if (itemA.isPrimary !== itemB.isPrimary) return itemA.isPrimary ? -1 : 1;
+      return itemA.provider.localeCompare(itemB.provider);
     });
   }
 
@@ -758,11 +758,16 @@ export class EmailsService {
         ? []
         : await this.blockedSendersService.filterBlockedEmails(
             userId,
-            emails.map((e) => ({ id: e.id, from: e.from })),
+            emails.map((emailEntry) => ({
+              id: emailEntry.id,
+              from: emailEntry.from,
+            })),
           );
     const blockedSet = new Set(blockedEmailIds);
     let filteredEmails =
-      mode === "blocked" ? emails : emails.filter((e) => !blockedSet.has(e.id));
+      mode === "blocked"
+        ? emails
+        : emails.filter((emailEntry) => !blockedSet.has(emailEntry.id));
     endBlockedFilter();
 
     if (blockedEmailIds.length > 0) {
@@ -797,9 +802,10 @@ export class EmailsService {
 
     if (categoryFilterNames && categoryFilterNames.length > 0) {
       const beforeCount = filteredEmails.length;
-      filteredEmails = filteredEmails.filter((e) => {
-        const emailCategory = (e as Email & { category?: string | null })
-          .category;
+      filteredEmails = filteredEmails.filter((emailEntry) => {
+        const emailCategory = (
+          emailEntry as Email & { category?: string | null }
+        ).category;
         // Treat null/undefined/empty category as "Other" to mirror getInboxSummary behaviour
         const effectiveCategory = emailCategory || "Other";
         return categoryFilterNames!.includes(effectiveCategory);
@@ -848,7 +854,8 @@ export class EmailsService {
         if (actionUserEmail) {
           const beforeCount = emails.length;
           const result = emails.filter(
-            (e) => (e.from?.toLowerCase() || "") !== actionUserEmail,
+            (emailEntry) =>
+              (emailEntry.from?.toLowerCase() || "") !== actionUserEmail,
           );
           if (result.length < beforeCount) {
             this.logger.debug(
@@ -879,8 +886,10 @@ export class EmailsService {
       QUERY_LIMITS.INBOX_TOTAL,
     );
     const unsnoozed = emails.filter(
-      (e) =>
-        !e.isSnoozed || (e.snoozeUntil && new Date(e.snoozeUntil) < new Date()),
+      (emailEntry) =>
+        !emailEntry.isSnoozed ||
+        (emailEntry.snoozeUntil &&
+          new Date(emailEntry.snoozeUntil) < new Date()),
     );
     const followUpEmails: Email[] = [];
     for (const email of unsnoozed) {
@@ -1438,14 +1447,14 @@ export class EmailsService {
 
     return (
       results
-        .map((t) => ({
-          threadId: t.threadId,
-          isArchived: t.isArchived,
-          starCount: t.starCount,
-          syncStatus: t.syncStatus,
+        .map((thread) => ({
+          threadId: thread.threadId,
+          isArchived: thread.isArchived,
+          starCount: thread.starCount,
+          syncStatus: thread.syncStatus,
         }))
         // Filter out any null/undefined threadIds
-        .filter((t) => t.threadId)
+        .filter((thread) => thread.threadId)
     );
   }
 
@@ -2129,7 +2138,7 @@ export class EmailsService {
       select: ["id"],
     });
     if (threadEmails.length > 0) {
-      const emailIds = threadEmails.map((e) => e.id);
+      const emailIds = threadEmails.map((emailEntry) => emailEntry.id);
       await this.bulkMarkAsRead(userId, emailIds);
     }
 
@@ -2196,7 +2205,9 @@ export class EmailsService {
 
     // Group emails by threadId
     const threadIds = [
-      ...new Set(emails.map((e) => e.threadId).filter(Boolean)),
+      ...new Set(
+        emails.map((emailEntry) => emailEntry.threadId).filter(Boolean),
+      ),
     ];
     this.logger.log(
       `[Archive] Found ${emails.length} emails in ${threadIds.length} threads`,
@@ -2210,8 +2221,8 @@ export class EmailsService {
     // STEP 1: Update database (immediate effect for UI)
     // Remove stars from any starred threads
     const starredThreadIds = threads
-      .filter((t) => t.starCount > 0)
-      .map((t) => t.threadId);
+      .filter((thread) => thread.starCount > 0)
+      .map((thread) => thread.threadId);
     if (starredThreadIds.length > 0) {
       await this.emailThreadRepository.update(
         { userId, threadId: In(starredThreadIds) },
@@ -2225,7 +2236,7 @@ export class EmailsService {
       select: ["id"],
     });
     if (unreadEmails.length > 0) {
-      const unreadEmailIds = unreadEmails.map((e) => e.id);
+      const unreadEmailIds = unreadEmails.map((emailEntry) => emailEntry.id);
       await this.bulkMarkAsRead(userId, unreadEmailIds);
     }
 
@@ -2384,12 +2395,16 @@ export class EmailsService {
 
     // Filter out emails that can't be calculated (missing required fields)
     const validEmails = emails.filter(
-      (e) => e.threadId && e.from && e.receivedAt && e.id,
+      (emailEntry) =>
+        emailEntry.threadId &&
+        emailEntry.from &&
+        emailEntry.receivedAt &&
+        emailEntry.id,
     );
     if (validEmails.length === 0) {
       // Set all to undefined
-      emails.forEach((e) => {
-        if (e.id) resultMap.set(e.id, undefined);
+      emails.forEach((emailEntry) => {
+        if (emailEntry.id) resultMap.set(emailEntry.id, undefined);
       });
       return resultMap;
     }
@@ -2408,8 +2423,8 @@ export class EmailsService {
     try {
       const threadIds = Array.from(threadMap.keys());
       if (threadIds.length === 0) {
-        validEmails.forEach((e) => {
-          if (e.id) resultMap.set(e.id, undefined);
+        validEmails.forEach((emailEntry) => {
+          if (emailEntry.id) resultMap.set(emailEntry.id, undefined);
         });
         return resultMap;
       }
@@ -2461,7 +2476,9 @@ export class EmailsService {
             // Find last email from same sender that was received BEFORE this email
             // (TypeORM decrypts 'from' automatically, so we can compare decrypted values)
             const lastEmail = previousEmails.find(
-              (e) => e.from === email.from && e.receivedAt < email.receivedAt,
+              (emailEntry) =>
+                emailEntry.from === email.from &&
+                emailEntry.receivedAt < email.receivedAt,
             );
 
             if (!lastEmail) {
@@ -2488,15 +2505,15 @@ export class EmailsService {
         error,
       );
       // Set all to undefined on error
-      validEmails.forEach((e) => {
-        if (e.id) resultMap.set(e.id, undefined);
+      validEmails.forEach((emailEntry) => {
+        if (emailEntry.id) resultMap.set(emailEntry.id, undefined);
       });
     }
 
     // Set undefined for emails that were filtered out
-    emails.forEach((e) => {
-      if (e.id && !resultMap.has(e.id)) {
-        resultMap.set(e.id, undefined);
+    emails.forEach((emailEntry) => {
+      if (emailEntry.id && !resultMap.has(emailEntry.id)) {
+        resultMap.set(emailEntry.id, undefined);
       }
     });
 
@@ -2681,7 +2698,7 @@ export class EmailsService {
 
       // === VIP CONTACT DIMENSION ===
       const vipContacts = contexts.filter(
-        (c) => c.contextKey === ContextKey.VIP_CONTACT,
+        (contact) => contact.contextKey === ContextKey.VIP_CONTACT,
       );
       const matchedVip = vipContacts.find(
         (vip) =>

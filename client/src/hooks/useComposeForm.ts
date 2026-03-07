@@ -46,7 +46,7 @@ export const useComposeForm = () => {
 
     const setter = getSetter();
     setter(prev => {
-      if (prev.some(r => r.email.toLowerCase() === recipient.email.toLowerCase())) {
+      if (prev.some(existingRecipient => existingRecipient.email.toLowerCase() === recipient.email.toLowerCase())) {
         return prev;
       }
       return [...prev, recipient];
@@ -61,7 +61,7 @@ export const useComposeForm = () => {
     };
 
     const setter = getSetter();
-    setter(prev => prev.filter(r => r.email !== email));
+    setter(prev => prev.filter(recipient => recipient.email !== email));
   }, []);
 
   return {

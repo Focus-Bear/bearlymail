@@ -11,7 +11,7 @@ interface Props {
   onChangeContext: (v: string) => void;
   onSave: () => void;
   onCancel: () => void;
-  t: (k: string) => string;
+  t: (tKey: string) => string;
 }
 
 export const GitHubRepoMappingEditor: React.FC<Props> = ({
@@ -32,7 +32,7 @@ export const GitHubRepoMappingEditor: React.FC<Props> = ({
         <input
           type="text"
           value={emailCategories}
-          onChange={(e) => onChangeCategories(e.target.value)}
+          onChange={(event) => onChangeCategories(event.target.value)}
           placeholder={t('settings.github.repoMappings.categoriesPlaceholder')}
           style={{ width: '100%', padding: theme.spacing.sm, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, fontSize: theme.typography.fontSize.sm, boxSizing: 'border-box' }}
         />
@@ -44,7 +44,7 @@ export const GitHubRepoMappingEditor: React.FC<Props> = ({
         <input
           type="text"
           value={context}
-          onChange={(e) => onChangeContext(e.target.value)}
+          onChange={(event) => onChangeContext(event.target.value)}
           placeholder={t('settings.github.repoMappings.contextPlaceholder')}
           style={{ width: '100%', padding: theme.spacing.sm, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, fontSize: theme.typography.fontSize.sm, boxSizing: 'border-box' }}
         />

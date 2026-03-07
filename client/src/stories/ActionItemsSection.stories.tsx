@@ -59,7 +59,7 @@ const ActionsSection = ({ initialItems = [], loading = false }: ActionsProps) =>
             <ul style={{ margin: '0 0 12px', padding: 0, listStyle: 'none' }}>
               {items.map(item => (
                 <li key={item.id} style={{ display: 'flex', alignItems: 'flex-start', gap: Th.sp.sm, padding: `${Th.sp.xs} 0`, borderBottom: `1px solid ${Th.border}` }}>
-                  <input type="checkbox" checked={item.isCompleted} onChange={e => toggle(item.id, e.target.checked)} style={{ cursor: 'pointer', marginTop: 3, accentColor: ACCENT }} />
+                  <input type="checkbox" checked={item.isCompleted} onChange={event => toggle(item.id, event.target.checked)} style={{ cursor: 'pointer', marginTop: 3, accentColor: ACCENT }} />
                   <span style={{ flex: 1, fontSize: Th.f.base, color: item.isCompleted ? Th.textSec : Th.text, textDecoration: item.isCompleted ? 'line-through' : 'none', lineHeight: 1.5 }}>{item.description}</span>
                   <span style={{ fontSize: Th.f.xs, color: item.source === 'llm' ? '#7C3AED' : Th.textSec, flexShrink: 0 }}>{item.source === 'llm' ? '🤖' : '👤'}</span>
                   <button onClick={() => del(item.id)} style={{ background: 'none', border: 'none', color: Th.textSec, cursor: 'pointer', padding: 0, fontSize: 14, flexShrink: 0 }}>✕</button>
@@ -69,7 +69,7 @@ const ActionsSection = ({ initialItems = [], loading = false }: ActionsProps) =>
             );
           })()}
           <div style={{ display: 'flex', gap: Th.sp.sm }}>
-            <input value={newItem} onChange={e => setNewItem(e.target.value)} onKeyDown={e => e.key === 'Enter' && add()} placeholder="Add action item…" style={{ flex: 1, padding: `${Th.sp.xs} ${Th.sp.sm}`, border: `1px solid ${Th.border}`, borderRadius: Th.r.sm, fontSize: Th.f.base, color: Th.text, fontFamily: 'inherit' }} />
+            <input value={newItem} onChange={event => setNewItem(event.target.value)} onKeyDown={event => event.key === 'Enter' && add()} placeholder="Add action item…" style={{ flex: 1, padding: `${Th.sp.xs} ${Th.sp.sm}`, border: `1px solid ${Th.border}`, borderRadius: Th.r.sm, fontSize: Th.f.base, color: Th.text, fontFamily: 'inherit' }} />
             <button onClick={add} style={{ padding: `${Th.sp.xs} ${Th.sp.md}`, backgroundColor: ACCENT, color: COLOR_WHITE, border: 'none', borderRadius: Th.r.sm, cursor: 'pointer', fontSize: Th.f.sm, fontWeight: 600 }}>Add</button>
           </div>
         </div>

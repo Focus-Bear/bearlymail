@@ -61,16 +61,16 @@ import {
 function parseRecipientsFromString(recipientStr: string): EmailRecipient[] {
   return recipientStr
     .split(",")
-    .map((r) => r.trim())
-    .filter((r) => r.length > 0)
-    .map((r) => {
-      const match = r.match(/^(.*?)\s*<([^>]+)>$/);
+    .map((recipient) => recipient.trim())
+    .filter((recipient) => recipient.length > 0)
+    .map((recipient) => {
+      const match = recipient.match(/^(.*?)\s*<([^>]+)>$/);
       if (match) {
         const name = match[1].trim();
         const email = match[2].trim();
         return name ? { name, email } : { email };
       }
-      return { email: r };
+      return { email: recipient };
     });
 }
 
@@ -337,7 +337,7 @@ export class GmailProvider implements EmailProvider {
       });
 
       const threads = response.data.threads || [];
-      allThreadIds.push(...threads.map((t) => t.id!).filter(Boolean));
+      allThreadIds.push(...threads.map((thread) => thread.id!).filter(Boolean));
 
       pageToken = response.data.nextPageToken || undefined;
       pageCount++;
@@ -450,7 +450,7 @@ export class GmailProvider implements EmailProvider {
       Array.from(allThreadIds),
     );
     const existingThreadMap = new Map(
-      existingThreads.map((t) => [t.threadId, t]),
+      existingThreads.map((thread) => [thread.threadId, thread]),
     );
 
     const updates = await this.processThreadBatches(
@@ -679,16 +679,17 @@ export class GmailProvider implements EmailProvider {
       const dbThreads = await this.emailsService.getAllThreadsForSync(userId);
 
       const updates = dbThreads
-        .filter((t) => t.syncStatus === "synced")
+        .filter((thread) => thread.syncStatus === "synced")
         .filter(
-          (t) =>
-            t.isArchived !== !inboxThreadIds.has(t.threadId) ||
-            t.starCount !== (starredThreadIds.has(t.threadId) ? 3 : 0),
+          (thread) =>
+            thread.isArchived !== !inboxThreadIds.has(thread.threadId) ||
+            thread.starCount !==
+              (starredThreadIds.has(thread.threadId) ? 3 : 0),
         )
-        .map((t) => ({
-          threadId: t.threadId,
-          isArchived: !inboxThreadIds.has(t.threadId),
-          starCount: starredThreadIds.has(t.threadId) ? 3 : 0,
+        .map((thread) => ({
+          threadId: thread.threadId,
+          isArchived: !inboxThreadIds.has(thread.threadId),
+          starCount: starredThreadIds.has(thread.threadId) ? 3 : 0,
         }));
 
       if (updates.length > 0)
@@ -757,29 +758,31 @@ export class GmailProvider implements EmailProvider {
     if (updates.length === 0) return;
 
     // Only apply updates where something actually changed
-    const starUpdates = updates.filter((u) => u.starCount !== undefined);
-    const archiveUpdates = updates.filter((u) => u.isArchived !== undefined);
+    const starUpdates = updates.filter((url) => url.starCount !== undefined);
+    const archiveUpdates = updates.filter(
+      (url) => url.isArchived !== undefined,
+    );
 
     if (starUpdates.length > 0) {
       await this.emailsService.batchUpdateThreadStarCount(
         userId,
-        starUpdates.map((u) => ({
-          threadId: u.threadId,
-          starCount: u.starCount,
+        starUpdates.map((user) => ({
+          threadId: user.threadId,
+          starCount: user.starCount,
         })),
       );
     }
     if (archiveUpdates.length > 0) {
       await this.emailsService.batchUpdateThreadArchivedStatuses(
         userId,
-        archiveUpdates.map((u) => ({
-          threadId: u.threadId,
-          isArchived: u.isArchived,
+        archiveUpdates.map((user) => ({
+          threadId: user.threadId,
+          isArchived: user.isArchived,
         })),
       );
     }
 
-    const archivedCount = updates.filter((u) => u.isArchived).length;
+    const archivedCount = updates.filter((user) => user.isArchived).length;
     this.logger.log(
       `[VerifyInbox] Done for user ${userId}: ${updates.length} threads checked, ${archivedCount} newly archived`,
     );

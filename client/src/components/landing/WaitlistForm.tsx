@@ -30,13 +30,13 @@ const emailSystemContainerStyle: React.CSSProperties = {
   marginBottom: theme.spacing.md,
 };
 
-function buildEmailSystemOptions(t: (key: string) => string): Array<{ value: string; label: string }> {
+function buildEmailSystemOptions(tFunc: (key: string) => string): Array<{ value: string; label: string }> {
   return [
-    { value: '', label: t('landing.waitlist.emailSystemPlaceholder') },
-    { value: PROVIDER_GMAIL, label: t('landing.waitlist.emailSystemGmail') },
-    { value: PROVIDER_OUTLOOK, label: t('landing.waitlist.emailSystemOutlook') },
-    { value: PROVIDER_ZOHO, label: t('landing.waitlist.emailSystemZoho') },
-    { value: PROVIDER_OTHER, label: t('landing.waitlist.emailSystemOther') },
+    { value: '', label: tFunc('landing.waitlist.emailSystemPlaceholder') },
+    { value: PROVIDER_GMAIL, label: tFunc('landing.waitlist.emailSystemGmail') },
+    { value: PROVIDER_OUTLOOK, label: tFunc('landing.waitlist.emailSystemOutlook') },
+    { value: PROVIDER_ZOHO, label: tFunc('landing.waitlist.emailSystemZoho') },
+    { value: PROVIDER_OTHER, label: tFunc('landing.waitlist.emailSystemOther') },
   ];
 }
 
@@ -106,13 +106,13 @@ export const WaitlistForm: React.FC<WaitlistFormProps> = ({ onSuccess }) => {
 
   const emailSystemOptions = buildEmailSystemOptions(t);
 
-  const handleEmailSystemChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setEmailSystem(e.target.value);
-    if (e.target.value) captureEvent('wait-list-email-platform-selected');
+  const handleEmailSystemChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    setEmailSystem(event.target.value);
+    if (event.target.value) captureEvent('wait-list-email-platform-selected');
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setError('');
     setSubmitting(true);
 

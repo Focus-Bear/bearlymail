@@ -149,10 +149,10 @@ export const encryptedJsonTransformer = {
     if (!decrypted) return null;
     try {
       return JSON.parse(decrypted);
-    } catch (e) {
+    } catch (err) {
       logError(
         "Failed to parse decrypted JSON",
-        e instanceof Error ? e : new Error(String(e)),
+        err instanceof Error ? err : new Error(String(err)),
       );
       return null;
     }

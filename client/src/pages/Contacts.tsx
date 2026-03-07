@@ -50,7 +50,7 @@ const ContactsMainContent: React.FC<ContactsMainContentProps> = ({
         <input
           type="text"
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(event) => setSearchQuery(event.target.value)}
           placeholder={t('contacts.searchPlaceholder')}
           style={{ width: '100%', padding: theme.spacing.md, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, fontSize: theme.typography.fontSize.base, outline: STRING_NONE, backgroundColor: theme.colors.background.paper }}
         />
@@ -89,8 +89,8 @@ const ContactsMainContent: React.FC<ContactsMainContentProps> = ({
                     key={contact.id || contact.email}
                     onClick={() => contact.id && navigate(`/crm/contacts/${contact.id}`)}
                     style={{ display: STRING_FLEX, alignItems: STRING_CENTER, padding: theme.spacing.md, borderBottom: index < displayedContacts.length - 1 ? `1px solid ${theme.colors.border.light}` : STRING_NONE, gap: theme.spacing.md, cursor: contact.id ? STRING_POINTER : STRING_DEFAULT, transition: theme.transitions.fast }}
-                    onMouseEnter={(e) => { if (contact.id) e.currentTarget.style.backgroundColor = theme.colors.background.default; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = STRING_TRANSPARENT; }}
+                    onMouseEnter={(event) => { if (contact.id) event.currentTarget.style.backgroundColor = theme.colors.background.default; }}
+                    onMouseLeave={(event) => { event.currentTarget.style.backgroundColor = STRING_TRANSPARENT; }}
                   >
                     {contact.photoUrl ? (
                       <img src={contact.photoUrl} alt="" style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: STRING_COVER }} />

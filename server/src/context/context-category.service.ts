@@ -187,12 +187,12 @@ export class ContextCategoryService {
 
     // Call LLM to generate new categories
     const newCategories = await this.llmService.generateCategoriesFromOther(
-      otherEmails.map((e) => ({
-        from: e.from || "",
-        fromName: e.fromName,
-        subject: e.subject || "",
+      otherEmails.map((err) => ({
+        from: err.from || "",
+        fromName: err.fromName,
+        subject: err.subject || "",
         body: cleanEmailContent(
-          e.body,
+          err.body,
           null,
           BODY_PREVIEW_LENGTHS.BATCH_PREVIEW,
         ),
@@ -305,8 +305,8 @@ export class ContextCategoryService {
       select: ["id", "category"],
     });
     const otherThreadIds = threads
-      .filter((t) => t.category === "Other" || !t.category)
-      .map((t) => t.id);
+      .filter((thread) => thread.category === "Other" || !thread.category)
+      .map((thread) => thread.id);
 
     if (otherThreadIds.length === 0) {
       return null;

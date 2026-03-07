@@ -47,7 +47,7 @@ export function useTabCounts(): UseTabCountsReturn {
             return;
           }
         }
-      } catch (e) {
+      } catch (err) {
         // Ignore cache errors
       }
     }
@@ -99,7 +99,7 @@ export function useTabCounts(): UseTabCountsReturn {
             timestamp: existingEntry.timestamp,
           }));
         }
-      } catch (e) {
+      } catch (err) {
         // Ignore cache errors
       }
       return newCounts;

@@ -123,7 +123,10 @@ export class FollowUpsProcessor implements OnModuleInit {
 
       const lastUserMessage = threadMessages
         .filter((message) => message.isFromUser)
-        .sort((a, b) => b.receivedAt.getTime() - a.receivedAt.getTime())[0];
+        .sort(
+          (itemA, itemB) =>
+            itemB.receivedAt.getTime() - itemA.receivedAt.getTime(),
+        )[0];
 
       if (!lastUserMessage) throw new Error("No user message found in thread");
 
@@ -135,11 +138,11 @@ export class FollowUpsProcessor implements OnModuleInit {
 
       const contexts = await this.contextService.getUserContext(userId);
       const tone = contexts.find(
-        (c) => c.contextKey === ContextKey.WRITING_STYLE_TONE,
+        (item) => item.contextKey === ContextKey.WRITING_STYLE_TONE,
       )?.contextValue;
       const commonPhrases = contexts
-        .filter((c) => c.contextKey === ContextKey.COMMON_PHRASE)
-        .map((c) => EncryptionHelper.decrypt(c.contextValue));
+        .filter((item) => item.contextKey === ContextKey.COMMON_PHRASE)
+        .map((item) => EncryptionHelper.decrypt(item.contextValue));
 
       const userCommunicationStyle = {
         tone,
@@ -150,7 +153,10 @@ export class FollowUpsProcessor implements OnModuleInit {
       // This helps make follow-ups sound more natural by matching the recipient's style
       const recipientMessages = threadMessages
         .filter((message) => !message.isFromUser)
-        .sort((a, b) => b.receivedAt.getTime() - a.receivedAt.getTime());
+        .sort(
+          (itemA, itemB) =>
+            itemB.receivedAt.getTime() - itemA.receivedAt.getTime(),
+        );
 
       // Get recipient name (formal name from email headers)
       const lastTheirMessage = recipientMessages[0];
@@ -376,7 +382,7 @@ export class FollowUpsProcessor implements OnModuleInit {
     }
 
     this.logger.log(
-      `[Worker ${workerId}] Bulk send completed: ${results.filter((r) => r.success).length}/${results.length} succeeded`,
+      `[Worker ${workerId}] Bulk send completed: ${results.filter((result) => result.success).length}/${results.length} succeeded`,
     );
 
     return results;

@@ -17,7 +17,7 @@ const TimezoneSelectorSection: React.FC<{ timezone: string; onChange: (tz: strin
       <label style={{ display: 'block', color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, marginBottom: theme.spacing.xs }}>
         {t('settings.delivery.timezone')}
       </label>
-      <select value={timezone} onChange={(e) => onChange(e.target.value)} style={{ padding: `${theme.spacing.xs} ${theme.spacing.sm}`, borderRadius: theme.borderRadius.sm, border: `1px solid ${theme.colors.border.medium}`, fontSize: theme.typography.fontSize.sm, backgroundColor: theme.colors.background.paper, color: theme.colors.text.primary, minWidth: '250px' }}>
+      <select value={timezone} onChange={(event) => onChange(event.target.value)} style={{ padding: `${theme.spacing.xs} ${theme.spacing.sm}`, borderRadius: theme.borderRadius.sm, border: `1px solid ${theme.colors.border.medium}`, fontSize: theme.typography.fontSize.sm, backgroundColor: theme.colors.background.paper, color: theme.colors.text.primary, minWidth: '250px' }}>
         {TIMEZONE_OPTIONS.map((tz) => (<option key={tz} value={tz}>{tz.replace(/_/g, ' ')}</option>))}
       </select>
     </div>
@@ -76,7 +76,7 @@ export const EmailBatchingSection: React.FC<EmailBatchingSectionProps> = ({
       ...batchSchedule,
       deliveryDays: batchSchedule.deliveryDays.includes(day)
         ? batchSchedule.deliveryDays.filter(dayItem => dayItem !== day)
-        : [...batchSchedule.deliveryDays, day].sort((a, b) => a - b),
+        : [...batchSchedule.deliveryDays, day].sort((itemA, itemB) => itemA - itemB),
     });
   };
 

@@ -77,7 +77,7 @@ export const InfoTooltip: React.FC<InfoTooltipProps> = ({ content, children }) =
             color: theme.colors.text.primary,
             lineHeight: theme.typography.lineHeight.normal,
           }}
-          onClick={(e) => e.stopPropagation()}
+          onClick={(event) => event.stopPropagation()}
         >
           {content}
         </div>

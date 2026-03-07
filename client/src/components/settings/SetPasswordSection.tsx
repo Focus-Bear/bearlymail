@@ -51,7 +51,7 @@ const PasswordInput: React.FC<PasswordInputProps> = ({
         <input
           type={showPassword ? 'text' : 'password'}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
           style={{
             width: '100%',
@@ -93,9 +93,9 @@ const PasswordInput: React.FC<PasswordInputProps> = ({
   );
 };
 
-const getSubmitButtonText = (isSaving: boolean, hasPassword: boolean, t: (key: string) => string): string => {
-  if (isSaving) return t('common.saving');
-  return hasPassword ? t('settings.setPassword.updateButton') : t('settings.setPassword.setButton');
+const getSubmitButtonText = (isSaving: boolean, hasPassword: boolean, tFunc: (key: string) => string): string => {
+  if (isSaving) return tFunc('common.saving');
+  return hasPassword ? tFunc('settings.setPassword.updateButton') : tFunc('settings.setPassword.setButton');
 };
 
 interface PasswordFormProps {
@@ -117,8 +117,8 @@ const PasswordForm: React.FC<PasswordFormProps> = ({ hasPassword, onSuccess }) =
     return null;
   }, [password, confirmPassword, t]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setError(null);
 
     const validationError = validatePassword();

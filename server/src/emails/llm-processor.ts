@@ -296,13 +296,13 @@ export class LLMProcessor implements OnModuleInit {
 
       // Format thread emails for LLM (exclude current email, already in chronological order)
       const threadEmailsForLLM = threadEmails
-        .filter((e) => e.id !== email.id)
-        .map((e) => ({
-          from: e.from || "",
-          fromName: e.fromName,
-          subject: e.subject || "",
-          body: e.body || "",
-          receivedAt: e.receivedAt || new Date(),
+        .filter((emailEntry) => emailEntry.id !== email.id)
+        .map((emailEntry) => ({
+          from: emailEntry.from || "",
+          fromName: emailEntry.fromName,
+          subject: emailEntry.subject || "",
+          body: emailEntry.body || "",
+          receivedAt: emailEntry.receivedAt || new Date(),
         }));
 
       tracker.endPhase("processing");
@@ -401,7 +401,7 @@ export class LLMProcessor implements OnModuleInit {
         ...new Set(
           emailResults
             .filter(Boolean)
-            .map((e) => e!.emailThreadId)
+            .map((emailEntry) => emailEntry!.emailThreadId)
             .filter(Boolean) as string[],
         ),
       ];
@@ -412,7 +412,7 @@ export class LLMProcessor implements OnModuleInit {
               where: { id: In(uniqueThreadIds) },
             })
           : [];
-      const threadMap = new Map(threads.map((t) => [t.id, t]));
+      const threadMap = new Map(threads.map((thread) => [thread.id, thread]));
 
       // FIX 1 — Add skip guard: parity with single-email path.
       // Emails that already have a valid, up-to-date priority score are skipped so
@@ -420,7 +420,10 @@ export class LLMProcessor implements OnModuleInit {
       const emailsToProcess = (
         await Promise.all(
           emailResults
-            .filter((e): e is NonNullable<typeof e> => !!e)
+            .filter(
+              (emailEntry): emailEntry is NonNullable<typeof emailEntry> =>
+                !!emailEntry,
+            )
             .map(async (email) => {
               const thread = email.emailThreadId
                 ? (threadMap.get(email.emailThreadId) ?? null)
@@ -435,7 +438,10 @@ export class LLMProcessor implements OnModuleInit {
               return shouldSkip ? null : email;
             }),
         )
-      ).filter((e): e is NonNullable<typeof e> => !!e);
+      ).filter(
+        (emailEntry): emailEntry is NonNullable<typeof emailEntry> =>
+          !!emailEntry,
+      );
 
       if (emailsToProcess.length === 0) {
         this.logger.log(`[Worker ${workerId}] No emails to process in batch`);
@@ -446,7 +452,9 @@ export class LLMProcessor implements OnModuleInit {
       // FIX 2 — Fix race condition: set isProcessingPriority: true on all affected
       // threads BEFORE the LLM call using a single bulk IN(...) update.
       threadIdsToLock = [
-        ...new Set(emailsToProcess.map((e) => e.emailThreadId).filter(Boolean)),
+        ...new Set(
+          emailsToProcess.map((err) => err.emailThreadId).filter(Boolean),
+        ),
       ] as string[];
 
       if (threadIdsToLock.length > 0) {
@@ -487,13 +495,13 @@ export class LLMProcessor implements OnModuleInit {
               },
             );
             const siblings = threadEmails
-              .filter((e) => e.id !== email.id)
-              .map((e) => ({
-                from: e.from || "",
-                fromName: e.fromName,
-                subject: e.subject || "",
-                body: e.body || "",
-                receivedAt: e.receivedAt || new Date(),
+              .filter((emailEntry) => emailEntry.id !== email.id)
+              .map((emailEntry) => ({
+                from: emailEntry.from || "",
+                fromName: emailEntry.fromName,
+                subject: emailEntry.subject || "",
+                body: emailEntry.body || "",
+                receivedAt: emailEntry.receivedAt || new Date(),
               }));
             if (siblings.length > 0) {
               threadEmailsMap.set(email.id, siblings);
@@ -635,19 +643,19 @@ export class LLMProcessor implements OnModuleInit {
   ): string {
     const limit = LLM_PROCESSOR_CONSTANTS.THREAD_EMAILS_LIMIT;
     const emailsToInclude = threadEmails.slice(-limit);
-    const messages = emailsToInclude.map((e, i) => {
+    const messages = emailsToInclude.map((emailEntry, i) => {
       const cleanedBody = cleanEmailContent(
-        e.body,
+        emailEntry.body,
         null,
         BODY_PREVIEW_LENGTHS.SINGLE_PREVIEW,
       );
-      const dateStr = e.receivedAt.toLocaleDateString("en-US", {
+      const dateStr = emailEntry.receivedAt.toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
         year: "numeric",
       });
-      const senderName = e.fromName || e.from;
-      return `[Msg ${i + 1} from ${senderName} on ${dateStr}]: Subject: ${e.subject} | ${cleanedBody}`;
+      const senderName = emailEntry.fromName || emailEntry.from;
+      return `[Msg ${i + 1} from ${senderName} on ${dateStr}]: Subject: ${emailEntry.subject} | ${cleanedBody}`;
     });
     return messages.join("\n");
   }
@@ -663,36 +671,36 @@ export class LLMProcessor implements OnModuleInit {
   ) {
     return {
       urgentItems: contexts
-        .filter((c) => c.contextKey === ContextKey.URGENT)
-        .map((c) => ({
-          value: c.contextValue,
-          explanation: c.explanation || undefined,
+        .filter((item) => item.contextKey === ContextKey.URGENT)
+        .map((item) => ({
+          value: item.contextValue,
+          explanation: item.explanation || undefined,
         })),
       notUrgentItems: contexts
-        .filter((c) => c.contextKey === ContextKey.NOT_IMPORTANT)
-        .map((c) => ({
-          value: c.contextValue,
-          explanation: c.explanation || undefined,
+        .filter((item) => item.contextKey === ContextKey.NOT_IMPORTANT)
+        .map((item) => ({
+          value: item.contextValue,
+          explanation: item.explanation || undefined,
         })),
       goals: contexts
-        .filter((c) => c.contextKey === ContextKey.MY_GOALS)
-        .map((c) => ({
-          value: c.contextValue,
-          priority: c.priority || undefined,
+        .filter((item) => item.contextKey === ContextKey.MY_GOALS)
+        .map((item) => ({
+          value: item.contextValue,
+          priority: item.priority || undefined,
         })),
       workingOn: contexts
-        .filter((c) => c.contextKey === ContextKey.WORKING_ON)
-        .map((c) => ({
-          value: c.contextValue,
-          priority: c.priority || undefined,
+        .filter((item) => item.contextKey === ContextKey.WORKING_ON)
+        .map((item) => ({
+          value: item.contextValue,
+          priority: item.priority || undefined,
         })),
       dontCare: contexts
-        .filter((c) => c.contextKey === ContextKey.DONT_CARE)
-        .map((c) => ({ value: c.contextValue })),
+        .filter((category) => category.contextKey === ContextKey.DONT_CARE)
+        .map((category) => ({ value: category.contextValue })),
       emailCategories: contexts
-        .filter((c) => c.contextKey === ContextKey.EMAIL_CATEGORY)
-        .map((c) => {
-          const parts = c.contextValue.split(" - ");
+        .filter((category) => category.contextKey === ContextKey.EMAIL_CATEGORY)
+        .map((category) => {
+          const parts = category.contextValue.split(" - ");
           return {
             name: parts[0].trim(),
             description:
@@ -843,7 +851,9 @@ export class LLMProcessor implements OnModuleInit {
         const userLastEmail = [...threadEmails]
           .reverse()
           .find(
-            (e) => e.from && e.from.toLowerCase() !== email.from!.toLowerCase(),
+            (emailEntry) =>
+              emailEntry.from &&
+              emailEntry.from.toLowerCase() !== email.from!.toLowerCase(),
           );
         if (userLastEmail && userLastEmail.receivedAt) {
           const daysDiff =
@@ -1087,7 +1097,9 @@ export class LLMProcessor implements OnModuleInit {
             email.threadId,
             { limit: 50 },
           );
-          const threadEmailIds = threadEmails.map((e) => e.id);
+          const threadEmailIds = threadEmails.map(
+            (emailEntry) => emailEntry.id,
+          );
 
           await this.emailRepository.update(
             { id: In(threadEmailIds) },
@@ -1276,7 +1288,7 @@ export class LLMProcessor implements OnModuleInit {
     ];
 
     const vipContacts = contexts.filter(
-      (c) => c.contextKey === ContextKey.VIP_CONTACT,
+      (contact) => contact.contextKey === ContextKey.VIP_CONTACT,
     );
     const matchedVip = vipContacts.find(
       (vip) =>
@@ -1650,13 +1662,13 @@ export class LLMProcessor implements OnModuleInit {
     const threadContext =
       this.incrementalAnalysisService.formatThreadContextForIncremental(
         recentThreadEmails
-          .filter((e) => e.id !== email.id)
-          .map((e) => ({
-            from: e.from || "",
-            fromName: e.fromName,
-            subject: e.subject || "",
-            body: e.body || "",
-            receivedAt: e.receivedAt || new Date(),
+          .filter((emailEntry) => emailEntry.id !== email.id)
+          .map((emailEntry) => ({
+            from: emailEntry.from || "",
+            fromName: emailEntry.fromName,
+            subject: emailEntry.subject || "",
+            body: emailEntry.body || "",
+            receivedAt: emailEntry.receivedAt || new Date(),
           })),
       );
 
@@ -1780,7 +1792,9 @@ export class LLMProcessor implements OnModuleInit {
             where: { emailThreadId: email.emailThreadId },
             select: ["id"],
           });
-          const threadEmailIds = threadEmails.map((e) => e.id);
+          const threadEmailIds = threadEmails.map(
+            (emailEntry) => emailEntry.id,
+          );
 
           await this.emailRepository.update(
             { id: In(threadEmailIds) },

@@ -13,7 +13,7 @@ import {
 
 interface UseStarCountHandlerProps {
   emails: Email[];
-  handleSetStarCountBase: (emailId: string, starCount: number, e?: React.MouseEvent) => Promise<{ discrepancy: number; predictedStarCount: number } | null>;
+  handleSetStarCountBase: (emailId: string, starCount: number, event?: React.MouseEvent) => Promise<{ discrepancy: number; predictedStarCount: number } | null>;
   onShowStarDiscrepancy: (emailId: string, userStarCount: number, predictedStarCount: number) => void;
   onShowPriorityOverride: (emailId: string, originalPriorityScore: number, newPriorityScore: number, context?: 'archive' | 'star' | 'manual') => void;
 }
@@ -24,8 +24,8 @@ export function useStarCountHandler({
   onShowStarDiscrepancy,
   onShowPriorityOverride,
 }: UseStarCountHandlerProps) {
-  const handleSetStarCount = useCallback(async (emailId: string, starCount: number, e?: React.MouseEvent) => {
-    const email = emails.find(e => e.id === emailId);
+  const handleSetStarCount = useCallback(async (emailId: string, starCount: number, event?: React.MouseEvent) => {
+    const email = emails.find(event => event.id === emailId);
     const previousStarCount = email?.starCount || 0;
     const originalPriorityScore = email ? getEmailPriorityScore(email) : DEFAULT_PRIORITY_SCORE;
     
@@ -35,7 +35,7 @@ export function useStarCountHandler({
       previous_star_count: previousStarCount,
     });
     
-    const result = await handleSetStarCountBase(emailId, starCount, e);
+    const result = await handleSetStarCountBase(emailId, starCount, event);
     
     // Convert star count to priority score (0 stars = 0-25, 1 star = 26-50, 2 stars = 51-75, 3 stars = 76-100)
     const newPriorityScore = (() => {

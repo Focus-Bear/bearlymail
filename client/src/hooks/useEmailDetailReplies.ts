@@ -71,15 +71,15 @@ function buildReplyAddresses(
   if (mode === REPLY_MODE_REPLY_ALL) {
     const recipients: string[] = [];
     if (isFromCurrentUser) {
-      if (email.to) { recipients.push(...email.to.split(',').map((r: string) => r.trim()).filter(notCurrentUser)); }
+      if (email.to) { recipients.push(...email.to.split(',').map((recipientStr: string) => recipientStr.trim()).filter(notCurrentUser)); }
     } else {
       recipients.push(replyToAddress);
-      if (email.to) { recipients.push(...email.to.split(',').map((r: string) => r.trim()).filter(notCurrentUser)); }
+      if (email.to) { recipients.push(...email.to.split(',').map((recipientStr: string) => recipientStr.trim()).filter(notCurrentUser)); }
     }
     let cc: string | null = null;
     let showCc = false;
     if (email.cc) {
-      const ccList = email.cc.split(',').map((r: string) => r.trim()).filter(notCurrentUser);
+      const ccList = email.cc.split(',').map((recipientStr: string) => recipientStr.trim()).filter(notCurrentUser);
       if (ccList.length > 0) { cc = ccList.join(', '); showCc = true; }
     }
     return { recipients: [...new Set(recipients)].join(', '), cc, showCc };
@@ -87,7 +87,7 @@ function buildReplyAddresses(
 
   // Regular reply
   if (isFromCurrentUser && email.to) {
-    const firstRecipient = email.to.split(',').map((r: string) => r.trim()).filter(notCurrentUser)[0];
+    const firstRecipient = email.to.split(',').map((recipientStr: string) => recipientStr.trim()).filter(notCurrentUser)[0];
     return { recipients: firstRecipient || replyToAddress, cc: null, showCc: false };
   }
   return { recipients: replyToAddress, cc: null, showCc: false };

@@ -282,7 +282,7 @@ const Inbox: React.FC = () => {
           onEmailClick={handleEmailClick}
           onEmailSelect={handleEmailSelect}
           onGenerateDrafts={async () => {
-            const threadIds = emails.filter(e => !e.isArchived).map(e => e.threadId);
+            const threadIds = emails.filter(event => !event.isArchived).map(event => event.threadId);
             await generateDrafts(threadIds);
           }}
           onRetry={fetchEmails}
@@ -304,11 +304,11 @@ const Inbox: React.FC = () => {
           fetchCategoryEmails={fetchCategoryEmails}
           onSplitViewArchive={(archivedEmailId) => {
             // Find the archived email to get its category
-            const archivedEmail = emails.find(e => e.id === archivedEmailId);
+            const archivedEmail = emails.find(event => event.id === archivedEmailId);
             const archivedCategory = archivedEmail?.category || 'Other';
             
             // Filter out archived emails and the just-archived email
-            const visibleEmails = emails.filter(e => !e.isArchived && e.id !== archivedEmailId);
+            const visibleEmails = emails.filter(event => !event.isArchived && event.id !== archivedEmailId);
             
             if (visibleEmails.length === 0) {
               splitView.closeEmail();
@@ -316,12 +316,12 @@ const Inbox: React.FC = () => {
             }
             
             // First, try to find the next email in the same category
-            const sameCategoryEmails = visibleEmails.filter(e => (e.category || 'Other') === archivedCategory);
+            const sameCategoryEmails = visibleEmails.filter(event => (event.category || 'Other') === archivedCategory);
             
             if (sameCategoryEmails.length > 0) {
               // Open the first email in the same category
               const nextEmail = sameCategoryEmails[0];
-              const nextIndex = visibleEmails.findIndex(e => e.id === nextEmail.id);
+              const nextIndex = visibleEmails.findIndex(event => event.id === nextEmail.id);
               splitView.openEmail(nextEmail.id);
               setSelectedEmailIndex(nextIndex >= 0 ? nextIndex : 0);
             } else {
@@ -333,11 +333,11 @@ const Inbox: React.FC = () => {
           }}
           onSplitViewSnooze={(snoozedEmailId) => {
             // Find the snoozed email to get its category
-            const snoozedEmail = emails.find(e => e.id === snoozedEmailId);
+            const snoozedEmail = emails.find(event => event.id === snoozedEmailId);
             const snoozedCategory = snoozedEmail?.category || 'Other';
 
             // Filter out archived emails and the just-snoozed email
-            const visibleEmails = emails.filter(e => !e.isArchived && e.id !== snoozedEmailId);
+            const visibleEmails = emails.filter(event => !event.isArchived && event.id !== snoozedEmailId);
 
             if (visibleEmails.length === 0) {
               splitView.closeEmail();
@@ -345,12 +345,12 @@ const Inbox: React.FC = () => {
             }
 
             // First, try to find the next email in the same category
-            const sameCategoryEmails = visibleEmails.filter(e => (e.category || 'Other') === snoozedCategory);
+            const sameCategoryEmails = visibleEmails.filter(event => (event.category || 'Other') === snoozedCategory);
 
             if (sameCategoryEmails.length > 0) {
               // Open the first email in the same category
               const nextEmail = sameCategoryEmails[0];
-              const nextIndex = visibleEmails.findIndex(e => e.id === nextEmail.id);
+              const nextIndex = visibleEmails.findIndex(event => event.id === nextEmail.id);
               splitView.openEmail(nextEmail.id);
               setSelectedEmailIndex(nextIndex >= 0 ? nextIndex : 0);
             } else {
@@ -366,20 +366,20 @@ const Inbox: React.FC = () => {
             emailActions.handleSetStarCount(prioritizedEmailId, starCount, fakeEvent);
 
             // Navigate to next email in same category (same pattern as archive/snooze)
-            const prioritizedEmail = emails.find(e => e.id === prioritizedEmailId);
+            const prioritizedEmail = emails.find(event => event.id === prioritizedEmailId);
             const prioritizedCategory = prioritizedEmail?.category || 'Other';
-            const visibleEmails = emails.filter(e => !e.isArchived && e.id !== prioritizedEmailId);
+            const visibleEmails = emails.filter(event => !event.isArchived && event.id !== prioritizedEmailId);
 
             if (visibleEmails.length === 0) {
               splitView.closeEmail();
               return;
             }
 
-            const sameCategoryEmails = visibleEmails.filter(e => (e.category || 'Other') === prioritizedCategory);
+            const sameCategoryEmails = visibleEmails.filter(event => (event.category || 'Other') === prioritizedCategory);
 
             if (sameCategoryEmails.length > 0) {
               const nextEmail = sameCategoryEmails[0];
-              const nextIndex = visibleEmails.findIndex(e => e.id === nextEmail.id);
+              const nextIndex = visibleEmails.findIndex(event => event.id === nextEmail.id);
               splitView.openEmail(nextEmail.id);
               setSelectedEmailIndex(nextIndex >= 0 ? nextIndex : 0);
             } else {

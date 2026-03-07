@@ -24,8 +24,8 @@ export const ModalContent: React.FC<ModalContentProps> = ({
         overflowY: maxHeight ? 'auto' : undefined,
         boxShadow: theme.shadows.xl,
       }}
-      onMouseDown={(e) => e.stopPropagation()}
-      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+      onClick={(event) => event.stopPropagation()}
     >
       {children}
     </div>

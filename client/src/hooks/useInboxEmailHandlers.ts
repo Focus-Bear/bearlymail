@@ -11,8 +11,8 @@ interface EmailHandlerParams {
   selectedEmailIndex: number;
   selectedEmailIds: Set<string>;
   setSelectedEmailIndex: (index: number) => void;
-  handleEmailClickBase: (emailId: string, index: number, e: React.MouseEvent, emails: any[]) => void;
-  handleArchiveBase: (emailId: string, e: React.MouseEvent) => void;
+  handleEmailClickBase: (emailId: string, index: number, event: React.MouseEvent, emails: any[]) => void;
+  handleArchiveBase: (emailId: string, event: React.MouseEvent) => void;
   handleSetStarCountBase: (emailId: string, count: number) => void;
   handleMarkAsRead: (emailId: string) => void;
   splitView: { isMobile: boolean; selectedEmailId?: string; openEmail: (id: string) => void; closeEmail: () => void };
@@ -35,7 +35,7 @@ export function useInboxEmailHandlers({
   const handleSplitViewArchiveFromKeyboard = useCallback((archivedEmailId: string) => {
     const fakeEvent = { stopPropagation: () => {} } as React.MouseEvent;
     handleArchiveBase(archivedEmailId, fakeEvent);
-    const visibleEmails = emails.filter(e => !e.isArchived && e.id !== archivedEmailId);
+    const visibleEmails = emails.filter(event => !event.isArchived && event.id !== archivedEmailId);
     if (visibleEmails.length === 0) { splitView.closeEmail(); return; }
     const currentIndex = selectedEmailIndex >= 0 ? selectedEmailIndex : 0;
     const nextIndex = currentIndex < visibleEmails.length ? currentIndex : Math.max(0, visibleEmails.length - 1);
@@ -51,12 +51,12 @@ export function useInboxEmailHandlers({
     onSplitViewArchive: handleSplitViewArchiveFromKeyboard,
   });
 
-  const handleEmailClick = useCallback((emailId: string, index: number, e: React.MouseEvent) => {
-    e.stopPropagation();
-    handleEmailClickBase(emailId, index, e, emails);
+  const handleEmailClick = useCallback((emailId: string, index: number, event: React.MouseEvent) => {
+    event.stopPropagation();
+    handleEmailClickBase(emailId, index, event, emails);
   }, [handleEmailClickBase, emails]);
 
-  const handleEmailSelect = useCallback((emailId: string, e: React.MouseEvent) => {
+  const handleEmailSelect = useCallback((emailId: string, event: React.MouseEvent) => {
     captureEvent('email_clicked', { email_id: emailId, mode });
     if (splitView.isMobile) {
       handleMarkAsRead(emailId);

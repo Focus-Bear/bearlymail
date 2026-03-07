@@ -13,7 +13,7 @@ export const StarDiscrepancyForm: React.FC<StarDiscrepancyFormProps> = ({
   return (
     <textarea
       value={explanation}
-      onChange={(e) => onExplanationChange(e.target.value)}
+      onChange={(event) => onExplanationChange(event.target.value)}
       placeholder="e.g., This is from my manager, This relates to an urgent deadline, This is just a newsletter..."
       style={{
         width: '100%',

@@ -39,7 +39,7 @@ export const SummarizationRuleAddForm: React.FC<SummarizationRuleAddFormProps> =
         <input
           type="text"
           value={newSummarizationWhen}
-          onChange={(e) => onNewSummarizationWhenChange(e.target.value)}
+          onChange={(event) => onNewSummarizationWhenChange(event.target.value)}
           placeholder={t('settings.whenToUsePlaceholder')}
           style={{
             width: '100%',
@@ -56,7 +56,7 @@ export const SummarizationRuleAddForm: React.FC<SummarizationRuleAddFormProps> =
         </label>
         <textarea
           value={newSummarizationHow}
-          onChange={(e) => onNewSummarizationHowChange(e.target.value)}
+          onChange={(event) => onNewSummarizationHowChange(event.target.value)}
           placeholder={t('settings.howToSummarizePlaceholder')}
           style={{
             width: '100%',

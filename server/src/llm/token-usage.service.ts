@@ -217,7 +217,7 @@ export class TokenUsageService implements OnModuleInit {
    */
   getPromptExamples(): PromptExample[] {
     return Array.from(this.promptExamples.values()).sort(
-      (a, b) => b.promptTokens - a.promptTokens,
+      (itemA, itemB) => itemB.promptTokens - itemA.promptTokens,
     );
   }
 

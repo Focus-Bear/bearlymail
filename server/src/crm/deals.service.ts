@@ -123,13 +123,13 @@ export class DealsService {
 
   async getStages(userId: string): Promise<DealStageResponse[]> {
     const stages = await this.ensureDefaultStages(userId);
-    return stages.map((s) => ({
-      id: s.id,
-      name: s.name,
-      sortOrder: s.sortOrder,
-      color: s.color,
-      isWon: s.isWon,
-      isLost: s.isLost,
+    return stages.map((segment) => ({
+      id: segment.id,
+      name: segment.name,
+      sortOrder: segment.sortOrder,
+      color: segment.color,
+      isWon: segment.isWon,
+      isLost: segment.isLost,
     }));
   }
 
@@ -231,7 +231,7 @@ export class DealsService {
       order: { sortOrder: "ASC", createdAt: "DESC" },
     });
 
-    return deals.map((d) => this.toDealResponse(d));
+    return deals.map((deal) => this.toDealResponse(deal));
   }
 
   async getDeal(userId: string, dealId: string): Promise<DealResponse> {
@@ -417,7 +417,7 @@ export class DealsService {
       order: { sortOrder: "ASC", createdAt: "DESC" },
     });
 
-    return deals.map((d) => this.toDealResponse(d));
+    return deals.map((deal) => this.toDealResponse(deal));
   }
 
   /**

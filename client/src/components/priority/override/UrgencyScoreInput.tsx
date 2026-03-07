@@ -49,7 +49,7 @@ export const UrgencyScoreInput: React.FC<UrgencyScoreInputProps> = ({
         min="0"
         max="100"
         value={urgencyScore}
-        onChange={(e) => onScoreChange(Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))}
+        onChange={(event) => onScoreChange(Math.max(0, Math.min(100, parseInt(event.target.value) || 0)))}
         style={{
           width: '100%',
           padding: theme.spacing.sm,

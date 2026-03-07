@@ -30,12 +30,12 @@ export class ProtoCategoriesController {
     const { userId } = req.user;
     const categories =
       await this.protoCategoriesService.findActiveByUser(userId);
-    return categories.map((c) => ({
-      id: c.id,
-      name: c.name,
-      description: c.description,
-      emailCount: c.emailCount,
-      createdAt: c.createdAt,
+    return categories.map((item) => ({
+      id: item.id,
+      name: item.name,
+      description: item.description,
+      emailCount: item.emailCount,
+      createdAt: item.createdAt,
     }));
   }
 

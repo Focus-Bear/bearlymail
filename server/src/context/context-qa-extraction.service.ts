@@ -160,13 +160,15 @@ export class ContextQaExtractionService {
     existingQuestions: Set<string>,
     existingAnswers: Set<string>,
   ): boolean {
-    const similar = (a: string, b: string) =>
-      this.piiRedactionService.areContextValuesSimilar(a, b);
+    const similar = (strA: string, strB: string) =>
+      this.piiRedactionService.areContextValuesSimilar(strA, strB);
     return (
-      [...seenQuestions].some((q) => similar(normalizedQuestion, q)) ||
-      [...seenAnswers].some((a) => similar(normalizedAnswer, a)) ||
-      [...existingQuestions].some((q) => similar(normalizedQuestion, q)) ||
-      [...existingAnswers].some((a) => similar(normalizedAnswer, a))
+      [...seenQuestions].some((query) => similar(normalizedQuestion, query)) ||
+      [...seenAnswers].some((itemA) => similar(normalizedAnswer, itemA)) ||
+      [...existingQuestions].some((query) =>
+        similar(normalizedQuestion, query),
+      ) ||
+      [...existingAnswers].some((itemA) => similar(normalizedAnswer, itemA))
     );
   }
 

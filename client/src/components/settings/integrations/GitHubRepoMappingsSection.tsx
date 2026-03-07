@@ -49,8 +49,8 @@ export const GitHubRepoMappingsSection: React.FC<GitHubRepoMappingsSectionProps>
 
   useEffect(() => { fetchMappings(); }, [fetchMappings]);
 
-  const handleAdd = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAdd = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (!newOwner.trim() || !newRepo.trim()) return;
     try {
       await axios.post(`${API_URL}/github/repo-mappings`, { owner: newOwner.trim(), repo: newRepo.trim(), emailCategories: newCategories.trim() || undefined, context: newContext.trim() || undefined, isDefault: mappings.length === 0 });
@@ -84,20 +84,20 @@ export const GitHubRepoMappingsSection: React.FC<GitHubRepoMappingsSectionProps>
       <div style={{ display: 'flex', gap: theme.spacing.sm, marginBottom: theme.spacing.sm }}>
         <div style={{ flex: 1 }}>
           <label style={labelStyle}>{t('github.repositoryOwner')} *</label>
-          <input type="text" value={newOwner} onChange={(e) => setNewOwner(e.target.value)} placeholder={t('github.repositoryOwnerPlaceholder')} required style={inputStyle} />
+          <input type="text" value={newOwner} onChange={(event) => setNewOwner(event.target.value)} placeholder={t('github.repositoryOwnerPlaceholder')} required style={inputStyle} />
         </div>
         <div style={{ flex: 1 }}>
           <label style={labelStyle}>{t('github.repositoryName')} *</label>
-          <input type="text" value={newRepo} onChange={(e) => setNewRepo(e.target.value)} placeholder={t('github.repositoryNamePlaceholder')} required style={inputStyle} />
+          <input type="text" value={newRepo} onChange={(event) => setNewRepo(event.target.value)} placeholder={t('github.repositoryNamePlaceholder')} required style={inputStyle} />
         </div>
       </div>
       <div style={{ marginBottom: theme.spacing.sm }}>
         <label style={labelStyle}>{t('settings.github.repoMappings.emailCategories')}</label>
-        <input type="text" value={newCategories} onChange={(e) => setNewCategories(e.target.value)} placeholder={t('settings.github.repoMappings.categoriesPlaceholder')} style={inputStyle} />
+        <input type="text" value={newCategories} onChange={(event) => setNewCategories(event.target.value)} placeholder={t('settings.github.repoMappings.categoriesPlaceholder')} style={inputStyle} />
       </div>
       <div style={{ marginBottom: theme.spacing.sm }}>
         <label style={labelStyle}>{t('settings.github.repoMappings.contextLabel')}</label>
-        <input type="text" value={newContext} onChange={(e) => setNewContext(e.target.value)} placeholder={t('settings.github.repoMappings.contextPlaceholder')} style={inputStyle} />
+        <input type="text" value={newContext} onChange={(event) => setNewContext(event.target.value)} placeholder={t('settings.github.repoMappings.contextPlaceholder')} style={inputStyle} />
       </div>
       <div style={{ display: 'flex', gap: theme.spacing.sm }}>
         <button type="submit" disabled={!newOwner.trim() || !newRepo.trim()} style={{ padding: `${theme.spacing.sm} ${theme.spacing.md}`, backgroundColor: theme.colors.primary.main, color: COLOR_NAMED_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.md, cursor: 'pointer', fontSize: theme.typography.fontSize.sm, opacity: (!newOwner.trim() || !newRepo.trim()) ? DISABLED_OPACITY : 1 }}>{t('settings.github.repoMappings.addRepo')}</button>

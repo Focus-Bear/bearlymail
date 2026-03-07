@@ -40,11 +40,11 @@ interface EmailListItemProps {
     showSnooze: (emailId: string) => void;
     clearSnooze: (emailId: string) => void;
   };
-  onEmailClick: (emailId: string, index: number, e: React.MouseEvent) => void;
-  onEmailSelect: (emailId: string, e: React.MouseEvent) => void;
-  onSetStarCount: (emailId: string, starCount: number, e?: React.MouseEvent) => Promise<void>;
-  onArchive: (emailId: string, e: React.MouseEvent) => Promise<void>;
-  onBlockSender: (emailId: string, e: React.MouseEvent) => void;
+  onEmailClick: (emailId: string, index: number, event: React.MouseEvent) => void;
+  onEmailSelect: (emailId: string, event: React.MouseEvent) => void;
+  onSetStarCount: (emailId: string, starCount: number, event?: React.MouseEvent) => Promise<void>;
+  onArchive: (emailId: string, event: React.MouseEvent) => Promise<void>;
+  onBlockSender: (emailId: string, event: React.MouseEvent) => void;
   onSnooze: (emailId: string) => Promise<void>;
   onOverrideUrgency?: () => void;
   onProvideFeedback?: () => void;
@@ -93,16 +93,16 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
     animationClass = 'animate-priority-out';
   }
 
-  const handleCardClick = (e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
+  const handleCardClick = (event: React.MouseEvent) => {
+    const target = event.target as HTMLElement;
     if (target.closest('[data-priority-badge]') || target.closest('[data-priority-tooltip]')) {
       return;
     }
 
-    if (e.ctrlKey || e.metaKey || e.shiftKey) {
-      onEmailClick(email.id, index, e);
+    if (event.ctrlKey || event.metaKey || event.shiftKey) {
+      onEmailClick(email.id, index, event);
     } else {
-      onEmailSelect(email.id, e);
+      onEmailSelect(email.id, event);
     }
   };
 

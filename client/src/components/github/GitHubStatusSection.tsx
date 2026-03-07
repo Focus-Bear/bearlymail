@@ -52,7 +52,7 @@ export const GitHubStatusSection: React.FC<GitHubStatusSectionProps> = ({
 
   const controls = (
     <button
-      onClick={(e) => { e.stopPropagation(); onRefresh(); }}
+      onClick={(event) => { event.stopPropagation(); onRefresh(); }}
       style={{
         background: 'transparent',
         border: STRING_NONE,

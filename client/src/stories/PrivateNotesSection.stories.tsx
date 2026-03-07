@@ -37,7 +37,7 @@ const NotesSection = ({ initialContent = '', defaultCollapsed = false }: NotesPr
         <div style={{ padding: Th.sp.md, backgroundColor: COLOR_WHITE_FULL }}>
           <textarea
             value={content}
-            onChange={e => setContent(e.target.value)}
+            onChange={event => setContent(event.target.value)}
             placeholder="Add a private note… only you can see this."
             style={{ width: '100%', minHeight: 100, padding: Th.sp.sm, border: `1px solid ${Th.border}`, borderRadius: Th.r.sm, fontSize: Th.f.base, color: Th.text, resize: 'vertical', boxSizing: 'border-box' as const, fontFamily: 'inherit', lineHeight: 1.6 }}
           />

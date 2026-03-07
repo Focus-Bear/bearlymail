@@ -114,19 +114,19 @@ const FullPanel = ({ priority = 0, note = '', allCollapsed = false }: PanelProps
         </CS>
 
         <CS title="Private Notes" accent="#7C3AED" accentBg="#F5F3FF" icon="📝" collapsed={notesCollapsed} onToggle={() => setNotesCollapsed(!notesCollapsed)} preview={notesPreview}>
-          <textarea value={noteContent} onChange={e => setNoteContent(e.target.value)} placeholder="Add a private note… only you can see this." style={{ width: '100%', minHeight: 80, padding: Th.sp.sm, border: `1px solid ${Th.border}`, borderRadius: Th.r.sm, fontSize: Th.f.base, color: Th.text, resize: 'vertical', boxSizing: 'border-box' as const, fontFamily: 'inherit' }} />        </CS>
+          <textarea value={noteContent} onChange={event => setNoteContent(event.target.value)} placeholder="Add a private note… only you can see this." style={{ width: '100%', minHeight: 80, padding: Th.sp.sm, border: `1px solid ${Th.border}`, borderRadius: Th.r.sm, fontSize: Th.f.base, color: Th.text, resize: 'vertical', boxSizing: 'border-box' as const, fontFamily: 'inherit' }} />        </CS>
 
         <CS title="Action Items" accent="#16A34A" accentBg="#F0FDF4" icon="✅" collapsed={actionsCollapsed} onToggle={() => setActionsCollapsed(!actionsCollapsed)} preview={actionsPreview}>
           <ul style={{ margin: '0 0 12px', padding: 0, listStyle: 'none' }}>
             {items.map(item => (
               <li key={item.id} style={{ display: 'flex', alignItems: 'flex-start', gap: Th.sp.sm, padding: `${Th.sp.xs} 0`, borderBottom: `1px solid ${Th.border}` }}>
-                <input type="checkbox" checked={item.isCompleted} onChange={e => setItems(prev => prev.map(i => i.id === item.id ? { ...i, isCompleted: e.target.checked } : i))} style={{ cursor: 'pointer', marginTop: 3, accentColor: '#16A34A' }} />
+                <input type="checkbox" checked={item.isCompleted} onChange={event => setItems(prev => prev.map(i => i.id === item.id ? { ...i, isCompleted: event.target.checked } : i))} style={{ cursor: 'pointer', marginTop: 3, accentColor: '#16A34A' }} />
                 <span style={{ flex: 1, fontSize: Th.f.base, color: item.isCompleted ? Th.textSec : Th.text, textDecoration: item.isCompleted ? 'line-through' : 'none' }}>{item.description}</span>
               </li>
             ))}
           </ul>
           <div style={{ display: 'flex', gap: Th.sp.sm }}>
-            <input value={newItem} onChange={e => setNewItem(e.target.value)} onKeyDown={e => e.key === 'Enter' && addItem()} placeholder="Add action item…" style={{ flex: 1, padding: `${Th.sp.xs} ${Th.sp.sm}`, border: `1px solid ${Th.border}`, borderRadius: Th.r.sm, fontSize: Th.f.base, fontFamily: 'inherit' }} />
+            <input value={newItem} onChange={event => setNewItem(event.target.value)} onKeyDown={event => event.key === 'Enter' && addItem()} placeholder="Add action item…" style={{ flex: 1, padding: `${Th.sp.xs} ${Th.sp.sm}`, border: `1px solid ${Th.border}`, borderRadius: Th.r.sm, fontSize: Th.f.base, fontFamily: 'inherit' }} />
             <button onClick={addItem} style={{ padding: `${Th.sp.xs} ${Th.sp.md}`, backgroundColor: COLOR_SUCCESS_MED, color: COLOR_WHITE, border: 'none', borderRadius: Th.r.sm, cursor: 'pointer', fontSize: Th.f.sm, fontWeight: 600 }}>Add</button>          </div>
         </CS>
 
@@ -137,7 +137,7 @@ const FullPanel = ({ priority = 0, note = '', allCollapsed = false }: PanelProps
                 <span style={{ fontSize: Th.f.sm, color: Th.text }}>{label}</span>
                 <span style={{ fontSize: Th.f.xs, fontWeight: 700, color, backgroundColor: `${color}18`, padding: '2px 8px', borderRadius: Th.r.full, flexShrink: 0 }}>{status}</span>              </div>
             ))}
-            <button type="button" onClick={e => e.preventDefault()} style={{ fontSize: Th.f.sm, color: COLOR_NEAR_BLACK, fontWeight: 600, textDecoration: 'none', marginTop: Th.sp.xs, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>View on GitHub →</button>
+            <button type="button" onClick={event => event.preventDefault()} style={{ fontSize: Th.f.sm, color: COLOR_NEAR_BLACK, fontWeight: 600, textDecoration: 'none', marginTop: Th.sp.xs, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>View on GitHub →</button>
           </div>
         </CS>
 

@@ -39,8 +39,8 @@ export const TriageSuggestionBanner: React.FC<TriageSuggestionBannerProps> = ({
         {EMOJI_LIGHTBULB} {t('inbox.suggested')}:
       </span>
       <div 
-        onClick={async (e) => {
-          e.stopPropagation();
+        onClick={async (event) => {
+          event.stopPropagation();
           captureEvent('triage_suggestion_accepted', {
             email_id: emailId,
             suggested_star_count: suggestion.suggestedStarCount,
@@ -54,11 +54,11 @@ export const TriageSuggestionBanner: React.FC<TriageSuggestionBannerProps> = ({
           cursor: 'pointer',
           transition: 'opacity 0.2s',
         }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.opacity = '1';
+        onMouseEnter={(event) => {
+          event.currentTarget.style.opacity = '1';
         }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.opacity = '0.5';
+        onMouseLeave={(event) => {
+          event.currentTarget.style.opacity = '0.5';
         }}
         title={t('inbox.clickToSetStars', { count: suggestion.suggestedStarCount })}
       >

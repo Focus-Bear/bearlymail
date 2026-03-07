@@ -50,7 +50,7 @@ interface ExecuteArchiveParams {
   selectedEmailIndex: number;
   selectedEmailIds: Set<string>;
   setSelectedEmailIndex: (index: number) => void;
-  onArchive: (emailId: string, e: React.MouseEvent) => void;
+  onArchive: (emailId: string, event: React.MouseEvent) => void;
   onSplitViewArchive?: (emailId: string) => void;
   cancelPendingArchive: () => void;
 }
@@ -80,7 +80,7 @@ interface UseKeyboardShortcutsProps {
   selectedEmailIndex: number;
   selectedEmailIds: Set<string>;
   setSelectedEmailIndex: (index: number) => void;
-  onArchive: (emailId: string, e: React.MouseEvent) => void;
+  onArchive: (emailId: string, event: React.MouseEvent) => void;
   onSetStarCount: (emailId: string, starCount: number) => void;
   enabled?: boolean;
   emailListRef?: React.RefObject<HTMLDivElement | null>;
@@ -135,24 +135,24 @@ export function useKeyboardShortcuts({
     executeArchiveAction({ archiveState, emails, selectedEmailIndex, selectedEmailIds, setSelectedEmailIndex, onArchive, onSplitViewArchive, cancelPendingArchive });
   }, [emails, selectedEmailIndex, selectedEmailIds, setSelectedEmailIndex, onArchive, onSplitViewArchive, cancelPendingArchive]);
 
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+  const handleKeyDown = useCallback((event: KeyboardEvent) => {
     // Ignore if typing in an input or contenteditable element (like Tiptap rich text editor)
     if (
-      e.target instanceof HTMLInputElement || 
-      e.target instanceof HTMLTextAreaElement ||
-      isContentEditableElement(e.target)
+      event.target instanceof HTMLInputElement || 
+      event.target instanceof HTMLTextAreaElement ||
+      isContentEditableElement(event.target)
     ) {
       return;
     }
 
     // Handle pending archive confirmation
     if (pendingArchive) {
-      if (e.key === KEY_Y) {
-        e.preventDefault();
+      if (event.key === KEY_Y) {
+        event.preventDefault();
         executeArchive(pendingArchive);
         return;
-      } else if (e.key === KEY_ESCAPE || e.key === KEY_N) {
-        e.preventDefault();
+      } else if (event.key === KEY_ESCAPE || event.key === KEY_N) {
+        event.preventDefault();
         cancelPendingArchive();
         return;
       } else {
@@ -166,30 +166,30 @@ export function useKeyboardShortcuts({
     const visibleEmails = emails.filter(email => !email.isArchived);
 
     // Arrow navigation
-    if (e.key === KEY_ARROW_DOWN || e.key === KEY_J) {
-      e.preventDefault();
+    if (event.key === KEY_ARROW_DOWN || event.key === KEY_J) {
+      event.preventDefault();
       const newIndex = Math.min(selectedEmailIndex + 1, visibleEmails.length - 1);
       setSelectedEmailIndex(newIndex);
       scrollEmailIntoView(newIndex, emailListRef);
-    } else if (e.key === KEY_ARROW_UP || e.key === KEY_K) {
-      e.preventDefault();
+    } else if (event.key === KEY_ARROW_UP || event.key === KEY_K) {
+      event.preventDefault();
       const newIndex = Math.max(selectedEmailIndex - 1, 0);
       setSelectedEmailIndex(newIndex);
       scrollEmailIntoView(newIndex, emailListRef);
     }
 
     // Star shortcuts (1, 2, 3) and clear star (0)
-    if ((['1', '2', '3', '0'].includes(e.key)) && selectedEmailIds.size > 0) {
-      e.preventDefault();
-      const starCount = parseInt(e.key);
+    if ((['1', '2', '3', '0'].includes(event.key)) && selectedEmailIds.size > 0) {
+      event.preventDefault();
+      const starCount = parseInt(event.key);
       selectedEmailIds.forEach(emailId => { onSetStarCount(emailId, starCount); });
     }
 
     // Archive (Delete, Backspace, or 'e') - now requires confirmation
-    if (e.key === KEY_DELETE || e.key === KEY_BACKSPACE || e.key === KEY_E) {
+    if (event.key === KEY_DELETE || event.key === KEY_BACKSPACE || event.key === KEY_E) {
       const { emailIds: emailIdsToArchive, isSplitView } = buildArchiveTargetIds(splitViewSelectedEmailId, selectedEmailIds, selectedEmailIndex, visibleEmails);
       if (emailIdsToArchive.length > 0) {
-        e.preventDefault();
+        event.preventDefault();
         scheduleArchiveWithConfirmation({ emailIds: emailIdsToArchive, isSplitView }, setPendingArchive, timeoutRef);
       }
     }

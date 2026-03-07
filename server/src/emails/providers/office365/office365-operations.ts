@@ -121,16 +121,16 @@ function parseRecipientsToOffice365(
 ): Array<{ emailAddress: { address: string; name?: string } }> {
   return recipientStr
     .split(",")
-    .map((r) => r.trim())
-    .filter((r) => r.length > 0)
-    .map((r) => {
-      const match = r.match(/^(.*?)\s*<([^>]+)>$/);
+    .map((recipient) => recipient.trim())
+    .filter((recipient) => recipient.length > 0)
+    .map((recipient) => {
+      const match = recipient.match(/^(.*?)\s*<([^>]+)>$/);
       if (match) {
         const name = match[1].trim();
         const address = match[2].trim();
         return { emailAddress: name ? { address, name } : { address } };
       }
-      return { emailAddress: { address: r } };
+      return { emailAddress: { address: recipient } };
     });
 }
 
@@ -191,28 +191,28 @@ export async function sendEmailViaOffice365(
       contentType: "HTML",
       content: htmlBody,
     },
-    toRecipients: to.map((r) => ({
+    toRecipients: to.map((recipient) => ({
       emailAddress: {
-        address: r.email,
-        name: r.name,
+        address: recipient.email,
+        name: recipient.name,
       },
     })),
   };
 
   if (cc && cc.length > 0) {
-    message.ccRecipients = cc.map((r) => ({
+    message.ccRecipients = cc.map((recipient) => ({
       emailAddress: {
-        address: r.email,
-        name: r.name,
+        address: recipient.email,
+        name: recipient.name,
       },
     }));
   }
 
   if (bcc && bcc.length > 0) {
-    message.bccRecipients = bcc.map((r) => ({
+    message.bccRecipients = bcc.map((recipient) => ({
       emailAddress: {
-        address: r.email,
-        name: r.name,
+        address: recipient.email,
+        name: recipient.name,
       },
     }));
   }

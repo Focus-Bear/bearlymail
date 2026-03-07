@@ -94,7 +94,7 @@ export class EmailGmailService {
         };
       });
 
-      const isAnyStarred = messageStarStatuses.some((m) => m.isStarred);
+      const isAnyStarred = messageStarStatuses.some((msg) => msg.isStarred);
       const latestMessage = thread.messages[thread.messages.length - 1];
 
       return {
@@ -104,7 +104,7 @@ export class EmailGmailService {
         latestMessageLabelIds: latestMessage.labelIds || [],
         messageStarStatuses,
         isAnyStarred,
-        starredMessageCount: messageStarStatuses.filter((m) => m.isStarred)
+        starredMessageCount: messageStarStatuses.filter((msg) => msg.isStarred)
           .length,
         error: undefined,
       };

@@ -158,7 +158,8 @@ export class ContextCrudService {
 
         // Sort by lastModified (keep newest)
         contexts.sort(
-          (a, b) => b.lastModified.getTime() - a.lastModified.getTime(),
+          (itemA, itemB) =>
+            itemB.lastModified.getTime() - itemA.lastModified.getTime(),
         );
 
         // Keep the first (newest) and check others for similarity

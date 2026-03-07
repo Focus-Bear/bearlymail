@@ -300,10 +300,10 @@ export class AuthController {
       }
       res.redirect(`${frontendUrl}/settings?googleConnected=true`);
       return true;
-    } catch (e) {
+    } catch (err) {
       logError(
         "Error parsing state in Google callback",
-        e instanceof Error ? e : new Error(String(e)),
+        err instanceof Error ? err : new Error(String(err)),
       );
       return false;
     }
@@ -363,10 +363,10 @@ export class AuthController {
       }
       res.redirect(`${frontendUrl}/settings?office365Connected=true`);
       return true;
-    } catch (e) {
+    } catch (err) {
       logError(
         "Error parsing state in Microsoft callback",
-        e instanceof Error ? e : new Error(String(e)),
+        err instanceof Error ? err : new Error(String(err)),
       );
       return false;
     }
@@ -422,10 +422,10 @@ export class AuthController {
       }
       res.redirect(`${frontendUrl}/settings?zohoConnected=true`);
       return true;
-    } catch (e) {
+    } catch (err) {
       logError(
         "Error parsing state in Zoho callback",
-        e instanceof Error ? e : new Error(String(e)),
+        err instanceof Error ? err : new Error(String(err)),
       );
       return false;
     }

@@ -51,8 +51,8 @@ export const BlockedKeywordsSection: React.FC<BlockedKeywordsSectionProps> = ({
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === KEY_ENTER && !isAdding) {
+  const handleKeyPress = (event: React.KeyboardEvent) => {
+    if (event.key === KEY_ENTER && !isAdding) {
       handleAddKeyword();
     }
   };
@@ -88,7 +88,7 @@ export const BlockedKeywordsSection: React.FC<BlockedKeywordsSectionProps> = ({
             <input
               type="text"
               value={newKeyword}
-              onChange={(e) => setNewKeyword(e.target.value)}
+              onChange={(event) => setNewKeyword(event.target.value)}
               onKeyPress={handleKeyPress}
               placeholder={t('settings.blockedKeywords.placeholder')}
               style={{ flex: 1, minWidth: '200px', padding: theme.spacing.sm, borderRadius: theme.borderRadius.md, border: `1px solid ${theme.colors.border.light}`, fontSize: theme.typography.fontSize.sm, backgroundColor: theme.colors.background.subtle, color: theme.colors.text.primary, }}
@@ -97,7 +97,7 @@ export const BlockedKeywordsSection: React.FC<BlockedKeywordsSectionProps> = ({
               <input
                 type="checkbox"
                 checked={exactMatch}
-                onChange={(e) => setExactMatch(e.target.checked)}
+                onChange={(event) => setExactMatch(event.target.checked)}
                 style={{ cursor: 'pointer' }}
               />
               {t('settings.blockedKeywords.exactMatchLabel')}

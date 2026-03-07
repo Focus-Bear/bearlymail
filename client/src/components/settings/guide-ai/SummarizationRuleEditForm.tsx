@@ -42,7 +42,7 @@ export const SummarizationRuleEditForm: React.FC<SummarizationRuleEditFormProps>
           <input
             type="text"
             value={editSummarizationWhen}
-            onChange={(e) => onEditSummarizationWhenChange(e.target.value)}
+            onChange={(event) => onEditSummarizationWhenChange(event.target.value)}
             style={{
               width: '100%',
               padding: theme.spacing.sm,
@@ -58,7 +58,7 @@ export const SummarizationRuleEditForm: React.FC<SummarizationRuleEditFormProps>
           </label>
           <textarea
             value={editSummarizationHow}
-            onChange={(e) => onEditSummarizationHowChange(e.target.value)}
+            onChange={(event) => onEditSummarizationHowChange(event.target.value)}
             style={{
               width: '100%',
               minHeight: `${INPUT_WIDTH_PX}px`,

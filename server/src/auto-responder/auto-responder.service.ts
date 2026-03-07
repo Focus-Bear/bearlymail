@@ -141,8 +141,9 @@ export class AutoResponderService {
     }
 
     const latestEmail = thread.emails.sort(
-      (a, b) =>
-        new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime(),
+      (emailA, emailB) =>
+        new Date(emailB.receivedAt).getTime() -
+        new Date(emailA.receivedAt).getTime(),
     )[0];
 
     logContext.senderEmail = latestEmail.from;

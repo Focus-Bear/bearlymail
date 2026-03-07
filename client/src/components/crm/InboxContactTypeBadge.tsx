@@ -67,7 +67,7 @@ export const InboxContactTypeBadge: React.FC<InboxContactTypeBadgeProps> = ({ se
     }
     const configs = await loadConfigs();
     if (mountedRef.current) {
-      setConfig(configs.find(c => c.name === typeName) || null);
+      setConfig(configs.find(cat => cat.name === typeName) || null);
     }
   }, []);
 

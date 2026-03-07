@@ -10,14 +10,14 @@ interface ReplyComposerHeaderProps {
   onClose: () => void;
 }
 
-const getHeaderTitle = (replyMode: 'reply' | 'replyAll' | 'forward', t: (key: string) => string): string => {
+const getHeaderTitle = (replyMode: 'reply' | 'replyAll' | 'forward', tFunc: (key: string) => string): string => {
   if (replyMode === REPLY_MODE_FORWARD) {
-    return t('emailDetail.forward');
+    return tFunc('emailDetail.forward');
   }
   if (replyMode === REPLY_MODE_REPLY_ALL) {
-    return t('emailDetail.replyAll');
+    return tFunc('emailDetail.replyAll');
   }
-  return t('emailDetail.reply');
+  return tFunc('emailDetail.reply');
 };
 
 export const ReplyComposerHeader: React.FC<ReplyComposerHeaderProps> = ({

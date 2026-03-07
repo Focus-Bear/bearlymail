@@ -33,8 +33,8 @@ export const SnoozeButton: React.FC<SnoozeButtonProps> = ({ email, onShowSnooze 
         gap: theme.spacing.xs,
         color: theme.colors.text.tertiary,
       }}
-      onMouseEnter={(e) => e.currentTarget.style.opacity = String(OPACITY_FULL)}
-      onMouseLeave={(e) => e.currentTarget.style.opacity = String(OPACITY_DISABLED)}
+      onMouseEnter={(event) => event.currentTarget.style.opacity = String(OPACITY_FULL)}
+      onMouseLeave={(event) => event.currentTarget.style.opacity = String(OPACITY_DISABLED)}
     >
       {/* eslint-disable-next-line i18next/no-literal-string */}
       <span>{EMOJI_CLOCK}</span>

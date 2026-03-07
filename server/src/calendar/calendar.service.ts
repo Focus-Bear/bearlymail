@@ -233,9 +233,9 @@ export class CalendarService {
         continue;
       }
 
-      const isBusy = busy.some((b) => {
-        const busyStart = new Date(b.start);
-        const busyEnd = new Date(b.end);
+      const isBusy = busy.some((itemB) => {
+        const busyStart = new Date(itemB.start);
+        const busyEnd = new Date(itemB.end);
         return (
           (current >= busyStart && current < busyEnd) ||
           (slotEnd > busyStart && slotEnd <= busyEnd) ||
@@ -250,9 +250,9 @@ export class CalendarService {
         continue;
       }
 
-      const isTooCloseToMeeting = busy.some((b) => {
-        const busyEnd = new Date(b.end);
-        const busyStart = new Date(b.start);
+      const isTooCloseToMeeting = busy.some((itemB) => {
+        const busyEnd = new Date(itemB.end);
+        const busyStart = new Date(itemB.start);
         const gapMs = gapMinutes * MILLISECONDS.MINUTE;
         const tooCloseAfter =
           current.getTime() >= busyEnd.getTime() &&
@@ -314,9 +314,9 @@ export class CalendarService {
     tz: string,
   ): number {
     let total = 0;
-    for (const b of busy) {
-      const busyStart = new Date(b.start);
-      const busyEnd = new Date(b.end);
+    for (const itemB of busy) {
+      const busyStart = new Date(itemB.start);
+      const busyEnd = new Date(itemB.end);
       if (this.toDayKey(busyStart, tz) !== dayKey) continue;
       const tzStart = this.toTzDate(busyStart, tz);
       const dayStart = new Date(tzStart);
@@ -604,10 +604,10 @@ Manage this booking:
         description: event.description,
         start: event.start?.dateTime || event.start?.date,
         end: event.end?.dateTime || event.end?.date,
-        attendees: event.attendees?.map((a) => ({
-          email: a.email,
-          displayName: a.displayName,
-          responseStatus: a.responseStatus,
+        attendees: event.attendees?.map((itemA) => ({
+          email: itemA.email,
+          displayName: itemA.displayName,
+          responseStatus: itemA.responseStatus,
         })),
         htmlLink: event.htmlLink,
         location: event.location,

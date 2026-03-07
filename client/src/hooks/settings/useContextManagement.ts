@@ -55,22 +55,21 @@ export const useContextManagement = () => {
         contextValue: newContextValue.trim(),
         priority: addingContextType === CONTEXT_KEY_WORKING_ON ? newContextPriority : undefined,
       });
-      setContexts(prev => prev.map(c => c.contextId === tempId ? { ...c, contextId: response.data.contextId } : c));
+      setContexts(prev => prev.map(ctx => ctx.contextId === tempId ? { ...ctx, contextId: response.data.contextId } : ctx));
     } catch (error) {
       console.error('Error adding context:', error);
-      setContexts(prev => prev.filter(c => c.contextId !== tempId));
+      setContexts(prev => prev.filter(ctx => ctx.contextId !== tempId));
     }
   }, [newContextValue, addingContextType, newContextPriority]);
 
   const updateContext = useCallback(async () => {
     if (!editContextValue.trim() || !editingContextId) return;
     
-    const contextToUpdate = contexts.find(c => c.contextId === editingContextId);
+    const contextToUpdate = contexts.find(ctx => ctx.contextId === editingContextId);
     
-    setContexts(prev => prev.map(c =>
-      c.contextId === editingContextId
-        ? { ...c, contextValue: editContextValue.trim(), priority: editContextPriority }
-        : c
+    setContexts(prev => prev.map(ctx => ctx.contextId === editingContextId
+        ? { ...ctx, contextValue: editContextValue.trim(), priority: editContextPriority }
+        : ctx
     ));
     setEditingContextId(null);
     const savedValue = editContextValue;
@@ -86,16 +85,15 @@ export const useContextManagement = () => {
     }catch (error) {
       console.error('Error updating context:', error);
       if (contextToUpdate) {
-        setContexts(prev => prev.map(c =>
-          c.contextId === editingContextId ? contextToUpdate : c
+        setContexts(prev => prev.map(ctx => ctx.contextId === editingContextId ? contextToUpdate : ctx
         ));
       }
     }
   }, [editContextValue, editingContextId, editContextPriority, contexts]);
 
   const deleteContext = useCallback(async (contextId: string) => {
-    const deletedContext = contexts.find(c => c.contextId === contextId);
-    setContexts(prev => prev.filter(c => c.contextId !== contextId));
+    const deletedContext = contexts.find(ctx => ctx.contextId === contextId);
+    setContexts(prev => prev.filter(ctx => ctx.contextId !== contextId));
     
     try {
       await axios.delete(`${API_URL}/context/${contextId}`);

@@ -253,7 +253,7 @@ export const GitHubConnectionStatusSection: React.FC<GitHubConnectionStatusSecti
 
   if (!hasGithubToken) return null;
 
-  const inaccessibleRepos = status?.repos?.filter((r) => !r.accessible) ?? [];
+  const inaccessibleRepos = status?.repos?.filter((repo) => !repo.accessible) ?? [];
   const hasIssues = status && (!status.tokenValid || inaccessibleRepos.length > 0);
 
   return (

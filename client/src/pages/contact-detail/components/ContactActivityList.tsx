@@ -17,7 +17,7 @@ interface Props {
   buttonSecondary: React.CSSProperties;
   dealsOnView: () => void;
   dealsOnAdd: () => void;
-  t: (k: string) => string;
+  t: (tKey: string) => string;
 }
 
 const ContactActivityList: React.FC<Props> = ({ contact, newNote, addingNote, onNewNoteChange, onAddNote, onDeleteNote, sectionStyle, inputStyle, buttonPrimary, buttonSecondary, dealsOnView, dealsOnAdd, t }) => {
@@ -29,7 +29,7 @@ const ContactActivityList: React.FC<Props> = ({ contact, newNote, addingNote, on
           {t('contacts.notes')}
         </h2>
         <div style={{ display: 'flex', gap: theme.spacing.sm, marginBottom: theme.spacing.md }}>
-          <textarea value={newNote} onChange={(e) => onNewNoteChange(e.target.value)} placeholder={t('contacts.notePlaceholder')} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
+          <textarea value={newNote} onChange={(event) => onNewNoteChange(event.target.value)} placeholder={t('contacts.notePlaceholder')} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
           <button onClick={onAddNote} disabled={submitDisabled} style={{ ...buttonPrimary, alignSelf: 'flex-end', opacity: !newNote.trim() ? OPACITY_HALF : OPACITY_FULL }}>
             {t('contacts.addNote')}
           </button>

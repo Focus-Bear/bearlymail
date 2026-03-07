@@ -29,45 +29,47 @@ const US_HOLIDAYS = {
  * Variable names follow the standard Computus algorithm notation
  */
 function calculateEaster(year: number): Date {
-  const a = year % EASTER_ALGORITHM.METONIC_CYCLE;
-  const b = Math.floor(year / EASTER_ALGORITHM.CENTURY_DIVISOR);
-  const c = year % EASTER_ALGORITHM.CENTURY_DIVISOR;
-  const d = Math.floor(b / 4);
-  const e = b % 4;
-  const f = Math.floor(
-    (b + EASTER_ALGORITHM.LUNAR_CORRECTION_OFFSET) /
+  const itemA = year % EASTER_ALGORITHM.METONIC_CYCLE;
+  const itemB = Math.floor(year / EASTER_ALGORITHM.CENTURY_DIVISOR);
+  const item = year % EASTER_ALGORITHM.CENTURY_DIVISOR;
+  const date = Math.floor(itemB / 4);
+  const err = itemB % 4;
+  const field = Math.floor(
+    (itemB + EASTER_ALGORITHM.LUNAR_CORRECTION_OFFSET) /
       EASTER_ALGORITHM.LUNAR_CORRECTION_DIVISOR,
   );
-  const g = Math.floor((b - f + 1) / EASTER_ALGORITHM.SOLAR_CORRECTION_DIVISOR);
-  const h =
-    (EASTER_ALGORITHM.METONIC_CYCLE * a +
-      b -
-      d -
-      g +
+  const group = Math.floor(
+    (itemB - field + 1) / EASTER_ALGORITHM.SOLAR_CORRECTION_DIVISOR,
+  );
+  const header =
+    (EASTER_ALGORITHM.METONIC_CYCLE * itemA +
+      itemB -
+      date -
+      group +
       EASTER_ALGORITHM.PASCHAL_FULL_MOON_OFFSET) %
     EASTER_ALGORITHM.PASCHAL_FULL_MOON_MOD;
-  const i = Math.floor(c / 4);
-  const k = c % 4;
-  const l =
-    (EASTER_ALGORITHM.DOMINICAL_OFFSET + 2 * e + 2 * i - h - k) %
+  const i = Math.floor(item / 4);
+  const key = item % 4;
+  const label =
+    (EASTER_ALGORITHM.DOMINICAL_OFFSET + 2 * err + 2 * i - header - key) %
     EASTER_ALGORITHM.DOMINICAL_MOD;
-  const m = Math.floor(
-    (a +
-      EASTER_ALGORITHM.EPACT_MULTIPLIER_A * h +
-      EASTER_ALGORITHM.EPACT_MULTIPLIER_L * l) /
+  const match = Math.floor(
+    (itemA +
+      EASTER_ALGORITHM.EPACT_MULTIPLIER_A * header +
+      EASTER_ALGORITHM.EPACT_MULTIPLIER_L * label) /
       EASTER_ALGORITHM.EPACT_DIVISOR,
   );
   const month = Math.floor(
-    (h +
-      l -
-      EASTER_ALGORITHM.DOMINICAL_MOD * m +
+    (header +
+      label -
+      EASTER_ALGORITHM.DOMINICAL_MOD * match +
       EASTER_ALGORITHM.MONTH_CALCULATION_OFFSET) /
       EASTER_ALGORITHM.MONTH_DIVISOR,
   );
   const day =
-    ((h +
-      l -
-      EASTER_ALGORITHM.DOMINICAL_MOD * m +
+    ((header +
+      label -
+      EASTER_ALGORITHM.DOMINICAL_MOD * match +
       EASTER_ALGORITHM.MONTH_CALCULATION_OFFSET) %
       EASTER_ALGORITHM.MONTH_DIVISOR) +
     1;
@@ -81,13 +83,17 @@ function getNthWeekday(
   year: number,
   month: number,
   weekday: number,
-  n: number,
+  weekOrdinal: number,
 ): Date {
   const firstDay = new Date(year, month, 1);
   const firstWeekday = firstDay.getDay();
   let offset = weekday - firstWeekday;
   if (offset < 0) offset += DAYS.WEEK;
-  const date = new Date(year, month, 1 + offset + (n - 1) * DAYS.WEEK);
+  const date = new Date(
+    year,
+    month,
+    1 + offset + (weekOrdinal - 1) * DAYS.WEEK,
+  );
   return date;
 }
 
@@ -253,7 +259,7 @@ export function isBusinessDay(date: Date): boolean {
   const year = date.getFullYear();
   const holidays = getHolidaysForYear(year);
 
-  const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+  const pad = (dval: number) => (dval < 10 ? `0${dval}` : `${dval}`);
   const dateStr = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 
   return !holidays.some((holiday) => {

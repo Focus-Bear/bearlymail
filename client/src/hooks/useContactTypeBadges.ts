@@ -30,9 +30,9 @@ export function useContactTypeBadges(emails: Email[], loading: boolean) {
     if (loading || emails.length === 0) return;
 
     const senderEmails = emails
-      .map(e => e.correspondentEmail || e.from)
+      .map(event => event.correspondentEmail || event.from)
       .filter(Boolean)
-      .map(e => e!.toLowerCase());
+      .map(event => event!.toLowerCase());
 
     const uniqueEmails = [...new Set(senderEmails)];
     const key = uniqueEmails.sort().join(',');

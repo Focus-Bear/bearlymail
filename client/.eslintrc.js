@@ -67,13 +67,14 @@ module.exports = {
     // ===========================================
     // CLEAN CODE - NAMING CONVENTIONS
     // ===========================================
-    // Enforce minimum identifier length (avoid single-letter variables except loops)
+    // Enforce minimum identifier length (avoid single-letter variables except loops/coords)
     'id-length': [
-      'warn',
+      'error',
       {
         min: 2,
-        // Common acceptable short names in various contexts
-        exceptions: ['i', 'j', 'k', 'x', 'y', 'z', 'e', 't', '_', 'a', 'b', 'c', 'n', 'r', 'w', 'h'],
+        // Only principled exceptions: underscore (unused), loop indices, coordinates
+        exceptions: ['_', 'i', 'j', 'x', 'y', 'z'],
+        exceptionPatterns: ['^_'], // Allow _anything (underscore-prefixed)
         properties: 'never', // Don't check object properties
       },
     ],

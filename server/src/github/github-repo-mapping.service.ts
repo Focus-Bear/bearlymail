@@ -52,10 +52,13 @@ export class GitHubRepoMappingService {
     }
 
     // Return deduplicated results sorted by isDefault DESC, updatedAt DESC
-    return Array.from(seen.values()).sort((a, b) => {
-      if (a.isDefault && !b.isDefault) return -1;
-      if (!a.isDefault && b.isDefault) return 1;
-      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+    return Array.from(seen.values()).sort((itemA, itemB) => {
+      if (itemA.isDefault && !itemB.isDefault) return -1;
+      if (!itemA.isDefault && itemB.isDefault) return 1;
+      return (
+        new Date(itemB.updatedAt).getTime() -
+        new Date(itemA.updatedAt).getTime()
+      );
     });
   }
 
@@ -159,7 +162,7 @@ export class GitHubRepoMappingService {
       if (!mapping.emailCategories) continue;
       const categories = mapping.emailCategories
         .split(",")
-        .map((c) => c.trim().toLowerCase());
+        .map((category) => category.trim().toLowerCase());
       if (categories.includes(category.toLowerCase())) {
         return mapping;
       }
@@ -202,7 +205,9 @@ export class GitHubRepoMappingService {
       where: { userId },
     });
     const existing =
-      allMappings.find((m) => m.owner === owner && m.repo === repo) ?? null;
+      allMappings.find(
+        (mapping) => mapping.owner === owner && mapping.repo === repo,
+      ) ?? null;
 
     if (existing) {
       if (
@@ -210,7 +215,7 @@ export class GitHubRepoMappingService {
         existing.emailCategories &&
         !existing.emailCategories
           .split(",")
-          .map((c) => c.trim().toLowerCase())
+          .map((category) => category.trim().toLowerCase())
           .includes(emailCategory.toLowerCase())
       ) {
         existing.emailCategories = `${existing.emailCategories},${emailCategory}`;

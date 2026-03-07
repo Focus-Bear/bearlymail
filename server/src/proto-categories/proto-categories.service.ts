@@ -39,7 +39,7 @@ export class ProtoCategoriesService {
     const candidates = await this.protoCategoryRepository.find({
       where: { userId, isPromoted: false },
     });
-    return candidates.find((c) => c.name === name) || null;
+    return candidates.find((category) => category.name === name) || null;
   }
 
   /**
@@ -390,13 +390,13 @@ export class ProtoCategoriesService {
     });
 
     return {
-      activeCount: categories.filter((c) => !c.isPromoted).length,
-      promotedCount: categories.filter((c) => c.isPromoted).length,
-      categories: categories.map((c) => ({
-        id: c.id,
-        name: c.name,
-        emailCount: c.emailCount,
-        isPromoted: c.isPromoted,
+      activeCount: categories.filter((count) => !count.isPromoted).length,
+      promotedCount: categories.filter((count) => count.isPromoted).length,
+      categories: categories.map((item) => ({
+        id: item.id,
+        name: item.name,
+        emailCount: item.emailCount,
+        isPromoted: item.isPromoted,
       })),
     };
   }

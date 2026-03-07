@@ -77,7 +77,7 @@ describe('priorityUtils', () => {
     });
 
     it('should use translation function when provided', () => {
-      const t = jest.fn((key: string) => {
+      const tFunc = jest.fn((key: string) => {
         const translations: Record<string, string> = {
           'priority.high': 'Alto',
           'priority.medium': 'Medio',
@@ -87,21 +87,21 @@ describe('priorityUtils', () => {
         return translations[key] || key;
       });
 
-      const highResult = getPriorityBadge(50, t);
+      const highResult = getPriorityBadge(50, tFunc);
       expect(highResult.label).toBe('Alto');
-      expect(t).toHaveBeenCalledWith('priority.high');
+      expect(tFunc).toHaveBeenCalledWith('priority.high');
 
-      const mediumResult = getPriorityBadge(30, t);
+      const mediumResult = getPriorityBadge(30, tFunc);
       expect(mediumResult.label).toBe('Medio');
-      expect(t).toHaveBeenCalledWith('priority.medium');
+      expect(tFunc).toHaveBeenCalledWith('priority.medium');
 
-      const lowResult = getPriorityBadge(10, t);
+      const lowResult = getPriorityBadge(10, tFunc);
       expect(lowResult.label).toBe('Bajo');
-      expect(t).toHaveBeenCalledWith('priority.low');
+      expect(tFunc).toHaveBeenCalledWith('priority.low');
 
-      const veryLowResult = getPriorityBadge(-5, t);
+      const veryLowResult = getPriorityBadge(-5, tFunc);
       expect(veryLowResult.label).toBe('Muy Bajo');
-      expect(t).toHaveBeenCalledWith('priority.veryLow');
+      expect(tFunc).toHaveBeenCalledWith('priority.veryLow');
     });
 
     it('should use default labels when translation function is not provided', () => {

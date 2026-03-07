@@ -72,7 +72,7 @@ export const CustomRuleModal: React.FC<CustomRuleModalProps> = ({
           </label>
           <textarea
             value={customRule.whenToUse}
-            onChange={(e) => onCustomRuleChange({ ...customRule, whenToUse: e.target.value })}
+            onChange={(event) => onCustomRuleChange({ ...customRule, whenToUse: event.target.value })}
             placeholder={t('emailDetail.whenToUsePlaceholder')}
             style={{
               width: '100%',
@@ -96,7 +96,7 @@ export const CustomRuleModal: React.FC<CustomRuleModalProps> = ({
           </label>
           <textarea
             value={customRule.howToSummarize}
-            onChange={(e) => onCustomRuleChange({ ...customRule, howToSummarize: e.target.value })}
+            onChange={(event) => onCustomRuleChange({ ...customRule, howToSummarize: event.target.value })}
             placeholder={t('emailDetail.howToSummarizePlaceholder')}
             style={{
               width: '100%',

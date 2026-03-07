@@ -104,7 +104,7 @@ describe("GitHubRepoMappingService", () => {
 
       // Should return 2 unique mappings (id:1 and id:3), deduplicated
       expect(result).toHaveLength(2);
-      const ids = result.map((m) => m.id);
+      const ids = result.map((mapping) => mapping.id);
       expect(ids).toContain("1");
       expect(ids).toContain("3");
       expect(ids).not.toContain("2");

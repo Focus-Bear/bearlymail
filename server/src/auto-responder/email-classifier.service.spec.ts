@@ -5,7 +5,7 @@ import { LLMService } from "../llm/llm.service";
 import { EmailClassifierService } from "./email-classifier.service";
 
 function hasReasonMatching(reasons: string[], pattern: string): boolean {
-  return reasons.some((r) => r.includes(pattern));
+  return reasons.some((reason) => reason.includes(pattern));
 }
 
 describe("EmailClassifierService", () => {

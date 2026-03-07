@@ -58,9 +58,9 @@ export const PriorityButtonRow: React.FC<PriorityButtonRowProps> = ({
           return (
             <button
               key={value}
-              onClick={(e) => {
-                e.stopPropagation();
-                onSetStarCount(emailId, newCount, e);
+              onClick={(event) => {
+                event.stopPropagation();
+                onSetStarCount(emailId, newCount, event);
               }}
               style={{
                 padding: `${theme.spacing.xs} ${theme.spacing.md}`,

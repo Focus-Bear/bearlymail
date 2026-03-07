@@ -249,7 +249,7 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
           
           {showPriorityExplanation && priorityExplanation && (
             <div 
-              onClick={(e) => e.stopPropagation()}
+              onClick={(event) => event.stopPropagation()}
               style={{
                 position: 'absolute',
                 top: '100%',
@@ -270,8 +270,8 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
                   {t('emailDetail.scoreBreakdown')}
                 </h4>
                 <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
+                  onClick={(event) => {
+                    event.stopPropagation();
                     onClosePriorityExplanation();
                   }}
                   style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '1.2rem', padding: 0 }}
@@ -328,8 +328,8 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
               </div>
               
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
+                onClick={(event) => {
+                  event.stopPropagation();
                   navigate('/settings');
                 }}
                 style={{
@@ -352,8 +352,8 @@ export const EmailDetailHeader: React.FC<EmailDetailHeaderProps> = ({
           
           {showPriorityExplanation && (
             <div 
-              onClick={(e) => {
-                e.stopPropagation();
+              onClick={(event) => {
+                event.stopPropagation();
                 onClosePriorityExplanation();
               }}
               style={{

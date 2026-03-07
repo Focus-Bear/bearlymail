@@ -655,7 +655,7 @@ Respond with ONLY a JSON object:
     contexts: UserContext[],
   ): Omit<TriageSuggestion, "suggestedStarCount"> | null {
     const vipContacts = contexts.filter(
-      (c) => c.contextKey === ContextKey.VIP_CONTACT,
+      (contact) => contact.contextKey === ContextKey.VIP_CONTACT,
     );
     const isVip = vipContacts.some(
       (vip) =>

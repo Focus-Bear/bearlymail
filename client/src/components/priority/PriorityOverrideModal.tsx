@@ -21,21 +21,21 @@ interface PriorityOverrideModalProps {
 
 type TFunction = (key: string, options?: Record<string, unknown>) => string;
 
-function getPriorityLabel(t: TFunction, isHighPriority: boolean, score: number): string {
-  if (isHighPriority) return t('priority.high');
-  if (score >= 0) return t('priority.low');
-  return t('priority.veryLow');
+function getPriorityLabel(tFunc: TFunction, isHighPriority: boolean, score: number): string {
+  if (isHighPriority) return tFunc('priority.high');
+  if (score >= 0) return tFunc('priority.low');
+  return tFunc('priority.veryLow');
 }
 
 function getDescription(
-  t: TFunction, context: string, isHighPriority: boolean,
+  tFunc: TFunction, context: string, isHighPriority: boolean,
   origScore: number, newScore: number, priorityLabel: string,
 ): string {
   if (context === CONTEXT_ARCHIVE) {
     const key = isHighPriority ? 'priority.override.archiveHighPriority' : 'priority.override.archiveLowPriority';
-    return t(key, { score: origScore.toFixed(0), priority: priorityLabel });
+    return tFunc(key, { score: origScore.toFixed(0), priority: priorityLabel });
   }
-  return t('priority.override.description', { from: origScore.toFixed(0), to: newScore.toFixed(0) });
+  return tFunc('priority.override.description', { from: origScore.toFixed(0), to: newScore.toFixed(0) });
 }
 
 export const PriorityOverrideModal: React.FC<PriorityOverrideModalProps> = ({
@@ -110,7 +110,7 @@ export const PriorityOverrideModal: React.FC<PriorityOverrideModalProps> = ({
           </label>
           <textarea
             value={reasonText}
-            onChange={(e) => setReasonText(e.target.value)}
+            onChange={(event) => setReasonText(event.target.value)}
             placeholder={t('priority.override.placeholder')}
             style={{
               width: '100%',

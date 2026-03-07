@@ -35,10 +35,10 @@ export const ToneRuleItem: React.FC<ToneRuleItemProps> = ({ rule, index, onRemov
     setIsEditing(false);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === KEY_ENTER) {
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === KEY_ENTER) {
       handleSaveEdit();
-    } else if (e.key === KEY_ESCAPE) {
+    } else if (event.key === KEY_ESCAPE) {
       handleCancelEdit();
     }
   };
@@ -49,7 +49,7 @@ export const ToneRuleItem: React.FC<ToneRuleItemProps> = ({ rule, index, onRemov
         <input
           type="text"
           value={editValue}
-          onChange={(e) => setEditValue(e.target.value)}
+          onChange={(event) => setEditValue(event.target.value)}
           onKeyDown={handleKeyDown}
           autoFocus
           style={{ flex: 1, padding: theme.spacing.xs, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.sm, fontSize: theme.typography.fontSize.sm, }}
@@ -81,8 +81,8 @@ export const ToneRuleItem: React.FC<ToneRuleItemProps> = ({ rule, index, onRemov
             target="_blank"
             rel="noopener noreferrer"
             style={{ marginLeft: theme.spacing.xs, color: theme.colors.primary.main, fontSize: '0.85em', textDecoration: 'none', whiteSpace: 'nowrap', }}
-            onClick={(e) => {
-              e.stopPropagation();
+            onClick={(event) => {
+              event.stopPropagation();
             }}
           >
             ({t('settings.tone.viewEmail')})

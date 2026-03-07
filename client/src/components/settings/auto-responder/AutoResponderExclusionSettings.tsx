@@ -16,14 +16,14 @@ interface ExclusionRuleRowProps {
   onEdit: (i: number) => void; onDelete: (i: number) => void;
   onSave: () => void; onCancel: () => void;
   onEditValueChange: (v: string) => void;
-  t: (k: string) => string;
+  t: (tKey: string) => string;
 }
 
 const ExclusionRuleRow: React.FC<ExclusionRuleRowProps> = ({ rule, index, editingIndex, editValue, onEdit, onDelete, onSave, onCancel, onEditValueChange, t }) => (
   <div key={rule} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: theme.spacing.sm, backgroundColor: theme.colors.background.paper, borderRadius: theme.borderRadius.sm, border: `1px solid ${theme.colors.border.light}` }}>
     {editingIndex === index ? (
       <div style={{ display: 'flex', flex: 1, gap: theme.spacing.sm }}>
-        <input type="text" value={editValue} onChange={(e) => onEditValueChange(e.target.value)} style={{ flex: 1, padding: theme.spacing.xs, borderRadius: theme.borderRadius.sm, border: `1px solid ${theme.colors.border.medium}` }} onKeyDown={(e) => { if (e.key === KEY_ENTER) onSave(); if (e.key === KEY_ESCAPE) onCancel(); }} autoFocus />
+        <input type="text" value={editValue} onChange={(event) => onEditValueChange(event.target.value)} style={{ flex: 1, padding: theme.spacing.xs, borderRadius: theme.borderRadius.sm, border: `1px solid ${theme.colors.border.medium}` }} onKeyDown={(event) => { if (event.key === KEY_ENTER) onSave(); if (event.key === KEY_ESCAPE) onCancel(); }} autoFocus />
         <button onClick={onSave} style={{ cursor: 'pointer', color: theme.colors.primary.main, border: STRING_NONE, background: STRING_NONE }}>{t('common.save')}</button>
         <button onClick={onCancel} style={{ cursor: 'pointer', color: theme.colors.text.secondary, border: STRING_NONE, background: STRING_NONE }}>{t('common.cancel')}</button>
       </div>
@@ -41,14 +41,14 @@ const ExclusionRuleRow: React.FC<ExclusionRuleRowProps> = ({ rule, index, editin
 
 interface AddExclusionFormProps {
   newRule: string; isAdding: boolean; onRuleChange: (v: string) => void;
-  onAdd: () => void; onStartAdding: () => void; onCancelAdding: () => void; t: (k: string) => string;
+  onAdd: () => void; onStartAdding: () => void; onCancelAdding: () => void; t: (tKey: string) => string;
 }
 
 const AddExclusionForm: React.FC<AddExclusionFormProps> = ({ newRule, isAdding, onRuleChange, onAdd, onStartAdding, onCancelAdding, t }) => {
   if (!isAdding) return <button onClick={onStartAdding} style={{ alignSelf: 'flex-start', marginTop: theme.spacing.xs, background: 'transparent', border: `1px dashed ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, padding: `${theme.spacing.xs} ${theme.spacing.md}`, color: theme.colors.text.secondary, cursor: 'pointer', fontSize: theme.typography.fontSize.sm, display: 'flex', alignItems: 'center', gap: theme.spacing.xs }}><span>+</span> {t('settings.autoResponder.exclusion.addRule')}</button>;
   return (
     <div style={{ display: 'flex', gap: theme.spacing.sm, marginTop: theme.spacing.xs }}>
-      <input type="text" value={newRule} onChange={(e) => onRuleChange(e.target.value)} placeholder="e.g., Automated emails, Newsletters, Cold outreach..." autoFocus style={{ flex: 1, padding: theme.spacing.sm, borderRadius: theme.borderRadius.md, border: `1px solid ${theme.colors.primary.main}` }} onKeyDown={(e) => { if (e.key === KEY_ENTER) onAdd(); if (e.key === KEY_ESCAPE) onCancelAdding(); }} />
+      <input type="text" value={newRule} onChange={(event) => onRuleChange(event.target.value)} placeholder="e.g., Automated emails, Newsletters, Cold outreach..." autoFocus style={{ flex: 1, padding: theme.spacing.sm, borderRadius: theme.borderRadius.md, border: `1px solid ${theme.colors.primary.main}` }} onKeyDown={(event) => { if (event.key === KEY_ENTER) onAdd(); if (event.key === KEY_ESCAPE) onCancelAdding(); }} />
       <button onClick={onAdd} disabled={!newRule.trim()} style={{ padding: `${theme.spacing.xs} ${theme.spacing.md}`, backgroundColor: theme.colors.primary.main, color: COLOR_NAMED_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.md, cursor: newRule.trim() ? 'pointer' : 'not-allowed', opacity: newRule.trim() ? 1 : OPACITY_HALF }}>{t('common.add')}</button>
       <button onClick={onCancelAdding} style={{ padding: `${theme.spacing.xs} ${theme.spacing.md}`, backgroundColor: COLOR_TRANSPARENT, color: theme.colors.text.secondary, border: STRING_NONE, cursor: 'pointer' }}>{t('common.cancel')}</button>
     </div>

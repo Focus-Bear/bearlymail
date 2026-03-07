@@ -73,7 +73,7 @@ export function useInboxCategoryAccordion({
     );
     if (toFetch.length === 0) return;
     toFetch.forEach(categoryName => {
-      const categoryItem = categorySummary.find(c => c.name === categoryName);
+      const categoryItem = categorySummary.find(cat => cat.name === categoryName);
       fetchCategoryEmails(categoryName, categoryItem?.id).catch(err =>
         console.error(`Error fetching category "${categoryName}":`, err)
       );
@@ -105,7 +105,7 @@ export function useInboxCategoryAccordion({
     if (limboCategories.length === 0) return;
     limboCategories.forEach(categoryName => {
       limboDispatchedRef.current.add(categoryName);
-      const categoryItem = categorySummary.find(c => c.name === categoryName);
+      const categoryItem = categorySummary.find(cat => cat.name === categoryName);
       fetchCategoryEmails(categoryName, categoryItem?.id)
         .catch(err => console.error(`[limbo-recovery] Error re-fetching category "${categoryName}":`, err))
         .finally(() => { limboDispatchedRef.current.delete(categoryName); });
@@ -126,7 +126,7 @@ export function useInboxCategoryAccordion({
       category => !loadedCategoryNamesRef.current.includes(category) && !loadingCategoryNamesRef.current.includes(category)
     );
     toRefetch.forEach(categoryName => {
-      const categoryItem = categorySummary.find(c => c.name === categoryName);
+      const categoryItem = categorySummary.find(cat => cat.name === categoryName);
       fetchCategoryEmails(categoryName, categoryItem?.id).catch(err =>
         console.error(`Error re-fetching category "${categoryName}":`, err)
       );

@@ -99,12 +99,12 @@ export class BlockedSendersService {
       order: { blockedAt: "DESC" },
     });
 
-    return blocked.map((b) => ({
-      id: b.id,
-      email: b.email,
-      senderName: b.senderName,
-      reason: b.reason,
-      blockedAt: b.blockedAt,
+    return blocked.map((itemB) => ({
+      id: itemB.id,
+      email: itemB.email,
+      senderName: itemB.senderName,
+      reason: itemB.reason,
+      blockedAt: itemB.blockedAt,
     }));
   }
 
@@ -192,10 +192,10 @@ export class BlockedSendersService {
     const emailHashes = new Set<string>();
     const domainHashes = new Set<string>();
 
-    for (const b of blocked) {
-      emailHashes.add(b.emailHash);
-      if (b.domainHash) {
-        domainHashes.add(b.domainHash);
+    for (const itemB of blocked) {
+      emailHashes.add(itemB.emailHash);
+      if (itemB.domainHash) {
+        domainHashes.add(itemB.domainHash);
       }
     }
 

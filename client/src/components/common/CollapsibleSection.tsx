@@ -78,11 +78,11 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
         </div>
         <div
           style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, flexShrink: 0 }}
-          onClick={(e) => e.stopPropagation()}
+          onClick={(event) => event.stopPropagation()}
         >
           {controls}
           <button
-            onClick={(e) => { e.stopPropagation(); onToggle(); }}
+            onClick={(event) => { event.stopPropagation(); onToggle(); }}
             style={{
               background: 'transparent',
               border: 'none',

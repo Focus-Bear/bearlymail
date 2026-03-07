@@ -40,8 +40,8 @@ export const GitHubUpdateStatusModal: React.FC<GitHubUpdateStatusModalProps> = (
     fetchIssue();
   }, [issueInfo]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setLoading(true);
     setError('');
 

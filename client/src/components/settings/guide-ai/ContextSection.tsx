@@ -65,7 +65,7 @@ export const ContextSection: React.FC<ContextSectionProps> = ({
   const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(Boolean(isInitiallyExpanded)); // Default to collapsed unless requested
   const keys = Array.isArray(contextKey) ? contextKey : [contextKey];
-  const filteredContexts = contexts.filter(c => keys.includes(c.contextKey));
+  const filteredContexts = contexts.filter(ctx => keys.includes(ctx.contextKey));
   const addType = keys[0];
   const itemCount = filteredContexts.length;
 
@@ -97,7 +97,7 @@ export const ContextSection: React.FC<ContextSectionProps> = ({
         </span>
         {tooltipContent && <InfoTooltip content={tooltipContent} />}
         {actionButton && (
-          <div onClick={(e) => e.stopPropagation()}>
+          <div onClick={(event) => event.stopPropagation()}>
             {actionButton}
           </div>
         )}
@@ -179,7 +179,7 @@ const ContextItem: React.FC<ContextItemProps> = ({
           <input
             type="text"
             value={editContextValue}
-            onChange={(e) => onEditContextValueChange(e.target.value)}
+            onChange={(event) => onEditContextValueChange(event.target.value)}
             style={{ flex: 1, padding: theme.spacing.xs, borderRadius: theme.borderRadius.sm, border: `1px solid ${theme.colors.border.medium}` }}
           />
           <button onClick={onUpdateContext} style={{ cursor: 'pointer', color: theme.colors.primary.main, border: STRING_NONE, background: STRING_NONE }}>{t('common.save')}</button>
@@ -224,16 +224,16 @@ function parseQAndA(contextValue: string): { question: string; answer: string } 
   return { question, answer };
 }
 
-function translateExplanation(explanation: string, t: (key: string, opts?: Record<string, unknown>) => string): string {
+function translateExplanation(explanation: string, tFunc: (key: string, opts?: Record<string, unknown>) => string): string {
   if (!explanation.includes(':')) return explanation;
   const [key, ...params] = explanation.split(':');
   try {
     if (key === CONTEXT_EXPLANATION_VIP_CONTACT_STARRED && params[0]) {
       const count = parseInt(params[0], 10);
-      return t('settings.contextExplanations.vipContactStarredExplanation', { count, plural: count > 1 ? 's' : '' });
+      return tFunc('settings.contextExplanations.vipContactStarredExplanation', { count, plural: count > 1 ? 's' : '' });
     }
     const normalizedKey = key.trim().toLowerCase().split(/\s+/).map((word, index) => index === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1)).join('');
-    return t(`settings.contextExplanations.${normalizedKey}`, { reason: params.join(':').trim(), defaultValue: explanation });
+    return tFunc(`settings.contextExplanations.${normalizedKey}`, { reason: params.join(':').trim(), defaultValue: explanation });
   } catch {
     return explanation;
   }
@@ -322,13 +322,13 @@ const ContextAddInput: React.FC<ContextAddInputProps> = ({
       <input
         type="text"
         value={newContextValue}
-        onChange={(e) => onNewContextValueChange(e.target.value)}
+        onChange={(event) => onNewContextValueChange(event.target.value)}
         placeholder={t('settings.addContext.placeholder')}
         autoFocus
         style={{ flex: 1, padding: theme.spacing.sm, borderRadius: theme.borderRadius.md, border: `1px solid ${theme.colors.primary.main}` }}
-        onKeyDown={(e) => {
-          if (e.key === KEY_ENTER) onAddContext();
-          if (e.key === KEY_ESCAPE) onCancel();
+        onKeyDown={(event) => {
+          if (event.key === KEY_ENTER) onAddContext();
+          if (event.key === KEY_ESCAPE) onCancel();
         }}
       />
       <button 

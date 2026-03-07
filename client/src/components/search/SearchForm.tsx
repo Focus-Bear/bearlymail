@@ -9,7 +9,7 @@ interface SearchFormProps {
   query: string;
   loading: boolean;
   onQueryChange: (query: string) => void;
-  onSubmit: (e: React.FormEvent) => void;
+  onSubmit: (event: React.FormEvent) => void;
 }
 
 export const SearchForm: React.FC<SearchFormProps> = ({
@@ -30,7 +30,7 @@ export const SearchForm: React.FC<SearchFormProps> = ({
         <input
           type="text"
           value={query}
-          onChange={(e) => onQueryChange(e.target.value)}
+          onChange={(event) => onQueryChange(event.target.value)}
           placeholder={t('search.placeholder')}
           style={{
             flex: 1,

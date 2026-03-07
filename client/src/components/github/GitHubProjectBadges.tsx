@@ -61,7 +61,7 @@ const GitHubProjectItem: React.FC<{ project: { name: string; status?: string } }
 
 const GitHubLinkBadge: React.FC<GitHubLinkBadgeProps> = ({ link, stateText, reviewStatus, isPR, stateColor }) => (
   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
-    <a href={link.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+    <a href={link.url} target="_blank" rel="noopener noreferrer" onClick={(event) => event.stopPropagation()}
       style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: `2px ${theme.spacing.sm}`,
         backgroundColor: stateColor.bg, borderRadius: theme.borderRadius.sm, border: `1px solid ${stateColor.border}`,
         fontSize: theme.typography.fontSize.xs, color: stateColor.text, textDecoration: 'none',

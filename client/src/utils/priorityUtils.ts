@@ -2,11 +2,11 @@ import { theme } from 'theme/theme';
 
 import { PRIORITY_HIGH_THRESHOLD, PRIORITY_MEDIUM_THRESHOLD } from 'constants/numbers';
 
-export const getPriorityBadge = (score: number, t?: (key: string) => string) => {
-  const highLabel = t ? t('priority.high') : 'High';
-  const mediumLabel = t ? t('priority.medium') : 'Medium';
-  const lowLabel = t ? t('priority.low') : 'Low';
-  const veryLowLabel = t ? t('priority.veryLow') : 'Very Low';
+export const getPriorityBadge = (score: number, tFunc?: (key: string) => string) => {
+  const highLabel = tFunc ? tFunc('priority.high') : 'High';
+  const mediumLabel = tFunc ? tFunc('priority.medium') : 'Medium';
+  const lowLabel = tFunc ? tFunc('priority.low') : 'Low';
+  const veryLowLabel = tFunc ? tFunc('priority.veryLow') : 'Very Low';
   
   // New calibration:
   // < 0: very low priority

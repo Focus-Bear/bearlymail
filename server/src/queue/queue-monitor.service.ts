@@ -128,9 +128,9 @@ export class QueueMonitorService implements OnModuleInit {
       return null;
     }
 
-    const sorted = [...times].sort((a, b) => a - b);
+    const sorted = [...times].sort((itemA, itemB) => itemA - itemB);
     const count = sorted.length;
-    const sum = sorted.reduce((a, b) => a + b, 0);
+    const sum = sorted.reduce((acc, time) => acc + time, 0);
     const avg = sum / count;
     const p50 = sorted[Math.floor(count * RESOURCE_MONITOR_CONSTANTS.P50)];
     const p95 = sorted[Math.floor(count * RESOURCE_MONITOR_CONSTANTS.P95)];

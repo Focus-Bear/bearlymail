@@ -171,7 +171,7 @@ export class WritingStyleLearningService {
       if (sentEmails.length === 0) return;
 
       const newExamples = await this.processEmailBodiesForExamples(
-        sentEmails.map((e) => e.body ?? ""),
+        sentEmails.map((emailEntry) => emailEntry.body ?? ""),
         userId,
         existingExamples,
         needCount,
@@ -278,14 +278,18 @@ export class WritingStyleLearningService {
    */
   private areSimilar(text1: string, text2: string): boolean {
     // Simple word overlap check
-    const words1 = new Set(text1.split(/\s+/).filter((w) => w.length > 3));
-    const words2 = new Set(text2.split(/\s+/).filter((w) => w.length > 3));
+    const words1 = new Set(
+      text1.split(/\s+/).filter((word) => word.length > 3),
+    );
+    const words2 = new Set(
+      text2.split(/\s+/).filter((word) => word.length > 3),
+    );
 
     if (words1.size === 0 || words2.size === 0) {
       return false;
     }
 
-    const intersection = [...words1].filter((w) => words2.has(w));
+    const intersection = [...words1].filter((word) => words2.has(word));
     const union = new Set([...words1, ...words2]);
 
     // If 60%+ word overlap, consider them similar

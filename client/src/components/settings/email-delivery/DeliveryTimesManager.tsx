@@ -82,7 +82,7 @@ export const DeliveryTimesManager: React.FC<DeliveryTimesManagerProps> = ({
         <input
           type="time"
           value={newDeliveryTime}
-          onChange={(e) => onNewDeliveryTimeChange(e.target.value)}
+          onChange={(event) => onNewDeliveryTimeChange(event.target.value)}
           style={{
             padding: theme.spacing.sm,
             border: `1px solid ${theme.colors.border.medium}`,

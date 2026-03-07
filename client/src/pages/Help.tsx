@@ -132,13 +132,13 @@ const Help: React.FC = () => {
                     transition: theme.transitions.default,
                     cursor: 'pointer',
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = theme.colors.primary.main;
-                    e.currentTarget.style.boxShadow = theme.shadows.md;
+                  onMouseEnter={(event) => {
+                    event.currentTarget.style.borderColor = theme.colors.primary.main;
+                    event.currentTarget.style.boxShadow = theme.shadows.md;
                   }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = theme.colors.border.light;
-                    e.currentTarget.style.boxShadow = 'none';
+                  onMouseLeave={(event) => {
+                    event.currentTarget.style.borderColor = theme.colors.border.light;
+                    event.currentTarget.style.boxShadow = 'none';
                   }}
                 >
                   <h2 style={{

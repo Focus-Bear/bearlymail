@@ -23,10 +23,10 @@ interface EmailAttachmentsProps {
  */
 const formatFileSize = (bytes: number): string => {
   if (bytes === 0) return '0 Bytes';
-  const k = 1024;
+  const kb = 1024;
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${Math.round((bytes / Math.pow(k, i)) * 100) / 100} ${sizes[i]}`;};
+  const i = Math.floor(Math.log(bytes) / Math.log(kb));
+  return `${Math.round((bytes / Math.pow(kb, i)) * 100) / 100} ${sizes[i]}`;};
 
 /**
  * Get file icon based on MIME type
@@ -124,13 +124,13 @@ export const EmailAttachments: React.FC<EmailAttachmentsProps> = ({ emailId, att
               textAlign: 'left',
               width: '100%',
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = theme.colors.primary.light;
-              e.currentTarget.style.borderColor = theme.colors.primary.main;
+            onMouseEnter={(event) => {
+              event.currentTarget.style.backgroundColor = theme.colors.primary.light;
+              event.currentTarget.style.borderColor = theme.colors.primary.main;
             }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = theme.colors.background.paper;
-              e.currentTarget.style.borderColor = theme.colors.border.light;
+            onMouseLeave={(event) => {
+              event.currentTarget.style.backgroundColor = theme.colors.background.paper;
+              event.currentTarget.style.borderColor = theme.colors.border.light;
             }}
           >
             <span style={{ fontSize: theme.typography.fontSize.lg }}>

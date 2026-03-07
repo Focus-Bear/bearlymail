@@ -39,7 +39,7 @@ const SLOT_DURATION_OPTIONS = [SCHEDULING_GAP_15_MIN, DAYS_IN_MONTH_30, SCHEDULI
 interface SchedulingFormProps {
   prefs: SchedulingPreferences; savePrefs: (u: Partial<SchedulingPreferences>) => void; toggleDay: (day: number) => void;
   userId?: string; linkCopied: boolean; onCopyLink: () => void;
-  labelStyle: React.CSSProperties; selectStyle: React.CSSProperties; t: (k: string, opts?: any) => string;
+  labelStyle: React.CSSProperties; selectStyle: React.CSSProperties; t: (tKey: string, opts?: any) => string;
 }
 
 const SchedulingForm: React.FC<SchedulingFormProps> = ({ prefs, savePrefs, toggleDay, userId, linkCopied, onCopyLink, labelStyle, selectStyle, t }) => (
@@ -48,9 +48,9 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({ prefs, savePrefs, toggl
       <div style={labelStyle}>{t('settings.schedulingPreferences.availabilityHours')}</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
         <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.tertiary }}>{t('settings.schedulingPreferences.startHour')}</span>
-        <select value={prefs.availabilityStartHour} onChange={(e) => savePrefs({ availabilityStartHour: Number(e.target.value) })} style={selectStyle}>{HOUR_OPTIONS.map((h) => <option key={h} value={h}>{formatHour(h)}</option>)}</select>
+        <select value={prefs.availabilityStartHour} onChange={(event) => savePrefs({ availabilityStartHour: Number(event.target.value) })} style={selectStyle}>{HOUR_OPTIONS.map((hour) => <option key={hour} value={hour}>{formatHour(hour)}</option>)}</select>
         <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.tertiary }}>{t('settings.schedulingPreferences.endHour')}</span>
-        <select value={prefs.availabilityEndHour} onChange={(e) => savePrefs({ availabilityEndHour: Number(e.target.value) })} style={selectStyle}>{HOUR_OPTIONS.map((h) => <option key={h} value={h}>{formatHour(h)}</option>)}</select>
+        <select value={prefs.availabilityEndHour} onChange={(event) => savePrefs({ availabilityEndHour: Number(event.target.value) })} style={selectStyle}>{HOUR_OPTIONS.map((hour) => <option key={hour} value={hour}>{formatHour(hour)}</option>)}</select>
       </div>
     </div>
     <div>
@@ -61,15 +61,15 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({ prefs, savePrefs, toggl
     </div>
     <div id="scheduling-meeting-gap">
       <div style={labelStyle}>{t('settings.schedulingPreferences.meetingGap')}</div>
-      <select value={prefs.meetingGapMinutes} onChange={(e) => savePrefs({ meetingGapMinutes: Number(e.target.value) })} style={selectStyle}>{GAP_OPTIONS.map((minuteValue) => <option key={minuteValue} value={minuteValue}>{t('settings.schedulingPreferences.meetingGapMinutes', { count: minuteValue })}</option>)}</select>
+      <select value={prefs.meetingGapMinutes} onChange={(event) => savePrefs({ meetingGapMinutes: Number(event.target.value) })} style={selectStyle}>{GAP_OPTIONS.map((minuteValue) => <option key={minuteValue} value={minuteValue}>{t('settings.schedulingPreferences.meetingGapMinutes', { count: minuteValue })}</option>)}</select>
     </div>
     <div id="scheduling-deep-work">
       <div style={labelStyle}>{t('settings.schedulingPreferences.deepWork')}</div>
-      <select value={prefs.deepWorkHoursPerDay} onChange={(e) => savePrefs({ deepWorkHoursPerDay: Number(e.target.value) })} style={selectStyle}>{DEEP_WORK_OPTIONS.map((h) => <option key={h} value={h}>{t('settings.schedulingPreferences.deepWorkHours', { count: h })}</option>)}</select>
+      <select value={prefs.deepWorkHoursPerDay} onChange={(event) => savePrefs({ deepWorkHoursPerDay: Number(event.target.value) })} style={selectStyle}>{DEEP_WORK_OPTIONS.map((hour) => <option key={hour} value={hour}>{t('settings.schedulingPreferences.deepWorkHours', { count: hour })}</option>)}</select>
     </div>
     <div id="scheduling-slot-duration">
       <div style={labelStyle}>{t('settings.schedulingPreferences.slotDuration')}</div>
-      <select value={prefs.slotDurationMinutes} onChange={(e) => savePrefs({ slotDurationMinutes: Number(e.target.value) })} style={selectStyle}>{SLOT_DURATION_OPTIONS.map((slotMinute) => <option key={slotMinute} value={slotMinute}>{t('settings.schedulingPreferences.slotDurationMinutes', { count: slotMinute })}</option>)}</select>
+      <select value={prefs.slotDurationMinutes} onChange={(event) => savePrefs({ slotDurationMinutes: Number(event.target.value) })} style={selectStyle}>{SLOT_DURATION_OPTIONS.map((slotMinute) => <option key={slotMinute} value={slotMinute}>{t('settings.schedulingPreferences.slotDurationMinutes', { count: slotMinute })}</option>)}</select>
     </div>
     <div id="scheduling-timezone">
       <div style={labelStyle}>{t('settings.schedulingPreferences.timezone')}</div>
@@ -116,9 +116,9 @@ export const SchedulingPreferencesSection: React.FC = () => {
           setPrefs(updated);
           latestPrefs.current = updated;
           axios.put(`${API_URL}/scheduling-preferences`, updated)
-            .then((r) => {
-              setPrefs(r.data);
-              latestPrefs.current = r.data;
+            .then((response) => {
+              setPrefs(response.data);
+              latestPrefs.current = response.data;
             })
             .catch(() => {});
         } else {

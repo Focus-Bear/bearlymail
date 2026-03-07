@@ -76,7 +76,7 @@ export function useEmailDetailArchiveOps({
 
   const performArchiveAfterReply = useCallback(async () => {
     if (!id) return;
-    const emailToArchive = emails.find(e => e.id === id);
+    const emailToArchive = emails.find(event => event.id === id);
     dispatch(removeEmail(id));
     dispatch(addOptimisticArchive(id));
     if (options.onArchiveComplete) { options.onArchiveComplete(id); } else { navigate(getInboxPath()); }
@@ -89,7 +89,7 @@ export function useEmailDetailArchiveOps({
 
   const performSnoozeAfterReply = useCallback(async (duration: string) => {
     if (!id) return;
-    const emailToSnooze = emails.find(e => e.id === id);
+    const emailToSnooze = emails.find(event => event.id === id);
     dispatch(removeEmail(id));
     dispatch(addOptimisticSnooze(id));
     if (options.onSnoozeComplete) { options.onSnoozeComplete(id); } else { navigate(getInboxPath()); }
@@ -103,7 +103,7 @@ export function useEmailDetailArchiveOps({
   const handleArchive = useCallback(async () => {
     if (!id) return;
     captureEvent('email_archive_clicked', { email_id: id });
-    const emailToArchive = emails.find(e => e.id === id);
+    const emailToArchive = emails.find(event => event.id === id);
     if (options.onArchiveComplete) {
       if (emailToArchive) { dispatch(removeEmail(id)); dispatch(addOptimisticArchive(id)); }
       try {
@@ -127,7 +127,7 @@ export function useEmailDetailArchiveOps({
     const duration = durationOverride || snoozeInput.trim();
     if (!id || !duration) return;
     captureEvent('email_snooze_confirmed', { email_id: id, snooze_input_length: duration.length });
-    const emailToSnooze = emails.find(e => e.id === id);
+    const emailToSnooze = emails.find(event => event.id === id);
     if (emailToSnooze) { dispatch(removeEmail(id)); dispatch(addOptimisticSnooze(id)); }
     if (!durationOverride) { setSnoozeInput(''); setShowSnoozeInput(false); }
     if (options.onSnoozeComplete) {

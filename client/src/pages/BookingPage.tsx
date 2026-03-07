@@ -70,8 +70,8 @@ const BookingPage: React.FC = () => {
     fetchSlots(newDaysAhead, true);
   };
 
-  const handleBook = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleBook = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (!selectedSlot || !guestEmail || !userId) return;
 
     setBookingStatus(BOOKING_SUBMITTING);

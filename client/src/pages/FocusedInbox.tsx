@@ -107,7 +107,7 @@ const FocusedInbox: React.FC = () => {
           onEmailClick={handleEmailClick}
           onEmailSelect={handleEmailSelect}
           onGenerateDrafts={async () => {
-            const threadIds = emails.filter(e => !e.isArchived).map(e => e.threadId);
+            const threadIds = emails.filter(event => !event.isArchived).map(event => event.threadId);
             await generateDrafts(threadIds);
           }}
           onRetry={fetchEmails}
@@ -126,7 +126,7 @@ const FocusedInbox: React.FC = () => {
           loadedCategoryNames={loadedCategoryNames}
           loadingCategoryNames={loadingCategoryNames}
           onSplitViewArchive={(archivedEmailId) => {
-            const visibleEmails = emails.filter(e => !e.isArchived && e.id !== archivedEmailId);
+            const visibleEmails = emails.filter(event => !event.isArchived && event.id !== archivedEmailId);
 
             if (visibleEmails.length === 0) {
               splitView.closeEmail();
@@ -152,7 +152,7 @@ const FocusedInbox: React.FC = () => {
             emailActions.handleSetStarCount(prioritizedEmailId, starCount, fakeEvent);
 
             // Navigate to next email
-            const visibleEmails = emails.filter(e => !e.isArchived && e.id !== prioritizedEmailId);
+            const visibleEmails = emails.filter(event => !event.isArchived && event.id !== prioritizedEmailId);
 
             if (visibleEmails.length === 0) {
               splitView.closeEmail();

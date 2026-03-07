@@ -366,13 +366,14 @@ export class GitHubController {
           lastFetchedAt?: string;
         };
         if (!metadata?.links?.length) continue;
-        const hasAnyStatus = metadata.links.some((l) => l.status);
+        const hasAnyStatus = metadata.links.some((len) => len.status);
         if (!hasAnyStatus) {
           threadsWithLinksNoStatus++;
           if (recentSilentFailures.length < 10) {
             const linkDescriptions = metadata.links
               .map(
-                (l) => `${l.owner ?? "?"}/${l.repo ?? "?"}#${l.number ?? "?"}`,
+                (len) =>
+                  `${len.owner ?? "?"}/${len.repo ?? "?"}#${len.number ?? "?"}`,
               )
               .join(", ");
             recentSilentFailures.push({

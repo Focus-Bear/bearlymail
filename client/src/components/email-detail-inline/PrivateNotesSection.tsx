@@ -75,7 +75,7 @@ export const PrivateNotesSection: React.FC<PrivateNotesSectionProps> = ({
   useEffect(() => {
     if (!lastSavedAt) return;
     const interval = setInterval(() => {
-      forceUpdate(n => n + 1);
+      forceUpdate(prev => prev + 1);
     }, SAVED_STATUS_UPDATE_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [lastSavedAt]);
@@ -99,7 +99,7 @@ export const PrivateNotesSection: React.FC<PrivateNotesSectionProps> = ({
     >
       <textarea
         value={noteContent}
-        onChange={(e) => onNoteContentChange(e.target.value)}
+        onChange={(event) => onNoteContentChange(event.target.value)}
         placeholder={t('emailDetail.privateNotesPlaceholder')}
         style={{
           width: '100%',

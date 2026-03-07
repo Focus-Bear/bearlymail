@@ -62,8 +62,8 @@ export const TimezoneAutocomplete: React.FC<TimezoneAutocompleteProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(event.target.value);
     setIsOpen(true);
     setHighlightedIndex(0);
   };
@@ -74,29 +74,29 @@ export const TimezoneAutocomplete: React.FC<TimezoneAutocompleteProps> = ({
     setIsOpen(false);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     const KEY_ARROW_DOWN = 'ArrowDown';
     const KEY_ARROW_UP = 'ArrowUp';
     const KEY_ENTER = 'Enter';
     const KEY_ESCAPE = 'Escape';
 
-    if (!isOpen && (e.key === KEY_ARROW_DOWN || e.key === KEY_ARROW_UP || e.key === KEY_ENTER)) {
+    if (!isOpen && (event.key === KEY_ARROW_DOWN || event.key === KEY_ARROW_UP || event.key === KEY_ENTER)) {
       setIsOpen(true);
       return;
     }
 
-    if (e.key === KEY_ARROW_DOWN) {
-      e.preventDefault();
+    if (event.key === KEY_ARROW_DOWN) {
+      event.preventDefault();
       setHighlightedIndex((prev) =>
         prev < filteredOptions.length - 1 ? prev + 1 : prev
       );
-    } else if (e.key === KEY_ARROW_UP) {
-      e.preventDefault();
+    } else if (event.key === KEY_ARROW_UP) {
+      event.preventDefault();
       setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : 0));
-    } else if (e.key === KEY_ENTER && isOpen && filteredOptions.length > 0) {
-      e.preventDefault();
+    } else if (event.key === KEY_ENTER && isOpen && filteredOptions.length > 0) {
+      event.preventDefault();
       handleSelectTimezone(filteredOptions[highlightedIndex]);
-    } else if (e.key === KEY_ESCAPE) {
+    } else if (event.key === KEY_ESCAPE) {
       setIsOpen(false);
       setSearchTerm('');
     }

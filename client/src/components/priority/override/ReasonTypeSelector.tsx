@@ -45,7 +45,7 @@ export const ReasonTypeSelector: React.FC<ReasonTypeSelectorProps> = ({
             name="reasonType"
             value={option.value}
             checked={selectedReason === option.value}
-            onChange={(e) => onReasonChange(e.target.value as OverrideReasonType)}
+            onChange={(event) => onReasonChange(event.target.value as OverrideReasonType)}
             style={{
               marginRight: theme.spacing.sm,
               cursor: 'pointer',

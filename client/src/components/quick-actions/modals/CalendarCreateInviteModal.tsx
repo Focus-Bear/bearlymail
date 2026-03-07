@@ -43,8 +43,8 @@ export const CalendarCreateInviteModal: React.FC<CalendarCreateInviteModalProps>
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (!guestEmail || !startTime) {
       setError('Guest email and start time are required');
       return;

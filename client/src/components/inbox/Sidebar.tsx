@@ -51,16 +51,16 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ label, path, icon, active, on
       onClick={handleClick}
       title={isCollapsed ? label : undefined}
       style={{ width: '100%', padding: isCollapsed ? `${theme.spacing.sm} ${theme.spacing.xs}` : `${theme.spacing.sm} ${theme.spacing.md}`, marginBottom: theme.spacing.xs, backgroundColor: active ? theme.colors.primary.main : 'transparent', color: active ? 'white' : theme.colors.text.secondary, border: STRING_NONE, borderRadius: theme.borderRadius.md, cursor: 'pointer', fontSize: theme.typography.fontSize.base, fontWeight: active ? theme.typography.fontWeight.semibold : theme.typography.fontWeight.medium, textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: isCollapsed ? 'center' : 'flex-start', gap: theme.spacing.sm, transition: theme.transitions.fast, position: 'relative', }}
-      onMouseEnter={(e) => {
+      onMouseEnter={(event) => {
         if (!active) {
-          e.currentTarget.style.backgroundColor = theme.colors.background.default;
-          e.currentTarget.style.color = theme.colors.text.primary;
+          event.currentTarget.style.backgroundColor = theme.colors.background.default;
+          event.currentTarget.style.color = theme.colors.text.primary;
         }
       }}
-      onMouseLeave={(e) => {
+      onMouseLeave={(event) => {
         if (!active) {
-          e.currentTarget.style.backgroundColor = COLOR_TRANSPARENT;
-          e.currentTarget.style.color = theme.colors.text.secondary;
+          event.currentTarget.style.backgroundColor = COLOR_TRANSPARENT;
+          event.currentTarget.style.color = theme.colors.text.secondary;
         }
       }}
     >
@@ -155,7 +155,7 @@ interface SidebarProps {
 }
 
 interface SidebarNavProps {
-  t: (k: string) => string; location: { pathname: string; search: string; hash: string };
+  t: (tKey: string) => string; location: { pathname: string; search: string; hash: string };
   isCollapsed: boolean; effectiveIsCollapsed: boolean; isSettingsPage: boolean;
   isAdmin?: boolean; handleNavigationClick: (path: string) => void;
 }
@@ -199,6 +199,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const isSettingsPage = location.pathname === ROUTE_SETTINGS;
   const { isMobile, isTablet } = useResponsiveBreakpoints();
   const isNarrow = isMobile || isTablet;
+
   const handleNavigationClick = (path: string) => {
     const shouldKeepOpen = path === ROUTE_SETTINGS;
     if (isNarrow && onCloseMobileMenu && !shouldKeepOpen) onCloseMobileMenu();

@@ -16,7 +16,7 @@ export const ScheduledEmailsManager: React.FC = () => {
   };
 
   const formatRecipients = (email: ScheduledEmail) => {
-    return email.to.map(r => r.name || r.email).join(', ');
+    return email.to.map(recipient => recipient.name || recipient.email).join(', ');
   };
 
   const formatScheduledTime = (timeStr: string) => {

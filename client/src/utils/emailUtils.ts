@@ -42,7 +42,7 @@ export const getCorrespondent = (
 
   if (threadEmails.length > 0) {
     const emailFromOther = threadEmails.find(
-      (e) => e.from?.toLowerCase() !== normalizedUserEmail
+      (event) => event.from?.toLowerCase() !== normalizedUserEmail
     );
     if (emailFromOther) {
       return { 

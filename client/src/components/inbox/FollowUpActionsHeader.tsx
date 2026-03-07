@@ -50,14 +50,14 @@ export const FollowUpActionsHeader: React.FC<FollowUpActionsHeaderProps> = ({
           transition: theme.transitions.default,
           opacity: isGenerating ? OPACITY_DISABLED : OPACITY_FULL,
         }}
-        onMouseEnter={(e) => {
+        onMouseEnter={(event) => {
           if (!isGenerating) {
-            e.currentTarget.style.backgroundColor = theme.colors.primary.dark;
+            event.currentTarget.style.backgroundColor = theme.colors.primary.dark;
           }
         }}
-        onMouseLeave={(e) => {
+        onMouseLeave={(event) => {
           if (!isGenerating) {
-            e.currentTarget.style.backgroundColor = theme.colors.primary.main;
+            event.currentTarget.style.backgroundColor = theme.colors.primary.main;
           }
         }}
       >

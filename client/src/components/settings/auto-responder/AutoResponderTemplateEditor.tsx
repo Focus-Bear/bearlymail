@@ -32,7 +32,7 @@ interface TemplateEditorExpandedProps {
   setSelectedTemplate: (t: TemplateType) => void; setEditedTemplate: (v: string) => void;
   setShowMergeTags: (v: boolean) => void; handleEditClick: () => void;
   handleSaveTemplate: () => void; handleCancelEdit: () => void;
-  t: (k: string) => string;
+  t: (tKey: string) => string;
 }
 
 const TemplateEditorExpanded: React.FC<TemplateEditorExpandedProps> = ({
@@ -49,8 +49,8 @@ const TemplateEditorExpanded: React.FC<TemplateEditorExpandedProps> = ({
       ))}
     </div>
     <p style={{ ...theme.typography.body.medium, color: theme.colors.text.secondary, marginBottom: theme.spacing.md }}>{TEMPLATE_LABELS[selectedTemplate].description}</p>
-    <TemplateEditorToolbar isEditing={isEditing} isSaving={isSaving} showMergeTags={showMergeTags} setShowMergeTags={setShowMergeTags} onEditClick={handleEditClick} onSaveClick={handleSaveTemplate} onCancelClick={handleCancelEdit} t={(k: string) => t(k)} />
-    <TemplatePreview isEditing={isEditing} editedTemplate={editedTemplate} currentTemplate={currentTemplate} previewText={previewText} t={(k: string) => t(k)} />
+    <TemplateEditorToolbar isEditing={isEditing} isSaving={isSaving} showMergeTags={showMergeTags} setShowMergeTags={setShowMergeTags} onEditClick={handleEditClick} onSaveClick={handleSaveTemplate} onCancelClick={handleCancelEdit} t={(tKey: string) => t(tKey)} />
+    <TemplatePreview isEditing={isEditing} editedTemplate={editedTemplate} currentTemplate={currentTemplate} previewText={previewText} t={(tKey: string) => t(tKey)} />
     {isEditing && editedTemplate && (
       <div style={{ marginTop: theme.spacing.md }}>
         <h4 style={{ ...theme.typography.heading.h6, color: theme.colors.text.secondary, marginBottom: theme.spacing.sm }}>{t('settings.autoResponder.templates.livePreview')}</h4>
@@ -106,8 +106,8 @@ export const AutoResponderTemplateEditor: React.FC<AutoResponderTemplateEditorPr
 
   // Listen for merge-tag insert events dispatched by the toolbar
   useEffect(() => {
-    const handler = (e: any) => {
-      const tag = e.detail as string;
+    const handler = (event: any) => {
+      const tag = event.detail as string;
       const textarea = document.getElementById('template-editor') as HTMLTextAreaElement | null;
       if (textarea) {
         const start = textarea.selectionStart;

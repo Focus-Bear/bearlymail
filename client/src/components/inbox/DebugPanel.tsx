@@ -113,11 +113,11 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
 }) => {
   const { t } = useTranslation();
   const threadCount = (() => {
-    const visibleEmails = emails.filter(e => !e.isArchived);
+    const visibleEmails = emails.filter(event => !event.isArchived);
     const filteredByMode = mode === MODE_ACTION || mode === MODE_FOLLOW_UP
-      ? visibleEmails.filter(e => (e.starCount ?? 0) > 0)
-      : visibleEmails.filter(e => (e.starCount ?? 0) === 0);
-    const uniqueThreads = new Set(filteredByMode.map(e => e.threadId));
+      ? visibleEmails.filter(event => (event.starCount ?? 0) > 0)
+      : visibleEmails.filter(event => (event.starCount ?? 0) === 0);
+    const uniqueThreads = new Set(filteredByMode.map(event => event.threadId));
     return uniqueThreads.size;
   })();
 

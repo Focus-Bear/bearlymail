@@ -26,14 +26,14 @@ export const SnoozeInputForm: React.FC<SnoozeInputFormProps> = ({
   const { t } = useTranslation();
   const hasValue = snoozeValue?.trim();
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === KEY_ENTER) {
-      e.preventDefault();
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === KEY_ENTER) {
+      event.preventDefault();
       if (hasValue) {
         onConfirm();
       }
     }
-    if (e.key === KEY_ESCAPE) {
+    if (event.key === KEY_ESCAPE) {
       onCancel();
     }
   };
@@ -55,7 +55,7 @@ export const SnoozeInputForm: React.FC<SnoozeInputFormProps> = ({
         placeholder={t('emailActions.snoozePlaceholder')}
         autoFocus
         value={snoozeValue}
-        onChange={(e) => onValueChange(e.target.value)}
+        onChange={(event) => onValueChange(event.target.value)}
         onKeyDown={handleKeyDown}
         title={t('emailActions.snoozeTooltip')}
         style={{

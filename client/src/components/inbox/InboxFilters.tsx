@@ -45,7 +45,7 @@ const MultiSelectDropdownPanel: React.FC<MultiSelectDropdownPanelProps> = ({
   <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: theme.spacing.xs, maxHeight: '280px', backgroundColor: theme.colors.background.paper, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, boxShadow: theme.shadows.lg, zIndex: 1000, display: 'flex', flexDirection: 'column' }}>
     {searchable && (
       <div style={{ padding: theme.spacing.sm, borderBottom: `1px solid ${theme.colors.border.light}` }}>
-        <input ref={searchInputRef} type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search..."
+        <input ref={searchInputRef} type="text" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search..."
           style={{ width: '100%', padding: `${theme.spacing.xs} ${theme.spacing.sm}`, fontSize: theme.typography.fontSize.lg, borderRadius: theme.borderRadius.sm, border: `1px solid ${theme.colors.border.light}`, backgroundColor: theme.colors.background.default, color: theme.colors.text.primary, outline: 'none' }} />
       </div>
     )}
@@ -57,8 +57,8 @@ const MultiSelectDropdownPanel: React.FC<MultiSelectDropdownPanelProps> = ({
         return (
           <label key={option.id}
             style={{ display: 'flex', alignItems: 'center', padding: `${theme.spacing.sm} ${theme.spacing.md}`, cursor: 'pointer', backgroundColor: isSelected ? theme.colors.background.subtle : 'transparent', transition: theme.transitions.fast }}
-            onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = theme.colors.background.subtle; }}
-            onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = COLOR_TRANSPARENT; }}>
+            onMouseEnter={(event) => { if (!isSelected) event.currentTarget.style.backgroundColor = theme.colors.background.subtle; }}
+            onMouseLeave={(event) => { if (!isSelected) event.currentTarget.style.backgroundColor = COLOR_TRANSPARENT; }}>
             <input type="checkbox" checked={isSelected} onChange={() => handleToggle(option.id)} style={{ marginRight: theme.spacing.sm, cursor: 'pointer', width: '16px', height: '16px', accentColor: theme.colors.primary.main }} />
             <span style={{ fontSize: theme.typography.fontSize.lg, color: theme.colors.text.primary }}>{option.label}</span>
           </label>
@@ -206,14 +206,14 @@ const SingleSelectDropdown: React.FC<SingleSelectDropdownProps> = ({
                   setIsOpen(false);
                 }}
                 style={{ padding: `${theme.spacing.sm} ${theme.spacing.md}`, cursor: 'pointer', backgroundColor: isSelected ? theme.colors.background.subtle : 'transparent', fontSize: theme.typography.fontSize.lg, color: theme.colors.text.primary, transition: theme.transitions.fast, }}
-                onMouseEnter={(e) => {
+                onMouseEnter={(event) => {
                   if (!isSelected) {
-                    e.currentTarget.style.backgroundColor = theme.colors.background.subtle;
+                    event.currentTarget.style.backgroundColor = theme.colors.background.subtle;
                   }
                 }}
-                onMouseLeave={(e) => {
+                onMouseLeave={(event) => {
                   if (!isSelected) {
-                    e.currentTarget.style.backgroundColor = COLOR_TRANSPARENT;
+                    event.currentTarget.style.backgroundColor = COLOR_TRANSPARENT;
                   }
                 }}
               >

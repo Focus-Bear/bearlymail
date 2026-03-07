@@ -180,12 +180,13 @@ export function detectPhishingSignal(
  * Pick the stronger of two PhishingSignals (useful when aggregating thread signals).
  */
 export function mergePhishingSignals(
-  a: PhishingSignal | null,
-  b: PhishingSignal | null,
+  itemA: PhishingSignal | null,
+  itemB: PhishingSignal | null,
 ): PhishingSignal | null {
-  if (!a) return b;
-  if (!b) return a;
-  return CONFIDENCE_LEVELS[a.confidence] >= CONFIDENCE_LEVELS[b.confidence]
-    ? a
-    : b;
+  if (!itemA) return itemB;
+  if (!itemB) return itemA;
+  return CONFIDENCE_LEVELS[itemA.confidence] >=
+    CONFIDENCE_LEVELS[itemB.confidence]
+    ? itemA
+    : itemB;
 }

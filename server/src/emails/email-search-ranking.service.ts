@@ -109,7 +109,8 @@ export class EmailSearchRankingService {
     );
 
     emailsWithMetadata.sort(
-      (a, b) => (b.relevanceScore ?? 0) - (a.relevanceScore ?? 0),
+      (itemA, itemB) =>
+        (itemB.relevanceScore ?? 0) - (itemA.relevanceScore ?? 0),
     );
 
     return emailsWithMetadata;
@@ -142,7 +143,7 @@ Format: ["alternative query 1", "alternative query 2"]`;
         const queries: unknown = JSON.parse(jsonMatch[0]);
         if (
           Array.isArray(queries) &&
-          queries.every((q) => typeof q === "string")
+          queries.every((query) => typeof query === "string")
         ) {
           return (queries as string[]).slice(0, 3);
         }
@@ -153,7 +154,7 @@ Format: ["alternative query 1", "alternative query 2"]`;
 
     const words = originalQuery
       .split(/\s+/)
-      .filter((w) => w.length > 2)
+      .filter((word) => word.length > 2)
       .slice(0, 3);
     return words.length > 0 ? [words.join(" OR ")] : [];
   }
@@ -222,12 +223,12 @@ Format: ["alternative query 1", "alternative query 2"]`;
       : "";
 
     const emailLines = emailSummaries
-      .map((e) => {
+      .map((emailEntry) => {
         let recencyLabel = "";
-        if (e.daysAgo === 0) recencyLabel = " (TODAY!)";
-        else if (e.daysAgo <= 1) recencyLabel = " (LAST 24 HOURS!)";
-        else if (e.isRecent) recencyLabel = " (RECENT)";
-        return `${e.index}. From: ${e.from}, Subject: ${e.subject}, Received: ${e.daysAgo} days ago${recencyLabel}, Preview: ${e.snippet.substring(0, QUERY_LIMITS.SUBSTRING_PREVIEW_LONG)}...`;
+        if (emailEntry.daysAgo === 0) recencyLabel = " (TODAY!)";
+        else if (emailEntry.daysAgo <= 1) recencyLabel = " (LAST 24 HOURS!)";
+        else if (emailEntry.isRecent) recencyLabel = " (RECENT)";
+        return `${emailEntry.index}. From: ${emailEntry.from}, Subject: ${emailEntry.subject}, Received: ${emailEntry.daysAgo} days ago${recencyLabel}, Preview: ${emailEntry.snippet.substring(0, QUERY_LIMITS.SUBSTRING_PREVIEW_LONG)}...`;
       })
       .join("\n");
 
@@ -297,10 +298,12 @@ Return ONLY a JSON array of objects.`;
         email,
         score: allScores.get(idx) ?? 0,
       }));
-      rankedEmails.sort((a, b) => b.score - a.score);
+      rankedEmails.sort((itemA, itemB) => itemB.score - itemA.score);
 
       // Return top N results, regardless of score
-      return rankedEmails.slice(0, maxResults).map((e) => e.email);
+      return rankedEmails
+        .slice(0, maxResults)
+        .map((emailEntry) => emailEntry.email);
     } catch (parseError) {
       this.logger.warn("Failed to parse AI ranking response:", parseError);
       return emails.slice(0, maxResults);

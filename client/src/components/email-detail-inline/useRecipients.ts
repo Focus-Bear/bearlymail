@@ -10,7 +10,7 @@ type FieldType = typeof EMAIL_FIELD_TO | typeof EMAIL_FIELD_CC | typeof EMAIL_FI
 type DispatchFns = { onRecipientsChange: (v: string) => void; onCcChange: (v: string) => void; onBccChange: (v: string) => void };
 
 const parseEmailsToTags = (value: string): string[] =>
-  value.split(',').map(e => e.trim()).filter(e => e.length > 0);
+  value.split(',').map(event => event.trim()).filter(event => event.length > 0);
 
 const isValidEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -50,7 +50,7 @@ interface CommaEntryContext {
 const processInputCommaEntry = (value: string, field: FieldType, ctx: CommaEntryContext): string => {
   const { tags: { toTags, ccTags, bccTags }, dispatch, setInputValues } = ctx;
   const parts = value.split(',');
-  const newEmails = parts.slice(0, -1).map(e => e.trim()).filter(e => e.length > 0 && !/[\r\n]/.test(e) && isValidEmail(e));
+  const newEmails = parts.slice(0, -1).map(event => event.trim()).filter(event => event.length > 0 && !/[\r\n]/.test(event) && isValidEmail(event));
   const remaining = parts[parts.length - 1];
   if (newEmails.length > 0) {
     const allTags = [...getTagsForField(field, toTags, ccTags, bccTags), ...newEmails];
@@ -109,15 +109,15 @@ export const useRecipients = ({
     setActiveField(null);
   }, [toTags, ccTags, bccTags, onRecipientsChange, onCcChange, onBccChange]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent, field: FieldType, searchResultsLocal: Contact[], selectedIdx: number, handleRemoveTagLocal: (i: number, f: FieldType) => void) => {
+  const handleKeyDown = useCallback((event: React.KeyboardEvent, field: FieldType, searchResultsLocal: Contact[], selectedIdx: number, handleRemoveTagLocal: (i: number, f: FieldType) => void) => {
     const inputValue = inputValues[field];
-    if (e.key === KEY_BACKSPACE && inputValue === '') {
+    if (event.key === KEY_BACKSPACE && inputValue === '') {
       const tags = getTagsForField(field, toTags, ccTags, bccTags);
       if (tags.length > 0) handleRemoveTagLocal(tags.length - 1, field);
       return;
     }
-    if (e.key === KEY_ENTER && inputValue.trim() && !/[\r\n]/.test(inputValue.trim()) && isValidEmail(inputValue.trim())) {
-      e.preventDefault();
+    if (event.key === KEY_ENTER && inputValue.trim() && !/[\r\n]/.test(inputValue.trim()) && isValidEmail(inputValue.trim())) {
+      event.preventDefault();
       if (selectedIdx >= 0 && searchResultsLocal.length > 0) {
         handleSelectContact(searchResultsLocal[selectedIdx], field);
       } else {
@@ -129,10 +129,10 @@ export const useRecipients = ({
       return;
     }
     if (searchResultsLocal.length === 0) return;
-    if (e.key === KEY_ARROW_DOWN) { e.preventDefault(); setSelectedSuggestionIndex(prev => (prev < searchResultsLocal.length - 1 ? prev + 1 : prev)); }
-    else if (e.key === KEY_ARROW_UP) { e.preventDefault(); setSelectedSuggestionIndex(prev => (prev > 0 ? prev - 1 : -1)); }
-    else if (e.key === KEY_ENTER && selectedIdx >= 0) { e.preventDefault(); handleSelectContact(searchResultsLocal[selectedIdx], field); }
-    else if (e.key === KEY_ESCAPE) { setSearchResults([]); setActiveField(null); }
+    if (event.key === KEY_ARROW_DOWN) { event.preventDefault(); setSelectedSuggestionIndex(prev => (prev < searchResultsLocal.length - 1 ? prev + 1 : prev)); }
+    else if (event.key === KEY_ARROW_UP) { event.preventDefault(); setSelectedSuggestionIndex(prev => (prev > 0 ? prev - 1 : -1)); }
+    else if (event.key === KEY_ENTER && selectedIdx >= 0) { event.preventDefault(); handleSelectContact(searchResultsLocal[selectedIdx], field); }
+    else if (event.key === KEY_ESCAPE) { setSearchResults([]); setActiveField(null); }
   }, [inputValues, toTags, ccTags, bccTags, handleSelectContact, onRecipientsChange, onCcChange, onBccChange]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleBlur = useCallback((field: FieldType) => {

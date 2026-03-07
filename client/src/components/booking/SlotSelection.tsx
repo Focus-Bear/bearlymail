@@ -81,16 +81,16 @@ export const SlotSelection: React.FC<SlotSelectionProps> = ({
                       key={`${slot.start}-${slot.end}`}
                       onClick={() => onSelectSlot(slot)}
                       style={{ padding: theme.spacing.md, border: `1px solid ${isSelected ? theme.colors.primary.main : theme.colors.border.medium}`, backgroundColor: isSelected ? `${theme.colors.primary.main}10` : 'white', borderRadius: theme.borderRadius.md, cursor: 'pointer', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: theme.spacing.xs, transition: 'all 0.2s', }}
-                      onMouseEnter={(e) => {
+                      onMouseEnter={(event) => {
                         if (!isSelected) {
-                          e.currentTarget.style.borderColor = theme.colors.primary.main;
-                          e.currentTarget.style.backgroundColor = `${theme.colors.primary.main}05`;
+                          event.currentTarget.style.borderColor = theme.colors.primary.main;
+                          event.currentTarget.style.backgroundColor = `${theme.colors.primary.main}05`;
                         }
                       }}
-                      onMouseLeave={(e) => {
+                      onMouseLeave={(event) => {
                         if (!isSelected) {
-                          e.currentTarget.style.borderColor = theme.colors.border.medium;
-                          e.currentTarget.style.backgroundColor = COLOR_NAMED_WHITE;
+                          event.currentTarget.style.borderColor = theme.colors.border.medium;
+                          event.currentTarget.style.backgroundColor = COLOR_NAMED_WHITE;
                         }
                       }}
                     >

@@ -308,7 +308,7 @@ export class PriorityService {
     contexts: UserContext[],
   ): { score: number; explanation: string } {
     const vipContacts = contexts.filter(
-      (c) => c.contextKey === ContextKey.VIP_CONTACT,
+      (contact) => contact.contextKey === ContextKey.VIP_CONTACT,
     );
     const matchingVip = vipContacts.find(
       (vip) =>
@@ -329,7 +329,9 @@ export class PriorityService {
     body: string,
     contexts: UserContext[],
   ): { score: number; explanation: string } {
-    const goals = contexts.filter((c) => c.contextKey === ContextKey.MY_GOALS);
+    const goals = contexts.filter(
+      (item) => item.contextKey === ContextKey.MY_GOALS,
+    );
     if (goals.length === 0) {
       return { score: 0, explanation: "" };
     }
@@ -341,7 +343,7 @@ export class PriorityService {
       const keywords = goal.contextValue
         .toLowerCase()
         .split(/[,;]/)
-        .map((k) => k.trim())
+        .map((key) => key.trim())
         .filter(Boolean);
       if (keywords.some((keyword) => emailText.includes(keyword))) {
         matchingGoals.push(goal.contextValue);
@@ -376,7 +378,7 @@ export class PriorityService {
     contexts: UserContext[],
   ): { score: number; explanation: string } {
     const workingOn = contexts.filter(
-      (c) => c.contextKey === ContextKey.WORKING_ON,
+      (item) => item.contextKey === ContextKey.WORKING_ON,
     );
     const emailText = `${subject} ${body}`.toLowerCase();
 
@@ -384,7 +386,7 @@ export class PriorityService {
       const keywords = project.contextValue
         .toLowerCase()
         .split(/[,;]/)
-        .map((k) => k.trim())
+        .map((key) => key.trim())
         .filter(Boolean);
       if (keywords.some((keyword) => emailText.includes(keyword))) {
         // Priority 1 = +15, Priority 2 = +10, Priority 3 = +5
@@ -413,7 +415,7 @@ export class PriorityService {
     contexts: UserContext[],
   ): { score: number; explanation: string } {
     const dontCare = contexts.filter(
-      (c) => c.contextKey === ContextKey.DONT_CARE,
+      (item) => item.contextKey === ContextKey.DONT_CARE,
     );
     const emailText = `${subject} ${body}`.toLowerCase();
 
@@ -421,7 +423,7 @@ export class PriorityService {
       const keywords = item.contextValue
         .toLowerCase()
         .split(/[,;]/)
-        .map((k) => k.trim())
+        .map((key) => key.trim())
         .filter(Boolean);
       if (keywords.some((keyword) => emailText.includes(keyword))) {
         return {
@@ -608,12 +610,12 @@ export class PriorityService {
 
     let score = 0;
     tokens.forEach((token) => {
-      if (urgencyWords.some((w) => token.includes(w)))
+      if (urgencyWords.some((word) => token.includes(word)))
         score += SENTIMENT_THRESHOLDS.URGENCY_BOOST;
       // Upset emails get higher boost
-      if (upsetWords.some((w) => token.includes(w)))
+      if (upsetWords.some((word) => token.includes(word)))
         score += SENTIMENT_THRESHOLDS.UPSET_BOOST;
-      if (lowPriorityWords.some((w) => token.includes(w)))
+      if (lowPriorityWords.some((word) => token.includes(word)))
         score += SENTIMENT_THRESHOLDS.LOW_PRIORITY_PENALTY;
     });
 

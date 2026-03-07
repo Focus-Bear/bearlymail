@@ -31,7 +31,7 @@ export const AutoResponderQASettings: React.FC<AutoResponderQASettingsProps> = (
         <input
           type="checkbox"
           checked={qaContextEnabled}
-          onChange={(e) => onChange({ qaContextEnabled: e.target.checked })}
+          onChange={(event) => onChange({ qaContextEnabled: event.target.checked })}
           style={{ width: '18px', height: '18px', accentColor: theme.colors.primary.main, cursor: 'pointer', }}
         />
         <span style={{ ...theme.typography.body.xLarge, fontWeight: theme.typography.fontWeight.medium, color: theme.colors.text.primary, }}>
@@ -55,7 +55,7 @@ export const AutoResponderQASettings: React.FC<AutoResponderQASettingsProps> = (
             min="0"
             max="100"
             value={qaMinConfidence * 100}
-            onChange={(e) => onChange({ qaMinConfidence: parseInt(e.target.value, 10) / 100 })}
+            onChange={(event) => onChange({ qaMinConfidence: parseInt(event.target.value, 10) / 100 })}
             style={{ width: '100%', accentColor: theme.colors.primary.main, cursor: 'pointer', }}
           />
 

@@ -92,8 +92,8 @@ describe('selectVisibleEmails – animatingOut integration', () => {
       },
     };
     const visible = selectVisibleEmails(state as any);
-    expect(visible.map(e => e.id)).not.toContain('1');
-    expect(visible.map(e => e.id)).toEqual(expect.arrayContaining(['2', '3']));
+    expect(visible.map(event => event.id)).not.toContain('1');
+    expect(visible.map(event => event.id)).toEqual(expect.arrayContaining(['2', '3']));
   });
 
   it('keeps animating-out emails visible even when they are optimistically archived', () => {
@@ -108,7 +108,7 @@ describe('selectVisibleEmails – animatingOut integration', () => {
       },
     };
     const visible = selectVisibleEmails(state as any);
-    expect(visible.map(e => e.id)).toContain('1');
+    expect(visible.map(event => event.id)).toContain('1');
   });
 
   it('removes animating-out email from visible list once removeEmail is dispatched', () => {
@@ -118,14 +118,14 @@ describe('selectVisibleEmails – animatingOut integration', () => {
     emailState = emailReducer(emailState, addAnimatingOut({ id: '1', type: 'archive' }));
 
     const duringAnimation = selectVisibleEmails({ email: emailState } as any);
-    expect(duringAnimation.map(e => e.id)).toContain('1');
+    expect(duringAnimation.map(event => event.id)).toContain('1');
 
     // Simulate: animation completes → removeEmail + removeAnimatingOut
     emailState = emailReducer(emailState, removeEmail('1'));
     emailState = emailReducer(emailState, removeAnimatingOut('1'));
 
     const afterAnimation = selectVisibleEmails({ email: emailState } as any);
-    expect(afterAnimation.map(e => e.id)).not.toContain('1');
+    expect(afterAnimation.map(event => event.id)).not.toContain('1');
   });
 });
 
@@ -161,7 +161,7 @@ describe('updateCategoryEmails', () => {
       stateWithCategories,
       updateCategoryEmails({ categoryName: 'Work', emails: freshWorkEmails })
     );
-    const ids = state.emails.map(e => e.id);
+    const ids = state.emails.map(event => event.id);
     // Old Work emails (1, 3) should be gone
     expect(ids).not.toContain('1');
     expect(ids).not.toContain('3');
@@ -181,7 +181,7 @@ describe('updateCategoryEmails', () => {
       stateWithCategories,
       updateCategoryEmails({ categoryName: 'Other', emails: freshOtherEmails })
     );
-    const ids = state.emails.map(e => e.id);
+    const ids = state.emails.map(event => event.id);
     // Old Other-like emails (4, 5, 6) should be gone
     expect(ids).not.toContain('4');
     expect(ids).not.toContain('5');
@@ -202,7 +202,7 @@ describe('updateCategoryEmails', () => {
       stateWithCategories,
       updateCategoryEmails({ categoryName: 'Work', emails: [emailAlreadyPresent] })
     );
-    const ids = state.emails.map(e => e.id);
+    const ids = state.emails.map(event => event.id);
     // Should only appear once
     expect(ids.filter(id => id === '2')).toHaveLength(1);
   });
@@ -212,7 +212,7 @@ describe('updateCategoryEmails', () => {
       stateWithCategories,
       updateCategoryEmails({ categoryName: 'Work', emails: [] })
     );
-    const ids = state.emails.map(e => e.id);
+    const ids = state.emails.map(event => event.id);
     expect(ids).not.toContain('1');
     expect(ids).not.toContain('3');
     // Other categories intact

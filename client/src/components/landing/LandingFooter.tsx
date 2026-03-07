@@ -58,11 +58,11 @@ export const LandingFooter: React.FC = () => {
           type='button'
           onClick={() => navigate('/privacy')}
           style={linkStyle}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.textDecoration = 'underline';
+          onMouseEnter={(event) => {
+            event.currentTarget.style.textDecoration = 'underline';
           }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.textDecoration = 'none';
+          onMouseLeave={(event) => {
+            event.currentTarget.style.textDecoration = 'none';
           }}
         >
           {t('consent.privacyPolicy')}
@@ -72,11 +72,11 @@ export const LandingFooter: React.FC = () => {
           type='button'
           onClick={() => navigate('/terms')}
           style={linkStyle}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.textDecoration = 'underline';
+          onMouseEnter={(event) => {
+            event.currentTarget.style.textDecoration = 'underline';
           }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.textDecoration = 'none';
+          onMouseLeave={(event) => {
+            event.currentTarget.style.textDecoration = 'none';
           }}
         >
           {t('consent.termsOfUse')}

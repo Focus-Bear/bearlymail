@@ -27,8 +27,8 @@ const getSortIndicator = (column: SortColumn, sortColumn: SortColumn, sortDirect
   return sortDirection === SORT_ASC ? ' ▲' : ' ▼';
 };
 
-const formatDuration = (ms: number | null, t: (key: string) => string): string => {
-  if (ms === null || ms === undefined) return t('admin.jobs.noData');
+const formatDuration = (ms: number | null, tFunc: (key: string) => string): string => {
+  if (ms === null || ms === undefined) return tFunc('admin.jobs.noData');
   const MS_PER_SECOND = 1000;
   const MS_PER_MINUTE = 60000;
   if (ms < MS_PER_SECOND) return `${Math.round(ms)}ms`;
@@ -121,9 +121,9 @@ export const JobsSection: React.FC = () => {
     else { setSortColumn(column); setSortDirection(SORT_ASC); }
   };
 
-  const sortedStats = [...jobStats].sort((a, b) => {
-    let aValue: string | number | null = a[sortColumn];
-    let bValue: string | number | null = b[sortColumn];
+  const sortedStats = [...jobStats].sort((itemA, itemB) => {
+    let aValue: string | number | null = itemA[sortColumn];
+    let bValue: string | number | null = itemB[sortColumn];
     if (aValue === null) aValue = sortDirection === SORT_ASC ? Infinity : -Infinity;
     if (bValue === null) bValue = sortDirection === SORT_ASC ? Infinity : -Infinity;
     if (typeof aValue === TYPEOF_STRING && typeof bValue === TYPEOF_STRING) {
@@ -141,7 +141,7 @@ export const JobsSection: React.FC = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.lg }}>
         <h2 style={{ margin: 0, fontSize: theme.typography.fontSize['2xl'], fontWeight: theme.typography.fontWeight.bold, color: theme.colors.text.primary }}>{t('admin.jobs.title')}</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
-          <select value={dateRange} onChange={(e) => setDateRange(e.target.value as DateRange)} style={{ padding: `${theme.spacing.sm} ${theme.spacing.md}`, borderRadius: theme.borderRadius.md, border: `1px solid ${theme.colors.border.medium}`, backgroundColor: theme.colors.background.paper, color: theme.colors.text.primary, fontSize: theme.typography.fontSize.sm, cursor: 'pointer' }}>
+          <select value={dateRange} onChange={(event) => setDateRange(event.target.value as DateRange)} style={{ padding: `${theme.spacing.sm} ${theme.spacing.md}`, borderRadius: theme.borderRadius.md, border: `1px solid ${theme.colors.border.medium}`, backgroundColor: theme.colors.background.paper, color: theme.colors.text.primary, fontSize: theme.typography.fontSize.sm, cursor: 'pointer' }}>
             {dateRangeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
           {lastUpdated && <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>{t('admin.jobs.lastUpdated')}: {lastUpdated.toLocaleTimeString()}</div>}

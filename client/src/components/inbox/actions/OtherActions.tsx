@@ -23,8 +23,8 @@ interface OtherActionsProps {
     showSnooze: (emailId: string) => void;
     clearSnooze: (emailId: string) => void;
   };
-  onArchive: (emailId: string, e: React.MouseEvent) => Promise<void>;
-  onBlockSender: (emailId: string, e: React.MouseEvent) => void;
+  onArchive: (emailId: string, event: React.MouseEvent) => Promise<void>;
+  onBlockSender: (emailId: string, event: React.MouseEvent) => void;
   onSnooze: (emailId: string) => Promise<void>;
 }
 
@@ -50,8 +50,8 @@ export const OtherActions: React.FC<OtherActionsProps> = ({
     return extractUnsubscribeLink(htmlBody, email.body);
   }, [email]);
 
-  const handleUnsubscribeClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleUnsubscribeClick = (event: React.MouseEvent) => {
+    event.stopPropagation();
     if (unsubscribeLink) {
       // Open unsubscribe link in a new tab
       window.open(unsubscribeLink, '_blank', 'noopener,noreferrer');
@@ -80,11 +80,11 @@ export const OtherActions: React.FC<OtherActionsProps> = ({
         flexWrap: 'wrap',
       }}>
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onArchive(email.id, e);
+          onClick={(event) => {
+            event.stopPropagation();
+            onArchive(email.id, event);
             // eslint-disable-next-line no-restricted-syntax -- 'click' is a standard DOM event type
-            if (e.type === 'click' && !e.ctrlKey && !e.shiftKey && !e.metaKey) {
+            if (event.type === 'click' && !event.ctrlKey && !event.shiftKey && !event.metaKey) {
               keyboardHint.showHint(email.id, t('inbox.pressDeleteToArchive'));
               setTimeout(() => keyboardHint.hideHint(), TOAST_DURATION_MS);
             }
@@ -117,7 +117,7 @@ export const OtherActions: React.FC<OtherActionsProps> = ({
           </button>
         ) : (
           <button
-            onClick={(e) => onBlockSender(email.id, e)}
+            onClick={(event) => onBlockSender(email.id, event)}
             title={t('inbox.blockSender')}
             style={{ ...actionBtnStyle, fontSize: '1.1rem', opacity: OPACITY_DISABLED }}
           >

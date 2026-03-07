@@ -33,10 +33,10 @@ export class EmailService {
     const setupUrl = `${frontendUrl}/setup-password?token=${setupToken}`;
 
     // Get translations
-    const t = (key: string, params: Record<string, string> = {}) =>
+    const token = (key: string, params: Record<string, string> = {}) =>
       translateEmail(`waitlistApproval.${key}`, language, params);
 
-    const subject = t("subject");
+    const subject = token("subject");
     const year = new Date().getFullYear().toString();
 
     // Load MJML template
@@ -49,15 +49,15 @@ export class EmailService {
 
     // Replace template variables
     mjmlTemplate = mjmlTemplate
-      .replace(/\{\{previewText\}\}/g, t("message", { firstName }))
-      .replace(/\{\{greeting\}\}/g, t("greeting", { firstName }))
-      .replace(/\{\{message\}\}/g, t("message", { firstName }))
-      .replace(/\{\{cta\}\}/g, t("cta"))
-      .replace(/\{\{button\}\}/g, t("button"))
-      .replace(/\{\{linkText\}\}/g, t("linkText"))
+      .replace(/\{\{previewText\}\}/g, token("message", { firstName }))
+      .replace(/\{\{greeting\}\}/g, token("greeting", { firstName }))
+      .replace(/\{\{message\}\}/g, token("message", { firstName }))
+      .replace(/\{\{cta\}\}/g, token("cta"))
+      .replace(/\{\{button\}\}/g, token("button"))
+      .replace(/\{\{linkText\}\}/g, token("linkText"))
       .replace(/\{\{setupUrl\}\}/g, setupUrl)
-      .replace(/\{\{expiry\}\}/g, t("expiry"))
-      .replace(/\{\{footer\}\}/g, t("footer", { year }));
+      .replace(/\{\{expiry\}\}/g, token("expiry"))
+      .replace(/\{\{footer\}\}/g, token("footer", { year }));
 
     // Convert MJML to HTML
     const { html, errors } = mjml(mjmlTemplate, {
@@ -70,17 +70,17 @@ export class EmailService {
 
     // Generate plain text version
     const textBody = `
-${t("greeting", { firstName })}
+${token("greeting", { firstName })}
 
-${t("message", { firstName })}
+${token("message", { firstName })}
 
-${t("cta")}
+${token("cta")}
 
 ${setupUrl}
 
-${t("expiry")}
+${token("expiry")}
 
-${t("footer", { year })}
+${token("footer", { year })}
     `;
 
     await this.sendEmail(toEmail, subject, html, textBody);

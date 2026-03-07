@@ -68,7 +68,7 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
   const isInvitation = useMemo(() => isCalendarInvitation(email), [email]);
 
   const hasSchedulingRequest = useMemo(
-    () => suggestedActions.some((a) => a.type === ACTION_TYPE_SCHEDULING_REQUEST),
+    () => suggestedActions.some((action) => action.type === ACTION_TYPE_SCHEDULING_REQUEST),
     [suggestedActions],
   );
 
@@ -77,8 +77,8 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
     return extractUnsubscribeLink(htmlBody, email.body);
   }, [email]);
 
-  const handleUnsubscribeClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleUnsubscribeClick = (event: React.MouseEvent) => {
+    event.stopPropagation();
     if (unsubscribeLink) {
       window.open(unsubscribeLink, '_blank', 'noopener,noreferrer');
       captureEvent('email_unsubscribe_clicked', { email_id: email.id });

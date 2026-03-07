@@ -7,7 +7,7 @@ interface UseEmailSelectionReturn {
   selectedEmailIds: Set<string>;
   setSelectedEmailIds: React.Dispatch<React.SetStateAction<Set<string>>>;
   lastSelectedIndex: number;
-  handleEmailClick: (emailId: string, index: number, e: React.MouseEvent, emails: Email[]) => void;
+  handleEmailClick: (emailId: string, index: number, event: React.MouseEvent, emails: Email[]) => void;
   clearSelection: () => void;
 }
 
@@ -22,9 +22,9 @@ export function useEmailSelection(mode: InboxMode, emailsLength: number): UseEma
     setSelectedEmailIds(new Set());
   }, [mode, emailsLength]);
 
-  const handleEmailClick = useCallback((emailId: string, index: number, e: React.MouseEvent, emails: Email[]) => {
+  const handleEmailClick = useCallback((emailId: string, index: number, event: React.MouseEvent, emails: Email[]) => {
     // Handle multi-select with shift key
-    if (e.shiftKey && lastSelectedIndex >= 0) {
+    if (event.shiftKey && lastSelectedIndex >= 0) {
       const start = Math.min(lastSelectedIndex, index);
       const end = Math.max(lastSelectedIndex, index);
       const newSelected = new Set(selectedEmailIds);
@@ -36,7 +36,7 @@ export function useEmailSelection(mode: InboxMode, emailsLength: number): UseEma
       setSelectedEmailIds(newSelected);
     }
     // Handle toggle select with ctrl/cmd key
-    else if (e.ctrlKey || e.metaKey) {
+    else if (event.ctrlKey || event.metaKey) {
       setSelectedEmailIds(prev => {
         const newSet = new Set(prev);
         if (newSet.has(emailId)) {

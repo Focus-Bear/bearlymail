@@ -65,7 +65,7 @@ export const GitHubStatusBadge: React.FC<GitHubStatusBadgeProps> = ({ link }) =>
       href={link.url}
       target="_blank"
       rel="noopener noreferrer"
-      onClick={(e) => e.stopPropagation()}
+      onClick={(event) => event.stopPropagation()}
       style={{
         fontSize: theme.typography.fontSize.xs,
         padding: `2px ${theme.spacing.sm}`,

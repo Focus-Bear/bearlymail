@@ -10,8 +10,8 @@ interface EmailCardActionsProps {
   isStarred?: boolean;
   showSnoozeInput: boolean;
   snoozeInput: string;
-  onToggleStar: (e: React.MouseEvent) => void;
-  onArchive: (e: React.MouseEvent) => void;
+  onToggleStar: (event: React.MouseEvent) => void;
+  onArchive: (event: React.MouseEvent) => void;
   onShowSnoozeInput: () => void;
   onSnoozeInputChange: (value: string) => void;
   onSnooze: () => void;
@@ -36,7 +36,7 @@ export const EmailCardActions: React.FC<EmailCardActionsProps> = ({
   const { t } = useTranslation();
 
   return (
-    <div style={{ display: 'flex', gap: theme.spacing.sm }} onClick={(e) => e.stopPropagation()}>
+    <div style={{ display: 'flex', gap: theme.spacing.sm }} onClick={(event) => event.stopPropagation()}>
       <button
         onClick={onToggleStar}
         title={t('emailActions.toggleStar')}
@@ -85,8 +85,8 @@ export const EmailCardActions: React.FC<EmailCardActionsProps> = ({
             fontWeight: theme.typography.fontWeight.medium,
             padding: theme.spacing.xs,
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = theme.colors.primary.main)}
-          onMouseLeave={(e) => (e.currentTarget.style.color = theme.colors.text.tertiary)}
+          onMouseEnter={(event) => (event.currentTarget.style.color = theme.colors.primary.main)}
+          onMouseLeave={(event) => (event.currentTarget.style.color = theme.colors.text.tertiary)}
         >
           {t('emailActions.snooze')}
         </button>

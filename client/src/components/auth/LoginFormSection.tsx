@@ -11,7 +11,7 @@ interface LoginFormSectionProps {
   error: string;
   onEmailChange: (email: string) => void;
   onPasswordChange: (password: string) => void;
-  onSubmit: (e: React.FormEvent) => void;
+  onSubmit: (event: React.FormEvent) => void;
   onGoogleLogin: () => void;
 }
 
@@ -55,7 +55,7 @@ export const LoginFormSection: React.FC<LoginFormSectionProps> = ({
           <input
             type="email"
             value={email}
-            onChange={(e) => onEmailChange(e.target.value)}
+            onChange={(event) => onEmailChange(event.target.value)}
             required
             style={{ width: '100%', padding: theme.spacing.md, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, fontSize: theme.typography.fontSize.base, fontFamily: theme.typography.fontFamily }}
           />
@@ -68,7 +68,7 @@ export const LoginFormSection: React.FC<LoginFormSectionProps> = ({
           <input
             type="password"
             value={password}
-            onChange={(e) => onPasswordChange(e.target.value)}
+            onChange={(event) => onPasswordChange(event.target.value)}
             required
             style={{ width: '100%', padding: theme.spacing.md, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, fontSize: theme.typography.fontSize.base, fontFamily: theme.typography.fontFamily }}
           />
@@ -77,8 +77,8 @@ export const LoginFormSection: React.FC<LoginFormSectionProps> = ({
         <button
           type="submit"
           style={{ width: '100%', padding: theme.spacing.md, backgroundColor: theme.colors.primary.main, color: COLOR_NAMED_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.md, fontSize: theme.typography.fontSize.base, fontWeight: theme.typography.fontWeight.semibold, cursor: 'pointer', marginBottom: theme.spacing.md }}
-          onMouseOver={(e) => { e.currentTarget.style.backgroundColor = theme.colors.primary.dark; }}
-          onMouseOut={(e) => { e.currentTarget.style.backgroundColor = theme.colors.primary.main; }}
+          onMouseOver={(event) => { event.currentTarget.style.backgroundColor = theme.colors.primary.dark; }}
+          onMouseOut={(event) => { event.currentTarget.style.backgroundColor = theme.colors.primary.main; }}
         >
           {t('auth.signIn')}
         </button>

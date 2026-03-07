@@ -30,8 +30,8 @@ export const BulkSendFollowUps: React.FC<BulkSendFollowUpsProps> = ({
   const [sendResults, setSendResults] = useState<Map<string, { success: boolean; error?: string }>>(new Map());
 
   const selectedFollowUps = selectedThreads
-    .filter(t => t.followUp && t.followUp.draftFollowUp)
-    .map(t => t.followUp!);
+    .filter(thread => thread.followUp && t.followUp.draftFollowUp)
+    .map(thread => thread.followUp!);
 
   const selectedCount = selectedFollowUps.length;
   const maxAllowed = MAX_BULK_SEND_COUNT;

@@ -57,7 +57,7 @@ const ScoreBreakdownModal: React.FC<ScoreBreakdownModalProps> = ({ scoreInfo, on
   const recencyColor = breakdown.recencyAdjustment >= 0 ? theme.colors.accent.success : theme.colors.accent.error;
   return (
     <div onClick={onClose} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: theme.colors.overlay.dark, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: theme.colors.background.paper, borderRadius: theme.borderRadius.lg, padding: theme.spacing.xl, maxWidth: '500px', width: '90%', boxShadow: theme.shadows.lg }}>
+      <div onClick={(event) => event.stopPropagation()} style={{ backgroundColor: theme.colors.background.paper, borderRadius: theme.borderRadius.lg, padding: theme.spacing.xl, maxWidth: '500px', width: '90%', boxShadow: theme.shadows.lg }}>
         <h3 style={{ color: theme.colors.text.primary, fontSize: theme.typography.fontSize.xl, fontWeight: theme.typography.fontWeight.bold, marginBottom: theme.spacing.md }}>{t('search.scoreBreakdown')}</h3>
         <div style={{ marginBottom: theme.spacing.md }}>
           <div style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, marginBottom: theme.spacing.xs }}>
@@ -176,14 +176,14 @@ const Search: React.FC = () => {
                       alignItems: 'center',
                       gap: theme.spacing.xs,
                     }}
-                    onMouseEnter={(e) => {
+                    onMouseEnter={(event) => {
                       if (!isSelected) {
-                        e.currentTarget.style.backgroundColor = theme.colors.background.default;
+                        event.currentTarget.style.backgroundColor = theme.colors.background.default;
                       }
                     }}
-                    onMouseLeave={(e) => {
+                    onMouseLeave={(event) => {
                       if (!isSelected) {
-                        e.currentTarget.style.backgroundColor = theme.colors.background.subtle;
+                        event.currentTarget.style.backgroundColor = theme.colors.background.subtle;
                       }
                     }}
                   >

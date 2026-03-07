@@ -14,8 +14,8 @@ export const EmailHeaderRight: React.FC<EmailHeaderRightProps> = ({ email }) => 
 
   useEffect(() => {
     if (!showDebug) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
         setShowDebug(false);
       }
     };
@@ -23,8 +23,8 @@ export const EmailHeaderRight: React.FC<EmailHeaderRightProps> = ({ email }) => 
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showDebug]);
 
-  const handleClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleClick = (event: React.MouseEvent) => {
+    event.stopPropagation();
     setShowDebug((prev) => !prev);
   };
 
@@ -68,7 +68,7 @@ export const EmailHeaderRight: React.FC<EmailHeaderRightProps> = ({ email }) => 
             color: theme.colors.text.secondary,
             whiteSpace: 'nowrap',
           }}
-          onClick={(e) => e.stopPropagation()}
+          onClick={(event) => event.stopPropagation()}
         >
           <div style={{ fontWeight: theme.typography.fontWeight.semibold, color: theme.colors.text.primary, marginBottom: theme.spacing.sm }}>
             {t('inbox.debugTitle')}

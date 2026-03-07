@@ -21,14 +21,14 @@ const sidebarBtnStyle: React.CSSProperties = {
   whiteSpace: 'nowrap',
 };
 
-const onSidebarBtnMouseEnter = (e: React.MouseEvent<HTMLButtonElement>) => {
-  e.currentTarget.style.borderColor = theme.colors.text.primary;
-  e.currentTarget.style.color = theme.colors.text.primary;
+const onSidebarBtnMouseEnter = (event: React.MouseEvent<HTMLButtonElement>) => {
+  event.currentTarget.style.borderColor = theme.colors.text.primary;
+  event.currentTarget.style.color = theme.colors.text.primary;
 };
 
-const onSidebarBtnMouseLeave = (e: React.MouseEvent<HTMLButtonElement>) => {
-  e.currentTarget.style.borderColor = theme.colors.border.medium;
-  e.currentTarget.style.color = theme.colors.text.secondary;
+const onSidebarBtnMouseLeave = (event: React.MouseEvent<HTMLButtonElement>) => {
+  event.currentTarget.style.borderColor = theme.colors.border.medium;
+  event.currentTarget.style.color = theme.colors.text.secondary;
 };
 
 interface SidebarFooterProps {

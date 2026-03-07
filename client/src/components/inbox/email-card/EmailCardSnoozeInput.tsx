@@ -46,15 +46,15 @@ export const EmailCardSnoozeInput: React.FC<EmailCardSnoozeInputProps> = ({
         placeholder={t('emailActions.snoozePlaceholder')}
         autoFocus
         value={snoozeInput}
-        onChange={(e) => onSnoozeInputChange(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === KEY_ENTER) {
-            e.preventDefault();
+        onChange={(event) => onSnoozeInputChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === KEY_ENTER) {
+            event.preventDefault();
             if (snoozeInput.trim()) {
               onSnooze();
             }
           }
-          if (e.key === KEY_ESCAPE) {
+          if (event.key === KEY_ESCAPE) {
             onHideSnoozeInput();
           }
         }}

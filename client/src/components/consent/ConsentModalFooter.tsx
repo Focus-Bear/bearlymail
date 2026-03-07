@@ -58,22 +58,22 @@ export const ConsentModalFooter: React.FC<ConsentModalFooterProps> = ({
           cursor: isButtonDisabled() ? 'not-allowed' : 'pointer',
           transition: theme.transitions.default,
         }}
-        onMouseEnter={(e) => {
+        onMouseEnter={(event) => {
           if (!isButtonDisabled()) {
-            e.currentTarget.style.backgroundColor = getButtonHoverColor();
+            event.currentTarget.style.backgroundColor = getButtonHoverColor();
           }
         }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = getButtonBackgroundColor();
+        onMouseLeave={(event) => {
+          event.currentTarget.style.backgroundColor = getButtonBackgroundColor();
         }}
-        onMouseDown={(e) => {
+        onMouseDown={(event) => {
           if (!isButtonDisabled()) {
-            e.currentTarget.style.backgroundColor = getButtonPressColor();
+            event.currentTarget.style.backgroundColor = getButtonPressColor();
           }
         }}
-        onMouseUp={(e) => {
+        onMouseUp={(event) => {
           if (!isButtonDisabled()) {
-            e.currentTarget.style.backgroundColor = getButtonHoverColor();
+            event.currentTarget.style.backgroundColor = getButtonHoverColor();
           }
         }}
       >

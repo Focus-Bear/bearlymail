@@ -39,8 +39,8 @@ export const GitHubCreateIssueModal: React.FC<GitHubCreateIssueModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (!owner || !repo || !title) {
       setError('Owner, repository, and title are required');
       return;

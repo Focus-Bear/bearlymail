@@ -34,7 +34,7 @@ interface SplitViewPanelHeaderProps {
   onReply: () => void; onForward: () => void; onArchive: () => void;
   onSnoozeClick: () => void; onClose: () => void; onOpenInNewTab: () => void;
   onSetStarCount: (id: string, count: number) => Promise<void>;
-  t: (k: string) => string;
+  t: (tKey: string) => string;
 }
 
 const SplitViewPanelHeader: React.FC<SplitViewPanelHeaderProps> = ({
@@ -71,7 +71,7 @@ const SplitViewPanelHeader: React.FC<SplitViewPanelHeaderProps> = ({
           {PRIORITY_OPTIONS.map(({ label, emoji, value }) => {
             const isActive = starCount === value;
             return (
-              <button key={value} onClick={(e) => { e.stopPropagation(); onSetStarCount(selectedEmailId, starCount === value ? 0 : value); }}
+              <button key={value} onClick={(event) => { event.stopPropagation(); onSetStarCount(selectedEmailId, starCount === value ? 0 : value); }}
                 style={{ padding: `${theme.spacing.xs} ${theme.spacing.md}`, backgroundColor: isActive ? theme.colors.text.primary : 'transparent', color: isActive ? theme.colors.background.paper : theme.colors.text.secondary, border: `1px solid ${isActive ? theme.colors.text.primary : theme.colors.border.medium}`, borderRadius: theme.borderRadius.full || '999px', cursor: 'pointer', fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium, display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', transition: 'all 0.15s ease' }}>
                 <span>{emoji}</span><span>{label}</span>
               </button>

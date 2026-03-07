@@ -22,7 +22,7 @@ export function useTriageSuggestions(): UseTriageSuggestionsReturn {
   const fetchTriageSuggestions = useCallback(async (emails: Email[]) => {
     if (emails.length === 0 || loadingSuggestions) return;
 
-    const emailIds = emails.slice(0, TRIAGE_SUGGESTIONS_LIMIT_20).map(e => e.id);
+    const emailIds = emails.slice(0, TRIAGE_SUGGESTIONS_LIMIT_20).map(event => event.id);
     const emailIdsKey = emailIds.sort().join(',');
 
     // Skip if we've already fetched for these exact emails

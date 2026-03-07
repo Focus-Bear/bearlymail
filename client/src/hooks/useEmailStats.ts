@@ -69,8 +69,7 @@ function processStats(raw: EmailStats): ProcessedEmailStats {
       });
     }
   }
-  const dailyCounts = Array.from(dailyMap.values()).sort(
-    (a, b) => a.date.localeCompare(b.date),
+  const dailyCounts = Array.from(dailyMap.values()).sort((itemA, itemB) => itemA.date.localeCompare(itemB.date),
   );
 
   const totalMap = new Map<string, number>();
@@ -95,9 +94,9 @@ function processStats(raw: EmailStats): ProcessedEmailStats {
       maxReplyTimeMinutes: reply ? parseFloat(reply.maxReplyTimeMinutes) : null,
       repliedCount: reply ? parseInt(reply.repliedCount, 10) : 0,
     };
-  }).sort((a, b) => b.totalEmails - a.totalEmails);
+  }).sort((itemA, itemB) => itemB.totalEmails - itemA.totalEmails);
 
-  const totalEmails = categoryStats.reduce((sum, c) => sum + c.totalEmails, 0);
+  const totalEmails = categoryStats.reduce((sum, cat) => sum + cat.totalEmails, 0);
   const activeDays = dailyCounts.length || 1;
 
   return {

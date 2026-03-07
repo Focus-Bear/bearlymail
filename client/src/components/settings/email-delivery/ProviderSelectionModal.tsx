@@ -24,8 +24,8 @@ export const ProviderSelectionModal: React.FC<ProviderSelectionModalProps> = ({
   const providers = getProviderOptions(t);
 
   const handleProviderClick = (providerId: 'gmail' | 'office365' | 'zoho') => { onSelectProvider(providerId); onClose(); };
-  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => { if (e.target === e.currentTarget) onClose(); };
-  const handleKeyDown = (e: React.KeyboardEvent) => { if (e.key === KEY_ESCAPE) onClose(); };
+  const handleBackdropClick = (event: React.MouseEvent<HTMLDivElement>) => { if (event.target === event.currentTarget) onClose(); };
+  const handleKeyDown = (event: React.KeyboardEvent) => { if (event.key === KEY_ESCAPE) onClose(); };
 
   return (
     <div
@@ -38,7 +38,7 @@ export const ProviderSelectionModal: React.FC<ProviderSelectionModalProps> = ({
     >
       <div
         style={{ backgroundColor: theme.colors.background.paper, borderRadius: theme.borderRadius.lg, padding: theme.spacing['2xl'], maxWidth: '600px', width: '100%', boxShadow: theme.shadows.xl, }}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
       >
         <h2
           id="provider-modal-title"
@@ -53,15 +53,15 @@ export const ProviderSelectionModal: React.FC<ProviderSelectionModalProps> = ({
               key={provider.id}
               onClick={() => handleProviderClick(provider.id)}
               style={{ padding: theme.spacing.lg, border: `2px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, backgroundColor: theme.colors.background.default, cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', gap: theme.spacing.md, }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = provider.color;
-                e.currentTarget.style.backgroundColor = theme.colors.background.paper;
-                e.currentTarget.style.boxShadow = theme.shadows.md;
+              onMouseEnter={(event) => {
+                event.currentTarget.style.borderColor = provider.color;
+                event.currentTarget.style.backgroundColor = theme.colors.background.paper;
+                event.currentTarget.style.boxShadow = theme.shadows.md;
               }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = theme.colors.border.medium;
-                e.currentTarget.style.backgroundColor = theme.colors.background.default;
-                e.currentTarget.style.boxShadow = 'none';
+              onMouseLeave={(event) => {
+                event.currentTarget.style.borderColor = theme.colors.border.medium;
+                event.currentTarget.style.backgroundColor = theme.colors.background.default;
+                event.currentTarget.style.boxShadow = 'none';
               }}
             >
               <div
@@ -88,11 +88,11 @@ export const ProviderSelectionModal: React.FC<ProviderSelectionModalProps> = ({
         <button
           onClick={onClose}
           style={{ marginTop: theme.spacing.xl, padding: `${theme.spacing.sm} ${theme.spacing.md}`, backgroundColor: COLOR_TRANSPARENT, color: theme.colors.text.secondary, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.md, fontSize: theme.typography.fontSize.sm, cursor: 'pointer', width: '100%', }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = theme.colors.background.default;
+          onMouseEnter={(event) => {
+            event.currentTarget.style.backgroundColor = theme.colors.background.default;
           }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = COLOR_TRANSPARENT;
+          onMouseLeave={(event) => {
+            event.currentTarget.style.backgroundColor = COLOR_TRANSPARENT;
           }}
         >
           {t('common.cancel')}
@@ -105,10 +105,10 @@ export const ProviderSelectionModal: React.FC<ProviderSelectionModalProps> = ({
 
 
 
-function getProviderOptions(t: (key: string) => string) {
+function getProviderOptions(tFunc: (key: string) => string) {
   return [
-    { id: 'gmail' as const, name: 'Gmail', description: t('settings.emailAccounts.providers.gmail.description'), color: COLOR_ERROR_GOOGLE },
-    { id: 'office365' as const, name: 'Office 365', description: t('settings.emailAccounts.providers.office365.description'), color: COLOR_INFO_BLUE },
-    { id: 'zoho' as const, name: 'Zoho Mail', description: t('settings.emailAccounts.providers.zoho.description'), color: COLOR_ERROR_DARK_ALT },
+    { id: 'gmail' as const, name: 'Gmail', description: tFunc('settings.emailAccounts.providers.gmail.description'), color: COLOR_ERROR_GOOGLE },
+    { id: 'office365' as const, name: 'Office 365', description: tFunc('settings.emailAccounts.providers.office365.description'), color: COLOR_INFO_BLUE },
+    { id: 'zoho' as const, name: 'Zoho Mail', description: tFunc('settings.emailAccounts.providers.zoho.description'), color: COLOR_ERROR_DARK_ALT },
   ];
 }

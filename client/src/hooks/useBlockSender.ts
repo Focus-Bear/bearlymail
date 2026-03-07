@@ -40,21 +40,21 @@ export function useBlockSender({
     } catch (error) {
       console.error('Error blocking sender:', error);
       // Revert on error with consistent sorting: priority DESC, threadUpdatedAt DESC, threadId (stable)
-      setEmails(prevEmails => [...prevEmails, emailToBlock].sort((a, b) => {
+      setEmails(prevEmails => [...prevEmails, emailToBlock].sort((itemA, itemB) => {
         // Primary: priority score DESC
-        const aScore = getEmailPriorityScore(a);
-        const bScore = getEmailPriorityScore(b);
+        const aScore = getEmailPriorityScore(itemA);
+        const bScore = getEmailPriorityScore(itemB);
         if (Math.abs(bScore - aScore) > PRIORITY_SCORE_TINY_THRESHOLD) {
           return bScore - aScore;
         }
         // Secondary: threadUpdatedAt DESC
-        const aUpdatedAt = a.threadUpdatedAt ? new Date(a.threadUpdatedAt).getTime() : 0;
-        const bUpdatedAt = b.threadUpdatedAt ? new Date(b.threadUpdatedAt).getTime() : 0;
+        const aUpdatedAt = itemA.threadUpdatedAt ? new Date(itemA.threadUpdatedAt).getTime() : 0;
+        const bUpdatedAt = itemB.threadUpdatedAt ? new Date(itemB.threadUpdatedAt).getTime() : 0;
         if (bUpdatedAt !== aUpdatedAt) {
           return bUpdatedAt - aUpdatedAt;
         }
         // Final stable tiebreaker: threadId
-        return a.threadId.localeCompare(b.threadId);
+        return itemA.threadId.localeCompare(itemB.threadId);
       }));
     }
   }, [blockConfirmEmail, onHideBlockConfirm, setEmails, fetchEmails]);

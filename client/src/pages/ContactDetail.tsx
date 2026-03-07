@@ -44,7 +44,7 @@ const EditableField: React.FC<EditableFieldProps> = ({
       </label>
       {isEditing ? (
         <div style={{ display: STRING_FLEX, gap: theme.spacing.xs }}>
-          <input type={inputType} value={editValue} onChange={(e) => onEditValueChange(e.target.value)} style={inputStyle} autoFocus />
+          <input type={inputType} value={editValue} onChange={(event) => onEditValueChange(event.target.value)} style={inputStyle} autoFocus />
           <button onClick={onSave} style={buttonPrimary}>{saveLabel}</button>
           <button onClick={onCancel} style={buttonSecondary}>{cancelLabel}</button>
         </div>
@@ -143,7 +143,7 @@ const ContactDetailPage: React.FC = () => {
                 <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: STRING_BLOCK, marginBottom: theme.spacing.xs }}>
                   {t('contacts.contactType')}
                 </label>
-                <select value={contact.contactType || ''} onChange={(e) => handleUpdateField('contactType', e.target.value || null)} style={{ ...inputStyle, cursor: STRING_POINTER }}>
+                <select value={contact.contactType || ''} onChange={(event) => handleUpdateField('contactType', event.target.value || null)} style={{ ...inputStyle, cursor: STRING_POINTER }}>
                   <option value="">--</option>
                   {contactTypes.map(ct => (<option key={ct.name} value={ct.name}>{ct.icon} {ct.label}</option>))}
                 </select>
@@ -154,7 +154,7 @@ const ContactDetailPage: React.FC = () => {
               {/* Follow-up Date */}
               <div>
                 <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: STRING_BLOCK, marginBottom: theme.spacing.xs }}>{t('contacts.followUpDate')}</label>
-                <input type={INPUT_TYPE_DATE} value={contact.followUpDate ? contact.followUpDate.split('T')[0] : ''} onChange={(e) => { handleUpdateField('followUpDate', e.target.value || null); }} style={inputStyle} />
+                <input type={INPUT_TYPE_DATE} value={contact.followUpDate ? contact.followUpDate.split('T')[0] : ''} onChange={(event) => { handleUpdateField('followUpDate', event.target.value || null); }} style={inputStyle} />
               </div>
             </div>
           </div>
@@ -174,11 +174,11 @@ const ContactDetailPage: React.FC = () => {
               <div style={{ display: STRING_FLEX, gap: theme.spacing.sm, marginBottom: theme.spacing.md, alignItems: STRING_FLEX_END }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: STRING_BLOCK, marginBottom: theme.spacing.xs }}>{t('contacts.fieldName')}</label>
-                  <input value={newFieldName} onChange={(e) => setNewFieldName(e.target.value)} placeholder={t('contacts.fieldName')} style={inputStyle} />
+                  <input value={newFieldName} onChange={(event) => setNewFieldName(event.target.value)} placeholder={t('contacts.fieldName')} style={inputStyle} />
                 </div>
                 <div style={{ width: '120px' }}>
                   <label style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm, display: STRING_BLOCK, marginBottom: theme.spacing.xs }}>{t('contacts.fieldType')}</label>
-                  <select value={newFieldType} onChange={(e) => setNewFieldType(e.target.value)} style={{ ...inputStyle, cursor: STRING_POINTER }}>
+                  <select value={newFieldType} onChange={(event) => setNewFieldType(event.target.value)} style={{ ...inputStyle, cursor: STRING_POINTER }}>
                     <option value={FIELD_TYPE_TEXT}>{t('contacts.fieldTypeText')}</option>
                     <option value={FIELD_TYPE_NUMBER}>{t('contacts.fieldTypeNumber')}</option>
                     <option value={FIELD_TYPE_DATE}>{t('contacts.fieldTypeDate')}</option>
@@ -211,7 +211,7 @@ const ContactDetailPage: React.FC = () => {
                             return INPUT_TYPE_TEXT;
                           })()}
                           value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
+                          onChange={(event) => setEditValue(event.target.value)}
                           style={inputStyle}
                           autoFocus
                         />
@@ -242,7 +242,7 @@ const ContactDetailPage: React.FC = () => {
             buttonSecondary={buttonSecondary}
             dealsOnView={() => navigate('/crm/deals')}
             dealsOnAdd={() => navigate(`/crm/deals?contactId=${contactId}`)}
-            t={(k: string) => t(k)}
+            t={(tKey: string) => t(tKey)}
           />
 
         </div>

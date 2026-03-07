@@ -34,8 +34,8 @@ interface UseEmailActionsProps {
   setEmails: React.Dispatch<SetStateAction<Email[]>>;
   selectedEmailIds: Set<string>;
   setSelectedEmailIds: React.Dispatch<React.SetStateAction<Set<string>>>;
-  handleSetStarCountBase: (emailId: string, starCount: number, e?: React.MouseEvent) => Promise<{ discrepancy: number; predictedStarCount: number } | null>;
-  handleArchiveBase: (emailId: string, e: React.MouseEvent) => Promise<void>;
+  handleSetStarCountBase: (emailId: string, starCount: number, event?: React.MouseEvent) => Promise<{ discrepancy: number; predictedStarCount: number } | null>;
+  handleArchiveBase: (emailId: string, event: React.MouseEvent) => Promise<void>;
   handleSnoozeBase: (emailId: string, duration: string) => Promise<void>;
   handleMarkAsRead: (emailId: string) => Promise<void>;
   handleBulkMarkAsRead?: (emailIds: string[]) => Promise<void>;
@@ -62,9 +62,9 @@ interface UseEmailActionsProps {
 }
 
 interface UseEmailActionsReturn {
-  handleSetStarCount: (emailId: string, starCount: number, e?: React.MouseEvent) => Promise<void>;
-  handleArchive: (emailId: string, e: React.MouseEvent) => Promise<void>;
-  handleBlockSender: (emailId: string, e: React.MouseEvent) => void;
+  handleSetStarCount: (emailId: string, starCount: number, event?: React.MouseEvent) => Promise<void>;
+  handleArchive: (emailId: string, event: React.MouseEvent) => Promise<void>;
+  handleBlockSender: (emailId: string, event: React.MouseEvent) => void;
   confirmBlockSender: () => Promise<void>;
   handleSnooze: (emailId: string) => Promise<void>;
   handleBulkArchive: () => Promise<void>;
@@ -106,21 +106,21 @@ export function useEmailActions({
     onShowPriorityOverride,
   });
 
-  const handleArchive = useCallback(async (emailId: string, e: React.MouseEvent) => {
+  const handleArchive = useCallback(async (emailId: string, event: React.MouseEvent) => {
     captureEvent('email_archive_clicked', { email_id: emailId });
     const visibleEmails = emails.filter(email => !email.isArchived);
     const archivedIndex = visibleEmails.findIndex(email => email.id === emailId);
     setSelectedEmailIds(prev => { const ns = new Set(prev); ns.delete(emailId); return ns; });
-    await handleArchiveBase(emailId, e);
+    await handleArchiveBase(emailId, event);
     if (splitView?.selectedEmailId === emailId) {
       navigateSplitViewAfterRemove(emailId, archivedIndex, visibleEmails, splitView, setSelectedEmailIndex);
     }
   }, [handleArchiveBase, setSelectedEmailIds, emails, splitView, setSelectedEmailIndex]);
 
-  const handleBlockSender = useCallback((emailId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleBlockSender = useCallback((emailId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
     captureEvent('email_block_sender_clicked', { email_id: emailId });
-    const emailToBlock = emails.find(e => e.id === emailId);
+    const emailToBlock = emails.find(event => event.id === emailId);
     if (!emailToBlock) return;
     onShowBlockConfirm(emailToBlock);
   }, [emails, onShowBlockConfirm]);

@@ -53,7 +53,7 @@ export const BulkSendConfirmModal: React.FC<BulkSendConfirmModalProps> = ({
           overflow: 'auto',
           width: '90%',
         }}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
       >
         <h3 style={{
           margin: 0,

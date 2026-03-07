@@ -86,9 +86,9 @@ async function runPhase3Expansion(
       const expandedData: Email[] = expandResponse.data;
       if (expandedData?.length > 0) {
         setters.setSearchResultsUpdater(prev => {
-          const existing = prev.filter(e => e.id !== SEARCH_RESULT_NO_RESULTS);
-          const existingIds = new Set(existing.map(e => e.id));
-          const merged = [...existing, ...expandedData.filter(e => !existingIds.has(e.id))];
+          const existing = prev.filter(event => event.id !== SEARCH_RESULT_NO_RESULTS);
+          const existingIds = new Set(existing.map(event => event.id));
+          const merged = [...existing, ...expandedData.filter(event => !existingIds.has(event.id))];
           return merged.length === 0 ? [createNoResultsMarker(query, 'No emails found even with alternative queries')] : merged;
         });
         captureEvent('search_performed', { query_length: query.trim().length, has_query: !!query.trim(), result_count: expandedData.length, selected_accounts: selectedAccountTypes.length, phase: 'expanded' });
@@ -115,7 +115,7 @@ async function processSearchResults(
   captureEvent('search_performed', { query_length: query.trim().length, has_query: !!query.trim(), result_count: responseData.length, selected_accounts: selectedAccountTypes.length, phase: 'initial' });
   const isNoResults = responseData.length === 1 && responseData[0]?.id === SEARCH_RESULT_NO_RESULTS;
   if (!isNoResults) {
-    const emailIds = responseData.filter((e: Email) => e.id !== SEARCH_RESULT_NO_RESULTS).map((e: Email) => e.id);
+    const emailIds = responseData.filter((event: Email) => event.id !== SEARCH_RESULT_NO_RESULTS).map((event: Email) => event.id);
     if (emailIds.length > 0) { setters.setIsRefining(true); await runPhase2Ranking(emailIds, query, currentSession, searchSessionRef, selectedAccountTypes, setters); }
   }
   if (isNoResults && currentSession === searchSessionRef.current) {
@@ -143,7 +143,7 @@ export const useSearch = () => {
         const response = await axios.get(`${API_URL}/emails/connected-accounts`);
         const accounts = response.data || [];
         setConnectedAccounts(accounts);
-        setSelectedAccountTypes(accounts.map((a: ConnectedAccount) => a.provider));
+        setSelectedAccountTypes(accounts.map((account: ConnectedAccount) => account.provider));
       } catch (error) {
         console.error('Error fetching connected accounts:', error);
       }
@@ -151,8 +151,8 @@ export const useSearch = () => {
     fetchConnectedAccounts();
   }, []);
 
-  const handleSearch = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSearch = useCallback(async (event: React.FormEvent) => {
+    event.preventDefault();
     if (!query.trim()) return;
 
     const currentSession = ++searchSessionRef.current;
@@ -185,7 +185,7 @@ export const useSearch = () => {
     setSelectedAccountTypes(prev => {
       if (prev.includes(accountType)) {
         if (prev.length === 1) return prev;
-        return prev.filter(t => t !== accountType);
+        return prev.filter(acType => acType !== accountType);
       } else {
         return [...prev, accountType];
       }

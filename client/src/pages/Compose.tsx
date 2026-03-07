@@ -89,7 +89,7 @@ const Compose: React.FC = () => {
   };
 
   const handleAddRecipient = useCallback((contact: Contact | { email: string; name?: string }, field: 'to' | 'cc' | 'bcc') => {
-    const isFromSearch = search.searchResults.some(c => c.email === contact.email);
+    const isFromSearch = search.searchResults.some(searchContact => searchContact.email === contact.email);
     const contactSource = isFromSearch ? 'search' : 'frequent';
     captureEvent('compose_contact_selected', { contact_source: contactSource });
 

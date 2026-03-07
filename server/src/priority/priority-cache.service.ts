@@ -92,9 +92,11 @@ export class PriorityCacheService {
     const avgTimeToReply =
       userEmails.length > 0
         ? userEmails
-            .filter((e) => e.timeToReply)
-            .reduce((sum, e) => sum + (e.timeToReply || 0), 0) /
-          userEmails.filter((e) => e.timeToReply).length
+            .filter((emailEntry) => emailEntry.timeToReply)
+            .reduce(
+              (sum, emailEntry) => sum + (emailEntry.timeToReply || 0),
+              0,
+            ) / userEmails.filter((emailEntry) => emailEntry.timeToReply).length
         : undefined;
 
     // Update cache

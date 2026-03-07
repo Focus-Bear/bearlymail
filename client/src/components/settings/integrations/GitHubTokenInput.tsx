@@ -19,7 +19,7 @@ export const GitHubTokenInput: React.FC<GitHubTokenInputProps> = ({
       <input
         type={showGithubToken ? 'text' : 'password'}
         value={githubToken}
-        onChange={(e) => onGithubTokenChange(e.target.value)}
+        onChange={(event) => onGithubTokenChange(event.target.value)}
         placeholder="github_pat_..."
         style={{
           flex: 1,

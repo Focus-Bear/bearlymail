@@ -81,8 +81,8 @@ export const ThreadItemHeader: React.FC<ThreadItemHeaderProps> = ({
               }}
             >
               <span
-                onClick={(e) => {
-                  e.stopPropagation();
+                onClick={(event) => {
+                  event.stopPropagation();
                   handleCopyEmail();
                 }}
                 title={emailCopied ? t('emailDetail.emailCopied') : t('emailDetail.clickToCopyEmail')}
@@ -97,8 +97,8 @@ export const ThreadItemHeader: React.FC<ThreadItemHeaderProps> = ({
               </span>
               <button
                 type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
+                onClick={(event) => {
+                  event.stopPropagation();
                   handleCopyEmail();
                 }}
                 title={emailCopied ? t('emailDetail.emailCopied') : t('emailDetail.clickToCopyEmail')}

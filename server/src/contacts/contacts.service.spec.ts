@@ -242,10 +242,12 @@ describe("ContactsService", () => {
       const result = await service.searchContacts(userId, query, 20);
 
       expect(result.length).toBeGreaterThanOrEqual(1);
-      expect(result.some((r) => r.email === "local@example.com")).toBe(true);
-      expect(result.some((r) => r.email === "testgmail@example.com")).toBe(
-        true,
-      );
+      expect(
+        result.some((result) => result.email === "local@example.com"),
+      ).toBe(true);
+      expect(
+        result.some((result) => result.email === "testgmail@example.com"),
+      ).toBe(true);
     });
 
     it("should respect limit parameter", async () => {
@@ -301,8 +303,12 @@ describe("ContactsService", () => {
       const result = await service.searchContacts(userId, query, 20);
 
       // Should only include the matching contact
-      expect(result.some((r) => r.email === "sid@example.com")).toBe(true);
-      expect(result.some((r) => r.email === "john@example.com")).toBe(false);
+      expect(result.some((result) => result.email === "sid@example.com")).toBe(
+        true,
+      );
+      expect(result.some((result) => result.email === "john@example.com")).toBe(
+        false,
+      );
     });
 
     it("should filter local database results to only show contacts matching visible fields", async () => {
@@ -340,9 +346,13 @@ describe("ContactsService", () => {
       const result = await service.searchContacts(userId, query, 20);
 
       // Should only include the contact with "sid" in visible fields
-      expect(result.some((r) => r.email === "sidney@example.com")).toBe(true);
       expect(
-        result.some((r) => r.email === "doingdoingdonecoaching@gmail.com"),
+        result.some((result) => result.email === "sidney@example.com"),
+      ).toBe(true);
+      expect(
+        result.some(
+          (result) => result.email === "doingdoingdonecoaching@gmail.com",
+        ),
       ).toBe(false);
     });
   });

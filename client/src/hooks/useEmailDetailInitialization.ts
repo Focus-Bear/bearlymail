@@ -13,7 +13,7 @@ function applyMatchedRule(
   handleUseCustomRule: (rule: any) => void,
   handleSummarize: (type: string) => void,
 ): void {
-  const validRule = (r: any) => r?.ruleId && r?.whenToUse && r?.howToSummarize;
+  const validRule = (rule: any) => rule?.ruleId && rule?.whenToUse && rule?.howToSummarize;
   const ruleToApply = validRule(matchedRule) ? matchedRule : rulesList.find(validRule);
   initializedRef.current = id;
   if (ruleToApply) {

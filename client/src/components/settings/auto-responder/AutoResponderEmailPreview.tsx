@@ -100,13 +100,13 @@ const PreviewContent: React.FC<PreviewContentProps> = ({ preview, isLoading, err
   );
 };
 
-interface EmailSelectorFieldProps { recentEmails: RecentEmail[]; selectedEmailId: string | null; isLoading: boolean; error: string | null; onSelect: (id: string | null) => void; t: (k: string) => string; }
+interface EmailSelectorFieldProps { recentEmails: RecentEmail[]; selectedEmailId: string | null; isLoading: boolean; error: string | null; onSelect: (id: string | null) => void; t: (tKey: string) => string; }
 const EmailSelectorField: React.FC<EmailSelectorFieldProps> = ({ recentEmails, selectedEmailId, isLoading, error, onSelect, t }) => {
   if (isLoading) return <p style={{ ...theme.typography.body.medium, color: theme.colors.text.tertiary }}>{t('common.loading')}</p>;
   if (error && recentEmails.length === 0) return <p style={{ ...theme.typography.body.medium, color: theme.colors.error.main }}>{error}</p>;
   if (recentEmails.length === 0) return <p style={{ ...theme.typography.body.medium, color: theme.colors.text.tertiary }}>{t('settings.autoResponder.emailPreview.noEmails')}</p>;
   return (
-    <select value={selectedEmailId || ''} onChange={(e) => onSelect(e.target.value || null)} style={{ width: '100%', padding: theme.spacing.sm, borderRadius: theme.borderRadius.sm, border: `1px solid ${theme.colors.border.medium}`, backgroundColor: theme.colors.background.paper, ...theme.typography.body.medium, cursor: 'pointer' }}>
+    <select value={selectedEmailId || ''} onChange={(event) => onSelect(event.target.value || null)} style={{ width: '100%', padding: theme.spacing.sm, borderRadius: theme.borderRadius.sm, border: `1px solid ${theme.colors.border.medium}`, backgroundColor: theme.colors.background.paper, ...theme.typography.body.medium, cursor: 'pointer' }}>
       <option value="">{t('settings.autoResponder.emailPreview.selectPlaceholder')}</option>
       {recentEmails.map((email) => <option key={email.id} value={email.id}>{email.fromName || email.from} - {email.subject.slice(0, SUBJECT_PREVIEW_CHARS)}{email.subject.length > SUBJECT_PREVIEW_CHARS ? '...' : ''} ({formatDate(email.receivedAt)})</option>)}
     </select>

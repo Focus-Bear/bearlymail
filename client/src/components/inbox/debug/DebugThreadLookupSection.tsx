@@ -90,8 +90,8 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
   const { t } = useTranslation();
   const [threadIdInput, setThreadIdInput] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
     if (threadIdInput.trim()) {
       onLookupThread(threadIdInput.trim());
     }
@@ -112,7 +112,7 @@ export const DebugThreadLookupSection: React.FC<DebugThreadLookupSectionProps> =
           <input
             type="text"
             value={threadIdInput}
-            onChange={(e) => setThreadIdInput(e.target.value)}
+            onChange={(event) => setThreadIdInput(event.target.value)}
             placeholder={t('debug.threadLookup.placeholder')}
             style={{ flex: 1, padding: theme.spacing.sm, border: `1px solid ${theme.colors.border.light}`, borderRadius: theme.borderRadius.sm, fontFamily: 'monospace', fontSize: theme.typography.fontSize.sm, }}
           />

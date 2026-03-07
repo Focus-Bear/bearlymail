@@ -101,12 +101,12 @@ export class BlockedKeywordsService {
       order: { blockedAt: "DESC" },
     });
 
-    return blocked.map((b) => ({
-      id: b.id,
-      keyword: b.keyword,
-      exactMatch: b.exactMatch,
-      reason: b.reason,
-      blockedAt: b.blockedAt,
+    return blocked.map((itemB) => ({
+      id: itemB.id,
+      keyword: itemB.keyword,
+      exactMatch: itemB.exactMatch,
+      reason: itemB.reason,
+      blockedAt: itemB.blockedAt,
     }));
   }
 

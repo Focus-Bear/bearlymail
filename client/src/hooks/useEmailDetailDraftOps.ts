@@ -19,21 +19,21 @@ function buildReplyAllRecipients(
   const recipients: string[] = [];
   if (isLatestFromCurrentUser) {
     if (latestEmail.to) {
-      const toRecipients = latestEmail.to.split(',').map((r: string) => r.trim()).filter((r: string) => r && !isCurrentUser(r));
+      const toRecipients = latestEmail.to.split(',').map((recipientStr: string) => recipientStr.trim()).filter((recipientStr: string) => recipientStr && !isCurrentUser(recipientStr));
       recipients.push(...toRecipients);
     }
   } else {
     const replyToAddress = latestEmail.replyTo || latestEmail.from;
     recipients.push(replyToAddress);
     if (latestEmail.to) {
-      const toRecipients = latestEmail.to.split(',').map((r: string) => r.trim()).filter((r: string) => r && !isCurrentUser(r));
+      const toRecipients = latestEmail.to.split(',').map((recipientStr: string) => recipientStr.trim()).filter((recipientStr: string) => recipientStr && !isCurrentUser(recipientStr));
       recipients.push(...toRecipients);
     }
   }
   const uniqueRecipients = [...new Set(recipients)];
   let cc: string | null = null;
   if (latestEmail.cc) {
-    const ccRecipients = latestEmail.cc.split(',').map((r: string) => r.trim()).filter((r: string) => r && !isCurrentUser(r));
+    const ccRecipients = latestEmail.cc.split(',').map((recipientStr: string) => recipientStr.trim()).filter((recipientStr: string) => recipientStr && !isCurrentUser(recipientStr));
     if (ccRecipients.length > 0) {
       cc = ccRecipients.join(', ');
     }
@@ -64,12 +64,12 @@ function buildReplyRecipientsForMode(
 
   // Regular reply
   if (isLatestFromCurrentUser) {
-    const otherPersonEmail = threadEmails.find((e: any) => !isCurrentUser(e.from));
+    const otherPersonEmail = threadEmails.find((event: any) => !isCurrentUser(event.from));
     if (otherPersonEmail) {
       return { recipients: otherPersonEmail.from, cc: null };
     }
     if (latestEmail.to) {
-      const firstRecipient = latestEmail.to.split(',').map((r: string) => r.trim()).filter((r: string) => r && !isCurrentUser(r))[0];
+      const firstRecipient = latestEmail.to.split(',').map((recipientStr: string) => recipientStr.trim()).filter((recipientStr: string) => recipientStr && !isCurrentUser(recipientStr))[0];
       return { recipients: firstRecipient || latestEmail.to, cc: null };
     }
     return { recipients: latestEmail.from, cc: null };

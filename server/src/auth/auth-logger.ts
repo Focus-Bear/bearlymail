@@ -171,23 +171,23 @@ export class AuthLogger {
     return null;
   }
 
-  private hasCode(e: unknown): e is { code: string | number } {
-    return typeof e === "object" && e !== null && "code" in e;
+  private hasCode(err: unknown): err is { code: string | number } {
+    return typeof err === "object" && err !== null && "code" in err;
   }
 
   private hasResponse(
-    e: unknown,
-  ): e is { response: { errorBody?: { error?: string }; status?: number } } {
+    err: unknown,
+  ): err is { response: { errorBody?: { error?: string }; status?: number } } {
     return (
-      typeof e === "object" &&
-      e !== null &&
-      "response" in e &&
-      typeof (e as { response: unknown }).response === "object"
+      typeof err === "object" &&
+      err !== null &&
+      "response" in err &&
+      typeof (err as { response: unknown }).response === "object"
     );
   }
 
-  private hasMessage(e: unknown): e is { message: string } {
-    return typeof e === "object" && e !== null && "message" in e;
+  private hasMessage(err: unknown): err is { message: string } {
+    return typeof err === "object" && err !== null && "message" in err;
   }
 
   private isInvalidGrant(error: unknown): boolean {

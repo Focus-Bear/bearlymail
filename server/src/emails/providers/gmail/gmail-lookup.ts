@@ -17,9 +17,9 @@ export function extractEmailMetadata(
   headers: Array<{ name?: string | null; value?: string | null }>,
 ) {
   return {
-    subject: headers.find((h) => h.name === "Subject")?.value || "",
-    from: headers.find((h) => h.name === "From")?.value || "",
-    dateStr: headers.find((h) => h.name === "Date")?.value || "",
+    subject: headers.find((header) => header.name === "Subject")?.value || "",
+    from: headers.find((header) => header.name === "From")?.value || "",
+    dateStr: headers.find((header) => header.name === "Date")?.value || "",
   };
 }
 

@@ -74,11 +74,11 @@ export const ForwardedAttachmentsList: React.FC<ForwardedAttachmentsListProps> =
                 cursor: 'pointer',
                 fontSize: theme.typography.fontSize.sm,
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = theme.colors.error.main;
+              onMouseEnter={(event) => {
+                event.currentTarget.style.color = theme.colors.error.main;
               }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = theme.colors.text.secondary;
+              onMouseLeave={(event) => {
+                event.currentTarget.style.color = theme.colors.text.secondary;
               }}
               aria-label={t('common.remove')}
             >

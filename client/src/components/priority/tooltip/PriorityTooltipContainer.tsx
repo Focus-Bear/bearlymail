@@ -39,13 +39,13 @@ export const PriorityTooltipContainer: React.FC<PriorityTooltipContainerProps> =
         color: theme.colors.text.primary,
         textAlign: 'left',
       }}
-      onClick={(e) => {
-        e.stopPropagation();
-        e.preventDefault();
+      onClick={(event) => {
+        event.stopPropagation();
+        event.preventDefault();
       }}
-      onMouseDown={(e) => {
-        e.stopPropagation();
-        e.preventDefault();
+      onMouseDown={(event) => {
+        event.stopPropagation();
+        event.preventDefault();
       }}
     >
       {children}

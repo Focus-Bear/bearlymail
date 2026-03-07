@@ -122,9 +122,9 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
         <input
           type="text"
           value={isActive ? searchQuery : ''}
-          onChange={(e) => {
+          onChange={(event) => {
             onSetActiveField(field);
-            onSearchQueryChange(e.target.value);
+            onSearchQueryChange(event.target.value);
           }}
           onFocus={() => onSetActiveField(field)}
           onBlur={() => {
@@ -135,9 +135,9 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
             }
             onSetActiveField(null);
           }}
-          onKeyDown={(e) => {
-            if ((e.key === KEY_ENTER || e.key === KEY_COMMA) && searchQuery.trim()) {
-              e.preventDefault();
+          onKeyDown={(event) => {
+            if ((event.key === KEY_ENTER || event.key === KEY_COMMA) && searchQuery.trim()) {
+              event.preventDefault();
               const value = searchQuery.trim().replace(/,$/, '');
               if (isValidEmail(value)) {
                 onAddRecipient({ email: value }, field);
@@ -177,8 +177,8 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
             {searchResults.map((contact) => (
               <div
                 key={contact.id || contact.email}
-                onMouseDown={(e) => e.preventDefault()}
-                onTouchStart={(e) => e.preventDefault()}
+                onMouseDown={(event) => event.preventDefault()}
+                onTouchStart={(event) => event.preventDefault()}
                 onClick={() => onSelectSearchResult(contact)}
                 style={{
                   padding: `8px ${FONT_SIZE_XS_PX}px`,
@@ -188,11 +188,11 @@ export const RecipientFields: React.FC<RecipientFieldsProps> = ({
                   gap: '8px',
                   borderBottom: `1px solid ${theme.colors.border.light}`,
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = theme.colors.background.subtle;
+                onMouseEnter={(event) => {
+                  event.currentTarget.style.backgroundColor = theme.colors.background.subtle;
                 }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = COLOR_TRANSPARENT;
+                onMouseLeave={(event) => {
+                  event.currentTarget.style.backgroundColor = COLOR_TRANSPARENT;
                 }}
               >
                 {contact.photoUrl ? (

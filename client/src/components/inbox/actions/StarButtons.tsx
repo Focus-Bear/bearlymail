@@ -10,7 +10,7 @@ interface StarButtonsProps {
     showHint: (emailId: string, action: string) => void;
     hideHint: () => void;
   };
-  onSetStarCount: (emailId: string, starCount: number, e?: React.MouseEvent) => Promise<void>;
+  onSetStarCount: (emailId: string, starCount: number, event?: React.MouseEvent) => Promise<void>;
 }
 
 export const StarButtons: React.FC<StarButtonsProps> = ({
@@ -31,13 +31,13 @@ export const StarButtons: React.FC<StarButtonsProps> = ({
       {[1, 2, 3].map(count => (
         <button
           key={count}
-          onClick={(e) => {
-            e.stopPropagation();
+          onClick={(event) => {
+            event.stopPropagation();
             const currentCount = email.starCount || 0;
             const newCount = currentCount === count ? 0 : count;
-            onSetStarCount(email.id, newCount, e);
+            onSetStarCount(email.id, newCount, event);
             // eslint-disable-next-line no-restricted-syntax -- 'click' is a standard DOM event type
-            if (e.type === 'click' && !e.ctrlKey && !e.shiftKey && !e.metaKey) {
+            if (event.type === 'click' && !event.ctrlKey && !event.shiftKey && !event.metaKey) {
               keyboardHint.showHint(email.id, `Press ${count} to set ${count} star${count > 1 ? 's' : ''}`);
               setTimeout(() => keyboardHint.hideHint(), TOAST_DURATION_MS);
             }
@@ -53,14 +53,14 @@ export const StarButtons: React.FC<StarButtonsProps> = ({
             opacity: (email.starCount || 0) >= count ? 1 : OPACITY_HALF,
             transition: theme.transitions.fast,
           }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.opacity = '1';
-            e.currentTarget.style.transform = 'scale(1.2)';
+          onMouseEnter={(event) => {
+            event.currentTarget.style.opacity = '1';
+            event.currentTarget.style.transform = 'scale(1.2)';
           }}
-          onMouseLeave={(e) => {
+          onMouseLeave={(event) => {
             const currentCount = email.starCount || 0;
-            e.currentTarget.style.opacity = currentCount >= count ? '1' : String(OPACITY_HALF);
-            e.currentTarget.style.transform = 'scale(1)';
+            event.currentTarget.style.opacity = currentCount >= count ? '1' : String(OPACITY_HALF);
+            event.currentTarget.style.transform = 'scale(1)';
           }}
         >
           ⭐

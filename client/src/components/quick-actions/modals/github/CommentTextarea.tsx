@@ -22,7 +22,7 @@ export const CommentTextarea: React.FC<CommentTextareaProps> = ({ value, onChang
       </label>
       <textarea
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(event) => onChange(event.target.value)}
         rows={8}
         required
         style={{

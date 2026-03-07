@@ -70,7 +70,7 @@ export const AutoResponderPrioritySettings: React.FC<AutoResponderPrioritySettin
             <input
               type="checkbox"
               checked={sendFor[priority.key]}
-              onChange={(e) => onChange(priority.key, e.target.checked)}
+              onChange={(event) => onChange(priority.key, event.target.checked)}
               style={{
                 width: '18px',
                 height: '18px',

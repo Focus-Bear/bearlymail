@@ -10,7 +10,7 @@ import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 interface EmailCardProps {
   email: Email;
   isSelected: boolean;
-  onCardClick: (e: React.MouseEvent) => void;
+  onCardClick: (event: React.MouseEvent) => void;
   children: React.ReactNode;
   mode?: InboxMode;
 }
@@ -54,13 +54,13 @@ export const EmailCard: React.FC<EmailCardProps> = ({
         position: 'relative',
         overflow: 'hidden',
       }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = 'translateY(-2px)';
-        e.currentTarget.style.boxShadow = theme.shadows.md;
+      onMouseEnter={(event) => {
+        event.currentTarget.style.transform = 'translateY(-2px)';
+        event.currentTarget.style.boxShadow = theme.shadows.md;
       }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.boxShadow = theme.shadows.sm;
+      onMouseLeave={(event) => {
+        event.currentTarget.style.transform = 'translateY(0)';
+        event.currentTarget.style.boxShadow = theme.shadows.sm;
       }}
     >
       {/* Emergency delivery label */}

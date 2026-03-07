@@ -35,12 +35,12 @@ interface RecipientFieldProps {
   inputValues: Record<FieldType, string>;
   dropdownRef: React.RefObject<HTMLDivElement | null>;
   handleInputChange: (value: string, field: FieldType) => void;
-  handleKeyDown: (e: React.KeyboardEvent, field: FieldType, results: Contact[], idx: number, removeTag: (i: number, f: FieldType) => void) => void;
-  handleSelectContact: (c: Contact, field: FieldType) => void;
+  handleKeyDown: (event: React.KeyboardEvent, field: FieldType, results: Contact[], idx: number, removeTag: (i: number, f: FieldType) => void) => void;
+  handleSelectContact: (contact: Contact, field: FieldType) => void;
   handleRemoveTag: (i: number, field: FieldType) => void;
   handleBlur: (field: FieldType) => void;
   setSelectedSuggestionIndex: (idx: number) => void;
-  t: (k: string) => string;
+  t: (tKey: string) => string;
 }
 
 const RecipientField: React.FC<RecipientFieldProps> = ({
@@ -63,8 +63,8 @@ const RecipientField: React.FC<RecipientFieldProps> = ({
         padding: '4px 8px', border: `1px solid ${theme.colors.border.medium}`,
         borderRadius: theme.borderRadius.md, minHeight: '38px', cursor: 'text',
       }}
-      onClick={(e) => {
-        const input = e.currentTarget.querySelector('input');
+      onClick={(event) => {
+        const input = event.currentTarget.querySelector('input');
         if (input) (input as HTMLInputElement).focus();
       }}
     >
@@ -74,10 +74,10 @@ const RecipientField: React.FC<RecipientFieldProps> = ({
       <input
         type="text"
         value={inputValues[field]}
-        onChange={(e) => handleInputChange(e.target.value, field)}
+        onChange={(event) => handleInputChange(event.target.value, field)}
         onFocus={() => setActiveField(field)}
         onBlur={() => handleBlur(field)}
-        onKeyDown={(e) => handleKeyDown(e as unknown as React.KeyboardEvent, field, searchResults, selectedSuggestionIndex, handleRemoveTag)}
+        onKeyDown={(event) => handleKeyDown(event as unknown as React.KeyboardEvent, field, searchResults, selectedSuggestionIndex, handleRemoveTag)}
         style={{ flex: 1, minWidth: '120px', border: STRING_NONE, outline: 'none', fontSize: theme.typography.fontSize.sm, padding: '4px 0' }}
         placeholder={tags.length === 0 ? t('compose.recipientPlaceholder') : ''}
       />
@@ -87,7 +87,7 @@ const RecipientField: React.FC<RecipientFieldProps> = ({
       <RecipientSuggestions
         contacts={searchResults}
         selectedIndex={selectedSuggestionIndex}
-        onSelect={(c: Contact) => handleSelectContact(c, field)}
+        onSelect={(contact: Contact) => handleSelectContact(contact, field)}
         onHover={(idx: number) => setSelectedSuggestionIndex(idx)}
         dropdownRef={dropdownRef}
         field={field}

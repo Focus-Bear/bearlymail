@@ -34,8 +34,8 @@ export const GitHubAddCommentModal: React.FC<GitHubAddCommentModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (!comment.trim()) {
       setError('Comment cannot be empty');
       return;

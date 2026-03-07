@@ -6,7 +6,7 @@ export const useToolbarHandlers = (editor: Editor | null) => {
     if (!editor) return;
     try {
       editorAction(editor);
-    } catch (e) {
+    } catch (err) {
       // swallow - editor may be detached
     }
   }, [editor]);

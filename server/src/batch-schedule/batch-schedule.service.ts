@@ -51,7 +51,7 @@ export class BatchScheduleService {
           .map((day) => (typeof day === "string" ? parseInt(day, 10) : day))
           .filter((day) => !isNaN(day) && day >= 0 && day <= DAYS.SATURDAY),
       ),
-    ].sort((a, b) => a - b);
+    ].sort((itemA, itemB) => itemA - itemB);
 
     if (schedule) {
       schedule.deliveryDays = normalizedDeliveryDays;

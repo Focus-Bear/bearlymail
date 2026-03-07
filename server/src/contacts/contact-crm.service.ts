@@ -174,11 +174,11 @@ export class ContactCrmService {
       where: { contactId },
       order: { createdAt: "DESC" },
     });
-    return notes.map((n) => ({
-      id: n.id,
-      content: n.content,
-      createdAt: n.createdAt.toISOString(),
-      updatedAt: n.updatedAt.toISOString(),
+    return notes.map((note) => ({
+      id: note.id,
+      content: note.content,
+      createdAt: note.createdAt.toISOString(),
+      updatedAt: note.updatedAt.toISOString(),
     }));
   }
 
@@ -210,14 +210,14 @@ export class ContactCrmService {
 
   async getContactTypes(userId: string): Promise<ContactTypeResult[]> {
     const types = await this.ensureDefaultContactTypes(userId);
-    return types.map((t) => ({
-      id: t.id,
-      name: t.name,
-      label: t.label,
-      color: t.color,
-      icon: t.icon,
-      sortOrder: t.sortOrder,
-      isDefault: t.isDefault,
+    return types.map((item) => ({
+      id: item.id,
+      name: item.name,
+      label: item.label,
+      color: item.color,
+      icon: item.icon,
+      sortOrder: item.sortOrder,
+      isDefault: item.isDefault,
     }));
   }
 
@@ -408,14 +408,16 @@ export class ContactCrmService {
       where: { contactId },
     });
 
-    const valueMap = new Map(values.map((v) => [v.fieldId, v.value]));
+    const valueMap = new Map(
+      values.map((value) => [value.fieldId, value.value]),
+    );
 
-    return fields.map((f) => ({
-      fieldId: f.id,
-      fieldName: f.fieldName,
-      fieldType: f.fieldType,
-      value: valueMap.get(f.id) || null,
-      options: f.options ? JSON.parse(f.options) : undefined,
+    return fields.map((field) => ({
+      fieldId: field.id,
+      fieldName: field.fieldName,
+      fieldType: field.fieldType,
+      value: valueMap.get(field.id) || null,
+      options: field.options ? JSON.parse(field.options) : undefined,
     }));
   }
 }

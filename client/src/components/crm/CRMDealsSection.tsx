@@ -102,7 +102,7 @@ export const CRMDealsSection: React.FC<CRMDealsSectionProps> = ({
   else { preview = `${deals.length} ${dealCountText}${totalValueText}`; }
 
   const controls = (
-    <button onClick={(e) => { e.stopPropagation(); }} style={{ background: 'transparent', border: 'none', color: theme.colors.text.secondary, cursor: 'pointer', fontSize: theme.typography.fontSize.sm, padding: theme.spacing.xs, display: 'flex', alignItems: 'center' }} title={t('crm.createDeal')}>
+    <button onClick={(event) => { event.stopPropagation(); }} style={{ background: 'transparent', border: 'none', color: theme.colors.text.secondary, cursor: 'pointer', fontSize: theme.typography.fontSize.sm, padding: theme.spacing.xs, display: 'flex', alignItems: 'center' }} title={t('crm.createDeal')}>
       <FiPlus size={16} />
     </button>
   );

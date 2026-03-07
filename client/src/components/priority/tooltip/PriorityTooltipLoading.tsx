@@ -26,13 +26,13 @@ export const PriorityTooltipLoading: React.FC<PriorityTooltipLoadingProps> = ({ 
         minWidth: `${TOOLTIP_MIN_WIDTH_MEDIUM}px`,
         maxWidth: `${TOOLTIP_MAX_WIDTH_MEDIUM}px`,
       }}
-      onClick={(e) => {
-        e.stopPropagation();
-        e.preventDefault();
+      onClick={(event) => {
+        event.stopPropagation();
+        event.preventDefault();
       }}
-      onMouseDown={(e) => {
-        e.stopPropagation();
-        e.preventDefault();
+      onMouseDown={(event) => {
+        event.stopPropagation();
+        event.preventDefault();
       }}
     >
       <div style={{ textAlign: 'center', padding: theme.spacing.md }}>

@@ -15,7 +15,7 @@ interface ProtoCategory { id: string; name: string; description: string | null; 
 interface ProtoCategoriesModalProps { onClose: () => void; }
 
 // Hook to manage proto categories state and actions
-const useProtoCategories = (showSuccess: (m: string) => void, showError: (m: string) => void, t: (k: string) => string) => {
+const useProtoCategories = (showSuccess: (m: string) => void, showError: (m: string) => void, tFunc: (tKey: string) => string) => {
   const [categories, setCategories] = useState<ProtoCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [promotingId, setPromotingId] = useState<string | null>(null);
@@ -40,23 +40,23 @@ const useProtoCategories = (showSuccess: (m: string) => void, showError: (m: str
 
   const handlePromote = useCallback(async (id: string) => {
     setPromotingId(id);
-    try { await axios.post(`${API_URL}/proto-categories/${id}/promote`); setCategories((prev) => prev.filter((c) => c.id !== id)); setDraftNames((prev) => { const { [id]: _removed, ...rest } = prev; return rest; }); showSuccess(t('settings.protoCategories.promotedSuccess')); }
-    catch (error) { console.error('Failed to promote proto category:', error); showError(t('settings.protoCategories.promoteError')); }
+    try { await axios.post(`${API_URL}/proto-categories/${id}/promote`); setCategories((prev) => prev.filter((cat) => cat.id !== id)); setDraftNames((prev) => { const { [id]: _removed, ...rest } = prev; return rest; }); showSuccess(tFunc('settings.protoCategories.promotedSuccess')); }
+    catch (error) { console.error('Failed to promote proto category:', error); showError(tFunc('settings.protoCategories.promoteError')); }
     finally { setPromotingId(null); }
-  }, [showError, showSuccess, t]);
+  }, [showError, showSuccess, tFunc]);
 
   const handleNameChange = useCallback((id: string, value: string) => { setDraftNames((prev) => ({ ...prev, [id]: value })); }, []);
 
   const handleSaveName = useCallback(async (id: string) => {
     const nextName = (draftNames[id] ?? '').trim();
-    if (!nextName) { showError(t('settings.protoCategories.nameRequired')); return; }
+    if (!nextName) { showError(tFunc('settings.protoCategories.nameRequired')); return; }
     setSavingNameId(id);
-    try { const response = await axios.put<ProtoCategory>(`${API_URL}/proto-categories/${id}`, { name: nextName }); setCategories((prev) => prev.map((category) => category.id === id ? { ...category, name: response.data.name } : category)); setDraftNames((prev) => ({ ...prev, [id]: response.data.name })); showSuccess(t('settings.protoCategories.renameSuccess')); }
-    catch (error) { console.error('Failed to update proto category name:', error); showError(t('settings.protoCategories.renameError')); }
+    try { const response = await axios.put<ProtoCategory>(`${API_URL}/proto-categories/${id}`, { name: nextName }); setCategories((prev) => prev.map((category) => category.id === id ? { ...category, name: response.data.name } : category)); setDraftNames((prev) => ({ ...prev, [id]: response.data.name })); showSuccess(tFunc('settings.protoCategories.renameSuccess')); }
+    catch (error) { console.error('Failed to update proto category name:', error); showError(tFunc('settings.protoCategories.renameError')); }
     finally { setSavingNameId(null); }
-  }, [draftNames, showError, showSuccess, t]);
+  }, [draftNames, showError, showSuccess, tFunc]);
 
-  const handleDelete = useCallback(async (id: string) => { setDeletingId(id); try { await axios.delete(`${API_URL}/proto-categories/${id}`); setCategories((prev) => prev.filter((c) => c.id !== id)); setDraftNames((prev) => { const { [id]: _removed, ...rest } = prev; return rest; }); showSuccess(t('settings.protoCategories.deletedSuccess')); } catch (error) { console.error('Failed to delete proto category:', error); showError(t('settings.protoCategories.deleteError')); } finally { setDeletingId(null); } }, [showError, showSuccess, t]);
+  const handleDelete = useCallback(async (id: string) => { setDeletingId(id); try { await axios.delete(`${API_URL}/proto-categories/${id}`); setCategories((prev) => prev.filter((cat) => cat.id !== id)); setDraftNames((prev) => { const { [id]: _removed, ...rest } = prev; return rest; }); showSuccess(tFunc('settings.protoCategories.deletedSuccess')); } catch (error) { console.error('Failed to delete proto category:', error); showError(tFunc('settings.protoCategories.deleteError')); } finally { setDeletingId(null); } }, [showError, showSuccess, tFunc]);
 
   return { categories, isLoading, promotingId, deletingId, savingNameId, draftNames, fetchCategories, handlePromote, handleNameChange, handleSaveName, handleDelete };
 };
@@ -67,7 +67,7 @@ const ProtoCategoryRow: React.FC<ProtoCategoryRowProps> = ({ category, draftName
   <div style={{ border: `1px solid ${theme.colors.border.light}`, borderRadius: theme.borderRadius.md, padding: theme.spacing.md, backgroundColor: theme.colors.background.subtle, opacity: isBusy ? OPACITY_DISABLED : 1 }}>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: theme.spacing.sm }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <input type="text" value={draftName} onChange={(e) => onNameChange(category.id, e.target.value)} disabled={isSavingName} style={{ width: '100%', fontWeight: theme.typography.fontWeight.medium, fontSize: theme.typography.fontSize.base, color: theme.colors.text.primary, marginBottom: theme.spacing.xs, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.sm, padding: `${theme.spacing.xs} ${theme.spacing.sm}`, backgroundColor: theme.colors.background.paper }} aria-label={category.name} />
+        <input type="text" value={draftName} onChange={(event) => onNameChange(category.id, event.target.value)} disabled={isSavingName} style={{ width: '100%', fontWeight: theme.typography.fontWeight.medium, fontSize: theme.typography.fontSize.base, color: theme.colors.text.primary, marginBottom: theme.spacing.xs, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.sm, padding: `${theme.spacing.xs} ${theme.spacing.sm}`, backgroundColor: theme.colors.background.paper }} aria-label={category.name} />
         {category.description && <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary, marginBottom: theme.spacing.xs }}>{category.description}</div>}
         <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
           <div style={{ flex: 1, height: '4px', backgroundColor: theme.colors.border.light, borderRadius: theme.borderRadius.full, overflow: 'hidden' }}><div style={{ width: `${(progress / PROTO_CATEGORY_PROMOTION_THRESHOLD) * 100}%`, height: '100%', backgroundColor: theme.colors.primary.main }} /></div>

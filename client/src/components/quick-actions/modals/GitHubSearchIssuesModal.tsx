@@ -27,8 +27,8 @@ export const GitHubSearchIssuesModal: React.FC<GitHubSearchIssuesModalProps> = (
   const [error, setError] = useState('');
   const [results, setResults] = useState<any[]>([]);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSearch = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (!query.trim()) {
       setError('Search query cannot be empty');
       return;

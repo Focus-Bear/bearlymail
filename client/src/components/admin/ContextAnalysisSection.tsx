@@ -90,7 +90,7 @@ const AnalysisFilterBar: React.FC<AnalysisFilterBarProps> = ({ statusFilter, onS
       <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
         <select
           value={statusFilter}
-          onChange={(e) => onStatusFilterChange(e.target.value as StatusFilter)}
+          onChange={(event) => onStatusFilterChange(event.target.value as StatusFilter)}
           style={{ padding: `${theme.spacing.sm} ${theme.spacing.md}`, borderRadius: theme.borderRadius.md, border: `1px solid ${theme.colors.border.medium}`, backgroundColor: theme.colors.background.paper, color: theme.colors.text.primary, fontSize: theme.typography.fontSize.sm, cursor: 'pointer' }}
         >
           {statusFilterOptions.map((option) => (
@@ -193,7 +193,7 @@ const AnalysisCard: React.FC<AnalysisCardProps> = ({ analysis, expandedId, setEx
             <span>{t('admin.contextAnalysis.correlationId')}:</span>
             {analysis.correlationId ? (
               <button
-                onClick={(e) => { e.stopPropagation(); onCopy(analysis.correlationId!, analysis.id); }}
+                onClick={(event) => { event.stopPropagation(); onCopy(analysis.correlationId!, analysis.id); }}
                 style={{ background: STRING_NONE, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.sm, padding: `${theme.spacing.xs} ${theme.spacing.sm}`, cursor: 'pointer', fontFamily: 'monospace', fontSize: theme.typography.fontSize.xs, color: theme.colors.text.primary, display: 'flex', alignItems: 'center', gap: theme.spacing.xs }}
                 title={t('admin.contextAnalysis.copyCorrelationId')}
               >

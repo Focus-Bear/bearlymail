@@ -250,8 +250,8 @@ describe("BatchScheduleService", () => {
 
     beforeEach(() => {
       mockRepository.findOne.mockResolvedValue(baseSchedule);
-      mockRepository.save.mockImplementation((s) =>
-        Promise.resolve({ ...baseSchedule, ...s }),
+      mockRepository.save.mockImplementation((segment) =>
+        Promise.resolve({ ...baseSchedule, ...segment }),
       );
     });
 
@@ -309,8 +309,8 @@ describe("BatchScheduleService", () => {
       // Should issue raw SQL update for threads with batchReleaseAt > new delivery time
       // First call is the past-due release query, second is the reschedule query
       const { calls } = mockEmailThreadRepository.query.mock;
-      const rescheduleCall = calls.find((c: unknown[]) =>
-        (c[0] as string).includes("batchReleaseAt"),
+      const rescheduleCall = calls.find((item: unknown[]) =>
+        (item[0] as string).includes("batchReleaseAt"),
       );
       expect(rescheduleCall).toBeDefined();
       expect(rescheduleCall![0]).toContain("UPDATE email_threads");

@@ -288,7 +288,7 @@ export const TokenTesterPanel: React.FC<TokenTesterProps> = ({
             <input
               type="text"
               value={testUserId}
-              onChange={(e) => setTestUserId(e.target.value)}
+              onChange={(event) => setTestUserId(event.target.value)}
               placeholder={t('admin.githubDebug.userIdPlaceholder')}
               style={{
                 width: '100%',
@@ -309,7 +309,7 @@ export const TokenTesterPanel: React.FC<TokenTesterProps> = ({
             <input
               type="text"
               value={testOwnerRepo}
-              onChange={(e) => setTestOwnerRepo(e.target.value)}
+              onChange={(event) => setTestOwnerRepo(event.target.value)}
               placeholder="owner/repo"
               style={{
                 width: '100%',

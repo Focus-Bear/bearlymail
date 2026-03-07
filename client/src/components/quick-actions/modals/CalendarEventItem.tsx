@@ -73,7 +73,7 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({ event }) =
           marginBottom: theme.spacing.xs,
         }}>
           {/* eslint-disable-next-line i18next/no-literal-string */}
-          {EMOJI_PEOPLE} {event.attendees.map((a) => a.email || a.displayName).join(', ')}
+          {EMOJI_PEOPLE} {event.attendees.map((attendee) => attendee.email || attendee.displayName).join(', ')}
         </div>
       )}
       {event.htmlLink && (

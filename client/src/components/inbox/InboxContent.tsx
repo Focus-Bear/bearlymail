@@ -44,8 +44,8 @@ interface InboxContentProps {
   splitView: ReturnType<typeof useSplitView>;
   nextDelivery: Date | null;
   lastUrgentCheck: Date | null;
-  onEmailClick: (emailId: string, index: number, e: React.MouseEvent) => void;
-  onEmailSelect: (emailId: string, e: React.MouseEvent) => void;
+  onEmailClick: (emailId: string, index: number, event: React.MouseEvent) => void;
+  onEmailSelect: (emailId: string, event: React.MouseEvent) => void;
   onGenerateDrafts: () => Promise<void>;
   onRetry: () => void;
   updateDraft?: (followUpId: string, draft: string) => Promise<void>;
@@ -253,10 +253,10 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   useEffect(() => {
     if (summaryCategories && summaryCategories.length > 0) {
       if (stableCategoryOrder.length === 0) {
-        onUpdateStableCategoryOrder(summaryCategories.map(c => c.name));
+        onUpdateStableCategoryOrder(summaryCategories.map(cat => cat.name));
       } else {
         const newCategories = summaryCategories
-          .map(c => c.name)
+          .map(cat => cat.name)
           .filter(name => !stableCategoryOrder.includes(name));
         if (newCategories.length > 0) {
           onUpdateStableCategoryOrder([...stableCategoryOrder, ...newCategories]);
@@ -297,9 +297,9 @@ export const InboxContent: React.FC<InboxContentProps> = ({
     if (stableCategoryOrder.length === 0) return nonEmptySource;
 
     const orderMap = new Map(stableCategoryOrder.map((cat, idx) => [cat, idx]));
-    return nonEmptySource.sort((a, b) => {
-      const orderA = orderMap.get(a.name) ?? Number.MAX_SAFE_INTEGER;
-      const orderB = orderMap.get(b.name) ?? Number.MAX_SAFE_INTEGER;
+    return nonEmptySource.sort((itemA, itemB) => {
+      const orderA = orderMap.get(itemA.name) ?? Number.MAX_SAFE_INTEGER;
+      const orderB = orderMap.get(itemB.name) ?? Number.MAX_SAFE_INTEGER;
       return orderA - orderB;
     });
   }, [summaryCategories, filteredEmails, stableCategoryOrder, mode]);
@@ -313,7 +313,7 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   }, [expandedCategories, displayCategories, fetchProtoCategories]);
 
   const selectedEmailForPanel = useMemo(() =>
-    splitView.selectedEmailId ? emails.find(e => e.id === splitView.selectedEmailId) : undefined,
+    splitView.selectedEmailId ? emails.find(event => event.id === splitView.selectedEmailId) : undefined,
     [emails, splitView.selectedEmailId]
   );
 
@@ -476,10 +476,10 @@ export const InboxContent: React.FC<InboxContentProps> = ({
 
               // For "Other" category with proto groups, compute uncategorized emails
               const protoGroupedEmailIds = hasProtoGroups
-                ? new Set(otherProtoGroups.flatMap(group => group.emails.map(e => e.id)))
+                ? new Set(otherProtoGroups.flatMap(group => group.emails.map(event => event.id)))
                 : new Set<string>();
               const uncategorizedOtherEmails = hasProtoGroups
-                ? categoryEmails.filter(e => !protoGroupedEmailIds.has(e.id))
+                ? categoryEmails.filter(event => !protoGroupedEmailIds.has(event.id))
                 : [];
 
               return (
@@ -512,7 +512,7 @@ export const InboxContent: React.FC<InboxContentProps> = ({
 
                       const response = await axios.get(`${API_URL}/emails/inbox?${params.toString()}`);
                       const fetchedEmails = response.data?.emails || [];
-                      const fetchedIds = fetchedEmails.map((e: any) => e.id).filter(Boolean);
+                      const fetchedIds = fetchedEmails.map((event: any) => event.id).filter(Boolean);
                       if (fetchedIds.length > 0) {
                         await onBulkArchive(fetchedIds);
                       }

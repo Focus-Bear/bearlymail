@@ -44,7 +44,7 @@ export class SearchIndexHelper {
       tokens.add(this.hashToken(normalized));
 
       // Add individual words
-      const words = normalized.split(/\s+/).filter((w) => w.length > 0);
+      const words = normalized.split(/\s+/).filter((word) => word.length > 0);
       for (const word of words) {
         tokens.add(this.hashToken(word));
 
@@ -111,7 +111,7 @@ export class SearchIndexHelper {
     tokens.add(this.hashToken(normalized));
 
     // Add individual words
-    const words = normalized.split(/\s+/).filter((w) => w.length > 0);
+    const words = normalized.split(/\s+/).filter((word) => word.length > 0);
     for (const word of words) {
       tokens.add(this.hashToken(word));
 

@@ -76,10 +76,10 @@ function downloadBlob(blob: Blob, filename: string) {
   window.URL.revokeObjectURL(url);
 }
 
-function parseImportFile(text: string, t: (k: string) => string): unknown {
+function parseImportFile(text: string, tFunc: (tKey: string) => string): unknown {
   let importData: unknown;
-  try { importData = JSON.parse(text); } catch { throw new Error(t('settings.dataExport.invalidFile')); }
-  if (!importData || typeof importData !== TYPEOF_OBJECT || !('version' in importData) || !('exportedAt' in importData)) throw new Error(t('settings.dataExport.invalidFile'));
+  try { importData = JSON.parse(text); } catch { throw new Error(tFunc('settings.dataExport.invalidFile')); }
+  if (!importData || typeof importData !== TYPEOF_OBJECT || !('version' in importData) || !('exportedAt' in importData)) throw new Error(tFunc('settings.dataExport.invalidFile'));
   return importData;
 }
 

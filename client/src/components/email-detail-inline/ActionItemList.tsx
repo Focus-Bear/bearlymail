@@ -34,10 +34,10 @@ export const ActionItemList: React.FC<ActionItemListProps> = ({
           <input
             type="checkbox"
             checked={item.isCompleted}
-            onChange={(e) => {
+            onChange={(event) => {
               if (item.id) {
-                captureEvent('action_item_toggled', { completed: e.target.checked });
-                onToggleActionItem(item.id, e.target.checked);
+                captureEvent('action_item_toggled', { completed: event.target.checked });
+                onToggleActionItem(item.id, event.target.checked);
               }
             }}
             style={{ marginTop: '4px', cursor: 'pointer' }}
@@ -76,13 +76,13 @@ export const ActionItemList: React.FC<ActionItemListProps> = ({
                 alignItems: 'center',
                 opacity: 0.6,
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.opacity = '1';
-                e.currentTarget.style.color = theme.colors.error?.main || theme.colors.accent.error;
+              onMouseEnter={(event) => {
+                event.currentTarget.style.opacity = '1';
+                event.currentTarget.style.color = theme.colors.error?.main || theme.colors.accent.error;
               }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.opacity = '0.6';
-                e.currentTarget.style.color = theme.colors.text.tertiary;
+              onMouseLeave={(event) => {
+                event.currentTarget.style.opacity = '0.6';
+                event.currentTarget.style.color = theme.colors.text.tertiary;
               }}
               title={t('emailDetail.deleteActionItem')}
             >

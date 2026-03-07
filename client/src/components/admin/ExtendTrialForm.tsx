@@ -27,7 +27,7 @@ export const ExtendTrialForm: React.FC<ExtendTrialFormProps> = ({
       <input
         type="number"
         value={extendDays}
-        onChange={(e) => onExtendDaysChange(parseInt(e.target.value) || DEFAULT_EXTEND_DAYS)}
+        onChange={(event) => onExtendDaysChange(parseInt(event.target.value) || DEFAULT_EXTEND_DAYS)}
         min="1"
         style={{
           width: `${INPUT_WIDTH_PX}px`,

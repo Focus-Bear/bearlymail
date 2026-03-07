@@ -40,8 +40,8 @@ export function translateEmail(
     emailTranslations[lang as keyof typeof emailTranslations] ||
     emailTranslations.en;
 
-  for (const k of keys) {
-    translation = translation?.[k];
+  for (const key of keys) {
+    translation = translation?.[key];
     if (!translation) {
       // Fallback to English
       translation = emailTranslations.en;

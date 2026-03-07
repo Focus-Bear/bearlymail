@@ -113,7 +113,7 @@ export class PriorityAnalysisService {
     if (!threadEmails || threadEmails.length === 0) return "";
 
     const sortedThreadEmails = [...threadEmails].sort(
-      (a, b) => a.receivedAt.getTime() - b.receivedAt.getTime(),
+      (itemA, itemB) => itemA.receivedAt.getTime() - itemB.receivedAt.getTime(),
     );
     const emailsToInclude = sortedThreadEmails.slice(
       -DISPLAY_CONSTANTS.MAX_DISPLAY_ITEMS,
@@ -384,7 +384,7 @@ export class PriorityAnalysisService {
     }
     if (userContext?.workingOn?.length) {
       contextParts.push(
-        `Working on: ${userContext.workingOn.map((w) => w.value).join(", ")}`,
+        `Working on: ${userContext.workingOn.map((word) => word.value).join(", ")}`,
       );
     }
     if (userContext?.dontCare?.length) {
@@ -611,8 +611,8 @@ IMPORTANT: The top-level response MUST be a JSON object with key \`priority_resu
           parsedArray = parsedRecord.priority_results;
         } else {
           // Fallback: LLM used a different wrapper key — find the first array-valued property
-          const arrayKey = Object.keys(parsedRecord).find((k) =>
-            Array.isArray(parsedRecord[k]),
+          const arrayKey = Object.keys(parsedRecord).find((key) =>
+            Array.isArray(parsedRecord[key]),
           );
           if (arrayKey) {
             this.logger.warn(
@@ -671,7 +671,9 @@ IMPORTANT: The top-level response MUST be a JSON object with key \`priority_resu
         }
       } else {
         // No usable array found — log clearly so it's visible in worker terminal
-        const emailKeys = emails.map((e) => e.emailKey).join(", ");
+        const emailKeys = emails
+          .map((emailEntry) => emailEntry.emailKey)
+          .join(", ");
         this.logger.error(
           `analyzePriorityBatch: LLM returned a non-JSON response for batch of ${emails.length} emails [${emailKeys}]. Response preview: "${batchResponsePreview}"`,
         );

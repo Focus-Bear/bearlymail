@@ -286,7 +286,7 @@ const Stats: React.FC = () => {
   } = useSidebarState();
 
   const maxEmails = stats
-    ? Math.max(...stats.categoryStats.map(c => c.totalEmails), 1)
+    ? Math.max(...stats.categoryStats.map(cat => cat.totalEmails), 1)
     : 1;
 
   return (

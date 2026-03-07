@@ -63,13 +63,13 @@ export class RepliesService {
     // Get user context from UserContext entities
     const contexts = await this.contextService.getUserContext(userId);
     const tone =
-      contexts.find((c) => c.contextKey === ContextKey.WRITING_STYLE_TONE)
+      contexts.find((item) => item.contextKey === ContextKey.WRITING_STYLE_TONE)
         ?.contextValue || "professional";
     const commonPhrases = contexts
-      .filter((c) => c.contextKey === ContextKey.COMMON_PHRASE)
-      .map((c) => c.contextValue);
+      .filter((item) => item.contextKey === ContextKey.COMMON_PHRASE)
+      .map((item) => item.contextValue);
     const writingStyle = contexts.find(
-      (c) => c.contextKey === ContextKey.WRITING_STYLE_TONE,
+      (item) => item.contextKey === ContextKey.WRITING_STYLE_TONE,
     )?.contextValue;
 
     // Get writing style examples from user.toneSettings.rules
@@ -235,7 +235,7 @@ ${closing}`;
     updates: Partial<ReplyRule>,
   ): Promise<ReplyRule> {
     const rules = this.replyRules.get(userId) || [];
-    const index = rules.findIndex((r) => r.ruleId === ruleId);
+    const index = rules.findIndex((reply) => reply.ruleId === ruleId);
     if (index !== -1) {
       rules[index] = { ...rules[index], ...updates };
       this.replyRules.set(userId, rules);
@@ -246,7 +246,7 @@ ${closing}`;
 
   async deleteReplyRule(userId: string, ruleId: string): Promise<void> {
     const rules = this.replyRules.get(userId) || [];
-    const filtered = rules.filter((r) => r.ruleId !== ruleId);
+    const filtered = rules.filter((reply) => reply.ruleId !== ruleId);
     this.replyRules.set(userId, filtered);
   }
 
@@ -305,7 +305,7 @@ ${closing}`;
     }>;
     for (const attachmentId of forwardAttachmentIds) {
       const attachmentMeta = emailAttachments.find(
-        (a) => a.attachmentId === attachmentId,
+        (itemA) => itemA.attachmentId === attachmentId,
       );
       if (attachmentMeta) {
         try {

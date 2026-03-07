@@ -35,9 +35,9 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
 
   return (
     <div
-      onDragOver={(e) => { e.preventDefault(); setIsOver(true); }}
+      onDragOver={(event) => { event.preventDefault(); setIsOver(true); }}
       onDragLeave={() => setIsOver(false)}
-      onDrop={(e) => { e.preventDefault(); setIsOver(false); onDrop(); }}
+      onDrop={(event) => { event.preventDefault(); setIsOver(false); onDrop(); }}
       style={{ minWidth: '280px', maxWidth: '320px', flex: '0 0 280px', backgroundColor: isOver && isDragOver ? `${stageColor}10` : theme.colors.background.paper, borderRadius: theme.borderRadius.lg, boxShadow: theme.shadows.sm, display: 'flex', flexDirection: 'column', border: isOver && isDragOver ? `2px dashed ${stageColor}` : '2px solid transparent', transition: 'border-color 0.2s, background-color 0.2s', }}
     >
       {/* Column header */}
@@ -69,13 +69,13 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
             onDragEnd={onDragEnd}
             onClick={() => onEditDeal(deal)}
             style={{ padding: theme.spacing.md, backgroundColor: theme.colors.background.default, borderRadius: theme.borderRadius.md, border: `1px solid ${theme.colors.border.light}`, cursor: 'grab', transition: theme.transitions.fast, }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow = theme.shadows.md;
-              e.currentTarget.style.borderColor = theme.colors.border.medium;
+            onMouseEnter={(event) => {
+              event.currentTarget.style.boxShadow = theme.shadows.md;
+              event.currentTarget.style.borderColor = theme.colors.border.medium;
             }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow = 'none';
-              e.currentTarget.style.borderColor = theme.colors.border.light;
+            onMouseLeave={(event) => {
+              event.currentTarget.style.boxShadow = 'none';
+              event.currentTarget.style.borderColor = theme.colors.border.light;
             }}
           >
             <div style={{ fontWeight: theme.typography.fontWeight.medium, color: theme.colors.text.primary, fontSize: theme.typography.fontSize.sm, marginBottom: theme.spacing.xs, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', }}>
@@ -106,10 +106,10 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: theme.spacing.xs }}>
               <button
-                onClick={(e) => { e.stopPropagation(); onDeleteDeal(deal.id); }}
+                onClick={(event) => { event.stopPropagation(); onDeleteDeal(deal.id); }}
                 style={{ background: STRING_NONE, border: STRING_NONE, color: theme.colors.text.tertiary, cursor: 'pointer', fontSize: theme.typography.fontSize.xs, padding: '2px 4px', }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = theme.colors.accent.error; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = theme.colors.text.tertiary; }}
+                onMouseEnter={(event) => { event.currentTarget.style.color = theme.colors.accent.error; }}
+                onMouseLeave={(event) => { event.currentTarget.style.color = theme.colors.text.tertiary; }}
               >
                 {'✕'}
               </button>

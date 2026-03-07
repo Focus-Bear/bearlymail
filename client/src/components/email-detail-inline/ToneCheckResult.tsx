@@ -109,7 +109,7 @@ const DisputeSection: React.FC<DisputeSectionProps> = ({
           </div>
           <textarea
             value={disputeArgument}
-            onChange={(e) => setDisputeArgument(e.target.value)}
+            onChange={(event) => setDisputeArgument(event.target.value)}
             placeholder={t('emailDetail.disputePlaceholder')}
             style={{ width: '100%', minHeight: '80px', padding: theme.spacing.sm, border: `1px solid ${theme.colors.border.medium}`, borderRadius: theme.borderRadius.sm, fontSize: theme.typography.fontSize.sm, resize: 'vertical', boxSizing: 'border-box', }}
           />

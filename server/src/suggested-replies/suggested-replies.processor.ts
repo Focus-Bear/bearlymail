@@ -226,8 +226,9 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
     });
 
     const recipientName =
-      threadEmails.find((e) => e.from?.toLowerCase() !== userEmail)?.fromName ||
-      "there";
+      threadEmails.find(
+        (emailEntry) => emailEntry.from?.toLowerCase() !== userEmail,
+      )?.fromName || "there";
 
     const now = new Date();
     const daysSinceLastEmail = Math.floor(
@@ -235,12 +236,12 @@ export class SuggestedRepliesProcessor implements OnModuleInit {
         MILLISECONDS.DAY,
     );
 
-    const threadMessages = threadEmails.map((e) => ({
-      from: e.from || "",
-      fromName: e.fromName || undefined,
-      body: e.body || "",
-      receivedAt: e.receivedAt,
-      isFromUser: e.from?.toLowerCase() === userEmail,
+    const threadMessages = threadEmails.map((emailEntry) => ({
+      from: emailEntry.from || "",
+      fromName: emailEntry.fromName || undefined,
+      body: emailEntry.body || "",
+      receivedAt: emailEntry.receivedAt,
+      isFromUser: emailEntry.from?.toLowerCase() === userEmail,
     }));
 
     return { recipientName, daysSinceLastEmail, threadMessages };

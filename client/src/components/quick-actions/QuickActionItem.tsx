@@ -63,13 +63,13 @@ export const QuickActionItem: React.FC<QuickActionItemProps> = ({
         alignItems: 'flex-start',
         gap: theme.spacing.md,
       }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = theme.colors.primary.subtle;
-        e.currentTarget.style.borderColor = theme.colors.primary.main;
+      onMouseEnter={(event) => {
+        event.currentTarget.style.backgroundColor = theme.colors.primary.subtle;
+        event.currentTarget.style.borderColor = theme.colors.primary.main;
       }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = theme.colors.background.default;
-        e.currentTarget.style.borderColor = theme.colors.border.medium;
+      onMouseLeave={(event) => {
+        event.currentTarget.style.backgroundColor = theme.colors.background.default;
+        event.currentTarget.style.borderColor = theme.colors.border.medium;
       }}
     >
       <span style={{ fontSize: '1.5rem', flexShrink: 0 }}>

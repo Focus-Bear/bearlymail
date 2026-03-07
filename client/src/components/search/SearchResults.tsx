@@ -114,7 +114,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                 fontSize: theme.typography.fontSize.xs,
               }}>
                 {triedQueries.map((queryItem: { query: string; resultCount: number; accountType?: string }) => (
-                  <li key={queryStr} style={{ marginBottom: theme.spacing.xs }}>
+                  <li key={queryItem.query} style={{ marginBottom: theme.spacing.xs }}>
                     <code style={{
                       backgroundColor: theme.colors.background.paper,
                       padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
@@ -191,7 +191,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
           </summary>
           <ul style={{ margin: `${theme.spacing.xs} 0 0`, paddingLeft: theme.spacing.lg }}>
             {queriesTried.map((queryStr) => (
-              <li key={queryStr} style={{ marginTop: theme.spacing.xs }}>
+              <li key={queryItem.query} style={{ marginTop: theme.spacing.xs }}>
                 <code style={{
                   backgroundColor: theme.colors.background.paper,
                   padding: `1px ${theme.spacing.xs}`,
@@ -229,13 +229,13 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
               cursor: 'pointer',
               transition: theme.transitions.default,
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = theme.shadows.md;
+            onMouseEnter={(event) => {
+              event.currentTarget.style.transform = 'translateY(-2px)';
+              event.currentTarget.style.boxShadow = theme.shadows.md;
             }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = 'none';
+            onMouseLeave={(event) => {
+              event.currentTarget.style.transform = 'translateY(0)';
+              event.currentTarget.style.boxShadow = 'none';
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: theme.spacing.xs }}>
@@ -248,8 +248,8 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                 </strong>
                 {searchEmail.relevanceScore !== undefined && (
                   <span
-                    onClick={(e) => {
-                      e.stopPropagation();
+                    onClick={(event) => {
+                      event.stopPropagation();
                       if (searchEmail.scoreBreakdown) {
                         onSelectScoreBreakdown(searchEmail, searchEmail.scoreBreakdown);
                       }

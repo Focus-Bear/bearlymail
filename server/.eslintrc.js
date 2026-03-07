@@ -79,15 +79,14 @@ module.exports = {
     // ===========================================
     // CLEAN CODE - NAMING CONVENTIONS
     // ===========================================
-    // Enforce minimum identifier length (avoid single-letter variables except loops)
+    // Enforce minimum identifier length (avoid single-letter variables except loops/coords)
     'id-length': [
       'error',
       {
         min: 2,
-        // Common acceptable short names in various contexts
-        // Standard math/loop variables, plus single-letter variables used in well-known algorithms
-        // (e.g., a-m are used in the Computus Easter algorithm with standard mathematical notation)
-        exceptions: ['i', 'j', 'k', 'x', 'y', 'z', 'e', 't', '_', 'a', 'b', 'c', 'n', 'r', 'w', 'h', 'd', 'f', 'g', 'l', 'm', 'p', 'q', 's', 'u', 'v'],
+        // Only principled exceptions: underscore (unused), loop indices, coordinates
+        exceptions: ['_', 'i', 'j', 'x', 'y', 'z'],
+        exceptionPatterns: ['^_'], // Allow _anything (underscore-prefixed)
         properties: 'never', // Don't check object properties
       },
     ],

@@ -30,12 +30,12 @@ function getErrorContent(
   errorType: ErrorType,
   errorMessage: string,
   waitlistSubmitted: boolean,
-  t: TFunction,
+  tFunc: TFunction,
 ): ErrorContent {
   if (waitlistSubmitted) {
     return {
-      title: t('auth.errors.waitlistSubmitted.title', "You're on the waitlist!"),
-      description: t('auth.errors.waitlistSubmitted.description', "We've received your request. You'll receive an email when your account is approved."),
+      title: tFunc('auth.errors.waitlistSubmitted.title', "You're on the waitlist!"),
+      description: tFunc('auth.errors.waitlistSubmitted.description', "We've received your request. You'll receive an email when your account is approved."),
       showWaitlistButton: false,
       showLoginButton: true,
     };
@@ -44,29 +44,29 @@ function getErrorContent(
   switch (errorType) {
     case ERROR_TYPE_PENDING_APPROVAL:
       return {
-        title: t('auth.errors.pendingApproval.title', 'Account Pending Approval'),
-        description: t('auth.errors.pendingApproval.description', "Your account is on the waitlist and pending approval. We'll notify you by email once your account is approved."),
+        title: tFunc('auth.errors.pendingApproval.title', 'Account Pending Approval'),
+        description: tFunc('auth.errors.pendingApproval.description', "Your account is on the waitlist and pending approval. We'll notify you by email once your account is approved."),
         showWaitlistButton: false,
         showLoginButton: true,
       };
     case ERROR_TYPE_NOT_ON_WAITLIST:
       return {
-        title: t('auth.errors.notOnWaitlist.title', 'Join the Waitlist'),
-        description: t('auth.errors.notOnWaitlist.description', "You need to join our waitlist first before you can sign in. Sign up below to get early access to BearlyMail."),
+        title: tFunc('auth.errors.notOnWaitlist.title', 'Join the Waitlist'),
+        description: tFunc('auth.errors.notOnWaitlist.description', "You need to join our waitlist first before you can sign in. Sign up below to get early access to BearlyMail."),
         showWaitlistButton: true,
         showLoginButton: false,
       };
     default:
       if (errorMessage.includes(STRING_WAITLIST)) {
         return {
-          title: t('auth.errors.notOnWaitlist.title', 'Join the Waitlist'),
-          description: t('auth.errors.notOnWaitlist.description', "You need to join our waitlist first before you can sign in. Sign up below to get early access to BearlyMail."),
+          title: tFunc('auth.errors.notOnWaitlist.title', 'Join the Waitlist'),
+          description: tFunc('auth.errors.notOnWaitlist.description', "You need to join our waitlist first before you can sign in. Sign up below to get early access to BearlyMail."),
           showWaitlistButton: true,
           showLoginButton: false,
         };
       }
       return {
-        title: t('auth.errors.generic.title', 'Authentication Error'),
+        title: tFunc('auth.errors.generic.title', 'Authentication Error'),
         description: errorMessage,
         showWaitlistButton: true,
         showLoginButton: true,

@@ -78,8 +78,8 @@ export const PermissionsExplanation: React.FC<PermissionsExplanationProps> = ({
           <button
             onClick={onContinue}
             style={{ padding: `${theme.spacing.md} ${theme.spacing.lg}`, backgroundColor: theme.colors.primary.main, color: COLOR_NAMED_WHITE, border: STRING_NONE, borderRadius: theme.borderRadius.md, fontSize: theme.typography.fontSize.base, fontWeight: theme.typography.fontWeight.semibold, cursor: 'pointer' }}
-            onMouseOver={(e) => { e.currentTarget.style.backgroundColor = theme.colors.primary.dark; }}
-            onMouseOut={(e) => { e.currentTarget.style.backgroundColor = theme.colors.primary.main; }}
+            onMouseOver={(event) => { event.currentTarget.style.backgroundColor = theme.colors.primary.dark; }}
+            onMouseOut={(event) => { event.currentTarget.style.backgroundColor = theme.colors.primary.main; }}
           >
             {t('auth.permissions.continue')}
           </button>

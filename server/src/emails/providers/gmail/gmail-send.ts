@@ -17,8 +17,8 @@ export function buildEmailContent(options: {
   attachments?: EmailAttachmentData[];
   headers?: Record<string, string>;
 }): string {
-  const formatRecipient = (r: EmailRecipient) =>
-    r.name ? `${r.name} <${r.email}>` : r.email;
+  const formatRecipient = (recipient: EmailRecipient) =>
+    recipient.name ? `${recipient.name} <${recipient.email}>` : recipient.email;
 
   const toHeader = options.to.map(formatRecipient).join(", ");
   const ccHeader =

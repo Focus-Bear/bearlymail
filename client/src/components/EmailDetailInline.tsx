@@ -1,4 +1,4 @@
-import React, { useCallback,useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -31,6 +31,9 @@ const useEmailDetailInlineHandlers = (
   const { showSuccess } = useNotifications();
   const hookData = useEmailDetailInline(emailId, { autoGenerateReplies });
 
+  // Preserve user-typed content in the Custom tab across suggestion tab switches (fixes #562).
+  const customDraftRef = useRef<string>('');
+
   const handleSendReplyWithClose = async (files: File[], expectedReplyHours?: number, forwardAttachmentIds?: string[], draftOverride?: string, scheduledSendAt?: Date) => {
     try {
       await hookData.handleSendReply(files, expectedReplyHours, forwardAttachmentIds, undefined, draftOverride, scheduledSendAt);
@@ -48,14 +51,33 @@ const useEmailDetailInlineHandlers = (
   const handleDraftChange = (newDraft: string) => {
     hookData.setDraft(newDraft);
     hookData.setToneCheckResult(null);
+    // Always persist user input so it can be restored if they switch to a suggestion and come back.
+    customDraftRef.current = newDraft;
     if (hookData.replyOptions && hookData.selectedReplyOption !== hookData.replyOptions.length - 1) {
       const customIdx = hookData.replyOptions.findIndex(option => option.label === ACTION_TYPE_CUSTOM);
       if (customIdx >= 0) hookData.setSelectedReplyOption(customIdx);
     }
   };
 
-  const handleReplyComposerClose = () => { hookData.setShowReplyComposer(false); hookData.setDraft(''); hookData.setReplyOptions(null); hookData.setToneCheckResult(null); };
-  const handleReplyOptionSelect = (idx: number, text: string) => { hookData.setSelectedReplyOption(idx); hookData.setDraft(text); };
+  const handleReplyComposerClose = () => {
+    hookData.setShowReplyComposer(false);
+    hookData.setDraft('');
+    hookData.setReplyOptions(null);
+    hookData.setToneCheckResult(null);
+    customDraftRef.current = '';
+  };
+
+  const handleReplyOptionSelect = (idx: number, text: string) => {
+    const customIdx = hookData.replyOptions?.findIndex(option => option.label === ACTION_TYPE_CUSTOM) ?? 0;
+    if (idx === customIdx) {
+      // User is switching back to the Custom tab — restore their previously typed content.
+      hookData.setSelectedReplyOption(idx);
+      hookData.setDraft(customDraftRef.current);
+    } else {
+      hookData.setSelectedReplyOption(idx);
+      hookData.setDraft(text);
+    }
+  };
   const handleToggleNotesCollapsed = () => { hookData.setNotesCollapsed(!hookData.notesCollapsed); };
 
   return { ...hookData, handleSendReplyWithClose, handleDraftChange, handleReplyComposerClose, handleReplyOptionSelect, handleToggleNotesCollapsed };

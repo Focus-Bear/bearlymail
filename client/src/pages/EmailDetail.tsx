@@ -194,14 +194,36 @@ export default EmailDetail;
 
 // Extracted to reduce main component line count
 const EmailDetailContent: React.FC<any> = ({ state: st, ops, scheduledSendAt, compactMode, isMobile, id, user, replyTextareaRef, replyComposerRef, handleOpenTimePicker }) => {
+  // Preserve user-typed content in the Custom tab across suggestion tab switches (fixes #562).
+  const customDraftRef = useRef<string>('');
+
   const handleDraftChange = (newDraft: string) => {
     st.setDraft(newDraft); st.setToneCheckResult(null);
+    // Always persist user input so it can be restored if they switch to a suggestion and come back.
+    customDraftRef.current = newDraft;
     if (st.replyOptions && st.selectedReplyOption !== st.replyOptions.length - 1) {
       const customIdx = st.replyOptions.findIndex((opt: any) => opt.label === ACTION_TYPE_CUSTOM);
       if (customIdx >= 0) st.setSelectedReplyOption(customIdx);
     }
   };
-  const handleReplyClose = () => { st.setShowReplyComposer(false); st.setDraft(''); st.setReplyOptions(null); st.setToneCheckResult(null); };
+  const handleReplyClose = () => {
+    st.setShowReplyComposer(false);
+    st.setDraft('');
+    st.setReplyOptions(null);
+    st.setToneCheckResult(null);
+    customDraftRef.current = '';
+  };
+  const handleReplyOptionSelect = (idx: number, text: string) => {
+    const customIdx = st.replyOptions?.findIndex((opt: any) => opt.label === ACTION_TYPE_CUSTOM) ?? 0;
+    if (idx === customIdx) {
+      // User is switching back to the Custom tab — restore their previously typed content.
+      st.setSelectedReplyOption(idx);
+      st.setDraft(customDraftRef.current);
+    } else {
+      st.setSelectedReplyOption(idx);
+      st.setDraft(text);
+    }
+  };
   const handleSummaryTypeChange = (type: string) => {
     if (type === SUMMARY_TYPE_CUSTOM) { st.setShowRuleModal(true); }
     else if (type.startsWith(SUMMARY_TYPE_CUSTOM_PREFIX)) {
@@ -220,7 +242,7 @@ const EmailDetailContent: React.FC<any> = ({ state: st, ops, scheduledSendAt, co
         <EmailDetailActions email={st.email as any} suggestedActions={st.suggestedActions} showQuickActionsMenu={st.showQuickActionsMenu} selectedAction={st.selectedAction} onShowQuickActionsMenu={() => st.setShowQuickActionsMenu(true)} onCloseQuickActionsMenu={() => st.setShowQuickActionsMenu(false)} onSelectAction={ops.handleActionSelected} onCloseAction={() => st.setSelectedAction(null)} onActionSuccess={ops.handleActionSuccess} onOpenReplyComposer={ops.handleOpenReplyComposer} onArchive={ops.handleArchive} onDelete={ops.handleDelete} onSetStarCount={ops.handleSetStarCount} onBlockSender={ops.handleBlockSender} onSnooze={ops.handleSnooze} onRespondToInvitation={ops.handleRespondToInvitation} onDraftReply={(replyDraft: string) => { st.setDraft(replyDraft); st.setShowReplyComposer(true); }} hideActionButtons={compactMode} />
         {st.showReplyComposer && (
           <div ref={replyComposerRef}>
-            <ReplyComposer showReplyComposer={st.showReplyComposer} replyMode={st.replyMode} replyRecipients={st.replyRecipients} replyCc={st.replyCc} replyBcc={st.replyBcc} showCc={st.showCc} showBcc={st.showBcc} draft={st.draft} replyOptions={st.replyOptions} selectedReplyOption={st.selectedReplyOption} loadingReplies={st.loadingReplies} checkingTone={st.checkingTone} toneCheckResult={st.toneCheckResult} sending={st.sending} textareaRef={replyTextareaRef} scheduledSendAt={scheduledSendAt} onReplyRecipientsChange={st.setReplyRecipients} onCcChange={st.setReplyCc} onBccChange={st.setReplyBcc} onShowCc={() => st.setShowCc(true)} onShowBcc={() => st.setShowBcc(true)} onDraftChange={handleDraftChange} onReplyOptionSelect={(i: number, t: string) => { st.setSelectedReplyOption(i); st.setDraft(t); }} onClose={handleReplyClose} onSend={(files: File[], hrs: number, _fwd: string[], draft: string, sched: string) => ops.handleSendReply(files, hrs, draft, sched)} onUseRevisedText={(t: string) => { st.setDraft(t); }} onDispute={ops.disputeToneCheck} disputing={st.disputing} disputeResult={st.disputeResult} onSchedule={handleOpenTimePicker} currentEmailId={id} currentEmailObjectId={st.email?.id} currentEmailThreadId={(st.email as any)?.emailThreadId} />
+            <ReplyComposer showReplyComposer={st.showReplyComposer} replyMode={st.replyMode} replyRecipients={st.replyRecipients} replyCc={st.replyCc} replyBcc={st.replyBcc} showCc={st.showCc} showBcc={st.showBcc} draft={st.draft} replyOptions={st.replyOptions} selectedReplyOption={st.selectedReplyOption} loadingReplies={st.loadingReplies} checkingTone={st.checkingTone} toneCheckResult={st.toneCheckResult} sending={st.sending} textareaRef={replyTextareaRef} scheduledSendAt={scheduledSendAt} onReplyRecipientsChange={st.setReplyRecipients} onCcChange={st.setReplyCc} onBccChange={st.setReplyBcc} onShowCc={() => st.setShowCc(true)} onShowBcc={() => st.setShowBcc(true)} onDraftChange={handleDraftChange} onReplyOptionSelect={handleReplyOptionSelect} onClose={handleReplyClose} onSend={(files: File[], hrs: number, _fwd: string[], draft: string, sched: string) => ops.handleSendReply(files, hrs, draft, sched)} onUseRevisedText={(t: string) => { st.setDraft(t); }} onDispute={ops.disputeToneCheck} disputing={st.disputing} disputeResult={st.disputeResult} onSchedule={handleOpenTimePicker} currentEmailId={id} currentEmailObjectId={st.email?.id} currentEmailThreadId={(st.email as any)?.emailThreadId} />
           </div>
         )}
         {!compactMode && (

@@ -77,14 +77,13 @@ function buildReplyRecipientsForMode(
   return { recipients: latestEmail.replyTo || latestEmail.from, cc: null };
 }
 
-// Pure helper: resets draft to empty Custom option state.
+// Pure helper: resets reply options to empty Custom state.
+// Does NOT touch setDraft — the user's typed content must never be overwritten by suggestion generation.
 function resetDraftToCustom(
   setReplyOptions: (opts: Array<{ label: string; text: string }> | null) => void,
-  setDraft: (d: string | null) => void,
   setSelectedReplyOption: (i: number) => void,
 ): void {
   setReplyOptions([{ label: 'Custom', text: '' }]);
-  setDraft('');
   setSelectedReplyOption(0);
 }
 
@@ -142,16 +141,17 @@ export function useEmailDetailDraftOps(
         captureEvent('reply_draft_generated', { email_id: id, draft_count: response.data.length });
         const optionsWithCustom = [{ label: 'Custom', text: '' }, ...response.data];
         setReplyOptions(optionsWithCustom);
-        setDraft('');
+        // Do NOT call setDraft here — suggestions arriving asynchronously must never overwrite
+        // content the user has already typed in the Custom tab (fixes #562).
         setSelectedReplyOption(0);
       } else {
-        resetDraftToCustom(setReplyOptions, setDraft, setSelectedReplyOption);
+        resetDraftToCustom(setReplyOptions, setSelectedReplyOption);
       }
     } catch (error) {
       if (axios.isCancel(error)) return;
       if (draftGenerationEmailIdRef.current !== currentEmailId) return;
       console.error('Error generating draft:', error);
-      resetDraftToCustom(setReplyOptions, setDraft, setSelectedReplyOption);
+      resetDraftToCustom(setReplyOptions, setSelectedReplyOption);
     } finally {
       if (draftGenerationEmailIdRef.current === currentEmailId && !controller.signal.aborted) {
         setLoadingReplies(false);

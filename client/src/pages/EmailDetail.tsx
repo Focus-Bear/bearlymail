@@ -197,7 +197,7 @@ const EmailDetailContent: React.FC<any> = ({ state: st, ops, scheduledSendAt, co
   const handleDraftChange = (newDraft: string) => {
     st.setDraft(newDraft); st.setToneCheckResult(null);
     if (st.replyOptions && st.selectedReplyOption !== st.replyOptions.length - 1) {
-      const customIdx = st.replyOptions.findIndex((opt: any) => o.label === ACTION_TYPE_CUSTOM);
+      const customIdx = st.replyOptions.findIndex((opt: any) => opt.label === ACTION_TYPE_CUSTOM);
       if (customIdx >= 0) st.setSelectedReplyOption(customIdx);
     }
   };
@@ -212,7 +212,7 @@ const EmailDetailContent: React.FC<any> = ({ state: st, ops, scheduledSendAt, co
   };
   return (
     <>
-      <EmailDetailNotesAndActions state={s} ops={ops} compactMode={compactMode} isMobile={isMobile} />
+      <EmailDetailNotesAndActions state={st} ops={ops} compactMode={compactMode} isMobile={isMobile} />
       <div style={getEmailContentCardStyle(compactMode, isMobile)}>
         <div style={{ marginBottom: theme.spacing.xl }}>
           <EmailDetailHeader email={st.email as any} threadEmails={st.threadEmails as Email[]} priorityExplanation={st.priorityExplanation} showPriorityExplanation={st.showPriorityExplanation} onFetchPriorityExplanation={ops.handleFetchPriorityExplanation} onClosePriorityExplanation={() => st.setShowPriorityExplanation(false)} />

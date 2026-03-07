@@ -18,6 +18,7 @@ import { FilesInterceptor } from "@nestjs/platform-express";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { EmailsService } from "../emails/emails.service";
 import { ScheduledEmailsService } from "../scheduled-emails/scheduled-emails.service";
+import { parseRecipientsFromString } from "../utils/email-address.utils";
 import { RepliesService, ReplyRule } from "./replies.service";
 
 @Controller("replies")
@@ -95,6 +96,8 @@ export class RepliesController {
       recipients?: string;
       cc?: string;
       bcc?: string;
+      replyAll?: boolean | string;
+      isForward?: boolean | string;
       expectedReplyHours?: number | string;
       forwardAttachmentIds?: string | string[];
       scheduledSendAt?: string;
@@ -102,89 +105,32 @@ export class RepliesController {
     },
     @UploadedFiles() files?: Express.Multer.File[],
   ) {
-    const attachments =
-      files?.map((file) => ({
-        filename: file.originalname,
-        mimeType: file.mimetype,
-        content: file.buffer,
-      })) || undefined;
-
-    // Parse forwardAttachmentIds - it may come as JSON string from FormData
-    let forwardAttachmentIds: string[] | undefined;
-    if (body.forwardAttachmentIds) {
-      if (typeof body.forwardAttachmentIds === "string") {
-        try {
-          forwardAttachmentIds = JSON.parse(body.forwardAttachmentIds);
-        } catch {
-          forwardAttachmentIds = [body.forwardAttachmentIds];
-        }
-      } else {
-        ({ forwardAttachmentIds } = body);
-      }
-    }
-
-    // Parse expectedReplyHours - it may come as string from FormData
+    const attachments = files?.map((file) => ({
+      filename: file.originalname,
+      mimeType: file.mimetype,
+      content: file.buffer,
+    }));
+    const forwardAttachmentIds = this.parseForwardAttachmentIds(
+      body.forwardAttachmentIds,
+    );
     const expectedReplyHours =
       typeof body.expectedReplyHours === "string"
         ? parseInt(body.expectedReplyHours, 10)
         : body.expectedReplyHours;
+    const isForward =
+      typeof body.isForward === "string"
+        ? body.isForward === "true"
+        : !!body.isForward;
 
-    // If scheduled send time is provided, create scheduled email instead of sending immediately
     if (body.scheduledSendAt) {
-      const scheduledSendAt = new Date(body.scheduledSendAt);
-
-      // Get email details for scheduling
-      const email = await this.emailsService.getEmailById(req.user.userId, id);
-      if (!email) {
-        throw new Error("Email not found");
-      }
-
-      // Determine reply subject (add Re: if not already present)
-      let replySubject = email.subject;
-      if (!replySubject.toLowerCase().startsWith("re:")) {
-        replySubject = `Re: ${replySubject}`;
-      }
-
-      // Use provided recipients if available (reply-all), otherwise fall back to Reply-To or From address
-      const replyToAddress =
-        body.recipients && body.recipients.trim()
-          ? body.recipients
-          : email.replyTo || email.from;
-
-      // Convert attachments to base64 for storage
-      const scheduledAttachments = attachments?.map((att) => ({
-        filename: att.filename,
-        mimeType: att.mimeType,
-        content: att.content.toString("base64"),
-      }));
-
-      const scheduledEmail = await this.scheduledEmailsService.scheduleEmail(
-        req.user.userId,
-        {
-          emailType: "reply",
-          threadId: email.threadId,
-          emailId: id,
-          to: [{ email: replyToAddress, name: email.fromName }],
-          subject: replySubject,
-          body: body.reply,
-          attachments: scheduledAttachments,
-          scheduledSendAt,
-          userTimezone: body.userTimezone,
-          expectedReplyHours: isNaN(expectedReplyHours as number)
-            ? undefined
-            : expectedReplyHours,
-          forwardAttachmentIds,
-        },
-      );
-
-      return {
-        message: "Reply scheduled successfully",
-        scheduledEmailId: scheduledEmail.id,
-        scheduledSendAt: scheduledEmail.scheduledSendAt,
-      };
+      return this.scheduleReply(req.user.userId, id, body, {
+        attachments,
+        forwardAttachmentIds,
+        expectedReplyHours,
+        isForward,
+      });
     }
 
-    // Otherwise send immediately
     await this.repliesService.sendReply(req.user.userId, id, body.reply, {
       attachments,
       expectedReplyHours: isNaN(expectedReplyHours as number)
@@ -193,7 +139,89 @@ export class RepliesController {
       forwardAttachmentIds,
       recipients: body.recipients || undefined,
       cc: body.cc || undefined,
+      bcc: body.bcc || undefined,
+      isForward,
     });
     return { message: "Reply sent successfully" };
+  }
+
+  private parseForwardAttachmentIds(
+    value: string | string[] | undefined,
+  ): string[] | undefined {
+    if (!value) return undefined;
+    if (typeof value !== "string") return value;
+    try {
+      return JSON.parse(value) as string[];
+    } catch {
+      return [value];
+    }
+  }
+
+  private buildScheduledSubject(subject: string, isForward: boolean): string {
+    if (isForward) {
+      return subject.toLowerCase().startsWith("fwd:")
+        ? subject
+        : `Fwd: ${subject}`;
+    }
+    return subject.toLowerCase().startsWith("re:") ? subject : `Re: ${subject}`;
+  }
+
+  private async scheduleReply(
+    userId: string,
+    emailId: string,
+    body: {
+      reply: string;
+      recipients?: string;
+      cc?: string;
+      bcc?: string;
+      scheduledSendAt?: string;
+      userTimezone?: string;
+    },
+    parsed: {
+      attachments?: { filename: string; mimeType: string; content: Buffer }[];
+      forwardAttachmentIds?: string[];
+      expectedReplyHours?: number;
+      isForward: boolean;
+    },
+  ) {
+    const email = await this.emailsService.getEmailById(userId, emailId);
+    if (!email) throw new Error("Email not found");
+
+    const subject = this.buildScheduledSubject(email.subject, parsed.isForward);
+    const replyToAddress = body.recipients?.trim()
+      ? body.recipients
+      : email.replyTo || email.from;
+    const scheduledAttachments = parsed.attachments?.map((att) => ({
+      filename: att.filename,
+      mimeType: att.mimeType,
+      content: att.content.toString("base64"),
+    }));
+
+    const scheduledEmail = await this.scheduledEmailsService.scheduleEmail(
+      userId,
+      {
+        emailType: parsed.isForward ? "forward" : "reply",
+        threadId: email.threadId,
+        emailId,
+        to: [{ email: replyToAddress, name: email.fromName }],
+        cc: body.cc ? parseRecipientsFromString(body.cc) : undefined,
+        bcc: body.bcc ? parseRecipientsFromString(body.bcc) : undefined,
+        subject,
+        body: body.reply,
+        attachments: scheduledAttachments,
+        scheduledSendAt: new Date(body.scheduledSendAt!),
+        userTimezone: body.userTimezone,
+        expectedReplyHours: isNaN(parsed.expectedReplyHours as number)
+          ? undefined
+          : parsed.expectedReplyHours,
+        forwardAttachmentIds: parsed.forwardAttachmentIds,
+      },
+    );
+
+    return {
+      message: "Reply scheduled successfully",
+      scheduledEmailId: scheduledEmail.id,
+      scheduledSendAt: scheduledEmail.scheduledSendAt,
+    };
   }
 }

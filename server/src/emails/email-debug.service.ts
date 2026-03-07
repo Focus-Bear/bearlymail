@@ -311,7 +311,9 @@ export class EmailDebugService {
           })
         : [];
 
-    const dbThreadMap = new Map(dbThreads.map((thread) => [thread.threadId, thread]));
+    const dbThreadMap = new Map(
+      dbThreads.map((thread) => [thread.threadId, thread]),
+    );
     const dbThreadInternalIds = dbThreads.map((thread) => thread.id);
 
     // ── Step 3: Fetch the latest email per thread (for subject) ──
@@ -341,7 +343,10 @@ export class EmailDebugService {
 
       // Keep only the first (most-recent) email per thread
       for (const email of emails) {
-        if (email.emailThreadId && !latestEmailsByThread.has(email.emailThreadId)) {
+        if (
+          email.emailThreadId &&
+          !latestEmailsByThread.has(email.emailThreadId)
+        ) {
           latestEmailsByThread.set(email.emailThreadId, email);
         }
       }
@@ -414,7 +419,10 @@ export class EmailDebugService {
     ).length;
     // "Starred in DB but hidden" = in DB, starCount > 0, still not in Action.
     const starredInDbButHidden = threads.filter(
-      (thread) => thread.inDb && thread.isStarredInDb && !thread.appearsInActionOrFollowUp,
+      (thread) =>
+        thread.inDb &&
+        thread.isStarredInDb &&
+        !thread.appearsInActionOrFollowUp,
     ).length;
 
     return {

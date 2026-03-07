@@ -48,9 +48,9 @@ export class ScheduledEmail {
   @Column({
     type: "varchar",
     length: 20,
-    comment: "Type: reply or new",
+    comment: "Type: reply, forward, or new",
   })
-  emailType: "reply" | "new";
+  emailType: "reply" | "forward" | "new";
 
   @Column({
     nullable: true,

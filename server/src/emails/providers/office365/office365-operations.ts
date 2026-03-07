@@ -143,6 +143,7 @@ export async function sendReplyViaOffice365(
   subject: string,
   htmlBody: string,
   cc?: string,
+  bcc?: string,
 ): Promise<{ messageId: string }> {
   const message: Record<string, unknown> = {
     subject: subject.startsWith("Re:") ? subject : `Re: ${subject}`,
@@ -155,6 +156,10 @@ export async function sendReplyViaOffice365(
 
   if (cc) {
     message.ccRecipients = parseRecipientsToOffice365(cc);
+  }
+
+  if (bcc) {
+    message.bccRecipients = parseRecipientsToOffice365(bcc);
   }
 
   const response = await graphClient.post("/me/sendMail", { message });

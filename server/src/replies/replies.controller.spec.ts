@@ -233,9 +233,11 @@ describe("RepliesController", () => {
         body.reply,
         {
           attachments: undefined,
+          bcc: undefined,
           cc: undefined,
           expectedReplyHours: undefined,
           forwardAttachmentIds: undefined,
+          isForward: false,
           recipients: undefined,
         },
       );
@@ -276,9 +278,11 @@ describe("RepliesController", () => {
               content: Buffer.from("test content"),
             },
           ],
+          bcc: undefined,
           cc: undefined,
           expectedReplyHours: undefined,
           forwardAttachmentIds: undefined,
+          isForward: false,
           recipients: undefined,
         },
       );
@@ -304,9 +308,11 @@ describe("RepliesController", () => {
         body.reply,
         {
           attachments: undefined,
+          bcc: undefined,
           cc: undefined,
           expectedReplyHours: undefined,
           forwardAttachmentIds: ["attach-1", "attach-2"],
+          isForward: false,
           recipients: undefined,
         },
       );
@@ -332,9 +338,11 @@ describe("RepliesController", () => {
         body.reply,
         {
           attachments: undefined,
+          bcc: undefined,
           cc: undefined,
           expectedReplyHours: 24,
           forwardAttachmentIds: undefined,
+          isForward: false,
           recipients: undefined,
         },
       );
@@ -361,9 +369,11 @@ describe("RepliesController", () => {
         body.reply,
         {
           attachments: undefined,
+          bcc: undefined,
           cc: "cc@example.com",
           expectedReplyHours: undefined,
           forwardAttachmentIds: undefined,
+          isForward: false,
           recipients: "sender@example.com, other@example.com",
         },
       );

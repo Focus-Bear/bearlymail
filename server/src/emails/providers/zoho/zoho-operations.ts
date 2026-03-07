@@ -126,9 +126,10 @@ export async function sendReplyViaZoho(
     htmlBody: string;
     threadId: string;
     cc?: string;
+    bcc?: string;
   },
 ): Promise<{ messageId: string }> {
-  const { to, subject, htmlBody, threadId, cc } = options;
+  const { to, subject, htmlBody, threadId, cc, bcc } = options;
   const message: Record<string, unknown> = {
     to: parseRecipientsToZoho(to),
     subject: subject.startsWith("Re:") ? subject : `Re: ${subject}`,
@@ -138,6 +139,10 @@ export async function sendReplyViaZoho(
 
   if (cc) {
     message.cc = parseRecipientsToZoho(cc);
+  }
+
+  if (bcc) {
+    message.bcc = parseRecipientsToZoho(bcc);
   }
 
   const response = await zohoClient.post(

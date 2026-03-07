@@ -55,6 +55,7 @@ export interface SendReplyOptions {
   attachments?: EmailAttachmentData[];
   htmlBody?: string;
   cc?: string;
+  bcc?: string;
 }
 
 /**

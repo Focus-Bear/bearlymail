@@ -31,7 +31,8 @@ async function sendReplyRequest(params: SendReplyParams): Promise<void> {
   } else {
     await axios.post(`${API_URL}/replies/send/${emailId}`, {
       reply: draftToSend, recipients, cc: cc || undefined, bcc: bcc || undefined,
-      replyAll: replyMode === REPLY_MODE_REPLY_ALL, expectedReplyHours: expectedReplyHours || undefined,
+      replyAll: replyMode === REPLY_MODE_REPLY_ALL, isForward: replyMode === REPLY_MODE_FORWARD,
+      expectedReplyHours: expectedReplyHours || undefined,
       forwardAttachmentIds: forwardAttachmentIds?.length ? forwardAttachmentIds : undefined,
       scheduledSendAt: scheduleTime?.toISOString(), userTimezone: scheduleTime ? userTimezone : undefined,
     });
@@ -105,6 +106,7 @@ function buildReplyFormData(params: {
   formData.append('reply', draftToSend);
   formData.append('recipients', recipients);
   formData.append('replyAll', String(replyMode === REPLY_MODE_REPLY_ALL));
+  formData.append('isForward', String(replyMode === REPLY_MODE_FORWARD));
   if (cc) formData.append('cc', cc);
   if (bcc) formData.append('bcc', bcc);
   if (expectedReplyHours !== undefined) formData.append('expectedReplyHours', String(expectedReplyHours));
@@ -174,7 +176,12 @@ export function useEmailDetailReplies(
       if (cc) { setReplyCc(cc); setShowCc(shouldShowCc); }
       setInitialAttachments(mode === REPLY_MODE_FORWARD ? (email.attachments || []) : []);
     }
-    handleGenerateDraft();
+    // Bug 7 fix: AI draft generation is only relevant for replies, not forwards.
+    // Forwards should start with an empty compose area (or pre-filled original content
+    // from the backend), not an LLM-generated reply draft.
+    if (mode !== REPLY_MODE_FORWARD) {
+      handleGenerateDraft();
+    }
   }, [email, user?.email, handleGenerateDraft, setDraft, setToneCheckResult]);
 
   const handleSendReply = useCallback(async (

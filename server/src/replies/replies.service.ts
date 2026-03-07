@@ -17,6 +17,7 @@ import { FollowUpsService } from "../follow-ups/follow-ups.service";
 import { LLMProvider, LLMService } from "../llm/llm.service";
 import { SnoozeService } from "../snooze/snooze.service";
 import { UsersService } from "../users/users.service";
+import { parseRecipientsFromString } from "../utils/email-address.utils";
 import { logError } from "../utils/logger";
 
 export interface ReplyRule {
@@ -418,6 +419,30 @@ ${closing}`;
     );
   }
 
+  /**
+   * Build the body for a forwarded email, prepending the conventional
+   * "---------- Forwarded message ---------" header block with the original
+   * email's metadata and content.
+   */
+  private buildForwardBody(userText: string, originalEmail: Email): string {
+    const fromDisplay = originalEmail.fromName
+      ? `${originalEmail.fromName} <${originalEmail.from}>`
+      : originalEmail.from;
+
+    const header = [
+      "---------- Forwarded message ---------",
+      `From: ${fromDisplay}`,
+      `Date: ${originalEmail.receivedAt.toUTCString()}`,
+      `Subject: ${originalEmail.subject}`,
+      `To: ${originalEmail.to ?? ""}`,
+    ].join("\n");
+
+    // Prefer HTML body if available so rich content survives forwarding
+    const originalBody = originalEmail.htmlBody || originalEmail.body || "";
+
+    return `${userText}\n\n${header}\n\n${originalBody}`;
+  }
+
   async sendReply(
     userId: string,
     emailId: string,
@@ -432,6 +457,8 @@ ${closing}`;
       forwardAttachmentIds?: string[];
       recipients?: string;
       cc?: string;
+      bcc?: string;
+      isForward?: boolean;
     } = {},
   ): Promise<void> {
     const {
@@ -440,6 +467,8 @@ ${closing}`;
       forwardAttachmentIds,
       recipients,
       cc,
+      bcc,
+      isForward = false,
     } = options;
 
     const email = await this.emailsService.getEmailById(userId, emailId);
@@ -452,10 +481,23 @@ ${closing}`;
       throw new Error("User not found");
     }
     const userEmail = EncryptionHelper.decrypt(user.email);
-    const bodyWithSignature = this.appendSignature(body, user.emailSignature);
 
+    // Bug 4 fix: append original email content for forwards
+    const bodyForSending = isForward
+      ? this.buildForwardBody(body, email)
+      : body;
+    const bodyWithSignature = this.appendSignature(
+      bodyForSending,
+      user.emailSignature,
+    );
+
+    // Bug 2 fix: use Fwd: prefix for forwards, Re: for replies
     let replySubject = email.subject;
-    if (!replySubject.toLowerCase().startsWith("re:")) {
+    if (isForward) {
+      if (!replySubject.toLowerCase().startsWith("fwd:")) {
+        replySubject = `Fwd: ${replySubject}`;
+      }
+    } else if (!replySubject.toLowerCase().startsWith("re:")) {
       replySubject = `Re: ${replySubject}`;
     }
 
@@ -482,18 +524,40 @@ ${closing}`;
         : [];
     const allAttachments = [...(attachments || []), ...forwardedAttachments];
 
-    const sentMessage = await provider.sendReply(
-      userId,
-      email.threadId,
-      replyToAddress,
-      replySubject,
-      bodyWithSignature,
-      {
-        attachments: allAttachments.length > 0 ? allAttachments : undefined,
-        htmlBody: bodyWithSignature,
-        cc: cc || undefined,
-      },
-    );
+    let sentMessage: { messageId: string; threadId: string };
+
+    if (isForward) {
+      // Bug 3 fix: forwards go out as new standalone emails (no threadId),
+      // so they start a fresh conversation in the recipient's inbox.
+      const toRecipients = parseRecipientsFromString(replyToAddress);
+      const ccRecipients = cc ? parseRecipientsFromString(cc) : undefined;
+      const bccRecipients = bcc ? parseRecipientsFromString(bcc) : undefined;
+
+      sentMessage = await provider.sendEmail(
+        userId,
+        toRecipients,
+        replySubject,
+        bodyWithSignature,
+        ccRecipients,
+        bccRecipients,
+        allAttachments.length > 0 ? allAttachments : undefined,
+      );
+    } else {
+      // Regular reply — thread into the existing conversation
+      sentMessage = await provider.sendReply(
+        userId,
+        email.threadId,
+        replyToAddress,
+        replySubject,
+        bodyWithSignature,
+        {
+          attachments: allAttachments.length > 0 ? allAttachments : undefined,
+          htmlBody: bodyWithSignature,
+          cc: cc || undefined,
+          bcc: bcc || undefined,
+        },
+      );
+    }
 
     await this.storeSentReply(
       userId,

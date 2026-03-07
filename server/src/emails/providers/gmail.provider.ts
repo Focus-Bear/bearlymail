@@ -54,25 +54,9 @@ import {
   verifyThreadStatusesInGmail,
 } from "./gmail/gmail-sync";
 
-/**
- * Parse a comma-separated recipient string (supports "Name <email>" format)
- * into an array of EmailRecipient objects.
- */
-function parseRecipientsFromString(recipientStr: string): EmailRecipient[] {
-  return recipientStr
-    .split(",")
-    .map((recipient) => recipient.trim())
-    .filter((recipient) => recipient.length > 0)
-    .map((recipient) => {
-      const match = recipient.match(/^(.*?)\s*<([^>]+)>$/);
-      if (match) {
-        const name = match[1].trim();
-        const email = match[2].trim();
-        return name ? { name, email } : { email };
-      }
-      return { email: recipient };
-    });
-}
+// Canonical implementation lives in email-address.utils.ts; re-exported for backward compatibility.
+export { parseRecipientsFromString } from "../../utils/email-address.utils";
+import { parseRecipientsFromString } from "../../utils/email-address.utils";
 
 @Injectable()
 export class GmailProvider implements EmailProvider {
@@ -915,16 +899,18 @@ export class GmailProvider implements EmailProvider {
     body: string,
     options?: SendReplyOptions,
   ): Promise<{ messageId: string; threadId: string }> {
-    const { attachments, htmlBody, cc } = options ?? {};
+    const { attachments, htmlBody, cc, bcc } = options ?? {};
     const gmail = await this.createGmailClient(userId);
     if (!gmail) throw new Error("Gmail account not connected.");
 
     const toRecipients = parseRecipientsFromString(to);
     const ccRecipients = cc ? parseRecipientsFromString(cc) : undefined;
+    const bccRecipients = bcc ? parseRecipientsFromString(bcc) : undefined;
 
     const emailContent = buildEmailContent({
       to: toRecipients,
       cc: ccRecipients,
+      bcc: bccRecipients,
       subject,
       body,
       htmlBody,

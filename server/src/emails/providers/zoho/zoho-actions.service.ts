@@ -24,7 +24,7 @@ export async function sendReply(
   body: string,
   options?: SendReplyOptions,
 ): Promise<{ messageId: string; threadId: string }> {
-  const { htmlBody, cc } = options ?? {};
+  const { htmlBody, cc, bcc } = options ?? {};
   const primaryAccount = await provider.zohoAccountsService.findPrimary(userId);
   if (!primaryAccount) throw new Error("Zoho Mail account not connected.");
 
@@ -42,6 +42,7 @@ export async function sendReply(
       htmlBody: htmlBody || body,
       threadId,
       cc,
+      bcc,
     });
     provider.logger.log(`Reply sent for user ${userId} to ${to}`);
     return { messageId: result.messageId, threadId };

@@ -24,7 +24,7 @@ const EVENING_CUTOFF_HOUR = 18;
 const LATE_NIGHT_START_HOUR = 9;
 
 export interface CreateScheduledEmailDto {
-  emailType: "reply" | "new";
+  emailType: "reply" | "forward" | "new";
   threadId?: string;
   emailId?: string;
   to: EmailRecipient[];
@@ -214,6 +214,13 @@ export class ScheduledEmailsService {
         bodyWithSignature,
         attachments,
       );
+    } else if (scheduledEmail.emailType === "forward") {
+      await this.sendScheduledForward(
+        scheduledEmail,
+        userId,
+        bodyWithSignature,
+        attachments,
+      );
     } else {
       await this.sendScheduledNewEmail(
         scheduledEmail,
@@ -320,6 +327,95 @@ export class ScheduledEmailsService {
     if (scheduledEmail.expectedReplyHours) {
       this.logger.log(
         `Expected reply in ${scheduledEmail.expectedReplyHours} hours for scheduled email ${scheduledEmail.id}`,
+      );
+    }
+  }
+
+  /**
+   * Send a scheduled forward as a new standalone email (not threaded into original).
+   * Bug 3 fix: forwards must use sendEmail, not sendReply, to avoid threading.
+   * Bug 5 fix: BCC recipients are propagated.
+   */
+  private async sendScheduledForward(
+    scheduledEmail: ScheduledEmail,
+    userId: string,
+    bodyWithSignature: string,
+    attachments:
+      | Array<{ filename: string; mimeType: string; content: Buffer }>
+      | undefined,
+  ): Promise<void> {
+    if (!scheduledEmail.emailId) {
+      throw new Error("emailId is required for forward type emails");
+    }
+
+    const provider = await this.emailProviderManager.getPrimaryProvider(userId);
+    if (!provider) {
+      throw new Error("No email provider connected");
+    }
+
+    // Re-fetch forward attachments if any were stored
+    const forwardAttachments: Array<{
+      filename: string;
+      mimeType: string;
+      content: Buffer;
+    }> = [];
+
+    if (
+      scheduledEmail.forwardAttachmentIds &&
+      scheduledEmail.forwardAttachmentIds.length > 0
+    ) {
+      for (const attachmentId of scheduledEmail.forwardAttachmentIds) {
+        try {
+          const attachment = await this.emailsService.getAttachment(
+            userId,
+            scheduledEmail.emailId,
+            attachmentId,
+          );
+          forwardAttachments.push({
+            filename: attachment.filename,
+            mimeType: attachment.mimeType,
+            content: attachment.attachmentBuffer,
+          });
+        } catch (error) {
+          this.logger.warn(
+            `Failed to get forward attachment ${attachmentId}:`,
+            error,
+          );
+        }
+      }
+    }
+
+    const allAttachments = [...(attachments || []), ...forwardAttachments];
+
+    const recipientEmail = scheduledEmail.to[0]?.email;
+    if (!recipientEmail) {
+      throw new Error("No recipient email found in scheduled forward");
+    }
+
+    // Build recipient arrays — to, cc, bcc may be stored as EmailRecipient[] in the entity
+    const toRecipients = scheduledEmail.to;
+    const ccRecipients =
+      scheduledEmail.cc && scheduledEmail.cc.length > 0
+        ? scheduledEmail.cc
+        : undefined;
+    const bccRecipients =
+      scheduledEmail.bcc && scheduledEmail.bcc.length > 0
+        ? scheduledEmail.bcc
+        : undefined;
+
+    await provider.sendEmail(
+      userId,
+      toRecipients,
+      scheduledEmail.subject,
+      bodyWithSignature,
+      ccRecipients,
+      bccRecipients,
+      allAttachments.length > 0 ? allAttachments : undefined,
+    );
+
+    if (scheduledEmail.expectedReplyHours) {
+      this.logger.log(
+        `Expected reply in ${scheduledEmail.expectedReplyHours} hours for scheduled forward ${scheduledEmail.id}`,
       );
     }
   }

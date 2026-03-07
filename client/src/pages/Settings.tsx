@@ -216,6 +216,7 @@ const Settings: React.FC = () => {
           onEditContextValueChange={settingsData.setEditContextValue}
           onEditContextPriorityChange={settingsData.setEditContextPriority}
           onUpdateProfile={settingsData.updateProfile}
+          onRefreshContexts={settingsData.fetchContexts}
         />
 
         <SchedulingPreferencesSection />

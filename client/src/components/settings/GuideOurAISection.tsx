@@ -65,8 +65,10 @@ interface GuideOurAISectionProps {
   onEditContextValueChange: (value: string) => void;
   onEditContextPriorityChange: (priority: number) => void;
   onUpdateProfile?: (updates: { displayName?: string; jobTitle?: string }) => Promise<void>;
+  onRefreshContexts?: () => void;
 }
 
+// eslint-disable-next-line max-lines-per-function -- GuideOurAISection composes context, tone, and summarization sections requiring many props
 export const GuideOurAISection: React.FC<GuideOurAISectionProps> = ({
   contexts,
   toneRules,
@@ -110,6 +112,7 @@ export const GuideOurAISection: React.FC<GuideOurAISectionProps> = ({
   onEditContextValueChange,
   onEditContextPriorityChange,
   onUpdateProfile,
+  onRefreshContexts,
 }) => {
   return (
     <div id="guide-our-ai" style={{
@@ -139,6 +142,7 @@ export const GuideOurAISection: React.FC<GuideOurAISectionProps> = ({
         onEditingContextIdChange={onEditingContextIdChange}
         onEditContextValueChange={onEditContextValueChange}
         onUpdateProfile={onUpdateProfile}
+        onRefreshContexts={onRefreshContexts}
       />
 
       <ToneSettingsSection

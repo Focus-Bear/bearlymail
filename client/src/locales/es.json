@@ -1675,7 +1675,9 @@
       "noItems": "Aún no hay artículos",
       "question": "Pregunta",
       "compress": "Comprimir contexto",
-      "compressing": "Comprimiendo…"
+      "compressing": "Comprimiendo…",
+      "compressSuccess": "Contexto comprimido exitosamente",
+      "compressError": "Error al comprimir el contexto"
     },
     "contextAboutMe": {
       "description1": "Ayude a BearlyMail a comprender sus prioridades brindándole información sobre usted y su trabajo.",
@@ -1737,7 +1739,10 @@
         "statusWithFailed": "{{processed}} de {{total}} correos procesados ({{failed}} fallaron)",
         "remaining": "· {{pending}} restantes",
         "dismiss": "Cerrar progreso de recategorización"
-      }
+      },
+      "consolidateConfirm": "¿Esto consolidará tus categorías de correo usando IA. Las categorías duplicadas o similares se fusionarán. ¿Continuar?",
+      "consolidateSuccess": "Categorías consolidadas exitosamente",
+      "consolidateError": "Error al consolidar las categorías"
     },
     "protoCategories": {
       "viewButton": "Ver categorías sugeridas por IA",

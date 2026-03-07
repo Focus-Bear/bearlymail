@@ -516,7 +516,10 @@
         "statusWithFailed": "{{processed}} of {{total}} emails processed ({{failed}} failed)",
         "remaining": "· {{pending}} remaining",
         "dismiss": "Dismiss recategorisation progress"
-      }
+      },
+      "consolidateConfirm": "This will consolidate your email categories using AI. Duplicate or similar categories will be merged. Continue?",
+      "consolidateSuccess": "Categories consolidated successfully",
+      "consolidateError": "Failed to consolidate categories"
     },
     "protoCategories": {
       "viewButton": "View AI suggested categories",
@@ -840,7 +843,9 @@
       "question": "Question",
       "answer": "Answer",
       "compress": "Compress context",
-      "compressing": "Compressing…"
+      "compressing": "Compressing…",
+      "compressSuccess": "Context compressed successfully",
+      "compressError": "Failed to compress context"
     },
     "guideAI": {
       "title": "Guide Our AI",

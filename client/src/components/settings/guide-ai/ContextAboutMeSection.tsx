@@ -35,6 +35,7 @@ interface ContextAboutMeSectionProps {
   onEditingContextIdChange: (id: string | null) => void;
   onEditContextValueChange: (value: string) => void;
   onUpdateProfile?: (updates: { displayName?: string; jobTitle?: string }) => Promise<void>;
+  onRefreshContexts?: () => void;
 }
 
 export const ContextAboutMeSection: React.FC<ContextAboutMeSectionProps> = ({
@@ -55,6 +56,7 @@ export const ContextAboutMeSection: React.FC<ContextAboutMeSectionProps> = ({
   onEditingContextIdChange,
   onEditContextValueChange,
   onUpdateProfile,
+  onRefreshContexts,
 }) => {
   const { t } = useTranslation();
 
@@ -96,6 +98,7 @@ export const ContextAboutMeSection: React.FC<ContextAboutMeSectionProps> = ({
         onAddingContextTypeChange={onAddingContextTypeChange}
         onEditingContextIdChange={onEditingContextIdChange}
         onEditContextValueChange={onEditContextValueChange}
+        onRefreshContexts={onRefreshContexts}
       />
     </div>
   );

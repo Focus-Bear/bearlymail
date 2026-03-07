@@ -9,7 +9,10 @@ import { RecategorizeProgressBar } from 'components/settings/RecategorizeProgres
 import { API_URL } from 'config/api';
 import { OPACITY_DISABLED } from 'constants/numbers';
 import { CONTEXT_KEY_EMAIL_CATEGORY, STRING_NONE } from 'constants/strings';
+import { useNotifications } from 'contexts/NotificationContext';
 import { useRecategorizeProgress } from 'hooks/settings/useRecategorizeProgress';
+
+const CONSOLIDATE_RELOAD_DELAY_MS = 1500;
 
 interface UserContext { contextId: string; contextKey: string; contextValue: string; source: string; priority?: number; explanation?: string; }
 
@@ -26,12 +29,14 @@ interface ContextSectionsListProps {
   onAddingContextTypeChange: (type: string | null) => void;
   onEditingContextIdChange: (id: string | null) => void;
   onEditContextValueChange: (value: string) => void;
+  onRefreshContexts?: () => void;
 }
 
 interface ContextSectionConfig { titleKey?: string; title?: string; contextKey: string | string[]; addLabelKey?: string; addLabel?: string; tooltipKey: string; anchorId?: string; }
 
 const CONTEXT_SECTIONS: ContextSectionConfig[] = [ { titleKey: 'settings.contextSections.emailCategories', contextKey: 'EMAIL_CATEGORY', addLabelKey: 'settings.addContext.emailCategories', tooltipKey: 'settings.contextTypes.tooltip.emailCategories', anchorId: 'email-categories' }, { titleKey: 'settings.contextSections.vip', contextKey: 'VIP_CONTACT', addLabelKey: 'settings.addContext.vip', tooltipKey: 'settings.contextTypes.tooltip.vip' }, { titleKey: 'settings.contextSections.userInfo', contextKey: 'USER_INFO', addLabelKey: 'settings.addContext.userInfo', tooltipKey: 'settings.contextTypes.tooltip.userInfo' }, { titleKey: 'settings.contextSections.projects', contextKey: ['CURRENT_TOPIC', 'PROJECT_NAME', 'WORKING_ON'], addLabelKey: 'settings.addContext.projects', tooltipKey: 'settings.contextTypes.tooltip.projects' }, { titleKey: 'settings.contextSections.urgent', contextKey: 'URGENT', addLabelKey: 'settings.addContext.urgent', tooltipKey: 'settings.contextTypes.tooltip.urgent' }, { titleKey: 'settings.contextSections.notImportant', contextKey: 'NOT_IMPORTANT', addLabelKey: 'settings.addContext.notImportant', tooltipKey: 'settings.contextTypes.tooltip.notImportant' }, { title: 'Q&A', contextKey: 'Q_AND_A', addLabel: 'Add common Q&A', tooltipKey: 'settings.contextTypes.tooltip.qanda' }, ];
 
+// eslint-disable-next-line max-lines-per-function -- ContextSectionsList manages multiple context sections plus category controls in one place
 export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
   contexts,
   addingContextType,
@@ -45,8 +50,10 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
   onAddingContextTypeChange,
   onEditingContextIdChange,
   onEditContextValueChange,
+  onRefreshContexts,
 }) => {
   const { t } = useTranslation();
+  const { showSuccess, showError } = useNotifications();
   const [isRecategorizing, setIsRecategorizing] = useState(false);
   const [isConsolidating, setIsConsolidating] = useState(false);
   const [isCompressing, setIsCompressing] = useState(false);
@@ -70,25 +77,31 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
   };
 
   const handleConsolidateCategories = async () => {
+    const confirmed = window.confirm(t('settings.emailCategories.consolidateConfirm'));
+    if (!confirmed) return;
+
     setIsConsolidating(true);
     try {
       await axios.post(`${API_URL}/context/consolidate-categories`);
-      // Reload the page to show updated categories
-      window.location.reload();
+      showSuccess(t('settings.emailCategories.consolidateSuccess'));
+      setTimeout(() => { window.location.reload(); }, CONSOLIDATE_RELOAD_DELAY_MS);
     } catch (error) {
       console.error('Failed to consolidate categories:', error);
+      showError(t('settings.emailCategories.consolidateError'));
     } finally {
       setIsConsolidating(false);
     }
   };
 
-
   const handleCompressContext = async () => {
     setIsCompressing(true);
     try {
       await axios.post(`${API_URL}/context/compress`);
+      showSuccess(t('settings.context.compressSuccess'));
+      onRefreshContexts?.();
     } catch (error) {
       console.error('Failed to compress context:', error);
+      showError(t('settings.context.compressError'));
     } finally {
       setIsCompressing(false);
     }

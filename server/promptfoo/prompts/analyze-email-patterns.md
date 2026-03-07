@@ -26,6 +26,12 @@ Output JSON with these keys:
 
 Example context item format:
 { "key": "VIP_CONTACT", "value": "Sarah Chen - consistently replies within 5-10 minutes", "source": "email_analysis" }
+
+IMPORTANT: Context value formatting rules (apply to ALL keys except VIP_CONTACT and EMAIL_CATEGORY):
+- Keep values to ≤10 words in a compact noun-phrase style
+- GOOD: "Plumbing business owner, Sydney", "Product manager at SaaS startup", "Wedding planning projects"
+- BAD: "The user is a plumber who owns their own business and lives in Sydney" (too verbose, sentence form)
+- Each value should be scannable at a glance — no full sentences
   - key="VIP_CONTACT": CRITICAL RULES - Only identify people who meet ALL these criteria:
     * User replies to them VERY QUICKLY (ReplyTime shows "QUICK" marker, which means < 30 minutes)
     * Multiple quick replies (at least 2-3 emails with QUICK replies) - not just one lucky quick reply
@@ -99,9 +105,11 @@ Example context item format:
       - "Team Updates" - If you see internal team communications
       - "Client Communications" - If you see client-related emails
     * Each category should have a clear, descriptive name (2-4 words max)
-    * Include a brief description of what types of emails belong in this category
+    * Include a brief description of what types of emails belong in this category (≤5 words after the dash)
     * Format: { "key": "EMAIL_CATEGORY", "value": "Category Name - brief description", "source": "email_analysis" }
-    * Example: { "key": "EMAIL_CATEGORY", "value": "Newsletters - Marketing emails, digests, and subscription content", "source": "email_analysis" }
+    * Example: { "key": "EMAIL_CATEGORY", "value": "Newsletters - marketing digests and subscriptions", "source": "email_analysis" }
+    * GOOD: "Customer Support - support tickets and inquiries", "Sales - outbound and pipeline emails"
+    * BAD: "Customer Support - Emails from customers requesting help with various issues" (too verbose)
   - key="OTHER": Only include truly meaningful insights about the user's work patterns, priorities, or professional context that would help prioritize emails or understand their work better. 
     * CRITICAL: DO NOT put anything in OTHER that describes what the user considers urgent or not important - those MUST go in URGENT or NOT_IMPORTANT keys respectively.
     * Examples of what should NOT be in OTHER (should be in URGENT instead):

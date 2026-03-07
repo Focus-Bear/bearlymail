@@ -14,6 +14,8 @@ Rules:
 5. Remove redundant or outdated information
 6. Keep priority values (higher = more important)
 7. Write concise explanations that capture the essence of merged items
+8. Format values as compact noun phrases (≤10 words): e.g. "Plumbing business owner, Sydney" not "The user is a plumber who owns a business and lives in Sydney"
+9. For EMAIL_CATEGORY values, keep the "Category Name - brief description" format but limit the description to ≤5 words
 
 Respond with a JSON object:
 ```json

@@ -253,12 +253,14 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   useEffect(() => {
     if (summaryCategories && summaryCategories.length > 0) {
       if (stableCategoryOrder.length === 0) {
+        console.log('[InboxContent] Initialising stableCategoryOrder from summary:', summaryCategories.map(cat => cat.name));
         onUpdateStableCategoryOrder(summaryCategories.map(cat => cat.name));
       } else {
         const newCategories = summaryCategories
           .map(cat => cat.name)
           .filter(name => !stableCategoryOrder.includes(name));
         if (newCategories.length > 0) {
+          console.log('[InboxContent] Appending new categories from summary:', newCategories);
           onUpdateStableCategoryOrder([...stableCategoryOrder, ...newCategories]);
         }
       }
@@ -267,12 +269,14 @@ export const InboxContent: React.FC<InboxContentProps> = ({
       const categoryGroups = groupEmailsByCategory(filteredEmails, mode);
       if (categoryGroups.length > 0) {
         if (stableCategoryOrder.length === 0) {
+          console.log('[InboxContent] Initialising stableCategoryOrder from emails (no summary):', categoryGroups.map(grp => grp.category));
           onUpdateStableCategoryOrder(categoryGroups.map(grp => grp.category));
         } else {
           const newCategories = categoryGroups
             .filter(grp => !stableCategoryOrder.includes(grp.category))
             .map(grp => grp.category);
           if (newCategories.length > 0) {
+            console.log('[InboxContent] Appending new categories from emails (no summary):', newCategories);
             onUpdateStableCategoryOrder([...stableCategoryOrder, ...newCategories]);
           }
         }
@@ -420,9 +424,14 @@ export const InboxContent: React.FC<InboxContentProps> = ({
               const group = emailCategoryMap.get(categoryName);
               const categoryEmails = group?.emails ?? [];
 
-              // Hide categories that have been loaded and have no emails.
-              // This handles edge cases where the summary count might be stale.
-              if (isLoaded && categoryEmails.length === 0) return null;
+              // Hide categories that have been fully loaded AND have no emails AND the summary
+              // also reports zero count. Checking all three prevents the accordion from
+              // vanishing when the fetch returns 0 emails due to a race/backend issue while
+              // the summary still shows a non-zero count — that would be a false disappearance.
+              if (isLoaded && categoryEmails.length === 0 && categoryItem.count === 0) {
+                console.debug('[InboxContent] Hiding empty category (isLoaded=true, 0 emails, count=0):', categoryItem.name);
+                return null;
+              }
 
               // Compute global index for keyboard navigation (across categories)
               let globalIndex = 0;

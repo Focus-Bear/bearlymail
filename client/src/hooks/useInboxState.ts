@@ -214,13 +214,20 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     resetForModeChange();
   }, [dispatch, resetForModeChange]);
 
-
+  // URL-driven mode change (browser back/forward): must also reset accordion state so the
+  // new mode auto-expands its own categories. Without this, stale expandedCategories from
+  // the previous mode persist, preventing auto-expand of the new mode's categories and
+  // causing Effect 1 to attempt fetching categories that don't exist in the new mode.
+  const handleUrlModeChange = useCallback((newMode: InboxMode) => {
+    setModeState(newMode);
+    resetForModeChange();
+  }, [resetForModeChange]);
 
   // URL synchronization sub-hook (replaces isInitialMount/lastUrlRef refs + getBasePath + 3 useEffects)
   useInboxUrlSync({
     isFocusedMode, mode, splitViewSelectedEmailId: splitView.selectedEmailId,
     urlMode, urlThreadId, openEmail: splitView.openEmail, closeEmail: splitView.closeEmail,
-    navigate, onUrlModeChange: setModeState,
+    navigate, onUrlModeChange: handleUrlModeChange,
   });
 
   return {

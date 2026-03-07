@@ -160,20 +160,26 @@ async function fetchCategoryEmailsImpl({ categoryName, categoryId, mode, dispatc
 
   const sessionId = fetchSessionRef.current;
   dispatch(markCategoryLoading(categoryName));
+  console.log('[Accordion] Fetching category:', categoryName);
 
   try {
     const params = buildCategoryParams(categoryName, categoryId);
     const response = await axios.get(`${API_URL}/emails/inbox?${params.toString()}`);
     const normalizedEmails = normalizeCategoryEmails(response.data.emails, categoryName);
-    if (fetchSessionRef.current !== sessionId) return;
+    if (fetchSessionRef.current !== sessionId) {
+      console.log('[Accordion] Stale fetch discarded for category:', categoryName, '(session changed)');
+      return;
+    }
     dispatch(updateCategoryEmails({ categoryName, emails: normalizedEmails }));
     dispatch(markCategoryLoaded(categoryName));
+    console.log('[Accordion] Loaded category:', categoryName, normalizedEmails.length, 'emails');
   } catch (error: any) {
     console.error('[Accordion] Failed to load category:', categoryName, error);
     // Use markCategoryLoadFailed so isLoaded stays false — the next expand will retry.
     // markCategoryLoaded would set isLoaded=true with no emails, causing CategorySection
     // to return null and the accordion section to vanish entirely.
     if (fetchSessionRef.current === sessionId) {
+      console.warn('[Accordion] Category load failed, allowing retry:', categoryName);
       dispatch(markCategoryLoadFailed(categoryName));
     }
   }

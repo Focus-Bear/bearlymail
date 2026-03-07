@@ -46,12 +46,15 @@ export function useInboxCategoryAccordion({
       setStableCategoryOrder(categories);
       if (!hasAutoExpandedRef.current) {
         hasAutoExpandedRef.current = true;
-        setExpandedCategories(new Set(categories.slice(0, INITIAL_PRELOAD_COUNT)));
+        const autoExpand = new Set(categories.slice(0, INITIAL_PRELOAD_COUNT));
+        console.log('[Accordion] Auto-expanding first', INITIAL_PRELOAD_COUNT, 'categories:', Array.from(autoExpand));
+        setExpandedCategories(autoExpand);
       }
     }
   }, []);
 
   const resetForModeChange = useCallback(() => {
+    console.log('[Accordion] resetForModeChange called — clearing expandedCategories and stableCategoryOrder');
     setStableCategoryOrder([]);
     setExpandedCategories(new Set());
     hasAutoExpandedRef.current = false;
@@ -72,6 +75,7 @@ export function useInboxCategoryAccordion({
       category => !loadedCategoryNamesRef.current.includes(category) && !loadingCategoryNamesRef.current.includes(category)
     );
     if (toFetch.length === 0) return;
+    console.log('[Accordion] Effect1 queuing fetch for:', toFetch, '| expanded:', Array.from(expandedCategories), '| loaded:', loadedCategoryNamesRef.current, '| loading:', loadingCategoryNamesRef.current);
     toFetch.forEach(categoryName => {
       const categoryItem = categorySummary.find(cat => cat.name === categoryName);
       fetchCategoryEmails(categoryName, categoryItem?.id).catch(err =>
@@ -103,6 +107,7 @@ export function useInboxCategoryAccordion({
         !limboDispatchedRef.current.has(category),
     );
     if (limboCategories.length === 0) return;
+    console.log('[Accordion] Effect2 (limbo) re-fetching:', limboCategories, '| expanded:', Array.from(expandedCategoriesRef.current), '| loaded:', loadedCategoryNames, '| loading:', loadingCategoryNames);
     limboCategories.forEach(categoryName => {
       limboDispatchedRef.current.add(categoryName);
       const categoryItem = categorySummary.find(cat => cat.name === categoryName);
@@ -114,24 +119,14 @@ export function useInboxCategoryAccordion({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categorySummary, loadedCategoryNames, loadingCategoryNames, fetchCategoryEmails]);
 
-  // Effect 3 — Re-fetch expanded category emails when categorySummary reloads after a
-  // background poll (null → populated transition).
-  const prevCategorySummaryRef = useRef<typeof categorySummary>(null);
-
-  useEffect(() => {
-    const wasNull = prevCategorySummaryRef.current === null;
-    prevCategorySummaryRef.current = categorySummary ?? null;
-    if (!wasNull || !categorySummary) return;
-    const toRefetch = Array.from(expandedCategoriesRef.current).filter(
-      category => !loadedCategoryNamesRef.current.includes(category) && !loadingCategoryNamesRef.current.includes(category)
-    );
-    toRefetch.forEach(categoryName => {
-      const categoryItem = categorySummary.find(cat => cat.name === categoryName);
-      fetchCategoryEmails(categoryName, categoryItem?.id).catch(err =>
-        console.error(`Error re-fetching category "${categoryName}":`, err)
-      );
-    });
-  }, [categorySummary, fetchCategoryEmails]);
+  // NOTE: Effect 3 (null → populated re-fetch) was removed — it is fully covered by
+  // Effect 1. When categorySummary transitions null → non-null, Effect 1 fires because
+  // categorySummary is in its dep array; it then re-fetches any expanded categories
+  // that are neither loaded nor loading. Having Effect 3 as well caused a double-fetch:
+  // both effects ran in the same render cycle with stale loadingCategoryNamesRef (the
+  // ref is only updated on the next render after markCategoryLoading lands in Redux),
+  // so both effects bypassed the in-flight guard and dispatched two concurrent API
+  // calls for the same categories.
 
   return {
     expandedCategories,

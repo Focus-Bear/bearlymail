@@ -82,9 +82,11 @@ export const DebugStarredSection: React.FC<DebugStarredSectionProps> = ({
             onClick={(event) => event.stopPropagation()}
           >
             <h4 style={{ marginTop: 0 }}>Starred Sync Check Results</h4>
-            <p style={{ marginTop: 0 }}>
-              Gmail search matched {debugStarredData.gmail.starredEmailCount} starred emails across {debugStarredData.gmail.starredThreadCount} threads.
-            </p>
+            {debugStarredData.gmail && (
+              <p style={{ marginTop: 0 }}>
+                Gmail search matched {debugStarredData.gmail.starredEmailCount} starred emails across {debugStarredData.gmail.starredThreadCount} threads.
+              </p>
+            )}
             {debugStarredData.gmailVisibilityChecks?.map((item) => (
               <div key={item.threadId} style={{ marginBottom: theme.spacing.sm }}>
                 <strong>{item.threadId}</strong> — {item.visibleInAction ? 'Visible' : 'Hidden'} ({item.syncStatus})

@@ -20,6 +20,42 @@ export interface ThreadWithFollowUp extends Email {
   followUp: FollowUpData | null;
 }
 
+function allTargetedFollowUpsSent(
+  threads: ThreadWithFollowUp[],
+  followUpIds: string[]
+): boolean {
+  return threads.every(thread => {
+    if (!thread.followUp || !followUpIds.includes(thread.followUp.id)) {
+      return true;
+    }
+    return (
+      thread.followUp.sendStatus === FOLLOW_UP_SEND_STATUS_SENT ||
+      thread.followUp.sendStatus === FOLLOW_UP_SEND_STATUS_FAILED
+    );
+  });
+}
+
+function startSendStatusPolling(
+  followUpIds: string[],
+  threads: ThreadWithFollowUp[],
+  fetchThreadsWithDrafts: () => Promise<ThreadWithFollowUp[]>
+): void {
+  const pollInterval = setInterval(async () => {
+    try {
+      await fetchThreadsWithDrafts();
+      if (allTargetedFollowUpsSent(threads, followUpIds)) {
+        clearInterval(pollInterval);
+      }
+    } catch (err) {
+      console.error('Error polling send status:', err);
+    }
+  }, POLLING_INTERVAL_MS);
+
+  setTimeout(() => {
+    clearInterval(pollInterval);
+  }, POLLING_TIMEOUT_5_MIN_MS);
+}
+
 export const useFollowUps = () => {
   const [threads, setThreads] = useState<ThreadWithFollowUp[]>([]);
   const [loading, setLoading] = useState(false);
@@ -56,10 +92,7 @@ export const useFollowUps = () => {
       setIsGeneratingDrafts(true);
       setError(null);
       try {
-        await axios.post(`${API_URL}/follow-ups/generate-drafts-for-threads`, {
-          threadIds,
-        });
-
+        await axios.post(`${API_URL}/follow-ups/generate-drafts-for-threads`, { threadIds });
         startGenerationPolling();
       } catch (err: any) {
         setError(err.response?.data?.message || 'Failed to generate drafts');
@@ -88,41 +121,10 @@ export const useFollowUps = () => {
       if (followUpIds.length > MAX_BULK_SEND_COUNT) {
         throw new Error(`Maximum ${MAX_BULK_SEND_COUNT} follow-ups allowed per bulk send`);
       }
-
       setError(null);
       try {
-        const response = await axios.post(`${API_URL}/follow-ups/bulk-send`, {
-          followUpIds,
-        });
-
-        // Poll for send status
-        const pollInterval = setInterval(async () => {
-          try {
-            await fetchThreadsWithDrafts();
-            // Check if all are sent
-            const allSent = threads.every(thread => {
-              if (!thread.followUp || !followUpIds.includes(thread.followUp.id)) {
-                return true;
-              }
-              return (
-                thread.followUp.sendStatus === FOLLOW_UP_SEND_STATUS_SENT ||
-                thread.followUp.sendStatus === FOLLOW_UP_SEND_STATUS_FAILED
-              );
-            });
-
-            if (allSent) {
-              clearInterval(pollInterval);
-            }
-          } catch (err) {
-            console.error('Error polling send status:', err);
-          }
-        }, POLLING_INTERVAL_MS);
-
-        // Stop polling after 5 minutes
-        setTimeout(() => {
-          clearInterval(pollInterval);
-        }, POLLING_TIMEOUT_5_MIN_MS);
-
+        const response = await axios.post(`${API_URL}/follow-ups/bulk-send`, { followUpIds });
+        startSendStatusPolling(followUpIds, threads, fetchThreadsWithDrafts);
         return response.data;
       } catch (err: any) {
         setError(err.response?.data?.message || 'Failed to send follow-ups');

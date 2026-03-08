@@ -31,6 +31,31 @@ function navigateSplitViewAfterRemove(
   }
 }
 
+function scrollToEmailAtIndex(
+  emailListRef: React.RefObject<HTMLDivElement | null>,
+  nextIndex: number,
+  setSelectedEmailIndex?: (index: number) => void
+): void {
+  setTimeout(() => {
+    const el = emailListRef.current?.querySelector(`[data-email-index="${nextIndex}"]`) as HTMLElement;
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      setSelectedEmailIndex?.(nextIndex);
+    }
+  }, 100);
+}
+
+function removeFromSelection(
+  emailId: string,
+  setSelectedEmailIds: React.Dispatch<React.SetStateAction<Set<string>>>
+): void {
+  setSelectedEmailIds(prev => {
+    const ns = new Set(prev);
+    ns.delete(emailId);
+    return ns;
+  });
+}
+
 interface UseEmailActionsProps {
   mode: InboxMode;
   emails: Email[];
@@ -86,31 +111,16 @@ interface UseEmailActionsReturn {
   handleBulkMarkAsUnread: () => Promise<void>;
 }
 
-export function useEmailActions({
-  mode,
-  emails,
-  setEmails,
-  selectedEmailIds,
-  setSelectedEmailIds,
-  handleSetStarCountBase,
-  handleArchiveBase,
-  handleSnoozeBase,
-  handleMarkAsRead,
-  handleBulkMarkAsRead,
-  handleBulkMarkAsUnread,
-  onShowStarDiscrepancy,
-  onShowPriorityOverride,
-  onShowBlockConfirm,
-  onHideBlockConfirm,
-  blockConfirmEmail,
-  fetchEmails,
-  snoozeInput,
-  emailListRef,
-  selectedEmailIndex,
-  setSelectedEmailIndex,
-  splitView,
-  onTabCountsUpdateOptimistically,
-}: UseEmailActionsProps): UseEmailActionsReturn {
+export function useEmailActions(props: UseEmailActionsProps): UseEmailActionsReturn {
+  const {
+    mode, emails, setEmails, selectedEmailIds, setSelectedEmailIds,
+    handleSetStarCountBase, handleArchiveBase, handleSnoozeBase,
+    handleMarkAsRead, handleBulkMarkAsRead, handleBulkMarkAsUnread,
+    onShowStarDiscrepancy, onShowPriorityOverride,
+    onShowBlockConfirm, onHideBlockConfirm, blockConfirmEmail, fetchEmails,
+    snoozeInput, emailListRef, selectedEmailIndex, setSelectedEmailIndex,
+    splitView, onTabCountsUpdateOptimistically,
+  } = props;
   const { handleSetStarCount } = useStarCountHandler({
     emails,
     handleSetStarCountBase,
@@ -123,11 +133,7 @@ export function useEmailActions({
       captureEvent('email_archive_clicked', { email_id: emailId });
       const visibleEmails = emails.filter(email => !email.isArchived);
       const archivedIndex = visibleEmails.findIndex(email => email.id === emailId);
-      setSelectedEmailIds(prev => {
-        const ns = new Set(prev);
-        ns.delete(emailId);
-        return ns;
-      });
+      removeFromSelection(emailId, setSelectedEmailIds);
       await handleArchiveBase(emailId, event);
       if (splitView?.selectedEmailId === emailId) {
         navigateSplitViewAfterRemove(emailId, archivedIndex, visibleEmails, splitView, setSelectedEmailIndex);
@@ -179,23 +185,13 @@ export function useEmailActions({
       const visibleEmails = emails.filter(email => !email.isArchived);
       const snoozedIndex = visibleEmails.findIndex(email => email.id === emailId);
       snoozeInput.clearSnooze(emailId);
-      setSelectedEmailIds(prev => {
-        const ns = new Set(prev);
-        ns.delete(emailId);
-        return ns;
-      });
+      removeFromSelection(emailId, setSelectedEmailIds);
       handleSnoozeBase(emailId, duration);
       if (splitView?.selectedEmailId === emailId) {
         navigateSplitViewAfterRemove(emailId, snoozedIndex, visibleEmails, splitView, setSelectedEmailIndex);
       } else if (emailListRef?.current && snoozedIndex >= 0 && visibleEmails.length > 1) {
         const nextIndex = snoozedIndex < visibleEmails.length - 1 ? snoozedIndex : Math.max(0, snoozedIndex - 1);
-        setTimeout(() => {
-          const el = emailListRef.current?.querySelector(`[data-email-index="${nextIndex}"]`) as HTMLElement;
-          if (el) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            setSelectedEmailIndex?.(nextIndex);
-          }
-        }, 100);
+        scrollToEmailAtIndex(emailListRef, nextIndex, setSelectedEmailIndex);
       }
     },
     [snoozeInput, handleSnoozeBase, emails, splitView, emailListRef, setSelectedEmailIndex, setSelectedEmailIds]

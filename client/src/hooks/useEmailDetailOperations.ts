@@ -27,6 +27,97 @@ import { EmailDetailOperationsOptions, EmailDetailState } from './useEmailDetail
 
 export type { EmailDetailOperationsOptions, EmailDetailState };
 
+interface SendReplyPayload {
+  emailId: string;
+  draft: string;
+  recipients: string;
+  cc: string | null;
+  bcc: string | null;
+  replyMode: string;
+  expectedReplyHours?: number;
+  scheduledSendAt?: Date;
+  files: File[];
+}
+
+function buildSendReplyFormData(payload: SendReplyPayload): FormData {
+  const formData = new FormData();
+  formData.append('reply', payload.draft);
+  formData.append('recipients', payload.recipients);
+  formData.append('replyAll', String(payload.replyMode === REPLY_MODE_REPLY_ALL));
+  if (payload.cc) {
+    formData.append('cc', payload.cc);
+  }
+  if (payload.bcc) {
+    formData.append('bcc', payload.bcc);
+  }
+  if (payload.expectedReplyHours !== undefined) {
+    formData.append('expectedReplyHours', String(payload.expectedReplyHours));
+  }
+  if (payload.scheduledSendAt) {
+    formData.append('scheduledSendAt', payload.scheduledSendAt.toISOString());
+  }
+  payload.files.forEach(file => {
+    formData.append('files', file);
+  });
+  return formData;
+}
+
+async function sendReplyRequest(payload: SendReplyPayload): Promise<void> {
+  if (payload.files.length > 0) {
+    const formData = buildSendReplyFormData(payload);
+    await axios.post(`${API_URL}/replies/send/${payload.emailId}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  } else {
+    await axios.post(`${API_URL}/replies/send/${payload.emailId}`, {
+      reply: payload.draft,
+      recipients: payload.recipients,
+      cc: payload.cc || undefined,
+      bcc: payload.bcc || undefined,
+      replyAll: payload.replyMode === REPLY_MODE_REPLY_ALL,
+      expectedReplyHours: payload.expectedReplyHours,
+      scheduledSendAt: payload.scheduledSendAt?.toISOString(),
+    });
+  }
+}
+
+interface PostSendRoutingParams {
+  keepInAction?: boolean;
+  expectedReplyHours?: number;
+  scheduledSendAt?: Date;
+  performArchiveAfterReply: () => void;
+  performSnoozeAfterReply: (duration: string) => void;
+  navigate: (path: string) => void;
+  getInboxPath: () => string;
+}
+
+function routeAfterSend({
+  keepInAction,
+  expectedReplyHours,
+  scheduledSendAt,
+  performArchiveAfterReply,
+  performSnoozeAfterReply,
+  navigate,
+  getInboxPath,
+}: PostSendRoutingParams): void {
+  if (keepInAction) {
+    return;
+  }
+  if (expectedReplyHours !== undefined) {
+    if (expectedReplyHours === 0) {
+      performArchiveAfterReply();
+    } else {
+      const duration =
+        expectedReplyHours <= HOURS_IN_TWO_DAYS
+          ? `${expectedReplyHours}h`
+          : `${Math.round(expectedReplyHours / HOURS_PER_DAY)}d`;
+      performSnoozeAfterReply(duration);
+    }
+  } else {
+    navigate(getInboxPath());
+  }
+}
+
 // eslint-disable-next-line max-lines-per-function -- Email detail operations hook requires handling multiple email operations, state management, and API calls
 export function useEmailDetailOperations(
   id: string | undefined,
@@ -707,69 +798,27 @@ export function useEmailDetailOperations(
       setShowReplyComposer(false);
       triggerAnimation(ANIMATION_TYPE_SEND);
 
-      // eslint-disable-next-line max-statements -- sendReplyAsync handles both file-upload and JSON paths plus post-send routing logic
       const sendReplyAsync = async () => {
+        const payload: SendReplyPayload = {
+          emailId: currentId,
+          draft: draftToSend,
+          recipients: currentReplyRecipients,
+          cc: currentReplyCc,
+          bcc: currentReplyBcc,
+          replyMode: currentReplyMode,
+          expectedReplyHours,
+          scheduledSendAt,
+          files,
+        };
         try {
-          if (files.length > 0) {
-            const formData = new FormData();
-            formData.append('reply', draftToSend);
-            formData.append('recipients', currentReplyRecipients);
-            formData.append('replyAll', String(currentReplyMode === REPLY_MODE_REPLY_ALL));
-            if (currentReplyCc) {
-              formData.append('cc', currentReplyCc);
-            }
-            if (currentReplyBcc) {
-              formData.append('bcc', currentReplyBcc);
-            }
-            if (expectedReplyHours !== undefined) {
-              formData.append('expectedReplyHours', String(expectedReplyHours));
-            }
-            if (scheduledSendAt) {
-              formData.append('scheduledSendAt', scheduledSendAt.toISOString());
-            }
-            files.forEach(file => {
-              formData.append('files', file);
-            });
-
-            await axios.post(`${API_URL}/replies/send/${currentId}`, formData, {
-              headers: {
-                'Content-Type': 'multipart/form-data',
-              },
-            });
-          } else {
-            await axios.post(`${API_URL}/replies/send/${currentId}`, {
-              reply: draftToSend,
-              recipients: currentReplyRecipients,
-              cc: currentReplyCc || undefined,
-              bcc: currentReplyBcc || undefined,
-              replyAll: currentReplyMode === REPLY_MODE_REPLY_ALL,
-              expectedReplyHours,
-              scheduledSendAt: scheduledSendAt?.toISOString(),
-            });
-          }
+          await sendReplyRequest(payload);
           setDraft(null);
           deleteDraft();
-
           const successMessage = scheduledSendAt
             ? t('emailDetail.replyScheduledSuccess')
             : t('emailDetail.replySentSuccess');
           showSuccess(successMessage);
-
-          if (!keepInAction) {
-            if (expectedReplyHours !== undefined) {
-              if (expectedReplyHours === 0) {
-                performArchiveAfterReply();
-              } else {
-                const duration =
-                  expectedReplyHours <= HOURS_IN_TWO_DAYS
-                    ? `${expectedReplyHours}h`
-                    : `${Math.round(expectedReplyHours / HOURS_PER_DAY)}d`;
-                performSnoozeAfterReply(duration);
-              }
-            } else {
-              navigate(getInboxPath());
-            }
-          }
+          routeAfterSend({ keepInAction, expectedReplyHours, scheduledSendAt, performArchiveAfterReply, performSnoozeAfterReply, navigate, getInboxPath });
         } catch (error: any) {
           console.error('Error sending reply:', error);
           setDraft(draftToSend);

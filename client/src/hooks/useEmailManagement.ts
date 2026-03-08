@@ -63,6 +63,58 @@ async function bulkMarkReadUnread({
   }
 }
 
+interface EmailReduxState {
+  emails: Email[];
+  loading: boolean;
+  decrypting: boolean;
+  refreshing: boolean;
+  loadingModeSwitch: boolean;
+  fetchError: string | null;
+  hasMore: boolean;
+  categorySummary: CategorySummaryItem[] | null;
+  loadedCategoryNames: string[];
+  loadingCategoryNames: string[];
+}
+
+function useEmailReduxState(): EmailReduxState {
+  return {
+    emails: useSelector(selectVisibleEmails),
+    loading: useSelector(selectLoading),
+    decrypting: useSelector(selectDecrypting),
+    refreshing: useSelector(selectRefreshing),
+    loadingModeSwitch: useSelector(selectLoadingModeSwitch),
+    fetchError: useSelector(selectFetchError),
+    hasMore: useSelector(selectHasMore),
+    categorySummary: useSelector(selectCategorySummary),
+    loadedCategoryNames: useSelector(selectLoadedCategoryNames),
+    loadingCategoryNames: useSelector(selectLoadingCategoryNames),
+  };
+}
+
+function applyEmailStateUpdate(
+  action: React.SetStateAction<Email[]>,
+  currentEmails: Email[],
+  dispatch: AppDispatch
+): void {
+  if (typeof action === 'function') {
+    dispatch(setEmailsAction(action(currentEmails)));
+  } else {
+    dispatch(setEmailsAction(action));
+  }
+}
+
+function applyLoadingModeSwitchUpdate(
+  value: boolean | ((prev: boolean) => boolean),
+  currentValue: boolean,
+  dispatch: AppDispatch
+): void {
+  if (typeof value === 'function') {
+    dispatch(setLoadingModeSwitchAction(value(currentValue)));
+  } else {
+    dispatch(setLoadingModeSwitchAction(value));
+  }
+}
+
 interface TabCountChanges {
   triage?: number;
   action?: number;
@@ -107,27 +159,12 @@ interface UseEmailManagementReturn {
   handleCheckUrgent: () => Promise<{ hasUrgent: boolean; count: number; emails: any[] }>;
 }
 
-export function useEmailManagement({
-  mode,
-  onSuggestionRemove,
-  onTabCountsUpdateOptimistically,
-  filters,
-}: UseEmailManagementProps): UseEmailManagementReturn {
+export function useEmailManagement(props: UseEmailManagementProps): UseEmailManagementReturn {
+  const { mode, onSuggestionRemove, onTabCountsUpdateOptimistically, filters } = props;
   const dispatch = useDispatch<AppDispatch>();
-  // selectVisibleEmails filters out optimistically archived/snoozed emails from Redux state
-  const emails = useSelector(selectVisibleEmails);
-  const loading = useSelector(selectLoading);
-  const decrypting = useSelector(selectDecrypting);
-  const refreshing = useSelector(selectRefreshing);
-  const loadingModeSwitch = useSelector(selectLoadingModeSwitch);
-  const fetchError = useSelector(selectFetchError);
+  const { emails, loading, decrypting, refreshing, loadingModeSwitch, fetchError, hasMore, categorySummary, loadedCategoryNames, loadingCategoryNames } = useEmailReduxState();
 
-  const hasMore = useSelector(selectHasMore);
-  const categorySummary = useSelector(selectCategorySummary);
-  const loadedCategoryNames = useSelector(selectLoadedCategoryNames);
-  const loadingCategoryNames = useSelector(selectLoadingCategoryNames);
   const { fetchEmails, loadMore, fetchCategoryEmails, refreshInPlace } = useEmailFetching({ mode, filters });
-
   const { handleSetStarCount, handleArchive, handleSnooze } = useEmailActionsBase({
     fetchEmails,
     onSuggestionRemove,
@@ -186,28 +223,13 @@ export function useEmailManagement({
     }
   }, [dispatch]);
 
-  // setEmails is kept for backward compatibility but now dispatches to Redux
   const setEmails = useCallback(
-    (action: React.SetStateAction<Email[]>) => {
-      if (typeof action === TYPEOF_FUNCTION) {
-        const newEmails = action(emails);
-        dispatch(setEmailsAction(newEmails));
-      } else {
-        dispatch(setEmailsAction(action));
-      }
-    },
+    (action: React.SetStateAction<Email[]>) => applyEmailStateUpdate(action, emails, dispatch),
     [dispatch, emails]
   );
 
-  // setLoadingModeSwitch is kept for backward compatibility
   const setLoadingModeSwitch = useCallback(
-    (value: boolean | ((prev: boolean) => boolean)) => {
-      if (typeof value === TYPEOF_FUNCTION) {
-        dispatch(setLoadingModeSwitchAction(value(loadingModeSwitch)));
-      } else {
-        dispatch(setLoadingModeSwitchAction(value));
-      }
-    },
+    (value: boolean | ((prev: boolean) => boolean)) => applyLoadingModeSwitchUpdate(value, loadingModeSwitch, dispatch),
     [dispatch, loadingModeSwitch]
   );
 

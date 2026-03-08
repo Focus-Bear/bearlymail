@@ -139,18 +139,73 @@ async function generateRepliesOnDemandImpl(
   }
 }
 
-export function useReplyDraftGeneration(
-  emailId: string,
-  email: Email | null,
-  options: UseReplyDraftGenerationOptions = {}
-) {
-  const { autoGenerate = false } = options;
+interface ReplyGenerationStateSetters {
+  setReplyOptions: (opts: Array<{ label: string; text: string }> | null) => void;
+  setSelectedReplyOption: (i: number) => void;
+  setDraft: (draft: string | null) => void;
+  setLoadingReplies: (loading: boolean) => void;
+  setIsGeneratingInBackground: (active: boolean) => void;
+  setDebugInfo: (info: ReplyGenerationDebugInfo | null) => void;
+}
+
+interface ReplyGenerationState extends ReplyGenerationStateSetters {
+  replyOptions: Array<{ label: string; text: string }> | null;
+  selectedReplyOption: number;
+  draft: string | null;
+  loadingReplies: boolean;
+  isGeneratingInBackground: boolean;
+  debugInfo: ReplyGenerationDebugInfo | null;
+}
+
+function useReplyGenerationState(): ReplyGenerationState {
   const [replyOptions, setReplyOptions] = useState<Array<{ label: string; text: string }> | null>(null);
   const [selectedReplyOption, setSelectedReplyOption] = useState<number>(0);
   const [draft, setDraft] = useState<string | null>(null);
   const [loadingReplies, setLoadingReplies] = useState(false);
   const [isGeneratingInBackground, setIsGeneratingInBackground] = useState(false);
   const [debugInfo, setDebugInfo] = useState<ReplyGenerationDebugInfo | null>(null);
+  return {
+    replyOptions, setReplyOptions, selectedReplyOption, setSelectedReplyOption,
+    draft, setDraft, loadingReplies, setLoadingReplies,
+    isGeneratingInBackground, setIsGeneratingInBackground, debugInfo, setDebugInfo,
+  };
+}
+
+function buildDebugInfo(
+  emailId: string,
+  email: Email,
+  lastGeneratedEmailIdRef: MutableRefObject<string | null>
+): ReplyGenerationDebugInfo {
+  return {
+    propEmailId: emailId,
+    emailObjectId: email.id,
+    emailThreadId: email.emailThreadId || null,
+    threadIdUsedForFetch: email.emailThreadId || null,
+    lastGeneratedForEmailId: lastGeneratedEmailIdRef.current,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+function resetReplyGenerationState(setters: ReplyGenerationStateSetters): void {
+  setters.setReplyOptions(null);
+  setters.setDraft(null);
+  setters.setSelectedReplyOption(0);
+  setters.setLoadingReplies(false);
+  setters.setIsGeneratingInBackground(false);
+  setters.setDebugInfo(null);
+}
+
+export function useReplyDraftGeneration(
+  emailId: string,
+  email: Email | null,
+  options: UseReplyDraftGenerationOptions = {}
+) {
+  const { autoGenerate = false } = options;
+  const {
+    replyOptions, setReplyOptions, selectedReplyOption, setSelectedReplyOption,
+    draft, setDraft, loadingReplies, setLoadingReplies,
+    isGeneratingInBackground, setIsGeneratingInBackground, debugInfo, setDebugInfo,
+  } = useReplyGenerationState();
   const lastGeneratedEmailId = useRef<string | null>(null);
   const currentGenerationEmailIdRef = useRef<string | null>(null);
   const previousEmailIdRef = useRef<string | null>(null);
@@ -165,12 +220,7 @@ export function useReplyDraftGeneration(
       }
       currentGenerationEmailIdRef.current = null;
       threadIdUsedForFetchRef.current = null;
-      setReplyOptions(null);
-      setDraft(null);
-      setSelectedReplyOption(0);
-      setLoadingReplies(false);
-      setIsGeneratingInBackground(false);
-      setDebugInfo(null);
+      resetReplyGenerationState({ setReplyOptions, setSelectedReplyOption, setDraft, setLoadingReplies, setIsGeneratingInBackground, setDebugInfo });
     }
     previousEmailIdRef.current = emailId;
   }, [emailId]);
@@ -182,9 +232,6 @@ export function useReplyDraftGeneration(
     if (!emailId || !email) {
       return;
     }
-
-    // Ensure email data matches the current ID to prevent using stale data
-    // This can happen when switching threads - emailId updates before email state
     if (email.id !== emailId) {
       console.warn('[ReplyDraftGeneration] Skipping generation - email.id mismatch', {
         propEmailId: emailId,
@@ -193,7 +240,6 @@ export function useReplyDraftGeneration(
       return;
     }
 
-    // Cancel any pending request before starting a new one
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -204,14 +250,7 @@ export function useReplyDraftGeneration(
     currentGenerationEmailIdRef.current = currentEmailId;
     threadIdUsedForFetchRef.current = email.emailThreadId || null;
 
-    setDebugInfo({
-      propEmailId: emailId,
-      emailObjectId: email.id,
-      emailThreadId: email.emailThreadId || null,
-      threadIdUsedForFetch: email.emailThreadId || null,
-      lastGeneratedForEmailId: lastGeneratedEmailId.current,
-      timestamp: new Date().toISOString(),
-    });
+    setDebugInfo(buildDebugInfo(emailId, email, lastGeneratedEmailId));
 
     setLoadingReplies(true);
 
@@ -250,16 +289,5 @@ export function useReplyDraftGeneration(
     }
   }, [autoGenerate, emailId, email, handleGenerateDraft]);
 
-  return {
-    replyOptions,
-    selectedReplyOption,
-    draft,
-    loadingReplies,
-    isGeneratingInBackground,
-    debugInfo,
-    setReplyOptions,
-    setDraft,
-    setSelectedReplyOption,
-    handleGenerateDraft,
-  };
+  return { replyOptions, selectedReplyOption, draft, loadingReplies, isGeneratingInBackground, debugInfo, setReplyOptions, setDraft, setSelectedReplyOption, handleGenerateDraft };
 }

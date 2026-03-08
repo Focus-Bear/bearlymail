@@ -5,9 +5,31 @@ import { API_URL } from 'config/api';
 
 type ActionItem = { id?: string; description: string; isCompleted: boolean; source: string };
 
-export function useEmailDetailActionItems(
-  email: { id: string; threadId: string; body: string; from: string; fromName?: string } | null
-) {
+type EmailArg = { id: string; threadId: string; body: string; from: string; fromName?: string } | null;
+
+function buildActionItemsFromLLMResponse(
+  responseData: Array<{ description: string }>
+): Array<{ description: string; isCompleted: boolean; source: string }> {
+  return responseData.map(item => ({
+    description: item.description,
+    isCompleted: false,
+    source: 'llm',
+  }));
+}
+
+async function saveExtractedActionItems(
+  newItems: Array<{ description: string; isCompleted: boolean; source: string }>,
+  emailId: string,
+  emailThreadId: string
+): Promise<void> {
+  await Promise.all(
+    newItems.map(item =>
+      axios.post(`${API_URL}/action-items`, { ...item, emailId, emailThreadId })
+    )
+  );
+}
+
+export function useEmailDetailActionItems(email: EmailArg) {
   const [actionItems, setActionItems] = useState<ActionItem[]>([]);
   const [newActionItem, setNewActionItem] = useState('');
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
@@ -84,21 +106,10 @@ export function useEmailDetailActionItems(
     try {
       const response = await axios.post(`${API_URL}/llm/extract-actions`, {
         emailBody: email.body,
-        senderInfo: {
-          from: email.from,
-          fromName: email.fromName,
-        },
+        senderInfo: { from: email.from, fromName: email.fromName },
       });
-      const newItems = response.data.map((item: any) => ({
-        description: item.description,
-        isCompleted: false,
-        source: 'llm',
-      }));
-      await Promise.all(
-        newItems.map((item: any) =>
-          axios.post(`${API_URL}/action-items`, { ...item, emailId: email.id, emailThreadId: email.threadId })
-        )
-      );
+      const newItems = buildActionItemsFromLLMResponse(response.data);
+      await saveExtractedActionItems(newItems, email.id, email.threadId);
       fetchActionItems();
     } catch (error) {
       console.error('Error extracting actions:', error);

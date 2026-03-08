@@ -75,9 +75,11 @@ const emailSlice = createSlice({
      * "Other" category matches emails where category is null/undefined/empty string,
      * mirroring how getInboxSummary maps null categories to "Other".
      */
-    updateCategoryEmails: (state, action: PayloadAction<{ categoryName: string; emails: Email[] }>) => {
-      const { categoryName, emails } = action.payload;
-      const isOther = categoryName === CATEGORY_OTHER;
+    updateCategoryEmails: (state, action: PayloadAction<{ categoryKey: string; emails: Email[] }>) => {
+      const { categoryKey, emails } = action.payload;
+      // categoryKey is a UUID when the category has an ID, otherwise falls back to the
+      // category name. "Other" is always keyed by name since it has no UUID.
+      const isOther = categoryKey === CATEGORY_OTHER;
       const incomingIds = new Set(emails.map(event => event.id));
       // Remove emails that previously belonged to this category AND any emails
       // whose ID matches an incoming email (they may have been loaded under a
@@ -87,7 +89,7 @@ const emailSlice = createSlice({
         if (isOther) {
           return event.category !== null && event.category !== undefined && event.category !== '' && event.category !== CATEGORY_OTHER;
         }
-        return event.category !== categoryName;
+        return event.category !== categoryKey;
       });
       state.emails = [...state.emails, ...emails];
     },

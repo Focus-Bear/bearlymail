@@ -5,6 +5,7 @@ import { CategoryAccordion } from 'components/inbox/CategoryAccordion';
 import { EmailListItem } from 'components/inbox/EmailListItem';
 import { ProtoCategorySubAccordion } from 'components/inbox/ProtoCategorySubAccordion';
 import { CATEGORY_OTHER, MODE_FOLLOW_UP, MODE_TRIAGE } from 'constants/strings';
+import { getCategoryKey } from 'hooks/useEmailFetching';
 import { CategorySummaryItem } from 'store/slices/emailSlice';
 
 interface CategorySectionProps {
@@ -50,9 +51,11 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
   handleDeleteProtoCategoryFromInbox,
 }) => {
   const categoryName = categoryItem.name;
-  const isExpanded = expandedCategories.has(categoryName);
-  const isLoaded = (loadedCategoryNames ?? []).includes(categoryName);
-  const group = emailCategoryMap.get(categoryName);
+  // Use the UUID key when available so all lookups are immune to name-encoding issues
+  const categoryKey = getCategoryKey(categoryItem.id, categoryName);
+  const isExpanded = expandedCategories.has(categoryKey);
+  const isLoaded = (loadedCategoryNames ?? []).includes(categoryKey);
+  const group = emailCategoryMap.get(categoryKey);
   const categoryEmails = group?.emails ?? [];
 
   // Only hide if we've successfully loaded AND both local emails and server count are zero.
@@ -64,7 +67,8 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
 
   let globalIndex = 0;
   for (let i = 0; i < catIdx; i++) {
-    const prevGroup = emailCategoryMap.get(displayCategories[i].name);
+    const prevKey = getCategoryKey(displayCategories[i].id, displayCategories[i].name);
+    const prevGroup = emailCategoryMap.get(prevKey);
     globalIndex += prevGroup?.emails.length ?? 0;
   }
 
@@ -83,7 +87,7 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
   const uncategorizedOtherEmails = hasProtoGroups ? categoryEmails.filter(event => !protoGroupedEmailIds.has(event.id)) : [];
 
   return (
-    <CategoryAccordion key={categoryName} category={categoryName} emails={categoryEmails} count={isLoaded ? categoryEmails.length : categoryItem.count} isLoadingContent={isExpanded && !isLoaded} isExpanded={isExpanded} onToggle={() => onToggleCategory(categoryName)} onArchiveAll={onBulkArchive} onReanalyseOther={handleReanalyseOther} isReanalysingOther={isReanalysingOther}>
+    <CategoryAccordion key={categoryKey} category={categoryName} emails={categoryEmails} count={isLoaded ? categoryEmails.length : categoryItem.count} isLoadingContent={isExpanded && !isLoaded} isExpanded={isExpanded} onToggle={() => onToggleCategory(categoryKey)} onArchiveAll={onBulkArchive} onReanalyseOther={handleReanalyseOther} isReanalysingOther={isReanalysingOther}>
       {hasProtoGroups ? (() => {
         let offset = 0;
         return (

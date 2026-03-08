@@ -40,6 +40,24 @@ interface UseEmailFetchingProps {
   filters?: InboxFilter;
 }
 
+/**
+ * Compute the stable category key used as the canonical identifier throughout the client.
+ * When a UUID is available we use it — it's immune to name encoding/whitespace differences.
+ * Falls back to the human-readable name for categories without a UUID (e.g. "Other",
+ * auto-responded categories).
+ */
+export function getCategoryKey(id: string | null | undefined, name: string): string {
+  return id ?? name;
+}
+
+/**
+ * Detect whether a category key is a UUID (v4-ish format).
+ * Used internally to route API params: UUID keys use `categoryIds=`, name keys use `categories=`.
+ */
+function isUuidKey(key: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key);
+}
+
 async function fetchAutoRespondedEmails(
   dispatch: AppDispatch,
   buildAutoRespondedParams: () => URLSearchParams,
@@ -60,8 +78,9 @@ async function fetchAutoRespondedEmails(
   dispatch(setTotalCount(total));
   dispatch(setHasMore(hasMore));
   dispatch(setCurrentOffset(normalizedEmails.length));
+  // Auto-responded categories have no UUID — key = name
   categorySummary.forEach((category) => {
-    dispatch(markCategoryLoaded(category.name));
+    dispatch(markCategoryLoaded(getCategoryKey(category.id, category.name)));
   });
 }
 
@@ -104,7 +123,7 @@ export function useEmailFetching({
     () => buildSummaryParamsImpl(mode, filters), [mode, filters],
   );
   const buildCategoryParams = useCallback(
-    (categoryName: string, categoryId?: string | null) => buildCategoryParamsImpl(mode, filters, categoryName, categoryId), [mode, filters],
+    (categoryKey: string) => buildCategoryParamsImpl(mode, filters, categoryKey), [mode, filters],
   );
   const buildAutoRespondedParams = useCallback(
     () => buildAutoRespondedParamsImpl(filters), [filters],
@@ -123,6 +142,13 @@ export function useEmailFetching({
     isLoadingMoreRef.current = false;
     await fetchEmailsImpl({ mode, dispatch, buildSummaryParams, buildAutoRespondedParams, buildAutoRespondedSummary });
   }, [mode, dispatch, buildSummaryParams, buildAutoRespondedParams, buildAutoRespondedSummary]);
+
+  /**
+   * Fetch emails for a single category on accordion expand.
+   * @param categoryName - Human-readable name (for display/logging only).
+   * @param categoryId   - UUID from the summary API; used as the stable category key
+   *                       when available, so name encoding issues don't affect lookups.
+   */
   const fetchCategoryEmails = useCallback(async (categoryName: string, categoryId?: string | null) => {
     await fetchCategoryEmailsImpl({
       categoryName, categoryId, mode, dispatch, buildCategoryParams,
@@ -150,49 +176,59 @@ export function useEmailFetching({
 /** Extracted: fetch emails for a single category on expand. */
 async function fetchCategoryEmailsImpl({ categoryName, categoryId, mode, dispatch, buildCategoryParams, loadedCategoryNamesRef, loadingCategoryNamesRef, fetchSessionRef }: {
   categoryName: string; categoryId?: string | null; mode: InboxMode; dispatch: AppDispatch;
-  buildCategoryParams: (name: string, id?: string | null) => URLSearchParams;
+  buildCategoryParams: (categoryKey: string) => URLSearchParams;
   loadedCategoryNamesRef: React.MutableRefObject<string[]>; loadingCategoryNamesRef: React.MutableRefObject<string[]>;
   fetchSessionRef: React.MutableRefObject<number>;
 }) {
-  if (loadedCategoryNamesRef.current.includes(categoryName)) return;
-  if (loadingCategoryNamesRef.current.includes(categoryName)) return;
+  // Compute the stable key: UUID when available, name as fallback
+  const categoryKey = getCategoryKey(categoryId, categoryName);
+
+  if (loadedCategoryNamesRef.current.includes(categoryKey)) return;
+  if (loadingCategoryNamesRef.current.includes(categoryKey)) return;
   if (mode === MODE_AUTORESPONDED) return;
 
   const sessionId = fetchSessionRef.current;
-  dispatch(markCategoryLoading(categoryName));
-  console.log('[Accordion] Fetching category:', categoryName);
+  dispatch(markCategoryLoading(categoryKey));
+  console.log('[Accordion] Fetching category:', categoryName, '(key:', categoryKey, ')');
 
   try {
-    const params = buildCategoryParams(categoryName, categoryId);
+    const params = buildCategoryParams(categoryKey);
     const response = await axios.get(`${API_URL}/emails/inbox?${params.toString()}`);
-    const normalizedEmails = normalizeCategoryEmails(response.data.emails, categoryName);
+    // Normalize email.category to the UUID key so emailCategoryMap lookups are stable
+    // regardless of how the server formats the name in the email record.
+    const normalizedEmails = normalizeCategoryEmails(response.data.emails, categoryKey);
     if (fetchSessionRef.current !== sessionId) {
       console.log('[Accordion] Stale fetch discarded for category:', categoryName, '(session changed)');
       return;
     }
-    dispatch(updateCategoryEmails({ categoryName, emails: normalizedEmails }));
-    dispatch(markCategoryLoaded(categoryName));
-    console.log('[Accordion] Loaded category:', categoryName, normalizedEmails.length, 'emails');
+    dispatch(updateCategoryEmails({ categoryKey, emails: normalizedEmails }));
+    dispatch(markCategoryLoaded(categoryKey));
+    console.log('[Accordion] Loaded category:', categoryName, '(key:', categoryKey, ')', normalizedEmails.length, 'emails');
   } catch (error: any) {
-    console.error('[Accordion] Failed to load category:', categoryName, error);
+    console.error('[Accordion] Failed to load category:', categoryName, '(key:', categoryKey, ')', error);
     // Use markCategoryLoadFailed so isLoaded stays false — the next expand will retry.
     // markCategoryLoaded would set isLoaded=true with no emails, causing CategorySection
     // to return null and the accordion section to vanish entirely.
     if (fetchSessionRef.current === sessionId) {
       console.warn('[Accordion] Category load failed, allowing retry:', categoryName);
-      dispatch(markCategoryLoadFailed(categoryName));
+      dispatch(markCategoryLoadFailed(categoryKey));
     }
   }
 }
 
-function normalizeCategoryEmails(emails: any[], categoryName: string) {
-  return emails.map((email: any) => (!email.category || email.category !== categoryName) ? { ...email, category: categoryName } : email);
+/**
+ * Normalize emails so that email.category equals the category key (UUID or name).
+ * This ensures emailCategoryMap lookups always work regardless of how the server
+ * formats the category name in the returned email records.
+ */
+function normalizeCategoryEmails(emails: any[], categoryKey: string) {
+  return emails.map((email: any) => email.category !== categoryKey ? { ...email, category: categoryKey } : email);
 }
 
 /** Extracted: refresh inbox in-place without clearing state. */
 async function refreshInPlaceImpl({ mode, dispatch, buildSummaryParams, buildCategoryParams, buildAutoRespondedParams, buildAutoRespondedSummary, loadedCategoryNamesRef }: {
   mode: InboxMode; dispatch: AppDispatch;
-  buildSummaryParams: () => URLSearchParams; buildCategoryParams: (name: string) => URLSearchParams;
+  buildSummaryParams: () => URLSearchParams; buildCategoryParams: (categoryKey: string) => URLSearchParams;
   buildAutoRespondedParams: () => URLSearchParams; buildAutoRespondedSummary: (emails: Email[]) => Array<{ id: null; name: string; count: number }>;
   loadedCategoryNamesRef: React.MutableRefObject<string[]>;
 }) {
@@ -215,15 +251,17 @@ async function refreshInPlaceImpl({ mode, dispatch, buildSummaryParams, buildCat
     return;
   }
 
-  const loadedCategories = [...loadedCategoryNamesRef.current];
-  await Promise.all(loadedCategories.map(async (categoryName) => {
+  // loadedCategoryNamesRef now stores category keys (UUIDs or names).
+  // buildCategoryParams handles both: UUID keys → categoryIds=, name keys → categories=
+  const loadedCategoryKeys = [...loadedCategoryNamesRef.current];
+  await Promise.all(loadedCategoryKeys.map(async (categoryKey) => {
     try {
-      const catParams = buildCategoryParams(categoryName);
+      const catParams = buildCategoryParams(categoryKey);
       const catResponse = await axios.get(`${API_URL}/emails/inbox?${catParams.toString()}`);
-      const normalizedEmails = normalizeCategoryEmails((catResponse.data as { emails: Email[] }).emails, categoryName);
-      dispatch(updateCategoryEmails({ categoryName, emails: normalizedEmails }));
+      const normalizedEmails = normalizeCategoryEmails((catResponse.data as { emails: Email[] }).emails, categoryKey);
+      dispatch(updateCategoryEmails({ categoryKey, emails: normalizedEmails }));
     } catch (err) {
-      console.warn(`[refreshInPlace] Failed to refresh "${categoryName}":`, err);
+      console.warn(`[refreshInPlace] Failed to refresh category key "${categoryKey}":`, err);
     }
   }));
 }
@@ -243,10 +281,20 @@ function buildSummaryParamsImpl(mode: InboxMode, filters?: InboxFilter): URLSear
   return params;
 }
 
-function buildCategoryParamsImpl(mode: InboxMode, filters: InboxFilter | undefined, categoryName: string, categoryId?: string | null): URLSearchParams {
+/**
+ * Build query params for a category email fetch.
+ * When categoryKey is a UUID we use `categoryIds=` so the server resolves to the
+ * canonical name — avoiding all URL-encoding and name-format fragility.
+ * When categoryKey is a plain name (no UUID available) we fall back to `categories=`.
+ */
+function buildCategoryParamsImpl(mode: InboxMode, filters: InboxFilter | undefined, categoryKey: string): URLSearchParams {
   const params = new URLSearchParams();
   params.append('mode', mode);
-  if (categoryId) { params.append('categoryIds', categoryId); } else { params.append('categories', categoryName); }
+  if (isUuidKey(categoryKey)) {
+    params.append('categoryIds', categoryKey);
+  } else {
+    params.append('categories', categoryKey);
+  }
   params.append('limit', INBOX_FETCH_LIMIT.toString());
   params.append('offset', '0');
   if (filters) {

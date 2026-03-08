@@ -5,6 +5,7 @@ import { Email, InboxMode } from 'types/email';
 
 import { API_URL } from 'config/api';
 import { CATEGORY_OTHER } from 'constants/strings';
+import { getCategoryKey } from 'hooks/useEmailFetching';
 import { useProtoCategoryManagement } from 'hooks/useProtoCategoryManagement';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import { selectSummaryLoading } from 'store/selectors/emailSelectors';
@@ -84,11 +85,12 @@ export function useInboxContentData({
 
   useEffect(() => {
     if (summaryCategories && summaryCategories.length > 0) {
+      const summaryKeys = summaryCategories.map(cat => getCategoryKey(cat.id, cat.name));
       if (stableCategoryOrder.length === 0) {
-        onUpdateStableCategoryOrder(summaryCategories.map(cat => cat.name));
+        onUpdateStableCategoryOrder(summaryKeys);
       } else {
-        const newCats = summaryCategories.map(cat => cat.name).filter(name => !stableCategoryOrder.includes(name));
-        if (newCats.length > 0) onUpdateStableCategoryOrder([...stableCategoryOrder, ...newCats]);
+        const newKeys = summaryKeys.filter(key => !stableCategoryOrder.includes(key));
+        if (newKeys.length > 0) onUpdateStableCategoryOrder([...stableCategoryOrder, ...newKeys]);
       }
     } else if (!summaryCategories) {
       const categoryGroups = groupEmailsByCategory(filteredEmails, mode);
@@ -96,17 +98,19 @@ export function useInboxContentData({
         if (stableCategoryOrder.length === 0) {
           onUpdateStableCategoryOrder(categoryGroups.map(grp => grp.category));
         } else {
-          const newCats = categoryGroups.filter(grp => !stableCategoryOrder.includes(grp.category)).map(grp => grp.category);
-          if (newCats.length > 0) onUpdateStableCategoryOrder([...stableCategoryOrder, ...newCats]);
+          const newKeys = categoryGroups.filter(grp => !stableCategoryOrder.includes(grp.category)).map(grp => grp.category);
+          if (newKeys.length > 0) onUpdateStableCategoryOrder([...stableCategoryOrder, ...newKeys]);
         }
       }
     }
   }, [summaryCategories, stableCategoryOrder, onUpdateStableCategoryOrder, filteredEmails, mode]);
 
   const displayCategories = useMemo(() => {
-    if (!summaryCategories) return stableCategoryOrder.map(name => ({ name, id: null as string | null, count: emailCategoryMap.get(name)?.emails.length ?? 0 }));
-    const summaryMap = new Map(summaryCategories.map(cat => [cat.name, cat]));
-    return stableCategoryOrder.map(name => summaryMap.get(name) ?? { name, id: null, count: emailCategoryMap.get(name)?.emails.length ?? 0 });
+    if (!summaryCategories) {
+      return stableCategoryOrder.map(key => ({ id: null as string | null, name: key, count: emailCategoryMap.get(key)?.emails.length ?? 0 }));
+    }
+    const summaryMap = new Map(summaryCategories.map(cat => [getCategoryKey(cat.id, cat.name), cat]));
+    return stableCategoryOrder.map(key => summaryMap.get(key) ?? { id: null, name: key, count: emailCategoryMap.get(key)?.emails.length ?? 0 });
   }, [summaryCategories, stableCategoryOrder, emailCategoryMap]);
 
   const handleSplitViewArchive = useCallback((emailId: string) => { if (onSplitViewArchive && emailId) onSplitViewArchive(emailId); }, [onSplitViewArchive]);

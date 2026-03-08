@@ -16,6 +16,7 @@ import { SplitViewPanel } from 'components/inbox/SplitViewPanel';
 import { API_URL } from 'config/api';
 import { INBOX_FETCH_LIMIT } from 'constants/numbers';
 import { CATEGORY_OTHER, MODE_FOLLOW_UP, MODE_TRIAGE, STRING_NONE } from 'constants/strings';
+import { getCategoryKey } from 'hooks/useEmailFetching';
 import { useProtoCategoryManagement } from 'hooks/useProtoCategoryManagement';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
 import { useSplitView } from 'hooks/useSplitView';
@@ -222,9 +223,9 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   );
 
   // Build per-category email map from the loaded flat email array.
-  // Also maintains a normalised (lowercase + trimmed) key index for case-insensitive
-  // fallback lookups, which guards against category name mismatches between the
-  // summary API response and the email.category field returned by the fetch API.
+  // Emails are keyed by their category key (UUID or name), which matches the key
+  // assigned by normalizeCategoryEmails in useEmailFetching. This eliminates all
+  // name-encoding/whitespace mismatch issues between the summary and the fetch API.
   const emailCategoryMap = useMemo(() => {
     const map = new Map<string, CategoryGroup>();
     groupEmailsByCategory(filteredEmails, mode).forEach(group => {
@@ -234,18 +235,12 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   }, [filteredEmails, mode]);
 
   /**
-   * Case-insensitive, trimmed lookup against emailCategoryMap.
-   * Tries an exact match first (fast path), then falls back to a normalised scan.
+   * Look up a category group by its category key (UUID or name).
+   * Direct map lookup — no fuzzy matching needed since both keys and email.category
+   * are normalised to the same UUID-or-name format by normalizeCategoryEmails.
    */
-  const getCategoryGroup = (name: string): CategoryGroup | undefined => {
-    const exact = emailCategoryMap.get(name);
-    if (exact) return exact;
-    const normalised = name.trim().toLowerCase();
-    for (const [key, value] of emailCategoryMap) {
-      if (key.trim().toLowerCase() === normalised) return value;
-    }
-    return undefined;
-  };
+  const getCategoryGroup = (categoryKey: string): CategoryGroup | undefined =>
+    emailCategoryMap.get(categoryKey);
 
   // Group "Other" category emails by their proto category name for sub-accordions
   const otherProtoGroups = useMemo(() => {
@@ -266,35 +261,35 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   const summaryCategories = categorySummary !== undefined ? categorySummary : null;
 
   // Update stable category order from summary (preferred) or from loaded emails (fallback).
-  // The summary is available before emails are loaded so accordions appear immediately.
+  // Stores category *keys* (UUID when available, name otherwise) so that the order array
+  // is stable even if category names change after consolidation.
   useEffect(() => {
     if (summaryCategories && summaryCategories.length > 0) {
+      const summaryKeys = summaryCategories.map(cat => getCategoryKey(cat.id, cat.name));
       if (stableCategoryOrder.length === 0) {
-        console.log('[InboxContent] Initialising stableCategoryOrder from summary:', summaryCategories.map(cat => cat.name));
-        onUpdateStableCategoryOrder(summaryCategories.map(cat => cat.name));
+        console.log('[InboxContent] Initialising stableCategoryOrder from summary (keys):', summaryKeys);
+        onUpdateStableCategoryOrder(summaryKeys);
       } else {
-        const newCategories = summaryCategories
-          .map(cat => cat.name)
-          .filter(name => !stableCategoryOrder.includes(name));
-        if (newCategories.length > 0) {
-          console.log('[InboxContent] Appending new categories from summary:', newCategories);
-          onUpdateStableCategoryOrder([...stableCategoryOrder, ...newCategories]);
+        const newKeys = summaryKeys.filter(key => !stableCategoryOrder.includes(key));
+        if (newKeys.length > 0) {
+          console.log('[InboxContent] Appending new category keys from summary:', newKeys);
+          onUpdateStableCategoryOrder([...stableCategoryOrder, ...newKeys]);
         }
       }
     } else if (!summaryCategories) {
-      // Fallback: derive order from loaded emails (legacy path)
+      // Fallback: derive order from loaded emails (legacy path — no summary available)
       const categoryGroups = groupEmailsByCategory(filteredEmails, mode);
       if (categoryGroups.length > 0) {
         if (stableCategoryOrder.length === 0) {
           console.log('[InboxContent] Initialising stableCategoryOrder from emails (no summary):', categoryGroups.map(grp => grp.category));
           onUpdateStableCategoryOrder(categoryGroups.map(grp => grp.category));
         } else {
-          const newCategories = categoryGroups
+          const newKeys = categoryGroups
             .filter(grp => !stableCategoryOrder.includes(grp.category))
             .map(grp => grp.category);
-          if (newCategories.length > 0) {
-            console.log('[InboxContent] Appending new categories from emails (no summary):', newCategories);
-            onUpdateStableCategoryOrder([...stableCategoryOrder, ...newCategories]);
+          if (newKeys.length > 0) {
+            console.log('[InboxContent] Appending new category keys from emails (no summary):', newKeys);
+            onUpdateStableCategoryOrder([...stableCategoryOrder, ...newKeys]);
           }
         }
       }
@@ -302,30 +297,37 @@ export const InboxContent: React.FC<InboxContentProps> = ({
   }, [summaryCategories, filteredEmails, stableCategoryOrder, onUpdateStableCategoryOrder, mode]);
 
   // Build the ordered list of categories to render.
+  // Each item carries both its display `name` and its stable `id` (UUID or null).
   // When a summary exists: show ALL categories (even those without loaded emails yet).
-  // Order follows stableCategoryOrder, with new categories appended.
+  // Order follows stableCategoryOrder (which stores keys), with new categories appended.
   // Empty categories (count=0) are excluded so they disappear after archiving all emails.
-  const displayCategories = useMemo((): Array<{ name: string; count: number }> => {
-    const source = summaryCategories ?? groupEmailsByCategory(filteredEmails, mode).map((grp) => ({
-      name: grp.category,
-      count: grp.emails.length,
-    }));
+  const displayCategories = useMemo((): Array<{ id: string | null; name: string; count: number }> => {
+    const source: Array<{ id: string | null; name: string; count: number }> =
+      summaryCategories ??
+      groupEmailsByCategory(filteredEmails, mode).map((grp) => ({
+        id: null,
+        name: grp.category,
+        count: grp.emails.length,
+      }));
 
     // Filter out categories with count=0 from the source.
-    // This ensures empty categories disappear from the inbox after archiving all emails.
     const nonEmptySource = source.filter(cat => cat.count > 0);
 
     if (stableCategoryOrder.length === 0) return nonEmptySource;
 
-    const orderMap = new Map(stableCategoryOrder.map((cat, idx) => [cat, idx]));
-    return nonEmptySource.sort((itemA, itemB) => {
-      const orderA = orderMap.get(itemA.name) ?? Number.MAX_SAFE_INTEGER;
-      const orderB = orderMap.get(itemB.name) ?? Number.MAX_SAFE_INTEGER;
+    // stableCategoryOrder stores category keys (UUID or name); match by key
+    const orderMap = new Map(stableCategoryOrder.map((key, idx) => [key, idx]));
+    return nonEmptySource.slice().sort((itemA, itemB) => {
+      const keyA = getCategoryKey(itemA.id, itemA.name);
+      const keyB = getCategoryKey(itemB.id, itemB.name);
+      const orderA = orderMap.get(keyA) ?? Number.MAX_SAFE_INTEGER;
+      const orderB = orderMap.get(keyB) ?? Number.MAX_SAFE_INTEGER;
       return orderA - orderB;
     });
   }, [summaryCategories, filteredEmails, stableCategoryOrder, mode]);
 
-  // Fetch proto categories when "Other" category is visible and expanded
+  // Fetch proto categories when "Other" category is visible and expanded.
+  // "Other" has no UUID so its key is always the literal name string CATEGORY_OTHER.
   useEffect(() => {
     const hasOther = displayCategories.some(cat => cat.name === CATEGORY_OTHER);
     if (hasOther && expandedCategories.has(CATEGORY_OTHER)) {
@@ -436,9 +438,12 @@ export const InboxContent: React.FC<InboxContentProps> = ({
           {computeCanRenderCategories(loading, isRefetchingWithoutData, hasInitiallyLoaded, loadingModeSwitch, fetchError, displayCategories.length) && (
             displayCategories.map((categoryItem, catIdx) => {
               const categoryName = categoryItem.name;
-              const isExpanded = expandedCategories.has(categoryName);
-              const isLoaded = (loadedCategoryNames ?? []).includes(categoryName);
-              const group = getCategoryGroup(categoryName);
+              // categoryKey is the UUID when available, name otherwise — used for all
+              // internal lookups (emailCategoryMap, expandedCategories, loadedCategoryNames)
+              const categoryKey = getCategoryKey(categoryItem.id, categoryName);
+              const isExpanded = expandedCategories.has(categoryKey);
+              const isLoaded = (loadedCategoryNames ?? []).includes(categoryKey);
+              const group = getCategoryGroup(categoryKey);
               const categoryEmails = group?.emails ?? [];
 
               // Hide categories that have been fully loaded AND have no emails AND the summary
@@ -446,24 +451,23 @@ export const InboxContent: React.FC<InboxContentProps> = ({
               // vanishing when the fetch returns 0 emails due to a race/backend issue while
               // the summary still shows a non-zero count — that would be a false disappearance.
               if (isLoaded && categoryEmails.length === 0 && categoryItem.count === 0) {
-                console.debug('[InboxContent] Hiding empty category (isLoaded=true, 0 emails, count=0):', categoryItem.name);
+                console.debug('[InboxContent] Hiding empty category (isLoaded=true, 0 emails, count=0):', categoryName, '(key:', categoryKey, ')');
                 return null;
               }
 
-              // Warn when the fetch completed but no emails matched the summary category name.
-              // This usually means a case/whitespace mismatch between the summary API and the
-              // email.category field — getCategoryGroup should handle it, but log just in case.
+              // Warn when the fetch completed but no emails matched the category key.
               if (isLoaded && categoryEmails.length === 0 && categoryItem.count > 0) {
                 console.warn(
-                  '[InboxContent] Category loaded but shows 0 emails despite summary count > 0 — possible name mismatch:',
-                  { summaryName: categoryItem.name, summaryCount: categoryItem.count, mapKeys: Array.from(emailCategoryMap.keys()) },
+                  '[InboxContent] Category loaded but shows 0 emails despite summary count > 0:',
+                  { categoryName, categoryKey, summaryCount: categoryItem.count, mapKeys: Array.from(emailCategoryMap.keys()) },
                 );
               }
 
               // Compute global index for keyboard navigation (across categories)
               let globalIndex = 0;
               for (let i = 0; i < catIdx; i++) {
-                const prevGroup = getCategoryGroup(displayCategories[i].name);
+                const prevKey = getCategoryKey(displayCategories[i].id, displayCategories[i].name);
+                const prevGroup = getCategoryGroup(prevKey);
                 globalIndex += prevGroup?.emails.length ?? 0;
               }
 
@@ -520,14 +524,14 @@ export const InboxContent: React.FC<InboxContentProps> = ({
 
               return (
                 <CategoryAccordion
-                  key={categoryName}
+                  key={categoryKey}
                   category={categoryName}
                   emails={categoryEmails}
                   // Use actual email count when loaded (summary count can be stale after archives)
                   count={isLoaded ? categoryEmails.length : categoryItem.count}
                   isLoadingContent={isExpanded && !isLoaded}
                   isExpanded={isExpanded}
-                  onToggle={() => onToggleCategory(categoryName)}
+                  onToggle={() => onToggleCategory(categoryKey)}
                   onArchiveAll={async (catName: string, ids: string[]) => {
                     if (!onBulkArchive) return;
                     if (ids && ids.length > 0) {
@@ -536,13 +540,14 @@ export const InboxContent: React.FC<InboxContentProps> = ({
                     }
 
                     try {
-                      if (fetchCategoryEmails) {
-                        await fetchCategoryEmails(catName);
-                      }
-
                       const params = new URLSearchParams();
                       params.append('mode', mode);
-                      params.append('categories', catName);
+                      // Use UUID when available to avoid name encoding issues
+                      if (categoryItem.id) {
+                        params.append('categoryIds', categoryItem.id);
+                      } else {
+                        params.append('categories', catName);
+                      }
                       params.append('limit', INBOX_FETCH_LIMIT.toString());
                       params.append('offset', '0');
 

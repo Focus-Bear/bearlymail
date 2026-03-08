@@ -159,7 +159,7 @@ describe('updateCategoryEmails', () => {
     const freshWorkEmails = [makeEmail('7', 'Work'), makeEmail('8', 'Work')];
     const state = emailReducer(
       stateWithCategories,
-      updateCategoryEmails({ categoryName: 'Work', emails: freshWorkEmails })
+      updateCategoryEmails({ categoryKey: 'Work', emails: freshWorkEmails })
     );
     const ids = state.emails.map(event => event.id);
     // Old Work emails (1, 3) should be gone
@@ -179,7 +179,7 @@ describe('updateCategoryEmails', () => {
     const freshOtherEmails = [makeEmail('9', null), makeEmail('10', 'Other')];
     const state = emailReducer(
       stateWithCategories,
-      updateCategoryEmails({ categoryName: 'Other', emails: freshOtherEmails })
+      updateCategoryEmails({ categoryKey: 'Other', emails: freshOtherEmails })
     );
     const ids = state.emails.map(event => event.id);
     // Old Other-like emails (4, 5, 6) should be gone
@@ -200,7 +200,7 @@ describe('updateCategoryEmails', () => {
     const emailAlreadyPresent = makeEmail('2', 'Work'); // id '2' exists as 'Personal'
     const state = emailReducer(
       stateWithCategories,
-      updateCategoryEmails({ categoryName: 'Work', emails: [emailAlreadyPresent] })
+      updateCategoryEmails({ categoryKey: 'Work', emails: [emailAlreadyPresent] })
     );
     const ids = state.emails.map(event => event.id);
     // Should only appear once
@@ -210,7 +210,7 @@ describe('updateCategoryEmails', () => {
   it('handles an empty replacement (all emails in category removed)', () => {
     const state = emailReducer(
       stateWithCategories,
-      updateCategoryEmails({ categoryName: 'Work', emails: [] })
+      updateCategoryEmails({ categoryKey: 'Work', emails: [] })
     );
     const ids = state.emails.map(event => event.id);
     expect(ids).not.toContain('1');

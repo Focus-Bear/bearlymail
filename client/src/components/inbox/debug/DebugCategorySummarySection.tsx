@@ -5,23 +5,24 @@ import { Email } from 'types/email';
 
 import { COLOR_BG_ERROR, COLOR_BG_LIGHT_GRAY, COLOR_BG_NEUTRAL, COLOR_BG_NEUTRAL_ALT, COLOR_BG_WARNING, COLOR_ERROR_DARK, COLOR_ERROR_MED, COLOR_GREY_LIGHT, COLOR_GREY_MID, COLOR_WHITE } from 'constants/colors';
 import { STRING_NONE } from 'constants/strings';
+import { getCategoryKey } from 'hooks/useEmailFetching';
 import { CategorySummaryItem } from 'store/slices/emailSlice';
 
 interface DebugCategorySummaryProps { categorySummary: CategorySummaryItem[] | null; loadedCategoryNames: string[]; loadingCategoryNames: string[]; expandedCategories: Set<string>; emails: Email[]; }
 
-const getLoadedEmailsForCategory = (categoryName: string, emails: Email[]): Email[] => {
-  if (categoryName === 'Other') return emails.filter(event => !event.isArchived && (event.category === null || event.category === undefined || event.category === '' || event.category === 'Other'));
-  return emails.filter(event => !event.isArchived && event.category === categoryName);
+const getLoadedEmailsForCategory = (categoryKey: string, emails: Email[]): Email[] => {
+  if (categoryKey === 'Other') return emails.filter(event => !event.isArchived && (event.category === null || event.category === undefined || event.category === '' || event.category === 'Other'));
+  return emails.filter(event => !event.isArchived && event.category === categoryKey);
 };
 
-const getCategoryStatus = (categoryName: string, loadingCategoryNames: string[], loadedCategoryNames: string[]): string => {
-  if (loadingCategoryNames.includes(categoryName)) return '⏳ Loading';
-  if (loadedCategoryNames.includes(categoryName)) return '✅ Loaded';
+const getCategoryStatus = (categoryKey: string, loadingCategoryNames: string[], loadedCategoryNames: string[]): string => {
+  if (loadingCategoryNames.includes(categoryKey)) return '⏳ Loading';
+  if (loadedCategoryNames.includes(categoryKey)) return '✅ Loaded';
   return '⏸️ Not loaded';
 };
 
 interface CategoryTableProps extends DebugCategorySummaryProps {
-  expandedDetails: Set<string>; toggleDetails: (name: string) => void; t: (tKey: string) => string;
+  expandedDetails: Set<string>; toggleDetails: (key: string) => void; t: (tKey: string) => string;
 }
 
 const CategorySummaryTable: React.FC<CategoryTableProps> = ({
@@ -44,21 +45,23 @@ const CategorySummaryTable: React.FC<CategoryTableProps> = ({
         </thead>
         <tbody>
           {categorySummary.map(category => {
-            const loadedEmails = getLoadedEmailsForCategory(category.name, emails);
-            const hasMismatch = loadedCategoryNames.includes(category.name) && loadedEmails.length !== category.count;
-            const showDetails = expandedDetails.has(category.name);
+            // Use UUID key for all lookups to match what useEmailFetching stores
+            const categoryKey = getCategoryKey(category.id, category.name);
+            const loadedEmails = getLoadedEmailsForCategory(categoryKey, emails);
+            const hasMismatch = loadedCategoryNames.includes(categoryKey) && loadedEmails.length !== category.count;
+            const showDetails = expandedDetails.has(categoryKey);
             return (
-              <React.Fragment key={category.name}>
+              <React.Fragment key={categoryKey}>
                 <tr style={{ backgroundColor: hasMismatch ? '#FFEBEE' : 'transparent' }}>
                   <td style={{ padding: theme.spacing.sm, borderBottom: '1px solid #e0e0e0', fontWeight: 'bold' }}>
                     {category.name}{hasMismatch && <span style={{ marginLeft: theme.spacing.xs, color: COLOR_ERROR_MED, fontSize: theme.typography.fontSize.xs }}>⚠️ {t('debug.categorySummary.mismatch')}</span>}
                   </td>
                   <td style={{ padding: theme.spacing.sm, textAlign: 'center', borderBottom: '1px solid #e0e0e0' }}>{category.count}</td>
-                  <td style={{ padding: theme.spacing.sm, textAlign: 'center', borderBottom: '1px solid #e0e0e0', color: hasMismatch ? '#D32F2F' : 'inherit', fontWeight: hasMismatch ? 'bold' : 'normal' }}>{loadedCategoryNames.includes(category.name) ? loadedEmails.length : '-'}</td>
-                  <td style={{ padding: theme.spacing.sm, textAlign: 'center', borderBottom: '1px solid #e0e0e0' }}>{getCategoryStatus(category.name, loadingCategoryNames, loadedCategoryNames)}</td>
-                  <td style={{ padding: theme.spacing.sm, textAlign: 'center', borderBottom: '1px solid #e0e0e0' }}>{expandedCategories.has(category.name) ? '📂 Yes' : '📁 No'}</td>
+                  <td style={{ padding: theme.spacing.sm, textAlign: 'center', borderBottom: '1px solid #e0e0e0', color: hasMismatch ? '#D32F2F' : 'inherit', fontWeight: hasMismatch ? 'bold' : 'normal' }}>{loadedCategoryNames.includes(categoryKey) ? loadedEmails.length : '-'}</td>
+                  <td style={{ padding: theme.spacing.sm, textAlign: 'center', borderBottom: '1px solid #e0e0e0' }}>{getCategoryStatus(categoryKey, loadingCategoryNames, loadedCategoryNames)}</td>
+                  <td style={{ padding: theme.spacing.sm, textAlign: 'center', borderBottom: '1px solid #e0e0e0' }}>{expandedCategories.has(categoryKey) ? '📂 Yes' : '📁 No'}</td>
                   <td style={{ padding: theme.spacing.sm, textAlign: 'center', borderBottom: '1px solid #e0e0e0' }}>
-                    <button onClick={() => toggleDetails(category.name)} style={{ padding: `${theme.spacing.xs} ${theme.spacing.sm}`, backgroundColor: showDetails ? theme.colors.primary.main : '#f5f5f5', color: showDetails ? COLOR_WHITE : theme.colors.text.primary, border: STRING_NONE, borderRadius: theme.borderRadius.sm, cursor: 'pointer', fontSize: theme.typography.fontSize.xs }}>
+                    <button onClick={() => toggleDetails(categoryKey)} style={{ padding: `${theme.spacing.xs} ${theme.spacing.sm}`, backgroundColor: showDetails ? theme.colors.primary.main : '#f5f5f5', color: showDetails ? COLOR_WHITE : theme.colors.text.primary, border: STRING_NONE, borderRadius: theme.borderRadius.sm, cursor: 'pointer', fontSize: theme.typography.fontSize.xs }}>
                       {showDetails ? t('debug.categorySummary.hideDetails') : t('debug.categorySummary.showDetails')}
                     </button>
                   </td>
@@ -74,7 +77,7 @@ const CategorySummaryTable: React.FC<CategoryTableProps> = ({
                           </div>
                         ) : <span style={{ color: theme.colors.text.secondary, marginLeft: theme.spacing.xs }}>{t('debug.categorySummary.noThreadIds')}</span>}
                       </div>
-                      {loadedCategoryNames.includes(category.name) && (
+                      {loadedCategoryNames.includes(categoryKey) && (
                         <div><strong>{t('debug.categorySummary.loadedThreadIds')} ({loadedEmails.length}):</strong>
                           {loadedEmails.length > 0 ? (
                             <div style={{ maxHeight: '150px', overflowY: 'auto', marginTop: theme.spacing.xs, backgroundColor: COLOR_WHITE, padding: theme.spacing.xs, borderRadius: theme.borderRadius.sm, border: '1px solid #E0E0E0' }}>
@@ -106,10 +109,10 @@ export const DebugCategorySummarySection: React.FC<DebugCategorySummaryProps> = 
   const { t } = useTranslation();
   const [expandedDetails, setExpandedDetails] = useState<Set<string>>(new Set());
 
-  const toggleDetails = (categoryName: string) => {
+  const toggleDetails = (categoryKey: string) => {
     setExpandedDetails(prev => {
       const next = new Set(prev);
-      if (next.has(categoryName)) { next.delete(categoryName); } else { next.add(categoryName); }
+      if (next.has(categoryKey)) { next.delete(categoryKey); } else { next.add(categoryKey); }
       return next;
     });
   };

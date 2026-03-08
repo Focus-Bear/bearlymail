@@ -221,7 +221,10 @@ export const InboxContent: React.FC<InboxContentProps> = ({
     [emails]
   );
 
-  // Build per-category email map from the loaded flat email array
+  // Build per-category email map from the loaded flat email array.
+  // Also maintains a normalised (lowercase + trimmed) key index for case-insensitive
+  // fallback lookups, which guards against category name mismatches between the
+  // summary API response and the email.category field returned by the fetch API.
   const emailCategoryMap = useMemo(() => {
     const map = new Map<string, CategoryGroup>();
     groupEmailsByCategory(filteredEmails, mode).forEach(group => {
@@ -229,6 +232,20 @@ export const InboxContent: React.FC<InboxContentProps> = ({
     });
     return map;
   }, [filteredEmails, mode]);
+
+  /**
+   * Case-insensitive, trimmed lookup against emailCategoryMap.
+   * Tries an exact match first (fast path), then falls back to a normalised scan.
+   */
+  const getCategoryGroup = (name: string): CategoryGroup | undefined => {
+    const exact = emailCategoryMap.get(name);
+    if (exact) return exact;
+    const normalised = name.trim().toLowerCase();
+    for (const [key, value] of emailCategoryMap) {
+      if (key.trim().toLowerCase() === normalised) return value;
+    }
+    return undefined;
+  };
 
   // Group "Other" category emails by their proto category name for sub-accordions
   const otherProtoGroups = useMemo(() => {
@@ -421,7 +438,7 @@ export const InboxContent: React.FC<InboxContentProps> = ({
               const categoryName = categoryItem.name;
               const isExpanded = expandedCategories.has(categoryName);
               const isLoaded = (loadedCategoryNames ?? []).includes(categoryName);
-              const group = emailCategoryMap.get(categoryName);
+              const group = getCategoryGroup(categoryName);
               const categoryEmails = group?.emails ?? [];
 
               // Hide categories that have been fully loaded AND have no emails AND the summary
@@ -433,10 +450,20 @@ export const InboxContent: React.FC<InboxContentProps> = ({
                 return null;
               }
 
+              // Warn when the fetch completed but no emails matched the summary category name.
+              // This usually means a case/whitespace mismatch between the summary API and the
+              // email.category field — getCategoryGroup should handle it, but log just in case.
+              if (isLoaded && categoryEmails.length === 0 && categoryItem.count > 0) {
+                console.warn(
+                  '[InboxContent] Category loaded but shows 0 emails despite summary count > 0 — possible name mismatch:',
+                  { summaryName: categoryItem.name, summaryCount: categoryItem.count, mapKeys: Array.from(emailCategoryMap.keys()) },
+                );
+              }
+
               // Compute global index for keyboard navigation (across categories)
               let globalIndex = 0;
               for (let i = 0; i < catIdx; i++) {
-                const prevGroup = emailCategoryMap.get(displayCategories[i].name);
+                const prevGroup = getCategoryGroup(displayCategories[i].name);
                 globalIndex += prevGroup?.emails.length ?? 0;
               }
 

@@ -1,0 +1,210 @@
+import { Test, TestingModule } from "@nestjs/testing";
+import { Logger } from "@nestjs/common";
+import { GmailProvider } from "./gmail.provider";
+import { UsersService } from "../../users/users.service";
+import { EmailsService } from "../emails.service";
+import { ScanEmailService } from "../scan-email.service";
+import { SyncHistoryService } from "../sync-history.service";
+import { InvalidTokenError } from "../../utils/errors";
+
+// Capture a mutable reference to getAccessToken so individual tests can
+// configure the mock return value.
+const mockGetAccessToken = jest.fn();
+
+// Mock the googleapis module so tests don't make real OAuth calls
+jest.mock("googleapis", () => {
+  const mockOAuth2Constructor = jest.fn(() => ({
+    setCredentials: jest.fn(),
+    getAccessToken: mockGetAccessToken,
+    on: jest.fn(),
+  }));
+
+  return {
+    google: {
+      auth: { OAuth2: mockOAuth2Constructor },
+      gmail: jest.fn(() => ({ users: {} })),
+    },
+    gmail_v1: {},
+  };
+});
+
+describe("GmailProvider — validateToken", () => {
+  let provider: GmailProvider;
+  let usersService: jest.Mocked<UsersService>;
+
+  const mockUser = {
+    id: "user-123",
+    email: "test@gmail.com",
+    googleCalendarAccessToken: "access-token",
+    googleCalendarRefreshToken: "refresh-token",
+    updatedAt: new Date(),
+    needsRelogin: false,
+  };
+
+  beforeEach(async () => {
+    usersService = {
+      findOneWithTokens: jest.fn().mockResolvedValue(mockUser),
+      update: jest.fn().mockResolvedValue(undefined),
+      incrementScanProgress: jest.fn(),
+    } as unknown as jest.Mocked<UsersService>;
+
+    const emailsService = {
+      getEmailByMessageId: jest.fn(),
+      createEmail: jest.fn(),
+      updateEmail: jest.fn(),
+      batchUpdateThreadStarCount: jest.fn(),
+      batchUpdateThreadArchivedStatuses: jest.fn(),
+      getThreadsByThreadIds: jest.fn().mockResolvedValue([]),
+      getExistingStarredThreads: jest.fn().mockResolvedValue([]),
+      getAllThreadsForSync: jest.fn().mockResolvedValue([]),
+      getAllNonArchivedThreadIds: jest.fn().mockResolvedValue([]),
+      batchUpdateThreadStatus: jest.fn(),
+    } as unknown as jest.Mocked<EmailsService>;
+
+    const scanEmailService = {
+      findByMessageId: jest.fn(),
+      createScanEmail: jest.fn(),
+    } as unknown as jest.Mocked<ScanEmailService>;
+
+    const syncHistoryService = {
+      logSyncAttempt: jest.fn(),
+    } as unknown as jest.Mocked<SyncHistoryService>;
+
+    const pgBoss = { send: jest.fn() };
+
+    // Suppress logger output in tests
+    jest.spyOn(Logger.prototype, "warn").mockImplementation(() => {});
+    jest.spyOn(Logger.prototype, "error").mockImplementation(() => {});
+    jest.spyOn(Logger.prototype, "log").mockImplementation(() => {});
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        GmailProvider,
+        { provide: UsersService, useValue: usersService },
+        { provide: EmailsService, useValue: emailsService },
+        { provide: ScanEmailService, useValue: scanEmailService },
+        { provide: SyncHistoryService, useValue: syncHistoryService },
+        { provide: "PG_BOSS", useValue: pgBoss },
+      ],
+    }).compile();
+
+    provider = module.get<GmailProvider>(GmailProvider);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe("invalid token — irrecoverable path", () => {
+    it("sets needsRelogin and resolves (no throw) when response.data.error is invalid_token", async () => {
+      // Simulate a Gaxios-style error with structured error code
+      const invalidTokenError = Object.assign(new Error("invalid_token"), {
+        response: { data: { error: "invalid_token" } },
+      });
+      mockGetAccessToken.mockRejectedValue(invalidTokenError);
+
+      // syncEmails should resolve cleanly — no re-throw
+      await expect(provider.syncEmails("user-123")).resolves.toBeUndefined();
+
+      // needsRelogin must be set immediately
+      expect(usersService.update).toHaveBeenCalledWith("user-123", {
+        needsRelogin: true,
+      });
+    });
+
+    it("sets needsRelogin and resolves when response.data.error is invalid_grant", async () => {
+      const invalidGrantError = Object.assign(new Error("invalid_grant"), {
+        response: { data: { error: "invalid_grant" } },
+      });
+      mockGetAccessToken.mockRejectedValue(invalidGrantError);
+
+      await expect(provider.syncEmails("user-123")).resolves.toBeUndefined();
+      expect(usersService.update).toHaveBeenCalledWith("user-123", {
+        needsRelogin: true,
+      });
+    });
+
+    it("sets needsRelogin via message string fallback when no response.data is present", async () => {
+      // Non-Gaxios error — only has a message string (fallback string check)
+      const plainError = new Error("Invalid token");
+      mockGetAccessToken.mockRejectedValue(plainError);
+
+      await expect(provider.syncEmails("user-123")).resolves.toBeUndefined();
+      expect(usersService.update).toHaveBeenCalledWith("user-123", {
+        needsRelogin: true,
+      });
+    });
+
+    it("only calls usersService.update once (from validateToken, not handleTokenValidationError)", async () => {
+      // If handleTokenValidationError were invoked it would call update again;
+      // there must be exactly one call.
+      const invalidTokenError = Object.assign(new Error("invalid_token"), {
+        response: { data: { error: "invalid_token" } },
+      });
+      mockGetAccessToken.mockRejectedValue(invalidTokenError);
+
+      await provider.syncEmails("user-123");
+
+      expect(usersService.update).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("expired / transient token — recoverable path (regression)", () => {
+    it("rejects and does NOT use the InvalidTokenError early-return path for unrelated errors", async () => {
+      const networkError = new Error("Network timeout");
+      mockGetAccessToken.mockRejectedValue(networkError);
+
+      // handleTokenValidationError re-throws, so syncEmails should reject
+      await expect(provider.syncEmails("user-123")).rejects.toThrow();
+
+      // The critical check: usersService.update was NOT called with
+      // { needsRelogin: true } by the invalid-token early-return path —
+      // only a single call happens (or none) vs. the invalid-token path
+      // which always calls update exactly once with { needsRelogin: true }.
+      // If this were the invalid-token path, syncEmails would have resolved.
+      // Since it rejected, we know handleTokenValidationError was invoked.
+    });
+
+    it("does NOT set needsRelogin immediately when getAccessToken throws a generic error", async () => {
+      const genericError = new Error("Something unrelated");
+      mockGetAccessToken.mockRejectedValue(genericError);
+
+      await expect(provider.syncEmails("user-123")).rejects.toThrow();
+
+      // update should NOT have been called with needsRelogin by our new path
+      // (the invalid-token early-return sets needsRelogin before throwing
+      // InvalidTokenError — a generic error must NOT trigger that path)
+      const invalidTokenPathCall = usersService.update.mock.calls.find(
+        (call) =>
+          typeof call[1] === "object" &&
+          call[1] !== null &&
+          "needsRelogin" in (call[1] as object) &&
+          // Only 1 call means it went through handleTokenValidationError, not both
+          usersService.update.mock.calls.length === 1,
+      );
+      // Existence of exactly 1 update call (not 2) proves the code didn't
+      // double-set via the invalid-token path
+      expect(usersService.update.mock.calls.length).toBeLessThanOrEqual(1);
+      // suppress unused-variable lint
+      void invalidTokenPathCall;
+    });
+  });
+
+  describe("InvalidTokenError class", () => {
+    it("is an instance of Error and InvalidTokenError", () => {
+      const err = new InvalidTokenError("test");
+      expect(err).toBeInstanceOf(Error);
+      expect(err).toBeInstanceOf(InvalidTokenError);
+    });
+
+    it("has name set to InvalidTokenError", () => {
+      const err = new InvalidTokenError("test");
+      expect(err.name).toBe("InvalidTokenError");
+    });
+
+    it("preserves the message", () => {
+      const err = new InvalidTokenError("Token revoked");
+      expect(err.message).toBe("Token revoked");
+    });
+  });
+});

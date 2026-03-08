@@ -17,6 +17,7 @@ import { getJobPriority } from "../../queue/job-priorities";
 import { formatGaxiosError, isApiError } from "../../types/common";
 import { UsersService } from "../../users/users.service";
 import { logErrorToFile } from "../../utils/error-logger";
+import { InvalidTokenError } from "../../utils/errors";
 import {
   EmailDataWithOptionalThreadProps,
   EmailsService,
@@ -216,6 +217,17 @@ export class GmailProvider implements EmailProvider {
     try {
       await this.validateToken(userId, user);
     } catch (error) {
+      if (error instanceof InvalidTokenError) {
+        // Token is permanently invalid (revoked / wrong environment).
+        // needsRelogin is already set inside validateToken — just log and
+        // return.  Do NOT re-throw: this is an expected auth state, not a
+        // bug, so we don't want it captured as an unhandled exception in
+        // PostHog.
+        this.logger.warn(
+          `[GmailProvider] Invalid token for user ${userId} — skipping sync, needsRelogin set`,
+        );
+        return;
+      }
       await this.handleTokenValidationError(userId, user, error, isRecentLogin);
     }
 
@@ -274,7 +286,52 @@ export class GmailProvider implements EmailProvider {
       access_token: user.googleCalendarAccessToken,
       refresh_token: user.googleCalendarRefreshToken,
     });
-    await oauth2Client.getAccessToken();
+    try {
+      await oauth2Client.getAccessToken();
+    } catch (error) {
+      if (this.isInvalidTokenError(error)) {
+        // Irrecoverable — token is revoked, from a wrong environment, or
+        // encrypted with a different key.  Mark the user immediately (no
+        // grace-period retry) and surface a typed error so the call site
+        // can return cleanly without re-throwing.
+        await this.usersService.update(userId, { needsRelogin: true });
+        throw new InvalidTokenError(
+          "Google access token is invalid or revoked. User must re-authenticate.",
+        );
+      }
+      // For all other errors (network hiccup, transient 5xx, etc.) let the
+      // existing handleTokenValidationError deal with it.
+      throw error;
+    }
+  }
+
+  /**
+   * Returns true when a Google OAuth error is irrecoverable — i.e. the token
+   * is permanently invalid, not just expired.
+   *
+   * Prefer the structured `error.response.data.error` field over message
+   * string-matching to avoid breakage if Google changes its error strings.
+   * String matching is kept as a secondary fallback for non-Gaxios paths.
+   */
+  private isInvalidTokenError(error: unknown): boolean {
+    // Primary check: structured error code from the Google OAuth2 response body
+    // google-auth-library wraps these as Gaxios errors with response.data
+    const responseData = (error as { response?: { data?: { error?: string } } })
+      ?.response?.data;
+    if (responseData?.error) {
+      const code = responseData.error.toLowerCase();
+      if (code === "invalid_token" || code === "invalid_grant") {
+        return true;
+      }
+    }
+    // Secondary fallback: error message string (catches non-Gaxios paths and
+    // older library versions that may not populate response.data)
+    const message = (
+      error instanceof Error ? error.message : String(error)
+    ).toLowerCase();
+    return (
+      message.includes("invalid_token") || message.includes("invalid token")
+    );
   }
 
   private async handleTokenValidationError(

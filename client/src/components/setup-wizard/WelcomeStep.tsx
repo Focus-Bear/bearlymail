@@ -140,6 +140,66 @@ const ConsentField: React.FC<{
   </div>
 );
 
+const WelcomeHeader: React.FC<{ t: (key: string) => string }> = ({ t }) => (
+  <>
+    <h2
+      style={{
+        color: theme.colors.text.primary,
+        fontSize: theme.typography.fontSize['2xl'],
+        fontWeight: theme.typography.fontWeight.bold,
+        marginBottom: theme.spacing.md,
+        textAlign: 'center',
+      }}
+    >
+      {t('setupWizard.welcome.title')}
+    </h2>
+
+    <p
+      style={{
+        color: theme.colors.text.secondary,
+        fontSize: theme.typography.fontSize.base,
+        lineHeight: 1.6,
+        marginBottom: theme.spacing.lg,
+        textAlign: 'center',
+      }}
+    >
+      {t('setupWizard.welcome.description')}
+    </p>
+  </>
+);
+
+const WelcomePrivacyBlock: React.FC<{ t: (key: string) => string }> = ({ t }) => (
+  <div
+    style={{
+      backgroundColor: theme.colors.background.subtle,
+      borderRadius: theme.borderRadius.md,
+      padding: theme.spacing.lg,
+      marginBottom: theme.spacing.lg,
+    }}
+  >
+    <h3
+      style={{
+        color: theme.colors.text.primary,
+        fontSize: theme.typography.fontSize.lg,
+        fontWeight: theme.typography.fontWeight.semibold,
+        marginBottom: theme.spacing.sm,
+      }}
+    >
+      {t('setupWizard.welcome.privacyTitle')}
+    </h3>
+    <p
+      style={{
+        color: theme.colors.text.secondary,
+        fontSize: theme.typography.fontSize.sm,
+        lineHeight: 1.6,
+        margin: 0,
+      }}
+    >
+      {t('setupWizard.welcome.privacyMessage')}
+    </p>
+  </div>
+);
+
 export const WelcomeStep: React.FC<WelcomeStepProps> = ({ onComplete, refreshUser }) => {
   const { t } = useTranslation();
   const [consentAccepted, setConsentAccepted] = useState(false);
@@ -178,59 +238,8 @@ export const WelcomeStep: React.FC<WelcomeStepProps> = ({ onComplete, refreshUse
 
   return (
     <div>
-      <h2
-        style={{
-          color: theme.colors.text.primary,
-          fontSize: theme.typography.fontSize['2xl'],
-          fontWeight: theme.typography.fontWeight.bold,
-          marginBottom: theme.spacing.md,
-          textAlign: 'center',
-        }}
-      >
-        {t('setupWizard.welcome.title')}
-      </h2>
-
-      <p
-        style={{
-          color: theme.colors.text.secondary,
-          fontSize: theme.typography.fontSize.base,
-          lineHeight: 1.6,
-          marginBottom: theme.spacing.lg,
-          textAlign: 'center',
-        }}
-      >
-        {t('setupWizard.welcome.description')}
-      </p>
-
-      <div
-        style={{
-          backgroundColor: theme.colors.background.subtle,
-          borderRadius: theme.borderRadius.md,
-          padding: theme.spacing.lg,
-          marginBottom: theme.spacing.lg,
-        }}
-      >
-        <h3
-          style={{
-            color: theme.colors.text.primary,
-            fontSize: theme.typography.fontSize.lg,
-            fontWeight: theme.typography.fontWeight.semibold,
-            marginBottom: theme.spacing.sm,
-          }}
-        >
-          {t('setupWizard.welcome.privacyTitle')}
-        </h3>
-        <p
-          style={{
-            color: theme.colors.text.secondary,
-            fontSize: theme.typography.fontSize.sm,
-            lineHeight: 1.6,
-            margin: 0,
-          }}
-        >
-          {t('setupWizard.welcome.privacyMessage')}
-        </p>
-      </div>
+      <WelcomeHeader t={t} />
+      <WelcomePrivacyBlock t={t} />
 
       <OpenAiSection
         openAiExpanded={openAiExpanded}

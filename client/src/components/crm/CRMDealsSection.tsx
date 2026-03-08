@@ -112,9 +112,83 @@ const DealCard: React.FC<DealCardProps> = ({ deal, locale, t }) => (
   </div>
 );
 
-export const CRMDealsSection: React.FC<CRMDealsSectionProps> = ({ senderEmail, contactId }) => {
-  const { t, i18n } = useTranslation();
-  const [isCollapsed, setIsCollapsed] = useState(true);
+interface DealSectionContentProps {
+  loading: boolean;
+  error: string | null;
+  deals: Deal[];
+  locale: string;
+  t: (key: string) => string;
+}
+
+const DealSectionContent: React.FC<DealSectionContentProps> = ({ loading, error, deals, locale, t }) => {
+  if (loading) {
+    return (
+      <div
+        style={{
+          padding: theme.spacing.md,
+          color: theme.colors.text.secondary,
+          fontSize: theme.typography.fontSize.sm,
+        }}
+      >
+        {t('common.loading')}
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div
+        style={{ padding: theme.spacing.md, color: theme.colors.error.main, fontSize: theme.typography.fontSize.sm }}
+      >
+        {error}
+      </div>
+    );
+  }
+  if (deals.length === 0) {
+    return (
+      <div
+        style={{
+          padding: theme.spacing.md,
+          color: theme.colors.text.secondary,
+          fontSize: theme.typography.fontSize.sm,
+          textAlign: 'center',
+        }}
+      >
+        {t('crm.noDealsWithContact')}
+      </div>
+    );
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
+      {deals.map(deal => (
+        <DealCard key={deal.id} deal={deal} locale={locale} t={t} />
+      ))}
+    </div>
+  );
+};
+
+const DealSectionControls: React.FC<{ t: (key: string) => string }> = ({ t }) => (
+  <button
+    onClick={event => {
+      event.stopPropagation();
+    }}
+    style={{
+      background: 'transparent',
+      border: 'none',
+      color: theme.colors.text.secondary,
+      cursor: 'pointer',
+      fontSize: theme.typography.fontSize.sm,
+      padding: theme.spacing.xs,
+      display: 'flex',
+      alignItems: 'center',
+    }}
+    title={t('crm.createDeal')}
+  >
+    <FiPlus size={16} />
+  </button>
+);
+
+const useCRMDeals = (senderEmail: string | undefined, contactId: string | undefined) => {
+  const { t } = useTranslation();
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -145,6 +219,14 @@ export const CRMDealsSection: React.FC<CRMDealsSectionProps> = ({ senderEmail, c
     }
   }, [senderEmail, contactId, t]);
 
+  return { deals, loading, error, hasFetched, fetchDeals };
+};
+
+export const CRMDealsSection: React.FC<CRMDealsSectionProps> = ({ senderEmail, contactId }) => {
+  const { t, i18n } = useTranslation();
+  const [isCollapsed, setIsCollapsed] = useState(true);
+  const { deals, loading, error, hasFetched, fetchDeals } = useCRMDeals(senderEmail, contactId);
+
   useEffect(() => {
     if (!isCollapsed && !hasFetched) {
       fetchDeals();
@@ -159,6 +241,7 @@ export const CRMDealsSection: React.FC<CRMDealsSectionProps> = ({ senderEmail, c
   const totalValue = deals.reduce((sum, deal) => sum + (deal.value || 0), 0);
   const dealCountText = deals.length === 1 ? t('crm.deal') : t('crm.deals');
   const totalValueText = totalValue > 0 ? ` · ${formatCurrency(totalValue, STRING_USD, locale)}` : '';
+
   let preview: string;
   if (loading) {
     preview = t('common.loading');
@@ -167,27 +250,6 @@ export const CRMDealsSection: React.FC<CRMDealsSectionProps> = ({ senderEmail, c
   } else {
     preview = `${deals.length} ${dealCountText}${totalValueText}`;
   }
-
-  const controls = (
-    <button
-      onClick={event => {
-        event.stopPropagation();
-      }}
-      style={{
-        background: 'transparent',
-        border: 'none',
-        color: theme.colors.text.secondary,
-        cursor: 'pointer',
-        fontSize: theme.typography.fontSize.sm,
-        padding: theme.spacing.xs,
-        display: 'flex',
-        alignItems: 'center',
-      }}
-      title={t('crm.createDeal')}
-    >
-      <FiPlus size={16} />
-    </button>
-  );
 
   return (
     <CollapsibleSection
@@ -198,45 +260,9 @@ export const CRMDealsSection: React.FC<CRMDealsSectionProps> = ({ senderEmail, c
       accentColor={CRM_ACCENT}
       backgroundColor={CRM_BG}
       preview={preview}
-      controls={controls}
+      controls={<DealSectionControls t={t} />}
     >
-      {loading && (
-        <div
-          style={{
-            padding: theme.spacing.md,
-            color: theme.colors.text.secondary,
-            fontSize: theme.typography.fontSize.sm,
-          }}
-        >
-          {t('common.loading')}
-        </div>
-      )}
-      {!loading && error && (
-        <div
-          style={{ padding: theme.spacing.md, color: theme.colors.error.main, fontSize: theme.typography.fontSize.sm }}
-        >
-          {error}
-        </div>
-      )}
-      {!loading && !error && deals.length === 0 && (
-        <div
-          style={{
-            padding: theme.spacing.md,
-            color: theme.colors.text.secondary,
-            fontSize: theme.typography.fontSize.sm,
-            textAlign: 'center',
-          }}
-        >
-          {t('crm.noDealsWithContact')}
-        </div>
-      )}
-      {!loading && !error && deals.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
-          {deals.map(deal => (
-            <DealCard key={deal.id} deal={deal} locale={locale} t={t} />
-          ))}
-        </div>
-      )}
+      <DealSectionContent loading={loading} error={error} deals={deals} locale={locale} t={t} />
     </CollapsibleSection>
   );
 };

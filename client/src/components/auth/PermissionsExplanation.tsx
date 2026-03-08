@@ -40,6 +40,100 @@ const PermissionItem: React.FC<PermissionItemProps> = ({ icon, title, descriptio
   </div>
 );
 
+interface PermissionsContentProps {
+  t: (key: string) => string;
+}
+
+const PermissionsContent: React.FC<PermissionsContentProps> = ({ t }) => (
+  <>
+    <div style={{ marginBottom: theme.spacing.xl }}>
+      <PermissionItem
+        icon="📧"
+        title={t('auth.permissions.gmail.title')}
+        description={t('auth.permissions.gmail.description')}
+      />
+      <PermissionItem
+        icon="📅"
+        title={t('auth.permissions.calendar.title')}
+        description={t('auth.permissions.calendar.description')}
+      />
+      <PermissionItem
+        icon="👥"
+        title={t('auth.permissions.contacts.title')}
+        description={t('auth.permissions.contacts.description')}
+      />
+    </div>
+
+    <div
+      style={{
+        backgroundColor: `${theme.colors.primary.main}10`,
+        borderLeft: `4px solid ${theme.colors.primary.main}`,
+        padding: theme.spacing.md,
+        borderRadius: theme.borderRadius.md,
+        marginBottom: theme.spacing.xl,
+      }}
+    >
+      <p
+        style={{
+          color: theme.colors.text.secondary,
+          fontSize: theme.typography.fontSize.sm,
+          lineHeight: 1.5,
+          margin: 0,
+        }}
+      >
+        {t('auth.permissions.security')}
+      </p>
+    </div>
+  </>
+);
+
+interface PermissionsActionsProps {
+  onCancel: () => void;
+  onContinue: () => void;
+  t: (key: string) => string;
+}
+
+const PermissionsActions: React.FC<PermissionsActionsProps> = ({ onCancel, onContinue, t }) => (
+  <div style={{ display: 'flex', gap: theme.spacing.md, justifyContent: 'flex-end' }}>
+    <button
+      onClick={onCancel}
+      style={{
+        padding: `${theme.spacing.md} ${theme.spacing.lg}`,
+        backgroundColor: theme.colors.background.paper,
+        color: theme.colors.text.secondary,
+        border: `1px solid ${theme.colors.border.medium}`,
+        borderRadius: theme.borderRadius.md,
+        fontSize: theme.typography.fontSize.base,
+        fontWeight: theme.typography.fontWeight.medium,
+        cursor: 'pointer',
+      }}
+    >
+      {t('common.cancel')}
+    </button>
+    <button
+      onClick={onContinue}
+      style={{
+        padding: `${theme.spacing.md} ${theme.spacing.lg}`,
+        backgroundColor: theme.colors.primary.main,
+        color: COLOR_NAMED_WHITE,
+        border: STRING_NONE,
+        borderRadius: theme.borderRadius.md,
+        fontSize: theme.typography.fontSize.base,
+        fontWeight: theme.typography.fontWeight.semibold,
+        cursor: 'pointer',
+      }}
+      onMouseOver={event => {
+        event.currentTarget.style.backgroundColor = theme.colors.primary.dark;
+      }}
+      onMouseOut={event => {
+        event.currentTarget.style.backgroundColor = theme.colors.primary.main;
+      }}
+    >
+      {t('auth.permissions.continue')}
+    </button>
+  </div>
+);
+
 /**
  * Permissions explanation modal
  * Shown before Google OAuth to explain why BearlyMail needs each permission
@@ -97,83 +191,8 @@ export const PermissionsExplanation: React.FC<PermissionsExplanationProps> = ({ 
           {t('auth.permissions.intro')}
         </p>
 
-        <div style={{ marginBottom: theme.spacing.xl }}>
-          <PermissionItem
-            icon="📧"
-            title={t('auth.permissions.gmail.title')}
-            description={t('auth.permissions.gmail.description')}
-          />
-          <PermissionItem
-            icon="📅"
-            title={t('auth.permissions.calendar.title')}
-            description={t('auth.permissions.calendar.description')}
-          />
-          <PermissionItem
-            icon="👥"
-            title={t('auth.permissions.contacts.title')}
-            description={t('auth.permissions.contacts.description')}
-          />
-        </div>
-
-        <div
-          style={{
-            backgroundColor: `${theme.colors.primary.main}10`,
-            borderLeft: `4px solid ${theme.colors.primary.main}`,
-            padding: theme.spacing.md,
-            borderRadius: theme.borderRadius.md,
-            marginBottom: theme.spacing.xl,
-          }}
-        >
-          <p
-            style={{
-              color: theme.colors.text.secondary,
-              fontSize: theme.typography.fontSize.sm,
-              lineHeight: 1.5,
-              margin: 0,
-            }}
-          >
-            {t('auth.permissions.security')}
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', gap: theme.spacing.md, justifyContent: 'flex-end' }}>
-          <button
-            onClick={onCancel}
-            style={{
-              padding: `${theme.spacing.md} ${theme.spacing.lg}`,
-              backgroundColor: theme.colors.background.paper,
-              color: theme.colors.text.secondary,
-              border: `1px solid ${theme.colors.border.medium}`,
-              borderRadius: theme.borderRadius.md,
-              fontSize: theme.typography.fontSize.base,
-              fontWeight: theme.typography.fontWeight.medium,
-              cursor: 'pointer',
-            }}
-          >
-            {t('common.cancel')}
-          </button>
-          <button
-            onClick={onContinue}
-            style={{
-              padding: `${theme.spacing.md} ${theme.spacing.lg}`,
-              backgroundColor: theme.colors.primary.main,
-              color: COLOR_NAMED_WHITE,
-              border: STRING_NONE,
-              borderRadius: theme.borderRadius.md,
-              fontSize: theme.typography.fontSize.base,
-              fontWeight: theme.typography.fontWeight.semibold,
-              cursor: 'pointer',
-            }}
-            onMouseOver={event => {
-              event.currentTarget.style.backgroundColor = theme.colors.primary.dark;
-            }}
-            onMouseOut={event => {
-              event.currentTarget.style.backgroundColor = theme.colors.primary.main;
-            }}
-          >
-            {t('auth.permissions.continue')}
-          </button>
-        </div>
+        <PermissionsContent t={t} />
+        <PermissionsActions onCancel={onCancel} onContinue={onContinue} t={t} />
       </div>
     </div>
   );

@@ -35,16 +35,188 @@ interface ContactDropdownFieldProps {
   noResultsText: string;
 }
 
-const ContactDropdownField: React.FC<ContactDropdownFieldProps> = ({
-  contacts,
+// Module-level style constants shared across ContactDropdownField and DealFormModal
+const DEAL_INPUT_STYLE: React.CSSProperties = {
+  width: '100%',
+  padding: theme.spacing.sm,
+  border: `1px solid ${theme.colors.border.medium}`,
+  borderRadius: theme.borderRadius.md,
+  fontSize: theme.typography.fontSize.base,
+  outline: 'none',
+  backgroundColor: theme.colors.background.paper,
+};
+
+const DEAL_LABEL_STYLE: React.CSSProperties = {
+  color: theme.colors.text.secondary,
+  fontSize: theme.typography.fontSize.sm,
+  display: 'block',
+  marginBottom: theme.spacing.xs,
+  fontWeight: theme.typography.fontWeight.medium,
+};
+
+interface ContactOptionsListProps {
+  filteredContacts: (Contact & { id: string })[];
+  contactId: string;
+  highlightedIndex: number;
+  noResultsText: string;
+  onHighlight: (index: number) => void;
+  onSelect: (id: string) => void;
+}
+
+const ContactOptionsList: React.FC<ContactOptionsListProps> = ({
+  filteredContacts,
   contactId,
-  onContactSelected,
-  label,
+  highlightedIndex,
+  noResultsText,
+  onHighlight,
+  onSelect,
+}) => (
+  <>
+    <button
+      type="button"
+      role="option"
+      aria-selected={contactId === ''}
+      onMouseEnter={() => onHighlight(0)}
+      onClick={() => onSelect('')}
+      style={{
+        width: '100%',
+        border: STRING_NONE,
+        backgroundColor: highlightedIndex === 0 || contactId === '' ? theme.colors.background.subtle : 'transparent',
+        cursor: 'pointer',
+        textAlign: 'left',
+        padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+        fontSize: theme.typography.fontSize.base,
+        color: theme.colors.text.primary,
+      }}
+    >
+      --
+    </button>
+    {filteredContacts.map((contact, index) => {
+      const optionIndex = index + 1;
+      const isHighlighted = highlightedIndex === optionIndex;
+      const isSelected = contact.id === contactId;
+      return (
+        <button
+          key={contact.id}
+          type="button"
+          role="option"
+          aria-selected={isSelected}
+          onMouseEnter={() => onHighlight(optionIndex)}
+          onClick={() => onSelect(contact.id)}
+          style={{
+            width: '100%',
+            border: STRING_NONE,
+            backgroundColor: isHighlighted || isSelected ? theme.colors.background.subtle : 'transparent',
+            cursor: 'pointer',
+            textAlign: 'left',
+            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+            fontSize: theme.typography.fontSize.base,
+            color: theme.colors.text.primary,
+          }}
+        >
+          {contact.name || contact.email}
+        </button>
+      );
+    })}
+    {filteredContacts.length === 0 && (
+      <div
+        style={{
+          padding: theme.spacing.md,
+          color: theme.colors.text.tertiary,
+          fontSize: theme.typography.fontSize.sm,
+        }}
+      >
+        {noResultsText}
+      </div>
+    )}
+  </>
+);
+
+interface ContactDropdownPanelProps {
+  filteredContacts: (Contact & { id: string })[];
+  contactId: string;
+  contactSearchTerm: string;
+  highlightedIndex: number;
+  searchInputRef: React.RefObject<HTMLInputElement>;
+  inputStyle: React.CSSProperties;
+  searchPlaceholder: string;
+  noResultsText: string;
+  onSearchChange: (term: string) => void;
+  onKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
+  onHighlight: (index: number) => void;
+  onSelect: (id: string) => void;
+}
+
+const ContactDropdownPanel: React.FC<ContactDropdownPanelProps> = ({
+  filteredContacts,
+  contactId,
+  contactSearchTerm,
+  highlightedIndex,
+  searchInputRef,
   inputStyle,
-  labelStyle,
   searchPlaceholder,
   noResultsText,
-}) => {
+  onSearchChange,
+  onKeyDown,
+  onHighlight,
+  onSelect,
+}) => (
+  <div
+    style={{
+      marginTop: theme.spacing.xs,
+      border: `1px solid ${theme.colors.border.medium}`,
+      borderRadius: theme.borderRadius.md,
+      backgroundColor: theme.colors.background.paper,
+      boxShadow: theme.shadows.lg,
+      overflow: 'hidden',
+      position: 'relative',
+      zIndex: 20,
+    }}
+  >
+    <div style={{ padding: theme.spacing.sm, borderBottom: `1px solid ${theme.colors.border.light}` }}>
+      <input
+        ref={searchInputRef}
+        value={contactSearchTerm}
+        onChange={event => onSearchChange(event.target.value)}
+        onKeyDown={onKeyDown}
+        aria-label={searchPlaceholder}
+        placeholder={searchPlaceholder}
+        style={inputStyle}
+      />
+    </div>
+    <div id="deal-contact-listbox" style={{ maxHeight: '220px', overflowY: 'auto' }} role="listbox">
+      <ContactOptionsList
+        filteredContacts={filteredContacts}
+        contactId={contactId}
+        highlightedIndex={highlightedIndex}
+        noResultsText={noResultsText}
+        onHighlight={onHighlight}
+        onSelect={onSelect}
+      />
+    </div>
+  </div>
+);
+
+interface ContactDropdownState {
+  isOpen: boolean;
+  contactSearchTerm: string;
+  highlightedIndex: number;
+  filteredContacts: (Contact & { id: string })[];
+  selectedContactLabel: string;
+  dropdownRef: React.RefObject<HTMLDivElement>;
+  searchInputRef: React.RefObject<HTMLInputElement>;
+  toggle: () => void;
+  select: (id: string) => void;
+  handleKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
+  setContactSearchTerm: (term: string) => void;
+  setHighlightedIndex: (index: number) => void;
+}
+
+function useContactDropdown(
+  contacts: Contact[],
+  contactId: string,
+  onContactSelected: (id: string) => void
+): ContactDropdownState {
   const [contactSearchTerm, setContactSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
@@ -90,6 +262,7 @@ const ContactDropdownField: React.FC<ContactDropdownFieldProps> = ({
       searchInputRef.current.focus();
     }
   }, [isOpen]);
+
   useEffect(() => {
     setHighlightedIndex(-1);
   }, [contactSearchTerm, isOpen]);
@@ -99,6 +272,7 @@ const ContactDropdownField: React.FC<ContactDropdownFieldProps> = ({
     setContactSearchTerm('');
     setHighlightedIndex(-1);
   };
+
   const toggle = () => {
     setIsOpen(prev => {
       if (prev) {
@@ -108,6 +282,7 @@ const ContactDropdownField: React.FC<ContactDropdownFieldProps> = ({
       return !prev;
     });
   };
+
   const select = (id: string) => {
     onContactSelected(id);
     close();
@@ -143,6 +318,47 @@ const ContactDropdownField: React.FC<ContactDropdownFieldProps> = ({
     }
   };
 
+  return {
+    isOpen,
+    contactSearchTerm,
+    highlightedIndex,
+    filteredContacts,
+    selectedContactLabel,
+    dropdownRef,
+    searchInputRef,
+    toggle,
+    select,
+    handleKeyDown,
+    setContactSearchTerm,
+    setHighlightedIndex,
+  };
+}
+
+const ContactDropdownField: React.FC<ContactDropdownFieldProps> = ({
+  contacts,
+  contactId,
+  onContactSelected,
+  label,
+  inputStyle,
+  labelStyle,
+  searchPlaceholder,
+  noResultsText,
+}) => {
+  const {
+    isOpen,
+    contactSearchTerm,
+    highlightedIndex,
+    filteredContacts,
+    selectedContactLabel,
+    dropdownRef,
+    searchInputRef,
+    toggle,
+    select,
+    handleKeyDown,
+    setContactSearchTerm,
+    setHighlightedIndex,
+  } = useContactDropdown(contacts, contactId, onContactSelected);
+
   const triggerColor = selectedContactLabel ? theme.colors.text.primary : theme.colors.text.tertiary;
 
   return (
@@ -168,90 +384,20 @@ const ContactDropdownField: React.FC<ContactDropdownFieldProps> = ({
         <span style={{ color: theme.colors.text.tertiary }}>{isOpen ? '▲' : '▼'}</span>
       </button>
       {isOpen && (
-        <div
-          style={{
-            marginTop: theme.spacing.xs,
-            border: `1px solid ${theme.colors.border.medium}`,
-            borderRadius: theme.borderRadius.md,
-            backgroundColor: theme.colors.background.paper,
-            boxShadow: theme.shadows.lg,
-            overflow: 'hidden',
-            position: 'relative',
-            zIndex: 20,
-          }}
-        >
-          <div style={{ padding: theme.spacing.sm, borderBottom: `1px solid ${theme.colors.border.light}` }}>
-            <input
-              ref={searchInputRef}
-              value={contactSearchTerm}
-              onChange={event => setContactSearchTerm(event.target.value)}
-              onKeyDown={handleKeyDown}
-              aria-label={searchPlaceholder}
-              placeholder={searchPlaceholder}
-              style={inputStyle}
-            />
-          </div>
-          <div id="deal-contact-listbox" style={{ maxHeight: '220px', overflowY: 'auto' }} role="listbox">
-            <button
-              type="button"
-              role="option"
-              aria-selected={contactId === ''}
-              onMouseEnter={() => setHighlightedIndex(0)}
-              onClick={() => select('')}
-              style={{
-                width: '100%',
-                border: STRING_NONE,
-                backgroundColor:
-                  highlightedIndex === 0 || contactId === '' ? theme.colors.background.subtle : 'transparent',
-                cursor: 'pointer',
-                textAlign: 'left',
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                fontSize: theme.typography.fontSize.base,
-                color: theme.colors.text.primary,
-              }}
-            >
-              --
-            </button>
-            {filteredContacts.map((contact, index) => {
-              const optionIndex = index + 1;
-              const isHighlighted = highlightedIndex === optionIndex;
-              const isSelected = contact.id === contactId;
-              return (
-                <button
-                  key={contact.id}
-                  type="button"
-                  role="option"
-                  aria-selected={isSelected}
-                  onMouseEnter={() => setHighlightedIndex(optionIndex)}
-                  onClick={() => select(contact.id)}
-                  style={{
-                    width: '100%',
-                    border: STRING_NONE,
-                    backgroundColor: isHighlighted || isSelected ? theme.colors.background.subtle : 'transparent',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                    fontSize: theme.typography.fontSize.base,
-                    color: theme.colors.text.primary,
-                  }}
-                >
-                  {contact.name || contact.email}
-                </button>
-              );
-            })}
-            {filteredContacts.length === 0 && (
-              <div
-                style={{
-                  padding: theme.spacing.md,
-                  color: theme.colors.text.tertiary,
-                  fontSize: theme.typography.fontSize.sm,
-                }}
-              >
-                {noResultsText}
-              </div>
-            )}
-          </div>
-        </div>
+        <ContactDropdownPanel
+          filteredContacts={filteredContacts}
+          contactId={contactId}
+          contactSearchTerm={contactSearchTerm}
+          highlightedIndex={highlightedIndex}
+          searchInputRef={searchInputRef}
+          inputStyle={inputStyle}
+          searchPlaceholder={searchPlaceholder}
+          noResultsText={noResultsText}
+          onSearchChange={setContactSearchTerm}
+          onKeyDown={handleKeyDown}
+          onHighlight={setHighlightedIndex}
+          onSelect={select}
+        />
       )}
     </div>
   );
@@ -274,8 +420,6 @@ interface DealFormFieldsProps {
   setStageId: (v: string) => void;
   setContactId: (v: string) => void;
   setExpectedCloseDate: (v: string) => void;
-  inputStyle: React.CSSProperties;
-  labelStyle: React.CSSProperties;
   t: (key: string) => string;
 }
 
@@ -296,43 +440,47 @@ const DealFormFields: React.FC<DealFormFieldsProps> = ({
   setStageId,
   setContactId,
   setExpectedCloseDate,
-  inputStyle,
-  labelStyle,
   t,
 }) => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
     <div>
-      <label style={labelStyle}>{t('deals.dealTitle')} *</label>
-      <input value={title} onChange={event => setTitle(event.target.value)} style={inputStyle} required autoFocus />
+      <label style={DEAL_LABEL_STYLE}>{t('deals.dealTitle')} *</label>
+      <input
+        value={title}
+        onChange={event => setTitle(event.target.value)}
+        style={DEAL_INPUT_STYLE}
+        required
+        autoFocus
+      />
     </div>
     <div>
-      <label style={labelStyle}>{t('deals.dealDetails')}</label>
+      <label style={DEAL_LABEL_STYLE}>{t('deals.dealDetails')}</label>
       <textarea
         value={details}
         onChange={event => setDetails(event.target.value)}
-        style={{ ...inputStyle, resize: 'vertical' }}
+        style={{ ...DEAL_INPUT_STYLE, resize: 'vertical' }}
         rows={3}
       />
     </div>
     <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: theme.spacing.md }}>
       <div>
-        <label style={labelStyle}>{t('deals.dealValue')}</label>
+        <label style={DEAL_LABEL_STYLE}>{t('deals.dealValue')}</label>
         <input
           type="number"
           step="0.01"
           min="0"
           value={value}
           onChange={event => setValue(event.target.value)}
-          style={inputStyle}
+          style={DEAL_INPUT_STYLE}
           placeholder="0.00"
         />
       </div>
       <div>
-        <label style={labelStyle}>{t('deals.currency')}</label>
+        <label style={DEAL_LABEL_STYLE}>{t('deals.currency')}</label>
         <select
           value={currency}
           onChange={event => setCurrency(event.target.value)}
-          style={{ ...inputStyle, cursor: 'pointer' }}
+          style={{ ...DEAL_INPUT_STYLE, cursor: 'pointer' }}
         >
           <option value="USD">USD</option>
           <option value="EUR">EUR</option>
@@ -344,11 +492,11 @@ const DealFormFields: React.FC<DealFormFieldsProps> = ({
       </div>
     </div>
     <div>
-      <label style={labelStyle}>{t('deals.dealStage')}</label>
+      <label style={DEAL_LABEL_STYLE}>{t('deals.dealStage')}</label>
       <select
         value={stageId}
         onChange={event => setStageId(event.target.value)}
-        style={{ ...inputStyle, cursor: 'pointer' }}
+        style={{ ...DEAL_INPUT_STYLE, cursor: 'pointer' }}
       >
         {stages.map(stage => (
           <option key={stage.id} value={stage.id}>
@@ -362,25 +510,84 @@ const DealFormFields: React.FC<DealFormFieldsProps> = ({
       contactId={contactId}
       onContactSelected={setContactId}
       label={t('deals.contact')}
-      inputStyle={inputStyle}
-      labelStyle={labelStyle}
+      inputStyle={DEAL_INPUT_STYLE}
+      labelStyle={DEAL_LABEL_STYLE}
       searchPlaceholder={t('deals.searchContacts')}
       noResultsText={t('deals.noContactsFound')}
     />
     <div>
-      <label style={labelStyle}>{t('deals.expectedClose')}</label>
+      <label style={DEAL_LABEL_STYLE}>{t('deals.expectedClose')}</label>
       <input
         type="date"
         value={expectedCloseDate}
         onChange={event => setExpectedCloseDate(event.target.value)}
-        style={inputStyle}
+        style={DEAL_INPUT_STYLE}
       />
     </div>
   </div>
 );
 
-export const DealFormModal: React.FC<DealFormModalProps> = ({ deal, stages, contacts, onSave, onClose }) => {
-  const { t } = useTranslation();
+interface DealFormActionsProps {
+  onClose: () => void;
+  canSubmit: boolean;
+  t: (key: string) => string;
+}
+
+const DealFormActions: React.FC<DealFormActionsProps> = ({ onClose, canSubmit, t }) => (
+  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: theme.spacing.sm, marginTop: theme.spacing.lg }}>
+    <button
+      type="button"
+      onClick={onClose}
+      style={{
+        padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
+        backgroundColor: COLOR_TRANSPARENT,
+        color: theme.colors.text.secondary,
+        border: `1px solid ${theme.colors.border.medium}`,
+        borderRadius: theme.borderRadius.md,
+        cursor: 'pointer',
+        fontSize: theme.typography.fontSize.base,
+      }}
+    >
+      {t('deals.cancel')}
+    </button>
+    <button
+      type="submit"
+      disabled={!canSubmit}
+      style={{
+        padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
+        backgroundColor: theme.colors.primary.main,
+        color: COLOR_NAMED_WHITE,
+        border: STRING_NONE,
+        borderRadius: theme.borderRadius.md,
+        cursor: canSubmit ? 'pointer' : 'not-allowed',
+        fontSize: theme.typography.fontSize.base,
+        fontWeight: theme.typography.fontWeight.medium,
+        opacity: canSubmit ? OPACITY_FULL : OPACITY_HALF,
+      }}
+    >
+      {t('deals.save')}
+    </button>
+  </div>
+);
+
+interface DealFormState {
+  title: string;
+  details: string;
+  value: string;
+  currency: string;
+  stageId: string;
+  contactId: string;
+  expectedCloseDate: string;
+  setTitle: (v: string) => void;
+  setDetails: (v: string) => void;
+  setValue: (v: string) => void;
+  setCurrency: (v: string) => void;
+  setStageId: (v: string) => void;
+  setContactId: (v: string) => void;
+  setExpectedCloseDate: (v: string) => void;
+}
+
+function useDealFormState(deal: Deal | null, stages: DealStage[]): DealFormState {
   const [title, setTitle] = useState(deal?.title || '');
   const [details, setDetails] = useState(deal?.details || '');
   const [value, setValue] = useState(deal?.value?.toString() || '');
@@ -390,6 +597,28 @@ export const DealFormModal: React.FC<DealFormModalProps> = ({ deal, stages, cont
   const [expectedCloseDate, setExpectedCloseDate] = useState(
     deal?.expectedCloseDate ? deal.expectedCloseDate.split('T')[0] : ''
   );
+  return {
+    title,
+    details,
+    value,
+    currency,
+    stageId,
+    contactId,
+    expectedCloseDate,
+    setTitle,
+    setDetails,
+    setValue,
+    setCurrency,
+    setStageId,
+    setContactId,
+    setExpectedCloseDate,
+  };
+}
+
+export const DealFormModal: React.FC<DealFormModalProps> = ({ deal, stages, contacts, onSave, onClose }) => {
+  const { t } = useTranslation();
+  const formState = useDealFormState(deal, stages);
+  const { title, details, value, currency, stageId, contactId, expectedCloseDate } = formState;
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -406,24 +635,6 @@ export const DealFormModal: React.FC<DealFormModalProps> = ({ deal, stages, cont
       expectedCloseDate: expectedCloseDate || undefined,
     });
   };
-
-  const inputStyle: React.CSSProperties = {
-    width: '100%',
-    padding: theme.spacing.sm,
-    border: `1px solid ${theme.colors.border.medium}`,
-    borderRadius: theme.borderRadius.md,
-    fontSize: theme.typography.fontSize.base,
-    outline: 'none',
-    backgroundColor: theme.colors.background.paper,
-  };
-  const labelStyle: React.CSSProperties = {
-    color: theme.colors.text.secondary,
-    fontSize: theme.typography.fontSize.sm,
-    display: 'block',
-    marginBottom: theme.spacing.xs,
-    fontWeight: theme.typography.fontWeight.medium,
-  };
-  const canSubmit = Boolean(title.trim());
 
   return (
     <div
@@ -465,63 +676,8 @@ export const DealFormModal: React.FC<DealFormModalProps> = ({ deal, stages, cont
           {deal ? t('deals.editDeal') : t('deals.addDeal')}
         </h2>
         <form onSubmit={handleSubmit}>
-          <DealFormFields
-            title={title}
-            details={details}
-            value={value}
-            currency={currency}
-            stageId={stageId}
-            contactId={contactId}
-            expectedCloseDate={expectedCloseDate}
-            stages={stages}
-            contacts={contacts}
-            setTitle={setTitle}
-            setDetails={setDetails}
-            setValue={setValue}
-            setCurrency={setCurrency}
-            setStageId={setStageId}
-            setContactId={setContactId}
-            setExpectedCloseDate={setExpectedCloseDate}
-            inputStyle={inputStyle}
-            labelStyle={labelStyle}
-            t={t}
-          />
-          <div
-            style={{ display: 'flex', justifyContent: 'flex-end', gap: theme.spacing.sm, marginTop: theme.spacing.lg }}
-          >
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-                backgroundColor: COLOR_TRANSPARENT,
-                color: theme.colors.text.secondary,
-                border: `1px solid ${theme.colors.border.medium}`,
-                borderRadius: theme.borderRadius.md,
-                cursor: 'pointer',
-                fontSize: theme.typography.fontSize.base,
-              }}
-            >
-              {t('deals.cancel')}
-            </button>
-            <button
-              type="submit"
-              disabled={!canSubmit}
-              style={{
-                padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-                backgroundColor: theme.colors.primary.main,
-                color: COLOR_NAMED_WHITE,
-                border: STRING_NONE,
-                borderRadius: theme.borderRadius.md,
-                cursor: canSubmit ? 'pointer' : 'not-allowed',
-                fontSize: theme.typography.fontSize.base,
-                fontWeight: theme.typography.fontWeight.medium,
-                opacity: canSubmit ? OPACITY_FULL : OPACITY_HALF,
-              }}
-            >
-              {t('deals.save')}
-            </button>
-          </div>
+          <DealFormFields {...formState} stages={stages} contacts={contacts} t={t} />
+          <DealFormActions onClose={onClose} canSubmit={Boolean(title.trim())} t={t} />
         </form>
       </div>
     </div>

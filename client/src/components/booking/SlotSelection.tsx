@@ -22,6 +22,132 @@ interface SlotSelectionProps {
   hasMore?: boolean;
 }
 
+interface TimeSlotButtonProps {
+  slot: TimeSlot;
+  isSelected: boolean;
+  timezone: string;
+  onSelect: (slot: TimeSlot) => void;
+}
+
+const TimeSlotButton: React.FC<TimeSlotButtonProps> = ({ slot, isSelected, timezone, onSelect }) => {
+  const start = new Date(slot.start);
+
+  return (
+    <button
+      key={`${slot.start}-${slot.end}`}
+      onClick={() => onSelect(slot)}
+      style={{
+        padding: theme.spacing.md,
+        border: `1px solid ${isSelected ? theme.colors.primary.main : theme.colors.border.medium}`,
+        backgroundColor: isSelected ? `${theme.colors.primary.main}10` : 'white',
+        borderRadius: theme.borderRadius.md,
+        cursor: 'pointer',
+        textAlign: 'center',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: theme.spacing.xs,
+        transition: 'all 0.2s',
+      }}
+      onMouseEnter={event => {
+        if (!isSelected) {
+          event.currentTarget.style.borderColor = theme.colors.primary.main;
+          event.currentTarget.style.backgroundColor = `${theme.colors.primary.main}05`;
+        }
+      }}
+      onMouseLeave={event => {
+        if (!isSelected) {
+          event.currentTarget.style.borderColor = theme.colors.border.medium;
+          event.currentTarget.style.backgroundColor = COLOR_NAMED_WHITE;
+        }
+      }}
+    >
+      <div
+        style={{
+          fontWeight: theme.typography.fontWeight.medium,
+          color: isSelected ? theme.colors.primary.main : theme.colors.text.primary,
+          fontSize: theme.typography.fontSize.md,
+        }}
+      >
+        {start.toLocaleTimeString(undefined, {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
+          timeZone: timezone || undefined,
+        })}
+      </div>
+      {isSelected && <span style={{ color: theme.colors.primary.main }}>{EMOJI_SELECTED}</span>}
+    </button>
+  );
+};
+
+interface DaySlotGroupProps {
+  dayKey: string;
+  daySlots: TimeSlot[];
+  selectedSlot: TimeSlot | null;
+  timezone: string;
+  onSelectSlot: (slot: TimeSlot) => void;
+}
+
+const DaySlotGroup: React.FC<DaySlotGroupProps> = ({ dayKey, daySlots, selectedSlot, timezone, onSelectSlot }) => (
+  <div>
+    <h3
+      style={{
+        fontSize: theme.typography.fontSize.md,
+        fontWeight: theme.typography.fontWeight.semibold,
+        color: theme.colors.text.primary,
+        marginBottom: theme.spacing.sm,
+        marginTop: 0,
+      }}
+    >
+      {dayKey}
+    </h3>
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+        gap: theme.spacing.sm,
+      }}
+    >
+      {daySlots.map(slot => (
+        <TimeSlotButton
+          key={`${slot.start}-${slot.end}`}
+          slot={slot}
+          isSelected={selectedSlot === slot}
+          timezone={timezone}
+          onSelect={onSelectSlot}
+        />
+      ))}
+    </div>
+  </div>
+);
+
+interface LoadMoreButtonProps {
+  onLoadMore: () => void;
+  loadingMore: boolean;
+  t: (key: string) => string;
+}
+
+const LoadMoreButton: React.FC<LoadMoreButtonProps> = ({ onLoadMore, loadingMore, t }) => (
+  <button
+    onClick={onLoadMore}
+    disabled={loadingMore}
+    style={{
+      padding: theme.spacing.md,
+      border: `1px solid ${theme.colors.border.medium}`,
+      backgroundColor: COLOR_NAMED_WHITE,
+      borderRadius: theme.borderRadius.md,
+      cursor: loadingMore ? 'not-allowed' : 'pointer',
+      color: theme.colors.primary.main,
+      fontWeight: theme.typography.fontWeight.medium,
+      marginTop: theme.spacing.md,
+      opacity: loadingMore ? OPACITY_DISABLED : 1,
+    }}
+  >
+    {loadingMore ? t('booking.loadingMore') : t('booking.loadMoreDates')}
+  </button>
+);
+
 export const SlotSelection: React.FC<SlotSelectionProps> = ({
   slots,
   selectedSlot,
@@ -33,7 +159,6 @@ export const SlotSelection: React.FC<SlotSelectionProps> = ({
 }) => {
   const { t } = useTranslation();
 
-  // Group slots by day
   const slotsByDay = useMemo(() => {
     const grouped = new Map<string, TimeSlot[]>();
 
@@ -84,100 +209,17 @@ export const SlotSelection: React.FC<SlotSelectionProps> = ({
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.lg }}>
           {Array.from(slotsByDay.entries()).map(([dayKey, daySlots]) => (
-            <div key={dayKey}>
-              <h3
-                style={{
-                  fontSize: theme.typography.fontSize.md,
-                  fontWeight: theme.typography.fontWeight.semibold,
-                  color: theme.colors.text.primary,
-                  marginBottom: theme.spacing.sm,
-                  marginTop: 0,
-                }}
-              >
-                {dayKey}
-              </h3>
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-                  gap: theme.spacing.sm,
-                }}
-              >
-                {daySlots.map(slot => {
-                  const start = new Date(slot.start);
-                  const isSelected = selectedSlot === slot;
-
-                  return (
-                    <button
-                      key={`${slot.start}-${slot.end}`}
-                      onClick={() => onSelectSlot(slot)}
-                      style={{
-                        padding: theme.spacing.md,
-                        border: `1px solid ${isSelected ? theme.colors.primary.main : theme.colors.border.medium}`,
-                        backgroundColor: isSelected ? `${theme.colors.primary.main}10` : 'white',
-                        borderRadius: theme.borderRadius.md,
-                        cursor: 'pointer',
-                        textAlign: 'center',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: theme.spacing.xs,
-                        transition: 'all 0.2s',
-                      }}
-                      onMouseEnter={event => {
-                        if (!isSelected) {
-                          event.currentTarget.style.borderColor = theme.colors.primary.main;
-                          event.currentTarget.style.backgroundColor = `${theme.colors.primary.main}05`;
-                        }
-                      }}
-                      onMouseLeave={event => {
-                        if (!isSelected) {
-                          event.currentTarget.style.borderColor = theme.colors.border.medium;
-                          event.currentTarget.style.backgroundColor = COLOR_NAMED_WHITE;
-                        }
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontWeight: theme.typography.fontWeight.medium,
-                          color: isSelected ? theme.colors.primary.main : theme.colors.text.primary,
-                          fontSize: theme.typography.fontSize.md,
-                        }}
-                      >
-                        {start.toLocaleTimeString(undefined, {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          hour12: true,
-                          timeZone: timezone || undefined,
-                        })}
-                      </div>
-                      {isSelected && <span style={{ color: theme.colors.primary.main }}>{EMOJI_SELECTED}</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            <DaySlotGroup
+              key={dayKey}
+              dayKey={dayKey}
+              daySlots={daySlots}
+              selectedSlot={selectedSlot}
+              timezone={timezone}
+              onSelectSlot={onSelectSlot}
+            />
           ))}
 
-          {onLoadMore && hasMore && (
-            <button
-              onClick={onLoadMore}
-              disabled={loadingMore}
-              style={{
-                padding: theme.spacing.md,
-                border: `1px solid ${theme.colors.border.medium}`,
-                backgroundColor: COLOR_NAMED_WHITE,
-                borderRadius: theme.borderRadius.md,
-                cursor: loadingMore ? 'not-allowed' : 'pointer',
-                color: theme.colors.primary.main,
-                fontWeight: theme.typography.fontWeight.medium,
-                marginTop: theme.spacing.md,
-                opacity: loadingMore ? OPACITY_DISABLED : 1,
-              }}
-            >
-              {loadingMore ? t('booking.loadingMore') : t('booking.loadMoreDates')}
-            </button>
-          )}
+          {onLoadMore && hasMore && <LoadMoreButton onLoadMore={onLoadMore} loadingMore={loadingMore} t={t} />}
         </div>
       )}
     </div>
